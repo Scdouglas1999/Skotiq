@@ -1,12 +1,12 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/utils/confirm_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'device_picker_step.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Filter wheel selection + filter-name editing.
 ///
@@ -131,8 +131,8 @@ class _OnboardingFilterWheelStepState
     setState(() => _loadingSlots = true);
     try {
       await ref
-          .read(filterWheelStateProvider.notifier)
-          .connect(deviceId, maxRetries: 1);
+          .read(deviceServiceProvider)
+          .connect(DeviceType.filterWheel, deviceId);
       if (!mounted) return;
       final fw = ref.read(filterWheelStateProvider);
       final driverNames = fw.filterNames;
@@ -149,10 +149,9 @@ class _OnboardingFilterWheelStepState
       }
     } catch (e) {
       // Surface for diagnostics but don't block onboarding on a flaky connect.
-      developer.log(
+      Log.warning(
         'Filter wheel slot read failed for $deviceId: $e',
-        name: 'OnboardingFilterWheelStep',
-        level: 900,
+        source: 'OnboardingFilterWheelStep',
       );
     } finally {
       if (mounted) {

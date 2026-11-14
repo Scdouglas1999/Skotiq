@@ -11,10 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/camera_defaults_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// Outside the core barrel by design; see camera_defaults_step.dart.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/pump_app_screen.dart';
 

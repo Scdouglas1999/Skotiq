@@ -8,7 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/mobile_sequence_editor.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 ({Sequence sequence, String containerId, List<String> childIds})
@@ -40,8 +41,6 @@ ProviderContainer _container(Sequence sequence) {
       n.state = sequence;
       return n;
     }),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
   ]);
   addTearDown(container.dispose);
   return container;

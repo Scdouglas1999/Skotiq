@@ -16,20 +16,17 @@ void main() {
   group('NetworkBackend remaining collection contracts', () {
     test('valid empty collections remain empty', () async {
       final fake = FakeNetworkClient()
-        ..setResponse('/api/jobs', body: '{"jobs":[]}')
         ..setResponse('/api/calibration-library', body: '{"masters":[]}')
         ..setResponse('/api/sessions/3/images', body: '{"images":[]}');
       final backend = _backend(fake);
       addTearDown(backend.dispose);
 
-      expect(await backend.listJobs(), isEmpty);
       expect(await backend.getCalibrationMasters(), isEmpty);
       expect(await backend.getSessionImageRows(3), isEmpty);
     });
 
     test('missing collection fields do not impersonate empty data', () async {
       final fake = FakeNetworkClient()
-        ..setResponse('/api/jobs', body: '{}')
         ..setResponse('/api/calibration-library', body: '{}')
         ..setResponse('/api/sessions/3/images', body: '{}')
         ..setResponse('/api/images', body: '{}')
@@ -37,7 +34,6 @@ void main() {
       final backend = _backend(fake);
       addTearDown(backend.dispose);
 
-      await expectLater(backend.listJobs(), throwsFormatException);
       await expectLater(backend.getCalibrationMasters(), throwsFormatException);
       await expectLater(backend.getSessionImageRows(3), throwsFormatException);
       await expectLater(backend.getAllImageRows(), throwsFormatException);

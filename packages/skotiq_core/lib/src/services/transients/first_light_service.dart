@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:drift/drift.dart' show Value;
 import 'package:path/path.dart' as p;
 
@@ -13,6 +11,7 @@ import '../logging_service.dart';
 import '../science/photometric_catalog_service.dart';
 import 'difference_image_seam.dart';
 import 'transient_candidate.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// On-disk directory the per-detection real-pixel crop stamps are written into,
 /// derived from the atlas root. One shared dir (not per-session) so a crop is
@@ -460,14 +459,26 @@ class FirstLightService {
     for (final c in candidates) {
       final already = reported.any(
         (r) =>
-            _angularSeparationArcsec(c.ra, c.dec, r.ra, r.dec) <=
+            AstronomyCalculations.angularSeparation(
+                  ra1Deg: c.ra,
+                  dec1Deg: c.dec,
+                  ra2Deg: r.ra,
+                  dec2Deg: r.dec,
+                ) *
+                3600.0 <=
             confirmRadiusArcsec,
       );
       if (already) continue;
       final seenBefore = sightings.any(
         (s) =>
             s.frameKey != frameKey &&
-            _angularSeparationArcsec(c.ra, c.dec, s.ra, s.dec) <=
+            AstronomyCalculations.angularSeparation(
+                      ra1Deg: c.ra,
+                      dec1Deg: c.dec,
+                      ra2Deg: s.ra,
+                      dec2Deg: s.dec,
+                    ) *
+                    3600.0 <=
                 confirmRadiusArcsec,
       );
       if (seenBefore) {
@@ -613,12 +624,14 @@ class FirstLightService {
     PhotometricCatalogStar? best;
     var bestSep = double.infinity;
     for (final star in stars) {
-      final sep = _angularSeparationArcsec(
-        candidate.ra,
-        candidate.dec,
-        star.raDegrees,
-        star.decDegrees,
-      );
+      final sep =
+          AstronomyCalculations.angularSeparation(
+            ra1Deg: candidate.ra,
+            dec1Deg: candidate.dec,
+            ra2Deg: star.raDegrees,
+            dec2Deg: star.decDegrees,
+          ) *
+          3600.0;
       if (sep < bestSep) {
         bestSep = sep;
         best = star;
@@ -636,37 +649,17 @@ class FirstLightService {
   ) {
     for (final row in dismissed) {
       if (row.tileId != candidate.tileId) continue;
-      final sep = _angularSeparationArcsec(
-        candidate.ra,
-        candidate.dec,
-        row.raDeg,
-        row.decDeg,
-      );
+      final sep =
+          AstronomyCalculations.angularSeparation(
+            ra1Deg: candidate.ra,
+            dec1Deg: candidate.dec,
+            ra2Deg: row.raDeg,
+            dec2Deg: row.decDeg,
+          ) *
+          3600.0;
       if (sep <= _matchRadiusArcsec) return true;
     }
     return false;
-  }
-
-  /// Great-circle separation in arcseconds (haversine — stable at small angles).
-  static double _angularSeparationArcsec(
-    double ra1Deg,
-    double dec1Deg,
-    double ra2Deg,
-    double dec2Deg,
-  ) {
-    const deg2rad = math.pi / 180.0;
-    final dLat = (dec2Deg - dec1Deg) * deg2rad;
-    final dLon = (ra2Deg - ra1Deg) * deg2rad;
-    final lat1 = dec1Deg * deg2rad;
-    final lat2 = dec2Deg * deg2rad;
-    final a =
-        math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(lat1) *
-            math.cos(lat2) *
-            math.sin(dLon / 2) *
-            math.sin(dLon / 2);
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return c / deg2rad * 3600.0;
   }
 }
 

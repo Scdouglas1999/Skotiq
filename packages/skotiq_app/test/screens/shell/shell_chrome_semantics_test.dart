@@ -30,7 +30,10 @@ import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:skotiq_app/screens/shell/shell_navigation.dart';
 import 'package:skotiq_app/screens/shell/widgets/side_navigation.dart';
 import 'package:skotiq_app/screens/shell/widgets/window_chrome.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -300,11 +303,9 @@ void main() {
 
     // Every rail destination, with a role and a selected state — a name with
     // no role reads as static text to a screen reader.
-    for (var index = 0;
-        index < ShellNavigation.primaryDestinations.length;
-        index++) {
-      final destination = ShellNavigation.primaryDestinations[index];
-      final name = destination.label(l10n);
+    for (var index = 0; index < ShellNavigation.rail.length; index++) {
+      final destination = ShellNavigation.rail[index];
+      final name = destination.label!.of(l10n);
       // The rail row's Semantics label is EXACTLY the destination name (the
       // descriptions are gone in the Observatory rail), so match on equality:
       // a `contains` match would let the top bar's own buttons answer for a

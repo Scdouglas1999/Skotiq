@@ -7,17 +7,20 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:path/path.dart' as path;
+import '../errors/error_text.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/imaging/imaging_models.dart';
+import '../models/imaging/naming_pattern.dart';
 import '../providers/clock_provider.dart';
 import '../providers/equipment_provider.dart';
+import '../providers/capability_provider.dart' show cameraSensitivityProvider;
 import '../providers/equipment/device_capability_provider.dart';
 import '../providers/imaging_provider.dart';
+import '../providers/async_scope.dart';
 import '../providers/backend_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/session_provider.dart';
-import '../providers/database_provider.dart';
-import 'imaging_records_repository.dart';
+import 'local_imaging_records.dart';
 import '../providers/ui_notification_provider.dart';
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
@@ -30,16 +33,20 @@ import '../backend/skotiq_exception.dart'
         ValidationException;
 import 'capture_preview_loader.dart';
 import '../database/database.dart' show CapturedImagesCompanion;
-import '../database/daos/images_dao.dart' show ImagesDao;
-import '../providers/thumbnail_sidecar_provider.dart';
 import '../utils/host_paths.dart';
 import '../utils/utc_timestamp.dart';
-import 'calibration_service.dart';
-import 'notification_service.dart';
+import 'frame_identity.dart';
 import 'logging_service.dart';
-import 'science/science_processing_service.dart';
 import 'frame_quality_score.dart';
-export '../utils/host_paths.dart' show hostPathContext;
+import '../backend/roles/host_data/host_files.dart';
+import '../backend/roles/host_data/host_imaging_records.dart';
+import '../models/backend/backend_types.dart';
+import '../settings/app_settings_state.g.dart';
+import '../providers/calibration_service_providers.dart';
+import '../providers/capture_preview_loader_provider.dart';
+import '../providers/logging_service_provider.dart';
+import '../providers/notification_service_provider.dart';
+import '../providers/science/science_processing_service_provider.dart';
 part 'imaging_service/file_paths.dart';
 part 'imaging_service/persistence.dart';
 part 'imaging_service/quality_processing.dart';
@@ -48,29 +55,13 @@ part 'imaging_service/exposure_state.dart';
 part 'imaging_service/naming_internals.dart';
 
 /// Service for managing camera capture operations
-/// Where a linked client asks the host to write a scratch frame named
-/// [fileName]: `Skotiq/scratch` under the host's Documents root (or its first
-/// listed root), joined in the host's own path style. The host only writes
-/// inside the roots it lists, so a path in the client's temp folder is
-/// refused. Null when the host lists no roots.
-@visibleForTesting
-String? hostScratchFilePath(List<RemoteDirectoryEntry> roots, String fileName) {
-  if (roots.isEmpty) return null;
-  final root = roots
-      .firstWhere((r) => r.name == 'Documents', orElse: () => roots.first)
-      .path;
-  return hostPathContext(root).join(root, 'Skotiq', 'scratch', fileName);
-}
-
 class ImagingService {
   final Ref _ref;
-  final BackendNotifier _backendOwner;
+  final AsyncScope<SkotiqBackend> _host;
   final LoggingService _logger;
 
-  // Capture state
   bool _isCapturing = false;
   bool _cancelRequested = false;
-  bool _retired = false;
   int _frameNumber = 0;
 
   /// Keeper paths this service has handed out on a linked host, in
@@ -113,9 +104,19 @@ class ImagingService {
   /// cannot stall a capture.
   static const int _keeperProbeLimit = 100000;
 
-  ImagingService(this._ref)
-    : _backendOwner = _ref.read(backendProvider.notifier),
-      _logger = _ref.read(loggingServiceProvider);
+  /// [hostFiles] and [hostRecords] are the linked host's, or null where the
+  /// camera's frames are written and recorded by this process.
+  ImagingService(
+    this._ref, {
+    HostFiles? hostFiles,
+    HostImagingRecords? hostRecords,
+  }) : _host = _ref.providerBackendScope(),
+       _logger = _ref.read(loggingServiceProvider),
+       _hostFiles = hostFiles,
+       _hostRecords = hostRecords;
+
+  final HostFiles? _hostFiles;
+  final HostImagingRecords? _hostRecords;
 
   /// Start a single exposure and KEEP the frame: it is written to the
   /// operator's configured image folder under the naming pattern and indexed
@@ -145,6 +146,7 @@ class ImagingService {
       producingNodeId: producingNodeId,
       producingRunId: producingRunId,
       persistFrame: true,
+      keepsCameraFile: true,
     );
   }
 
@@ -157,14 +159,24 @@ class ImagingService {
   /// session's frame and integration totals. Centering runs up to
   /// [CenteringConfig.maxIterations] of these per target; as keepers they
   /// inflated the night's frame count with images nobody will ever stack.
+  ///
+  /// [purpose] labels the frame on screen ("Plate solve", "Centering ·
+  /// attempt 2 of 5"); a framing snapshot keeps [FramePurpose.capture].
   Future<CapturedImageData?> captureUtilityFrame({
     required ExposureSettings settings,
     String? targetName,
+    FramePurpose purpose = FramePurpose.capture,
+    int? purposeStep,
+    int? purposeSteps,
   }) {
     return _capture(
       settings: settings,
       targetName: targetName,
       persistFrame: false,
+      keepsCameraFile: false,
+      purpose: purpose,
+      purposeStep: purposeStep,
+      purposeSteps: purposeSteps,
     );
   }
 
@@ -236,6 +248,9 @@ class ImagingService {
           // progress ring.
           frameNumber: saveFrames ? null : frameNum,
           persistFrame: saveFrames,
+          // Loop frames are framing and focusing aids, kept or not: never
+          // the camera's raw file.
+          keepsCameraFile: false,
         );
 
         if (image != null) {
@@ -272,7 +287,6 @@ class ImagingService {
     }
   }
 
-  /// Cancel the current exposure
   void cancelExposure() {
     _cancelRequested = true;
     // Interrupt an in-flight single capture. Setting the flag alone only
@@ -303,8 +317,6 @@ class ImagingService {
   /// instance may still have asynchronous driver work unwinding, but it must
   /// never publish into the replacement host's provider graph.
   void retire() {
-    if (_retired) return;
-    _retired = true;
     _cancelRequested = true;
 
     final completer = _activeExposureCompleter;
@@ -322,7 +334,7 @@ class ImagingService {
   }
 
   bool _hasBackendAuthority(SkotiqBackend backend) =>
-      !_retired && _backendOwner.isCurrentBackend(backend);
+      identical(backend, _host.value) && _host.isCurrent;
 
   /// Keys under which an imaging event may carry the originating camera id.
   /// Mirrors `FlatWizardService._deviceIdKeys` — the two services listen to the
@@ -353,123 +365,20 @@ class ImagingService {
     return true;
   }
 
-  /// Check if currently capturing
   bool get isCapturing => _isCapturing;
 
-  /// All naming-pattern variables this service recognises.
-  ///
-  /// Keep this in sync with [NamingPattern.availableVariables],
-  /// `docs/features/settings.md`, and the documentation in
-  /// `native/skotiq_native/imaging/src/naming.rs`. The settings UI
-  /// surfaces a shorter subset (`$TARGET, $FILTER, $DATE, $SEQ, $EXPOSURE`),
-  /// but the full set is honoured here so that patterns shared between the
-  /// Dart and Rust capture paths behave identically.
-  static const Set<String> _patternVariables = {
-    r'$TARGET',
-    r'$FILTER',
-    r'$EXPTIME',
-    r'$EXPOSURE', // alias documented in settings_screen subtitle + seed_data
-    r'$DATE',
-    r'$TIME',
-    r'$DATETIME',
-    r'$FRAMETYPE',
-    r'$FRAMENUM',
-    r'$SEQ', // alias documented in settings_screen subtitle + defaults
-    r'$GAIN',
-    r'$OFFSET',
-    r'$TEMP',
-    r'$BINNING',
-    r'$CAMERA',
-    r'$TELESCOPE',
-    r'$SEQUENCE',
-    r'$SESSION',
-  };
-
-  /// Regex that finds `$IDENT` tokens (uppercase letters only) in a pattern.
-  /// Used by [expandNamingPattern] both to perform substitutions and to
-  /// reject unknown variables.
-  ///
-  /// Underscore is intentionally **excluded** from the character class
-  /// because the documented patterns use `_` as a literal separator between
-  /// variables (e.g. `$TARGET_$FILTER_$FRAMENUM` ⇒ three tokens joined by
-  /// underscores, not one nine-character token). Every variable name in
-  /// [_patternVariables] is letters-only, so this is sufficient.
-  static final RegExp _patternVarRegex = RegExp(r'\$[A-Z]+');
-
-  static final RegExp _unsafePathComponentChars = RegExp(
-    r'[<>:"/\\|?*\x00-\x1F]',
-  );
-
-  /// Make equipment- and target-derived values safe as one filename segment.
-  /// User-entered names are data, never path syntax: a target named `M31/Ha`
-  /// must not create a surprise directory, and `../` must never escape the
-  /// configured output root.
-  static String _sanitizePathComponent(String value) {
-    var sanitized = value.replaceAll(_unsafePathComponentChars, '_').trim();
-    sanitized = sanitized.replaceFirst(RegExp(r'^[. _]+'), '');
-    sanitized = sanitized.replaceAll(RegExp(r'[. ]+$'), '');
-    if (sanitized.isEmpty || sanitized == '.' || sanitized == '..') {
-      return '_';
-    }
-    return sanitized;
-  }
-
-  /// Expand `$VARIABLE` tokens in [pattern] using [substitutions].
-  ///
-  /// Throws an [Exception] if [pattern] references any token that is not in
-  /// [_patternVariables]: an unknown `$BANANA` left in the path produces a
-  /// filename that looks like it worked and breaks downstream sorting and
-  /// searching.
-  ///
-  /// Exposed for unit testing of the pattern-expansion logic in isolation
-  /// from the capture pipeline / provider graph.
-  @visibleForTesting
-  static String expandNamingPattern(
-    String pattern,
-    Map<String, String> substitutions,
-  ) {
-    // Find every $TOKEN in the pattern and validate it up-front so the user
-    // gets ONE error listing all unknowns, not one error per failed capture.
-    final unknown = <String>{};
-    for (final match in _patternVarRegex.allMatches(pattern)) {
-      final token = match.group(0)!;
-      if (!_patternVariables.contains(token)) {
-        unknown.add(token);
-      }
-    }
-    if (unknown.isNotEmpty) {
-      final sorted = unknown.toList()..sort();
+  /// Throws the [ValidationException] that fails a capture when [pattern]
+  /// cannot name a frame.
+  static void _requireUsablePattern(String pattern) {
+    final problem = NamingPattern.problem(pattern);
+    if (problem != null) {
       throw ValidationException(
-        message:
-            'Unknown naming-pattern variable${sorted.length == 1 ? '' : 's'} '
-            '${sorted.join(', ')} in '
-            'pattern "$pattern". Supported variables: '
-            '${(_patternVariables.toList()..sort()).join(', ')}.',
-        userMessage: 'The naming pattern contains unknown variables',
+        message: 'Naming pattern "$pattern": $problem',
+        userMessage: problem,
       );
     }
-
-    // Replace via the regex so prefix overlaps (`$EXPTIME` vs `$EXPOSURE`,
-    // `$FRAMENUM` vs `$FRAMETYPE`) cannot be confused with one another.
-    final expanded = pattern.replaceAllMapped(_patternVarRegex, (m) {
-      final token = m.group(0)!;
-      // Safe: we just validated every token above.
-      return _sanitizePathComponent(substitutions[token]!);
-    });
-    if (expanded.contains(r'$')) {
-      throw ValidationException(
-        message: 'Unrecognized variable syntax in naming pattern "$pattern".',
-        userMessage: 'The naming pattern contains an invalid variable',
-      );
-    }
-    return expanded;
   }
 
-  /// Build the absolute file path for a captured image given the resolved
-  /// pattern substitutions. Splits the expanded pattern on `/` so that all
-  /// segments before the last become subdirectories under [basePath] and the
-  /// last segment becomes the filename stem (extension appended).
-  ///
   /// [desiredPath], or the first `<name>_NNN<ext>` beside it that [exists]
   /// says is free. [paths] is the path style of the machine that owns it.
   @visibleForTesting
@@ -493,66 +402,31 @@ class ImagingService {
     return candidate;
   }
 
+  /// The absolute path [pattern] gives a frame of [values] under
+  /// [basePath]: every segment before the last is a folder, the last is the
+  /// filename stem, [extension] is appended.
+  ///
   /// [pathContext] is the path style of the machine that writes the file
   /// (see [hostPathContext]); it defaults to this machine's, and when given
   /// [basePath] must already be absolute in that style.
-  ///
-  /// Exposed for unit testing — no filesystem or provider access happens
-  /// inside this function.
   @visibleForTesting
   static String buildImageFilePath({
     required String pattern,
     required String basePath,
     required String extension,
-    required Map<String, String> substitutions,
+    required Map<NamingToken, String> values,
     path.Context? pathContext,
   }) {
     final paths = pathContext ?? path.context;
-    if (pattern.trim().isEmpty ||
-        paths.isAbsolute(pattern) ||
-        path.isAbsolute(pattern) ||
-        pattern.startsWith('/') ||
-        pattern.startsWith(r'\')) {
-      throw ValidationException(
-        message: 'Naming pattern must be a non-empty relative path: "$pattern"',
-        userMessage: 'The naming pattern must be a relative path',
-      );
-    }
+    _requireUsablePattern(pattern);
     if (!RegExp(r'^[A-Za-z0-9]+$').hasMatch(extension)) {
       throw ValidationException(
         message: 'Invalid capture file extension: "$extension"',
         userMessage: 'The capture file extension is invalid',
       );
     }
-
-    final expanded = expandNamingPattern(pattern, substitutions);
-
-    // Split on '/' (the documented pattern separator). The last segment is
-    // the filename stem; earlier segments are subdirectories. If the user's
-    // pattern contains no '/' the entire pattern is the filename and the
-    // capture lands directly in the base directory.
-    final segments = expanded.split('/');
-    if (segments.isEmpty) {
-      throw ValidationException(
-        message: 'Naming pattern expanded to an empty path: "$pattern"',
-        userMessage: 'The naming pattern produced an empty file path',
-      );
-    }
-    for (final segment in segments) {
-      if (segment.isEmpty ||
-          segment == '.' ||
-          segment == '..' ||
-          segment.contains(r'\') ||
-          _unsafePathComponentChars.hasMatch(segment)) {
-        throw ValidationException(
-          message:
-              'Unsafe path segment "$segment" in naming pattern "$pattern"',
-          userMessage: 'The naming pattern contains an unsafe path segment',
-        );
-      }
-    }
-    final fileNameStem = segments.removeLast();
-    final fileName = '$fileNameStem.$extension';
+    final segments = NamingPattern.segments(pattern, values);
+    final fileName = '${segments.removeLast()}.$extension';
     // Another machine's base path cannot be resolved against this process's
     // working directory: a relative one is refused rather than guessed.
     if (pathContext != null && !paths.isAbsolute(basePath)) {
@@ -574,121 +448,104 @@ class ImagingService {
     return candidate;
   }
 
-  /// Build the canonical substitution map for `$DATE`, `$TIME`, etc. given
-  /// only the values that don't require provider access (camera state, mount
-  /// state). Useful for unit tests that want to verify the UTC date/time
-  /// conventions without spinning up a `ProviderContainer`. The full
-  /// provider-aware map lives in [_buildPatternSubstitutions].
+  /// Where a kept frame of [exposureSettings] taken now goes in [folder] (a
+  /// folder of the imaging host): named by the Settings naming pattern as a
+  /// manual capture is, at the next frame number not on disk, and never a
+  /// name that is taken or already handed out. For a screen that keeps frames
+  /// in its own folder (the Flat Wizard).
+  Future<String> keeperFilePath({
+    required String folder,
+    required ExposureSettings exposureSettings,
+    String? targetName,
+  }) async {
+    final frameNumber = await _nextKeeperFrameNumber(
+      basePath: folder,
+      exposureSettings: exposureSettings,
+      targetName: targetName,
+    );
+    return _generateImageFilePath(
+      basePath: folder,
+      exposureSettings: exposureSettings,
+      targetName: targetName,
+      frameNumber: frameNumber,
+      // The instant the frame number was probed with.
+      timestamp: _ref.read(clockProvider).nowUtc(),
+    );
+  }
+
+  /// The Settings naming [pattern] as the save template (`save_to`) of a
+  /// run's frames of [step] ([NamingPattern.runTemplate]). The same pattern
+  /// names a manual capture and a sequence frame alike.
+  ///
+  /// Throws the [ValidationException] a manual capture with [pattern] would,
+  /// so a pattern that cannot name a frame stops the run before it starts.
+  static String runFrameSaveTemplate(String pattern, NamingStep step) {
+    _requireUsablePattern(pattern);
+    return NamingPattern.runTemplate(pattern, step);
+  }
+
+  /// The naming values of a frame of [exposureSettings] taken by hand at
+  /// [timestamp], outside any sequence.
   @visibleForTesting
-  static Map<String, String> buildTimestampSubstitutions({
+  static Map<NamingToken, String> manualFrameValues({
     required ExposureSettings exposureSettings,
     String? targetName,
     required int frameNumber,
     required DateTime timestamp,
-    String camera = 'Camera',
-    String telescope = 'Telescope',
-    String tempStr = '0C',
-  }) {
-    final utcTs = timestamp.toUtc();
-    final iso = utcTs.toIso8601String();
-    final dateStr = iso.substring(0, 10);
-    final timeStr = iso.substring(11, 19).replaceAll(':', '-');
-    final frameNumStr = frameNumber.toString().padLeft(4, '0');
-    final exposureStr = exposureSettings.exposureTime.toStringAsFixed(1);
-
-    return {
-      r'$TARGET': targetName ?? 'Unknown',
-      r'$FILTER': exposureSettings.filter ?? 'NoFilter',
-      r'$EXPTIME': exposureStr,
-      r'$EXPOSURE': exposureStr,
-      r'$DATE': dateStr,
-      r'$TIME': timeStr,
-      r'$DATETIME': '${dateStr}_$timeStr',
-      r'$FRAMETYPE': exposureSettings.frameType.name,
-      r'$FRAMENUM': frameNumStr,
-      r'$SEQ': frameNumStr,
-      r'$GAIN': exposureSettings.gain.toString(),
-      r'$OFFSET': exposureSettings.offset.toString(),
-      r'$TEMP': tempStr,
-      r'$BINNING': '${exposureSettings.binningX}x${exposureSettings.binningY}',
-      r'$CAMERA': camera,
-      r'$TELESCOPE': telescope,
-      // The sequence this frame belongs to, matching `$SEQUENCE` in the Rust
-      // FilenameGenerator (naming.rs), whose no-sequence value is the literal
-      // "Sequence". Nothing on this path — manual Snapshot, Loop, plate-solve
-      // frame — belongs to a sequence, so substituting the TARGET here labelled
-      // a plain target folder as a sequence and made the same pattern produce
-      // two different trees depending on which capture path wrote the frame.
-      r'$SEQUENCE': 'Sequence',
-      r'$SESSION': dateStr.replaceAll('-', ''),
-    };
-  }
+    String? camera,
+    String? telescope,
+    double? sensorTempC,
+  }) => NamingPattern.values(
+    NamingStep(
+      frameType: exposureSettings.frameType,
+      gain: exposureSettings.gain,
+      offset: exposureSettings.offset,
+      binX: exposureSettings.binningX,
+      binY: exposureSettings.binningY,
+      camera: camera,
+      telescope: telescope,
+      session: timestamp,
+    ),
+    NamingFrame(
+      target: targetName,
+      filter: exposureSettings.filter,
+      exposureSeconds: exposureSettings.exposureTime,
+      number: frameNumber,
+      takenAt: timestamp,
+      sensorTempC: sensorTempC,
+    ),
+  );
 }
 
-/// Provider for the imaging service
-final imagingServiceProvider = Provider<ImagingService>((ref) {
-  // Capture is backend-owned. Rebuild the service when the active host
-  // changes so callers can use service identity as an authority boundary.
-  ref.watch(backendProvider);
-  final service = ImagingService(ref);
-  ref.onDispose(service.retire);
-  return service;
-});
-
-/// Provider for the current displayed image
 final currentImageProvider = StateProvider<CapturedImageData?>((ref) => null);
 
-/// Whether the currently displayed image has been auto-calibrated.
+/// Exact 256-bin raw histogram, yielding between bounded pixel batches.
 ///
-/// Derived from `currentImageProvider.filePath`: the calibration service
-/// writes calibrated frames with a `_cal.fits` suffix, and the imaging
-/// service swaps the file path on the captured image data once the
-/// calibration step succeeds (see `ImagingService.captureImage` —
-/// auto-calibration block). When calibration fails or isn't enabled the
-/// path stays at the original `.fits`, so the badge reflects only frames that
-/// were actually calibrated.
-final currentImageIsCalibratedProvider = Provider<bool>((ref) {
-  final image = ref.watch(currentImageProvider);
-  final path = image?.filePath;
-  if (path == null || path.isEmpty) {
-    return false;
-  }
-  // The calibration service produces files ending in `_cal.fits` (or
-  // `_cal.fit`). We match either casing on the suffix; the rest of the
-  // pipeline normalises paths but the suffix itself is stable.
-  final lower = path.toLowerCase();
-  return lower.endsWith('_cal.fits') || lower.endsWith('_cal.fit');
-});
-
-/// Live preview histogram: uses host raw pixels when [CapturedImageData.hasRawReady],
-/// otherwise the JPEG preview histogram bundled with the capture.
-final previewDisplayHistogramProvider = Provider<List<int>?>((ref) {
-  final image = ref.watch(currentImageProvider);
-  if (image == null) {
-    return null;
-  }
-  if (image.hasRawReady && image.rawU16 != null) {
-    return histogram256FromRawU16(image.rawU16!);
-  }
-  return image.histogram;
-});
-
-/// Build 256-bin histogram from 16-bit mono raw (high byte per pixel).
-List<int> histogram256FromRawU16(Uint16List raw) {
+/// Scanning a full sensor in a widget's build blocks the UI. Keeping batches
+/// here avoids both that stall and an isolate's copy of the raw buffer.
+/// Returns null when the consumer no longer needs this frame.
+Future<List<int>?> histogram256FromRawU16(
+  Uint16List raw, {
+  bool Function()? isCancelled,
+}) async {
+  const batchSize = 64 * 1024;
   final bins = List<int>.filled(256, 0);
-  for (var i = 0; i < raw.length; i++) {
-    bins[raw[i] >> 8]++;
+  for (var start = 0; start < raw.length; start += batchSize) {
+    await Future<void>.delayed(Duration.zero);
+    if (isCancelled?.call() ?? false) return null;
+    final end = start + batchSize < raw.length ? start + batchSize : raw.length;
+    for (var i = start; i < end; i++) {
+      bins[raw[i] >> 8]++;
+    }
   }
   return bins;
 }
 
-/// Provider for exposure progress
 final exposureProgressProvider =
     StateNotifierProvider<ExposureProgressNotifier, ExposureProgress>((ref) {
       return ExposureProgressNotifier();
     });
 
-/// Exposure progress notifier
 class ExposureProgressNotifier extends StateNotifier<ExposureProgress> {
   ExposureProgressNotifier() : super(ExposureProgress.idle());
 
@@ -724,6 +581,9 @@ class ExposureProgressNotifier extends StateNotifier<ExposureProgress> {
       isDownloading: true,
     );
   }
+
+  /// Shows the countdown another process reported.
+  void show(ExposureProgress progress) => state = progress;
 
   void reset() {
     state = ExposureProgress.idle();

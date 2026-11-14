@@ -1,6 +1,5 @@
 part of '../sequence_timeline.dart';
 
-/// Helper class for twilight regions
 class _TwilightRegion {
   final double startFraction;
   final double endFraction;
@@ -13,7 +12,6 @@ class _TwilightRegion {
   });
 }
 
-/// Individual block in the timeline
 class _TimelineBlock extends StatefulWidget {
   final SkotiqColors colors;
   final TimelineSegment segment;
@@ -117,18 +115,12 @@ class _TimelineBlockState extends State<_TimelineBlock> {
     }
   }
 
-  String _formatSegmentDuration() {
-    final secs = widget.segment.duration;
-    if (secs >= 3600) {
-      return '${(secs / 3600).toStringAsFixed(1)}h';
-    } else if (secs >= 60) {
-      return '${(secs / 60).toStringAsFixed(0)}m';
-    }
-    return '${secs.toStringAsFixed(0)}s';
-  }
+  String _formatSegmentDuration() => DurationFormat.seconds(
+        widget.segment.duration,
+        style: DurationStyle.coarse,
+      );
 }
 
-/// Legend item
 class _LegendItem extends StatelessWidget {
   final SkotiqColors colors;
   final Color color;

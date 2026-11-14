@@ -16,7 +16,8 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   late SkotiqDatabase database;
@@ -39,7 +40,7 @@ void main() {
     // this way, so the setting is the only thing that can redirect it.
     service = BackupService(
       database: database,
-      sequenceRepository: SequenceRepository(database.sequencesDao),
+      sequenceRepository: LocalSequenceRepository(database.sequencesDao),
       logger: logger,
     );
   });

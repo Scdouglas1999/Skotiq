@@ -10,8 +10,11 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/session_review/auto_integration_service.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import 'night_end_fakes.dart';
 
@@ -33,11 +36,11 @@ void main() {
         native: native,
         notifications: notifications,
         calibration: calibration,
-        mastersRoot: Directory('${folder.path}/Masters'),
+        outputRoot: folder,
       ),
     );
     addTearDown(container.dispose);
-    container.read(autoIntegrationCoordinatorProvider);
+    container.read(nightEndCoordinatorProvider);
     return container;
   }
 
@@ -82,20 +85,22 @@ void main() {
 
   /// The dawn park ends the run of [session].
   void dawnEnds(ProviderContainer container, int session, int runId) {
-    container.read(sequenceStopEvidenceProvider.notifier).state =
-        const SequenceStopDecision(
-      SequenceStopAuthor.system,
-      origin: 'dawn_approaching',
-      parked: true,
-    );
-    container.read(sequenceTerminalRunResultProvider.notifier).state =
-        SequenceTerminalRunResult(
-      generation: ++generation,
-      outcome: SequenceExecutionState.idle,
-      runStatus: 'aborted',
-      runId: runId,
-      dbSessionId: session,
-    );
+    container
+        .read(runRecordProvider.notifier)
+        .setStopEvidence(const SequenceStopDecision(
+          SequenceStopAuthor.system,
+          origin: 'dawn_approaching',
+          parked: true,
+        ));
+    container
+        .read(runRecordProvider.notifier)
+        .publishTerminal(SequenceTerminalRunResult(
+          generation: ++generation,
+          outcome: SequenceExecutionState.idle,
+          runStatus: SequenceRunStatus.aborted,
+          runId: runId,
+          dbSessionId: session,
+        ));
   }
 
   Future<NightEndRun> nightEndRun(
@@ -183,6 +188,79 @@ void main() {
     expect(native.built, ['Ha']);
   });
 
+  // UX walk 2, F31: after the target was built by hand the night-end history
+  // still said "Calibration needed" and offered "Retry after calibration".
+  test(
+      'a night held for calibration is settled by a later build by hand, '
+      'also across a restart', () async {
+    await db.settingsDao.setSetting(
+        NightEndAutomationSettings.allowIncompleteCalibrationKey, 'false');
+    final session = await night(DateTime(2026, 10, 27, 20), ['Ha']);
+    final app = launch();
+    await app
+        .read(nightEndRunnerProvider)
+        .nightEnded(sessionId: session, reason: 'plan completed');
+    final held = app.read(nightEndRunsProvider).single;
+    expect(held.targets.single.waitingForCalibration, isTrue);
+    await app.read(nightEndRunnerProvider).idle();
+
+    final builtAt = DateTime.now().add(const Duration(minutes: 5));
+    await DarkroomStateStore(db).write(darkroomBuildJobsStateKey, {
+      'current': DarkroomBuildJob(
+        target: 'NGC891',
+        stage: DarkroomJobStage.done,
+        message: 'Masters ready',
+        startedAt: builtAt.subtract(const Duration(minutes: 2)),
+        finishedAt: builtAt,
+        directory: '${folder.path}/by-hand',
+      ).toJson(),
+      'held': const [],
+      'recent': const [],
+    });
+    final later = launch();
+    await later.read(nightEndRunnerProvider).start();
+    await later.read(nightEndRunnerProvider).idle();
+
+    final target = later.read(nightEndRunsProvider).single.targets.single;
+    expect(target.waitingForCalibration, isFalse);
+    expect(target.build.state, NightEndStepState.done);
+    expect(target.build.detail,
+        'Built by hand at ${ClockFormat.hm(builtAt.toLocal())}.');
+    expect(native.built, isEmpty);
+  });
+
+  test('a later build of the held target settles the hold as it finishes',
+      () async {
+    await db.settingsDao.setSetting(
+        NightEndAutomationSettings.allowIncompleteCalibrationKey, 'false');
+    final session = await night(DateTime(2026, 10, 27, 20), ['Ha']);
+    final app = launch();
+    final runner = app.read(nightEndRunnerProvider);
+    await runner.nightEnded(sessionId: session, reason: 'plan completed');
+    await runner.idle();
+    expect(
+        app
+            .read(nightEndRunsProvider)
+            .single
+            .targets
+            .single
+            .waitingForCalibration,
+        isTrue);
+
+    await app.read(darkroomBuildJobsProvider.notifier).startUnattended(
+          'NGC891',
+          announce: false,
+          requireCalibration: false,
+        );
+    await runner.idle();
+
+    final target = app.read(nightEndRunsProvider).single.targets.single;
+    expect(target.waitingForCalibration, isFalse);
+    expect(target.build.state, NightEndStepState.done);
+    expect(target.build.detail, startsWith('Built at '));
+    expect(native.built, ['Ha']);
+  });
+
   test(
       'a dawn end calibrates, builds the target from all its nights, '
       'delivers, and sends one morning message that opens the target; the '
@@ -233,7 +311,7 @@ void main() {
       '/darkroom?tab=targets&target=NGC891',
     );
     expect(
-      app.read(autoIntegrationCompletionProvider)!.result.message,
+      app.read(nightEndCompletionProvider)!.toast.message,
       'NGC891: masters ready from 3 nights.',
     );
 
@@ -349,6 +427,50 @@ void main() {
     expect(run.targets.single.build.state, NightEndStepState.done);
     expect(run.targets.single.nights, 2);
     expect(run.targets.single.deliver.state, NightEndStepState.done);
+    expect(notifications.sent.single.title, 'Masters ready: NGC891');
+  });
+
+  test(
+      'a night-end run cut short between its build and its delivery carries '
+      'on at the delivery at the next launch, without building again',
+      () async {
+    final tonight = await night(
+      DateTime(2026, 10, 22, 20),
+      ['L', 'R'],
+      runId: ++run,
+    );
+    final first = launch();
+    dawnEnds(first, tonight, run);
+    final built = await nightEndRun(first, 1);
+    expect(built.targets.single.build.state, NightEndStepState.done);
+    expect(native.built, ['L', 'R']);
+
+    // The process dies after the build was recorded and before anything was
+    // delivered or sent: the saved run is exactly what it wrote at that seam.
+    await first.read(nightEndRunnerProvider).idle();
+    final cut = built
+        .copyWith(clearFinishedAt: true, message: NightEndStep.pending)
+        .withTarget(
+          'NGC891',
+          (t) => t.copyWith(deliver: NightEndStep.pending),
+        );
+    await DarkroomStateStore(db).write(nightEndRunsStateKey, {
+      'runs': [cut.toJson()],
+    });
+    native.built.clear();
+    notifications.sent.clear();
+    for (final entry in drop.listSync()) {
+      entry.deleteSync(recursive: true);
+    }
+
+    final restarted = launch();
+    final resumed = await nightEndRun(restarted, 1);
+    expect(resumed.id, built.id);
+    expect(native.built, isEmpty,
+        reason: 'the masters were finished; only the delivery was owed');
+    expect(resumed.targets.single.build.state, NightEndStepState.done);
+    expect(resumed.targets.single.deliver.state, NightEndStepState.done);
+    expect(drop.listSync(recursive: true).whereType<File>(), isNotEmpty);
     expect(notifications.sent.single.title, 'Masters ready: NGC891');
   });
 

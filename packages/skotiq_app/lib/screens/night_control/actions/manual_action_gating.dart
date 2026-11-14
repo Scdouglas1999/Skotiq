@@ -4,7 +4,8 @@
 // (`nightManualActionsProvider`) and the controller's own refusal check
 // can never disagree about whether an action may run.
 import 'package:flutter/foundation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 
 import '../night_control_contracts.dart';
 
@@ -31,6 +32,7 @@ class NightActionInputs {
     this.exposureSeconds,
     this.filterName,
     this.flipDone = false,
+    this.solverMissing = false,
   });
 
   /// `backendCanCommandProvider`: false for a disconnected backend or a
@@ -72,6 +74,10 @@ class NightActionInputs {
   /// The run's meridian flip for this transit is behind it: it succeeded,
   /// or it moved the mount across the pier and the run will not flip again.
   final bool flipDone;
+
+  /// The chosen plate solver is known not to be installed. False while
+  /// detection runs: a solver still being looked for is not missing.
+  final bool solverMissing;
 
   /// A run whose pause or resume this screen can drive.
   bool get runPausable =>
@@ -119,6 +125,15 @@ NightText? manualActionDisabledReason(
     return active == null
         ? const NightText('nightActWhyBusy')
         : NightText(manualActionKey('nightActBusy', active));
+  }
+
+  // Checked before anything else: without a solver these would expose a
+  // frame, or move the mount, and only then fail.
+  if (inputs.solverMissing &&
+      (id == ManualActionId.solve ||
+          id == ManualActionId.solveSync ||
+          id == ManualActionId.center)) {
+    return const NightText('nightActWhyNoSolver');
   }
 
   // A solve reads a file and pauses nothing, so the run's state is no
@@ -196,7 +211,6 @@ NightText? manualActionDisabledReason(
   }
 }
 
-/// The view model for one button.
 ManualActionVm manualActionVm(NightActionInputs inputs, ManualActionId id) {
   final reason = manualActionDisabledReason(inputs, id);
   final action = inputs.action;
@@ -245,7 +259,7 @@ NightText? _sub(NightActionInputs inputs, ManualActionId id) {
     case ManualActionId.snapshot:
       final seconds = inputs.exposureSeconds;
       if (seconds == null || !seconds.isFinite || seconds <= 0) return null;
-      return NightText.literal(formatExposureSeconds(seconds));
+      return NightText.literal('${QuantityFormat.trimmed(seconds)} s');
     case ManualActionId.autofocus:
       final filter = inputs.filterName;
       return filter == null || filter.isEmpty
@@ -275,9 +289,3 @@ NightText? _sub(NightActionInputs inputs, ManualActionId id) {
 /// `nightActBusyAutofocus` from `nightActBusy` and [ManualActionId.autofocus].
 String manualActionKey(String prefix, ManualActionId id) =>
     '$prefix${id.name[0].toUpperCase()}${id.name.substring(1)}';
-
-/// `5 s`, `0.5 s`, `180 s`.
-String formatExposureSeconds(double seconds) {
-  final whole = seconds == seconds.roundToDouble();
-  return whole ? '${seconds.toInt()} s' : '${seconds.toStringAsFixed(1)} s';
-}

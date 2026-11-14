@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api/auth_policy.dart';
-import 'package:skotiq_desktop/headless_api/handlers/system_handlers.dart'
-    show availableHeadlessEndpoints;
+
+import '../support/route_policy.dart';
 
 void main() {
   group('headless token scope parsing', () {
@@ -24,7 +24,7 @@ void main() {
     test('public endpoints resolve to the lowest scope', () {
       // GET /api/info is the only public endpoint; any token rank may pass.
       expect(
-        HeadlessAuthPolicy.requiredScopeFor(method: 'GET', path: '/api/info'),
+        scopeForPath(method: 'GET', path: '/api/info'),
         HeadlessTokenScope.view,
       );
     });
@@ -48,10 +48,7 @@ void main() {
           ('WS', '/events'),
         ]) {
           expect(
-            HeadlessAuthPolicy.requiredScopeFor(
-              method: probe.$1,
-              path: probe.$2,
-            ),
+            scopeForPath(method: probe.$1, path: probe.$2),
             isA<HeadlessTokenScope>(),
           );
         }
@@ -62,7 +59,7 @@ void main() {
   group('headless auth policy', () {
     test('view tokens can read ordinary status endpoints and events', () {
       expect(
-        HeadlessAuthPolicy.allows(
+        allowsPath(
           actual: HeadlessTokenScope.view,
           method: 'GET',
           path: '/api/status',
@@ -70,7 +67,7 @@ void main() {
         isTrue,
       );
       expect(
-        HeadlessAuthPolicy.allows(
+        allowsPath(
           actual: HeadlessTokenScope.view,
           method: 'WS',
           path: '/events',
@@ -81,7 +78,7 @@ void main() {
 
     test('view tokens cannot issue control commands or browse files', () {
       expect(
-        HeadlessAuthPolicy.allows(
+        allowsPath(
           actual: HeadlessTokenScope.view,
           method: 'POST',
           path: '/api/camera/expose',
@@ -89,7 +86,7 @@ void main() {
         isFalse,
       );
       expect(
-        HeadlessAuthPolicy.allows(
+        allowsPath(
           actual: HeadlessTokenScope.view,
           method: 'GET',
           path: '/api/files/browse',
@@ -100,7 +97,7 @@ void main() {
 
     test('control tokens can operate devices but not administer backups', () {
       expect(
-        HeadlessAuthPolicy.allows(
+        allowsPath(
           actual: HeadlessTokenScope.control,
           method: 'POST',
           path: '/api/mount/slew',
@@ -108,7 +105,7 @@ void main() {
         isTrue,
       );
       expect(
-        HeadlessAuthPolicy.allows(
+        allowsPath(
           actual: HeadlessTokenScope.control,
           method: 'POST',
           path: '/api/backup/restore',
@@ -117,9 +114,86 @@ void main() {
       );
     });
 
+    test('control tokens check a folder but do not list the host\'s '
+        'folders', () {
+      expect(
+        allowsPath(
+          actual: HeadlessTokenScope.control,
+          method: 'POST',
+          path: '/api/files/validate',
+        ),
+        isTrue,
+      );
+      expect(
+        allowsPath(
+          actual: HeadlessTokenScope.view,
+          method: 'POST',
+          path: '/api/files/validate',
+        ),
+        isFalse,
+      );
+      expect(
+        allowsPath(
+          actual: HeadlessTokenScope.control,
+          method: 'GET',
+          path: '/api/files/browse',
+        ),
+        isFalse,
+      );
+    });
+
+    // Owner 2026-11-11: a linked app paired the normal way changes the host's
+    // app settings mid-session; credentials, backups and the rest stay admin.
+    test('control tokens change app settings but not admin-only ones', () {
+      for (final path in const [
+        '/api/settings',
+        '/api/settings/store',
+        '/api/settings/meridian-flip',
+        '/api/settings/location',
+      ]) {
+        expect(
+          allowsPath(
+            actual: HeadlessTokenScope.control,
+            method: 'POST',
+            path: path,
+          ),
+          isTrue,
+          reason: path,
+        );
+        expect(
+          allowsPath(
+            actual: HeadlessTokenScope.view,
+            method: 'POST',
+            path: path,
+          ),
+          isFalse,
+          reason: path,
+        );
+      }
+      for (final (method, path) in const [
+        ('GET', '/api/settings/home-assistant'),
+        ('POST', '/api/settings/home-assistant'),
+        ('GET', '/api/files/browse'),
+        ('POST', '/api/plugins/upload'),
+        ('POST', '/api/system/update/apply'),
+        ('POST', '/api/logs/clear'),
+        ('GET', '/api/pairing/active'),
+      ]) {
+        expect(
+          allowsPath(
+            actual: HeadlessTokenScope.control,
+            method: method,
+            path: path,
+          ),
+          isFalse,
+          reason: '$method $path',
+        );
+      }
+    });
+
     test('admin tokens can access administrative endpoints', () {
       expect(
-        HeadlessAuthPolicy.allows(
+        allowsPath(
           actual: HeadlessTokenScope.admin,
           method: 'POST',
           path: '/api/backup/restore',
@@ -127,7 +201,7 @@ void main() {
         isTrue,
       );
       expect(
-        HeadlessAuthPolicy.allows(
+        allowsPath(
           actual: HeadlessTokenScope.admin,
           method: 'GET',
           path: '/api/self-test',
@@ -145,7 +219,7 @@ void main() {
       const forceRelease = '/api/mosaic/projects/7/panels/3/force-release';
       const claim = '/api/mosaic/projects/7/panels/3/claim';
       expect(
-        HeadlessAuthPolicy.allows(
+        allowsPath(
           actual: HeadlessTokenScope.view,
           method: 'POST',
           path: forceRelease,
@@ -153,7 +227,7 @@ void main() {
         isFalse,
       );
       expect(
-        HeadlessAuthPolicy.allows(
+        allowsPath(
           actual: HeadlessTokenScope.control,
           method: 'POST',
           path: forceRelease,
@@ -162,8 +236,8 @@ void main() {
       );
       // Same coarse scope as the sibling claim route (no privilege drift).
       expect(
-        HeadlessAuthPolicy.requiredScopeFor(method: 'POST', path: forceRelease),
-        HeadlessAuthPolicy.requiredScopeFor(method: 'POST', path: claim),
+        scopeForPath(method: 'POST', path: forceRelease),
+        scopeForPath(method: 'POST', path: claim),
       );
     });
   });
@@ -174,7 +248,7 @@ void main() {
     // check allows — no silent gain or loss of access — for every endpoint in
     // the authoritative catalog.
     test('fromCoarse(scope).permits == legacy allows over every endpoint', () {
-      final endpoints = availableHeadlessEndpoints();
+      final endpoints = advertisedApiEndpoints;
       expect(endpoints, isNotEmpty);
       for (final scope in HeadlessTokenScope.values) {
         final grant = HeadlessAuthGrant.fromCoarse(scope);
@@ -184,16 +258,8 @@ void main() {
           final method = parts.first.toUpperCase();
           final path = parts.last;
 
-          final legacy = HeadlessAuthPolicy.allows(
-            actual: scope,
-            method: method,
-            path: path,
-          );
-          final fine = HeadlessAuthPolicy.permits(
-            grant: grant,
-            method: method,
-            path: path,
-          );
+          final legacy = allowsPath(actual: scope, method: method, path: path);
+          final fine = permitsPath(grant: grant, method: method, path: path);
           expect(
             fine,
             legacy,
@@ -209,16 +275,8 @@ void main() {
       for (final scope in HeadlessTokenScope.values) {
         final grant = HeadlessAuthGrant.fromCoarse(scope);
         expect(
-          HeadlessAuthPolicy.permits(
-            grant: grant,
-            method: 'WS',
-            path: '/events',
-          ),
-          HeadlessAuthPolicy.allows(
-            actual: scope,
-            method: 'WS',
-            path: '/events',
-          ),
+          permitsPath(grant: grant, method: 'WS', path: '/events'),
+          allowsPath(actual: scope, method: 'WS', path: '/events'),
         );
       }
     });
@@ -229,47 +287,27 @@ void main() {
       final grant = HeadlessAuthGrant.parseSpec('camera:control,mount:view')!;
       // camera control is granted.
       expect(
-        HeadlessAuthPolicy.permits(
-          grant: grant,
-          method: 'POST',
-          path: '/api/camera/expose',
-        ),
+        permitsPath(grant: grant, method: 'POST', path: '/api/camera/expose'),
         isTrue,
       );
       // mount slew (control) is denied — only view was granted.
       expect(
-        HeadlessAuthPolicy.permits(
-          grant: grant,
-          method: 'POST',
-          path: '/api/mount/slew',
-        ),
+        permitsPath(grant: grant, method: 'POST', path: '/api/mount/slew'),
         isFalse,
       );
       // mount status (view) is allowed.
       expect(
-        HeadlessAuthPolicy.permits(
-          grant: grant,
-          method: 'GET',
-          path: '/api/mount/status',
-        ),
+        permitsPath(grant: grant, method: 'GET', path: '/api/mount/status'),
         isTrue,
       );
       // a resource it never named (focuser) is denied at every level.
       expect(
-        HeadlessAuthPolicy.permits(
-          grant: grant,
-          method: 'GET',
-          path: '/api/focuser/status',
-        ),
+        permitsPath(grant: grant, method: 'GET', path: '/api/focuser/status'),
         isFalse,
       );
       // admin-only endpoints stay denied for a non-admin fine-grained grant.
       expect(
-        HeadlessAuthPolicy.permits(
-          grant: grant,
-          method: 'POST',
-          path: '/api/backup/restore',
-        ),
+        permitsPath(grant: grant, method: 'POST', path: '/api/backup/restore'),
         isFalse,
       );
     });
@@ -277,7 +315,7 @@ void main() {
     test('device connect/disconnect needs explicit devices:control', () {
       final cameraOnly = HeadlessAuthGrant.parseSpec('camera:control')!;
       expect(
-        HeadlessAuthPolicy.permits(
+        permitsPath(
           grant: cameraOnly,
           method: 'POST',
           path: '/api/devices/connect',
@@ -288,7 +326,7 @@ void main() {
         'camera:control,devices:control',
       )!;
       expect(
-        HeadlessAuthPolicy.permits(
+        permitsPath(
           grant: withDevices,
           method: 'POST',
           path: '/api/devices/connect',
@@ -308,7 +346,7 @@ void main() {
       const collabChat = ('POST', '/api/collaboration/chat');
 
       bool permits(HeadlessAuthGrant g, (String, String) ep) =>
-          HeadlessAuthPolicy.permits(grant: g, method: ep.$1, path: ep.$2);
+          permitsPath(grant: g, method: ep.$1, path: ep.$2);
 
       final mosaicOnly = HeadlessAuthGrant.parseSpec('mosaic:control')!;
       expect(permits(mosaicOnly, mosaicPublish), isTrue);
@@ -385,7 +423,7 @@ void main() {
       // read requiredScope=view beside tokenScope=view — the two fields a
       // human reads first, both agreeing, on a refusal.
       final grant = HeadlessAuthGrant.parseSpec('camera:view,mount:view')!;
-      final body = HeadlessAuthPolicy.scopeDenialBody(
+      final body = scopeDenialBodyForPath(
         grant: grant,
         method: 'GET',
         path: '/api/run-watch/snapshot',
@@ -400,7 +438,7 @@ void main() {
 
     test('emits the coarse pair when it explains the refusal', () {
       final grant = HeadlessAuthGrant.fromCoarse(HeadlessTokenScope.view);
-      final body = HeadlessAuthPolicy.scopeDenialBody(
+      final body = scopeDenialBodyForPath(
         grant: grant,
         method: 'POST',
         path: '/api/sequencer/pause',
@@ -415,23 +453,26 @@ void main() {
 
     test('the message names what is held and what is required', () {
       final grant = HeadlessAuthGrant.fromCoarse(HeadlessTokenScope.view);
-      final body = HeadlessAuthPolicy.scopeDenialBody(
+      final body = scopeDenialBodyForPath(
         grant: grant,
         method: 'POST',
         path: '/api/sequencer/pause',
       );
       final message = body['message'] as String;
 
-      // The leading clause is the wire contract paired clients match on.
-      expect(message, startsWith('Token scope is not permitted'));
       expect(message, contains('holds view on sequencer'));
       expect(message, contains('control is required'));
-      expect(body['error'], 'Access denied');
+      // Paired clients tell a scope refusal from a rejected token by code.
+      expect(body['code'], ApiErrorBody.insufficientScope);
+      expect(
+        ApiErrorBody.tryParse(body, httpStatus: 403)?.code,
+        ApiErrorBody.insufficientScope,
+      );
     });
 
     test('an admin-only route reports admin as the requirement', () {
       final grant = HeadlessAuthGrant.fromCoarse(HeadlessTokenScope.control);
-      final body = HeadlessAuthPolicy.scopeDenialBody(
+      final body = scopeDenialBodyForPath(
         grant: grant,
         method: 'GET',
         path: '/api/pairing/active',
@@ -467,14 +508,10 @@ void main() {
 
       for (final grant in grants) {
         for (final (method, path) in routes) {
-          if (HeadlessAuthPolicy.permits(
-            grant: grant,
-            method: method,
-            path: path,
-          )) {
+          if (permitsPath(grant: grant, method: method, path: path)) {
             continue;
           }
-          final body = HeadlessAuthPolicy.scopeDenialBody(
+          final body = scopeDenialBodyForPath(
             grant: grant,
             method: method,
             path: path,

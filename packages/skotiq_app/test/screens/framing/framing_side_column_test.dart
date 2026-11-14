@@ -5,13 +5,17 @@
 
 import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show MosaicPanel, MosaicStartCorner;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/framing/framing_screen.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_panel_parts.dart';
 import 'package:skotiq_app/widgets/slew_dropdown_button.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/framing_keys.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -62,7 +66,7 @@ const _m42 = FramingTarget(
 );
 
 const _ready = FramingEquipmentResult(
-  status: EquipmentStatus.ready,
+  status: FramingEquipmentStatus.ready,
   profileName: 'My First Rig',
   equipment: FramingEquipment(
     cameraName: 'Simulated Camera',
@@ -84,13 +88,12 @@ FramingState _mosaicState() => FramingState(
       mosaicEnabled: true,
       mosaicPanels: [
         for (var i = 0; i < 4; i++)
-          FramingMosaicPanel(
+          MosaicPanel(
             index: i,
-            column: i % 2,
+            col: i % 2,
             row: i ~/ 2,
-            centerRaHours: 5.588 + (i.isEven ? -0.05 : 0.05),
-            centerDecDegrees: -5.39 + (i < 2 ? 0.6 : -0.6),
-            name: 'M42 Panel ${i + 1}',
+            raHours: 5.588 + (i.isEven ? -0.05 : 0.05),
+            decDegrees: -5.39 + (i < 2 ? 0.6 : -0.6),
           ),
       ],
     );
@@ -203,7 +206,8 @@ void main() {
     expect(find.byTooltip('Save target'), findsOneWidget);
     expect(
       tester
-          .widget<SlewDropdownButton>(find.byKey(FramingTutorialKeys.slewBtn))
+          .widget<SlewDropdownButton>(
+              find.byKey(TourTarget.framingSlewButton.key))
           .isEnabled,
       isTrue,
     );
@@ -305,8 +309,8 @@ void main() {
     await pumpColumn(
       tester,
       state: const FramingState(target: _m42),
-      equipment:
-          const FramingEquipmentResult(status: EquipmentStatus.noProfile),
+      equipment: const FramingEquipmentResult(
+          status: FramingEquipmentStatus.noProfile),
     );
 
     expect(find.text('Set up equipment to plan a mosaic.'), findsOneWidget);

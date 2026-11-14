@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/stacking_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -95,8 +97,8 @@ void main() {
       return picks[pickerCalls++].future;
     });
 
-    await tester.tap(find.text('Start stacking'));
-    await tester.tap(find.text('Start stacking'));
+    await tester.tap(find.text('Start from a file…'));
+    await tester.tap(find.text('Start from a file…'));
     await tester.pump();
     expect(pickerCalls, 1);
     expect(find.text('Starting...'), findsOneWidget);
@@ -105,14 +107,14 @@ void main() {
         as _SwappableBackendNotifier;
     backendNotifier.swap(DisconnectedBackend());
     await tester.pump();
-    expect(find.text('Start stacking'), findsOneWidget);
+    expect(find.text('Start from a file…'), findsOneWidget);
 
     picks.first.complete(XFile('/old-host-reference.fits'));
     await tester.pump();
     await tester.pump();
     expect(harness.stacker.starts, isEmpty);
 
-    await tester.tap(find.text('Start stacking'));
+    await tester.tap(find.text('Start from a file…'));
     await tester.pump();
     expect(pickerCalls, 2);
     picks[1].complete(XFile('/current-host-reference.fits'));
@@ -120,7 +122,7 @@ void main() {
     await tester.pump();
 
     expect(harness.stacker.starts, ['/current-host-reference.fits']);
-    expect(find.text('Start stacking'), findsOneWidget);
+    expect(find.text('Start from a file…'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -129,7 +131,7 @@ void main() {
     final pick = Completer<XFile?>();
     final harness = await _pumpPanel(tester, () => pick.future);
 
-    await tester.tap(find.text('Start stacking'));
+    await tester.tap(find.text('Start from a file…'));
     await tester.pump();
     await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
 
@@ -149,13 +151,13 @@ void main() {
       throw StateError('picker unavailable');
     });
 
-    await tester.tap(find.text('Start stacking'));
+    await tester.tap(find.text('Start from a file…'));
     await tester.pump();
     await tester.pump();
 
     expect(calls, 1);
     expect(find.textContaining('picker unavailable'), findsOneWidget);
-    expect(find.text('Start stacking'), findsOneWidget);
+    expect(find.text('Start from a file…'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

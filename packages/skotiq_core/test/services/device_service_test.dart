@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' hide CameraState;
+import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/backend/device_types.dart'
     as device_types;
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
@@ -11,13 +11,15 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/device_heartbeat_health_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/services/device_exceptions.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
 
 import '../mocks/mock_backend.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 class TestBackendNotifier extends BackendNotifier {
   TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -52,14 +54,6 @@ void main() {
     when(
       () => mockBackend.cameraGetRecommendedSettings(any()),
     ).thenAnswer((_) async => const CameraRecommendedSettings(notes: ''));
-    when(
-      () => mockBackend.startDeviceHeartbeat(
-        deviceType: any(named: 'deviceType'),
-        deviceId: any(named: 'deviceId'),
-        intervalMs: any(named: 'intervalMs'),
-      ),
-    ).thenAnswer((_) async {});
-    when(() => mockBackend.stopDeviceHeartbeat(any())).thenAnswer((_) async {});
 
     container = ProviderContainer(
       overrides: [
@@ -124,32 +118,18 @@ void main() {
             canSetOffset: true,
           ),
         );
-        when(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: any(named: 'deviceType'),
-            deviceId: any(named: 'deviceId'),
-            intervalMs: any(named: 'intervalMs'),
-          ),
-        ).thenAnswer((_) async {});
 
         final service = container.read(deviceServiceProvider);
-        await service.connectCamera(deviceId);
+        await service.connect(DeviceType.camera, deviceId);
 
         final state = container.read(cameraStateProvider);
         expect(state.connectionState, DeviceConnectionState.connected);
         expect(state.deviceId, deviceId);
-
-        verify(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: DeviceType.camera,
-            deviceId: deviceId,
-            intervalMs: 10000,
-          ),
-        ).called(1);
       },
     );
 
-    test('connectCamera throws and resets state on failure', () async {
+    test('connectCamera throws, and the slot holds no camera but names the '
+        'one that failed', () async {
       const deviceId = TestFixtures.cameraId;
 
       when(() => mockBackend.discoverDevices(DeviceType.camera)).thenAnswer(
@@ -161,12 +141,14 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       await expectLater(
-        service.connectCamera(deviceId),
+        service.connect(DeviceType.camera, deviceId),
         throwsA(isA<Exception>()),
       );
 
       final state = container.read(cameraStateProvider);
-      expect(state.connectionState, DeviceConnectionState.disconnected);
+      expect(state.connectionState, DeviceConnectionState.error);
+      expect(state.deviceId, isNull);
+      expect(state.lastError?.deviceId, deviceId);
     });
 
     test('disconnectCamera stops heartbeat and resets state', () async {
@@ -178,20 +160,16 @@ void main() {
       notifier.setConnected();
 
       when(
-        () => mockBackend.stopDeviceHeartbeat(deviceId),
-      ).thenAnswer((_) async {});
-      when(
         () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.disconnectCamera();
+      await service.disconnect(DeviceType.camera);
 
       final state = container.read(cameraStateProvider);
       expect(state.connectionState, DeviceConnectionState.disconnected);
       expect(state.deviceId, isNull);
 
-      verify(() => mockBackend.stopDeviceHeartbeat(deviceId)).called(1);
       verify(
         () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
       ).called(1);
@@ -230,16 +208,9 @@ void main() {
           canSetTrackingRate: true,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.connectMount(deviceId);
+      await service.connect(DeviceType.mount, deviceId);
 
       final state = container.read(mountStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -260,7 +231,7 @@ void main() {
 
         final service = container.read(deviceServiceProvider);
         await expectLater(
-          service.connectMount(deviceId),
+          service.connect(DeviceType.mount, deviceId),
           throwsA(
             isA<InvalidDeviceIdException>()
                 .having((e) => e.deviceType, 'deviceType', 'mount')
@@ -302,7 +273,7 @@ void main() {
       );
 
       final service = container.read(deviceServiceProvider);
-      await service.connectFocuser(deviceId);
+      await service.connect(DeviceType.focuser, deviceId);
 
       final state = container.read(focuserStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -310,49 +281,6 @@ void main() {
       expect(state.maxPosition, 50000);
       expect(state.temperature, 12.5);
       expect(state.isMoving, isFalse);
-      verify(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.focuser,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        ),
-      ).called(1);
-    });
-
-    // The rotator never started a heartbeat, so its last contact froze at
-    // connect and System health called it unhealthy all night (RV-05).
-    test('connectRotator starts its heartbeat', () async {
-      const deviceId = 'sim_rotator_1';
-      when(
-        () => mockBackend.connectDevice(DeviceType.rotator, deviceId),
-      ).thenAnswer((_) async {});
-      when(() => mockBackend.getRotatorStatus(deviceId)).thenAnswer(
-        (_) async => const RotatorStatus(
-          connected: true,
-          position: 0,
-          moving: false,
-          mechanicalPosition: 0,
-          isMoving: false,
-          canReverse: false,
-        ),
-      );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.rotator,
-          deviceId: deviceId,
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
-
-      await container.read(deviceServiceProvider).connectRotator(deviceId);
-
-      verify(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.rotator,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        ),
-      ).called(1);
     });
 
     test('disconnectFocuser resets state', () async {
@@ -367,11 +295,10 @@ void main() {
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.disconnectFocuser();
+      await service.disconnect(DeviceType.focuser);
 
       final state = container.read(focuserStateProvider);
       expect(state.connectionState, DeviceConnectionState.disconnected);
-      verify(() => mockBackend.stopDeviceHeartbeat(deviceId)).called(1);
     });
   });
 
@@ -400,37 +327,6 @@ void main() {
       expect(state.coolerPower, 75.0);
     });
 
-    test('MountPositionChanged event updates mount state', () async {
-      final mountNotifier = container.read(mountStateProvider.notifier);
-      mountNotifier.setConnecting('mount-1');
-      mountNotifier.setConnected();
-
-      eventStreamController.add(
-        SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: EventSeverity.info,
-          category: EventCategory.equipment,
-          eventType: 'MountPositionChanged',
-          data: {
-            'ra': 6.5,
-            'dec': -20.0,
-            'altitude': 30.0,
-            'azimuth': 150.0,
-            'isTracking': true,
-            'isSlewing': false,
-          },
-        ),
-      );
-
-      await Future.delayed(const Duration(milliseconds: 50));
-
-      final state = container.read(mountStateProvider);
-      expect(state.ra, 6.5);
-      expect(state.dec, -20.0);
-      expect(state.isTracking, isTrue);
-      expect(state.isSlewing, isFalse);
-    });
-
     test('MountTrackingStarted sets tracking true', () async {
       final mountNotifier = container.read(mountStateProvider.notifier);
       mountNotifier.setConnecting('mount-1');
@@ -449,6 +345,37 @@ void main() {
 
       await Future.delayed(const Duration(milliseconds: 50));
 
+      expect(container.read(mountStateProvider).isTracking, isTrue);
+    });
+
+    test('a tracking event of another mount leaves the slot alone', () async {
+      final mountNotifier = container.read(mountStateProvider.notifier);
+      mountNotifier.setConnecting('mount-1');
+      mountNotifier.setConnected();
+      mountNotifier.setTracking(false);
+
+      eventStreamController.add(
+        SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'MountTrackingStarted',
+          data: {'device_id': 'mount-2'},
+        ),
+      );
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(container.read(mountStateProvider).isTracking, isFalse);
+
+      eventStreamController.add(
+        SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'MountTrackingStarted',
+          data: {'device_id': 'mount-1'},
+        ),
+      );
+      await Future.delayed(const Duration(milliseconds: 50));
       expect(container.read(mountStateProvider).isTracking, isTrue);
     });
 
@@ -473,27 +400,74 @@ void main() {
       expect(container.read(mountStateProvider).isTracking, isFalse);
     });
 
-    test('FocuserPositionChanged event updates focuser state', () async {
-      final focNotifier = container.read(focuserStateProvider.notifier);
-      focNotifier.setConnecting('focuser-1');
-      focNotifier.setConnected();
+    // The native DeviceManager publishes a gain change whoever made it (a
+    // slave through the API, a script); the host UI must show it at once
+    // rather than on the next 5 s camera poll.
+    test('PropertyChanged gain and binning update the slot camera', () async {
+      container.read(cameraStateProvider.notifier)
+        ..setConnecting('camera-1', 'Test Camera')
+        ..setConnected();
+
+      for (final change in const [('Gain', '139'), ('Binning', '2x2')]) {
+        eventStreamController.add(
+          SkotiqEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: EventSeverity.info,
+            category: EventCategory.equipment,
+            eventType: 'PropertyChanged',
+            data: {
+              'device_type': 'Camera',
+              'device_id': 'camera-1',
+              'property': change.$1,
+              'value': change.$2,
+            },
+          ),
+        );
+      }
+      // A different camera (the guide camera) does not touch the slot.
+      eventStreamController.add(
+        SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'PropertyChanged',
+          data: {
+            'device_type': 'Camera',
+            'device_id': 'guide-camera',
+            'property': 'Gain',
+            'value': '400',
+          },
+        ),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final state = container.read(cameraStateProvider);
+      expect(state.gain, 139);
+      expect(state.binning, '2x2');
+    });
+
+    test('FilterChanged event moves the host wheel', () async {
+      container.read(filterWheelStateProvider.notifier)
+        ..setConnecting('wheel-1', 'Test Wheel')
+        ..setConnected(filterNames: const ['L', 'R', 'G', 'B'])
+        ..setMoving(true);
 
       eventStreamController.add(
         SkotiqEvent(
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.equipment,
-          eventType: 'FocuserPositionChanged',
-          data: {'position': 25000, 'isMoving': true, 'temperature': 14.3},
+          eventType: 'FilterChanged',
+          data: {'position': 3, 'filter_name': 'B'},
         ),
       );
 
       await Future.delayed(const Duration(milliseconds: 50));
 
-      final state = container.read(focuserStateProvider);
-      expect(state.position, 25000);
-      expect(state.isMoving, isTrue);
-      expect(state.temperature, 14.3);
+      final state = container.read(filterWheelStateProvider);
+      expect(state.currentPosition, 3);
+      expect(state.isMoving, isFalse);
     });
 
     test(
@@ -559,31 +533,6 @@ void main() {
         final state = container.read(focuserStateProvider);
         expect(state.isMoving, isFalse);
         expect(state.position, 25000);
-      },
-    );
-
-    test(
-      'FilterWheelPositionChanged event updates filter wheel state',
-      () async {
-        final fwNotifier = container.read(filterWheelStateProvider.notifier);
-        fwNotifier.setConnecting(TestFixtures.filterWheelId, 'Test FW');
-        fwNotifier.setConnected(filterNames: TestFixtures.sampleFilterNames);
-
-        eventStreamController.add(
-          SkotiqEvent(
-            timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.equipment,
-            eventType: 'FilterWheelPositionChanged',
-            data: {'position': 3, 'isMoving': false},
-          ),
-        );
-
-        await Future.delayed(const Duration(milliseconds: 50));
-
-        final state = container.read(filterWheelStateProvider);
-        expect(state.currentPosition, 3);
-        expect(state.isMoving, isFalse);
       },
     );
 
@@ -718,13 +667,6 @@ void main() {
         when(
           () => mockBackend.connectDevice(DeviceType.camera, deviceId),
         ).thenAnswer((_) async {});
-        when(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: any(named: 'deviceType'),
-            deviceId: any(named: 'deviceId'),
-            intervalMs: any(named: 'intervalMs'),
-          ),
-        ).thenAnswer((_) async {});
 
         // Return temperature data on every status poll
         when(() => mockBackend.getCameraStatus(deviceId)).thenAnswer(
@@ -751,7 +693,7 @@ void main() {
         );
 
         final service = container.read(deviceServiceProvider);
-        await service.connectCamera(deviceId);
+        await service.connect(DeviceType.camera, deviceId);
 
         // The immediate poll after connect should have updated temp
         await Future.delayed(const Duration(milliseconds: 100));
@@ -771,13 +713,6 @@ void main() {
       );
       when(
         () => mockBackend.connectDevice(DeviceType.camera, deviceId),
-      ).thenAnswer((_) async {});
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
       ).thenAnswer((_) async {});
       when(() => mockBackend.getCameraStatus(deviceId)).thenAnswer(
         (_) async => const CameraStatus(
@@ -802,15 +737,12 @@ void main() {
         ),
       );
       when(
-        () => mockBackend.stopDeviceHeartbeat(deviceId),
-      ).thenAnswer((_) async {});
-      when(
         () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.connectCamera(deviceId);
-      await service.disconnectCamera();
+      await service.connect(DeviceType.camera, deviceId);
+      await service.disconnect(DeviceType.camera);
 
       // Reset the call count, then wait; no new calls should come in
       clearInteractions(mockBackend);
@@ -841,16 +773,6 @@ void main() {
           () => mockBackend.disconnectDevice(DeviceType.camera, any()),
         ).thenAnswer((_) async {});
         when(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: any(named: 'deviceType'),
-            deviceId: any(named: 'deviceId'),
-            intervalMs: any(named: 'intervalMs'),
-          ),
-        ).thenAnswer((_) async {});
-        when(
-          () => mockBackend.stopDeviceHeartbeat(any()),
-        ).thenAnswer((_) async {});
-        when(
           () => mockBackend.getCameraStatus(firstDeviceId),
         ).thenAnswer((_) => firstPoll.future);
         when(() => mockBackend.getCameraStatus(secondDeviceId)).thenAnswer(
@@ -877,9 +799,9 @@ void main() {
         );
 
         final service = container.read(deviceServiceProvider);
-        await service.connectCamera(firstDeviceId);
-        await service.disconnectCamera();
-        await service.connectCamera(secondDeviceId);
+        await service.connect(DeviceType.camera, firstDeviceId);
+        await service.disconnect(DeviceType.camera);
+        await service.connect(DeviceType.camera, secondDeviceId);
 
         firstPoll.complete(
           const CameraStatus(
@@ -1080,13 +1002,6 @@ void main() {
           hasTemperature: true,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final focuserNotifier = container.read(focuserStateProvider.notifier);
       focuserNotifier.setConnecting(focuser2, 'Test Focuser');
@@ -1236,7 +1151,7 @@ void main() {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
-          eventType: 'SequenceStarted',
+          eventType: 'Started',
           data: {'sequence_name': 'M31 LRGB'},
         ),
       );
@@ -1254,7 +1169,7 @@ void main() {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
-          eventType: 'SequenceStarted',
+          eventType: 'Started',
           data: {'sequence_name': 'Test'},
         ),
       );
@@ -1266,7 +1181,7 @@ void main() {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
-          eventType: 'SequenceCompleted',
+          eventType: 'Completed',
           data: {},
         ),
       );
@@ -1283,7 +1198,7 @@ void main() {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
-          eventType: 'SequenceStarted',
+          eventType: 'Started',
           data: {'sequence_name': 'Test'},
         ),
       );
@@ -1294,7 +1209,7 @@ void main() {
           timestamp: DateTime.now().millisecondsSinceEpoch,
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
-          eventType: 'SequencePaused',
+          eventType: 'Paused',
           data: {},
         ),
       );
@@ -1433,13 +1348,6 @@ void main() {
       when(
         () => mockBackend.connectDevice(DeviceType.camera, deviceId),
       ).thenAnswer((_) async {});
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       // First call throws, subsequent calls succeed
       when(() => mockBackend.getCameraStatus(deviceId)).thenAnswer((_) async {
@@ -1470,7 +1378,7 @@ void main() {
       });
 
       final service = container.read(deviceServiceProvider);
-      await service.connectCamera(deviceId);
+      await service.connect(DeviceType.camera, deviceId);
 
       // Wait long enough for second poll (polling is every 5s, but first poll is immediate)
       // The initial poll will throw; subsequent polls should succeed.
@@ -1498,7 +1406,7 @@ void main() {
       final service = container.read(deviceServiceProvider);
 
       await expectLater(
-        service.disconnectCamera(),
+        service.disconnect(DeviceType.camera),
         throwsA(
           isA<DeviceNotConnectedException>().having(
             (e) => e.deviceType,
@@ -1521,7 +1429,7 @@ void main() {
       final service = container.read(deviceServiceProvider);
 
       await expectLater(
-        service.disconnectMount(),
+        service.disconnect(DeviceType.mount),
         throwsA(
           isA<DeviceNotConnectedException>().having(
             (e) => e.deviceType,
@@ -1538,7 +1446,7 @@ void main() {
       final service = container.read(deviceServiceProvider);
 
       await expectLater(
-        service.disconnectFocuser(),
+        service.disconnect(DeviceType.focuser),
         throwsA(
           isA<DeviceNotConnectedException>().having(
             (e) => e.deviceType,
@@ -1557,7 +1465,7 @@ void main() {
       final service = container.read(deviceServiceProvider);
 
       await expectLater(
-        service.disconnectFilterWheel(),
+        service.disconnect(DeviceType.filterWheel),
         throwsA(
           isA<DeviceNotConnectedException>().having(
             (e) => e.deviceType,
@@ -1579,31 +1487,31 @@ void main() {
         final service = container.read(deviceServiceProvider);
 
         await expectLater(
-          service.disconnectGuider(),
+          service.disconnect(DeviceType.guider),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectRotator(),
+          service.disconnect(DeviceType.rotator),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectDome(),
+          service.disconnect(DeviceType.dome),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectWeather(),
+          service.disconnect(DeviceType.weather),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectSafetyMonitor(),
+          service.disconnect(DeviceType.safetyMonitor),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectSwitch(),
+          service.disconnect(DeviceType.switch_),
           throwsA(isA<DeviceNotConnectedException>()),
         );
         await expectLater(
-          service.disconnectCoverCalibrator(),
+          service.disconnect(DeviceType.coverCalibrator),
           throwsA(isA<DeviceNotConnectedException>()),
         );
       },
@@ -1619,15 +1527,12 @@ void main() {
       notifier.setConnected();
 
       when(
-        () => mockBackend.stopDeviceHeartbeat(deviceId),
-      ).thenAnswer((_) async {});
-      when(
         () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       // Should complete without throwing.
-      await service.disconnectCamera();
+      await service.disconnect(DeviceType.camera);
 
       // Backend was contacted, state was cleared.
       verify(
@@ -1652,9 +1557,6 @@ void main() {
         ..setConnecting(mountDeviceId, 'Test Mount')
         ..setConnected();
 
-      when(
-        () => mockBackend.stopDeviceHeartbeat(any()),
-      ).thenAnswer((_) async {});
       // Camera disconnect succeeds.
       when(
         () => mockBackend.disconnectDevice(DeviceType.camera, cameraDeviceId),
@@ -1666,18 +1568,14 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
 
-      // The real failure should still propagate. The other 8 device types
-      // are all not-connected and should be silently skipped (NOT counted
-      // as errors).
-      await expectLater(
-        service.disconnectAll(),
-        throwsA(
-          predicate<Exception>(
-            (e) =>
-                e.toString().contains('Mount driver refused to disconnect') &&
-                !e.toString().contains('DeviceNotConnectedException'),
-          ),
-        ),
+      // The real failure is reported. The other device types are not
+      // connected and are skipped, not counted as failures.
+      final result = await service.disconnectAll();
+      expect(result.disconnected, 1);
+      expect(result.failures, hasLength(1));
+      expect(
+        result.failures.single,
+        contains('Mount driver refused to disconnect'),
       );
     });
 
@@ -1698,17 +1596,7 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       final disconnects = <Future<void> Function()>[
-        service.disconnectCamera,
-        service.disconnectMount,
-        service.disconnectFocuser,
-        service.disconnectFilterWheel,
-        service.disconnectGuider,
-        service.disconnectRotator,
-        service.disconnectDome,
-        service.disconnectWeather,
-        service.disconnectSafetyMonitor,
-        service.disconnectSwitch,
-        service.disconnectCoverCalibrator,
+        for (final type in DeviceType.values) () => service.disconnect(type),
       ];
 
       var successCount = 0;
@@ -1750,16 +1638,6 @@ void main() {
         ..setConnected();
 
       when(
-        () => mockBackend.stopDeviceHeartbeat(deviceId),
-      ).thenAnswer((_) async {});
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.camera,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        ),
-      ).thenAnswer((_) async {});
-      when(
         () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
       ).thenThrow(StateError('camera driver refused disconnect'));
       when(() => mockBackend.getCameraStatus(deviceId)).thenAnswer(
@@ -1799,13 +1677,6 @@ void main() {
             .isUserInitiatedDisconnect(deviceId),
         isFalse,
       );
-      verify(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.camera,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        ),
-      ).called(1);
     });
 
     test(
@@ -1816,16 +1687,6 @@ void main() {
           ..setConnecting(deviceId, 'Test Mount')
           ..setConnected();
 
-        when(
-          () => mockBackend.stopDeviceHeartbeat(deviceId),
-        ).thenAnswer((_) async {});
-        when(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: DeviceType.mount,
-            deviceId: deviceId,
-            intervalMs: 10000,
-          ),
-        ).thenAnswer((_) async {});
         when(
           () => mockBackend.disconnectDevice(DeviceType.mount, deviceId),
         ).thenThrow(StateError('mount driver refused disconnect'));
@@ -1865,13 +1726,6 @@ void main() {
               .isUserInitiatedDisconnect(deviceId),
           isFalse,
         );
-        verify(
-          () => mockBackend.startDeviceHeartbeat(
-            deviceType: DeviceType.mount,
-            deviceId: deviceId,
-            intervalMs: 10000,
-          ),
-        ).called(1);
       },
     );
 
@@ -1923,24 +1777,18 @@ void main() {
     addTearDown(configuredContainer.dispose);
     final service = configuredContainer.read(deviceServiceProvider);
 
-    await expectLater(service.startGuiding(), throwsException);
     await expectLater(service.stopGuiding(), throwsException);
-    await expectLater(service.dither(), throwsException);
 
     verifyNever(
       () => mockBackend.guiderStartGuiding(
-        deviceId: any(named: 'deviceId'),
         settlePixels: any(named: 'settlePixels'),
         settleTime: any(named: 'settleTime'),
         settleTimeout: any(named: 'settleTimeout'),
       ),
     );
-    verifyNever(
-      () => mockBackend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
-    );
+    verifyNever(() => mockBackend.guiderStopGuiding());
     verifyNever(
       () => mockBackend.guiderDither(
-        deviceId: any(named: 'deviceId'),
         amount: any(named: 'amount'),
         raOnly: any(named: 'raOnly'),
         settlePixels: any(named: 'settlePixels'),

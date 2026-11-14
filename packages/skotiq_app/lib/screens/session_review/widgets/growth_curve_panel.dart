@@ -1,9 +1,9 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../analytics/widgets/adaptive_chart_container.dart';
-import '../session_review_controller.dart' show BestNight, GrowthPoint;
+import '../../../widgets/adaptive_chart_container.dart';
+import '../session_review_controller.dart' show ReviewBestNight, GrowthPoint;
 
 /// Narrative-view card charting a target's multi-night growth: cumulative
 /// integration hours accrued against calendar date as nights are folded into
@@ -20,7 +20,7 @@ class GrowthCurvePanel extends StatelessWidget {
   final List<GrowthPoint> points;
 
   /// The standout night to badge, or null when none is distinguished.
-  final BestNight? best;
+  final ReviewBestNight? best;
 
   const GrowthCurvePanel({super.key, required this.points, this.best});
 
@@ -36,14 +36,10 @@ class GrowthCurvePanel extends StatelessWidget {
     // single-night project still plots cleanly without date-arithmetic on the
     // axis. Y axis is cumulative integration HOURS.
     final sorted = [...points]..sort((a, b) => a.date.compareTo(b.date));
-    final spots = [
+    final growth = [
       for (var i = 0; i < sorted.length; i++)
-        FlSpot(i.toDouble(), sorted[i].cumulativeHours),
+        Offset(i.toDouble(), sorted[i].cumulativeHours),
     ];
-
-    final maxHours = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
-    final yMax = maxHours <= 0 ? 1.0 : maxHours * 1.15;
-    final lastN = sorted.length - 1;
     final totalHours = sorted.last.cumulativeHours;
     final totalFrames = sorted.last.framesToDate;
 
@@ -51,16 +47,15 @@ class GrowthCurvePanel extends StatelessWidget {
         ? -1
         : sorted.indexWhere((p) => _sameDay(p.date, best!.date));
 
-    // The series hue is a NAME, not the colour that gets painted. Red night is
-    // a WAVELENGTH constraint, so painting the constant raw put #6B95B8 — a
-    // solid blue line, its dots and its area fill — on a card whose every other
-    // pixel was red, undoing the dark adaptation the mode exists to protect.
-    // Resolved once here so the line, the dots and the fill below cannot drift
-    // apart.
-    final lineColor = SkotiqChartColors.forTheme(
-      SkotiqChartColors.seriesBlue,
-      colors,
-    );
+    String night(double x) {
+      final i = x.round();
+      return i >= 0 && i < sorted.length
+          ? ClockFormat.monthDay(sorted[i].date)
+          : '';
+    }
+
+    String hours(double value) =>
+        '${value.toStringAsFixed(value >= 10 ? 0 : 1)}h';
 
     return SkotiqPanel(
       child: Padding(
@@ -76,118 +71,48 @@ class GrowthCurvePanel extends StatelessWidget {
             const SizedBox(height: SkotiqTokens.spaceMd),
             AdaptiveChartContainer(
               preferredHeight: 170,
-              child: LineChart(
-                LineChartData(
-                  minX: 0,
-                  maxX: lastN.toDouble(),
-                  minY: 0,
-                  maxY: yMax,
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: true,
-                    horizontalInterval: yMax / 4,
-                    getDrawingHorizontalLine: (_) => FlLine(
-                      color: colors.border.withValues(alpha: 0.3),
-                      strokeWidth: 1,
-                    ),
-                    getDrawingVerticalLine: (_) => FlLine(
-                      color: colors.border.withValues(alpha: 0.3),
-                      strokeWidth: 1,
-                    ),
+              child: SkotiqChart(
+                semanticLabel: 'Project growth: ${hours(totalHours)} over '
+                    '${sorted.length} night${sorted.length == 1 ? '' : 's'}',
+                series: <ChartSeries>[
+                  ChartSeries(
+                    points: growth,
+                    label: 'Total',
+                    color: SkotiqChartColors.seriesBlue,
+                    strokeWidth: 2.5,
+                    filled: true,
                   ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 28,
-                        interval: _axisInterval(sorted.length),
-                        getTitlesWidget: (value, meta) {
-                          final i = value.round();
-                          if (i < 0 || i >= sorted.length) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(
-                              top: SkotiqTokens.spaceSm,
-                            ),
-                            child: Text(
-                              _shortDate(sorted[i].date),
-                              style: SkotiqTypography.captionSm.copyWith(
-                                color: colors.textSecondary,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        interval: yMax / 4,
-                        getTitlesWidget: (value, meta) => Text(
-                          '${value.toStringAsFixed(value >= 10 ? 0 : 1)}h',
-                          style: SkotiqTypography.captionSm.copyWith(
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
+                  ChartSeries(
+                    points: growth,
+                    color: SkotiqChartColors.seriesBlue,
+                    kind: ChartSeriesKind.scatter,
+                    dotRadius: 3,
                   ),
-                  borderData: FlBorderData(
-                    show: true,
-                    border: Border.all(color: colors.border),
-                  ),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: false,
-                      color: lineColor,
-                      barWidth: 2.5,
-                      isStrokeCapRound: true,
-                      dotData: FlDotData(
-                        show: true,
-                        getDotPainter: (spot, _, __, ___) {
-                          final isBest = spot.x.round() == bestIndex;
-                          return FlDotCirclePainter(
-                            radius: isBest ? 5 : 3,
-                            color: isBest ? colors.success : lineColor,
-                            strokeColor: colors.surface,
-                            strokeWidth: isBest ? 2 : 1,
-                          );
-                        },
-                      ),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: lineColor.withValues(alpha: 0.1),
-                      ),
+                  if (bestIndex >= 0)
+                    ChartSeries(
+                      points: [growth[bestIndex]],
+                      label: 'Best night',
+                      color: SkotiqChartColors.seriesGreen,
+                      kind: ChartSeriesKind.scatter,
+                      dotRadius: 5,
                     ),
+                ],
+                x: ChartAxis(
+                  min: 0,
+                  max: (sorted.length - 1).toDouble(),
+                  ticks: [
+                    for (var i = 0;
+                        i < sorted.length;
+                        i += _axisInterval(sorted.length))
+                      i.toDouble(),
                   ],
-                  lineTouchData: LineTouchData(
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipColor: (_) => colors.surface,
-                      getTooltipItems: (touchedSpots) =>
-                          touchedSpots.map((spot) {
-                        final i = spot.x.round();
-                        final date = (i >= 0 && i < sorted.length)
-                            ? _shortDate(sorted[i].date)
-                            : '';
-                        return LineTooltipItem(
-                          '$date\n${spot.y.toStringAsFixed(1)}h total',
-                          SkotiqTypography.labelQuiet.copyWith(
-                            color: colors.textPrimary,
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
+                  format: night,
+                  readout: night,
+                ),
+                y: ChartAxis(
+                  includeZero: true,
+                  format: hours,
+                  readout: (value) => '${value.toStringAsFixed(1)}h total',
                 ),
               ),
             ),
@@ -237,11 +162,11 @@ class GrowthCurvePanel extends StatelessWidget {
     );
   }
 
-  Widget _bestNightBadge(BestNight best) {
+  Widget _bestNightBadge(ReviewBestNight best) {
     return StatusPill(
       icon: SkotiqIcons.star,
       label: 'Best night',
-      value: '${_shortDate(best.date)} · '
+      value: '${ClockFormat.monthDay(best.date)} · '
           '${best.integrationHours.toStringAsFixed(1)}h',
       status: StatusPillStatus.success,
     );
@@ -267,28 +192,6 @@ class GrowthCurvePanel extends StatelessWidget {
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  static String _shortDate(DateTime d) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final m = months[(d.month - 1).clamp(0, 11)];
-    return '$m ${d.day}';
-  }
-
   /// Keep ≤ ~5 date labels on the bottom axis.
-  double _axisInterval(int count) {
-    if (count <= 5) return 1;
-    return (count / 5).ceilToDouble();
-  }
+  int _axisInterval(int count) => count <= 5 ? 1 : (count / 5).ceil();
 }

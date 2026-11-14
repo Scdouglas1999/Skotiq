@@ -14,7 +14,8 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
 LoggingService _testLogger(Directory tempDir) {
@@ -49,7 +50,7 @@ void main() {
 
   BackupService serviceFor(SkotiqDatabase db) => BackupService(
     database: db,
-    sequenceRepository: SequenceRepository(db.sequencesDao),
+    sequenceRepository: LocalSequenceRepository(db.sequencesDao),
     logger: logger,
   );
 
@@ -147,10 +148,10 @@ void main() {
       expect(created.success, isTrue, reason: created.errorMessage);
 
       final archive = await archiveAt(backupPath);
-      final rows = (archive['guideRmsHistory'] as List).cast<Map>();
+      final rows = (archive['tables']['guide_rms_history'] as List).cast<Map>();
       expect(rows, hasLength(pagedRowCount));
       expect(
-        rows.map((r) => r['totalRmsArcsec']).toList(),
+        rows.map((r) => r['total_rms_arcsec']).toList(),
         [for (var i = 0; i < pagedRowCount; i++) i.toDouble()],
         reason: 'paging must not drop, duplicate, or reorder rows',
       );
@@ -159,7 +160,7 @@ void main() {
         dstDb,
       ).restoreBackup(filePath: backupPath);
       expect(restored.success, isTrue, reason: restored.errorMessage);
-      expect(restored.categoryCounts['guideRmsHistory'], pagedRowCount);
+      expect(restored.categoryCounts['guide_rms_history'], pagedRowCount);
 
       final destRows = await dstDb.select(dstDb.guideRmsHistory).get();
       expect(destRows, hasLength(pagedRowCount));

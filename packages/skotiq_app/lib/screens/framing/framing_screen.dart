@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import 'package:skotiq_app/utils/plan_tonight_sequencer_helper.dart';
-import 'add_target_to_sequence_flow.dart';
+import '../../widgets/add_target_to_sequence_flow.dart';
 import 'framing_altaz.dart';
-import 'framing_hips_layer_wiring.dart';
 import 'framing_search_provider.dart';
-import '../../widgets/tutorial_keys/framing_keys.dart';
-import 'widgets/optical_config_panel.dart';
-import 'widgets/framing_canvas.dart';
+import '../../tours/tour_target.dart';
+import '../../router/app_routes.dart';
+import 'widgets/framing_sky_canvas.dart';
 import 'widgets/framing_actions_panel.dart';
 import 'widgets/framing_sidebar.dart';
 
@@ -23,8 +26,8 @@ import 'widgets/framing_sidebar.dart';
 /// wrapper kept for the redirected `/framing` standalone route). Browsing and
 /// acting on tonight's target suggestions lives entirely in the Planner — this
 /// view carries no Suggestions tab. Targets are adopted into the canvas via
-/// [FramingNotifier.setTargetSuggestion] + `goNamed('framing')` or via
-/// `?ra=&dec=&name=` query params.
+/// [FramingNotifier.setTargetSuggestion] before opening the Framing tab, or
+/// via a [SkyTarget] in the location's query.
 class FramingView extends ConsumerStatefulWidget {
   const FramingView({super.key});
 
@@ -50,27 +53,27 @@ class _FramingViewState extends ConsumerState<FramingView> {
   }
 
   Future<void> _loadPersistedTarget() async {
-    // Honor inbound query params first: /framing?ra=<hours>&dec=<deg>&name=<n>.
+    // Honor an inbound [SkyTarget] query first.
     // The planning workspace uses this to hand off a chosen target to framing.
     final applied = _applyQueryParamsTarget();
 
     final framingState = ref.read(framingProvider);
     if (!applied && framingState.target == null) {
-      // No target in provider, try to load from database
       await ref.read(framingProvider.notifier).loadMostRecentTarget();
     }
     // Always sync controllers with provider state (handles navigation back to tab)
     final currentState = ref.read(framingProvider);
     if (currentState.target != null) {
       _searchController.text = currentState.target!.name;
-      _raController.text = currentState.target!.raFormatted;
-      _decController.text = currentState.target!.decFormatted;
+      _raController.text =
+          CoordinateFormat.raReadout(currentState.target!.raHours);
+      _decController.text =
+          CoordinateFormat.decReadout(currentState.target!.decDegrees);
     }
   }
 
-  /// Parses `?ra=&dec=&name=` from the current GoRouter location and, when
-  /// valid, hands the target to the framing provider. Returns true if a
-  /// target was applied. RA is in decimal hours, Dec is in decimal degrees.
+  /// Reads a [SkyTarget] from the current GoRouter location and, when valid,
+  /// hands it to the framing provider. Returns true if a target was applied.
   bool _applyQueryParamsTarget() {
     if (!mounted) return false;
     final Uri uri;
@@ -80,22 +83,12 @@ class _FramingViewState extends ConsumerState<FramingView> {
       // Why: framing screen is reachable outside the GoRouter tree in tests.
       return false;
     }
-    final params = uri.queryParameters;
-    final raStr = params['ra'];
-    final decStr = params['dec'];
-    if (raStr == null || decStr == null) return false;
-
-    final raHours = double.tryParse(raStr);
-    final decDegrees = double.tryParse(decStr);
-    if (raHours == null || decDegrees == null) return false;
-    if (raHours < 0 || raHours >= 24) return false;
-    if (decDegrees < -90 || decDegrees > 90) return false;
-
-    final name = params['name']?.trim();
+    final target = SkyTarget.fromQuery(uri.queryParameters);
+    if (target == null) return false;
     ref.read(framingProvider.notifier).setTargetCoordinates(
-          raHours,
-          decDegrees,
-          name: (name == null || name.isEmpty) ? null : name,
+          target.raHours,
+          target.decDegrees,
+          name: target.name,
         );
     return true;
   }
@@ -164,7 +157,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
     // for the adaptive split: full-screen on desktop minus the controls panel,
     // and the dominant region on a phone (controls collapse to a sheet /
     // side-by-side split per AdaptivePanelLayout).
-    final canvas = _buildCanvas(colors, framingState, equipmentResult);
+    final canvas = FramingSkyCanvas(canvasKey: TourTarget.framingCanvas.key);
 
     // The controls / target sidebar content. Identical on every tier — only its
     // container changes (a fixed side column on desktop/tablet, a bottom sheet
@@ -207,95 +200,6 @@ class _FramingViewState extends ConsumerState<FramingView> {
           ),
         ],
       ),
-    );
-  }
-
-  /// The dominant survey/HiPS canvas plus its overlay chrome (optical-config
-  /// panel toggle and survey attribution badge).
-  Widget _buildCanvas(
-    SkotiqColors colors,
-    FramingState framingState,
-    AsyncValue<FramingEquipmentResult> equipmentResult,
-  ) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: FramingCanvas(
-            key: FramingTutorialKeys.canvas,
-            colors: colors,
-            framingState: framingState,
-            equipmentResult: equipmentResult.valueOrNull,
-            onPan: (dx, dy, canvasSize) {
-              ref
-                  .read(framingProvider.notifier)
-                  .pan(dx, dy, canvasSize: canvasSize);
-            },
-            onRotate: (angle) {
-              ref.read(framingProvider.notifier).setRotation(angle);
-            },
-            onAimChanged: (raHours, decDegrees) {
-              ref.read(framingProvider.notifier).setAim(raHours, decDegrees);
-            },
-            onCanvasResized: (canvasSize) {
-              ref.read(framingProvider.notifier).onCanvasResized(canvasSize);
-            },
-          ),
-        ),
-        // GPU HiPS framing attribution chrome. The streamed tile
-        // mosaic itself is composed INSIDE FramingCanvas's Stack — above
-        // the single-cutout survey snapshot and UNDER the grid / FOV /
-        // equipment overlays — so the imagery never hides the FOV
-        // reticle. This wiring only adds the survey attribution credit
-        // badge as top chrome (a licence requirement), self-positioning
-        // in the canvas's bottom band and gated internally by
-        // hipsFramingActiveProvider, so it contributes nothing when the
-        // feature is off or the survey has no verified HiPS pyramid.
-        const Positioned.fill(child: FramingHipsLayerWiring()),
-        if (framingState.showOpticalConfigPanel)
-          const Positioned(
-            top: 16,
-            left: 16,
-            child: OpticalConfigPanel(),
-          )
-        else
-          Positioned(
-            top: 16,
-            left: 16,
-            child: Tooltip(
-              message: 'Show optical config panel',
-              child: Material(
-                color: colors.surface,
-                borderRadius: SkotiqTokens.borderRadiusInline8,
-                child: InkWell(
-                  borderRadius: SkotiqTokens.borderRadiusInline8,
-                  onTap: () {
-                    ref
-                        .read(framingProvider.notifier)
-                        .setOpticalConfigPanelVisible(true);
-                  },
-                  child: Container(
-                    // ≥48px touch target so the show-config affordance is
-                    // tappable on a phone (the inner icon stays 16px).
-                    constraints: const BoxConstraints(
-                      minWidth: SkotiqTokens.minTouchTarget,
-                      minHeight: SkotiqTokens.minTouchTarget,
-                    ),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: colors.border),
-                      borderRadius: SkotiqTokens.borderRadiusInline8,
-                    ),
-                    child: Icon(
-                      SkotiqIcons.aperture,
-                      size: 16,
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 
@@ -415,8 +319,8 @@ class _FramingViewState extends ConsumerState<FramingView> {
     notifier.setTarget(target);
     ref.read(targetSearchProvider.notifier).clear();
     _searchController.text = target.name;
-    _raController.text = target.raFormatted;
-    _decController.text = target.decFormatted;
+    _raController.text = CoordinateFormat.raReadout(target.raHours);
+    _decController.text = CoordinateFormat.decReadout(target.decDegrees);
     _searchFocusNode.unfocus();
     // Alt/Az auto-refreshes on the next build (framingProvider watch triggers it).
   }
@@ -460,7 +364,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
       rotationDegrees: rotation,
     );
     if (added && mounted) {
-      context.go('/sequencer');
+      context.go(AppRoute.sequencer.path);
     }
   }
 
@@ -475,21 +379,20 @@ class _FramingViewState extends ConsumerState<FramingView> {
     // centre would drop the canvas panels with nothing in the dialog or the
     // confirmation to say the mosaic had been discarded.
     final framingState = ref.read(framingProvider);
-    final panels = framingState.mosaicEnabled
-        ? framingState.mosaicPanels
-        : const <FramingMosaicPanel>[];
+    final panels =
+        framingState.mosaicEnabled ? framingState.mosaicPanels.length : 0;
 
     final added = await addFramedTargetToExistingSequence(
       context: context,
       ref: ref,
       target: target,
       rotationDegrees: rotation,
-      mosaicPanels: panels,
+      mosaic: framingState.mosaicEnabled ? framingState : null,
     );
     if (added && mounted) {
       context.showInfoSnackBar(
-        panels.length >= 2
-            ? 'Added ${panels.length} mosaic panels to sequence'
+        panels >= 2
+            ? 'Added $panels mosaic panels to sequence'
             : 'Added ${target.name} to sequence',
       );
     }
@@ -501,7 +404,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
       if (!mounted) return;
       context.showSuccessSnackBar('Target saved');
     } catch (e) {
-      context.showErrorSnackBar('Failed to save: $e');
+      context.showErrorSnackBar('Failed to save: ${userFacingError(e)}');
       if (!mounted) return;
     }
   }
@@ -536,7 +439,8 @@ class _FramingViewState extends ConsumerState<FramingView> {
       context.showSuccessSnackBar('Cached at ${entry.filePath}');
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Failed to cache survey image: $e');
+      context.showErrorSnackBar(
+          'Failed to cache survey image: ${userFacingError(e)}');
     }
   }
 }

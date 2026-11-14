@@ -3,8 +3,8 @@ import 'package:skotiq_core/src/models/imaging/color_calibration_result.dart';
 import 'package:skotiq_core/src/models/imaging/star_photometry.dart';
 import 'package:skotiq_core/src/services/color_calibration_service.dart';
 import 'package:skotiq_core/src/services/post_session_seam.dart';
-import 'package:skotiq_core/src/services/wcs_overlay.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Minimal scriptable [PostSessionSeam]: records the photometry + calibrate
 /// calls and returns canned results. Only the two methods the colour-cal
@@ -76,16 +76,27 @@ Star _star(String id, double raDeg, double decDeg, {double? bv}) => Star(
   colorIndex: bv,
 );
 
+(double, double) _skyOf(SolvedWcs wcs, double x, double y) {
+  final sky = GnomonicProjection(wcs).pixelToWorld(x: x, y: y);
+  return (sky.raDegrees, sky.decDegrees);
+}
+
 void main() {
   // Identity-ish WCS centred at RA=10°, Dec=20°, 1"/px, 100×100, no rotation.
   // crpix at the centre so pixel (50,50) ≈ the reference coordinate.
-  WcsOverlay buildWcs() => WcsOverlay(
-    crpix1: 50,
-    crpix2: 50,
-    crval1: 10.0,
-    crval2: 20.0,
-    cdelt1: 1.0 / 3600.0,
-    cdelt2: 1.0 / 3600.0,
+  SolvedWcs buildWcs() => const SolvedWcs(
+    raHours: 10.0 / 15.0,
+    decDegrees: 20.0,
+    rotationDeg: 0,
+    pixelScaleArcsec: 1.0,
+    imageWidth: 100,
+    imageHeight: 100,
+    cd1_1: 1.0 / 3600.0,
+    cd1_2: 0,
+    cd2_1: 0,
+    cd2_2: 1.0 / 3600.0,
+    referenceX: 50,
+    referenceY: 50,
   );
 
   late _FakeSeam seam;
@@ -100,7 +111,7 @@ void main() {
     );
 
     // One detection at the reference pixel → projects to ≈ (10°, 20°).
-    final (ra, dec) = wcs.pixelToCelestial(50, 50);
+    final (ra, dec) = _skyOf(wcs, 50, 50);
 
     final photometry = StarPhotometryResult(
       width: 100,
@@ -137,7 +148,7 @@ void main() {
       seam: seam,
       starSearch: (_, __, {maxMagnitude}) async => const [],
     );
-    final (ra, dec) = wcs.pixelToCelestial(50, 50);
+    final (ra, dec) = _skyOf(wcs, 50, 50);
 
     final photometry = StarPhotometryResult(
       width: 100,
@@ -166,7 +177,7 @@ void main() {
       seam: seam,
       starSearch: (_, __, {maxMagnitude}) async => const [],
     );
-    final (ra, dec) = wcs.pixelToCelestial(50, 50);
+    final (ra, dec) = _skyOf(wcs, 50, 50);
 
     // A bright, round, high-SNR detection — exactly the kind a naive matcher
     // keeps — but its peak sits at the detection-plane ceiling: saturated, so
@@ -221,7 +232,7 @@ void main() {
         seam: seam,
         starSearch: (_, __, {maxMagnitude}) async => const [],
       );
-      final (ra, dec) = wcs.pixelToCelestial(50, 50);
+      final (ra, dec) = _skyOf(wcs, 50, 50);
 
       // Bright (peak above half scale) with two channels flat-topped at the same
       // ADU — a clip signature even though the peak is below the hard ceiling.
@@ -262,7 +273,7 @@ void main() {
     // One catalog star at the centre. Two detections compete for it: the FAR one
     // is iterated FIRST, the NEAR one second. Old "first-iterated wins" would
     // bind the far detection; nearest-detection-wins must bind the near one.
-    final (cra, cdec) = wcs.pixelToCelestial(50, 50);
+    final (cra, cdec) = _skyOf(wcs, 50, 50);
     final catalog = [_star('center', cra, cdec, bv: 0.77)];
 
     // Far detection 4" away (within the 5" tolerance), near detection ~0".
@@ -301,7 +312,7 @@ void main() {
 
     // One detection sits within tolerance of TWO catalog stars (both ~2" away on
     // opposite sides) → ambiguous blend. It must be dropped, not bound to either.
-    final (dra, ddec) = wcs.pixelToCelestial(50, 50);
+    final (dra, ddec) = _skyOf(wcs, 50, 50);
     const twoArcsecDeg = 2.0 / 3600.0;
     final catalog = [
       _star('a', dra - twoArcsecDeg, ddec, bv: 0.3),
@@ -334,7 +345,7 @@ void main() {
       final px = 10.0 + i * 5.0;
       final py = 10.0 + i * 5.0;
       stars.add(_det(px, py, flux: [1000.0 + i, 900.0 + i, 800.0 + i]));
-      final (ra, dec) = wcs.pixelToCelestial(px, py);
+      final (ra, dec) = _skyOf(wcs, px, py);
       catalog.add(_star('s$i', ra, dec, bv: 0.5 + i * 0.05));
     }
     seam.photometry = StarPhotometryResult(

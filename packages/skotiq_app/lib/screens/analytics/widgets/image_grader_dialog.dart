@@ -15,7 +15,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/authority_bound_dialog.dart';
@@ -32,33 +36,14 @@ typedef ImageGraderPsfMetric = ({double? fwhm, double? eccentricity});
 /// network backend already exposes the host's session science products; local
 /// mode continues to read Drift directly.
 Future<Map<int, ImageGraderPsfMetric>> loadImageGraderPsfMetrics({
-  required SkotiqBackend backend,
-  required ScienceDao? localScienceDao,
+  required ScienceProducts products,
   required List<DbCapturedImage> frames,
   int? sessionId,
 }) async {
   final frameIds = frames.map((frame) => frame.id).toSet();
-  final tiles = <PsfFieldTileRow>[];
-
-  if (backend is NetworkBackend) {
-    if (sessionId != null) {
-      tiles.addAll(await backend.getSessionPsfTiles(sessionId));
-    } else {
-      tiles.addAll((await backend.getSessionlessScienceBundle()).psfTiles);
-    }
-  } else {
-    final dao = localScienceDao;
-    if (dao == null) {
-      throw StateError('A local science database is required in local mode');
-    }
-    if (sessionId != null) {
-      tiles.addAll(await dao.getPsfTilesForSession(sessionId));
-    } else {
-      for (final frame in frames) {
-        tiles.addAll(await dao.getPsfTilesForImage(frame.id));
-      }
-    }
-  }
+  final tiles = sessionId != null
+      ? await products.getPsfTilesForSession(sessionId)
+      : await products.getAllSessionlessPsfTiles();
 
   final grouped = <int, List<PsfFieldTileRow>>{};
   for (final tile in tiles) {
@@ -131,7 +116,11 @@ class ImageGraderDialog extends ConsumerStatefulWidget {
   ConsumerState<ImageGraderDialog> createState() => _ImageGraderDialogState();
 }
 
-class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
+class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog>
+    with HostBoundDialogState<ImageGraderDialog> {
+  @override
+  String? get hostChangedMessage => null;
+
   FrameGradeRules _rules = const FrameGradeRules();
   bool _rulesLoading = true;
   String? _rulesError;
@@ -146,32 +135,12 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
   Map<int, ImageGraderPsfMetric> _psfMetricsByImage = const {};
   bool _psfMetricsLoading = true;
   String? _psfMetricsError;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _authorityGeneration = 0;
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (identical(previous, next) || !mounted) return;
-        _authorityGeneration++;
-        setState(() {
-          _applying = false;
-          _applyError = 'Connected rig changed; reopen the grader to continue.';
-        });
-        closeAuthorityBoundDialog(context);
-      },
-    );
     unawaited(_loadRules());
     unawaited(_loadPsfMetrics());
-  }
-
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
   }
 
   Future<void> _loadRules() async {
@@ -196,7 +165,7 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
       if (mounted) {
         setState(() {
           _rulesLoading = false;
-          _rulesError = error.toString();
+          _rulesError = userFacingError(error);
         });
       }
     }
@@ -209,36 +178,27 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
         _psfMetricsError = null;
       });
     }
-    final backend = ref.read(backendProvider);
-    final generation = _authorityGeneration;
     try {
       final result = await loadImageGraderPsfMetrics(
-        backend: backend,
-        localScienceDao:
-            backend is NetworkBackend ? null : ref.read(scienceDaoProvider),
+        products: ref.read(scienceProductsProvider),
         frames: widget.frames,
         sessionId: widget.sessionId,
       );
-      if (_isCurrentAuthority(backend, generation)) {
+      if (host.isCurrent) {
         setState(() {
           _psfMetricsByImage = result;
           _psfMetricsLoading = false;
         });
       }
     } catch (error) {
-      if (_isCurrentAuthority(backend, generation)) {
+      if (host.isCurrent) {
         setState(() {
           _psfMetricsLoading = false;
-          _psfMetricsError = error.toString();
+          _psfMetricsError = userFacingError(error);
         });
       }
     }
   }
-
-  bool _isCurrentAuthority(SkotiqBackend backend, int generation) =>
-      mounted &&
-      generation == _authorityGeneration &&
-      identical(ref.read(backendProvider), backend);
 
   ({
     int rejected,
@@ -268,8 +228,6 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
 
   Future<void> _apply() async {
     if (_applying) return;
-    final backend = ref.read(backendProvider);
-    final generation = _authorityGeneration;
     final preview = _preview();
     if (preview.rejections.isEmpty) {
       Navigator.of(context).pop(0);
@@ -283,21 +241,21 @@ class _ImageGraderDialogState extends ConsumerState<ImageGraderDialog> {
       await ref
           .read(scienceSettingsProvider.notifier)
           .setFrameGradeRules(_rules);
-      if (!_isCurrentAuthority(backend, generation)) return;
-      final repo = ref.read(imagingRecordsRepositoryProvider);
+      if (host.isStale) return;
+      final repo = ref.read(imagingRecordsProvider);
       for (final r in preview.rejections) {
-        if (!_isCurrentAuthority(backend, generation)) return;
+        if (host.isStale) return;
         await repo.rejectImage(r.frame.id, r.reason);
-        if (!_isCurrentAuthority(backend, generation)) return;
+        if (host.isStale) return;
       }
       if (!mounted) return;
       ref.invalidate(dbSessionImagesProvider);
       Navigator.of(context).pop(preview.rejected);
     } catch (e) {
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (host.isStale) return;
       setState(() {
         _applying = false;
-        _applyError = e.toString();
+        _applyError = userFacingError(e);
       });
     }
   }

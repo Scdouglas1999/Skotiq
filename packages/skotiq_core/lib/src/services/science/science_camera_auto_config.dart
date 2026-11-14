@@ -1,13 +1,12 @@
+import '../../providers/async_scope.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../backend/skotiq_backend.dart';
-import '../../backend/network_backend.dart';
 import '../../database/daos/settings_dao.dart';
 import '../../models/equipment/equipment_models.dart';
-import '../../providers/backend_provider.dart';
 import '../../providers/capability_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/equipment/camera_state_provider.dart';
@@ -18,6 +17,8 @@ import '../sensor_specs/camera_sensor_entry.dart';
 import '../sensor_specs/camera_sensor_specs.dart';
 import '../sensor_specs/published_figure.dart';
 import '../smart_night/hardware_specs_service.dart';
+import '../../models/backend/backend_types.dart';
+import '../../providers/logging_service_provider.dart';
 
 /// Keeps the `science.camera.*` settings (read noise, gain in e⁻/ADU,
 /// saturation ADU) in sync with the hardware that is actually in use, so
@@ -33,9 +34,10 @@ import '../smart_night/hardware_specs_service.dart';
 /// read noise at the driver gain in use (a flat-pair measurement for that
 /// camera and gain, else the model's published gain chart), and a saturation
 /// threshold just below the driver-reported pixel-container full scale
-/// (`CameraStatus.maxAdu`). A camera with no chart and no measurement keeps
-/// whatever e⁻/ADU and read noise were configured, and the source label says
-/// so.
+/// (`CameraStatus.maxAdu`), or the camera's own lower saturation level
+/// (`CameraStatus.saturationAdu`) when it records one. A camera with no chart
+/// and no measurement keeps whatever e⁻/ADU and read noise were configured,
+/// and the source label says so.
 ///
 /// The sync is opt-out: `science.camera.auto_managed=false` (set when the
 /// user manually edits any of the three fields) freezes the values, and
@@ -58,15 +60,22 @@ class ScienceCameraAutoConfig {
   final Ref _ref;
   final SkotiqBackend _backend;
 
+  /// False on a linked client: the host owns the camera and these settings.
+  final bool _cameraIsHere;
+
   int _syncGeneration = 0;
   bool _retired = false;
 
-  /// Last (name, gain, maxAdu) tuple applied, to skip redundant writes. Keyed on
-  /// the container full scale rather than bit depth because that is what the
-  /// written values are actually derived from.
-  (String, int?, int)? _lastApplied;
+  /// Last (name, gain, maxAdu, saturationAdu) applied, to skip redundant
+  /// writes. Keyed on the container full scale rather than bit depth because
+  /// that is what the written values are actually derived from.
+  (String, int?, int, int?)? _lastApplied;
 
-  ScienceCameraAutoConfig(this._ref, this._backend);
+  ScienceCameraAutoConfig(
+    this._ref,
+    this._backend, {
+    required bool cameraIsHere,
+  }) : _cameraIsHere = cameraIsHere;
 
   LoggingService get _logger => _ref.read(loggingServiceProvider);
 
@@ -79,9 +88,7 @@ class ScienceCameraAutoConfig {
   }) async {
     final generation = ++_syncGeneration;
     try {
-      if (!_isCurrent(generation) || _backend is NetworkBackend) {
-        return; // The appliance host owns the hardware and these settings.
-      }
+      if (!_isCurrent(generation) || !_cameraIsHere) return;
       final dao = _ref.read(settingsDaoProvider);
       final autoManaged = await dao.getSetting(autoManagedKey);
       if (!_isCurrent(generation)) return;
@@ -100,6 +107,7 @@ class ScienceCameraAutoConfig {
       final maxAdu = status != null && status.maxAdu > 0
           ? status.maxAdu
           : 65535;
+      final saturationAdu = status?.saturationAdu;
       if (identity.gain == null &&
           status != null &&
           status.connected &&
@@ -111,7 +119,9 @@ class ScienceCameraAutoConfig {
         );
       }
       if (!_isCurrent(generation)) return;
-      if (!force && _lastApplied == (identity.name, identity.gain, maxAdu)) {
+      if (!force &&
+          _lastApplied ==
+              (identity.name, identity.gain, maxAdu, saturationAdu)) {
         return;
       }
 
@@ -125,6 +135,7 @@ class ScienceCameraAutoConfig {
         cameraName: identity.name,
         driverGain: identity.gain,
         maxAdu: maxAdu,
+        saturationAdu: saturationAdu,
         adcBitDepth: bitDepth,
         entry: specs.databaseEntry,
         readNoiseOverride:
@@ -155,7 +166,7 @@ class ScienceCameraAutoConfig {
         await dao.setSettings(changedUpdates);
         if (!_isCurrent(generation)) return;
       }
-      _lastApplied = (identity.name, identity.gain, maxAdu);
+      _lastApplied = (identity.name, identity.gain, maxAdu, saturationAdu);
       if (changedUpdates.isNotEmpty) {
         _logger.info(
           'Science camera settings auto-updated ($reason): $source -> '
@@ -175,7 +186,7 @@ class ScienceCameraAutoConfig {
   bool _isCurrent(int generation) {
     return !_retired &&
         generation == _syncGeneration &&
-        identical(_ref.read(backendProvider), _backend);
+        _ref.backendScopeOver(_backend).isCurrent;
   }
 
   void retire() {
@@ -272,29 +283,6 @@ class ScienceCameraAutoConfig {
   }
 }
 
-/// Watch this provider once at app startup (see `app.dart`) to activate the
-/// sync. Listens only to the camera fields that matter — connection state,
-/// identity, and gain — so per-exposure state churn does not re-trigger it.
-final scienceCameraAutoConfigProvider = Provider<ScienceCameraAutoConfig>((
-  ref,
-) {
-  final backend = ref.watch(backendProvider);
-  final service = ScienceCameraAutoConfig(ref, backend);
-  ref.onDispose(service.retire);
-  ref.listen<(DeviceConnectionState, String?, String?, int?)>(
-    cameraStateProvider.select(
-      (s) => (s.connectionState, s.deviceName, s.deviceId, s.gain),
-    ),
-    (_, __) => service.maybeSync(reason: 'camera state changed'),
-  );
-  ref.listen(activeEquipmentProfileProvider, (_, __) {
-    service.maybeSync(reason: 'active profile changed');
-  });
-  // Initial pass once the provider graph is up.
-  Future.microtask(() => service.maybeSync(reason: 'startup'));
-  return service;
-});
-
 /// e⁻/ADU measured from pairs of flat frames (photon transfer) for one camera
 /// at one driver gain.
 class ScienceGainMeasurement {
@@ -377,11 +365,15 @@ class ScienceCameraValues {
 /// The saturation threshold is two ADC steps below [maxAdu]. Sensors often
 /// stop one code short of the driver's full scale (an ASI1600 driver reports
 /// 65520 and its frames top out at 65504), and the star detector counts a
-/// star saturated only when its peak is above the threshold.
+/// star saturated only when its peak is above the threshold. A camera that
+/// records a lower saturation level ([saturationAdu]: a Canon raw file's
+/// specular white level, 11892 at ISO 100 on an EOS M50 whose container
+/// holds 16383) saturates there. e⁻/ADU keeps scaling by [maxAdu].
 ScienceCameraValues resolveScienceCameraValues({
   required String cameraName,
   required int? driverGain,
   required int maxAdu,
+  int? saturationAdu,
   required int adcBitDepth,
   required CameraSensorEntry? entry,
   double? readNoiseOverride,
@@ -391,7 +383,11 @@ ScienceCameraValues resolveScienceCameraValues({
   final bits = curve?.adcBitDepth ?? adcBitDepth;
   final adcMax = (1 << bits) - 1;
   final step = maxAdu > adcMax ? (maxAdu / adcMax).round() : 1;
-  final saturation = math.max(255, maxAdu - 2 * step);
+  final clip = math.max(255, maxAdu - 2 * step);
+  final recorded = saturationAdu != null && saturationAdu > 0
+      ? saturationAdu
+      : null;
+  final saturation = recorded == null ? clip : math.min(recorded, clip);
   final model = entry?.model ?? cameraName;
   final gainLabel = driverGain == null ? 'unknown gain' : 'gain $driverGain';
   final parts = <String>[];
@@ -454,7 +450,12 @@ ScienceCameraValues resolveScienceCameraValues({
       parts.add('read noise unchanged: no published figure at $gainLabel');
     }
   }
-  parts.add('saturation $saturation ADU ($bits-bit ADC, full scale $maxAdu)');
+  parts.add(
+    recorded != null && recorded < clip
+        ? "saturation $saturation ADU (the camera's recorded level; "
+              'full scale $maxAdu)'
+        : 'saturation $saturation ADU ($bits-bit ADC, full scale $maxAdu)',
+  );
   return ScienceCameraValues(
     saturationAdu: saturation,
     electronsPerAdu: ePerAdu,

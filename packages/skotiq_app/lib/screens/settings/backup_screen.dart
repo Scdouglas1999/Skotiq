@@ -4,9 +4,14 @@ import 'dart:typed_data';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as path;
 
@@ -14,6 +19,7 @@ import '../../utils/confirm_dialog.dart';
 import '../../utils/exported_file_reveal.dart';
 import '../../utils/snackbar_helper.dart';
 import 'backup_list_entry.dart';
+import 'widgets/admin_only.dart';
 import 'widgets/cloud_sync_settings.dart';
 
 typedef BackupDownloadSavePicker = Future<ExportTarget?> Function(
@@ -149,14 +155,33 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   /// database) outlives any transient message, and the restart is the operator's
   /// to perform. Written to [restoreRestartNoticeProvider] rather than to this
   /// [State] so leaving the screen does not clear it.
-  void _announceRestore(int itemsRestored, {required bool remote}) {
-    ref.read(restoreRestartNoticeProvider.notifier).state = remote
+  /// [notRestored] is what the merge kept out and why
+  /// ([RestoreResult.notRestoredNotice]).
+  void _announceRestore(
+    int itemsRestored, {
+    required bool remote,
+    String? notRestored,
+  }) {
+    final restart = remote
         ? 'Restored $itemsRestored items to the imaging host. Restart the '
             'host before the next run — until then it is running on the '
             'state it had before the restore.'
         : 'Restored $itemsRestored items. Restart Skotiq before the next '
             'run — until then this app is showing the state it had before '
             'the restore.';
+    ref.read(restoreRestartNoticeProvider.notifier).state =
+        notRestored == null ? restart : '$restart $notRestored';
+  }
+
+  /// The kept-out rows a linked host reports with its restore.
+  static String? _hostNotRestored(Map<String, dynamic> result) {
+    final rows = result['notRestored'];
+    return rows is Map
+        ? restoreNotRestoredNotice({
+            for (final MapEntry(:key, :value) in rows.entries)
+              if (key is String && value is int) key: value,
+          })
+        : null;
   }
 
   void _refreshAfterRestore() {
@@ -174,14 +199,15 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Future<void> _loadAvailableBackups() async {
     final generation = ++_loadGeneration;
     final backend = ref.read(backendProvider);
+    final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
     setState(() {
       _isLoadingBackups = true;
       _loadError = null;
     });
     try {
-      final entries = backend is NetworkBackend
-          ? parseRemoteBackupList(await backend.listBackups())
+      final entries = hostBackups != null
+          ? parseRemoteBackupList(await hostBackups.listBackups())
           : await Future.wait(
               (await ref.read(backupServiceProvider).listBackups())
                   .map(BackupListEntry.fromLocalFile),
@@ -199,7 +225,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _isLoadingBackups = false;
-        _loadError = 'Failed to load backups: $e';
+        _loadError = 'Failed to load backups: ${userFacingError(e)}';
       });
     }
   }
@@ -207,12 +233,13 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Future<void> _createBackup() async {
     if (_rejectIfBusy()) return;
     final backend = ref.read(backendProvider);
+    final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
     setState(() => _isCreatingBackup = true);
     try {
       String? createdPath;
-      if (backend is NetworkBackend) {
-        final result = await backend.createBackup();
+      if (hostBackups != null) {
+        final result = await hostBackups.createBackup();
         if ((result['status'] as String?) != 'created') {
           throw Exception(result['error'] ?? 'Backup failed');
         }
@@ -241,7 +268,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       await _loadAvailableBackups();
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
-      context.showErrorSnackBar('Error creating backup: $e');
+      context.showErrorSnackBar('Error creating backup: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() => _isCreatingBackup = false);
@@ -258,6 +285,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     // Capture the backend up front and dispatch to it, so a host switch after
     // the confirm dialog can't send this row to a different host.
     final backend = ref.read(backendProvider);
+    final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
     final confirmed = await ConfirmDialog.restore(
       context: context,
@@ -273,18 +301,22 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
     setState(() => _isRestoring = true);
     try {
-      if (backend is NetworkBackend) {
+      if (hostBackups != null) {
         // Address the backup by its stable id — the host resolves it to a file
         // inside its backup directory, so no absolute server path crosses the
         // wire and the host can't be pointed at an arbitrary file.
-        final result = await backend.restoreBackupById(backup.id);
+        final result = await hostBackups.restoreBackupById(backup.id);
         if ((result['status'] as String?) != 'restored') {
           throw Exception(result['error'] ?? 'Restore failed');
         }
         final restored = result['itemsRestored'] as int? ?? 0;
         if (!mounted || !_backendStillMatches(token)) return;
         _refreshAfterRestore();
-        _announceRestore(restored, remote: true);
+        _announceRestore(
+          restored,
+          remote: true,
+          notRestored: _hostNotRestored(result),
+        );
       } else {
         final result = await ref.read(backupServiceProvider).restoreBackup(
               filePath: backup.filePath,
@@ -295,11 +327,15 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         }
         if (!mounted || !_backendStillMatches(token)) return;
         _refreshAfterRestore();
-        _announceRestore(result.itemsRestored, remote: false);
+        _announceRestore(
+          result.itemsRestored,
+          remote: false,
+          notRestored: result.notRestoredNotice,
+        );
       }
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
-      context.showErrorSnackBar('Restore failed: $e');
+      context.showErrorSnackBar('Restore failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() => _isRestoring = false);
@@ -311,6 +347,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     if (_rejectIfBusy() || _rejectRestoreDuringActiveRun()) return;
     final generation = ++_importGeneration;
     final backend = ref.read(backendProvider);
+    final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
     setState(() => _isImportingBackup = true);
 
@@ -329,10 +366,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       if (_rejectRestoreDuringActiveRun()) return;
 
       int restored;
-      if (backend is NetworkBackend) {
+      String? notRestored;
+      if (hostBackups != null) {
         final bytes = await ref.read(backupImportReaderProvider)(file);
         if (!_isCurrentImport(generation, token)) return;
-        final result = await backend.uploadBackupAndRestore(
+        final result = await hostBackups.uploadBackupAndRestore(
           Uint8List.fromList(bytes),
           path.basename(file.path),
         );
@@ -340,6 +378,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           throw Exception(result['error'] ?? 'Restore failed');
         }
         restored = result['itemsRestored'] as int? ?? 0;
+        notRestored = _hostNotRestored(result);
       } else {
         final result = await ref.read(backupServiceProvider).restoreBackup(
               filePath: file.path,
@@ -349,15 +388,20 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           throw Exception(result.errorMessage ?? 'Restore failed');
         }
         restored = result.itemsRestored;
+        notRestored = result.notRestoredNotice;
       }
 
       if (!mounted || !_isCurrentImport(generation, token)) return;
       _refreshAfterRestore();
-      _announceRestore(restored, remote: backend is NetworkBackend);
+      _announceRestore(
+        restored,
+        remote: hostBackups != null,
+        notRestored: notRestored,
+      );
       await _loadAvailableBackups();
     } catch (e) {
       if (!mounted || !_isCurrentImport(generation, token)) return;
-      context.showErrorSnackBar('Import failed: $e');
+      context.showErrorSnackBar('Import failed: ${userFacingError(e)}');
     } finally {
       if (_isCurrentImport(generation, token)) {
         setState(() => _isImportingBackup = false);
@@ -374,6 +418,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Future<void> _deleteBackup(BackupListEntry backup) async {
     if (_rejectIfBusy() || _rejectIfBackendChanged()) return;
     final backend = ref.read(backendProvider);
+    final hostBackups = ref.read(linkedHostBackupsProvider);
     final token = backendBackupToken(backend);
     final confirmed = await ConfirmDialog.delete(
       context: context,
@@ -389,8 +434,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
     setState(() => _isManagingBackup = true);
     try {
-      if (backend is NetworkBackend) {
-        await backend.deleteBackup(backup.id);
+      if (hostBackups != null) {
+        await hostBackups.deleteBackup(backup.id);
       } else {
         await File(backup.filePath).delete();
       }
@@ -399,7 +444,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       await _loadAvailableBackups();
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
-      context.showErrorSnackBar('Failed to delete backup: $e');
+      context
+          .showErrorSnackBar('Failed to delete backup: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _isManagingBackup = false);
     }
@@ -413,7 +459,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Future<void> _downloadBackup(BackupListEntry backup) async {
     if (_rejectIfBusy() || _rejectIfBackendChanged()) return;
     final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) return;
+    final hostBackups = ref.read(linkedHostBackupsProvider);
+    if (hostBackups == null) return;
     final token = backendBackupToken(backend);
     setState(() => _isManagingBackup = true);
     try {
@@ -430,7 +477,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         return;
       }
 
-      final bytes = await backend.downloadBackup(backup.id);
+      final bytes = await hostBackups.downloadBackup(backup.id);
       await File(target.path).writeAsBytes(bytes, flush: true);
       if (!mounted || !_backendStillMatches(token)) return;
       await revealExportedFile(
@@ -441,7 +488,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       );
     } catch (e) {
       if (!mounted || !_backendStillMatches(token)) return;
-      context.showErrorSnackBar('Download failed: $e');
+      context.showErrorSnackBar('Download failed: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _isManagingBackup = false);
     }
@@ -465,7 +512,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         if (_isImportingBackup) {
           setState(() => _isImportingBackup = false);
         }
-        _loadAvailableBackups();
+        // After this notification: the backups half the load reads is
+        // rebuilt only once the backend's listeners have run.
+        Future.microtask(() {
+          if (mounted) _loadAvailableBackups();
+        });
       }
     });
 
@@ -500,31 +551,38 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                     _AutoSaveStatusCard(statusAsync: autoSaveStatus!),
                     const SizedBox(height: 24),
                   ],
-                  _QuickActionsCard(
-                    isCreatingBackup: _isCreatingBackup,
-                    isRestoring: _isRestoring,
-                    isImportingBackup: _isImportingBackup,
-                    onCreateBackup: _isBusy ? null : _createBackup,
-                    onImportBackup: _isBusy ? null : _importBackup,
-                  ),
-                  const SizedBox(height: 24),
-                  if (isRemoteMode)
-                    RemoteCloudSyncCard(
-                      key: ValueKey(backendBackupToken(backend)),
+                  if (hostRefusesAdminOnly(ref))
+                    const AdminOnlyBanner(
+                      title: 'Backups and cloud sync are managed on the '
+                          'imaging computer',
                     )
-                  else
-                    const CloudSyncCard(),
-                  const SizedBox(height: 24),
-                  _RecentBackupsCard(
-                    isRemoteMode: isRemoteMode,
-                    isLoading: _isLoadingBackups,
-                    errorMessage: _loadError,
-                    backups: _availableBackups,
-                    onRefresh: _loadAvailableBackups,
-                    onRestore: _restoreBackup,
-                    onDelete: _deleteBackup,
-                    onDownload: _downloadBackup,
-                  ),
+                  else ...[
+                    _QuickActionsCard(
+                      isCreatingBackup: _isCreatingBackup,
+                      isRestoring: _isRestoring,
+                      isImportingBackup: _isImportingBackup,
+                      onCreateBackup: _isBusy ? null : _createBackup,
+                      onImportBackup: _isBusy ? null : _importBackup,
+                    ),
+                    const SizedBox(height: 24),
+                    if (isRemoteMode)
+                      RemoteCloudSyncCard(
+                        key: ValueKey(backendBackupToken(backend)),
+                      )
+                    else
+                      const CloudSyncCard(),
+                    const SizedBox(height: 24),
+                    _RecentBackupsCard(
+                      isRemoteMode: isRemoteMode,
+                      isLoading: _isLoadingBackups,
+                      errorMessage: _loadError,
+                      backups: _availableBackups,
+                      onRefresh: _loadAvailableBackups,
+                      onRestore: _restoreBackup,
+                      onDelete: _deleteBackup,
+                      onDownload: _downloadBackup,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -617,16 +675,16 @@ class _AutoSaveStatusCard extends ConsumerWidget {
                 label: 'Last Sequence Save',
                 value: status.lastSequenceSave == null
                     ? 'Never'
-                    : DateFormat('MMM d, yyyy HH:mm')
-                        .format(status.lastSequenceSave!),
+                    : ClockFormat.monthDayYearHm(
+                        status.lastSequenceSave!.toLocal(),
+                      ),
               ),
               const SizedBox(height: 12),
               _StatusRow(
                 label: 'Last Full Backup',
                 value: status.lastBackup == null
                     ? 'Never'
-                    : DateFormat('MMM d, yyyy HH:mm')
-                        .format(status.lastBackup!),
+                    : ClockFormat.monthDayYearHm(status.lastBackup!.toLocal()),
               ),
               if (status.lastError != null) ...[
                 const SizedBox(height: 12),
@@ -864,7 +922,7 @@ class _BackupTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final isAutoSave = backup.fileName.contains('autosave');
-    final timestamp = DateFormat('MMM d, yyyy HH:mm').format(backup.createdAt);
+    final timestamp = ClockFormat.monthDayYearHm(backup.createdAt.toLocal());
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -883,7 +941,7 @@ class _BackupTile extends StatelessWidget {
         style: SkotiqTypography.label.copyWith(color: colors.textPrimary),
       ),
       subtitle: Text(
-        '${_formatFileSize(backup.fileSize)} | $timestamp',
+        '${ByteFormat.size(backup.fileSize)} | $timestamp',
         style: SkotiqTypography.caption.copyWith(
           color: colors.textSecondary,
         ),
@@ -916,12 +974,6 @@ class _BackupTile extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 }
 

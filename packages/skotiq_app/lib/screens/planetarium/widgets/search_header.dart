@@ -3,10 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import '../../../utils/coordinate_format_utils.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../planetarium_screen.dart';
 
 part 'search_header_parts/_filter_controls.dart';
@@ -108,19 +109,15 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
   }
 
   void _onTextChanged() {
-    // Cancel previous debounce timer
     _debounceTimer?.cancel();
 
-    // Check for coordinate input first
     _parsedCoordinate = _parseCoordinates(widget.controller.text);
     if (_parsedCoordinate != null) {
-      // If coordinates were parsed, show overlay immediately
       _showOverlay();
       return;
     }
 
     if (widget.controller.text.length >= 2) {
-      // Debounce search by 250ms for instant results as user types
       _debounceTimer = Timer(const Duration(milliseconds: 250), () {
         if (mounted) {
           ref
@@ -137,7 +134,6 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
   void _showOverlay() {
     if (_overlayEntry != null) return;
 
-    // Don't show if query is too short (unless we have parsed coordinates)
     if (widget.controller.text.length < 2 && _parsedCoordinate == null) return;
     if (!widget.showResultSuggestions && _parsedCoordinate == null) return;
 
@@ -173,7 +169,6 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                 constraints: BoxConstraints(maxHeight: maxOverlayHeight),
                 child: Consumer(
                   builder: (context, ref, child) {
-                    // Check for parsed coordinates first
                     if (_parsedCoordinate != null) {
                       final coord = _parsedCoordinate!;
                       return Column(
@@ -189,7 +184,6 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: () {
-                                // Smoothly fly to the parsed coordinates.
                                 ref
                                     .read(flyToRequestProvider.notifier)
                                     .flyTo(coord);
@@ -220,7 +214,7 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                                       color: widget.colors.textPrimary),
                                 ),
                                 subtitle: Text(
-                                  'RA ${CoordinateFormatUtils.formatRACompact(coord.ra)}, Dec ${CoordinateFormatUtils.formatDec(coord.dec)}',
+                                  'RA ${CoordinateFormat.raCompact(coord.ra)}, Dec ${CoordinateFormat.decCompact(coord.dec)}',
                                   style: TextStyle(
                                       color: widget.colors.textMuted,
                                       fontSize: SkotiqTypography.fontSize11),
@@ -278,14 +272,12 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                       );
                     }
 
-                    // Show result count
                     final totalCount =
                         stars.length + dsos.length + solarSystem.length;
 
                     return Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Result count header
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
@@ -345,7 +337,6 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                                 ...solarSystem.map((body) =>
                                     _buildSolarSystemResultTile(ref, body)),
                               ],
-                              // DSO section
                               if (dsos.isNotEmpty) ...[
                                 SearchCategoryHeader(
                                   title: 'Deep Sky Objects (${dsos.length})',
@@ -369,7 +360,6 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                                     ),
                                   ),
                               ],
-                              // Stars section
                               if (stars.isNotEmpty) ...[
                                 SearchCategoryHeader(
                                   title: 'Stars (${stars.length})',
@@ -413,7 +403,6 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
     final info = getDsoDisplayInfo(dso);
     final displayName = info.$1;
     final catalogTag = info.$2;
-    // Show common name as subtitle if different from display name
     final commonName = dso.commonNames?.split(',').first.trim();
     final showCommonName = commonName != null &&
         commonName.isNotEmpty &&
@@ -645,7 +634,6 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Search field row
           Row(
             children: [
               Expanded(
@@ -707,7 +695,6 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Filter toggle button
               GestureDetector(
                 onTap: () => setState(() => _showFilters = !_showFilters),
                 child: Container(
@@ -736,8 +723,6 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
               ),
             ],
           ),
-
-          // Filter controls (collapsible)
           if (_showFilters) ...[
             const SizedBox(height: 12),
             _SearchFilterControls(

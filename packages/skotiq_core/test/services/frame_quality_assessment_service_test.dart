@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart'
+import 'package:skotiq_core/services.dart'
     show
         FrameGradingMode,
         FrameQualityAssessment,
         FrameQualityAssessmentService,
         FrameQualityDisposition,
         FrameQualityLevel;
-import 'package:skotiq_core/src/database/database.dart' show CapturedImage;
+import 'package:skotiq_core/src/database/database.dart' show DbCapturedImage;
 
-CapturedImage _image({
+DbCapturedImage _image({
   required int id,
   double? qualityScore,
   double? hfr,
@@ -16,7 +16,7 @@ CapturedImage _image({
   double? guidingRmsTotal,
 }) {
   final now = DateTime(2026, 1, 1, 0, 0);
-  return CapturedImage(
+  return DbCapturedImage(
     id: id,
     filePath: '/tmp/$id.fits',
     fileName: '$id.fits',
@@ -331,6 +331,51 @@ void main() {
         expect(bad.autoRejectCandidate, isFalse);
       },
     );
+  });
+
+  // UX walk 2, F33: every 4 s sub of a night that had 45 stars in each was
+  // "Needs review" for "Low star count (45)"; the count was a fixed 50.
+  group('star count against the session', () {
+    const service = FrameQualityAssessmentService();
+
+    test('a night where every frame shows the same few stars is good', () {
+      final night = [
+        for (var i = 1; i <= 8; i++)
+          _image(id: i, qualityScore: 77, hfr: 2.4, starCount: 45),
+      ];
+      final assessments = service.assessBatch(night);
+      expect(assessments.values.map((a) => a.level).toSet(), {
+        FrameQualityLevel.good,
+      });
+      expect(service.summarize(assessments).needsReview, 0);
+    });
+
+    test('a frame with far fewer stars than its night is flagged', () {
+      final night = [
+        for (var i = 1; i <= 5; i++)
+          _image(id: i, qualityScore: 85, hfr: 2.2, starCount: 120),
+        _image(id: 6, qualityScore: 85, hfr: 2.2, starCount: 40),
+        _image(id: 7, qualityScore: 85, hfr: 2.2, starCount: 80),
+      ];
+      final assessments = service.assessBatch(night);
+      expect(assessments[6]!.level, FrameQualityLevel.poor);
+      expect(
+        assessments[6]!.reasons.single,
+        'Star count (40) under half the session median (120)',
+      );
+      expect(
+        assessments[7]!.reasons.single,
+        'Fewer stars than the session median (80 vs 120)',
+      );
+      expect(assessments[1]!.level, FrameQualityLevel.good);
+    });
+
+    test('a lone frame keeps the fixed star-count floor', () {
+      final lone = service.assessBatch([
+        _image(id: 1, qualityScore: 85, hfr: 2.2, starCount: 12),
+      ]);
+      expect(lone[1]!.reasons, contains('Very low star count (12)'));
+    });
   });
 
   group('Backward compatibility', () {

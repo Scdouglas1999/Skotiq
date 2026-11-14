@@ -11,67 +11,15 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
 
     final darkRows = await _db.select(_db.darkLibrary).get();
     for (final row in darkRows) {
-      final type = row.frameType == 'bias'
-          ? CalibrationMasterType.bias
-          : CalibrationMasterType.dark;
-      final tag = tagFor(type, row.id);
-      records.add(
-        CalibrationMasterRecord(
-          type: type,
-          id: row.id,
-          filePath: row.masterDarkPath ?? row.filePath,
-          isMaster: row.masterDarkPath != null,
-          frameCount: row.masterFrameCount,
-          exposureSeconds: row.exposureTime,
-          temperature: row.temperature,
-          gain: row.gain,
-          offset: row.offset,
-          binX: row.binX,
-          binY: row.binY,
-          width: row.width,
-          height: row.height,
-          cameraId: tag?.cameraId,
-          createdAt: row.createdAt,
-          tags: tag?.tags ?? const [],
-          notes: tag?.notes,
-          provenance: _provenanceFromTag(tag),
-          license: _licenseFromTag(tag),
-          sharedBy: tag?.sharedBy,
-          publishedRemoteId: tag?.publishedRemoteId,
-        ),
-      );
+      final record = darkLibraryRecord(row);
+      final tag = tagFor(record.type, row.id);
+      records.add(_withTag(record, tag));
     }
 
     final flatRows = await _flatDao.getAllEntries();
     for (final row in flatRows) {
       final tag = tagFor(CalibrationMasterType.flat, row.id);
-      records.add(
-        CalibrationMasterRecord(
-          type: CalibrationMasterType.flat,
-          id: row.id,
-          filePath: row.filePath,
-          isMaster: true,
-          frameCount: row.masterFrameCount,
-          temperature: row.temperature,
-          gain: row.gain,
-          offset: row.offset,
-          binX: row.binX,
-          binY: row.binY,
-          filter: row.filter,
-          flatKind: row.flatKind,
-          width: row.width,
-          height: row.height,
-          cameraId: tag?.cameraId,
-          opticalTrainId: row.opticalTrainId,
-          createdAt: row.createdAt,
-          tags: tag?.tags ?? const [],
-          notes: tag?.notes,
-          provenance: _provenanceFromTag(tag),
-          license: _licenseFromTag(tag),
-          sharedBy: tag?.sharedBy,
-          publishedRemoteId: tag?.publishedRemoteId,
-        ),
-      );
+      records.add(_withTag(flatLibraryRecord(row), tag));
     }
 
     final mapRows = await _db.select(_db.defectMaps).get();
@@ -98,6 +46,39 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
     return records;
   }
 
+  /// [record] with the annotations and shared-library provenance its
+  /// `calibration_tags` row carries.
+  CalibrationMasterRecord _withTag(
+    CalibrationMasterRecord record,
+    CalibrationTagEntry? tag,
+  ) => CalibrationMasterRecord(
+    type: record.type,
+    id: record.id,
+    filePath: record.filePath,
+    isMaster: record.isMaster,
+    frameCount: record.frameCount,
+    exposureSeconds: record.exposureSeconds,
+    temperature: record.temperature,
+    gain: record.gain,
+    offset: record.offset,
+    binX: record.binX,
+    binY: record.binY,
+    filter: record.filter,
+    flatKind: record.flatKind,
+    width: record.width,
+    height: record.height,
+    cameraId: tag?.cameraId,
+    opticalTrainId: record.opticalTrainId,
+    readoutMode: record.readoutMode,
+    createdAt: record.createdAt,
+    tags: tag?.tags ?? const [],
+    notes: tag?.notes,
+    provenance: _provenanceFromTag(tag),
+    license: _licenseFromTag(tag),
+    sharedBy: tag?.sharedBy,
+    publishedRemoteId: tag?.publishedRemoteId,
+  );
+
   /// [_enrich] over a whole set. The single answer to "what metadata does this
   /// master really carry", shared by [listMasters] and [match] so the library
   /// list and the matcher can never describe the same record differently.
@@ -105,7 +86,7 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
     List<CalibrationMasterRecord> records,
   ) async => [for (final record in records) await _enrich(record)];
 
-  /// Fill missing camera id / temperature / filter from the FITS primary
+  /// Fill missing camera id / temperature / filter from the master's frame
   /// header, caching the camera id in `calibration_tags`. Best-effort:
   /// returns the record unchanged when the file is missing or unreadable.
   Future<CalibrationMasterRecord> _enrich(
@@ -121,42 +102,32 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
     final path = record.filePath;
     if (path == null || path.isEmpty) return record;
 
-    Map<String, String> headers;
+    FrameHeader header;
     try {
       if (!await File(path).exists()) return record;
-      headers = await headerReader.readPrimaryHeader(path);
+      header = await readHeader(path);
     } catch (e) {
-      developer.log(
+      Log.warning(
         'Calibration enrichment skipped for $path: $e',
-        name: 'CalibrationLibraryService',
-        level: 900,
+        source: 'CalibrationLibraryService',
       );
       return record;
     }
 
-    final camera = needsCamera
-        ? FitsHeaderReader.stringValue(headers, 'INSTRUME')
-        : record.cameraId;
+    final camera = needsCamera ? header.string('INSTRUME') : record.cameraId;
     final temperature = needsTemp
-        ? FitsHeaderReader.firstDouble(headers, const [
-            'CCD-TEMP',
-            'CCD_TEMP',
-            'SET-TEMP',
-          ])
+        ? header.firstNumber(const ['CCD-TEMP', 'CCD_TEMP', 'SET-TEMP'])
         : record.temperature;
-    final filterName = needsFilter
-        ? FitsHeaderReader.stringValue(headers, 'FILTER')
-        : record.filter;
+    final filterName = needsFilter ? header.string('FILTER') : record.filter;
 
     if (needsCamera && camera != null) {
       // Cache so the header is parsed at most once per artifact.
       try {
         await _tagsDao.upsert(record.type, record.id, cameraId: camera);
       } catch (e) {
-        developer.log(
+        Log.warning(
           'Failed to cache camera id for ${record.type.name}#${record.id}: $e',
-          name: 'CalibrationLibraryService',
-          level: 900,
+          source: 'CalibrationLibraryService',
         );
       }
     }
@@ -166,6 +137,35 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
       temperature: temperature,
       filter: filterName,
     );
+  }
+
+  /// [records] with the dark and bias frames' read modes (`READOUTM`) read
+  /// from their headers, for matching lights that state one. Best-effort, as
+  /// [_enrich].
+  Future<List<CalibrationMasterRecord>> _withReadoutModes(
+    List<CalibrationMasterRecord> records,
+  ) async => [
+    for (final record in records)
+      if (record.readoutMode != null ||
+          record.filePath == null ||
+          (record.type != CalibrationMasterType.dark &&
+              record.type != CalibrationMasterType.bias))
+        record
+      else
+        record.copyWith(readoutMode: await _readoutModeOf(record.filePath!)),
+  ];
+
+  Future<String?> _readoutModeOf(String path) async {
+    try {
+      if (!await File(path).exists()) return null;
+      return (await readHeader(path)).string('READOUTM');
+    } catch (e) {
+      Log.warning(
+        'Read mode of $path not read: $e',
+        source: 'CalibrationLibraryService',
+      );
+      return null;
+    }
   }
 
   Future<void> _deleteFileIfExists(String path) async {

@@ -109,8 +109,6 @@ class _IssueRow extends StatelessWidget {
   }
 }
 
-// Shared card container
-
 class _DiagCard extends StatelessWidget {
   final SkotiqColors colors;
   final Widget child;

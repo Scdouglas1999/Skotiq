@@ -30,7 +30,6 @@ class AdaptivePanel {
   /// Short title shown on the segmented control / sheet handle / tab.
   final String title;
 
-  /// The panel body.
   final Widget child;
 
   /// Optional icon for the segmented control / sheet handle.
@@ -152,7 +151,6 @@ const double _sheetHandleReserveFloor = 160.0;
 class _AdaptivePanelLayoutState extends State<AdaptivePanelLayout> {
   late double _panelWidth = widget.initialPanelWidth;
 
-  // Phone state.
   bool _sheetOpen = false;
   int _segment = 0; // 0 = primary, 1.. = secondary panels.
 
@@ -216,8 +214,6 @@ class _AdaptivePanelLayoutState extends State<AdaptivePanelLayout> {
       },
     );
   }
-
-  // Desktop / tablet splits
 
   Widget _secondaryColumn() {
     final children = <Widget>[];
@@ -289,8 +285,6 @@ class _AdaptivePanelLayoutState extends State<AdaptivePanelLayout> {
           : [primary, handle, panel],
     );
   }
-
-  // Phone collapse
 
   Widget _buildPhoneCollapsed(BuildContext context) {
     switch (widget.phoneStrategy) {
@@ -438,8 +432,6 @@ class _AdaptivePanelLayoutState extends State<AdaptivePanelLayout> {
   }
 }
 
-// Resize handle (desktop)
-
 class _ResizeHandle extends StatefulWidget {
   final PanelSide side;
   final Color color;
@@ -486,8 +478,6 @@ class _ResizeHandleState extends State<_ResizeHandle> {
     );
   }
 }
-
-// Phone bottom sheet
 
 class _SheetHandleButton extends StatelessWidget {
   final String label;
@@ -644,8 +634,6 @@ class _PhoneSheet extends StatelessWidget {
     );
   }
 }
-
-// Segmented control (phone)
 
 class _SegmentSpec {
   final String label;

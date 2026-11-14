@@ -10,16 +10,15 @@ import 'package:skotiq_core/src/models/weather/weather_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/weather_state_provider.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_editor.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_selection.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';
 import 'package:skotiq_core/src/services/end_of_night_calibration/eon_plan.dart';
 import 'package:skotiq_core/src/services/safe_rig_service.dart';
-import 'package:skotiq_core/src/services/scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 // Park-before-dawn had no test that could reach it: the check read
 // `DateTime.now()` directly, so no test could stand in the half hour before
@@ -68,12 +67,11 @@ const _latitude = 40.0;
 const _longitude = -75.0;
 
 /// Astronomical dawn on the morning of 2026-03-16 at the test site.
-DateTime _dawn() => SkyCalculations.computeTwilight(
-  noonLocal: DateTime(2026, 3, 15, 12),
-  latitudeDegrees: _latitude,
-  longitudeDegrees: _longitude,
-  kind: TwilightKind.astronomical,
-).morningStart!.toLocal();
+DateTime _dawn() => AstronomyCalculations.twilightTimesNear(
+  instant: DateTime(2026, 3, 15, 12),
+  latitudeDeg: _latitude,
+  longitudeDeg: _longitude,
+).astronomicalDawn!.toLocal();
 
 void main() {
   late MockBackend backend;
@@ -152,7 +150,7 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    container.read(sequenceExecutionStateProvider.notifier).state = execution;
+    container.read(runRecordProvider.notifier).setLifecycle(execution);
     final mount = container.read(mountStateProvider.notifier);
     mount.setConnecting('mount-1');
     mount.setConnected();
@@ -220,12 +218,11 @@ void main() {
   test('with no observing site there is no dawn to park before', () async {
     // The unset site reads as 0°, 0°. Twenty minutes before dawn THERE, a
     // rig with no site on record was held unsafe and told dawn was coming.
-    final nullIslandDawn = SkyCalculations.computeTwilight(
-      noonLocal: DateTime(2026, 3, 15, 12),
-      latitudeDegrees: 0,
-      longitudeDegrees: 0,
-      kind: TwilightKind.astronomical,
-    ).morningStart!.toLocal();
+    final nullIslandDawn = AstronomyCalculations.twilightTimesNear(
+      instant: DateTime(2026, 3, 15, 12),
+      latitudeDeg: 0,
+      longitudeDeg: 0,
+    ).astronomicalDawn!.toLocal();
     final result = await evaluateAt(
       nullIslandDawn.subtract(const Duration(minutes: 20)),
       latitude: 0,

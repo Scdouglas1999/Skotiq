@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import '../../database/daos/settings_dao.dart';
 
 /// Where the backlash figure autofocus will use came from. Ordered best-first:
@@ -111,7 +112,7 @@ EffectiveFocuserBacklash resolveEffectiveFocuserBacklash({
       switchedOffOperatorSteps: switchedOff,
       provenance:
           'no backlash larger than '
-          '${_formatSteps(measured.resolutionLimitSteps)} steps was '
+          '${QuantityFormat.trimmed(measured.resolutionLimitSteps)} steps was '
           'detectable when this focuser was ${_measuredPhrase(measured)}',
     );
   }
@@ -131,19 +132,7 @@ EffectiveFocuserBacklash resolveEffectiveFocuserBacklash({
 /// where it was taken claims more than the measurement supports.
 String _measuredPhrase(FocuserBacklashCalibrationRecord record) {
   final temperature = record.temperatureCelsius;
-  final at = temperature == null
-      ? ''
-      : ', ${temperature.toStringAsFixed(1)} °C';
-  return 'measured on ${_formatDate(record.measuredAt)} at position '
+  final at = temperature == null ? '' : ', ${formatCelsius(temperature)}';
+  return 'measured on ${ClockFormat.date(record.measuredAt.toLocal())} at position '
       '${record.measuredAtPosition}$at';
 }
-
-String _formatDate(DateTime value) {
-  final local = value.toLocal();
-  return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-      '${local.day.toString().padLeft(2, '0')}';
-}
-
-String _formatSteps(double value) => value == value.roundToDouble()
-    ? value.round().toString()
-    : value.toStringAsFixed(1);

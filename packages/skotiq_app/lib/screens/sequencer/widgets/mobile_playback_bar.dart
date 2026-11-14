@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../services/sequence_action_service.dart';
+import '../../../tours/tour_target.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'preflight_validation_dialog.dart';
-import 'run_dashboard/sequence_status_visuals.dart';
+import '../../../widgets/run_status/sequence_status_visuals.dart';
 
 /// Compact playback control bar for mobile devices.
 /// Shows playback controls and current status in a single horizontal row.
@@ -38,9 +41,7 @@ class MobilePlaybackBar extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // At very narrow widths (< 360px), hide info chips to prevent overflow
           final isVeryNarrow = constraints.maxWidth < 360;
-          // At narrow widths (< 400px), use smaller spacing
           final isNarrow = constraints.maxWidth < 400;
           final buttonSpacing = isNarrow ? 4.0 : 8.0;
           Future<void> stopSequence() async {
@@ -60,6 +61,7 @@ class MobilePlaybackBar extends ConsumerWidget {
             children: [
               // Play / Pause / Resume — the primary transport button.
               _MobilePlaybackButton(
+                key: TourTarget.sequencerTransport.key,
                 colors: colors,
                 icon: canPause ? LucideIcons.pause : LucideIcons.play,
                 label: canPause ? 'Pause' : (canResume ? 'Resume' : 'Start'),
@@ -103,7 +105,7 @@ class MobilePlaybackBar extends ConsumerWidget {
                 enabled: executionState.canStop,
                 holdColor: colors.error,
                 confirmText: 'Hold to stop',
-                semanticsLabel: 'Press and hold to stop the sequence',
+                semanticsLabel: 'Stop the sequence',
                 onConfirmed: stopSequence,
                 // IgnorePointer so the inner InkWell does not consume the
                 // long-press event; gestures are owned exclusively by the
@@ -123,7 +125,6 @@ class MobilePlaybackBar extends ConsumerWidget {
 
               SizedBox(width: buttonSpacing),
 
-              // Skip button
               _MobilePlaybackButton(
                 colors: colors,
                 icon: LucideIcons.skipForward,
@@ -140,9 +141,7 @@ class MobilePlaybackBar extends ConsumerWidget {
 
               const Spacer(),
 
-              // Status indicator and info (hidden at very narrow widths)
               if (sequence != null && !isVeryNarrow) ...[
-                // Frames count
                 _InfoChip(
                   colors: colors,
                   icon: LucideIcons.camera,
@@ -150,19 +149,17 @@ class MobilePlaybackBar extends ConsumerWidget {
                   isCompact: isNarrow,
                 ),
                 SizedBox(width: isNarrow ? 4 : 8),
-                // Duration
                 _InfoChip(
                   colors: colors,
                   icon: LucideIcons.clock,
                   value: DurationFormat.seconds(sequence.totalIntegrationSecs,
-                      style: DurationStyle.compact,
+                      style: DurationStyle.coarse,
                       rounding: DurationRounding.truncate),
                   isCompact: isNarrow,
                 ),
                 SizedBox(width: isNarrow ? 4 : 8),
               ],
 
-              // Status badge
               _StatusBadge(
                   colors: colors,
                   state: executionState,
@@ -185,6 +182,7 @@ class _MobilePlaybackButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   const _MobilePlaybackButton({
+    super.key,
     required this.colors,
     required this.icon,
     required this.label,

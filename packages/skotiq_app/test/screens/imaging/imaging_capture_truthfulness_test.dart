@@ -15,8 +15,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/imaging/widgets/live_preview_area.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_hud.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/imaging_keys.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -197,8 +199,8 @@ void main() {
           // used: this harness's first-use catalog prompt raises a modal
           // barrier that blocks the hit test regardless of the layout.)
           for (final key in [
-            ImagingTutorialKeys.snapshotBtn,
-            ImagingTutorialKeys.loopBtn,
+            TourTarget.imagingSnapshotButton.key,
+            TourTarget.imagingLoopButton.key,
           ]) {
             final finder = find.byKey(key);
             expect(

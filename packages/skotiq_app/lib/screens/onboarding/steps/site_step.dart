@@ -1,16 +1,20 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
+import '../../../services/site_detection.dart';
+import '../../../utils/site_angle.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/geolocation_consent.dart';
+import '../../../widgets/site/place_search.dart';
 
 /// Why the observing-site step will not let the wizard advance, or null when the
 /// current entry is acceptable.
@@ -22,6 +26,9 @@ import '../../../widgets/geolocation_consent.dart';
 /// being waved through with its red error still on screen.
 final onboardingSiteEntryErrorProvider = StateProvider<String?>((ref) => null);
 
+const Key onboardingSiteLatitudeKey = Key('onboarding.site.latitude');
+const Key onboardingSiteLongitudeKey = Key('onboarding.site.longitude');
+
 /// The approximate-location lookup that *offers* a starting point. Injected so
 /// tests exercise the suggestion UI without reaching the network.
 typedef ApproximateLocationLookup = Future<(double, double, String?)?>
@@ -30,23 +37,6 @@ typedef ApproximateLocationLookup = Future<(double, double, String?)?>
 final onboardingApproximateLocationProvider =
     Provider<ApproximateLocationLookup>(
   (ref) => GeolocationService.fetchLocation,
-);
-
-/// The lookup behind "Use my current location": the three positioning tiers
-/// — the platform's location service, a Wi-Fi scan resolved by a positioning
-/// service, then the public-IP estimate — with what each one did, so the
-/// confirmation can say how precise the answer is and the step can offer the
-/// one failure the operator can fix. Injected so the consent, radio-power and
-/// elevation rules can be driven in tests without a network or a GPS.
-typedef SiteLocator = Future<PositioningAttempt> Function({
-  required bool allowWifiScan,
-  required bool allowIp,
-  bool mayEnableWifiRadio,
-  String? googleApiKey,
-});
-
-final onboardingSiteLocatorProvider = Provider<SiteLocator>(
-  (ref) => GeolocationService.locate,
 );
 
 /// Observing-site step.
@@ -87,6 +77,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   final _latController = TextEditingController();
   final _lonController = TextEditingController();
   final _elevController = TextEditingController();
+  final _placeSearch = PlaceSearch();
 
   String? _latError;
   String? _lonError;
@@ -98,9 +89,10 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   double _baselineLat = 0.0;
   double _baselineLon = 0.0;
 
-  /// Guards the one-time controller seed from persisted settings. Re-seeding on
-  /// every rebuild would fight the user's in-progress typing.
-  bool _seeded = false;
+  /// Background detection may finish after this step opens. Follow it only
+  /// until the operator starts editing, preserving even incomplete input.
+  (double, double, double)? _seededSite;
+  bool _fieldsEdited = false;
   bool _locating = false;
 
   /// IP-derived starting point, offered only when there is no site on record.
@@ -118,6 +110,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     _latController.dispose();
     _lonController.dispose();
     _elevController.dispose();
+    _placeSearch.dispose();
     super.dispose();
   }
 
@@ -126,18 +119,16 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   /// not a real Gulf-of-Guinea observatory, so we leave the fields blank there
   /// to prompt real entry rather than seeding a misleading 0/0.
   void _seedFrom(AppSettingsState settings) {
-    if (_seeded) return;
-    _seeded = true;
+    final site = (settings.latitude, settings.longitude, settings.elevation);
+    if (_fieldsEdited || _seededSite == site) return;
+    _seededSite = site;
     final hasSite = settings.hasObserverLocation;
     _baselineLat = settings.latitude;
     _baselineLon = settings.longitude;
-    if (hasSite) {
-      _latController.text = _trimNumber(settings.latitude);
-      _lonController.text = _trimNumber(settings.longitude);
-    }
-    if (settings.elevation != 0.0) {
-      _elevController.text = settings.elevation.toStringAsFixed(0);
-    }
+    _latController.text = hasSite ? _trimNumber(settings.latitude) : '';
+    _lonController.text = hasSite ? _trimNumber(settings.longitude) : '';
+    _elevController.text =
+        settings.elevation != 0.0 ? settings.elevation.toStringAsFixed(0) : '';
     // Re-publish the blocking reason for the seeded text. The provider outlives
     // this widget, so a stale reason left by an earlier visit would otherwise
     // block Next until the user happened to touch a field. Seeded values are
@@ -145,9 +136,8 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _publishBlockingReason();
     });
-    // Deliberately NO lookup here. Skotiq is routinely installed on
-    // isolated observatory networks, so arriving on this step makes no outbound
-    // request: the offer waits for an explicit [_lookUpIpEstimate].
+    // The startup service owns automatic detection; opening this step must
+    // not start a second lookup.
   }
 
   /// True when the coordinate fields hold a usable pair, so the "no site on
@@ -201,22 +191,27 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     _onFieldChanged();
   }
 
+  /// Put a searched place in the fields, the same way typing it would.
+  void _applyPlace(PlaceSearchHit hit) {
+    _latController.text = _trimNumber(_roundLookup(hit.latitude));
+    _lonController.text = _trimNumber(_roundLookup(hit.longitude));
+    final elevation = hit.elevation;
+    _elevController.text =
+        elevation == null ? '' : elevation.round().toString();
+    _placeSearch.clear();
+    _onFieldChanged();
+  }
+
   static String? _validateLatitude(String raw) {
-    if (raw.isEmpty) return null;
-    final value = double.tryParse(raw);
-    if (value == null || value < -90 || value > 90) {
-      return 'Latitude must be between -90 and 90.';
-    }
-    return null;
+    if (raw.isEmpty || parseSiteLatitude(raw) != null) return null;
+    return 'Latitude must be between -90 and 90: decimal degrees (40.71) or '
+        'degrees, minutes, seconds (40 42 36 N).';
   }
 
   static String? _validateLongitude(String raw) {
-    if (raw.isEmpty) return null;
-    final value = double.tryParse(raw);
-    if (value == null || value < -180 || value > 180) {
-      return 'Longitude must be between -180 and 180.';
-    }
-    return null;
+    if (raw.isEmpty || parseSiteLongitude(raw) != null) return null;
+    return 'Longitude must be between -180 and 180: decimal degrees (-74.01) '
+        'or degrees, minutes, seconds (74 0 36 W).';
   }
 
   static String? _validateElevation(String raw) {
@@ -231,6 +226,8 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   /// Validate every field on each keystroke so the inline error is immediate,
   /// publish the shell's blocking reason, then reconcile settings.
   void _onFieldChanged() {
+    _fieldsEdited = true;
+    ref.read(appSettingsProvider.notifier).noteLocationEdit();
     setState(() {
       _latError = _validateLatitude(_latController.text.trim());
       _lonError = _validateLongitude(_lonController.text.trim());
@@ -276,8 +273,8 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
         latRaw.isNotEmpty &&
         lonRaw.isNotEmpty;
     if (entryIsUsable) {
-      latitude = double.parse(latRaw);
-      longitude = double.parse(lonRaw);
+      latitude = parseSiteLatitude(latRaw)!;
+      longitude = parseSiteLongitude(lonRaw)!;
     } else if (latRaw.isEmpty && lonRaw.isEmpty) {
       latitude = 0.0;
       longitude = 0.0;
@@ -322,116 +319,54 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   static double _roundLookup(double value) =>
       double.parse(value.toStringAsFixed(4));
 
-  /// Resolve this machine's position and write the coordinates, mirroring
-  /// Settings → Location's "Detect location" affordance — including its three
-  /// rules. It asks before anything leaves the machine, naming each tier that
-  /// will run (once per session, shared with Settings). It refuses to leave a
-  /// stored elevation attached to a position it does not belong to. And it
-  /// changes nothing about the machine unasked: [mayEnableWifiRadio] is set
-  /// only by the explicit "Turn Wi-Fi on for a precise fix" offer, and the
-  /// radio goes back off afterwards. Guards the async gap with a
-  /// backend-authority check so a host switch mid-read never applies the
-  /// reading to the replacement host.
-  Future<void> _useDeviceLocation(
-    AppSettingsState settings, {
-    bool mayEnableWifiRadio = false,
-  }) async {
+  /// "Use my current location": [detectSite], then the fields show what was
+  /// stored.
+  Future<void> _useDeviceLocation({bool mayEnableWifiRadio = false}) async {
     if (_locating) return;
-    final googleKey = ref.read(googleGeolocationKeyProvider).value ?? '';
-    final consented = await ensureGeolocationConsent(
-      context,
-      ref,
-      outcome: kGeolocationWritesSiteOutcome,
-      googleKeyPresent: googleKey.isNotEmpty,
-    );
-    if (!consented || !mounted) return;
-    final authority = ref.read(backendProvider);
-    setState(() => _locating = true);
     try {
-      final attempt = await ref.read(onboardingSiteLocatorProvider)(
-        allowWifiScan: true,
-        allowIp: true,
+      final detection = await detectSite(
+        context,
+        ref,
         mayEnableWifiRadio: mayEnableWifiRadio,
-        googleApiKey: googleKey.isEmpty ? null : googleKey,
+        onLookingUp: () => setState(() => _locating = true),
       );
-      if (!mounted || !identical(ref.read(backendProvider), authority)) {
-        return;
-      }
-      setState(() => _wifiRadioOffersPrecision = attempt.canRetryWithWifi);
-      final location = attempt.fix;
-      if (location == null) {
-        context.showWarningSnackBar(
-          'No position from Wi-Fi, this machine, or the internet lookup. '
-          '${attempt.failureDetail} Enter your coordinates below, or skip and '
-          'set the site later in Settings → Location.',
-        );
-        return;
-      }
-      final name = location.locationName;
-      final lat = _roundLookup(location.latitude);
-      final lon = _roundLookup(location.longitude);
-      // Only a site already on record can lend a stale elevation; on a first
-      // run the field holds whatever the operator has just typed, which is
-      // theirs to keep.
-      final hasStoredSite = settings.hasObserverLocation;
-      final keepElevation = !hasStoredSite ||
-          _kmBetween(settings.latitude, settings.longitude, lat, lon) <=
-              _sameSiteRadiusKm;
-      await ref.read(appSettingsProvider.notifier).updateLocation(
-            latitude: lat,
-            longitude: lon,
-            elevation: keepElevation ? null : 0,
+      if (detection == null || !mounted) return;
+      setState(
+        () => _wifiRadioOffersPrecision = detection.attempt.canRetryWithWifi,
+      );
+      switch (detection) {
+        case SiteNotFound(:final attempt):
+          context.showWarningSnackBar(
+            '${attempt.failureMessage} Enter your coordinates below, or skip '
+            'and set the site later in Settings → Location.',
           );
-      if (!mounted || !identical(ref.read(backendProvider), authority)) return;
-      _latController.text = _trimNumber(lat);
-      _lonController.text = _trimNumber(lon);
-      if (!keepElevation) _elevController.clear();
-      setState(() {
-        _latError = null;
-        _lonError = null;
-        if (!keepElevation) _elevError = null;
-      });
-      _publishBlockingReason();
-      final where = name ?? '${_trimNumber(lat)}°, ${_trimNumber(lon)}°';
-      context.showSuccessSnackBar(
-        'Coordinates set to $where. ${location.explanation}'
-        '${keepElevation ? '' : ' Elevation cleared — enter the elevation '
-            'for this site.'}'
-        // The wizard has no map and no place search, so the nudge points at
-        // the fields directly below instead of an affordance that is not
-        // here yet.
-        '${location.isPrecise ? '' : attempt.canRetryWithWifi ? ' Turn Wi-Fi on for a precise fix.' : ' Correct the coordinates below if it is off.'}',
-      );
+        case SiteDetected(:final latitude, :final longitude, :final fix):
+          _latController.text = _trimNumber(latitude);
+          _lonController.text = _trimNumber(longitude);
+          if (!detection.keptElevation) _elevController.clear();
+          setState(() {
+            _latError = null;
+            _lonError = null;
+            if (!detection.keptElevation) _elevError = null;
+          });
+          _publishBlockingReason();
+          context.showSuccessSnackBar(
+            'Coordinates set to ${detection.where}. ${fix.explanation}'
+            '${detection.keptElevation ? '' : ' Elevation cleared — enter the '
+                'elevation for this site.'}'
+            // The wizard has no map and no place search, so the nudge points
+            // at the fields directly below.
+            '${fix.isPrecise ? '' : detection.attempt.canRetryWithWifi ? ' Turn Wi-Fi on for a precise fix.' : ' Correct the coordinates below if it is off.'}',
+          );
+      }
     } catch (error) {
-      if (mounted && identical(ref.read(backendProvider), authority)) {
-        context.showErrorSnackBar('Could not read device location: $error');
+      if (mounted) {
+        context.showErrorSnackBar(
+            'Could not read device location: ${userFacingError(error)}');
       }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
-  }
-
-  /// How far a resolved position may sit from the stored one before the stored
-  /// elevation is treated as belonging to a different place. Matches
-  /// Settings → Location; an IP estimate is accurate to roughly a city.
-  static const double _sameSiteRadiusKm = 25;
-
-  /// Great-circle distance in kilometres.
-  static double _kmBetween(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    const earthRadiusKm = 6371.0;
-    double toRad(double deg) => deg * math.pi / 180.0;
-    final dLat = toRad(lat2 - lat1);
-    final dLon = toRad(lon2 - lon1);
-    final a = math.pow(math.sin(dLat / 2), 2) +
-        math.cos(toRad(lat1)) *
-            math.cos(toRad(lat2)) *
-            math.pow(math.sin(dLon / 2), 2);
-    return earthRadiusKm * 2 * math.asin(math.min(1.0, math.sqrt(a)));
   }
 
   /// The IP estimate, presented as a suggestion with its provenance and its
@@ -493,12 +428,12 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
 
     return settingsAsync.when(
       loading: () => const Center(
-        child: const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
+        child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
       ),
       error: (error, _) => SkotiqBanner(
         tone: BannerTone.error,
         title: 'Could not load location settings.',
-        message: '$error',
+        message: userFacingError(error),
       ),
       data: (settings) {
         _seedFrom(settings);
@@ -531,8 +466,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
                       variant: ButtonVariant.secondary,
                       size: ButtonSize.small,
                       isLoading: _locating,
-                      onPressed:
-                          _locating ? null : () => _useDeviceLocation(settings),
+                      onPressed: _locating ? null : () => _useDeviceLocation(),
                     ),
                   ),
                 ],
@@ -554,10 +488,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
                     onPressed: _locating
                         ? null
                         : () => unawaited(
-                              _useDeviceLocation(
-                                settings,
-                                mayEnableWifiRadio: true,
-                              ),
+                              _useDeviceLocation(mayEnableWifiRadio: true),
                             ),
                   ),
                 ),
@@ -567,24 +498,54 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
                 _buildIpEstimate(),
               ],
               const SizedBox(height: SkotiqTokens.spaceLg),
+              // The same place search as Settings > Location: on a desktop
+              // with no GPS a town name is the quickest accurate answer.
+              FormRow(
+                label: 'Search place',
+                help: 'Town or observatory by name',
+                child: PlaceSearchInput(search: _placeSearch),
+              ),
+              // Under the field, in the form's control column.
+              LayoutBuilder(
+                builder: (context, constraints) => Padding(
+                  padding: EdgeInsets.only(
+                    left: FormRow.resolveLabelWidth(
+                          FormRow.defaultLabelWidth,
+                          constraints.maxWidth,
+                        ) +
+                        FormRow.columnGap,
+                  ),
+                  child: PlaceSearchResults(
+                    search: _placeSearch,
+                    onPicked: _applyPlace,
+                  ),
+                ),
+              ),
+              const SizedBox(height: FormRow.rowGap),
               // One form, one label column: side by side, latitude and
               // longitude left a 42 px field on a phone.
               _CoordinateField(
+                fieldKey: onboardingSiteLatitudeKey,
                 controller: _latController,
                 label: 'Latitude',
-                hint: 'e.g. 40.71',
+                hint: 'e.g. 40.71 or 40 42 36 N',
                 suffix: '°',
-                helper: 'Positive for North, negative for South',
+                helper: 'Decimal degrees or degrees, minutes, seconds. '
+                    'Positive is North, negative is South',
+                acceptsDms: true,
                 errorText: _latError,
                 onChanged: _onFieldChanged,
               ),
               const SizedBox(height: FormRow.rowGap),
               _CoordinateField(
+                fieldKey: onboardingSiteLongitudeKey,
                 controller: _lonController,
                 label: 'Longitude',
-                hint: 'e.g. -74.01',
+                hint: 'e.g. -74.01 or 74 0 36 W',
                 suffix: '°',
-                helper: 'Positive for East, negative for West',
+                helper: 'Decimal degrees or degrees, minutes, seconds. '
+                    'Positive is East, negative is West',
+                acceptsDms: true,
                 errorText: _lonError,
                 onChanged: _onFieldChanged,
               ),
@@ -606,9 +567,8 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   }
 }
 
-/// A labelled decimal coordinate input: a label, a [SkotiqTextField] that
-/// accepts signed decimals, and a muted helper line. Mirrors the numeric-field
-/// styling used by the camera-defaults step.
+/// A labelled site input: a label, a [SkotiqTextField] and a muted helper
+/// line. Mirrors the numeric-field styling used by the camera-defaults step.
 class _CoordinateField extends StatelessWidget {
   const _CoordinateField({
     required this.controller,
@@ -618,8 +578,11 @@ class _CoordinateField extends StatelessWidget {
     required this.suffix,
     required this.onChanged,
     this.errorText,
+    this.acceptsDms = false,
+    this.fieldKey,
   });
 
+  final Key? fieldKey;
   final TextEditingController controller;
   final String label;
   final String hint;
@@ -628,24 +591,32 @@ class _CoordinateField extends StatelessWidget {
   final String? errorText;
   final VoidCallback onChanged;
 
+  /// Latitude and longitude take whatever [parseSiteAngle] reads, so the
+  /// degree marks and hemisphere letters of `40°42'46" N` reach the parser.
+  /// Filtering them out turned that into `404246`.
+  final bool acceptsDms;
+
   @override
   Widget build(BuildContext context) {
     return FormRow(
       label: label,
       help: helper,
       child: SkotiqTextField(
+        key: fieldKey,
         controller: controller,
         hint: hint,
         suffix: suffix,
         errorText: errorText,
         mono: true,
-        keyboardType: const TextInputType.numberWithOptions(
-          decimal: true,
-          signed: true,
-        ),
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[0-9\-\.]')),
-        ],
+        keyboardType: acceptsDms
+            ? TextInputType.text
+            : const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
+        inputFormatters: acceptsDms
+            ? null
+            : [FilteringTextInputFormatter.allow(RegExp(r'[0-9\-\.]'))],
         onChanged: (_) => onChanged(),
       ),
     );

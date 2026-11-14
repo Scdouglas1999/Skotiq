@@ -25,7 +25,6 @@ class FormRow extends StatelessWidget {
   /// The label, in `textSecondary` at 13.
   final String label;
 
-  /// The control.
   final Widget child;
 
   /// Width of the label column. The spec's range is 84–104; pick one width per

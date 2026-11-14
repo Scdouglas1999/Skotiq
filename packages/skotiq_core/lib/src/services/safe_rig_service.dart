@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/sequence/sequence_models.dart';
+import '../providers/async_scope.dart';
 import '../providers/backend_provider.dart';
 import '../providers/equipment/camera_state_provider.dart';
 import '../providers/equipment/cover_calibrator_state_provider.dart';
@@ -194,35 +195,24 @@ class SafeRigException implements Exception {
 /// providers exactly as [_autoResumeAfterWeatherClear] resolves the mount.
 class SafeRigService {
   final Ref _ref;
-  final SkotiqBackend _backend;
-  final BackendNotifier _backendNotifier;
+  final AsyncScope<SkotiqBackend> _host;
 
   /// Stops the secondary capture loop and returns whether a secondary rig was
   /// actually running (so the outcome report can distinguish "stopped it" from
   /// "there was nothing to stop").
   final Future<bool> Function() _stopSecondaryRig;
-  bool _retired = false;
 
-  SafeRigService(
-    Ref ref, {
-    SkotiqBackend? backend,
-    required Future<bool> Function() stopSecondaryRig,
-  }) : _ref = ref,
-       _backend = backend ?? ref.read(backendProvider),
-       _backendNotifier = ref.read(backendProvider.notifier),
-       _stopSecondaryRig = stopSecondaryRig;
+  SafeRigService(Ref ref, {required Future<bool> Function() stopSecondaryRig})
+    : _ref = ref,
+      _host = ref.providerBackendScope(),
+      _stopSecondaryRig = stopSecondaryRig;
 
-  bool get _hasAuthority =>
-      !_retired && _backendNotifier.isCurrentBackend(_backend);
-
-  void retire() => _retired = true;
-
-  void _ensureAuthority(
+  void _ensureSameHost(
     String reason,
     SafeRigResult result,
     Map<String, Object> failures,
   ) {
-    if (_hasAuthority) return;
+    if (_host.isCurrent) return;
     throw SafeRigException(
       reason,
       result.copyWith(
@@ -273,13 +263,13 @@ class SafeRigService {
   }) async {
     final failures = <String, Object>{};
     var result = const SafeRigResult();
-    _ensureAuthority(reason, result, failures);
+    _ensureSameHost(reason, result, failures);
 
-    // Read before the steps below change it: pausing a running sequence must
-    // not make the rig look idle to the park decision.
-    final runWasActive = _isRunActive(
-      _ref.read(sequenceExecutionStateProvider),
-    );
+    // A run whose executor may still image (paused included: weather pauses
+    // it before parking) is the night's run, which the park protects. Read
+    // before the steps below change it: pausing a running sequence must not
+    // make the rig look idle to the park decision.
+    final runWasActive = _ref.read(sequenceExecutionStateProvider).ownsHardware;
 
     // The secondary rig owns a capture loop outside the primary sequencer.
     // Stop it first and wait for its native exposure abort to complete before
@@ -290,13 +280,13 @@ class SafeRigService {
         // A stop sent to a rig that was never armed protected nothing, so it
         // must not be reported as a step that was carried out.
         final stopped = await _stopSecondaryRig();
-        _ensureAuthority(reason, result, failures);
+        _ensureSameHost(reason, result, failures);
         result = result.copyWith(secondaryRigQuiesced: stopped);
       } catch (e) {
         failures['secondaryRig'] = e;
       }
     }
-    _ensureAuthority(reason, result, failures);
+    _ensureSameHost(reason, result, failures);
 
     // A daemon/process shutdown cannot leave a sensor integrating after its
     // controlling client disappears. Abort before pausing/parking so no live
@@ -310,8 +300,8 @@ class SafeRigService {
           camera.deviceId!.isNotEmpty;
       if (connected && camera.isExposing) {
         try {
-          await _backend.cameraAbortExposure(camera.deviceId!);
-          _ensureAuthority(reason, result, failures);
+          await _host.value.cameraAbortExposure(camera.deviceId!);
+          _ensureSameHost(reason, result, failures);
           _ref.read(cameraStateProvider.notifier).setExposing(false);
           result = result.copyWith(exposureAborted: true);
         } catch (e) {
@@ -319,7 +309,7 @@ class SafeRigService {
         }
       }
     }
-    _ensureAuthority(reason, result, failures);
+    _ensureSameHost(reason, result, failures);
 
     // 1. Pause a running sequence so no further exposure/slew is dispatched
     //    while we park. Do not send an invalid pause command while idle or
@@ -329,14 +319,14 @@ class SafeRigService {
     final executionState = _ref.read(sequenceExecutionStateProvider);
     if (executionState.canPause) {
       try {
-        await _backend.sequencerPause();
-        _ensureAuthority(reason, result, failures);
+        await _host.value.sequencerPause();
+        _ensureSameHost(reason, result, failures);
         result = result.copyWith(sequencePaused: true);
       } catch (e) {
         failures['pause'] = e;
       }
     }
-    _ensureAuthority(reason, result, failures);
+    _ensureSameHost(reason, result, failures);
 
     // 2. Park the mount (the safety-critical step).
     if (park) {
@@ -359,8 +349,8 @@ class SafeRigService {
         result = result.copyWith(mountLeftIdle: true);
         if (idleMount == IdleMountPolicy.stopTracking && mount.isTracking) {
           try {
-            await _backend.mountSetTracking(mount.deviceId!, false);
-            _ensureAuthority(reason, result, failures);
+            await _host.value.mountSetTracking(mount.deviceId!, false);
+            _ensureSameHost(reason, result, failures);
             _ref.read(mountStateProvider.notifier).setTracking(false);
             result = result.copyWith(trackingStopped: true);
           } catch (e) {
@@ -369,8 +359,8 @@ class SafeRigService {
         }
       } else {
         try {
-          await _backend.mountPark(mount.deviceId!);
-          _ensureAuthority(reason, result, failures);
+          await _host.value.mountPark(mount.deviceId!);
+          _ensureSameHost(reason, result, failures);
           _ref.read(mountStateProvider.notifier).setParked(true);
           _ref.read(mountStateProvider.notifier).setTracking(false);
           result = result.copyWith(mountParked: true);
@@ -379,7 +369,7 @@ class SafeRigService {
         }
       }
     }
-    _ensureAuthority(reason, result, failures);
+    _ensureSameHost(reason, result, failures);
 
     // 3. Close the dome shutter (physical weather protection).
     if (closeDome) {
@@ -396,7 +386,7 @@ class SafeRigService {
           final capabilities = await _ref.read(
             equipmentDomeCapabilitiesProvider(dome.deviceId!).future,
           );
-          _ensureAuthority(reason, result, failures);
+          _ensureSameHost(reason, result, failures);
           if (capabilities == null) {
             throw StateError(
               'Dome capabilities are unavailable; shutter closure cannot be '
@@ -408,15 +398,15 @@ class SafeRigService {
               'Connected dome does not support shutter control',
             );
           }
-          await closeDomeShutter(_backend, dome.deviceId!);
-          _ensureAuthority(reason, result, failures);
+          await closeDomeShutter(_host.value, dome.deviceId!);
+          _ensureSameHost(reason, result, failures);
           result = result.copyWith(domeClosed: true);
         } catch (e) {
           failures['dome'] = e;
         }
       }
     }
-    _ensureAuthority(reason, result, failures);
+    _ensureSameHost(reason, result, failures);
 
     // 4. Close the cover (physical weather protection).
     if (closeCover) {
@@ -427,15 +417,15 @@ class SafeRigService {
           cover.deviceId!.isNotEmpty;
       if (connected && cover.hasCover && !cover.isCoverClosed) {
         try {
-          await closeCalibratorCover(_backend, cover.deviceId!);
-          _ensureAuthority(reason, result, failures);
+          await closeCalibratorCover(_host.value, cover.deviceId!);
+          _ensureSameHost(reason, result, failures);
           result = result.copyWith(coverClosed: true);
         } catch (e) {
           failures['cover'] = e;
         }
       }
     }
-    _ensureAuthority(reason, result, failures);
+    _ensureSameHost(reason, result, failures);
 
     // Driver-side coolers often remain energized after the client exits. For
     // terminal shutdown paths, explicitly turn cooling off after the rig is
@@ -452,15 +442,17 @@ class SafeRigService {
           (camera.coolerPower != null && camera.coolerPower! > 0);
       if (connected) {
         try {
-          final status = await _backend.getCameraStatus(camera.deviceId!);
+          final status = await _host.value.getCameraStatus(camera.deviceId!);
           if (!status.connected) {
             throw StateError(
               'Camera status reports disconnected while disabling cooler',
             );
           }
+          // A cooler the camera cannot report may be on.
           coolerActive =
               coolerActive ||
-              status.coolerOn ||
+              status.coolerOn == true ||
+              (status.canCool && status.coolerOn == null) ||
               (status.coolerPower != null && status.coolerPower! > 0);
           // A fresh status that explicitly reports no cooling capability and
           // no active cooler is authoritative: there is nothing to disable.
@@ -476,14 +468,14 @@ class SafeRigService {
           }
         }
       }
-      _ensureAuthority(reason, result, failures);
+      _ensureSameHost(reason, result, failures);
       if (connected && coolerActive) {
         try {
-          await _backend.cameraSetCooling(
+          await _host.value.cameraSetCooling(
             deviceId: camera.deviceId!,
             enabled: false,
           );
-          _ensureAuthority(reason, result, failures);
+          _ensureSameHost(reason, result, failures);
           final notifier = _ref.read(cameraStateProvider.notifier);
           notifier.markCoolingDisabled();
           result = result.copyWith(coolerDisabled: true);
@@ -493,7 +485,7 @@ class SafeRigService {
       }
     }
 
-    _ensureAuthority(reason, result, failures);
+    _ensureSameHost(reason, result, failures);
 
     result = result.copyWith(failures: Map.unmodifiable(failures));
 
@@ -506,17 +498,6 @@ class SafeRigService {
     }
     return result;
   }
-
-  /// Whether a run is in progress that the park protects. A paused run counts:
-  /// it is still the night's run, and weather pauses it before parking.
-  static bool _isRunActive(SequenceExecutionState state) => switch (state) {
-    SequenceExecutionState.running ||
-    SequenceExecutionState.paused ||
-    SequenceExecutionState.recovering ||
-    SequenceExecutionState.stopping ||
-    SequenceExecutionState.stopFailed => true,
-    _ => false,
-  };
 
   /// Issue the dome-shutter close command against [deviceId].
   ///
@@ -619,12 +600,9 @@ Future<bool> _stopSecondaryRigReportingWhetherItRan(Ref ref) async {
 
 /// Provider for the shared safe-the-rig action.
 final safeRigServiceProvider = Provider<SafeRigService>((ref) {
-  final backend = ref.watch(backendProvider);
-  final service = SafeRigService(
+  ref.watch(backendProvider);
+  return SafeRigService(
     ref,
-    backend: backend,
     stopSecondaryRig: () => _stopSecondaryRigReportingWhetherItRan(ref),
   );
-  ref.onDispose(service.retire);
-  return service;
 });

@@ -26,7 +26,7 @@
 //     `mobile_event_notifier_test.dart` uses the same pattern).
 //
 // `skotiq_desktop` is a test-only path dependency declared in
-// `apps/mobile/pubspec.yaml`. Production mobile builds do NOT link it.
+// `apps/mobile_e2e/pubspec.yaml`. Production mobile builds do NOT link it.
 
 import 'dart:async';
 import 'dart:io' show Platform, WebSocketException;
@@ -34,11 +34,16 @@ import 'dart:io' show Platform, WebSocketException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 import 'package:skotiq_mobile/services/mobile_event_notifier.dart';
 import 'package:skotiq_mobile/services/mobile_preferences.dart';
 import 'package:skotiq_mobile/services/notification_service.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show skotiqRelease;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Recording double for `MobileNotificationSink`. Same shape as the one in
@@ -74,20 +79,8 @@ class _RecordingNotificationSink implements MobileNotificationSink {
   Future<void> notifySafety({
     required String title,
     required String body,
-    String? eventType,
   }) async {
-    calls.add(
-      _NotifyCall('safety', {
-        'title': title,
-        'body': body,
-        if (eventType != null) 'eventType': eventType,
-      }),
-    );
-  }
-
-  @override
-  Future<void> notifyMountParked(String reason) async {
-    calls.add(_NotifyCall('mountParked', {'reason': reason}));
+    calls.add(_NotifyCall('safety', {'title': title, 'body': body}));
   }
 
   @override
@@ -124,8 +117,8 @@ class _RecordingNotificationSink implements MobileNotificationSink {
   }
 
   @override
-  Future<void> notifyLowDiskSpace(double remainingGB) async {
-    calls.add(_NotifyCall('lowDiskSpace', {'gb': remainingGB}));
+  Future<void> notifyLowDiskSpace(String message) async {
+    calls.add(_NotifyCall('lowDiskSpace', {'message': message}));
   }
 
   @override
@@ -267,6 +260,9 @@ void main() {
           backendProvider.overrideWith(
             (ref) => _ServerSideBackendNotifier(ref, serverBackend),
           ),
+          appVersionProvider.overrideWithValue(
+            const AppVersionInfo(version: skotiqRelease, buildNumber: 1),
+          ),
         ],
       );
       server = HeadlessApiServer(
@@ -379,21 +375,106 @@ void main() {
       expect(call.kind, equals('exposureFailed'));
       expect(
         call.data['error'],
-        equals('Mount lost guide star during long exposure'),
+        contains('Mount lost guide star during long exposure'),
       );
+    });
+
+    test('a device the host heartbeat lost and an autofocus the run carried '
+        'on through both wake the phone', () async {
+      await bootServer();
+      addTearDown(tearDownServer);
+      final mobileBackend = NetworkBackend(
+        serverHost: '127.0.0.1',
+        serverPort: server.actualPort,
+        webSocketPort: server.actualPort,
+        authToken: authToken,
+        webSocketHeartbeatInterval: const Duration(days: 1),
+        webSocketHeartbeatTimeout: const Duration(days: 1),
+        autoConnectWebSocket: false,
+      );
+      addTearDown(mobileBackend.dispose);
+      final sink = _RecordingNotificationSink();
+      final notifier = MobileEventNotifier(
+        eventStream: mobileBackend.eventStream,
+        preferences: MobilePreferences(await SharedPreferences.getInstance()),
+        notificationService: sink,
+      );
+      notifier.start();
+      addTearDown(notifier.stop);
+      await mobileBackend.connect();
+      expect(
+        await _waitUntil(
+          () =>
+              mobileBackend.connectionState == BackendConnectionState.connected,
+        ),
+        isTrue,
+      );
+
+      SkotiqEvent fromNative(sk.EventCategory category, sk.EventPayload p) =>
+          wireEventFromTyped(
+            sk.SkotiqEvent(
+              eventId: BigInt.zero,
+              timestamp: DateTime.now().millisecondsSinceEpoch,
+              severity: sk.EventSeverity.error,
+              category: category,
+              payload: p,
+            ),
+          );
+      // What the host's heartbeat publishes when a device stops answering.
+      final heartbeatLost = [
+        fromNative(
+          sk.EventCategory.equipment,
+          const sk.EventPayload.equipment(
+            sk.EquipmentEvent.heartbeatStatusChanged(
+              deviceType: 'focuser',
+              deviceId: 'sim_focuser_1',
+              status: sk.HeartbeatStatus.disconnected,
+              consecutiveFailures: 3,
+            ),
+          ),
+        ),
+        fromNative(
+          sk.EventCategory.equipment,
+          const sk.EventPayload.equipment(
+            sk.EquipmentEvent.error(
+              deviceType: 'focuser',
+              deviceId: 'sim_focuser_1',
+              message:
+                  'Device unresponsive after 3 heartbeat failures: timed out',
+            ),
+          ),
+        ),
+      ];
+      final autofocusContinued = fromNative(
+        sk.EventCategory.sequencer,
+        const sk.EventPayload.sequencer(
+          sk.SequencerEvent.decisionLogged(
+            timestampIso: '2026-11-13T02:00:00Z',
+            category: 'autofocus',
+            summary: 'Autofocus did not converge; continuing',
+            detailsJson: '{}',
+            notice: sk.SequencerNotice.autofocusContinued(),
+          ),
+        ),
+      );
+
+      bool fired(String kind) => sink.calls.any((c) => c.kind == kind);
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (!(fired('equipmentDisconnected') && fired('autofocusFailed')) &&
+          DateTime.now().isBefore(deadline)) {
+        heartbeatLost.forEach(serverBackend.emit);
+        serverBackend.emit(autofocusContinued);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      expect(fired('equipmentDisconnected'), isTrue);
+      expect(fired('autofocusFailed'), isTrue);
     });
 
     test('invalid auth token: WebSocket is rejected; event does NOT reach '
         'the mobile notifier', () async {
-      // The HeadlessApiServer's WebSocket handler rejects bad-auth upgrades
-      // with HTTP 401. The IOWebSocketChannel's internal `_readyCompleter`
-      // (https://pub.dev/packages/web_socket_channel io.dart:97) is
-      // `completeError`d but never awaited by NetworkBackend (which only
-      // listens to the stream), so that error surfaces as an uncaught async
-      // error in the test zone — purely diagnostic, not a behavioural
-      // failure. We swallow it via `runZonedGuarded` so the test asserts on
-      // the visible behaviour (no event reaches the mobile notifier) rather
-      // than on an internal channel-library implementation detail.
+      // The client normally catches an authentication refusal itself. Keep
+      // platform-specific WebSocket errors from escaping the test zone;
+      // the assertions below still require an actual auth rejection.
       final swallowed = <Object>[];
       await runZonedGuarded(
         () async {
@@ -423,16 +504,18 @@ void main() {
           notifier.start();
           addTearDown(notifier.stop);
 
-          // Attempt the connection. NetworkBackend.connect() catches the
-          // 401 internally and schedules a reconnect timer; `await connect()`
-          // returns even when the underlying upgrade was rejected. The
-          // mobile-side `connectionState` may transiently read `connected`
-          // because IOWebSocketChannel reports the subscription as "set up"
-          // before the WS handshake completes — the rejection arrives via
-          // the stream's onError shortly after. We don't assert on that
-          // transient state; the load-bearing invariant is that no event
-          // reaches the mobile notifier when the server rejected our auth.
+          // connect() waits for the authenticated ticket and WebSocket
+          // handshake. Bad credentials must leave a terminal auth error,
+          // rather than letting an unrelated connection failure pass here.
           await mobileBackend.connect();
+
+          expect(mobileBackend.connectRefusal, isNull);
+          expect(
+            mobileBackend.isAuthTokenRejected,
+            isTrue,
+            reason: 'the matching-release host must reject the bearer token',
+          );
+          expect(mobileBackend.connectionState, BackendConnectionState.error);
 
           // Drive the server-side broadcast in a polling loop (same pattern
           // as the happy-path test). With a bad-auth client, the server's

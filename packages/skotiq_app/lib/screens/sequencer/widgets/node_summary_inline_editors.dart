@@ -40,11 +40,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../filter_source.dart';
+import '../../../widgets/sensitivity_field.dart';
 
+import 'node_property_widgets.dart' show NodeNumberInput;
 import 'node_summary.dart';
 
 /// Open the anchored inline editor for [kind] on [node].
@@ -101,15 +103,11 @@ Future<void> showInlineNodeEditor({
   );
 }
 
-// Anchored popup shell — positions [child] against the anchor's rect, tapping
-// outside dismisses (the transparent barrier), and styles the floating surface.
-
 /// The preferred width of the floating editor. Wide enough for a stepper +
 /// label or a comfortable list of filter names, narrow enough to read as a
 /// quick-edit popover rather than a panel.
 const double _kEditorWidth = 232;
 
-/// Gap between the anchor and the popup edge.
 const double _kAnchorGap = SkotiqTokens.spaceXs;
 
 /// Outer margin kept clear of the screen edges so the popup never clips.
@@ -178,8 +176,6 @@ class _AnchoredInlineEditor extends StatelessWidget {
     );
   }
 }
-
-// Editor body — dispatches on [InlineEditKind] to the right control.
 
 class _InlineEditorBody extends ConsumerWidget {
   final SequenceNode node;
@@ -259,8 +255,6 @@ T _expect<T extends SequenceNode>(SequenceNode node, InlineEditKind kind) {
   );
 }
 
-// Shared editor chrome — a small titled section the controls slot into.
-
 class _EditorSection extends StatelessWidget {
   final String title;
   final IconData? icon;
@@ -297,22 +291,19 @@ class _EditorSection extends StatelessWidget {
   }
 }
 
-// Numeric text-field editor — commits clamped-on-change, reformats on blur.
-
-/// A compact numeric field that commits its clamped value on every change and
-/// reformats (snaps to the clamp + canonical text) when focus leaves.
+/// A titled number field for one edit in the inline popover: the inspector's
+/// [NodeNumberInput] (commits once after typing pauses and on blur, clamped),
+/// focused with its text selected.
 ///
-/// [decimals] controls the displayed precision; [allowNegative] permits a
-/// leading `-` (used for cooling temperature). [onCommit] receives the parsed,
-/// clamped value — it does the `updateNode` (+ optional defaults mirror).
-class _NumericFieldEditor extends StatefulWidget {
+/// [onCommit] receives the parsed, clamped value; it does the `updateNode`
+/// (and the optional defaults mirror).
+class _NumericFieldEditor extends StatelessWidget {
   final String title;
   final IconData? icon;
   final double initialValue;
   final double min;
   final double max;
   final int decimals;
-  final bool allowNegative;
   final String? suffix;
   final ValueChanged<double> onCommit;
 
@@ -324,101 +315,27 @@ class _NumericFieldEditor extends StatefulWidget {
     required this.onCommit,
     this.icon,
     this.decimals = 1,
-    this.allowNegative = false,
     this.suffix,
   });
 
   @override
-  State<_NumericFieldEditor> createState() => _NumericFieldEditorState();
-}
-
-class _NumericFieldEditorState extends State<_NumericFieldEditor> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: _format(widget.initialValue));
-    _focusNode = FocusNode()..addListener(_handleFocusChange);
-    // Autofocus + select-all so the user can immediately overtype.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _focusNode.requestFocus();
-      _controller.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _controller.text.length,
-      );
-    });
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_handleFocusChange);
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String _format(double value) => value.toStringAsFixed(widget.decimals);
-
-  double _clamp(double value) => value.clamp(widget.min, widget.max);
-
-  void _handleFocusChange() {
-    if (!_focusNode.hasFocus) {
-      _reformat();
-    }
-  }
-
-  /// Snap the text to the clamped, canonical representation. Called on blur and
-  /// submit so a half-typed or out-of-range value never lingers on screen.
-  void _reformat() {
-    final parsed = double.tryParse(_controller.text.trim());
-    final value = _clamp(parsed ?? widget.initialValue);
-    final text = _format(value);
-    if (_controller.text != text) {
-      _controller.value = TextEditingValue(
-        text: text,
-        selection: TextSelection.collapsed(offset: text.length),
-      );
-    }
-    widget.onCommit(value);
-  }
-
-  void _handleChanged(String raw) {
-    final parsed = double.tryParse(raw.trim());
-    // Commit live only when the text parses to a real number; a transient
-    // empty / "-" / "." state is left for the blur reformat to resolve. We
-    // never guess a value for unparseable input.
-    if (parsed == null) return;
-    widget.onCommit(_clamp(parsed));
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final pattern =
-        widget.allowNegative ? RegExp(r'^-?\d*\.?\d*') : RegExp(r'^\d*\.?\d*');
     return _EditorSection(
-      title: widget.title,
-      icon: widget.icon,
-      child: SkotiqTextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        keyboardType: TextInputType.numberWithOptions(
-          decimal: widget.decimals > 0,
-          signed: widget.allowNegative,
-        ),
-        suffix: widget.suffix,
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(pattern),
-        ],
-        onChanged: _handleChanged,
+      title: title,
+      icon: icon,
+      child: NodeNumberInput(
+        colors: SkotiqColors.of(context),
+        value: initialValue,
+        min: min,
+        max: max,
+        decimals: decimals,
+        suffix: suffix,
+        autofocus: true,
+        onChanged: onCommit,
       ),
     );
   }
 }
-
-// Stepper editors (integer count / iterations).
 
 class _ExposureCountEditor extends ConsumerWidget {
   final ExposureNode node;
@@ -431,8 +348,8 @@ class _ExposureCountEditor extends ConsumerWidget {
       icon: LucideIcons.camera,
       child: SkotiqStepper(
         value: node.count,
-        min: 1,
-        max: 9999,
+        min: ExposureFieldLimits.frameCount.min,
+        max: ExposureFieldLimits.frameCount.max,
         semanticLabel: 'Exposure count',
         onChanged: (count) {
           ref
@@ -470,8 +387,6 @@ class _LoopIterationsEditor extends ConsumerWidget {
   }
 }
 
-// Numeric-field editors (scalars with a sensible clamp range).
-
 class _ExposureDurationEditor extends ConsumerWidget {
   final ExposureNode node;
   const _ExposureDurationEditor({required this.node});
@@ -482,8 +397,8 @@ class _ExposureDurationEditor extends ConsumerWidget {
       title: 'Exposure duration',
       icon: LucideIcons.timer,
       initialValue: node.durationSecs,
-      min: 0.001,
-      max: 3600,
+      min: ExposureFieldLimits.durationSecs.min,
+      max: ExposureFieldLimits.durationSecs.max,
       decimals: 3,
       suffix: 's',
       onCommit: (value) {
@@ -553,7 +468,6 @@ class _CoolTargetTempEditor extends ConsumerWidget {
       min: -50,
       max: 30,
       decimals: 1,
-      allowNegative: true,
       suffix: '°C',
       onCommit: (value) => ref
           .read(currentSequenceProvider.notifier)
@@ -589,30 +503,48 @@ class _GainEditor extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return _NumericFieldEditor(
-      title: 'Gain',
-      icon: LucideIcons.gauge,
-      initialValue: (node.gain ?? 0).toDouble(),
-      min: 0,
-      max: 1000,
-      decimals: 0,
-      onCommit: (value) {
-        final gain = value.toInt();
-        ref
-            .read(currentSequenceProvider.notifier)
-            .updateNode(node.copyWith(gain: gain));
-        ref
-            .read(sequencerDefaultsProvider.notifier)
-            .updateExposureDefaults(gain: gain);
+    void commit(int gain) {
+      ref
+          .read(currentSequenceProvider.notifier)
+          .updateNode(node.copyWith(gain: gain));
+      ref
+          .read(sequencerDefaultsProvider.notifier)
+          .updateExposureDefaults(gain: gain);
+    }
+
+    return SensitivityField(
+      value: node.gain,
+      onChanged: commit,
+      isoField: (context, iso) {
+        final current = node.gain == null ? null : iso.accept(node.gain!);
+        return _MenuList(
+          title: iso.label,
+          rows: [
+            for (final speed in iso.speeds)
+              _MenuRow(
+                label: iso.describe(speed),
+                selected: current == speed,
+                onTap: () {
+                  commit(speed);
+                  Navigator.of(context).pop();
+                },
+              ),
+          ],
+        );
       },
+      gainField: (_) => _NumericFieldEditor(
+        title: 'Gain',
+        icon: LucideIcons.gauge,
+        initialValue: (node.gain ?? 0).toDouble(),
+        min: ExposureFieldLimits.gain.min.toDouble(),
+        max: ExposureFieldLimits.gain.max.toDouble(),
+        decimals: 0,
+        onCommit: (value) => commit(value.toInt()),
+      ),
     );
   }
 }
 
-// Menu editors (closed enum / filter picks). A vertical list of tappable rows
-// styled on the elevated surface; the current value is marked with a check.
-
-/// One selectable row in a menu editor.
 class _MenuRow extends StatelessWidget {
   final String label;
   final bool selected;
@@ -693,11 +625,9 @@ class _ExposureFilterEditor extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(activeEquipmentProfileProvider);
-    final filterNames = profile?.filterNames ?? const <String>[];
+    final filterNames = ref.watch(effectiveFiltersProvider);
 
-    // Errors-are-a-feature: with no profile filters we offer explicit free-text
-    // (mirroring the panel) rather than guessing a filter name.
+    // With no filters to pick, the name is typed, as in the inspector.
     if (filterNames.isEmpty) {
       return _FreeTextFilterEditor(
         initialValue: node.filter ?? '',
@@ -759,8 +689,7 @@ class _FilterChangeEditor extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(activeEquipmentProfileProvider);
-    final filterNames = profile?.filterNames ?? const <String>[];
+    final filterNames = ref.watch(effectiveFiltersProvider);
 
     if (filterNames.isEmpty) {
       return _FreeTextFilterEditor(
@@ -799,7 +728,7 @@ class _FilterChangeEditor extends ConsumerWidget {
   }
 }
 
-/// Free-text filter entry shown when the active profile defines no filters.
+/// Free-text filter entry shown when there are no filters to pick.
 class _FreeTextFilterEditor extends StatefulWidget {
   final String initialValue;
   final ValueChanged<String> onCommit;
@@ -847,7 +776,7 @@ class _FreeTextFilterEditorState extends State<_FreeTextFilterEditor> {
       child: SkotiqTextField(
         controller: _controller,
         focusNode: _focusNode,
-        hint: BuilderFilterSource.emptyHint,
+        hint: noFiltersToPickHint,
         onChanged: (value) => widget.onCommit(value.trim()),
       ),
     );

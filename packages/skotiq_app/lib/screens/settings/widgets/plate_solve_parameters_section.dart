@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../widgets/help/field_help_copy.dart';
 import 'settings_widgets.dart';
@@ -26,16 +27,6 @@ class PlateSolveParametersSection extends ConsumerStatefulWidget {
 
 class _PlateSolveParametersSectionState
     extends ConsumerState<PlateSolveParametersSection> {
-  final _timeoutController = TextEditingController();
-  final _radiusController = TextEditingController();
-
-  @override
-  void dispose() {
-    _timeoutController.dispose();
-    _radiusController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
@@ -59,7 +50,7 @@ class _PlateSolveParametersSectionState
           SettingRow(
             icon: LucideIcons.alertCircle,
             title: 'Failed to load solve parameters',
-            subtitle: '$error',
+            subtitle: userFacingError(error),
             trailing: const SizedBox.shrink(),
             isLast: true,
           ),
@@ -75,7 +66,6 @@ class _PlateSolveParametersSectionState
               title: 'Timeout',
               subtitle: 'Maximum time to attempt a solve before giving up',
               trailing: SettingsNumberInput(
-                controller: _timeoutController,
                 authoritativeValue: settings.plateSolveTimeout.toDouble(),
                 authorityKey: authority,
                 suffix: 'sec',
@@ -95,7 +85,6 @@ class _PlateSolveParametersSectionState
               helpId: FieldHelpId.plateSolverSearchRadius,
               subtitle: 'How far around the expected position to search',
               trailing: SettingsNumberInput(
-                controller: _radiusController,
                 authoritativeValue: settings.plateSolveSearchRadius,
                 authorityKey: authority,
                 suffix: '°',

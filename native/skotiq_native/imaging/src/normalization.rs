@@ -97,7 +97,8 @@
 //! always yields the same coefficients — a property the master-accumulation fold
 //! depends on across sessions and processes.
 
-use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
+use crate::numeric::LineSums;
+use crate::robust_stats::{mad_sigma, median_in_place};
 
 /// Marks, per pixel, whether a frame contributes a valid sample.
 ///
@@ -177,12 +178,10 @@ impl CoverageMask {
         self.is_valid(index)
     }
 
-    /// Width in pixels.
     pub fn width(&self) -> usize {
         self.width
     }
 
-    /// Height in pixels.
     pub fn height(&self) -> usize {
         self.height
     }
@@ -287,9 +286,7 @@ impl Default for NormalizationConfig {
 /// across the frame with no cell-boundary discontinuities.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LocalGrid {
-    /// Lattice rows.
     pub rows: usize,
-    /// Lattice columns.
     pub cols: usize,
     /// Per-cell multiplicative scale, row-major (`rows × cols`).
     pub scale: Vec<f64>,
@@ -396,8 +393,6 @@ pub enum NormalizationError {
     #[error("local normalization grid must have non-zero rows and cols")]
     EmptyGrid,
 }
-
-// Public API
 
 /// Estimate the normalization that maps `frame` onto `reference`'s photometric
 /// scale.
@@ -507,8 +502,6 @@ pub fn apply_normalization(
         Some(grid) => apply_local_grid(frame, grid, width, height),
     }
 }
-
-// Global fit
 
 /// A bare global fit result (no local grid).
 #[derive(Debug, Clone, Copy)]
@@ -637,15 +630,6 @@ fn robust_location_dispersion(sample: &mut Vec<f64>, cfg: &NormalizationConfig) 
         dispersion,
         samples: sample.len(),
     }
-}
-
-/// Median absolute deviation about `center`, scaled onto a Gaussian-σ footing.
-fn mad_sigma(values: &[f64], center: f64) -> f64 {
-    if values.is_empty() {
-        return 0.0;
-    }
-    let mut devs: Vec<f64> = values.iter().map(|v| (v - center).abs()).collect();
-    median_in_place(&mut devs) * MAD_TO_SIGMA
 }
 
 /// Fit `x' = m_ref + (x − m_f)·(σ_ref/σ_f)` over the given index range and
@@ -858,30 +842,12 @@ fn fit_robust_line(pairs: &[(f64, f64)], cfg: &NormalizationConfig) -> Option<(f
 ///
 /// Returns `None` if `x` has no variance (degenerate, slope undetermined).
 fn ordinary_least_squares(pairs: &[(f64, f64)]) -> Option<(f64, f64)> {
-    let n = pairs.len() as f64;
-    if n < 2.0 {
-        return None;
-    }
-    let (mut sx, mut sy, mut sxx, mut sxy) = (0.0, 0.0, 0.0, 0.0);
+    let mut sums = LineSums::default();
     for &(x, y) in pairs {
-        sx += x;
-        sy += y;
-        sxx += x * x;
-        sxy += x * y;
+        sums.add(x, y, 1.0);
     }
-    let denom = n * sxx - sx * sx;
-    if denom.abs() < f64::EPSILON {
-        return None;
-    }
-    let scale = (n * sxy - sx * sy) / denom;
-    let offset = (sy - scale * sx) / n;
-    if !scale.is_finite() || !offset.is_finite() {
-        return None;
-    }
-    Some((scale, offset))
+    sums.solve()
 }
-
-// Local grid fit + apply
 
 /// Fit a `rows × cols` grid of local `(scale, offset)` coefficients.
 ///
@@ -1005,8 +971,6 @@ fn bilinear_coeffs(grid: &LocalGrid, gx: f64, gy: f64) -> (f64, f64) {
     (s, o)
 }
 
-// Robust-statistics helpers
-
 /// The reference value above which a pixel is treated as bright structure and
 /// excluded from the fit. Computed as the `percentile` quantile of the *valid,
 /// finite* reference pixels. Falls back to `+∞` (exclude nothing) when there is
@@ -1039,8 +1003,6 @@ fn std_dev(values: &[f64]) -> f64 {
     let var = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n as f64;
     var.sqrt()
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {

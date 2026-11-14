@@ -1,5 +1,9 @@
+import 'package:skotiq_astro/format.dart';
+
 import '../database/database.dart';
+import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
+import 'calibration/calibration_selection.dart';
 
 /// A light-frame calibration requirement that should have matching darks.
 class DarkFrameRequirement {
@@ -34,13 +38,17 @@ class DarkFrameRequirement {
   int get hashCode =>
       Object.hash(gain, offset, durationSecs, binX, binY, targetTemp);
 
+  /// `300 s darks at gain 100, offset 50, -10.0°C, binning 1x1`.
   String describe() {
-    final tempStr = targetTemp == null
-        ? 'any temp'
-        : 'temp=${targetTemp!.toStringAsFixed(1)}C';
-    return 'gain=$gain, offset=$offset, $tempStr, '
-        'duration=${durationSecs.toStringAsFixed(0)}s, '
-        'binning=${binX}x$binY';
+    final whole = durationSecs == durationSecs.roundToDouble();
+    final seconds = whole
+        ? durationSecs.toStringAsFixed(0)
+        : durationSecs.toString();
+    final temperature = targetTemp == null
+        ? 'any temperature'
+        : formatCelsius(targetTemp);
+    return '$seconds s darks at gain $gain, offset $offset, $temperature, '
+        'binning ${binX}x$binY';
   }
 }
 
@@ -56,16 +64,13 @@ class DarkLibraryCoverageReport {
   bool get isCovered => missing.isEmpty && underCovered.isEmpty;
 }
 
-/// Shared evaluator for dark-library coverage.
+/// Whether the dark library holds darks that calibrate each planned exposure
+/// with no caveat ([darksWithinTolerance]), and enough raw frames where there
+/// is no stacked master. Preflight and Smart Night both call through here.
 ///
-/// Keep this as the single place that defines exposure/temperature tolerance,
-/// raw-frame quorum handling, and master-dark precedence. Preflight and Smart
-/// Night both call through here so calibration warnings do not drift apart.
-///
-/// Tolerance values come from [DarkLibraryMatchTolerances] so this service and
-/// `DarkLibraryDao.findBestMatch` can never disagree. A coverage UI on ±1.0s
-/// exposure tolerance against a DAO on ±0.001s shows a green checkmark while
-/// the runtime dark match silently returns null.
+/// A requirement reported missing can still draw a dark at run time: the
+/// selection rule falls back to the nearest temperature. Coverage reports it so
+/// the operator can shoot a closer one.
 class DarkLibraryCoverageService {
   const DarkLibraryCoverageService();
 
@@ -78,34 +83,30 @@ class DarkLibraryCoverageService {
     final missing = <DarkFrameRequirement>[];
     final underCovered = <DarkFrameRequirement, int>{};
 
+    final records = [
+      for (final e in entries)
+        if (e.frameType == 'dark') darkLibraryRecord(e),
+    ];
     for (final req in requirements.toSet()) {
-      final matches = entries
-          .where((e) {
-            if (e.frameType != 'dark') return false;
-            if (e.gain != req.gain) return false;
-            if (e.offset != req.offset) return false;
-            if (e.binX != req.binX) return false;
-            if (e.binY != req.binY) return false;
-            if ((e.exposureTime - req.durationSecs).abs() >
-                tolerances.exposureSecs) {
-              return false;
-            }
-            if (req.targetTemp != null && e.temperature != null) {
-              if ((e.temperature! - req.targetTemp!).abs() >
-                  tolerances.temperatureC) {
-                return false;
-              }
-            }
-            return true;
-          })
-          .toList(growable: false);
+      final matches = darksWithinTolerance(
+        records,
+        LightFrameContext(
+          gain: req.gain,
+          offset: req.offset,
+          exposureSeconds: req.durationSecs,
+          temperature: req.targetTemp,
+          binX: req.binX,
+          binY: req.binY,
+        ),
+        tolerances,
+      );
 
       if (matches.isEmpty) {
         missing.add(req);
         continue;
       }
 
-      if (matches.any((m) => m.masterDarkPath != null)) {
+      if (matches.any((m) => m.isMaster)) {
         continue;
       }
 

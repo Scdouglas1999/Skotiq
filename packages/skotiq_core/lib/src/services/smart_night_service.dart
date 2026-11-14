@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/database.dart' as db;
@@ -10,11 +11,11 @@ import '../models/notification/notification_categories.dart'
 import '../models/planning/target_suggestion.dart';
 import '../models/scheduler/integration_goal.dart';
 import '../models/sequence/sequence_models.dart';
-import '../providers/profiles_provider.dart' show EquipmentProfileModel;
+import '../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import 'logging_service.dart';
 import 'hardware_presets/hardware_presets_service.dart';
 import 'smart_night/camera_capture_defaults.dart';
-import 'pre_session_simulator.dart';
+import 'plan_timer.dart';
 import 'sensor_specs/camera_sensor_spec_resolver.dart';
 import 'session_optimizer_service.dart' show SmartNightExposureContext;
 import 'smart_night/dark_library_coverage.dart'
@@ -73,6 +74,12 @@ class SmartNightService {
   /// don't over-stuff the dark window.
   static const double _transitionOverheadSecs = 20 * 60; // 20 minutes
 
+  /// Dark time after the last planned target that could still hold one more:
+  /// the move to it plus its minimum slice.
+  static const Duration _unplannedDarkWorthNaming = Duration(
+    seconds: (_transitionOverheadSecs + _minTargetWindowSecs) ~/ 1,
+  );
+
   /// Cloud/rain forecast probability above which the night plan prepends a
   /// weather-unsafe [RecoveryNode] watchdog. Single source of truth shared
   /// by [build] and [willInjectWeatherRecovery] so the plan preview can
@@ -114,7 +121,8 @@ class SmartNightService {
        _hardwareSpecs = hardwareSpecs,
        _cameraLibrary = cameraLibrary;
 
-  /// Compute tonight's dark window from the observer location. Falls back
+  /// Compute tonight's dark window from the observer location: the night in
+  /// progress, or once its dark has ended, the coming one. Falls back
   /// to nautical / civil twilight at high latitudes. During polar night,
   /// when the Sun remains below the horizon, a conservative 21:00 → 05:00
   /// window is returned. Polar midnight sun is rejected rather than being
@@ -129,40 +137,17 @@ class SmartNightService {
   }) {
     final reference = now ?? DateTime.now();
 
-    // If we're already past midnight but before dawn, use last night's
-    // twilight. Mirrors the heuristic in [TargetSuggestionService].
-    final prevDate = DateTime(
-      reference.year,
-      reference.month,
-      reference.day,
-    ).subtract(const Duration(days: 1));
-    final prevTwilight = AstronomyCalculations.calculateTwilightTimes(
-      date: prevDate,
+    final night = AstronomyCalculations.nightAt(
+      now: reference,
       latitudeDeg: latitudeDeg,
       longitudeDeg: longitudeDeg,
     );
-    final prevBounds = _extractNightBounds(prevTwilight);
-    if (prevBounds != null &&
-        reference.isAfter(prevBounds.$1) &&
-        reference.isBefore(prevBounds.$2)) {
-      return (start: prevBounds.$1, end: prevBounds.$2, twilight: prevTwilight);
+    final bounds = _extractNightBounds(night);
+    if (bounds != null) {
+      return (start: bounds.$1, end: bounds.$2, twilight: night);
     }
 
     final todayDate = DateTime(reference.year, reference.month, reference.day);
-    final todayTwilight = AstronomyCalculations.calculateTwilightTimes(
-      date: todayDate,
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-    );
-    final todayBounds = _extractNightBounds(todayTwilight);
-    if (todayBounds != null) {
-      return (
-        start: todayBounds.$1,
-        end: todayBounds.$2,
-        twilight: todayTwilight,
-      );
-    }
-
     final sunVisibility = AstronomyCalculations.calculateSunVisibility(
       date: todayDate,
       latitudeDeg: latitudeDeg,
@@ -199,7 +184,7 @@ class SmartNightService {
     if (reference.isAfter(fallbackEnd)) {
       fallbackEnd = fallbackEnd.add(const Duration(days: 1));
     }
-    return (start: fallbackStart, end: fallbackEnd, twilight: todayTwilight);
+    return (start: fallbackStart, end: fallbackEnd, twilight: night);
   }
 
   /// Tonight's dark window as far as it is still ahead: once the night is
@@ -253,7 +238,7 @@ class SmartNightService {
     required EquipmentProfileModel profile,
     required double latitudeDeg,
     required double longitudeDeg,
-    required List<db.Target> targets,
+    required List<db.DbTarget> targets,
     required List<db.ImagingSession> sessions,
     DateTime? observationTime,
     double minAltitude = 30.0,
@@ -280,19 +265,31 @@ class SmartNightService {
   /// [rankCandidates]. The service does NOT re-rank; the wizard
   /// composes that pipeline.
   ///
+  /// A target with saved integration goals ([integrationGoals], by target
+  /// id) is planned to the frames those goals still need, the same way
+  /// [buildSingleTargetSequence] plans one, so the night moves on to the next
+  /// target once they are met.
+  ///
+  /// [availableFilters] is the rig's filter list (`effectiveFiltersProvider`).
+  /// [planTimer] (`planTimerProvider`) times the night for its warnings and
+  /// run length, with the dawn park and autofocus runs the pre-flight counts.
+  ///
   /// Validates required inputs and throws [SmartNightBuildException] when an
   /// essential field is missing, rather than planning a night around a
   /// substituted value.
   SmartNightPlan build({
     required EquipmentProfileModel profile,
+    required List<String> availableFilters,
     required double latitudeDeg,
     required double longitudeDeg,
     required SmartNightContext context,
     required List<TargetSuggestion> selectedSuggestions,
     required SmartNightStrategy strategy,
     required SmartNightSettings settings,
+    required PlanTimer planTimer,
     SmartNightExposureContext? exposureContext,
     SmartNightFlatPlan? flatPlan,
+    Map<int, List<IntegrationGoalProgress>> integrationGoals = const {},
   }) {
     _validateInputs(
       profile: profile,
@@ -311,15 +308,15 @@ class SmartNightService {
 
     final activeFilters = _resolveFilterSet(
       strategy: strategy,
-      availableFilters: profile.filterNames,
+      availableFilters: availableFilters,
     );
     if (activeFilters.isEmpty) {
       throw SmartNightBuildException(
-        'No filters from strategy "${strategy.name}" matched profile '
-        '"${profile.name}" (available filters: '
-        '${profile.filterNames.isEmpty ? "<none>" : profile.filterNames.join(", ")}). '
+        'No filters from strategy "${strategy.name}" matched the available '
+        'filters (${availableFilters.isEmpty ? "<none>" : availableFilters.join(", ")}). '
         'Either switch strategies (the OSC One-Shot strategy works without '
-        'a wheel) or add the required filters to the equipment profile.',
+        'a wheel) or add the required filters to the wheel or the equipment '
+        'profile.',
       );
     }
 
@@ -439,6 +436,8 @@ class SmartNightService {
         recentGuideRmsArcsec: recentGuideRmsArcsec,
         recentGuideSamples: recentGuideSamples,
         settings: settings,
+        integrationGoalProgress: integrationGoals[suggestion.targetId],
+        availableFiltersForGoals: availableFilters,
       );
       if (filterPlans.isEmpty) continue;
 
@@ -496,6 +495,14 @@ class SmartNightService {
     }
 
     final warnings = <String>[];
+    final unplannedDark = effectiveWindowEnd.difference(cursor);
+    if (unplannedDark >= _unplannedDarkWorthNaming) {
+      warnings.add(
+        'The plan ends at ${ClockFormat.hm(cursor)}, leaving '
+        '${DurationFormat.of(unplannedDark, style: DurationStyle.coarse, roundToMinute: true)} '
+        'of dark time unplanned. Add targets to use it.',
+      );
+    }
     final autoDarksActive =
         settings.autoScheduleMissingDarks &&
         context.missingDarkRequirements.isNotEmpty;
@@ -578,12 +585,9 @@ class SmartNightService {
       planned: planned,
       flatPlan: flatPlan,
     );
-    final simulation = const PreSessionSimulator().simulate(
+    final simulation = planTimer.simulate(
       sequence,
       start: context.windowStart,
-      latitude: latitudeDeg,
-      longitude: longitudeDeg,
-      minAltitude: settings.minAltitudeDeg,
       darkWindowStart: context.windowStart,
       darkWindowEnd: context.windowEnd,
     );
@@ -1041,7 +1045,7 @@ class SmartNightService {
       case SmartNightAfCadence.everyNMinutes:
         return 'every ${s.afEveryMinutes} min';
       case SmartNightAfCadence.onTempDelta:
-        return 'on Δtemp ${s.afTempDeltaC.toStringAsFixed(1)}°C';
+        return 'on Δtemp ${formatCelsius(s.afTempDeltaC)}';
     }
   }
 }

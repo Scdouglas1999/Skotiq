@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Insert the row a process killed mid-session leaves behind, as the boot sweep
 /// leaves it: `interrupted`, with an end time.
@@ -30,7 +32,7 @@ Future<int> _insertInterruptedSession(
       startTime: startTime ?? DateTime.now(),
       name: Value(name),
       targetId: Value(targetId),
-      status: const Value(kInterruptedSessionStatus),
+      status: Value(SessionStatus.interrupted.token),
       totalExposures: Value(totalExposures),
     ),
   );
@@ -93,7 +95,7 @@ void main() {
 
     logger = LoggingService();
     sessionService = SessionService(
-      records: ImagingRecordsRepository.local(
+      records: LocalImagingRecords(
         sessionsDao: sessionsDao,
         imagesDao: ImagesDao(database),
       ),
@@ -168,7 +170,7 @@ void main() {
         expect(opened!.status, equals('active'));
 
         final closed = await sessionsDao.getSessionById(stranded);
-        expect(closed!.status, equals(kInterruptedSessionStatus));
+        expect(closed!.status, equals(SessionStatus.interrupted.token));
         expect(closed.endTime, isNotNull);
         expect(closed.notes, contains('a new sequence started'));
         // One live row, so `GET /api/sessions/active` cannot answer with the
@@ -192,7 +194,7 @@ void main() {
       );
       await sessionService.updateSessionProgress(stats);
 
-      await sessionService.endSession(status: 'completed');
+      await sessionService.endSession();
 
       expect(sessionService.hasActiveSession, isFalse);
       expect(sessionService.currentSessionId, isNull);
@@ -223,10 +225,7 @@ void main() {
       // 'active' forever, with every retry a no-op.
       await database.close();
 
-      await expectLater(
-        sessionService.endSession(status: 'completed'),
-        throwsA(anything),
-      );
+      await expectLater(sessionService.endSession(), throwsA(anything));
 
       // Identity retained so a caller (SequenceExecutor's cleanupFailed retry,
       // or a later endSession) can actually finalize the row.
@@ -240,15 +239,6 @@ void main() {
 
       final session = await sessionsDao.getSessionById(sessionId);
       expect(session!.status, equals('aborted'));
-    });
-
-    test('errorSession marks session as error with message', () async {
-      final sessionId = await sessionService.startSession(name: 'Test Session');
-      await sessionService.errorSession('Camera disconnected');
-
-      final session = await sessionsDao.getSessionById(sessionId);
-      expect(session!.status, equals('error'));
-      expect(session.notes, contains('Camera disconnected'));
     });
   });
 
@@ -398,7 +388,7 @@ void main() {
           completedId,
           successfulExposures: 10,
         );
-        await sessionsDao.endSession(completedId, status: 'completed');
+        await sessionsDao.endSession(completedId);
 
         // The night a process abandoned, as the boot sweep leaves it. A row that
         // still read `active` would be a live run, and a live run is not
@@ -447,7 +437,7 @@ void main() {
       // Both stay in History as interrupted.
       final all = await sessionsDao.getAllSessions();
       expect(
-        all.where((s) => s.status == kInterruptedSessionStatus),
+        all.where((s) => s.status == SessionStatus.interrupted.token),
         hasLength(3),
       );
     });
@@ -469,7 +459,7 @@ void main() {
 
       // Simulate crash/restart - create new service instance
       final newService = SessionService(
-        records: ImagingRecordsRepository.local(
+        records: LocalImagingRecords(
           sessionsDao: sessionsDao,
           imagesDao: ImagesDao(database),
         ),
@@ -505,7 +495,7 @@ void main() {
 
     test('recoverSession throws when session is not active', () async {
       final sessionId = await sessionsDao.startSession(name: 'Test');
-      await sessionsDao.endSession(sessionId, status: 'completed');
+      await sessionsDao.endSession(sessionId);
 
       expect(() => sessionService.recoverSession(sessionId), throwsException);
     });

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'activity_panel.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Every build waiting at the framing check, current or held.
 List<DarkroomBuildJob> waitingBuilds(
@@ -117,7 +120,7 @@ class _WaitingRow extends ConsumerWidget {
               if (job.nightRunId != null)
                 'Held by the night-end build of ${nightLabel(job.startedAt)}.'
               else
-                'Held since ${clockLabel(job.startedAt)}.',
+                'Held since ${ClockFormat.hm(job.startedAt.toLocal())}.',
             ].join(' '),
             style: SkotiqTypography.bodySm.copyWith(
               color: colors.textSecondary,

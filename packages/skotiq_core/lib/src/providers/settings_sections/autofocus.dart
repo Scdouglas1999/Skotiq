@@ -26,7 +26,6 @@
 //     on the focuser itself) → see `equipment.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for autofocus algorithm and per-filter configuration.
 extension AutofocusSettingsSection on AppSettingsNotifier {
   FilterAutofocusConfig _validateFilterAutofocusConfig(
     FilterAutofocusConfig config,
@@ -80,60 +79,37 @@ extension AutofocusSettingsSection on AppSettingsNotifier {
     return operation;
   }
 
-  Future<void> setAfMethod(String value) async {
-    await _saveSetting('af_method', value);
-    _patchState((s) => s.copyWith(afMethod: value));
-  }
+  Future<void> setAfMethod(String value) =>
+      _set(AppSettingDefs.afMethod, value);
 
-  Future<void> setAfCurveFitting(String value) async {
-    await _saveSetting('af_curve_fitting', value);
-    _patchState((s) => s.copyWith(afCurveFitting: value));
-  }
+  Future<void> setAfCurveFitting(String value) =>
+      _set(AppSettingDefs.afCurveFitting, value);
 
-  Future<void> setAfStepSize(int value) async {
-    await _saveSetting('af_step_size', value.toString());
-    _patchState((s) => s.copyWith(afStepSize: value));
-  }
+  Future<void> setAfStepSize(int value) =>
+      _set(AppSettingDefs.afStepSize, value);
 
-  Future<void> setAfExposureTime(double value) async {
-    await _saveSetting('af_exposure_time', value.toString());
-    _patchState((s) => s.copyWith(afExposureTime: value));
-  }
+  Future<void> setAfExposureTime(double value) =>
+      _set(AppSettingDefs.afExposureTime, value);
 
-  Future<void> setAfInitialOffsetSteps(int value) async {
-    await _saveSetting('af_initial_offset_steps', value.toString());
-    _patchState((s) => s.copyWith(afInitialOffsetSteps: value));
-  }
+  Future<void> setAfInitialOffsetSteps(int value) =>
+      _set(AppSettingDefs.afInitialOffsetSteps, value);
 
-  Future<void> setAfNumberOfAttempts(int value) async {
-    await _saveSetting('af_number_of_attempts', value.toString());
-    _patchState((s) => s.copyWith(afNumberOfAttempts: value));
-  }
+  Future<void> setAfNumberOfAttempts(int value) =>
+      _set(AppSettingDefs.afNumberOfAttempts, value);
 
-  Future<void> setAfUseBrightestNStars(int value) async {
-    await _saveSetting('af_use_brightest_n_stars', value.toString());
-    _patchState((s) => s.copyWith(afUseBrightestNStars: value));
-  }
+  Future<void> setAfUseBrightestNStars(int value) =>
+      _set(AppSettingDefs.afUseBrightestNStars, value);
 
-  Future<void> setAfOuterCropRatio(double value) async {
-    await _saveSetting('af_outer_crop_ratio', value.toString());
-    _patchState((s) => s.copyWith(afOuterCropRatio: value));
-  }
+  Future<void> setAfOuterCropRatio(double value) =>
+      _set(AppSettingDefs.afOuterCropRatio, value);
 
-  Future<void> setAfInnerCropRatio(double value) async {
-    await _saveSetting('af_inner_crop_ratio', value.toString());
-    _patchState((s) => s.copyWith(afInnerCropRatio: value));
-  }
+  Future<void> setAfInnerCropRatio(double value) =>
+      _set(AppSettingDefs.afInnerCropRatio, value);
 
-  Future<void> setAfBinning(int value) async {
-    await _saveSetting('af_binning', value.toString());
-    _patchState((s) => s.copyWith(afBinning: value));
-  }
+  Future<void> setAfBinning(int value) => _set(AppSettingDefs.afBinning, value);
 
-  Future<void> setAfRSquaredThreshold(double value) async {
-    await _saveSetting('af_r_squared_threshold', value.toString());
-    _patchState((s) => s.copyWith(afRSquaredThreshold: value));
-  }
+  Future<void> setAfRSquaredThreshold(double value) =>
+      _set(AppSettingDefs.afRSquaredThreshold, value);
 
   /// How far above the reference HFR a failed autofocus may leave the frames
   /// and still be called usable in the operator's notice. The run carries on
@@ -141,64 +117,43 @@ extension AutofocusSettingsSection on AppSettingsNotifier {
   /// a negative tolerance has no meaning.
   Future<void> setAfFailureHfrToleranceRatio(double value) async {
     final clamped = value.isFinite && value > 0 ? value : 0.0;
-    await _saveSetting('af_failure_hfr_tolerance_ratio', clamped.toString());
-    _patchState((s) => s.copyWith(afFailureHfrToleranceRatio: clamped));
+    await _set(AppSettingDefs.afFailureHfrToleranceRatio, clamped);
   }
 
-  Future<void> setAfDisableGuidingDuringAf(bool value) async {
-    await _saveSetting('af_disable_guiding', value.toString());
-    _patchState((s) => s.copyWith(afDisableGuidingDuringAf: value));
-  }
+  Future<void> setAfDisableGuidingDuringAf(bool value) =>
+      _set(AppSettingDefs.afDisableGuidingDuringAf, value);
 
-  Future<void> setAfFocuserSettleTimeMs(int value) async {
-    await _saveSetting('af_focuser_settle_time_ms', value.toString());
-    _patchState((s) => s.copyWith(afFocuserSettleTimeMs: value));
-  }
+  Future<void> setAfFocuserSettleTimeMs(int value) =>
+      _set(AppSettingDefs.afFocuserSettleTimeMs, value);
 
-  Future<void> setAfExposuresPerPoint(int value) async {
-    await _saveSetting('af_exposures_per_point', value.toString());
-    _patchState((s) => s.copyWith(afExposuresPerPoint: value));
-  }
+  Future<void> setAfExposuresPerPoint(int value) =>
+      _set(AppSettingDefs.afExposuresPerPoint, value);
 
-  Future<void> setAfBacklashCompMethod(String value) async {
-    await _saveSetting('af_backlash_comp_method', value);
-    _patchState((s) => s.copyWith(afBacklashCompMethod: value));
-  }
+  Future<void> setAfBacklashCompMethod(String value) =>
+      _set(AppSettingDefs.afBacklashCompMethod, value);
 
-  Future<void> setAfBacklashIn(int value) async {
-    await _saveSetting('af_backlash_in', value.toString());
-    _patchState((s) => s.copyWith(afBacklashIn: value));
-  }
+  Future<void> setAfBacklashIn(int value) =>
+      _set(AppSettingDefs.afBacklashIn, value);
 
   /// Whether to keep offering to measure focuser backlash: `ask` or `never`.
-  Future<void> setFocuserBacklashOfferMode(String value) async {
-    await _saveSetting('focuser_backlash_offer_mode', value);
-    _patchState((s) => s.copyWith(focuserBacklashOfferMode: value));
-  }
+  Future<void> setFocuserBacklashOfferMode(String value) =>
+      _set(AppSettingDefs.focuserBacklashOfferMode, value);
 
-  Future<void> setAfBacklashOut(int value) async {
-    await _saveSetting('af_backlash_out', value.toString());
-    _patchState((s) => s.copyWith(afBacklashOut: value));
-  }
+  Future<void> setAfBacklashOut(int value) =>
+      _set(AppSettingDefs.afBacklashOut, value);
 
-  Future<void> setAfAutofocusFilterName(String value) async {
-    await _saveSetting('af_autofocus_filter_name', value);
-    _patchState((s) => s.copyWith(afAutofocusFilterName: value));
-  }
+  Future<void> setAfAutofocusFilterName(String value) =>
+      _set(AppSettingDefs.afAutofocusFilterName, value);
 
-  Future<void> setAfFilterSettingsJson(String value) async {
-    await _saveSetting('af_filter_settings', value);
-    _patchState((s) => s.copyWith(afFilterSettingsJson: value));
-  }
+  Future<void> setAfFilterSettingsJson(String value) =>
+      _set(AppSettingDefs.afFilterSettingsJson, value);
 
   /// The persisted blob of backlash-calibration choices. Passing '' clears
   /// the stored choices, which is how "reset to autofocus settings" works —
   /// with nothing stored the calibration dialog re-seeds from the autofocus
   /// settings.
-  Future<void> setFocuserBacklashCalibrationJson(String value) async {
-    await _saveSetting('focuser_backlash_calibration_settings', value);
-    _patchState((s) => s.copyWith(focuserBacklashCalibrationJson: value));
-  }
+  Future<void> setFocuserBacklashCalibrationJson(String value) =>
+      _set(AppSettingDefs.focuserBacklashCalibrationJson, value);
 
   /// Atomically update the saved backlash-calibration settings.
   ///
@@ -261,7 +216,6 @@ extension AutofocusSettingsSection on AppSettingsNotifier {
     });
   }
 
-  /// Remove a filter's autofocus configuration.
   Future<void> removeFilterAutofocusConfig(String filterName) {
     final normalizedName = filterName.trim();
     return _mutateFilterAutofocusSettings((map) {

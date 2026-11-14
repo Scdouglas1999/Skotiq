@@ -13,6 +13,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/capture_dir_step.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 
 void main() {
   group('write-probe failures name the reason', () {
@@ -23,8 +24,7 @@ void main() {
         OSError('Permission denied', 13),
       );
 
-      expect(describeCaptureDirWriteFailure(error),
-          'Not writable: Permission denied');
+      expect(notWritableReason(error), 'Not writable: Permission denied');
     });
 
     test('a read-only mount says so rather than "Cannot open file"', () {
@@ -34,15 +34,13 @@ void main() {
         OSError('Read-only file system', 30),
       );
 
-      expect(describeCaptureDirWriteFailure(error),
-          'Not writable: Read-only file system');
+      expect(notWritableReason(error), 'Not writable: Read-only file system');
     });
 
     test('with no errno it falls back to the generic phrase', () {
       const error = FileSystemException('Cannot open file', '/x');
 
-      expect(describeCaptureDirWriteFailure(error),
-          'Not writable: Cannot open file');
+      expect(notWritableReason(error), 'Not writable: Cannot open file');
     });
   });
 

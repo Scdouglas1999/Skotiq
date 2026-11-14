@@ -98,8 +98,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     );
   }
 
-  // Step body
-
   Widget _buildStepBody(SkotiqColors colors) {
     switch (_step) {
       case 0:
@@ -119,16 +117,19 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     }
   }
 
-  // Step 1: window
-
   Widget _buildWindowStep(SkotiqColors colors) {
     _ensureWindowInitialised();
     final start = _windowStart;
     final end = _windowEnd;
+    final draftOffer = _buildDraftOffer(colors);
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (draftOffer != null) ...[
+            draftOffer,
+            const SizedBox(height: SkotiqTokens.spaceLg),
+          ],
           Text(
             'Tonight\'s dark window',
             style: TextStyle(
@@ -169,7 +170,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                       Icon(LucideIcons.sunset, size: 16, color: colors.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'Start: ${_formatDateTime(start)}',
+                        'Start: ${ClockFormat.dateHm(start.toLocal())}',
                         style: TextStyle(
                           color: colors.textPrimary,
                           fontSize: SkotiqTypography.fontSize13,
@@ -192,7 +193,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                           size: 16, color: colors.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'End: ${_formatDateTime(end)}',
+                        'End: ${ClockFormat.dateHm(end.toLocal())}',
                         style: TextStyle(
                           color: colors.textPrimary,
                           fontSize: SkotiqTypography.fontSize13,
@@ -210,7 +211,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Total: ${_formatDuration(end.difference(start))}',
+                    'Total: ${DurationFormat.of(end.difference(start), style: DurationStyle.coarse)}',
                     style: TextStyle(
                       color: colors.textSecondary,
                       fontSize: SkotiqTypography.fontSize12,
@@ -248,10 +249,33 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     );
   }
 
-  // Step 2: equipment
+  /// The offer to pick up tonight's saved draft for the active profile, or
+  /// null when there is none or the operator has already answered.
+  Widget? _buildDraftOffer(SkotiqColors colors) {
+    if (_draftOfferAnswered) return null;
+    final lookup = _draftLookup();
+    if (lookup == null) return null;
+    return ref.watch(pendingSmartNightDraftProvider(lookup)).when(
+          loading: () => null,
+          error: (error, _) => SkotiqBanner(
+            tone: BannerTone.warning,
+            title: 'The plan saved earlier tonight could not be read.',
+            message: '${userFacingError(error)} Build a new plan below.',
+          ),
+          data: (draft) => draft == null
+              ? null
+              : _DraftOfferCard(
+                  draft: draft,
+                  colors: colors,
+                  onContinue: () => _continueDraft(draft),
+                  onStartOver: () => _discardDraft(draft, lookup),
+                ),
+        );
+  }
 
   Widget _buildEquipmentStep(SkotiqColors colors) {
     final profile = ref.watch(activeEquipmentProfileProvider);
+    final filters = ref.watch(effectiveFiltersProvider);
     if (profile == null) {
       return _MissingProfileCard(colors: colors);
     }
@@ -307,9 +331,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                 _ProfileRow(
                   icon: LucideIcons.layers,
                   label: 'Filters',
-                  value: profile.filterNames.isEmpty
-                      ? '<no filter wheel>'
-                      : profile.filterNames.join(', '),
+                  value: filters.isEmpty ? '<no filters>' : filters.join(', '),
                   colors: colors,
                 ),
               ],
@@ -366,8 +388,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
       ),
     );
   }
-
-  // Step 3: targets
 
   Widget _buildTargetsStep(SkotiqColors colors) {
     final suggestionsAsync = ref.watch(tonightSuggestionsProvider);
@@ -475,17 +495,25 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
               if (suggestions.isEmpty) {
                 return _EmptyTargetsCard(colors: colors);
               }
+              // A project's targets lead the list so what was picked for the
+              // operator is in view, not somewhere below the top of tonight.
+              final seed = widget.seedTargetIds?.toSet() ?? const <int>{};
+              final ordered = [
+                ...suggestions.where((s) => seed.contains(s.targetId)),
+                ...suggestions.where((s) => !seed.contains(s.targetId)),
+              ];
               return ListView.builder(
-                itemCount: suggestions.length,
+                itemCount: ordered.length,
                 itemBuilder: (context, index) {
-                  final s = suggestions[index];
+                  final s = ordered[index];
+                  final rank = suggestions.indexOf(s);
                   return _TargetTile(
                     suggestion: s,
                     isSelected:
                         _autoSelect || _selectedTargetIds.contains(s.targetId),
                     isAutoMode: _autoSelect,
-                    rank: index + 1,
-                    autoPickedTop: _autoSelect && index < _autoSelectCount,
+                    rank: rank + 1,
+                    autoPickedTop: _autoSelect && rank < _autoSelectCount,
                     onToggle: () {
                       if (_autoSelect) return;
                       _update(() {
@@ -508,7 +536,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Failed to load suggestions: $e',
+                    'Failed to load suggestions: ${userFacingError(e)}',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: colors.error),
                   ),
@@ -568,10 +596,8 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     return _selectedTargetIds.where(upIds.contains).length;
   }
 
-  // Step 4: strategy
-
   Widget _buildStrategyStep(SkotiqColors colors) {
-    final profile = ref.watch(activeEquipmentProfileProvider);
+    final filters = ref.watch(effectiveFiltersProvider);
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,7 +615,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
             _StrategyTile(
               strategy: s,
               isSelected: _strategy == s,
-              filtersAvailable: _strategyFitsProfile(s, profile),
+              filtersAvailable: _strategyFits(s, filters),
               onSelected: () {
                 _update(() => _strategy = s);
                 _persistSettings();
@@ -690,8 +716,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     );
   }
 
-  // Step 5: preview
-
   Widget _buildPreviewStep(SkotiqColors colors) {
     if (_preview == null && _previewError == null) {
       return const Center(
@@ -786,8 +810,6 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     );
   }
 
-  // Step 6: accept
-
   Widget _buildAcceptStep(SkotiqColors colors) {
     final plan = _preview;
     if (plan == null) {
@@ -850,17 +872,17 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                 _SummaryRow(
                   icon: LucideIcons.camera,
                   label: 'Total integration',
-                  value: _formatDuration(
-                    Duration(seconds: plan.totalIntegrationSecs.round()),
-                  ),
+                  value: DurationFormat.of(
+                      Duration(seconds: plan.totalIntegrationSecs.round()),
+                      style: DurationStyle.coarse),
                   colors: colors,
                 ),
                 _SummaryRow(
                   icon: LucideIcons.clock,
                   label: 'Estimated wall-clock',
-                  value: _formatDuration(
-                    Duration(seconds: plan.estimatedWallClockSecs.round()),
-                  ),
+                  value: DurationFormat.of(
+                      Duration(seconds: plan.estimatedWallClockSecs.round()),
+                      style: DurationStyle.coarse),
                   colors: colors,
                 ),
                 _SummaryRow(
@@ -897,6 +919,4 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
       ),
     );
   }
-
-  // Wiring + helpers
 }

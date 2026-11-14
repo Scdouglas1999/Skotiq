@@ -18,7 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_progress_bar.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 SequenceProgressBarState _stateOf(WidgetTester tester) =>
@@ -27,7 +28,9 @@ SequenceProgressBarState _stateOf(WidgetTester tester) =>
 Widget _harness(SequenceExecutionState execState, {bool offstage = false}) {
   return ProviderScope(
     overrides: [
-      sequenceExecutionStateProvider.overrideWith((ref) => execState),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: execState)),
+      ),
     ],
     child: MaterialApp(
       theme: SkotiqTheme.dark,
@@ -46,7 +49,7 @@ Widget _harness(SequenceExecutionState execState, {bool offstage = false}) {
 void _setState(WidgetTester tester, SequenceExecutionState next) {
   ProviderScope.containerOf(
     tester.element(find.byType(SequenceProgressBar)),
-  ).read(sequenceExecutionStateProvider.notifier).state = next;
+  ).read(runRecordProvider.notifier).setLifecycle(next);
 }
 
 void main() {

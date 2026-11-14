@@ -1,0 +1,334 @@
+{
+  "comment": "Filter-name matching cases shared by bridge/src/filter_matching.rs and models/equipment/filter_names.dart. Both tests read this file; index is 0-based, null means no match.",
+  "cases": [
+    {
+      "names": [
+        "L",
+        "R",
+        "G",
+        "B",
+        "Ha",
+        "OIII",
+        "SII"
+      ],
+      "requested": "Lum",
+      "index": 0
+    },
+    {
+      "names": [
+        "L",
+        "R",
+        "G",
+        "B",
+        "Ha",
+        "OIII",
+        "SII"
+      ],
+      "requested": "Luminance",
+      "index": 0
+    },
+    {
+      "names": [
+        "L",
+        "R",
+        "G",
+        "B",
+        "Ha",
+        "OIII",
+        "SII"
+      ],
+      "requested": "h-alpha",
+      "index": 4
+    },
+    {
+      "names": [
+        "L",
+        "R",
+        "G",
+        "B",
+        "Ha",
+        "OIII",
+        "SII"
+      ],
+      "requested": "H_Alpha",
+      "index": 4
+    },
+    {
+      "names": [
+        "L",
+        "R",
+        "G",
+        "B",
+        "Ha",
+        "OIII",
+        "SII"
+      ],
+      "requested": "r",
+      "index": 1
+    },
+    {
+      "names": [
+        "L",
+        "R",
+        "G",
+        "B",
+        "Ha",
+        "OIII",
+        "SII"
+      ],
+      "requested": "O3",
+      "index": 5
+    },
+    {
+      "names": [
+        "L",
+        "R",
+        "G",
+        "B",
+        "Ha",
+        "OIII",
+        "SII"
+      ],
+      "requested": "Sulfur II",
+      "index": 6
+    },
+    {
+      "names": [
+        "L",
+        "R",
+        "G",
+        "B",
+        "Ha",
+        "OIII",
+        "SII"
+      ],
+      "requested": "UV",
+      "index": null
+    },
+    {
+      "names": [
+        "Luminance",
+        "Red",
+        "H-Alpha"
+      ],
+      "requested": "L",
+      "index": 0
+    },
+    {
+      "names": [
+        "Luminance",
+        "Red",
+        "H-Alpha"
+      ],
+      "requested": "Ha",
+      "index": 2
+    },
+    {
+      "names": [
+        "Luminance",
+        "Red",
+        "H-Alpha"
+      ],
+      "requested": "Green",
+      "index": null
+    },
+    {
+      "names": [
+        "Clear",
+        "L"
+      ],
+      "requested": "L",
+      "index": 1
+    },
+    {
+      "names": [
+        "Clear",
+        "L"
+      ],
+      "requested": "Clear",
+      "index": 0
+    },
+    {
+      "names": [
+        "Clear",
+        "L"
+      ],
+      "requested": "Lum",
+      "index": 0
+    },
+    {
+      "names": [
+        "Lum",
+        "L"
+      ],
+      "requested": "l",
+      "index": 1
+    },
+    {
+      "names": [
+        "L",
+        " Red ",
+        "G"
+      ],
+      "requested": "red",
+      "index": 1
+    },
+    {
+      "names": [
+        "L",
+        "Ha 7nm",
+        "OIII 6.5nm"
+      ],
+      "requested": "Ha",
+      "index": 1
+    },
+    {
+      "names": [
+        "L",
+        "Ha 7nm",
+        "OIII 6.5nm"
+      ],
+      "requested": "OIII",
+      "index": 2
+    },
+    {
+      "names": [
+        "L",
+        "Ha"
+      ],
+      "requested": "Ha 3nm",
+      "index": 1
+    },
+    {
+      "names": [
+        "L",
+        "",
+        "R"
+      ],
+      "requested": "UV",
+      "index": null
+    },
+    {
+      "names": [
+        "L",
+        "--",
+        "R"
+      ],
+      "requested": "UV",
+      "index": null
+    },
+    {
+      "names": [
+        "L",
+        "R"
+      ],
+      "requested": "",
+      "index": null
+    },
+    {
+      "names": [
+        "L",
+        "R"
+      ],
+      "requested": "  ",
+      "index": null
+    },
+    {
+      "names": [],
+      "requested": "L",
+      "index": null
+    },
+    {
+      "names": [
+        "Oxygen III",
+        "S2"
+      ],
+      "requested": "OIII",
+      "index": 0
+    },
+    {
+      "names": [
+        "Oxygen III",
+        "S2"
+      ],
+      "requested": "SII",
+      "index": 1
+    },
+    {
+      "names": [
+        "L",
+        "Ha",
+        "OIII",
+        "SII",
+        "NII"
+      ],
+      "requested": "Nitrogen",
+      "index": 4
+    },
+    {
+      "names": [
+        "L",
+        "Ha",
+        "OIII",
+        "SII",
+        "NII"
+      ],
+      "requested": "N2",
+      "index": 4
+    },
+    {
+      "names": [
+        "L",
+        "Ha",
+        "OIII",
+        "SII",
+        "NII"
+      ],
+      "requested": "Hydrogen-alpha",
+      "index": 1
+    },
+    {
+      "names": [
+        "L",
+        "Ha",
+        "OIII",
+        "SII",
+        "NII"
+      ],
+      "requested": "Sulphur",
+      "index": 3
+    },
+    {
+      "names": [
+        "L",
+        "Ha",
+        "OIII",
+        "SII",
+        "NII"
+      ],
+      "requested": "Oxygen",
+      "index": 2
+    },
+    {
+      "names": [
+        "L",
+        "Ha",
+        "OIII",
+        "SII",
+        "NII"
+      ],
+      "requested": "Luminosity",
+      "index": 0
+    },
+    {
+      "names": [
+        "L",
+        "R",
+        "G",
+        "Hb"
+      ],
+      "requested": "B",
+      "index": 3
+    }
+  ]
+}

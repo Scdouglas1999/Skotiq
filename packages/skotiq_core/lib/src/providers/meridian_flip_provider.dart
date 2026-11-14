@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend.dart';
 import '../database/database.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/equipment/equipment_models.dart'
@@ -11,11 +9,10 @@ import '../models/meridian_flip_settings.dart';
 import '../models/meridian_flip_event.dart';
 import '../models/sequence/sequence_models.dart'
     show SequenceExecutionState, SequenceExecutionStateCapabilities;
-import '../services/logging_service.dart';
-import '../services/notification_service.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show AstronomyCalculations;
-import '../services/scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
+import '../models/backend/event_types.dart';
+import 'linked_host.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart'
@@ -25,12 +22,15 @@ import 'equipment_provider.dart'
         focuserStateProvider,
         mountStateProvider;
 import 'sequence_provider.dart' show sequenceExecutionStateProvider;
+import '../settings/store_settings.dart';
 import 'settings_provider.dart' show appSettingsProvider;
 import 'ui_notification_provider.dart' show uiNotificationProvider;
+import '../database/daos/settings_dao.dart';
+import 'logging_service_provider.dart';
+import 'notification_service_provider.dart';
+import '../services/logging_service.dart';
 
 /// Key used to store global meridian flip settings in app_settings table
-const _kMeridianFlipSettingsKey = 'meridian_flip_settings';
-
 /// Initial-load health for [globalMeridianFlipSettingsProvider].
 ///
 /// The settings provider holds a plain [MeridianFlipSettings] state shape
@@ -40,19 +40,45 @@ const _kMeridianFlipSettingsKey = 'meridian_flip_settings';
 final globalMeridianFlipSettingsLoadStateProvider =
     StateProvider<AsyncValue<void>>((ref) => const AsyncLoading());
 
-/// Provider for global meridian flip settings
+/// What to write for [settings], given the row as it is [stored].
+///
+/// A field goes in when the row already carries it or when its value is not
+/// the default. A field the operator never set therefore stays out, and keeps
+/// following the default: writing back what was read leaves the row as it
+/// was, and a row from before a field existed does not pick up that field's
+/// default of the day.
+Map<String, dynamic> _documentToStore(
+  MeridianFlipSettings settings, {
+  required String? stored,
+}) {
+  Map<String, dynamic> row = const {};
+  if (stored != null) {
+    try {
+      row = jsonDecode(stored) as Map<String, dynamic>;
+    } on Object {
+      // An unreadable row is replaced by what differs from the defaults.
+    }
+  }
+  final defaults = const MeridianFlipSettings().toJson();
+  return {
+    for (final field in settings.toJson().entries)
+      if (row.containsKey(field.key) ||
+          jsonEncode(field.value) != jsonEncode(defaults[field.key]))
+        field.key: field.value,
+  };
+}
+
 final globalMeridianFlipSettingsProvider =
     StateNotifierProvider<
       GlobalMeridianFlipSettingsNotifier,
       MeridianFlipSettings
     >((ref) {
-      final backend = ref.watch(backendProvider);
+      final remote = ref.watch(linkedHostRigSettingsProvider);
       return GlobalMeridianFlipSettingsNotifier(
         ref,
-        database: backend is NetworkBackend
-            ? null
-            : ref.watch(databaseProvider),
-        remote: backend is NetworkBackend ? backend : null,
+        database: remote != null ? null : ref.watch(databaseProvider),
+        remote: remote,
+        hostEvents: ref.watch(linkedHostEventsProvider),
       );
     });
 
@@ -64,7 +90,7 @@ class GlobalMeridianFlipSettingsNotifier
     extends StateNotifier<MeridianFlipSettings> {
   final Ref _ref;
   final SkotiqDatabase? _database;
-  final NetworkBackend? _remote;
+  final HostRigSettings? _remote;
   StreamSubscription? _remoteEventSubscription;
   late Future<void> _loadFuture;
   Future<void> _writeTail = Future<void>.value();
@@ -75,14 +101,15 @@ class GlobalMeridianFlipSettingsNotifier
   GlobalMeridianFlipSettingsNotifier(
     this._ref, {
     required SkotiqDatabase? database,
-    required NetworkBackend? remote,
+    required HostRigSettings? remote,
+    required Stream<SkotiqEvent> Function()? hostEvents,
   }) : _database = database,
        _remote = remote,
        super(const MeridianFlipSettings()) {
     _ref.read(globalMeridianFlipSettingsLoadStateProvider.notifier).state =
         const AsyncLoading();
-    if (remote != null) {
-      _remoteEventSubscription = remote.eventStream.listen(
+    if (hostEvents != null) {
+      _remoteEventSubscription = hostEvents().listen(
         (event) {
           if (event.eventType != hostStateChangedEventType ||
               event.data['entityType'] != HostMutationEntity.settings ||
@@ -94,10 +121,9 @@ class GlobalMeridianFlipSettingsNotifier
           );
         },
         onError: (Object error, StackTrace stackTrace) {
-          developer.log(
+          Log.error(
             'Meridian-flip settings event stream failed: $error',
-            name: 'MeridianFlip',
-            level: 1000,
+            source: 'MeridianFlip',
             error: error,
             stackTrace: stackTrace,
           );
@@ -138,14 +164,11 @@ class GlobalMeridianFlipSettingsNotifier
         loaded = await remote.getMeridianFlipSettings();
       } else {
         final db = _database!;
-        final setting =
-            await (db.select(db.appSettings)
-                  ..where((t) => t.key.equals(_kMeridianFlipSettingsKey)))
-                .getSingleOrNull();
-        loaded = setting == null || setting.value.isEmpty
+        final stored = await db.settingsDao.read(StoreSettings.meridianFlip);
+        loaded = stored == null
             ? const MeridianFlipSettings()
             : MeridianFlipSettings.fromJson(
-                jsonDecode(setting.value) as Map<String, dynamic>,
+                jsonDecode(stored) as Map<String, dynamic>,
               );
       }
       if (!mounted) return;
@@ -158,10 +181,9 @@ class GlobalMeridianFlipSettingsNotifier
       _loadError = e;
       _ref.read(globalMeridianFlipSettingsLoadStateProvider.notifier).state =
           AsyncError(e, stackTrace);
-      developer.log(
+      Log.error(
         'Failed to load meridian-flip settings: $e',
-        name: 'MeridianFlip',
-        level: 1000,
+        source: 'MeridianFlip',
         error: e,
         stackTrace: stackTrace,
       );
@@ -187,9 +209,14 @@ class GlobalMeridianFlipSettingsNotifier
           // insertOnConflictUpdate targets the integer primary key. Use the
           // canonical DAO upsert so the second and subsequent edits update the
           // existing key instead of failing with UNIQUE(app_settings.key).
-          await db.settingsDao.setSetting(
-            _kMeridianFlipSettingsKey,
-            jsonEncode(settings.toJson()),
+          await db.settingsDao.write(
+            StoreSettings.meridianFlip,
+            jsonEncode(
+              _documentToStore(
+                settings,
+                stored: await db.settingsDao.read(StoreSettings.meridianFlip),
+              ),
+            ),
           );
         }
         if (!mounted) return;
@@ -198,10 +225,9 @@ class GlobalMeridianFlipSettingsNotifier
         _ref.read(globalMeridianFlipSettingsLoadStateProvider.notifier).state =
             const AsyncData(null);
       } catch (e, stackTrace) {
-        developer.log(
+        Log.error(
           'Failed to save meridian-flip settings: $e',
-          name: 'MeridianFlip',
-          level: 1000,
+          source: 'MeridianFlip',
           error: e,
           stackTrace: stackTrace,
         );
@@ -222,7 +248,6 @@ class GlobalMeridianFlipSettingsNotifier
   // Individual setting updates
   // These allow updating individual settings without replacing the entire object
 
-  /// Update standalone monitoring enabled
   Future<void> setStandaloneMonitoringEnabled(bool enabled) async {
     if (enabled && !state.triggerMethod.supportsStandaloneMonitoring) {
       return Future<void>.error(
@@ -235,7 +260,6 @@ class GlobalMeridianFlipSettingsNotifier
     await updateSettings(state.copyWith(standaloneMonitoringEnabled: enabled));
   }
 
-  /// Update trigger method
   Future<void> setTriggerMethod(MeridianTriggerMethod method) async {
     await updateSettings(
       state.copyWith(
@@ -247,17 +271,14 @@ class GlobalMeridianFlipSettingsNotifier
     );
   }
 
-  /// Update minutes past meridian threshold
   Future<void> setMinutesPastMeridian(double minutes) async {
     await updateSettings(state.copyWith(minutesPastMeridian: minutes));
   }
 
-  /// Update minutes before limit threshold
   Future<void> setMinutesBeforeLimit(double minutes) async {
     await updateSettings(state.copyWith(minutesBeforeLimit: minutes));
   }
 
-  /// Update hour angle threshold
   Future<void> setHourAngleThreshold(double hours) async {
     await updateSettings(state.copyWith(hourAngleThreshold: hours));
   }
@@ -267,7 +288,6 @@ class GlobalMeridianFlipSettingsNotifier
     await updateSettings(state.copyWith(pauseBeforeMeridianMinutes: minutes));
   }
 
-  /// Update tracking limit wait minutes
   Future<void> setTrackingLimitWaitMinutes(double minutes) async {
     await updateSettings(state.copyWith(trackingLimitWaitMinutes: minutes));
   }
@@ -277,57 +297,46 @@ class GlobalMeridianFlipSettingsNotifier
     await updateSettings(state.copyWith(trackingLimitPolicy: policy));
   }
 
-  /// Update pause guiding before flip
   Future<void> setPauseGuidingBeforeFlip(bool pause) async {
     await updateSettings(state.copyWith(pauseGuidingBeforeFlip: pause));
   }
 
-  /// Update recenter after flip
   Future<void> setRecenterAfterFlip(bool recenter) async {
     await updateSettings(state.copyWith(recenterAfterFlip: recenter));
   }
 
-  /// Update refocus after flip
   Future<void> setRefocusAfterFlip(bool refocus) async {
     await updateSettings(state.copyWith(refocusAfterFlip: refocus));
   }
 
-  /// Update settle time
   Future<void> setSettleTimeSeconds(double seconds) async {
     await updateSettings(state.copyWith(settleTimeSeconds: seconds));
   }
 
-  /// Update resume guiding after flip
   Future<void> setResumeGuidingAfterFlip(bool resume) async {
     await updateSettings(state.copyWith(resumeGuidingAfterFlip: resume));
   }
 
-  /// Update max retries
   Future<void> setMaxRetries(int retries) async {
     await updateSettings(state.copyWith(maxRetries: retries));
   }
 
-  /// Update retry delays
   Future<void> setRetryDelaysSeconds(List<double> delays) async {
     await updateSettings(state.copyWith(retryDelaysSeconds: delays));
   }
 
-  /// Update failure action
   Future<void> setFailureAction(FlipFailureAction action) async {
     await updateSettings(state.copyWith(failureAction: action));
   }
 
-  /// Update sound alert on flip
   Future<void> setSoundAlertOnFlip(bool enabled) async {
     await updateSettings(state.copyWith(soundAlertOnFlip: enabled));
   }
 
-  /// Update push notification on flip
   Future<void> setPushNotificationOnFlip(bool enabled) async {
     await updateSettings(state.copyWith(pushNotificationOnFlip: enabled));
   }
 
-  /// Reset settings to defaults
   Future<void> resetToDefaults() async {
     await updateSettings(const MeridianFlipSettings());
   }
@@ -349,7 +358,6 @@ final effectiveMeridianFlipSettingsProvider = Provider<MeridianFlipSettings>((
     return global;
   }
 
-  // Check if profile has overrides
   final overridesJson = activeProfile.meridianFlipOverrides;
   if (overridesJson == null || overridesJson.isEmpty) {
     return global;
@@ -362,11 +370,7 @@ final effectiveMeridianFlipSettingsProvider = Provider<MeridianFlipSettings>((
     final merged = {...globalJson, ...overrides};
     return MeridianFlipSettings.fromJson(merged);
   } catch (e) {
-    developer.log(
-      'Failed to parse profile overrides: $e',
-      name: 'MeridianFlip',
-      level: 1000,
-    );
+    Log.error('Failed to parse profile overrides: $e', source: 'MeridianFlip');
     return global;
   }
 });
@@ -417,10 +421,8 @@ final flipCurrentStepProvider = StateProvider<FlipStep?>((ref) => null);
 /// Provider for flip progress percentage (0-100)
 final flipProgressProvider = StateProvider<int>((ref) => 0);
 
-/// Provider for the last flip error message
 final flipLastErrorProvider = StateProvider<String?>((ref) => null);
 
-/// Provider indicating if a flip is currently in progress
 final isFlipInProgressProvider = Provider<bool>((ref) {
   final state = ref.watch(flipExecutionStateProvider);
   return state == FlipExecutionState.executing ||
@@ -445,10 +447,9 @@ class MeridianFlipDisconnectGuard extends StateNotifier<void> {
         final flipState = _ref.read(flipExecutionStateProvider);
         if (flipState == FlipExecutionState.executing ||
             flipState == FlipExecutionState.retrying) {
-          developer.log(
+          Log.warning(
             'Mount disconnected during meridian flip - aborting flip state',
-            name: 'MeridianFlip',
-            level: 900,
+            source: 'MeridianFlip',
           );
           _ref.read(flipExecutionStateProvider.notifier).state =
               FlipExecutionState.aborted;
@@ -492,23 +493,6 @@ final isMeridianFlipEnabledProvider = Provider<bool>((ref) {
   }
 });
 
-/// Compute Local Sidereal Time (hours) for the given UTC instant and observer
-/// longitude (degrees, east positive).
-///
-/// Thin alias over [SkyCalculations.localSiderealTimeHours] — the single
-/// shared LST implementation also used by the dynamic scheduler engine. Kept
-/// as a free function because `meridian_countdown_provider.dart` imports it by
-/// this name; the math now lives in one place.
-double computeLocalSiderealTimeHours(DateTime utc, double longitudeDeg) =>
-    SkyCalculations.localSiderealTimeHours(utc, longitudeDeg);
-
-/// Compute the mount's hour angle in hours, normalized to (-12, +12].
-///
-/// HA = LST - RA, where positive HA means the target is west of the meridian
-/// (i.e., already crossed). Thin alias over [SkyCalculations.hourAngleHours].
-double computeHourAngleHours(double raHours, double lstHours) =>
-    SkyCalculations.hourAngleHours(raHours, lstHours);
-
 /// Result of a standalone-monitor poll, exposed so tests can validate the
 /// decision logic without faking timers.
 enum MeridianMonitorDecision {
@@ -537,8 +521,8 @@ enum MeridianMonitorDecision {
 ///
 /// When the trigger fires the monitor does BOTH of:
 ///   1. Alert — `flipExecutionStateProvider` -> `executing`,
-///      `NotificationService.notifyMeridianFlip` (Discord / Pushover /
-///      push per `pushNotificationOnFlip`), and a diagnostics log entry.
+///      `NotificationService.notifyMeridianFlip` (per
+///      `pushNotificationOnFlip`), and a diagnostics log entry.
 ///   2. Execute — `backend.performMeridianFlip(...)`, which runs the
 ///      canonical native `MeridianFlipExecutor` standalone (same engine,
 ///      timeouts, altitude check, re-center and refocus as the in-sequence
@@ -594,7 +578,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
     // timer that can race the GUI/headless host and command the same flip.
     if (!settings.standaloneMonitoringEnabled ||
         !settings.triggerMethod.supportsStandaloneMonitoring ||
-        _ref.read(backendProvider) is NetworkBackend) {
+        _ref.read(isRemoteModeProvider)) {
       return;
     }
     _pollTimer = Timer.periodic(_pollInterval, (_) => evaluateOnce());
@@ -602,7 +586,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
 
   /// Public for tests — runs a single poll cycle and returns the decision.
   MeridianMonitorDecision evaluateOnce() {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(isRemoteModeProvider)) {
       return MeridianMonitorDecision.inactive;
     }
     final settings = _ref.read(globalMeridianFlipSettingsProvider);
@@ -643,11 +627,11 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
       return MeridianMonitorDecision.inactive;
     }
 
-    final lst = computeLocalSiderealTimeHours(
+    final lst = AstronomyCalculations.localSiderealTime(
       DateTime.now().toUtc(),
       appSettings.longitude,
     );
-    final ha = computeHourAngleHours(mount.ra!, lst);
+    final ha = AstronomyCalculations.hourAngleHours(mount.ra!, lst);
 
     final fired = _evaluateTrigger(settings, ha);
     if (!fired) {
@@ -815,7 +799,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
           _ref
               .read(notificationServiceProvider)
               .notifyMeridianFlip(isStarting: false)
-              .catchError((Object e, StackTrace s) => false),
+              .then<void>((_) {}, onError: (Object _) {}),
         );
       }
       return true;
@@ -878,20 +862,22 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
 
     if (settings.pushNotificationOnFlip) {
       // Why: the operator opted into push notifications for flip events.
-      // Route through NotificationService so Discord / Pushover / system push
-      // all honor the toggle. Errors here are reported but never propagate —
+      // Route through NotificationService so every routed transport honors
+      // the toggle. Errors here are reported but never propagate —
       // a missed notification must not stall the monitor.
       unawaited(
         _ref
             .read(notificationServiceProvider)
             .notifyMeridianFlip(isStarting: true)
-            .catchError((Object e, StackTrace s) {
-              logger.error(
-                'Failed to dispatch meridian flip notification: $e',
-                source: 'MeridianFlipStandaloneMonitor',
-              );
-              return false;
-            }),
+            .then<void>(
+              (_) {},
+              onError: (Object e) {
+                logger.error(
+                  'Failed to dispatch meridian flip notification: $e',
+                  source: 'MeridianFlipStandaloneMonitor',
+                );
+              },
+            ),
       );
     }
   }

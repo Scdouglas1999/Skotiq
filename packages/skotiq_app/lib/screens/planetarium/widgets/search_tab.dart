@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../planetarium_screen.dart';
 
 class SearchResultsTab extends ConsumerWidget {
@@ -91,7 +92,6 @@ class SearchResultCard extends StatelessWidget {
     final parts = <String>[];
     final (_, catalogTag) = getDsoDisplayInfo(dso);
     parts.add(catalogTag);
-    // Show first common name if available and different from display name
     if (dso.commonNames != null && dso.commonNames!.isNotEmpty) {
       final firstName = dso.commonNames!.split(',').first.trim();
       final (displayName, _) = getDsoDisplayInfo(dso);

@@ -1,11 +1,14 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import '../harness/in_memory_database.dart';
 
 class _Backend extends Mock implements SkotiqBackend {
@@ -80,10 +83,7 @@ ProviderContainer _containerFor(SkotiqBackend backend) {
 }
 
 void main() {
-  const config = PlateSolverConfig(
-    type: PlateSolverType.astap,
-    executablePath: '/opt/astap/astap',
-  );
+  const config = PlateSolverConfig();
 
   test(
     'concurrent solves are rejected without starting a second backend run',
@@ -210,8 +210,6 @@ void main() {
           .solve(
             '/tmp/hinted.fits',
             const PlateSolverConfig(
-              type: PlateSolverType.astap,
-              executablePath: '/opt/astap/astap',
               hintRa: 10.5,
               hintDec: 42,
               timeoutSeconds: 47,
@@ -318,107 +316,7 @@ void main() {
           .solve('/host-only/frame.fits', config);
 
       expect(result.success, isFalse);
-      expect(result.error, contains('Remote host plate solve failed'));
-      expect(result.error, contains('host disconnected'));
-      expect(result.error, isNot(contains('Local fallback')));
-    },
-  );
-
-  test('ASTAP local fallback passes its RA hint in hours', () async {
-    if (Platform.isWindows) return;
-    final backend = _Backend();
-    when(
-      () => backend.plateSolve(
-        imagePath: any(named: 'imagePath'),
-        ra: any(named: 'ra'),
-        dec: any(named: 'dec'),
-        fovDegrees: any(named: 'fovDegrees'),
-        timeoutSeconds: any(named: 'timeoutSeconds'),
-      ),
-    ).thenThrow(StateError('native backend unavailable'));
-    final container = _containerFor(backend);
-    addTearDown(container.dispose);
-    final temp = await Directory.systemTemp.createTemp('skotiq-astap-ra-');
-    addTearDown(() => temp.delete(recursive: true));
-    final imagePath = '${temp.path}/frame.fits';
-    final argsPath = '${temp.path}/args.txt';
-    final script = File('${temp.path}/fake-astap.sh');
-    await File(imagePath).writeAsString('fixture');
-    await script.writeAsString(
-      '#!/bin/sh\n'
-      "printf '%s\\n' \"\$@\" > '$argsPath'\n"
-      'exit 1\n',
-    );
-    expect((await Process.run('chmod', ['+x', script.path])).exitCode, 0);
-
-    await container
-        .read(plateSolveServiceProvider)
-        .solve(
-          imagePath,
-          PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: script.path,
-            hintRa: 10.5,
-            hintDec: 42,
-          ),
-        );
-
-    final args = await File(argsPath).readAsLines();
-    final raIndex = args.indexOf('-ra');
-    expect(raIndex, greaterThanOrEqualTo(0));
-    expect(args[raIndex + 1], '10.5');
-    expect(args, contains('132.0'));
-  });
-
-  test(
-    'local solver timeout terminates the process before returning',
-    () async {
-      if (Platform.isWindows) return;
-      final backend = _Backend();
-      when(
-        () => backend.plateSolve(
-          imagePath: any(named: 'imagePath'),
-          ra: any(named: 'ra'),
-          dec: any(named: 'dec'),
-          fovDegrees: any(named: 'fovDegrees'),
-          timeoutSeconds: any(named: 'timeoutSeconds'),
-        ),
-      ).thenThrow(StateError('native backend unavailable'));
-      final container = _containerFor(backend);
-      addTearDown(container.dispose);
-      final temp = await Directory.systemTemp.createTemp('skotiq-timeout-');
-      addTearDown(() => temp.delete(recursive: true));
-      final imagePath = '${temp.path}/frame.fits';
-      final markerPath = '${temp.path}/solver-finished';
-      final script = File('${temp.path}/fake-astap.sh');
-      await File(imagePath).writeAsString('fixture');
-      await script.writeAsString(
-        '#!/bin/sh\n'
-        'sleep 2\n'
-        "printf stale > '$markerPath'\n",
-      );
-      final chmod = await Process.run('chmod', ['+x', script.path]);
-      expect(chmod.exitCode, 0);
-
-      final result = await container
-          .read(plateSolveServiceProvider)
-          .solve(
-            imagePath,
-            PlateSolverConfig(
-              type: PlateSolverType.astap,
-              executablePath: script.path,
-              timeoutSeconds: 1,
-            ),
-          );
-
-      expect(result.success, isFalse);
-      expect(result.error, contains('timed out'));
-      await Future<void>.delayed(const Duration(milliseconds: 1500));
-      expect(
-        await File(markerPath).exists(),
-        isFalse,
-        reason: 'A timed-out solver must not keep running in the background',
-      );
+      expect(result.error, 'Plate solve failed: host disconnected');
     },
   );
 }

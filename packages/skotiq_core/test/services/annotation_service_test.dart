@@ -5,14 +5,23 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:path/path.dart' as path;
 import '../harness/in_memory_database.dart';
 
 class MockSkotiqBackend extends Mock implements SkotiqBackend {}
 
 class MockCatalogManager extends Mock implements CatalogManager {}
+
+CatalogStatus _installed(String path) => CatalogStatus(
+  catalog: SkyCatalog.dso,
+  state: CatalogInstallStatus.installed,
+  installedPath: path,
+);
 
 class TestBackendNotifier extends BackendNotifier {
   TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -60,21 +69,15 @@ void main() {
       () async {
         final catalogManager = MockCatalogManager();
         when(() => catalogManager.isInitialized).thenReturn(true);
-        when(catalogManager.getDsoCatalogStatus).thenAnswer(
-          (_) async => const CatalogStatus(
-            isInstalled: true,
-            installedPath: '/tmp/ngc.csv',
-          ),
-        );
         when(
-          catalogManager.getStarCatalogStatus,
-        ).thenAnswer((_) async => CatalogStatus.notInstalled());
-        when(catalogManager.getAnnotationCatalogStatus).thenAnswer(
-          (_) async => const CatalogStatus(
-            isInstalled: true,
-            installedPath: '/tmp/glade.csv',
-          ),
-        );
+          () => catalogManager.status(SkyCatalog.dso),
+        ).thenAnswer((_) async => _installed('/tmp/ngc.csv'));
+        when(
+          () => catalogManager.status(SkyCatalog.stars),
+        ).thenAnswer((_) async => const CatalogStatus.missing(SkyCatalog.dso));
+        when(
+          () => catalogManager.status(SkyCatalog.annotation),
+        ).thenAnswer((_) async => _installed('/tmp/glade.csv'));
         when(
           () => catalogManager.searchDsoNearby(
             ra: any(named: 'ra'),
@@ -84,13 +87,13 @@ void main() {
           ),
         ).thenAnswer(
           (_) async => [
-            const OpenNgcData(
+            const DeepSkyObject(
+              id: 'NGC7380',
               name: 'NGC7380',
-              type: 'Cl+N',
-              ra: 10,
-              dec: 20,
+              coordinates: CelestialCoordinate(ra: 10 / 15, dec: 20),
+              type: DsoType.clusterWithNebulosity,
               magnitude: 7.2,
-              constellation: 'Cep',
+              constellation: 'Cepheus',
             ),
           ],
         );
@@ -142,7 +145,7 @@ void main() {
               primaryName: 'PGC 123',
               ra: 10.0005,
               dec: 20,
-              type: AnnotationObjectType.galaxy,
+              type: DsoType.galaxy,
               magnitude: 12,
               source: 'GLADE+',
             ),
@@ -230,7 +233,7 @@ void main() {
         await CatalogManager.instance.initialize(tempDir.path);
 
         final annotationCatalogFile = File(
-          CatalogManager.instance.annotationCatalogPath,
+          CatalogManager.instance.pathOf(SkyCatalog.annotation),
         );
         await annotationCatalogFile.writeAsString(
           'RAJ2000,DEJ2000,Bmag,zhelio,PGC\n'
@@ -370,17 +373,14 @@ void main() {
       final mockCatalogManager = MockCatalogManager();
       when(() => mockCatalogManager.isInitialized).thenReturn(true);
       when(
-        () => mockCatalogManager.getDsoCatalogStatus(),
-      ).thenAnswer((_) async => CatalogStatus.notInstalled());
+        () => mockCatalogManager.status(SkyCatalog.dso),
+      ).thenAnswer((_) async => const CatalogStatus.missing(SkyCatalog.dso));
       when(
-        () => mockCatalogManager.getStarCatalogStatus(),
-      ).thenAnswer((_) async => CatalogStatus.notInstalled());
-      when(() => mockCatalogManager.getAnnotationCatalogStatus()).thenAnswer(
-        (_) async => CatalogStatus(
-          isInstalled: true,
-          installedPath: annotationCatalogPath,
-        ),
-      );
+        () => mockCatalogManager.status(SkyCatalog.stars),
+      ).thenAnswer((_) async => const CatalogStatus.missing(SkyCatalog.dso));
+      when(
+        () => mockCatalogManager.status(SkyCatalog.annotation),
+      ).thenAnswer((_) async => _installed(annotationCatalogPath));
       when(
         () => mockCatalogManager.searchDsoNearby(
           ra: any(named: 'ra'),
@@ -558,17 +558,14 @@ void main() {
       final mockCatalogManager = MockCatalogManager();
       when(() => mockCatalogManager.isInitialized).thenReturn(true);
       when(
-        mockCatalogManager.getDsoCatalogStatus,
-      ).thenAnswer((_) async => CatalogStatus.notInstalled());
+        () => mockCatalogManager.status(SkyCatalog.dso),
+      ).thenAnswer((_) async => const CatalogStatus.missing(SkyCatalog.dso));
       when(
-        mockCatalogManager.getStarCatalogStatus,
-      ).thenAnswer((_) async => CatalogStatus.notInstalled());
-      when(() => mockCatalogManager.getAnnotationCatalogStatus()).thenAnswer(
-        (_) async => const CatalogStatus(
-          isInstalled: true,
-          installedPath: '/tmp/annotation.csv',
-        ),
-      );
+        () => mockCatalogManager.status(SkyCatalog.stars),
+      ).thenAnswer((_) async => const CatalogStatus.missing(SkyCatalog.dso));
+      when(
+        () => mockCatalogManager.status(SkyCatalog.annotation),
+      ).thenAnswer((_) async => _installed('/tmp/annotation.csv'));
 
       final backend = MockSkotiqBackend();
       stubSolverDetection(backend);
@@ -634,20 +631,17 @@ void main() {
     () async {
       final catalogManager = MockCatalogManager();
       when(() => catalogManager.isInitialized).thenReturn(true);
-      when(catalogManager.getDsoCatalogStatus).thenAnswer(
-        (_) async => const CatalogStatus(
-          isInstalled: true,
-          installedPath: '/tmp/dso.csv',
-        ),
-      );
       when(
-        catalogManager.getStarCatalogStatus,
-      ).thenAnswer((_) async => CatalogStatus.notInstalled());
+        () => catalogManager.status(SkyCatalog.dso),
+      ).thenAnswer((_) async => _installed('/tmp/dso.csv'));
       when(
-        catalogManager.getAnnotationCatalogStatus,
-      ).thenAnswer((_) async => CatalogStatus.notInstalled());
+        () => catalogManager.status(SkyCatalog.stars),
+      ).thenAnswer((_) async => const CatalogStatus.missing(SkyCatalog.dso));
+      when(
+        () => catalogManager.status(SkyCatalog.annotation),
+      ).thenAnswer((_) async => const CatalogStatus.missing(SkyCatalog.dso));
 
-      final progressiveSearch = Completer<List<OpenNgcData>>();
+      final progressiveSearch = Completer<List<DeepSkyObject>>();
       final progressiveSearchStarted = Completer<void>();
       var catalogSearches = 0;
       when(
@@ -740,7 +734,9 @@ void main() {
     await CatalogManager.instance.initialize(tempDir.path);
 
     // One well-formed galaxy at RA=200, far from the RA=10 FOV below.
-    await File(CatalogManager.instance.annotationCatalogPath).writeAsString(
+    await File(
+      CatalogManager.instance.pathOf(SkyCatalog.annotation),
+    ).writeAsString(
       'RAJ2000,DEJ2000,Bmag,zhelio,PGC\n'
       '200.0,-30.0,12.3,7000,12345\n',
     );
@@ -844,7 +840,7 @@ class _ThrowingAnnotationCatalog extends AnnotationCatalog {
     required double dec,
     required double radiusDegrees,
     double? maxMagnitude,
-    Set<AnnotationObjectType>? typeFilter,
+    Set<DsoType>? typeFilter,
   }) async {
     throw StateError('annotation catalog read failed');
   }
@@ -861,7 +857,7 @@ class _PendingAnnotationCatalog extends AnnotationCatalog {
     required double dec,
     required double radiusDegrees,
     double? maxMagnitude,
-    Set<AnnotationObjectType>? typeFilter,
+    Set<DsoType>? typeFilter,
   }) {
     if (!started.isCompleted) started.complete();
     return result.future;

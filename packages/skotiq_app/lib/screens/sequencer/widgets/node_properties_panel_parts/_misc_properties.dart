@@ -1,4 +1,3 @@
-// Properties widgets for nodes that don't fit the capture/motion/flow buckets: notification, script, simple-instruction info card, dome, unknown-node fallback, the four cover/calibrator nodes plus their shared scaffold & timeout field, and the instruction-set info widget.
 part of '../node_properties_panel.dart';
 
 class _ScriptProperties extends ConsumerWidget {
@@ -179,6 +178,7 @@ class _DomeProperties extends ConsumerWidget {
           colors: colors,
           label: 'Shutter only',
           child: NodeToggleSwitch(
+            label: 'Shutter only',
             colors: colors,
             value: shutterOnly,
             onChanged: (value) {

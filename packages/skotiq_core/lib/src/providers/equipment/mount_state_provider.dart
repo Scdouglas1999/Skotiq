@@ -1,46 +1,36 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/equipment/equipment_models.dart';
-import '../../models/backend/device_types.dart' show PierSide;
+import '../../models/backend/device_types.dart' show DeviceType, PierSide;
+import 'device_read_health_provider.dart';
 import 'device_connection_notifier.dart';
-import '../../services/device_service.dart';
-import '../../backend/network_backend.dart';
 import '../backend_provider.dart';
-import 'equipment_retry_defaults.dart';
+import '../../services/logging_service.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
 
-/// Mount state provider
 final mountStateProvider =
     StateNotifierProvider<MountStateNotifier, MountState>((ref) {
       return MountStateNotifier(ref);
     });
 
-class MountStateNotifier extends StateNotifier<MountState>
-    implements DeviceConnectionNotifier {
-  @override
-  DeviceConnectionState get connectionState => state.connectionState;
-
-  @override
-  String? get deviceId => state.deviceId;
-
-  final Ref _ref;
-  int _retryAttempts = 0;
-  int _connectionRevision = 0;
+class MountStateNotifier extends DeviceSlotNotifier<MountState> {
   Timer? _positionPollTimer;
   bool _isPolling = false;
+
+  /// A [refreshNow] arrived while a poll was in flight; that poll's reading
+  /// may predate the command, so another runs as soon as it ends.
+  bool _pollAgain = false;
 
   /// Normal polling interval (tracking/idle)
   static const _normalPollInterval = Duration(seconds: 2);
 
   /// Fast polling interval (while slewing)
   static const _slewingPollInterval = Duration(milliseconds: 500);
-  static const _companionPollInterval = Duration(seconds: 5);
-  static const _companionSlewingPollInterval = Duration(seconds: 1);
 
-  MountStateNotifier(this._ref) : super(const MountState());
+  MountStateNotifier(Ref ref)
+    : super(ref, DeviceType.mount, const MountState());
 
   @override
   void dispose() {
@@ -48,123 +38,35 @@ class MountStateNotifier extends StateNotifier<MountState>
     super.dispose();
   }
 
-  Future<void> connect(
-    String deviceId, {
-    int maxRetries = kDefaultMaxRetries,
-  }) async {
-    final revision = ++_connectionRevision;
-    _retryAttempts = 0;
-    _setConnectingState(deviceId, deviceId);
-    await _connectWithRetry(deviceId, maxRetries, revision);
-  }
-
-  Future<void> _connectWithRetry(
-    String deviceId,
-    int maxRetries,
-    int revision,
-  ) async {
-    try {
-      final deviceService = _ref.read(deviceServiceProvider);
-      await deviceService.connectMount(deviceId);
-      if (!_isCurrentConnection(deviceId, revision)) return;
-      _retryAttempts = 0;
-      setConnected();
-    } catch (e) {
-      if (!_isCurrentAttempt(deviceId, revision)) return;
-      _retryAttempts++;
-      final error = DeviceError.fromException(
-        e,
-        deviceId: deviceId,
-        retryAttempts: _retryAttempts,
-      );
-
-      if (error.recoverable && _retryAttempts < maxRetries) {
-        state = state.copyWith(lastError: error);
-        await Future.delayed(kDefaultRetryDelay * _retryAttempts);
-        if (!_isCurrentAttempt(deviceId, revision)) return;
-        _setConnectingState(deviceId, deviceId);
-        await _connectWithRetry(deviceId, maxRetries, revision);
-      } else {
-        state = state.copyWith(
-          connectionState: DeviceConnectionState.error,
-          lastError: error,
-        );
-      }
-    }
-  }
-
-  Future<void> retryConnection() async {
-    if (state.deviceId != null) {
-      await connect(state.deviceId!);
-    }
-  }
-
-  void clearError() {
-    state = state.clearError();
-  }
-
+  @override
   Future<void> disconnect() async {
     _stopPositionPolling();
-    if (state.deviceId == null) return;
-    final revision = ++_connectionRevision;
     try {
-      final deviceService = _ref.read(deviceServiceProvider);
-      await deviceService.disconnectMount();
+      await super.disconnect();
     } catch (_) {
-      if (mounted && revision == _connectionRevision) {
+      if (mounted && state.connectionState == DeviceConnectionState.connected) {
         _startPositionPolling();
       }
       rethrow;
     }
-    if (mounted && revision == _connectionRevision) setDisconnected();
   }
 
   @override
   void setConnecting(String deviceId, [String? deviceName]) {
-    _setConnectingState(deviceId, deviceName);
-  }
-
-  void _setConnectingState(String deviceId, [String? deviceName]) {
     _stopPositionPolling();
-    // Preserve `lastError` across the Connecting transition so
-    // the card subtitle can show the most recent driver error during
-    // reconnect. Cleared on successful Connected (see [setConnected]).
-    state = state.copyWith(
-      connectionState: DeviceConnectionState.connecting,
-      deviceId: deviceId,
-      deviceName: deviceName ?? state.deviceName ?? deviceId,
-    );
+    super.setConnecting(deviceId, deviceName);
   }
 
   @override
   void setConnected() {
-    state = state.copyWith(
-      connectionState: DeviceConnectionState.connected,
-      clearError: true,
-    );
+    super.setConnected();
     _startPositionPolling();
   }
 
   @override
   void setDisconnected() {
     _stopPositionPolling();
-    // Preserve the user's auto-reconnect preference across disconnects so
-    // the toggle isn't silently flipped back to its default on every drop.
-    final preservedAutoReconnect = state.autoReconnectEnabled;
-    state = MountState(autoReconnectEnabled: preservedAutoReconnect);
-  }
-
-  bool _isCurrentConnection(String deviceId, int revision) =>
-      mounted && revision == _connectionRevision && state.deviceId == deviceId;
-
-  bool _isCurrentAttempt(String deviceId, int revision) =>
-      mounted &&
-      revision == _connectionRevision &&
-      (state.deviceId == null || state.deviceId == deviceId);
-
-  /// Enable or disable auto-reconnection for the mount.
-  void setAutoReconnect(bool enabled) {
-    state = state.copyWith(autoReconnectEnabled: enabled);
+    super.setDisconnected();
   }
 
   /// [alt] / [az] are null when the mount cannot report the horizon frame —
@@ -188,7 +90,6 @@ class MountStateNotifier extends StateNotifier<MountState>
   void setSlewing(bool slewing) {
     final wasSlewing = state.isSlewing;
     state = state.copyWith(isSlewing: slewing);
-    // Adjust poll rate when slewing state changes
     if (wasSlewing != slewing &&
         state.connectionState == DeviceConnectionState.connected) {
       _restartPollingWithCurrentRate();
@@ -222,40 +123,31 @@ class MountStateNotifier extends StateNotifier<MountState>
     state = state.copyWith(canSetTrackingRate: canSet);
   }
 
-  @override
-  void setError(Object error) {
-    state = state.copyWith(
-      connectionState: DeviceConnectionState.error,
-      lastError: DeviceError.fromException(error, deviceId: state.deviceId),
-    );
-  }
-
-  // Position polling
-
   void _startPositionPolling() {
     _stopPositionPolling();
-    // A companion reads the position from the imaging host, where every read
-    // is a driver round trip; it polls at a slower pace than the host itself.
-    final companion = _ref.read(deviceBackendProvider) is NetworkBackend;
+    if (_hostSendsReadings) return;
     final interval = state.isSlewing
-        ? (companion ? _companionSlewingPollInterval : _slewingPollInterval)
-        : (companion ? _companionPollInterval : _normalPollInterval);
-    developer.log(
+        ? _slewingPollInterval
+        : _normalPollInterval;
+    Log.info(
       '[Mount] Starting position polling (interval: ${interval.inMilliseconds}ms)',
-      name: 'MountStateNotifier',
-      level: 800,
+      source: 'MountStateNotifier',
     );
     _positionPollTimer = Timer.periodic(interval, (_) => _pollPosition());
   }
+
+  /// A linked host sends every reading of its mount and how its reads go
+  /// (the mount's device channel), so a client reads the mount itself only
+  /// right after a command ([refreshNow]).
+  bool get _hostSendsReadings => ref.read(isRemoteModeProvider);
 
   void _stopPositionPolling() {
     if (_positionPollTimer != null) {
       _positionPollTimer!.cancel();
       _positionPollTimer = null;
-      developer.log(
+      Log.info(
         '[Mount] Stopped position polling',
-        name: 'MountStateNotifier',
-        level: 800,
+        source: 'MountStateNotifier',
       );
     }
   }
@@ -263,6 +155,20 @@ class MountStateNotifier extends StateNotifier<MountState>
   void _restartPollingWithCurrentRate() {
     if (_positionPollTimer == null) return; // Not currently polling
     _startPositionPolling();
+  }
+
+  /// Read the mount now instead of at the next poll tick.
+  ///
+  /// Called when the host reports a mount command (a sync, an abort, an
+  /// alt/az slew) that has no event carrying the new state, whoever sent
+  /// it, so every UI shows the result within one status read rather than
+  /// after the next 2 s poll (host) or channel update (linked client).
+  Future<void> refreshNow() async {
+    if (_isPolling) {
+      _pollAgain = true;
+      return;
+    }
+    await _pollPosition();
   }
 
   Future<void> _pollPosition() async {
@@ -275,16 +181,21 @@ class MountStateNotifier extends StateNotifier<MountState>
 
     _isPolling = true;
     try {
-      final backend = _ref.read(deviceBackendProvider);
+      final backend = ref.read(deviceBackendProvider);
       final status = await backend.getMountStatus(deviceId);
       if (!mounted) return;
       if (state.connectionState != DeviceConnectionState.connected ||
           state.deviceId != deviceId ||
-          !identical(_ref.read(deviceBackendProvider), backend)) {
+          !identical(ref.read(deviceBackendProvider), backend)) {
         // The response belongs to a mount/backend snapshot that is no longer
         // authoritative. Do not let a slow old-host poll overwrite a newly
         // connected mount or repopulate state after disconnect.
         return;
+      }
+      if (!_hostSendsReadings) {
+        ref
+            .read(deviceReadHealthProvider.notifier)
+            .recordSuccess(DeviceType.mount, deviceId);
       }
 
       updatePosition(
@@ -322,22 +233,34 @@ class MountStateNotifier extends StateNotifier<MountState>
         clearSideOfPier: pierSide == null,
       );
 
-      // If slewing state changed, adjust poll rate
       if (wasSlewing != status.slewing) {
         _restartPollingWithCurrentRate();
       }
     } catch (e) {
-      // Don't spam errors for transient failures during polling.
-      // A persistent failure will eventually be caught by the heartbeat
-      // monitor which handles reconnection.
-      developer.log(
+      // The position, pier side and tracking state shown are now older than
+      // this poll. A driver can keep answering the heartbeat while every
+      // position read fails (the NYX-101, Nov 8 2026), so the values are
+      // marked stale here, and the host's heartbeat counts the failed reads
+      // too and takes the mount through error and reconnect.
+      if (mounted &&
+          !_hostSendsReadings &&
+          state.deviceId == deviceId &&
+          state.connectionState == DeviceConnectionState.connected) {
+        ref
+            .read(deviceReadHealthProvider.notifier)
+            .recordFailure(DeviceType.mount, deviceId, e);
+      }
+      Log.warning(
         '[Mount] Position poll failed: $e',
-        name: 'MountStateNotifier',
-        level: 900,
+        source: 'MountStateNotifier',
         error: e,
       );
     } finally {
       _isPolling = false;
+      if (_pollAgain && mounted) {
+        _pollAgain = false;
+        unawaited(_pollPosition());
+      }
     }
   }
 }

@@ -31,10 +31,9 @@ import '../models/sequence/interpolation_catalog.dart'
     show InterpolationVariable, InterpolationVariableGroup;
 import '../models/sequence/sequence_models.dart'
     show LiveStackingMethod, LiveStackingMode, LiveStackingNode;
-import '../providers/sequence/sequencer_defaults.dart'
-    show sequencerDefaultsProvider;
 import 'logging_service.dart';
 import 'share_card_renderer.dart';
+import '../providers/logging_service_provider.dart';
 
 /// The watermark template's ENTIRE vocabulary.
 ///
@@ -112,14 +111,6 @@ class BroadcastSessionState {
   /// Whether a broadcast is currently armed.
   final bool active;
 
-  /// The configured port the broadcast endpoints answer on. Mirrors
-  /// the LiveStackingNode at activation time. `0` when inactive.
-  final int port;
-
-  /// HTTP path prefix the broadcast page is served at.
-  final String path;
-
-  /// Operating mode.
   final LiveStackingMode mode;
 
   /// Stack method selected at activation time. The mapping to the
@@ -170,8 +161,6 @@ class BroadcastSessionState {
 
   const BroadcastSessionState({
     this.active = false,
-    this.port = 0,
-    this.path = '/broadcast',
     this.mode = LiveStackingMode.broadcastOnly,
     this.stackMethod = LiveStackingMethod.average,
     this.authToken,
@@ -205,8 +194,6 @@ class BroadcastSessionState {
 
   BroadcastSessionState copyWith({
     bool? active,
-    int? port,
-    String? path,
     LiveStackingMode? mode,
     LiveStackingMethod? stackMethod,
     String? authToken,
@@ -222,8 +209,6 @@ class BroadcastSessionState {
   }) {
     return BroadcastSessionState(
       active: active ?? this.active,
-      port: port ?? this.port,
-      path: path ?? this.path,
       mode: mode ?? this.mode,
       stackMethod: stackMethod ?? this.stackMethod,
       authToken: authToken ?? this.authToken,
@@ -242,8 +227,6 @@ class BroadcastSessionState {
   /// JSON view returned by `/api/broadcast/info`.
   Map<String, dynamic> toInfoJson() => {
     'active': active,
-    'port': port,
-    'path': path,
     'mode': mode.storageKey,
     'stackMethod': stackMethod.storageKey,
     'isPublic': isPublic,
@@ -289,7 +272,15 @@ class LiveStackingBroadcastService {
   final Ref _ref;
   final StreamController<BroadcastUpdate> _updates =
       StreamController<BroadcastUpdate>.broadcast();
-  BroadcastSessionState _state = const BroadcastSessionState();
+  final StreamController<BroadcastSessionState> _changes =
+      StreamController<BroadcastSessionState>.broadcast();
+  BroadcastSessionState _current = const BroadcastSessionState();
+
+  BroadcastSessionState get _state => _current;
+  set _state(BroadcastSessionState next) {
+    _current = next;
+    if (!_changes.isClosed) _changes.add(next);
+  }
 
   /// Master kill switch mirrored from
   /// `SequencerDefaults.livestackingDisableEverywhere`. When true, every
@@ -321,6 +312,9 @@ class LiveStackingBroadcastService {
   /// every HTTP request.
   BroadcastSessionState get state => _state;
 
+  /// Every change of [state]: armed, a frame stacked, a viewer, torn down.
+  Stream<BroadcastSessionState> get changes => _changes.stream;
+
   /// Flip the master kill switch. When [enabled] is true,
   /// any active session is force-deactivated and subsequent
   /// `activate()` calls are no-ops until the switch is cleared. The
@@ -339,10 +333,12 @@ class LiveStackingBroadcastService {
   }
 
   /// Activate the broadcast for a given [LiveStackingNode]. Called
-  /// when the sequence executor enters the node. Replacing an existing
+  /// when the run's first accepted frame starts the live stack. Replacing an existing
   /// session is allowed (last-one-wins) so two nodes in the same
-  /// sequence cannot lock each other out.
+  /// sequence cannot lock each other out. A node with its broadcast
+  /// switched off stacks without one.
   void activate(LiveStackingNode node) {
+    if (!node.broadcastEnabled) return;
     if (_killSwitch) {
       _logger.info(
         'Broadcast activation suppressed: master kill switch engaged',
@@ -352,8 +348,6 @@ class LiveStackingBroadcastService {
     }
     _state = BroadcastSessionState(
       active: true,
-      port: node.broadcastPort,
-      path: node.broadcastPath,
       mode: node.mode,
       stackMethod: node.stackMethod,
       authToken: node.authToken,
@@ -363,7 +357,7 @@ class LiveStackingBroadcastService {
       activatedAt: DateTime.now(),
     );
     _logger.info(
-      'Broadcast activated on port ${node.broadcastPort} '
+      'Broadcast activated '
       '(${node.isPublic ? "public" : "private"}, '
       '${node.stackMethod.label})',
       source: 'BroadcastService',
@@ -387,14 +381,6 @@ class LiveStackingBroadcastService {
   void incrementViewers() {
     if (!_state.active) return;
     _state = _state.copyWith(viewerCount: _state.viewerCount + 1);
-  }
-
-  /// Reset the viewer count. Called on a fixed cadence by the
-  /// dashboard panel's refresh timer so the displayed count tracks
-  /// recent activity rather than lifetime hits.
-  void resetViewerCount() {
-    if (!_state.active) return;
-    _state = _state.copyWith(viewerCount: 0);
   }
 
   /// Update the broadcast's current-target metadata. Called by the
@@ -474,6 +460,7 @@ class LiveStackingBroadcastService {
   /// Dispose all resources. Called when the provider is torn down.
   void dispose() {
     _updates.close();
+    _changes.close();
   }
 
   // Internal: share-card spec + watermark tokens
@@ -530,38 +517,3 @@ class LiveStackingBroadcastService {
     return diff == 0;
   }
 }
-
-/// Provider for the broadcast service. Singleton per app — the HTTP
-/// handler reads from this every request.
-final liveStackingBroadcastServiceProvider =
-    Provider<LiveStackingBroadcastService>((ref) {
-      final svc = LiveStackingBroadcastService(ref);
-      ref.onDispose(svc.dispose);
-      return svc;
-    });
-
-/// Bridges the "Disable broadcast everywhere" toggle in
-/// Sequencer Settings (`SequencerDefaults.livestackingDisableEverywhere`)
-/// into the live broadcast service. Watched once at app start by the
-/// shell so the kill switch:
-///
-///   * applies on cold start (a process that started with the switch on
-///     comes up disabled, not in a brief "armed" window), and
-///   * propagates live: flipping the toggle during an active broadcast
-///     force-deactivates the session.
-final liveStackingKillSwitchBridgeProvider = Provider<void>((ref) {
-  final svc = ref.watch(liveStackingBroadcastServiceProvider);
-  // Initial seed: read once, apply.
-  final initial = ref.watch(sequencerDefaultsProvider);
-  svc.setKillSwitch(initial.livestackingDisableEverywhere);
-  // No explicit listener needed — `ref.watch` rebuilds this provider
-  // whenever the kill-switch field changes, which re-runs the setter
-  // above. The Provider re-evaluation is cheap because setKillSwitch
-  // is a no-op when the value hasn't changed.
-});
-
-/// Convenience provider for whether the broadcast is currently armed.
-/// The dashboard's "Broadcasting" indicator watches this.
-final broadcastActiveProvider = Provider<bool>((ref) {
-  return ref.watch(liveStackingBroadcastServiceProvider).state.active;
-});

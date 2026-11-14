@@ -13,8 +13,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
-import 'package:skotiq_core/src/database/database.dart'
-    hide Sequence, SequenceNode;
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/backend/device_capabilities.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
@@ -24,6 +23,7 @@ import 'package:skotiq_core/src/providers/equipment/camera_state_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/preflight_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 class _StubCamera extends CameraStateNotifier {
   _StubCamera(super.ref, CameraStateSnapshot initial) {
@@ -165,8 +165,8 @@ void main() {
         (ref) => rule.validate(_lightSequence(), ValidationContext(ref)),
       );
       expect(issues, isNotEmpty);
-      expect(issues.first.description, contains('temp=20.0C'));
-      expect(issues.first.description, isNot(contains('temp=-10.0C')));
+      expect(issues.first.description, contains(', 20.0°C,'));
+      expect(issues.first.description, isNot(contains('-10.0°C')));
       expect(issues.first.description, contains('no cooler'));
     },
   );

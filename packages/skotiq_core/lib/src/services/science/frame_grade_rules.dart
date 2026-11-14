@@ -79,13 +79,10 @@ class FrameGradeRules {
 
   /// Returns a rejection reason when the frame fails any active rule.
   ///
-  /// HFR, star count and guiding RMS live directly on the [db.CapturedImage]
-  /// data class and are read from it. Eccentricity and FWHM do **not**: the
-  /// generated `CapturedImage` data class carries neither field (eccentricity
-  /// is a raw-DDL column added by the v30 migration but never declared on the
-  /// Drift table; FWHM is not persisted on `captured_images` at all). They are
-  /// therefore supplied by the caller via [eccentricity] / [fwhm], exactly the
-  /// way [gradeStats] takes its out-of-band metrics.
+  /// HFR, star count and guiding RMS live directly on the [db.DbCapturedImage]
+  /// data class and are read from it. Eccentricity and FWHM are supplied by
+  /// the caller via [eccentricity] / [fwhm], exactly the way [gradeStats]
+  /// takes its out-of-band metrics.
   ///
   /// **What [eccentricity] must be**: the per-frame median star eccentricity
   /// the native grader graded on — the `captured_images.eccentricity` column,
@@ -104,7 +101,7 @@ class FrameGradeRules {
   /// `starCount` of zero is the one exception and rejects outright; see
   /// [_unmeasurableFrameReason].
   String? gradeFrame(
-    db.CapturedImage img, {
+    db.DbCapturedImage img, {
     double? eccentricity,
     double? fwhm,
   }) {
@@ -235,7 +232,7 @@ class FrameGradeRules {
 
   /// Suggest thresholds from session statistics (75th percentile for max
   /// metrics, 25th for min stars).
-  static FrameGradeRules suggestFrom(List<db.CapturedImage> frames) {
+  static FrameGradeRules suggestFrom(List<db.DbCapturedImage> frames) {
     final hfrs =
         frames
             .map((f) => f.hfr)

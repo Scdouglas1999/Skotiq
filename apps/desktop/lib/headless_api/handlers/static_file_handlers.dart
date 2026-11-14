@@ -26,22 +26,25 @@
 /// instantly without per-asset cache busting.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Maps file extensions to the response `content-type` value.
 ///
 /// The table is also the ALLOWLIST for both static surfaces: a path whose
 /// extension is not a key here is not an asset of these pages and is refused,
 /// rather than served as `application/octet-stream`. Both prefixes are exempt
-/// from the bearer-token middleware — `auth/public_paths.dart` lists
-/// `/dashboard` and `/run-watch` as whole-subtree roots so the pages can load
-/// before the user holds any token — which made every file the bundler
+/// from the bearer-token middleware — the `/dashboard` and `/run-watch` routes
+/// are declared public so the pages can load before the user holds any token
+/// — which made every file the bundler
 /// happened to copy into the SPA directory readable with no credential:
 /// `GET /dashboard/README.md` answered 200 with 16KB of internal developer
 /// documentation describing the bearer-to-cookie upgrade, the pairing
@@ -100,10 +103,26 @@ final String _servedExtensions = (_mimeTypes.keys.toList()..sort()).join(' ');
 /// a developer can rebuild the SPA next to a running server without
 /// restarting. Production deployments hit the "next to the executable"
 /// branch on the first lookup so the cost is one stat() per request.
-class StaticFileHandlers {
+class StaticFileHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    StaticFileApi.root: handleRoot,
+    StaticFileApi.favicon: handleFavicon,
+    StaticFileApi.dashboardIndexDashboard: handleDashboardIndex,
+    StaticFileApi.dashboardIndexSlash: handleDashboardIndex,
+    StaticFileApi.dashboardFile: handleDashboardFile,
+    StaticFileApi.runWatchIndexRunWatch: handleRunWatchIndex,
+    StaticFileApi.runWatchIndexSlash: handleRunWatchIndex,
+    StaticFileApi.runWatchFile: handleRunWatchFile,
+  };
+
   final LoggingService logger;
 
-  StaticFileHandlers({required this.logger});
+  /// The release of this host, which the dashboard page reads from
+  /// `js/release.js` and names in its requests ([LinkVersion]).
+  final String Function() release;
+
+  StaticFileHandlers({required this.logger, required this.release});
 
   void _logWarning(String message) =>
       logger.warning(message, source: 'StaticFileHandlers');
@@ -165,6 +184,13 @@ class StaticFileHandlers {
     final normalized = _normalizeRelative(path);
     if (normalized == null) {
       return jsonForbidden({'error': 'Invalid path'});
+    }
+    if (normalized == 'js/release.js') {
+      return contentResponse(
+        utf8.encode('const SKOTIQ_RELEASE = ${jsonEncode(release())};\n'),
+        contentType: _mimeTypes['.js']!,
+        headers: {'cache-control': 'no-cache', ..._staticFileSecurityHeaders},
+      );
     }
     return _serveFile(findDashboardDir(), normalized, surface: 'dashboard');
   }

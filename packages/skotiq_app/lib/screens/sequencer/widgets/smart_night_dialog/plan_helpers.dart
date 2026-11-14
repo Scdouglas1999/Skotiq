@@ -153,7 +153,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       if (!overlaps) {
         context.showWarningSnackBar(
           'Your chosen window falls outside tonight\'s dark window '
-          '(${_formatDateTime(twiStart)} – ${_formatDateTime(twiEnd)}). '
+          '(${ClockFormat.dateHm(twiStart.toLocal())} – ${ClockFormat.dateHm(twiEnd.toLocal())}). '
           'Exposures will be in twilight or daylight.',
         );
       }
@@ -216,28 +216,22 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
   }
 
   bool _validateStrategy() {
-    final profile = ref.read(activeEquipmentProfileProvider);
-    final fits = _strategyFitsProfile(_strategy, profile);
+    final fits = _strategyFits(_strategy, ref.read(effectiveFiltersProvider));
     if (!fits) {
       context.showWarningSnackBar(
-        'The selected strategy needs filters this profile doesn\'t '
-        'have. Pick a different strategy or add filters to the profile.',
+        'The selected strategy needs filters this rig doesn\'t have. Pick '
+        'a different strategy or add filters to the wheel or the profile.',
       );
       return false;
     }
     return true;
   }
 
-  /// True if the selected strategy can find at least one usable filter
-  /// in the active profile. We do a simple set intersection rather than
-  /// reusing the service's internal helper because we want a synchronous
-  /// validation before kicking the builder.
-  bool _strategyFitsProfile(
-    SmartNightStrategy strategy,
-    EquipmentProfileModel? profile,
-  ) {
-    if (profile == null) return false;
-    final names = profile.filterNames.map((n) => n.toLowerCase()).toSet();
+  /// True if [strategy] can find at least one usable filter in [filters]
+  /// (the rig's list, `effectiveFiltersProvider`). A plain set intersection
+  /// so the step validates synchronously before the builder runs.
+  bool _strategyFits(SmartNightStrategy strategy, List<String> filters) {
+    final names = filters.map((n) => n.toLowerCase()).toSet();
     bool any(Iterable<String> wanted) => wanted.any(names.contains);
     switch (strategy) {
       case SmartNightStrategy.autoLrgb:
@@ -349,18 +343,18 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     _countDraftDebounce?.cancel();
     _countDraftDebounce = Timer(const Duration(milliseconds: 400), () async {
       try {
-        final draft = await SmartNightDraftService(
-          settingsDao: ref.read(settingsDaoProvider),
-        ).savePending(
-          profileId: profile.id.toString(),
-          astronomicalDay: patched.context.windowStart,
-          plan: patched,
-        );
+        final draft =
+            await ref.read(smartNightDraftServiceProvider).savePending(
+                  profileId: profile.id.toString(),
+                  astronomicalDay: _nightStart!,
+                  plan: patched,
+                );
         if (!mounted) return;
         setState(() => _previewDraftId = draft.id);
       } catch (e) {
         if (mounted) {
-          context.showWarningSnackBar('Could not save adjusted counts: $e');
+          context.showWarningSnackBar(
+              'Could not save adjusted counts: ${userFacingError(e)}');
         }
       }
     });
@@ -405,8 +399,6 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
         continue;
       }
       if (node is! SmartExposureNode) continue;
-      // Walk up to find the parent TargetHeader to identify which
-      // planned target this SmartExposure belongs to.
       final targetName = targetNameFor(node);
       if (targetName == null) continue;
       final tweaked = byTargetName[targetName];
@@ -447,7 +439,8 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       );
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not start Smart Night sequence: $e');
+        context.showErrorSnackBar(
+            'Could not start Smart Night sequence: ${userFacingError(e)}');
       }
       return;
     } finally {
@@ -455,7 +448,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     }
     if (!mounted) return;
     Navigator.of(context).pop();
-    GoRouter.maybeOf(context)?.go('/imaging');
+    GoRouter.maybeOf(context)?.go(AppRoute.imaging.path);
     context.showSuccessSnackBar(
       'Smart Night plan loaded — '
       '${plan.plannedTargets.length} '
@@ -476,7 +469,8 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
           .saveSequence(plan.sequence, isTemplate: true);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not save template: $e');
+        context.showErrorSnackBar(
+            'Could not save template: ${userFacingError(e)}');
       }
       return;
     } finally {
@@ -487,6 +481,63 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     context.showSuccessSnackBar(
       'Saved "${plan.sequence.name}" as a template.',
     );
+  }
+
+  /// Tonight's draft key for the active profile; null until the night's
+  /// window is known.
+  SmartNightDraftLookup? _draftLookup() {
+    final profile = ref.watch(activeEquipmentProfileProvider);
+    final night = _nightStart;
+    if (profile == null || night == null) return null;
+    return SmartNightDraftLookup(
+      profileId: profile.id.toString(),
+      astronomicalDay: night,
+    );
+  }
+
+  /// Reopens [draft] on the Preview step with the choices it was built from,
+  /// so Back walks through them as they were.
+  void _continueDraft(SmartNightDraft draft) {
+    final plan = draft.plan;
+    final remainingStart = _windowStart;
+    setState(() {
+      _draftOfferAnswered = true;
+      _preview = plan;
+      _previewDraftId = draft.id;
+      _previewError = null;
+      // A window that opened before now is planned from now if rebuilt.
+      _windowStart = remainingStart != null &&
+              plan.context.windowStart.isBefore(remainingStart)
+          ? remainingStart
+          : plan.context.windowStart;
+      _windowEnd = plan.context.windowEnd;
+      _strategy = plan.strategy;
+      _settings = plan.settings;
+      _autoSelect = false;
+      _selectedTargetIds
+        ..clear()
+        ..addAll(plan.plannedTargets.map((t) => t.suggestion.targetId));
+      _step = 4;
+    });
+  }
+
+  Future<void> _discardDraft(
+    SmartNightDraft draft,
+    SmartNightDraftLookup lookup,
+  ) async {
+    try {
+      await ref.read(smartNightDraftServiceProvider).discard(draft.id);
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar(
+          'Could not delete the saved plan: ${userFacingError(e)}',
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    ref.invalidate(pendingSmartNightDraftProvider(lookup));
+    setState(() => _draftOfferAnswered = true);
   }
 
   Future<void> _pickDateTime({
@@ -512,16 +563,5 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       time.hour,
       time.minute,
     ));
-  }
-
-  String _formatDuration(Duration d) =>
-      DurationFormat.of(d, style: DurationStyle.compact);
-
-  String _formatDateTime(DateTime dt) {
-    final local = dt.toLocal();
-    return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-        '${local.day.toString().padLeft(2, '0')} '
-        '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}';
   }
 }

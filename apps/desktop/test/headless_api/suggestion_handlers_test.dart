@@ -4,7 +4,10 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_desktop/headless_api/handlers/suggestion_handlers.dart';
 import 'package:shelf/shelf.dart';
 
@@ -148,8 +151,8 @@ void main() {
       db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       // A configured location is a precondition; without it the handler returns
       // a *different* 400 that would mask the validation behaviour under test.
-      await db.settingsDao.setObserverLatitude(40.0);
-      await db.settingsDao.setObserverLongitude(-74.0);
+      await db.settingsDao.write(AppSettingDefs.latitude, 40.0);
+      await db.settingsDao.write(AppSettingDefs.longitude, -74.0);
       container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(db)],
       );

@@ -11,10 +11,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/weather/weather_screen.dart';
-import 'package:skotiq_app/widgets/weather/dashboard_weather_widget.dart';
-import 'package:skotiq_app/widgets/weather/radar_timeline_scrubber.dart';
-import 'package:skotiq_app/widgets/weather/weather_radar_map.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/screens/weather/widgets/radar_timeline_scrubber.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../harness/harness.dart';
 
@@ -63,7 +65,8 @@ class _SiteSettingsNotifier extends AppSettingsNotifier {
       const AppSettingsState(latitude: 35, longitude: -118);
 }
 
-Future<void> _pumpWeather(WidgetTester tester, List<RadarFrame> frames) async {
+Future<void> _pumpWeather(WidgetTester tester, List<RadarFrame> frames,
+    {bool cloudForecast = false}) async {
   await pumpAppScreen(
     tester,
     const WeatherScreen(),
@@ -77,6 +80,23 @@ Future<void> _pumpWeather(WidgetTester tester, List<RadarFrame> frames) async {
         (ref) => TestBackendNotifier(ref, DisconnectedBackend()),
       ),
       appSettingsProvider.overrideWith(_SiteSettingsNotifier.new),
+      if (cloudForecast) ...[
+        cloudCoverForecastProvider
+            .overrideWith((ref) async => CloudCoverForecast(
+                  percent: 6,
+                  source: 'Open-Meteo',
+                  validAt: DateTime.utc(2026, 11, 14, 2, 45),
+                )),
+        evaluateWeatherConditionsProvider.overrideWith((ref) async {
+          final service = WeatherAlertService();
+          ref.onDispose(service.dispose);
+          return service.evaluateConditions(
+            motion: null,
+            currentCloudDensity: 6,
+            settings: const WeatherSettings(),
+          );
+        }),
+      ],
       weatherStatusProvider.overrideWithValue(
         WeatherStatus(radarFrames: frames),
       ),
@@ -119,6 +139,22 @@ void main() {
     expect(find.text('Frame 13 of 13'), findsNothing);
   });
 
+  testWidgets(
+      '6% forecast discloses model and sample time without observing clear sky',
+      (tester) async {
+    await _pumpWeather(tester, _loop(past: 1), cloudForecast: true);
+    expect(find.text('FORECAST CLOUD COVER'), findsOneWidget);
+    expect(
+        find.text('Open-Meteo model · 2026-11-14 02:45 UTC'), findsOneWidget);
+    expect(find.textContaining('Model estimate, not an observation'),
+        findsOneWidget);
+    expect(find.text('No forecast alert'), findsOneWidget);
+    expect(find.text('No clouds detected in monitoring range'), findsNothing);
+    expect(find.text('Clear'), findsNothing);
+    expect(find.text('Warmer'), findsWidgets);
+    expect(find.text('Colder'), findsWidgets);
+  });
+
   group('latestObservedRadarFrameIndex', () {
     test('picks the newest observation', () {
       expect(latestObservedRadarFrameIndex(_loop(past: 5)), 4);
@@ -140,39 +176,6 @@ void main() {
 
     test('an empty loop has no frame to point at', () {
       expect(latestObservedRadarFrameIndex(const []), 0);
-    });
-  });
-
-  group('dashboard radar preview', () {
-    testWidgets('the thumbnail shows the live edge, not the oldest frame',
-        (tester) async {
-      final frames = _loop(past: 6);
-
-      await pumpAppScreen(
-        tester,
-        const SizedBox(width: 460, child: DashboardWeatherWidget()),
-        size: const Size(1280, 800),
-        settle: false,
-        extraOverrides: [
-          backendProvider.overrideWith(
-            (ref) => TestBackendNotifier(ref, DisconnectedBackend()),
-          ),
-          appSettingsProvider.overrideWith(_SiteSettingsNotifier.new),
-          weatherStatusProvider.overrideWithValue(
-            WeatherStatus(radarFrames: frames),
-          ),
-        ],
-      );
-      for (var i = 0; i < 4; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-
-      final map = tester.widget<WeatherRadarMap>(find.byType(WeatherRadarMap));
-      expect(
-        map.currentFrame?.timestamp,
-        frames.last.timestamp,
-        reason: 'frames arrive oldest -> newest; .first is the STALEST frame',
-      );
     });
   });
 }

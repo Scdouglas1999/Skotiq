@@ -7,6 +7,9 @@
 // saying why.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
@@ -17,6 +20,7 @@ import '../panel_ops.dart';
 import '../panel_widgets.dart';
 import 'camera_capture_section.dart';
 import 'camera_panel_vm.dart';
+import '../stale_readings_note.dart';
 
 class NightCameraTab extends ConsumerWidget {
   const NightCameraTab({super.key});
@@ -26,10 +30,19 @@ class NightCameraTab extends ConsumerWidget {
     final vm = ref.watch(nightCameraPanelProvider);
     return NightPanelBody(
       children: <Widget>[
-        NightCoolerSection(
-          vm: vm,
-          history: ref.watch(nightCoolerHistoryProvider),
+        NightStaleReadingsNote(
+          type: DeviceType.camera,
+          deviceId: ref.watch(cameraStateProvider).deviceId,
         ),
+        NightStaleReadingsNote(
+          type: DeviceType.filterWheel,
+          deviceId: ref.watch(filterWheelStateProvider).deviceId,
+        ),
+        if (ref.watch(cameraHasCoolerProvider))
+          NightCoolerSection(
+            vm: vm,
+            history: ref.watch(nightCoolerHistoryProvider),
+          ),
         NightCaptureSection(vm: vm),
         NightFilterSection(vm: vm),
         NightReadoutSection(vm: vm),
@@ -116,16 +129,17 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
     final l10n = SkotiqLocalizations.of(context);
     final vm = widget.vm;
     final blocked = nightCameraBlockedReason(vm, l10n);
-    final (String stateKey, MetricTone? tone) = switch (vm.coolerState) {
+    final (String stateKey, MetricGridTone? tone) = switch (vm.coolerState) {
       NightCoolerState.notConnected => (
           'nightPanelCoolerNotConnected',
-          MetricTone.warning,
+          MetricGridTone.warning,
         ),
+      NightCoolerState.notReported => ('nightPanelCoolerNotReported', null),
       NightCoolerState.off => ('nightPanelCoolerOff', null),
       NightCoolerState.cooling => ('nightPanelCoolerCooling', null),
       NightCoolerState.atSetpoint => (
           'nightPanelCoolerAtSetpoint',
-          MetricTone.good,
+          MetricGridTone.good,
         ),
       NightCoolerState.warming => ('nightPanelCoolerWarming', null),
     };
@@ -242,7 +256,7 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
   Widget _history(SkotiqLocalizations l10n) {
     final history = widget.history;
     final from = history.from;
-    final since = from == null ? null : nightPanelClock(from);
+    final since = from == null ? null : ClockFormat.hm(from);
     final latest = history.lines.first.points.lastOrNull?.y;
     final semantic = <String>[
       if (since != null)
@@ -273,7 +287,7 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
                 points: <(DateTime, double?)>[
                   for (final p in line.points) (p.t, p.y),
                 ],
-                tone: nightChartTone(line.tone),
+                tone: line.tone,
                 axis: line.secondaryAxis
                     ? SeriesChartAxis.right
                     : SeriesChartAxis.left,
@@ -368,7 +382,7 @@ class NightFilterSection extends ConsumerWidget {
     return NightPanelSection(
       title: l10n.text('nightPanelFilter'),
       trailing: trailing,
-      trailingTone: filters.connected ? null : MetricTone.warning,
+      trailingTone: filters.connected ? null : MetricGridTone.warning,
       children: <Widget>[
         if (count > 0)
           NightPanelGrid(
@@ -425,12 +439,12 @@ class NightReadoutSection extends StatelessWidget {
         : nights == null
             ? l10n.text(
                 'nightPanelDiskFree',
-                params: <String, String>{'free': nightBytes(free)},
+                params: <String, String>{'free': ByteFormat.size(free)},
               )
             : l10n.text(
                 'nightPanelDiskFreeNights',
                 params: <String, String>{
-                  'free': nightBytes(free),
+                  'free': ByteFormat.size(free),
                   'nights': '$nights',
                 },
               );

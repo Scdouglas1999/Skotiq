@@ -3,15 +3,18 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide ConnectionState;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../session_review_controller.dart';
-import '../../../services/image_download_service.dart';
+import '../image_download_service.dart';
 import '../../../utils/filter_label.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/image_decode_size.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
+import 'package:skotiq_core/models.dart';
 
 part 'sub_cull_rail_parts/_toolbar.dart';
 part 'sub_cull_rail_parts/_tiles.dart';
@@ -47,7 +50,6 @@ class SubCullRail extends ConsumerStatefulWidget {
   /// Open the per-sub detail dialog.
   final void Function(DbCapturedImage) onTapSub;
 
-  /// Flip a single sub's accept flag.
   final void Function(int imageId, bool accepted) onSetAccepted;
 
   /// Reject every accepted sub above [hfrThreshold] (the threshold-bulk cull).
@@ -90,15 +92,12 @@ class SubCullRail extends ConsumerStatefulWidget {
 }
 
 class _SubCullRailState extends ConsumerState<SubCullRail> {
-  // blink
   bool _blink = false;
   int _blinkIndex = 0;
   Timer? _blinkTimer;
 
-  // threshold bulk-cull
   double _hfrCull = 3.5;
 
-  // multi-select / lasso
   bool _selectMode = false;
   final Set<int> _selected = <int>{};
 
@@ -241,11 +240,7 @@ class _SubCullRailState extends ConsumerState<SubCullRail> {
             'Curve is out of date — re-integrate to refresh before culling';
         break;
     }
-    SkotiqToastHelper.show(
-      context: context,
-      message: message,
-      severity: SkotiqAlertSeverity.info,
-    );
+    context.showInfoSnackBar(message);
   }
 
   @override

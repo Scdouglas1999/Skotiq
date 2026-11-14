@@ -6,11 +6,9 @@
 //! are synthesized from the stack's own provenance, and what they are based on
 //! is disclosed in the card comment rather than guessed at.
 
-use std::collections::HashMap;
-
 use chrono::{TimeZone, Utc};
 use skotiq_imaging::stack_master::{write_stack_master, FrameProvenance, StackProvenance};
-use skotiq_imaging::{read_fits, ImageData};
+use skotiq_imaging::{read_fits, FitsHeader, ImageData};
 
 fn gradient_frame(width: u32, height: u32) -> ImageData {
     let pixels: Vec<u16> = (0..(width as usize * height as usize))
@@ -75,6 +73,7 @@ fn frame_headers_sum_into_total_integration_and_earliest_date_obs() {
         provenance.fold(&FrameProvenance {
             exposure_secs: Some(120.0),
             date_obs: Some(date_obs.to_string()),
+            filter: None,
         });
     }
 
@@ -104,6 +103,7 @@ fn partial_frame_headers_report_how_many_frames_were_counted() {
     provenance.fold(&FrameProvenance {
         exposure_secs: Some(60.0),
         date_obs: Some("2026-08-14T03:22:30".to_string()),
+        filter: None,
     });
     provenance.fold(&FrameProvenance::unknown());
 
@@ -123,23 +123,22 @@ fn partial_frame_headers_report_how_many_frames_were_counted() {
 
 #[test]
 fn frame_provenance_reads_the_keywords_a_read_image_header_carries() {
-    let mut header = HashMap::new();
-    header.insert("EXPTIME".to_string(), "180.0".to_string());
-    header.insert(
-        "DATE-OBS".to_string(),
-        "2026-08-14T03:22:30.500".to_string(),
-    );
+    let mut header = FitsHeader::new();
+    header.set_float("EXPTIME", 180.0);
+    header.set_string("DATE-OBS", "2026-08-14T03:22:30.500");
+    header.set_string("FILTER", "Ha");
 
-    let provenance = FrameProvenance::from_header_map(&header);
+    let provenance = FrameProvenance::from_header(&header);
     assert_eq!(provenance.exposure_secs, Some(180.0));
     assert_eq!(
         provenance.date_obs.as_deref(),
         Some("2026-08-14T03:22:30.500")
     );
+    assert_eq!(provenance.filter.as_deref(), Some("Ha"));
 
     // A frame with neither keyword is "unknown", never zero-by-default.
     assert_eq!(
-        FrameProvenance::from_header_map(&HashMap::new()),
+        FrameProvenance::from_header(&FitsHeader::new()),
         FrameProvenance::unknown()
     );
 }

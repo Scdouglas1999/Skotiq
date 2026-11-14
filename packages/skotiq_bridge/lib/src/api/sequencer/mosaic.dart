@@ -6,62 +6,7 @@
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
-
-/// Calculate the RA/Dec of every mosaic panel around a centre. `center_ra` is in
-/// hours (0-24) and `center_dec` in degrees (-90 to +90); panel size is in
-/// arcminutes, `overlap_percent` in 0-50, `rotation` in degrees.
-List<MosaicPanelResult> apiCalculateMosaicPanels({
-  required double centerRa,
-  required double centerDec,
-  required double panelWidthArcmin,
-  required double panelHeightArcmin,
-  required double overlapPercent,
-  required double rotation,
-  required int panelsHorizontal,
-  required int panelsVertical,
-}) => RustLib.instance.api.crateApiSequencerMosaicApiCalculateMosaicPanels(
-  centerRa: centerRa,
-  centerDec: centerDec,
-  panelWidthArcmin: panelWidthArcmin,
-  panelHeightArcmin: panelHeightArcmin,
-  overlapPercent: overlapPercent,
-  rotation: rotation,
-  panelsHorizontal: panelsHorizontal,
-  panelsVertical: panelsVertical,
-);
-
-/// Calculate total mosaic coverage area in square degrees
-double apiCalculateMosaicArea({
-  required double panelWidthArcmin,
-  required double panelHeightArcmin,
-  required int panelsHorizontal,
-  required int panelsVertical,
-}) => RustLib.instance.api.crateApiSequencerMosaicApiCalculateMosaicArea(
-  panelWidthArcmin: panelWidthArcmin,
-  panelHeightArcmin: panelHeightArcmin,
-  panelsHorizontal: panelsHorizontal,
-  panelsVertical: panelsVertical,
-);
-
-/// Estimate total imaging time for mosaic in seconds
-///
-/// # Arguments
-/// * `total_panels` - Total number of panels
-/// * `exposure_secs` - Exposure time per frame
-/// * `exposures_per_panel` - Number of exposures per panel
-/// * `overhead_per_panel_secs` - Overhead per panel (slew, center, settle) - defaults to 60s if 0
-double apiEstimateMosaicTime({
-  required int totalPanels,
-  required double exposureSecs,
-  required int exposuresPerPanel,
-  required double overheadPerPanelSecs,
-}) => RustLib.instance.api.crateApiSequencerMosaicApiEstimateMosaicTime(
-  totalPanels: totalPanels,
-  exposureSecs: exposureSecs,
-  exposuresPerPanel: exposuresPerPanel,
-  overheadPerPanelSecs: overheadPerPanelSecs,
-);
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
 
 /// Altitude in degrees above the horizon (-90 to +90) for a target at `ra_hours`
 /// (hours, 0-24) / `dec_degrees` (degrees), seen from `latitude` / `longitude`
@@ -109,8 +54,6 @@ class LiveStackingBroadcastSnapshot {
   /// `average`, `median_rej`, or `sigma`.
   final String stackMethod;
   final bool broadcastEnabled;
-  final int broadcastPort;
-  final String broadcastPath;
 
   /// Empty string when public (no token required). Non-empty when
   /// `?token=…` is required on every broadcast endpoint.
@@ -132,8 +75,6 @@ class LiveStackingBroadcastSnapshot {
     required this.mode,
     required this.stackMethod,
     required this.broadcastEnabled,
-    required this.broadcastPort,
-    required this.broadcastPath,
     required this.authToken,
     required this.watermarkTemplate,
     required this.thumbnailWidth,
@@ -148,8 +89,6 @@ class LiveStackingBroadcastSnapshot {
       mode.hashCode ^
       stackMethod.hashCode ^
       broadcastEnabled.hashCode ^
-      broadcastPort.hashCode ^
-      broadcastPath.hashCode ^
       authToken.hashCode ^
       watermarkTemplate.hashCode ^
       thumbnailWidth.hashCode ^
@@ -166,48 +105,10 @@ class LiveStackingBroadcastSnapshot {
           mode == other.mode &&
           stackMethod == other.stackMethod &&
           broadcastEnabled == other.broadcastEnabled &&
-          broadcastPort == other.broadcastPort &&
-          broadcastPath == other.broadcastPath &&
           authToken == other.authToken &&
           watermarkTemplate == other.watermarkTemplate &&
           thumbnailWidth == other.thumbnailWidth &&
           thumbnailHeight == other.thumbnailHeight &&
           maxFramesToStack == other.maxFramesToStack &&
           activatedAtUnixMillis == other.activatedAtUnixMillis;
-}
-
-/// Result structure for mosaic panel calculations (FFI-safe)
-class MosaicPanelResult {
-  final double raHours;
-  final double decDegrees;
-  final int panelIndex;
-  final int row;
-  final int col;
-
-  const MosaicPanelResult({
-    required this.raHours,
-    required this.decDegrees,
-    required this.panelIndex,
-    required this.row,
-    required this.col,
-  });
-
-  @override
-  int get hashCode =>
-      raHours.hashCode ^
-      decDegrees.hashCode ^
-      panelIndex.hashCode ^
-      row.hashCode ^
-      col.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is MosaicPanelResult &&
-          runtimeType == other.runtimeType &&
-          raHours == other.raHours &&
-          decDegrees == other.decDegrees &&
-          panelIndex == other.panelIndex &&
-          row == other.row &&
-          col == other.col;
 }

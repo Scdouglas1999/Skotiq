@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/darkroom/darkroom_controller.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
 import 'package:skotiq_app/screens/darkroom/pass_view/pass_view.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
 
 const _t0 = 1800000000000;
 

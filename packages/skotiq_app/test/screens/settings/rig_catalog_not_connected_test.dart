@@ -9,8 +9,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/widgets/rig_catalog_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A local (non-network) backend: exactly the desktop-with-no-appliance case.
@@ -28,8 +30,8 @@ Future<GoRouter> _pump(WidgetTester tester) async {
     routes: [
       GoRoute(
         path: '/settings',
-        builder: (_, __) =>
-            const Scaffold(body: RigCatalogSettings(isMobile: true)),
+        builder: (_, __) => const Scaffold(
+            body: SettingsFormScope(narrow: true, child: RigCatalogSettings())),
       ),
     ],
   );

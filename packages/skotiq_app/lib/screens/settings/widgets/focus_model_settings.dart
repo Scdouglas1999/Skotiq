@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/confirm_dialog.dart';
@@ -17,16 +19,8 @@ import 'settings_widgets.dart';
 /// temp-comp is healthy from Settings. Remote-only — the live, backend-aware
 /// view lives on Imaging → Focus (`FocusModelCurveCard`).
 class FocusModelSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  /// When true, render without an own scroll view / header (embedded in a
-  /// merged section). Same contract as [PredictiveAfSettingsPage].
-  final bool embedded;
-
   const FocusModelSettings({
     super.key,
-    this.isMobile = false,
-    this.embedded = false,
   });
 
   @override
@@ -39,30 +33,30 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
   String? _error;
   Object? _clearToken;
   bool _clearConfirmationOpen = false;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _loadGeneration = 0;
+  ProviderSubscription<HostFocusModels?>? _hostSubscription;
 
-  NetworkBackend? get _backend {
-    final b = ref.read(backendProvider);
-    return b is NetworkBackend ? b : null;
-  }
+  /// Model loads (the newest wins) and clears on the host; a host change
+  /// drops what the old host answers.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
+
+  HostFocusModels? get _focusModels => ref.read(linkedHostFocusModelsProvider);
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    _hostSubscription = ref.listenManual<HostFocusModels?>(
+      linkedHostFocusModelsProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
-        _loadGeneration++;
+        _hostScopes.cancelAll();
         setState(() {
           _model = null;
           _error = null;
-          _loading = next is NetworkBackend;
+          _loading = next != null;
           _clearToken = null;
           _clearConfirmationOpen = false;
         });
-        if (next is NetworkBackend) unawaited(_refresh());
+        if (next != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -72,14 +66,14 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
 
   @override
   void dispose() {
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     super.dispose();
   }
 
   Future<void> _refresh() async {
-    final backend = _backend;
-    final generation = ++_loadGeneration;
-    if (backend == null) {
+    final load = _hostScopes.beginLatest();
+    final focusModels = _focusModels;
+    if (focusModels == null) {
       if (!mounted) return;
       setState(() {
         _model = null;
@@ -93,35 +87,29 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
       _error = null;
     });
     try {
-      final model = await backend.getFocusModel();
-      if (!_isCurrentLoad(backend, generation)) return;
+      final model = await focusModels.getFocusModel();
+      if (load.isStale) return;
       setState(() {
         _model = model;
         _loading = false;
       });
     } catch (e) {
-      if (!_isCurrentLoad(backend, generation)) return;
+      if (load.isStale) return;
       setState(() {
         _loading = false;
-        _error = '$e';
+        _error = userFacingError(e);
       });
     }
   }
 
-  bool _isCurrentLoad(NetworkBackend backend, int generation) =>
-      mounted &&
-      generation == _loadGeneration &&
-      identical(ref.read(backendProvider), backend);
-
-  bool _isCurrentClear(NetworkBackend backend, Object token) =>
-      mounted &&
-      identical(_clearToken, token) &&
-      identical(ref.read(backendProvider), backend);
+  bool _isCurrentClear(AsyncScope<SkotiqBackend> clear, Object token) =>
+      clear.isCurrent && identical(_clearToken, token);
 
   Future<void> _clear() async {
     if (_loading || _clearToken != null || _clearConfirmationOpen) return;
-    final backend = _backend;
-    if (backend == null) return;
+    final clear = _hostScopes.begin();
+    final focusModels = _focusModels;
+    if (focusModels == null) return;
     setState(() => _clearConfirmationOpen = true);
     final bool confirmed;
     try {
@@ -139,7 +127,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     }
     if (!mounted) return;
     if (!confirmed) return;
-    if (!identical(ref.read(backendProvider), backend)) {
+    if (clear.isStale) {
       context.showErrorSnackBar(
         'Connected rig changed; focus model data was not cleared',
       );
@@ -148,16 +136,16 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     final token = Object();
     setState(() => _clearToken = token);
     try {
-      await backend.clearFocusModelData();
-      if (mounted && _isCurrentClear(backend, token)) {
+      await focusModels.clearFocusModelData();
+      if (mounted && _isCurrentClear(clear, token)) {
         context.showSuccessSnackBar('Focus model data cleared');
       }
     } catch (e) {
-      if (mounted && _isCurrentClear(backend, token)) {
-        context.showErrorSnackBar('Clear failed: $e');
+      if (mounted && _isCurrentClear(clear, token)) {
+        context.showErrorSnackBar('Clear failed: ${userFacingError(e)}');
       }
     } finally {
-      if (_isCurrentClear(backend, token)) {
+      if (_isCurrentClear(clear, token)) {
         setState(() => _clearToken = null);
         await _refresh();
       }
@@ -167,7 +155,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final backend = _backend;
+    final focusModels = ref.watch(linkedHostFocusModelsProvider);
     final model = _model;
     final hasModel = model?['hasModel'] == true;
     final m = model?['model'] as Map<String, dynamic>?;
@@ -175,11 +163,8 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     return SettingsPage(
       title: 'Focus model',
       description: 'Temperature-compensation focus model on the connected rig',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile || widget.embedded,
-      scrollable: !widget.embedded,
       children: [
-        if (backend == null)
+        if (focusModels == null)
           _info(colors, LucideIcons.info,
               'Connect to a remote appliance to view its focus model.')
         else ...[

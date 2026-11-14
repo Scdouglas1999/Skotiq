@@ -1,7 +1,10 @@
 // The Plan block: integration against the plan's estimate, the end time, and
-// one row per filter with its frames and captured time.
+// one row per filter with its frames and captured time. With nothing to
+// capture it offers the one-tap night instead.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
@@ -10,6 +13,7 @@ import '../data/plan/plan_progress_provider.dart';
 import '../night_control_contracts.dart';
 import 'left_section_frame.dart';
 import 'night_time_format.dart';
+import '../../../router/app_routes.dart';
 
 class NightPlanSection extends ConsumerWidget {
   const NightPlanSection({super.key});
@@ -25,7 +29,10 @@ class NightPlanSection extends ConsumerWidget {
       return NightLeftSectionFrame(
         title: title,
         gap: 5,
-        child: NightLeftEmpty(l10n.text('nightCtlNoPlan')),
+        child: _NothingToImage(
+          note: l10n.text('nightCtlNoPlan'),
+          offerOneTap: !live,
+        ),
       );
     }
     final summary = _summary(l10n, plan, live: live);
@@ -40,7 +47,10 @@ class NightPlanSection extends ConsumerWidget {
         softWrap: false,
       ),
       child: plan.rows.isEmpty
-          ? NightLeftEmpty(l10n.text('nightCtlPlanNoFrames'))
+          ? _NothingToImage(
+              note: l10n.text('nightCtlPlanNoFrames'),
+              offerOneTap: !live,
+            )
           : _FilterTable(rows: plan.rows, started: live || _anyCaptured(plan)),
     );
   }
@@ -49,7 +59,7 @@ class NightPlanSection extends ConsumerWidget {
       plan.rows.any((r) => r.framesDone > 0);
 
   /// "5 h 10 m / ≈7 h · ETA ≈05:30" during a run, "0 / ≈7 h · ends ≈05:30"
-  /// before one.
+  /// before one, "1 h 12 m · until stopped" for a plan nothing bounds.
   static String _summary(
     SkotiqLocalizations l10n,
     NightPlanVm plan, {
@@ -66,9 +76,40 @@ class NightPlanSection extends ConsumerWidget {
       if (plan.eta case final eta?)
         l10n.text(live ? 'nightCtlPlanEta' : 'nightCtlPlanEnds', params: {
           'time': nightHmMaybeEstimated(eta, estimated: true),
-        }),
+        })
+      else if (plan.openEnded)
+        l10n.text('nightCtlPlanUntilStopped'),
     ];
     return parts.join(' · ');
+  }
+}
+
+/// The note for a plan with nothing to capture and, outside a run, the way
+/// to a one-tap night.
+class _NothingToImage extends StatelessWidget {
+  const _NothingToImage({required this.note, required this.offerOneTap});
+
+  final String note;
+  final bool offerOneTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!offerOneTap) return NightLeftEmpty(note);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        NightLeftEmpty(note),
+        const SizedBox(height: SkotiqTokens.spaceSm),
+        SkotiqButton(
+          label: SkotiqLocalizations.of(context).text('nightCtlOneTap'),
+          icon: LucideIcons.moonStar,
+          variant: ButtonVariant.secondary,
+          size: ButtonSize.small,
+          onPressed: () => context.go(AppRoute.oneTapTonight.path),
+        ),
+      ],
+    );
   }
 }
 

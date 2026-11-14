@@ -53,9 +53,9 @@ sealed class ImagingEvent with _$ImagingEvent {
       ImagingEvent_ImageSaved;
 
   /// Progress update from the offline batch-integration pipeline
-  /// ([`crate::api::post_session::api_integrate_session`]). Emitted at every
-  /// phase boundary and, during the per-frame register loop, per frame —
-  /// never per pixel. The UI filters these by `category == Imaging` +
+  /// (`skotiq_processing::post_session::entrypoints::integrate_session`).
+  /// Emitted at every phase boundary and, during the per-frame register
+  /// loop, per frame — never per pixel. The UI filters these by `category == Imaging` +
   /// `eventType == "IntegrationProgress"` and drives a progress bar from
   /// `fraction`.
   const factory ImagingEvent.integrationProgress({
@@ -78,9 +78,9 @@ sealed class ImagingEvent with _$ImagingEvent {
 
   /// One report from a post-session integration pass for the Darkroom pass
   /// view: the caller's `run_id`, what happened (`kind`, see
-  /// `api::post_session::telemetry`), and its details as a JSON object. The
-  /// details travel as a string so a new field never needs a bridge
-  /// regeneration.
+  /// `processing/src/post_session/telemetry.rs`), and its details as a JSON
+  /// object. The details travel as a string so a new field never needs a
+  /// bridge regeneration.
   const factory ImagingEvent.integrationTelemetry({
     required String runId,
     required String kind,

@@ -12,13 +12,12 @@
 /// and a catalogue with no colour-indexed star in the field has nothing to fit.
 library;
 
-import 'dart:math' as math;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-
+import '../../errors/error_text.dart';
 import '../color_calibration_service.dart' show StarConeSearch;
-import '../calibration/fits_header_reader.dart';
-import '../wcs_overlay.dart';
+import '../frame_header.dart';
+import '../wcs/gnomonic_projection.dart';
 import 'dawn_master_resolver.dart';
 
 /// The catalogue stars for one master's field, or the reason there are none.
@@ -33,7 +32,6 @@ class DawnPhotometry {
 
   const DawnPhotometry._(this.stars, this.unavailableReason);
 
-  /// A resolved field.
   const DawnPhotometry.resolved(List<Map<String, dynamic>> stars)
     : this._(stars, null);
 
@@ -54,39 +52,31 @@ class DawnPhotometryResolver {
   /// would have asked for.
   final double magnitudeLimit;
 
+  /// Reads a master's header when the library holds no solve for it.
+  final FrameHeaderReader _readHeader;
+
   const DawnPhotometryResolver({
     required StarConeSearch coneSearch,
     this.magnitudeLimit = 17.0,
-  }) : _coneSearch = coneSearch;
+    FrameHeaderReader readHeader = readFrameHeader,
+  }) : _coneSearch = coneSearch,
+       _readHeader = readHeader;
 
   /// Catalogue stars for [master]'s field.
   ///
-  /// A library row may lack WCS even when the integrated FITS is solved.
-  /// Read its header before declaring the field unavailable.
+  /// A library row may lack WCS even when the master file is solved. Read
+  /// its header before declaring the field unavailable.
   Future<DawnPhotometry> resolve({
     required DawnMaster master,
-    required WcsOverlay? wcs,
+    required SolvedWcs? wcs,
   }) async {
     if (wcs == null) {
       try {
-        final header = await const FitsHeaderReader().readPrimaryHeader(
-          master.masterFitsPath,
-        );
-        double? value(String key) => FitsHeaderReader.doubleValue(header, key);
-        wcs = overlayFromMasterWcs(
-          crval1: value('CRVAL1'),
-          crval2: value('CRVAL2'),
-          crpix1: value('CRPIX1'),
-          crpix2: value('CRPIX2'),
-          cd11: value('CD1_1'),
-          cd12: value('CD1_2'),
-          cd21: value('CD2_1'),
-          cd22: value('CD2_2'),
-        );
-      } catch (error) {
+        wcs = (await _readHeader(master.masterFitsPath)).solvedWcs;
+      } on Exception catch (error) {
         return DawnPhotometry.unavailable(
-          'the library has no solved astrometry and the master FITS header '
-          'could not be read: $error',
+          'the library has no solved astrometry and the master file header '
+          'could not be read: ${userFacingError(error)}',
         );
       }
     }
@@ -103,10 +93,10 @@ class DawnPhotometryResolver {
       );
     }
 
-    final radiusDeg = _fieldRadiusDegrees(master, wcs);
-    final centre = CelestialCoordinate(ra: wcs.crval1 / 15.0, dec: wcs.crval2);
+    final radiusDeg = wcs.coneSearchRadiusDegrees;
+    final centre = GnomonicProjection(wcs).imageCentre;
     final found = await _coneSearch(
-      centre,
+      CelestialCoordinate(ra: centre.raDegrees / 15.0, dec: centre.decDegrees),
       radiusDeg,
       maxMagnitude: magnitudeLimit,
     );
@@ -142,66 +132,4 @@ class DawnPhotometryResolver {
     });
     return DawnPhotometry.resolved(List.unmodifiable(stars));
   }
-
-  /// Half the frame diagonal in degrees, with the 10 % margin the colour
-  /// calibrator already uses, clamped to the range a catalogue cone search
-  /// answers usefully.
-  static double _fieldRadiusDegrees(DawnMaster master, WcsOverlay wcs) {
-    final halfDiagonal =
-        0.5 *
-        math.sqrt(
-          math.pow(master.width * wcs.cdelt1, 2) +
-              math.pow(master.height * wcs.cdelt2, 2),
-        );
-    return (halfDiagonal.abs() * 1.1).clamp(0.05, 30.0);
-  }
-}
-
-/// Rebuild a [WcsOverlay] from the CD-matrix scalars an `integrated_masters`
-/// row persists, or null when the master was never solved. The inversion is
-/// [WcsOverlay.fromCd], which keeps the matrix's parity.
-WcsOverlay? overlayFromMasterWcs({
-  required double? crval1,
-  required double? crval2,
-  required double? crpix1,
-  required double? crpix2,
-  required double? cd11,
-  required double? cd12,
-  required double? cd21,
-  required double? cd22,
-}) {
-  if (crval1 == null ||
-      crval2 == null ||
-      crpix1 == null ||
-      crpix2 == null ||
-      cd11 == null ||
-      cd12 == null ||
-      cd21 == null ||
-      cd22 == null) {
-    return null;
-  }
-  if (![
-    crval1,
-    crval2,
-    crpix1,
-    crpix2,
-    cd11,
-    cd12,
-    cd21,
-    cd22,
-  ].every((v) => v.isFinite)) {
-    return null;
-  }
-  final determinant = cd11 * cd22 - cd12 * cd21;
-  if (!determinant.isFinite || determinant == 0.0) return null;
-  return WcsOverlay.fromCd(
-    crpix1: crpix1,
-    crpix2: crpix2,
-    crval1: crval1,
-    crval2: crval2,
-    cd1_1: cd11,
-    cd1_2: cd12,
-    cd2_1: cd21,
-    cd2_2: cd22,
-  );
 }

@@ -1,5 +1,12 @@
 use super::*;
 
+async fn display_name(manager: &DeviceManager, device_id: &str) -> Option<String> {
+    manager
+        .get_device(device_id)
+        .await
+        .map(|device| device.info.display_name)
+}
+
 /// A connect must read identity back off the driver and replace the
 /// id-derived placeholder name with it.
 ///
@@ -22,12 +29,12 @@ async fn connect_replaces_the_id_derived_name_with_the_drivers_own() {
         .expect("connect should succeed");
 
     assert_eq!(
-        manager.get_device_display_name(&info.id).await.as_deref(),
+        display_name(&manager, &info.id).await.as_deref(),
         Some("ZWO ASI1600MM-Cool"),
         "the driver's own name must replace the id-derived placeholder"
     );
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -68,7 +75,7 @@ async fn connect_refuses_an_id_that_re_bound_to_different_hardware() {
         "error should name both cameras so the operator can see the swap, got: {err}"
     );
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -95,7 +102,7 @@ async fn reconnecting_the_same_camera_is_not_treated_as_a_swap() {
         .await
         .expect("reconnecting the same camera must succeed");
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -142,7 +149,7 @@ async fn a_swap_found_during_auto_reconnect_is_not_reported_as_a_user_cancel() {
         "the reconnect error must still name both cameras, got: {err}"
     );
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -172,14 +179,148 @@ async fn a_driver_echoing_its_own_id_does_not_become_the_name() {
         .expect("connect should succeed");
 
     assert_eq!(
-        manager.get_device_display_name(&info.id).await.as_deref(),
+        display_name(&manager, &info.id).await.as_deref(),
         Some("ZWO 1"),
         "the placeholder must survive a driver that only echoed the device id"
     );
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
         .connected = false;
+}
+
+/// The rig's hub dropout, on the simulators: both cameras come back at each
+/// other's ids. The profile's camera must be found at its new id even though
+/// that id last answered as the guide camera, and the guide camera must never
+/// be accepted as the main camera.
+#[tokio::test]
+async fn expected_model_follows_a_camera_that_moved_ids() {
+    use crate::simulator::camera::{
+        reset_sim_camera_bus, unplug_sim_camera, SIM_GUIDE_CAMERA_ID, SIM_IMAGING_CAMERA_ID,
+    };
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    reset_sim_camera_bus();
+    let manager = build_device_manager();
+    for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID] {
+        manager
+            .register_device(build_sim_info(id, DeviceType::Camera), false)
+            .await;
+    }
+    manager
+        .connect_device_expecting(SIM_IMAGING_CAMERA_ID, Some("Simulated Camera"))
+        .await
+        .expect("main camera connects");
+    manager
+        .connect_device_expecting(SIM_GUIDE_CAMERA_ID, Some("Simulated Guide Camera"))
+        .await
+        .expect("guide camera connects");
+
+    unplug_sim_camera(SIM_IMAGING_CAMERA_ID, true).await;
+
+    // The main camera's old id is now the guide camera: refused, by the
+    // expectation the id carries from its first connect.
+    let err = manager
+        .connect_device(SIM_IMAGING_CAMERA_ID)
+        .await
+        .expect_err("the guide camera must not connect as the main camera");
+    assert!(
+        err.contains(crate::device_manager::identity::IDENTITY_CONFLICT_MARKER),
+        "{err}"
+    );
+    assert!(err.contains("expected Simulated Camera"), "{err}");
+
+    // Where the main camera went: the id last observed as the guide camera.
+    manager
+        .connect_device_expecting(SIM_GUIDE_CAMERA_ID, Some("Simulated Camera #1"))
+        .await
+        .expect("the main camera connects at its new id");
+    assert_eq!(
+        display_name(&manager, SIM_GUIDE_CAMERA_ID).await.as_deref(),
+        Some("Simulated Camera")
+    );
+
+    // And the guide camera at the main camera's old id, once a caller asks
+    // for the guide camera there.
+    manager
+        .connect_device_expecting(SIM_IMAGING_CAMERA_ID, Some("Simulated Guide Camera"))
+        .await
+        .expect("the guide camera connects at its new id");
+
+    for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID] {
+        let _ = manager.disconnect_device(id).await;
+    }
+    reset_sim_camera_bus();
+}
+
+/// Without an expectation, the id's last observation still guards it.
+#[tokio::test]
+async fn a_moved_camera_is_still_refused_without_an_expectation() {
+    use crate::simulator::camera::{
+        reset_sim_camera_bus, unplug_sim_camera, SIM_IMAGING_CAMERA_ID,
+    };
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    reset_sim_camera_bus();
+    let manager = build_device_manager();
+    manager
+        .register_device(
+            build_sim_info(SIM_IMAGING_CAMERA_ID, DeviceType::Camera),
+            false,
+        )
+        .await;
+    manager
+        .connect_device(SIM_IMAGING_CAMERA_ID)
+        .await
+        .expect("connects");
+    unplug_sim_camera(SIM_IMAGING_CAMERA_ID, true).await;
+    let err = manager
+        .connect_device(SIM_IMAGING_CAMERA_ID)
+        .await
+        .expect_err("a different sensor at the id is refused");
+    assert!(
+        err.contains(crate::device_manager::identity::IDENTITY_CONFLICT_MARKER),
+        "{err}"
+    );
+    let _ = manager.disconnect_device(SIM_IMAGING_CAMERA_ID).await;
+    reset_sim_camera_bus();
+}
+
+/// Only a camera's handle used to answer what it is, so two filter wheels (or
+/// focusers, or mounts) trading ids on a replug were never compared.
+#[tokio::test]
+async fn a_vendor_filter_wheel_behind_its_handle_reports_model_and_serial() {
+    use crate::device_manager::handle::DeviceHandle;
+    use crate::device_manager::rig::filter_wheel::DriverFilterWheel;
+
+    let manager = build_device_manager();
+    let info = DeviceInfo {
+        id: "native:zwo_efw:0".to_string(),
+        name: "ZWO EFW 0".to_string(),
+        device_type: DeviceType::FilterWheel,
+        driver_type: DriverType::Native,
+        description: "Native zwo driver".to_string(),
+        driver_version: "Native".to_string(),
+        serial_number: None,
+        unique_id: None,
+        display_name: "ZWO EFW 0".to_string(),
+    };
+    manager.register_device(info.clone(), false).await;
+    manager.handles.insert(
+        &info.id,
+        DeviceHandle::FilterWheel(Arc::new(DriverFilterWheel::vendor(
+            &info.id,
+            Box::new(FakeIdentityDevice {
+                id: info.id.clone(),
+                model: "EFW".to_string(),
+                serial: Some("0E0F0A01".to_string()),
+            }),
+        ))),
+    );
+
+    let identity = manager.probe_device_identity(&info).await;
+    assert_eq!(identity.model.as_deref(), Some("EFW"));
+    assert_eq!(identity.serial_number.as_deref(), Some("0E0F0A01"));
 }

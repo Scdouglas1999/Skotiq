@@ -1,6 +1,6 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,12 +10,15 @@ import '../database/database.dart';
 import '../models/darkroom/darkroom_links.dart';
 import '../models/notification/notification_categories.dart';
 import '../providers/database_provider.dart';
-import '../utils/skotiq_data_directory.dart';
-import 'calibration/fits_header_reader.dart';
+import 'frame_header.dart';
 import 'darkroom_build_service.dart';
-import 'darkroom_state_store.dart';
 import 'notification_service.dart';
-import 'post_session_seam.dart';
+import '../providers/darkroom_build_service_provider.dart';
+import '../providers/output_locations_provider.dart';
+import '../providers/darkroom_state_store_provider.dart';
+import '../providers/notification_service_provider.dart';
+import '../providers/post_session_seam_provider.dart';
+import 'logging_service.dart';
 
 /// Where a master build is.
 enum DarkroomJobStage {
@@ -76,7 +79,6 @@ class DarkroomBuildJob {
   final DarkroomRegistrationPreview? preview;
   final String? directory;
 
-  /// Filter being built.
   final String? filter;
   final int filterIndex;
   final int filterCount;
@@ -272,13 +274,6 @@ final darkroomRecentBuildsProvider =
       DarkroomRecentBuilds.new,
     );
 
-/// The folder an unattended build of [target] writes into under [root]. One
-/// folder per target, so each night folds into the same build.
-Directory darkroomTargetBuildDirectory(Directory root, String target) =>
-    Directory(
-      p.join(root.path, target.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')),
-    );
-
 /// The light ids of [plan] that go into the build, by filter: the lights the
 /// accepted framing [preview] includes, or every planned light when there is
 /// no preview. Lights the crop leaves out are not counted as build progress.
@@ -299,38 +294,27 @@ Map<String, List<int>> darkroomBuildLightIds(
   return byFilter;
 }
 
-/// Where unattended builds go unless told otherwise: one folder per target
-/// under `Documents/Skotiq/Masters`.
-final darkroomMastersRootProvider = FutureProvider<Directory>(
-  (ref) async => Directory(
-    p.join((await resolveSkotiqDocumentsDirectory()).path, 'Skotiq', 'Masters'),
-  ),
-);
-
 /// Every captured light, by target: the target's name, else the FITS
 /// `OBJECT`, else its session.
-Future<Map<String, List<CapturedImage>>> loadDarkroomTargets(
+Future<Map<String, List<DbCapturedImage>>> loadDarkroomTargets(
   SkotiqDatabase db, {
-  DarkroomHeaderReader? readHeader,
+  FrameHeaderReader readHeader = readFrameHeader,
 }) async {
-  final read =
-      readHeader ??
-      ((path) => const FitsHeaderReader().readPrimaryHeader(path));
   final images = await db.imagesDao.getAllImages();
   final names = {
     for (final t in await db.targetsDao.getAllTargets()) t.id: t.name,
   };
-  final targets = <String, List<CapturedImage>>{};
-  for (final f in images.where((f) => f.frameType.toLowerCase() == 'light')) {
+  final targets = <String, List<DbCapturedImage>>{};
+  for (final f in images.where((f) => f.isLight)) {
     var name = names[f.targetId];
     if (name == null) {
       try {
-        name = FitsHeaderReader.stringValue(await read(f.filePath), 'OBJECT');
+        name = (await readHeader(f.filePath)).string('OBJECT');
       } catch (e) {
         // Unreadable files stay listed under their session.
-        developer.log(
+        Log.debug(
           'Darkroom: no OBJECT for ${f.filePath}: $e',
-          name: 'darkroom',
+          source: 'darkroom',
         );
       }
     }
@@ -376,7 +360,6 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   /// Every build that ends (done, failed or stopped), as it ends.
   Stream<DarkroomBuildJob> get finished => _finished.stream;
 
-  /// Whether a build is running.
   bool get busy => state?.active == true || _service.isRunning;
 
   /// Completes once no build is running.
@@ -398,7 +381,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
           .read(darkroomStateStoreProvider)
           .read(darkroomBuildJobsStateKey);
     } catch (e) {
-      developer.log('Darkroom: saved builds not read: $e', name: 'darkroom');
+      Log.debug('Darkroom: saved builds not read: $e', source: 'darkroom');
     }
     if (saved == null) return;
     List<DarkroomBuildJob> jobs(String key) => [
@@ -438,9 +421,9 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     try {
       return DarkroomBuildJob.fromJson(Map<String, dynamic>.from(json));
     } catch (e) {
-      developer.log(
+      Log.debug(
         'Darkroom: a saved build was unreadable: $e',
-        name: 'darkroom',
+        source: 'darkroom',
       );
       return null;
     }
@@ -483,7 +466,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
       try {
         await store.write(darkroomBuildJobsStateKey, snapshot);
       } catch (e) {
-        developer.log('Darkroom: builds not saved: $e', name: 'darkroom');
+        Log.debug('Darkroom: builds not saved: $e', source: 'darkroom');
       }
     });
   }
@@ -883,8 +866,9 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   }
 
   /// Build every filter of [target] from all its nights, with default choices
-  /// and no dialog, into the target's own folder under [outputRoot]: a new
-  /// night folds into the build already there. The build starts only when
+  /// and no dialog, into the target's masters folder
+  /// ([OutputLocations.mastersOf]): a new night folds into the build already
+  /// there. The build starts only when
   /// the common crop keeps at least [minRetainedArea] of the field;
   /// otherwise the job waits for review. Returns when the job ends or waits.
   ///
@@ -892,7 +876,6 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   /// passes false and sends one morning message for the whole night.
   Future<DarkroomBuildJob> startUnattended(
     String target, {
-    Directory? outputRoot,
     double minRetainedArea = defaultMinRetainedArea,
     bool announce = true,
     String? nightRunId,
@@ -906,9 +889,9 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     if (frames == null || frames.isEmpty) {
       throw StateError('No captured lights for $target.');
     }
-    final Directory root =
-        outputRoot ?? await ref.read(darkroomMastersRootProvider.future);
-    final directory = darkroomTargetBuildDirectory(root, target);
+    final directory = await ref.read(
+      targetMastersFolderProvider(target).future,
+    );
     _begin(
       DarkroomBuildJob(
         target: target,
@@ -1075,12 +1058,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
           );
     } catch (e) {
       // The job's own state still shows the outcome.
-      developer.log('Darkroom: notification not sent: $e', name: 'darkroom');
+      Log.debug('Darkroom: notification not sent: $e', source: 'darkroom');
     }
   }
 }
-
-final darkroomBuildJobsProvider =
-    NotifierProvider<DarkroomBuildJobs, DarkroomBuildJob?>(
-      DarkroomBuildJobs.new,
-    );

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
-import '../../services/scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../backend/roles/host_data/host_records.dart';
 import '../database.dart';
 import '../tables/targets.dart';
 
@@ -8,28 +9,32 @@ part 'targets_dao.g.dart';
 
 @DriftAccessor(tables: [Targets])
 class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$TargetsDaoMixin {
+    with _$TargetsDaoMixin
+    implements TargetLibrary {
   TargetsDao(super.db);
 
   /// Predicate identifying "untracked" library targets that are safe to remove
-  /// in the Analytics → Projects cleanup. A target is untracked only when it has
-  /// NO integration goal, is NOT a favorite, has NO captured data, and is NOT
-  /// referenced by any imaging session. This deliberately preserves every target
-  /// the user has invested in (favorites, goals, captures, sessions).
+  /// in the Analytics → Projects cleanup: not a favorite, no integration goal,
+  /// no captured frame, no imaging session naming it and in no project. Every
+  /// target the user has invested in is kept.
   Expression<bool> _untrackedPredicate($TargetsTable t) {
-    final sessions = attachedDatabase.imagingSessions;
-    final referencedBySession = existsQuery(
-      selectOnly(sessions)
-        ..addColumns([sessions.id])
-        ..where(
-          sessions.targetId.equalsExp(t.id) & sessions.targetId.isNotNull(),
-        ),
+    final db = attachedDatabase;
+    Expression<bool> referenced<T extends HasResultSet, D>(
+      ResultSetImplementation<T, D> table,
+      Expression<int> targetColumn,
+    ) => existsQuery(
+      selectOnly(table)
+        ..addColumns([targetColumn])
+        ..where(targetColumn.equalsExp(t.id)),
     );
     return t.goalIntegrationSecs.isSmallerOrEqualValue(0.0) &
         t.isFavorite.equals(false) &
         t.capturedSubs.equals(0) &
         t.totalIntegrationSecs.equals(0.0) &
-        referencedBySession.not();
+        referenced(db.imagingSessions, db.imagingSessions.targetId).not() &
+        referenced(db.capturedImages, db.capturedImages.targetId).not() &
+        referenced(db.integrationGoals, db.integrationGoals.targetId).not() &
+        referenced(db.projectTargets, db.projectTargets.targetId).not();
   }
 
   /// Counts library targets matching [_untrackedPredicate]. Drives the opt-in
@@ -51,50 +56,46 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     return (delete(targets)..where(_untrackedPredicate)).go();
   }
 
-  /// Get all targets
-  Future<List<Target>> getAllTargets() => select(targets).get();
+  @override
+  Future<List<DbTarget>> getAllTargets() => select(targets).get();
 
-  /// Watch all targets
-  Stream<List<Target>> watchAllTargets() => select(targets).watch();
+  @override
+  Stream<List<DbTarget>> watchAllTargets() => select(targets).watch();
 
-  /// Get favorite targets
-  Future<List<Target>> getFavoriteTargets() {
+  Future<List<DbTarget>> getFavoriteTargets() {
     return (select(targets)..where((t) => t.isFavorite.equals(true))).get();
   }
 
-  /// Watch favorite targets
-  Stream<List<Target>> watchFavoriteTargets() {
+  @override
+  Stream<List<DbTarget>> watchFavoriteTargets() {
     return (select(targets)..where((t) => t.isFavorite.equals(true))).watch();
   }
 
-  /// Get target by ID
-  Future<Target?> getTargetById(int id) {
+  Future<DbTarget?> getTargetById(int id) {
     return (select(targets)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   /// Get target by catalog ID (e.g., M42, NGC7000)
-  Future<Target?> getTargetByCatalogId(String catalogId) {
+  Future<DbTarget?> getTargetByCatalogId(String catalogId) {
     return (select(
       targets,
     )..where((t) => t.catalogId.equals(catalogId))).getSingleOrNull();
   }
 
   /// Search targets by name
-  Future<List<Target>> searchTargets(String query) {
+  Future<List<DbTarget>> searchTargets(String query) {
     return (select(
           targets,
         )..where((t) => t.name.like('%$query%') | t.catalogId.like('%$query%')))
         .get();
   }
 
-  /// Get targets by object type
-  Future<List<Target>> getTargetsByType(String objectType) {
+  Future<List<DbTarget>> getTargetsByType(String objectType) {
     return (select(
       targets,
     )..where((t) => t.objectType.equals(objectType))).get();
   }
 
-  /// Create a new target
   Future<int> createTarget(TargetsCompanion target) {
     return into(targets).insert(target);
   }
@@ -131,31 +132,26 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Update a target
-  Future<bool> updateTarget(Target target) {
+  Future<bool> updateTarget(DbTarget target) {
     return update(targets).replace(target);
   }
 
-  /// Delete a target
   Future<int> deleteTarget(int id) {
     return (delete(targets)..where((t) => t.id.equals(id))).go();
   }
 
-  /// Toggle favorite status
   Future<void> toggleFavorite(int id) async {
-    await customStatement(
-      '''
-      UPDATE targets
-      SET
-        is_favorite = CASE is_favorite WHEN 1 THEN 0 ELSE 1 END,
-        updated_at = ?
-      WHERE id = ?
-      ''',
-      [DateTime.now().millisecondsSinceEpoch ~/ 1000, id],
+    await (update(targets)..where((t) => t.id.equals(id))).write(
+      TargetsCompanion.custom(
+        isFavorite: targets.isFavorite.caseMatch(
+          when: {const Constant(true): const Constant(false)},
+          orElse: const Constant(true),
+        ),
+        updatedAt: Variable(DateTime.now()),
+      ),
     );
   }
 
-  /// Update imaging progress
   Future<void> updateProgress(
     int id, {
     int? capturedSubs,
@@ -182,28 +178,14 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     await (update(targets)..where((t) => t.id.equals(id))).write(updates);
   }
 
-  /// Set the target's multi-night integration goal in seconds.
-  Future<void> setGoalIntegrationSecs(
-    int id,
-    double goalIntegrationSecs,
-  ) async {
-    await (update(targets)..where((t) => t.id.equals(id))).write(
-      TargetsCompanion(
-        goalIntegrationSecs: Value(goalIntegrationSecs),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
-  }
-
-  /// Get targets ordered by priority
-  Future<List<Target>> getTargetsByPriority() {
+  Future<List<DbTarget>> getTargetsByPriority() {
     return (select(
       targets,
     )..orderBy([(t) => OrderingTerm.desc(t.priority)])).get();
   }
 
   /// Get targets that are observable tonight
-  Future<List<Target>> getObservableTargets(
+  Future<List<DbTarget>> getObservableTargets(
     double latitude,
     double longitude,
   ) async {
@@ -232,48 +214,13 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     required double decDeg,
     required DateTime atUtc,
   }) {
-    final lstDeg = _localSiderealTimeDegrees(
-      atUtc: atUtc,
+    final (altitude, _) = AstronomyCalculations.objectAltAz(
+      raDeg: raHours * 15.0,
+      decDeg: decDeg,
+      dt: atUtc,
+      latitudeDeg: latitudeDeg,
       longitudeDeg: longitudeDeg,
     );
-    final raDeg = raHours * 15.0;
-    return SkyCalculations.altitudeDegrees(
-      hourAngleDegrees: _normalizeHa(lstDeg - raDeg),
-      declinationDegrees: decDeg,
-      latitudeDegrees: latitudeDeg,
-    );
-  }
-
-  double _localSiderealTimeDegrees({
-    required DateTime atUtc,
-    required double longitudeDeg,
-  }) {
-    final gmstDeg = _greenwichMeanSiderealTimeDegrees(atUtc);
-    return _normalizeLst(gmstDeg + longitudeDeg);
-  }
-
-  /// This DAO normalizes GMST into [0,360) *before* the site longitude is
-  /// added (see [_localSiderealTimeDegrees]), which is why the wrap stays
-  /// here and only the polynomial comes from [SkyCalculations].
-  double _greenwichMeanSiderealTimeDegrees(DateTime atUtc) =>
-      _normalizeLst(SkyCalculations.gmstDegreesRaw(_julianDate(atUtc)));
-
-  /// Millisecond-accurate day fraction — the precision this DAO has always
-  /// used for its observability filter.
-  double _julianDate(DateTime atUtc) => SkyCalculations.julianDate(atUtc);
-
-  /// Normalize an angle into [0, 360) — appropriate for LST and GMST.
-  double _normalizeLst(double degrees) {
-    var n = degrees % 360.0;
-    if (n < 0) n += 360.0;
-    return n;
-  }
-
-  /// Normalize an angle into [-180, 180] — appropriate for hour angle.
-  double _normalizeHa(double degrees) {
-    var n = degrees % 360.0;
-    if (n < 0) n += 360.0;
-    if (n > 180) n -= 360.0;
-    return n;
+    return altitude;
   }
 }

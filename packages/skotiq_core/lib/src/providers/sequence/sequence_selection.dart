@@ -4,8 +4,6 @@ import 'package:uuid/uuid.dart';
 import '../../models/sequence/sequence_models.dart';
 import 'sequence_editor.dart';
 
-// Sequence editor state.
-
 /// Current sequence being edited.
 ///
 /// The notifier implementation lives in `sequence/sequence_editor.dart`.
@@ -17,12 +15,8 @@ final currentSequenceProvider =
       return CurrentSequenceNotifier(ref: ref);
     });
 
-// Selected node.
-
-/// Currently selected node ID
 final selectedNodeIdProvider = StateProvider<String?>((ref) => null);
 
-/// Currently selected node (derived)
 final selectedNodeProvider = Provider<SequenceNode?>((ref) {
   final sequence = ref.watch(currentSequenceProvider);
   final selectedId = ref.watch(selectedNodeIdProvider);
@@ -31,9 +25,6 @@ final selectedNodeProvider = Provider<SequenceNode?>((ref) {
   return sequence.nodes[selectedId];
 });
 
-// Multi-select.
-
-/// Set of currently multi-selected node IDs.
 final multiSelectedNodeIdsProvider =
     StateNotifierProvider<MultiSelectNotifier, Set<String>>(
       (ref) => MultiSelectNotifier(ref),
@@ -109,7 +100,6 @@ class MultiSelectNotifier extends StateNotifier<Set<String>> {
     state = rangeIds;
   }
 
-  /// Clear all selections.
   void clear() {
     state = {};
   }
@@ -174,7 +164,6 @@ class MultiSelectNotifier extends StateNotifier<Set<String>> {
     return out;
   }
 
-  /// Enable all selected nodes.
   void enableSelected() {
     final notifier = ref.read(currentSequenceProvider.notifier);
     final sequence = ref.read(currentSequenceProvider);
@@ -188,7 +177,6 @@ class MultiSelectNotifier extends StateNotifier<Set<String>> {
     }
   }
 
-  /// Disable all selected nodes.
   void disableSelected() {
     final notifier = ref.read(currentSequenceProvider.notifier);
     final sequence = ref.read(currentSequenceProvider);

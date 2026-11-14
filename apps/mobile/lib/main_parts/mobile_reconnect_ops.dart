@@ -32,7 +32,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
   /// relay. The relay exposes the remote rig's headless API as a LOCAL
   /// loopback port, so the rest of the connect flow (pairing, HMAC tokens,
   /// the event WebSocket, even TLS if the appliance serves https) reuses the
-  /// existing [_connectToServer] path unchanged — the tunnel is just another
+  /// existing [connectToRig] path unchanged — the tunnel is just another
   /// base URL pointing at 127.0.0.1.
   ///
   /// [relayUrl] is the operator's relay (ws(s)://host[:port]); [applianceId]
@@ -42,7 +42,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
   /// relay row whose appliance bearer is already in secure storage — mirrors
   /// how [SavedServersScreen] reconnects a direct row with a stored token.
   /// `null` for a first-time relay connect (the appliance is paired through
-  /// the normal [_connectToServer] flow). [savedServerDisplayName] feeds the
+  /// the normal [connectToRig] flow). [savedServerDisplayName] feeds the
   /// persisted row's label; defaults to `Relay: <id>` when null.
   @override
   Future<void> _connectViaRelay({
@@ -88,7 +88,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         relayUrl: parsedRelay,
         applianceId: trimmedId,
         allowBadTlsCertificate: allowInsecureTls,
-        onLog: (message) => developer.log(message, name: 'Relay'),
+        onLog: (message) => Log.debug(message, source: 'Relay'),
       );
       _activeRelayTunnel = tunnel;
 
@@ -115,7 +115,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         authRequired: true,
         pairingSupported: true,
         // A saved relay carries its appliance bearer in secure storage —
-        // pass it through so _connectToServer skips re-pairing every night.
+        // pass it through so connectToRig skips re-pairing every night.
         authToken: presetAuthToken,
       );
       // Capture the live backend instance BEFORE the connect attempt. A
@@ -126,13 +126,13 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       // NetworkBackend` — means a stale prior NetworkBackend session (from a
       // previous rig) cannot be mistaken for a successful relay connect.
       final priorBackend = ref.read(backendProvider);
-      await _connectToServer(relayServer);
+      await connectToRig(relayServer);
 
       // If the connect failed (no backend swap happened), tear the tunnel back
       // down so we don't leak a loopback listener or persist a bogus relay row.
       final swappedBackend = ref.read(backendProvider);
       if (!mounted ||
-          swappedBackend is! NetworkBackend ||
+          !ref.read(isRemoteModeProvider) ||
           identical(swappedBackend, priorBackend)) {
         await _closeActiveRelayTunnel();
         return;
@@ -159,10 +159,9 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       } catch (e, st) {
         // A persistence failure must not drop the live session — the relay
         // tunnel and backend are already up. Log and carry on.
-        developer.log(
+        Log.error(
           'relay: failed to persist saved server: $e',
-          name: 'Relay',
-          level: 1000,
+          source: 'Relay',
           error: e,
           stackTrace: st,
         );
@@ -241,10 +240,24 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             tailscaleHost: validTailscaleHost,
           );
     } catch (e, st) {
-      developer.log(
+      Log.error(
         'saved_servers: failed to upsert connected server: $e',
-        name: 'Discovery',
-        level: 1000,
+        source: 'Discovery',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Stamp a Saved Servers row as just connected. Best-effort, as
+  /// [_upsertSavedServer].
+  Future<void> _touchSavedServer(String id) async {
+    try {
+      await ref.read(savedServersServiceProvider).touchLastConnected(id);
+    } catch (e, st) {
+      Log.error(
+        'saved_servers: failed to stamp $id as connected: $e',
+        source: 'Discovery',
         error: e,
         stackTrace: st,
       );
@@ -252,8 +265,11 @@ mixin _MobileReconnectOps on _MobileConnectionState {
   }
 
   @override
-  Future<void> _connectToServer(DiscoveredServer server) async {
-    if (!mounted) return;
+  Future<bool> connectToRig(
+    DiscoveredServer server, {
+    String? savedServerId,
+  }) async {
+    if (!mounted) return false;
     final operationGeneration = ++_connectionOperationGeneration;
     setState(() {
       _statusMessage = 'Connecting to ${server.name}...';
@@ -267,18 +283,20 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       // to connect for this session but refuse to write the server to
       // disk (next launch should re-discover or re-prompt).
       final fetched = await EnhancedSkotiqDiscovery.fetchServerInfo(server);
-      if (!_isCurrentConnectionOperation(operationGeneration)) return;
+      if (!_isCurrentConnectionOperation(operationGeneration)) return false;
       var enrichedServer = fetched ?? server;
-      final compatibility = SkotiqServerCompatibility.check(
-        enrichedServer.apiVersion ?? enrichedServer.version,
-      );
-      if (!compatibility.isCompatible) {
+      // A saved row is shown by the name the operator gave it.
+      if (savedServerId != null && fetched != null) {
+        enrichedServer = enrichedServer.copyWith(name: server.name);
+      }
+      final mismatch = enrichedServer.linkMismatch;
+      if (mismatch != null) {
         setState(() {
           _isDiscovering = false;
           _statusMessage = '';
-          _error = compatibility.message;
+          _error = mismatch.message;
         });
-        return;
+        return false;
       }
 
       var authToken = enrichedServer.authToken;
@@ -305,17 +323,17 @@ mixin _MobileReconnectOps on _MobileConnectionState {
               pinnedFingerprint: enrichedServer.fingerprint,
             );
             final lanResult = await lanPairing.lanClaim();
-            if (!_isCurrentConnectionOperation(operationGeneration)) return;
+            if (!_isCurrentConnectionOperation(operationGeneration))
+              return false;
             if (lanResult != null &&
                 lanResult.success &&
                 lanResult.token != null &&
                 lanResult.token!.isNotEmpty) {
-              developer.log(
+              Log.info(
                 'One-tap LAN pairing succeeded for '
                 '${enrichedServer.host}:${enrichedServer.webPort} — '
                 'no code needed',
-                name: 'Discovery',
-                level: 800,
+                source: 'Discovery',
               );
               authToken = lanResult.token;
               enrichedServer = enrichedServer.copyWith(authToken: authToken);
@@ -324,25 +342,25 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             // Fail-closed: the lan-claim pre-flight refused the identity.
             // Surface it rather than silently dropping to the code dialog —
             // a mismatch means the host we reached is not the one we trust.
-            if (!_isCurrentConnectionOperation(operationGeneration)) return;
+            if (!_isCurrentConnectionOperation(operationGeneration))
+              return false;
             setState(() {
               _isDiscovering = false;
               _statusMessage = '';
               _error = e.message;
             });
-            return;
+            return false;
           } on RemotePairingException catch (e) {
             // Transport / unexpected error from the one-tap path. Log and fall
             // through to the code dialog — the operator can still pair by code.
-            developer.log(
+            Log.warning(
               'One-tap LAN pairing unavailable, falling back to code: $e',
-              name: 'Discovery',
-              level: 900,
+              source: 'Discovery',
             );
           }
         }
 
-        if (!_isCurrentConnectionOperation(operationGeneration)) return;
+        if (!_isCurrentConnectionOperation(operationGeneration)) return false;
 
         if (authToken == null || authToken.isEmpty) {
           final pairedToken = await _pairWithServer(
@@ -355,16 +373,15 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             // path.
             pinnedFingerprint: enrichedServer.fingerprint,
           );
-          if (!_isCurrentConnectionOperation(operationGeneration)) return;
+          if (!_isCurrentConnectionOperation(operationGeneration)) return false;
           if (pairedToken == null) {
-            return;
+            return false;
           }
           authToken = pairedToken;
           enrichedServer = enrichedServer.copyWith(authToken: authToken);
         }
       }
 
-      // Test connection first
       final isReachable = await EnhancedSkotiqDiscovery.testServerConnection(
         enrichedServer.host,
         enrichedServer.webPort,
@@ -375,10 +392,10 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // rigs keep scheme=='http' and probe unchanged.
         scheme: enrichedServer.scheme,
       );
-      if (!_isCurrentConnectionOperation(operationGeneration)) return;
+      if (!_isCurrentConnectionOperation(operationGeneration)) return false;
 
       if (isReachable) {
-        developer.log('Connection successful!', name: 'Discovery', level: 800);
+        Log.info('Connection successful!', source: 'Discovery');
 
         // Update global backend state to use NetworkBackend.
         //
@@ -394,7 +411,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         final collabIdentity = await _buildCollaborationIdentity(
           enrichedServer.authToken,
         );
-        if (!_isCurrentConnectionOperation(operationGeneration)) return;
+        if (!_isCurrentConnectionOperation(operationGeneration)) return false;
         final backendNotifier = ref.read(backendProvider.notifier);
         await backendNotifier.connect(
           enrichedServer.host,
@@ -415,7 +432,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         final connectedBackend = backendNotifier.currentBackend;
         if (!_isCurrentConnectionOperation(operationGeneration) ||
             !backendNotifier.isCurrentBackend(connectedBackend)) {
-          return;
+          return false;
         }
 
         // A reachable /api/info probe is not a live session. Publish the
@@ -441,36 +458,36 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           try {
             await EnhancedSkotiqDiscovery.saveLastServer(enrichedServer);
           } catch (e, stackTrace) {
-            developer.log(
+            Log.error(
               'Could not cache connected server for startup reconnect: $e',
-              name: 'Discovery',
-              level: 1000,
+              source: 'Discovery',
               error: e,
               stackTrace: stackTrace,
             );
           }
           if (!_isCurrentConnectionOperation(operationGeneration) ||
               !backendNotifier.isCurrentBackend(connectedBackend)) {
-            return;
+            return false;
           }
+          // A saved row keeps the name and address the operator gave it.
           // Relay sessions are persisted by _connectViaRelay under their
           // stable relay identity, not their ephemeral loopback port.
-          if (_activeRelayTunnel == null) {
+          if (savedServerId != null) {
+            await _touchSavedServer(savedServerId);
+          } else if (_activeRelayTunnel == null) {
             await _upsertSavedServer(enrichedServer);
           }
           if (!_isCurrentConnectionOperation(operationGeneration) ||
               !backendNotifier.isCurrentBackend(connectedBackend)) {
-            return;
+            return false;
           }
         } else {
-          developer.log(
+          Log.warning(
             'Skipping saveLastServer — /api/info did not return metadata',
-            name: 'Discovery',
-            level: 900,
+            source: 'Discovery',
           );
         }
 
-        // Start monitoring the WS heartbeat
         _startConnectionMonitor();
 
         // Register this device's push token (APNs/FCM) with the desktop so it
@@ -489,6 +506,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           ref.invalidate(appSettingsProvider);
           ref.invalidate(equipmentProfilesProvider);
         });
+        return true;
       } else {
         final authMessage =
             enrichedServer.authRequired &&
@@ -504,22 +522,32 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         });
       }
     } on BackendTransitionSupersededException {
-      return;
+      return false;
     } catch (e, stackTrace) {
-      if (!_isCurrentConnectionOperation(operationGeneration)) return;
-      developer.log(
+      if (!_isCurrentConnectionOperation(operationGeneration)) return false;
+      Log.error(
         'Connection error: $e',
-        name: 'Discovery',
-        level: 1000,
+        source: 'Discovery',
         error: e,
         stackTrace: stackTrace,
       );
       setState(() {
         _isDiscovering = false;
         _statusMessage = '';
-        _error = 'Connection error: $e';
+        _error = 'Connection error: ${userFacingError(e)}';
       });
     }
+    return false;
+  }
+
+  /// Back to the connection screen from a session with no rig: Settings >
+  /// Connection's Connect.
+  void _showConnectionScreen() {
+    if (!mounted || !_skippedConnection) return;
+    setState(() {
+      _skippedConnection = false;
+      _error = null;
+    });
   }
 
   Future<void> _skipConnection() async {
@@ -552,7 +580,6 @@ mixin _MobileReconnectOps on _MobileConnectionState {
     if (_checkpointChecked) return;
     _checkpointChecked = true;
 
-    // Schedule the check for after the current frame
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         final executor = ref.read(sequenceExecutorProvider);
@@ -562,12 +589,11 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // pushing this phone's documents path replaced the rig's checkpoint
         // directory with one that cannot exist there, so every checkpoint
         // write failed and a mid-night crash became unrecoverable.
-        if (ref.read(backendProvider) is! NetworkBackend) {
+        if (!ref.read(isRemoteModeProvider)) {
           final docsDir = await resolveSkotiqDocumentsDirectory();
           await executor.initializeCheckpoints(docsDir.path);
         }
 
-        // Get checkpoint info
         final info = await executor.getCheckpointInfo();
         if (info == null || !info.canResume) return;
         if (!context.mounted) return;
@@ -585,14 +611,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
             if (shouldResume) {
               await executor.resumeFromCheckpoint();
               if (!context.mounted) return;
-              final colors = Theme.of(context).extension<SkotiqColors>();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Sequence resumed from checkpoint'),
-                  backgroundColor:
-                      colors?.success ?? Theme.of(context).colorScheme.primary,
-                ),
-              );
+              context.showSuccessSnackBar('Sequence resumed from checkpoint');
             } else {
               await executor.discardCheckpoint();
             }
@@ -607,11 +626,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           }
         }
       } catch (e) {
-        developer.log(
-          'Error checking for checkpoint: $e',
-          name: 'Main',
-          level: 1000,
-        );
+        Log.error('Error checking for checkpoint: $e', source: 'Main');
       }
     });
   }

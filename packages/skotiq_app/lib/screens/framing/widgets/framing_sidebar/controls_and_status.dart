@@ -23,7 +23,7 @@ class FramingRotationSection extends ConsumerWidget {
       note: hasEquipment ? null : 'Needs a camera',
       children: [
         FramingRotationField(
-          key: FramingTutorialKeys.rotation,
+          key: TourTarget.framingRotation.key,
           value: framingState.rotation,
           colors: colors,
           onChanged: hasEquipment

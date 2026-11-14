@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../backend/device_types.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Steps of the equipment-onboarding wizard in display order.
 ///
@@ -97,10 +98,6 @@ class OnboardingDraft {
   /// so the two flows do not collide.
   static const String persistenceCategory = 'equipmentOnboarding';
 
-  /// app_settings key under which the JSON draft is stored. Wiped when the
-  /// user completes or dismisses the wizard so a fresh run starts clean.
-  static const String draftSettingsKey = 'equipment_onboarding_draft';
-
   /// Current step the user is on. Survives an app restart mid-wizard.
   final OnboardingStep currentStep;
 
@@ -120,6 +117,14 @@ class OnboardingDraft {
   final String? filterWheelName;
   final String? guiderId;
   final String? guiderName;
+
+  /// The camera the built-in guider takes its frames with, and the focal
+  /// length of the scope in front of it (null for an off-axis guider, which
+  /// shares the telescope's). Only meaningful while [guiderId] is the built-in
+  /// guider; changing the guider clears them.
+  final String? guideCameraId;
+  final String? guideCameraName;
+  final double? guideFocalLengthMm;
 
   /// Optical-train inputs. Pixel size is microns, focal length and
   /// aperture are millimeters, reducer is a multiplier (1.0 = no reducer).
@@ -172,6 +177,11 @@ class OnboardingDraft {
   /// full power for the rest of the afternoon.
   final bool coolOnConnect;
 
+  /// Whether saving the profile also starts the star and deep-sky catalog
+  /// download. Opt-in and off by default: it is a large download, and a
+  /// laptop being set up at a dark site has no internet.
+  final bool downloadSkyCatalogs;
+
   const OnboardingDraft({
     this.currentStep = OnboardingStep.welcome,
     this.selectedDrivers = const {},
@@ -185,6 +195,9 @@ class OnboardingDraft {
     this.filterWheelName,
     this.guiderId,
     this.guiderName,
+    this.guideCameraId,
+    this.guideCameraName,
+    this.guideFocalLengthMm,
     this.pixelSizeMicrons,
     this.focalLengthMm,
     this.apertureMm,
@@ -201,6 +214,7 @@ class OnboardingDraft {
     this.defaultBinY,
     this.defaultCoolingTempC,
     this.coolOnConnect = false,
+    this.downloadSkyCatalogs = false,
   });
 
   OnboardingDraft copyWith({
@@ -216,6 +230,9 @@ class OnboardingDraft {
     String? filterWheelName,
     String? guiderId,
     String? guiderName,
+    String? guideCameraId,
+    String? guideCameraName,
+    double? guideFocalLengthMm,
     double? pixelSizeMicrons,
     double? focalLengthMm,
     double? apertureMm,
@@ -232,11 +249,14 @@ class OnboardingDraft {
     int? defaultBinY,
     double? defaultCoolingTempC,
     bool? coolOnConnect,
+    bool? downloadSkyCatalogs,
     bool clearCamera = false,
     bool clearMount = false,
     bool clearFocuser = false,
     bool clearFilterWheel = false,
     bool clearGuider = false,
+    bool clearGuideCamera = false,
+    bool clearGuideFocalLength = false,
     bool clearFocalLength = false,
     bool clearAperture = false,
     bool clearPixelSize = false,
@@ -267,6 +287,15 @@ class OnboardingDraft {
           : (filterWheelName ?? this.filterWheelName),
       guiderId: clearGuider ? null : (guiderId ?? this.guiderId),
       guiderName: clearGuider ? null : (guiderName ?? this.guiderName),
+      guideCameraId: clearGuider || clearGuideCamera
+          ? null
+          : (guideCameraId ?? this.guideCameraId),
+      guideCameraName: clearGuider || clearGuideCamera
+          ? null
+          : (guideCameraName ?? this.guideCameraName),
+      guideFocalLengthMm: clearGuider || clearGuideFocalLength
+          ? null
+          : (guideFocalLengthMm ?? this.guideFocalLengthMm),
       pixelSizeMicrons: clearPixelSize
           ? null
           : (pixelSizeMicrons ?? this.pixelSizeMicrons),
@@ -292,6 +321,7 @@ class OnboardingDraft {
       coolOnConnect: clearCoolingTempC
           ? false
           : (coolOnConnect ?? this.coolOnConnect),
+      downloadSkyCatalogs: downloadSkyCatalogs ?? this.downloadSkyCatalogs,
     );
   }
 
@@ -340,6 +370,11 @@ class OnboardingDraft {
     }
   }
 
+  /// True when the chosen guider is the built-in one, which guides with a
+  /// camera of its own.
+  bool get usesBuiltinGuider =>
+      guiderId?.startsWith('native:builtin_guider') ?? false;
+
   /// Effective focal length after applying the reducer factor.
   /// Returns null if focal length is unset so callers don't have to guard.
   double? get effectiveFocalLengthMm {
@@ -348,14 +383,13 @@ class OnboardingDraft {
   }
 
   /// Image scale in arcsec/pixel from pixel size + effective focal length.
-  /// Formula: 206.265 * pixel_microns / focal_length_mm.
   /// Returns null when inputs are missing or focal length is zero so the
   /// UI can render "--" instead of a misleading "0.00".
   double? get imageScaleArcsecPerPixel {
-    final fl = effectiveFocalLengthMm;
-    if (fl == null || fl <= 0) return null;
-    if (pixelSizeMicrons == null || pixelSizeMicrons! <= 0) return null;
-    return 206.265 * pixelSizeMicrons! / fl;
+    return FOVCalculator.imageScaleOrNull(
+      pixelSizeMicrons: pixelSizeMicrons,
+      focalLengthMm: effectiveFocalLengthMm,
+    );
   }
 
   Map<String, dynamic> toJson() => {
@@ -371,6 +405,9 @@ class OnboardingDraft {
     'filterWheelName': filterWheelName,
     'guiderId': guiderId,
     'guiderName': guiderName,
+    'guideCameraId': guideCameraId,
+    'guideCameraName': guideCameraName,
+    'guideFocalLengthMm': guideFocalLengthMm,
     'pixelSizeMicrons': pixelSizeMicrons,
     'focalLengthMm': focalLengthMm,
     'apertureMm': apertureMm,
@@ -387,6 +424,7 @@ class OnboardingDraft {
     'defaultBinY': defaultBinY,
     'defaultCoolingTempC': defaultCoolingTempC,
     'coolOnConnect': coolOnConnect,
+    'downloadSkyCatalogs': downloadSkyCatalogs,
   };
 
   /// Deserialize a draft. Returns the default draft on parse failure so a
@@ -433,6 +471,9 @@ class OnboardingDraft {
       filterWheelName: json['filterWheelName'] as String?,
       guiderId: json['guiderId'] as String?,
       guiderName: json['guiderName'] as String?,
+      guideCameraId: json['guideCameraId'] as String?,
+      guideCameraName: json['guideCameraName'] as String?,
+      guideFocalLengthMm: (json['guideFocalLengthMm'] as num?)?.toDouble(),
       pixelSizeMicrons: (json['pixelSizeMicrons'] as num?)?.toDouble(),
       focalLengthMm: (json['focalLengthMm'] as num?)?.toDouble(),
       apertureMm: (json['apertureMm'] as num?)?.toDouble(),
@@ -449,6 +490,7 @@ class OnboardingDraft {
       defaultBinY: (json['defaultBinY'] as num?)?.toInt(),
       defaultCoolingTempC: (json['defaultCoolingTempC'] as num?)?.toDouble(),
       coolOnConnect: json['coolOnConnect'] as bool? ?? false,
+      downloadSkyCatalogs: json['downloadSkyCatalogs'] as bool? ?? false,
     );
   }
 
@@ -484,6 +526,9 @@ class OnboardingDraft {
         other.filterWheelName == filterWheelName &&
         other.guiderId == guiderId &&
         other.guiderName == guiderName &&
+        other.guideCameraId == guideCameraId &&
+        other.guideCameraName == guideCameraName &&
+        other.guideFocalLengthMm == guideFocalLengthMm &&
         other.pixelSizeMicrons == pixelSizeMicrons &&
         other.focalLengthMm == focalLengthMm &&
         other.apertureMm == apertureMm &&
@@ -499,7 +544,8 @@ class OnboardingDraft {
         other.defaultBinX == defaultBinX &&
         other.defaultBinY == defaultBinY &&
         other.defaultCoolingTempC == defaultCoolingTempC &&
-        other.coolOnConnect == coolOnConnect;
+        other.coolOnConnect == coolOnConnect &&
+        other.downloadSkyCatalogs == downloadSkyCatalogs;
   }
 
   @override
@@ -510,7 +556,7 @@ class OnboardingDraft {
     mountId,
     focuserId,
     filterWheelId,
-    guiderId,
+    Object.hash(guiderId, guideCameraId, guideFocalLengthMm),
     pixelSizeMicrons,
     focalLengthMm,
     apertureMm,
@@ -530,6 +576,7 @@ class OnboardingDraft {
       defaultBinY,
       defaultCoolingTempC,
       coolOnConnect,
+      downloadSkyCatalogs,
     ),
   );
 }

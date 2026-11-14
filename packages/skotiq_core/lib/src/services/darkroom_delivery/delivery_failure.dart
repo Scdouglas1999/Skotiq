@@ -125,7 +125,6 @@ enum DeliveryFailureKind {
 /// One file's delivery failure, carrying the mechanism and the sentence the
 /// morning report prints.
 class DeliveryFailure implements Exception {
-  /// The mechanism that stopped the delivery.
   final DeliveryFailureKind kind;
 
   /// Operator-facing sentence naming what happened and where.

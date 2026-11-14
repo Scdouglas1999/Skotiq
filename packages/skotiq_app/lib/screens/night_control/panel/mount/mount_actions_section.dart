@@ -9,20 +9,24 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../../../models/command_action_result.dart';
+import '../../../../services/command_action_result.dart';
 import '../../../../services/mount_command_service.dart';
 import '../../../../utils/confirm_dialog.dart';
 import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import 'night_mount_tab.dart';
-import 'night_panel_parts.dart';
+import '../panel_widgets.dart';
+import '../../../../router/settings_sections.dart';
+import '../../../../router/app_routes.dart';
 
 /// Where Limits… goes: the sequencer settings, which hold the meridian flip.
-const String kNightMountLimitsRoute = '/settings?section=sequencer';
+final String kNightMountLimitsRoute =
+    AppRoutes.settings(SettingsSectionId.sequencer);
 
 class NightMountActionsSection extends ConsumerStatefulWidget {
   const NightMountActionsSection({super.key});
@@ -40,7 +44,7 @@ class _NightMountActionsSectionState
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final mount = facts.mount;
     final caps = facts.capabilities;
     final busy = _busy != null ? l10n.text('nightScopeWhyCommandBusy') : null;

@@ -6,13 +6,10 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart' show SkotiqBackend;
+import 'package:skotiq_core/backend.dart' show SkotiqBackend;
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/equipment_profiles_dao.dart';
-import 'package:skotiq_core/src/database/daos/images_dao.dart';
 import 'package:skotiq_core/src/database/daos/sequence_checkpoints_dao.dart';
 import 'package:skotiq_core/src/database/daos/sequences_dao.dart';
 import 'package:skotiq_core/src/database/daos/sessions_dao.dart';
@@ -27,15 +24,11 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
     as seq_models;
 import 'package:skotiq_core/src/models/science/science_models.dart' as science;
 import 'package:skotiq_core/src/providers/backend_provider.dart';
-import 'package:skotiq_core/src/providers/profiles_provider.dart';
-import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/services/backup_service.dart';
-import 'package:skotiq_core/src/services/catalog_service.dart';
 import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/flat_wizard_service.dart';
 import 'package:skotiq_core/src/services/logging_service.dart';
-import 'package:skotiq_core/src/services/notification_service.dart';
-import 'package:skotiq_core/src/services/paginated_image_loader.dart';
 import 'package:skotiq_core/src/services/plate_solve_service.dart'
     as plate_solve;
 import 'package:skotiq_core/src/services/profile_service.dart';
@@ -44,7 +37,9 @@ import 'package:skotiq_core/src/services/sequence_repository.dart';
 import 'package:skotiq_core/src/services/sky_brightness_tracker.dart';
 
 import '../mocks/mock_backend.dart';
-import '../mocks/mock_database.dart';
+import 'package:skotiq_core/src/providers/plate_solve_service_provider.dart'
+    as plate_solve;
+import 'package:skotiq_core/src/services/local_sequence_repository.dart';
 
 class _MockSessionsDao extends Mock implements SessionsDao {}
 
@@ -161,91 +156,6 @@ void main() {
 
   group('Residual service fixes', () {
     test(
-      'searchCatalog applies offset exactly once across streamed pages',
-      () async {
-        final tempDir = await Directory.systemTemp.createTemp(
-          'catalog_service_',
-        );
-        addTearDown(() async {
-          if (await tempDir.exists()) {
-            await tempDir.delete(recursive: true);
-          }
-        });
-
-        final catalogFile = File(
-          '${tempDir.path}${Platform.pathSeparator}catalog.csv',
-        );
-        final rows = <String>[
-          'id,name,ra,dec',
-          for (int i = 1; i <= 10; i++)
-            'M$i,Object $i,${i.toDouble()},${i.toDouble()}',
-        ];
-        await catalogFile.writeAsString(rows.join('\n'));
-
-        final service = CatalogService(catalogFile.path);
-        final results = await service.searchCatalog(
-          query: '',
-          offset: 5,
-          limit: 3,
-        );
-
-        expect(results.map((entry) => entry.id).toList(), ['M6', 'M7', 'M8']);
-      },
-    );
-
-    test('loadDarkPixels rejects truncated FITS pixel payloads', () async {
-      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(database.close);
-
-      final service = DarkLibraryService(DarkLibraryDao(database));
-      final tempDir = await Directory.systemTemp.createTemp('dark_library_');
-      addTearDown(() async {
-        if (await tempDir.exists()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
-
-      final truncatedFits = File(
-        '${tempDir.path}${Platform.pathSeparator}truncated.fit',
-      );
-      await truncatedFits.writeAsBytes(
-        _buildFitsFileBytes(width: 2, height: 1, dataBytes: [0, 1, 2]),
-      );
-
-      expect(
-        service.loadDarkPixels(truncatedFits.path),
-        throwsA(isA<FormatException>()),
-      );
-    });
-
-    test(
-      'notification requests time out instead of hanging indefinitely',
-      () async {
-        final client = MockClient((request) async {
-          await Future<void>.delayed(const Duration(milliseconds: 50));
-          return http.Response('{}', 200);
-        });
-
-        final service = NotificationService.testing(
-          settingsReader: () => const AppSettingsState(
-            notificationsEnabled: true,
-            discordWebhook: 'https://example.com/webhook',
-          ),
-          httpClient: client,
-          requestTimeout: const Duration(milliseconds: 10),
-        );
-
-        final sent = await service.notify(
-          event: NotificationEvent.custom,
-          title: 'Test',
-          message: 'Timeout test',
-        );
-
-        expect(sent, isFalse);
-      },
-    );
-
-    test(
       'calibrateFilterWithRateTracking reports maxIterations on non-convergence',
       () async {
         final service = _TestFlatWizardService([5000, 5000]);
@@ -319,11 +229,10 @@ void main() {
       'quick start propagates storage failures instead of returning empty state',
       () async {
         final sessionsDao = _MockSessionsDao();
-        // The first read the context makes: the nights a process left
-        // unfinished. (It used to read the active ones — the same set, before
-        // the boot sweep started closing an abandoned row at open.)
+        // The read the context makes: the newest sessions, of which only
+        // the newest is a candidate.
         when(
-          () => sessionsDao.getInterruptedSessions(),
+          () => sessionsDao.getRecentSessions(limit: any(named: 'limit')),
         ).thenThrow(StateError('db corrupt'));
 
         final service = QuickStartService(
@@ -335,33 +244,6 @@ void main() {
         );
 
         expect(service.getQuickStartContext(), throwsA(isA<StateError>()));
-      },
-    );
-
-    test(
-      'paginated image loader updates paging state for explicit page loads',
-      () async {
-        final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
-        addTearDown(database.close);
-
-        final imagesDao = ImagesDao(database);
-        for (int i = 0; i < 3; i++) {
-          await imagesDao.createImage(
-            DatabaseTestFixtures.sampleImageCompanion(
-              filePath: '/tmp/image_$i.fit',
-              fileName: 'image_$i.fit',
-              capturedAt: DateTime.utc(2026, 1, 1, 0, i),
-            ),
-          );
-        }
-
-        final loader = PaginatedImageLoader(imagesDao: imagesDao, pageSize: 2);
-        final page = await loader.loadPage(2);
-
-        expect(page, hasLength(1));
-        expect(loader.currentPage, 2);
-        expect(loader.hasMore, isFalse);
-        expect(loader.loadedCount, 1);
       },
     );
 
@@ -523,7 +405,7 @@ void main() {
           }),
         );
 
-        final repository = SequenceRepository(SequencesDao(database));
+        final repository = LocalSequenceRepository(SequencesDao(database));
         final service = BackupService(
           database: database,
           sequenceRepository: repository,
@@ -568,7 +450,7 @@ void main() {
 
         final service = BackupService(
           database: database,
-          sequenceRepository: SequenceRepository(SequencesDao(database)),
+          sequenceRepository: LocalSequenceRepository(SequencesDao(database)),
           logger: LoggingService(),
         );
 
@@ -743,7 +625,7 @@ void main() {
       addTearDown(database.close);
 
       final dao = SequencesDao(database);
-      final repository = SequenceRepository(dao);
+      final repository = LocalSequenceRepository(dao);
       final sequenceId = await dao.createSequence(
         SequencesCompanion.insert(name: 'Broken Sequence'),
       );
@@ -767,7 +649,7 @@ void main() {
         final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
         addTearDown(database.close);
 
-        final repository = SequenceRepository(SequencesDao(database));
+        final repository = LocalSequenceRepository(SequencesDao(database));
         final sequenceId = await repository.saveSequence(
           seq_models.Sequence.create(
             name: 'Smart Exposure Persistence',
@@ -808,7 +690,7 @@ void main() {
       addTearDown(database.close);
 
       final dao = SequencesDao(database);
-      final repository = SequenceRepository(dao);
+      final repository = LocalSequenceRepository(dao);
       final sequenceId = await dao.createSequence(
         SequencesCompanion.insert(
           name: 'Legacy Recovery Sequence',
@@ -857,7 +739,7 @@ void main() {
       expect(nodes.single.recoveryConfig, equals(null));
     });
 
-    test('plate solve fallback preserves backend error details', () async {
+    test('a failed backend solve keeps the backend\'s error', () async {
       final backend = MockBackend();
       when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
       when(
@@ -885,15 +767,11 @@ void main() {
       final service = container.read(plate_solve.plateSolveServiceProvider);
       final result = await service.solve(
         'missing.fit',
-        const plate_solve.PlateSolverConfig(
-          type: plate_solve.PlateSolverType.astap,
-          executablePath: 'C:/missing/astap.exe',
-        ),
+        const plate_solve.PlateSolverConfig(),
       );
 
       expect(result.success, isFalse);
-      expect(result.error, contains('backend failed'));
-      expect(result.error, contains('Local fallback failed'));
+      expect(result.error, 'Plate solve failed: backend failed');
     });
 
     test('dark library deduplicates entries by file path', () async {
@@ -946,7 +824,7 @@ void main() {
         ),
       );
 
-      final match = await dao.findBestMatch(
+      final match = await DarkLibraryService(dao).findMatchingDark(
         exposureTime: 60,
         gain: 100,
         offset: 20,
@@ -1008,30 +886,4 @@ void main() {
       },
     );
   });
-}
-
-Uint8List _buildFitsFileBytes({
-  required int width,
-  required int height,
-  required List<int> dataBytes,
-}) {
-  final headerCards = <String>[
-    _fitsCard('SIMPLE', 'T'),
-    _fitsCard('BITPIX', '16'),
-    _fitsCard('NAXIS', '2'),
-    _fitsCard('NAXIS1', width.toString()),
-    _fitsCard('NAXIS2', height.toString()),
-    'END'.padRight(80, ' '),
-  ];
-
-  final header = headerCards.join().padRight(2880, ' ');
-  final bytes = <int>[...ascii.encode(header), ...dataBytes];
-  return Uint8List.fromList(bytes);
-}
-
-String _fitsCard(String keyword, String value) {
-  return '${keyword.padRight(8)}= ${value.toString().padLeft(20)}'.padRight(
-    80,
-    ' ',
-  );
 }

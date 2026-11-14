@@ -1,0 +1,178 @@
+> heartbeat
+  is_connected
+  get_coordinates
+< ok true
+> site_capabilities
+  get_site
+  get_clock
+< ok MountSiteCapabilities { can_read_site: true, can_write_site: true, can_read_time: true, can_write_time: true }
+> get_site
+  get_site
+< ok MountSite { latitude_deg: 40.0, longitude_deg: -75.0, elevation_m: None }
+> get_time
+  get_clock
+< ok MountTimeInfo { utc_unix_seconds: 1793000000, utc_offset_hours: -5.0 }
+> status
+  get_coordinates
+  get_tracking
+  is_slewing
+  is_parked
+  get_side_of_pier
+  get_alt_az
+  get_sidereal_time
+  at_home
+  get_tracking_rate
+  can_slew
+  can_sync
+  can_pulse_guide
+  tracking_rates
+< ok "tracking=false slewing=false parked=true at_home=Some(false) pier=Some(East) ra=5.5 dec=22.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Sidereal) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+> coordinates
+  get_coordinates
+< ok (5.5, 22.0)
+> can_set_park
+  can_set_park
+< ok true
+> can_find_home
+  can_find_home
+< ok true
+> unpark
+  unpark
+< ok ()
+> set_tracking off
+  set_tracking false
+< ok ()
+> set_tracking_rate lunar
+  set_tracking_rate Lunar
+< ok ()
+> slew 6.25h +35
+  get_coordinates
+  get_tracking
+  is_slewing
+  is_parked
+  get_side_of_pier
+  get_alt_az
+  get_sidereal_time
+  at_home
+  get_tracking_rate
+  can_slew
+  can_sync
+  can_pulse_guide
+  tracking_rates
+  set_tracking true
+  slew_to_coordinates 6.3 35.0
+< ok ()
+> status
+  get_coordinates
+  get_tracking
+  is_slewing
+  is_parked
+  get_side_of_pier
+  get_alt_az
+  get_sidereal_time
+  at_home
+  get_tracking_rate
+  can_slew
+  can_sync
+  can_pulse_guide
+  tracking_rates
+< ok "tracking=true slewing=false parked=false at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Lunar) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+> abort
+  abort_slew
+< ok ()
+> sync 6.26h +35.05
+  get_coordinates
+  get_tracking
+  is_slewing
+  is_parked
+  get_side_of_pier
+  get_alt_az
+  get_sidereal_time
+  at_home
+  get_tracking_rate
+  can_slew
+  can_sync
+  can_pulse_guide
+  tracking_rates
+  sync_to_coordinates 6.3 35.0
+< ok ()
+> pulse north 60 ms
+  pulse_guide North 60
+< ok ()
+> pulse west 60 ms
+  pulse_guide West 60
+< ok ()
+> move_axis 0 at 1
+< err Native SDK does not support mount axis movement
+> move_axis 0 at 0
+< err Native SDK does not support mount axis movement
+> move_axis 1 at -1
+< err Native SDK does not support mount axis movement
+> abort
+  abort_slew
+< ok ()
+> slew_alt_az 50 120
+< err Alt/Az slew is not supported for native serial mounts
+> find_home
+  can_find_home
+  get_coordinates
+  get_tracking
+  is_slewing
+  is_parked
+  get_side_of_pier
+  get_alt_az
+  get_sidereal_time
+  at_home
+  get_tracking_rate
+  can_slew
+  can_sync
+  can_pulse_guide
+  tracking_rates
+  find_home
+< ok ()
+> set_site
+  set_site 41.5000 -74.2500 Some(120.0)
+< ok ()
+> set_time
+  set_clock 1794000000 -5
+< ok ()
+> set_park
+  can_set_park
+  get_coordinates
+  get_tracking
+  is_slewing
+  is_parked
+  get_side_of_pier
+  get_alt_az
+  get_sidereal_time
+  at_home
+  get_tracking_rate
+  can_slew
+  can_sync
+  can_pulse_guide
+  tracking_rates
+  set_park
+< ok ()
+> park
+  park
+< ok ()
+> status
+  get_coordinates
+  get_tracking
+  is_slewing
+  is_parked
+  get_side_of_pier
+  get_alt_az
+  get_sidereal_time
+  at_home
+  get_tracking_rate
+  can_slew
+  can_sync
+  can_pulse_guide
+  tracking_rates
+< ok "tracking=false slewing=false parked=true at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Lunar) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+> disconnect
+  disconnect
+< ok ()
+> status
+< err Native mount not connected

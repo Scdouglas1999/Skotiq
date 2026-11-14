@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Format a device ID into a user-friendly display name.
 ///
@@ -34,7 +34,6 @@ String formatDeviceId(String id) {
     if (simulator != id) return simulator;
   }
 
-  // Handle native device IDs: native:vendor:index or native:vendor_type:index
   if (lowerId.startsWith('native:')) {
     final parts = id.substring(7).split(':');
     if (parts.isNotEmpty) {
@@ -49,7 +48,6 @@ String formatDeviceId(String id) {
         return '$vendor $type';
       }
 
-      // Simple vendor format
       final vendor = capitalizeVendor(devicePart);
       if (index != null) {
         return '$vendor #${index + 1}';
@@ -58,7 +56,6 @@ String formatDeviceId(String id) {
     }
   }
 
-  // Handle ASCOM device IDs: ascom:ASCOM.Vendor.Type or ASCOM.Vendor.Type
   if (lowerId.startsWith('ascom:') || lowerId.startsWith('ascom.')) {
     final ascomId = lowerId.startsWith('ascom:') ? id.substring(6) : id;
     final parts = ascomId.split('.');
@@ -68,7 +65,6 @@ String formatDeviceId(String id) {
     }
   }
 
-  // Handle Alpaca device IDs
   if (lowerId.startsWith('alpaca:')) {
     final alpacaPart = id.substring(7);
     return 'Alpaca: $alpacaPart';
@@ -83,7 +79,6 @@ String formatDeviceId(String id) {
     return 'PHD2';
   }
 
-  // Fallback: try to clean up the ID
   return cleanupDeviceId(id);
 }
 
@@ -121,7 +116,6 @@ String capitalizeVendor(String vendor) {
     return knownVendors[lower]!;
   }
 
-  // Default: capitalize first letter
   if (vendor.isEmpty) return vendor;
   return vendor[0].toUpperCase() + vendor.substring(1);
 }
@@ -141,7 +135,6 @@ String formatAscomVendor(String vendor) {
 /// Strips common prefixes, replaces separators with spaces,
 /// removes trailing index numbers, and capitalizes words.
 String cleanupDeviceId(String id) {
-  // Remove common prefixes
   var cleaned = id;
   for (final prefix in ['native:', 'ascom:', 'alpaca:', 'ASCOM.']) {
     if (cleaned.toLowerCase().startsWith(prefix.toLowerCase())) {
@@ -149,13 +142,11 @@ String cleanupDeviceId(String id) {
     }
   }
 
-  // Replace underscores and dots with spaces
   cleaned = cleaned.replaceAll('_', ' ').replaceAll('.', ' ');
 
   // Remove trailing numbers that look like indices
   cleaned = cleaned.replaceAll(RegExp(r'\s*:\s*\d+$'), '');
 
-  // Capitalize words
   if (cleaned.isNotEmpty) {
     cleaned = cleaned.split(' ').map((word) {
       if (word.isEmpty) return word;

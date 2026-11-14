@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 /// Inline banner surfaced from any operation that requires a plate solver
 /// (centering, framing wizard verify, polar alignment) when none is
@@ -34,7 +35,7 @@ class PlateSolverRequiredBanner extends StatelessWidget {
   void _navigateToSettings(BuildContext context) {
     final router = GoRouter.of(context);
     onBeforeNavigate?.call();
-    router.push('/settings/plate-solving');
+    router.push(AppRoute.plateSolvingSettings.path);
   }
 
   @override

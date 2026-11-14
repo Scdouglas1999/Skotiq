@@ -4,25 +4,29 @@
 // supplies the Riverpod plumbing that:
 //   1. Instantiates a single log per `ProviderContainer`.
 //   2. Subscribes to the backend's event stream and records every
-//      `EventCategory.equipment` event whose type is `Disconnected` or
-//      `Error` (severity warning or higher).
+//      `EventCategory.equipment` `Error` event of severity warning or
+//      higher. That is how a lost device arrives: the heartbeat gives it up
+//      and publishes an Error with the reason. A `Disconnected` event is
+//      not recorded: the native side publishes it only from its disconnect
+//      command (the Disconnect button, a profile switch, shutdown), which is
+//      the operator's doing, not a dropout.
 //   3. Periodically prunes entries older than 24 h so the in-memory
 //      list stays bounded for long unattended sessions.
 //
-// The bridge provider (`usbDisconnectEventBridgeProvider`) MUST be
-// `ref.watch`-ed somewhere in the widget tree to stay alive — same
-// pattern as `recoveryEventBridgeProvider`. The Run Dashboard
-// scaffolding does this so the log is populated as soon as the app
-// boots, independent of whether a sequence is running.
+// The bridge provider (`usbDisconnectEventBridgeProvider`) is an always-on
+// service: it is started at launch from the table in
+// `skotiq_app/startup/always_on_services.dart`, so the log fills from the
+// moment the app is up, whether or not a sequence is running.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/backend/event_types.dart' as core_events;
 import '../services/usb_disconnect_log.dart';
 import 'backend_provider.dart';
+import 'logging_service_provider.dart';
+import '../services/logging_service.dart';
 
 /// Singleton log per provider container.
 ///
@@ -35,9 +39,8 @@ final usbDisconnectLogProvider = Provider<UsbDisconnectLog>((ref) {
 
 /// Bridge that listens to the backend's event stream and feeds the log.
 ///
-/// Side-effecting; produces no state. The Run Dashboard scaffolding
-/// watches this so the disconnect history accumulates even when the
-/// settings UI / pre-flight dialog hasn't been opened yet.
+/// Side-effecting; produces no state. Started at launch as an always-on
+/// service, so the history accumulates before any screen asks for it.
 final usbDisconnectEventBridgeProvider = Provider<void>((ref) {
   final backend = ref.watch(diagnosticsBackendProvider);
   final log = ref.watch(usbDisconnectLogProvider);
@@ -46,26 +49,18 @@ final usbDisconnectEventBridgeProvider = Provider<void>((ref) {
   subscription = backend.eventStream.listen(
     (event) {
       if (event.category != core_events.EventCategory.equipment) return;
-      // Only Disconnected/Error events count. PropertyChanged + heartbeat
-      // events fire constantly during a connected session and would swamp
-      // the log without indicating any disconnect.
-      final isDisconnect = event.eventType == 'Disconnected';
-      final isError = event.eventType == 'Error';
-      if (!isDisconnect && !isError) return;
-      // For Error events we additionally require severity >= warning so
-      // info-level "device returned ASCOM error" chatter doesn't pollute
-      // the count (some drivers raise low-severity errors during a clean
-      // shutdown).
-      if (isError && event.severity == core_events.EventSeverity.info) {
-        return;
-      }
+      if (event.eventType != 'Error') return;
+      // Severity >= warning, so info-level "device returned ASCOM error"
+      // chatter doesn't pollute the count (some drivers raise low-severity
+      // errors during a clean shutdown).
+      if (event.severity == core_events.EventSeverity.info) return;
       final data = event.data;
       final deviceId = (data['device_id'] as String?) ?? '';
       final deviceType = data['device_type'] as String?;
       final reason =
           (data['message'] as String?) ??
           (data['reason'] as String?) ??
-          (isError ? 'device error' : null);
+          'device error';
       // We use the wall-clock at receive time rather than the event's
       // own timestamp because the event timestamp on `SkotiqEvent`
       // is `millisecondsSinceEpoch` and we'd just convert it; using
@@ -76,13 +71,23 @@ final usbDisconnectEventBridgeProvider = Provider<void>((ref) {
         deviceType: deviceType,
         reason: reason,
       );
+      ref
+          .read(loggingServiceProvider)
+          .warning(
+            'Device error recorded',
+            source: 'UsbDisconnectLog',
+            fields: {
+              'device': deviceId,
+              if (deviceType != null) 'type': deviceType,
+              'reason': reason,
+            },
+          );
     },
     onError: (Object error) {
       // Log-only — a stream error must not block subsequent events.
-      developer.log(
+      Log.error(
         '[UsbDisconnectEventBridge] Event stream error: $error',
-        name: 'UsbDisconnectEventBridge',
-        level: 1000,
+        source: 'UsbDisconnectEventBridge',
         error: error,
       );
     },

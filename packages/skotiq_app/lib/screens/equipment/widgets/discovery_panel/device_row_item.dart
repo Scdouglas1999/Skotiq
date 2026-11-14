@@ -1,6 +1,5 @@
 part of '../discovery_panel.dart';
 
-/// Individual device row in the discovery panel with assign dropdown
 class _DeviceRowItem extends ConsumerStatefulWidget {
   final UnifiedDevice device;
   final DeviceType deviceType;
@@ -23,10 +22,12 @@ class _DeviceRowItem extends ConsumerStatefulWidget {
 class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
   bool _isConnecting = false;
   bool _isAssigning = false;
-  int _assignGeneration = 0;
+
+  /// The assignment in progress; a newer one or a host change drops it.
+  late final _assignments = ref.backendScopes(alive: () => mounted);
 
   bool _isDeviceConnected() {
-    final slot = readDeviceSlot(ref, widget.deviceType);
+    final slot = ref.read(widget.deviceType.slot.state);
     return slot.connectionState == DeviceConnectionState.connected &&
         _deviceIdsMatch(slot.deviceId, widget.device.activeDeviceId);
   }
@@ -36,7 +37,6 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
     final c = connectedId.trim().toLowerCase();
     final d = discoveredId.trim().toLowerCase();
     if (c == d) return true;
-    // Normalize and compare
     final normC = c.replaceAll(RegExp(r'[^a-z0-9]'), '');
     final normD = d.replaceAll(RegExp(r'[^a-z0-9]'), '');
     if (normC == normD) return true;
@@ -65,9 +65,11 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
 
   Future<void> _handleAssign(AssignAction action) async {
     if (_isAssigning) return;
-    final backendOwner = ref.read(backendProvider.notifier);
-    final authority = backendOwner.currentBackend;
     final profiles = ref.read(sortedProfilesProvider);
+    if (action.profileId == AssignAction.newProfile) {
+      await _assignToNewProfile(profiles);
+      return;
+    }
     final profile =
         profiles.where((profile) => profile.id == action.profileId).firstOrNull;
     if (profile == null) {
@@ -80,85 +82,16 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       return;
     }
     final device = widget.device;
-    final generation = ++_assignGeneration;
+    final assignment = _assignments.beginLatest();
     setState(() => _isAssigning = true);
     try {
       final profileService = ref.read(profileServiceProvider);
 
-      switch (action.deviceType) {
-        case DeviceType.camera:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            cameraId: device.activeDeviceId,
-          );
-          break;
-        case DeviceType.mount:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            mountId: device.activeDeviceId,
-          );
-          break;
-        case DeviceType.focuser:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            focuserId: device.activeDeviceId,
-          );
-          break;
-        case DeviceType.filterWheel:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            filterWheelId: device.activeDeviceId,
-          );
-          break;
-        case DeviceType.guider:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            guiderId: device.activeDeviceId,
-          );
-          break;
-        case DeviceType.rotator:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            rotatorId: device.activeDeviceId,
-          );
-          break;
-        case DeviceType.dome:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            domeId: device.activeDeviceId,
-          );
-          break;
-        case DeviceType.weather:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            weatherId: device.activeDeviceId,
-          );
-          break;
-        case DeviceType.safetyMonitor:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            safetyMonitorId: device.activeDeviceId,
-          );
-          break;
-        case DeviceType.switch_:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            switchId: device.activeDeviceId,
-          );
-          break;
-        case DeviceType.coverCalibrator:
-          await profileService.updateProfileDevices(
-            action.profileId,
-            coverCalibratorId: device.activeDeviceId,
-          );
-          break;
-      }
+      await profileService.updateProfileDevices(action.profileId, {
+        action.deviceType: device.activeDeviceId,
+      });
 
-      if (!mounted ||
-          generation != _assignGeneration ||
-          !backendOwner.isCurrentBackend(authority)) {
-        return;
-      }
+      if (!mounted || assignment.isStale) return;
 
       // Notify callback if provided - need to convert from UnifiedDevice to DeviceInfo
       if (widget.onAssignDevice != null) {
@@ -169,32 +102,48 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       context.showSuccessSnackBar(
           'Assigned ${device.displayName} to ${profile.name}');
     } catch (e) {
-      if (mounted &&
-          generation == _assignGeneration &&
-          backendOwner.isCurrentBackend(authority)) {
-        context.showErrorSnackBar('Failed to assign device: $e');
+      if (mounted && assignment.isCurrent) {
+        context.showErrorSnackBar(
+            'Failed to assign device: ${userFacingError(e)}');
       }
     } finally {
-      if (mounted && generation == _assignGeneration) {
-        setState(() => _isAssigning = false);
+      if (assignment.isCurrent) setState(() => _isAssigning = false);
+    }
+  }
+
+  /// Make a profile that starts with this device in it, and select it.
+  Future<void> _assignToNewProfile(List<EquipmentProfileModel> profiles) async {
+    final device = widget.device;
+    final assignment = _assignments.beginLatest();
+    setState(() => _isAssigning = true);
+    try {
+      final name = uniqueProfileName(
+        'My Equipment',
+        profiles.map((profile) => profile.name),
+      );
+      final profileId = await ref
+          .read(equipmentProfilesProvider.notifier)
+          .saveProfile(EquipmentProfileModel(name: name));
+      await ref.read(profileServiceProvider).updateProfileDevices(profileId, {
+        widget.deviceType: device.activeDeviceId,
+      });
+      if (!mounted || assignment.isStale) return;
+      ref.read(profileMutationEpochProvider.notifier).state++;
+      ref.read(selectedEquipmentProfileIdProvider.notifier).state = profileId;
+      context.showSuccessSnackBar(
+        'Created profile "$name" with ${device.displayName}',
+      );
+    } catch (e) {
+      if (mounted && assignment.isCurrent) {
+        context.showErrorSnackBar(failureText('Failed to create a profile', e));
       }
+    } finally {
+      if (assignment.isCurrent) setState(() => _isAssigning = false);
     }
   }
 
   String _getSlotStatus(EquipmentProfileModel profile, DeviceType type) {
-    final currentId = switch (type) {
-      DeviceType.camera => profile.cameraId,
-      DeviceType.mount => profile.mountId,
-      DeviceType.focuser => profile.focuserId,
-      DeviceType.filterWheel => profile.filterWheelId,
-      DeviceType.guider => profile.guiderId,
-      DeviceType.rotator => profile.rotatorId,
-      DeviceType.dome => profile.domeId,
-      DeviceType.weather => profile.weatherId,
-      DeviceType.safetyMonitor => profile.safetyMonitorId,
-      DeviceType.switch_ => profile.switchId,
-      DeviceType.coverCalibrator => profile.coverCalibratorId,
-    };
+    final currentId = profile.deviceIdFor(type);
     return currentId == null || currentId.isEmpty ? '(empty)' : '(has device)';
   }
 
@@ -231,44 +180,38 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       ));
     }
 
-    if (items.isEmpty) {
-      items.add(PopupMenuItem<AssignAction>(
-        enabled: false,
-        child: Text(
-          'No profiles available',
-          style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
-        ),
-      ));
-    }
+    // Always offered, and the only entry before the first profile exists:
+    // a device can start a profile instead of waiting for one.
+    if (items.isNotEmpty) items.add(const PopupMenuDivider());
+    items.add(PopupMenuItem<AssignAction>(
+      value: AssignAction(
+        profileId: AssignAction.newProfile,
+        deviceType: widget.deviceType,
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.plus, size: 14, color: colors.textSecondary),
+          const SizedBox(width: 8),
+          Text(
+            'New profile with this device',
+            style: SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
+          ),
+        ],
+      ),
+    ));
 
     return items;
   }
-
-  /// The row's leading glyph, keyed off the device class.
-  IconData get _typeIcon => switch (widget.deviceType) {
-        DeviceType.camera => LucideIcons.camera,
-        DeviceType.mount => LucideIcons.compass,
-        DeviceType.focuser => LucideIcons.focus,
-        DeviceType.filterWheel => LucideIcons.disc,
-        DeviceType.guider => LucideIcons.crosshair,
-        DeviceType.rotator => LucideIcons.rotateCw,
-        DeviceType.dome => LucideIcons.home,
-        DeviceType.weather => LucideIcons.cloudSun,
-        DeviceType.safetyMonitor => LucideIcons.shieldCheck,
-        DeviceType.coverCalibrator => LucideIcons.lamp,
-        DeviceType.switch_ => LucideIcons.toggleRight,
-      };
 
   @override
   Widget build(BuildContext context) {
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (previous == null || identical(previous, next)) return;
-      _assignGeneration++;
+      _assignments.cancelAll();
       if (_isAssigning) setState(() => _isAssigning = false);
     });
     final colors = SkotiqColors.of(context);
 
-    // Watch device states to react to connection changes
     ref.watch(cameraStateProvider);
     ref.watch(mountStateProvider);
     ref.watch(focuserStateProvider);
@@ -312,7 +255,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       child: Row(
         children: [
           Icon(
-            _typeIcon,
+            widget.deviceType.icon,
             size: _discoveryRowIconSize,
             color: isConnected ? colors.success : colors.textMuted,
           ),
@@ -430,7 +373,6 @@ class _AddToProfileButtonState extends State<_AddToProfileButton> {
   }
 }
 
-/// The discovery row's leading glyph size.
 const double _discoveryRowIconSize = 15.0;
 
 /// Gap between the row's two actions (mockup: 6).

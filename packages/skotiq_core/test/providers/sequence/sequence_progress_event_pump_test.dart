@@ -10,7 +10,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 SkotiqEvent _event(String type, [Map<String, dynamic> data = const {}]) =>
     SkotiqEvent(
@@ -44,14 +45,21 @@ void main() {
       );
     });
 
-    test('status=skipped records skipped, status=canceled too', () {
-      apply(_event('NodeCompleted', {'node_id': 'n1', 'status': 'skipped'}));
-      apply(_event('NodeCompleted', {'node_id': 'n2', 'status': 'cancelled'}));
+    // A step stopped after 3 of its 4 frames read "Skipped" on the target
+    // card although it had run.
+    test(
+      'status=skipped records skipped, status=cancelled records cancelled',
+      () {
+        apply(_event('NodeCompleted', {'node_id': 'n1', 'status': 'skipped'}));
+        apply(
+          _event('NodeCompleted', {'node_id': 'n2', 'status': 'cancelled'}),
+        );
 
-      final statuses = container.read(sequenceProgressProvider).nodeStatuses;
-      expect(statuses['n1'], NodeStatus.skipped);
-      expect(statuses['n2'], NodeStatus.skipped);
-    });
+        final statuses = container.read(sequenceProgressProvider).nodeStatuses;
+        expect(statuses['n1'], NodeStatus.skipped);
+        expect(statuses['n2'], NodeStatus.cancelled);
+      },
+    );
 
     test('status=failed records failure', () {
       apply(_event('NodeCompleted', {'node_id': 'n1', 'status': 'failed'}));
@@ -61,30 +69,6 @@ void main() {
         NodeStatus.failure,
       );
     });
-
-    test('a legacy success bool is still honored', () {
-      apply(_event('NodeCompleted', {'node_id': 'n1', 'success': true}));
-
-      expect(
-        container.read(sequenceProgressProvider).nodeStatuses['n1'],
-        NodeStatus.success,
-      );
-    });
-
-    test(
-      'no status at all leaves the node alone rather than claiming failure',
-      () {
-        apply(
-          _event('NodeStarted', {'node_id': 'n1', 'node_type': 'Exposure'}),
-        );
-        apply(_event('NodeCompleted', {'node_id': 'n1'}));
-
-        expect(
-          container.read(sequenceProgressProvider).nodeStatuses['n1'],
-          NodeStatus.running,
-        );
-      },
-    );
   });
 
   group('lifecycle events drive state when no local run is owned', () {
@@ -184,20 +168,6 @@ void main() {
       expect(progress.completedExposures, 1);
       expect(progress.completedIntegrationSecs, 10.0);
     });
-
-    test('the prefixed spellings still work for hosts that emit them', () {
-      apply(_event('SequenceStarted', {'sequence_name': 'x'}));
-      expect(
-        container.read(sequenceExecutionStateProvider),
-        SequenceExecutionState.running,
-      );
-
-      apply(_event('SequenceCompleted'));
-      expect(
-        container.read(sequenceExecutionStateProvider),
-        SequenceExecutionState.completed,
-      );
-    });
   });
 
   group('a local executor-owned run keeps lifecycle authority', () {
@@ -206,9 +176,10 @@ void main() {
     // broadcast stream, so it must not pre-empt that transaction with a settled
     // state.
     test('terminal events do not settle the state while a run id is set', () {
-      container.read(currentRunIdProvider.notifier).state = 42;
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container.read(runRecordProvider.notifier).setRunId(42);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
 
       apply(_event('Completed'));
       expect(
@@ -230,7 +201,7 @@ void main() {
     });
 
     test('node status is still mirrored for an owned run', () {
-      container.read(currentRunIdProvider.notifier).state = 42;
+      container.read(runRecordProvider.notifier).setRunId(42);
 
       apply(_event('NodeCompleted', {'node_id': 'n1', 'status': 'success'}));
       expect(
@@ -242,39 +213,20 @@ void main() {
 
   group('camera card is released when the run leaves the exposing path', () {
     test('a stop mid-exposure clears Exposing (no sticky Exposing)', () {
-      apply(
-        _event('ExposureStarted', {
-          'frame': 1,
-          'total': 10,
-          'duration_secs': 120.0,
-        }),
-      );
-      expect(container.read(cameraStateProvider).isExposing, isTrue);
+      container.read(cameraStateProvider.notifier).setExposing(true);
 
       apply(_event('Stopped'));
       expect(container.read(cameraStateProvider).isExposing, isFalse);
     });
 
     test('a completion mid-exposure clears Exposing', () {
-      apply(
-        _event('ExposureStarted', {
-          'frame': 1,
-          'total': 1,
-          'duration_secs': 5.0,
-        }),
-      );
+      container.read(cameraStateProvider.notifier).setExposing(true);
       apply(_event('Completed'));
       expect(container.read(cameraStateProvider).isExposing, isFalse);
     });
 
     test('a terminal failure mid-exposure clears Exposing', () {
-      apply(
-        _event('ExposureStarted', {
-          'frame': 1,
-          'total': 1,
-          'duration_secs': 5.0,
-        }),
-      );
+      container.read(cameraStateProvider.notifier).setExposing(true);
       apply(_event('SequenceFailed', {'error': 'guider lost star'}));
       expect(container.read(cameraStateProvider).isExposing, isFalse);
     });

@@ -1,9 +1,11 @@
 import 'dart:convert';
 
+// bridge-boundary: headless_validation
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
 import 'package:shelf/shelf.dart';
 
 import 'response_helpers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
 
 /// Operator-readable sentence for an arbitrary thrown object, for handlers
 /// that build their own error body instead of letting
@@ -61,6 +63,7 @@ String _cleanBackendErrorMessage(bridge_error.SkotiqError e) {
     operationFailed: (v) => v.field0,
     notSupported: (v) => scoped(v.operation, v.deviceId),
     deviceBusy: (v) => '${v.deviceId} is busy: ${v.currentOperation}',
+    invalidState: (v) => v.field0,
     // Imaging
     imageError: (v) => v.field0,
     cameraError: (v) => v.field0,
@@ -151,6 +154,7 @@ int _httpStatusForBackendError(bridge_error.SkotiqError e) {
     invalidDeviceId: (_) => 400,
     parameterOutOfRange: (_) => 400,
     deviceBusy: (_) => 409,
+    invalidState: (_) => 409,
     resourceExhausted: (_) => 409,
     timeout: (_) => 504,
     deviceTimeout: (_) => 504,
@@ -258,12 +262,13 @@ class HandlerFailure implements Exception {
   @override
   String toString() => 'HandlerFailure(code=$code, status=$statusCode)';
 
-  Map<String, Object?> toJsonBody({String? requestId}) => {
-    'error': code,
-    'message': message,
-    if (requestId != null) 'requestId': requestId,
-    if (details != null) ...details!,
-  };
+  Map<String, Object?> toJsonBody({String? requestId}) => ApiErrorBody(
+    code: code,
+    message: message,
+    layout: ApiErrorLayout.codeAsError,
+    requestId: requestId,
+    details: details,
+  ).toJson();
 }
 
 /// Reads the request body as a JSON object.

@@ -4,6 +4,7 @@ import '../../../models/sequence/sequence_models.dart';
 import '../../meridian_flip_provider.dart' show isMeridianFlipEnabledProvider;
 import '../../settings_provider.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 /// REJECTS sequence start when no usable image output directory
 /// is configured.
@@ -26,10 +27,9 @@ class ImageOutputPathRule implements RefAwareSequenceValidator {
 
   @override
   List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
-    // Only relevant if the sequence will actually capture.
-    final hasEnabledExposure = sequence.nodes.values
+    final hasEnabledExposure = sequence.enabledNodes
         .whereType<ExposureNode>()
-        .any((n) => n.isEnabled);
+        .isNotEmpty;
     if (!hasEnabledExposure) return const [];
 
     // appSettingsProvider is an AsyncNotifier; `.read()` returns AsyncValue.
@@ -187,16 +187,11 @@ class MeridianFlipTriggerRule implements RefAwareSequenceValidator {
     final targets = sequence.targetHeaders;
     if (targets.isEmpty) return const [];
 
-    final hasFlipNode = sequence.nodes.values.any(
-      (n) => n is MeridianFlipNode && n.isEnabled,
-    );
+    final hasFlipNode = sequence.enabledNodes.any((n) => n is MeridianFlipNode);
     if (hasFlipNode) return const [];
 
-    final hasRecoveryFlip = sequence.nodes.values.any(
-      (n) =>
-          n is RecoveryNode &&
-          n.isEnabled &&
-          n.triggerType == TriggerType.meridianFlip,
+    final hasRecoveryFlip = sequence.enabledNodes.any(
+      (n) => n is RecoveryNode && n.triggerType == TriggerType.meridianFlip,
     );
     if (hasRecoveryFlip) return const [];
 
@@ -212,9 +207,8 @@ class MeridianFlipTriggerRule implements RefAwareSequenceValidator {
     if (runFlipsArmed) return const [];
 
     double totalMins = 0;
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! ExposureNode) continue;
-      if (!node.isEnabled) continue;
       totalMins += (node.durationSecs * node.count) / 60.0;
     }
     if (totalMins < 120) return const [];

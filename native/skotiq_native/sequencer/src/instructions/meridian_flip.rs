@@ -1,8 +1,3 @@
-//! `meridian_flip.rs` — moved verbatim out of the former single-file `instructions.rs`
-//! (release-pass C3 mechanical split). No logic changed; private items were
-//! widened to `pub(crate)` so the sibling modules and the tests module still
-//! see them, and `super::*` supplies the imports the original file had.
-
 use super::*;
 
 // Meridian flip instruction
@@ -38,12 +33,9 @@ pub async fn execute_meridian_flip_with_autofocus(
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> InstructionResult {
-    // Surface a "starting" progress immediately so UI shows activity even
-    // before the executor begins emitting its own events. The executor uses
-    // its event channel for granular per-step progress so we do not wire
-    // through that channel here — the explicit instruction node has its own
-    // progress reporter (the callback we received) and a brief
-    // 0%/100% bracket is sufficient.
+    // The step reports a 0%/100% bracket through its own progress callback;
+    // the flip's per-step detail goes to the log and its verdict and retries
+    // to the run's event feed.
     if let Some(cb) = progress_callback {
         cb(0.0, "Starting meridian flip".to_string());
     }
@@ -65,21 +57,12 @@ pub async fn execute_meridian_flip_with_autofocus(
         }
     };
 
-    // Why: target name is a display/log label for meridian-flip
-    // status events; the load-bearing inputs (target_ra, target_dec) are already
-    // validated as Some above and return failure when missing. "Unknown" is the
-    // documented UI fallback when the user starts a sequence without a named target.
-    let target_name = ctx
-        .target_name
-        .clone()
-        .unwrap_or_else(|| "Unknown".to_string());
-
     // Pre-flight: do not invoke the executor when no flip is actually needed
     // — its altitude/cover/pier-side preflight assume the flip is required
     // and would otherwise emit confusing "Aborted" events for routine
     // pre-meridian sequence runs.
-    let (_lat, lon) = match ctx.device_ops.get_observer_location() {
-        Some((lat, lon)) => (lat, lon),
+    let lon = match ctx.run.rig.longitude {
+        Some(lon) => lon,
         None => {
             return InstructionResult::failure(
                 "Observer location not configured. Meridian flip requires location for calculations."
@@ -122,52 +105,16 @@ pub async fn execute_meridian_flip_with_autofocus(
         ));
     }
 
-    let flip_ctx = crate::meridian_flip_executor::FlipContext {
-        target_name,
-        target_ra_hours: target_ra,
-        target_dec_degrees: target_dec,
-        mount_id,
-        camera_id: ctx.camera_id.clone(),
-        focuser_id: ctx.focuser_id.clone(),
-        // Resolve through the accessor, not the raw field: the context's cover
-        // role is never populated on a real run, which silently disabled the
-        // pre-flip "is the dust cap closed?" check that exists to stop a flip
-        // ending in a failed plate solve and a parked mount.
-        cover_calibrator_id: ctx.cover_calibrator_id().await.ok(),
-        cancellation_token: Some(ctx.cancellation_token.clone()),
-        trigger_state: ctx.trigger_state.clone(),
-        // Carry the tuned autofocus config PLUS the live filter context
-        // (current filter, wheel id, per-filter focus offsets) so the post-flip
-        // refocus does not fall back to defaults on the wrong filter.
-        autofocus_config: autofocus_config.map(|cfg| {
-            crate::meridian_flip_executor::PostFlipAutofocusConfig {
-                config: cfg.clone(),
-                current_filter: ctx.current_filter.clone(),
-                filterwheel_id: ctx.filterwheel_id.clone(),
-                filter_focus_offsets: ctx.filter_focus_offsets.clone(),
-            }
-        }),
-        // Real sequence-driven flip: command the hardware. The dry-run path
-        // (Phase G) is the only caller that sets this true.
-        simulate: false,
+    let Some(flip_ctx) =
+        crate::meridian_flip_executor::FlipContext::for_instruction(ctx, autofocus_config.cloned())
+            .await
+    else {
+        return InstructionResult::failure("No target coordinates available for meridian flip");
     };
-
-    let mut flip_executor = crate::meridian_flip_executor::MeridianFlipExecutor::new(
+    let mut flip_executor = crate::meridian_flip_executor::MeridianFlipExecutor::in_run(
         config.clone(),
-        ctx.device_ops.clone(),
+        ctx.run.clone(),
     );
-    // forward the live executor event channel so the
-    // post-flip refocus emits its instruction-level failures to UI
-    // subscribers (FITS-save errors during the test exposure, etc.).
-    // When the instruction runs outside a live executor (unit tests),
-    // ctx.event_tx is None and the chain remains silent.
-    if let Some(event_tx) = ctx.event_tx.clone() {
-        flip_executor = flip_executor.with_executor_event_tx(event_tx);
-    }
-    if let Some(decision_tx) = ctx.decision_tx.clone() {
-        flip_executor =
-            flip_executor.with_decision_tx(decision_tx, ctx.active_sequence_run_id.clone());
-    }
 
     match flip_executor.execute(&flip_ctx).await {
         crate::meridian_flip_executor::FlipResult::Success {
@@ -194,12 +141,12 @@ pub async fn execute_meridian_flip_with_autofocus(
         crate::meridian_flip_executor::FlipResult::Failed {
             error,
             action_taken,
-        } => InstructionResult::failure_with_recovery(
+        } => InstructionResult::failure_because(
             format!(
                 "Meridian flip failed: {} (action taken: {:?})",
                 error, action_taken
             ),
-            "FLIP_FAILED",
+            Setback::FlipFailed,
         ),
         crate::meridian_flip_executor::FlipResult::Aborted { reason } => {
             InstructionResult::cancelled(reason)
@@ -221,13 +168,16 @@ async fn flip_not_for_this_mount(
     longitude: f64,
     now: chrono::DateTime<chrono::Utc>,
 ) -> Option<String> {
-    if matches!(ctx.device_ops.mount_is_parked(mount_id).await, Ok(true)) {
+    if matches!(ctx.run.device_ops.mount_is_parked(mount_id).await, Ok(true)) {
         return Some("the mount is parked".to_string());
     }
-    if matches!(ctx.device_ops.mount_is_tracking(mount_id).await, Ok(false)) {
+    if matches!(
+        ctx.run.device_ops.mount_is_tracking(mount_id).await,
+        Ok(false)
+    ) {
         return Some("the mount is not tracking".to_string());
     }
-    if let Some(state) = &ctx.trigger_state {
+    if let Some(state) = &ctx.run.trigger_state {
         if state.read().await.meridian.has_flipped() {
             return Some("the mount already flipped for this target".to_string());
         }
@@ -238,7 +188,7 @@ async fn flip_not_for_this_mount(
     );
     if hour_angle > 0.0
         && matches!(
-            ctx.device_ops.mount_side_of_pier(mount_id).await,
+            ctx.run.device_ops.mount_side_of_pier(mount_id).await,
             Ok(crate::meridian::PierSide::East)
         )
     {

@@ -7,33 +7,36 @@ class SettingsPage extends StatelessWidget {
 
   final List<Widget> children;
 
-  final bool isMobile;
+  /// Whether to leave out the title and lead line. Null decides from the
+  /// enclosing [SettingsFormScope]: hidden in the narrow layout, where the
+  /// screen's own header already names the section, and when embedded in
+  /// another page, which has its own.
+  final bool? hideHeader;
 
-  /// If true, don't show title/description (used when mobile header already shows title)
-
-  final bool hideHeader;
-
-  /// When false, the page renders without its own scroll view — used when it's
-  /// embedded inside another scrolling container (e.g. a merged section) so two
-  /// same-axis viewports don't fight and split the view into independent panes.
-
-  final bool scrollable;
+  /// When false, the page renders without its own scroll view: it sits inside
+  /// another scrolling container (a merged section), and two same-axis
+  /// viewports would split the view into independent panes. Defaults to the
+  /// enclosing [SettingsFormScope]'s `embedded` flag.
+  final bool? scrollable;
 
   const SettingsPage({
     super.key,
     required this.title,
     required this.description,
     required this.children,
-    this.isMobile = false,
-    this.hideHeader = false,
-    this.scrollable = true,
+    this.hideHeader,
+    this.scrollable,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    final narrow = SettingsFormScope.narrowOf(context);
+    final embedded = SettingsFormScope.embeddedOf(context);
+    final scrollable = this.scrollable ?? !embedded;
+    final hideHeader = this.hideHeader ?? (narrow || embedded);
 
-    final padding = isMobile ? SkotiqTokens.paddingLg : settingsPagePadding;
+    final padding = settingsPagePaddingOf(context);
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,8 +70,8 @@ class SettingsPage extends StatelessWidget {
     // Cap the reading width on wide monitors. Settings rows are label-left /
     // control-right, so an unbounded card on a 5120px-wide window put metres of
     // empty space between the two and made every line a sentence-long scan.
-    // Mobile keeps the full width (it is never wider than the cap anyway).
-    final bounded = isMobile
+    // The narrow layout keeps the full width (it is never wider than the cap).
+    final bounded = narrow
         ? content
         : Align(
             alignment: Alignment.centerLeft,
@@ -87,7 +90,13 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-/// A settings leaf's desktop padding.
+/// The padding of a settings leaf in the layout [context] is in.
+EdgeInsets settingsPagePaddingOf(BuildContext context) =>
+    SettingsFormScope.narrowOf(context)
+        ? SkotiqTokens.paddingLg
+        : settingsPagePadding;
+
+/// A settings leaf's padding in the split view.
 ///
 /// The top inset matches the nav column's, so the page's title starts level
 /// with the search field beside it instead of a row lower.
@@ -103,29 +112,29 @@ const EdgeInsets settingsPagePadding = EdgeInsets.fromLTRB(
 /// 880 px, from the mockup (`mockups/settings.html` `.page`). Settings rows are
 /// label-left / control-right, so an unbounded column on a wide window put
 /// metres of empty space between the two and made every line a sentence-long
-/// scan. Mobile keeps the full width (it is never wider than the cap anyway).
+/// scan. The narrow layout keeps the full width (it is never wider than the cap).
 const double settingsContentMaxWidth = 880;
 
 class SettingsLoadingState extends StatelessWidget {
-  final bool isMobile;
-
   final String message;
 
-  /// See [SettingsPage.scrollable] — false when embedded in another scroll view.
-  final bool scrollable;
+  /// See [SettingsPage.scrollable].
+  final bool? scrollable;
 
   const SettingsLoadingState({
     super.key,
-    this.isMobile = false,
     this.message = 'Loading settings...',
-    this.scrollable = true,
+    this.scrollable,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    final narrow = SettingsFormScope.narrowOf(context);
+    final scrollable =
+        this.scrollable ?? !SettingsFormScope.embeddedOf(context);
 
-    final padding = isMobile ? SkotiqTokens.paddingLg : settingsPagePadding;
+    final padding = settingsPagePaddingOf(context);
 
     // The skeleton is the loaded page's own anatomy (title, lead line, then
     // eyebrow + panel groups) drawn in `well`, so nothing jumps when the real
@@ -164,7 +173,7 @@ class SettingsLoadingState extends StatelessWidget {
             const SizedBox(height: SkotiqTokens.spaceSm),
             Container(
               width: double.infinity,
-              height: isMobile ? 164 : 188,
+              height: narrow ? 164 : 188,
               decoration: SkotiqDecorations.panel(colors),
             ),
             const SizedBox(height: SkotiqTokens.space2xl),
@@ -174,7 +183,7 @@ class SettingsLoadingState extends StatelessWidget {
               padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
               child: Text(
                 message,
-                style: (isMobile
+                style: (narrow
                         ? SkotiqTypography.caption
                         : SkotiqTypography.bodySm)
                     .copyWith(color: colors.textMuted),
@@ -193,8 +202,6 @@ class SettingsLoadingState extends StatelessWidget {
 }
 
 class SettingsErrorState extends StatelessWidget {
-  final bool isMobile;
-
   final Object error;
 
   final VoidCallback? onRetry;
@@ -202,7 +209,6 @@ class SettingsErrorState extends StatelessWidget {
   const SettingsErrorState({
     super.key,
     required this.error,
-    this.isMobile = false,
     this.onRetry,
   });
 
@@ -213,7 +219,7 @@ class SettingsErrorState extends StatelessWidget {
     return EmptyState(
       icon: LucideIcons.alertTriangle,
       title: 'Settings did not load',
-      body: error.toString(),
+      body: userFacingError(error),
       action: onRetry == null
           ? null
           : SkotiqButton(

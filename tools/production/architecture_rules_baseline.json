@@ -1,0 +1,298 @@
+{
+  "_about": "Sites that existed when tools/production/architecture_rules_audit.dart was added (2026-11-11). Counts per key; only a count above these fails. --sync-baseline lowers counts and drops fixed entries; it never adds. Add an entry by hand only with a reason.",
+  "backendClass": {
+    "allowed": {
+      "file_paths.dart::_ImagingServiceFilePaths._nextKeeperFrameNumber": {
+        "count": 1,
+        "reason": "Downcast to reach the host's file listing for keeper numbering; belongs on a HostFiles role member. Existing when the gate was added."
+      }
+    }
+  },
+  "nodeDispatch": {
+    "allowed": {
+      "_node_editor.dart::_NodeEditor._buildTypeSpecificProperties": {
+        "count": 1,
+        "reason": "One inspector editor widget per node type; an exhaustive sealed switch so a new type does not compile until it has an editor (k-nodedesc kept it on purpose)."
+      },
+      "calibration_run.rs::is_calibration_only": {
+        "count": 1,
+        "reason": "Domain predicate, Rust twin of eon_plan.dart isCalibrationOnlySequence."
+      },
+      "eon_plan.dart::isCalibrationOnlySequence": {
+        "count": 1,
+        "reason": "Domain predicate (steps a calibration-only plan may hold), not type metadata (k-nodedesc)."
+      },
+      "node_durations.dart::_SequenceTimeEstimatorNodeDurations._estimateNodeDuration": {
+        "count": 1,
+        "reason": "Time estimator rules read the overhead config and the site (k-nodedesc)."
+      },
+      "node_summary.dart::nodeSummary": {
+        "count": 1,
+        "reason": "The row summary of each node type; exhaustive sealed switch, compiler-checked (k-nodedesc)."
+      },
+      "node_timing_section.dart::NodeTimingSection._getDurationDetails": {
+        "count": 1,
+        "reason": "Per-type timing detail rows in the inspector. Candidate for NodeKind or the exhaustive switch form."
+      },
+      "node_timing_section.dart::hasMeaningfulDuration": {
+        "count": 1,
+        "reason": "Exhaustive sealed switch kept with the timing section (k-nodedesc). Candidate NodeKind field."
+      },
+      "preflight.rs::collect_required_devices": {
+        "count": 1,
+        "reason": "Rust preflight's per-type device requirements; the Dart side reads NodeKind.requiredDevices. Candidate for a NodeType method next to wire_name."
+      },
+      "sequence_serializer.dart::SequenceSerializer._nodeToConfig": {
+        "count": 1,
+        "reason": "Translation into the Rust executor's own vocabulary (snake_case keys, settings-resolved values); pinned by the executor-wire goldens (k-nodedesc)."
+      },
+      "sequence_serializer.dart::shutdownWarmUpIds": {
+        "count": 1,
+        "reason": "Domain predicate (steps that put the rig away), not type metadata (k-nodedesc)."
+      },
+      "sequence_state.dart::Sequence._nodeOverhead": {
+        "count": 1,
+        "reason": "Per-type overhead seconds read from the overhead config. Candidate NodeKind field."
+      },
+      "sequence_timeline.dart::SequenceTimeline._segmentForTiming": {
+        "count": 1,
+        "reason": "Timeline segment kind per node type. Candidate NodeKind field."
+      }
+    }
+  },
+  "srcImport": {
+    "note": "Existing imports of another package's src/ files. Fix by importing the public library (export the name there if needed), then run --sync-baseline.",
+    "allowed": {
+      "skotiq_app -> package:skotiq_core/src/backend/skotiq_exception.dart": 1,
+      "skotiq_app -> package:skotiq_plugins/src/plugin_host.dart": 1,
+      "skotiq_app -> package:skotiq_plugins/src/plugin_registration.dart": 5,
+      "skotiq_core -> package:skotiq_plugins/src/plugin_host.dart": 1,
+      "skotiq_core -> package:skotiq_plugins/src/plugin_registration.dart": 2,
+      "skotiq_core -> package:skotiq_remote_protocol/src/push/lan_push_broadcaster.dart": 1
+    }
+  },
+  "coreLayers": {
+    "allowed": {
+      "services/annotation_service.dart": {
+        "count": 6,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentImageProvider, lastImageStatsProvider, loggingServiceProvider."
+      },
+      "services/auto_save_service.dart": {
+        "count": 9,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, backupServiceProvider, constellationServiceProvider, currentSequenceProvider, replayDebugRetentionDaysProvider, replayDebugServiceProvider, sequenceRepositoryProvider, settingsDaoProvider, skyAtlasServiceProvider, syncServiceProvider."
+      },
+      "services/calibration_backlog_service.dart": {
+        "count": 5,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads calibrationLibraryProvider, calibrationMasterBuildProvider, darkLibraryServiceProvider, databaseProvider, flatLibraryServiceProvider, settingsDaoProvider."
+      },
+      "services/calibration_library_service.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref; scopes host work with AsyncScope (Riverpod)."
+      },
+      "services/calibration_service.dart": {
+        "count": 4,
+        "reason": "Holds a Riverpod Ref; reads allSettingsProvider, darkLibraryMatchTolerancesProvider, darkLibraryServiceProvider, loggingServiceProvider, settingsDaoProvider; scopes host work with AsyncScope (Riverpod)."
+      },
+      "services/camera_temperature_poller.dart": {
+        "count": 4,
+        "reason": "Holds a Riverpod Ref; reads cameraStateProvider, coolingStatusProvider, deviceReadHealthProvider, loggingServiceProvider, sequenceExecutionStateProvider, temperatureHistoryProvider."
+      },
+      "services/camera_warmup_controller.dart": {
+        "count": 5,
+        "reason": "Holds a Riverpod Ref; reads cameraCapabilitiesProvider, cameraStateProvider, coolingSettingsProvider, loggingServiceProvider, sequenceExecutionStateProvider."
+      },
+      "services/capture_preview_loader.dart": {
+        "count": 2,
+        "reason": "Holds a Riverpod Ref; reads backendProvider, currentImageProvider, lastImageStatsProvider."
+      },
+      "services/centering_service.dart": {
+        "count": 9,
+        "reason": "Holds a Riverpod Ref; reads coImagingSessionServiceProvider, deviceBackendProvider, exposureSettingsProvider."
+      },
+      "services/darkroom_build_jobs.dart": {
+        "count": 6,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads darkroomBuildServiceProvider, darkroomStateStoreProvider, databaseProvider, notificationServiceProvider, postSessionSeamProvider, targetMastersFolderProvider."
+      },
+      "services/default_science_backend.dart": {
+        "count": 6,
+        "reason": "Holds a Riverpod Ref; reads appSettingsProvider, imagesDaoProvider, imagingBackendProvider, loggingServiceProvider, plateSolveServiceProvider, settingsDaoProvider."
+      },
+      "services/defect_map_service.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref; reads linkedHostCalibrationToolsProvider."
+      },
+      "services/device_commands.dart": {
+        "count": 4,
+        "reason": "Holds a Riverpod Ref; reads deviceBackendProvider, deviceServiceProvider, switchStateProvider."
+      },
+      "services/device_heartbeat_router.dart": {
+        "count": 2,
+        "reason": "Holds a Riverpod Ref; reads deviceHeartbeatHealthProvider, loggingServiceProvider."
+      },
+      "services/device_reconnect_coordinator.dart": {
+        "count": 6,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, loggingServiceProvider, mountStateProvider, notificationServiceProvider, sequenceExecutionStateProvider, uiNotificationProvider."
+      },
+      "services/device_service.dart": {
+        "count": 24,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, phd2ControllerProvider (guiding resumes after autofocus through the one guiding start), settingsDaoProvider."
+      },
+      "services/diagnostic_dump_service.dart": {
+        "count": 14,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appVersionProvider, cameraStateProvider, coverCalibratorStateProvider, currentSequenceProvider, domeStateProvider, equipmentProfilesDaoProvider, filterWheelStateProvider, focuserStateProvider, guiderStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider, safetyMonitorStateProvider, tempDirProvider, weatherStateProvider."
+      },
+      "services/eon_deferral.dart": {
+        "count": 2,
+        "reason": "Holds a Riverpod Ref; reads backendProvider, settingsDaoProvider."
+      },
+      "services/eon_trigger.dart": {
+        "count": 11,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, backendProvider, currentSequenceProvider, endOfNightCalibrationProvider, imagesDaoProvider, loggingServiceProvider, mountStateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceStopEvidenceProvider, sequenceTerminalRunResultProvider, settingsDaoProvider, shutdownWarmUpDeferredProvider."
+      },
+      "services/error_service.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref."
+      },
+      "services/first_light_orchestrator.dart": {
+        "count": 7,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads annotationServiceProvider, cameraStateProvider, currentAnnotationProvider, currentImageProvider, exposureSettingsProvider, imagingServiceProvider, lastImageStatsProvider, loggingServiceProvider, plateSolveServiceProvider, stretchedImageProvider."
+      },
+      "services/flat_wizard_service.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref."
+      },
+      "services/frame_auto_grader.dart": {
+        "count": 3,
+        "reason": "Holds a Riverpod Ref; reads imagesDaoProvider, imagingRecordsRepositoryProvider, loggingServiceProvider, scienceDaoProvider, scienceSettingsProvider."
+      },
+      "services/frame_identity.dart": {
+        "count": 4,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appSettingsProvider, equipmentProfilesProvider, filterWheelStateProvider, focuserStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider."
+      },
+      "services/home_assistant_discovery_service.dart": {
+        "count": 8,
+        "reason": "Holds a Riverpod Ref; reads appSettingsProvider, cameraStateProvider, domeStateProvider, equipmentProfilesProvider, guideStatsProvider, liveSequenceStatsProvider, phd2StateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceProgressProvider, sessionImagesProvider, weatherSafetyProvider, weatherStateProvider."
+      },
+      "services/imaging_service.dart": {
+        "count": 15,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads cameraSensitivityProvider, loggingServiceProvider; scopes host work with AsyncScope (Riverpod)."
+      },
+      "services/in_app_transport.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref."
+      },
+      "services/live_stacking_broadcast_service.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider."
+      },
+      "services/live_stacking_service.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider."
+      },
+      "services/local_imaging_records.dart": {
+        "count": 9,
+        "reason": "Holds a Riverpod Ref and declares the role provider of its own data set (hostRoleProvider); reads coImagingSessionServiceProvider, imagesDaoProvider, loggingServiceProvider, narratorServiceProvider, notificationRouterProvider, sessionsDaoProvider, skyAtlasServiceProvider, thumbnailSidecarServiceProvider."
+      },
+      "services/master_accumulation_service.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref."
+      },
+      "services/narrator_service.dart": {
+        "count": 14,
+        "reason": "Holds a Riverpod Ref; reads activePhotometryTargetObjectIdProvider, autofocusOverlayProvider, backendProvider, cloudCoverPercentageProvider, focuserStateProvider, guideStatsProvider, guiderStateProvider, guidingStopReasonProvider, lastImageStatsProvider, loggingServiceProvider, narratorEventsDaoProvider, opticalTrainDiagnosticsProvider, periodAnalysisProvider, phd2StateProvider, scienceProcessingLatestStageProvider, scienceProcessingStatusTrackerProvider, sessionFilterIntegrationProvider, sessionFrameCalibrationsProvider, sessionFrameQualityMetricsProvider, sessionImagesStreamProvider, sessionLightCurveProvider, sessionMovingObjectTrendProvider, sessionTransparencyTrendProvider, weatherSafetyProvider, weatherStateProvider."
+      },
+      "services/night_end_coordinator.dart": {
+        "count": 6,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, endOfNightCalibrationCoordinatorProvider, endOfNightCalibrationProvider, loggingServiceProvider, nightEndRunnerProvider, nightIntegrationRequestProvider, sequenceTerminalRunResultProvider."
+      },
+      "services/night_end_runner.dart": {
+        "count": 8,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads calibrationBacklogProvider, darkroomBuildJobsProvider, darkroomBuildServiceProvider, darkroomRecentBuildsProvider, darkroomStateStoreProvider, databaseProvider, guidedBuildDeliveryProvider, imagesDaoProvider, loggingServiceProvider, notificationServiceProvider, settingsDaoProvider."
+      },
+      "services/night_end_settings.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads settingsDaoProvider."
+      },
+      "services/open_plan_service.dart": {
+        "count": 5,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentSequenceProvider, sequenceFileServiceProvider, sequenceRepositoryProvider, settingsDaoProvider."
+      },
+      "services/phd2_launcher.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref; reads uiNotificationProvider."
+      },
+      "services/photometric_catalog_service.dart": {
+        "count": 2,
+        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider, settingsDaoProvider."
+      },
+      "services/photometric_transform_service.dart": {
+        "count": 2,
+        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider, scienceDaoProvider."
+      },
+      "services/plate_solve_service.dart": {
+        "count": 4,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, loggingServiceProvider, opticalConfigProvider; scopes host work with AsyncScope (Riverpod)."
+      },
+      "services/predictive_af_service.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads databaseProvider, settingsDaoProvider."
+      },
+      "services/profile_service.dart": {
+        "count": 6,
+        "reason": "Holds a Riverpod Ref; reads autoConnectSettingsProvider, backendProvider, equipmentProfilesDaoProvider, equipmentProfilesProvider, filterWheelStateProvider."
+      },
+      "services/quick_start_service.dart": {
+        "count": 4,
+        "reason": "Holds a Riverpod Ref; reads sequenceCheckpointsDaoProvider."
+      },
+      "services/safe_rig_service.dart": {
+        "count": 10,
+        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, cameraStateProvider, coverCalibratorStateProvider, domeStateProvider, equipmentDomeCapabilitiesProvider, mountStateProvider, secondaryRigControllerProvider, sequenceExecutionStateProvider, uiNotificationProvider; scopes host work with AsyncScope (Riverpod)."
+      },
+      "services/science_camera_auto_config.dart": {
+        "count": 6,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, backendProvider, cameraCapabilitiesProvider, cameraStateProvider, loggingServiceProvider, settingsDaoProvider."
+      },
+      "services/science_processing_service.dart": {
+        "count": 11,
+        "reason": "Holds a Riverpod Ref; reads imagingRecordsRepositoryProvider, loggingServiceProvider, scienceBackendProvider, scienceDaoProvider, scienceProcessingStatusTrackerProvider."
+      },
+      "services/smart_notification_service.dart": {
+        "count": 2,
+        "reason": "Holds a Riverpod Ref; reads currentScreenProvider, uiNotificationProvider."
+      },
+      "services/stack_and_share_service.dart": {
+        "count": 9,
+        "reason": "Holds a Riverpod Ref; reads calibrationServiceProvider, darkLibraryServiceProvider, imagesDaoProvider, liveStackingServiceProvider, loggingServiceProvider, sessionsDaoProvider, stackLightSelectorProvider, stackedResultsDaoProvider; scopes host work with AsyncScope (Riverpod)."
+      },
+      "services/stack_share_export_service.dart": {
+        "count": 3,
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, applicationSupportDirectoryProvider, loggingServiceProvider, stackedResultsDaoProvider."
+      },
+      "services/switch_channel_service.dart": {
+        "count": 4,
+        "reason": "Holds a Riverpod Ref; reads backendProvider, errorServiceProvider, loggingServiceProvider, switchStateProvider."
+      },
+      "services/target_library_service.dart": {
+        "count": 3,
+        "reason": "Holds a Riverpod Ref; reads allDbTargetsProvider, favoriteDbTargetsProvider, loggingServiceProvider, targetsDaoProvider; scopes host work with AsyncScope (Riverpod)."
+      },
+      "services/weather_radar_service.dart": {
+        "count": 1,
+        "reason": "Holds a Riverpod Ref; reads databaseProvider, getCurrentProvider, preferredProvider, registerProvider, selectProvider."
+      }
+    }
+  },
+  "hostStore": {
+    "allowed": {
+      "skotiq_app/screens/night_control": {
+        "count": 1,
+        "reason": "hostNightHistoryProvider in Tonight's data layer reads the host's night history through remoteHost; it moves onto linkedHostNightProvider with that layer's rework. The count only goes down."
+      },
+      "skotiq_core/providers": {
+        "count": 25,
+        "reason": "Linked halves handed to a class that does the work here and forwards it to the host otherwise. Data both sides keep belongs on a hostRoleProvider and is to be converted: planning (project, target constraint, integration goal, scheduler queue services and the candidate loader), dark library, defect maps, live stacking, calibration settings and transient alert settings/states. Host-only forwarding (device commands, files, imaging records, events, profiles, post-session, meridian flip) is the pattern skill section 3.8.2 describes. The count only goes down."
+      }
+    }
+  }
+}

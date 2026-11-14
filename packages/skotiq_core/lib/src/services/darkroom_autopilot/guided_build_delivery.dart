@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../database/daos/darkroom_jobs_dao.dart';
@@ -10,7 +9,6 @@ import '../darkroom_build_jobs.dart';
 import '../darkroom_build_service.dart' show describeIntegration;
 import '../darkroom_delivery/delivery_artifact.dart';
 import '../darkroom_delivery/delivery_failure.dart';
-import '../darkroom_delivery/delivery_providers.dart';
 import '../darkroom_delivery/delivery_service.dart';
 import '../logging_service.dart';
 import '../notification_service.dart';
@@ -150,7 +148,7 @@ class GuidedBuildDelivery {
   ) async {
     var announced = false;
     try {
-      final dispatch = await _notifications.notifyDetailed(
+      final dispatch = await _notifications.notify(
         event: NotificationEvent.sequenceComplete,
         title: title,
         message: message,
@@ -260,12 +258,3 @@ String summarizeGuidedBuild(DarkroomBuildJob job) {
     ...job.warnings,
   ].join(' ');
 }
-
-final guidedBuildDeliveryProvider = Provider<GuidedBuildDelivery>((ref) {
-  return GuidedBuildDelivery(
-    jobs: ref.watch(darkroomJobsDaoProvider),
-    delivery: ref.watch(deliveryServiceProvider),
-    notifications: ref.watch(notificationServiceProvider),
-    logger: ref.watch(loggingServiceProvider),
-  );
-});

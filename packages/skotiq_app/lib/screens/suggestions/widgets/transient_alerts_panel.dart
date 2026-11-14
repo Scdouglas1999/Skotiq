@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/transient_type_style.dart';
-import '../../../utils/user_facing_error.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'transient_alerts_panel_parts/_alert_tiles.dart';
 part 'transient_alerts_panel_parts/_settings_dialog.dart';
@@ -19,9 +22,7 @@ Future<void> _runAlertStateAction(
     await action();
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update this alert.')),
-      );
+      context.showErrorSnackBar('Could not update this alert.');
     }
   }
 }
@@ -99,7 +100,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 8, 0),
             child: Row(
@@ -116,7 +116,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
                     ),
                   ),
                 ),
-                // Unacknowledged badge
                 _UnacknowledgedBadge(colors: colors),
                 const SizedBox(width: 4),
                 // Checking is otherwise on a 15-minute timer with no way to ask
@@ -151,9 +150,7 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
               ],
             ),
           ),
-
           const SizedBox(height: 8),
-
           if (!_expanded)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
@@ -166,7 +163,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
               ),
             )
           else
-            // Alert list
             alertsAsync.when(
               data: (alerts) {
                 if (alerts.isEmpty) {
@@ -235,7 +231,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
                   );
                 }
 
-                // Show up to 10 alerts, with actionable ones first
                 final displayAlerts = _sortForDisplay(alerts, alertStates);
                 final limited = displayAlerts.take(10).toList();
 
@@ -357,13 +352,9 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
         : 'Enable an alert source in the settings above.';
   }
 
-  String _ago(DateTime when) {
-    final delta = DateTime.now().difference(when);
-    if (delta.inMinutes < 1) return 'just now';
-    if (delta.inMinutes < 60) return '${delta.inMinutes} min ago';
-    if (delta.inHours < 24) return '${delta.inHours} h ago';
-    return DateFormat.yMMMd().add_Hm().format(when.toLocal());
-  }
+  String _ago(DateTime when) => DateTime.now().difference(when).inHours < 24
+      ? RelativeTime.ago(when)
+      : ClockFormat.monthDayYearHm(when.toLocal());
 
   List<TransientAlert> _sortForDisplay(
     List<TransientAlert> alerts,
@@ -374,7 +365,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
       final aState = resolveTransientAlertState(a, states);
       final bState = resolveTransientAlertState(b, states);
 
-      // New/unacknowledged first
       final aActionable = aState == TransientAlertState.newAlert ||
           aState == TransientAlertState.acknowledged;
       final bActionable = bState == TransientAlertState.newAlert ||
@@ -383,7 +373,6 @@ class _TransientAlertsPanelState extends ConsumerState<TransientAlertsPanel> {
       if (aActionable && !bActionable) return -1;
       if (!aActionable && bActionable) return 1;
 
-      // Then by priority
       return a.priority.compareTo(b.priority);
     });
     return sorted;

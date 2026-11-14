@@ -1,10 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// bridge-boundary: depthlock_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for the DepthLock goal store (`/api/depthlock/*`).
 ///
@@ -18,7 +24,25 @@ import '../validation.dart';
 /// that refusal is a 409 here — a phone and a desktop editing one goal are a
 /// normal night, and the loser needs to know it lost rather than to discover
 /// its edit silently vanished.
-class DepthLockHandlers {
+class DepthLockHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    DepthLockApi.getStatus: handleGetStatus,
+    DepthLockApi.listGoals: handleListGoals,
+    DepthLockApi.createGoal: handleCreateGoal,
+    DepthLockApi.inspectReference: handleInspectReference,
+    DepthLockApi.skyRectangle: handleSkyRectangle,
+    DepthLockApi.checkMeasurement: handleCheckMeasurement,
+    DepthLockApi.suggestFloor: handleSuggestFloor,
+    DepthLockApi.setPreferences: handleSetPreferences,
+    DepthLockApi.ingestFrame: handleIngestFrame,
+    DepthLockApi.replayGoal: handleReplayGoal,
+    DepthLockApi.goalCurve: handleGoalCurve,
+    DepthLockApi.getGoal: handleGetGoal,
+    DepthLockApi.reviseGoal: handleReviseGoal,
+    DepthLockApi.removeGoal: handleRemoveGoal,
+  };
+
   final ProviderContainer container;
 
   DepthLockHandlers(this.container);

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Minutes between subs, as the owner's 120 s RGB and 90 s L runs cycle.
 const int ownerCadenceMinutes = 3;

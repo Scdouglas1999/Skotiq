@@ -23,7 +23,7 @@ part of '../network_backend.dart';
 mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
   /// Read the host-owned automatic post-session integration preference.
   Future<bool> getAutoIntegrationEnabled() async {
-    final response = await _get('post-session/settings');
+    final response = await _get(PostSessionApi.getSettings);
     final enabled = response['autoIntegrate'];
     if (enabled is! bool) {
       throw const ValidationException(
@@ -36,7 +36,10 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
 
   /// Change the host-owned automatic post-session integration preference.
   Future<void> setAutoIntegrationEnabled(bool enabled) async {
-    await _post('post-session/settings', {'autoIntegrate': enabled});
+    await _post(
+      PostSessionApi.updateSettings,
+      body: {'autoIntegrate': enabled},
+    );
   }
 
   /// Implemented by [_NetworkBackendRemoteOperations]; declared here so this
@@ -54,15 +57,15 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
   /// [ValidationException] when the terminal job carries no result map (a
   /// server contract violation).
   Future<Map<String, dynamic>> _runPostSessionJob(
-    String endpoint,
+    ApiEndpoint endpoint,
     Map<String, dynamic> args, {
     required Duration timeout,
   }) async {
-    final start = await _post(endpoint, args);
+    final start = await _post(endpoint, body: args);
     final jobId = start['jobId'] as String?;
     if (jobId == null || jobId.isEmpty) {
       throw ValidationException(
-        message: 'post-session $endpoint did not return a jobId',
+        message: '${endpoint.route.signature} did not return a jobId',
         userMessage: 'The host did not accept the operation.',
       );
     }
@@ -71,7 +74,7 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
       final detail = job.error?['message'] ?? job.error?['code'] ?? job.state;
       throw IoException(
         message:
-            'post-session $endpoint job ${job.jobId} ended ${job.state}: '
+            '${endpoint.route.signature} job ${job.jobId} ended ${job.state}: '
             '$detail',
         userMessage: 'The operation failed on the host.',
       );
@@ -80,7 +83,7 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
     if (result == null) {
       throw ValidationException(
         message:
-            'post-session $endpoint job ${job.jobId} succeeded with no result',
+            '${endpoint.route.signature} job ${job.jobId} succeeded with no result',
         userMessage: 'The host returned an empty result.',
       );
     }
@@ -99,7 +102,7 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
   /// `IntegrateSessionResult` envelope.
   Future<Map<String, dynamic>> postSessionIntegrate(Map<String, dynamic> args) {
     return _runPostSessionJob(
-      'post-session/integrate',
+      PostSessionApi.integrateSession,
       args,
       timeout: _postSessionLongTimeout,
     );
@@ -112,7 +115,7 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
     Map<String, dynamic> args,
   ) {
     return _runPostSessionJob(
-      'post-session/drizzle',
+      PostSessionApi.drizzleIntegrate,
       args,
       timeout: _postSessionLongTimeout,
     );
@@ -125,7 +128,7 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
     Map<String, dynamic> args,
   ) {
     return _runPostSessionJob(
-      'post-session/analyze-night',
+      PostSessionApi.analyzeNight,
       args,
       timeout: _postSessionQuickTimeout,
     );
@@ -138,7 +141,7 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
     Map<String, dynamic> args,
   ) {
     return _runPostSessionJob(
-      'post-session/build-master-flat',
+      PostSessionApi.buildMasterFlat,
       args,
       timeout: _postSessionLongTimeout,
     );
@@ -151,7 +154,7 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
     Map<String, dynamic> args,
   ) {
     return _runPostSessionJob(
-      'post-session/color-calibrate',
+      PostSessionApi.colorCalibrate,
       args,
       timeout: _postSessionLongTimeout,
     );
@@ -164,7 +167,7 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
     Map<String, dynamic> args,
   ) {
     return _runPostSessionJob(
-      'post-session/detect-stars',
+      PostSessionApi.detectStars,
       args,
       timeout: _postSessionQuickTimeout,
     );
@@ -177,20 +180,7 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
     Map<String, dynamic> args,
   ) {
     return _runPostSessionJob(
-      'post-session/extract-background',
-      args,
-      timeout: _postSessionLongTimeout,
-    );
-  }
-
-  /// Linearly combine single-channel narrowband masters into an RGB composite
-  /// on the host. [args] is the `CombineChannelsArgs` JSON shape (host paths).
-  /// Returns the `{outputPath}` envelope.
-  Future<Map<String, dynamic>> postSessionCombineChannels(
-    Map<String, dynamic> args,
-  ) {
-    return _runPostSessionJob(
-      'post-session/combine-channels',
+      PostSessionApi.extractBackground,
       args,
       timeout: _postSessionLongTimeout,
     );
@@ -203,7 +193,7 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
     Map<String, dynamic> args,
   ) {
     return _runPostSessionJob(
-      'post-session/master-accumulate',
+      PostSessionApi.masterAccumulate,
       args,
       timeout: _postSessionLongTimeout,
     );

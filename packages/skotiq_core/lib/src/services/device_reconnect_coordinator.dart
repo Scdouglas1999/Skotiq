@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/sequence/sequence_models.dart';
@@ -10,9 +9,10 @@ import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/sequence_provider.dart';
 import '../providers/ui_notification_provider.dart';
-import 'device_service.dart' show DeviceTypeDisplayExtension;
-import 'logging_service.dart';
 import 'notification_service.dart';
+import '../models/backend/backend_types.dart';
+import '../providers/logging_service_provider.dart';
+import '../providers/notification_service_provider.dart';
 
 /// Coordinates the device auto-reconnect lifecycle.
 ///
@@ -32,20 +32,36 @@ class DeviceReconnectCoordinator {
   DeviceReconnectCoordinator({
     required Ref ref,
     required SkotiqBackend backend,
+    required bool hostOwnsRecovery,
     required Future<void> Function() resumeSequence,
     required Future<void> Function() pauseSequence,
     required void Function(String deviceId, {int attempt, int maxAttempts})
     surfaceReconnecting,
+    required Future<void> Function(DeviceType type, String deviceId) connect,
     List<Duration>? retryDelays,
     Future<void> Function(DeviceType type, String deviceId)? reconnectAttempt,
+    Future<String> Function(DeviceType type, String deviceId)? reconnectTarget,
   }) : assert(retryDelays == null || retryDelays.isNotEmpty),
        _ref = ref,
        _backend = backend,
+       _hostOwnsRecovery = hostOwnsRecovery,
        _resumeSequence = resumeSequence,
        _pauseSequence = pauseSequence,
        _surfaceReconnecting = surfaceReconnecting,
+       _connect = connect,
        _retryDelays = retryDelays ?? reconnectDelays,
-       _reconnectAttemptOverride = reconnectAttempt;
+       _reconnectAttemptOverride = reconnectAttempt,
+       _reconnectTarget = reconnectTarget {
+    // A pause this coordinator placed is its to lift only while it lasts: once
+    // the run leaves it (the operator resumed, stopped, or it ended), a later
+    // pause is someone else's.
+    ref.listen<SequenceExecutionState>(sequenceExecutionStateProvider, (
+      _,
+      next,
+    ) {
+      if (next != SequenceExecutionState.paused) _pausedForDeviceLoss = false;
+    });
+  }
 
   final Ref _ref;
   final SkotiqBackend _backend;
@@ -53,12 +69,29 @@ class DeviceReconnectCoordinator {
   /// On a companion the device events are the imaging host's, relayed. The
   /// host already reconnects, checkpoints and pauses for its own devices, so
   /// the companion must never send its own reconnect, checkpoint or pause.
-  bool get _hostOwnsRecovery => _backend is NetworkBackend;
+  final bool _hostOwnsRecovery;
   final Future<void> Function() _resumeSequence;
   final Future<void> Function() _pauseSequence;
+
+  /// The run is paused because this coordinator paused it for a lost camera
+  /// or mount. Only such a pause is lifted when the devices come back; a pause
+  /// the operator or the run's own recovery placed waits for the operator.
+  bool _pausedForDeviceLoss = false;
+
+  /// The device service's connect: the one writer of a slot during a
+  /// connect. It throws when the connect fails.
+  final Future<void> Function(DeviceType type, String deviceId) _connect;
   final List<Duration> _retryDelays;
   final Future<void> Function(DeviceType type, String deviceId)?
   _reconnectAttemptOverride;
+
+  /// Where a reconnect of a device last at an id has to go. Profile devices
+  /// on a USB bus are found by the name the profile saved: after the bus
+  /// enumerates in another order (a hub dropout), the camera last at
+  /// `native:zwo:1` can be at `native:zwo:0`. Throws when the device cannot
+  /// be found safely, which counts as a failed attempt.
+  final Future<String> Function(DeviceType type, String deviceId)?
+  _reconnectTarget;
 
   /// Drive the per-device heartbeat-health indicator into the
   /// "reconnecting" state. Injected (rather than reaching into the
@@ -99,61 +132,12 @@ class DeviceReconnectCoordinator {
   /// reconnect against a backend that is mid-tear-down.
   bool _suppressAutoReconnect = false;
 
-  /// Whether the NATIVE Rust reconnection engine owns reconnect for
-  /// [type], i.e. its per-device-type heartbeat config has
-  /// `auto_reconnect = true`.
-  ///
-  /// This mirrors the native source of truth exactly: the path Dart
-  /// triggers when it starts a heartbeat is
-  /// `DeviceManager::start_heartbeat` →
-  /// `Self::get_heartbeat_config(device_type)` (see
-  /// `native/.../device_manager/heartbeat.rs`), which returns the
-  /// per-type `HeartbeatConfig::for_*()` policy from
-  /// `device_manager/mod.rs`. That config's `auto_reconnect` flag is
-  /// later read by the native `reconnection_loop` (it reconnects any
-  /// device left in `ConnectionState::Error` with `auto_reconnect`
-  /// set), so for those types the native loop performs the real
-  /// reconnect on its own — emitting `Connecting` then `Connected`.
-  ///
-  /// Why the policy is mirrored here instead of queried over FFI: the
-  /// plain `startDeviceHeartbeat` FFI surface the Dart side actually
-  /// uses does not let the caller tune the escalation policy — it always
-  /// inherits these compiled per-type defaults — so the mapping is
-  /// stable and authoritative. Encoding it here keeps the de-duplication
-  /// decision inside the one file that owns reconnect ownership, with no
-  /// new FFI round-trip on the hot disconnect path.
-  ///
-  /// DE-DUPLICATION (DEV-P1 dual-reconnect race): when this returns true
-  /// the Dart coordinator must NOT schedule its own reconnect — doing so
-  /// raced the native loop and double-connected / thrashed the same
-  /// physical device after a heartbeat-driven loss. The two engines now
-  /// have exactly one owner per device type. Sequence-resume after a
-  /// native-driven reconnect is still handled, off the authoritative
-  /// `Connected` event, by [onAuthoritativeDeviceConnected].
-  static bool nativeOwnsReconnect(DeviceType type) {
-    switch (type) {
-      // HeartbeatConfig::for_mount / for_dome / for_weather /
-      // for_safety_monitor / for_guider / for_cover_calibrator all set
-      // auto_reconnect = true.
-      case DeviceType.mount:
-      case DeviceType.dome:
-      case DeviceType.weather:
-      case DeviceType.safetyMonitor:
-      case DeviceType.guider:
-      case DeviceType.coverCalibrator:
-        return true;
-      // HeartbeatConfig::for_camera / for_focuser / for_filter_wheel /
-      // for_rotator / for_switch all set auto_reconnect = false, so the
-      // native loop ignores them and the Dart coordinator is the sole
-      // reconnect engine.
-      case DeviceType.camera:
-      case DeviceType.focuser:
-      case DeviceType.filterWheel:
-      case DeviceType.rotator:
-      case DeviceType.switch_:
-        return false;
-    }
-  }
+  /// Whether the native heartbeat reconnects [type] itself. When it does,
+  /// this coordinator must not schedule a reconnect of its own: the two raced
+  /// and double-connected the same device. Resuming the sequence after a
+  /// native reconnect is handled by [onAuthoritativeDeviceConnected].
+  bool nativeOwnsReconnect(DeviceType type) =>
+      _backend.nativeReconnectedDeviceTypes.contains(type);
 
   String _reconnectKey(DeviceType type, String deviceId) =>
       '${type.name}:$deviceId';
@@ -244,7 +228,8 @@ class DeviceReconnectCoordinator {
     }
 
     if (isUserInitiatedDisconnect(deviceId)) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.info(
           'Skipping auto-reconnect for user-initiated disconnect of '
           '${type.displayName} ($deviceId)',
@@ -267,7 +252,8 @@ class DeviceReconnectCoordinator {
     // "reconnecting" indicator the native side never emits an event for.
     if (nativeOwnsReconnect(type)) {
       _surfaceReconnecting(deviceId);
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.info(
           'Deferring reconnect of ${type.displayName} ($deviceId) to the '
           'native auto-reconnect engine (single-owner policy); Dart '
@@ -281,7 +267,8 @@ class DeviceReconnectCoordinator {
     final autoReconnectEnabled = _getAutoReconnectFor(type);
 
     if (!autoReconnectEnabled) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.info(
           'Auto-reconnect disabled for ${type.displayName} ($deviceId)',
           source: 'DeviceReconnectCoordinator',
@@ -328,7 +315,8 @@ class DeviceReconnectCoordinator {
         : _retryDelays.last;
     final generation = _reconnectGeneration;
 
-    _safeLog(
+    logSafely(
+      _ref,
       (logger) => logger.info(
         'Scheduling reconnection attempt ${attemptCount + 1}/'
         '$maxReconnectAttempts for ${type.displayName} ($deviceId) '
@@ -349,7 +337,8 @@ class DeviceReconnectCoordinator {
       _reconnectionsInFlight.add(reconnectKey);
       Object? reconnectFailure;
       try {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.info(
             'Attempting reconnection ${attemptCount + 1}/'
             '$maxReconnectAttempts for ${type.displayName} ($deviceId) at '
@@ -358,17 +347,33 @@ class DeviceReconnectCoordinator {
           ),
         );
 
+        final resolveTarget = _reconnectTarget;
+        final target = resolveTarget == null
+            ? deviceId
+            : await resolveTarget(type, deviceId);
+        if (target != deviceId) {
+          logSafely(
+            _ref,
+            (logger) => logger.warning(
+              '${type.displayName} last at $deviceId is now at $target; '
+              'reconnecting it there',
+              source: 'DeviceReconnectCoordinator',
+            ),
+          );
+        }
+
         final reconnectAttempt = _reconnectAttemptOverride;
         if (reconnectAttempt == null) {
-          await _performReconnection(type, deviceId);
+          await _performReconnection(type, target);
         } else {
-          await reconnectAttempt(type, deviceId);
+          await reconnectAttempt(type, target);
         }
 
         _reconnectionAttempts.remove(reconnectKey);
         _reconnectExhausted.remove(reconnectKey);
 
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.info(
             'Successfully reconnected ${type.displayName} ($deviceId) at '
             '${DateTime.now().toIso8601String()}',
@@ -381,7 +386,8 @@ class DeviceReconnectCoordinator {
         await _considerSequenceResume(type);
       } catch (e) {
         reconnectFailure = e;
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'Reconnection attempt ${attemptCount + 1}/'
             '$maxReconnectAttempts failed for ${type.displayName} '
@@ -404,6 +410,31 @@ class DeviceReconnectCoordinator {
     });
   }
 
+  /// A device of [type] came onto the bus. Each device of that type whose
+  /// automatic reconnects ran out gets a fresh round: a hub that takes
+  /// minutes to power back up outlasts the three quick attempts, and the
+  /// device then stayed in error all night.
+  void onDeviceArrived(DeviceType type) {
+    if (_suppressAutoReconnect || _hostOwnsRecovery) return;
+    final prefix = '${type.name}:';
+    final exhausted = _reconnectExhausted
+        .where((key) => key.startsWith(prefix))
+        .toList();
+    for (final key in exhausted) {
+      _reconnectExhausted.remove(key);
+      _reconnectionAttempts.remove(key);
+      final deviceId = key.substring(prefix.length);
+      logSafely(
+        _ref,
+        (logger) => logger.info(
+          'A ${type.displayName} came onto the bus; trying $deviceId again',
+          source: 'DeviceReconnectCoordinator',
+        ),
+      );
+      unawaited(attemptReconnect(type, deviceId));
+    }
+  }
+
   void _markReconnectExhausted(
     DeviceType type,
     String deviceId,
@@ -415,7 +446,8 @@ class DeviceReconnectCoordinator {
     if (!_reconnectExhausted.add(reconnectKey)) {
       return;
     }
-    _safeLog(
+    logSafely(
+      _ref,
       (logger) => logger.error(
         'Failed to reconnect ${type.displayName} ($deviceId) after '
         '$maxReconnectAttempts attempts; automatic retries are exhausted',
@@ -425,25 +457,24 @@ class DeviceReconnectCoordinator {
     _showReconnectionFailedNotification(type, deviceId);
   }
 
-  /// Handle disconnection of critical devices (camera, mount) during
-  /// sequence execution: snapshot a fresh checkpoint and pause the run.
-  /// The reconnect path will resume automatically via
-  /// [_considerSequenceResume] once both critical devices are back.
+  /// Handle disconnection of critical devices (camera, mount) during a live
+  /// run: snapshot a fresh checkpoint and pause the run. The reconnect path
+  /// lifts that pause via [_considerSequenceResume] once both critical devices
+  /// are back; a run already paused keeps its pause and is left to whoever
+  /// placed it.
   Future<void> handleCriticalDeviceDisconnect(
     String deviceType,
     String deviceId,
   ) async {
     if (_hostOwnsRecovery) return;
     final sequenceState = _ref.read(sequenceExecutionStateProvider);
-    if (sequenceState != SequenceExecutionState.running &&
-        sequenceState != SequenceExecutionState.paused) {
-      return;
-    }
+    if (!sequenceState.isLive) return;
 
     try {
       await _backend.saveCheckpoint();
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.error(
           'Failed to save checkpoint after critical $deviceType disconnect '
           '($deviceId): $e',
@@ -470,8 +501,10 @@ class DeviceReconnectCoordinator {
 
     try {
       await _pauseSequence();
+      _pausedForDeviceLoss = true;
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'Failed to pause sequence after critical $deviceType disconnect '
           '($deviceId): $e',
@@ -481,144 +514,22 @@ class DeviceReconnectCoordinator {
     }
   }
 
-  bool _getAutoReconnectFor(DeviceType type) {
-    return switch (type) {
-      DeviceType.camera => _ref.read(cameraStateProvider).autoReconnectEnabled,
-      DeviceType.mount => _ref.read(mountStateProvider).autoReconnectEnabled,
-      DeviceType.focuser =>
-        _ref.read(focuserStateProvider).autoReconnectEnabled,
-      DeviceType.filterWheel =>
-        _ref.read(filterWheelStateProvider).autoReconnectEnabled,
-      DeviceType.guider => _ref.read(guiderStateProvider).autoReconnectEnabled,
-      DeviceType.rotator =>
-        _ref.read(rotatorStateProvider).autoReconnectEnabled,
-      DeviceType.dome => _ref.read(domeStateProvider).autoReconnectEnabled,
-      DeviceType.weather =>
-        _ref.read(weatherStateProvider).autoReconnectEnabled,
-      DeviceType.safetyMonitor =>
-        _ref.read(safetyMonitorStateProvider).autoReconnectEnabled,
-      DeviceType.coverCalibrator =>
-        _ref.read(coverCalibratorStateProvider).autoReconnectEnabled,
-      DeviceType.switch_ => _ref.read(switchStateProvider).autoReconnectEnabled,
-    };
-  }
+  bool _getAutoReconnectFor(DeviceType type) =>
+      readDeviceSlot(_ref.container, type).autoReconnectEnabled;
 
   Future<void> _performReconnection(DeviceType type, String deviceId) async {
-    switch (type) {
-      case DeviceType.camera:
-        await _ref
-            .read(cameraStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.mount:
-        await _ref
-            .read(mountStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.focuser:
-        await _ref
-            .read(focuserStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.filterWheel:
-        await _ref
-            .read(filterWheelStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.guider:
-        await _ref
-            .read(guiderStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.rotator:
-        await _ref
-            .read(rotatorStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.dome:
-        await _ref
-            .read(domeStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.weather:
-        await _ref
-            .read(weatherStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.safetyMonitor:
-        await _ref
-            .read(safetyMonitorStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.switch_:
-        await _ref
-            .read(switchStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-      case DeviceType.coverCalibrator:
-        await _ref
-            .read(coverCalibratorStateProvider.notifier)
-            .connect(deviceId, maxRetries: 1);
-        break;
-    }
-
-    final outcome = switch (type) {
-      DeviceType.camera => (
-        _ref.read(cameraStateProvider).connectionState,
-        _ref.read(cameraStateProvider).lastError,
-      ),
-      DeviceType.mount => (
-        _ref.read(mountStateProvider).connectionState,
-        _ref.read(mountStateProvider).lastError,
-      ),
-      DeviceType.focuser => (
-        _ref.read(focuserStateProvider).connectionState,
-        _ref.read(focuserStateProvider).lastError,
-      ),
-      DeviceType.filterWheel => (
-        _ref.read(filterWheelStateProvider).connectionState,
-        _ref.read(filterWheelStateProvider).lastError,
-      ),
-      DeviceType.guider => (
-        _ref.read(guiderStateProvider).connectionState,
-        _ref.read(guiderStateProvider).lastError,
-      ),
-      DeviceType.rotator => (
-        _ref.read(rotatorStateProvider).connectionState,
-        _ref.read(rotatorStateProvider).lastError,
-      ),
-      DeviceType.dome => (
-        _ref.read(domeStateProvider).connectionState,
-        _ref.read(domeStateProvider).lastError,
-      ),
-      DeviceType.weather => (
-        _ref.read(weatherStateProvider).connectionState,
-        _ref.read(weatherStateProvider).lastError,
-      ),
-      DeviceType.safetyMonitor => (
-        _ref.read(safetyMonitorStateProvider).connectionState,
-        _ref.read(safetyMonitorStateProvider).lastError,
-      ),
-      DeviceType.switch_ => (
-        _ref.read(switchStateProvider).connectionState,
-        _ref.read(switchStateProvider).lastError,
-      ),
-      DeviceType.coverCalibrator => (
-        _ref.read(coverCalibratorStateProvider).connectionState,
-        _ref.read(coverCalibratorStateProvider).lastError,
-      ),
-    };
+    await _connect(type, deviceId);
+    final slot = readDeviceSlot(_ref.container, type);
     validateReconnectOutcome(
       type: type,
-      connectionState: outcome.$1,
-      lastError: outcome.$2,
+      connectionState: slot.connectionState,
+      lastError: slot.lastError,
     );
   }
 
-  /// State notifiers deliberately retain terminal connection failures in
-  /// `lastError` instead of rethrowing them, so awaiting `connect()` alone does
-  /// not prove that reconnection succeeded. Keep the coordinator's retry
-  /// counter honest by requiring the authoritative post-attempt state.
+  /// A connect that returns has not proved the device is back: the slot can
+  /// have been taken by another connect meanwhile. Keep the coordinator's
+  /// retry counter honest by requiring the authoritative post-attempt state.
   static void validateReconnectOutcome({
     required DeviceType type,
     required DeviceConnectionState connectionState,
@@ -634,15 +545,16 @@ class DeviceReconnectCoordinator {
     );
   }
 
-  /// After a successful reconnect, resume a paused sequence if and only
-  /// if every critical device listed in the active profile is back.
+  /// After a successful reconnect, lift the pause this coordinator placed if
+  /// and only if every critical device listed in the active profile is back.
   Future<void> _considerSequenceResume(DeviceType type) async {
     if (type != DeviceType.camera && type != DeviceType.mount) {
       return;
     }
 
     final sequenceState = _ref.read(sequenceExecutionStateProvider);
-    if (sequenceState != SequenceExecutionState.paused) {
+    if (!_pausedForDeviceLoss ||
+        sequenceState != SequenceExecutionState.paused) {
       return;
     }
 
@@ -670,8 +582,10 @@ class DeviceReconnectCoordinator {
     if (allCriticalDevicesConnected) {
       try {
         await _resumeSequence();
+        _pausedForDeviceLoss = false;
       } catch (e) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'Failed to resume sequence after reconnecting ${type.displayName}: '
             '$e',
@@ -682,25 +596,31 @@ class DeviceReconnectCoordinator {
     }
   }
 
-  /// Resume a paused sequence after an AUTHORITATIVE device-connected event,
-  /// regardless of which actor reconnected the device.
+  /// Lift this coordinator's device-loss pause after an AUTHORITATIVE
+  /// device-connected event, whichever actor reconnected the device.
   ///
   /// The Dart coordinator exhausts its own retry budget in ~35s, but the Rust
-  /// reconnection loop keeps retrying for minutes. Without this hook, a
-  /// reconnect driven by the Rust loop (after the Dart side already gave up)
-  /// would reconnect the device yet leave the sequence paused — the operator
-  /// wakes to a rig that is "connected but idle". Wiring this to the live
-  /// connected event closes that gap. Safe to call for any device type: only
-  /// camera/mount drive a resume, and resume only fires once ALL critical
-  /// devices are back (see [_considerSequenceResume]).
+  /// reconnection loop keeps retrying for minutes; a device the Rust loop
+  /// brings back after the Dart side gave up still ends the pause. Safe to
+  /// call for any device type: only camera/mount drive a resume, and resume
+  /// only fires once ALL critical devices are back (see
+  /// [_considerSequenceResume]).
   Future<void> onAuthoritativeDeviceConnected(
     String deviceType,
     String deviceId,
   ) async {
+    // The driver reports Connected as soon as it opens, before the app has
+    // brought the device up. During one of this coordinator's own attempts
+    // that is not yet a recovery: the attempt's outcome decides, and its
+    // count must survive a bring-up that then fails.
     final reconnectKeys = _reconnectionTimers.keys
         .followedBy(_reconnectionAttempts.keys)
         .followedBy(_reconnectExhausted)
-        .where((key) => key.endsWith(':$deviceId'))
+        .where(
+          (key) =>
+              key.endsWith(':$deviceId') &&
+              !_reconnectionsInFlight.contains(key),
+        )
         .toSet();
     for (final key in reconnectKeys) {
       _reconnectionTimers.remove(key)?.cancel();
@@ -738,7 +658,8 @@ class DeviceReconnectCoordinator {
             duration: const Duration(seconds: 15),
           );
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'UI notification for reconnect-failed dropped: $e',
           source: 'DeviceReconnectCoordinator',
@@ -759,7 +680,8 @@ class DeviceReconnectCoordinator {
             source: 'Device Monitor',
           );
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'External notification for reconnect-failed dropped: $e',
           source: 'DeviceReconnectCoordinator',
@@ -778,7 +700,8 @@ class DeviceReconnectCoordinator {
             duration: const Duration(seconds: 5),
           );
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'UI notification for reconnect-success dropped: $e',
           source: 'DeviceReconnectCoordinator',
@@ -790,31 +713,22 @@ class DeviceReconnectCoordinator {
       try {
         _ref
             .read(notificationServiceProvider)
-            .notifyCustom(
+            .notify(
+              event: NotificationEvent.custom,
               title: 'Device Reconnected',
               message:
                   '${type.displayName} ($deviceId) has been reconnected '
                   'successfully and is back online.',
-              priority: NotificationPriority.normal,
             );
       } on Object catch (e) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'External notification for reconnect-success dropped: $e',
             source: 'DeviceReconnectCoordinator',
           ),
         );
       }
-    }
-  }
-
-  void _safeLog(void Function(LoggingService logger) emit) {
-    try {
-      final logger = _ref.read(loggingServiceProvider);
-      emit(logger);
-    } on Object {
-      // Logger may be unavailable mid-disposal. Diagnostic-only failure;
-      // do not propagate up the reconnect path.
     }
   }
 }

@@ -43,13 +43,20 @@ under `native/skotiq_native/`.
   shared between the headless server and the remote clients.
 - `skotiq_updater` — update checks and manifest handling.
 
-**Dependency direction.** The layering is strict and enforced by convention (see
-`.github/CONTRIBUTING.md` → "Where to put new code"):
+**Dependency direction.** The layering is strict. `melos run audit:architecture`
+(`tools/production/architecture_rules_audit.dart`, whose `_dartPackages` and
+`_rustCrates` tables are the full list) fails on a dependency or import that
+reaches upward (see also `.github/CONTRIBUTING.md` → "Where to put new code"):
 
 - `apps` depend on `packages`, never the reverse.
 - `skotiq_app` depends on `skotiq_core`.
 - `skotiq_core` is the only Dart package that depends on `skotiq_bridge`
   / talks to Rust.
+- Inside `skotiq_core`, `backend/`, `database/`, `models/` and `services/`
+  do not import `providers/` (or the core barrel, which re-exports it). Plain
+  values live in `models/`; the services that need a Riverpod `Ref` are listed
+  with their reason under `coreLayers` in
+  `tools/production/architecture_rules_baseline.json`.
 
 New UI for desktop only goes in `apps/desktop/lib/`; UI shared across platforms
 goes in `skotiq_app`; business logic and providers go in
@@ -253,7 +260,7 @@ Release readiness is documented and gated rather than asserted:
   fail-closed audit, dependency-duplicate check, coverage threshold). Each gate
   maps to a step in `.github/workflows/ci.yml` and blocks merge on red.
 - **Release evidence** — `docs/release-evidence/` collects the per-release
-  validation record (alongside `docs/release/` and `docs/releases/` notes such
+  validation record (alongside the `docs/release/` notes such
   as `docs/release/v4.1.0.md`). Treat this as the place that holds the proof a
   release was exercised, not just described.
 - **Supported hardware** — `docs/supported-hardware-by-platform.md` is the

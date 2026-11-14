@@ -1,7 +1,5 @@
 part of '../projects_tab_content.dart';
 
-// Active project progress: targets + accrued-vs-remaining roll-up.
-
 class _ActiveProjectProgress extends ConsumerWidget {
   final SkotiqColors colors;
   final Future<void> Function(int projectId, Set<int> attachedIds) onAddTarget;
@@ -150,8 +148,8 @@ class _ProjectSummaryHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final pctFraction = percentComplete;
     final pct = (pctFraction * 100).clamp(0.0, 100.0);
-    final accruedLabel = _formatHours(accruedSeconds);
-    final goalLabel = _formatHours(goalSeconds);
+    final accruedLabel = DurationFormat.decimalHours(accruedSeconds);
+    final goalLabel = DurationFormat.decimalHours(goalSeconds);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -256,8 +254,8 @@ class _TargetProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final pctFraction = target.percentComplete;
     final pct = (pctFraction * 100).clamp(0.0, 100.0);
-    final accruedLabel = _formatHours(target.accruedSeconds);
-    final goalLabel = _formatHours(target.goalSeconds);
+    final accruedLabel = DurationFormat.decimalHours(target.accruedSeconds);
+    final goalLabel = DurationFormat.decimalHours(target.goalSeconds);
     final hasGoals = target.goalSeconds > 0.0;
 
     return SkotiqPanel(
@@ -278,6 +276,19 @@ class _TargetProgressCard extends StatelessWidget {
                           color: colors.textPrimary,
                         ),
                       ),
+                      if (target.allFiltersGoalSeconds != null)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: SkotiqTokens.spaceXs,
+                          ),
+                          child: Text(
+                            'One goal over all filters, set before per-filter '
+                            'goals. Edit goals to split it by filter.',
+                            style: SkotiqTypography.captionSm.copyWith(
+                              color: colors.textMuted,
+                            ),
+                          ),
+                        ),
                       if (!hasGoals)
                         Padding(
                           padding: const EdgeInsets.only(

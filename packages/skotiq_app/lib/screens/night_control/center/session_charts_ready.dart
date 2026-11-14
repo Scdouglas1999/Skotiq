@@ -69,7 +69,8 @@ class _LastAutofocus extends Notifier<NightAutofocusCurveVm?> {
     }
     return NightAutofocusCurveVm(
       points: <(int, double)>[
-        for (final point in af.vcurvePoints) (point.position, point.hfr),
+        for (final point in af.vcurvePoints)
+          if (!point.isRejected) (point.position, point.hfr),
       ],
       bestPosition: result.bestPosition,
       bestHfr: result.bestHfr,
@@ -77,6 +78,47 @@ class _LastAutofocus extends Notifier<NightAutofocusCurveVm?> {
     );
   }
 }
+
+/// The autofocus running now, whoever started it: its accepted points so
+/// far and where it stands. Null when none runs.
+@immutable
+class NightLiveAutofocusVm {
+  const NightLiveAutofocusVm({
+    required this.points,
+    this.point,
+    this.totalPoints,
+  });
+
+  /// (focuser position, HFR) in acquisition order.
+  final List<(int, double)> points;
+
+  /// "point 4 of 9"; null until the run reports one.
+  final int? point;
+  final int? totalPoints;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NightLiveAutofocusVm &&
+      listEquals(other.points, points) &&
+      other.point == point &&
+      other.totalPoints == totalPoints;
+
+  @override
+  int get hashCode => Object.hash(Object.hashAll(points), point, totalPoints);
+}
+
+final nightLiveAutofocusProvider = Provider<NightLiveAutofocusVm?>((ref) {
+  final af = ref.watch(autofocusOverlayProvider);
+  if (!af.isRunning) return null;
+  return NightLiveAutofocusVm(
+    points: <(int, double)>[
+      for (final point in af.vcurvePoints)
+        if (!point.isRejected) (point.position, point.hfr),
+    ],
+    point: af.currentPoint > 0 ? af.currentPoint : null,
+    totalPoints: af.totalPoints > 0 ? af.totalPoints : null,
+  );
+});
 
 /// The guider before a run.
 @immutable
@@ -135,8 +177,10 @@ class _FocusCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.skotiqColors;
     final l10n = context.l10n;
-    final curve = ref.watch(nightLastAutofocusProvider);
     final title = l10n.text('nightCtrChartFocus');
+    final live = ref.watch(nightLiveAutofocusProvider);
+    if (live != null) return _liveCell(context, live, title);
+    final curve = ref.watch(nightLastAutofocusProvider);
     if (curve == null) {
       return _Cell(
         title: title,
@@ -185,6 +229,73 @@ class _FocusCard extends ConsumerWidget {
               best: best,
               line: colors.primary.withValues(alpha: 0.6),
               dot: colors.primary,
+            ),
+          ),
+        ),
+      ),
+      legend: Text(caption),
+    );
+  }
+
+  /// The run in progress, drawn point by point: the Focus tab and the frame
+  /// say the same thing at the same time.
+  Widget _liveCell(
+    BuildContext context,
+    NightLiveAutofocusVm live,
+    String title,
+  ) {
+    final colors = context.skotiqColors;
+    final l10n = context.l10n;
+    final point = live.point;
+    final total = live.totalPoints;
+    final note = point != null && total != null
+        ? l10n.text(
+            'nightPanelAfRunningPoint',
+            params: <String, String>{'n': '$point', 'total': '$total'},
+          )
+        : l10n.text('nightPanelAfRunning');
+    if (live.points.isEmpty) {
+      return _Cell(
+        title: title,
+        note: note,
+        noteColor: colors.warning,
+        body: _ChartBody(
+          semanticLabel: '$title, $note',
+          lines: const <SeriesChartLine>[],
+          empty: l10n.text('nightPanelAfWaiting'),
+        ),
+      );
+    }
+    final latest = live.points.last;
+    final caption = l10n.text(
+      'nightCtrFocusLatest',
+      params: <String, String>{
+        'position': nightGrouped(latest.$1),
+        'hfr': latest.$2.toStringAsFixed(2),
+      },
+    );
+    return _Cell(
+      title: title,
+      note: note,
+      noteColor: colors.warning,
+      body: Semantics(
+        label: l10n.text(
+          'nightCtrSemFocusLive',
+          params: <String, String>{
+            'count': '${live.points.length}',
+            'details': caption,
+          },
+        ),
+        excludeSemantics: true,
+        child: _VCurveAxes(
+          points: live.points,
+          chart: CustomPaint(
+            size: Size.infinite,
+            painter: _VCurvePainter(
+              points: live.points,
+              best: null,
+              line: colors.warning.withValues(alpha: 0.6),
+              dot: colors.warning,
             ),
           ),
         ),
@@ -510,7 +621,8 @@ class _GuiderIdleCard extends ConsumerWidget {
     unawaited(
       ref.read(phd2ControllerProvider).loop().catchError((Object error) {
         notifications.showError(
-          l10n.text('nightCtrGuideLoopFailed', params: {'detail': '$error'}),
+          l10n.text('nightCtrGuideLoopFailed',
+              params: {'detail': userFacingError(error)}),
         );
       }),
     );
@@ -531,7 +643,8 @@ class _GuiderIdleCard extends ConsumerWidget {
           .connectDeviceGuider(guiderId, guideCameraId: guider.guideCameraId)
           .catchError((Object error) {
         notifications.showError(
-          l10n.text('nightCtrGuideConnectFailed', params: {'detail': '$error'}),
+          l10n.text('nightCtrGuideConnectFailed',
+              params: {'detail': userFacingError(error)}),
         );
       }),
     );
@@ -548,7 +661,8 @@ class _GuiderIdleCard extends ConsumerWidget {
         await controller.connect(settings.phd2Host, settings.phd2Port);
       } catch (error) {
         notifications.showError(
-          l10n.text('nightCtrGuideOpenFailed', params: {'detail': '$error'}),
+          l10n.text('nightCtrGuideOpenFailed',
+              params: {'detail': userFacingError(error)}),
         );
       }
     }());
@@ -640,7 +754,7 @@ class _CoolingCard extends ConsumerWidget {
           ? null
           : l10n.text(
               'nightCtrSince',
-              params: <String, String>{'time': nightClockHm(from)},
+              params: <String, String>{'time': ClockFormat.hm(from)},
             ),
       body: _ChartBody(
         leftUnit: ' °C',

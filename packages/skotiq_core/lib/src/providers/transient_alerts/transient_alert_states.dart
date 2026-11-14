@@ -1,7 +1,6 @@
 part of '../transient_alert_provider.dart';
 
-/// Storage key prefix for alert states in the database
-const String _alertStateKeyPrefix = 'transient_alert_state_';
+const _alertStates = StoreSettings.transientAlertStates;
 
 /// Notifier for tracking user actions on transient alerts.
 ///
@@ -11,7 +10,7 @@ class TransientAlertStatesNotifier
     extends StateNotifier<Map<String, TransientAlertState>> {
   final SettingsDao _settingsDao;
   final LoggingService _logger;
-  final NetworkBackend? _remote;
+  final HostTransients? _remote;
   bool _initialized = false;
   Completer<void>? _loadCompleter;
   int _requestRevision = 0;
@@ -20,7 +19,7 @@ class TransientAlertStatesNotifier
   TransientAlertStatesNotifier({
     required SettingsDao settingsDao,
     required LoggingService logger,
-    NetworkBackend? remote,
+    HostTransients? remote,
   }) : _settingsDao = settingsDao,
        _logger = logger,
        _remote = remote,
@@ -36,7 +35,6 @@ class TransientAlertStatesNotifier
     return _loadCompleter!.future;
   }
 
-  /// Load alert states from persistent storage
   Future<void> _loadStates() async {
     if (_initialized) return;
     final revisionAtStart = _requestRevision;
@@ -59,10 +57,9 @@ class TransientAlertStatesNotifier
         }
       } else {
         final allSettings = await _settingsDao.getAllSettings();
-        // Find all alert state entries
         for (final entry in allSettings.entries) {
-          if (entry.key.startsWith(_alertStateKeyPrefix)) {
-            final alertId = entry.key.substring(_alertStateKeyPrefix.length);
+          if (_alertStates.holds(entry.key)) {
+            final alertId = entry.key.substring(_alertStates.prefix.length);
             final stateValue = TransientAlertState.values.firstWhere(
               (s) => s.name == entry.value,
               orElse: () => TransientAlertState.newAlert,
@@ -111,7 +108,6 @@ class TransientAlertStatesNotifier
     await operation;
   }
 
-  /// Save a single alert state to persistent storage
   Future<void> _saveState(
     String alertId,
     TransientAlertState alertState,
@@ -121,10 +117,7 @@ class TransientAlertStatesNotifier
       if (remote != null) {
         await remote.updateTransientState(alertId, alertState.name);
       } else {
-        await _settingsDao.setSetting(
-          '$_alertStateKeyPrefix$alertId',
-          alertState.name,
-        );
+        await _settingsDao.write(_alertStates.row(alertId), alertState.name);
       }
     } catch (e) {
       _logger.error(
@@ -135,7 +128,6 @@ class TransientAlertStatesNotifier
     }
   }
 
-  /// Mark an alert as acknowledged
   Future<void> acknowledge(String id) async {
     await _setAlertState(id, TransientAlertState.acknowledged);
     _logger.debug(
@@ -150,7 +142,6 @@ class TransientAlertStatesNotifier
     _logger.debug('Alert $id queued', source: 'TransientAlertStatesNotifier');
   }
 
-  /// Dismiss an alert
   Future<void> dismiss(String id) async {
     await _setAlertState(id, TransientAlertState.dismissed);
     _logger.debug(
@@ -163,7 +154,6 @@ class TransientAlertStatesNotifier
   Future<void> setState(String id, TransientAlertState alertState) =>
       _setAlertState(id, alertState);
 
-  /// Get the state of a specific alert
   TransientAlertState? getState(String id) => state[id];
 
   /// Clear all alert states (useful for testing or reset)
@@ -176,10 +166,9 @@ class TransientAlertStatesNotifier
         if (remote != null) {
           await remote.clearTransientStates();
         } else {
-          // Remove all alert state entries from the database
           final allSettings = await _settingsDao.getAllSettings();
           for (final key in allSettings.keys) {
-            if (key.startsWith(_alertStateKeyPrefix)) {
+            if (_alertStates.holds(key)) {
               await _settingsDao.deleteSetting(key);
             }
           }
@@ -210,11 +199,11 @@ final transientAlertStatesProvider =
     >((ref) {
       final settingsDao = ref.watch(settingsDaoProvider);
       final logger = ref.watch(loggingServiceProvider);
-      final backend = ref.watch(backendProvider);
+      final remote = ref.watch(linkedHostTransientsProvider);
       return TransientAlertStatesNotifier(
         settingsDao: settingsDao,
         logger: logger,
-        remote: backend is NetworkBackend ? backend : null,
+        remote: remote,
       );
     });
 
@@ -239,8 +228,6 @@ TransientAlertState resolveTransientAlertState(
 ) {
   return overrides[alert.id] ?? alert.state;
 }
-
-// Unacknowledged alert count provider
 
 /// Provider that computes the count of unacknowledged alerts.
 ///

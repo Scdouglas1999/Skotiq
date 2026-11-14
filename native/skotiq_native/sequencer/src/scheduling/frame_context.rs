@@ -16,7 +16,7 @@
 //! than written with a sentinel value (silent fallbacks are bugs; an absent
 //! keyword is the honest answer).
 //!
-//! The bridge-side `api_save_fits_file` reads this struct and emits the
+//! The bridge's `frame_header` reads this struct and emits the
 //! corresponding FITS keywords. Custom Skotiq-specific keywords use the
 //! `NS-*` prefix (SK-MOSNM, SK-PIDX, SK-PROW, SK-PCOL, SK-SESID, SK-FIDX,
 //! SK-NPLN) to stay clear of standard astrophotography conventions while
@@ -92,6 +92,10 @@ pub struct FrameContext {
     pub binning_x: u32,
     pub binning_y: u32,
     pub gain: Option<i32>,
+    /// `gain` is an ISO speed: the frame came from a DSLR or mirrorless body,
+    /// and the header adds `ISOSPEED`.
+    #[serde(default)]
+    pub gain_is_iso: bool,
     pub offset: Option<i32>,
     /// Exposure duration in seconds. Mirrors `EXPTIME` in the FITS header.
     pub duration_secs: f64,
@@ -106,8 +110,8 @@ pub struct FrameContext {
     pub exposure_started_at: Option<chrono::DateTime<chrono::Utc>>,
 
     // Frame accounting (custom NS-* keywords)
-    /// 1-based frame index within the current TakeExposure burst.
-    /// Surfaced as the FITS keyword `SK-FIDX`.
+    /// 1-based frame index within the current TakeExposure burst; 0 for a
+    /// frame that belongs to no burst. Surfaced as the FITS keyword `SK-FIDX`.
     pub frame_index: u32,
     /// Total planned frames in the burst (1-based). Surfaced as `SK-NPLN`.
     pub total_planned_frames: Option<u32>,
@@ -290,6 +294,9 @@ pub struct FrameContext {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct FrameCaptureMetadata {
     pub gain: Option<i32>,
+    /// `gain` is an ISO speed (see [`FrameContext::gain_is_iso`]).
+    #[serde(default)]
+    pub gain_is_iso: bool,
     pub offset: Option<i32>,
     pub sensor_temp_c: Option<f64>,
     pub cooler_power_percent: Option<f64>,
@@ -320,6 +327,7 @@ impl From<&FrameContext> for FrameCaptureMetadata {
     fn from(ctx: &FrameContext) -> Self {
         Self {
             gain: ctx.gain,
+            gain_is_iso: ctx.gain_is_iso,
             offset: ctx.offset,
             sensor_temp_c: ctx.sensor_temp_c,
             cooler_power_percent: ctx.cooler_power_percent,

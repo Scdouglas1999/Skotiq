@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -7,21 +6,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as path;
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/backend/host_mutation_event.dart';
-import '../providers/backend_provider.dart';
+import '../models/imaging/frame_files.dart';
+import '../providers/async_scope.dart';
 import '../providers/dark_library_provider.dart';
+import '../services/calibration/calibration_selection.dart';
 import '../services/dark_library_service.dart';
 import '../services/logging_service.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
 import '../utils/host_paths.dart';
 import '../providers/database_provider.dart';
+import '../backend/roles/host_data/host_calibration_tools.dart';
+import '../database/daos/settings_dao.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Sentinel object used by [CalibrationSettings.copyWith] to distinguish
 /// "parameter not passed" from an explicit `null`.
 const Object _sentinel = Object();
 
-/// Settings for how calibration is applied.
 class CalibrationSettings {
   /// Whether to auto-calibrate captured light frames.
   final bool autoCalibrate;
@@ -85,6 +89,26 @@ class CalibrationSettings {
     );
   }
 
+  /// What the stored [rows] hold.
+  factory CalibrationSettings.fromRows(Map<String, String> rows) =>
+      CalibrationSettings(
+        autoCalibrate: StoreSettings.calibrationAutoCalibrate.valueIn(rows),
+        masterFlatPath: StoreSettings.calibrationMasterFlatPath.valueIn(rows),
+        masterBiasPath: StoreSettings.calibrationMasterBiasPath.valueIn(rows),
+        autoDarkFromLibrary: StoreSettings.calibrationAutoDarkFromLibrary
+            .valueIn(rows),
+        manualDarkPath: StoreSettings.calibrationManualDarkPath.valueIn(rows),
+      );
+
+  /// The snapshot `GET /api/calibration/settings` returns.
+  Map<String, dynamic> toRemoteJson() => {
+    'autoCalibrate': autoCalibrate,
+    'masterFlatPath': masterFlatPath,
+    'masterBiasPath': masterBiasPath,
+    'autoDarkFromLibrary': autoDarkFromLibrary,
+    'manualDarkPath': manualDarkPath,
+  };
+
   /// Strictly decode the complete host snapshot returned by
   /// `GET /api/calibration/settings`.
   factory CalibrationSettings.fromRemoteJson(Map<String, dynamic> json) {
@@ -116,27 +140,19 @@ class CalibrationSettings {
   }
 }
 
-/// Result of a calibration operation.
 class CalibrationResult {
-  /// Path to the calibrated output file.
   final String outputPath;
 
-  /// Whether a dark frame was applied.
   final bool darkApplied;
 
-  /// Whether a flat frame was applied.
   final bool flatApplied;
 
-  /// Whether a bias frame was applied.
   final bool biasApplied;
 
-  /// Path of the dark used, if any.
   final String? darkUsed;
 
-  /// Path of the flat used, if any.
   final String? flatUsed;
 
-  /// Path of the bias used, if any.
   final String? biasUsed;
 
   const CalibrationResult({
@@ -157,32 +173,20 @@ class CalibrationResult {
 /// bias correction) via the FFI bridge.
 class CalibrationService {
   final Ref _ref;
-  final SkotiqBackend _backend;
-  final BackendNotifier _backendNotifier;
+  final AsyncScope<SkotiqBackend> _host;
   final LoggingService _logger;
-  bool _retired = false;
 
-  CalibrationService(Ref ref, {SkotiqBackend? backend})
+  /// The linked host's calibration, or null where the imaging host is this
+  /// process and the frames are calibrated here.
+  final HostCalibrationTools? _hostTools;
+
+  CalibrationService(Ref ref, {HostCalibrationTools? hostTools})
     : _ref = ref,
-      _backend = backend ?? ref.read(backendProvider),
-      _backendNotifier = ref.read(backendProvider.notifier),
-      _logger = ref.read(loggingServiceProvider);
+      _host = ref.providerBackendScope(),
+      _logger = ref.read(loggingServiceProvider),
+      _hostTools = hostTools;
 
   DarkLibraryService get _darkLibrary => _ref.read(darkLibraryServiceProvider);
-
-  bool get _hasAuthority =>
-      !_retired && _backendNotifier.isCurrentBackend(_backend);
-
-  void retire() => _retired = true;
-
-  void _ensureAuthority() {
-    if (_hasAuthority) return;
-    throw StateError(
-      'The imaging host changed while calibration was in progress. The '
-      'outgoing result was discarded; calibrate the frame again on the '
-      'current host.',
-    );
-  }
 
   /// Calibrate a light frame file using the provided settings.
   ///
@@ -204,34 +208,35 @@ class CalibrationService {
     int binY = 1,
     double? sensorTemperature,
   }) async {
-    _ensureAuthority();
+    _host.ensureCurrent('calibration was in progress');
     _logger.info('Calibrating: $lightPath', source: 'CalibrationService');
 
-    final backend = _backend;
-    final isRemote = backend is NetworkBackend;
+    final backend = _host.value;
+    final host = _hostTools;
+    final isRemote = host != null;
 
     // Determine dark frame path. A manual override always wins; the library
-    // auto-match only runs when no manual dark was supplied.
+    // auto-match only runs when no manual dark was supplied. A null gain or
+    // offset is a camera without that control, matched to darks without it.
     String? darkPath = settings.manualDarkPath;
     if (settings.autoDarkFromLibrary &&
         darkPath == null &&
-        exposureTime != null &&
-        gain != null) {
-      if (backend is NetworkBackend) {
+        exposureTime != null) {
+      if (host != null) {
         // Remote: the dark library lives on the host, so the client can't
         // run the matcher itself. Ask the host to match and hand back the
         // dark's on-host path. The path is fed to `calibrateImageFile`,
         // which reads it host-side. The host applies the same unified
         // tolerances the local path and coverage UI consult.
-        final matchedHostPath = await backend.matchDarkFromLibrary(
+        final matchedHostPath = await host.matchDarkFromLibrary(
           exposureTime: exposureTime,
           gain: gain,
-          offset: offset ?? 0,
+          offset: offset,
           binX: binX,
           binY: binY,
           temperature: sensorTemperature,
         );
-        _ensureAuthority();
+        _host.ensureCurrent('calibration was in progress');
         if (matchedHostPath != null) {
           darkPath = matchedHostPath;
           _logger.info(
@@ -245,24 +250,21 @@ class CalibrationService {
           );
         }
       } else {
-        // Local: match directly against the on-disk dark library. Route
-        // through the unified tolerances provider so the runtime matcher
-        // and the coverage UI agree on what counts as a matching dark.
         final tolerances = _ref.read(darkLibraryMatchTolerancesProvider);
         final matchingDark = await _darkLibrary.findMatchingDark(
           exposureTime: exposureTime,
           gain: gain,
-          offset: offset ?? 0,
+          offset: offset,
           binX: binX,
           binY: binY,
           temperature: sensorTemperature,
           tolerances: tolerances,
         );
-        _ensureAuthority();
+        _host.ensureCurrent('calibration was in progress');
         if (matchingDark != null) {
-          darkPath = matchingDark.filePath;
+          darkPath = matchingDark.calibrationPath;
           _logger.info(
-            'Auto-matched dark: ${matchingDark.filePath} '
+            'Auto-matched dark: ${matchingDark.calibrationPath} '
             '(exposure=${matchingDark.exposureTime}s, '
             'temp=${matchingDark.temperature}C)',
             source: 'CalibrationService',
@@ -276,11 +278,9 @@ class CalibrationService {
       }
     }
 
-    // Determine flat and bias paths
     final flatPath = settings.masterFlatPath;
     final biasPath = settings.masterBiasPath;
 
-    // Validate that at least one calibration frame is provided
     if (darkPath == null && flatPath == null && biasPath == null) {
       throw StateError(
         'No calibration frames available. '
@@ -291,7 +291,7 @@ class CalibrationService {
     // Validate files exist (local filesystem only — remote paths are
     // validated on the headless host inside POST /api/imaging/calibrate-file).
     if (!isRemote) {
-      _ensureAuthority();
+      _host.ensureCurrent('calibration was in progress');
       if (darkPath != null && !File(darkPath).existsSync()) {
         throw FileSystemException('Dark frame file not found', darkPath);
       }
@@ -314,7 +314,6 @@ class CalibrationService {
         );
 
     if (!isRemote) {
-      // Ensure output directory exists
       final outDir = Directory(path.dirname(effectiveOutputPath));
       if (!outDir.existsSync()) {
         outDir.createSync(recursive: true);
@@ -325,7 +324,7 @@ class CalibrationService {
         final backupPath = '$lightPath.uncal';
         if (!File(backupPath).existsSync()) {
           await File(lightPath).copy(backupPath);
-          _ensureAuthority();
+          _host.ensureCurrent('calibration was in progress');
           _logger.info(
             'Backed up original to: $backupPath',
             source: 'CalibrationService',
@@ -334,7 +333,7 @@ class CalibrationService {
       }
     }
 
-    _ensureAuthority();
+    _host.ensureCurrent('calibration was in progress');
     await backend.calibrateImageFile(
       lightPath: lightPath,
       darkPath: darkPath,
@@ -342,7 +341,7 @@ class CalibrationService {
       biasPath: biasPath,
       outputPath: effectiveOutputPath,
     );
-    _ensureAuthority();
+    _host.ensureCurrent('calibration was in progress');
 
     _logger.info(
       'Calibration complete: $effectiveOutputPath '
@@ -362,29 +361,27 @@ class CalibrationService {
     );
   }
 
-  /// Calibrate raw pixel data in memory.
-  ///
-  /// Takes u16 pixel data directly and returns calibrated u16 pixel data.
-  /// This is useful for live preview calibration without disk I/O.
-  Uint16List calibrateData({
+  /// Calibrate a single-plane u16 light in memory with the masters at these
+  /// paths, by the same rule as [calibrateFile]. A null path skips that
+  /// correction.
+  Future<Uint16List> calibrateData({
     required int width,
     required int height,
     required List<int> lightData,
-    Uint16List? darkData,
-    Uint16List? flatData,
-    Uint16List? biasData,
-  }) {
-    if (darkData == null && flatData == null && biasData == null) {
+    String? darkPath,
+    String? flatPath,
+    String? biasPath,
+  }) async {
+    if (darkPath == null && flatPath == null && biasPath == null) {
       return Uint16List.fromList(lightData);
     }
-
     return bridge.apiCalibrateImageData(
       width: width,
       height: height,
       lightData: lightData,
-      darkData: darkData,
-      flatData: flatData,
-      biasData: biasData,
+      darkPath: darkPath,
+      flatPath: flatPath,
+      biasPath: biasPath,
     );
   }
 
@@ -392,44 +389,28 @@ class CalibrationService {
   ///
   /// Adds "_cal" suffix before the extension:
   ///   "image_001.fits" -> "image_001_cal.fits"
+  /// The calibrated copy keeps the light's format; a camera raw light, which
+  /// Skotiq cannot write, gets a FITS copy.
   String _generateCalOutputPath(String lightPath, path.Context paths) {
     final dir = paths.dirname(lightPath);
-    final ext = paths.extension(lightPath);
+    final ext = FrameFiles.isCameraRaw(lightPath)
+        ? '.${FrameFiles.fits.first}'
+        : paths.extension(lightPath);
     final baseName = paths.basenameWithoutExtension(lightPath);
     return paths.join(dir, '${baseName}_cal$ext');
   }
 }
 
-/// Provider for the CalibrationService.
-final calibrationServiceProvider = Provider<CalibrationService>((ref) {
-  final backend = ref.watch(backendProvider);
-  final service = CalibrationService(ref, backend: backend);
-  ref.onDispose(service.retire);
-  return service;
-});
-
-/// Provider for calibration settings, loaded from app settings.
-final calibrationSettingsProvider =
-    StateNotifierProvider<CalibrationSettingsNotifier, CalibrationSettings>((
-      ref,
-    ) {
-      final backend = ref.watch(backendProvider);
-      return CalibrationSettingsNotifier(
-        ref,
-        remote: backend is NetworkBackend ? backend : null,
-      );
-    });
-
 /// Manages calibration settings with persistence via app settings.
 class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
   final Ref _ref;
-  final NetworkBackend? _remote;
+  final HostCalibrationTools? _remote;
 
   ProviderSubscription? _settingsSub;
   StreamSubscription? _remoteEventSub;
   Future<void>? _remoteLoad;
 
-  CalibrationSettingsNotifier(this._ref, {NetworkBackend? remote})
+  CalibrationSettingsNotifier(this._ref, {HostCalibrationTools? remote})
     : _remote = remote,
       super(
         remote == null
@@ -447,10 +428,9 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
           _remoteLoad = _loadRemote(showLoading: false);
         },
         onError: (Object error, StackTrace stackTrace) {
-          developer.log(
+          Log.error(
             'Calibration settings event stream failed: $error',
-            name: 'CalibrationSettings',
-            level: 1000,
+            source: 'CalibrationSettings',
             error: error,
             stackTrace: stackTrace,
           );
@@ -477,27 +457,16 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     // dark-library UI and the imaging pipeline. A value left in the legacy
     // `dark_library.auto_subtract` key is lifted forward when the
     // authoritative key is unset, then deleted, so the lift runs once.
-    var autoCalibrate = settings['calibration.auto_calibrate'] == 'true';
+    var loaded = CalibrationSettings.fromRows(settings);
     final legacyDarkLibrary = settings['dark_library.auto_subtract'];
-    final hasCalibrationKey = settings.containsKey(
-      'calibration.auto_calibrate',
-    );
-    if (!hasCalibrationKey && legacyDarkLibrary != null) {
-      autoCalibrate = legacyDarkLibrary == 'true';
+    if (!settings.containsKey(StoreSettings.calibrationAutoCalibrate.key) &&
+        legacyDarkLibrary != null) {
+      loaded = loaded.copyWith(autoCalibrate: legacyDarkLibrary == 'true');
       // Persist the migrated value into the canonical store; clear the
       // legacy key so subsequent loads don't re-trigger the migration.
-      unawaited(_migrateLegacyAutoSubtract(autoCalibrate));
+      unawaited(_migrateLegacyAutoSubtract(loaded.autoCalibrate));
     }
-    state = CalibrationSettings(
-      autoCalibrate: autoCalibrate,
-      masterFlatPath: _nonEmpty(settings['calibration.master_flat_path']),
-      masterBiasPath: _nonEmpty(settings['calibration.master_bias_path']),
-      autoDarkFromLibrary:
-          settings['calibration.auto_dark_from_library'] != 'false',
-      manualDarkPath: _nonEmpty(settings['calibration.manual_dark_path']),
-      isLoading: false,
-      loadError: null,
-    );
+    state = loaded;
   }
 
   Future<void> _loadRemote({required bool showLoading}) async {
@@ -514,10 +483,9 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     } catch (error, stackTrace) {
       if (!mounted) return;
       state = state.copyWith(isLoading: false, loadError: error);
-      developer.log(
+      Log.error(
         'Could not load calibration settings from imaging host: $error',
-        name: 'CalibrationSettings',
-        level: 1000,
+        source: 'CalibrationSettings',
         error: error,
         stackTrace: stackTrace,
       );
@@ -533,14 +501,8 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
 
   Future<void> _migrateLegacyAutoSubtract(bool value) async {
     final dao = _ref.read(settingsDaoProvider);
-    await dao.setSetting('calibration.auto_calibrate', value.toString());
+    await dao.write(StoreSettings.calibrationAutoCalibrate, value);
     await dao.deleteSetting('dark_library.auto_subtract');
-  }
-
-  /// Returns the string if non-null and non-empty, otherwise null.
-  static String? _nonEmpty(String? value) {
-    if (value == null || value.isEmpty) return null;
-    return value;
   }
 
   Future<void> setAutoCalibrate(bool enabled) async {
@@ -552,7 +514,7 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     }
     final next = state.copyWith(autoCalibrate: enabled);
     state = next;
-    await _saveSetting('calibration.auto_calibrate', enabled.toString());
+    await _save(StoreSettings.calibrationAutoCalibrate, enabled);
   }
 
   Future<void> setMasterFlatPath(String? path) async {
@@ -564,7 +526,7 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     }
     final next = state.copyWith(masterFlatPath: path);
     state = next;
-    await _saveSetting('calibration.master_flat_path', path ?? '');
+    await _save(StoreSettings.calibrationMasterFlatPath, path);
   }
 
   Future<void> setMasterBiasPath(String? path) async {
@@ -576,7 +538,7 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     }
     final next = state.copyWith(masterBiasPath: path);
     state = next;
-    await _saveSetting('calibration.master_bias_path', path ?? '');
+    await _save(StoreSettings.calibrationMasterBiasPath, path);
   }
 
   Future<void> setAutoDarkFromLibrary(bool enabled) async {
@@ -588,10 +550,7 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     }
     final next = state.copyWith(autoDarkFromLibrary: enabled);
     state = next;
-    await _saveSetting(
-      'calibration.auto_dark_from_library',
-      enabled.toString(),
-    );
+    await _save(StoreSettings.calibrationAutoDarkFromLibrary, enabled);
   }
 
   Future<void> setManualDarkPath(String? path) async {
@@ -603,7 +562,7 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     }
     final next = state.copyWith(manualDarkPath: path);
     state = next;
-    await _saveSetting('calibration.manual_dark_path', path ?? '');
+    await _save(StoreSettings.calibrationManualDarkPath, path);
   }
 
   Future<void> _saveRemote(
@@ -623,8 +582,6 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     state = applyPatch(state).copyWith(isLoading: false, loadError: null);
   }
 
-  Future<void> _saveSetting(String key, String value) async {
-    final dao = _ref.read(settingsDaoProvider);
-    await dao.setSetting(key, value);
-  }
+  Future<void> _save<T>(Setting<T> setting, T value) =>
+      _ref.read(settingsDaoProvider).write(setting, value);
 }

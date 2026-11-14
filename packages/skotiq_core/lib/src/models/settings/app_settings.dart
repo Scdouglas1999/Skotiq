@@ -3,9 +3,10 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'app_settings.freezed.dart';
 part 'app_settings.g.dart';
 
-/// Default accent color hex — matches `SkotiqColors.dark.primary` (#E86A6A),
-/// the red. Seeded into `app_settings` at install; migration v62
-/// rewrites the old seed (#6EB3EC) to this on existing installs.
+/// Default accent color hex, the red (#E86A6A), seeded into `app_settings` at
+/// install. Existing installs keep their stored accent: migration v62 moved
+/// the old blue seed (#6EB3EC) to the violet (#A48CF2) that was the default
+/// then.
 const kDefaultAccentColorHex = '#E86A6A';
 
 /// Defines how the safety system behaves when weather/safety devices fail or are unavailable
@@ -48,6 +49,7 @@ abstract class AppSettings with _$AppSettings {
     @Default(0.0) double longitude,
     @Default(0.0) double elevation,
     @Default('') String fileNamingPattern,
+    @Default('converted') String cameraFileSaving,
     @Default(5) int meridianFlipMinutes,
     @Default(60) int autoFocusEveryMinutes,
     @Default(3) int ditherEveryFrames,
@@ -57,14 +59,12 @@ abstract class AppSettings with _$AppSettings {
     @Default('') String pushoverKey,
     @Default('') String pushoverUser,
     @Default('') String astapPath,
-    // Discovery settings
     @Default(true) bool autoDiscoverOnLaunch,
     @Default('') String accentColor,
     @Default('Medium') String fontSize,
     @Default('Auto')
     String
     uiScale, // Auto, Small (0.8x), Normal (1.0x), Large (1.2x), Extra Large (1.4x)
-    // Protocol settings
     @Default('localhost') String indiServerHost,
     @Default(7624) int indiServerPort,
     @Default(false) bool indiAutoConnect,
@@ -76,12 +76,10 @@ abstract class AppSettings with _$AppSettings {
     // stays so stored and remote payloads that still carry it decode; nothing
     // reads it.
     @Default(false) bool useSimulationMode,
-    // Image capture settings
     @Default('') String imageOutputPath,
     @Default('') String observer,
     @Default('') String telescope,
     @Default('') String instrument,
-    // Update settings
     @Default(true) bool updateCheckEnabled,
     @Default('') String updateServerUrl,
     @Default('stable') String updateChannel,
@@ -210,6 +208,12 @@ abstract class AppSettings with _$AppSettings {
     /// centering, settling). Off: notify and keep imaging.
     /// DB key `stop_run_on_quality_problems`.
     @Default(false) bool stopRunOnQualityProblems,
+
+    /// When a mount fault holds a run (the mount moved on its own or lost
+    /// its position), take a frame, plate solve it, sync and resume without
+    /// waiting for the operator. Off: the operator recovers the mount.
+    /// DB key `mount_guard_auto_sync_resume`.
+    @Default(false) bool mountGuardAutoSyncResume,
     // Meridian flip detail.
     /// Master enable for automatic meridian flips. DB key `enable_meridian_flip`.
     @Default(true) bool enableMeridianFlip,
@@ -219,6 +223,14 @@ abstract class AppSettings with _$AppSettings {
 
     /// Temp-comp coefficient (steps per °C). DB key `temp_coefficient`.
     @Default(-12.0) double tempCoefficient,
+
+    /// Smallest correction temp compensation moves the focuser for (steps).
+    /// DB key `temp_compensation_min_steps`.
+    @Default(5) int tempCompensationMinSteps,
+
+    /// Test exposures a flat run may take to find each filter's exposure
+    /// ("Exposure calibration attempts"). DB key `flat_calibration_attempts`.
+    @Default(20) int flatCalibrationAttempts,
 
     /// Focuser backlash compensation (steps). DB key `backlash_compensation`.
     @Default(0) int backlashCompensation,
@@ -469,8 +481,16 @@ abstract class AppSettings with _$AppSettings {
     /// FITS OBSERVER keyword. DB `observer_name`.
     @Default('') String observerName,
 
-    /// Image format ('FITS' / 'XISF' / 'TIFF'). DB `image_format`.
+    /// Captured-frame file format, 'FITS' or 'XISF'. DB `image_format`.
     @Default('FITS') String imageFormat,
+
+    /// XISF compression of captured frames, as the XISF `compression`
+    /// attribute names it ('none', 'zstd+sh', 'lz4', ...). DB
+    /// `xisf_compression`.
+    @Default('none') String xisfCompression,
+
+    /// Write SHA-1 checksums into captured XISF frames. DB `xisf_checksums`.
+    @Default(false) bool xisfChecksums,
 
     /// Bit depth ('16-bit' / '32-bit'). DB `bit_depth`.
     @Default('16-bit') String bitDepth,
@@ -525,14 +545,10 @@ abstract class AppSettings with _$AppSettings {
       _$AppSettingsFromJson(json);
 }
 
-// Extension to provide compatibility getters
 extension AppSettingsExtension on AppSettings {
-  /// Get latitude from location or direct field
   double get effectiveLatitude => location?.latitude ?? latitude;
 
-  /// Get longitude from location or direct field
   double get effectiveLongitude => location?.longitude ?? longitude;
 
-  /// Get elevation from location or direct field
   double get effectiveElevation => location?.elevation ?? elevation;
 }

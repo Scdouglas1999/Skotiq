@@ -6,6 +6,8 @@ import 'package:http/testing.dart';
 import 'package:skotiq_updater/src/models/update_manifest.dart';
 import 'package:skotiq_updater/src/services/update_service.dart';
 
+import 'support/temp_data_directory.dart';
+
 void main() {
   UpdateManifest manifest({
     String version = '2.1.0',
@@ -218,6 +220,7 @@ void main() {
       final service = UpdateService(
         currentVersion: currentVersion,
         currentBuildNumber: currentBuildNumber,
+        applicationSupportDirectoryProvider: tempDataDirectory(),
         httpClient: client,
         currentPlatform: 'windows',
         currentArch: 'x64',
@@ -351,6 +354,7 @@ void main() {
       final service = UpdateService(
         currentVersion: '2.0.0',
         currentBuildNumber: 1,
+        applicationSupportDirectoryProvider: tempDataDirectory(),
         currentPlatform: 'windows',
         currentArch: 'x64',
         httpClient: MockClient((_) async => http.Response('[]', 200)),

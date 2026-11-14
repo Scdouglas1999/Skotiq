@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'settings_widgets.dart';
@@ -9,16 +12,8 @@ import '../../../utils/snackbar_helper.dart';
 
 /// Auto-save configuration settings page.
 class AutoSaveSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  /// When true, render without an own scroll view / header (embedded in a
-  /// merged section's single outer scroll).
-  final bool embedded;
-
   const AutoSaveSettings({
     super.key,
-    this.isMobile = false,
-    this.embedded = false,
   });
 
   @override
@@ -26,22 +21,7 @@ class AutoSaveSettings extends ConsumerStatefulWidget {
 }
 
 class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
-  // Left empty on purpose: the hydrated config is handed to each
-  // [SettingsNumberInput] as its `authoritativeValue`, and the input seeds and
-  // re-seeds the controller from that. Pre-filling here from the un-hydrated
-  // service is what put the compiled-in defaults on screen.
-  final _sequenceIntervalController = TextEditingController();
-  final _backupIntervalController = TextEditingController();
-  final _maxBackupsController = TextEditingController();
   bool _isSavingNow = false;
-
-  @override
-  void dispose() {
-    _sequenceIntervalController.dispose();
-    _backupIntervalController.dispose();
-    _maxBackupsController.dispose();
-    super.dispose();
-  }
 
   Future<void> _updateConfig(
     AutoSaveService service, {
@@ -79,11 +59,11 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
         context.showErrorSnackBar(
           wasApplied
               ? 'Backup schedule saved, but the auto-save service reported: '
-                  '$error'
-              : 'Could not save backup schedule: $error',
+                  '${userFacingError(error)}'
+              : 'Could not save backup schedule: ${userFacingError(error)}',
         );
       }
-      if (!wasApplied) rethrow;
+      if (!wasApplied) throw SettingWriteHandled(error);
     }
   }
 
@@ -96,7 +76,9 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
       }
       if (mounted) context.showSuccessSnackBar('Backup created successfully');
     } catch (error) {
-      if (mounted) context.showErrorSnackBar('Backup failed: $error');
+      if (mounted) {
+        context.showErrorSnackBar('Backup failed: ${userFacingError(error)}');
+      }
     } finally {
       if (mounted) {
         setState(() => _isSavingNow = false);
@@ -104,16 +86,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
     }
   }
 
-  String _formatDateTime(DateTime? dt) {
-    if (dt == null) return 'Never';
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-
-    if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
+  String _formatDateTime(DateTime? dt) =>
+      dt == null ? 'Never' : RelativeTime.ago(dt);
 
   String _formatNextSave(DateTime? lastSave, Duration interval) {
     if (lastSave == null) return 'Pending';
@@ -128,7 +102,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = widget.isMobile;
     // The client ROLE, not the live connection. `main.dart` starts
     // `autoSaveLifecycleProvider` only when `remoteTarget == null`, so a
     // desktop launched with `--remote-host` never schedules backups at all —
@@ -139,16 +112,12 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
     final isRemoteClient = ref.watch(isRemoteClientProvider);
 
     if (isRemoteClient) {
-      return SettingsPage(
+      return const SettingsPage(
         title: 'Automatic backups',
         description: 'Backups run on the imaging host',
-        isMobile: isMobile,
-        hideHeader: isMobile || widget.embedded,
-        scrollable: !widget.embedded,
         children: [
           SettingsSection(
             title: 'Host-owned setting',
-            isMobile: isMobile,
             children: [
               SettingRow(
                 icon: LucideIcons.server,
@@ -156,9 +125,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                 subtitle:
                     'Automatic backup scheduling is stored and executed on '
                     'the computer connected to your equipment.',
-                trailing: const SizedBox.shrink(),
+                trailing: SizedBox.shrink(),
                 isLast: true,
-                isMobile: isMobile,
               ),
             ],
           ),
@@ -174,12 +142,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
     // backed up. Rendering that instance is what made this page contradict
     // Settings > Backup & Restore on the same second.
     return ref.watch(autoSaveLifecycleProvider).when(
-          loading: () => SettingsLoadingState(
-            isMobile: isMobile,
-            scrollable: !widget.embedded,
-          ),
+          loading: () => const SettingsLoadingState(),
           error: (error, stackTrace) => SettingsErrorState(
-            isMobile: isMobile,
             error: error,
             onRetry: () => ref.invalidate(autoSaveLifecycleProvider),
           ),
@@ -189,7 +153,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
 
   Widget _buildConfigured(BuildContext context, AutoSaveService service) {
     final colors = SkotiqColors.of(context);
-    final isMobile = widget.isMobile;
     final config = service.config;
     // `autoSaveStatusProvider` backfills `lastBackup` from the persisted
     // `autosave.last_backup_at` whenever the live instance does not know it —
@@ -202,13 +165,9 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
     return SettingsPage(
       title: 'Automatic backups',
       description: 'Schedule recurring backups of Skotiq data',
-      isMobile: isMobile,
-      hideHeader: isMobile || widget.embedded,
-      scrollable: !widget.embedded,
       children: [
         SettingsSection(
           title: 'Sequence auto-save',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.fileCheck,
@@ -219,14 +178,12 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                 onChanged: (value) =>
                     _updateConfig(service, sequenceEnabled: value),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.clock,
               title: 'Sequence save interval',
               subtitle: 'How often to save pending sequence edits',
               trailing: SettingsNumberInput(
-                controller: _sequenceIntervalController,
                 // The persisted config is the authority for these fields; the
                 // input seeds itself from it and re-seeds when the service
                 // instance changes, so the box can never show a default the
@@ -242,10 +199,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   service,
                   sequenceInterval: Duration(minutes: value.round()),
                 ),
-                isMobile: isMobile,
               ),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),
@@ -253,7 +208,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
         // Backup section
         SettingsSection(
           title: 'Automatic backups',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.hardDrive,
@@ -264,14 +218,12 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                 onChanged: (value) =>
                     _updateConfig(service, backupEnabled: value),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.clock,
               title: 'Backup interval',
               subtitle: 'How often to create backups (hours)',
               trailing: SettingsNumberInput(
-                controller: _backupIntervalController,
                 authoritativeValue: config.backupInterval.inHours.toDouble(),
                 authorityKey: service,
                 suffix: 'hrs',
@@ -282,16 +234,13 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   service,
                   backupInterval: Duration(hours: value.round()),
                 ),
-                isMobile: isMobile,
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.archive,
               title: 'Maximum backups',
               subtitle: 'Number of auto-save backups to retain',
               trailing: SettingsNumberInput(
-                controller: _maxBackupsController,
                 authoritativeValue: config.maxBackups.toDouble(),
                 authorityKey: service,
                 suffix: '',
@@ -302,10 +251,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   service,
                   maxBackups: value.round(),
                 ),
-                isMobile: isMobile,
               ),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),
@@ -313,7 +260,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
         // Status section
         SettingsSection(
           title: 'Status',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.checkCircle,
@@ -334,7 +280,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                         color: colors.textMuted,
                       ),
                     ),
-              isMobile: isMobile,
             ),
             if (status.lastError != null)
               SettingRow(
@@ -343,20 +288,15 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                 title: 'Last error',
                 subtitle: status.lastError,
                 trailing: const SizedBox.shrink(),
-                isMobile: isMobile,
               ),
             // Save Now button row
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 12.0 : 16.0,
-                vertical: isMobile ? 12.0 : 14.0,
-              ),
+            SettingsItem(
               child: Row(
                 children: [
                   SkotiqButton(
                     label: 'Back Up Now',
                     icon: LucideIcons.save,
-                    size: isMobile ? ButtonSize.small : ButtonSize.medium,
+                    size: settingsActionButtonSize(context),
                     isLoading: _isSavingNow,
                     onPressed: _isSavingNow ? null : () => _saveNow(service),
                   ),

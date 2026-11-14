@@ -1,7 +1,3 @@
-// The Rig card pinned to the bottom of the desktop sidebar. It carries every
-// fact the old bottom instrument bar carried — run state, one row per device,
-// the in-flight operation strip, and the save path — recomposed as a card of
-// dot-and-value rows instead of a strip of pills.
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,13 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/device_format_utils.dart';
-import '../../../widgets/operation_status_bar.dart';
-import '../../settings/settings_screen.dart' show SettingsSectionRequest;
+import '../../../utils/device_type_ui.dart';
+import 'operation_status_bar.dart';
+import '../../../router/settings_sections.dart';
+import '../../../utils/guide_distance.dart';
+import '../../../router/app_routes.dart';
 
 /// What the shell actually knows about the configured capture directory.
 ///
@@ -48,9 +50,9 @@ final _savePathStatusProvider = FutureProvider<SavePathStatus>((ref) async {
     );
   }
 
-  final backend = ref.watch(backendProvider);
+  final hostFiles = ref.watch(linkedHostFilesProvider);
   try {
-    final exists = await configuredSavePathExists(backend, savePath);
+    final exists = await configuredSavePathExists(hostFiles, savePath);
     return SavePathStatus(
       path: savePath,
       existence: exists ? SavePathExistence.present : SavePathExistence.missing,
@@ -157,14 +159,14 @@ SavePathChip savePathChipFor(
 }
 
 /// Checks the configured capture directory on the machine that performs the
-/// capture. A remote controller cannot infer host-path validity from its own
-/// filesystem.
+/// capture: the linked host's ([hostFiles]) or this one's. A remote controller
+/// cannot infer host-path validity from its own filesystem.
 Future<bool> configuredSavePathExists(
-  SkotiqBackend backend,
+  HostFiles? hostFiles,
   String savePath,
 ) async {
-  if (backend is NetworkBackend) {
-    final validation = await backend.validateRemoteDirectory(
+  if (hostFiles != null) {
+    final validation = await hostFiles.validateRemoteDirectory(
       savePath,
       mustExist: true,
       mustBeWritable: false,
@@ -172,22 +174,6 @@ Future<bool> configuredSavePathExists(
     return validation['valid'] == true;
   }
   return Directory(savePath).exists();
-}
-
-/// Free space, rendered the way a card row has room for.
-///
-/// Whole GB up to a terabyte, then one decimal of TB. Not "412.7 GB free": the
-/// operator is checking whether the night fits, not auditing the volume.
-@visibleForTesting
-String formatFreeSpace(int freeBytes) {
-  const gb = 1024 * 1024 * 1024;
-  if (freeBytes < gb) {
-    final mb = freeBytes / (1024 * 1024);
-    return '${mb.round()} MB free';
-  }
-  final gigabytes = freeBytes / gb;
-  if (gigabytes < 1024) return '${gigabytes.round()} GB free';
-  return '${(gigabytes / 1024).toStringAsFixed(1)} TB free';
 }
 
 /// The Rig card: the sidebar's pinned footer and the window's one persistent
@@ -208,6 +194,14 @@ class RigCard extends ConsumerWidget {
   static const double rowHeight = 26.0;
 
   static const double _dotSize = 7.0;
+
+  /// The four devices the card always lists, present or not.
+  static const Set<DeviceType> _alwaysListed = {
+    DeviceType.camera,
+    DeviceType.mount,
+    DeviceType.guider,
+    DeviceType.focuser,
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -251,6 +245,7 @@ class RigCard extends ConsumerWidget {
         ),
       ),
     );
+    final guideScale = ref.watch(guideScaleProvider);
     final focuserState = ref.watch(
       focuserStateProvider.select(
         (s) => (connectionState: s.connectionState, position: s.position),
@@ -276,15 +271,12 @@ class RigCard extends ConsumerWidget {
         guiderState.connectionState == DeviceConnectionState.connected;
     final focuserConnected =
         focuserState.connectionState == DeviceConnectionState.connected;
-    final filterWheelConnected =
-        filterWheelState.connectionState == DeviceConnectionState.connected;
     final rotatorState = ref.watch(
       rotatorStateProvider.select(
         (s) => (connectionState: s.connectionState, position: s.position),
       ),
     );
-    final rotatorConnected =
-        rotatorState.connectionState == DeviceConnectionState.connected;
+    final rig = ref.watch(rigDevicesProvider);
 
     // The row's VALUE is the device name, or the phrase for its absence —
     // never "Camera: ASI2600MM". The glyph carries the role; spelling it out
@@ -328,11 +320,11 @@ class RigCard extends ConsumerWidget {
         ),
         isExpanded: true,
         isMenuItem: !isExpanded,
-        route: '/equipment',
+        route: AppRoute.equipment.path,
         // Only for a COOLED camera: a DSLR has no sensor setpoint, and an em
         // dash where a temperature should be is a permanent question.
         trailing: cameraConnected && cameraState.temperature != null
-            ? '${cameraState.temperature!.toStringAsFixed(1)}°C'
+            ? formatCelsius(cameraState.temperature!)
             : null,
         trailingSemanticLabel: cameraConnected &&
                 cameraState.temperature != null
@@ -352,7 +344,7 @@ class RigCard extends ConsumerWidget {
         ),
         isExpanded: true,
         isMenuItem: !isExpanded,
-        route: '/equipment',
+        route: AppRoute.equipment.path,
       ),
       _RigRow(
         icon: SkotiqIcons.crosshair,
@@ -370,19 +362,20 @@ class RigCard extends ConsumerWidget {
         ),
         isExpanded: true,
         isMenuItem: !isExpanded,
-        route: '/guiding',
+        route: AppRoute.guiding.path,
         // Guiding RMS is the one live figure a guiding row can carry that
         // the glyph cannot; it trails the word the way temperature trails
         // the camera's name.
         trailing: guiderConnected &&
                 guiderState.isGuiding &&
                 guiderState.rmsTotal != null
-            ? '${guiderState.rmsTotal!.toStringAsFixed(2)}"'
+            ? guideDistanceText(guiderState.rmsTotal!, guideScale)
             : null,
         trailingSemanticLabel: guiderConnected &&
                 guiderState.isGuiding &&
                 guiderState.rmsTotal != null
-            ? 'Guiding RMS ${guiderState.rmsTotal!.toStringAsFixed(2)} arcseconds'
+            ? 'Guiding RMS '
+                '${guideDistanceSpoken(guiderState.rmsTotal!, guideScale)}'
             : null,
       ),
       _RigRow(
@@ -399,49 +392,23 @@ class RigCard extends ConsumerWidget {
         ),
         isExpanded: true,
         isMenuItem: !isExpanded,
-        route: '/equipment',
+        route: AppRoute.equipment.path,
         mono: focuserConnected && focuserState.position != null,
         trailingChild: const _TempCompMark(),
       ),
-      // Only when connected: a filter wheel is optional equipment, and a
-      // permanent "No filter wheel" row on a rig that has never had one is
-      // the card reporting the absence of something nobody asked for.
-      if (filterWheelConnected)
-        Builder(
-          builder: (context) {
-            final filter =
-                filterWheelState.filterName ?? l10n.text('statusReady');
-            return _RigRow(
-              icon: LucideIcons.disc,
-              dotTone: InstrumentTone.success,
-              value: filter,
-              semanticLabel: '${l10n.text('statusFilterWheel')}, $filter',
-              isExpanded: true,
-              isMenuItem: !isExpanded,
-              route: '/equipment',
-            );
-          },
-        ),
-      // Optional equipment too, so only when connected; without it the card
-      // counted one device fewer than the Equipment screen.
-      if (rotatorConnected)
-        Builder(
-          builder: (context) {
-            final position = rotatorState.position;
-            final value = position == null
-                ? l10n.text('statusReady')
-                : '${position.toStringAsFixed(1)}°';
-            return _RigRow(
-              icon: LucideIcons.rotateCw,
-              dotTone: InstrumentTone.success,
-              value: value,
-              semanticLabel: 'Rotator, $value',
-              isExpanded: true,
-              isMenuItem: !isExpanded,
-              route: '/equipment',
-            );
-          },
-        ),
+      // Optional equipment has a row when it is part of the rig: the active
+      // profile assigns it, or it is connected. A permanent "No filter wheel"
+      // on a rig that has never had one reports the absence of something
+      // nobody asked for; hiding a profile's filter wheel while it is down
+      // made the card count fewer devices than the profile holds.
+      for (final device in rig.devices)
+        if (!_alwaysListed.contains(device.type))
+          _OptionalDeviceRow(
+            type: device.type,
+            isMenuItem: !isExpanded,
+            filterName: filterWheelState.filterName,
+            rotatorPosition: rotatorState.position,
+          ),
     ];
 
     return Padding(
@@ -475,19 +442,11 @@ class RigCard extends ConsumerWidget {
                 ...deviceRows
               else
                 _RigSummary(
-                  connectedCount: [
-                    cameraConnected,
-                    mountConnected,
-                    guiderConnected,
-                    focuserConnected,
-                    filterWheelConnected,
-                    rotatorConnected,
-                  ].where((connected) => connected).length,
+                  connectedCount: rig.connected,
+                  totalCount: rig.total,
                   deviceRows: deviceRows,
                 ),
               _SavePathRow(isExpanded: isExpanded),
-              // The in-flight operation strip, in the same style it wore in
-              // the old bar: icon, step, progress, elapsed, cancel.
               const OperationStatusBar(),
             ],
           ),
@@ -496,7 +455,6 @@ class RigCard extends ConsumerWidget {
     );
   }
 
-  /// The filter the wheel is actually on, or null when it cannot say.
   String? _currentFilterName(FilterWheelState state) {
     final position = state.currentPosition;
     if (position == null) return null;
@@ -523,11 +481,88 @@ class RigCard extends ConsumerWidget {
           : InstrumentTone.idle;
 }
 
+/// A row for a device the card lists only while it is part of the rig.
+class _OptionalDeviceRow extends ConsumerWidget {
+  final DeviceType type;
+  final bool isMenuItem;
+  final String? filterName;
+  final double? rotatorPosition;
+
+  const _OptionalDeviceRow({
+    required this.type,
+    required this.isMenuItem,
+    required this.filterName,
+    required this.rotatorPosition,
+  });
+
+  /// The phrase for the device's absence, named like the always-listed
+  /// four: a column of rows all reading "Disconnected" says which state
+  /// every device is in and which device none of them is.
+  String get _absentKey => switch (type) {
+        DeviceType.camera => 'statusNoCamera',
+        DeviceType.mount => 'statusNoMount',
+        DeviceType.guider => 'statusNoGuider',
+        DeviceType.focuser => 'statusNoFocuser',
+        DeviceType.filterWheel => 'statusNoFilterWheel',
+        DeviceType.rotator => 'statusNoRotator',
+        DeviceType.dome => 'statusNoDome',
+        DeviceType.weather => 'statusNoWeather',
+        DeviceType.safetyMonitor => 'statusNoSafetyMonitor',
+        DeviceType.switch_ => 'statusNoSwitch',
+        DeviceType.coverCalibrator => 'statusNoCoverCalibrator',
+      };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final slot = ref.watch(
+      type.slot.state.select(
+        (s) => (connectionState: s.connectionState, deviceName: s.deviceName),
+      ),
+    );
+    final connected = slot.connectionState == DeviceConnectionState.connected;
+    final ready = l10n.text('statusReady');
+    final value = !connected
+        ? l10n.text(_absentKey)
+        : switch (type) {
+            DeviceType.filterWheel => filterName ?? ready,
+            DeviceType.rotator => rotatorPosition == null
+                ? ready
+                : '${rotatorPosition!.toStringAsFixed(1)}°',
+            _ => slot.deviceName ?? ready,
+          };
+    final role = type == DeviceType.filterWheel
+        ? l10n.text('statusFilterWheel')
+        : type.displayName;
+    return _RigRow(
+      icon: type.icon,
+      dotTone: connected ? InstrumentTone.success : InstrumentTone.idle,
+      value: value,
+      semanticLabel: deviceRowSemanticLabel(
+        role,
+        connected: connected,
+        value: value,
+        l10n: l10n,
+      ),
+      isExpanded: true,
+      isMenuItem: isMenuItem,
+      route: AppRoute.equipment.path,
+    );
+  }
+}
+
 class _RigSummary extends StatefulWidget {
+  /// From [rigDevicesProvider], not from the rows: the card always lists a
+  /// camera, mount, guider and focuser, whether or not the rig has them.
   final int connectedCount;
+  final int totalCount;
   final List<Widget> deviceRows;
 
-  const _RigSummary({required this.connectedCount, required this.deviceRows});
+  const _RigSummary({
+    required this.connectedCount,
+    required this.totalCount,
+    required this.deviceRows,
+  });
 
   @override
   State<_RigSummary> createState() => _RigSummaryState();
@@ -548,7 +583,8 @@ class _RigSummaryState extends State<_RigSummary> {
     final deviceRows = widget.deviceRows;
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
-    final missingCount = deviceRows.length - connectedCount;
+    final totalCount = widget.totalCount;
+    final missingCount = totalCount - connectedCount;
     final label = '${l10n.text('navEquipment')}: '
         '$connectedCount ${l10n.text('statusConnected').toLowerCase()}, '
         '$missingCount ${l10n.text('disconnected').toLowerCase()}';
@@ -596,7 +632,7 @@ class _RigSummaryState extends State<_RigSummary> {
                 children: [
                   Icon(LucideIcons.plug, size: 20, color: color),
                   const SizedBox(height: 4),
-                  Text('$connectedCount/${deviceRows.length}',
+                  Text('$connectedCount/$totalCount',
                       style:
                           SkotiqTypography.monoCaption.copyWith(color: color)),
                 ],
@@ -646,10 +682,6 @@ class _RigRow extends StatefulWidget {
   final bool mono;
   final bool isMenuItem;
 
-  /// Runs before the row navigates — for the save-path row, which raises the
-  /// section request that moves an already-open Settings detail pane.
-  final VoidCallback? onNavigate;
-
   const _RigRow({
     required this.icon,
     required this.dotTone,
@@ -663,7 +695,6 @@ class _RigRow extends StatefulWidget {
     this.trailingChild,
     this.mono = false,
     this.isMenuItem = false,
-    this.onNavigate,
   });
 
   @override
@@ -677,7 +708,6 @@ class _RigRowState extends State<_RigRow> {
     final route = widget.route;
     if (route == null) return;
     try {
-      widget.onNavigate?.call();
       context.go(route);
     } catch (_) {
       // A row that cannot navigate is inert, not broken; the card keeps
@@ -927,7 +957,7 @@ class _RunStateRowState extends ConsumerState<_RunStateRow> {
 
     void open() {
       try {
-        context.go('/sequencer');
+        context.go(AppRoute.sequencer.path);
       } catch (_) {
         // Same rule as the device rows: a row that cannot navigate is inert.
       }
@@ -1097,8 +1127,9 @@ class _SavePathRow extends ConsumerWidget {
       _formatPathLabel,
       context.l10n,
     );
-    final space = ref.watch(captureDirDiskSpaceProvider).valueOrNull;
-    final free = space == null ? null : formatFreeSpace(space.freeBytes);
+    final freeText =
+        ref.watch(captureDirDiskSpaceProvider.select(freeSpaceText));
+    final free = freeText == null ? null : '$freeText free';
     // No free-space figure next to a path we know is unusable: "No save folder
     // · 412 GB free" reports room in a place that does not exist.
     final value = chip.tone == SavePathTone.alarm || free == null
@@ -1123,12 +1154,7 @@ class _SavePathRow extends ConsumerWidget {
       semanticLabel: chip.tooltip,
       tooltipMessage: chip.tooltip,
       isExpanded: isExpanded,
-      route: '/settings?section=storage',
-      onNavigate: () {
-        // Raised as an event as well as a route, so a second click while
-        // Settings is already open still moves the detail pane.
-        SettingsSectionRequest.raise('storage');
-      },
+      route: AppRoutes.settings(SettingsSectionId.filesStorage),
     );
   }
 
@@ -1159,7 +1185,6 @@ class _TempCompMark extends ConsumerWidget {
     final focuserConnected =
         focuserState.connectionState == DeviceConnectionState.connected;
 
-    // Only show when focuser is connected and reports temperature
     if (!focuserConnected || focuserState.temperature == null) {
       return const SizedBox.shrink();
     }
@@ -1177,7 +1202,6 @@ class _TempCompMark extends ConsumerWidget {
     final model = profileData?.temperatureModel;
     final hasReliableModel = model != null && model.isReliable;
 
-    // Determine state
     InstrumentTone indicatorTone;
     String tooltip;
 

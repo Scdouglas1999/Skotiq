@@ -4,7 +4,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -33,6 +36,25 @@ Future<void> _pumpUntil(bool Function() condition) async {
     await Future<void>.delayed(Duration.zero);
   }
 }
+
+Map<String, dynamic> _hostSafetyPayload() => {
+  'currentAlertLevel': 'clear',
+  'hardwareWeatherReading': 'safe',
+  'safetyMonitorReading': 'safe',
+  'monitoringEnabled': true,
+  'autoParkArmed': false,
+  'autoResumeArmed': false,
+  'decisionSource': 'none',
+  'forecastUnsafe': false,
+  'forecastHoldsRun': false,
+  'starEvidenceOverridesForecast': false,
+  'actions': {
+    'shouldPause': false,
+    'shouldPark': false,
+    'shouldCloseDome': false,
+    'advisoryOnly': false,
+  },
+};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -99,6 +121,7 @@ void main() {
       final backend = _liveCredentialsBackend();
       when(() => backend.getSafetyStatus()).thenAnswer(
         (_) async => {
+          ..._hostSafetyPayload(),
           'isSafe': true,
           'safetyStatus': 'safe',
           'dataSource': 'combined',
@@ -141,6 +164,7 @@ void main() {
       when(() => backend.isAuthTokenRejected).thenAnswer((_) => rejected);
       when(() => backend.getSafetyStatus()).thenAnswer(
         (_) async => {
+          ..._hostSafetyPayload(),
           'isSafe': true,
           'safetyStatus': 'safe',
           'dataSource': 'combined',
@@ -185,6 +209,7 @@ void main() {
       final backend = _liveCredentialsBackend();
       when(() => backend.getSafetyStatus()).thenAnswer(
         (_) async => {
+          ..._hostSafetyPayload(),
           'isSafe': false,
           'safetyStatus': 'unsafe',
           'currentAlertLevel': 'critical',
@@ -193,6 +218,7 @@ void main() {
           'safetyMonitorSafe': true,
           'apiWeatherSafe': false,
           'actions': {
+            'advisoryOnly': false,
             'shouldPause': true,
             'shouldPark': true,
             'shouldCloseDome': true,
@@ -230,8 +256,10 @@ void main() {
       expect(state.actions.shouldCloseDome, isTrue);
       expect(state.actions.reason, 'Rain detected; roof closure required');
       expect(
-        state.actions.resumeCheckTime,
-        DateTime.parse('2026-07-13T03:30:00Z'),
+        state.actions.resumeCheckTime!.isAtSameMomentAs(
+          DateTime.parse('2026-07-13T03:30:00Z'),
+        ),
+        isTrue,
       );
     },
   );
@@ -242,6 +270,7 @@ void main() {
       final backend = _liveCredentialsBackend();
       when(() => backend.getSafetyStatus()).thenAnswer(
         (_) async => {
+          ..._hostSafetyPayload(),
           'isSafe': false,
           'safetyStatus': 'snoozed',
           'currentAlertLevel': 'warning',
@@ -250,6 +279,7 @@ void main() {
           'safetyMonitorSafe': true,
           'apiWeatherSafe': false,
           'actions': {
+            'advisoryOnly': false,
             'shouldPause': false,
             'shouldPark': false,
             'shouldCloseDome': false,
@@ -290,6 +320,45 @@ void main() {
       hostCancel.complete();
     },
   );
+
+  for (final field in [
+    'monitoringEnabled',
+    'autoParkArmed',
+    'autoResumeArmed',
+    'hardwareWeatherReading',
+    'safetyMonitorReading',
+  ]) {
+    test('missing host $field leaves the safety verdict unavailable', () async {
+      final backend = _liveCredentialsBackend();
+      final response = {
+        ..._hostSafetyPayload(),
+        'isSafe': true,
+        'safetyStatus': 'safe',
+        'dataSource': 'combined',
+        'hardwareWeatherSafe': true,
+        'safetyMonitorSafe': true,
+        'apiWeatherSafe': true,
+      }..remove(field);
+      when(() => backend.getSafetyStatus()).thenAnswer((_) async => response);
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(weatherSafetyProvider);
+      await _pumpUntil(
+        () => container.read(weatherSafetyProvider).hostVerdictUnavailable,
+      );
+      final state = container.read(weatherSafetyProvider);
+      expect(state.hostVerdictUnavailable, isTrue);
+      expect(state.isSafe, isFalse);
+      verifyNever(() => backend.sequencerStop());
+    });
+  }
 
   test('remote safety status failure remains fail closed', () async {
     final backend = _liveCredentialsBackend();

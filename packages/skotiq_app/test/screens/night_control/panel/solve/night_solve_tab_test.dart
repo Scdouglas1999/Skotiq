@@ -12,7 +12,9 @@ import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.d
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/solve/solve_sections.dart';
 import 'package:skotiq_app/screens/night_control/panel/solve/night_solve_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../scope_panel_test_support.dart';
 
@@ -43,6 +45,7 @@ PlateSolveResult _solved({double ra = 24.17, double dec = 15.78}) =>
 const _solve = ValueKey<String>('nightSolve.solve');
 const _solveSync = ValueKey<String>('nightSolve.solveSync');
 const _center = ValueKey<String>('nightSolve.center');
+const _setUpSolver = ValueKey<String>('nightSolve.setUpSolver');
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -87,7 +90,8 @@ void main() {
     expect(find.text('Solved · 2.1 s'), findsOneWidget);
     expect(find.text('0.77"/px'), findsOneWidget);
     expect(find.text("60'×45'"), findsOneWidget);
-    expect(find.text("8.7'"), findsOneWidget, reason: 'off target');
+    // In arcseconds, the unit every off-target reading uses.
+    expect(find.text('520"'), findsOneWidget, reason: 'off target');
   });
 
   testWidgets('Solve, Solve & sync and Center go through the action controller',
@@ -113,21 +117,16 @@ void main() {
     expect(api.calls, ['solve', 'solveAndSync', 'center']);
   });
 
-  testWidgets('the centering note quotes the config Center runs',
+  testWidgets('the centering note quotes the centering the button runs',
       (tester) async {
     await pumpPanelTab(
       tester,
       const NightSolveTab(),
-      overrides: [
-        ...panelOverrides(),
-        nightCenteringConfigProvider.overrideWithValue(
-          const CenteringConfig(maxIterations: 7, toleranceArcsec: 12),
-        ),
-      ],
+      overrides: panelOverrides(),
     );
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
     await tester.pump();
-    expect(find.textContaining('Center button: within 12" · 7 attempts'),
+    expect(find.textContaining('Center button: within 30" · 5 attempts'),
         findsOneWidget);
     expect(find.textContaining("Plan's Center step"), findsNothing);
   });
@@ -143,9 +142,6 @@ void main() {
       const NightSolveTab(),
       overrides: [
         ...panelOverrides(),
-        nightCenteringConfigProvider.overrideWithValue(
-          const CenteringConfig(maxIterations: 5, toleranceArcsec: 30),
-        ),
         nightPlanCenterNodeProvider.overrideWithValue(
           CenterNode(id: 'center', accuracyArcsec: 5, maxAttempts: 5),
         ),
@@ -202,6 +198,25 @@ void main() {
     expect(container(tree, second).read(nightPlanCenterNodeProvider)?.id,
         'second');
     expect(container(null, null).read(nightPlanCenterNodeProvider), isNull);
+  });
+
+  testWidgets(
+      'with no plate solver the tab says so and offers to set one up in '
+      'place of Solve & sync', (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightSolveTab(),
+      overrides: panelOverrides(
+        inputs: panelInputs(hasFrame: true, solverMissing: true),
+      ),
+    );
+    expect(find.text('No plate solver set up'), findsOneWidget);
+    expect(find.byKey(_solveSync), findsNothing);
+    expect(find.byKey(_setUpSolver), findsOneWidget);
+    expect(isEnabled(tester, _solve), isFalse);
+    expect(tooltipOf(tester, _solve), 'No plate solver is set up');
+    expect(tooltipOf(tester, _center), 'No plate solver is set up');
+    expectCleanLayout(tester);
   });
 
   testWidgets('a busy controller disables its actions with the reason',

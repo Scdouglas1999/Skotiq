@@ -3,48 +3,23 @@
 //! Provides high-level focuser control via INDI protocol.
 
 use crate::client::IndiClient;
-use crate::error::IndiResult;
-use crate::protocol::standard_properties::*;
+use crate::error::{IndiError, IndiResult};
+use crate::protocol::names::*;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-/// INDI Focuser device wrapper
 pub struct IndiFocuser {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiFocuser {
-    /// Create a new INDI focuser wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
             device_name: device_name.to_string(),
         }
-    }
-
-    /// Get the device name
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    /// Connect to the focuser
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    /// Disconnect from the focuser
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    /// Check if connected
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
     }
 
     /// Move to absolute position
@@ -62,7 +37,7 @@ impl IndiFocuser {
             .set_number(
                 &self.device_name,
                 ABS_FOCUS_POSITION,
-                "FOCUS_ABSOLUTE_POSITION",
+                FOCUS_ABSOLUTE_POSITION,
                 // Why: i32 focuser position -> f64 (INDI wire); lossless.
                 f64::from(position),
             )
@@ -122,7 +97,7 @@ impl IndiFocuser {
                                     .get_number(
                                         &self.device_name,
                                         ABS_FOCUS_POSITION,
-                                        "FOCUS_ABSOLUTE_POSITION",
+                                        FOCUS_ABSOLUTE_POSITION,
                                     )
                                     .await;
                                 if position.is_some_and(|p| (p - f64::from(target)).abs() < 0.5) {
@@ -146,12 +121,11 @@ impl IndiFocuser {
         }
     }
 
-    /// Move to absolute position with timeout
     pub async fn move_to_with_timeout(
         &self,
         position: i32,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -164,23 +138,23 @@ impl IndiFocuser {
         // the property still reads not-Busy from the last move.
         self.move_to(position).await?;
 
-        // Wait for move to complete
         let client = self.client.read().await;
         client
             .wait_for_property_not_busy(&self.device_name, ABS_FOCUS_POSITION, timeout_duration)
             .await
-            .map_err(|e| format!("Focuser move to position {} failed: {}", position, e))
+            .map_err(|e| IndiError::Failed {
+                what: format!("Focuser move to position {}", position),
+                cause: Box::new(e),
+            })
     }
 
     /// Move relative (inward/outward)
     pub async fn move_relative(&self, steps: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;
 
-        // Determine direction
-        let direction = if steps > 0 { "FOCUS_IN" } else { "FOCUS_OUT" };
+        let direction = if steps > 0 { FOCUS_IN } else { FOCUS_OUT };
         let abs_steps = steps.abs();
 
-        // Set direction switch
         client
             .set_switch(&self.device_name, FOCUS_MOTION, direction, true)
             .await?;
@@ -191,12 +165,11 @@ impl IndiFocuser {
         let answer_timeout =
             Duration::from_secs(client.timeout_config().property_timeout_secs.max(1));
 
-        // Set relative steps
         client
             .set_number(
                 &self.device_name,
                 REL_FOCUS_POSITION,
-                "FOCUS_RELATIVE_POSITION",
+                FOCUS_RELATIVE_POSITION,
                 // Why: i32 steps -> f64 (INDI wire); lossless.
                 f64::from(abs_steps),
             )
@@ -212,7 +185,7 @@ impl IndiFocuser {
         &self,
         steps: i32,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -224,39 +197,38 @@ impl IndiFocuser {
         // Start the move, and wait for the driver to take it up.
         self.move_relative(steps).await?;
 
-        // Wait for move to complete
         let client = self.client.read().await;
         client
             .wait_for_property_not_busy(&self.device_name, REL_FOCUS_POSITION, timeout_duration)
             .await
-            .map_err(|e| format!("Focuser relative move by {} steps failed: {}", steps, e))
+            .map_err(|e| IndiError::Failed {
+                what: format!("Focuser relative move by {} steps", steps),
+                cause: Box::new(e),
+            })
     }
 
-    /// Abort motion
     pub async fn abort_motion(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, FOCUS_ABORT_MOTION, "ABORT", true)
+            .set_switch(&self.device_name, FOCUS_ABORT_MOTION, ABORT, true)
             .await
     }
 
-    /// Get current position
-    pub async fn get_position(&self) -> Result<i32, String> {
+    pub async fn get_position(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
             .get_number(
                 &self.device_name,
                 ABS_FOCUS_POSITION,
-                "FOCUS_ABSOLUTE_POSITION",
+                FOCUS_ABSOLUTE_POSITION,
             )
             .await
             // Why: INDI wire f64 -> i32 focuser position; bounded by focuser
             // max (typically <2^31). f64 -> i32 saturates per Rust 1.45 spec.
             .map(|p| p as i32)
-            .ok_or_else(|| "Position not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Position not available".to_string()))
     }
 
-    /// Check if moving
     pub async fn is_moving(&self) -> bool {
         let client = self.client.read().await;
         for property in [ABS_FOCUS_POSITION, REL_FOCUS_POSITION, FOCUS_MOTION] {
@@ -269,20 +241,19 @@ impl IndiFocuser {
         false
     }
 
-    /// Get temperature
-    pub async fn get_temperature(&self) -> Result<f64, String> {
+    pub async fn get_temperature(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, FOCUS_TEMPERATURE, "TEMPERATURE")
+            .get_number(&self.device_name, FOCUS_TEMPERATURE, TEMPERATURE)
             .await
-            .ok_or_else(|| "Temperature not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Temperature not available".to_string()))
     }
 
     /// Maximum focuser travel in steps (`FOCUS_MAX` / `FOCUS_MAX_VALUE`).
     pub async fn get_max_step(&self) -> Option<i32> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, FOCUS_MAX, "FOCUS_MAX_VALUE")
+            .get_number(&self.device_name, FOCUS_MAX, FOCUS_MAX_VALUE)
             .await
             .map(|v| v as i32)
     }
@@ -291,7 +262,7 @@ impl IndiFocuser {
     pub async fn get_step_size(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, FOCUS_STEP, "FOCUS_STEP_VALUE")
+            .get_number(&self.device_name, FOCUS_STEP, FOCUS_STEP_VALUE)
             .await
     }
 
@@ -299,14 +270,11 @@ impl IndiFocuser {
     pub async fn is_temp_comp_enabled(&self) -> Option<bool> {
         let client = self.client.read().await;
         for property in [FOCUS_TEMPERATURE_COMP, FOCUS_TEMP_COMP] {
-            if client
-                .get_switch(&self.device_name, property, "INDI_ENABLED")
+            if let Some(enabled) = client
+                .get_switch(&self.device_name, property, INDI_ENABLED)
                 .await
-                .is_some()
             {
-                return client
-                    .get_switch(&self.device_name, property, "INDI_ENABLED")
-                    .await;
+                return Some(enabled);
             }
         }
         None
@@ -324,11 +292,7 @@ impl IndiFocuser {
             FOCUS_TEMP_COMP
         };
         let mut client = self.client.write().await;
-        let element = if enabled {
-            "INDI_ENABLED"
-        } else {
-            "INDI_DISABLED"
-        };
+        let element = if enabled { INDI_ENABLED } else { INDI_DISABLED };
         client
             .set_switch_exclusive(&self.device_name, property, element)
             .await
@@ -341,7 +305,7 @@ impl IndiFocuser {
             .get_number(
                 &self.device_name,
                 FOCUS_BACKLASH_STEPS,
-                "FOCUS_BACKLASH_VALUE",
+                FOCUS_BACKLASH_VALUE,
             )
             .await
             .map(|v| v as i32)
@@ -354,7 +318,7 @@ impl IndiFocuser {
             .set_number(
                 &self.device_name,
                 FOCUS_BACKLASH_STEPS,
-                "FOCUS_BACKLASH_VALUE",
+                FOCUS_BACKLASH_VALUE,
                 f64::from(steps),
             )
             .await
@@ -364,23 +328,21 @@ impl IndiFocuser {
     pub async fn is_backlash_enabled(&self) -> Option<bool> {
         let client = self.client.read().await;
         client
-            .get_switch(&self.device_name, FOCUS_BACKLASH_TOGGLE, "INDI_ENABLED")
+            .get_switch(&self.device_name, FOCUS_BACKLASH_TOGGLE, INDI_ENABLED)
             .await
     }
 
     /// Enable or disable backlash compensation.
     pub async fn set_backlash_enabled(&self, enabled: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
-        let element = if enabled {
-            "INDI_ENABLED"
-        } else {
-            "INDI_DISABLED"
-        };
+        let element = if enabled { INDI_ENABLED } else { INDI_DISABLED };
         client
             .set_switch_exclusive(&self.device_name, FOCUS_BACKLASH_TOGGLE, element)
             .await
     }
 }
+
+indi_device!(IndiFocuser);
 
 #[cfg(test)]
 mod tests {
@@ -407,7 +369,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention either the position or that we're not connected
-            assert!(e.contains("position 5000") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("position 5000")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 
@@ -424,7 +389,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention either the steps or that we're not connected
-            assert!(e.contains("100 steps") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("100 steps")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 
@@ -442,7 +410,6 @@ mod tests {
         )));
         let _focuser = IndiFocuser::new(client.clone(), "TestFocuser");
 
-        // Verify the timeout config is accessible
         let timeout_secs = {
             let c = client.read().await;
             c.timeout_config().focuser_move_timeout_secs

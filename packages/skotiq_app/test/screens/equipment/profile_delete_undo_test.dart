@@ -14,7 +14,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/equipment/equipment_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
@@ -89,7 +91,11 @@ Future<_Harness> _pumpEquipment(WidgetTester tester) async {
   when(() => backend.deleteProfile('7')).thenAnswer((_) async {
     deleted = true;
   });
-  when(() => backend.saveProfile(any())).thenAnswer((invocation) async {
+  // Profile saves go through the per-field call (fields: null sends the
+  // whole profile, as a restore does).
+  when(
+    () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
+  ).thenAnswer((invocation) async {
     saved.add(invocation.positionalArguments.first as EquipmentProfile);
     deleted = false;
   });

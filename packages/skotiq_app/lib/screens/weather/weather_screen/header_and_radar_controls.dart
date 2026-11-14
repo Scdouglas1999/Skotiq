@@ -41,7 +41,7 @@ class _WeatherHeader extends StatelessWidget {
         actions: [
           if (narrow) Flexible(child: chip) else chip,
           SkotiqIconButton(
-            key: WeatherTutorialKeys.refreshBtn,
+            key: TourTarget.weatherRefreshButton.key,
             icon: SkotiqIcons.refresh,
             tooltip: 'Refresh radar data',
             onPressed: isLoading ? null : onRefresh,
@@ -174,7 +174,7 @@ class _RadarControlBar extends StatelessWidget {
             ],
             Expanded(
               child: RadarTimelineScrubber(
-                key: WeatherTutorialKeys.timeline,
+                key: TourTarget.weatherTimeline.key,
                 frames: frames,
                 currentIndex: currentIndex,
                 onFrameChanged: onFrameChanged,
@@ -302,7 +302,6 @@ class _RadarSliderRow extends StatelessWidget {
   }
 }
 
-/// The single loading pattern for this screen.
 class _WeatherLoadingBody extends StatelessWidget {
   const _WeatherLoadingBody();
 
@@ -349,7 +348,8 @@ class _NoLocationBody extends ConsumerWidget {
                     label: 'Set your location',
                     variant: ButtonVariant.secondary,
                     size: ButtonSize.small,
-                    onPressed: () => context.go('/settings?section=location'),
+                    onPressed: () =>
+                        openSettings(context, SettingsSectionId.location),
                   ),
                 ),
               ),

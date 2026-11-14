@@ -48,7 +48,7 @@
 //!   where no defect map is available.
 
 use crate::defect_map::{correct_u16_slice, CorrectionMethod, DefectMap, KernelSize};
-use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
+use crate::robust_stats::{median_in_place, median_of, MAD_TO_SIGMA};
 use crate::stacking::{
     combine_master_frames, CombineMethod, MasterFrame, MasterFrameKind, MasterOutputType,
 };
@@ -58,7 +58,6 @@ use rayon::prelude::*;
 /// Errors specific to master-flat / cosmetic-correction construction.
 #[derive(Debug, Clone)]
 pub enum MasterCalibrationError {
-    /// No flat frames were supplied.
     EmptyFlatStack,
     /// A pedestal frame (bias / dark-flat) did not match the flat geometry.
     Calibration(CalibrationError),
@@ -66,11 +65,13 @@ pub enum MasterCalibrationError {
     /// dimensions, unsupported pixel type, degenerate flat mean, …). The
     /// inner string is the combiner's own diagnostic.
     Combine(String),
-    /// A frame had an unsupported pixel type for the requested operation.
-    UnsupportedPixelType { pixel_type: PixelType },
-    /// The frame buffer length did not match its declared dimensions.
-    BufferLengthMismatch { expected: usize, actual: usize },
-    /// A configuration value was outside its valid range.
+    UnsupportedPixelType {
+        pixel_type: PixelType,
+    },
+    BufferLengthMismatch {
+        expected: usize,
+        actual: usize,
+    },
     InvalidParameter(String),
 }
 
@@ -108,8 +109,6 @@ impl From<CalibrationError> for MasterCalibrationError {
         MasterCalibrationError::Calibration(e)
     }
 }
-
-// Master flat
 
 /// Configuration for [`build_master_flat`].
 #[derive(Debug, Clone, Copy)]
@@ -210,7 +209,7 @@ pub fn normalize_raw_flat(
     };
     let corrected = crate::calibration::calibrate_frame_f32(flat, &cal)?;
     let channels = (corrected.channels as usize).max(1);
-    let mut samples = crate::calibration::samples_f64(&corrected);
+    let mut samples = corrected.samples_f64();
     let stride = (samples.len() / (2_000_000 * channels)).max(1) * channels;
     let medians: Vec<f64> = (0..channels)
         .map(|c| {
@@ -261,7 +260,7 @@ pub fn flat_bands(image: &ImageData) -> Option<String> {
     if w < 8 || h < 8 {
         return None;
     }
-    let samples = crate::calibration::samples_f64(image);
+    let samples = image.samples_f64();
     let at = |x: usize, y: usize| -> f64 {
         let base = (y * w + x) * c;
         samples[base..base + c].iter().sum::<f64>() / c as f64
@@ -325,8 +324,6 @@ pub fn flat_bands(image: &ImageData) -> Option<String> {
     (!found.is_empty()).then(|| found.join("; "))
 }
 
-// Defect map from a master dark
-
 /// Sigma multiplier for the master-dark hot/cold outlier test. A pixel whose
 /// dark level deviates from the frame median by more than this many robust σ
 /// (estimated from the MAD) is flagged defective. 5σ on a MAD-derived sigma is
@@ -376,8 +373,9 @@ pub fn build_defect_map_from_master_dark(
     }
 
     // Robust statistics: median and MAD over the whole frame.
-    let median = median_of(&pixels);
-    let mut abs_dev: Vec<f64> = pixels.iter().map(|&v| (v as f64 - median).abs()).collect();
+    let levels: Vec<f64> = pixels.iter().map(|&v| f64::from(v)).collect();
+    let median = median_of(&levels);
+    let mut abs_dev: Vec<f64> = levels.iter().map(|v| (v - median).abs()).collect();
     let mad = median_in_place(&mut abs_dev).max(1.0e-9);
     let sigma = (mad * MAD_TO_SIGMA).max(1.0e-9);
 
@@ -413,8 +411,6 @@ pub fn build_defect_map_from_master_dark(
 
     Ok(map)
 }
-
-// Transient cosmetic correction (self-derived, no master dark)
 
 /// Configuration for [`cosmetic_correct_transient`].
 #[derive(Debug, Clone, Copy)]
@@ -454,7 +450,6 @@ pub struct CosmeticReport {
 }
 
 impl CosmeticReport {
-    /// Total pixels repaired across both polarities.
     pub fn total(&self) -> u32 {
         self.hot_repaired + self.cold_repaired
     }
@@ -504,7 +499,7 @@ pub fn cosmetic_correct_transient(
     let height = frame.height;
     let channels = frame.channels;
     let expected = (width as usize) * (height as usize) * (channels as usize);
-    let values = crate::calibration::samples_f64(frame);
+    let values = frame.samples_f64();
     if values.len() != expected {
         return Err(MasterCalibrationError::BufferLengthMismatch {
             expected: expected * frame.pixel_type.byte_size(),
@@ -673,14 +668,6 @@ fn repair_float(
     out
 }
 
-// Small numeric helpers (local to keep the module self-contained)
-
-/// Median of a u16 slice as f64, without mutating the input.
-fn median_of(values: &[u16]) -> f64 {
-    let mut v: Vec<f64> = values.iter().map(|&x| x as f64).collect();
-    median_in_place(&mut v)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -708,8 +695,6 @@ mod tests {
     fn flat_image(width: u32, height: u32, value: u16) -> ImageData {
         ImageData::from_u16(width, height, 1, &vec![value; (width * height) as usize])
     }
-
-    // Master flat
 
     #[test]
     fn master_flat_normalizes_vignette_to_unit_mean() {
@@ -822,8 +807,6 @@ mod tests {
         assert!(matches!(err, MasterCalibrationError::Calibration(_)));
     }
 
-    // Defect map from master dark
-
     #[test]
     fn defect_map_from_master_dark_flags_hot_and_cold() {
         let w = 20u32;
@@ -853,8 +836,6 @@ mod tests {
             Err(MasterCalibrationError::UnsupportedPixelType { .. })
         ));
     }
-
-    // Transient cosmetic correction
 
     #[test]
     fn cosmetic_correction_detects_and_repairs_hot_pixel() {

@@ -23,7 +23,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/imaging/widgets/camera_panel.dart';
 import 'package:skotiq_app/screens/imaging/widgets/panel_widgets.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/harness.dart';
@@ -143,6 +145,23 @@ void main() {
     final slider = _coolerSlider(tester);
     expect(slider.min, -30);
     expect(slider.max, 20);
+  });
+
+  testWidgets(
+      'a camera without a cooler that reports its sensor temperature has no '
+      'cooling card', (tester) async {
+    await _pumpPanel(
+      tester,
+      const CameraCapabilities(
+        maxWidth: 1920,
+        maxHeight: 1080,
+        bitDepth: 16,
+      ),
+    );
+
+    expect(find.text('Cooling'), findsNothing);
+    expect(find.byType(SliderRowInteractive), findsNothing);
+    expect(find.text('Cool down'), findsNothing);
   });
 
   testWidgets(

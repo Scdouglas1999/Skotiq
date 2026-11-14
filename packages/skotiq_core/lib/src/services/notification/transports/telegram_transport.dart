@@ -8,13 +8,13 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
 
 import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import 'notification_transport.dart';
+import '../../logging_service.dart';
 
 const String _telegramApiBase = 'https://api.telegram.org';
 
@@ -47,11 +47,9 @@ class TelegramTransport extends NotificationTransport {
   TelegramTransportConfig get config => _config;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final title = message.title;
+    final body = message.body;
     if (!isConfigured) {
       return NotificationResult.fail('Telegram not configured');
     }
@@ -81,10 +79,9 @@ class TelegramTransport extends NotificationTransport {
           statusCode: response.statusCode,
         );
       }
-      developer.log(
+      Log.warning(
         '[Notifications/Telegram] HTTP ${response.statusCode}: ${response.body}',
-        name: 'TelegramTransport',
-        level: 900,
+        source: 'TelegramTransport',
       );
       return NotificationResult.fail(
         'Telegram responded ${response.statusCode}',
@@ -95,10 +92,9 @@ class TelegramTransport extends NotificationTransport {
         'Telegram request timed out after ${_timeout.inSeconds}s',
       );
     } catch (e) {
-      developer.log(
+      Log.error(
         '[Notifications/Telegram] Send failed: $e',
-        name: 'TelegramTransport',
-        level: 1000,
+        source: 'TelegramTransport',
         error: e,
       );
       return NotificationResult.fail(e.toString());

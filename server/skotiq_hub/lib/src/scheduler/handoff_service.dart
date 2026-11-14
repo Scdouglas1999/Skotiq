@@ -69,7 +69,6 @@ class HandoffService {
     required String accountId,
   }) => _claimRaw('coimaging_batons', 'session_id', sessionId, accountId);
 
-  /// Release the baton for co-imaging [sessionId] if held by [accountId].
   bool releaseSession({required String sessionId, required String accountId}) =>
       _releaseRaw('coimaging_batons', 'session_id', sessionId, accountId);
 
@@ -155,7 +154,6 @@ class HandoffService {
   }
 }
 
-/// The current handoff state of a target.
 class HandoffState {
   HandoffState({
     required this.targetId,

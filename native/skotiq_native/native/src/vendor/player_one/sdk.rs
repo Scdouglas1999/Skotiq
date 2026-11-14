@@ -18,7 +18,7 @@ pub(crate) fn poa_camera_candidate_paths() -> Vec<std::path::PathBuf> {
         ]
     } else {
         crate::vendor::sdk_loader::vendor_library_candidates(
-            &["libPlayerOneCamera.so", "libPlayerOneCamera.so.1"],
+            &["libPlayerOneCamera.so", "libPlayerOneCamera.so.3"],
             &[
                 "/usr/lib/libPlayerOneCamera.so",
                 "/usr/local/lib/libPlayerOneCamera.so",
@@ -52,12 +52,18 @@ pub(crate) fn poa_pw_candidate_paths() -> Vec<std::path::PathBuf> {
     }
 }
 
+/// The one lock for both Player One libraries: a camera call and a
+/// filter-wheel call never run at the same time.
+pub(crate) static PLAYER_ONE_SDK_LOCK: crate::vendor::sdk_loader::SdkLock =
+    crate::vendor::sdk_loader::SdkLock::new();
+
 crate::load_vendor_sdk! {
     /// POA SDK library wrapper
     vendor_name: "Player One Camera",
     sdk_struct: PoaSdk,
     sdk_static: POA_SDK,
     candidate_paths_fn: poa_camera_candidate_paths,
+    shared_lock: PLAYER_ONE_SDK_LOCK,
     symbols: {
         get_camera_count: b"POAGetCameraCount\0" => unsafe extern "C" fn() -> c_int,
         get_camera_properties: b"POAGetCameraProperties\0" => unsafe extern "C" fn(c_int, *mut POACameraProperties) -> c_int,
@@ -68,8 +74,10 @@ crate::load_vendor_sdk! {
         get_config: b"POAGetConfig\0" => unsafe extern "C" fn(c_int, c_int, *mut POAConfigValue, *mut POABool) -> c_int,
         set_config: b"POASetConfig\0" => unsafe extern "C" fn(c_int, c_int, POAConfigValue, POABool) -> c_int,
         set_image_bin: b"POASetImageBin\0" => unsafe extern "C" fn(c_int, c_int) -> c_int,
+        get_image_bin: b"POAGetImageBin\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
         set_image_size: b"POASetImageSize\0" => unsafe extern "C" fn(c_int, c_int, c_int) -> c_int,
         set_image_start_pos: b"POASetImageStartPos\0" => unsafe extern "C" fn(c_int, c_int, c_int) -> c_int,
+        get_image_start_pos: b"POAGetImageStartPos\0" => unsafe extern "C" fn(c_int, *mut c_int, *mut c_int) -> c_int,
         set_image_format: b"POASetImageFormat\0" => unsafe extern "C" fn(c_int, c_int) -> c_int,
         start_exposure: b"POAStartExposure\0" => unsafe extern "C" fn(c_int, POABool) -> c_int,
         stop_exposure: b"POAStopExposure\0" => unsafe extern "C" fn(c_int) -> c_int,
@@ -84,6 +92,11 @@ crate::load_vendor_sdk! {
         // Per-control min/max/default. Optional so an SDK build that predates it
         // still loads and drives cameras; callers report unknown bounds instead.
         get_config_attributes_by_config_id: b"POAGetConfigAttributesByConfigID\0" => unsafe extern "C" fn(c_int, c_int, *mut POAConfigAttributes) -> c_int,
+        // Sensor modes (such as a low-noise mode). Optional for SDK builds before them.
+        get_sensor_mode_count: b"POAGetSensorModeCount\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
+        get_sensor_mode_info: b"POAGetSensorModeInfo\0" => unsafe extern "C" fn(c_int, c_int, *mut POASensorModeInfo) -> c_int,
+        get_sensor_mode: b"POAGetSensorMode\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
+        set_sensor_mode: b"POASetSensorMode\0" => unsafe extern "C" fn(c_int, c_int) -> c_int,
     }
 }
 
@@ -93,6 +106,7 @@ crate::load_vendor_sdk! {
     sdk_struct: PoaPwSdk,
     sdk_static: POA_PW_SDK,
     candidate_paths_fn: poa_pw_candidate_paths,
+    shared_lock: PLAYER_ONE_SDK_LOCK,
     symbols: {
         get_pw_count: b"POAGetPWCount\0" => unsafe extern "C" fn() -> c_int,
         get_pw_properties: b"POAGetPWProperties\0" => unsafe extern "C" fn(c_int, *mut PWProperties) -> c_int,
@@ -101,159 +115,141 @@ crate::load_vendor_sdk! {
         close_pw: b"POAClosePW\0" => unsafe extern "C" fn(c_int) -> c_int,
         get_current_position: b"POAGetCurrentPosition\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
         goto_position: b"POAGotoPosition\0" => unsafe extern "C" fn(c_int, c_int) -> c_int,
-        get_pw_state: b"POAGetPWState\0" => unsafe extern "C" fn(c_int, *mut PWState) -> c_int,
+        get_pw_state: b"POAGetPWState\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
         get_filter_alias: b"POAGetPWFilterAlias\0" => unsafe extern "C" fn(c_int, c_int, *mut c_char, c_int) -> c_int,
-        set_filter_alias: b"POASetPWFilterAlias\0" => unsafe extern "C" fn(c_int, c_int, *const c_char) -> c_int,
+        set_filter_alias: b"POASetPWFilterAlias\0" => unsafe extern "C" fn(c_int, c_int, *const c_char, c_int) -> c_int,
         get_sdk_version: b"POAGetPWSDKVer\0" => unsafe extern "C" fn() -> *const c_char,
     }
 }
 
-/// Full-scale ADU of the delivered pixel container for a Player One sensor of
-/// `bit_depth` bits read out as [`POAImgFormat::Raw16`].
-///
-/// `POACameraProperties.bit_depth` is the **ADC precision**, not the container:
-/// PlayerOneCamera.h documents the field as `int bitDepth; ///< ADC depth of
-/// CMOS sensor`. The delivered sample range is documented separately, on the
-/// output format itself:
-///
-/// ```text
-/// POA_RAW8 = 0,   ///< 8bit raw data, 1 pixel 1 byte, value range[0, 255]
-/// POA_RAW16,      ///< 16bit raw data, 1 pixel 2 bytes, value range[0, 65535]
-/// ```
-///
-/// — `SDKs/PlayerOne/PlayerOne_Camera_SDK_Linux_V3.7.1/.../include/PlayerOneCamera.h:50-51`,
-/// repeated verbatim in Player One's own C# and Python bindings
-/// (`include/PlayerOneCameraDLL.cs:29-30`, `python/pyPOACamera.py:21-22`). The
-/// sibling entries in that enum (`POA_RGB24`/`POA_MONO8`, "value range[0, 255]")
-/// state literal sample ranges, so `[0, 65535]` is the RAW16 sample range and
-/// not merely the width of the word. Player One exposes no sub-16-bit two-byte
-/// format at all — `POAImgFormat` is only RAW8/RAW16/RGB24/MONO8 — so a 12-bit
-/// sensor's only 16-bit path is RAW16, and its samples fill the 16-bit range.
-///
-/// [`crate::vendor::zwo`] carries the same rule, confirmed against an ASI1600MM
-/// on the bench. This one rests on Player One's SDK documentation rather than a
-/// measured frame.
-///
-/// `bit_depth >= 16` needs no shift. `bit_depth == 0` (or a nonsensical value)
-/// means the SDK never populated the property; fall back to the container's own
-/// ceiling rather than underflowing to 0, which would report "this camera cannot
-/// produce any signal".
-pub(crate) fn raw16_container_max_adu(bit_depth: u32) -> u32 {
-    const CONTAINER_BITS: u32 = 16;
-    const CONTAINER_MAX: u32 = u16::MAX as u32;
-    if bit_depth == 0 || bit_depth >= CONTAINER_BITS {
-        return CONTAINER_MAX;
-    }
-    (((1u32 << bit_depth) - 1) << (CONTAINER_BITS - bit_depth)) & CONTAINER_MAX
-}
-
-/// Check POA error and convert to NativeError with detailed error messages
-pub(crate) fn check_poa_error(code: c_int, operation: &str) -> Result<(), NativeError> {
+/// Check POA error and convert to DriverError with detailed error messages
+pub(crate) fn check_poa_error(code: c_int, operation: &str) -> Result<(), DriverError> {
     match code {
         0 => Ok(()), // POA_OK
-        1 => Err(NativeError::InvalidDevice(format!(
+        1 => Err(DriverError::InvalidDevice(format!(
             "{}: Invalid camera index - camera may not exist",
             operation
         ))),
-        2 => Err(NativeError::InvalidDevice(format!(
+        2 => Err(DriverError::InvalidDevice(format!(
             "{}: Invalid camera ID - camera may have been disconnected",
             operation
         ))),
-        3 => Err(NativeError::InvalidParameter(format!(
+        3 => Err(DriverError::InvalidParameter(format!(
             "{}: Invalid config - control type not available",
             operation
         ))),
-        4 => Err(NativeError::InvalidParameter(format!(
+        4 => Err(DriverError::InvalidParameter(format!(
             "{}: Invalid argument - value out of range",
             operation
         ))),
-        5 => Err(NativeError::NotConnected),
-        6 => Err(NativeError::Disconnected),
-        7 => Err(NativeError::InvalidParameter(format!(
+        5 => Err(DriverError::NotConnected),
+        6 => Err(DriverError::Disconnected),
+        7 => Err(DriverError::InvalidParameter(format!(
             "{}: Value out of limit",
             operation
         ))),
-        8 => Err(NativeError::SdkError(format!(
+        8 => Err(DriverError::SdkError(format!(
             "{}: Exposure failed - check camera connection",
             operation
         ))),
-        9 => Err(NativeError::Timeout(format!(
+        9 => Err(DriverError::Timeout(format!(
             "{}: Operation timed out",
             operation
         ))),
-        10 => Err(NativeError::InvalidParameter(format!(
+        10 => Err(DriverError::InvalidParameter(format!(
             "{}: Buffer size too small",
             operation
         ))),
         // Codes 11-17 per PlayerOneCamera.h (POAErrors enum).
-        11 => Err(NativeError::SdkError(format!(
+        11 => Err(DriverError::SdkError(format!(
             "{}: Camera is exposing - stop the exposure first",
             operation
         ))),
-        12 => Err(NativeError::SdkError(format!(
+        12 => Err(DriverError::SdkError(format!(
             "{}: Invalid pointer (internal SDK argument error)",
             operation
         ))),
-        13 => Err(NativeError::InvalidParameter(format!(
+        13 => Err(DriverError::InvalidParameter(format!(
             "{}: Config is not writable",
             operation
         ))),
-        14 => Err(NativeError::InvalidParameter(format!(
+        14 => Err(DriverError::InvalidParameter(format!(
             "{}: Config is not readable",
             operation
         ))),
-        15 => Err(NativeError::SdkError(format!(
+        15 => Err(DriverError::SdkError(format!(
             "{}: Access denied",
             operation
         ))),
         // POA_ERROR_OPERATION_FAILED: "operation failed, maybe the camera is
         // disconnected suddenly" — surface as a disconnect so recovery fires.
-        16 => Err(NativeError::Disconnected),
-        17 => Err(NativeError::SdkError(format!(
+        16 => Err(DriverError::Disconnected),
+        17 => Err(DriverError::SdkError(format!(
             "{}: Memory allocation failed",
             operation
         ))),
-        _ => Err(NativeError::SdkError(format!(
+        _ => Err(DriverError::SdkError(format!(
             "{}: Unknown POA error code {}",
             operation, code
         ))),
     }
 }
 
-pub(crate) fn check_poa_pw_error(code: c_int, operation: &str) -> Result<(), NativeError> {
+/// [`check_poa_error`] for a call on a camera that `connect` opened. The SDK
+/// drops a camera that leaves the bus from its list, and every later call on
+/// its ID answers POA_ERROR_INVALID_INDEX or POA_ERROR_INVALID_ID, so on an
+/// open camera those two mean it was lost.
+pub(crate) fn check_open_poa_error(code: c_int, operation: &str) -> Result<(), DriverError> {
+    match code {
+        1 | 2 => Err(DriverError::Disconnected),
+        _ => check_poa_error(code, operation),
+    }
+}
+
+/// [`check_poa_pw_error`] for a call on a wheel that `connect` opened; see
+/// [`check_open_poa_error`].
+pub(crate) fn check_open_poa_pw_error(code: c_int, operation: &str) -> Result<(), DriverError> {
+    match code {
+        1 | 2 => Err(DriverError::Disconnected),
+        _ => check_poa_pw_error(code, operation),
+    }
+}
+
+pub(crate) fn check_poa_pw_error(code: c_int, operation: &str) -> Result<(), DriverError> {
     match code {
         0 => Ok(()),
-        1 => Err(NativeError::InvalidDevice(format!(
+        1 => Err(DriverError::InvalidDevice(format!(
             "{}: invalid filter-wheel index",
             operation
         ))),
-        2 => Err(NativeError::InvalidDevice(format!(
+        2 => Err(DriverError::InvalidDevice(format!(
             "{}: invalid filter-wheel handle",
             operation
         ))),
-        3 => Err(NativeError::InvalidParameter(format!(
+        3 => Err(DriverError::InvalidParameter(format!(
             "{}: invalid filter-wheel argument",
             operation
         ))),
-        4 => Err(NativeError::NotConnected),
-        5 => Err(NativeError::Disconnected),
-        6 => Err(NativeError::SdkError(format!(
+        4 => Err(DriverError::NotConnected),
+        5 => Err(DriverError::Disconnected),
+        6 => Err(DriverError::SdkError(format!(
             "{}: filter wheel is moving",
             operation
         ))),
-        7 => Err(NativeError::InvalidParameter(format!(
+        7 => Err(DriverError::InvalidParameter(format!(
             "{}: null output pointer rejected by Player One PW SDK",
             operation
         ))),
-        8 => Err(NativeError::SdkError(format!(
-            "{}: Player One PW operation failed",
+        8 => Err(DriverError::SdkError(format!(
+            "{}: Player One filter wheel operation failed (sent commands too often, or unplugged)",
             operation
         ))),
-        9 => Err(NativeError::SdkError(format!(
-            "{}: Player One PW firmware error",
+        9 => Err(DriverError::SdkError(format!(
+            "{}: Player One filter wheel firmware error (a filter may not line up with its slot); \
+             power-cycle the wheel",
             operation
         ))),
-        other => Err(NativeError::SdkError(format!(
+        other => Err(DriverError::SdkError(format!(
             "{}: unknown Player One PW error code {}",
             operation, other
         ))),
@@ -284,8 +280,8 @@ pub(crate) fn pw_sdk_version_from_sdk(sdk: &PoaPwSdk) -> Option<String> {
         .map(|version| format!("Player One PW SDK v{version}"))
 }
 
-pub fn pw_sdk_version() -> Option<String> {
-    PoaPwSdk::get().and_then(pw_sdk_version_from_sdk)
+pub fn is_pw_sdk_available() -> bool {
+    PoaPwSdk::is_available()
 }
 
 pub(crate) fn camera_sdk_version_from_sdk(sdk: &PoaSdk) -> Option<String> {

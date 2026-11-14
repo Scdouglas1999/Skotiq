@@ -8,12 +8,14 @@
 // and with no UI caller for `useLocalBackend()` the only way back is to
 // relaunch.
 //
-// These tests pin both halves: the connect dialog restores what it displaced,
-// and a disconnected desktop is offered a way back.
+// Connecting to a rig goes through the app's one connect flow, which never
+// swaps the backend in place; this pins that a disconnected desktop is offered
+// a way back.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/connection_settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -66,54 +68,6 @@ class _FailingConnectNotifier extends BackendNotifier {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  testWidgets('a failed connect leaves the machine in local mode',
-      (tester) async {
-    final local = mockBackend();
-    late _FailingConnectNotifier notifier;
-
-    final handle = await pumpAppScreen(
-      tester,
-      const ConnectionSettings(),
-      extraOverrides: [
-        appSettingsProvider.overrideWith(_StubAppSettingsNotifier.new),
-        backendProvider.overrideWith(
-          (ref) => notifier = _FailingConnectNotifier(
-            ref,
-            local,
-            startLocal: true,
-          ),
-        ),
-      ],
-    );
-
-    expect(find.text('Local Mode'), findsOneWidget);
-
-    final openConnect = find.widgetWithText(SkotiqButton, 'Connect');
-    await tester.ensureVisible(openConnect);
-    await tester.tap(openConnect);
-    await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.widgetWithText(SkotiqButton, 'Connect'),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(notifier.useLocalCalls, 1);
-    expect(
-      handle.container.read(backendProvider),
-      isNot(isA<DisconnectedBackend>()),
-      reason: 'a failed OPTIONAL remote attempt must not uninstall the local '
-          'backend that owns the hardware',
-    );
-    expect(identical(handle.container.read(backendProvider), local), isTrue);
-    // The dialog stays open, reports the real failure, and says so plainly.
-    expect(find.textContaining('Connection failed'), findsOneWidget);
-    expect(find.textContaining('Still working locally'), findsOneWidget);
-  });
 
   testWidgets('a disconnected desktop is offered a way back to local mode',
       (tester) async {

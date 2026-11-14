@@ -6,14 +6,20 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../widgets/tutorial_keys/polar_alignment_keys.dart';
+import '../../tours/tour_target.dart';
+import 'polar_alignment_activity.dart';
 import 'polar_alignment_body_layout.dart';
 import 'polar_alignment_error_format.dart';
 import 'widgets/all_sky_target_reticle.dart';
 import 'widgets/polar_alignment_segmented_button.dart';
+import '../../router/settings_sections.dart';
+import '../../router/app_routes.dart';
 // File split: the PolarAlignmentScreen state keeps lifecycle and alignment
 // actions. Panel builders, helper widgets, and painters live in focused library
 // parts so the private provider-facing implementation remains encapsulated.
@@ -28,6 +34,7 @@ part 'polar_alignment_screen_parts/_center_panel.dart';
 part 'polar_alignment_screen_parts/_measurement_panel.dart';
 part 'polar_alignment_screen_parts/_completion_panel.dart';
 part 'polar_alignment_screen_parts/_right_panel.dart';
+part 'polar_alignment_screen_parts/_live_panel.dart';
 
 /// The footer line that names why Start Alignment is refusing.
 ///
@@ -154,7 +161,6 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
       return;
     }
 
-    // Validate equipment is connected before starting
     final cameraState = ref.read(cameraStateProvider);
     final mountState = ref.read(mountStateProvider);
 
@@ -196,7 +202,7 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
     } catch (e) {
       if (!mounted) return;
       context.showErrorSnackBar(
-        'Plate solver not ready. Check Plate Solving settings: $e',
+        'Plate solver not ready. Check Plate Solving settings: ${userFacingError(e)}',
       );
       return;
     }
@@ -215,7 +221,8 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
             .startAllSkyAlignment(config);
       } catch (e) {
         if (!mounted) return;
-        context.showErrorSnackBar('All-sky polar alignment failed: $e');
+        context.showErrorSnackBar(
+            'All-sky polar alignment failed: ${userFacingError(e)}');
       }
       return;
     }
@@ -227,7 +234,8 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
       await ref.read(polarAlignmentControllerProvider).start();
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not start polar alignment: $e');
+      context.showErrorSnackBar(
+          'Could not start polar alignment: ${userFacingError(e)}');
     }
   }
 
@@ -244,7 +252,8 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
     } catch (e) {
       if (!mounted) return;
       // Stop failed/timed out: the run stays blocked and visibly in error.
-      context.showErrorSnackBar('Could not stop polar alignment: $e');
+      context.showErrorSnackBar(
+          'Could not stop polar alignment: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _stopping = false);
     }
@@ -255,7 +264,8 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
       await ref.read(polarAlignmentControllerProvider).complete();
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not complete polar alignment: $e');
+      context.showErrorSnackBar(
+          'Could not complete polar alignment: ${userFacingError(e)}');
     }
   }
 
@@ -321,13 +331,19 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
           // Main content — responsive layout avoids squeezing the guide
           // column when embedded beside the app shell or on smaller displays.
           Expanded(
-            child: PolarAlignmentBodyLayout(
-              leftPanel: _buildLeftPanel(colors, state, config, isRunning),
-              centerPanel: state.phase == PolarAlignPhase.idle
-                  ? null
-                  : _buildCenterPanel(colors, state, config),
-              rightPanel: _buildRightPanel(colors, state, config),
-            ),
+            // A run in progress is the frame: the settings are locked and the
+            // error is a compact readout beside it. Idle and the finished
+            // states keep the three panels.
+            child: polarRunIsLive(state)
+                ? _buildLiveBody(colors, state, config)
+                : PolarAlignmentBodyLayout(
+                    leftPanel:
+                        _buildLeftPanel(colors, state, config, isRunning),
+                    centerPanel: state.phase == PolarAlignPhase.idle
+                        ? null
+                        : _buildCenterPanel(colors, state, config),
+                    rightPanel: _buildRightPanel(colors, state, config),
+                  ),
           ),
         ],
       ),

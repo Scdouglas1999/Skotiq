@@ -7,14 +7,30 @@
 #[cfg(windows)]
 mod windows;
 
+// The device wrappers and what a COM call consists of are not gated: they
+// reach the driver only through `com::ComDispatch`, so the tests drive them
+// with a recording stand-in on any host. Only `windows` talks to COM.
+#[macro_use]
+mod members;
+
+mod camera;
+pub mod com;
+mod cover_calibrator;
+mod dome;
+mod error;
+mod filter_wheel;
+mod focuser;
+mod health;
+mod mount;
+mod observing_conditions;
+mod rotator;
+mod safety_monitor;
+mod switch;
+
 // Not gated: the connect read-back policy is pure timing and message logic, so
 // it stays testable on the Linux workstation where the COM plumbing cannot even
 // compile.
 pub mod connect_verify;
-
-// Same reasoning: which cooler properties may be written is pure policy over
-// the driver's declared capabilities.
-pub mod cooler_policy;
 
 /// ASCOM device information discovered from Windows Registry
 #[derive(Debug, Clone)]
@@ -27,44 +43,13 @@ pub struct AscomDevice {
     pub description: String,
 }
 
-/// ASCOM device types as defined by ASCOM standard
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AscomDeviceType {
-    Camera,
-    Telescope,
-    Focuser,
-    FilterWheel,
-    Rotator,
-    Dome,
-    SafetyMonitor,
-    ObservingConditions,
-    Switch,
-    CoverCalibrator,
-}
-
-impl AscomDeviceType {
-    /// Get the registry key name for this device type
-    pub fn registry_name(&self) -> &'static str {
-        match self {
-            AscomDeviceType::Camera => "Camera",
-            AscomDeviceType::Telescope => "Telescope",
-            AscomDeviceType::Focuser => "Focuser",
-            AscomDeviceType::FilterWheel => "FilterWheel",
-            AscomDeviceType::Rotator => "Rotator",
-            AscomDeviceType::Dome => "Dome",
-            AscomDeviceType::SafetyMonitor => "SafetyMonitor",
-            AscomDeviceType::ObservingConditions => "ObservingConditions",
-            AscomDeviceType::Switch => "Switch",
-            AscomDeviceType::CoverCalibrator => "CoverCalibrator",
-        }
-    }
-}
+use skotiq_device::ascom::AscomDeviceType;
 
 /// Discover ASCOM devices of a specific type
 /// Returns a list of available drivers registered in the Windows Registry
 #[cfg(windows)]
 pub fn discover_devices(device_type: AscomDeviceType) -> Vec<AscomDevice> {
-    windows::discover_devices(device_type.registry_name())
+    windows::discover_devices(device_type.name())
 }
 
 /// Discover ASCOM devices (non-Windows shim)
@@ -73,75 +58,42 @@ pub fn discover_devices(_device_type: AscomDeviceType) -> Vec<AscomDevice> {
     Vec::new()
 }
 
-/// Check if ASCOM is available on this platform
-pub fn is_available() -> bool {
-    cfg!(windows)
-}
-
-// Re-export Windows-specific types when on Windows
-#[cfg(windows)]
-pub use windows::{
-    // COM initialization
-    init_com,
-    uninit_com,
-    // Device types
-    AscomCamera,
-    // Mockall seam for per-device wrapper unit tests
-    AscomConnectionBackend,
-    AscomCoverCalibrator,
-    // Device connection wrapper
-    AscomDeviceConnection,
-    AscomDome,
-    // Error types
-    AscomError,
-    AscomFilterWheel,
-    AscomFocuser,
-    AscomMount,
-    AscomObservingConditions,
-    AscomResult,
-    AscomRotator,
-    AscomSafetyMonitor,
-    AscomSwitch,
-    CameraExposureSettings,
-    CameraFullStatus,
-    CameraSensorConfig,
-    // Batch status types - Camera
-    CameraThermalStatus,
-    // Health monitoring
-    ConnectionHealth,
-    // Batch status types - Cover Calibrator
-    CoverCalibratorFullStatus,
-    // Batch status types - Dome
-    DomeFullStatus,
-    // Batch status types - Filter Wheel
-    FilterWheelFullStatus,
-    // Batch status types - Focuser
-    FocuserCapabilities,
-    FocuserFullStatus,
-    HealthMonitor,
-    MountCapabilities,
-    MountFullStatus,
-    MountGuideRates,
-    MountMotionStatus,
-    // Batch status types - Mount
-    MountPositionStatus,
-    MountSiteStatus,
-    ObservingConditionsFullStatus,
-    // Batch status types - Rotator
-    RotatorFullStatus,
-    // Batch status types - Safety Monitor
-    SafetyMonitorFullStatus,
-    SkyStatus,
-    // Batch status types - Switch
-    SwitchChannelState,
-    SwitchFullStatus,
-    // Batch status types - Observing Conditions
-    WeatherStatus,
-    WindStatus,
+pub use camera::{
+    Camera, CameraExposureSettings, CameraFullStatus, CameraSensorConfig, CameraThermalStatus,
 };
+pub use cover_calibrator::CoverCalibrator;
+pub use dome::Dome;
+pub use error::{AscomError, AscomResult};
+pub use filter_wheel::FilterWheel;
+pub use focuser::Focuser;
+pub use health::{ConnectionHealth, HealthMonitor};
+pub use mount::{
+    Mount, MountCapabilities, MountFullStatus, MountGuideRates, MountMotionStatus,
+    MountPositionStatus, MountSiteStatus,
+};
+pub use observing_conditions::ObservingConditions;
+pub use rotator::Rotator;
+pub use safety_monitor::SafetyMonitor;
+pub use switch::Switch;
 
-// Why: surface the generated mock only when the `mock` feature is on (or in
-// unit-test builds). Integration tests in `ascom/tests/` enable the feature
-// via dev-dependencies in `Cargo.toml` so they can name this type.
-#[cfg(all(windows, any(test, feature = "mock")))]
-pub use windows::MockAscomConnectionBackend;
+#[cfg(windows)]
+pub use windows::{init_com, uninit_com, AscomDeviceConnection};
+
+/// The device wrappers over a real COM connection.
+#[cfg(windows)]
+mod com_devices {
+    use super::*;
+
+    pub type AscomCamera = Camera<AscomDeviceConnection>;
+    pub type AscomCoverCalibrator = CoverCalibrator<AscomDeviceConnection>;
+    pub type AscomDome = Dome<AscomDeviceConnection>;
+    pub type AscomFilterWheel = FilterWheel<AscomDeviceConnection>;
+    pub type AscomFocuser = Focuser<AscomDeviceConnection>;
+    pub type AscomMount = Mount<AscomDeviceConnection>;
+    pub type AscomObservingConditions = ObservingConditions<AscomDeviceConnection>;
+    pub type AscomRotator = Rotator<AscomDeviceConnection>;
+    pub type AscomSafetyMonitor = SafetyMonitor<AscomDeviceConnection>;
+    pub type AscomSwitch = Switch<AscomDeviceConnection>;
+}
+#[cfg(windows)]
+pub use com_devices::*;

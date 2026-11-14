@@ -19,8 +19,8 @@
  *         and on every frame event so the frame counter keeps step with the
  *         feed rendered beside it,
  *       - subscribe to /api/run-watch/events (SSE) for the firehose,
- *       - poll /api/run-watch/frame-thumbnail when a FrameAccepted /
- *         ExposureFinished event arrives, plus every 10s as a fallback
+ *       - poll /api/run-watch/frame-thumbnail when a frame event
+ *         arrives, plus every 10s as a fallback
  *         so the panel never goes stale.
  *
  *  3. Controls — POST to existing /api/sequencer/{pause,resume,skip,stop}
@@ -1058,8 +1058,8 @@ async function fetchSnapshot() {
 /// to different halves of this page is what let the count fall behind the
 /// picture.
 const FRAME_EVENT_NAMES = [
-  'FrameAccepted', 'FrameRejected', 'ExposureFinished', 'ExposureCompleted',
-  'ImageSaved',
+  WIRE_EVENTS.sequencer.frameAccepted, WIRE_EVENTS.sequencer.frameRejected,
+  WIRE_EVENTS.imaging.exposureCompleted, WIRE_EVENTS.imaging.imageSaved,
 ];
 
 /// Smallest gap between two event-driven snapshot refreshes. A frame lands with
@@ -1194,7 +1194,7 @@ const CONTROL_BUTTON_FOR_PATH = {
   '/api/sequencer/reset': 'btn-reset',
   '/api/sequencer/checkpoint/resume': 'btn-checkpoint-resume',
   '/api/sequencer/checkpoint/discard': 'btn-checkpoint-discard',
-  '/api/phd2/dither': 'btn-guide-dither',
+  '/api/guider/dither': 'btn-guide-dither',
 };
 
 /// Record that the rig refused [path] for this credential and put the reason
@@ -1757,26 +1757,42 @@ function formatDurationSecs(secs) {
 /// The discrete event names the feed subscribes to.
 ///
 /// EventSource hands a named frame ONLY to a listener registered for that
-/// name, so this list is the feed's reach. Two sources, and nothing invented:
-/// the first block is every non-progress name measured on
-/// /api/run-watch/events across 60 s of one live sim sequence; the second is
-/// the names the page already subscribes to below, plus siblings confirmed
-/// present in the host's own sources. A name absent here can still reach the
-/// feed through the snapshot's recent list, which is the backstop rather than
-/// the path.
+/// name, so this list is the feed's reach. A name absent here can still reach
+/// the feed through the snapshot's recent list, which is the backstop rather
+/// than the path.
 const FEED_EVENT_NAMES = [
-  // Measured on the wire.
-  'ExposureStarted', 'ExposureComplete', 'ExposureCompleted', 'FrameAccepted',
-  'FocuserMoveStarted', 'FocuserMoveCompleted', 'FilterChanging',
-  'FilterChanged', 'NodeStarted', 'NodeCompleted', 'TriggerFired',
-  'DecisionLogged', 'IntegrationBudget', 'UnknownSequencerEvent',
-  // Not seen in that minute, but emitted by this host on other paths.
-  'ExposureFinished', 'ExposureAborted', 'ExposureAdjusted', 'FrameRejected',
-  'ImageSaved', 'SequenceStarted', 'SequencePaused', 'SequenceResumed',
-  'SequenceStopped', 'SequenceFinished', 'Completed', 'SchedulerDecision',
-  'MeridianFlipCompleted', 'GuidingStarted', 'GuidingStopped',
-  'DitherStarted', 'DitherCompleted', 'WeatherAlert',
-  'RecoveryStarted', 'RecoveryCompleted',
+  WIRE_EVENTS.imaging.exposureStarted, WIRE_EVENTS.imaging.exposureComplete,
+  WIRE_EVENTS.imaging.exposureCompleted, WIRE_EVENTS.imaging.exposureFailed,
+  WIRE_EVENTS.imaging.exposureCancelled, WIRE_EVENTS.imaging.imageSaved,
+  WIRE_EVENTS.equipment.focuserMoveStarted,
+  WIRE_EVENTS.equipment.focuserMoveCompleted,
+  WIRE_EVENTS.equipment.filterChanging, WIRE_EVENTS.equipment.filterChanged,
+  WIRE_EVENTS.sequencer.started, WIRE_EVENTS.sequencer.paused,
+  WIRE_EVENTS.sequencer.resumed, WIRE_EVENTS.sequencer.stopped,
+  WIRE_EVENTS.sequencer.completed, WIRE_EVENTS.sequencer.sequenceFailed,
+  WIRE_EVENTS.sequencer.nodeStarted, WIRE_EVENTS.sequencer.nodeCompleted,
+  WIRE_EVENTS.sequencer.frameAccepted, WIRE_EVENTS.sequencer.frameRejected,
+  WIRE_EVENTS.sequencer.exposureAdjusted, WIRE_EVENTS.sequencer.triggerFired,
+  WIRE_EVENTS.sequencer.decisionLogged,
+  WIRE_EVENTS.sequencer.integrationBudget,
+  WIRE_EVENTS.sequencer.schedulerDecision,
+  WIRE_EVENTS.sequencer.meridianFlipOutcome,
+  WIRE_EVENTS.sequencer.recoveryStarted,
+  WIRE_EVENTS.sequencer.recoveryCompleted,
+  WIRE_EVENTS.guiding.guidingStarted, WIRE_EVENTS.guiding.guidingStopped,
+  WIRE_EVENTS.guiding.ditherStarted, WIRE_EVENTS.guiding.ditherCompleted,
+  WIRE_EVENTS.safety.weatherUnsafe, WIRE_EVENTS.safety.weatherSafe,
+];
+
+/// The sequencer events that change what the snapshot says about the run:
+/// each one re-reads it at once rather than at the next baseline poll. Guiding
+/// sends a `Paused` and a `Resumed` of its own, so the category is checked.
+const RUN_STATE_EVENT_NAMES = [
+  WIRE_EVENTS.sequencer.started, WIRE_EVENTS.sequencer.paused,
+  WIRE_EVENTS.sequencer.resumed, WIRE_EVENTS.sequencer.stopped,
+  WIRE_EVENTS.sequencer.completed, WIRE_EVENTS.sequencer.sequenceFailed,
+  WIRE_EVENTS.sequencer.nodeStarted, WIRE_EVENTS.sequencer.nodeCompleted,
+  WIRE_EVENTS.sequencer.schedulerDecision,
 ];
 
 /// The tick families, subscribed so they can be COUNTED.
@@ -1788,8 +1804,9 @@ const FEED_EVENT_NAMES = [
 /// "the rig is working, these updates are in the bar" rather than sit silent
 /// through a five-minute exposure.
 const PROGRESS_EVENT_NAMES = [
-  'ExposureProgress', 'Progress',
-  'InstructionProgress', 'InstructionProgressStructured',
+  WIRE_EVENTS.imaging.exposureProgress, WIRE_EVENTS.sequencer.progress,
+  WIRE_EVENTS.sequencer.instructionProgress,
+  WIRE_EVENTS.sequencer.instructionProgressStructured,
 ];
 
 function openSSE() {
@@ -1850,13 +1867,15 @@ function openSSE() {
     });
   });
 
-  // Sequencer state transitions — fetch a fresh snapshot so the
-  // progress bar / current-target panel updates without waiting for
-  // the 15s baseline poll.
-  ['SequencePaused', 'SequenceResumed', 'SequenceStarted',
-    'SequenceFinished', 'SequenceStopped', 'NodeStarted',
-    'NodeCompleted', 'SchedulerDecision'].forEach(name => {
-    sse.addEventListener(name, () => fetchSnapshot());
+  // Run state transitions — fetch a fresh snapshot so the badge, progress
+  // bar and current-target panel follow without waiting for the 15 s
+  // baseline poll.
+  RUN_STATE_EVENT_NAMES.forEach(name => {
+    sse.addEventListener(name, (evt) => {
+      let payload = null;
+      try { payload = JSON.parse(evt.data); } catch { /* not our shape */ }
+      if (payload && payload.category === 'sequencer') fetchSnapshot();
+    });
   });
 }
 
@@ -2439,7 +2458,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnDither = $('btn-guide-dither');
   if (btnDither) {
     btnDither.addEventListener('click', () =>
-      sequencerAction('/api/phd2/dither', 'Dither', { amount: 5.0 }));
+      sequencerAction('/api/guider/dither', 'Dither', { amount: 5.0 }));
   }
   const btnCpResume = $('btn-checkpoint-resume');
   if (btnCpResume) {

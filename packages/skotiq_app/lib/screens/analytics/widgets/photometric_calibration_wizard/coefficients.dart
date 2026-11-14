@@ -3,7 +3,6 @@ part of '../photometric_calibration_wizard.dart';
 extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
   Widget _buildStep3ComputeCoefficients(SkotiqColors colors) {
     if (_computedCoefficients == null && !_isComputing && !_fitAttempted) {
-      // Automatically trigger computation
       WidgetsBinding.instance.addPostFrameCallback((_) => _computeFit());
     }
 
@@ -146,88 +145,46 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
       );
     }
 
-    final spots = coeff.fitData
-        .map((match) => FlSpot(match.catalogMag, match.residual))
-        .toList(growable: false);
-
-    var minX = spots.first.x, maxX = spots.first.x;
-    var minY = spots.first.y, maxY = spots.first.y;
-    for (final spot in spots) {
-      if (spot.x < minX) minX = spot.x;
-      if (spot.x > maxX) maxX = spot.x;
-      if (spot.y < minY) minY = spot.y;
-      if (spot.y > maxY) maxY = spot.y;
+    // Residuals past twice the fit's RMS are outliers, drawn in the error
+    // tone.
+    final outlierLimit = 2 * coeff.rmsResidual;
+    final inliers = <Offset>[];
+    final outliers = <Offset>[];
+    for (final match in coeff.fitData) {
+      final point = Offset(match.catalogMag, match.residual);
+      (match.residual.abs() > outlierLimit ? outliers : inliers).add(point);
     }
-    final yRange = math.max(0.1, maxY - minY);
 
-    return ScatterChart(
-      ScatterChartData(
-        minX: minX - 0.5,
-        maxX: maxX + 0.5,
-        minY: minY - yRange * 0.2,
-        maxY: maxY + yRange * 0.2,
-        borderData: FlBorderData(
-          show: true,
-          border: Border.all(color: colors.border),
+    return SkotiqChart(
+      semanticLabel: 'Fit residuals of ${coeff.fitData.length} stars, '
+          '${outliers.length} past twice the RMS',
+      series: <ChartSeries>[
+        ChartSeries(
+          points: inliers,
+          label: 'Residual',
+          kind: ChartSeriesKind.scatter,
+          dotRadius: 3,
         ),
-        gridData: FlGridData(
-          drawVerticalLine: true,
-          getDrawingHorizontalLine: (_) =>
-              FlLine(color: colors.border.withValues(alpha: 0.35)),
-          getDrawingVerticalLine: (_) =>
-              FlLine(color: colors.border.withValues(alpha: 0.25)),
-        ),
-        titlesData: FlTitlesData(
-          topTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            axisNameWidget: Text('Catalog Magnitude',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textSecondary)),
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 24,
-              getTitlesWidget: (value, meta) => Text(
-                value.toStringAsFixed(1),
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textSecondary),
-              ),
-            ),
+        if (outliers.isNotEmpty)
+          ChartSeries(
+            points: outliers,
+            label: 'Outlier',
+            tone: SeriesChartTone.error,
+            kind: ChartSeriesKind.scatter,
+            dotRadius: 3,
           ),
-          leftTitles: AxisTitles(
-            axisNameWidget: Text('Residual (mag)',
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textSecondary)),
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) => Text(
-                value.toStringAsFixed(2),
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textSecondary),
-              ),
-            ),
-          ),
-        ),
-        scatterSpots: spots
-            .map(
-              (spot) => ScatterSpot(
-                spot.x,
-                spot.y,
-                dotPainter: FlDotCirclePainter(
-                  radius: 3,
-                  color: spot.y.abs() > 2 * coeff.rmsResidual
-                      ? colors.error
-                      : colors.primary,
-                  strokeWidth: 0,
-                ),
-              ),
-            )
-            .toList(growable: false),
-        scatterTouchData: ScatterTouchData(enabled: false),
+      ],
+      x: ChartAxis(
+        title: 'Catalog Magnitude',
+        format: (mag) => mag.toStringAsFixed(1),
       ),
+      y: ChartAxis(
+        title: 'Residual (mag)',
+        format: (mag) => mag.toStringAsFixed(2),
+        includeZero: true,
+      ),
+      rules: const [ChartRule.y(0)],
+      readout: false,
     );
   }
 
@@ -246,15 +203,8 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
 
     try {
       final profileId = ref.read(activeEquipmentProfileIdProvider);
-      final coefficients = authority is NetworkBackend
-          ? await authority.computePhotometricTransform(
-              starMatches: starMatches,
-              filterName: filterName,
-              equipmentProfileId: profileId,
-            )
-          : ref
-              .read(photometricTransformServiceProvider)
-              .computeTransformCoefficients(
+      final (:coefficients, :refusal) =
+          await ref.read(photometricTransformsProvider).fit(
                 starMatches: starMatches,
                 filterName: filterName,
                 equipmentProfileId: profileId,
@@ -265,10 +215,7 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
         _computedCoefficients = coefficients;
         _isComputing = false;
         if (coefficients == null) {
-          final reason = authority is NetworkBackend
-              ? null
-              : ref.read(photometricTransformServiceProvider).lastRefusalReason;
-          _statusMessage = reason ??
+          _statusMessage = refusal ??
               'Failed to compute fit. Check that stars have sufficient '
                   'airmass and color index spread.';
         }
@@ -277,10 +224,8 @@ extension _PhotometricWizardCoefficients on _PhotometricCalibrationWizardState {
       if (!_isCurrentOperation(generation, authority)) return;
       _update(() {
         _isComputing = false;
-        _statusMessage = 'Computation failed: $error';
+        _statusMessage = 'Computation failed: ${userFacingError(error)}';
       });
     }
   }
-
-  // Step 4: save
 }

@@ -10,27 +10,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/guiding_keys.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
-
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    throw UnimplementedError(
-      'NoopTutorialProgressDao.${invocation.memberName} called in test',
-    );
-  }
-}
 
 Future<void> _drainAsyncFrames(WidgetTester tester) async {
   for (var i = 0; i < 8; i++) {
@@ -80,9 +63,7 @@ void main() {
         const GuidingScreen(),
         size: size,
         settle: false,
-        extraOverrides: [
-          tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
-        ],
+        extraOverrides: [],
       );
       await _drainAsyncFrames(tester);
 
@@ -105,7 +86,7 @@ void main() {
       );
 
       expect(
-        find.byKey(GuidingTutorialKeys.graph),
+        find.byKey(TourTarget.guidingGraph.key),
         findsOneWidget,
         reason: 'The guide graph must stay mounted at $name.',
       );
@@ -119,7 +100,7 @@ void main() {
       // the Observatory overhaul the tab strip lives in the PageHeader (04
       // §4), so it sits ABOVE the graph rather than below it; what is pinned
       // here is that neither is squeezed to nothing and they do not overlap.
-      final graphBox = tester.getRect(find.byKey(GuidingTutorialKeys.graph));
+      final graphBox = tester.getRect(find.byKey(TourTarget.guidingGraph.key));
       final tabsBox = tester.getRect(find.byType(AdaptiveTabBar));
       expect(
         graphBox.height,

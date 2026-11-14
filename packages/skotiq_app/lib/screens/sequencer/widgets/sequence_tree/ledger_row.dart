@@ -13,7 +13,6 @@ part of '../sequence_tree.dart';
 /// of the ~3500 px the comfortable cards take.
 const double _ledgerRowHeight = 28.0;
 
-/// The column header's height.
 const double _ledgerHeaderHeight = 26.0;
 
 /// One depth level's guide column, and the hairline it draws down its left.
@@ -34,7 +33,6 @@ const double _ledgerChevronGlyph = 12.0;
 /// The node's own glyph, in its category tint.
 const double _ledgerIconSize = 13.0;
 
-/// The progress bar along the row's bottom edge.
 const double _ledgerProgressHeight = 2.0;
 
 /// The kebab's footprint on a pointer platform.
@@ -68,7 +66,6 @@ const double _ledgerDragFeedbackWidth = 544.0;
 /// The four column widths, in order (spec §2).
 const List<double> _ledgerColumnWidths = <double>[70.0, 60.0, 74.0, 62.0];
 
-/// The four column headings, in the same order.
 const List<String> _ledgerColumnLabels = <String>[
   'Filter / exp',
   'Count',
@@ -539,7 +536,7 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
       filterExp: base.filterExp,
       count: base.count,
       duration: base.duration,
-      eta: eta == null ? '' : formatLedgerClock(eta.start),
+      eta: eta == null ? '' : ClockFormat.hm(eta.start.toLocal()),
     );
     // A projected ETA for a node the run has already passed is stale — once
     // the run's NodeStarted events arrive they replace the projection, but
@@ -564,8 +561,10 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
     final isSkipped = status == NodeStatus.skipped;
     final isCancelled = status == NodeStatus.cancelled;
     final isDisabled = !node.isEnabled;
-    final isStruckThrough = isDisabled || isSkipped || isCancelled;
-    // Done, skipped and cancelled all recede; a FAILURE does not — it is the
+    // Struck through means "did not run". A stopped step ran, and may have
+    // taken most of its frames, so it recedes without the strike.
+    final isStruckThrough = isDisabled || isSkipped;
+    // Done, skipped and stopped all recede; a FAILURE does not — it is the
     // one outcome the operator has to find, so it keeps the error colour the
     // comfortable row gives it.
     final isMuted = isSuccess || isSkipped || isCancelled || isDisabled;
@@ -676,7 +675,7 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
         _buildChevron(context),
         ExcludeSemantics(
           child: Icon(
-            sequenceNodeIcon(node.iconName),
+            nodeIcon(node.iconName),
             size: _ledgerIconSize,
             color: isMuted
                 ? colors.textMuted
@@ -757,8 +756,6 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
         _LedgerColumnCells(
           values: columns.values,
           color: columnColor,
-          // The ETA cell mutes when it is still quoting the prediction for a
-          // node the run already passed.
           etaColor: etaMuted ? colors.textMuted : null,
         ),
         const SizedBox(width: _ledgerBadgeGutter),
@@ -851,7 +848,7 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
       NodeStatus.success => 'done',
       NodeStatus.failure => 'failed',
       NodeStatus.skipped => 'skipped',
-      NodeStatus.cancelled => 'canceled',
+      NodeStatus.cancelled => 'stopped',
       _ => widget.node.isEnabled ? '' : 'disabled',
     };
     return <String>[
@@ -884,18 +881,11 @@ List<Widget> _targetCoordinateChips(
   return <Widget>[
     _LedgerChip(
       colors: colors,
-      label: CoordinateFormat.raHm(
-        node.raHours,
-        style: SexagesimalStyle.compactLetters,
-        wrapHours: true,
-      ),
+      label: CoordinateFormat.raCompact(node.raHours),
     ),
     _LedgerChip(
       colors: colors,
-      label: CoordinateFormat.decDm(
-        node.decDegrees,
-        style: SexagesimalStyle.compactLetters,
-      ),
+      label: CoordinateFormat.decCompact(node.decDegrees),
     ),
   ];
 }

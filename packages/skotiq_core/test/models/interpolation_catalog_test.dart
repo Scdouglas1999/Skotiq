@@ -1,18 +1,16 @@
-// Dart-side parity tests for the variable catalog. The Rust
-// catalog at `expressions/catalog.rs::variable_catalog` is the canonical
-// source of truth; this test verifies that:
+// Tests for the app's variable catalog. Its entries are held to the
+// sequencer's list by the Rust test
+// `the_app_offers_every_variable_as_the_sequencer_resolves_it`
+// (`expressions/catalog.rs`); this file checks that:
 //
 //   1. Every entry has a unique name.
 //   2. Each entry's `placeholder` getter renders the correct `${...}` form.
 //   3. `previewInterpolation` substitutes catalog examples without
 //      throwing or returning the empty string for unknown variables.
 //   4. Format specs (zero-pad, `.Nf`) apply to numeric examples.
-//
-// The Rust-Dart drift test (the catalog JSON dump compared against this
-// list) lives in the Rust integration tests and is verified by CI.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   group('interpolationCatalog', () {

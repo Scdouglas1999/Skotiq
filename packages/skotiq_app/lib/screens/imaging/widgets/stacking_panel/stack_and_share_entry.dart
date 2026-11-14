@@ -1,18 +1,24 @@
 part of '../stacking_panel.dart';
 
-// Private widgets
-
-/// The Stack-and-Share launcher button (component C10).
+/// The Stack-and-Share launcher (component C10): the session to stack and
+/// the button that opens [StackAndShareDialog] for it.
 ///
-/// A secondary [SkotiqButton] that opens [StackAndShareDialog] for the
-/// current session. The button is disabled — with an explanatory
-/// [SkotiqTooltip] — when there is no active/selected session, or when live
-/// stacking is running (the stacking engine is a singleton, so we surface that
-/// exclusivity here rather than letting the run fail at click). While the
-/// selection preview is being computed the button shows its loading state.
+/// While a run is imaging, its session is the one stacked. Otherwise the
+/// operator picks one of the sessions that took frames, the newest by
+/// default, so a finished night can still be stacked the next morning.
+///
+/// The button is disabled, with an explanatory [SkotiqTooltip], when there is
+/// no session to stack or while live stacking runs (the stacking engine is a
+/// singleton, so that exclusivity is shown here rather than failing at the
+/// click). While the selection preview is being computed the button shows its
+/// loading state.
 class _StackAndShareEntry extends StatelessWidget {
-  /// Current imaging session id, or null when none is active/selected.
+  /// The session the button stacks, or null when there is none.
   final int? sessionId;
+
+  /// The sessions the operator can pick from, newest first; empty while a run
+  /// is imaging (its session is the one stacked) or on a linked client.
+  final List<ImagingSession> pickable;
 
   /// Whether live stacking is currently running (singleton-exclusivity gate).
   final bool liveStackingActive;
@@ -24,14 +30,18 @@ class _StackAndShareEntry extends StatelessWidget {
   /// result database and artifacts are host-local in this release.
   final bool isRemoteMode;
 
+  final ValueChanged<int> onSessionPicked;
+
   /// Invoked when the button is pressed; null when the action is unavailable.
   final VoidCallback? onPressed;
 
   const _StackAndShareEntry({
     required this.sessionId,
+    required this.pickable,
     required this.liveStackingActive,
     required this.isBusy,
     required this.isRemoteMode,
+    required this.onSessionPicked,
     required this.onPressed,
   });
 
@@ -45,7 +55,7 @@ class _StackAndShareEntry extends StatelessWidget {
         : liveStackingActive
             ? 'Stop live stacking to run Stack & Share'
             : sessionId == null
-                ? 'Select a session to stack'
+                ? 'No session has taken frames yet'
                 : null;
 
     // Only enable when there is a session, live stacking is idle, and we are not
@@ -61,13 +71,56 @@ class _StackAndShareEntry extends StatelessWidget {
       onPressed: enabled ? onPressed : null,
     );
 
-    if (disabledReason == null) {
-      return button;
-    }
+    final launcher = disabledReason == null
+        ? button
+        : SkotiqTooltip(message: disabledReason, child: button);
+    if (pickable.isEmpty) return launcher;
 
-    return SkotiqTooltip(
-      message: disabledReason,
-      child: button,
+    final colors = SkotiqColors.of(context);
+    return Wrap(
+      spacing: SkotiqTokens.spaceSm,
+      runSpacing: SkotiqTokens.spaceSm,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Semantics(
+          label: 'Session to stack',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 320),
+            child: DropdownButtonHideUnderline(
+              child: AccessibleDropdown<int>(
+                value: sessionId,
+                isDense: true,
+                isExpanded: true,
+                dropdownColor: colors.surfaceElevated,
+                borderRadius: SkotiqTokens.borderRadiusMd,
+                style:
+                    SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
+                onChanged: isBusy
+                    ? null
+                    : (id) {
+                        if (id != null) onSessionPicked(id);
+                      },
+                items: [
+                  for (final session in pickable)
+                    DropdownMenuItem<int>(
+                      value: session.id,
+                      child: Text(
+                        // When and how much first: the side panel is narrow
+                        // and the name is what an ellipsis may cut.
+                        '${ClockFormat.monthDayHm(session.startTime.toLocal())}'
+                        '  ·  ${session.totalExposures} frames'
+                        '  ·  ${session.name ?? 'Session ${session.id}'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        launcher,
+      ],
     );
   }
 }

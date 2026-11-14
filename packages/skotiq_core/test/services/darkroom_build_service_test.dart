@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/services/frame_header.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
@@ -19,14 +20,14 @@ import 'package:skotiq_core/src/services/darkroom_build_service.dart';
 
 import 'darkroom_fake_native.dart';
 
-CapturedImage _image(
+DbCapturedImage _image(
   int id,
   String filter,
   DateTime at, {
   double? temp,
   String path = '/x.fits',
   double quality = 50,
-}) => CapturedImage(
+}) => DbCapturedImage(
   id: id,
   filePath: path,
   fileName: 'f$id.fits',
@@ -63,12 +64,12 @@ void main() {
       tagsDao: CalibrationTagsDao(db),
     ),
     masters: IntegratedMastersDao(db),
-    readHeader: (_) async => {
+    readHeader: (_) async => FrameHeader({
       'INSTRUME': 'ZWO ASI2600MM Pro',
       'TELESCOP': 'RedCat 51',
-      'NAXIS1': '100',
-      'NAXIS2': '80',
-    },
+      'NAXIS1': 100,
+      'NAXIS2': 80,
+    }),
     operation: native.call,
     processingSettings: processingSettings,
   );
@@ -264,7 +265,7 @@ void main() {
       expect(groups.map((g) => g.frames.length).toList()..sort(), [1, 3]);
       expect(
         groups.firstWhere((g) => g.frames.length == 3).label,
-        contains('-10 C'),
+        contains('-10°C'),
       );
     });
   });
@@ -386,13 +387,13 @@ void main() {
           ),
           masters: IntegratedMastersDao(db),
           flatLibrary: flatDao,
-          readHeader: (path) async => {
-            'FILTER': "'Ha      '",
-            'GAIN': '76.',
-            'OFFSET': '15',
-            'XBINNING': '2',
-            'YBINNING': '2',
-          },
+          readHeader: (path) async => FrameHeader({
+            'FILTER': 'Ha',
+            'GAIN': 76.0,
+            'OFFSET': 15,
+            'XBINNING': 2,
+            'YBINNING': 2,
+          }),
           buildFlat: (args) async => {
             'width': 100,
             'height': 80,
@@ -423,7 +424,8 @@ void main() {
             tagsDao: CalibrationTagsDao(db),
           ),
           masters: IntegratedMastersDao(db),
-          readHeader: (_) async => {'NAXIS1': '$width', 'NAXIS2': '$height'},
+          readHeader: (_) async =>
+              FrameHeader({'NAXIS1': width, 'NAXIS2': height}),
           operation: native.call,
           freeSpace: (directory) async {
             asked.add(directory);
@@ -456,7 +458,7 @@ void main() {
           isA<StateError>().having(
             (e) => e.message,
             'message',
-            allOf(contains('needs 3.5 GB'), contains('2.0 GB is free')),
+            allOf(contains('needs 3.5 GiB'), contains('2.0 GiB is free')),
           ),
         ),
       );
@@ -481,7 +483,7 @@ void main() {
               'message',
               allOf(
                 contains('needs'),
-                contains('2.0 GB is free'),
+                contains('2.0 GiB is free'),
                 isNot(contains('null')),
               ),
             ),
@@ -847,7 +849,7 @@ void main() {
   });
 
   group('unattended', () {
-    Future<List<CapturedImage>> frames() async => [
+    Future<List<DbCapturedImage>> frames() async => [
       for (final f in await db.imagesDao.getAllImages())
         f.copyWith(sensorTemp: const Value(-10)),
     ];

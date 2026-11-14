@@ -65,9 +65,7 @@ struct Settings {
     x: u32,
     /// Top edge.
     y: u32,
-    /// Width.
     width: u32,
-    /// Height.
     height: u32,
 }
 
@@ -342,9 +340,7 @@ pub struct CropRect {
     pub x: u32,
     /// Top edge.
     pub y: u32,
-    /// Width.
     pub width: u32,
-    /// Height.
     pub height: u32,
 }
 

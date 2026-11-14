@@ -1,3 +1,4 @@
+import '../../../models/equipment/filter_names.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/sequence/sequence_models.dart';
 
@@ -24,12 +25,10 @@ class FrameAttribution {
   /// that rather than paper over it with a fabricated value).
   final double? exposureSecs;
 
-  /// Images-DB `frame_type` string for this frame ('light', 'dark', 'flat',
-  /// 'bias', 'darkflat', 'snapshot'), from the producing [ExposureNode]'s
-  /// configured [FrameType]. Defaults to 'light' — correct for every
+  /// The producing [ExposureNode]'s configured [FrameType]. Light for every
   /// producing node type that has no frame-type knob (SmartExposure plans
   /// and SciencePhotometry are light-only by construction).
-  final String frameType;
+  final FrameType frameType;
 
   /// Sensor gain the frame was taken at, from the producing node's config.
   /// `null` when the node leaves gain to the camera's current value.
@@ -51,32 +50,13 @@ class FrameAttribution {
   const FrameAttribution({
     this.targetId,
     this.exposureSecs,
-    this.frameType = 'light',
+    this.frameType = FrameType.light,
     this.gain,
     this.offset,
     this.binX = 1,
     this.binY = 1,
   });
 }
-
-/// Square binning factor for [mode] (`BinningMode.two` -> 2).
-int _binningFactor(BinningMode mode) => switch (mode) {
-  BinningMode.one => 1,
-  BinningMode.two => 2,
-  BinningMode.three => 3,
-  BinningMode.four => 4,
-};
-
-/// Images-DB string form of [FrameType] (lowercase, matching
-/// `_frameTypeFromDbString` in imaging_provider.dart).
-String _frameTypeToDbString(FrameType type) => switch (type) {
-  FrameType.light => 'light',
-  FrameType.dark => 'dark',
-  FrameType.flat => 'flat',
-  FrameType.bias => 'bias',
-  FrameType.darkFlat => 'darkflat',
-  FrameType.snapshot => 'snapshot',
-};
 
 /// Resolve the [FrameAttribution] for the frame produced by [nodeId] within
 /// [sequence].
@@ -93,32 +73,33 @@ FrameAttribution resolveFrameAttribution(
 }) {
   final producing = sequence.nodes[nodeId];
   double? exposureSecs;
-  var frameType = 'light';
+  var frameType = FrameType.light;
   int? gain;
   int? offset;
   var binX = 1;
   var binY = 1;
   if (producing is ExposureNode) {
     exposureSecs = producing.durationSecs;
-    frameType = _frameTypeToDbString(producing.frameType);
+    frameType = producing.frameType;
     gain = producing.gain;
     offset = producing.offset;
-    binX = _binningFactor(producing.binning);
+    binX = producing.binning.factor;
     binY = binX;
   } else if (producing is SmartExposureNode && currentFilter != null) {
-    // SmartExposure rotates per-filter plans; the duration of THIS sub is the
-    // plan whose filter is currently exposing. (For adaptive/variable cases
-    // the fully authoritative per-frame value would have to come from the
-    // executor event — tracked separately.)
+    // SmartExposure rotates per-filter plans; this sub is the plan of the
+    // filter in the wheel, found by the filter-name rule (a plan for "Ha"
+    // exposes in the slot named "Ha 7nm"). The plan owns its own exposure,
+    // gain, offset and binning, so the frame is stamped from it, not from the
+    // node.
+    final planFilter = matchingFilterName(currentFilter, [
+      for (final plan in producing.plans) plan.filterName,
+    ]);
     for (final plan in producing.plans) {
-      if (plan.filterName.toLowerCase() == currentFilter.toLowerCase()) {
+      if (plan.filterName == planFilter) {
         exposureSecs = plan.durationSecs;
-        // The per-filter plan owns its own gain/offset/binning, so a
-        // SmartExposure frame must be stamped from the matching plan rather
-        // than from the node.
         gain = plan.gain;
         offset = plan.offset;
-        binX = _binningFactor(plan.binning);
+        binX = plan.binning.factor;
         binY = binX;
         break;
       }

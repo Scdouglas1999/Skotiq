@@ -1,4 +1,3 @@
-// Dialog used to save the current sequence as a template, including the target-selection option chips.
 part of '../templates_tab.dart';
 
 class _SaveTemplateDialog extends ConsumerStatefulWidget {
@@ -15,12 +14,18 @@ class _SaveTemplateDialog extends ConsumerStatefulWidget {
       _SaveTemplateDialogState();
 }
 
-class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
+class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog>
+    with HostBoundDialogState<_SaveTemplateDialog> {
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. Template save canceled.';
+
+  @override
+  bool get hostChangeDiscardsInput => true;
+
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
-  late final SkotiqBackend _authority;
   late final SequenceRepository _repository;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
   bool _isSaving = false;
 
   bool get _isExistingTemplate =>
@@ -43,25 +48,13 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
     _nameController = TextEditingController(text: widget.sequence.name);
     _descriptionController =
         TextEditingController(text: widget.sequence.description);
-    _authority = ref.read(backendProvider);
     _repository = ref.read(sequenceRepositoryProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        context.showWarningSnackBar(
-          'The connected host changed. Template save canceled.',
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    _backendSubscription?.close();
     super.dispose();
   }
 
@@ -71,7 +64,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
       return;
     }
 
-    if (!identical(ref.read(backendProvider), _authority)) {
+    if (host.isStale) {
       context.showWarningSnackBar(
         'The connected host changed. Reopen the template editor.',
       );
@@ -93,12 +86,12 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
       final savedId =
           await _repository.saveSequence(templateSequence, isTemplate: true);
 
-      if (!mounted || !identical(ref.read(backendProvider), _authority)) {
+      if (!mounted || host.isStale) {
         return;
       }
 
       ref.read(currentSequenceProvider.notifier).applyPersistedSave(
-            expectedSequenceId: widget.sequence.id,
+            savedFrom: widget.sequence,
             databaseId: savedId,
             name: templateSequence.name,
             description: templateSequence.description,
@@ -124,11 +117,12 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
         );
       }
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), _authority)) {
-        context.showErrorSnackBar('Failed to save template: $e');
+      if (mounted && host.isCurrent) {
+        context.showErrorSnackBar(
+            'Failed to save template: ${userFacingError(e)}');
       }
     } finally {
-      if (mounted && identical(ref.read(backendProvider), _authority)) {
+      if (mounted && host.isCurrent) {
         setState(() => _isSaving = false);
       }
     }
@@ -204,10 +198,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 24),
-
-                // Name field
                 Text(
                   'Template Name',
                   style: SkotiqTypography.h6
@@ -237,10 +228,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
-                // Description field
                 Text(
                   'Description',
                   style: SkotiqTypography.h6
@@ -271,10 +259,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
-                // Info about current sequence
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -308,10 +293,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
-                // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -420,7 +402,7 @@ class _TargetOptionState extends State<_TargetOption> {
                           .copyWith(color: widget.colors.textPrimary),
                     ),
                     Text(
-                      'RA: ${_formatRA(widget.target.raHours)} · Dec: ${_formatDec(widget.target.decDegrees)}',
+                      'RA: ${CoordinateFormat.raCompact(widget.target.raHours)} · Dec: ${CoordinateFormat.decCompact(widget.target.decDegrees)}',
                       style: TextStyle(
                         fontSize: SkotiqTypography.fontSize11,
                         color: widget.colors.textMuted,
@@ -442,10 +424,4 @@ class _TargetOptionState extends State<_TargetOption> {
       ),
     );
   }
-
-  String _formatRA(double raHours) =>
-      CoordinateFormat.raHm(raHours, style: SexagesimalStyle.plainLetters);
-
-  String _formatDec(double decDegrees) =>
-      CoordinateFormat.decDecimal(decDegrees);
 }

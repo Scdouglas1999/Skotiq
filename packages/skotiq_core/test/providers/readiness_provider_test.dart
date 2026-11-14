@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/models/plate_solver.dart';
 import 'package:skotiq_core/src/models/readiness/readiness_models.dart';
@@ -12,10 +13,12 @@ import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/profile_connection_status_provider.dart';
 import 'package:skotiq_core/src/providers/plate_solver_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/readiness_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 // Test doubles
 //
@@ -121,11 +124,11 @@ ProviderContainer _container({
   List<String> offlineProfileDevices = const <String>[],
   // Default = a populated profile (camera, mount, focuser, guider) so the
   // happy path is a real pass, not the vacuous one an empty profile produced.
-  List<ProfileDeviceSlot> assignedProfileSlots = const [
-    ProfileDeviceSlot.camera,
-    ProfileDeviceSlot.mount,
-    ProfileDeviceSlot.focuser,
-    ProfileDeviceSlot.guider,
+  List<DeviceType> assignedProfileSlots = const [
+    DeviceType.camera,
+    DeviceType.mount,
+    DeviceType.focuser,
+    DeviceType.guider,
   ],
 }) {
   final container = ProviderContainer(
@@ -143,8 +146,16 @@ ProviderContainer _container({
       offlineProfileDeviceNamesProvider.overrideWithValue(
         offlineProfileDevices,
       ),
-      assignedProfileDeviceSlotsProvider.overrideWithValue(
-        assignedProfileSlots,
+      rigDevicesProvider.overrideWithValue(
+        RigDevices([
+          for (final type in assignedProfileSlots)
+            RigDevice(
+              type: type,
+              assigned: true,
+              connected: false,
+              sessionOnly: false,
+            ),
+        ]),
       ),
       cameraStateProvider.overrideWith(
         (ref) =>
@@ -213,7 +224,10 @@ void main() {
         isNotNull,
         reason: 'a blocked critical-devices item must offer a remediation',
       );
-      expect(container.read(readinessOverallProvider), ReadinessLevel.blocked);
+      expect(
+        container.read(readinessReportProvider).overall,
+        ReadinessLevel.blocked,
+      );
     });
 
     test('no equipment profile -> overall blocked (fail-closed)', () async {
@@ -244,7 +258,10 @@ void main() {
           reason: 'ready items expose no remediation route',
         );
       }
-      expect(container.read(readinessOverallProvider), ReadinessLevel.ready);
+      expect(
+        container.read(readinessReportProvider).overall,
+        ReadinessLevel.ready,
+      );
     });
 
     test('plate-solver detection in loading state -> plateSolver caution, '
@@ -262,7 +279,10 @@ void main() {
       // The plate-solver item is the only non-green signal, and it is a
       // caution (not blocked), so the whole report is caution — never green.
       expect(report.overall, ReadinessLevel.caution);
-      expect(container.read(readinessOverallProvider), ReadinessLevel.caution);
+      expect(
+        container.read(readinessReportProvider).overall,
+        ReadinessLevel.caution,
+      );
     });
 
     test('plate-solver detection error -> plateSolver caution', () async {
@@ -452,15 +472,6 @@ void main() {
       },
     );
 
-    test('readinessOverallProvider mirrors report.overall', () async {
-      final container = _container(camera: _disconnected);
-      await _resolveReport(container);
-      expect(
-        container.read(readinessOverallProvider),
-        container.read(readinessReportProvider).overall,
-      );
-    });
-
     // No-hardware campaign 2026-07-29: the profile's guider failed to connect
     // on every launch and the readiness rail read "Ready to image / 2 items to
     // review" where the 2 items were the plate solver and the dark library —
@@ -502,7 +513,7 @@ void main() {
       final container = _container(
         camera: _disconnected,
         mount: _disconnected,
-        assignedProfileSlots: const <ProfileDeviceSlot>[],
+        assignedProfileSlots: const <DeviceType>[],
       );
       final report = await _resolveReport(container);
 
@@ -520,10 +531,7 @@ void main() {
     test('camera/mount-only profile -> profileDevices ready without claiming '
         'every device is connected', () async {
       final container = _container(
-        assignedProfileSlots: const [
-          ProfileDeviceSlot.camera,
-          ProfileDeviceSlot.mount,
-        ],
+        assignedProfileSlots: const [DeviceType.camera, DeviceType.mount],
       );
       final report = await _resolveReport(container);
 

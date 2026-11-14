@@ -889,5 +889,3 @@ class _SmallField extends StatelessWidget {
     );
   }
 }
-
-// Visual planner — interactive sky view with FOV panels

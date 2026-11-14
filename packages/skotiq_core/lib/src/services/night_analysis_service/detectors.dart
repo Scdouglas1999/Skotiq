@@ -281,19 +281,10 @@ extension _NightAnalysisDetectors on NightAnalysisService {
     return const [];
   }
 
-  /// **Moon-gradient onset.** A rising sky background that tracks the moon
-  /// climbing in altitude — sky brightness from moonlight. Needs per-sub
-  /// `background` and the mount pointing to compute moon separation/altitude;
-  /// since `captured_images` carries no per-sub moon column we compute the moon
-  /// altitude from `capturedAt` against an inferred observer site. When the
-  /// observer location is unknown we fail-soft to a pure background-vs-time
-  /// rise check only if it correlates with the lunar phase being bright.
-  ///
-  /// In this Dart-core layer we have no site lat/long on the session row, so the
-  /// detector reduces to: background rises monotonically through the night while
-  /// the moon is illuminated and climbing (computed from the timestamp). It is
-  /// deliberately conservative — info severity — because without a site it can't
-  /// fully separate moon from light-pollution gradient.
+  /// **Moon-gradient onset.** A sky background that rises through the night
+  /// while the moon is lit and climbing at the observing site: moonlight. A
+  /// rise without a lit, climbing moon (or with no site to tell) is reported at
+  /// info severity as a light-pollution gradient or a sinking target.
   List<NightFinding> _detectMoonGradientOnset(NightData data) {
     final pts = data.subs
         .where((s) => s.background != null)
@@ -321,8 +312,10 @@ extension _NightAnalysisDetectors on NightAnalysisService {
     final moonStart = _MoonEphemeris.illuminationAndAltitudeTrend(
       pts.first.sub.capturedAt,
       pts.last.sub.capturedAt,
+      data.site,
     );
-    final moonDriven = moonStart.illumination > 0.4 && moonStart.altitudeRising;
+    final moonDriven =
+        moonStart.illumination > 0.4 && moonStart.altitudeRising == true;
 
     return [
       NightFinding(

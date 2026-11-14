@@ -3,14 +3,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/screens/night_control/panel/panel_widgets.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../../harness/harness.dart';
 
@@ -35,6 +38,7 @@ NightActionInputs panelInputs({
   bool mountTracking = true,
   bool hasTarget = true,
   bool hasFrame = false,
+  bool solverMissing = false,
 }) =>
     NightActionInputs(
       canCommand: canCommand,
@@ -50,6 +54,7 @@ NightActionInputs panelInputs({
       hasTarget: hasTarget,
       hasFrame: hasFrame,
       targetName: hasTarget ? 'M74' : null,
+      solverMissing: solverMissing,
     );
 
 /// Every mount capability the tabs ask about.
@@ -253,8 +258,5 @@ String? tooltipOf(WidgetTester tester, Key key) {
 
 /// Whether the button with [key] would act on a tap.
 bool isEnabled(WidgetTester tester, Key key) {
-  final button = tester.widget(
-    find.descendant(of: find.byKey(key), matching: find.byType(SkotiqButton)),
-  ) as SkotiqButton;
-  return button.onPressed != null;
+  return tester.widget<NightPanelButton>(find.byKey(key)).onPressed != null;
 }

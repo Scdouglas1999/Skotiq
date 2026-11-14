@@ -6,12 +6,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/utils/confirm_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show catalogStateProvider, skyCatalogInstallProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../shell/shell_chrome.dart';
 import '../shell/widgets/window_chrome.dart';
+import '../../widgets/catalogs/sky_catalog_download_panel.dart';
 
+import 'steps/blocked_next.dart';
 import 'steps/camera_defaults_step.dart';
 import 'steps/camera_step.dart';
 import 'steps/capture_dir_step.dart';
@@ -25,6 +32,7 @@ import 'steps/optical_train_step.dart';
 import 'steps/site_step.dart';
 import 'steps/summary_step.dart';
 import 'steps/welcome_step.dart';
+import '../../router/app_routes.dart';
 
 part 'onboarding_screen_parts/_chrome.dart';
 
@@ -104,7 +112,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   /// back gesture cannot stack a second copy of it.
   bool _leavePromptOpen = false;
 
-  /// The current inline notice, or null when there is nothing to say.
   _WizardNotice? _notice;
 
   void _showNotice(
@@ -181,6 +188,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         BannerTone.warning,
         fromValidation: true,
       );
+      ref.read(onboardingBlockedNextProvider.notifier).state++;
       return;
     }
 
@@ -193,7 +201,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       // Primary action on the terminal step: retire the wizard and land on
       // the dashboard. The secondary "Capture first light" path is handled by
       // [_finishToFirstLight].
-      await _finishToInternal('/dashboard');
+      await _finishToInternal(AppRoute.tonight.path);
       return;
     }
 
@@ -298,7 +306,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
       if (!mounted || !leave) return;
       if (step == OnboardingStep.nextSteps) {
-        await _finishTo('/dashboard');
+        await _finishTo(AppRoute.tonight.path);
       } else {
         await _onExitWizard();
       }
@@ -316,7 +324,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _clearNotice();
     await ref.read(onboardingDraftProvider.notifier).skip();
     if (!mounted) return;
-    context.go('/dashboard');
+    context.go(AppRoute.tonight.path);
   }
 
   /// Summary step "Save profile": create the equipment profile, then advance
@@ -333,6 +341,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     try {
       final notifier = ref.read(onboardingDraftProvider.notifier);
       await notifier.complete();
+      if (ref.read(onboardingDraftProvider).downloadSkyCatalogs &&
+          skyCatalogsMissing(ref.read(catalogStateProvider))) {
+        // Runs on while the user reads the next step, which shows it.
+        unawaited(ref.read(skyCatalogInstallProvider.notifier).start());
+      }
       await notifier.next();
       if (!mounted) return;
       setState(() {
@@ -349,7 +362,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       setState(() {
         _saving = false;
         _notice = _WizardNotice(
-          'Could not save profile: $e',
+          'Could not save profile: ${userFacingError(e)}',
           BannerTone.error,
         );
       });
@@ -377,14 +390,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       setState(() {
         _saving = false;
         _notice = _WizardNotice(
-          'Could not finish setup: $e',
+          'Could not finish setup: ${userFacingError(e)}',
           BannerTone.error,
         );
       });
     }
   }
 
-  Future<void> _finishToFirstLight() => _finishTo('/imaging?firstLight=1');
+  Future<void> _finishToFirstLight() =>
+      _finishTo(AppRoutes.imaging(firstLight: true));
 
   /// Validate that the user has provided the data this step requires.
   /// Returns null if OK, or a human-readable message that we surface in
@@ -410,7 +424,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         return null;
       case OnboardingStep.focuser:
       case OnboardingStep.filterWheel:
+        return null;
       case OnboardingStep.guider:
+        if (draft.usesBuiltinGuider && draft.guideCameraId == null) {
+          return 'Pick the camera the built-in guider uses, or choose another '
+              'guider.';
+        }
         return null;
       case OnboardingStep.opticalTrain:
         // Bounds, not just "> 0": focal length 999999999 with aperture 0.0001

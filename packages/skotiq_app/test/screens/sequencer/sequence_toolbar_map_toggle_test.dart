@@ -14,7 +14,9 @@ import 'package:skotiq_app/screens/sequencer/widgets/sequence_toolbar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequencer_density.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
@@ -95,8 +97,6 @@ Future<HarnessHandle> _pumpCanvas(WidgetTester tester) async {
     settle: false,
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
       // The minute clock is a real periodic stream whose timer outlives every
       // pump in the fake-async zone.
       ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),

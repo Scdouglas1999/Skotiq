@@ -27,18 +27,10 @@ use super::ops;
 pub enum RegistryError {
     /// Two operations claim the same `(id, version)`.
     #[error("duplicate registration for {op_id}@{op_version}")]
-    DuplicateRegistration {
-        /// Operation id.
-        op_id: String,
-        /// Operation version.
-        op_version: u32,
-    },
+    DuplicateRegistration { op_id: String, op_version: u32 },
     /// An operation reports version `0`, which no recipe may reference.
     #[error("operation {op_id} registered with version 0; versions start at 1")]
-    ZeroVersion {
-        /// Operation id.
-        op_id: String,
-    },
+    ZeroVersion { op_id: String },
     /// An operation reports an empty id.
     #[error("operation registered with an empty id")]
     EmptyId,
@@ -134,7 +126,6 @@ impl OpRegistry {
         self.ops.len()
     }
 
-    /// Whether no operation is registered.
     pub fn is_empty(&self) -> bool {
         self.ops.is_empty()
     }

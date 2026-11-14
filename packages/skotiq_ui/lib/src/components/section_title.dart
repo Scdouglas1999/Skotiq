@@ -26,13 +26,11 @@ class SectionTitle extends StatelessWidget {
   /// An optional trailing control, right-aligned.
   final Widget? trailing;
 
-  /// Gap between the icon and the title.
   static const double gap = SkotiqTokens.spaceSm;
 
   /// Space between the title row and the section's content.
   static const double bottomGap = SkotiqTokens.spaceSm;
 
-  /// Icon size, in logical pixels.
   static const double iconSize = SkotiqTokens.iconGlyphSection;
 
   @override

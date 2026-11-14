@@ -23,13 +23,13 @@ pub(in super::super) async fn switch_target_or_filter(
     // run.
     if let Some(problem) = problem {
         tracing::warn!("[SCIENCE] SwitchTargetOrFilter fired but {problem}");
-        if rig.trigger_state.read().await.stop_on_quality_problems {
-            run.error(format!(
+        if crate::triggers::stops_on_quality_problems(Some(&rig.trigger_state)).await {
+            run.held(format!(
                 "{trigger_name}: {problem}, so the run is paused because Stop the run for \
                  quality problems is on. Set a backup filter or target in the science \
                  settings, or resume."
             ));
-            run.pause(None).await;
+            run.pause(None);
         } else {
             run.warning(format!(
                 "{trigger_name}: {problem}, so imaging continues on the current target and \
@@ -72,7 +72,7 @@ pub(in super::super) async fn switch_target_or_filter(
                 filter_name,
                 result.message,
             );
-            run.error(format!(
+            run.step_problem(format!(
                 "SwitchTargetOrFilter: backup filter '{}' could not be selected: {}",
                 filter_name,
                 result.message.unwrap_or_default()

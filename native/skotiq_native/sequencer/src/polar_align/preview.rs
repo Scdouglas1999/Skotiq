@@ -22,7 +22,7 @@ pub fn prepare_image_for_display(
     let (display_data, width, height, color_type) = if is_color {
         // Why: defaults to RGGB (most common OSC layout —
         // QHY/ZWO/Atik OSC all use RGGB). User-overridable per camera.
-        let pattern = bayer_pattern.unwrap_or(BayerPattern::RGGB);
+        let pattern = bayer_pattern.unwrap_or(BayerPattern::Rggb);
 
         let rgb_image = debayer(
             &image_data.data,
@@ -79,14 +79,14 @@ pub(crate) fn emit_preview<I>(
 ) where
     I: Fn(PolarAlignmentImageData),
 {
-    let is_color = image_data.sensor_type.as_deref() == Some("Color");
-    let bayer_pattern = image_data.bayer_offset.map(|(x, y)| match (x % 2, y % 2) {
-        (0, 0) => BayerPattern::RGGB,
-        (1, 0) => BayerPattern::GRBG,
-        (0, 1) => BayerPattern::GBRG,
-        (1, 1) => BayerPattern::BGGR,
-        _ => BayerPattern::RGGB,
-    });
+    // An X-Trans frame has no 2x2 cell to demosaic with; it previews as
+    // luminance.
+    let is_color = image_data.sensor_type.as_deref() == Some("Color")
+        && !matches!(
+            image_data.color_filter,
+            Some(skotiq_cfa::ColorFilterArray::XTrans(_))
+        );
+    let bayer_pattern = image_data.bayer_cell();
 
     let packed_data: Vec<u8> = image_data
         .data
@@ -99,6 +99,7 @@ pub(crate) fn emit_preview<I>(
         channels: 1,
         pixel_type: PixelType::U16,
         data: packed_data,
+        range: skotiq_imaging::SampleRange::ADU,
     };
 
     if let Ok(jpeg_data) = prepare_image_for_display(&imaging_image_data, is_color, bayer_pattern) {

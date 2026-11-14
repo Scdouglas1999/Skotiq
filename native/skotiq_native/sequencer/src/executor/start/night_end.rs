@@ -24,10 +24,7 @@ fn is_shutdown_step(node_type: &NodeType) -> bool {
     )
 }
 
-/// Whether a fired trigger ends the night rather than only the run.
-pub(crate) fn ends_the_night(trigger_id: &str) -> bool {
-    END_OF_NIGHT_TRIGGER_IDS.contains(&trigger_id)
-}
+pub(crate) use crate::triggers::ends_the_night;
 
 /// Nodes that watch the run rather than do a step of it: recovery triggers
 /// and the meridian flip. Plans place them anywhere, also after the shutdown.
@@ -76,9 +73,7 @@ pub(crate) fn plan_shutdown_steps(sequence: &SequenceDefinition) -> Vec<&NodeDef
 /// What the end-of-night sweep already did before the plan's steps run.
 #[derive(Default, Clone, Copy)]
 pub(crate) struct AlreadySafe {
-    /// The guider was stopped.
     pub guiding_stopped: bool,
-    /// The mount was parked.
     pub mount_parked: bool,
     pub cover_closed: bool,
     pub dome_closed: bool,

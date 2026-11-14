@@ -6,6 +6,7 @@ import 'package:path/path.dart' as path;
 import '../../database/database.dart' show TransientDetectionRow;
 import 'transient_candidate.dart' show TransientKind;
 import '../../utils/skotiq_data_directory.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Which discovery network a [TransientReportService] report targets. Each has a
 /// distinct, real submission format.
@@ -165,7 +166,7 @@ class TransientReportService {
       );
     }
 
-    final jd = _toJulianDate(detection.detectedAt);
+    final jd = AstronomyCalculations.julianDate(detection.detectedAt);
     final name = (starName?.trim().isNotEmpty == true)
         ? starName!.trim()
         : (detection.catalogMatch ?? _positionName(detection));
@@ -354,17 +355,11 @@ class TransientReportService {
     required String content,
     required String fileName,
   }) async {
-    final docsDir = await resolveSkotiqDocumentsDirectory();
-    final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
-    if (!exportDir.existsSync()) {
-      exportDir.createSync(recursive: true);
-    }
+    final exportDir = await resolveSkotiqExportsDirectory();
     final filePath = path.join(exportDir.path, fileName);
     await File(filePath).writeAsString(content);
     return filePath;
   }
-
-  // ── format helpers ─────────────────────────────────────────────────────────
 
   TransientKind _kind(TransientDetectionRow d) =>
       TransientKind.fromWire(d.kind);
@@ -418,28 +413,6 @@ class TransientReportService {
     final ms = u.millisecond.toString().padLeft(3, '0');
     return '${u.year.toString().padLeft(4, '0')}-${two(u.month)}-${two(u.day)} '
         '${two(u.hour)}:${two(u.minute)}:${two(u.second)}.$ms';
-  }
-
-  /// Convert a UTC [DateTime] to Julian Date.
-  double _toJulianDate(DateTime dt) {
-    final utc = dt.toUtc();
-    final y = utc.month <= 2 ? utc.year - 1 : utc.year;
-    final m = utc.month <= 2 ? utc.month + 12 : utc.month;
-    final a = (y / 100).floor();
-    final b = 2 - a + (a / 4).floor();
-    final dayFraction =
-        utc.hour / 24.0 +
-        utc.minute / 1440.0 +
-        utc.second / 86400.0 +
-        utc.millisecond / 86400000.0;
-    final jd =
-        (365.25 * (y + 4716)).floor() +
-        (30.6001 * (m + 1)).floor() +
-        utc.day +
-        dayFraction +
-        b -
-        1524.5;
-    return jd;
   }
 
   String _decimalDegToSexagesimalRa(double raDeg) {

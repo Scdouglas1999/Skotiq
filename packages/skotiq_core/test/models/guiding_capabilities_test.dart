@@ -10,7 +10,7 @@
 //   * unknown is treated as possibly-live (Stop yes, Start no) so an
 //     unrecognised PHD2 state can't falsely re-enable Start.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   group('Phd2GuidingCapabilities', () {

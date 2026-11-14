@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Confirmation for the Sequencer toolbar's "Slew to Target".
@@ -75,8 +75,8 @@ class _SlewToTargetDialog extends StatelessWidget {
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           Text(
-            'RA ${CoordinateParser.formatRaHms(raHours)}   '
-            'Dec ${CoordinateParser.formatDecDms(decDegrees)}',
+            'RA ${CoordinateFormat.raReadout(raHours)}   '
+            'Dec ${CoordinateFormat.decReadout(decDegrees)}',
             style: SkotiqTypography.bodySm.copyWith(
               color: colors.textSecondary,
               fontFamily: SkotiqTypography.fontFamilyMono,

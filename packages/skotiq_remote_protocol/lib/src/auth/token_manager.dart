@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import '../database/pairing_database.dart';
 
-/// Result of a pairing attempt
 enum PairingResult {
   success,
   invalidCode,
@@ -13,7 +12,6 @@ enum PairingResult {
   deviceAlreadyPaired,
 }
 
-/// Result of a token verification
 enum TokenVerificationResult {
   valid,
   invalid,
@@ -98,8 +96,6 @@ class TokenManager {
 
   TokenManager(this._database);
 
-  // Token generation
-
   /// Generate a cryptographically secure 32-byte token
   /// Returns the token as a hex-encoded string (64 characters)
   String generateSecureToken() {
@@ -122,8 +118,6 @@ class TokenManager {
 
     return '${_codeWords[firstWordIndex]}-${_codeWords[secondWordIndex]}-${number.toString().padLeft(4, '0')}';
   }
-
-  // Pairing management
 
   /// Start a new pairing session
   /// Returns the pairing code to display to the user
@@ -205,28 +199,23 @@ class TokenManager {
     final normalizedDeviceId = deviceId.trim();
     final normalizedDeviceName = deviceName.trim();
 
-    // Retrieve pairing session
     final session = await _database.getPairingSession(normalizedPairingCode);
 
     if (session == null) {
       return (result: PairingResult.invalidCode, sessionToken: null);
     }
 
-    // Check if already used
     if (session.isUsed) {
       return (result: PairingResult.codeAlreadyUsed, sessionToken: null);
     }
 
-    // Check if expired
     if (DateTime.now().isAfter(session.expiresAt)) {
       return (result: PairingResult.codeExpired, sessionToken: null);
     }
 
-    // Check if device already paired
     final existingDevice = await _database.getPairedDevice(normalizedDeviceId);
     final wasAlreadyPaired = existingDevice != null && existingDevice.isActive;
 
-    // Mark session as used
     await _database.markPairingSessionUsed(normalizedPairingCode);
 
     // Add or update paired device. Existing devices are re-issued the fresh
@@ -249,7 +238,6 @@ class TokenManager {
       authGrantSpec: authGrantSpec,
     );
 
-    // Clean up used session
     await _database.deleteUsedPairingSessions();
 
     return (
@@ -288,7 +276,6 @@ class TokenManager {
 
     // Constant-time comparison to prevent timing attacks
     if (_constantTimeCompare(device.sessionToken, token)) {
-      // Update last connected timestamp
       await _database.updateLastConnected(deviceId);
       return TokenVerificationResult.valid;
     }
@@ -296,7 +283,6 @@ class TokenManager {
     return TokenVerificationResult.invalid;
   }
 
-  /// Revoke a paired device
   Future<void> revokeDevice(String deviceId) async {
     // Capture the session token BEFORE flipping `is_active`. The auth
     // middleware's in-memory `_pairedSessionTokens` map is keyed by token
@@ -344,7 +330,6 @@ class TokenManager {
     }
   }
 
-  /// Get all active paired devices
   Future<List<PairedDevice>> getActivePairedDevices() async {
     return await _database.getActivePairedDevices();
   }
@@ -424,14 +409,10 @@ class TokenManager {
     return TokenSweepResult(expiredTokens: expired, revokedTokens: revoked);
   }
 
-  // Helper methods
-
-  /// Convert bytes to hex string
   String _bytesToHex(Uint8List bytes) {
     return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 
-  /// Convert hex string to bytes
   Uint8List _hexToBytes(String hex) {
     final result = Uint8List(hex.length ~/ 2);
     for (int i = 0; i < result.length; i++) {

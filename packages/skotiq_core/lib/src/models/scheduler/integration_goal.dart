@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../equipment/filter_names.dart';
+
 /// User-defined "I want N frames in filter F at exposure E for this target".
 ///
 /// The scheduler uses remainingFrames = frameCount - already-captured
@@ -11,7 +13,8 @@ class IntegrationGoal extends Equatable {
   /// FK to targets.id (drift `Targets` table).
   final int targetId;
 
-  /// Filter name (case-preserved). Matches `captured_images.filter`.
+  /// Filter name (case-preserved). The frames it counts are the
+  /// `captured_images.filter` spellings [goalFrameCount] matches.
   final String filter;
 
   /// Per-frame exposure in seconds.
@@ -121,4 +124,20 @@ class IntegrationGoalProgress extends Equatable {
 
   @override
   List<Object?> get props => [goal, capturedCount];
+}
+
+/// The frames a goal for [goalFilter] counts out of [framesByFilter] (frame
+/// counts by `captured_images.filter` as filed, `''` for frames that name
+/// none): the spellings the filter-name rule matches ("Ha" counts frames
+/// filed as "Ha 7nm"), or for the unfiltered goal the frames with no filter.
+int goalFrameCount(String goalFilter, Map<String, int> framesByFilter) {
+  if (goalFilter.trim().isEmpty) {
+    return framesByFilter.entries
+        .where((e) => e.key.trim().isEmpty)
+        .fold(0, (sum, e) => sum + e.value);
+  }
+  return matchingFilterNames(
+    goalFilter,
+    framesByFilter.keys,
+  ).fold(0, (sum, name) => sum + framesByFilter[name]!);
 }

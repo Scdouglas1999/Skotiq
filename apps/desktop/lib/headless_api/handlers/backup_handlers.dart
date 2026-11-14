@@ -1,16 +1,31 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:uuid/uuid.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for backup and restore operations
-class BackupHandlers {
+class BackupHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    BackupApi.listBackups: handleListBackups,
+    BackupApi.createBackup: handleCreateBackup,
+    BackupApi.restoreBackup: handleRestoreBackup,
+    BackupApi.autoSaveBackup: handleAutoSaveBackup,
+    BackupApi.uploadRestoreBackup: handleUploadRestoreBackup,
+    BackupApi.getBackupMetadata: handleGetBackupMetadata,
+    BackupApi.downloadBackup: handleDownloadBackup,
+    BackupApi.deleteBackup: handleDeleteBackup,
+  };
+
   static const int _maxBackupUploadBytes = 256 * 1024 * 1024;
 
   /// Filename pattern: skotiq-backup-{timestamp}-{uuid}.skbackup.
@@ -38,8 +53,6 @@ class BackupHandlers {
       _logger.warning(message, source: 'BackupHandlers');
   void _logError(String message) =>
       _logger.error(message, source: 'BackupHandlers');
-
-  // List backups
 
   Future<Response> handleListBackups(Request request) async {
     final service = container.read(backupServiceProvider);
@@ -74,8 +87,6 @@ class BackupHandlers {
 
     return jsonOk({'backups': backups});
   }
-
-  // Create backup
 
   Future<Response> handleCreateBackup(Request request) async {
     _logInfo('[API] POST /api/backup/create');
@@ -133,53 +144,26 @@ class BackupHandlers {
     );
   }
 
-  // Restore backup
-
   Future<Response> handleRestoreBackup(Request request) async {
     _logInfo('[API] POST /api/backup/restore');
     final blocked = _restoreBlockedResponse();
     if (blocked != null) return blocked;
     final payload = await readJsonObject(request);
-    final id = optionalString(payload, 'id');
-    final filePath = optionalString(payload, 'filePath');
+    final id = requireString(payload, 'id');
     final replaceExisting = optionalBool(payload, 'replaceExisting') ?? false;
 
     final service = container.read(backupServiceProvider);
 
-    // Resolve the restore source to a real file that lives INSIDE this host's
-    // backup directory. A remote client must never be able to make
-    // the host read an arbitrary absolute path off disk as a "backup".
-    //   * Preferred: a stable backup `id`, resolved against listBackups() —
-    //     exactly the same resolution delete/download/metadata already use.
-    //   * Legacy: an absolute `filePath` from an older client, accepted ONLY
-    //     when it canonicalises to a file directly inside the backup directory
-    //     (a `..` segment or an out-of-tree symlink fails closed).
-    final String resolvedPath;
-    if (id != null && id.isNotEmpty) {
-      final backupFiles = await _listContainedBackups(service);
-      final file = backupFiles
-          .where((f) => _idForBackupFile(f) == id)
-          .firstOrNull;
-      if (file == null) {
-        return jsonNotFound({'error': 'Backup not found: $id'});
-      }
-      resolvedPath = file.path;
-    } else if (filePath != null && filePath.isNotEmpty) {
-      final contained = await _resolveContainedBackupFile(service, filePath);
-      if (contained == null) {
-        return jsonBadRequest({
-          'error':
-              'filePath must reference an existing backup inside the backup '
-              'directory',
-        });
-      }
-      resolvedPath = contained.path;
-    } else {
-      throw BadRequestError(
-        field: 'id',
-        expected: 'a backup id (or a contained filePath)',
-      );
+    // The restore source is a backup `id`, resolved against the contained
+    // backup list exactly as delete/download/metadata resolve it, so a client
+    // can never make the host read an arbitrary path off disk as a "backup".
+    final file = (await _listContainedBackups(
+      service,
+    )).where((f) => _idForBackupFile(f) == id).firstOrNull;
+    if (file == null) {
+      return jsonNotFound({'error': 'Backup not found: $id'});
     }
+    final resolvedPath = file.path;
 
     final result = await service.restoreBackup(
       filePath: resolvedPath,
@@ -201,8 +185,6 @@ class BackupHandlers {
     );
   }
 
-  // Delete backup
-
   Future<Response> handleDeleteBackup(Request request, String id) async {
     _logInfo('[API] DELETE /api/backup/$id');
     final service = container.read(backupServiceProvider);
@@ -221,8 +203,6 @@ class BackupHandlers {
     return jsonOk({'status': 'deleted'});
   }
 
-  // Download backup
-
   Future<Response> handleDownloadBackup(Request request, String id) async {
     final service = container.read(backupServiceProvider);
     final backupFiles = await _listContainedBackups(service);
@@ -235,7 +215,6 @@ class BackupHandlers {
       return jsonNotFound({'error': 'Backup not found: $id'});
     }
 
-    // Stream the file
     final fileLength = await file.length();
     return attachmentResponse(
       file.openRead(),
@@ -244,8 +223,6 @@ class BackupHandlers {
       contentLength: fileLength,
     );
   }
-
-  // Get backup metadata
 
   Future<Response> handleGetBackupMetadata(Request request, String id) async {
     final service = container.read(backupServiceProvider);
@@ -266,8 +243,6 @@ class BackupHandlers {
 
     return jsonOk({'metadata': metadata.toJson()});
   }
-
-  // Auto save backup
 
   Future<Response> handleAutoSaveBackup(Request request) async {
     _logInfo('[API] POST /api/backup/auto-save');
@@ -428,18 +403,23 @@ class BackupHandlers {
   /// write erases every restored value. The body reports whether it worked.
   Future<Map<String, Object?>> _restoredBody(RestoreResult result) async {
     final reloaded = await _reloadRestoredState();
+    final notRestored = result.notRestoredNotice;
     return {
       'status': 'restored',
       'itemsRestored': result.itemsRestored,
       'categoryCounts': result.categoryCounts,
+      'notRestored': result.notRestored,
       'timestamp': result.timestamp.millisecondsSinceEpoch,
       'reloaded': reloaded,
-      'message': reloaded
-          ? 'Restored ${result.itemsRestored} items. This host is now running '
-                'on the restored data.'
-          : 'Restored ${result.itemsRestored} items, but this host could not '
-                'reload its cached state. Restart Skotiq before the next '
-                'run or the restore may be overwritten.',
+      'message': [
+        reloaded
+            ? 'Restored ${result.itemsRestored} items. This host is now '
+                  'running on the restored data.'
+            : 'Restored ${result.itemsRestored} items, but this host could '
+                  'not reload its cached state. Restart Skotiq before the '
+                  'next run or the restore may be overwritten.',
+        ?notRestored,
+      ].join(' '),
     };
   }
 
@@ -519,38 +499,6 @@ class BackupHandlers {
         .replaceAll(':', '-')
         .replaceAll('.', '-');
     return File(p.join(resolvedBackupDir, '${stem}_upload_$timestamp$ext'));
-  }
-
-  /// Resolve [candidatePath] to a real file guaranteed to live directly inside
-  /// this host's backup directory, or null when it escapes (path traversal),
-  /// does not exist, or the backup directory is missing.
-  ///
-  /// Mirrors the symlink canonicalisation used by [_resolveUploadDestination]
-  /// so a `..` segment or a symlink pointing out of the backup directory fails
-  /// closed. Backs the legacy `filePath` restore path in [handleRestoreBackup]:
-  /// older clients still send an absolute server path, and this containment
-  /// check is what keeps that path from being an arbitrary-file-read primitive.
-  Future<File?> _resolveContainedBackupFile(
-    BackupService service,
-    String candidatePath,
-  ) async {
-    final file = File(candidatePath);
-    if (!await file.exists()) return null;
-
-    final backupDir = await service.getBackupDirectory();
-    if (!await backupDir.exists()) return null;
-
-    final resolvedBackupDir = await backupDir.resolveSymbolicLinks();
-    final resolvedFile = await file.resolveSymbolicLinks();
-    final resolvedParent = p.dirname(resolvedFile);
-    final compareBackupDir = Platform.isWindows
-        ? resolvedBackupDir.toLowerCase()
-        : resolvedBackupDir;
-    final compareParent = Platform.isWindows
-        ? resolvedParent.toLowerCase()
-        : resolvedParent;
-    if (compareParent != compareBackupDir) return null;
-    return File(resolvedFile);
   }
 
   /// Return only real backup files whose canonical target is directly inside

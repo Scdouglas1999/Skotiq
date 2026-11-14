@@ -1,9 +1,6 @@
 //! Autofocus instruction node.
 
-use crate::instructions::{
-    autofocus_failure_continues_the_run, execute_autofocus_for_node,
-    notify_autofocus_failed_continuing, read_autofocus_position,
-};
+use crate::instructions::{execute_autofocus_for_node, AutofocusProgress};
 use crate::node::context::ExecutionContext;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
@@ -14,10 +11,6 @@ pub struct AutofocusInstruction;
 
 #[async_trait]
 impl InstructionNode for AutofocusInstruction {
-    fn type_name(&self) -> &'static str {
-        "Autofocus"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -31,47 +24,24 @@ impl InstructionNode for AutofocusInstruction {
 
         let ctx = context.to_instruction_context(node_id).await;
         let progress_cb = context.progress_callback.as_ref();
-        let steps_out = config.steps_out;
-        let total_steps = steps_out.saturating_mul(2).saturating_add(1);
+        let total_steps = config.sweep_point_count();
 
-        let progress_fn = |progress: f64, detail_str: String| {
+        let progress_fn = |percent: f64, progress: &AutofocusProgress| {
             if let Some(cb) = progress_cb {
-                let (step, hfr) = parse_autofocus_point(&detail_str)
-                    .unwrap_or_else(|| parse_autofocus_detail(&detail_str));
-                let detail = if step.is_some() || hfr.is_some() {
-                    ProgressDetail::Autofocus {
-                        step: step.unwrap_or(0),
-                        total_steps,
-                        current_hfr: hfr,
-                    }
-                } else {
-                    ProgressDetail::Generic(detail_str)
-                };
                 cb(ProgressUpdate::instruction_progress(
                     node_id.to_string(),
                     "Autofocus",
-                    progress,
-                    detail,
+                    percent,
+                    autofocus_detail(progress, total_steps),
                 ));
             }
         };
 
         let pause = context.pause_gate();
-        let position_before = read_autofocus_position(&ctx).await;
         let result = execute_autofocus_for_node(config, &ctx, Some(&progress_fn), &pause).await;
 
-        // A missed focus does not end the target, and with it the night: the
-        // sweep has put the focuser back where it started, the operator is
-        // told, and the sequence goes on at that focus (owner decision
-        // 2026-10-06). The node reports Skipped, which its container steps
-        // past; Failure would short-circuit every sibling after it.
-        if autofocus_failure_continues_the_run(&result) {
-            notify_autofocus_failed_continuing(&ctx, "Autofocus", &result, position_before).await;
-            return NodeStatus::Skipped;
-        }
-
         if result.status == NodeStatus::Success {
-            if let Some(trigger_state_lock) = &context.trigger_state {
+            if let Some(trigger_state_lock) = &context.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 if let Some(best_hfr) = result.hfr_values.first() {
                     trigger_state.update_hfr(*best_hfr);
@@ -81,85 +51,130 @@ impl InstructionNode for AutofocusInstruction {
                 trigger_state.mark_autofocus_performed();
                 tracing::debug!(
                     "Marked autofocus performed at exposure {}",
-                    trigger_state.completed_exposures
+                    trigger_state.latches.completed_exposures
                 );
             }
         }
 
-        result.log_and_get_status_with_context("Autofocus", &ctx)
+        result.settle("Autofocus", &ctx).await
     }
 }
 
-/// The point number and HFR from the sweep's `autofocus_progress` JSON, which
-/// the text parser below reads as step 0.
-fn parse_autofocus_point(s: &str) -> Option<(Option<u32>, Option<f64>)> {
-    let value: serde_json::Value = serde_json::from_str(s).ok()?;
-    if value.get("type")?.as_str()? != "autofocus_progress" {
-        return None;
+/// The progress of an autofocus sweep, for the node and for a refocus run on
+/// behalf of another step (a trigger, an exposure, a recovery): the point and
+/// HFR while the sweep measures, the step itself in words otherwise. A
+/// finished sweep reports its last point and final HFR as an autofocus
+/// detail: the app counts a successful autofocus by the step's last detail
+/// being one.
+pub(crate) fn autofocus_detail(progress: &AutofocusProgress, total_steps: u32) -> ProgressDetail {
+    let step = match progress {
+        AutofocusProgress::Complete { .. } => Some(total_steps),
+        _ => progress
+            .sweep()
+            .map(|sweep| u32::try_from(sweep.point).unwrap_or(u32::MAX)),
+    };
+    match step {
+        Some(step) => ProgressDetail::Autofocus {
+            step,
+            total_steps,
+            current_hfr: progress.hfr(),
+            star_count: progress.sweep().map(|sweep| sweep.star_count),
+        },
+        None => ProgressDetail::Generic(progress.to_string()),
     }
-    let point = value
-        .get("point")
-        .and_then(serde_json::Value::as_u64)
-        .and_then(|p| u32::try_from(p).ok());
-    let hfr = value.get("hfr").and_then(serde_json::Value::as_f64);
-    Some((point, hfr))
-}
-
-/// Parse "step N" and "hfr X.Y" style fragments from the autofocus
-/// instruction's free-form detail string.
-pub(crate) fn parse_autofocus_detail(s: &str) -> (Option<u32>, Option<f64>) {
-    let lower = s.to_lowercase();
-    let step = lower.find("step ").and_then(|idx| {
-        let rest = &s[idx + "step ".len()..];
-        rest.split(|c: char| !c.is_ascii_digit())
-            .next()
-            .and_then(|t| t.parse::<u32>().ok())
-    });
-    let hfr = lower.find("hfr").and_then(|idx| {
-        let rest = &s[idx + "hfr".len()..];
-        let mut start = None;
-        for (i, c) in rest.char_indices() {
-            if c.is_ascii_digit() || c == '.' || c == '-' {
-                start = Some(i);
-                break;
-            }
-        }
-        let start = start?;
-        let tail = &rest[start..];
-        let mut end = tail.len();
-        for (i, c) in tail.char_indices() {
-            if !(c.is_ascii_digit() || c == '.' || c == '-') {
-                end = i;
-                break;
-            }
-        }
-        tail[..end].parse::<f64>().ok()
-    });
-    (step, hfr)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::instructions::{FocusRange, SweepSnapshot};
 
-    #[test]
-    fn parses_step_and_hfr() {
-        let (s, h) = parse_autofocus_detail("step 3 of 13 HFR 2.45");
-        assert_eq!(s, Some(3));
-        assert_eq!(h, Some(2.45));
+    fn measured(point: usize, hfr: f64) -> AutofocusProgress {
+        AutofocusProgress::PointMeasured(Box::new(SweepSnapshot {
+            point,
+            total_points: 9,
+            hfr,
+            star_count: 40,
+            focus_range: FocusRange {
+                min: 600,
+                max: 1400,
+            },
+            vcurve_points: Vec::new(),
+            star_crops: Vec::new(),
+        }))
     }
 
-    #[test]
-    fn reads_the_point_from_the_sweep_json() {
-        let detail = r#"{"type":"autofocus_progress","point":5,"total_points":9,"hfr":3.87}"#;
-        assert_eq!(parse_autofocus_point(detail), Some((Some(5), Some(3.87))));
-        assert_eq!(parse_autofocus_point("step 3 of 13 HFR 2.45"), None);
+    fn complete() -> AutofocusProgress {
+        AutofocusProgress::Complete {
+            position: 1012,
+            hfr: 2.3456,
+            hfr_measured: true,
+            r_squared: 0.98765,
+        }
     }
 
+    /// What the run's status line and the step's progress panel read for each
+    /// step of a sweep, whether a node or a refocus runs it.
     #[test]
-    fn handles_missing_fields() {
-        let (s, h) = parse_autofocus_detail("Moving focuser");
-        assert!(s.is_none());
-        assert!(h.is_none());
+    fn a_sweep_reports_the_point_and_hfr_while_measuring_and_words_otherwise() {
+        let line = |progress: &AutofocusProgress| autofocus_detail(progress, 9).detail_text();
+        assert_eq!(line(&AutofocusProgress::Starting), "Starting autofocus...");
+        assert_eq!(
+            line(&AutofocusProgress::MovingToStart { position: 600 }),
+            "Moving to start position: 600"
+        );
+        assert_eq!(
+            line(&AutofocusProgress::MovingToPoint {
+                point: 3,
+                total_points: 9,
+                position: 800
+            }),
+            "Point 3/9: pos 800"
+        );
+        assert_eq!(line(&measured(5, 3.871)), "step 5/9 HFR 3.87");
+        assert_eq!(
+            line(&AutofocusProgress::Validating),
+            "Validating focus data..."
+        );
+        assert_eq!(
+            line(&AutofocusProgress::MovingToBestFocus { position: 1012 }),
+            "Moving to best focus: 1012"
+        );
+        assert_eq!(line(&complete()), "step 9/9 HFR 2.35");
+        assert_eq!(
+            line(&AutofocusProgress::FocusBeyondSweep { sweep_center: 1600 }),
+            "Focus lies beyond the sweep; sweeping around 1600"
+        );
+        assert_eq!(
+            line(&AutofocusProgress::AttemptFailed {
+                attempt: 1,
+                attempts: 3
+            }),
+            "Autofocus attempt 1/3 failed; retrying full sweep"
+        );
+        assert!(matches!(
+            autofocus_detail(&measured(5, 3.871), 9),
+            ProgressDetail::Autofocus {
+                step: 5,
+                total_steps: 9,
+                current_hfr: Some(hfr),
+                star_count: Some(40),
+            } if hfr == 3.871
+        ));
+    }
+
+    /// A finished sweep ends on an autofocus detail, which the app counts a
+    /// successful autofocus by.
+    #[test]
+    fn a_finished_sweep_ends_on_an_autofocus_detail() {
+        assert!(matches!(
+            autofocus_detail(&complete(), 9),
+            ProgressDetail::Autofocus {
+                step: 9,
+                total_steps: 9,
+                current_hfr: Some(hfr),
+                star_count: None,
+            } if hfr == 2.3456
+        ));
     }
 }

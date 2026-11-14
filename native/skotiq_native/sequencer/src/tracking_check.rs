@@ -8,10 +8,8 @@
 //! sidereal rate.
 
 use crate::device_ops::SharedDeviceOps;
+use crate::meridian::{wrap_hours, SIDEREAL_PER_SOLAR};
 use std::time::Duration;
-
-/// Sidereal hours that pass per solar second.
-const SIDEREAL_HOURS_PER_SECOND: f64 = 1.002_737_909_35 / 3600.0;
 
 /// How long the tracking check watches the pointing. A stopped mount's right
 /// ascension climbs by this many seconds of time over the window.
@@ -34,15 +32,6 @@ const SETTLE_TOLERANCE_ARCSEC: f64 = 5.0;
 /// How long the pointing must hold still to make a settled mount.
 const SETTLE_STILL_SPAN: Duration = Duration::from_secs(5);
 const SETTLE_POLL: Duration = Duration::from_secs(1);
-
-fn wrap_hours(delta: f64) -> f64 {
-    let wrapped = delta.rem_euclid(24.0);
-    if wrapped > 12.0 {
-        wrapped - 24.0
-    } else {
-        wrapped
-    }
-}
 
 /// Why the mount does not count as tracking.
 #[derive(Debug, Clone, PartialEq)]
@@ -89,7 +78,7 @@ pub(crate) async fn confirm_mount_tracks(
             )))
         }
     }
-    let unreadable = |error: String| {
+    let unreadable = |error: crate::device_ops::DeviceError| {
         NotTracking::Unreadable(format!("the mount's position could not be read: {error}"))
     };
     let (ra0, dec0) = device_ops
@@ -110,7 +99,7 @@ pub(crate) async fn confirm_mount_tracks(
         )));
     }
     let ra_climb_secs = wrap_hours(ra1 - ra0) * 3600.0;
-    let sidereal_secs = elapsed * SIDEREAL_HOURS_PER_SECOND * 3600.0;
+    let sidereal_secs = elapsed * SIDEREAL_PER_SOLAR;
     if ra_climb_secs.abs() > TRACKING_DRIFT_FRACTION * sidereal_secs {
         return Err(NotTracking::Stopped(format!(
             "the mount reports tracking on, but its right ascension moved {:.1} s of time in \

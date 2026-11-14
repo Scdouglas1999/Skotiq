@@ -1,10 +1,7 @@
-// The rig's Log (2026-11-03) printed the executor's Rust debug form of a fired
-// meridian flip trigger: "Trigger fired · Meridian Flip → MeridianFlip(
-// MeridianFlipConfig { trigger_method: MinutesPastMeridian, ... })".
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart';
 
-SkotiqEvent _fired(String action) => SkotiqEvent(
+SkotiqEvent _fired(SequencerTriggerAction action) => SkotiqEvent(
   eventId: BigInt.one,
   timestamp: 0,
   severity: EventSeverity.info,
@@ -18,43 +15,47 @@ SkotiqEvent _fired(String action) => SkotiqEvent(
   ),
 );
 
+SequencerTriggerAction? _decodedAction(Object? wireAction) {
+  final payload = decodeEventPayload(EventCategory.sequencer, 'TriggerFired', {
+    'trigger_id': 'meridian_flip',
+    'trigger_name': 'Meridian Flip',
+    'action': wireAction,
+  }, severity: EventSeverity.info);
+  return switch (payload) {
+    EventPayload_Sequencer(
+      field0: SequencerEvent_TriggerFired(:final action),
+    ) =>
+      action,
+    _ => null,
+  };
+}
+
 void main() {
   test('a meridian flip trigger reads in plain words', () {
     expect(
-      skotiqEventDisplayDetail(_fired('MeridianFlip')),
+      skotiqEventDisplayDetail(_fired(SequencerTriggerAction.meridianFlip)),
       'Meridian Flip → flip the mount',
     );
   });
 
-  test('an older host debug dump is cut to the action name', () {
-    final detail = skotiqEventDisplayDetail(
-      _fired(
-        'MeridianFlip(MeridianFlipConfig { trigger_method: '
-        'MinutesPastMeridian, minutes_past_meridian: 20.0 })',
-      ),
-    );
-    expect(detail, 'Meridian Flip → flip the mount');
-    expect(
-      skotiqEventDisplayDetail(_fired('Retry { max_attempts: 3 }')),
-      'Meridian Flip → retry',
-    );
+  test('every action reads as plain words', () {
+    for (final action in SequencerTriggerAction.values) {
+      expect(
+        triggerActionText(action),
+        matches(RegExp(r'^[a-z ]+$')),
+        reason: '$action',
+      );
+    }
   });
 
-  test('every action label has words, not a struct', () {
-    for (final label in [
-      'Continue',
-      'Notify',
-      'Pause',
-      'Autofocus',
-      'NextTarget',
-      'ParkAndAbort',
-      'Abort',
-      'Dither',
-      'Recenter',
-    ]) {
-      final text = triggerActionText(label);
-      expect(text, isNot(label), reason: label);
-      expect(text, isNot(contains('{')), reason: label);
+  test('the wire carries the executor names the host has always sent', () {
+    for (final action in SequencerTriggerAction.values) {
+      final (_, data) = encodeEventPayload(_fired(action).payload);
+      expect(_decodedAction(data['action']), action);
     }
+    final (_, parked) = encodeEventPayload(
+      _fired(SequencerTriggerAction.parkAndAbort).payload,
+    );
+    expect(parked['action'], 'ParkAndAbort');
   });
 }

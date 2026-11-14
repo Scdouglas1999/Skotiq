@@ -7,11 +7,22 @@ use super::*;
 
 // Camera COOLING/WARMING instructions
 
-/// Execute camera cooling
+/// What a cool or warm step knows about the camera at one moment of its run.
+/// A field is `None` when the step did not read it.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct ThermalReading {
+    pub sensor_temp_c: Option<f64>,
+    pub target_temp_c: Option<f64>,
+    pub cooler_power_percent: Option<f64>,
+}
+
+/// Where a cool or warm instruction reports its percentage and reading.
+pub type ThermalProgressSink<'a> = Option<&'a (dyn Fn(f64, ThermalReading) + Send + Sync)>;
+
 pub async fn execute_cool_camera(
     config: &CoolConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: ThermalProgressSink<'_>,
 ) -> InstructionResult {
     let camera_id = match ctx.camera_id() {
         Ok(id) => id.to_string(),
@@ -26,55 +37,71 @@ pub async fn execute_cool_camera(
     // Initial temperature anchors the progress percentage: the user sees
     // "30% cooled" as halfway between start and target rather than a raw
     // °C count that means nothing without context.
-    let start_temp = match ctx.device_ops.camera_get_temperature(&camera_id).await {
+    let start_temp = match ctx.run.device_ops.camera_get_temperature(&camera_id).await {
         Ok(value) => value,
         Err(e) => {
             return InstructionResult::failure(format!("Failed to read camera temperature: {}", e))
+                .caused_by(&e)
         }
     };
     let target_temp = config.target_temp;
     let temp_range = (start_temp - target_temp).abs();
 
-    // 0.5 °C tolerance covers typical cooler noise on TEC-equipped cameras
-    // (ZWO/QHY/PlayerOne all report jitter in the ±0.3 °C range when
-    // settled); tighter would force a fake "cooling" loop on a camera
-    // that is already where we want it.
-    let already_at_target = (start_temp - target_temp).abs() < 0.5;
+    let already_at_target = is_cold_enough(start_temp, target_temp);
 
     if let Err(e) = ctx
+        .run
         .device_ops
         .camera_set_cooler(&camera_id, true, target_temp)
         .await
     {
-        return InstructionResult::failure(format!("Failed to enable cooler: {}", e));
+        return InstructionResult::failure(format!("Failed to enable cooler: {}", e)).caused_by(&e);
     }
 
     if already_at_target {
-        let cooler_power = match ctx.device_ops.camera_get_cooler_power(&camera_id).await {
+        let cooler_power = match ctx.run.device_ops.camera_get_cooler_power(&camera_id).await {
             Ok(value) => value,
             Err(e) => {
                 return InstructionResult::failure(format!(
                     "Failed to read camera cooler power: {}",
                     e
                 ))
+                .caused_by(&e)
             }
         };
-        let msg = format!(
-            "At target: {:.1}°C ({:.0}% power)",
-            start_temp, cooler_power
-        );
+        let msg = if start_temp <= target_temp - SETPOINT_TOLERANCE_C {
+            format!(
+                "Already colder than the {:.1}°C set-point: {:.1}°C ({:.0}% power)",
+                target_temp, start_temp, cooler_power
+            )
+        } else {
+            format!(
+                "At target: {:.1}°C ({:.0}% power)",
+                start_temp, cooler_power
+            )
+        };
         tracing::info!("Camera already at target temperature: {}", msg);
         if let Some(cb) = progress_callback {
-            cb(100.0, msg.clone());
+            cb(
+                100.0,
+                ThermalReading {
+                    sensor_temp_c: Some(start_temp),
+                    target_temp_c: Some(target_temp),
+                    cooler_power_percent: Some(cooler_power),
+                },
+            );
         }
         return InstructionResult::success_with_message(msg);
     }
 
-    // Emit initial progress
     if let Some(cb) = progress_callback {
         cb(
             0.0,
-            format!("Starting: {:.1}°C → {:.1}°C", start_temp, target_temp),
+            ThermalReading {
+                sensor_temp_c: Some(start_temp),
+                target_temp_c: Some(target_temp),
+                cooler_power_percent: None,
+            },
         );
     }
 
@@ -99,22 +126,24 @@ pub async fn execute_cool_camera(
             return result;
         }
 
-        let current_temp = match ctx.device_ops.camera_get_temperature(&camera_id).await {
+        let current_temp = match ctx.run.device_ops.camera_get_temperature(&camera_id).await {
             Ok(value) => value,
             Err(e) => {
                 return InstructionResult::failure(format!(
                     "Failed to read camera temperature during cooling: {}",
                     e
                 ))
+                .caused_by(&e)
             }
         };
-        let cooler_power = match ctx.device_ops.camera_get_cooler_power(&camera_id).await {
+        let cooler_power = match ctx.run.device_ops.camera_get_cooler_power(&camera_id).await {
             Ok(value) => value,
             Err(e) => {
                 return InstructionResult::failure(format!(
                     "Failed to read camera cooler power: {}",
                     e
                 ))
+                .caused_by(&e)
             }
         };
 
@@ -144,23 +173,22 @@ pub async fn execute_cool_camera(
             cooler_power
         );
 
+        let reading = ThermalReading {
+            sensor_temp_c: Some(current_temp),
+            target_temp_c: Some(target_temp),
+            cooler_power_percent: Some(cooler_power),
+        };
         if let Some(cb) = progress_callback {
-            cb(
-                progress,
-                format!(
-                    "Cooling: {:.1}°C → {:.1}°C ({:.0}% power)",
-                    current_temp, target_temp, cooler_power
-                ),
-            );
+            cb(progress, reading);
         }
 
-        if (current_temp - target_temp).abs() < 0.5 {
+        if is_cold_enough(current_temp, target_temp) {
             let msg = format!(
                 "Target reached: {:.1}°C ({:.0}% power)",
                 current_temp, cooler_power
             );
             if let Some(cb) = progress_callback {
-                cb(100.0, msg.clone());
+                cb(100.0, reading);
             }
             return InstructionResult::success_with_message(msg);
         }
@@ -206,7 +234,7 @@ pub async fn execute_cool_camera(
                 ),
             );
             if let Some(cb) = progress_callback {
-                cb(100.0, msg.clone());
+                cb(100.0, reading);
             }
             return InstructionResult::success_with_message(msg);
         }
@@ -214,6 +242,17 @@ pub async fn execute_cool_camera(
         sleep(Duration::from_secs_f64(POLL_SECS)).await;
         elapsed_secs += POLL_SECS;
     }
+}
+
+/// Read jitter of a settled TEC sensor (ZWO, QHY and PlayerOne report about
+/// ±0.3 °C) that still counts as at the set-point.
+const SETPOINT_TOLERANCE_C: f64 = 0.5;
+
+/// Whether a sensor under a running cooler is where the cool step wants it.
+/// Colder than the set-point counts: on a night colder than the set-point
+/// the sensor starts below it, and a cooler cannot warm it up to it.
+fn is_cold_enough(sensor_temp: f64, target_temp: f64) -> bool {
+    sensor_temp < target_temp + SETPOINT_TOLERANCE_C
 }
 
 /// How far past its starting temperature, away from the set-point, a cooled
@@ -235,17 +274,17 @@ fn cooler_is_faulting(start_temp: f64, current_temp: f64, target_temp: f64) -> b
     }
 }
 
-/// Execute camera warming
 pub async fn execute_warm_camera(
     config: &WarmConfig,
     ctx: &InstructionContext,
-    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+    progress_callback: ThermalProgressSink<'_>,
 ) -> InstructionResult {
     if config.defer_to_calibration {
         let message = "Warm camera deferred: the camera stays at its set-point for the \
                        end-of-night darks, and calibration warms it once they are taken";
         tracing::info!("{}", message);
         if let Err(e) = ctx
+            .run
             .device_ops
             .send_notification("info", "Ending the night", message, None)
             .await
@@ -253,7 +292,7 @@ pub async fn execute_warm_camera(
             tracing::warn!("Warm camera: notification not sent: {}", e);
         }
         if let Some(cb) = progress_callback {
-            cb(100.0, message.to_string());
+            cb(100.0, ThermalReading::default());
         }
         return InstructionResult::success_with_message(message);
     }
@@ -263,10 +302,11 @@ pub async fn execute_warm_camera(
         Err(e) => return e,
     };
 
-    let start_temp = match ctx.device_ops.camera_get_temperature(&camera_id).await {
+    let start_temp = match ctx.run.device_ops.camera_get_temperature(&camera_id).await {
         Ok(value) => value,
         Err(e) => {
             return InstructionResult::failure(format!("Failed to read camera temperature: {}", e))
+                .caused_by(&e)
         }
     };
 
@@ -276,7 +316,7 @@ pub async fn execute_warm_camera(
     // warm set-point.
     // An unreadable cooler state is treated as unknown: the power reading
     // below still decides whether there is anything to warm.
-    let cooler_on = match ctx.device_ops.camera_get_cooler_on(&camera_id).await {
+    let cooler_on = match ctx.run.device_ops.camera_get_cooler_on(&camera_id).await {
         Ok(state) => state,
         Err(e) => {
             tracing::warn!(
@@ -292,11 +332,17 @@ pub async fn execute_warm_camera(
             start_temp
         );
         if let Some(cb) = progress_callback {
-            cb(100.0, "Cooler already off, nothing to warm".to_string());
+            cb(
+                100.0,
+                ThermalReading {
+                    sensor_temp_c: Some(start_temp),
+                    ..ThermalReading::default()
+                },
+            );
         }
         return InstructionResult::success_with_message("Cooler already off, nothing to warm");
     }
-    let cooler_power = match ctx.device_ops.camera_get_cooler_power(&camera_id).await {
+    let cooler_power = match ctx.run.device_ops.camera_get_cooler_power(&camera_id).await {
         Ok(power) => Some(power),
         Err(e) => {
             tracing::warn!("Warm camera: could not read the cooler power: {}", e);
@@ -311,6 +357,7 @@ pub async fn execute_warm_camera(
             start_temp
         );
         if let Err(e) = ctx
+            .run
             .device_ops
             .camera_set_cooler(&camera_id, false, 20.0)
             .await
@@ -318,10 +365,18 @@ pub async fn execute_warm_camera(
             return InstructionResult::failure(format!(
                 "The cooler is idle but could not be switched off: {}",
                 e
-            ));
+            ))
+            .caused_by(&e);
         }
         if let Some(cb) = progress_callback {
-            cb(100.0, "Cooler was idle; switched off".to_string());
+            cb(
+                100.0,
+                ThermalReading {
+                    sensor_temp_c: Some(start_temp),
+                    target_temp_c: None,
+                    cooler_power_percent: cooler_power,
+                },
+            );
         }
         return InstructionResult::success_with_message("Cooler was idle; switched off");
     }
@@ -342,18 +397,23 @@ pub async fn execute_warm_camera(
     // at least one iteration. f64 -> u32 saturates per Rust 1.45 spec.
     let steps = (duration_mins * 6.0).max(1.0) as u32;
 
-    // Emit initial progress
     if let Some(cb) = progress_callback {
         cb(
             0.0,
-            format!("Warming: {:.1}°C → {:.1}°C", start_temp, target_temp),
+            ThermalReading {
+                sensor_temp_c: Some(start_temp),
+                target_temp_c: Some(target_temp),
+                cooler_power_percent: cooler_power,
+            },
         );
     }
 
+    let mut last_sensor_temp = Some(start_temp);
     for step in 0..steps {
         if let Some(result) = ctx.check_cancelled() {
             // Turn off cooler on cancel
             if let Err(error) = ctx
+                .run
                 .device_ops
                 .camera_set_cooler(&camera_id, false, 20.0)
                 .await
@@ -374,6 +434,7 @@ pub async fn execute_warm_camera(
 
         // Gradually increase target temperature
         if let Err(e) = ctx
+            .run
             .device_ops
             .camera_set_cooler(&camera_id, true, progress_temp)
             .await
@@ -381,11 +442,25 @@ pub async fn execute_warm_camera(
             tracing::warn!("Failed to update cooler target: {}", e);
         }
 
-        // Emit progress
         if let Some(cb) = progress_callback {
+            // The sensor follows the ramped set-point; a failed read leaves
+            // the reading without a sensor temperature and the ramp goes on.
+            let sensor_temp = ctx
+                .run
+                .device_ops
+                .camera_get_temperature(&camera_id)
+                .await
+                .ok();
+            if sensor_temp.is_some() {
+                last_sensor_temp = sensor_temp;
+            }
             cb(
                 progress_percent,
-                format!("Warming: {:.1}°C → {:.1}°C", progress_temp, target_temp),
+                ThermalReading {
+                    sensor_temp_c: sensor_temp,
+                    target_temp_c: Some(target_temp),
+                    cooler_power_percent: None,
+                },
             );
         }
 
@@ -402,6 +477,7 @@ pub async fn execute_warm_camera(
     // while the TEC stayed powered. A warm-up that could not switch the cooler
     // off has not warmed anything up.
     if let Err(e) = ctx
+        .run
         .device_ops
         .camera_set_cooler(&camera_id, false, 20.0)
         .await
@@ -409,12 +485,19 @@ pub async fn execute_warm_camera(
         return InstructionResult::failure(format!(
             "Warmed to {:.1}°C but could not switch the cooler off: {}",
             target_temp, e
-        ));
+        ))
+        .caused_by(&e);
     }
 
-    // Emit final progress
     if let Some(cb) = progress_callback {
-        cb(100.0, "Warmed to ambient".to_string());
+        cb(
+            100.0,
+            ThermalReading {
+                sensor_temp_c: last_sensor_temp,
+                target_temp_c: Some(target_temp),
+                cooler_power_percent: None,
+            },
+        );
     }
 
     InstructionResult::success_with_message("Camera warmed to ambient")

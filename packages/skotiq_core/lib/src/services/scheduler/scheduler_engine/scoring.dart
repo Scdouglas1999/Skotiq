@@ -4,17 +4,22 @@ extension _SchedulerEngineScoring on SchedulerEngine {
   TargetScore _scoreCandidate(SchedulerCandidate c, DateTime now) {
     final rejections = <String>[];
 
-    // Altitude / azimuth.
-    final (alt, az) = _calculateAltAz(
-      raHours: c.raHours,
-      decDegrees: c.decDegrees,
-      time: now,
+    final (alt, az) = AstronomyCalculations.objectAltAz(
+      raDeg: c.raHours * 15.0,
+      decDeg: c.decDegrees,
+      dt: now,
+      latitudeDeg: _site.latitudeDegrees,
+      longitudeDeg: _site.longitudeDegrees,
     );
 
-    // Hard constraint: minimum altitude.
-    if (alt < _config.minAltitudeDegrees) {
+    // Hard constraint: the site's altitude floor in the target's direction.
+    final floor = _floor;
+    final floorDeg = floor.atAzimuth(az);
+    if (alt < floorDeg) {
       rejections.add(
-        'altitude ${alt.toStringAsFixed(1)}° below site minimum ${_config.minAltitudeDegrees.toStringAsFixed(1)}°',
+        floor.followsHorizon
+            ? 'altitude ${alt.toStringAsFixed(1)}° below horizon profile "Site horizon" (${floorDeg.toStringAsFixed(1)}° at az ${az.toStringAsFixed(0)}°)'
+            : 'altitude ${alt.toStringAsFixed(1)}° below site minimum ${floorDeg.toStringAsFixed(1)}°',
       );
     }
 
@@ -23,10 +28,10 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     // darkness at dusk and stop at dawn (the empty-eligible path in
     // _evaluateOnce stops the running sequence once every candidate is
     // rejected).
-    final (sunAlt, _) = SkyCalculations.sunAltAz(
-      time: now,
-      latitudeDegrees: _site.latitudeDegrees,
-      longitudeDegrees: _site.longitudeDegrees,
+    final (sunAlt, _) = AstronomyCalculations.sunAltAz(
+      dt: now,
+      latitudeDeg: _site.latitudeDegrees,
+      longitudeDeg: _site.longitudeDegrees,
     );
     if (sunAlt > _config.maxSunAltitudeDegrees) {
       rejections.add(
@@ -50,25 +55,11 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     if (stillNeeded.isEmpty && c.goals.isNotEmpty) {
       rejections.add('all integration goals complete');
     }
-    final filtersOnEquipmentLower = c.availableFilters
-        .map((f) => f.toLowerCase())
-        .toSet();
     final hasUsableGoal = stillNeeded.isEmpty
         ? c
               .goals
               .isEmpty // no goals at all is fine - free-form imaging
-        : stillNeeded.any(
-            (p) =>
-                // An EMPTY goal filter means "no filter requirement", which is
-                // what a rig with no filter wheel has to be able to express.
-                // Matching it against the wheel's filter list rejected it —
-                // `availableFilters` is empty on such a rig, so `contains('')`
-                // is false — and the effect was inverted: a wheel-less target
-                // that scheduled fine free-form became UNSCHEDULABLE the moment
-                // the operator followed the empty-state prompt and added a goal.
-                p.goal.filter.isEmpty ||
-                filtersOnEquipmentLower.contains(p.goal.filter.toLowerCase()),
-          );
+        : stillNeeded.any((p) => _wheelTakes(p.goal, c.availableFilters));
     if (c.goals.isNotEmpty && !hasUsableGoal && stillNeeded.isNotEmpty) {
       final missingFilters = stillNeeded
           .map((p) => p.goal.filter)
@@ -94,29 +85,27 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           }
           break;
         case TargetConstraintKind.moonIlluminationMax:
-          final moon = _moonPosition(now);
+          final moonLitPercent = AstronomyCalculations.moonIllumination(now);
           if (ct.moonIlluminationMax != null &&
-              moon.illumination > ct.moonIlluminationMax!) {
+              moonLitPercent / 100.0 > ct.moonIlluminationMax!) {
             rejections.add(
-              'moon illumination ${(moon.illumination * 100).toStringAsFixed(0)}% exceeds max ${(ct.moonIlluminationMax! * 100).toStringAsFixed(0)}%',
+              'moon illumination ${moonLitPercent.toStringAsFixed(0)}% exceeds max ${(ct.moonIlluminationMax! * 100).toStringAsFixed(0)}%',
             );
           }
           break;
         case TargetConstraintKind.moonSeparationMin:
           final minSep = ct.moonSeparationMinDeg;
           if (minSep != null) {
-            final moon = _moonPosition(now);
-            final sep = _angularSeparation(
-              ra1Hours: c.raHours,
-              dec1Degrees: c.decDegrees,
-              ra2Hours: moon.raHours,
-              dec2Degrees: moon.decDegrees,
+            final sep = _moonSeparationDegrees(
+              raHours: c.raHours,
+              decDegrees: c.decDegrees,
+              now: now,
             );
             if (sep < minSep) {
               rejections.add(
                 'moon separation ${sep.toStringAsFixed(0)}° below minimum '
                 '${minSep.toStringAsFixed(0)}° '
-                '(moon ${(moon.illumination * 100).toStringAsFixed(0)}% lit)',
+                '(moon ${AstronomyCalculations.moonIllumination(now).toStringAsFixed(0)}% lit)',
               );
             }
           }
@@ -152,7 +141,7 @@ extension _SchedulerEngineScoring on SchedulerEngine {
 
     // Compute factors regardless so the UI can show them even on rejected
     // candidates.
-    final altitudeFactor = _altitudeFactor(alt);
+    final altitudeFactor = _altitudeFactor(alt, floorDeg);
     final meridianFactor = _meridianFactor(raHours: c.raHours, now: now);
     final (moonFactor, moonDetail) = _moonFactor(
       raHours: c.raHours,
@@ -239,9 +228,42 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     );
   }
 
-  /// Altitude factor: 0 at minAltitude, 1 at 90°, sin² ramp between.
-  double _altitudeFactor(double altDeg) {
-    final minAlt = _config.minAltitudeDegrees;
+  double _hourAngleHours(double raHours, DateTime now) =>
+      AstronomyCalculations.hourAngleHours(
+        raHours,
+        AstronomyCalculations.localSiderealTime(now, _site.longitudeDegrees),
+      );
+
+  /// Separation between a J2000 position and the Moon, both taken to the
+  /// equinox of [now].
+  double _moonSeparationDegrees({
+    required double raHours,
+    required double decDegrees,
+    required DateTime now,
+  }) {
+    final (moonRa, moonDec, _) = AstronomyCalculations.moonPosition(now);
+    final (ra, dec) = AstronomyCalculations.precessFromJ2000ToDate(
+      raDeg: raHours * 15.0,
+      decDeg: decDegrees,
+      dt: now,
+    );
+    return AstronomyCalculations.angularSeparation(
+      ra1Deg: ra,
+      dec1Deg: dec,
+      ra2Deg: moonRa,
+      dec2Deg: moonDec,
+    );
+  }
+
+  /// The site's altitude floor ([AltitudeFloor]): its horizon when one is
+  /// set, otherwise the minimum altitude.
+  AltitudeFloor get _floor => AltitudeFloor(
+    horizon: _site.horizon,
+    minimumDeg: _config.minAltitudeDegrees,
+  );
+
+  /// Altitude factor: 0 at the floor, 1 at 90°, sin² ramp between.
+  double _altitudeFactor(double altDeg, double minAlt) {
     if (altDeg <= minAlt) return 0.0;
     if (altDeg >= 90.0) return 1.0;
     final normalized = (altDeg - minAlt) / (90.0 - minAlt);
@@ -252,15 +274,7 @@ extension _SchedulerEngineScoring on SchedulerEngine {
   /// Meridian-proximity factor: 1 at the meridian, falling linearly to 0
   /// when hour angle reaches ±6h.
   double _meridianFactor({required double raHours, required DateTime now}) {
-    final lst = _localSiderealTime(now);
-    var ha = lst - raHours;
-    while (ha > 12) {
-      ha -= 24;
-    }
-    while (ha < -12) {
-      ha += 24;
-    }
-    final absH = ha.abs();
+    final absH = _hourAngleHours(raHours, now).abs();
     if (absH >= 6.0) return 0.0;
     return 1.0 - (absH / 6.0);
   }
@@ -273,26 +287,25 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     required double decDegrees,
     required DateTime now,
   }) {
-    final moon = _moonPosition(now);
-    final sep = _angularSeparation(
-      ra1Hours: raHours,
-      dec1Degrees: decDegrees,
-      ra2Hours: moon.raHours,
-      dec2Degrees: moon.decDegrees,
+    final sep = _moonSeparationDegrees(
+      raHours: raHours,
+      decDegrees: decDegrees,
+      now: now,
     );
+    final moonLit = AstronomyCalculations.moonIllumination(now) / 100.0;
     final radius = _config.moonAvoidanceRadiusDegrees;
     if (sep >= radius) {
       return (
         1.0,
-        'sep ${sep.toStringAsFixed(0)}° ill ${(moon.illumination * 100).toStringAsFixed(0)}%',
+        'sep ${sep.toStringAsFixed(0)}° ill ${(moonLit * 100).toStringAsFixed(0)}%',
       );
     }
     final closeness = 1.0 - (sep / radius);
-    final penalty = closeness * moon.illumination;
+    final penalty = closeness * moonLit;
     final factor = (1.0 - penalty).clamp(0.0, 1.0);
     return (
       factor,
-      'sep ${sep.toStringAsFixed(0)}° ill ${(moon.illumination * 100).toStringAsFixed(0)}%',
+      'sep ${sep.toStringAsFixed(0)}° ill ${(moonLit * 100).toStringAsFixed(0)}%',
     );
   }
 
@@ -314,44 +327,21 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     return (factor, 'visible ${hours.toStringAsFixed(2)} h');
   }
 
-  /// Hours from `now` until the target's altitude drops below min.
-  /// Returns 0 if already below, 24 if circumpolar above the threshold.
+  /// Hours from `now` until the target sinks below the floor in the
+  /// direction it is then in: 0 when already below, 24 when it does not sink.
   double _hoursUntilSettingBelowMin({
     required double raHours,
     required double decDegrees,
     required DateTime now,
   }) {
-    final lat = _site.latitudeDegrees * math.pi / 180.0;
-    final dec = decDegrees * math.pi / 180.0;
-    final minAlt = _config.minAltitudeDegrees * math.pi / 180.0;
-
-    final sinThresh = math.sin(minAlt);
-    final center = math.sin(dec) * math.sin(lat);
-    final amplitude = (math.cos(dec) * math.cos(lat)).abs();
-    final minSin = center - amplitude;
-    final maxSin = center + amplitude;
-    if (maxSin < sinThresh) return 0.0;
-    if (minSin >= sinThresh) return 24.0;
-
-    final denominator = math.cos(dec) * math.cos(lat);
-    if (denominator.abs() < 1e-12) return 24.0;
-    final cosH = (sinThresh - center) / denominator;
-    if (cosH <= -1.0) return 24.0;
-    if (cosH >= 1.0) return 0.0;
-    final haHorizon = math.acos(cosH) * 180.0 / math.pi / 15.0; // hours
-
-    final lst = _localSiderealTime(now);
-    var ha = lst - raHours;
-    while (ha > 12) {
-      ha -= 24;
-    }
-    while (ha < -12) {
-      ha += 24;
-    }
-    if (ha.abs() >= haHorizon) return 0.0;
-    final hoursToSet = (haHorizon - ha) * 0.9972695663;
-    if (hoursToSet < 0) return 0.0;
-    return hoursToSet;
+    final left = _floor.timeUntilBelow(
+      raDeg: raHours * 15.0,
+      decDeg: decDegrees,
+      now: now,
+      latitudeDeg: _site.latitudeDegrees,
+      longitudeDeg: _site.longitudeDegrees,
+    );
+    return left == null ? 24.0 : left.inSeconds / 3600.0;
   }
 
   /// Filter coverage factor: fraction of total goal frames still needed,
@@ -364,20 +354,11 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     List<String> availableFilters,
   ) {
     if (progress.isEmpty) return 0.5;
-    final available = availableFilters.map((f) => f.toLowerCase()).toSet();
     var totalNeeded = 0;
     var totalGoal = 0;
     for (final p in progress) {
       totalGoal += p.goal.frameCount;
-      // Same rule as the admission check and buildSequenceForCandidate: an
-      // empty goal filter means "no filter requirement". Testing it for
-      // membership of the wheel's filter list scored an unfiltered goal on a
-      // wheel-less rig as already-complete, so the autopilot ranked a target
-      // it had never imaged below one that was finished.
-      if (p.goal.filter.isNotEmpty &&
-          !available.contains(p.goal.filter.toLowerCase())) {
-        continue;
-      }
+      if (!_wheelTakes(p.goal, availableFilters)) continue;
       totalNeeded += p.remainingFrames;
     }
     if (totalGoal <= 0) return 0.5;

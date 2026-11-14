@@ -7,11 +7,11 @@
 // the operator set, and the report would still say the message was sent.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/settings_provider.dart';
-import 'package:skotiq_core/src/services/notification_service.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+
+import '../notification/recording_router.dart';
 
 DawnJobReport _report() => DawnJobReport(
   jobId: 1,
@@ -28,26 +28,27 @@ DawnJobReport _report() => DawnJobReport(
   failure: null,
 );
 
-/// A notifier over a service whose webhook posts are counted.
+/// A notifier over a service whose router records what it was handed. With
+/// [routed] false the router has no transport to hand anything to.
 ({NotificationServiceDawnNotifier notifier, int Function() posts}) _build(
-  AppSettingsState? settings,
-) {
-  var posts = 0;
-  final service = NotificationService.testing(
-    settingsReader: () => settings,
-    httpClient: MockClient((_) async {
-      posts++;
-      return http.Response('ok', 200);
-    }),
+  AppSettingsState? settings, {
+  bool routed = true,
+}) {
+  final recording = recordingRouter(
+    kinds: routed ? const [NotificationTransportKind.discord] : const [],
+  );
+  final service = NotificationService(
+    readSettings: () => settings,
+    readRouter: () => recording.router,
     soundPlayer: () async {},
   );
-  addTearDown(service.dispose);
   return (
     notifier: NotificationServiceDawnNotifier(
       notifications: service,
       settings: () => settings,
     ),
-    posts: () => posts,
+    posts: () =>
+        recording.transports.values.fold(0, (n, t) => n + t.sent.length),
   );
 }
 
@@ -106,27 +107,28 @@ void main() {
         notificationsEnabled: true,
         notifyOnSequenceComplete: true,
         soundEnabled: false,
-        discordWebhook: 'https://discord.com/api/webhooks/test',
       ),
     );
     final decision = await built.notifier.announce(_report());
+    await Future<void>.delayed(Duration.zero);
 
     expect(decision.sent, isTrue);
-    expect(decision.reason, contains('webhook'));
+    expect(decision.reason, contains('discord'));
     expect(built.posts(), greaterThan(0));
   });
 
   test('a message nothing carried is not reported as sent', () async {
-    // No webhook configured and no router on this service, so nothing left
-    // the process. `sent` used to be hard-coded true here, and the morning
-    // message is the ONLY surface that lists the night's delivery problems —
-    // so a night nobody was told about read exactly like one they were.
+    // No transport is configured on the row, so nothing left the process.
+    // The morning message is the ONLY surface that lists the night's delivery
+    // problems, so a night nobody was told about must not read like one they
+    // were.
     final built = _build(
       const AppSettingsState(
         notificationsEnabled: true,
         notifyOnSequenceComplete: true,
         soundEnabled: false,
       ),
+      routed: false,
     );
     final decision = await built.notifier.announce(_report());
 

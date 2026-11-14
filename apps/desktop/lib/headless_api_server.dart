@@ -11,13 +11,15 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -25,21 +27,22 @@ import 'headless_api/auth/auth_cookie.dart';
 import 'headless_api/auth/cors_policy.dart';
 import 'headless_api/auth/pairing_attempt_tracker.dart';
 import 'headless_api/auth/pairing_service.dart';
-import 'headless_api/auth/public_paths.dart';
 import 'headless_api/auth/timing.dart';
 import 'headless_api/auth/token_resolver.dart';
 import 'headless_api/auth/ws_ticket_manager.dart';
 import 'headless_api/auth_policy.dart';
 import 'headless_api/command_correlator.dart';
 import 'headless_api/event_replay_buffer.dart';
+import 'headless_api/night_event_log.dart';
 import 'headless_api/handler_timeout.dart';
 import 'headless_api/handlers.dart';
 import 'headless_api/push/database_push_token_store.dart';
-import 'headless_api/routes.dart';
+import 'headless_api/route_table.dart';
 import 'headless_api/job_manager.dart';
 import 'headless_api/request_context.dart' as ctx;
 import 'headless_api/response_helpers.dart';
-import 'headless_api/route_metadata.dart' as route_metadata;
+import 'headless_api/body_limits.dart';
+import 'headless_api/rate_limiting.dart';
 import 'headless_api/session_ownership.dart';
 import 'headless_api/validation.dart';
 
@@ -68,7 +71,7 @@ class HeadlessApiServer {
   /// secret to a log file.
   static const _authIdentityContextKey = ctx.authIdentityContextKey;
 
-  /// shelf request-context key holding the bound [route_metadata.
+  /// shelf request-context key holding the bound [
   /// TokenRouteClass] for this request. Memoised in the auth middleware so
   /// the rate-limit middleware doesn't have to re-classify the path.
   static const _authRouteClassContextKey = ctx.authRouteClassContextKey;
@@ -81,6 +84,11 @@ class HeadlessApiServer {
   /// Whether a frame a remote client saves is also shown in this process's
   /// own image view (a desktop host with a window).
   final bool showApiCapturesInPreview;
+
+  /// Whether this server runs inside the desktop app's window process or the
+  /// headless daemon. Reported in `/api/info` (`hostMode`) so a client can say
+  /// what it found.
+  final SkotiqHostMode hostMode;
 
   /// Optional authentication token. If set, all API requests must include
   /// this token as a Bearer token in the Authorization header.
@@ -165,10 +173,16 @@ class HeadlessApiServer {
   final SecurityContext? tlsContext;
 
   /// when TLS is active, the SHA-256 hex digest of the certificate's
-  /// SubjectPublicKeyInfo DER. It overrides the token-derived fingerprint with
-  /// a cert-pinned identity anchor. Plain HTTP mode leaves this null and falls
-  /// back to the token-derived fingerprint.
+  /// SubjectPublicKeyInfo DER. It overrides the [identitySecret] fingerprint
+  /// with a cert-pinned identity anchor. Plain HTTP mode leaves this null and falls
+  /// back to [identitySecret].
   final String? tlsPublicKeyFingerprint;
+
+  /// The secret the plain-HTTP fingerprint is derived from. A linked client
+  /// refuses a host whose fingerprint changed, so the host start-up passes one
+  /// that survives a restart (see `hostIdentitySecret`). Without one the
+  /// fingerprint holds only for this server's lifetime.
+  final String? identitySecret;
 
   /// capacity of the in-memory ring buffer that backs WS replay on
   /// reconnect. Default 5000 events â‰ˆ 5 MB at 1 KB/event. Tuned per-deploy
@@ -187,6 +201,10 @@ class HeadlessApiServer {
   /// disabled (no token configured); those still get a viewerId, but it
   /// falls back to whatever the client provides.
   final Map<WebSocketChannel, String?> _socketAuthIdentities = {};
+
+  /// Sockets whose upgrade request had admin access. Every other socket gets
+  /// events with credential values hidden ([eventWithCredentialsHidden]).
+  final Set<WebSocketChannel> _adminSockets = {};
   final Map<WebSocketChannel, DateTime> _socketLastSeenAt = {};
 
   /// Broadcasts [_sockets].length on every attach/drop. Broadcast (not single
@@ -207,8 +225,7 @@ class HeadlessApiServer {
   StreamSubscription? _pushNotificationSubscription;
   final LiveCollaborationSessionManager _collaborationManager =
       LiveCollaborationSessionManager();
-  final route_metadata.EndpointRateLimiter _rateLimiter =
-      route_metadata.EndpointRateLimiter();
+  final EndpointRateLimiter _rateLimiter = EndpointRateLimiter();
 
   /// per-token / route-class bucket. Independent of the legacy
   /// endpoint window so a single token can hit dozens of different
@@ -217,8 +234,7 @@ class HeadlessApiServer {
   /// auth-identity digest computed by [_authMiddleware]; unauthenticated
   /// requests bypass this limiter (they never reach it — auth rejects
   /// them first) so we can rely on a non-null token id at this point.
-  final route_metadata.TokenBucketRateLimiter _tokenBucketLimiter =
-      route_metadata.TokenBucketRateLimiter();
+  final TokenBucketRateLimiter _tokenBucketLimiter = TokenBucketRateLimiter();
 
   /// The effective auth token (either provided or generated)
   late final String? _effectiveAuthToken;
@@ -300,8 +316,8 @@ class HeadlessApiServer {
   /// ring buffer of recently broadcast events for WS replay on
   /// reconnect.
   late final EventReplayBuffer _eventReplayBuffer;
+  final NightEventLog _nightEventLog = NightEventLog();
 
-  /// correlates command IDs from action handlers with later events.
   late final CommandCorrelator _commandCorrelator;
 
   /// Periodic sweep that evicts expired pending commands from the
@@ -349,145 +365,17 @@ class HeadlessApiServer {
   void _logError(String message, {Map<String, Object?>? fields}) =>
       _logger.error(message, source: 'HeadlessApiServer', fields: fields);
 
-  // Handler instances
-  late final DeviceHandlers _deviceHandlers;
-  late final DeviceDiscoveryHandlers _deviceDiscoveryHandlers;
-  late final CollaborationHandlers _collaborationHandlers;
-  late final StaticFileHandlers _staticFileHandlers;
-  late final AuthHandlers _authHandlers;
-  late final PairingHandlers _pairingHandlers;
-  // Phase D — cellular-push token + preference endpoints. Shares the pairing
-  // PairingService/DB via `_ensurePairingService` so push tokens live next to
-  // the paired-device rows they belong to.
-  late final PushHandlers _pushHandlers;
-  late final SystemHandlers _systemHandlers;
-  late final GuidingHandlers _guidingHandlers;
-  late final SequencerHandlers _sequencerHandlers;
-  late final ReplayDebugHandlers _replayDebugHandlers;
+  late final RouteTable _routeTable;
+
+  // The handler classes the server itself calls into, beyond routing.
   late final EquipmentHandlers _equipmentHandlers;
-  late final ProfileHandlers _profileHandlers;
-  late final ImagingHandlers _imagingHandlers;
-  late final SessionHandlers _sessionHandlers;
-
-  // New feature parity handlers
-  late final TargetHandlers _targetHandlers;
-  late final SequenceManagementHandlers _sequenceManagementHandlers;
-  late final FlatWizardHandlers _flatWizardHandlers;
-  late final MosaicHandlers _mosaicHandlers;
-  // Unattended-rig live co-imaging participation.
-  late final CoImagingHandlers _coImagingHandlers;
-  late final AnalyticsHandlers _analyticsHandlers;
-  late final WeatherHandlers _weatherHandlers;
-  late final SuggestionHandlers _suggestionHandlers;
-  late final TransientHandlers _transientHandlers;
-  // Pillar B ("First Light"): difference-imaging transient discovery surface.
-  late final FirstLightHandlers _firstLightHandlers;
-  // Pillar A ("Your Sky"): personal sky-atlas browse surface.
-  late final AtlasHandlers _atlasHandlers;
-  late final BackupHandlers _backupHandlers;
-  // Cloud backup/sync — status + push-now (config lives in desktop settings).
-  late final SyncHandlers _syncHandlers;
-  late final RuntimeStateHandlers _runtimeStateHandlers;
-  late final FramingHandlers _framingHandlers;
-  late final FileSystemHandlers _fileSystemHandlers;
-  late final ScienceHandlers _scienceHandlers;
-
-  // Night Narrator feed (read-only) for remote clients
-  late final NarratorHandlers _narratorHandlers;
-
-  // Auxiliary device handlers
-  late final DomeHandlers _domeHandlers;
-  late final SafetyMonitorHandlers _safetyMonitorHandlers;
-  late final AuxiliaryHandlers _auxiliaryHandlers;
-
-  // Planetarium support for remote clients
-  late final PlanetariumHandlers _planetariumHandlers;
-
-  // Intelligent scheduler and focus model
-  late final SchedulerHandlers _schedulerHandlers;
-  late final FocusModelHandlers _focusModelHandlers;
-
-  // Planner/scheduler DATA tables served to remote slaves
-  // (integration goals / target constraints / horizon profiles / projects).
-  late final PlanningDataHandlers _planningDataHandlers;
-
-  // Live stacking (EAA real-time integration) control surface. Public so the
-  // server lifecycle can route the `ImageSaved` event stream into its
-  // host-side auto-feed coordinator.
   late final StackingHandlers _stackingHandlers;
-
-  // Post-session integration / finishing ("finish last night") control surface.
-  // JobManager-backed: each long-running compute op returns {jobId} and runs in
-  // the background on the host's FFI pipeline.
-  late final PostSessionHandlers _postSessionHandlers;
-  late final DarkroomDeliveryHandlers _darkroomDeliveryHandlers;
-
-  // DepthLock goal store (per-filter depth goals around a marked sky region).
-  late final DepthLockHandlers _depthLockHandlers;
-
-  // Run-Watch (phone/tablet monitoring).
-  // The handler exposes /api/run-watch/{snapshot,frame-thumbnail,events}.
-  // Backed by a fan-out broadcast stream over `backend.eventStream` so the
-  // SSE handler can have any number of concurrent phone clients without
-  // touching the tokio broadcast channel on the Rust side.
-  late final RunWatchHandlers _runWatchHandlers;
   StreamController<SkotiqEvent>? _runWatchEventBroadcast;
-
-  // live-stacking broadcast endpoints.
-  late final BroadcastHandlers _broadcastHandlers;
-
-  // push-based live-view streaming over /ws/live-view. Backed by
-  // a long-lived [LiveViewStreamHub] so subscriber state survives socket
-  // churn and the JPEG-encode pipeline only runs while >=1 subscriber is
-  // attached.
   late final LiveViewStreamHandlers _liveViewStreamHandlers;
   late final LiveViewStreamHub _liveViewStreamHub;
-
-  // WebRTC datachannel fan-out for the same producer. Sessions
-  // attach to [_liveViewStreamHub] via its public attachRaw entry point
-  // so we do NOT duplicate the JPEG-encode pipeline; the WebRTC handler
-  // is just a parallel transport for the existing frames.
   late final WebRtcLiveViewHandlers _webRtcLiveViewHandlers;
-
-  // long-running job model handlers.
-  late final JobHandlers _jobHandlers;
-
-  // session ownership handlers.
-  late final SessionOwnershipHandlers _sessionOwnershipHandlers;
-
-  // remote log retrieval + tail SSE for mobile diagnostics.
-  late final LogHandlers _logHandlers;
-
-  // remote calibration library management (darks / flats /
-  // defect maps). Constructed unconditionally; the routes are always wired
-  // because every deployment has the Drift tables backing them.
-  late final CalibrationHandlers _calibrationHandlers;
-
-  // v46 — unified Calibration Library Manager (browse / match / tag) over the
-  // darks / flats / biases / defect maps. Distinct from the per-table
-  // surface above. Constructed unconditionally; routes always wired.
-  late final CalibrationLibraryHandlers _calibrationLibraryHandlers;
-
-  // catalog management (download / upload / verify / uninstall /
-  // reload). Constructed unconditionally; downloads run via the
-  // JobManager so the HTTP connection isn't held open.
-  late final CatalogHandlers _catalogHandlers;
   StreamSubscription<CatalogEvent>? _catalogEventSubscription;
 
-  // read-only DB endpoints for tables the phone could not see
-  // (sequence runs, notes journal, guide RMS history, polar alignment
-  // history, dark library, flat history). Stateless beyond the DAOs it
-  // reads off the container.
-  late final DbReadHandlers _dbReadHandlers;
-
-  // Live bundled-plugin management plus cleanup of inert archives persisted
-  // by older builds.
-  late final PluginHandlers _pluginHandlers;
-
-  // OTA update endpoints. Null when no UpdateController was
-  // supplied (test fixtures that don't exercise the update surface);
-  // routes are skipped in that case so a missing controller can't 500
-  // the rest of the API.
   UpdateHandlers? _updateHandlers;
   StreamSubscription<UpdateEvent>? _updateEventSubscription;
 
@@ -511,6 +399,7 @@ class HeadlessApiServer {
     this.bindLocalOnly = true,
     this.dispatchPluginNodes = true,
     this.showApiCapturesInPreview = false,
+    this.hostMode = SkotiqHostMode.headless,
     this.authToken,
     this.requireAuth = false,
     this.allowUnauthenticated = false,
@@ -523,6 +412,7 @@ class HeadlessApiServer {
     this.pairingMode = PairingMode.lanOpen,
     this.tlsContext,
     this.tlsPublicKeyFingerprint,
+    this.identitySecret,
     this.eventReplayBufferSize = 5000,
     PairingService? pairingService,
     PairingService Function()? pairingServiceFactory,
@@ -544,12 +434,10 @@ class HeadlessApiServer {
     _commandCorrelator = commandCorrelator ?? CommandCorrelator();
     final tokensByValue = <String, HeadlessAuthGrant>{};
 
-    // Determine effective auth token
     if (authToken != null) {
       _effectiveAuthToken = authToken;
       tokensByValue[authToken!] = HeadlessAuthGrant.admin();
     } else if (requireAuth) {
-      // Generate a random token
       _effectiveAuthToken = _generateRandomToken();
       tokensByValue[_effectiveAuthToken!] = HeadlessAuthGrant.admin();
       // Why: the auto-generated token must be visible to the operator once
@@ -584,29 +472,18 @@ class HeadlessApiServer {
     }
     _effectiveAuthTokensByValue = Map.unmodifiable(tokensByValue);
 
-    // when TLS is active, the cert's SubjectPublicKeyInfo SHA-256 is
-    // the right identity anchor for client-side cert pinning. The
-    // token-derived fingerprint (computed from the admin bearer token, see
-    // [computeServerFingerprint]) is retained as the plain-HTTP fallback so
-    // existing QR-flow clients keep working unchanged. Format:
-    //  - TLS mode:  raw hex digest of SubjectPublicKeyInfo DER (64 chars).
-    //  - HTTP mode: sha256("skotiq-remote-v1:" + adminToken).
+    // With TLS the certificate's SubjectPublicKeyInfo SHA-256 is the identity
+    // a client pins (raw hex of the DER, 64 chars). Over plain HTTP it is
+    // sha256("skotiq-remote-v1:" + identitySecret).
     final tlsPin = tlsPublicKeyFingerprint?.trim();
-    if (tlsPin != null && tlsPin.isNotEmpty) {
-      _serverFingerprint = tlsPin;
-    } else {
-      final identityMaterial = () {
-        final primary = _effectiveAuthToken?.trim();
-        if (primary != null && primary.isNotEmpty) {
-          return primary;
-        }
-        if (tokensByValue.isNotEmpty) {
-          return tokensByValue.keys.first;
-        }
-        return _generateRandomToken();
-      }();
-      _serverFingerprint = computeServerFingerprint(identityMaterial);
-    }
+    final secret = identitySecret?.trim();
+    _serverFingerprint = tlsPin != null && tlsPin.isNotEmpty
+        ? tlsPin
+        : computeServerFingerprint(
+            secret != null && secret.isNotEmpty
+                ? secret
+                : _generateRandomToken(),
+          );
 
     // Why: the resolver iterates the entire token map every lookup with
     // constant-time comparison. The map captured here is the union of the
@@ -620,18 +497,8 @@ class HeadlessApiServer {
     _authCookieManager = AuthCookieManager();
     _pairingAttempts = PairingAttemptTracker();
 
-    _initializeHandlers();
+    _routeTable = RouteTable(_initializeHandlers());
   }
-
-  // Core Handlers (moved to handlers/system_handlers.dart)
-  //
-  // The four read-only system endpoints (/api/info, /api/status,
-  // /api/self-test, /api/openapi.json), together with the canonical
-  // `availableHeadlessEndpoints()` catalog and the storage/DB/connected-
-  // device probes that back self-test, now live in [SystemHandlers].
-  // The closure-based [SystemServerView] passed at construction time
-  // keeps the snapshot live (every getter is called per request) so
-  // the JSON envelope matches the inline implementation exactly.
 
   /// Sorted, deduplicated list of scope names present in the configured
   /// + paired token tables. Captured into [SystemServerView] so the
@@ -645,12 +512,6 @@ class HeadlessApiServer {
     scopes.sort();
     return scopes;
   }
-
-  // /api/collaboration/* and /api/session-handoff handlers were moved to
-  // [CollaborationHandlers] (handlers/collaboration_handlers.dart). The
-  // shared LiveCollaborationSessionManager is injected so the WS upgrade
-  // path, the desktop GUI, and the HTTP surface still observe the same
-  // in-memory state.
 
   // Pairing flow — first-run dashboard onboarding.
   //
@@ -678,17 +539,6 @@ class HeadlessApiServer {
     return created;
   }
 
-  // /api/pairing/{start,verify,active} handlers moved to
-  // [PairingHandlers] (handlers/pairing_handlers.dart). The lifecycle
-  // callbacks `ensurePairingService` / `recordPairedSession` /
-  // `rateLimitClientKey` keep the server's private state behind a
-  // typed surface.
-
-  // /api/ws/ticket and /api/auth/{cookie,csrf,logout} handlers moved to
-  // [AuthHandlers] (handlers/auth_handlers.dart). The shared
-  // WsTicketManager, AuthCookieManager, and a TokenScopeResolver closure
-  // (`_scopeForToken`) are injected via the constructor.
-
   /// Whether [method] mutates state and therefore requires CSRF when the
   /// caller is using a cookie. Why uppercase compare: shelf passes the
   /// raw method but middleware may have lowercased it elsewhere — be
@@ -701,23 +551,6 @@ class HeadlessApiServer {
         upper == 'DELETE' ||
         upper == 'PATCH';
   }
-
-  // /api/devices/*, /api/devices/discover-indi, /api/devices/discover-alpaca,
-  // and /api/devices/connected were moved to
-  // [DeviceDiscoveryHandlers] (handlers/device_discovery_handlers.dart) so the
-  // headless server class is not the home of read-only discovery logic.
-  //
-  // /api/devices/connect and /api/devices/disconnect live in
-  // [DeviceHandlers.handleConnectDevice] /
-  // [DeviceHandlers.handleDisconnectDevice].
-
-  // Dashboard + Run-Watch static-file serving was moved to
-  // [StaticFileHandlers] (handlers/static_file_handlers.dart). The handlers
-  // there own the SPA-directory resolution, the MIME-type table, the CSP
-  // security headers, and the symlink-traversal guard. Inline `_handleInfo`
-  // / `_handleSelfTest` now read the dashboard-available flag via
-  // `_staticFileHandlers.dashboardAvailable` so the inline JSON shape is
-  // unchanged.
 
   /// Generates a cryptographically secure random token.
   static String _generateRandomToken({int length = 32}) {
@@ -842,7 +675,7 @@ class HeadlessApiServer {
   /// The same SHA-256 hex digest the server surfaces from `GET /api/info`.
   ///
   /// Either the TLS SubjectPublicKeyInfo digest when TLS is active or the
-  /// `computeServerFingerprint`-derived token digest otherwise. Exposed so
+  /// [identitySecret] digest otherwise. Exposed so
   /// the mDNS advertiser can publish the value as a TXT record,
   /// keeping the QR `fingerprint`, the `/api/info` `fingerprint`, and the
   /// mDNS `fingerprint` aligned.
@@ -852,8 +685,12 @@ class HeadlessApiServer {
   /// TXT record reads this so the advertised transport matches reality.
   bool get isTlsActive => tlsContext != null;
 
-  /// `true` when at least one bearer token is accepted by the server.
-  bool get isAuthRequired => _effectiveAuthTokensByValue.isNotEmpty;
+  /// `true` when a request needs a bearer token for anything beyond the
+  /// public pairing and discovery surface. Only an operator's
+  /// `--allow-unauthenticated` on a server with no configured token opens it;
+  /// a server with no token and no opt-in is closed until a device pairs.
+  bool get isAuthRequired =>
+      !allowUnauthenticated || _effectiveAuthTokensByValue.isNotEmpty;
 
   /// random UUID identifying this server instance. Returned by
   /// /api/info and stamped on every outbound event.

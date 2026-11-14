@@ -159,15 +159,15 @@ async fn cool_node_with(temps: &[f64], stop_on_quality_problems: bool) -> CoolRu
 
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_camera_temperatures(temps));
     let mut ec = crate::node::context::ExecutionContext::new_for_test("cool".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("camera-1".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
     let mut state = crate::triggers::TriggerState::new();
-    state.stop_on_quality_problems = stop_on_quality_problems;
-    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    state.settings.stop_on_quality_problems = stop_on_quality_problems;
+    ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
-    ec.event_tx = Some(event_tx);
+    ec.run.event_tx = Some(event_tx);
     let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
-    ec.decision_tx = Some(decision_tx);
+    ec.run.decision_tx = Some(decision_tx);
     let node = crate::NodeType::CoolCamera(CoolConfig {
         target_temp: -10.0,
         duration_mins: Some(1.0),
@@ -179,7 +179,9 @@ async fn cool_node_with(temps: &[f64], stop_on_quality_problems: bool) -> CoolRu
 
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -229,6 +231,34 @@ async fn a_cooler_short_of_its_setpoint_still_fails_for_the_operator_who_asked()
     assert_eq!(run.status, NodeStatus::Failure);
     assert_eq!(run.set_temp_c, None);
     assert!(run.decisions.is_empty(), "{:?}", run.decisions);
+}
+
+/// On a night colder than the set-point the sensor starts below it, and a
+/// cooler cannot warm it up to it: the rig sat at 9.1 °C under a 10 °C
+/// set-point with the cooler at 0 % for the step's whole limit. Colder than
+/// asked is cold enough.
+#[tokio::test(start_paused = true)]
+async fn a_sensor_already_colder_than_the_setpoint_is_cooled_at_once() {
+    let started = tokio::time::Instant::now();
+    let run = cool_node_with(&[-11.2], false).await;
+
+    assert_eq!(run.status, NodeStatus::Success);
+    assert!(
+        started.elapsed() < Duration::from_secs(10),
+        "the step must not wait for a cooler that cannot warm the sensor; waited {:?}",
+        started.elapsed()
+    );
+    assert!(
+        run.warnings.is_empty() && run.decisions.is_empty(),
+        "a sensor colder than its set-point is not a quality problem: {:?} {:?}",
+        run.warnings,
+        run.decisions
+    );
+    assert_eq!(
+        run.set_temp_c,
+        Some(-10.0),
+        "the cooler keeps its set-point"
+    );
 }
 
 /// A sensor that warms while its cooler runs is a cooler fault (a dead fan, a

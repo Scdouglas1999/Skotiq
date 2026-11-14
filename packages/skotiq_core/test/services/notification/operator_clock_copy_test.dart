@@ -5,7 +5,8 @@
 // producers of one Stop each capture their own microsecond, so no content key
 // can match.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 class _RecordingTransport extends NotificationTransport {
   final List<({String title, String body})> sent = [];
@@ -20,11 +21,9 @@ class _RecordingTransport extends NotificationTransport {
   bool get isConfigured => true;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final title = message.title;
+    final body = message.body;
     sent.add((title: title, body: body));
     return NotificationResult.ok();
   }
@@ -94,17 +93,20 @@ void main() {
   });
 
   test(
-    r'the catalog variable ${time.local} keeps its documented ISO meaning',
+    r'the catalog variable ${time.local} renders as the sequencer renders it',
     () {
-      // `time.local` is a Rust-canonical catalog variable (its description in
-      // `interpolation_catalog.dart` promises ISO-8601 with offset, and the
-      // Rust drift test pins the pair). The operator-copy fix must NOT have
-      // redefined it — a user template that asks for it still gets ISO.
+      // A user template that asks for `time.local` gets the catalog's local
+      // timestamp with its UTC offset, as a frame name would.
       final rendered = renderNotificationTemplate(
         r'${time.local}',
         const NotificationContext({}),
       );
-      expect(rendered, matches(_isoTimestamp));
+      expect(
+        rendered,
+        matches(
+          RegExp(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}$'),
+        ),
+      );
     },
   );
 }

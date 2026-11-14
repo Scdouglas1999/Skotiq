@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/annotation_panel.dart';
 import 'package:skotiq_app/screens/settings/widgets/annotation_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -56,7 +57,7 @@ void main() {
 
     expect(find.text('Could not load annotation display settings'), findsOne);
     expect(
-      find.textContaining('Bad state: annotation settings unavailable'),
+      find.textContaining('annotation settings unavailable'),
       findsOne,
     );
     expect(find.text('Enable annotations'), findsNothing);
@@ -88,7 +89,7 @@ void main() {
 
     expect(find.text('Could not load annotation marker styles'), findsOne);
     expect(
-      find.textContaining('Bad state: marker style unavailable'),
+      find.textContaining('marker style unavailable'),
       findsOne,
     );
     expect(find.text('Stroke width'), findsNothing);

@@ -5,21 +5,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show loadedDsosProvider;
+import 'package:skotiq_astro/skotiq_astro.dart'
     show
         DeepSkyObject,
         DsoTypeExtension,
         RankedTarget,
         TargetNameResolver,
-        loadedDsosProvider,
         normalizeTargetName;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/authority_bound_dialog.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import '../sequencer_screen.dart';
 
 part 'quick_start_wizard_dialog/_wizard_shell.dart';
@@ -30,8 +38,6 @@ part 'quick_start_wizard_dialog/_safety_step.dart';
 part 'quick_start_wizard_dialog/_review_step.dart';
 
 part 'quick_start_wizard_dialog/_wizard_helpers.dart';
-
-// WIZARD STATE
 
 /// Fallback baselines used only when no matching setting / Smart-Night
 /// recommendation is available. Named so a "fresh install" fallback never
@@ -58,7 +64,6 @@ const double _kWizardGuideSettlePixelsFallback = 1.5;
 const double _kWizardGuideSettleSecondsFallback = 10.0;
 const double _kWizardGuideSettleTimeoutFallback = 60.0;
 
-/// Per-filter exposure configuration in the wizard
 class _FilterExposureConfig {
   String filterName;
   int filterIndex;
@@ -77,7 +82,6 @@ class _FilterExposureConfig {
   double get totalSecs => exposureSecs;
 }
 
-/// Preset for common filter+exposure combinations
 enum _ExposurePreset {
   lrgbBroadband,
   narrowbandSho,
@@ -117,8 +121,6 @@ extension _ExposurePresetLabel on _ExposurePreset {
     }
   }
 }
-
-// WIZARD DIALOG
 
 /// Where a target suggestion in step 1 came from.
 enum _TargetSource { catalog, library, simbad }
@@ -196,12 +198,11 @@ class QuickStartWizardDialog extends ConsumerStatefulWidget {
       _QuickStartWizardDialogState();
 }
 
-class _QuickStartWizardDialogState
-    extends ConsumerState<QuickStartWizardDialog> {
+class _QuickStartWizardDialogState extends ConsumerState<QuickStartWizardDialog>
+    with HostBoundDialogState<QuickStartWizardDialog> {
   int _currentStep = 0;
   static const int _totalSteps = 5;
 
-  // Step 1: Target
   final _targetNameController = TextEditingController();
   final _raController = TextEditingController();
   final _decController = TextEditingController();
@@ -222,7 +223,6 @@ class _QuickStartWizardDialogState
   Object? _searchError;
   String? _onlineLookupMessage;
 
-  // Step 2: Filters & Exposures
   List<_FilterExposureConfig> _filterConfigs = [];
   _ExposurePreset _selectedPreset = _ExposurePreset.custom;
   SmartNightExposureContext? _exposureContext;
@@ -244,7 +244,6 @@ class _QuickStartWizardDialogState
   /// [_initFilterConfigs] and synced from outside in [_syncFilterControllers].
   final Map<int, TextEditingController> _filterControllers = {};
 
-  // Step 3: Automation
   bool _enableAutofocus = true;
   int _autofocusEveryFrames = _kWizardAutofocusEveryFramesFallback;
   bool _enableDithering = true;
@@ -252,7 +251,6 @@ class _QuickStartWizardDialogState
   bool _enableMeridianFlip = true;
   bool _enableAutoGuide = true;
 
-  // Step 4: Safety
   bool _parkOnError = true;
   bool _weatherAbort = false;
   bool _dawnShutdown = true;
@@ -275,21 +273,19 @@ class _QuickStartWizardDialogState
   Object? _initializationError;
   EquipmentProfileModel? _initializedProfile;
   bool _hasConfiguredFilters = false;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _authorityGeneration = 0;
+
+  @override
+  String? get hostChangedMessage => null;
+
+  @override
+  void onHostChanged() {
+    _searchDebounce?.cancel();
+    super.onHostChanged();
+  }
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (identical(previous, next) || !mounted) return;
-        _authorityGeneration++;
-        _searchDebounce?.cancel();
-        closeAuthorityBoundDialog(context);
-      },
-    );
     _initializeWizard();
   }
 
@@ -328,7 +324,6 @@ class _QuickStartWizardDialogState
 
   @override
   void dispose() {
-    _backendSubscription?.close();
     _targetNameController.dispose();
     _raController.dispose();
     _decController.dispose();
@@ -343,8 +338,6 @@ class _QuickStartWizardDialogState
     super.dispose();
   }
 
-  // Sequence generation
-
   Future<void> _createSequence() => _finishWizard(asTemplate: false);
 
   /// Save the wizard's sequence as a reusable template instead of loading it
@@ -353,9 +346,6 @@ class _QuickStartWizardDialogState
 
   Future<void> _finishWizard({required bool asTemplate}) async {
     if (_finishingAsTemplate != null) return;
-    final authority = ref.read(backendProvider);
-    final generation = _authorityGeneration;
-    // Validate target
     final targetName = _targetNameController.text.trim();
     if (targetName.isEmpty) {
       context.showErrorSnackBar('Please enter a target name');
@@ -377,13 +367,11 @@ class _QuickStartWizardDialogState
       return;
     }
 
-    // Build the sequence tree
     final nodes = <String, SequenceNode>{};
     final rootId = const Uuid().v4();
     final rootChildIds = <String>[];
     var orderIndex = 0;
 
-    // -- Cool camera
     if (_coolCamera) {
       final coolId = const Uuid().v4();
       nodes[coolId] = CoolCameraNode(
@@ -395,7 +383,6 @@ class _QuickStartWizardDialogState
       rootChildIds.add(coolId);
     }
 
-    // -- Slew to target
     final slewId = const Uuid().v4();
     nodes[slewId] = SlewNode(
       id: slewId,
@@ -405,7 +392,6 @@ class _QuickStartWizardDialogState
     );
     rootChildIds.add(slewId);
 
-    // -- Plate solve & center
     final centerId = const Uuid().v4();
     nodes[centerId] = CenterNode(
       id: centerId,
@@ -415,7 +401,6 @@ class _QuickStartWizardDialogState
     );
     rootChildIds.add(centerId);
 
-    // -- Initial autofocus
     if (_enableAutofocus) {
       final afId = const Uuid().v4();
       nodes[afId] = AutofocusNode(
@@ -427,7 +412,6 @@ class _QuickStartWizardDialogState
       rootChildIds.add(afId);
     }
 
-    // -- Start guiding
     if (_enableAutoGuide) {
       final guideId = const Uuid().v4();
       // Settle parameters honour the user's Sequencer Settings dither/
@@ -450,12 +434,10 @@ class _QuickStartWizardDialogState
       rootChildIds.add(guideId);
     }
 
-    // -- Main capture loop
     final loopId = const Uuid().v4();
     final loopChildIds = <String>[];
     var loopOrderIndex = 0;
 
-    // Build exposure nodes for each enabled filter inside the loop
     for (final filterConfig in enabledFilters) {
       final expId = const Uuid().v4();
       final hasFilterWheel = _hasConfiguredFilters;
@@ -498,7 +480,6 @@ class _QuickStartWizardDialogState
       loopChildIds.add(flipId);
     }
 
-    // -- Dither after each loop iteration
     if (_enableDithering && _enableAutoGuide) {
       final ditherId = const Uuid().v4();
       final sequencerDefaults = ref.read(sequencerDefaultsProvider);
@@ -515,7 +496,6 @@ class _QuickStartWizardDialogState
       loopChildIds.add(ditherId);
     }
 
-    // Create the loop node
     nodes[loopId] = LoopNode(
       id: loopId,
       name: 'Capture Loop',
@@ -527,7 +507,6 @@ class _QuickStartWizardDialogState
     );
     rootChildIds.add(loopId);
 
-    // -- Stop guiding
     if (_enableAutoGuide) {
       final stopGuideId = const Uuid().v4();
       nodes[stopGuideId] = StopGuidingNode(
@@ -539,7 +518,6 @@ class _QuickStartWizardDialogState
       rootChildIds.add(stopGuideId);
     }
 
-    // -- Warm camera
     if (_coolCamera) {
       final warmId = const Uuid().v4();
       nodes[warmId] = WarmCameraNode(
@@ -568,7 +546,6 @@ class _QuickStartWizardDialogState
       rootChildIds.add(parkId);
     }
 
-    // -- Create the target header as root
     final targetHeaderId = const Uuid().v4();
     nodes[targetHeaderId] = TargetHeaderNode(
       id: targetHeaderId,
@@ -580,7 +557,6 @@ class _QuickStartWizardDialogState
       orderIndex: 0,
     );
 
-    // -- Create the InstructionSet root inside the target
     nodes[rootId] = InstructionSetNode(
       id: rootId,
       name: 'Sequence',
@@ -592,7 +568,6 @@ class _QuickStartWizardDialogState
     // -- Create triggers as parallel watchdogs if needed
     // Triggers run alongside the capture loop
     if (_enableAutofocus && _autofocusEveryFrames > 0) {
-      // HFR degradation trigger for refocusing
       final hfrTriggerId = const Uuid().v4();
       nodes[hfrTriggerId] = RecoveryNode(
         id: hfrTriggerId,
@@ -609,7 +584,6 @@ class _QuickStartWizardDialogState
           .copyWith(childIds: [rootId, hfrTriggerId]);
     }
 
-    // -- Weather abort recovery
     if (_weatherAbort) {
       final weatherRecoveryId = const Uuid().v4();
       nodes[weatherRecoveryId] = RecoveryNode(
@@ -651,7 +625,6 @@ class _QuickStartWizardDialogState
       );
     }
 
-    // Build the Sequence object
     final sequence = Sequence.create(
       name: '$targetName Sequence',
       description: _buildDescription(enabledFilters),
@@ -669,13 +642,14 @@ class _QuickStartWizardDialogState
       try {
         await repository.saveSequence(sequence, isTemplate: true);
       } catch (error) {
-        if (!_isCurrentAuthority(authority, generation)) return;
+        if (host.isStale) return;
         if (!mounted) return;
         setState(() => _finishingAsTemplate = null);
-        context.showErrorSnackBar('Could not save template: $error');
+        context.showErrorSnackBar(
+            'Could not save template: ${userFacingError(error)}');
         return;
       }
-      if (!_isCurrentAuthority(authority, generation)) return;
+      if (host.isStale) return;
     } else {
       // Completing a wizard expresses intent to create a sequence, but it is
       // not consent to destroy a different draft that was already open. Use
@@ -684,7 +658,7 @@ class _QuickStartWizardDialogState
       try {
         sequenceNotifier.loadSequence(sequence);
       } on UnsavedChangesException catch (error) {
-        if (!_isCurrentAuthority(authority, generation)) return;
+        if (host.isStale) return;
         final discard = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
@@ -715,7 +689,7 @@ class _QuickStartWizardDialogState
             ],
           ),
         );
-        if (!_isCurrentAuthority(authority, generation)) return;
+        if (host.isStale) return;
         if (discard != true) {
           setState(() => _finishingAsTemplate = null);
           return;
@@ -729,12 +703,12 @@ class _QuickStartWizardDialogState
           return;
         }
       } on SequenceLockedException catch (locked) {
-        if (!_isCurrentAuthority(authority, generation)) return;
+        if (host.isStale) return;
         setState(() => _finishingAsTemplate = null);
         context.showErrorSnackBar(locked.message);
         return;
       }
-      if (!_isCurrentAuthority(authority, generation)) return;
+      if (host.isStale) return;
       ref.read(sequencerTabProvider.notifier).state = 0;
     }
 
@@ -748,7 +722,7 @@ class _QuickStartWizardDialogState
         defaultsError = error;
       }
     }
-    if (!_isCurrentAuthority(authority, generation)) return;
+    if (host.isStale) return;
     if (!mounted) return;
 
     if (defaultsError != null) {
@@ -796,7 +770,7 @@ class _QuickStartWizardDialogState
         child: EmptyState(
           icon: LucideIcons.alertTriangle,
           title: 'Could not load wizard defaults',
-          body: '$error',
+          body: userFacingError(error),
           action: SkotiqButton(
             label: 'Retry',
             icon: LucideIcons.refreshCw,

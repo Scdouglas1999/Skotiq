@@ -17,11 +17,9 @@ ProviderContainer _container({
         notifier.state = sequence;
         return notifier;
       }),
-      sequenceProgressProvider.overrideWith((ref) {
-        final n = SequenceProgressNotifier();
-        // ignore: invalid_use_of_protected_member
-        n.state = progress;
-        return n;
+      runRecordProvider.overrideWith((ref) {
+        return RunRecordNotifier()
+          ..seed((run) => run.copyWith(progress: progress));
       }),
     ],
   );
@@ -103,6 +101,24 @@ void main() {
       final p = c.read(targetExecutionProgressProvider(t.targetId));
       expect(p.completedFrames, 4);
       expect(p.completedIntegrationSecs, 4 * 60);
+    });
+
+    // Stopped during its third frame, a 4-frame step read "Stopped · 0 of 4".
+    test('a stopped exposure keeps the frames it took', () {
+      final t = _buildTwoExposureTarget();
+      final c = _container(
+        sequence: t.sequence,
+        progress: SequenceProgress(
+          nodeStatuses: {t.firstExpoId: NodeStatus.cancelled},
+          // The budget report after each burst leaves the percent at 0.
+          nodeProgressPercent: {t.firstExpoId: 0.0},
+        ),
+      );
+      c
+          .read(runRecordProvider.notifier)
+          .recordFrames(t.firstExpoId, captured: 3, planned: 8);
+      final p = c.read(targetExecutionProgressProvider(t.targetId));
+      expect(p.completedFrames, 3);
     });
 
     test('skipped/failure exposures contribute zero completed frames', () {

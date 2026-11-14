@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import '../../../utils/user_facing_error.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import '../../../utils/cooled_camera_guard.dart' show warmupOutcomeMessage;
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
+import '../../../widgets/sensitivity_field.dart';
 import 'panel_widgets.dart';
 
 class CameraPanel extends ConsumerStatefulWidget {
@@ -53,9 +57,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
     super.dispose();
   }
 
-  bool _isCurrentAuthority(SkotiqBackend authority) =>
-      mounted && identical(ref.read(backendProvider), authority);
-
   @override
   Widget build(BuildContext context) {
     final cameraState = ref.watch(cameraStateProvider);
@@ -68,20 +69,13 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
     final isConnected =
         cameraState.connectionState == DeviceConnectionState.connected;
 
-    // Watch camera capabilities to gate UI features
     final capabilitiesAsync =
         ref.watch(cameraCapabilitiesProvider(cameraState.deviceId ?? ''));
     final capabilities = capabilitiesAsync.valueOrNull;
-    final capabilitiesLoading = capabilitiesAsync.isLoading;
-    final hasCoolingTelemetry = cameraState.temperature != null ||
-        cameraState.coolerPower != null ||
-        cameraState.isCooling;
-    // Show cooling controls when support is known, still loading, or live
-    // telemetry confirms cooling is active.
-    final showCoolingSection = isConnected &&
-        (capabilitiesLoading ||
-            (capabilities?.canSetCcdTemperature == true) ||
-            hasCoolingTelemetry);
+    // A camera with no cooler has no cooling card; a sensor temperature it
+    // reports is not a cooler.
+    final showCoolingSection =
+        isConnected && ref.watch(cameraHasCoolerProvider);
     // Cooler target-temperature slider range. Prefer the camera's reported
     // operating range; fall back to a conservative -30..20°C window when caps
     // are unknown or when a driver reports a nonsensical range (min >= max).
@@ -104,15 +98,14 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
     // If capabilities are unavailable, infer controls from live camera telemetry
     // to avoid blocking devices that omit explicit capability reporting.
     final canSetGain = capabilities?.canSetGain ?? (cameraState.gain != null);
-    final canSetOffset =
-        capabilities?.canSetOffset ?? (cameraState.offset != null);
+    final sensitivity = ExposureSensitivity.of(capabilities);
+    final canSetOffset = sensitivity.hasOffset &&
+        (capabilities?.canSetOffset ?? (cameraState.offset != null));
 
-    // Get binning options based on camera capabilities
     final binningOptions = ref.watch(
       cameraBinningOptionsProvider(cameraState.deviceId ?? ''),
     );
 
-    // Ensure current binning value is valid for available options
     final currentBinning = binningOptions.contains(exposureSettings.binning)
         ? exposureSettings.binning
         : binningOptions.first;
@@ -121,7 +114,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Connection status
         if (!isConnected)
           Container(
             padding: const EdgeInsets.all(12),
@@ -145,15 +137,12 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
               ],
             ),
           ),
-
-        // Cooling Section - show if camera supports cooling or while loading capabilities
         if (showCoolingSection)
           PanelSection(
             title: 'Cooling',
             colors: widget.colors,
             child: Column(
               children: [
-                // Current temperature display
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -164,7 +153,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                       children: [
                         Text(
                           isConnected && cameraState.temperature != null
-                              ? '${cameraState.temperature!.toStringAsFixed(1)}°C'
+                              ? formatCelsius(cameraState.temperature!)
                               : '\u2014',
                           style: SkotiqTypography.readoutSm.copyWith(
                             color: isConnected
@@ -186,6 +175,29 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             ),
                           ),
                       ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Cooler',
+                        style: SkotiqTypography.caption
+                            .copyWith(color: widget.colors.textSecondary)),
+                    Text(
+                      !isConnected
+                          ? '—'
+                          : switch (cameraState.coolerOn) {
+                              true => 'On',
+                              false => 'Off',
+                              null => 'Not reported',
+                            },
+                      style: SkotiqTypography.readoutSm.copyWith(
+                        color: isConnected && cameraState.coolerOn != null
+                            ? widget.colors.textPrimary
+                            : widget.colors.textMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -218,7 +230,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             style: SkotiqTypography.caption
                                 .copyWith(color: widget.colors.textSecondary)),
                         Text(
-                          '${coolingStatus.targetTemp.toStringAsFixed(1)}°C',
+                          formatCelsius(coolingStatus.targetTemp),
                           style: SkotiqTypography.caption
                               .copyWith(color: widget.colors.textSecondary),
                         ),
@@ -226,8 +238,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                     ),
                   ),
                 const SizedBox(height: 16),
-
-                // Target temperature slider
                 SliderRowInteractive(
                   label: 'Target temperature',
                   value: targetTemp.clamp(coolerMinTempC, coolerMaxTempC),
@@ -264,7 +274,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             !cameraState.isWarming,
                         onTap: () async {
                           if (_isCooling) return;
-                          final authority = ref.read(backendProvider);
+                          final host = ref.backendScope(alive: () => mounted);
                           final service = ref.read(deviceServiceProvider);
                           setState(() => _isCooling = true);
                           try {
@@ -273,26 +283,23 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                               targetTemp: targetTemp,
                             );
 
-                            if (_isCurrentAuthority(authority)) {
-                              // Update settings state
+                            if (host.isCurrent) {
                               ref.read(coolingSettingsProvider.notifier).state =
                                   coolingSettings.copyWith(
                                 enabled: true,
                                 targetTemp: targetTemp,
                               );
-                              // Update camera state
                               ref
                                   .read(cameraStateProvider.notifier)
                                   .setCooling(true);
                             }
                           } catch (e) {
-                            if (context.mounted &&
-                                _isCurrentAuthority(authority)) {
+                            if (context.mounted && host.isCurrent) {
                               context.showErrorSnackBar(
-                                  'Failed to set cooling: $e');
+                                  'Failed to set cooling: ${userFacingError(e)}');
                             }
                           } finally {
-                            if (_isCurrentAuthority(authority)) {
+                            if (host.isCurrent) {
                               setState(() => _isCooling = false);
                             }
                           }
@@ -321,7 +328,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             return;
                           }
                           if (_isCooling) return;
-                          final authority = ref.read(backendProvider);
+                          final host = ref.backendScope(alive: () => mounted);
                           setState(() => _isCooling = true);
                           try {
                             // Warm-up is a gradual set-point ramp. Turning
@@ -332,18 +339,17 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             final message = warmupOutcomeMessage(outcome);
                             if (message != null &&
                                 context.mounted &&
-                                _isCurrentAuthority(authority)) {
+                                host.isCurrent) {
                               context.showSuccessSnackBar(message);
                             }
                           } catch (e) {
-                            if (context.mounted &&
-                                _isCurrentAuthority(authority)) {
+                            if (context.mounted && host.isCurrent) {
                               context.showErrorSnackBar(
                                 'Failed to warm up: ${userFacingError(e)}',
                               );
                             }
                           } finally {
-                            if (_isCurrentAuthority(authority)) {
+                            if (host.isCurrent) {
                               setState(() => _isCooling = false);
                             }
                           }
@@ -355,25 +361,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
               ],
             ),
           ),
-        // Show "not supported" message when camera is connected and capabilities confirm no cooling support
-        if (isConnected &&
-            !capabilitiesLoading &&
-            !capabilitiesAsync.hasError &&
-            capabilities != null &&
-            !capabilities.canSetCcdTemperature)
-          PanelSection(
-            title: 'Cooling',
-            colors: widget.colors,
-            child: Text(
-              'Cooling not supported by this camera',
-              style: SkotiqTypography.caption.copyWith(
-                  color: widget.colors.textSecondary,
-                  fontStyle: FontStyle.italic),
-            ),
-          ),
         const SizedBox(height: 20),
-
-        // Sensor Settings
         PanelSection(
           title: 'Sensor',
           colors: widget.colors,
@@ -428,7 +416,8 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                               if (idx < 0) return;
                               final deviceId = cameraState.deviceId;
                               if (deviceId == null) return;
-                              final authority = ref.read(backendProvider);
+                              final host =
+                                  ref.backendScope(alive: () => mounted);
                               final deviceBackend =
                                   ref.read(deviceBackendProvider);
                               final exposureUpdater = ref.read(
@@ -440,7 +429,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                                   deviceId,
                                   idx,
                                 );
-                                if (_isCurrentAuthority(authority)) {
+                                if (host.isCurrent) {
                                   final latestSettings =
                                       ref.read(exposureSettingsProvider);
                                   exposureUpdater.update(
@@ -452,14 +441,13 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                                   );
                                 }
                               } catch (e) {
-                                if (context.mounted &&
-                                    _isCurrentAuthority(authority)) {
+                                if (context.mounted && host.isCurrent) {
                                   context.showErrorSnackBar(
-                                    'Failed to set read mode: $e',
+                                    'Failed to set read mode: ${userFacingError(e)}',
                                   );
                                 }
                               } finally {
-                                if (_isCurrentAuthority(authority)) {
+                                if (host.isCurrent) {
                                   setState(
                                     () => _isChangingReadoutMode = false,
                                   );
@@ -475,38 +463,57 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
           ),
         ),
         const SizedBox(height: 20),
-
-        // Gain/Offset - only show if camera supports these features
         if (canSetGain || canSetOffset)
           PanelSection(
-            title: 'Gain / Offset',
+            title: sensitivity.hasOffset
+                ? '${sensitivity.label} / Offset'
+                : sensitivity.label,
             colors: widget.colors,
             child: Column(
               children: [
-                // Only show gain control if camera supports it
                 if (canSetGain)
-                  InputRowEditable(
-                    label:
-                        'Gain${capabilities?.gainMin != null ? ' (${capabilities!.gainMin}-${capabilities.gainMax})' : ''}',
-                    helpId: FieldHelpId.cameraGain,
-                    value: exposureSettings.gain.toString(),
-                    colors: widget.colors,
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null && parsed >= 0) {
-                        // Clamp to valid range if capabilities available
-                        final clamped = capabilities?.gainMin != null
-                            ? parsed.clamp(
-                                capabilities!.gainMin!, capabilities.gainMax!)
-                            : parsed;
+                  SensitivityField(
+                    value: exposureSettings.gain,
+                    sensitivity: sensitivity,
+                    onChanged: (gain) =>
                         ref.read(manualExposureSettingsUpdaterProvider).update(
-                              exposureSettings.copyWith(gain: clamped),
+                              exposureSettings.copyWith(gain: gain),
+                            ),
+                    isoField: (context, iso) => DropdownRow(
+                      label: iso.label,
+                      value: '${iso.accept(exposureSettings.gain)}',
+                      items: [for (final s in iso.speeds) '$s'],
+                      colors: widget.colors,
+                      helpId: FieldHelpId.cameraGain,
+                      onChanged: (picked) {
+                        final speed = int.tryParse(picked ?? '');
+                        if (speed == null) return;
+                        ref.read(manualExposureSettingsUpdaterProvider).update(
+                              exposureSettings.copyWith(gain: speed),
                             );
-                      }
-                    },
+                      },
+                    ),
+                    gainField: (_) => InputRowEditable(
+                      label:
+                          'Gain${capabilities?.gainMin != null ? ' (${capabilities!.gainMin}-${capabilities.gainMax})' : ''}',
+                      helpId: FieldHelpId.cameraGain,
+                      value: exposureSettings.gain.toString(),
+                      colors: widget.colors,
+                      onChanged: (value) {
+                        final parsed = int.tryParse(value);
+                        if (parsed != null && parsed >= 0) {
+                          final clamped = capabilities?.gainMin != null
+                              ? parsed.clamp(
+                                  capabilities!.gainMin!, capabilities.gainMax!)
+                              : parsed;
+                          ref
+                              .read(manualExposureSettingsUpdaterProvider)
+                              .update(exposureSettings.copyWith(gain: clamped));
+                        }
+                      },
+                    ),
                   ),
                 if (canSetGain && canSetOffset) const SizedBox(height: 12),
-                // Only show offset control if camera supports it
                 if (canSetOffset)
                   InputRowEditable(
                     label:
@@ -517,7 +524,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                     onChanged: (value) {
                       final parsed = int.tryParse(value);
                       if (parsed != null && parsed >= 0) {
-                        // Clamp to valid range if capabilities available
                         final clamped = capabilities?.offsetMin != null
                             ? parsed.clamp(capabilities!.offsetMin!,
                                 capabilities.offsetMax!)

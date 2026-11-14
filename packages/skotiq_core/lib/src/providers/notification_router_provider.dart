@@ -9,25 +9,32 @@
 // Key-value DAO entries:
 //   * `notification_routing_matrix`       -> NotificationRoutingMatrix.toJson()
 //   * `notification_transport_email`      -> EmailTransportConfig.toJson() (no password)
-//   * `notification_transport_webhook`    -> WebhookTransportConfig.toJson()
+//   * `notification_transport_webhookGeneric` -> WebhookTransportConfig.toJson()
 //                                            (no URL/auth headers)
 //   * `notification_transport_pushover`   -> PushoverTransportConfig.toJson() (no tokens)
 //   * `notification_transport_telegram`   -> TelegramTransportConfig.toJson() (no bot token)
 //   * `notification_transport_discord`    -> DiscordTransportConfig.toJson() (no webhook URL)
 //   * `notification_transport_mqtt`       -> MqttTransportConfig.toJson() (no password)
 //   * `notification_secrets_migrated_v2`  -> 'true' once one-shot migration done.
+//   * `notification_legacy_credentials_carried_v1` -> 'true' once the
+//     pre-router Discord/Pushover credentials have been carried over.
+//
+// The transport configs are the only credentials anything sends with. The
+// `discordWebhook` / `pushoverKey` / `pushoverUser` app settings are what the
+// app sent with before the router existed; they stay as the wire a linked
+// client edits the host's Discord/Pushover config through (app settings sync
+// to the host, the keyring does not), and this file keeps the two in step.
 //
 // We deliberately keep one key per transport so a corrupt blob in one
 // (say, the user pasted invalid JSON into a webhook header field) only
 // disables that one transport rather than the whole routing system.
 
+import 'async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/notification/notification_categories.dart';
 import '../models/notification/transport_configs.dart';
@@ -45,12 +52,11 @@ import '../services/notification/transports/webhook_transport.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'push_notification_provider.dart';
+import 'settings_provider.dart';
 import 'ui_notification_provider.dart';
-
-const String _kRoutingMatrixSettingKey = 'notification_routing_matrix';
-
-String _transportSettingKey(NotificationTransportKind kind) =>
-    'notification_transport_${kind.storageKey}';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
+import '../services/logging_service.dart';
 
 /// Serializes persistence operations while still returning an independent
 /// future to each caller. Notification settings are edited from several
@@ -86,7 +92,7 @@ mixin _SerializedAsyncWrites<T> on AsyncNotifier<T> {
     SecretsStore? secrets,
     required String transport,
   }) {
-    final daoChanged = !identical(ref.read(settingsDaoProvider), dao);
+    final daoChanged = ref.scopeOver(settingsDaoProvider, dao).isStale;
     final secretsChanged =
         secrets != null && !identical(ref.read(secretsStoreProvider), secrets);
     if (daoChanged || secretsChanged) {
@@ -107,7 +113,7 @@ mixin _SerializedAsyncWrites<T> on AsyncNotifier<T> {
 Future<void> _persistConfigWithSecrets({
   required SettingsDao dao,
   required SecretsStore secrets,
-  required String settingKey,
+  required Setting<String?> row,
   required String encodedConfig,
   required Map<String, String> secretValues,
 }) async {
@@ -122,17 +128,16 @@ Future<void> _persistConfigWithSecrets({
       await secrets.write(entry.key, entry.value);
       writtenFields.add(entry.key);
     }
-    await dao.setSetting(settingKey, encodedConfig);
+    await dao.write(row, encodedConfig);
   } catch (error, stackTrace) {
     for (final field in writtenFields.reversed) {
       try {
         await secrets.write(field, previousValues[field] ?? '');
       } catch (rollbackError) {
-        developer.log(
+        Log.error(
           '[NotificationProviders] Could not roll back $field after a '
           'config save failed: $rollbackError',
-          name: 'NotificationProviders',
-          level: 1000,
+          source: 'NotificationProviders',
           error: rollbackError,
         );
       }
@@ -140,8 +145,6 @@ Future<void> _persistConfigWithSecrets({
     Error.throwWithStackTrace(error, stackTrace);
   }
 }
-
-// Secrets store provider
 
 /// Overridable provider for the platform secrets store. Production
 /// (apps/desktop, apps/mobile) uses [SecretsStore.platformDefault]; tests
@@ -161,6 +164,114 @@ final notificationSecretsMigrationProvider = FutureProvider<bool>((ref) async {
   return store.migrateFromPlaintext(dao);
 });
 
+/// The routing rows the pre-router senders posted every message of: the
+/// built-in alerts travel under `custom`, the morning message under
+/// `darkroomDraftReady`.
+const _legacySenderRows = [
+  NotificationCategory.custom,
+  NotificationCategory.darkroomDraftReady,
+];
+
+/// One-time carry-over for an install that configured Discord or Pushover
+/// before the router existed, so it keeps receiving what it received.
+///
+/// The credential goes into the transport's keyring slot unless that slot
+/// already holds one (a stored credential is never replaced or blanked), and
+/// the transport is added to the rows the old senders posted under. Runs
+/// before the Discord, Pushover and matrix configs are first read on the
+/// host. A linked client skips it: its local database is not the host's.
+///
+/// A failure is logged and retried on the next launch; it must not take the
+/// transport configs down with it.
+final legacyNotificationCredentialsProvider = FutureProvider<void>((ref) async {
+  await ref.read(notificationSecretsMigrationProvider.future);
+  if (ref.read(isRemoteModeProvider)) return;
+  final dao = ref.read(settingsDaoProvider);
+  final secrets = ref.read(secretsStoreProvider);
+  try {
+    if (await dao.read(StoreSettings.legacyNotificationCredentialsCarried)) {
+      return;
+    }
+    final settings = await ref.read(appSettingsProvider.future);
+    final webhook = settings.discordWebhook.trim();
+    final token = settings.pushoverKey.trim();
+    final user = settings.pushoverUser.trim();
+    final carried = <NotificationTransportKind>[];
+
+    if (webhook.isNotEmpty) {
+      if (!await secrets.has(SecretField.discordWebhookUrl)) {
+        await secrets.write(SecretField.discordWebhookUrl, webhook);
+      }
+      carried.add(NotificationTransportKind.discord);
+    }
+    if (token.isNotEmpty && user.isNotEmpty) {
+      if (!await secrets.has(SecretField.pushoverApiToken) &&
+          !await secrets.has(SecretField.pushoverUserKey)) {
+        await secrets.write(SecretField.pushoverApiToken, token);
+        await secrets.write(SecretField.pushoverUserKey, user);
+      }
+      carried.add(NotificationTransportKind.pushover);
+    }
+
+    if (carried.isNotEmpty) {
+      final raw = await dao.read(StoreSettings.notificationRouting);
+      var matrix = raw == null
+          ? NotificationRoutingMatrix.defaults()
+          : NotificationRoutingMatrix.fromJson(
+              jsonDecode(raw) as Map<String, dynamic>,
+            );
+      for (final row in _legacySenderRows) {
+        final rule = matrix.ruleFor(row);
+        matrix = matrix.withRule(
+          row,
+          rule.copyWith(
+            transports: [
+              ...rule.transports,
+              for (final kind in carried)
+                if (!rule.transports.contains(kind)) kind,
+            ],
+          ),
+        );
+      }
+      await dao.write(
+        StoreSettings.notificationRouting,
+        jsonEncode(matrix.toJson()),
+      );
+    }
+    await dao.write(StoreSettings.legacyNotificationCredentialsCarried, true);
+  } catch (e, stackTrace) {
+    Log.error(
+      '[NotificationProviders] Could not carry the earlier Discord/Pushover '
+      'settings into notification routing: $e',
+      source: 'NotificationProviders',
+      error: e,
+      stackTrace: stackTrace,
+    );
+  }
+});
+
+/// Keeps the app-settings copy of a credential in step after a transport
+/// save, but only where one already exists: a secret is never copied out of
+/// the keyring into app settings (which ride export and backup) for the first
+/// time.
+Future<void> _mirrorToAppSettings(
+  List<({String current, String value, Future<void> Function(String) set})>
+  fields,
+) async {
+  if (fields.every((f) => f.current.isEmpty)) return;
+  try {
+    for (final field in fields) {
+      if (field.current != field.value) await field.set(field.value);
+    }
+  } catch (e) {
+    Log.warning(
+      '[NotificationProviders] Could not update the app-settings copy of a '
+      'transport credential: $e',
+      source: 'NotificationProviders',
+    );
+  }
+}
+
 // Per-transport config notifiers
 
 class EmailConfigNotifier extends AsyncNotifier<EmailTransportConfig>
@@ -174,8 +285,8 @@ class EmailConfigNotifier extends AsyncNotifier<EmailTransportConfig>
 
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.email),
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.email),
     );
     // A missing blob is a legitimate first-run default; a present-but-corrupt
     // blob must surface as an error rather than silently reverting to defaults
@@ -195,10 +306,9 @@ class EmailConfigNotifier extends AsyncNotifier<EmailTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad email config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -223,7 +333,9 @@ class EmailConfigNotifier extends AsyncNotifier<EmailTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(NotificationTransportKind.email),
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.email,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.emailPassword: config.password},
       );
@@ -244,8 +356,10 @@ class WebhookConfigNotifier extends AsyncNotifier<WebhookTransportConfig>
     await ref.read(notificationSecretsMigrationProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.webhookGeneric),
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(
+        NotificationTransportKind.webhookGeneric,
+      ),
     );
     // Missing blob → first-run default; corrupt blob → surface the error.
     final WebhookTransportConfig base;
@@ -276,10 +390,9 @@ class WebhookConfigNotifier extends AsyncNotifier<WebhookTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad webhook config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -328,7 +441,7 @@ class WebhookConfigNotifier extends AsyncNotifier<WebhookTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(
+        row: StoreSettings.notificationTransport(
           NotificationTransportKind.webhookGeneric,
         ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
@@ -353,11 +466,11 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
     with _SerializedAsyncWrites<PushoverTransportConfig> {
   @override
   Future<PushoverTransportConfig> build() async {
-    await ref.read(notificationSecretsMigrationProvider.future);
+    await ref.read(legacyNotificationCredentialsProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.pushover),
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.pushover),
     );
     final PushoverTransportConfig base = raw == null
         ? const PushoverTransportConfig()
@@ -373,10 +486,9 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad pushover config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -401,7 +513,9 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(NotificationTransportKind.pushover),
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.pushover,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {
           SecretField.pushoverApiToken: config.apiToken,
@@ -414,6 +528,22 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
         transport: 'Pushover',
       );
       state = AsyncData(config);
+      final legacy = ref.read(appSettingsProvider).valueOrNull;
+      if (legacy != null) {
+        final settings = ref.read(appSettingsProvider.notifier);
+        await _mirrorToAppSettings([
+          (
+            current: legacy.pushoverKey,
+            value: config.apiToken,
+            set: settings.setPushoverKey,
+          ),
+          (
+            current: legacy.pushoverUser,
+            value: config.userKey,
+            set: settings.setPushoverUser,
+          ),
+        ]);
+      }
     });
   }
 }
@@ -425,8 +555,8 @@ class TelegramConfigNotifier extends AsyncNotifier<TelegramTransportConfig>
     await ref.read(notificationSecretsMigrationProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.telegram),
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.telegram),
     );
     final TelegramTransportConfig base = raw == null
         ? const TelegramTransportConfig()
@@ -441,10 +571,9 @@ class TelegramConfigNotifier extends AsyncNotifier<TelegramTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad telegram config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -469,7 +598,9 @@ class TelegramConfigNotifier extends AsyncNotifier<TelegramTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(NotificationTransportKind.telegram),
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.telegram,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.telegramBotToken: config.botToken},
       );
@@ -487,11 +618,11 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
     with _SerializedAsyncWrites<DiscordTransportConfig> {
   @override
   Future<DiscordTransportConfig> build() async {
-    await ref.read(notificationSecretsMigrationProvider.future);
+    await ref.read(legacyNotificationCredentialsProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.discord),
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.discord),
     );
     final DiscordTransportConfig base = raw == null
         ? const DiscordTransportConfig()
@@ -509,10 +640,9 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad discord config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -537,7 +667,9 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(NotificationTransportKind.discord),
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.discord,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.discordWebhookUrl: config.webhookUrl},
       );
@@ -547,6 +679,16 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
         transport: 'Discord',
       );
       state = AsyncData(config);
+      final legacy = ref.read(appSettingsProvider).valueOrNull;
+      if (legacy != null) {
+        await _mirrorToAppSettings([
+          (
+            current: legacy.discordWebhook,
+            value: config.webhookUrl,
+            set: ref.read(appSettingsProvider.notifier).setDiscordWebhook,
+          ),
+        ]);
+      }
     });
   }
 }
@@ -558,8 +700,8 @@ class MqttConfigNotifier extends AsyncNotifier<MqttTransportConfig>
     await ref.read(notificationSecretsMigrationProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.mqtt),
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.mqtt),
     );
     final MqttTransportConfig base = raw == null
         ? const MqttTransportConfig()
@@ -574,10 +716,9 @@ class MqttConfigNotifier extends AsyncNotifier<MqttTransportConfig>
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad mqtt config: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -602,7 +743,9 @@ class MqttConfigNotifier extends AsyncNotifier<MqttTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(NotificationTransportKind.mqtt),
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.mqtt,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.mqttPassword: config.password ?? ''},
       );
@@ -616,18 +759,18 @@ class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>
     with _SerializedAsyncWrites<NotificationRoutingMatrix> {
   @override
   Future<NotificationRoutingMatrix> build() async {
+    await ref.read(legacyNotificationCredentialsProvider.future);
     final dao = ref.read(settingsDaoProvider);
-    final raw = await dao.getSetting(_kRoutingMatrixSettingKey);
+    final raw = await dao.read(StoreSettings.notificationRouting);
     if (raw == null) return NotificationRoutingMatrix.defaults();
     try {
       return NotificationRoutingMatrix.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[NotificationProviders] Bad routing matrix: $e',
-        name: 'NotificationProviders',
-        level: 1000,
+        source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
@@ -644,11 +787,11 @@ class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>
 
   Future<void> _persist(NotificationRoutingMatrix matrix) async {
     final dao = ref.read(settingsDaoProvider);
-    await dao.setSetting(
-      _kRoutingMatrixSettingKey,
+    await dao.write(
+      StoreSettings.notificationRouting,
       jsonEncode(matrix.toJson()),
     );
-    if (!identical(ref.read(settingsDaoProvider), dao)) {
+    if (ref.scopeOver(settingsDaoProvider, dao).isStale) {
       throw StateError(
         'The settings database changed while saving notification routing.',
       );
@@ -685,8 +828,6 @@ class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>
     });
   }
 }
-
-// Public providers
 
 final emailTransportConfigProvider =
     AsyncNotifierProvider<EmailConfigNotifier, EmailTransportConfig>(
@@ -733,13 +874,13 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
   final backend = ref.watch(diagnosticsBackendProvider);
   final uiNotifier = ref.read(uiNotificationProvider.notifier);
 
-  // Routing credentials and delivery are host-owned. A NetworkBackend mirrors
+  // Routing credentials and delivery are host-owned. A linked client mirrors
   // the host event stream into a controller device; running that stream
   // through configs from the controller's local database would make external
   // delivery depend on the phone being connected and can duplicate the host's
   // own sends. Remote controllers retain only local in-app banners until the
   // host exposes routing configuration APIs.
-  if (backend is NetworkBackend) {
+  if (ref.watch(isRemoteModeProvider)) {
     final router = NotificationRouter(
       transports: [InAppTransport(uiNotifier)],
       matrix: inAppOnlyFallbackMatrix(),
@@ -839,6 +980,42 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
     next.whenData(router.updateMatrix);
   });
 
+  // A linked client has no access to this host's keyring; it edits Discord
+  // and Pushover through the three app settings that sync here. Whatever it
+  // changes becomes the transport config.
+  ref.listen(appSettingsProvider, (prev, next) {
+    // On a linked client these settings mirror the host's, as markers when
+    // the link has no admin access; they are not this computer's credentials.
+    if (ref.read(isRemoteModeProvider)) return;
+    final before = prev?.valueOrNull;
+    final after = next.valueOrNull;
+    if (before == null || after == null) return;
+    if (before.discordWebhook != after.discordWebhook) {
+      final webhook = after.discordWebhook.trim();
+      final cfg = ref.read(discordTransportConfigProvider).valueOrNull;
+      if (cfg != null && cfg.webhookUrl != webhook) {
+        _saveFromAppSettings(
+          ref
+              .read(discordTransportConfigProvider.notifier)
+              .save(cfg.copyWith(webhookUrl: webhook)),
+        );
+      }
+    }
+    if (before.pushoverKey != after.pushoverKey ||
+        before.pushoverUser != after.pushoverUser) {
+      final token = after.pushoverKey.trim();
+      final user = after.pushoverUser.trim();
+      final cfg = ref.read(pushoverTransportConfigProvider).valueOrNull;
+      if (cfg != null && (cfg.apiToken != token || cfg.userKey != user)) {
+        _saveFromAppSettings(
+          ref
+              .read(pushoverTransportConfigProvider.notifier)
+              .save(cfg.copyWith(apiToken: token, userKey: user)),
+        );
+      }
+    }
+  });
+
   ref.onDispose(() {
     // Don't await — provider disposal is synchronous.
     unawaited(router.dispose());
@@ -846,6 +1023,38 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
 
   return router;
 });
+
+void _saveFromAppSettings(Future<void> save) {
+  unawaited(
+    save.catchError((Object e) {
+      Log.error(
+        '[NotificationProviders] Could not apply a credential edited from a '
+        'linked client: $e',
+        source: 'NotificationProviders',
+      );
+    }),
+  );
+}
+
+/// Sends one test message through a transport built from credentials that
+/// are not the stored config (what a linked client has typed, before the host
+/// has them), then disposes it.
+final notificationTransportProbeProvider =
+    Provider<Future<NotificationResult> Function(NotificationTransport)>((ref) {
+      return (transport) async {
+        try {
+          return await transport.send(
+            NotificationMessage(
+              category: NotificationCategory.custom,
+              title: 'Skotiq test',
+              body: 'This is a test notification from Skotiq.',
+            ),
+          );
+        } finally {
+          await transport.dispose();
+        }
+      };
+    });
 
 /// Transport kinds that currently hold enough configuration to actually
 /// deliver.

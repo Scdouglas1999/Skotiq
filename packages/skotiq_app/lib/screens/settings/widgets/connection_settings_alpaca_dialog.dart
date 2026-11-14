@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-
-import '../../../utils/user_facing_error.dart';
 
 /// Alpaca (ASCOM Remote) server address editor.
 ///
@@ -68,7 +67,8 @@ class _AlpacaServerDialogState extends ConsumerState<AlpacaServerDialog> {
       if (!mounted) return;
       setState(() {
         _statusSuccess = false;
-        _statusMessage = 'Could not load saved Alpaca settings: $e';
+        _statusMessage =
+            'Could not load saved Alpaca settings: ${userFacingError(e)}';
       });
     }
   }
@@ -178,7 +178,8 @@ class _AlpacaServerDialogState extends ConsumerState<AlpacaServerDialog> {
       setState(() {
         _isSaving = false;
         _statusSuccess = false;
-        _statusMessage = 'Could not save Alpaca settings: $e';
+        _statusMessage =
+            'Could not save Alpaca settings: ${userFacingError(e)}';
       });
       return;
     }

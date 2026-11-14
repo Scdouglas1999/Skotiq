@@ -9,7 +9,9 @@
 // altitude limit, the moon setting, the plan's estimated end and dawn.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 import '../session/session_events_provider.dart';
 import '../tonight_night.dart';
@@ -36,7 +38,7 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
       : UpcomingItemVm(
           kind: UpcomingKind.meridianFlip,
           at: flipAt,
-          tone: MetricTone.warning,
+          tone: MetricGridTone.warning,
         );
 
   if (!phase.isRunLive) {
@@ -89,6 +91,8 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
       target?.moonSet ?? (night == null ? null : _moonSetTonight(night));
   final moonPct = night?.moonIlluminationPercent;
   final planEnd = ref.watch(nightPlanProgressProvider.select((p) => p?.eta));
+  final paused = phase == NightRunPhase.pausedByUser ||
+      phase == NightRunPhase.pausedForAction;
 
   final nextTarget = _nextTarget(ref);
   final switchAt =
@@ -119,11 +123,18 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
         at: moonSet,
         moonIlluminationPct: moonPct,
       ),
-    if (ahead(planEnd)) UpcomingItemVm(kind: UpcomingKind.planEnd, at: planEnd),
+    if (!paused && ahead(planEnd))
+      UpcomingItemVm(kind: UpcomingKind.planEnd, at: planEnd),
     if (night != null && now.isBefore(night.astroDawn))
       at(UpcomingKind.astroDawn, night.astroDawn),
   ]..sort((a, b) => a.at!.compareTo(b.at!));
-  return [...items, ...timed];
+  return [
+    ...items,
+    ...timed,
+    // A paused run's end moves with the pause, so it has no time to give.
+    if (paused && planEnd != null)
+      const UpcomingItemVm(kind: UpcomingKind.planEnd, paused: true),
+  ];
 });
 
 DateTime? _moonRiseTonight(TonightNight night) {
@@ -158,7 +169,7 @@ UpcomingItemVm? _nextDither(Ref ref, NightPlanTree? tree) {
       final frames = nightNodeFrames(
         active.id,
         tally: ref.watch(nodeExposureTallyProvider),
-        progress: ref.watch(sequenceProgressProvider),
+        progress: ref.watch(sequenceStepProgressProvider),
       );
       if (frames == null) return null;
       final next = (frames.captured ~/ every + 1) * every;
@@ -176,7 +187,8 @@ UpcomingItemVm? _nextDither(Ref ref, NightPlanTree? tree) {
   // fires when a burst is longer than it: rotating filters one frame at a
   // time, a plan's "dither every 2" never dithers.
   if (active is SmartExposureNode) {
-    final filter = ref.watch(sequenceProgressProvider).currentFilter;
+    final filter =
+        ref.watch(sequenceProgressProvider.select((p) => p.currentFilter));
     final plan = active.plans.where((p) => p.filterName == filter).firstOrNull;
     final every = plan?.ditherEvery;
     if (plan != null && every != null && every > 0) {

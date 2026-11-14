@@ -1,13 +1,17 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// bridge-boundary: post_session_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../job_manager.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Headless control surface for the **post-session integration / finishing**
 /// core — the "review and integrate last night's data" workflow.
@@ -27,13 +31,26 @@ import '../validation.dart';
 ///
 /// The handlers forward to the same native bridge free functions
 /// (`apiIntegrateSession`, `apiAnalyzeNight`, `apiBuildMasterFlat`,
-/// `apiColorCalibrate`, `apiExtractBackground`, `apiCombineChannels`,
-/// `apiDrizzleIntegrate`) that [BridgePostSessionSeam] wraps, so the host result
+/// `apiColorCalibrate`, `apiExtractBackground`, `apiDrizzleIntegrate`) that [BridgePostSessionSeam] wraps, so the host result
 /// is byte-for-byte identical whether the op was driven locally or remotely.
 ///
 /// Mosaic stitching (`api_stitch_mosaic`) is intentionally NOT exposed here; it
 /// is owned by the separate mosaic surface.
-class PostSessionHandlers {
+class PostSessionHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    PostSessionApi.getSettings: handleGetSettings,
+    PostSessionApi.updateSettings: handleUpdateSettings,
+    PostSessionApi.integrateSession: handleIntegrateSession,
+    PostSessionApi.drizzleIntegrate: handleDrizzleIntegrate,
+    PostSessionApi.analyzeNight: handleAnalyzeNight,
+    PostSessionApi.buildMasterFlat: handleBuildMasterFlat,
+    PostSessionApi.colorCalibrate: handleColorCalibrate,
+    PostSessionApi.detectStars: handleDetectStars,
+    PostSessionApi.extractBackground: handleExtractBackground,
+    PostSessionApi.masterAccumulate: handleMasterAccumulate,
+  };
+
   static const _autoIntegrateSettingKey = 'post_session.auto_integrate';
 
   final ProviderContainer container;
@@ -140,7 +157,7 @@ class PostSessionHandlers {
   /// Refuse an `exposuresSec` list the bridge is going to refuse anyway,
   /// while the answer can still be a 400 instead of a job id.
   ///
-  /// `exposures_per_light` (`bridge/src/api/post_session/helpers.rs`) requires
+  /// `exposures_per_light` (`processing/src/post_session/helpers.rs`) requires
   /// one exposure per light or none at all, and every entry finite and `>= 0`.
   /// It runs INSIDE the bridge call, which happens after [JobManager.start] has
   /// already minted and returned an id — so a body the server could read as
@@ -423,22 +440,6 @@ class PostSessionHandlers {
     final argsJson = _encodeArgs(args);
     return _startJob('post-session.extract-background', () async {
       final out = await bridge.apiExtractBackground(argsJson: argsJson);
-      return _decodeObject(out);
-    });
-  }
-
-  // Combine channels — linearly combine single-channel narrowband masters into
-  // an RGB composite. Wraps `api_combine_channels`.
-
-  /// POST /api/post-session/combine-channels
-  /// Body: the `CombineChannelsArgs` JSON shape (host paths). Returns `{jobId}`;
-  /// the job result is the `{outputPath}` envelope.
-  Future<Response> handleCombineChannels(Request request) async {
-    _logInfo('[API] POST /api/post-session/combine-channels');
-    final args = await readJsonObject(request);
-    final argsJson = _encodeArgs(args);
-    return _startJob('post-session.combine-channels', () async {
-      final out = await bridge.apiCombineChannels(argsJson: argsJson);
       return _decodeObject(out);
     });
   }

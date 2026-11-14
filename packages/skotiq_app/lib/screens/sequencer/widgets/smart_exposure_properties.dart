@@ -11,10 +11,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
+import '../../../widgets/sensitivity_field.dart';
 import '../../imaging/widgets/depthlock/depthlock_presentation.dart';
 import 'node_property_widgets.dart';
 
@@ -30,8 +34,7 @@ class SmartExposureProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(activeEquipmentProfileProvider);
-    final filterNames = profile?.filterNames ?? <String>[];
+    final filterNames = ref.watch(effectiveFiltersProvider);
     final canEdit = ref.watch(canEditSequenceProvider);
     final exposureContext =
         ref.watch(smartNightExposureContextProvider).valueOrNull;
@@ -59,7 +62,6 @@ class SmartExposureProperties extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
 
-          // Filter plan list
           _PlanList(
             colors: colors,
             node: node,
@@ -73,7 +75,6 @@ class SmartExposureProperties extends ConsumerWidget {
             },
           ),
 
-          // Add row button
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: () {
@@ -119,12 +120,12 @@ class SmartExposureProperties extends ConsumerWidget {
             },
           ),
 
-          // Global toggles
           const SizedBox(height: 16),
           NodePropertyField(
             colors: colors,
             label: 'Rotate filters',
             child: NodeToggleSwitch(
+              label: 'Rotate filters',
               colors: colors,
               value: node.rotateFilters,
               onChanged: (v) {
@@ -159,6 +160,7 @@ class SmartExposureProperties extends ConsumerWidget {
             colors: colors,
             label: 'Dither on Filter Change',
             child: NodeToggleSwitch(
+              label: 'Dither on Filter Change',
               colors: colors,
               value: node.ditherOnFilterChange,
               onChanged: (v) {
@@ -174,6 +176,7 @@ class SmartExposureProperties extends ConsumerWidget {
               colors: colors,
               label: 'Switch Filter Every Frame',
               child: NodeToggleSwitch(
+                label: 'Switch Filter Every Frame',
                 colors: colors,
                 // Drives "loop until stopped" mode: 1 sub per filter,
                 // round-robin, looping until the target's window ends (or the
@@ -272,7 +275,6 @@ class SmartExposureProperties extends ConsumerWidget {
               ),
           ],
 
-          // Integration budget
           const SizedBox(height: 12),
           _BudgetInput(
             colors: colors,
@@ -284,7 +286,6 @@ class SmartExposureProperties extends ConsumerWidget {
             },
           ),
 
-          // Estimate summary
           const SizedBox(height: 12),
           _EstimateSummary(colors: colors, node: node),
         ],
@@ -404,7 +405,7 @@ class _PlanList extends StatelessWidget {
   }
 }
 
-class _PlanRow extends StatelessWidget {
+class _PlanRow extends ConsumerWidget {
   final SkotiqColors colors;
   final FilterPlan plan;
   final int index;
@@ -427,8 +428,41 @@ class _PlanRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final recommendation = exposureContext?.recommendForFilter(plan.filterName);
+    // A control the connected camera does not have gets no field.
+    final sensitivity = ref.watch(cameraSensitivityProvider);
+    final gainField = sensitivity.hasGain
+        ? NodePropertyField(
+            colors: colors,
+            label: sensitivity.label,
+            child: SensitivityField(
+              value: plan.gain,
+              sensitivity: sensitivity,
+              onChanged: (v) => onChanged(plan.copyWith(gain: v)),
+              gainField: (_) => NodeNumberInput(
+                colors: colors,
+                value: (plan.gain ?? 0).toDouble(),
+                min: ExposureFieldLimits.gain.min.toDouble(),
+                max: ExposureFieldLimits.gain.max.toDouble(),
+                onChanged: (v) => onChanged(plan.copyWith(gain: v.toInt())),
+              ),
+            ),
+          )
+        : null;
+    final offsetField = sensitivity.hasOffset
+        ? NodePropertyField(
+            colors: colors,
+            label: 'Offset',
+            child: NodeNumberInput(
+              colors: colors,
+              value: (plan.offset ?? 0).toDouble(),
+              min: ExposureFieldLimits.offset.min.toDouble(),
+              max: ExposureFieldLimits.offset.max.toDouble(),
+              onChanged: (v) => onChanged(plan.copyWith(offset: v.toInt())),
+            ),
+          )
+        : null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Container(
@@ -499,7 +533,7 @@ class _PlanRow extends StatelessWidget {
                         colors: colors,
                         value: plan.count.toDouble(),
                         min: 0,
-                        max: 9999,
+                        max: ExposureFieldLimits.frameCount.max.toDouble(),
                         onChanged: (v) =>
                             onChanged(plan.copyWith(count: v.toInt())),
                       ),
@@ -511,8 +545,8 @@ class _PlanRow extends StatelessWidget {
                   colors: colors,
                   value: plan.durationSecs,
                   suffix: 's',
-                  min: 0.001,
-                  max: 3600,
+                  min: ExposureFieldLimits.durationSecs.min,
+                  max: ExposureFieldLimits.durationSecs.max,
                   decimals: 1,
                   onChanged: (v) => onChanged(plan.copyWith(durationSecs: v)),
                 ),
@@ -532,7 +566,7 @@ class _PlanRow extends StatelessWidget {
                     color: colors.primary,
                   ),
                   label: Text(
-                    'Suggested ${_formatExposureSeconds(recommendation.seconds)}',
+                    'Suggested ${'${QuantityFormat.trimmed(recommendation.seconds)}s'}',
                     style: TextStyle(
                       fontSize: Responsive.fontSize(context, 11),
                       color: colors.primary,
@@ -541,30 +575,10 @@ class _PlanRow extends StatelessWidget {
                 ),
               ),
             ],
-            _FieldPair(
-              first: NodePropertyField(
-                colors: colors,
-                label: 'Gain',
-                child: NodeNumberInput(
-                  colors: colors,
-                  value: (plan.gain ?? 0).toDouble(),
-                  min: 0,
-                  max: 1000,
-                  onChanged: (v) => onChanged(plan.copyWith(gain: v.toInt())),
-                ),
-              ),
-              second: NodePropertyField(
-                colors: colors,
-                label: 'Offset',
-                child: NodeNumberInput(
-                  colors: colors,
-                  value: (plan.offset ?? 0).toDouble(),
-                  min: 0,
-                  max: 1000,
-                  onChanged: (v) => onChanged(plan.copyWith(offset: v.toInt())),
-                ),
-              ),
-            ),
+            if (gainField != null && offsetField != null)
+              _FieldPair(first: gainField, second: offsetField)
+            else if (gainField ?? offsetField case final field?)
+              field,
             _FieldPair(
               first: NodePropertyField(
                 colors: colors,
@@ -584,8 +598,8 @@ class _PlanRow extends StatelessWidget {
                   colors: colors,
                   value: (plan.ditherEvery ?? 0).toDouble(),
                   suffix: ' frames',
-                  min: 0,
-                  max: 100,
+                  min: ExposureFieldLimits.ditherEvery.min.toDouble(),
+                  max: ExposureFieldLimits.ditherEvery.max.toDouble(),
                   onChanged: (v) {
                     final n = v.toInt();
                     onChanged(plan.copyWith(ditherEvery: n == 0 ? null : n));
@@ -607,21 +621,20 @@ class _PlanRow extends StatelessWidget {
 
   Widget _buildFilterDropdown(BuildContext context) {
     if (filterNames.isEmpty) {
-      // No profile filter wheel — fall back to a free-text input so the
-      // user can still author rows offline. They'll be invalid until a
-      // filter wheel is configured (SmartExposureFilterWheelMissingRule
-      // catches this).
+      // Nothing to pick: a typed name lets the user author rows offline.
+      // SmartExposureFilterWheelMissingRule reports them until there are
+      // filters.
       return NodeTextInput(
         colors: colors,
         value: plan.filterName,
-        hint: 'Filter name (no profile filters)',
+        hint: noFiltersToPickHint,
         onChanged: (v) => onChanged(plan.copyWith(filterName: v)),
       );
     }
 
     // Resolve current selection by name → index, or fall back to the
-    // first filter when the persisted name no longer matches the profile
-    // (e.g. profile was edited after the plan was created).
+    // first filter when the persisted name is no longer available
+    // (e.g. the profile was edited after the plan was created).
     final currentIndex = filterNames.indexOf(plan.filterName);
     final effectiveIndex = currentIndex >= 0 ? currentIndex : 0;
 
@@ -735,7 +748,8 @@ class _BudgetInputState extends State<_BudgetInput> {
     super.initState();
     _controller = TextEditingController(
       text: widget.node.integrationBudgetSecs > 0
-          ? formatHumanDurationSecs(widget.node.integrationBudgetSecs)
+          ? DurationFormat.seconds(widget.node.integrationBudgetSecs,
+              style: DurationStyle.short)
           : '',
     );
   }
@@ -746,7 +760,8 @@ class _BudgetInputState extends State<_BudgetInput> {
     if (oldWidget.node.integrationBudgetSecs !=
         widget.node.integrationBudgetSecs) {
       _controller.text = widget.node.integrationBudgetSecs > 0
-          ? formatHumanDurationSecs(widget.node.integrationBudgetSecs)
+          ? DurationFormat.seconds(widget.node.integrationBudgetSecs,
+              style: DurationStyle.short)
           : '';
     }
   }
@@ -833,14 +848,6 @@ double _recommendedExposureSeconds(
   return seconds;
 }
 
-String _formatExposureSeconds(double seconds) {
-  final rounded = seconds.roundToDouble();
-  if ((seconds - rounded).abs() < 0.05) {
-    return '${rounded.toInt()}s';
-  }
-  return '${seconds.toStringAsFixed(1)}s';
-}
-
 class _EstimateSummary extends ConsumerWidget {
   final SkotiqColors colors;
   final SmartExposureNode node;
@@ -850,37 +857,16 @@ class _EstimateSummary extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final integration = node.totalIntegrationSecs;
-    // Wall-clock comes from the SAME estimator that drives the timeline, the
-    // tree-row chip, and the run-dashboard total — built from the shared
-    // overhead model (findings 5/9/16) — so this figure agrees with them
-    // instead of a divergent flat 20% approximation. We locate this node's
-    // entry in the freshly-walked sequence timing (it carries the
-    // download/dither/filter-change overhead the estimator models per plan).
-    final overhead = ref.watch(sequencerOverheadConfigProvider);
-    final sequence = ref.watch(currentSequenceProvider);
-    double wallClock;
-    if (sequence != null) {
-      final estimator = SequenceTimeEstimator(overhead: overhead);
-      final timings =
-          estimator.estimateSequenceTiming(sequence, DateTime.now());
-      final timing = timings.where((t) => t.nodeId == node.id).firstOrNull;
-      if (timing != null) {
-        wallClock = timing.duration.inMilliseconds / 1000.0;
-      } else {
-        // Node not yet in the walked tree (e.g. detached while editing) —
-        // fall back to the integration figure (clamped to budget) so the line
-        // still shows a sensible number rather than vanishing.
-        wallClock = node.integrationBudgetSecs > 0 &&
+    // The node's time in the plan's one timing, with the download, dither and
+    // filter-change overhead of its rows. A node the walk did not reach (one
+    // detached while editing) shows its integration, clamped to its budget.
+    final timing = ref.watch(currentPlanTimingProvider)?.of(node.id);
+    final double wallClock = timing != null
+        ? timing.duration.inMilliseconds / 1000.0
+        : (node.integrationBudgetSecs > 0 &&
                 node.integrationBudgetSecs < integration
             ? node.integrationBudgetSecs
-            : integration;
-      }
-    } else {
-      wallClock = node.integrationBudgetSecs > 0 &&
-              node.integrationBudgetSecs < integration
-          ? node.integrationBudgetSecs
-          : integration;
-    }
+            : integration);
 
     // In loop-until-stopped mode the per-plan counts are ignored, so a fixed
     // "Integration: Xh" figure would be a lie. The total is whatever fits in
@@ -888,9 +874,9 @@ class _EstimateSummary extends ConsumerWidget {
     final loop = node.loopUntilStopped;
     final integrationLine = loop
         ? (node.integrationBudgetSecs > 0
-            ? 'Integration: up to ${formatHumanDurationSecs(node.integrationBudgetSecs)} (looping)'
+            ? 'Integration: up to ${DurationFormat.seconds(node.integrationBudgetSecs, style: DurationStyle.short)} (looping)'
             : 'Integration: until the target’s window ends (looping)')
-        : 'Integration: ${formatHumanDurationSecs(integration)}';
+        : 'Integration: ${DurationFormat.seconds(integration, style: DurationStyle.short)}';
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -927,7 +913,7 @@ class _EstimateSummary extends ConsumerWidget {
                 Icon(LucideIcons.alarmClock, size: 14, color: colors.textMuted),
                 const SizedBox(width: 8),
                 Text(
-                  'Wall clock (approx): ${formatHumanDurationSecs(wallClock)}',
+                  'Wall clock (approx): ${DurationFormat.seconds(wallClock, style: DurationStyle.short)}',
                   style: TextStyle(
                     fontSize: Responsive.fontSize(context, 11),
                     color: colors.textMuted,

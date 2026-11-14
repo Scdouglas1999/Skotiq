@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// The remote First Light feed reconstructs `TransientDetectionRow`s from the
 /// appliance's `/api/firstlight/candidates` wire JSON. This pins that the

@@ -1,6 +1,6 @@
 use super::classify_exposure_failure;
 use crate::error::SkotiqError;
-use crate::unified_device_ops::IMAGE_VALIDATION_FAILED_PREFIX;
+use skotiq_sequencer::DeviceError;
 
 /// Verbatim validation message from a ZWO ASI1600MM-Cool exposed in daylight:
 /// the operator's exposure to fix, so it must classify as 422, not 500.
@@ -10,7 +10,7 @@ const SATURATED: &str = "Image is completely saturated (min value 65224 >= 65024
 fn validation_rejection_becomes_exposure_failed() {
     let err = classify_exposure_failure(
         "native:zwo:0",
-        format!("{IMAGE_VALIDATION_FAILED_PREFIX}{SATURATED}"),
+        DeviceError::InvalidFrame(SATURATED.to_string()),
     );
 
     match err {
@@ -32,64 +32,16 @@ fn driver_faults_stay_operation_failed() {
         "SDK error: Failed to call method StartExposure",
         "Device not connected: native:zwo:0",
         "Exposure cancelled",
-        // Near-miss: the marker must be a prefix, not a substring.
+        // Near-miss: a driver's text that reads like a validation rejection
+        // is still a driver fault.
         "wrapped: Image validation failed: something",
+        "Image validation failed: something",
     ] {
-        match classify_exposure_failure("native:zwo:0", raw.to_string()) {
+        match classify_exposure_failure("native:zwo:0", DeviceError::from(raw)) {
             SkotiqError::OperationFailed(msg) => assert_eq!(msg, raw),
             other => panic!("expected OperationFailed for {raw:?}, got {other:?}"),
         }
     }
-}
-
-/// DATE-OBS must be when the shutter OPENED.
-///
-/// It was sampled with `Utc::now()` while building the header, which runs
-/// after readout, so every sequenced frame recorded a DATE-OBS late by
-/// exactly its own EXPTIME -- measured live as a 30 s exposure starting
-/// 14:04:37 and claiming 14:05:09. Photometry, occultation timing and
-/// astrometry all read DATE-OBS as the start, so this silently shifted
-/// every measurement by half to one exposure length.
-#[test]
-fn date_obs_is_the_exposure_start_not_the_readout_time() {
-    use chrono::TimeZone;
-
-    let started = chrono::Utc
-        .with_ymd_and_hms(2026, 8, 1, 14, 4, 37)
-        .single()
-        .expect("valid instant");
-
-    let mut ctx =
-        skotiq_sequencer::scheduling::FrameContext::new_light("session".to_string(), 1, 1, 30.0, 1);
-    ctx.exposure_started_at = Some(started);
-
-    let header = crate::FitsWriteHeaderRich::from_frame_context(&ctx);
-
-    assert_eq!(
-        header.capture_timestamp, "2026-08-01T14:04:37",
-        "DATE-OBS must be the start of the exposure"
-    );
-    assert!(
-        !header.capture_timestamp.starts_with("2026-08-01T14:05"),
-        "DATE-OBS must not be the readout time (start + EXPTIME)"
-    );
-}
-
-/// A frame whose start time was never recorded must not silently claim the
-/// current clock as its observation time without that being obvious.
-#[test]
-fn date_obs_without_a_recorded_start_falls_back_to_now() {
-    let ctx =
-        skotiq_sequencer::scheduling::FrameContext::new_light("session".to_string(), 1, 1, 5.0, 1);
-    assert!(ctx.exposure_started_at.is_none());
-
-    let header = crate::FitsWriteHeaderRich::from_frame_context(&ctx);
-    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string();
-    assert_eq!(
-        header.capture_timestamp[..13],
-        now[..13],
-        "fallback should be the current hour, not an empty or sentinel value"
-    );
 }
 
 #[test]
@@ -98,7 +50,7 @@ fn empty_validation_reason_still_classifies() {
     // empty, but the classifier must not depend on the reason being present.
     match classify_exposure_failure(
         "ascom:ASCOM.Simulator.Camera",
-        IMAGE_VALIDATION_FAILED_PREFIX.to_string(),
+        DeviceError::InvalidFrame(String::new()),
     ) {
         SkotiqError::ExposureFailed { camera_id, reason } => {
             assert_eq!(camera_id, "ascom:ASCOM.Simulator.Camera");
@@ -106,4 +58,26 @@ fn empty_validation_reason_still_classifies() {
         }
         other => panic!("expected ExposureFailed, got {other:?}"),
     }
+}
+
+/// A camera the device layer reports lost is a precondition, not a fault:
+/// 409 through the headless API instead of 500.
+#[test]
+fn a_lost_camera_is_not_connected() {
+    let lost = DeviceError::NotConnected {
+        device: skotiq_sequencer::DeviceKind::Camera,
+        message: "Simulator device for 'camera.download' is not connected".to_string(),
+    };
+    assert!(matches!(
+        classify_exposure_failure("sim_camera_1", lost),
+        SkotiqError::NotConnected(id) if id == "sim_camera_1"
+    ));
+    assert!(matches!(
+        classify_exposure_failure("sim_camera_1", DeviceError::Timeout("download".to_string())),
+        SkotiqError::Timeout(_)
+    ));
+    assert!(matches!(
+        classify_exposure_failure("sim_camera_1", DeviceError::unsupported("no subframes")),
+        SkotiqError::NotSupported { .. }
+    ));
 }

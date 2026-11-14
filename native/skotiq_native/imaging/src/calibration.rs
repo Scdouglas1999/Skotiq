@@ -15,10 +15,8 @@
 use crate::{ImageData, PixelType};
 use rayon::prelude::*;
 
-/// Errors that can occur during calibration
 #[derive(Debug, Clone)]
 pub enum CalibrationError {
-    /// Frame dimensions do not match
     DimensionMismatch {
         expected_width: u32,
         expected_height: u32,
@@ -26,23 +24,24 @@ pub enum CalibrationError {
         actual_height: u32,
         frame_name: String,
     },
-    /// Channel counts do not match
     ChannelMismatch {
         expected: u32,
         actual: u32,
         frame_name: String,
     },
-    /// Pixel types do not match
     PixelTypeMismatch {
         expected: PixelType,
         actual: PixelType,
         frame_name: String,
     },
-    /// The input frame has no data
-    EmptyFrame { frame_name: String },
+    EmptyFrame {
+        frame_name: String,
+    },
     /// A dark scale that is negative or not finite, or a scaled dark without
     /// a bias to separate its thermal signal from its pedestal.
-    InvalidDarkScale { scale: f64 },
+    InvalidDarkScale {
+        scale: f64,
+    },
     /// The raw data buffer length does not match the expected size for the
     /// frame's dimensions and pixel type (e.g. odd byte count for U16 pixels)
     BufferLengthMismatch {
@@ -154,7 +153,6 @@ fn validate_frame_geometry(
             frame_name: other_name.to_string(),
         });
     }
-    // Validate that raw buffers are correctly sized for their pixel types
     validate_buffer_length(reference, "light frame")?;
     validate_buffer_length(other, other_name)?;
     Ok(())
@@ -167,7 +165,8 @@ fn validate_frames(
     other_name: &str,
 ) -> Result<(), CalibrationError> {
     validate_frame_geometry(reference, other, other_name)?;
-    if reference.pixel_type != other.pixel_type {
+    // Byte-wise arithmetic needs the same numbers to mean the same level.
+    if reference.pixel_type != other.pixel_type || reference.range != other.range {
         return Err(CalibrationError::PixelTypeMismatch {
             expected: reference.pixel_type,
             actual: other.pixel_type,
@@ -183,7 +182,7 @@ fn validate_frames(
 ///
 /// Underflow is clamped to 0 (no negative pixel values).
 /// Both frames must have matching dimensions, channels, and pixel type.
-pub fn subtract_dark(light: &ImageData, dark: &ImageData) -> Result<ImageData, CalibrationError> {
+fn subtract_dark(light: &ImageData, dark: &ImageData) -> Result<ImageData, CalibrationError> {
     validate_frames(light, dark, "dark frame")?;
 
     let result_data = match light.pixel_type {
@@ -200,6 +199,7 @@ pub fn subtract_dark(light: &ImageData, dark: &ImageData) -> Result<ImageData, C
         channels: light.channels,
         pixel_type: light.pixel_type,
         data: result_data,
+        range: light.range,
     })
 }
 
@@ -207,7 +207,7 @@ pub fn subtract_dark(light: &ImageData, dark: &ImageData) -> Result<ImageData, C
 /// since a bias is a zero-length dark exposure.
 ///
 /// For each pixel: result = max(0, frame - bias)
-pub fn subtract_bias(frame: &ImageData, bias: &ImageData) -> Result<ImageData, CalibrationError> {
+fn subtract_bias(frame: &ImageData, bias: &ImageData) -> Result<ImageData, CalibrationError> {
     validate_frames(frame, bias, "bias frame")?;
 
     let result_data = match frame.pixel_type {
@@ -224,6 +224,7 @@ pub fn subtract_bias(frame: &ImageData, bias: &ImageData) -> Result<ImageData, C
         channels: frame.channels,
         pixel_type: frame.pixel_type,
         data: result_data,
+        range: frame.range,
     })
 }
 
@@ -240,10 +241,12 @@ pub fn divide_flat(light: &ImageData, flat: &ImageData) -> Result<ImageData, Cal
     if light.pixel_type != flat.pixel_type {
         // Keep a unit-mean float flat fractional: converting it to integer
         // samples before division would turn its response into 0, 1, or 2.
-        let float_light = convert_sample_type(light, PixelType::F64);
-        let float_flat = convert_sample_type(flat, PixelType::F64);
+        let float_light = light.converted_to(PixelType::F64, crate::SampleRange::ADU);
+        let float_flat = flat.converted_to(PixelType::F64, crate::SampleRange::ADU);
         let corrected = divide_flat(&float_light, &float_flat)?;
-        return Ok(convert_sample_type(&corrected, light.pixel_type).into_owned());
+        return Ok(corrected
+            .converted_to(light.pixel_type, light.range)
+            .into_owned());
     }
 
     let channels = (light.channels as usize).max(1);
@@ -261,6 +264,7 @@ pub fn divide_flat(light: &ImageData, flat: &ImageData) -> Result<ImageData, Cal
         channels: light.channels,
         pixel_type: light.pixel_type,
         data: result_data,
+        range: light.range,
     })
 }
 
@@ -294,12 +298,11 @@ pub fn calibrate_frame(
 
     // Dark and bias masters are additive and in ADU. Flats retain their own
     // sample type so normalized float responses stay fractional during division.
-    let conformed_dark = dark.map(|d| convert_sample_type(d, light.pixel_type));
-    let conformed_bias = bias.map(|b| convert_sample_type(b, light.pixel_type));
+    let conformed_dark = dark.map(|d| d.converted_to(light.pixel_type, light.range));
+    let conformed_bias = bias.map(|b| b.converted_to(light.pixel_type, light.range));
     let dark = conformed_dark.as_deref();
     let bias = conformed_bias.as_deref();
 
-    // Validate all provided frames against the light
     if let Some(d) = dark {
         validate_frames(light, d, "dark frame")?;
     }
@@ -323,7 +326,7 @@ pub fn calibrate_frame(
     // corrupt it.
     let corrected_flat: Option<ImageData> = match (flat, bias) {
         (Some(f), Some(b)) if !is_float(f.pixel_type) => {
-            Some(subtract_bias(f, &convert_sample_type(b, f.pixel_type))?)
+            Some(subtract_bias(f, &b.converted_to(f.pixel_type, f.range))?)
         }
         (Some(f), _) => Some(f.clone()),
         _ => None,
@@ -343,12 +346,10 @@ pub fn calibrate_frame(
         None => light.clone(),
     };
 
-    // Step 4: Subtract dark from light
     if let Some(ref d) = corrected_dark {
         result = subtract_dark(&result, d)?;
     }
 
-    // Step 5: Divide by normalized flat
     if let Some(ref f) = corrected_flat {
         result = divide_flat(&result, f)?;
     }
@@ -436,15 +437,15 @@ pub fn calibrate_frame_f32(
         });
     }
     let channels = (light.channels as usize).max(1);
-    let mut out = samples_f64(light);
-    let bias = cal.bias.map(samples_f64);
+    let mut out = light.samples_f64();
+    let bias = cal.bias.map(ImageData::samples_f64);
     if let Some(bias) = &bias {
         out.par_iter_mut()
             .zip(bias.par_iter())
             .for_each(|(v, b)| *v -= b);
     }
     if let Some(dark) = cal.dark {
-        let dark = samples_f64(dark);
+        let dark = dark.samples_f64();
         let k = cal.dark_scale;
         match &bias {
             Some(bias) => out
@@ -458,7 +459,7 @@ pub fn calibrate_frame_f32(
         }
     }
     if let Some(flat) = cal.flat {
-        let mut response = samples_f64(flat);
+        let mut response = flat.samples_f64();
         if let (FlatPedestal::Included, Some(bias)) = (cal.flat_pedestal, &bias) {
             response
                 .par_iter_mut()
@@ -486,102 +487,6 @@ pub fn calibrate_frame_f32(
     ))
 }
 
-/// Every sample of `image` as `f64`, in buffer order.
-pub fn samples_f64(image: &ImageData) -> Vec<f64> {
-    match image.pixel_type {
-        PixelType::U8 => image.data.par_iter().map(|&v| f64::from(v)).collect(),
-        PixelType::U16 => image
-            .data
-            .par_chunks_exact(2)
-            .map(|c| f64::from(u16::from_le_bytes([c[0], c[1]])))
-            .collect(),
-        PixelType::U32 => image
-            .data
-            .par_chunks_exact(4)
-            .map(|c| f64::from(u32::from_le_bytes([c[0], c[1], c[2], c[3]])))
-            .collect(),
-        PixelType::F32 => image
-            .data
-            .par_chunks_exact(4)
-            .map(|c| f64::from(f32::from_le_bytes([c[0], c[1], c[2], c[3]])))
-            .collect(),
-        PixelType::F64 => image
-            .data
-            .par_chunks_exact(8)
-            .map(|c| f64::from_le_bytes(c.try_into().expect("8-byte chunk")))
-            .collect(),
-    }
-}
-
-/// `master` re-encoded as `target` samples, or borrowed unchanged when it
-/// already is. Integer targets round and clamp to their range; NaN becomes 0.
-fn convert_sample_type(master: &ImageData, target: PixelType) -> std::borrow::Cow<'_, ImageData> {
-    if master.pixel_type == target || master.is_empty() {
-        return std::borrow::Cow::Borrowed(master);
-    }
-    let values: Vec<f64> = match master.pixel_type {
-        PixelType::U8 => master.data.iter().map(|&v| f64::from(v)).collect(),
-        PixelType::U16 => master
-            .data
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|c| f64::from(u16::from_le_bytes(*c)))
-            .collect(),
-        PixelType::U32 => master
-            .data
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|c| f64::from(u32::from_le_bytes(*c)))
-            .collect(),
-        PixelType::F32 => master
-            .data
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|c| f64::from(f32::from_le_bytes(*c)))
-            .collect(),
-        PixelType::F64 => master
-            .data
-            .as_chunks::<8>()
-            .0
-            .iter()
-            .map(|c| f64::from_le_bytes(*c))
-            .collect(),
-    };
-    let clean = |v: f64| if v.is_nan() { 0.0 } else { v };
-    let data: Vec<u8> = match target {
-        PixelType::U8 => values
-            .iter()
-            .map(|&v| clean(v).round().clamp(0.0, 255.0) as u8)
-            .collect(),
-        PixelType::U16 => values
-            .iter()
-            .flat_map(|&v| (clean(v).round().clamp(0.0, 65535.0) as u16).to_le_bytes())
-            .collect(),
-        PixelType::U32 => values
-            .iter()
-            .flat_map(|&v| (clean(v).round().clamp(0.0, f64::from(u32::MAX)) as u32).to_le_bytes())
-            .collect(),
-        PixelType::F32 => values
-            .iter()
-            .flat_map(|&v| (clean(v) as f32).to_le_bytes())
-            .collect(),
-        PixelType::F64 => values
-            .iter()
-            .flat_map(|&v| clean(v).to_le_bytes())
-            .collect(),
-    };
-    std::borrow::Cow::Owned(ImageData {
-        width: master.width,
-        height: master.height,
-        channels: master.channels,
-        pixel_type: target,
-        data,
-    })
-}
-
 /// Per-channel mean of interleaved samples, where `values[i]` belongs to
 /// channel `i % channels`. Flat-field normalisation must be done per channel:
 /// a colour (interleaved RGB) flat with different per-channel levels would
@@ -607,8 +512,6 @@ fn per_channel_means(values: &[f64], channels: usize) -> Vec<f64> {
         })
         .collect()
 }
-
-// U8 pixel operations
 
 fn subtract_u8(light: &[u8], dark: &[u8]) -> Vec<u8> {
     light
@@ -646,8 +549,6 @@ fn divide_flat_u8(light: &[u8], flat: &[u8], channels: usize) -> Vec<u8> {
         })
         .collect()
 }
-
-// U16 pixel operations
 
 fn subtract_u16(light: &[u8], dark: &[u8]) -> Vec<u8> {
     let light_pixels: Vec<u16> = light
@@ -716,8 +617,6 @@ fn divide_flat_u16(light: &[u8], flat: &[u8], channels: usize) -> Vec<u8> {
     result.iter().flat_map(|&v| v.to_le_bytes()).collect()
 }
 
-// U32 pixel operations
-
 fn subtract_u32(light: &[u8], dark: &[u8]) -> Vec<u8> {
     let light_pixels: Vec<u32> = light
         .as_chunks::<4>()
@@ -784,8 +683,6 @@ fn divide_flat_u32(light: &[u8], flat: &[u8], channels: usize) -> Vec<u8> {
 
     result.iter().flat_map(|&v| v.to_le_bytes()).collect()
 }
-
-// F32 pixel operations
 
 fn subtract_f32(light: &[u8], dark: &[u8]) -> Vec<u8> {
     let light_pixels: Vec<f32> = light
@@ -866,8 +763,6 @@ fn divide_flat_f32(light: &[u8], flat: &[u8], channels: usize) -> Vec<u8> {
 
     result.iter().flat_map(|&v| v.to_le_bytes()).collect()
 }
-
-// F64 pixel operations
 
 fn subtract_f64(light: &[u8], dark: &[u8]) -> Vec<u8> {
     let light_pixels: Vec<f64> = light

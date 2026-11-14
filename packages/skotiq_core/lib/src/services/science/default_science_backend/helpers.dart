@@ -14,41 +14,37 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
   }) async {
     const fallback = (<_CatalogMatch>[], PhotometricCatalogSource.localHyg);
     try {
-      final fits = await readFitsImageSize(imagePath);
-      if (fits == null) return fallback;
-      final radius =
-          (math.sqrt(
-                        wcs.fieldWidthDegrees * wcs.fieldWidthDegrees +
-                            wcs.fieldHeightDegrees * wcs.fieldHeightDegrees,
-                      ) *
-                      0.65 +
-                  0.3)
-              .clamp(0.25, 8.0)
-              .toDouble();
-      final cone = await _ref
-          .read(photometricCatalogServiceProvider)
-          .coneSearch(
-            raDegrees: wcs.raHours * 15.0,
-            decDegrees: wcs.decDegrees,
-            radiusDegrees: radius,
-            maxMagnitude: maxCatalogMag,
-          );
-      if (cone.stars.isEmpty) return fallback;
-
-      final projection = _projectionFor(
-        wcs,
-        imageWidth: fits.width,
-        imageHeight: fits.height,
-      );
+      final header = await readFrameHeader(imagePath);
+      final size = header.imageSize;
+      if (size == null) return fallback;
+      final fileWcs = header.solvedWcs;
+      final projection = fileWcs != null
+          ? GnomonicProjection(fileWcs)
+          : _projectionFor(
+              wcs,
+              imageWidth: size.width,
+              imageHeight: size.height,
+            );
       if (projection == null) {
         _logger.warning(
           'Catalog matching skipped for $imagePath: WCS/image geometry is '
           'not projectable (scale=${wcs.pixelScaleArcsecPerPixel}, '
-          'dims=${fits.width}x${fits.height}).',
+          'dims=${size.width}x${size.height}).',
           source: 'ScienceBackend',
         );
         return fallback;
       }
+      final center = projection.imageCentre;
+      final cone = await _ref
+          .read(photometricCatalogServiceProvider)
+          .coneSearch(
+            raDegrees: center.raDegrees,
+            decDegrees: center.decDegrees,
+            radiusDegrees: projection.wcs.coneSearchRadiusDegrees,
+            maxMagnitude: maxCatalogMag,
+          );
+      if (cone.stars.isEmpty) return fallback;
+
       final matches = await _matchCatalogInBackground(
         projection,
         cone.stars,
@@ -66,34 +62,27 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
     }
   }
 
-  /// Canonical TAN projection for a science [WcsSolution] + frame geometry,
-  /// or null when the inputs are not projectable (zero/negative pixel scale
-  /// or dimensions). The shared implementation lives in
-  /// `services/wcs/gnomonic_projection.dart`.
+  /// Width and height of the frame at [path] from its header; null when the
+  /// file cannot be read as a frame or states no size.
+  Future<({int width, int height})?> _imageSize(String path) async {
+    try {
+      return (await readFrameHeader(path)).imageSize;
+    } on SkotiqError {
+      return null;
+    }
+  }
+
+  /// The projection of a science [WcsSolution] over a frame, or null when the
+  /// inputs are not projectable (zero/negative pixel scale or dimensions).
   GnomonicProjection? _projectionFor(
     WcsSolution wcs, {
     required int imageWidth,
     required int imageHeight,
   }) {
-    final solved = SolvedWcs(
-      raHours: wcs.raHours,
-      decDegrees: wcs.decDegrees,
-      rotationDeg: wcs.rotationDegrees,
-      pixelScaleArcsec: wcs.pixelScaleArcsecPerPixel,
+    final solved = SolvedWcs.ofSolution(
+      wcs,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
-      cd1_1: wcs.cd1_1,
-      cd1_2: wcs.cd1_2,
-      cd2_1: wcs.cd2_1,
-      cd2_2: wcs.cd2_2,
-      aOrder: wcs.aOrder,
-      bOrder: wcs.bOrder,
-      aCoeffs: wcs.aCoeffs,
-      bCoeffs: wcs.bCoeffs,
-      apOrder: wcs.apOrder,
-      bpOrder: wcs.bpOrder,
-      apCoeffs: wcs.apCoeffs,
-      bpCoeffs: wcs.bpCoeffs,
     );
     if (!solved.isValid) return null;
     return GnomonicProjection(solved);

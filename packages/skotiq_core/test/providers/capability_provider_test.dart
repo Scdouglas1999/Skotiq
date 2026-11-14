@@ -4,8 +4,11 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/capability_provider.dart';
+import 'package:skotiq_core/src/providers/equipment/camera_state_provider.dart';
+import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _BackendNotifier extends BackendNotifier {
   _BackendNotifier(super.ref, SkotiqBackend backend) {
@@ -68,5 +71,98 @@ void main() {
       );
       expect(container.read(cameraBinningOptionsProvider('camera')), ['1x1']);
     });
+  });
+
+  /// 2026-11-08 on the rig: read while the ASI1600 was still connecting, the
+  /// native driver answered with a 0 x 0, 0-bit sensor, the answer was kept
+  /// for the life of the app, and the pre-flight check said "Connect a
+  /// camera" with the camera connected.
+  test(
+    'capabilities are read again when the camera finishes connecting',
+    () async {
+      final backend = MockBackend();
+      when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
+      when(
+        () => backend.polarAlignmentEvents,
+      ).thenAnswer((_) => const Stream.empty());
+      var connected = false;
+      when(() => backend.getCameraCapabilities('native:zwo:1')).thenAnswer(
+        (_) async => connected
+            ? const CameraCapabilities(
+                maxWidth: 4656,
+                maxHeight: 3520,
+                bitDepth: 12,
+              )
+            : const CameraCapabilities(maxWidth: 0, maxHeight: 0, bitDepth: 0),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith((ref) => _BackendNotifier(ref, backend)),
+        ],
+      );
+      addTearDown(container.dispose);
+      final subscription = container.listen(
+        cameraCapabilitiesProvider('native:zwo:1'),
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+
+      container
+          .read(cameraStateProvider.notifier)
+          .setConnecting('native:zwo:1', 'ZWO ASI1600MM-Cool');
+      final early = await container.read(
+        cameraCapabilitiesProvider('native:zwo:1').future,
+      );
+      expect(early?.maxWidth, 0);
+
+      connected = true;
+      container.read(cameraStateProvider.notifier).setConnected();
+      final late = await container.read(
+        cameraCapabilitiesProvider('native:zwo:1').future,
+      );
+      expect(late?.maxWidth, 4656);
+      expect(late?.bitDepth, 12);
+    },
+  );
+
+  /// A mount that is not connected has no capabilities to report; the Mount
+  /// tab asks as soon as a mount is chosen, so the answer is read again when
+  /// it connects.
+  test('mount capabilities are read again when the mount connects', () async {
+    final backend = MockBackend();
+    when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
+    when(
+      () => backend.polarAlignmentEvents,
+    ).thenAnswer((_) => const Stream.empty());
+    var connected = false;
+    when(() => backend.getMountCapabilities('alpaca:mount')).thenAnswer(
+      (_) async => connected ? const MountCapabilities(canPark: true) : null,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        backendProvider.overrideWith((ref) => _BackendNotifier(ref, backend)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final subscription = container.listen(
+      mountCapabilitiesProvider('alpaca:mount'),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+
+    container
+        .read(mountStateProvider.notifier)
+        .setConnecting('alpaca:mount', 'Mount');
+    expect(
+      await container.read(mountCapabilitiesProvider('alpaca:mount').future),
+      isNull,
+    );
+
+    connected = true;
+    container.read(mountStateProvider.notifier).setConnected();
+    final late = await container.read(
+      mountCapabilitiesProvider('alpaca:mount').future,
+    );
+    expect(late?.canPark, isTrue);
   });
 }

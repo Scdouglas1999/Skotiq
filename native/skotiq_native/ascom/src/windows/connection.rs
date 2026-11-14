@@ -1,9 +1,12 @@
 //! COM initialization, ASCOM device discovery, and the
 //! `AscomDeviceConnection` core wrapper plus RAII cleanup guards.
 
+use crate::com::{ComCall, ComDispatch, ComKind, ComValue, Dispatch};
 use crate::connect_verify::{
     verify_connected_readback, CONNECT_VERIFY_POLL, CONNECT_VERIFY_TIMEOUT,
 };
+use crate::error::{AscomError, AscomResult};
+use crate::health::{ConnectionHealth, HealthMonitor};
 use crate::AscomDevice;
 use std::ptr;
 use windows::{
@@ -22,22 +25,20 @@ use windows::{
     },
 };
 
-use super::health::{ConnectionHealth, HealthMonitor};
 use super::variant::{
-    extract_safearray_i32, extract_safearray_string, variant_bool, variant_bstr, variant_date,
-    variant_f64, variant_i32, variant_to_bool, variant_to_date, variant_to_f64, variant_to_i32,
-    variant_to_string, OwnedExcepInfo, OwnedVariant, DISPID_PROPERTYPUT,
+    variant_from_arg, variant_to_value, OwnedExcepInfo, OwnedVariant, DISPID_PROPERTYPUT,
 };
 
 /// Initialize COM for the current thread
-pub fn init_com() -> Result<(), String> {
+pub fn init_com() -> AscomResult<()> {
     // SAFETY: `CoInitializeEx` is the canonical Windows COM thread-initialization call.
     // No pointer arguments are passed (first arg is `None`); apartment selection is a
     // value-typed `COINIT_*` flag. Result is checked and converted to a `Result`.
     // Pairs with `uninit_com` / `CoUninitialize` on the same thread.
     unsafe {
-        CoInitializeEx(None, COINIT_APARTMENTTHREADED)
-            .map_err(|e| format!("Failed to initialize COM: {}", e))
+        CoInitializeEx(None, COINIT_APARTMENTTHREADED).map_err(|e| AscomError::ComInit {
+            cause: e.to_string(),
+        })
     }
 }
 
@@ -280,7 +281,6 @@ pub struct AscomDeviceConnection {
     // of the failure, so the field stays unreachable outside this file.
     dispatch: IDispatch,
     connected: bool,
-    /// Health monitor for tracking device responsiveness
     health: HealthMonitor,
     /// ProgID for logging/diagnostics
     prog_id: String,
@@ -299,11 +299,20 @@ pub struct AscomDeviceConnection {
 /// `bstrSource = ASCOM.PegasusAstroUnityServer`,
 /// `bstrDescription = "Object reference not set to an instance of an object."`,
 /// `scode = 0x80004003`.
-pub(super) struct InvokeError {
+struct InvokeError {
     /// HRESULT-level failure reported by `IDispatch::Invoke` itself.
     hresult: windows::core::Error,
     /// The driver's own account, when it wrote one into `EXCEPINFO`.
     driver: Option<String>,
+    /// The error code the driver wrote into `EXCEPINFO`, when it wrote one.
+    scode: Option<i32>,
+}
+
+impl InvokeError {
+    /// The driver's error code, or the HRESULT when it raised none.
+    fn code(&self) -> i32 {
+        self.scode.unwrap_or(self.hresult.code().0)
+    }
 }
 
 impl std::fmt::Display for InvokeError {
@@ -319,8 +328,7 @@ impl std::fmt::Display for InvokeError {
 }
 
 impl AscomDeviceConnection {
-    /// Create a new ASCOM device connection
-    pub fn new(prog_id: &str) -> Result<Self, String> {
+    pub fn new(prog_id: &str) -> AscomResult<Self> {
         // SAFETY: `CLSIDFromProgID` and `CoCreateInstance` are standard Windows COM
         // constructors. `prog_id_wide` is a locally-owned NUL-terminated UTF-16 buffer
         // that outlives the FFI call. CoCreateInstance returns an `IDispatch` whose
@@ -329,11 +337,19 @@ impl AscomDeviceConnection {
         unsafe {
             let prog_id_wide: Vec<u16> = prog_id.encode_utf16().chain(std::iter::once(0)).collect();
 
-            let clsid = CLSIDFromProgID(PCWSTR::from_raw(prog_id_wide.as_ptr()))
-                .map_err(|e| format!("Failed to get CLSID for {}: {}", prog_id, e))?;
+            let clsid = CLSIDFromProgID(PCWSTR::from_raw(prog_id_wide.as_ptr())).map_err(|e| {
+                AscomError::ClassNotRegistered {
+                    prog_id: prog_id.to_string(),
+                    cause: e.to_string(),
+                }
+            })?;
 
-            let dispatch: IDispatch = CoCreateInstance(&clsid, None, CLSCTX_ALL)
-                .map_err(|e| format!("Failed to create COM object {}: {}", prog_id, e))?;
+            let dispatch: IDispatch = CoCreateInstance(&clsid, None, CLSCTX_ALL).map_err(|e| {
+                AscomError::CreateFailed {
+                    prog_id: prog_id.to_string(),
+                    cause: e.to_string(),
+                }
+            })?;
 
             tracing::info!("Created ASCOM COM object for: {}", prog_id);
 
@@ -346,7 +362,6 @@ impl AscomDeviceConnection {
         }
     }
 
-    /// Get the connection health status
     pub fn get_health(&self) -> ConnectionHealth {
         self.health.get_health()
     }
@@ -359,93 +374,20 @@ impl AscomDeviceConnection {
         )
     }
 
-    /// Perform a heartbeat check by reading the Connected property
-    /// This should be called periodically to verify device is still responding
-    pub fn heartbeat(&self) -> Result<(), String> {
-        match self.get_bool_property("Connected") {
-            Ok(_) => {
-                self.health.record_success();
-                Ok(())
-            }
-            Err(e) => {
-                self.health.record_failure();
-                Err(e)
-            }
-        }
+    pub fn connect(&mut self) -> AscomResult<()> {
+        ComDispatch::connect(self)
     }
 
-    /// Connect, and then CHECK that the driver agrees.
-    ///
-    /// Setting `Connected = true` without an exception is not evidence that a
-    /// device is there. Measured on a real rig 2026-08-09: with no ASI mount
-    /// attached, `ASCOM.ASIMount.Telescope` accepted `Connected = true`
-    /// silently, then reported `Connected = False`, `Slewing = True`,
-    /// `SiderealTime = -1` and RA/Dec/Alt/Az all zero. This function believed
-    /// it, so the app announced a connected mount, and every consumer
-    /// downstream was handed `slewing: true` for ever — which is the shape that
-    /// hangs an unattended run all night on a wait-for-slew that can never
-    /// finish. The operator had only picked the wrong driver from a list where
-    /// ASCOM advertises installed DRIVERS, not present HARDWARE.
-    ///
-    /// The read-back is polled rather than instant: ASCOM permits a driver to
-    /// take a moment to come up, and rejecting a slow-but-genuine device would
-    /// trade one false report for another.
-    pub fn connect(&mut self) -> Result<(), String> {
-        self.health.reset(); // Reset health state on new connection
-
-        // A failed write is already conclusive; only a *silent* write needs
-        // verifying. Mark the object down first so every early return below
-        // leaves `self.connected` accurate — on a reconnect the field still
-        // holds `true` from the last successful session.
-        self.connected = false;
-        if let Err(e) = self.set_bool_property("Connected", true) {
-            self.health.mark_failed();
-            return Err(e);
-        }
-
-        let started = std::time::Instant::now();
-        let verdict = verify_connected_readback(
-            &self.prog_id,
-            CONNECT_VERIFY_TIMEOUT,
-            CONNECT_VERIFY_POLL,
-            || self.get_bool_property("Connected"),
-            std::thread::sleep,
-            || started.elapsed(),
-        );
-
-        if let Err(message) = verdict {
-            // Put the driver back down rather than leaving a half-open handle
-            // for the next attempt to fight. Measured against the phantom ASI
-            // mount: this write is accepted without an exception, so the
-            // cleanup is real and not merely hopeful.
-            let _ = self.set_bool_property("Connected", false);
-            // The health monitor was reset to "healthy" at the top of this
-            // function. Leaving it there would have `is_healthy()` vouch for a
-            // device that just failed to connect. `record_failure()` is NOT
-            // enough here: it needs three strikes before it flips the flag, so
-            // one call leaves the monitor answering `Unknown`, which
-            // `is_healthy()` reads as fine (measured on the phantom ASI Mount,
-            // 2026-08-09). A refused connect is conclusive, so say so.
-            self.health.mark_failed();
-            tracing::warn!("ASCOM device {} failed to come online", self.prog_id);
-            return Err(message);
-        }
-
-        self.connected = true;
-        self.health.record_success();
-        tracing::info!("ASCOM device {} connected", self.prog_id);
-        Ok(())
+    pub fn disconnect(&mut self) -> AscomResult<()> {
+        ComDispatch::disconnect(self)
     }
 
-    pub fn disconnect(&mut self) -> Result<(), String> {
-        self.set_bool_property("Connected", false)?;
-        self.connected = false;
-        tracing::info!("ASCOM device {} disconnected", self.prog_id);
-        Ok(())
+    pub fn is_connected(&self) -> AscomResult<bool> {
+        self.get("Connected")
     }
 
-    pub fn is_connected(&self) -> Result<bool, String> {
-        self.get_bool_property("Connected")
+    pub fn heartbeat(&self) -> AscomResult<()> {
+        ComDispatch::heartbeat(self)
     }
 
     /// Invoke an ASCOM IDispatch member, retrying transient driver exceptions.
@@ -453,17 +395,11 @@ impl AscomDeviceConnection {
     /// The `EXCEPINFO` is owned here rather than accepted as a parameter, so
     /// no caller can pass `None` and drop the driver's account of a refusal.
     ///
-    /// Visible to the whole `windows` module tree, not just this file: the
-    /// device wrappers (`camera`, `switch`, `cover_calibrator`) need it for
-    /// signatures the typed helpers do not cover, and routing them here is what
-    /// makes "the driver's explanation always survives" true of the crate
-    /// rather than of one file.
-    ///
     /// # Safety
     /// `params` and every pointer it contains, plus `pvarresult` when present,
     /// must remain valid for all retry attempts. The caller must also invoke
     /// this on the COM object's owning STA thread.
-    pub(super) unsafe fn invoke_with_retry(
+    unsafe fn invoke_with_retry(
         &self,
         dispid: i32,
         flags: DISPATCH_FLAGS,
@@ -509,6 +445,7 @@ impl AscomDeviceConnection {
                 Err(hresult) => {
                     return Err(InvokeError {
                         driver: excep_info.describe(),
+                        scode: excep_info.scode(),
                         hresult,
                     })
                 }
@@ -518,7 +455,7 @@ impl AscomDeviceConnection {
         unreachable!("bounded IDispatch retry loop always returns")
     }
 
-    pub(super) fn get_dispid(&self, name: &str) -> Result<i32, String> {
+    fn get_dispid(&self, name: &str) -> windows::core::Result<i32> {
         // SAFETY: `IDispatch::GetIDsOfNames` is invoked with: a zeroed reserved GUID,
         // a locally-owned NUL-terminated UTF-16 buffer (`name_wide`) wrapped in a stack
         // `[PCWSTR; 1]`, a count matching the array length, the locale id 0, and a stack
@@ -529,548 +466,173 @@ impl AscomDeviceConnection {
             let mut dispid: i32 = 0;
 
             self.dispatch
-                .GetIDsOfNames(&GUID::zeroed(), names.as_ptr(), 1, 0, &mut dispid)
-                .map_err(|e| format!("Failed to get DISPID for {}: {}", name, e))?;
+                .GetIDsOfNames(&GUID::zeroed(), names.as_ptr(), 1, 0, &mut dispid)?;
 
             Ok(dispid)
         }
     }
+}
 
-    pub fn get_string_property(&self, name: &str) -> Result<String, String> {
-        // SAFETY: `IDispatch::Invoke` for DISPATCH_PROPERTYGET takes an empty DISPPARAMS
-        // (no in/named args), a zeroed reserved GUID, and a stack-allocated VARIANT
-        // out-pointer. All pointers (DISPID is by-value) point to stack locals owned by
-        // this scope. `variant_to_string` then reads the result VARIANT under its own
-        // `vt`-guarded access (see variant.rs). Caller invariant: COM apartment thread.
+impl ComDispatch for AscomDeviceConnection {
+    /// The one path every property read, property write and method call
+    /// takes to the driver.
+    fn invoke(&self, call: &ComCall<'_>) -> AscomResult<ComValue> {
+        let dispid = self
+            .get_dispid(call.member)
+            .map_err(|e| call.unknown_member(e.to_string()))?;
+
+        // COM takes the arguments in reverse positional order.
+        let mut args: Vec<VARIANT> = call.args.iter().rev().map(variant_from_arg).collect();
+        let mut dispid_named = DISPID_PROPERTYPUT;
+
+        let (flags, named_args, named_count) = match call.dispatch {
+            Dispatch::Get => (DISPATCH_PROPERTYGET, ptr::null_mut(), 0),
+            // A property put names its value argument DISPID_PROPERTYPUT.
+            Dispatch::Put => (DISPATCH_PROPERTYPUT, &mut dispid_named as *mut i32, 1),
+            Dispatch::Method => (DISPATCH_METHOD, ptr::null_mut(), 0),
+        };
+        let params = DISPPARAMS {
+            rgvarg: if args.is_empty() {
+                ptr::null_mut()
+            } else {
+                args.as_mut_ptr()
+            },
+            rgdispidNamedArgs: named_args,
+            // Why: an ASCOM member takes at most a handful of arguments.
+            cArgs: args.len() as u32,
+            cNamedArgs: named_count,
+        };
+
+        // The guard runs `VariantClear` on drop, after the value has been
+        // copied out, so a returned BSTR or SAFEARRAY (an image array is about
+        // 96 MiB per frame) is released; for a scalar it does nothing.
+        let mut result = OwnedVariant::empty();
+        let wants_result = call.returns != ComKind::Void;
+
+        // SAFETY: `params` points at `args` (a live Vec whose length is
+        // `cArgs`) and, for a put, at the stack-owned `dispid_named`
+        // (`cNamedArgs = 1`); with no arguments both pointers are null and
+        // both counts 0, the documented empty shape. `result` is a live
+        // out-VARIANT. All of them outlive the call, including its retries.
+        // Caller invariant: this runs on the COM object's STA thread.
         unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut result = OwnedVariant::empty();
-            let params = DISPPARAMS::default();
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYGET, &params, Some(result.as_mut()))
-                .map_err(|e| format!("Failed to get property {}: {}", name, e))?;
-
-            // `variant_to_string` copies the BSTR into an owned `String` before
-            // the `OwnedVariant` guard drops and frees the source BSTR.
-            variant_to_string(result.get())
-                .ok_or_else(|| format!("Property {} is not a string", name))
+            self.invoke_with_retry(
+                dispid,
+                flags,
+                &params,
+                wants_result.then(|| result.as_mut() as *mut VARIANT),
+            )
         }
-    }
+        .map_err(|e| call.invoke_error(e.to_string(), Some(e.code())))?;
 
-    /// Get a string array property (for SupportedActions, etc.)
-    pub fn get_string_array_property(&self, name: &str) -> Result<Vec<String>, String> {
-        // SAFETY: Same DISPATCH_PROPERTYGET pattern as `get_string_property` — empty
-        // DISPPARAMS, stack VARIANT out-pointer, zeroed reserved GUID. Result is then
-        // passed by reference to `extract_safearray_string` (an `unsafe fn` whose own
-        // preconditions are documented in variant.rs). Caller invariant: STA thread.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut result = OwnedVariant::empty();
-            let params = DISPPARAMS::default();
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYGET, &params, Some(result.as_mut()))
-                .map_err(|e| format!("Failed to get property {}: {}", name, e))?;
-
-            // `extract_safearray_string` copies into owned `String`s before the
-            // `OwnedVariant` guard drops and frees the source SAFEARRAY.
-            extract_safearray_string(result.get())
-                .map_err(|e| format!("Property {} is not a string array: {}", name, e))
+        if !wants_result {
+            return Ok(ComValue::Empty);
         }
-    }
 
-    /// Get an i32 SAFEARRAY property (e.g. IFilterWheelV2 `FocusOffsets`).
-    pub fn get_int_array_property(&self, name: &str) -> Result<Vec<i32>, String> {
-        // SAFETY: DISPATCH_PROPERTYGET — same shape as `get_string_array_property`;
-        // result is passed to `extract_safearray_i32` which validates bounds before reads.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut result = OwnedVariant::empty();
-            let params = DISPPARAMS::default();
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYGET, &params, Some(result.as_mut()))
-                .map_err(|e| format!("Failed to get property {}: {}", name, e))?;
-
-            // `extract_safearray_i32` copies into an owned `Vec<i32>` before the
-            // `OwnedVariant` guard drops and frees the source SAFEARRAY.
-            extract_safearray_i32(result.get())
-                .map(|(data, _, _)| data)
-                .map_err(|e| format!("Property {} is not an int array: {}", name, e))
-        }
-    }
-
-    /// Read an indexed double property (e.g. IObservingConditions `TimeSinceLastUpdate`).
-    pub fn get_double_property_indexed(&self, name: &str, index: &str) -> Result<f64, String> {
-        // SAFETY: DISPATCH_PROPERTYGET with one VT_BSTR index argument — standard
-        // IDispatch shape for ASCOM indexed properties.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut arg = variant_bstr(index);
-
-            let params = DISPPARAMS {
-                rgvarg: &mut arg,
-                rgdispidNamedArgs: ptr::null_mut(),
-                cArgs: 1,
-                cNamedArgs: 0,
-            };
-
-            let mut result = OwnedVariant::empty();
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYGET, &params, Some(result.as_mut()))
-                .map_err(|e| format!("Failed to get property {}: {}", name, e))?;
-
-            // VT_R8 is a non-heap arm, but routing the indexed result through
-            // `OwnedVariant` keeps cleanup uniform (and covers a driver that
-            // returns a heap-owning VARIANT here); the `VariantClear` on drop is
-            // a no-op for the scalar case.
-            variant_to_f64(result.get()).ok_or_else(|| format!("Property {} is not a double", name))
-        }
-    }
-
-    /// Read an indexed string property (e.g. IObservingConditions `SensorDescription`).
-    pub fn get_string_property_indexed(&self, name: &str, index: &str) -> Result<String, String> {
-        // SAFETY: DISPATCH_PROPERTYGET with one VT_BSTR index argument.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut arg = variant_bstr(index);
-
-            let params = DISPPARAMS {
-                rgvarg: &mut arg,
-                rgdispidNamedArgs: ptr::null_mut(),
-                cArgs: 1,
-                cNamedArgs: 0,
-            };
-
-            let mut result = OwnedVariant::empty();
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYGET, &params, Some(result.as_mut()))
-                .map_err(|e| format!("Failed to get property {}: {}", name, e))?;
-
-            // `variant_to_string` copies the BSTR into an owned `String` before
-            // the `OwnedVariant` guard drops and frees the source BSTR.
-            variant_to_string(result.get())
-                .ok_or_else(|| format!("Property {} is not a string", name))
-        }
-    }
-
-    pub fn get_bool_property(&self, name: &str) -> Result<bool, String> {
-        // SAFETY: Same DISPATCH_PROPERTYGET pattern as `get_string_property` — empty
-        // DISPPARAMS, stack VARIANT out-pointer, zeroed reserved GUID. `variant_to_bool`
-        // performs its own `vt == VT_BOOL` guard before reading the union arm.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut result = VARIANT::default();
-            let params = DISPPARAMS::default();
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYGET, &params, Some(&mut result))
-                .map_err(|e| format!("Failed to get property {}: {}", name, e))?;
-
-            variant_to_bool(&result).ok_or_else(|| format!("Property {} is not a bool", name))
-        }
-    }
-
-    pub fn set_bool_property(&self, name: &str, value: bool) -> Result<(), String> {
-        // SAFETY: DISPATCH_PROPERTYPUT shape: DISPPARAMS points at a single stack-owned
-        // VT_BOOL VARIANT (`arg`) and a single stack-owned named-arg DISPID
-        // (`dispid_named`); both outlive the call. `cArgs`/`cNamedArgs` match the array
-        // lengths exactly. Caller invariant: STA thread.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut arg = variant_bool(value);
-            let mut dispid_named = DISPID_PROPERTYPUT;
-
-            let params = DISPPARAMS {
-                rgvarg: &mut arg,
-                rgdispidNamedArgs: &mut dispid_named,
-                cArgs: 1,
-                cNamedArgs: 1,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYPUT, &params, None)
-                .map_err(|e| format!("Failed to set property {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    pub fn get_double_property(&self, name: &str) -> Result<f64, String> {
-        // SAFETY: Same DISPATCH_PROPERTYGET pattern as `get_string_property`; the result
-        // VARIANT is read by `variant_to_f64` under its own `vt`-guarded access.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut result = VARIANT::default();
-            let params = DISPPARAMS::default();
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYGET, &params, Some(&mut result))
-                .map_err(|e| format!("Failed to get property {}: {}", name, e))?;
-
-            variant_to_f64(&result).ok_or_else(|| format!("Property {} is not a double", name))
-        }
-    }
-
-    pub fn set_double_property(&self, name: &str, value: f64) -> Result<(), String> {
-        // SAFETY: Same DISPATCH_PROPERTYPUT pattern as `set_bool_property` — one stack
-        // VT_R8 VARIANT (`arg`) and one stack named-arg DISPID. `cArgs`/`cNamedArgs`
-        // match the actual array lengths; both pointers outlive the FFI call.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut arg = variant_f64(value);
-            let mut dispid_named = DISPID_PROPERTYPUT;
-
-            let params = DISPPARAMS {
-                rgvarg: &mut arg,
-                rgdispidNamedArgs: &mut dispid_named,
-                cArgs: 1,
-                cNamedArgs: 1,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYPUT, &params, None)
-                .map_err(|e| format!("Failed to set property {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    pub fn get_date_property(&self, name: &str) -> Result<f64, String> {
-        // SAFETY: Same DISPATCH_PROPERTYGET pattern as `get_double_property`; the result
-        // VARIANT is read by `variant_to_date` after verifying VT_DATE.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut result = VARIANT::default();
-            let params = DISPPARAMS::default();
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYGET, &params, Some(&mut result))
-                .map_err(|e| format!("Failed to get property {}: {}", name, e))?;
-
-            variant_to_date(&result).ok_or_else(|| format!("Property {} is not a VT_DATE", name))
-        }
-    }
-
-    pub fn set_date_property(&self, name: &str, value: f64) -> Result<(), String> {
-        // SAFETY: Same DISPATCH_PROPERTYPUT pattern as `set_double_property`, but the
-        // argument is tagged as VT_DATE for ASCOM DateTime properties.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut arg = variant_date(value);
-            let mut dispid_named = DISPID_PROPERTYPUT;
-
-            let params = DISPPARAMS {
-                rgvarg: &mut arg,
-                rgdispidNamedArgs: &mut dispid_named,
-                cArgs: 1,
-                cNamedArgs: 1,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYPUT, &params, None)
-                .map_err(|e| format!("Failed to set property {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    pub fn get_int_property(&self, name: &str) -> Result<i32, String> {
-        // SAFETY: Same DISPATCH_PROPERTYGET pattern as `get_string_property`. The
-        // subsequent read of `result.Anonymous.Anonymous.vt` for logging is a borrow of
-        // the same stack VARIANT and is well-aligned; `variant_to_i32` performs the
-        // typed extraction under its own `vt`-guarded match.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut result = VARIANT::default();
-            let params = DISPPARAMS::default();
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYGET, &params, Some(&mut result))
-                .map_err(|e| format!("Failed to get property {}: {}", name, e))?;
-
-            let vt = (*result.Anonymous.Anonymous).vt;
+        if call.dispatch == Dispatch::Get && call.returns == ComKind::I4 {
+            // SAFETY: reads the type tag of the live result VARIANT.
+            let vt = unsafe { (*result.get().Anonymous.Anonymous).vt };
             tracing::debug!(
                 "ASCOM get_int_property('{}') VARIANT type: {} (VT_I2=2, VT_I4=3, VT_R8=5)",
-                name,
+                call.member,
                 vt.0
             );
-            variant_to_i32(&result)
-                .ok_or_else(|| format!("Property {} is not an int (VARIANT type={})", name, vt.0))
+        }
+
+        // SAFETY: `result` holds the VARIANT the driver just returned;
+        // `variant_to_value` checks the type tag before reading any union arm
+        // and copies the data into owned Rust values.
+        unsafe { variant_to_value(result.get(), call.returns) }
+            .map_err(|mismatch| call.type_error(mismatch.vt, mismatch.detail))
+    }
+
+    /// Connect, and then CHECK that the driver agrees.
+    ///
+    /// Setting `Connected = true` without an exception is not evidence that a
+    /// device is there. Measured on a real rig 2026-08-09: with no ASI mount
+    /// attached, `ASCOM.ASIMount.Telescope` accepted `Connected = true`
+    /// silently, then reported `Connected = False`, `Slewing = True`,
+    /// `SiderealTime = -1` and RA/Dec/Alt/Az all zero. This function believed
+    /// it, so the app announced a connected mount, and every consumer
+    /// downstream was handed `slewing: true` for ever — which is the shape that
+    /// hangs an unattended run all night on a wait-for-slew that can never
+    /// finish. The operator had only picked the wrong driver from a list where
+    /// ASCOM advertises installed DRIVERS, not present HARDWARE.
+    ///
+    /// The read-back is polled rather than instant: ASCOM permits a driver to
+    /// take a moment to come up, and rejecting a slow-but-genuine device would
+    /// trade one false report for another.
+    fn connect(&mut self) -> AscomResult<()> {
+        self.health.reset(); // Reset health state on new connection
+
+        // A failed write is already conclusive; only a *silent* write needs
+        // verifying. Mark the object down first so every early return below
+        // leaves `self.connected` accurate — on a reconnect the field still
+        // holds `true` from the last successful session.
+        self.connected = false;
+        if let Err(e) = self.put("Connected", true) {
+            self.health.mark_failed();
+            return Err(e);
+        }
+
+        let started = std::time::Instant::now();
+        let verdict = verify_connected_readback(
+            &self.prog_id,
+            CONNECT_VERIFY_TIMEOUT,
+            CONNECT_VERIFY_POLL,
+            || self.get::<bool>("Connected").map_err(|e| e.to_string()),
+            std::thread::sleep,
+            || started.elapsed(),
+        );
+
+        if let Err(message) = verdict {
+            // Put the driver back down rather than leaving a half-open handle
+            // for the next attempt to fight. Measured against the phantom ASI
+            // mount: this write is accepted without an exception, so the
+            // cleanup is real and not merely hopeful.
+            let _ = self.put("Connected", false);
+            // The health monitor was reset to "healthy" at the top of this
+            // function. Leaving it there would have `is_healthy()` vouch for a
+            // device that just failed to connect. `record_failure()` is NOT
+            // enough here: it needs three strikes before it flips the flag, so
+            // one call leaves the monitor answering `Unknown`, which
+            // `is_healthy()` reads as fine (measured on the phantom ASI Mount,
+            // 2026-08-09). A refused connect is conclusive, so say so.
+            self.health.mark_failed();
+            tracing::warn!("ASCOM device {} failed to come online", self.prog_id);
+            return Err(AscomError::NotOnline(message));
+        }
+
+        self.connected = true;
+        self.health.record_success();
+        tracing::info!("ASCOM device {} connected", self.prog_id);
+        Ok(())
+    }
+
+    fn disconnect(&mut self) -> AscomResult<()> {
+        self.put("Connected", false)?;
+        self.connected = false;
+        tracing::info!("ASCOM device {} disconnected", self.prog_id);
+        Ok(())
+    }
+
+    /// Perform a heartbeat check by reading the Connected property
+    /// This should be called periodically to verify device is still responding
+    fn heartbeat(&self) -> AscomResult<()> {
+        match self.get::<bool>("Connected") {
+            Ok(_) => {
+                self.health.record_success();
+                Ok(())
+            }
+            Err(e) => {
+                self.health.record_failure();
+                Err(e)
+            }
         }
     }
 
-    pub fn set_int_property(&self, name: &str, value: i32) -> Result<(), String> {
-        // SAFETY: Same DISPATCH_PROPERTYPUT pattern as `set_bool_property`/`set_double_property`
-        // — single stack VT_I4 VARIANT and single stack named-arg DISPID, with matching
-        // `cArgs`/`cNamedArgs`. All pointers point to locals owned by this scope.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut arg = variant_i32(value);
-            let mut dispid_named = DISPID_PROPERTYPUT;
-
-            let params = DISPPARAMS {
-                rgvarg: &mut arg,
-                rgdispidNamedArgs: &mut dispid_named,
-                cArgs: 1,
-                cNamedArgs: 1,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_PROPERTYPUT, &params, None)
-                .map_err(|e| format!("Failed to set property {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    pub fn call_method(&self, name: &str) -> Result<(), String> {
-        // SAFETY: DISPATCH_METHOD with no arguments — DISPPARAMS::default() is the
-        // documented zero-args shape (rgvarg null, cArgs 0).
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let params = DISPPARAMS::default();
-
-            self.invoke_with_retry(dispid, DISPATCH_METHOD, &params, None)
-                .map_err(|e| format!("Failed to call method {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    pub fn call_method_2_double(&self, name: &str, arg1: f64, arg2: f64) -> Result<(), String> {
-        // SAFETY: DISPATCH_METHOD with two positional args — DISPPARAMS::rgvarg points
-        // into the stack array `args[2]` (whose length matches `cArgs = 2`), and there
-        // are no named args (`rgdispidNamedArgs` null, `cNamedArgs` 0). All pointers
-        // outlive the FFI call.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-
-            // Arguments are passed in reverse order
-            let mut args = [variant_f64(arg2), variant_f64(arg1)];
-
-            let params = DISPPARAMS {
-                rgvarg: args.as_mut_ptr(),
-                rgdispidNamedArgs: ptr::null_mut(),
-                cArgs: 2,
-                cNamedArgs: 0,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_METHOD, &params, None)
-                .map_err(|e| format!("Failed to call method {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    pub fn call_method_1_double(&self, name: &str, arg: f64) -> Result<(), String> {
-        // SAFETY: DISPATCH_METHOD with one positional arg — DISPPARAMS::rgvarg points
-        // into the 1-element stack array `args` (matching `cArgs = 1`), no named args.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut args = [variant_f64(arg)];
-
-            let params = DISPPARAMS {
-                rgvarg: args.as_mut_ptr(),
-                rgdispidNamedArgs: ptr::null_mut(),
-                cArgs: 1,
-                cNamedArgs: 0,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_METHOD, &params, None)
-                .map_err(|e| format!("Failed to call method {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    pub fn call_method_1_int(&self, name: &str, arg: i32) -> Result<(), String> {
-        // SAFETY: DISPATCH_METHOD with one positional VT_I4 arg — same shape as
-        // `call_method_1_double` but with an i32-typed VARIANT. `cArgs = 1` matches the
-        // 1-element stack array.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut args = [variant_i32(arg)];
-
-            let params = DISPPARAMS {
-                rgvarg: args.as_mut_ptr(),
-                rgdispidNamedArgs: ptr::null_mut(),
-                cArgs: 1,
-                cNamedArgs: 0,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_METHOD, &params, None)
-                .map_err(|e| format!("Failed to call method {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    /// Call a method with one integer argument that returns a boolean
-    /// Used for ASCOM methods like CanMoveAxis(TelescopeAxes) -> Boolean
-    pub fn call_method_1_int_return_bool(&self, name: &str, arg: i32) -> Result<bool, String> {
-        // SAFETY: DISPATCH_METHOD with one VT_I4 arg and a result VARIANT — `args` is a
-        // 1-element stack array (matching `cArgs = 1`); `result_var` is a stack VARIANT
-        // out-pointer. All pointers outlive the call. `variant_to_bool` reads the result
-        // under its own `vt`-guarded match.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-            let mut args = [variant_i32(arg)];
-
-            let params = DISPPARAMS {
-                rgvarg: args.as_mut_ptr(),
-                rgdispidNamedArgs: ptr::null_mut(),
-                cArgs: 1,
-                cNamedArgs: 0,
-            };
-
-            let mut result_var = VARIANT::default();
-
-            self.invoke_with_retry(dispid, DISPATCH_METHOD, &params, Some(&mut result_var))
-                .map_err(|e| format!("Failed to call method {}: {}", name, e))?;
-
-            // Extract boolean result
-            variant_to_bool(&result_var)
-                .ok_or_else(|| format!("Method {} did not return a boolean", name))
-        }
-    }
-
-    pub fn call_method_2_int(&self, name: &str, arg1: i32, arg2: i32) -> Result<(), String> {
-        // SAFETY: DISPATCH_METHOD with two VT_I4 positional args — `cArgs = 2` matches
-        // the 2-element stack array `args`; no named args. All pointers outlive the
-        // call.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-
-            // Arguments are passed in reverse order
-            let mut args = [variant_i32(arg2), variant_i32(arg1)];
-
-            let params = DISPPARAMS {
-                rgvarg: args.as_mut_ptr(),
-                rgdispidNamedArgs: ptr::null_mut(),
-                cArgs: 2,
-                cNamedArgs: 0,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_METHOD, &params, None)
-                .map_err(|e| format!("Failed to call method {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    pub fn call_method_2_double_bool(
-        &self,
-        name: &str,
-        arg1: f64,
-        arg2: bool,
-    ) -> Result<(), String> {
-        // SAFETY: DISPATCH_METHOD with two positional args (VT_BOOL then VT_R8) —
-        // `cArgs = 2` matches the 2-element stack array `args`; no named args. All
-        // pointers outlive the call.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-
-            // Arguments are passed in reverse order
-            let mut args = [variant_bool(arg2), variant_f64(arg1)];
-
-            let params = DISPPARAMS {
-                rgvarg: args.as_mut_ptr(),
-                rgdispidNamedArgs: ptr::null_mut(),
-                cArgs: 2,
-                cNamedArgs: 0,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_METHOD, &params, None)
-                .map_err(|e| format!("Failed to call method {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    /// Call a method with an int and a double argument (e.g., MoveAxis)
-    pub fn call_method_int_double(&self, name: &str, arg1: i32, arg2: f64) -> Result<(), String> {
-        // SAFETY: DISPATCH_METHOD with two positional args (VT_R8 then VT_I4) — `cArgs
-        // = 2` matches the 2-element stack array `args`; no named args. All pointers
-        // outlive the call.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-
-            // Arguments are passed in reverse order
-            let mut args = [variant_f64(arg2), variant_i32(arg1)];
-
-            let params = DISPPARAMS {
-                rgvarg: args.as_mut_ptr(),
-                rgdispidNamedArgs: ptr::null_mut(),
-                cArgs: 2,
-                cNamedArgs: 0,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_METHOD, &params, None)
-                .map_err(|e| format!("Failed to call method {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-
-    /// Call a parameterless method (e.g., SetupDialog) on the COM object
-    pub fn call_method_0(&self, name: &str) -> Result<(), String> {
-        // SAFETY: DISPATCH_METHOD with zero args — DISPPARAMS uses null `rgvarg` and
-        // null `rgdispidNamedArgs` paired with `cArgs = 0`, `cNamedArgs = 0`, which is
-        // the documented zero-arg shape.
-        unsafe {
-            let dispid = self.get_dispid(name)?;
-
-            let params = DISPPARAMS {
-                rgvarg: ptr::null_mut(),
-                rgdispidNamedArgs: ptr::null_mut(),
-                cArgs: 0,
-                cNamedArgs: 0,
-            };
-
-            self.invoke_with_retry(dispid, DISPATCH_METHOD, &params, None)
-                .map_err(|e| format!("Failed to call method {}: {}", name, e))?;
-
-            Ok(())
-        }
-    }
-}
-
-// AscomConnectionBackend trait — mockall seam for unit-testing per-device
-// wrappers without a live Windows COM driver.
-
-// Why: per-device modules (camera.rs, switch.rs, cover_calibrator.rs, …) call
-// into `AscomDeviceConnection` for every COM operation. To unit-test those
-// modules we need a fake implementation. This trait names the operations
-// callers actually use; mockall generates a `MockAscomConnectionBackend`
-// from it on demand.
-//
-// Scope (MVP): only the two methods sibling modules call directly today —
-// `get_dispid` (DISPID lookup) and `call_method` (parameterless dispatch).
-// Adding the remaining typed helpers is a follow-on task tracked under
-// we deliberately do NOT widen the trait surface here so
-// that the per-device modules can keep using `&AscomDeviceConnection`
-// unchanged until the next pass.
-//
-// Why `cfg_attr(any(test, feature = "mock"), …)` instead of just
-// `cfg_attr(test, …)`: integration tests live in `tests/` and compile as a
-// separate crate that does NOT see this crate's `cfg(test)` build, so the
-// generated `MockAscomConnectionBackend` would be invisible to them. The
-// `mock` cargo feature is enabled by the test crate via dev-dependencies
-// in `Cargo.toml`, which surfaces the mock to integration tests without
-// pulling mockall into production builds.
-#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
-pub trait AscomConnectionBackend: Send + Sync {
-    /// Resolve a property/method name to its IDispatch DISPID.
-    /// Mirrors `AscomDeviceConnection::get_dispid`.
-    fn get_dispid(&self, name: &str) -> Result<i32, String>;
-
-    /// Invoke a parameterless ASCOM method by name.
-    /// Mirrors `AscomDeviceConnection::call_method` — the most common
-    /// dispatch shape used by per-device wrappers.
-    fn call_method(&self, name: &str) -> Result<(), String>;
-}
-
-// Why: the impl is a pure pass-through to the inherent methods so production
-// behaviour is unchanged. Sibling per-device modules continue using
-// `&AscomDeviceConnection` directly today; this impl lets them be migrated
-// to `&dyn AscomConnectionBackend` in a future pass without further changes
-// to this file.
-impl AscomConnectionBackend for AscomDeviceConnection {
-    fn get_dispid(&self, name: &str) -> Result<i32, String> {
-        AscomDeviceConnection::get_dispid(self, name)
-    }
-
-    fn call_method(&self, name: &str) -> Result<(), String> {
-        AscomDeviceConnection::call_method(self, name)
+    fn health(&self) -> ConnectionHealth {
+        self.health.get_health()
     }
 }
 
@@ -1129,12 +691,13 @@ unsafe impl Sync for AscomDeviceConnection {}
 /// `OwnedExcepInfo::describe`, and the `String` a caller finally shows an
 /// operator — runs for real, with no COM apartment and no hardware.
 ///
-/// The stand-in and its constructors are `pub(super)` so the sibling device
+/// The stand-in and its constructors are `pub(crate)` so the device
 /// wrappers (`camera`, `switch`, `cover_calibrator`) can drive their own
 /// hand-rolled invoke paths through the same refusing driver.
 #[cfg(test)]
-pub(super) mod excepinfo_recovery_tests {
+pub(crate) mod excepinfo_recovery_tests {
     use super::*;
+    use crate::com::ComArg;
     use std::mem::ManuallyDrop;
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
@@ -1149,7 +712,7 @@ pub(super) mod excepinfo_recovery_tests {
     const ASCOM_NOT_IMPLEMENTED: i32 = 0x8004_0400_u32 as i32;
 
     /// What the stand-in driver writes into `EXCEPINFO` when it refuses.
-    pub(in crate::windows) enum Excuse {
+    pub(crate) enum Excuse {
         /// A driver that explains itself, as ASCOM intends.
         Spoken {
             source: &'static str,
@@ -1248,7 +811,7 @@ pub(super) mod excepinfo_recovery_tests {
     ///
     /// `connected: false` keeps `Drop` quiet — it only warns about a
     /// still-connected handle and never calls into COM.
-    pub(in crate::windows) fn connection(
+    pub(crate) fn connection(
         excuse: Excuse,
         number_the_attempts: bool,
     ) -> (AscomDeviceConnection, Arc<AtomicU32>) {
@@ -1270,7 +833,7 @@ pub(super) mod excepinfo_recovery_tests {
         (device, attempts)
     }
 
-    pub(in crate::windows) fn parked_mount() -> Excuse {
+    pub(crate) fn parked_mount() -> Excuse {
         Excuse::Spoken {
             source: "ASCOM.PegasusAstroUnityServer",
             description: "Cannot set Tracking while the mount is parked",
@@ -1282,7 +845,7 @@ pub(super) mod excepinfo_recovery_tests {
     fn property_write_surfaces_the_drivers_explanation() {
         let (device, _) = connection(parked_mount(), false);
 
-        let err = device.set_bool_property("Tracking", true).unwrap_err();
+        let err = device.put("Tracking", true).unwrap_err().to_string();
 
         assert!(
             err.contains("Cannot set Tracking while the mount is parked"),
@@ -1314,18 +877,22 @@ pub(super) mod excepinfo_recovery_tests {
         for (label, err) in [
             (
                 "bool",
-                device.set_bool_property("Tracking", true).unwrap_err(),
+                device.put("Tracking", true).unwrap_err().to_string(),
             ),
-            ("int", device.set_int_property("Gain", 120).unwrap_err()),
+            ("int", device.put("Gain", 120).unwrap_err().to_string()),
             (
                 "double",
                 device
-                    .set_double_property("SetCCDTemperature", -10.0)
-                    .unwrap_err(),
+                    .put("SetCCDTemperature", -10.0)
+                    .unwrap_err()
+                    .to_string(),
             ),
             (
                 "date",
-                device.set_date_property("UTCDate", 45_000.0).unwrap_err(),
+                device
+                    .put("UTCDate", ComArg::Date(45_000.0))
+                    .unwrap_err()
+                    .to_string(),
             ),
         ] {
             assert!(
@@ -1349,7 +916,7 @@ pub(super) mod excepinfo_recovery_tests {
             false,
         );
 
-        let err = device.get_int_property("Gain").unwrap_err();
+        let err = device.get::<i32>("Gain").unwrap_err().to_string();
 
         assert!(
             err.contains("Property Gain is not implemented by this camera"),
@@ -1364,7 +931,7 @@ pub(super) mod excepinfo_recovery_tests {
         // operator must still get the HRESULT, not an empty tail.
         let (device, attempts) = connection(Excuse::Silent, false);
 
-        let err = device.set_bool_property("Tracking", true).unwrap_err();
+        let err = device.put("Tracking", true).unwrap_err().to_string();
 
         assert!(
             err.contains("0x80020009"),
@@ -1385,7 +952,7 @@ pub(super) mod excepinfo_recovery_tests {
         // reporting a stale sentence; a per-attempt guard cannot.
         let (device, attempts) = connection(parked_mount(), true);
 
-        let err = device.set_bool_property("Tracking", true).unwrap_err();
+        let err = device.put("Tracking", true).unwrap_err().to_string();
 
         assert_eq!(attempts.load(Ordering::SeqCst), 3);
         assert!(

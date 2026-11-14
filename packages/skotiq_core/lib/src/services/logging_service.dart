@@ -2,15 +2,168 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import '../utils/skotiq_data_directory.dart';
 
-/// Log level for filtering
-enum LogLevel { debug, info, warning, error, critical }
+enum LogLevel {
+  debug,
+  info,
+  warning,
+  error,
+  critical;
 
-/// A log entry
+  /// The level `dart:developer` and `package:logging` print for this one.
+  int get developerLevel => switch (this) {
+    LogLevel.debug => 300,
+    LogLevel.info => 500,
+    LogLevel.warning => 900,
+    LogLevel.error => 1000,
+    LogLevel.critical => 1200,
+  };
+
+  /// The level for a `package:logging` severity number (INFO is 800).
+  static LogLevel fromDeveloperLevel(int level) {
+    if (level >= 1200) return LogLevel.critical;
+    if (level >= 1000) return LogLevel.error;
+    if (level >= 900) return LogLevel.warning;
+    if (level >= 800) return LogLevel.info;
+    return LogLevel.debug;
+  }
+}
+
+/// The process's log, for code that holds no provider `Ref` and for code that
+/// logs while its container is shutting down.
+///
+/// Entries go to the [LoggingService] the root container built (the log file,
+/// the Log Viewer and the remote tail). Before one exists and after it is
+/// disposed they go to `dart:developer`, so a call never throws.
+abstract final class Log {
+  static LoggingService? _service;
+
+  /// Stack frames kept on an entry.
+  static const int _stackFrames = 16;
+
+  static void attach(LoggingService service) => _service = service;
+
+  static void detach(LoggingService service) {
+    if (identical(_service, service)) _service = null;
+  }
+
+  static void debug(
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => write(
+    LogLevel.debug,
+    message,
+    source: source,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  static void info(
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => write(
+    LogLevel.info,
+    message,
+    source: source,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  static void warning(
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => write(
+    LogLevel.warning,
+    message,
+    source: source,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  static void error(
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => write(
+    LogLevel.error,
+    message,
+    source: source,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  static void critical(
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => write(
+    LogLevel.critical,
+    message,
+    source: source,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  /// Record [message], without a leading `[source]` tag. [error] is appended
+  /// unless the message already states it; the head of [stackTrace] rides in
+  /// the entry's fields.
+  static void write(
+    LogLevel level,
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    final service = _service;
+    if (service == null) {
+      developer.log(
+        message,
+        name: source,
+        level: level.developerLevel,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return;
+    }
+    // Many callers open the message with their own name in brackets; the
+    // entry already carries it as its source.
+    final tag = '[$source] ';
+    final body = message.startsWith(tag)
+        ? message.substring(tag.length)
+        : message;
+    final errorText = error?.toString();
+    final text = errorText == null || body.contains(errorText)
+        ? body
+        : '$body: $errorText';
+    service.log(
+      level,
+      text,
+      source: source,
+      fields: stackTrace == null
+          ? null
+          : {
+              'stackTrace': stackTrace
+                  .toString()
+                  .split('\n')
+                  .take(_stackFrames)
+                  .join('\n'),
+            },
+    );
+  }
+}
+
 class LogEntry {
   final DateTime timestamp;
   final LogLevel level;
@@ -140,10 +293,13 @@ class LogEntry {
 /// the same directory and the same daily rotation, and every reader of the log
 /// directory — [getLogFiles], [getLogFileInfos], [exportLogs], [clearLogs] and
 /// the headless download endpoint through [isSkotiqLogFileName] — takes
-/// both names.
+/// all rolling names.
 const String dartLogFileBaseName = 'skotiq-dart.log';
 
-/// Service for managing application logs
+/// Awaited request writes use a separate file so they cannot interleave with
+/// the synchronous Dart writer or the native tracing writer.
+const String requestLogFileBaseName = 'skotiq-requests.log';
+
 class LoggingService {
   /// Fallback handed to [resolveSkotiqDataDirectory] when the operator
   /// has not relocated this instance. Null means "use path_provider" — the
@@ -153,6 +309,10 @@ class LoggingService {
   final void Function({String? logDirectory}) _nativeInitWithLogging;
   final void Function() _nativeInit;
   final String? Function() _currentLogFileProvider;
+  final Future<void> Function(File file, String line) _appendRequestLine;
+  Future<void> _requestWrites = Future<void>.value();
+  Future<void>? _disposalFuture;
+  String? _requestRefusalStatedFor;
 
   String? _logDirectory;
   bool _initialized = false;
@@ -194,6 +354,7 @@ class LoggingService {
     void Function({String? logDirectory})? nativeInitWithLogging,
     void Function()? nativeInit,
     String? Function()? currentLogFileProvider,
+    Future<void> Function(File file, String line)? appendRequestLine,
   }) : _applicationSupportDirectoryProvider =
            applicationSupportDirectoryProvider,
        _environment = environment,
@@ -201,7 +362,12 @@ class LoggingService {
            nativeInitWithLogging ?? bridge_api.apiInitWithLogging,
        _nativeInit = nativeInit ?? bridge_api.apiInit,
        _currentLogFileProvider =
-           currentLogFileProvider ?? bridge_api.apiGetCurrentLogFile;
+           currentLogFileProvider ?? bridge_api.apiGetCurrentLogFile,
+       _appendRequestLine = appendRequestLine ?? _writeRequestLine;
+
+  static Future<void> _writeRequestLine(File file, String line) async {
+    await file.writeAsString(line, mode: FileMode.writeOnlyAppend);
+  }
 
   /// Initialize logging with file output
   Future<void> initialize() async {
@@ -229,13 +395,11 @@ class LoggingService {
       );
       _logDirectory = '${appDir.path}${Platform.pathSeparator}logs';
 
-      // Create logs directory
       final logsDir = Directory(_logDirectory!);
       if (!await logsDir.exists()) {
         await logsDir.create(recursive: true);
       }
 
-      // Initialize native logging with file output
       _nativeInitWithLogging(logDirectory: _logDirectory);
 
       _initialized = true;
@@ -275,10 +439,8 @@ class LoggingService {
     }
   }
 
-  /// Get the log directory path
   String? get logDirectory => _logDirectory;
 
-  /// Get the current log file path
   String? get currentLogFile => _initialized ? _currentLogFileProvider() : null;
 
   /// Path of today's Dart log file — the one [log] appends to — or null before
@@ -289,14 +451,21 @@ class LoggingService {
   String? get currentDartLogFile {
     final directory = _logDirectory;
     if (directory == null) return null;
-    final day = _dayStamp(DateTime.now());
+    final day = ClockFormat.date(DateTime.now().toUtc());
     return '$directory${Platform.pathSeparator}$dartLogFileBaseName.$day';
   }
 
-  /// Broadcast stream of new [LogEntry] values. Emits AFTER the
-  /// entry has been appended to [_recentLogs] and forwarded to the native
-  /// logger, so subscribers see entries in the same order [getRecentLogs]
-  /// would.
+  String? get currentRequestLogFile {
+    final directory = _logDirectory;
+    if (directory == null) return null;
+    final day = ClockFormat.date(DateTime.now().toUtc());
+    return '$directory${Platform.pathSeparator}$requestLogFileBaseName.$day';
+  }
+
+  /// Broadcast stream of new [LogEntry] values in [_recentLogs] order.
+  /// Request entries are published when accepted so timestamp-based SSE
+  /// resume cannot skip a record behind a slow write. [logRequest] completes
+  /// only after its file write; ordinary [log] writes before publishing.
   ///
   /// Subscribers MUST tolerate dropped events when the controller is
   /// closed (via [dispose]); the stream will simply complete with
@@ -305,7 +474,6 @@ class LoggingService {
   /// subscriber's onData runs in its own microtask.
   Stream<LogEntry> get logEntryStream => _logEntryController.stream;
 
-  /// Log a message
   void log(
     LogLevel level,
     String message, {
@@ -324,11 +492,7 @@ class LoggingService {
       fields: fields,
     );
 
-    // Keep recent logs in memory
-    _recentLogs.add(entry);
-    if (_recentLogs.length > _maxRecentLogs) {
-      _recentLogs.removeAt(0);
-    }
+    _remember(entry);
 
     // And on disk. The ring above holds 1000 entries, which one busy sequence
     // fills in a couple of minutes — so before this, a delivery failure at 04:00
@@ -339,6 +503,77 @@ class LoggingService {
     // subscriber's or the VM service's behaviour.
     _appendToFile(entry);
 
+    _publish(entry);
+  }
+
+  /// Record an HTTP request without blocking the UI isolate on disk I/O.
+  /// Callers await the write before handling the request or returning its
+  /// response. Writes are ordered, unbuffered, and drained by [dispose].
+  /// Ordinary [log] calls retain their synchronous file-write contract.
+  Future<void> logRequest(
+    LogLevel level,
+    String message, {
+    String? source,
+    Map<String, Object?>? fields,
+  }) {
+    final entry = LogEntry(
+      timestamp: DateTime.now(),
+      level: level,
+      message: message,
+      source: source,
+      fields: fields,
+    );
+    if (_disposed) {
+      _remember(entry);
+      return Future<void>.value();
+    }
+    _remember(entry);
+    _publish(entry);
+    return _requestWrites = _requestWrites.then((_) async {
+      await ensureInitialized();
+      final directory = _logDirectory;
+      LogEntry? refusal;
+      if (directory != null) {
+        final day = ClockFormat.date(entry.timestamp.toUtc());
+        try {
+          await _appendRequestLine(
+            File(
+              '$directory${Platform.pathSeparator}$requestLogFileBaseName.$day',
+            ),
+            '$entry\n',
+          );
+          _requestRefusalStatedFor = null;
+        } catch (error) {
+          if (_requestRefusalStatedFor != day) {
+            _requestRefusalStatedFor = day;
+            refusal = LogEntry(
+              timestamp: DateTime.now(),
+              level: LogLevel.error,
+              message:
+                  'The request log file $requestLogFileBaseName.$day in '
+                  '$directory could not be written: $error. Request entries '
+                  'remain in the Log Viewer and memory export until writes recover.',
+              source: 'LoggingService',
+            );
+          }
+        }
+      }
+      if (refusal != null) {
+        // Reporting an async write failure must not fall back to blocking I/O.
+        _remember(refusal);
+        _publish(refusal);
+      }
+    });
+  }
+
+  void _remember(LogEntry entry) {
+    _recentLogs.add(entry);
+    if (_recentLogs.length > _maxRecentLogs) {
+      _recentLogs.removeAt(0);
+    }
+  }
+
+  void _publish(LogEntry entry) {
     // Fan out to any /api/logs/tail subscribers BEFORE forwarding
     // to dart:developer. Order matters because a subscriber that fails
     // would otherwise prevent the structured logger from getting the
@@ -350,22 +585,11 @@ class LoggingService {
       _logEntryController.add(entry);
     }
 
-    // Forward to dart:developer with appropriate severity levels.
-    // Level mapping: debug=300, info=500, warning=900, error=1000, critical=1200
-    final int devLevel;
-    switch (level) {
-      case LogLevel.debug:
-        devLevel = 300;
-      case LogLevel.info:
-        devLevel = 500;
-      case LogLevel.warning:
-        devLevel = 900;
-      case LogLevel.error:
-        devLevel = 1000;
-      case LogLevel.critical:
-        devLevel = 1200;
-    }
-    developer.log(entry.toString(), name: source ?? 'Skotiq', level: devLevel);
+    developer.log(
+      entry.toString(),
+      name: entry.source ?? 'Skotiq',
+      level: entry.level.developerLevel,
+    );
   }
 
   /// Append one entry to today's Dart log file, rotating on the day stamp.
@@ -392,7 +616,7 @@ class LoggingService {
     // the closed [_logEntryController] makes for a late subscriber.
     if (_disposed) return;
 
-    final day = _dayStamp(entry.timestamp);
+    final day = ClockFormat.date(entry.timestamp.toUtc());
     try {
       var handle = _fileHandle;
       if (handle == null || _fileHandleDay != day) {
@@ -428,18 +652,6 @@ class LoggingService {
     }
   }
 
-  /// The `YYYY-MM-DD` stamp that names one day's file.
-  ///
-  /// UTC, because the Rust appender rolls on UTC and a reader holding both
-  /// files open must not find them cut on two different midnights.
-  static String _dayStamp(DateTime when) {
-    final utc = when.toUtc();
-    final month = utc.month.toString().padLeft(2, '0');
-    final day = utc.day.toString().padLeft(2, '0');
-    return '${utc.year}-$month-$day';
-  }
-
-  /// Convenience methods
   void debug(String message, {String? source, Map<String, Object?>? fields}) =>
       log(LogLevel.debug, message, source: source, fields: fields);
   void info(String message, {String? source, Map<String, Object?>? fields}) =>
@@ -457,7 +669,6 @@ class LoggingService {
     Map<String, Object?>? fields,
   }) => log(LogLevel.critical, message, source: source, fields: fields);
 
-  /// Get recent logs from memory
   List<LogEntry> getRecentLogs({LogLevel? minLevel}) {
     if (minLevel == null) return List.from(_recentLogs);
     return _recentLogs.where((e) => e.level.index >= minLevel.index).toList();
@@ -471,6 +682,7 @@ class LoggingService {
   /// that promises "recent logs" must say how recent.
   Future<List<String>> getLogFiles({Duration? maxAge}) async {
     await ensureInitialized();
+    await _requestWrites;
     if (_logDirectory == null) return [];
 
     try {
@@ -513,8 +725,8 @@ class LoggingService {
     return '${d.inHours} hours';
   }
 
-  /// Read a specific log file
   Future<String> readLogFile(String path) async {
+    await _requestWrites;
     try {
       final file = File(path);
       return await file.readAsString();
@@ -566,7 +778,6 @@ class LoggingService {
         output.writeln(entry.toString());
       }
 
-      // Write to output file
       final file = File(outputPath);
       await file.writeAsString(output.toString());
 
@@ -584,6 +795,7 @@ class LoggingService {
   /// Get total size of all log files
   Future<int> getLogSizeBytes() async {
     await ensureInitialized();
+    await _requestWrites;
     if (_logDirectory == null) return 0;
 
     try {
@@ -614,11 +826,12 @@ class LoggingService {
   }
 
   /// Clear all log files. Returns the list of deleted file paths and the
-  /// total bytes freed. Neither of the two currently-open files is deleted —
+  /// total bytes freed. Current files are preserved —
   /// the native logger's, because removing it would yank the file handle out
   /// from under the tracing appender, and this service's own
   /// [dartLogFileBaseName] file, for the same reason: the append handle would
-  /// keep writing into an unlinked inode nobody can read.
+  /// keep writing into an unlinked inode nobody can read. Today's request log
+  /// is also preserved, including while an asynchronous append is in progress.
   ///
   /// Why a structured return rather than throwing on per-file failure:
   /// the headless POST /api/logs/clear endpoint reports per-file
@@ -626,6 +839,7 @@ class LoggingService {
   /// result is more useful than a binary success bit.
   Future<ClearLogsResult> clearLogs() async {
     await ensureInitialized();
+    await _requestWrites;
     if (_logDirectory == null) {
       return const ClearLogsResult(deletedFiles: [], freedBytes: 0, errors: []);
     }
@@ -646,11 +860,15 @@ class LoggingService {
 
       final currentLog = currentLogFile;
       final currentDartLog = currentDartLogFile;
+      final currentRequestLog = currentRequestLogFile;
       await for (final entity in dir.list()) {
         if (entity is! File) continue;
         if (!_isSkotiqLogFile(entity.path)) continue;
         if (currentLog != null && entity.path == currentLog) continue;
         if (currentDartLog != null && entity.path == currentDartLog) continue;
+        if (currentRequestLog != null && entity.path == currentRequestLog) {
+          continue;
+        }
 
         try {
           final size = await entity.length();
@@ -687,10 +905,11 @@ class LoggingService {
     );
   }
 
-  /// Whether [path]'s leaf filename matches one of the two daily-rolling
+  /// Whether [path]'s leaf filename matches one of the daily-rolling
   /// files this install writes — the Rust tracing appender's
   /// `skotiq.log[.YYYY-MM-DD]` and this service's own
-  /// `skotiq-dart.log.YYYY-MM-DD` — so the public file-download
+  /// `skotiq-dart.log.YYYY-MM-DD` and `skotiq-requests.log.YYYY-MM-DD` —
+  /// so the public file-download
   /// endpoint cannot be coerced into returning arbitrary files in the
   /// logs directory.
   bool _isSkotiqLogFile(String path) {
@@ -706,11 +925,12 @@ class LoggingService {
     return _logFileNameRegex.hasMatch(name);
   }
 
-  /// Matches either rolling file in the log directory: the Rust
+  /// Matches rolling files in the log directory: the Rust
   /// `tracing_appender::rolling::daily(..., "skotiq.log")` output — the
   /// bare `skotiq.log` handle name or a rotated
   /// `skotiq.log.YYYY-MM-DD` — and this service's own
-  /// `skotiq-dart.log.YYYY-MM-DD` sibling (see [dartLogFileBaseName] for
+  /// `skotiq-dart.log.YYYY-MM-DD` and `skotiq-requests.log.YYYY-MM-DD`
+  /// siblings (see [dartLogFileBaseName] for
   /// why the Dart entries need their own file). Anchored to defeat
   /// path-traversal probes (`..\\skotiq.log` would not match because
   /// the regex is anchored AND the caller pre-strips path separators —
@@ -721,7 +941,7 @@ class LoggingService {
   /// directory is somebody else's file.
   static final RegExp _logFileNameRegex = RegExp(
     r'^skotiq(?:\.log(?:\.\d{4}-\d{2}-\d{2})?'
-    r'|-dart\.log\.\d{4}-\d{2}-\d{2})$',
+    r'|-(?:dart|requests)\.log\.\d{4}-\d{2}-\d{2})$',
   );
 
   /// Return file-system metadata for every Skotiq log file
@@ -733,6 +953,7 @@ class LoggingService {
   /// initialised or does not exist on disk yet.
   Future<List<LogFileInfo>> getLogFileInfos() async {
     await ensureInitialized();
+    await _requestWrites;
     if (_logDirectory == null) return const [];
 
     try {
@@ -741,6 +962,8 @@ class LoggingService {
 
       final infos = <LogFileInfo>[];
       final currentLog = currentLogFile;
+      final currentDartLog = currentDartLogFile;
+      final currentRequestLog = currentRequestLogFile;
       await for (final entity in dir.list()) {
         if (entity is! File) continue;
         if (!_isSkotiqLogFile(entity.path)) continue;
@@ -754,7 +977,10 @@ class LoggingService {
               path: entity.path,
               sizeBytes: stat.size,
               modifiedAt: stat.modified,
-              isCurrent: currentLog != null && entity.path == currentLog,
+              isCurrent:
+                  entity.path == currentLog ||
+                  entity.path == currentDartLog ||
+                  entity.path == currentRequestLog,
             ),
           );
         } catch (e) {
@@ -799,9 +1025,11 @@ class LoggingService {
   /// on `logEntryStream`. When the server unwinds in stop() they need to
   /// receive an `onDone` so their cleanup paths run (timer cancellation,
   /// socket close) rather than waiting forever on a dangling stream.
-  Future<void> dispose() async {
-    if (_disposed) return;
+  Future<void> dispose() => _disposalFuture ??= _dispose();
+
+  Future<void> _dispose() async {
     _disposed = true;
+    await _requestWrites;
     try {
       _fileHandle?.closeSync();
     } catch (e) {
@@ -823,9 +1051,8 @@ class LoggingService {
   }
 }
 
-/// File-system metadata for a Skotiq log file. Returned by
-/// [LoggingService.getLogFileInfos] and shipped over the wire by the
-/// `GET /api/logs` headless endpoint.
+/// File-system metadata for a Skotiq log file, returned by
+/// [LoggingService.getLogFileInfos].
 class LogFileInfo {
   final String name;
   final String path;
@@ -840,13 +1067,6 @@ class LogFileInfo {
     required this.modifiedAt,
     required this.isCurrent,
   });
-
-  Map<String, Object?> toJson() => {
-    'name': name,
-    'sizeBytes': sizeBytes,
-    'modifiedAt': modifiedAt.toUtc().toIso8601String(),
-    'isCurrent': isCurrent,
-  };
 }
 
 /// Result envelope for [LoggingService.clearLogs]. Reports the
@@ -870,18 +1090,3 @@ class ClearLogsResult {
     if (errors.isNotEmpty) 'errors': errors,
   };
 }
-
-/// Provider for the logging service
-final loggingServiceProvider = Provider<LoggingService>((ref) {
-  final service = LoggingService();
-  unawaited(service.ensureInitialized());
-  ref.onDispose(() => unawaited(service.dispose()));
-  return service;
-});
-
-/// Provider that initializes logging on first access
-final loggingInitializerProvider = FutureProvider<LoggingService>((ref) async {
-  final service = ref.watch(loggingServiceProvider);
-  await service.initialize();
-  return service;
-});

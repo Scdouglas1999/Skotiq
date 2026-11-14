@@ -1,11 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for focus model endpoints
 ///
@@ -21,7 +24,25 @@ import '../validation.dart';
 /// slave queries cannot disagree with the refocus decision the host makes.
 /// The other endpoints (data/model/filter-offsets/export/import) read
 /// [FocusModelService], which powers the equipment scatter-plot UI.
-class FocusModelHandlers {
+class FocusModelHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    FocusModelApi.getFocusData: handleGetFocusData,
+    FocusModelApi.addFocusPoint: handleAddFocusPoint,
+    FocusModelApi.clearFocusData: handleClearFocusData,
+    FocusModelApi.getFocusModel: handleGetFocusModel,
+    FocusModelApi.predictFocus: handlePredictFocus,
+    FocusModelApi.getFilterOffsets: handleGetFilterOffsets,
+    FocusModelApi.setFilterOffsets: handleSetFilterOffsets,
+    FocusModelApi.shouldRefocus: handleShouldRefocus,
+    FocusModelApi.exportFocusData: handleExportFocusData,
+    FocusModelApi.importFocusData: handleImportFocusData,
+    FocusModelApi.getPredictiveSettings: handleGetPredictiveSettings,
+    FocusModelApi.updatePredictiveConfig: handleUpdatePredictiveConfig,
+    FocusModelApi.clearPredictiveSamples: handleClearPredictiveSamples,
+    FocusModelApi.exportPredictiveModel: handleExportPredictiveModel,
+  };
+
   final ProviderContainer container;
   bool _initialized = false;
 
@@ -38,7 +59,6 @@ class FocusModelHandlers {
   void _logInfo(String message) =>
       _logger.info(message, source: 'FocusModelHandlers');
 
-  /// Ensure the focus model service is initialized
   Future<FocusModelService> _getInitializedService() async {
     final service = container.read(focusModelServiceProvider);
     if (!_initialized) {
@@ -187,8 +207,6 @@ class FocusModelHandlers {
     return jsonOk({'filter': filter, 'json': json});
   }
 
-  // Get focus data
-
   /// GET /api/focus-model/data
   /// Get all focus data points (temperature, position pairs)
   Future<Response> handleGetFocusData(Request request) async {
@@ -209,7 +227,7 @@ class FocusModelHandlers {
     final dataPoints = profileData.dataPoints
         .map(
           (p) => {
-            'timestamp': p.timestamp.toIso8601String(),
+            'timestamp': p.timestamp.toWireTime(),
             'timestampEpoch': p.timestamp.millisecondsSinceEpoch,
             'temperature': p.temperatureCelsius,
             'position': p.focusPosition,
@@ -226,8 +244,6 @@ class FocusModelHandlers {
       "referenceFilter": profileData.referenceFilter,
     });
   }
-
-  // Add focus data point
 
   /// POST /api/focus-model/add-point
   /// Add a focus data point (temperature, position, filter?)
@@ -269,7 +285,6 @@ class FocusModelHandlers {
       filterName: filterName,
     );
 
-    // Get updated profile data
     final profileData = service.getProfileData(profileId);
 
     return jsonOk({
@@ -280,8 +295,6 @@ class FocusModelHandlers {
       "modelIsReliable": profileData?.temperatureModel?.isReliable ?? false,
     });
   }
-
-  // Clear focus data
 
   /// DELETE /api/focus-model/clear
   /// Clear all data points
@@ -304,8 +317,6 @@ class FocusModelHandlers {
       "message": "Focus data cleared",
     });
   }
-
-  // Get focus model
 
   /// GET /api/focus-model/model
   /// Get current focus model (slope, intercept, r-squared)
@@ -340,7 +351,7 @@ class FocusModelHandlers {
         "intercept": model.intercept,
         "rSquared": model.rSquared,
         "dataPointCount": model.dataPointCount,
-        "lastUpdated": model.lastUpdated.toIso8601String(),
+        "lastUpdated": model.lastUpdated.toWireTime(),
         "lastUpdatedEpoch": model.lastUpdated.millisecondsSinceEpoch,
         "isReliable": model.isReliable,
       },
@@ -348,7 +359,6 @@ class FocusModelHandlers {
     });
   }
 
-  /// Generate a human-readable description of the focus model
   String _getModelDescription(FocusModel model) {
     final slopeDir = model.slope > 0 ? 'increases' : 'decreases';
     final slopeAbs = model.slope.abs().toStringAsFixed(1);
@@ -359,8 +369,6 @@ class FocusModelHandlers {
         'Model explains $rSquaredPct% of variance (${model.dataPointCount} data points). '
         'Model is $reliability for predictions.';
   }
-
-  // Predict focus position
 
   /// GET /api/focus-model/predict?temperature=X&filter=Y
   /// Predict focus position for temperature.
@@ -380,7 +388,6 @@ class FocusModelHandlers {
     final profileId = _getActiveProfileId();
     final profileIntId = _getActiveProfileIntId();
 
-    // Parse temperature
     final tempParam = request.url.queryParameters['temperature'];
     if (tempParam == null) {
       throw BadRequestError(
@@ -463,8 +470,6 @@ class FocusModelHandlers {
     return 'Low';
   }
 
-  // Get filter offsets
-
   /// GET /api/focus-model/filter-offsets
   /// Get per-filter focus offsets
   Future<Response> handleGetFilterOffsets(Request request) async {
@@ -511,8 +516,6 @@ class FocusModelHandlers {
     });
   }
 
-  // Set filter offsets
-
   /// POST /api/focus-model/filter-offsets
   /// Set per-filter focus offsets
   Future<Response> handleSetFilterOffsets(Request request) async {
@@ -528,7 +531,6 @@ class FocusModelHandlers {
 
     final payload = await readJsonObject(request);
 
-    // Set reference filter if provided
     final referenceFilter = optionalString(payload, 'referenceFilter');
     if (referenceFilter != null) {
       await service.setReferenceFilter(profileId, referenceFilter);
@@ -562,7 +564,6 @@ class FocusModelHandlers {
       );
     }
 
-    // Get updated profile data
     final updatedData = service.getProfileData(profileId);
     final Map<String, FilterOffset> storedOffsets =
         updatedData?.filterOffsets ?? const {};
@@ -578,8 +579,6 @@ class FocusModelHandlers {
       },
     });
   }
-
-  // Check should refocus
 
   /// GET /api/focus-model/should-refocus?currentTemp=X&lastFocusTemp=Y&filter=Z
   /// Check if autofocus should be triggered based on temperature drift.
@@ -723,8 +722,6 @@ class FocusModelHandlers {
     );
   }
 
-  // Export focus data
-
   /// GET /api/focus-model/export
   /// Export focus data as JSON
   Future<Response> handleExportFocusData(Request request) async {
@@ -746,8 +743,6 @@ class FocusModelHandlers {
     );
   }
 
-  // Import focus data
-
   /// POST /api/focus-model/import
   /// Import focus data from JSON
   Future<Response> handleImportFocusData(Request request) async {
@@ -763,7 +758,6 @@ class FocusModelHandlers {
 
     final jsonData = await request.readAsString();
 
-    // Validate JSON before importing
     try {
       jsonDecode(jsonData);
     } on FormatException catch (e) {
@@ -776,7 +770,6 @@ class FocusModelHandlers {
 
     await service.importData(profileId, jsonData);
 
-    // Get updated profile data
     final profileData = service.getProfileData(profileId);
 
     return jsonOk({

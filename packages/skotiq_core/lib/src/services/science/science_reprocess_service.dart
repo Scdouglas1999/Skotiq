@@ -1,11 +1,9 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../database/daos/images_dao.dart';
 import '../../database/daos/science_dao.dart';
-import '../../providers/database_provider.dart';
 import '../logging_service.dart';
 import 'science_processing_service.dart';
 
@@ -155,7 +153,7 @@ class ScienceReprocessService {
         return byTime != 0 ? byTime : a.id.compareTo(b.id);
       });
     final candidates = lightOnly
-        ? ordered.where((r) => r.frameType.toLowerCase() == 'light').toList()
+        ? ordered.where((r) => r.isLight).toList()
         : ordered;
     final withScience = force
         ? const <int>{}
@@ -313,14 +311,3 @@ class _Job {
     failures: List.unmodifiable(failures),
   );
 }
-
-final scienceReprocessServiceProvider = Provider<ScienceReprocessService>((
-  ref,
-) {
-  return ScienceReprocessService(
-    images: () => ref.read(imagesDaoProvider),
-    science: () => ref.read(scienceDaoProvider),
-    pipeline: () => ref.read(scienceProcessingServiceProvider),
-    logger: () => ref.read(loggingServiceProvider),
-  );
-});

@@ -1,3 +1,4 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'frame_camera_noise.dart';
 import 'dart:io';
@@ -9,9 +10,11 @@ import 'package:skotiq_bridge/skotiq_bridge.dart';
 
 import '../../database/database.dart' as db;
 import '../../database/daos/science_dao.dart';
+import '../../models/imaging/frame_files.dart';
 import '../../providers/app_version_provider.dart';
+import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
-import '../imaging_records_repository.dart';
+import '../local_imaging_records.dart';
 import '../../providers/science_provider.dart';
 import '../../providers/science_status_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -19,22 +22,26 @@ import '../../services/logging_service.dart';
 import '../../models/science/science_models.dart';
 import '../../utils/utc_timestamp.dart';
 import '../wcs/gnomonic_projection.dart';
-import '../wcs/wcs_sip_codec.dart';
-import 'airmass.dart';
+import '../../models/imaging/sip_terms.dart';
 import 'aperture_photometry.dart';
-import 'default_science_backend.dart';
-import 'fits_header_writer.dart';
+import '../../models/imaging/fits_keyword_write.dart';
+import '../frame_header.dart';
 import 'photometric_catalog_service.dart';
 import 'moving_object_linker.dart';
+import 'narrowband_frames.dart';
 import 'mpc_export_service.dart' show mpcBandForFilter;
-import 'photometric_transform_service.dart';
 import 'science_backend.dart';
-import 'frame_auto_grader.dart';
 import 'science_status.dart';
 import 'sub_exposure_noise.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../providers/logging_service_provider.dart';
+import '../../providers/science/default_science_backend_provider.dart';
+import '../../providers/science/frame_auto_grader_provider.dart';
+import '../../providers/science/photometric_catalog_service_provider.dart';
+import '../../providers/science/photometric_transform_service_provider.dart';
+import '../../backend/roles/host_data/imaging_records.dart';
 
 part 'science_processing_service/private_helpers.dart';
-part 'science_processing_service/provider.dart';
 part 'science_processing_service/frame_lanes.dart';
 part 'science_processing_service/writeback.dart';
 
@@ -75,8 +82,7 @@ class ScienceProcessingService {
   ScienceProcessingService(this._ref);
 
   ScienceDao get _scienceDao => _ref.read(scienceDaoProvider);
-  ImagingRecordsRepository get _imagesRepo =>
-      _ref.read(imagingRecordsRepositoryProvider);
+  ImagingRecords get _imagesRepo => _ref.read(imagingRecordsProvider);
   ScienceBackend get _scienceBackend => _ref.read(scienceBackendProvider);
   LoggingService get _logger => _ref.read(loggingServiceProvider);
   ScienceProcessingStatusTracker get _status =>
@@ -520,6 +526,28 @@ class ScienceProcessingService {
       ),
     );
     return updates;
+  }
+
+  /// Makes [sessionId]'s narrowband line ratios from its newest H-alpha,
+  /// OIII and SII light frames and returns those frames; null, with nothing
+  /// made, when the session lacks one of them.
+  Future<NarrowbandFrames?> generateSessionLineRatios(int sessionId) async {
+    final frames = latestNarrowbandFrames(
+      await _imagesRepo.getImagesForSession(sessionId),
+    );
+    if (frames == null) return null;
+    await generateLineRatios(
+      sessionId: sessionId,
+      set: NarrowbandSet(
+        hAlphaPath: frames.hAlpha.filePath,
+        oiiiPath: frames.oiii.filePath,
+        siiPath: frames.sii.filePath,
+      ),
+      hAlphaImageId: frames.hAlpha.id,
+      oiiiImageId: frames.oiii.id,
+      siiImageId: frames.sii.id,
+    );
+    return frames;
   }
 
   Future<void> generateLineRatios({

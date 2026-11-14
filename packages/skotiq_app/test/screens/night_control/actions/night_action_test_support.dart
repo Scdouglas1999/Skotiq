@@ -3,13 +3,18 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_rig_ops.dart';
 import 'package:skotiq_app/screens/night_control/actions/run_pause_guard.dart';
 import 'package:skotiq_app/screens/night_control/actions/solve_and_sync.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart'
+    show NightSolverStatus, nightSolverStatusProvider;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../../harness/mock_backend.dart';
 import '../../../harness/pump_app_screen.dart' show TestBackendNotifier;
@@ -108,7 +113,7 @@ class FakeRigOps implements NightRigOps {
   SequenceExecutionState get _run =>
       container.read(sequenceExecutionStateProvider);
   set _run(SequenceExecutionState value) =>
-      container.read(sequenceExecutionStateProvider.notifier).state = value;
+      container.read(runRecordProvider.notifier).setLifecycle(value);
 
   Future<void> _act(String name) async {
     calls.add(name);
@@ -291,6 +296,10 @@ class FakeRigOps implements NightRigOps {
   ),
   double? coolerSetpoint = -10,
   DateTime? astroDark,
+  NightSolverStatus? solver = const NightSolverStatus(
+    ready: true,
+    name: 'ASTAP',
+  ),
   List<Override> extra = const [],
 }) {
   late FakeRigOps ops;
@@ -312,10 +321,11 @@ class FakeRigOps implements NightRigOps {
     nightCoolerSetpointProvider.overrideWithValue(coolerSetpoint),
     nightRigOpsProvider.overrideWith((ref) => ops),
     nightAstroDarkProvider.overrideWithValue(astroDark),
+    nightSolverStatusProvider.overrideWithValue(solver),
     ...extra,
   ]);
   ops = FakeRigOps(container);
-  container.read(sequenceExecutionStateProvider.notifier).state = runState;
+  container.read(runRecordProvider.notifier).setLifecycle(runState);
   // Keep the controller alive for the whole test.
   container.listen(nightActionControllerProvider, (_, __) {});
   return (container: container, ops: ops, log: log);

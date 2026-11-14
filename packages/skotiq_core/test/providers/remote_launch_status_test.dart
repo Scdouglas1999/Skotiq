@@ -7,7 +7,10 @@ import 'dart:io';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show LinkVersionMismatch;
 
 import '../harness/in_memory_database.dart';
 
@@ -108,6 +111,58 @@ void main() {
     });
   });
 
+  test('a host of another release says which side to update and is not '
+      'retried', () {
+    fakeAsync((async) {
+      final container = containerFor(
+        HostVersionMismatchError(
+          const LinkVersionMismatch(host: '8.2.0', client: '8.2.1'),
+        ),
+      );
+      container.read(remoteLaunchStatusProvider.notifier).connect();
+      async.flushMicrotasks();
+
+      final status = container.read(remoteLaunchStatusProvider);
+      expect(status.failure, RemoteLaunchFailure.versionMismatch);
+      expect(
+        remoteLaunchFailureMessage(_target, status.failure!),
+        'The imaging host at 192.168.1.100:8099 runs another Skotiq release.',
+      );
+      expect(
+        status.detail,
+        'The host runs Skotiq 8.2.0 and this device runs Skotiq 8.2.1. '
+        'Update the host to Skotiq 8.2.1, then connect again.',
+      );
+      async.elapse(const Duration(minutes: 5));
+      expect(notifier.connects, 1);
+      container.dispose();
+    });
+  });
+
+  test('a scope refusal on connect is not a rejected token', () {
+    // Text that names a 403 says nothing about which 403 it was.
+    const refusal = ServerError(
+      code: 'insufficient_scope',
+      message: 'HTTP 403: POST /api/ws/ticket failed',
+      httpStatus: 403,
+    );
+    expect(
+      classifyRemoteLaunchFailure(refusal, tokenRejected: false),
+      isNot(RemoteLaunchFailure.tokenRejected),
+    );
+    expect(
+      classifyRemoteLaunchFailure(
+        const ServerError(
+          code: 'invalid_token',
+          message: 'Invalid authentication token',
+          httpStatus: 403,
+        ),
+        tokenRejected: false,
+      ),
+      RemoteLaunchFailure.tokenRejected,
+    );
+  });
+
   test('a companion launch never runs the equipment onboarding', () async {
     final container = containerFor(const SocketException('refused'));
     addTearDown(container.dispose);
@@ -125,6 +180,57 @@ void main() {
     expect(
       await container.read(shouldRunEquipmentOnboardingProvider.future),
       isTrue,
+    );
+  });
+
+  test('a different identity at the remembered address gets no token', () {
+    fakeAsync((async) {
+      var connects = 0;
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          remoteLaunchTargetProvider.overrideWithValue(
+            const RemoteLaunchTarget(
+              host: '192.168.1.32',
+              port: 8099,
+              token: 'paired',
+              name: 'DESKTOP-MMAJGAK',
+              expectedFingerprint: 'dc2f261109b13423',
+              remembered: true,
+            ),
+          ),
+          remoteClientLaunchProvider.overrideWithValue(true),
+          remoteLaunchFingerprintCheckProvider.overrideWithValue(
+            (_) async => 'ffff000011112222',
+          ),
+          backendProvider.overrideWith((ref) {
+            notifier = _FailingBackendNotifier(ref, StateError('unused'));
+            return notifier;
+          }),
+        ],
+      );
+      container.read(remoteLaunchStatusProvider.notifier).connect();
+      async.flushMicrotasks();
+      connects = notifier.connects;
+
+      final status = container.read(remoteLaunchStatusProvider);
+      expect(status.failure, RemoteLaunchFailure.hostChanged);
+      expect(connects, 0, reason: 'the token must not be sent');
+      async.elapse(const Duration(minutes: 5));
+      expect(notifier.connects, 0, reason: 'not retried');
+      container.dispose();
+    });
+  });
+
+  test('a remembered rig is named in its messages', () {
+    const target = RemoteLaunchTarget(
+      host: '192.168.1.32',
+      port: 8099,
+      name: 'DESKTOP-MMAJGAK',
+    );
+    expect(
+      remoteLaunchFailureMessage(target, RemoteLaunchFailure.unreachable),
+      "Can't reach the imaging host at DESKTOP-MMAJGAK (192.168.1.32:8099).",
     );
   });
 }

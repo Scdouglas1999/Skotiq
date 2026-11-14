@@ -4,7 +4,7 @@ class _SessionSelector extends StatelessWidget {
   final List<ImagingSession> sessions;
   final int? selectedSessionId;
 
-  /// Whether to offer the quick-capture bucket ([_kQuickCaptureSessionId]) —
+  /// Whether to offer the quick-capture bucket ([kQuickCaptureSessionSelection]) —
   /// true when sessionless PSF tiles / residuals exist. Quick captures are
   /// the one night that has diagnostics but no `imaging_sessions` row.
   final bool offerQuickCaptures;
@@ -31,7 +31,6 @@ class _SessionSelector extends StatelessWidget {
       );
     }
 
-    final dateFormat = DateFormat('MMM d, HH:mm');
     final sessionsByRecency = sessions.reversed.toList();
     final recentSessions = sessionsByRecency.take(50).toList();
     final selectedSession = selectedSessionId == null
@@ -47,8 +46,8 @@ class _SessionSelector extends StatelessWidget {
       visibleSessions.insert(0, selectedSession);
     }
 
-    final dropdownValue = selectedSessionId == _kQuickCaptureSessionId
-        ? (offerQuickCaptures ? _kQuickCaptureSessionId : null)
+    final dropdownValue = selectedSessionId == kQuickCaptureSessionSelection
+        ? (offerQuickCaptures ? kQuickCaptureSessionSelection : null)
         : (selectedSessionId != null &&
                 visibleSessions.any(
                   (session) => session.id == selectedSessionId,
@@ -86,7 +85,7 @@ class _SessionSelector extends StatelessWidget {
             // needs it has no session row to look for.
             if (offerQuickCaptures)
               const DropdownMenuItem(
-                value: _kQuickCaptureSessionId,
+                value: kQuickCaptureSessionSelection,
                 child: Text(
                   quickCaptureLabel,
                   overflow: TextOverflow.ellipsis,
@@ -94,8 +93,8 @@ class _SessionSelector extends StatelessWidget {
               ),
             ...visibleSessions.map((session) {
               final label = session.name != null && session.name!.isNotEmpty
-                  ? '${session.name} (${dateFormat.format(session.startTime)})'
-                  : dateFormat.format(session.startTime);
+                  ? '${session.name} (${ClockFormat.monthDayHm(session.startTime.toLocal())})'
+                  : ClockFormat.monthDayHm(session.startTime.toLocal());
               return DropdownMenuItem(
                 value: session.id,
                 child: Text(

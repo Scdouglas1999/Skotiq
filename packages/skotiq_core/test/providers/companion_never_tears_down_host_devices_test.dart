@@ -9,7 +9,11 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 import '../harness/in_memory_database.dart';
 
@@ -51,7 +55,7 @@ void main() {
     when(() => backend.connectDevice(any(), any())).thenAnswer((_) async {});
     when(() => backend.disconnectDevice(any(), any())).thenAnswer((_) async {});
     when(
-      () => backend.phd2GetStatus(),
+      () => backend.guiderGetStatus(),
     ).thenAnswer((_) async => kPhd2DisconnectedStatus);
   });
 
@@ -127,7 +131,7 @@ void main() {
       Object? failure;
       container
           .read(deviceServiceProvider)
-          .connectGuider(kPhd2CanonicalId)
+          .connect(DeviceType.guider, kPhd2CanonicalId)
           .catchError((Object e) => failure = e);
       async.elapse(const Duration(seconds: 30));
 
@@ -145,8 +149,9 @@ void main() {
         when(() => backend.sequencerPause()).thenAnswer((_) async {});
         final container = containerFor();
         container.read(deviceServiceProvider);
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.running);
         for (final (type, id) in [
           ('camera', 'sim_camera_1'),
           ('focuser', 'sim_focuser_1'),

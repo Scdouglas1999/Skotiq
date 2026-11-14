@@ -1,39 +1,32 @@
 part of '../ffi_backend.dart';
 
 extension _FfiBackendTypeMappers on _FfiBackendBase {
-  // FRB->Dart Type Mappers
-
-  /// Convert pure Dart FitsWriteHeader to bridge FitsWriteHeader
   bridge.FitsWriteHeader _toBridgeFitsHeader(FitsWriteHeader h) {
     return bridge.FitsWriteHeader(
       objectName: h.objectName,
       exposureTime: h.exposureTime,
-      captureTimestamp: h.captureTimestamp,
       frameType: h.frameType,
       filter: h.filter,
       gain: h.gain,
       offset: h.offset,
-      ccdTemp: h.ccdTemp,
-      ra: h.ra,
-      dec: h.dec,
-      altitude: h.altitude,
+      binX: h.binX ?? 1,
+      binY: h.binY ?? 1,
       telescope: h.telescope,
       instrument: h.instrument,
       observer: h.observer,
-      binX: h.binX ?? 1, // Default to 1x1 binning
-      binY: h.binY ?? 1,
       focalLength: h.focalLength,
       aperture: h.aperture,
-      pixelSizeX: h.pixelSizeX,
-      pixelSizeY: h.pixelSizeY,
       siteLatitude: h.siteLatitude,
       siteLongitude: h.siteLongitude,
       siteElevation: h.siteElevation,
+      mountId: h.mountId,
+      focuserId: h.focuserId,
+      filterWheelId: h.filterWheelId,
+      rotatorId: h.rotatorId,
     );
   }
 
-  /// Convert bridge AutofocusResultApi to pure Dart AutofocusResult
-  AutofocusResult _fromBridgeAutofocusResult(bridge_api.AutofocusResultApi r) {
+  AutofocusResult _fromBridgeAutofocusResult(bridge.AutofocusResultApi r) {
     return AutofocusResult(
       bestPosition: r.bestPosition,
       bestHfr: r.bestHfr,
@@ -55,9 +48,8 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
     );
   }
 
-  /// Convert bridge CameraCapabilities to pure Dart CameraCapabilities
   CameraCapabilities _fromBridgeCameraCapabilities(
-    bridge_caps.CameraCapabilities c,
+    bridge.CameraCapabilities c,
   ) {
     return CameraCapabilities(
       maxWidth: c.maxWidth,
@@ -74,6 +66,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
       canSetGain: c.canSetGain,
       gainMin: c.gainMin,
       gainMax: c.gainMax,
+      isoSpeeds: c.isoSpeeds.toList(),
       canSetOffset: c.canSetOffset,
       offsetMin: c.offsetMin,
       offsetMax: c.offsetMax,
@@ -98,10 +91,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
     );
   }
 
-  /// Convert bridge MountCapabilities to pure Dart MountCapabilities
-  MountCapabilities _fromBridgeMountCapabilities(
-    bridge_caps.MountCapabilities m,
-  ) {
+  MountCapabilities _fromBridgeMountCapabilities(bridge.MountCapabilities m) {
     return MountCapabilities(
       canSlew: m.canSlew,
       canSlewAsync: m.canSlewAsync,
@@ -134,9 +124,8 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
     );
   }
 
-  /// Convert bridge FocuserCapabilities to pure Dart FocuserCapabilities
   FocuserCapabilities _fromBridgeFocuserCapabilities(
-    bridge_caps.FocuserCapabilities f,
+    bridge.FocuserCapabilities f,
   ) {
     return FocuserCapabilities(
       maxPosition: f.maxPosition,
@@ -154,9 +143,8 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
     );
   }
 
-  /// Convert bridge FilterWheelCapabilities to pure Dart FilterWheelCapabilities
   FilterWheelCapabilities _fromBridgeFilterWheelCapabilities(
-    bridge_caps.FilterWheelCapabilities fw,
+    bridge.FilterWheelCapabilities fw,
   ) {
     return FilterWheelCapabilities(
       positionCount: fw.positionCount,
@@ -169,9 +157,8 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
     );
   }
 
-  /// Convert bridge RotatorCapabilities to pure Dart RotatorCapabilities
   RotatorCapabilities _fromBridgeRotatorCapabilities(
-    bridge_caps.RotatorCapabilities r,
+    bridge.RotatorCapabilities r,
   ) {
     return RotatorCapabilities(
       canReverse: r.canReverse,
@@ -188,8 +175,6 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
     );
   }
 
-  // Error conversion
-
   /// Convert any exception to a structured SkotiqError.
   ///
   /// This handles:
@@ -197,12 +182,10 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
   /// - AnyhowException (fallback from Rust)
   /// - Generic Dart exceptions
   dart_error.SkotiqError _toSkotiqError(Object exception, [String? context]) {
-    // Handle FRB-generated SkotiqError from Rust
-    if (exception is bridge_error.SkotiqError) {
+    if (exception is bridge.SkotiqError) {
       return _fromBridgeSkotiqError(exception);
     }
 
-    // Handle generic exceptions with context
     final message = context != null
         ? '$context: ${exception.toString()}'
         : exception.toString();
@@ -213,9 +196,8 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
   /// Convert FRB-generated SkotiqError to pure Dart SkotiqError.
   ///
   /// This preserves all the structured error information from Rust.
-  dart_error.SkotiqError _fromBridgeSkotiqError(bridge_error.SkotiqError e) {
+  dart_error.SkotiqError _fromBridgeSkotiqError(bridge.SkotiqError e) {
     return e.when(
-      // Connection errors
       deviceNotFound: (deviceId) =>
           dart_error.SkotiqError.deviceNotFound(deviceId),
       connectionFailed: (deviceId, reason) =>
@@ -230,7 +212,6 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
       deviceDisconnected: (deviceId, reason) =>
           dart_error.SkotiqError.deviceDisconnected(deviceId, reason),
 
-      // Hardware errors
       hardwareError: (deviceId, message, errorCode) =>
           dart_error.SkotiqError.hardwareError(
             deviceId,
@@ -246,7 +227,6 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
         deviceId: deviceId,
       ),
 
-      // Timeout errors
       timeout: (message) => dart_error.SkotiqError.timeout(message),
       deviceTimeout: (deviceId, operation, timeoutSecs) =>
           dart_error.SkotiqError.timeout(
@@ -265,7 +245,6 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
         deviceId: deviceId,
       ),
 
-      // Validation errors
       invalidParameter: (message) => dart_error.SkotiqError(
         category: dart_error.BackendErrorCategory.validation,
         message: 'Invalid parameter: $message',
@@ -286,7 +265,6 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
         userMessage: '$paramName value $value is out of range ($min to $max)',
       ),
 
-      // Operation errors
       operationFailed: (message) => dart_error.SkotiqError(
         category: dart_error.BackendErrorCategory.system,
         message: 'Operation failed: $message',
@@ -296,8 +274,11 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
           dart_error.SkotiqError.notSupported(deviceId, operation),
       deviceBusy: (deviceId, currentOperation) =>
           dart_error.SkotiqError.deviceBusy(deviceId, currentOperation),
+      invalidState: (message) => dart_error.SkotiqError(
+        category: dart_error.BackendErrorCategory.busy,
+        message: message,
+      ),
 
-      // Imaging errors
       imageError: (message) => dart_error.SkotiqError(
         category: dart_error.BackendErrorCategory.imaging,
         message: 'Image error: $message',
@@ -323,7 +304,6 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
         deviceId: cameraId,
       ),
 
-      // I/O errors
       ioError: (message) => dart_error.SkotiqError(
         category: dart_error.BackendErrorCategory.io,
         message: 'I/O error: $message',
@@ -337,13 +317,11 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
         message: 'Plate solve failed: $message',
       ),
 
-      // Sequence errors
       sequenceError: (message) => dart_error.SkotiqError(
         category: dart_error.BackendErrorCategory.sequence,
         message: 'Sequence error: $message',
       ),
 
-      // Driver-specific errors
       ascomError: (progId, message, errorCode) => dart_error.SkotiqError(
         category: dart_error.BackendErrorCategory.driver,
         message: 'ASCOM error: $progId - $message (code: $errorCode)',
@@ -373,7 +351,6 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
         shouldReconnect: true,
       ),
 
-      // System errors
       internal: (message) => dart_error.SkotiqError.internal(message),
       cancelled: () => dart_error.SkotiqError.cancelled(),
       runtimeInitFailed: (message) => dart_error.SkotiqError(

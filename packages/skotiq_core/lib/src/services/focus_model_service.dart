@@ -2,22 +2,12 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show WireTime, parseWireTime;
 import '../utils/skotiq_data_directory.dart';
-
-/// Provider for the focus model service
-final focusModelServiceProvider = Provider<FocusModelService>((ref) {
-  // Plumb user-configurable thresholds
-  // through so the autofocus settings panel can override the rejection /
-  // reliability / filter-offset gates without a recompile.
-  final config = ref.watch(focusModelConfigProvider);
-  final service = FocusModelService(config: config);
-  unawaited(service.initialize());
-  return service;
-});
+import 'logging_service.dart';
 
 /// User-configurable thresholds that gate the focus regression model.
 ///
@@ -62,14 +52,6 @@ class FocusModelConfig {
   }
 }
 
-/// Provider for the focus-model thresholds. Defaults reproduce the prior
-/// hardcoded behaviour exactly. Override this provider from the autofocus
-/// settings panel (or in tests) to change behaviour.
-///
-final focusModelConfigProvider = StateProvider<FocusModelConfig>(
-  (_) => const FocusModelConfig(),
-);
-
 /// A single temperature-compensation history sample collected after each
 /// successful autofocus run. Persisted across sessions to feed the linear
 /// regression model that predicts focus position from temperature.
@@ -92,7 +74,7 @@ class FocusHistoryPoint {
   });
 
   Map<String, dynamic> toJson() => {
-    'timestamp': timestamp.toIso8601String(),
+    'timestamp': timestamp.toWireTime(),
     'temperature': temperatureCelsius,
     'position': focusPosition,
     'hfr': hfr,
@@ -101,7 +83,7 @@ class FocusHistoryPoint {
 
   factory FocusHistoryPoint.fromJson(Map<String, dynamic> json) =>
       FocusHistoryPoint(
-        timestamp: DateTime.parse(json['timestamp'] as String),
+        timestamp: parseWireTime(json['timestamp'] as String),
         temperatureCelsius: (json['temperature'] as num).toDouble(),
         focusPosition: json['position'] as int,
         hfr: (json['hfr'] as num).toDouble(),
@@ -125,7 +107,6 @@ class FocusModel {
     required this.lastUpdated,
   });
 
-  /// Predict focus position for a given temperature
   int predictPosition(double temperatureCelsius) {
     return (intercept + slope * temperatureCelsius).round();
   }
@@ -147,7 +128,7 @@ class FocusModel {
     'intercept': intercept,
     'rSquared': rSquared,
     'dataPointCount': dataPointCount,
-    'lastUpdated': lastUpdated.toIso8601String(),
+    'lastUpdated': lastUpdated.toWireTime(),
   };
 
   factory FocusModel.fromJson(Map<String, dynamic> json) => FocusModel(
@@ -155,7 +136,7 @@ class FocusModel {
     intercept: (json['intercept'] as num).toDouble(),
     rSquared: (json['rSquared'] as num).toDouble(),
     dataPointCount: json['dataPointCount'] as int,
-    lastUpdated: DateTime.parse(json['lastUpdated'] as String),
+    lastUpdated: parseWireTime(json['lastUpdated'] as String),
   );
 }
 
@@ -310,7 +291,6 @@ class ProfileFocusData {
   );
 }
 
-/// Service for managing focus models and predictions
 class FocusModelService {
   final Map<String, ProfileFocusData> _profileData = {};
   String? _storageDir;
@@ -338,7 +318,6 @@ class FocusModelService {
     _isInitialized = true;
   }
 
-  /// Get focus data for a profile
   ProfileFocusData? getProfileData(String profileId) {
     return _profileData[profileId];
   }
@@ -371,7 +350,6 @@ class FocusModelService {
 
     data = data.copyWith(dataPoints: newPoints);
 
-    // Recalculate temperature model
     final model = _calculateTemperatureModel(newPoints);
     if (model != null) {
       data = data.copyWith(temperatureModel: model);
@@ -438,11 +416,10 @@ class FocusModelService {
 
     final slope = (n * sumXY - sumX * sumY) / denominator;
     if (slope.abs() > config.maxAcceptableSlopeStepsPerC) {
-      developer.log(
+      Log.warning(
         'Rejecting focus model with unrealistic slope ${slope.toStringAsFixed(2)} steps/°C '
         '(threshold ${config.maxAcceptableSlopeStepsPerC.toStringAsFixed(0)})',
-        name: 'FocusModelService',
-        level: 900,
+        source: 'FocusModelService',
       );
       return null;
     }
@@ -496,7 +473,6 @@ class FocusModelService {
   ) {
     final offsets = <String, FilterOffset>{};
 
-    // Group by filter
     final byFilter = <String, List<FocusHistoryPoint>>{};
     for (final point in points) {
       if (point.filterName != null) {
@@ -504,7 +480,6 @@ class FocusModelService {
       }
     }
 
-    // Get reference filter data
     final refPoints = byFilter[referenceFilter];
     if (refPoints == null || refPoints.isEmpty) return offsets;
 
@@ -571,17 +546,16 @@ class FocusModelService {
             '${config.minRSquared.toStringAsFixed(2)} — offsets are raw '
             'averages and may include temperature drift.';
       }
-      developer.log(
+      Log.warning(
         'Filter offsets computed without temperature correction '
         '(${batchReason.replaceAll('\n', ' ')}); reporting low confidence.',
-        name: 'FocusModelService',
-        level: 900,
+        source: 'FocusModelService',
       );
     } else if (tempSpread < _highConfidenceTemperatureSpreadC) {
       batchBand = FilterOffsetConfidence.medium;
       batchReason =
-          'Samples span only ${tempSpread.toStringAsFixed(1)}°C '
-          '(< ${_highConfidenceTemperatureSpreadC.toStringAsFixed(0)}°C); '
+          'Samples span only ${formatCelsius(tempSpread)} '
+          '(< ${formatCelsius(_highConfidenceTemperatureSpreadC, decimals: 0)}); '
           'temperature correction applied but the slope estimate has '
           'limited leverage.';
     } else {
@@ -590,10 +564,9 @@ class FocusModelService {
           'Temperature correction applied (within-filter slope='
           '${slope.toStringAsFixed(2)} steps/°C, global model R²='
           '${temperatureModel.rSquared.toStringAsFixed(2)}, '
-          'span=${tempSpread.toStringAsFixed(1)}°C).';
+          'span=${formatCelsius(tempSpread)}).';
     }
 
-    // Calculate offsets for each non-reference filter
     for (final entry in byFilter.entries) {
       if (entry.key == referenceFilter) continue;
 
@@ -713,7 +686,6 @@ class FocusModelService {
     int predictedPosition = model.predictPosition(currentTemperature);
     double confidence = model.rSquared;
 
-    // Apply filter offset if applicable
     int filterOffset = 0;
     if (currentFilter != null &&
         data.filterOffsets.containsKey(currentFilter)) {
@@ -747,7 +719,6 @@ class FocusModelService {
     final model = data.temperatureModel!;
     if (!model.isReliableWith(config)) return false;
 
-    // Calculate expected focus drift
     final tempDelta = (currentTemperature - lastFocusTemperature).abs();
     final expectedDrift = tempDelta * model.slope.abs();
 
@@ -798,7 +769,6 @@ class FocusModelService {
     await _saveProfile(profileId);
   }
 
-  /// Clear focus data for a profile
   Future<void> clearProfileData(String profileId) async {
     await initialize();
     _profileData.remove(profileId);
@@ -810,14 +780,12 @@ class FocusModelService {
     }
   }
 
-  /// Export focus data
   String exportData(String profileId) {
     final data = _profileData[profileId];
     if (data == null) return '{}';
     return jsonEncode(data.toJson());
   }
 
-  /// Import focus data
   Future<void> importData(String profileId, String jsonData) async {
     await initialize();
     final json = jsonDecode(jsonData) as Map<String, dynamic>;
@@ -854,10 +822,9 @@ class FocusModelService {
           _profileData[data.profileId] = data;
         } catch (e) {
           // Log corrupted files but continue loading others
-          developer.log(
+          Log.warning(
             'FocusModelService: Skipping corrupted focus data file ${entity.path}: $e',
-            name: 'FocusModelService',
-            level: 900,
+            source: 'FocusModelService',
             error: e,
           );
         }
@@ -866,7 +833,6 @@ class FocusModelService {
   }
 }
 
-/// Result of focus position prediction
 class FocusPrediction {
   final int position;
   final double confidence;
@@ -882,7 +848,6 @@ class FocusPrediction {
     required this.model,
   });
 
-  /// Get a human-readable confidence description
   String get confidenceDescription {
     if (confidence >= 0.9) return 'High';
     if (confidence >= 0.7) return 'Good';

@@ -10,6 +10,8 @@ import 'package:shelf/shelf.dart';
 
 import '../job_manager.dart';
 import '../response_helpers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for the long-running-operations job model.
 ///
@@ -18,7 +20,15 @@ import '../response_helpers.dart';
 /// `sequence_management_handlers.dart` follow. We declare the second
 /// parameter explicitly rather than reading from `request.context` so
 /// the wiring stays consistent with the rest of the handler module.
-class JobHandlers {
+class JobHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    JobApi.listJobs: handleListJobs,
+    JobApi.getJob: handleGetJob,
+    JobApi.cancelJob: handleCancelJob,
+    JobApi.purgeJob: handlePurgeJob,
+  };
+
   final JobManager jobManager;
 
   JobHandlers({required this.jobManager});

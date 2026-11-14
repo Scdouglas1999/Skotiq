@@ -3,7 +3,7 @@
 // compensation and this session's runs.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart' show VCurvePoint;
+import 'package:skotiq_core/models.dart' show VCurvePoint;
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/panel/focus/focus_panel_vm.dart';
 import 'package:skotiq_app/screens/night_control/panel/focus/focus_tab.dart';
@@ -27,7 +27,7 @@ void main() {
     expect(find.text(nightGrouped(45559)),
         findsNWidgets(2)); // point 6 and the focuser
     expect(find.text('2.08'), findsOneWidget);
-    expect(find.text('pos'), findsOneWidget);
+    expect(find.text('pos'), findsWidgets);
     // No per-point star counts on this base: no stars column.
     expect(find.text('stars'), findsNothing);
     // The fit exists only once the run finishes.
@@ -50,6 +50,46 @@ void main() {
 
     expect(find.text('stars'), findsOneWidget);
     expect(find.text('1131'), findsOneWidget);
+  });
+
+  testWidgets('a point the fit left out is gray and says why', (tester) async {
+    const reason = 'HFR below 12.55 nearer focus, likely missed donut stars';
+    await pumpPanel(
+      tester,
+      child: const NightFocusTab(),
+      overrides: panelOverrides(
+        board: NightFixtures.autofocus(),
+        focus: NightFocusPanelVm(
+          canCommand: true,
+          runLive: true,
+          status: NightAutofocusStatus.done,
+          points: const <VCurvePoint>[
+            VCurvePoint(position: 45607, hfr: 7.57, starCount: 85),
+            VCurvePoint(position: 45707, hfr: 12.55, starCount: 82),
+            VCurvePoint(
+              position: 45807,
+              hfr: 4.61,
+              starCount: 20,
+              rejectedReason: reason,
+            ),
+          ],
+          starCounts: const <int?>[85, 82, 20],
+          focuserConnected: true,
+        ),
+      ),
+    );
+
+    expect(find.text('Left out: $reason'), findsOneWidget);
+    final hfr = tester.widget<Text>(find.text('4.61'));
+    final kept = tester.widget<Text>(find.text('12.55'));
+    expect(hfr.style?.color, isNot(kept.style?.color),
+        reason: 'the left-out row reads gray, not like a used point');
+    expect(
+      find.bySemanticsLabel(RegExp('Left out: ')),
+      findsOneWidget,
+      reason: 'the reason is read with its row',
+    );
+    expect(tester.takeException(), isNull);
   });
 
   test('star counts come from the V-curve points, index for index', () {

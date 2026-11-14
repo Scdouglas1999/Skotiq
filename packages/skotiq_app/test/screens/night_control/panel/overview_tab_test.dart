@@ -5,8 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/screens/night_control/panel/overview/after_run_section.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/overview_sections.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/overview_tab.dart';
+import 'package:skotiq_core/models.dart' show NextUseActionId, stepFor;
+import 'package:skotiq_core/providers.dart' show tutorialProgressDaoProvider;
+
+import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 import '../fixtures/night_fixtures.dart';
 import 'panel_test_support.dart';
@@ -114,6 +119,62 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  // A stopped run read "Not set up"; now that it reads Stopped, it also
+  // says what is left to do.
+  testWidgets('a finished night offers the session and what the run left on',
+      (tester) async {
+    final container = ProviderContainer(
+      overrides: panelOverrides(board: NightFixtures.finished()),
+    );
+    addTearDown(container.dispose);
+    await pumpPanel(
+      tester,
+      container: container,
+      overrides: const [],
+      child: const NightOverviewTab(),
+    );
+
+    expect(find.text('After the run'), findsOneWidget);
+    expect(find.text('Review session'), findsOneWidget);
+    expect(find.text('Before you start'), findsNothing);
+
+    await tester.tap(find.text('Park mount…'));
+    await tester.pump();
+    expect(container.read(nightPanelTabProvider), NightPanelTab.mount);
+
+    container.read(nightPanelTabProvider.notifier).state =
+        NightPanelTab.overview;
+    await tester.tap(find.text('Warm camera…'));
+    await tester.pump();
+    expect(container.read(nightPanelTabProvider), NightPanelTab.camera);
+  });
+
+  testWidgets('a running night has no After the run block', (tester) async {
+    await pumpPanel(
+      tester,
+      child: const NightOverviewTab(),
+      overrides: panelOverrides(board: NightFixtures.running()),
+    );
+    expect(find.text('After the run'), findsNothing);
+  });
+
+  testWidgets('nothing left on: only the session is offered', (tester) async {
+    var reviews = 0;
+    await pumpPanel(
+      tester,
+      overrides: const [],
+      child: NightAfterRunView(
+        onReview: () => reviews++,
+        onPark: null,
+        onWarm: null,
+      ),
+    );
+    expect(find.text('Park mount…'), findsNothing);
+    expect(find.text('Warm camera…'), findsNothing);
+    await tester.tap(find.text('Review session'));
+    expect(reviews, 1);
+  });
+
   testWidgets('before a run the checklist replaces frame and session',
       (tester) async {
     await pumpPanel(
@@ -124,13 +185,11 @@ void main() {
 
     expect(find.text('Before you start'), findsOneWidget);
     expect(find.text('2 to look at'), findsOneWidget);
-    expect(find.text('PHD2 connected, not looping'), findsOneWidget);
     expect(find.text('Last frame'), findsNothing);
     expect(find.text('Session'), findsNothing);
     // The state mark is a glyph; its meaning is read out.
     expect(
-      find.bySemanticsLabel(
-          'Guider, needs a look, PHD2 connected, not looping'),
+      find.bySemanticsLabel('Guider, needs a look, connected · not looping'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
@@ -172,6 +231,87 @@ void main() {
     expect(find.text('forecast only'), findsOneWidget);
     expect(find.text('Clouds (forecast)'), findsOneWidget);
     expect(find.text('Safe'), findsNothing);
+  });
+
+  group('next step', () {
+    testWidgets('before a run it follows the checklist', (tester) async {
+      await pumpPanel(
+        tester,
+        child: const NightOverviewTab(),
+        overrides: panelOverrides(
+          board: NightFixtures.ready(),
+          nextStep: stepFor(NextUseActionId.configurePlateSolver),
+        ),
+      );
+      expect(find.text('Next step'), findsOneWidget);
+      expect(find.text('Confirm your plate solver'), findsOneWidget);
+      expect(find.text('Review solving'), findsOneWidget);
+      expect(find.text('Not now'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('with no step left it is not shown', (tester) async {
+      await pumpPanel(
+        tester,
+        child: const NightOverviewTab(),
+        overrides: panelOverrides(board: NightFixtures.ready()),
+      );
+      expect(find.text('Next step'), findsNothing);
+    });
+
+    testWidgets('a running night does not show it', (tester) async {
+      await pumpPanel(
+        tester,
+        child: const NightOverviewTab(),
+        overrides: panelOverrides(
+          board: NightFixtures.running(),
+          nextStep: stepFor(NextUseActionId.configurePlateSolver),
+        ),
+      );
+      expect(find.text('Next step'), findsNothing);
+    });
+
+    testWidgets('its action goes to the step\'s screen', (tester) async {
+      final router = await pumpPanel(
+        tester,
+        child: const NightOverviewTab(),
+        overrides: panelOverrides(
+          board: NightFixtures.ready(),
+          nextStep: stepFor(NextUseActionId.configurePlateSolver),
+        ),
+      );
+      await tester.tap(find.text('Review solving'));
+      await tester.pumpAndSettle();
+      expect(routerLocation(router), '/settings?section=plate-solving');
+    });
+
+    testWidgets('Not now puts the step aside for good', (tester) async {
+      final container = ProviderContainer(
+        overrides: <Override>[
+          inMemoryDatabaseOverride(),
+          ...panelOverrides(
+            board: NightFixtures.ready(),
+            nextStep: stepFor(NextUseActionId.frameTarget),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await pumpPanel(
+        tester,
+        child: const NightOverviewTab(),
+        overrides: const <Override>[],
+        container: container,
+      );
+      await tester.tap(find.text('Not now'));
+      await tester.pumpAndSettle();
+      final dismissed = await tester.runAsync(
+        () => container
+            .read(tutorialProgressDaoProvider)
+            .watchDismissedPromptScreenIds()
+            .first,
+      );
+      expect(dismissed, contains('next_use.frameTarget'));
+    });
   });
 
   testWidgets('a checklist route action navigates', (tester) async {

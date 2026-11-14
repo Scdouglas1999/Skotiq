@@ -7,11 +7,14 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as p;
 
 import '../database/daos/stacked_results_dao.dart';
+import '../providers/database_provider.dart';
 import '../models/imaging/stack_and_share_models.dart';
 import '../providers/profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import '../utils/skotiq_data_directory.dart';
 import 'logging_service.dart';
 import 'share_card_renderer.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Signature of the function used to persist an 8-bit RGBA buffer as a PNG.
 ///
@@ -458,8 +461,6 @@ class StackShareExportService {
     return primaryPath;
   }
 
-  // Helpers
-
   void _validateBuffer({
     required Uint8List rgba,
     required int width,
@@ -529,16 +530,3 @@ class StackShareExportService {
     return null;
   }
 }
-
-/// Provider for the [StackShareExportService].
-///
-/// Reads the results DAO, active equipment profile, and logging providers
-/// lazily inside the service so it follows the same Drift instance and backend
-/// as the rest of the app, and so test overrides flow through. The save
-/// functions default to the native bridge; tests construct the service directly
-/// with pure-Dart substitutes.
-final stackShareExportServiceProvider = Provider<StackShareExportService>((
-  ref,
-) {
-  return StackShareExportService(ref);
-});

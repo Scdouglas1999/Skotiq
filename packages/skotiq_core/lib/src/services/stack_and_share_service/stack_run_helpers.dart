@@ -21,20 +21,20 @@ extension _StackRunHelpers on StackAndShareService {
         referenceImagePath: frame.filePath,
         config: stackingConfig,
       );
-      _ensureAuthority();
+      _ensureSameHost();
       return;
     }
 
     emitCalibrating(frame.filePath);
     final calibrated = await _loadCalibrated(frame, calibration);
-    _ensureAuthority();
+    _ensureSameHost();
     await _engine.startFromData(
       width: calibrated.width,
       height: calibrated.height,
       data: calibrated.data,
       config: stackingConfig,
     );
-    _ensureAuthority();
+    _ensureSameHost();
   }
 
   /// Add [frame] to the running stack, mirroring the data/file split used by
@@ -49,7 +49,7 @@ extension _StackRunHelpers on StackAndShareService {
       return service.addFrameFromFile(frame.filePath);
     }
     final calibrated = await _loadCalibrated(frame, calibration);
-    _ensureAuthority();
+    _ensureSameHost();
     return service.addFrameFromData(
       width: calibrated.width,
       height: calibrated.height,
@@ -146,7 +146,7 @@ extension _StackRunHelpers on StackAndShareService {
     // auto / osc with no explicit override: discover the pattern, preferring
     // the live camera's declared CFA, then the reference frame's FITS geometry.
     final pattern = await _discoverBayerPattern(reference);
-    _ensureAuthority();
+    _ensureSameHost();
 
     if (pattern == null) {
       if (mode == 'osc') {

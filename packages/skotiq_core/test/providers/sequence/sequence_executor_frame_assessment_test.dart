@@ -11,10 +11,16 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
+import '../../harness/sequencer_wire.dart';
 import '../../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
+import 'package:skotiq_core/src/models/sequence/run_frame_assessment.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -35,18 +41,17 @@ bridge_event.SkotiqEvent _event(String type, Map<String, dynamic> data) =>
 
 bridge_event.SkotiqEvent _graded({
   required String path,
-  required String filter,
   required double secs,
   required bool accepted,
-}) => _event(accepted ? 'FrameAccepted' : 'FrameRejected', {
-  'node_id': _nodeId,
-  'filter': filter,
-  'hfr': 2.3,
-  'star_count': 900,
-  'exposure_secs': secs,
-  if (accepted) 'save_path': path else 'reject_path': path,
-  if (!accepted) 'reason': 'eccentricity 0.84 exceeds threshold 0.80',
-});
+}) => frameVerdictEvent(
+  accepted: accepted,
+  nodeId: _nodeId,
+  path: path,
+  hfr: 2.3,
+  starCount: 900,
+  reason: 'eccentricity 0.84 exceeds threshold 0.80',
+  capture: testCapture(exposureSecs: secs),
+);
 
 bridge_event.SkotiqEvent _assessed(Map<String, Object?> detail) =>
     _event('InstructionProgressStructured', {
@@ -110,8 +115,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.read(liveSequenceStatsProvider.notifier).state =
-        SequenceRunStats();
+    container.read(runRecordProvider.notifier).setStats(SequenceRunStats());
     return (container, container.read(sequenceExecutorProvider));
   }
 
@@ -125,12 +129,20 @@ void main() {
   void pumpRun37(SequenceExecutor executor) {
     for (final entry in _run37.entries) {
       final (count, rejected, secs) = entry.value;
+      // The run names the filter as each frame starts; the verdict does not.
+      executor.handleSequencerEventForTest(
+        _event('ExposureStarted', {
+          'frame': 1,
+          'total': count,
+          'filter': entry.key,
+          'duration_secs': secs,
+        }),
+      );
       for (var i = 0; i < count; i++) {
         final accepted = i >= rejected;
         executor.handleSequencerEventForTest(
           _graded(
             path: _path(entry.key, i, accepted: accepted),
-            filter: entry.key,
             secs: secs,
             accepted: accepted,
           ),
@@ -154,7 +166,7 @@ void main() {
 
     pumpRun37(executor);
     await settle();
-    await session.endSession(status: 'aborted');
+    await session.endSession(status: SessionStatus.aborted);
     await settle();
 
     final stats = container.read(liveSequenceStatsProvider)!;
@@ -216,7 +228,7 @@ void main() {
       }
     }
     await settle();
-    await session.endSession(status: 'aborted');
+    await session.endSession(status: SessionStatus.aborted);
     await settle();
 
     final stats = container.read(liveSequenceStatsProvider)!;
@@ -264,7 +276,7 @@ void main() {
     final (container, executor) = build();
     const path = '/captures/NGC0891/Reject/R_3.fits';
     executor.handleSequencerEventForTest(
-      _graded(path: path, filter: 'R', secs: 120, accepted: false),
+      _graded(path: path, secs: 120, accepted: false),
     );
     executor.handleSequencerEventForTest(
       _assessed({
@@ -356,7 +368,9 @@ void main() {
       container.read(liveSequenceStatsProvider)!.warningMessages,
       contains('Trees at alt 64.0 deg, az 286.2 deg. Moving on.'),
     );
-    final stored = await db.settingsDao.getSetting(learnedHorizonPointsKey);
+    final stored = await db.settingsDao.getSetting(
+      'learned_horizon_points_json',
+    );
     expect(stored, contains('286.2'));
   });
 }

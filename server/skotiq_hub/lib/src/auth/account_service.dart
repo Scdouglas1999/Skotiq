@@ -34,7 +34,6 @@ class Account {
   final int acceptedFrames;
   final int rejectedFrames;
 
-  /// Mean reported residual, or null if no graded contributions yet.
   double? get meanResidual => residualN > 0 ? residualSum / residualN : null;
 }
 

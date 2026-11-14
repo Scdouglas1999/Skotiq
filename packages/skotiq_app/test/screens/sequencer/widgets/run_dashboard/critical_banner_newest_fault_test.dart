@@ -4,7 +4,7 @@
 // and kept it after the resume while the run was Running.
 //
 // The events below are built the way a linked client gets them: the host's
-// wire envelope rebuilt by `bridgeEventFromCoreEvent`, whose `eventId` is the
+// wire envelope read back by `typedEventFromWire`, whose `eventId` is the
 // envelope's timestamp. That id is neither unique (two events of one
 // millisecond share it) nor in arrival order (the client stamps its own
 // connection events with its own clock), so it cannot tell new events from
@@ -13,10 +13,13 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
-import 'package:skotiq_core/src/backend/bridge_event_mapper.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
+import 'package:skotiq_core/backend.dart';
 
 class _FakeAppSettingsNotifier extends AppSettingsNotifier {
   _FakeAppSettingsNotifier(this._initial);
@@ -35,7 +38,7 @@ sk_events.SkotiqEvent _wire(
   EventSeverity severity = EventSeverity.info,
   EventCategory category = EventCategory.sequencer,
 }) =>
-    bridgeEventFromCoreEvent(
+    typedEventFromWire(
       SkotiqEvent(
         timestamp: timestamp,
         severity: severity,
@@ -43,7 +46,7 @@ sk_events.SkotiqEvent _wire(
         eventType: eventType,
         data: data,
       ),
-    );
+    )!;
 
 sk_events.SkotiqEvent _flipFailed(int timestamp, String error) => _wire(
       timestamp,
@@ -95,7 +98,7 @@ void main() {
     );
     addTearDown(container.dispose);
     await container.read(appSettingsProvider.future);
-    container.read(runDashboardCriticalEventsBridgeProvider);
+    container.read(runCriticalAlertsProvider);
     return container;
   }
 
@@ -135,14 +138,14 @@ void main() {
     final container = await wiredContainer();
 
     await emit(container, _flipFailed(_t0, _pierError));
-    // The client's own "connection back" event, stamped with a client clock
-    // that runs a few seconds ahead of the host's.
+    // An event stamped by a clock that runs a few seconds ahead of the
+    // host's.
     await emit(
       container,
       _wire(
         _t0 + const Duration(minutes: 74, seconds: 5).inMilliseconds,
-        'BackendReconnected',
-        {'message': 'WebSocket reconnected'},
+        'Notification',
+        {'title': 'Link', 'message': 'Connected again', 'level': 'info'},
         category: EventCategory.system,
       ),
     );
@@ -192,13 +195,13 @@ void main() {
       'also without a Resumed event (a client that joined while paused)',
       () async {
     final container = await wiredContainer();
-    final state = container.read(sequenceExecutionStateProvider.notifier);
-    state.state = SequenceExecutionState.paused;
+    final state = container.read(runRecordProvider.notifier);
+    state.setLifecycle(SequenceExecutionState.paused);
 
     await emit(container, _flipFailed(_t0, _pierError));
     expect(bannerMessages(container), hasLength(1));
 
-    state.state = SequenceExecutionState.running;
+    state.setLifecycle(SequenceExecutionState.running);
     await Future<void>.delayed(Duration.zero);
 
     expect(container.read(runDashboardCriticalEventsProvider), isEmpty);

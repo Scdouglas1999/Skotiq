@@ -12,7 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/target_header_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -38,11 +39,12 @@ void main() {
     editor.addNode(exposure, parentId: target.id);
 
     // Halfway through the node: two of four frames done (6s of 12s).
-    final progress = container.read(sequenceProgressProvider.notifier);
+    final progress = container.read(runRecordProvider.notifier);
     progress.updateNodeStatus(exposure.id, NodeStatus.running);
     progress.updateNodeProgress(exposure.id, 50, 'Frame 3/4');
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1200, 1400);

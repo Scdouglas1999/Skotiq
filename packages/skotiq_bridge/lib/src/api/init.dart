@@ -22,22 +22,6 @@ void apiInit() => RustLib.instance.api.crateApiInitApiInit();
 /// Get the version of the native library
 String apiGetVersion() => RustLib.instance.api.crateApiInitApiGetVersion();
 
-/// Get the current log directory path
-String? apiGetLogDirectory() =>
-    RustLib.instance.api.crateApiInitApiGetLogDirectory();
-
 /// Get the current log file path (today's log)
 String? apiGetCurrentLogFile() =>
     RustLib.instance.api.crateApiInitApiGetCurrentLogFile();
-
-/// List all available log files
-Future<List<String>> apiListLogFiles() =>
-    RustLib.instance.api.crateApiInitApiListLogFiles();
-
-/// Read a log file's contents
-Future<String> apiReadLogFile({required String path}) =>
-    RustLib.instance.api.crateApiInitApiReadLogFile(path: path);
-
-/// Export all logs to a single file for diagnostics
-Future<void> apiExportLogs({required String outputPath}) =>
-    RustLib.instance.api.crateApiInitApiExportLogs(outputPath: outputPath);

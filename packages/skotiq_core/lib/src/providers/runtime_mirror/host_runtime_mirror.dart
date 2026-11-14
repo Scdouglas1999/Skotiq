@@ -6,11 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/ffi_backend.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/backend/host_runtime_update.dart';
-import '../../services/logging_service.dart';
+import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart';
 import 'runtime_mirror_channel.dart';
 import 'runtime_mirror_channels.dart';
+import '../logging_service_provider.dart';
 
 const _logSource = 'HostRuntimeMirror';
 
@@ -126,7 +127,7 @@ final hostRuntimeMirrorProvider = Provider<void>((ref) {
     final store = ref.read(hostRuntimeStateStoreProvider);
     final Map<String, dynamic>? value;
     try {
-      value = channel.encodeCurrent(ref);
+      value = channel.encodeCurrent(ref.container);
     } catch (e, st) {
       ref
           .read(loggingServiceProvider)
@@ -144,20 +145,20 @@ final hostRuntimeMirrorProvider = Provider<void>((ref) {
 
   void bind() {
     teardown();
-    if (ref.read(backendProvider) is! FfiBackend) return;
+    if (!ref.read(backendProvider).ownsDeviceBridge) return;
     final store = ref.read(hostRuntimeStateStoreProvider);
     for (final channel in ref.read(runtimeMirrorChannelsProvider)) {
       final throttle = throttles[channel.key] = _ChannelThrottle(
         channel.minInterval,
       );
-      subscriptions.add(
-        channel.listen(ref, (_) {
-          throttle.schedule(
-            store.reportOriginFor(channel.key),
-            (origin) => publish(channel, origin),
-          );
-        }),
+      void changed() => throttle.schedule(
+        store.reportOriginFor(channel.key),
+        (origin) => publish(channel, origin),
       );
+      subscriptions.add(channel.listen(ref, (_) => changed()));
+      for (final also in channel.alsoEncodes) {
+        subscriptions.add(ref.listen<Object?>(also, (_, _) => changed()));
+      }
       publish(channel, null);
     }
   }

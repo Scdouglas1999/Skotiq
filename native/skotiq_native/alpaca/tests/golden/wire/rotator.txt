@@ -1,0 +1,768 @@
+## rotator.connect [ok]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=1]
+= Ok(())
+
+## rotator.connect [ascom 0x400]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.connect [ascom 0x4FF without Value]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.connect [http 400]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.connect [http 500]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.connect [malformed json]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.connect [connected reads false x1]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=3]
+= Ok(())
+
+## rotator.connect [connected reads false x99]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=3]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=4&Connected=true]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=5]
+= Err(Connection validation failed: Connected=true succeeded, but the device still reports disconnected after 3 attempts)
+
+## rotator.disconnect [ok]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Ok(())
+
+## rotator.disconnect [ascom 0x400]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.disconnect [ascom 0x4FF without Value]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.disconnect [http 400]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.disconnect [http 500]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.disconnect [malformed json]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/rotator/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.is_connected [ok]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## rotator.is_connected [ascom 0x400]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.is_connected [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.is_connected [http 400]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.is_connected [http 500]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.is_connected [malformed json]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.validate_connection [ok]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## rotator.validate_connection [ascom 0x400]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: Property or method is not implemented)
+
+## rotator.validate_connection [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## rotator.validate_connection [http 400]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: HTTP status: 400 Bad Request)
+
+## rotator.validate_connection [http 500]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: HTTP status: 500 Internal Server Error)
+
+## rotator.validate_connection [malformed json]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.heartbeat [ok]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok("<ms>")
+
+## rotator.heartbeat [ascom 0x400]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok("<ms>")
+
+## rotator.heartbeat [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## rotator.heartbeat [http 400]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Heartbeat failed)
+
+## rotator.heartbeat [http 500]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Heartbeat failed)
+
+## rotator.heartbeat [malformed json]
+> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.name [ok]
+> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Name")
+
+## rotator.name [ascom 0x400]
+> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.name [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.name [http 400]
+> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.name [http 500]
+> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.name [malformed json]
+> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.description [ok]
+> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Description")
+
+## rotator.description [ascom 0x400]
+> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.description [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.description [http 400]
+> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.description [http 500]
+> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.description [malformed json]
+> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.driver_version [ok]
+> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok("1.2.3")
+
+## rotator.driver_version [ascom 0x400]
+> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.driver_version [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.driver_version [http 400]
+> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.driver_version [http 500]
+> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.driver_version [malformed json]
+> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.driver_info [ok]
+> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Driver Info")
+
+## rotator.driver_info [ascom 0x400]
+> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.driver_info [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.driver_info [http 400]
+> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.driver_info [http 500]
+> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.driver_info [malformed json]
+> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.interface_version [ok]
+> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3)
+
+## rotator.interface_version [ascom 0x400]
+> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.interface_version [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.interface_version [http 400]
+> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.interface_version [http 500]
+> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.interface_version [malformed json]
+> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.supported_actions [ok]
+> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["ActionA", "ActionB"])
+
+## rotator.supported_actions [ascom 0x400]
+> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.supported_actions [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.supported_actions [http 400]
+> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.supported_actions [http 500]
+> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.supported_actions [malformed json]
+> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.position [ok]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Ok(123.5)
+
+## rotator.position [ascom 0x400]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.position [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.position [http 400]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.position [http 500]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.position [malformed json]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.position [ascom 0x401]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## rotator.position [ascom 0x402]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## rotator.position [ascom 0x407]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## rotator.position [ascom 0x408]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## rotator.position [ascom 0x409]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## rotator.position [ascom 0x40B]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## rotator.position [ascom 0x40C without Value]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1036: Action not implemented)
+
+## rotator.position [ascom 0x500]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## rotator.position [http 404]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## rotator.position [http 429 retry-after 0]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## rotator.position [http 503]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## rotator.position [wrong value type]
+> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Parse error: invalid type: map, expected f64)
+
+## rotator.mechanical_position [ok]
+> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=0]
+= Ok(124.5)
+
+## rotator.mechanical_position [ascom 0x400]
+> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.mechanical_position [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.mechanical_position [http 400]
+> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.mechanical_position [http 500]
+> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.mechanical_position [malformed json]
+> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.target_position [ok]
+> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=0]
+= Ok(125.5)
+
+## rotator.target_position [ascom 0x400]
+> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.target_position [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.target_position [http 400]
+> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.target_position [http 500]
+> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.target_position [malformed json]
+> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.step_size [ok]
+> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+= Ok(0.5)
+
+## rotator.step_size [ascom 0x400]
+> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.step_size [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.step_size [http 400]
+> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.step_size [http 500]
+> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.step_size [malformed json]
+> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.is_moving [ok]
+> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+= Ok(false)
+
+## rotator.is_moving [ascom 0x400]
+> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.is_moving [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.is_moving [http 400]
+> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.is_moving [http 500]
+> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.is_moving [malformed json]
+> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.can_reverse [ok]
+> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## rotator.can_reverse [ascom 0x400]
+> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.can_reverse [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.can_reverse [http 400]
+> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.can_reverse [http 500]
+> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.can_reverse [malformed json]
+> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.reverse [ok]
+> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=0]
+= Ok(false)
+
+## rotator.reverse [ascom 0x400]
+> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.reverse [ascom 0x4FF without Value]
+> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.reverse [http 400]
+> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.reverse [http 500]
+> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.reverse [malformed json]
+> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.set_reverse [ok]
+> PUT /api/v1/rotator/#/reverse query[] form[ClientID=<id>&ClientTransactionID=0&Reverse=true]
+= Ok(())
+
+## rotator.set_reverse [ascom 0x400]
+> PUT /api/v1/rotator/#/reverse query[] form[ClientID=<id>&ClientTransactionID=0&Reverse=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.set_reverse [ascom 0x4FF without Value]
+> PUT /api/v1/rotator/#/reverse query[] form[ClientID=<id>&ClientTransactionID=0&Reverse=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.set_reverse [http 400]
+> PUT /api/v1/rotator/#/reverse query[] form[ClientID=<id>&ClientTransactionID=0&Reverse=true]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.set_reverse [http 500]
+> PUT /api/v1/rotator/#/reverse query[] form[ClientID=<id>&ClientTransactionID=0&Reverse=true]
+> PUT /api/v1/rotator/#/reverse query[] form[ClientID=<id>&ClientTransactionID=1&Reverse=true]
+> PUT /api/v1/rotator/#/reverse query[] form[ClientID=<id>&ClientTransactionID=2&Reverse=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.set_reverse [malformed json]
+> PUT /api/v1/rotator/#/reverse query[] form[ClientID=<id>&ClientTransactionID=0&Reverse=true]
+> PUT /api/v1/rotator/#/reverse query[] form[ClientID=<id>&ClientTransactionID=1&Reverse=true]
+> PUT /api/v1/rotator/#/reverse query[] form[ClientID=<id>&ClientTransactionID=2&Reverse=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.move_absolute [ok]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Ok(())
+
+## rotator.move_absolute [ascom 0x400]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.move_absolute [ascom 0x4FF without Value]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.move_absolute [http 400]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.move_absolute [http 500]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(HTTP error 500: Internal server error)
+
+## rotator.move_absolute [malformed json]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.move_absolute [ascom 0x401]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Device error 1025: Invalid value)
+
+## rotator.move_absolute [ascom 0x402]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Device error 1026: Value not set)
+
+## rotator.move_absolute [ascom 0x407]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Device error 1031: Not connected)
+
+## rotator.move_absolute [ascom 0x408]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Device error 1032: Invalid while parked)
+
+## rotator.move_absolute [ascom 0x409]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Device error 1033: Invalid while slaved)
+
+## rotator.move_absolute [ascom 0x40B]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Device error 1035: Invalid operation)
+
+## rotator.move_absolute [ascom 0x40C without Value]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Device error 1036: Action not implemented)
+
+## rotator.move_absolute [ascom 0x500]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(Device error 1280: Driver specific error)
+
+## rotator.move_absolute [http 404]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(HTTP error 404: Not Found)
+
+## rotator.move_absolute [http 429 retry-after 0]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(HTTP error 429: Slow down)
+
+## rotator.move_absolute [http 503]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Err(HTTP error 503: Service Unavailable)
+
+## rotator.move_absolute [wrong value type]
+> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
+= Ok(())
+
+## rotator.move_relative [ok]
+> PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=-12.5]
+= Ok(())
+
+## rotator.move_relative [ascom 0x400]
+> PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=-12.5]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.move_relative [ascom 0x4FF without Value]
+> PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=-12.5]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.move_relative [http 400]
+> PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=-12.5]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.move_relative [http 500]
+> PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=-12.5]
+= Err(HTTP error 500: Internal server error)
+
+## rotator.move_relative [malformed json]
+> PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=-12.5]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.move_mechanical [ok]
+> PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=0&Position=90]
+= Ok(())
+
+## rotator.move_mechanical [ascom 0x400]
+> PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=0&Position=90]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.move_mechanical [ascom 0x4FF without Value]
+> PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=0&Position=90]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.move_mechanical [http 400]
+> PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=0&Position=90]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.move_mechanical [http 500]
+> PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=0&Position=90]
+= Err(HTTP error 500: Internal server error)
+
+## rotator.move_mechanical [malformed json]
+> PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=0&Position=90]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.halt [ok]
+> PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## rotator.halt [ascom 0x400]
+> PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.halt [ascom 0x4FF without Value]
+> PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.halt [http 400]
+> PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.halt [http 500]
+> PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.halt [malformed json]
+> PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
+> PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## rotator.sync [ok]
+> PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=0&Position=180.25]
+= Ok(())
+
+## rotator.sync [ascom 0x400]
+> PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=0&Position=180.25]
+= Err(Device error 1024: Property or method is not implemented)
+
+## rotator.sync [ascom 0x4FF without Value]
+> PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=0&Position=180.25]
+= Err(Device error 1279: Unspecified driver fault)
+
+## rotator.sync [http 400]
+> PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=0&Position=180.25]
+= Err(HTTP error 400: Method not implemented)
+
+## rotator.sync [http 500]
+> PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=0&Position=180.25]
+> PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=1&Position=180.25]
+> PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=2&Position=180.25]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## rotator.sync [malformed json]
+> PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=0&Position=180.25]
+> PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=1&Position=180.25]
+> PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=2&Position=180.25]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)

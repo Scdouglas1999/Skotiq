@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
+import '../../utils/held_future.dart';
 import '../../utils/plan_tonight_sequencer_helper.dart';
-import '../planetarium/show_in_sky.dart';
+import '../../router/show_in_sky.dart';
 import 'one_tap_target_provider.dart';
 import 'one_tap_tonight_controller.dart';
+import '../../router/settings_sections.dart';
+import '../../router/app_routes.dart';
 
 /// The opinionated one-tap "image this target tonight" screen.
 ///
@@ -34,6 +40,18 @@ class _TonightScreenState extends ConsumerState<TonightScreen> {
   /// wired to the real providers/helpers here, where a [WidgetRef] is in hand.
   OneTapTonightController _liveController() {
     return _controller ??= OneTapTonightController(
+      // The plan centers every target by plate solving; the sequencer refuses
+      // to start it on a rig without a solver.
+      preflight: () async {
+        final detection = await readHeld(ref, plateSolverDetectionProvider);
+        final preference = await readHeld(ref, plateSolverPreferenceProvider);
+        if (detection.supports(preference.choice)) return null;
+        final rig = ref.read(remoteLaunchTargetProvider)?.name;
+        return 'Image tonight centers the target by plate solving, and no '
+            'plate solver is set up ${rig == null ? 'on this computer' : 'on $rig'}. '
+            'Set one up in Settings > Plate solving'
+            '${rig == null ? '' : ' on $rig'}, then try again.';
+      },
       pick: () async {
         final target = await ref.read(oneTapTargetProvider.future);
         if (target != null) return target;
@@ -52,9 +70,13 @@ class _TonightScreenState extends ConsumerState<TonightScreen> {
       },
       frame: (target) =>
           ref.read(framingProvider.notifier).setTargetSuggestion(target),
+      // An unattended night cools the camera and unparks first, then warms
+      // the camera and parks at the end, as every other "plan this target"
+      // path does.
       plan: (target) => buildPlanTonightTargetSequenceFromSuggestion(
         ref: ref,
         target: target,
+        includeSessionPreamble: true,
       ),
       run: (plan) async {
         // Non-destructive hand-off: takeOwnership stashes any unsaved manual
@@ -108,21 +130,25 @@ class _TonightScreenState extends ConsumerState<TonightScreen> {
           animation: controller,
           builder: (context, _) {
             // Only override GO when a run is live that this controller isn't
-            // itself narrating via [OneTapPhase.running]. Distinguish the copy:
-            // a Smart Night owner is tonight's own plan ("Running tonight"),
-            // anything else is an unrelated sequence.
-            final TonightActiveRun? activeRun =
-                (runActive && controller.state.phase != OneTapPhase.running)
-                    ? (planOwner == ActivePlanOwner.smartNight
-                        ? TonightActiveRun.ours
-                        : TonightActiveRun.other)
-                    : null;
+            // itself narrating: while it is starting the run goes live a
+            // moment before the chain reaches [OneTapPhase.running], and that
+            // run is its own. Distinguish the copy: a Smart Night owner is
+            // tonight's own plan ("Running tonight"), anything else is an
+            // unrelated sequence.
+            final narrating = controller.state.isBusy ||
+                controller.state.phase == OneTapPhase.running;
+            final TonightActiveRun? activeRun = (runActive && !narrating)
+                ? (planOwner == ActivePlanOwner.smartNight
+                    ? TonightActiveRun.ours
+                    : TonightActiveRun.other)
+                : null;
             return TonightBodyView(
               colors: colors,
               state: controller.state,
               activeRun: activeRun,
               targetAsync: targetAsync,
               onGo: controller.go,
+              onCancel: controller.cancel,
               onReset: controller.reset,
               onRefreshPick: () => ref.invalidate(oneTapTargetProvider),
               morningSessionAsync: morningSessionAsync,
@@ -163,6 +189,7 @@ class TonightBodyView extends StatelessWidget {
   final TonightActiveRun? activeRun;
   final AsyncValue<TargetSuggestion?> targetAsync;
   final Future<void> Function() onGo;
+  final VoidCallback onCancel;
   final VoidCallback onReset;
   final VoidCallback onRefreshPick;
   final AsyncValue<int?> morningSessionAsync;
@@ -175,49 +202,68 @@ class TonightBodyView extends StatelessWidget {
     required this.activeRun,
     required this.targetAsync,
     required this.onGo,
+    required this.onCancel,
     required this.onReset,
     required this.onRefreshPick,
     required this.morningSessionAsync,
     required this.onRefreshMorningReport,
   });
 
+  /// One decision reads as one column: past this width the card and its
+  /// button stop growing and the page centers them.
+  static const double maxContentWidth = 720;
+
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
-      children: [
-        _Header(colors: colors),
-        const SizedBox(height: SkotiqTokens.spaceLg),
-        _TargetConfirmCard(
-          colors: colors,
-          state: state,
-          targetAsync: targetAsync,
-          onRefreshPick: onRefreshPick,
-        ),
-        const SizedBox(height: SkotiqTokens.spaceLg),
-        _PrimaryAction(
-          colors: colors,
-          state: state,
-          activeRun: activeRun,
-          targetAsync: targetAsync,
-          onGo: onGo,
-          onReset: onReset,
-        ),
-        if (state.error != null) ...[
-          const SizedBox(height: SkotiqTokens.spaceMd),
-          _ErrorBanner(colors: colors, message: state.error!),
-        ],
-        const SizedBox(height: SkotiqTokens.spaceXl),
-        _MorningPayoff(
-          colors: colors,
-          running: state.phase == OneTapPhase.running,
-          sessionAsync: morningSessionAsync,
-          onRetry: onRefreshMorningReport,
-        ),
-        const SizedBox(height: SkotiqTokens.spaceLg),
-        _AdvancedFooter(colors: colors),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final side = ((constraints.maxWidth - maxContentWidth) / 2)
+            .clamp(SkotiqTokens.spaceLg, double.infinity);
+        return ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: side,
+            vertical: SkotiqTokens.spaceLg,
+          ),
+          children: _children(),
+        );
+      },
     );
+  }
+
+  List<Widget> _children() {
+    return [
+      _Header(colors: colors),
+      const SizedBox(height: SkotiqTokens.spaceLg),
+      _TargetConfirmCard(
+        colors: colors,
+        state: state,
+        targetAsync: targetAsync,
+        onRefreshPick: onRefreshPick,
+      ),
+      const SizedBox(height: SkotiqTokens.spaceLg),
+      _PrimaryAction(
+        colors: colors,
+        state: state,
+        activeRun: activeRun,
+        targetAsync: targetAsync,
+        onGo: onGo,
+        onCancel: onCancel,
+        onReset: onReset,
+      ),
+      if (state.error != null) ...[
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        _ErrorBanner(colors: colors, message: state.error!),
+      ],
+      const SizedBox(height: SkotiqTokens.spaceXl),
+      _MorningPayoff(
+        colors: colors,
+        running: state.phase == OneTapPhase.running,
+        sessionAsync: morningSessionAsync,
+        onRetry: onRefreshMorningReport,
+      ),
+      const SizedBox(height: SkotiqTokens.spaceLg),
+      _AdvancedFooter(colors: colors),
+    ];
   }
 }
 
@@ -235,7 +281,7 @@ class _Header extends StatelessWidget {
             Icon(LucideIcons.moonStar, size: 22, color: colors.primary),
             const SizedBox(width: SkotiqTokens.spaceSm),
             Text(
-              'Tonight',
+              "Tonight's best target",
               style: SkotiqTypography.h2.copyWith(color: colors.textPrimary),
             ),
           ],
@@ -278,7 +324,7 @@ class _TargetConfirmCard extends StatelessWidget {
       error: (e, _) => _NoTargetCard(
         colors: colors,
         title: 'Could not pick a target',
-        body: '$e',
+        body: userFacingError(e),
         onAction: onRefreshPick,
       ),
       data: (target) {
@@ -294,8 +340,8 @@ class _TargetConfirmCard extends StatelessWidget {
     final peakAlt =
         target.visibility.peakAltitude ?? target.visibility.currentAltitude;
     final hoursAbove = target.visibility.hoursAboveMinAlt ?? 0.0;
-    final ra = CoordinateUtils.formatRA(target.raHours);
-    final dec = CoordinateUtils.formatDec(target.decDegrees);
+    final ra = CoordinateFormat.raReadout(target.raHours);
+    final dec = CoordinateFormat.decReadout(target.decDegrees);
 
     return SkotiqCard(
       variant: CardVariant.elevated,
@@ -394,6 +440,7 @@ class _PrimaryAction extends StatelessWidget {
   final TonightActiveRun? activeRun;
   final AsyncValue<TargetSuggestion?> targetAsync;
   final Future<void> Function() onGo;
+  final VoidCallback onCancel;
   final VoidCallback onReset;
 
   const _PrimaryAction({
@@ -402,6 +449,7 @@ class _PrimaryAction extends StatelessWidget {
     required this.activeRun,
     required this.targetAsync,
     required this.onGo,
+    required this.onCancel,
     required this.onReset,
   });
 
@@ -433,15 +481,15 @@ class _PrimaryAction extends StatelessWidget {
             ],
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
-          // The dashboard cockpit is the monitoring surface — hand the user
-          // straight back to it so the GO → watch-it-run loop closes on one
-          // screen instead of bouncing through Imaging.
+          // Tonight is the monitoring surface — hand the user straight back
+          // to it so the GO → watch-it-run loop closes on one screen instead
+          // of bouncing through Imaging.
           SkotiqButton(
-            label: 'Watch on dashboard',
+            label: 'Watch the run on Tonight',
             icon: LucideIcons.layoutDashboard,
             variant: ButtonVariant.outline,
             size: ButtonSize.large,
-            onPressed: () => context.go('/dashboard'),
+            onPressed: () => context.go(AppRoute.tonight.path),
           ),
         ],
       );
@@ -460,13 +508,29 @@ class _PrimaryAction extends StatelessWidget {
       );
     }
 
-    return SkotiqButton(
+    final go = SkotiqButton(
       label: _label(state.phase),
       icon: state.isBusy ? null : LucideIcons.play,
       variant: ButtonVariant.primary,
       size: ButtonSize.large,
       isLoading: state.isBusy,
       onPressed: (hasPick && !state.isBusy) ? onGo : null,
+    );
+    if (!state.canCancel) return go;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        go,
+        const SizedBox(height: SkotiqTokens.spaceSm),
+        Center(
+          child: SkotiqButton(
+            label: 'Cancel',
+            variant: ButtonVariant.ghost,
+            size: ButtonSize.small,
+            onPressed: onCancel,
+          ),
+        ),
+      ],
     );
   }
 
@@ -488,7 +552,6 @@ class _PrimaryAction extends StatelessWidget {
   }
 }
 
-/// The morning payoff: a path to the morning report / session review.
 class _MorningPayoff extends StatelessWidget {
   final SkotiqColors colors;
   final bool running;
@@ -514,7 +577,7 @@ class _MorningPayoff extends StatelessWidget {
         colors: colors,
         icon: LucideIcons.alertTriangle,
         title: 'Morning report unavailable',
-        body: '$error',
+        body: userFacingError(error),
         onRetry: onRetry,
       ),
       data: (sessionId) {
@@ -527,7 +590,7 @@ class _MorningPayoff extends StatelessWidget {
   Widget _reportCard(BuildContext context, int sessionId) {
     return SkotiqCard(
       variant: CardVariant.subtle,
-      onTap: () => context.push('/session-review?session=$sessionId'),
+      onTap: () => context.push(AppRoutes.sessionReviewOfSession(sessionId)),
       padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
       child: Row(
         children: [
@@ -634,7 +697,7 @@ class _AdvancedFooter extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         TextButton.icon(
-          onPressed: () => context.go('/planner'),
+          onPressed: () => context.go(AppRoute.planner.path),
           icon:
               Icon(LucideIcons.sliders, size: 15, color: colors.textSecondary),
           label: Text(
@@ -710,7 +773,7 @@ class _NoPickCard extends ConsumerWidget {
             'in Settings.',
         actionLabel: 'Open settings',
         actionIcon: LucideIcons.mapPin,
-        onAction: () => context.go('/settings?section=location'),
+        onAction: () => openSettings(context, SettingsSectionId.location),
       );
     }
 

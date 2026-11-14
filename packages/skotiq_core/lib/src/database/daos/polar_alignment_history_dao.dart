@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../models/polar_alignment_config.dart';
+import '../../backend/roles/host_data/polar_alignment_log.dart';
 import '../database.dart';
 import '../tables/polar_alignment_history.dart';
 
@@ -10,10 +11,10 @@ part 'polar_alignment_history_dao.g.dart';
 
 @DriftAccessor(tables: [PolarAlignmentHistory])
 class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$PolarAlignmentHistoryDaoMixin {
+    with _$PolarAlignmentHistoryDaoMixin
+    implements PolarAlignmentLog {
   PolarAlignmentHistoryDao(super.db);
 
-  /// Insert a new polar alignment result
   Future<int> insertResult(PolarAlignmentResult result) {
     return into(polarAlignmentHistory).insert(
       PolarAlignmentHistoryCompanion.insert(
@@ -37,6 +38,7 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
   ///
   /// If [profileId] is null, returns all history entries.
   /// Results are ordered by completion time, most recent first.
+  @override
   Future<List<PolarAlignmentHistoryEntry>> getHistoryForProfile(
     int? profileId, {
     int limit = 20,
@@ -52,7 +54,7 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
     return query.get();
   }
 
-  /// Get the most recent alignment for a profile
+  @override
   Future<PolarAlignmentHistoryEntry?> getLastAlignment(int? profileId) async {
     final query = select(polarAlignmentHistory)
       ..orderBy([(t) => OrderingTerm.desc(t.completedAt)])
@@ -66,9 +68,7 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
     return results.isEmpty ? null : results.first;
   }
 
-  /// Watch alignment history for real-time updates
-  ///
-  /// Returns a stream that emits whenever the history changes.
+  @override
   Stream<List<PolarAlignmentHistoryEntry>> watchHistory(
     int? profileId, {
     int limit = 20,
@@ -126,7 +126,6 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
   /// Delete old history entries, keeping the most recent N per profile
   Future<void> pruneHistory({int keepPerProfile = 50}) async {
     await transaction(() async {
-      // Get distinct profile IDs
       final profiles =
           await (selectOnly(polarAlignmentHistory, distinct: true)
                 ..addColumns([polarAlignmentHistory.equipmentProfileId]))
@@ -134,7 +133,6 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
               .get();
 
       for (final profileId in profiles) {
-        // Get IDs to keep for this profile
         final query = select(polarAlignmentHistory)
           ..orderBy([(t) => OrderingTerm.desc(t.completedAt)])
           ..limit(keepPerProfile);
@@ -148,7 +146,6 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
         final keepIds = await query.map((e) => e.id).get();
 
         if (keepIds.isNotEmpty) {
-          // Delete entries not in keep list
           await (delete(polarAlignmentHistory)..where((t) {
                 if (profileId != null) {
                   return t.equipmentProfileId.equals(profileId) &
@@ -163,14 +160,12 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Delete all history for a specific profile
   Future<int> deleteHistoryForProfile(int profileId) {
     return (delete(
       polarAlignmentHistory,
     )..where((t) => t.equipmentProfileId.equals(profileId))).go();
   }
 
-  /// Delete a specific history entry
   Future<int> deleteEntry(int id) {
     return (delete(polarAlignmentHistory)..where((t) => t.id.equals(id))).go();
   }
@@ -205,7 +200,6 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
     return row.read(countExpr) ?? 0;
   }
 
-  /// Convert a database entry to a PolarAlignmentResult model
   PolarAlignmentResult entryToResult(PolarAlignmentHistoryEntry entry) {
     final configJson = jsonDecode(entry.configJson) as Map<String, dynamic>;
     final config = PolarAlignmentConfig.fromJson(configJson);
@@ -240,9 +234,7 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
   }
 }
 
-/// Statistics for polar alignment history
 class PolarAlignmentStats {
-  /// Total number of alignment sessions
   final int totalSessions;
 
   /// Average initial error in arcseconds
@@ -251,7 +243,6 @@ class PolarAlignmentStats {
   /// Average final error in arcseconds
   final double avgFinalError;
 
-  /// Average improvement percentage
   final double avgImprovementPercent;
 
   /// Best (lowest) final error achieved
@@ -260,7 +251,6 @@ class PolarAlignmentStats {
   /// Worst (highest) final error achieved
   final double worstFinalError;
 
-  /// Number of sessions that auto-completed
   final int autoCompletedCount;
 
   const PolarAlignmentStats({
@@ -273,7 +263,6 @@ class PolarAlignmentStats {
     required this.autoCompletedCount,
   });
 
-  /// Percentage of sessions that auto-completed
   double get autoCompletedPercent =>
       totalSessions > 0 ? autoCompletedCount / totalSessions * 100 : 0;
 

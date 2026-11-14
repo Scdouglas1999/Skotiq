@@ -6,13 +6,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../services/file_download_service.dart';
 import '../../../utils/exported_file_reveal.dart';
-import '../../accessible_dropdown.dart';
-import 'settings_widgets.dart' show settingsPagePadding;
+import '../../../widgets/accessible_dropdown.dart';
+import 'admin_only.dart';
+import 'settings_widgets.dart'
+    show SettingsControlBox, SettingsFormScope, settingsPagePaddingOf;
+import '../../../utils/snackbar_helper.dart';
 
 part 'log_viewer_parts/_export_seams.dart';
 part 'log_viewer_parts/_actions.dart';
@@ -20,9 +28,7 @@ part 'log_viewer_parts/_controls.dart';
 
 /// Log viewer settings page with live-tailing, filtering, and export.
 class LogViewer extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const LogViewer({super.key, this.isMobile = false});
+  const LogViewer({super.key});
 
   @override
   ConsumerState<LogViewer> createState() => _LogViewerState();
@@ -44,8 +50,10 @@ class _LogViewerState extends ConsumerState<LogViewer>
   List<LogEntry> _filteredLogs = [];
   List<LogEntry> _allLogs = [];
   Set<String> _availableSources = {};
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _backendGeneration = 0;
+  ProviderSubscription<HostLogs?>? _hostSubscription;
+
+  /// Log reads from the host; a host change drops the ones still answering.
+  late final _hostReads = ref.backendScopes(alive: () => mounted);
   int _nextRefreshRequest = 0;
   int _lastAppliedRequest = 0;
   Object? _actionToken;
@@ -59,11 +67,13 @@ class _LogViewerState extends ConsumerState<LogViewer>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    // The logs half, not the backend: a backend listener runs before the
+    // half is rebuilt and would read the previous host's log.
+    _hostSubscription = ref.listenManual<HostLogs?>(
+      linkedHostLogsProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
-        _backendGeneration++;
+        _hostReads.cancelAll();
         _lastAppliedRequest = 0;
         _actionToken = null;
         setState(() {
@@ -107,7 +117,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     _refreshTimer?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
@@ -119,22 +129,16 @@ class _LogViewerState extends ConsumerState<LogViewer>
     // pull from /api/logs/recent so a remote session shows the host's
     // logs, not the local (empty) ring buffer. The local LoggingService
     // path is preserved for FFI / disconnected backends.
-    final backend = ref.read(backendProvider);
-    final backendGeneration = _backendGeneration;
+    final read = _hostReads.begin();
     final request = ++_nextRefreshRequest;
-    if (backend is NetworkBackend) {
+    if (ref.read(linkedHostLogsProvider) case final hostLogs?) {
       // Fire-and-forget refresh; the user's filters apply once the
       // response lands. Errors silently fall back to whatever was last
       // rendered — surfaced via the SnackBars on Clear/Export so the
       // operator still gets feedback when the action they triggered
       // failed.
-      backend.fetchRecentServerLogs(limit: 500).then((logs) {
-        if (!mounted ||
-            backendGeneration != _backendGeneration ||
-            request < _lastAppliedRequest ||
-            !identical(ref.read(backendProvider), backend)) {
-          return;
-        }
+      hostLogs.fetchRecentServerLogs(limit: 500).then((logs) {
+        if (read.isStale || request < _lastAppliedRequest) return;
         _lastAppliedRequest = request;
         setState(() {
           _allLogs = logs;
@@ -160,12 +164,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
     final loggingService = ref.read(loggingServiceProvider);
     final logs = loggingService.getRecentLogs();
 
-    if (!mounted ||
-        backendGeneration != _backendGeneration ||
-        request < _lastAppliedRequest ||
-        !identical(ref.read(backendProvider), backend)) {
-      return;
-    }
+    if (read.isStale || request < _lastAppliedRequest) return;
     _lastAppliedRequest = request;
 
     setState(() {
@@ -199,23 +198,21 @@ class _LogViewerState extends ConsumerState<LogViewer>
     }).toList();
   }
 
-  bool _isCurrentAction(Object token, SkotiqBackend backend) =>
-      mounted &&
-      identical(_actionToken, token) &&
-      identical(ref.read(backendProvider), backend);
+  bool _isCurrentAction(Object token, AsyncScope<SkotiqBackend> host) =>
+      host.isCurrent && identical(_actionToken, token);
 
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final isMobile = widget.isMobile;
-    final padding = isMobile ? const EdgeInsets.all(16) : settingsPagePadding;
+    // The narrow layout's own header already says "Logs".
+    final narrow = SettingsFormScope.narrowOf(context);
 
     return Padding(
-      padding: padding,
+      padding: settingsPagePaddingOf(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isMobile) ...[
+          if (!narrow) ...[
             Text(
               'Logs',
               style: SkotiqTypography.sectionTitle.copyWith(
@@ -232,10 +229,10 @@ class _LogViewerState extends ConsumerState<LogViewer>
             const SizedBox(height: 32),
           ],
           // Filter bar
-          _buildFilterBar(colors, isMobile),
+          _buildFilterBar(colors),
           const SizedBox(height: 12),
           // Action buttons
-          _buildActionBar(colors, isMobile),
+          _buildActionBar(colors),
           const SizedBox(height: 12),
           // Log count indicator
           Padding(
@@ -266,8 +263,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
                       padding: const EdgeInsets.all(8),
                       itemCount: _filteredLogs.length,
                       itemBuilder: (context, index) {
-                        return _buildLogEntry(
-                            _filteredLogs[index], colors, isMobile);
+                        return _buildLogEntry(_filteredLogs[index], colors);
                       },
                     ),
             ),
@@ -277,7 +273,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
     );
   }
 
-  Widget _buildFilterBar(SkotiqColors colors, bool isMobile) {
+  Widget _buildFilterBar(SkotiqColors colors) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -313,8 +309,9 @@ class _LogViewerState extends ConsumerState<LogViewer>
         // Source dropdown
         if (_availableSources.isNotEmpty) _buildSourceDropdown(colors),
         // Search field
-        SizedBox(
-          width: isMobile ? 160 : 200,
+        SettingsControlBox(
+          width: 200,
+          narrowWidth: 160,
           height: 32,
           child: TextField(
             controller: _searchController,
@@ -409,8 +406,8 @@ class _LogViewerState extends ConsumerState<LogViewer>
     );
   }
 
-  Widget _buildActionBar(SkotiqColors colors, bool isMobile) {
-    final isRemote = ref.watch(backendProvider) is NetworkBackend;
+  Widget _buildActionBar(SkotiqColors colors) {
+    final isRemote = ref.watch(isRemoteModeProvider);
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -449,22 +446,26 @@ class _LogViewerState extends ConsumerState<LogViewer>
             isLoading: _isDownloadingFile,
             onPressed: _isActionBusy ? null : _downloadLogFile,
           ),
-        SkotiqButton(
-          label: _isClearing ? 'Clearing...' : 'Clear',
-          icon: LucideIcons.trash2,
-          variant: ButtonVariant.destructive,
-          size: ButtonSize.small,
-          isLoading: _isClearing,
-          onPressed: _isActionBusy ? null : _confirmClearLogs,
+        AdminOnlyControl(
+          text: 'Clear the logs on the imaging computer, or link with admin '
+              'access.',
+          child: SkotiqButton(
+            label: _isClearing ? 'Clearing...' : 'Clear',
+            icon: LucideIcons.trash2,
+            variant: ButtonVariant.destructive,
+            size: ButtonSize.small,
+            isLoading: _isClearing,
+            onPressed: _isActionBusy ? null : _confirmClearLogs,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildLogEntry(LogEntry entry, SkotiqColors colors, bool isMobile) {
+  Widget _buildLogEntry(LogEntry entry, SkotiqColors colors) {
     final levelColor = _levelColor(entry.level);
     final levelLabel = _levelLabel(entry.level);
-    final timeStr = _formatTimestamp(entry.timestamp);
+    final timeStr = ClockFormat.hmsMillis(entry.timestamp);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
@@ -517,13 +518,5 @@ class _LogViewerState extends ConsumerState<LogViewer>
         ],
       ),
     );
-  }
-
-  String _formatTimestamp(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    final s = dt.second.toString().padLeft(2, '0');
-    final ms = dt.millisecond.toString().padLeft(3, '0');
-    return '$h:$m:$s.$ms';
   }
 }

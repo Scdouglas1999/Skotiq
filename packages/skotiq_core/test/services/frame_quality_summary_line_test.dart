@@ -9,12 +9,12 @@
 // which is that score minus review penalties. They must be nameable apart.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart'
+import 'package:skotiq_core/services.dart'
     show FrameQualityAssessmentService, FrameQualityLevel;
-import 'package:skotiq_core/src/database/database.dart' show CapturedImage;
+import 'package:skotiq_core/src/database/database.dart' show DbCapturedImage;
 
-CapturedImage _frame({double? hfr, int? starCount, double? qualityScore}) =>
-    CapturedImage(
+DbCapturedImage _frame({double? hfr, int? starCount, double? qualityScore}) =>
+    DbCapturedImage(
       id: 1,
       filePath: '/lights/l1.fits',
       fileName: 'l1.fits',

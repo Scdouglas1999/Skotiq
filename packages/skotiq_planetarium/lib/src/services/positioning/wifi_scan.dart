@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
+
+import 'positioning_deadline.dart';
 
 /// One access point seen by a scan, in the shape the positioning services
 /// want: a BSSID and how loud it was here.
@@ -102,6 +106,14 @@ final class WifiScanUnsupportedPlatform extends WifiScanOutcome {
       'Skotiq cannot scan for Wi-Fi networks on $operatingSystem.';
 }
 
+/// The scan could not finish; this does not mean there are no networks.
+final class WifiScanUnavailable extends WifiScanOutcome {
+  const WifiScanUnavailable(this.detail);
+
+  @override
+  final String detail;
+}
+
 /// Exit status and output of one external command.
 class CommandResult {
   const CommandResult({
@@ -130,19 +142,63 @@ class CommandResult {
 typedef ProcessRunner =
     Future<CommandResult> Function(String executable, List<String> arguments);
 
-Future<CommandResult> _runProcess(
+const _commandTimeout = Duration(seconds: 2);
+
+@visibleForTesting
+Future<CommandResult> runWifiScanCommand(
   String executable,
   List<String> arguments,
 ) async {
+  Process? process;
+  StreamSubscription<String>? output;
+  StreamSubscription<String>? errors;
+  final stdout = StringBuffer();
+  final stderr = StringBuffer();
   try {
-    final result = await Process.run(executable, arguments);
+    process = await Process.start(executable, arguments);
+    final outputDone = Completer<void>();
+    final errorsDone = Completer<void>();
+    output = process.stdout
+        .transform(utf8.decoder)
+        .listen(
+          stdout.write,
+          onDone: outputDone.complete,
+          onError: outputDone.completeError,
+          cancelOnError: true,
+        );
+    errors = process.stderr
+        .transform(utf8.decoder)
+        .listen(
+          stderr.write,
+          onDone: errorsDone.complete,
+          onError: errorsDone.completeError,
+          cancelOnError: true,
+        );
+    final results = await Future.wait<Object?>([
+      process.exitCode,
+      outputDone.future,
+      errorsDone.future,
+    ]).timeout(_commandTimeout);
     return CommandResult(
-      exitCode: result.exitCode,
-      stdout: result.stdout as String,
-      stderr: result.stderr as String,
+      exitCode: results.first as int,
+      stdout: stdout.toString(),
+      stderr: stderr.toString(),
+    );
+  } on TimeoutException {
+    if (process != null) {
+      process.kill(ProcessSignal.sigkill);
+      await process.exitCode.timeout(const Duration(milliseconds: 250));
+    }
+    return CommandResult(
+      exitCode: 124,
+      stdout: stdout.toString(),
+      stderr: 'Wi-Fi command timed out.',
     );
   } on ProcessException {
     return CommandResult.notFound;
+  } finally {
+    await output?.cancel();
+    await errors?.cancel();
   }
 }
 
@@ -156,13 +212,11 @@ class WifiScanner {
   /// [operatingSystem] defaults to empty, meaning "ask [Platform]" — a const
   /// constructor cannot read it, and a test that names a platform must be
   /// able to drive the Windows branch from Linux.
-  const WifiScanner({
-    ProcessRunner runner = _runProcess,
-    String operatingSystem = '',
-  }) : _run = runner,
-       _os = operatingSystem;
+  const WifiScanner({ProcessRunner? runner, String operatingSystem = ''})
+    : _run = runner,
+      _os = operatingSystem;
 
-  final ProcessRunner _run;
+  final ProcessRunner? _run;
   final String _os;
 
   String get _platform => _os.isEmpty ? Platform.operatingSystem : _os;
@@ -174,11 +228,38 @@ class WifiScanner {
 
   /// Scan for access points on whichever platform this is.
   Future<WifiScanOutcome> scan() async {
-    return switch (_platform) {
-      'linux' => _scanLinux(),
-      'windows' => _scanWindows(),
-      final other => WifiScanUnsupportedPlatform(other),
-    };
+    final deadline = PositioningDeadline(const Duration(seconds: 6));
+    Future<CommandResult> run(String command, List<String> arguments) =>
+        deadline.run(() => _command(command, arguments));
+    try {
+      return await switch (_platform) {
+        'linux' => _scanLinux(run),
+        'windows' => _scanWindows(run),
+        final other => Future.value(WifiScanUnsupportedPlatform(other)),
+      };
+    } on TimeoutException {
+      return const WifiScanUnavailable(
+        'The Wi-Fi scan did not finish in time.',
+      );
+    } finally {
+      deadline.dispose();
+    }
+  }
+
+  Future<CommandResult> _command(
+    String executable,
+    List<String> arguments,
+  ) async {
+    final runner = _run;
+    // The real runner waits for its child to stop before returning, so a
+    // timed-out radio-on cannot race the restoring radio-off command.
+    final result = runner == null
+        ? await runWifiScanCommand(executable, arguments)
+        : await runner(executable, arguments).timeout(_commandTimeout);
+    if (result.exitCode == 124) {
+      throw TimeoutException('Wi-Fi command timed out');
+    }
+    return result;
   }
 
   /// Whether this platform can switch the radio on from inside the app.
@@ -192,21 +273,21 @@ class WifiScanner {
   /// platform that cannot answer the question.
   Future<bool> radioIsOff() async {
     if (!canToggleRadio) return false;
-    final radio = await _run('nmcli', const ['radio', 'wifi']);
+    final radio = await _command('nmcli', const ['radio', 'wifi']);
     return radio.ok && radio.stdout.trim().toLowerCase() == 'disabled';
   }
 
   /// Switch the radio on. Only ever called from an explicit click.
   Future<bool> enableRadio() async {
     if (!canToggleRadio) return false;
-    final result = await _run('nmcli', const ['radio', 'wifi', 'on']);
+    final result = await _command('nmcli', const ['radio', 'wifi', 'on']);
     return result.ok;
   }
 
   /// Switch the radio back off, restoring the state the operator left it in.
   Future<bool> disableRadio() async {
     if (!canToggleRadio) return false;
-    final result = await _run('nmcli', const ['radio', 'wifi', 'off']);
+    final result = await _command('nmcli', const ['radio', 'wifi', 'off']);
     return result.ok;
   }
 
@@ -220,9 +301,9 @@ class WifiScanner {
   /// poll loop with a sleep.
   static const int _linuxScanAttempts = 5;
 
-  Future<WifiScanOutcome> _scanLinux() async {
-    final devices = await _run('nmcli', const ['-t', '-f', 'TYPE', 'dev']);
-    if (!devices.ok) return _scanLinuxWithIw();
+  Future<WifiScanOutcome> _scanLinux(ProcessRunner run) async {
+    final devices = await run('nmcli', const ['-t', '-f', 'TYPE', 'dev']);
+    if (!devices.ok) return _scanLinuxWithIw(run);
     if (!devices.stdout
         .split('\n')
         .map((line) => line.trim())
@@ -230,13 +311,13 @@ class WifiScanner {
       return const WifiScanNoAdapter();
     }
 
-    final radio = await _run('nmcli', const ['radio', 'wifi']);
+    final radio = await run('nmcli', const ['radio', 'wifi']);
     if (radio.ok && radio.stdout.trim().toLowerCase() == 'disabled') {
       return const WifiScanRadioOff();
     }
 
     for (var attempt = 0; attempt < _linuxScanAttempts; attempt++) {
-      final list = await _run('nmcli', const [
+      final list = await run('nmcli', const [
         '-t',
         '-f',
         'BSSID,SIGNAL,CHAN,SSID',
@@ -261,20 +342,20 @@ class WifiScanner {
   /// triggered a scan, which is why it is the fallback and not the primary —
   /// but its signal figures are true dBm from the driver rather than a
   /// percentage, so what it does return is better than what nmcli reports.
-  Future<WifiScanOutcome> _scanLinuxWithIw() async {
-    final interfaces = await _run('iw', const ['dev']);
+  Future<WifiScanOutcome> _scanLinuxWithIw(ProcessRunner run) async {
+    final interfaces = await run('iw', const ['dev']);
     if (!interfaces.ok) return const WifiScanNoAdapter();
     final name = parseIwInterfaceName(interfaces.stdout);
     if (name == null) return const WifiScanNoAdapter();
 
-    final dump = await _run('iw', ['dev', name, 'scan', 'dump']);
+    final dump = await run('iw', ['dev', name, 'scan', 'dump']);
     if (!dump.ok) return const WifiScanNoNetworks();
     final points = parseIwScanDump(dump.stdout);
     return points.isEmpty ? const WifiScanNoNetworks() : WifiScanOk(points);
   }
 
-  Future<WifiScanOutcome> _scanWindows() async {
-    final result = await _run('netsh', const [
+  Future<WifiScanOutcome> _scanWindows(ProcessRunner run) async {
+    final result = await run('netsh', const [
       'wlan',
       'show',
       'networks',

@@ -47,9 +47,13 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show PairedDevice, PairingDatabase;
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -57,7 +61,6 @@ import 'package:path/path.dart' as p;
 
 import '../../utils/confirm_dialog.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../utils/user_facing_error.dart';
 import 'widgets/settings_widgets.dart';
 
 part 'delivery_settings/delivery_settings_store.dart';
@@ -67,37 +70,32 @@ part 'delivery_settings/destination_editor_dialog.dart';
 
 /// Settings section for delivery destinations and their delivery journal.
 class DeliverySettings extends ConsumerWidget {
-  const DeliverySettings({super.key, this.isMobile = false});
-
-  final bool isMobile;
+  const DeliverySettings({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (ref.watch(isRemoteClientProvider)) {
-      return _DeliveryRemoteModeNotice(isMobile: isMobile);
+      return const _DeliveryRemoteModeNotice();
     }
 
     final destinations = ref.watch(deliveryDestinationsProvider);
     return destinations.when(
-      loading: () => SettingsLoadingState(
-        isMobile: isMobile,
+      loading: () => const SettingsLoadingState(
         message: 'Reading delivery destinations...',
       ),
       error: (error, _) => SettingsErrorState(
-        isMobile: isMobile,
         error: error,
         onRetry: () => ref.invalidate(deliveryDestinationsProvider),
       ),
-      data: (read) => _DeliveryPageBody(isMobile: isMobile, read: read),
+      data: (read) => _DeliveryPageBody(read: read),
     );
   }
 }
 
 /// The page once the destinations have been read.
 class _DeliveryPageBody extends ConsumerWidget {
-  const _DeliveryPageBody({required this.isMobile, required this.read});
+  const _DeliveryPageBody({required this.read});
 
-  final bool isMobile;
   final DeliveryDestinations read;
 
   @override
@@ -112,15 +110,14 @@ class _DeliveryPageBody extends ConsumerWidget {
     final unreadable = read.unreadable;
 
     return SettingsPage(
+      hideHeader: false,
       title: 'Delivery',
       description:
           'Where the night\'s masters, renders and reports are copied once the '
           'dawn run finishes. Delivery copies — it never moves or deletes.',
-      isMobile: isMobile,
       children: [
         SettingsSection(
           title: 'Delivery destinations',
-          isMobile: isMobile,
           children: [
             if (pushed.isEmpty && unreadable.isEmpty)
               const _NoDestinationsRow()
@@ -128,7 +125,6 @@ class _DeliveryPageBody extends ConsumerWidget {
               for (final view in pushed)
                 _DestinationRow(
                   view: view,
-                  isMobile: isMobile,
                   isLast: false,
                   key: ValueKey<int?>(view.destination.id),
                 ),
@@ -137,11 +133,10 @@ class _DeliveryPageBody extends ConsumerWidget {
               for (final row in unreadable)
                 _UnreadableDestinationRow(
                   row: row,
-                  isMobile: isMobile,
                   key: ValueKey<String>('unreadable-${row.id}-${row.name}'),
                 ),
             ],
-            _AddDestinationRow(isMobile: isMobile),
+            const _AddDestinationRow(),
           ],
         ),
         // Only rendered when a peer destination row exists. Peer destinations
@@ -151,12 +146,10 @@ class _DeliveryPageBody extends ConsumerWidget {
         if (peers.isNotEmpty)
           SettingsSection(
             title: 'Paired desktop pulls',
-            isMobile: isMobile,
             children: [
               for (var i = 0; i < peers.length; i++)
                 _DestinationRow(
                   view: peers[i],
-                  isMobile: isMobile,
                   isLast: i == peers.length - 1,
                   key: ValueKey<int?>(peers[i].destination.id),
                 ),
@@ -170,19 +163,17 @@ class _DeliveryPageBody extends ConsumerWidget {
 /// What the page says instead of a destination list when this app is driving
 /// someone else's rig.
 class _DeliveryRemoteModeNotice extends StatelessWidget {
-  const _DeliveryRemoteModeNotice({required this.isMobile});
-
-  final bool isMobile;
+  const _DeliveryRemoteModeNotice();
 
   @override
   Widget build(BuildContext context) {
-    return SettingsPage(
+    return const SettingsPage(
+      hideHeader: false,
       title: 'Delivery',
       description:
           'Where the night\'s masters, renders and reports are copied once the '
           'dawn run finishes.',
-      isMobile: isMobile,
-      children: const [
+      children: [
         EmptyState(
           icon: LucideIcons.server,
           title: 'Delivery destinations live on the imaging host',

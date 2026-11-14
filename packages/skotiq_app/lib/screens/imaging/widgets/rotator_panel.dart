@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'panel_widgets.dart';
 
@@ -81,7 +84,8 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       await service.moveRotatorRelative(delta);
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Failed to move rotator: $e');
+        context
+            .showErrorSnackBar('Failed to move rotator: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -119,7 +123,8 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       await service.moveRotatorTo(angle);
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Failed to move rotator: $e');
+        context
+            .showErrorSnackBar('Failed to move rotator: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -137,7 +142,8 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       await service.haltRotator();
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Failed to halt rotator: $e');
+        context
+            .showErrorSnackBar('Failed to halt rotator: ${userFacingError(e)}');
       }
     }
   }
@@ -165,7 +171,8 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       }
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Failed to sync rotator: $e');
+        context
+            .showErrorSnackBar('Failed to sync rotator: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -214,7 +221,6 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       // The SidePanel already pads its content by 16 (05 §15).
       padding: EdgeInsets.zero,
       children: [
-        // Current angle display
         _buildAngleDisplay(colors),
         const SizedBox(height: 16),
 
@@ -230,7 +236,6 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
           const SizedBox(height: 16),
         ],
 
-        // Relative movement section
         PanelSection(
           title: 'Relative move',
           colors: colors,
@@ -250,8 +255,6 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
           const SizedBox(height: 16),
         ],
 
-        // Halt button — only meaningful when the driver supports halt
-        // and the rotator is currently moving.
         if (_isMoving && canHalt)
           SizedBox(
             width: double.infinity,
@@ -276,7 +279,6 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
       borderRadius: SkotiqTokens.radiusLg,
       child: Column(
         children: [
-          // Visual angle indicator
           SizedBox(
             width: 100,
             height: 100,
@@ -316,7 +318,6 @@ class _RotatorPanelState extends ConsumerState<RotatorPanel> {
             ),
           ),
           const SizedBox(height: 8),
-          // Mechanical position (if different)
           if (mechanicalAngle != null &&
               angle != null &&
               (mechanicalAngle - angle).abs() > 0.1)
@@ -562,7 +563,6 @@ class _AngleIndicatorPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 4;
 
-    // Draw track circle
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
@@ -571,7 +571,6 @@ class _AngleIndicatorPainter extends CustomPainter {
 
     if (!isConnected) return;
 
-    // Draw filled arc from 0 to current angle
     final arcPaint = Paint()
       ..color = primaryColor.withValues(alpha: 0.2)
       ..style = PaintingStyle.fill;
@@ -581,7 +580,6 @@ class _AngleIndicatorPainter extends CustomPainter {
     final sweepRadians = angle * math.pi / 180.0;
     canvas.drawArc(arcRect, -math.pi / 2, sweepRadians, true, arcPaint);
 
-    // Draw needle
     final needleRadians = (angle - 90) * math.pi / 180.0;
     final needleEnd = Offset(
       center.dx + radius * math.cos(needleRadians),
@@ -595,7 +593,6 @@ class _AngleIndicatorPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(center, needleEnd, needlePaint);
 
-    // Draw center dot
     final dotPaint = Paint()
       ..color = primaryColor
       ..style = PaintingStyle.fill;

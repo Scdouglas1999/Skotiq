@@ -20,7 +20,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   late SkotiqDatabase db;
@@ -572,21 +574,20 @@ void main() {
 
   // Altitude-driven longitude baton
 
-  test(
-    'observerAltitudeDegrees puts the celestial pole at altitude == lat',
-    () {
-      // A star at Dec +90 sits at altitude == observer latitude, for ALL times
-      // and longitudes — a clean invariant for the altitude maths.
-      final alt = CoImagingSessionService.observerAltitudeDegrees(
-        latitudeDeg: 47.0,
-        longitudeDeg: -122.0,
-        raDeg: 0.0,
-        decDeg: 90.0,
-        atUtc: DateTime.utc(2026, 6, 30, 8),
-      );
-      expect(alt, closeTo(47.0, 1e-6));
-    },
-  );
+  test('observerAltitudeDegrees puts the J2000 pole within a few arcminutes of '
+      'altitude == lat', () {
+    // The pole of date sits at altitude == observer latitude for all times
+    // and longitudes. Coordinates here are J2000, and precession has carried
+    // the J2000 pole ~0.15 degrees from the pole of date by the 2020s.
+    final alt = CoImagingSessionService.observerAltitudeDegrees(
+      latitudeDeg: 47.0,
+      longitudeDeg: -122.0,
+      raDeg: 0.0,
+      decDeg: 90.0,
+      atUtc: DateTime.utc(2026, 6, 30, 8),
+    );
+    expect(alt, closeTo(47.0, 0.2));
+  });
 
   test(
     'evaluateBaton claims when the target is up, releases when it sets',
@@ -915,17 +916,6 @@ void main() {
       centerDecDeg: -20.0,
     );
     expect(none, isNull);
-  });
-
-  test('angularSeparationDegrees is symmetric and zero on identity', () {
-    expect(
-      CoImagingSessionService.angularSeparationDegrees(10, 20, 10, 20),
-      closeTo(0.0, 1e-9),
-    );
-    expect(
-      CoImagingSessionService.angularSeparationDegrees(0, 0, 0, 90),
-      closeTo(90.0, 1e-6),
-    );
   });
 
   // The longitude-baton scheduler tick

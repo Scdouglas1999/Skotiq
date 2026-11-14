@@ -40,7 +40,6 @@ class _TargetNotesDialogState extends ConsumerState<TargetNotesDialog> {
         height: dialogSize.height,
         child: notesAsync.when(
           data: (notes) {
-            // Collect all tags across notes for the chip filter row.
             final allTags = <String>{};
             for (final n in notes) {
               allTags.addAll(n.tags);
@@ -106,7 +105,7 @@ class _TargetNotesDialogState extends ConsumerState<TargetNotesDialog> {
           error: (e, _) => Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              'Failed to load notes: $e',
+              'Failed to load notes: ${userFacingError(e)}',
               style: TextStyle(color: colors.error),
             ),
           ),
@@ -219,10 +218,9 @@ class _TargetNotesDialogState extends ConsumerState<TargetNotesDialog> {
                 ),
               );
               if (created != null && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Note saved'),
-                      duration: Duration(seconds: 2)),
+                context.showInfoSnackBar(
+                  'Note saved',
+                  duration: Duration(seconds: 2),
                 );
               }
             },
@@ -252,5 +250,3 @@ class _TargetNotesDialogState extends ConsumerState<TargetNotesDialog> {
     return confirmDeleteNote(context, ref, note);
   }
 }
-
-// Note tile (single-row preview)

@@ -2,14 +2,14 @@
 //!
 //! The top-level execute() dispatch is intentionally small: container/logic
 //! variants are routed to `node::logic::*` (which need `&mut self.children`
-//! access) and every other variant goes through the `InstructionRegistry`
-//! trait dispatch.
+//! access) and every other variant runs the instruction node
+//! [`instruction_for`] names.
 
 use crate::expressions::{interpolate, EvaluationFrame};
 use crate::node::context::ExecutionContext;
 use crate::node::logic;
 use crate::node::progress::ProgressUpdate;
-use crate::node::registry::registry;
+use crate::node::registry::instruction_for;
 use crate::{NodeDefinition, NodeId, NodeStatus, NodeType};
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -59,7 +59,7 @@ tokio::task_local! {
     /// for each retry.
     ///
     /// Ambient rather than a parameter because the value has to reach
-    /// `InstructionResult::log_and_get_status_with_context`, which is called
+    /// `InstructionResult::settle`, which is called
     /// from ~30 instruction nodes and only ever sees the immutable
     /// `InstructionContext` snapshot. The retry loop awaits `execute()` inline
     /// on this same task, so the scope is exact. Code that is NOT under the
@@ -72,9 +72,8 @@ tokio::task_local! {
 /// failure has already been published to the operator.
 ///
 /// Publishing per attempt makes one failed node produce one error entry per
-/// try: a node that fails with "No dome connected" (a message
-/// [`crate::instructions::is_device_disconnected_message`] classifies as a
-/// disconnect) runs six times, and the session report lists the same sentence
+/// try: a node that fails with "No dome connected" (a disconnect) runs six
+/// times, and the session report lists the same sentence
 /// six times with six identical Critical toasts, so the error count never
 /// matches the number of failed nodes.
 pub(crate) fn is_disconnect_retry_attempt() -> bool {
@@ -83,11 +82,11 @@ pub(crate) fn is_disconnect_retry_attempt() -> bool {
         .is_ok_and(|is_retry| is_retry)
 }
 
-/// Execute an instruction node through the registry, retrying it if it fails
+/// Execute an instruction node, retrying it if it fails
 /// because a device disconnected.
 ///
 /// The recovery driver runs in a parallel task. When an instruction fails with
-/// a device-disconnect message, `log_and_get_status_with_context`:
+/// a device-disconnect message, `InstructionResult::settle`:
 /// 1. sets `context.device_disconnect_recovery_pending`, and
 /// 2. posts a `DeviceDisconnected` recovery request.
 ///
@@ -97,7 +96,7 @@ pub(crate) fn is_disconnect_retry_attempt() -> bool {
 /// instead:
 /// * detect the pending-recovery flag,
 /// * wait for the recovery driver to engage and finish (it pauses the tree,
-///   reconnects every device, then clears `is_paused` on success or sets
+///   reconnects unavailable devices, then clears `is_paused` on success or sets
 ///   `is_cancelled` on give-up), and
 /// * retry the same instruction once recovery succeeds.
 ///
@@ -149,10 +148,10 @@ async fn execute_instruction_with_disconnect_retry(
     node_type: &NodeType,
     context: &mut ExecutionContext,
 ) -> NodeStatus {
-    let Some(instruction) = registry().build(variant) else {
+    let Some(instruction) = instruction_for(variant) else {
         tracing::error!(
-            "No instruction registered for variant {:?}; sequence cannot proceed",
-            variant
+            "{} is a container, not an instruction; sequence cannot proceed",
+            variant.wire_name()
         );
         return NodeStatus::Failure;
     };
@@ -162,6 +161,7 @@ async fn execute_instruction_with_disconnect_retry(
         // Clear any stale pending flag from a prior instruction before running,
         // so we only react to a disconnect raised by THIS execution.
         context
+            .run
             .device_disconnect_recovery_pending
             .store(false, Ordering::Relaxed);
         // Snapshot BEFORE executing: any recovery cycle that completes from here
@@ -180,6 +180,7 @@ async fn execute_instruction_with_disconnect_retry(
         // Skipped, Cancelled, or a non-disconnect Failure) returns as-is.
         if result != NodeStatus::Failure
             || !context
+                .run
                 .device_disconnect_recovery_pending
                 .swap(false, Ordering::Relaxed)
         {
@@ -301,6 +302,23 @@ async fn wait_for_disconnect_recovery(
     }
 }
 
+/// The nodes of `root`'s subtree a run executes, in tree order. A disabled
+/// node is skipped with everything under it: [`RuntimeNode::execute`] returns
+/// `Skipped` before it descends. The tree twin of
+/// [`crate::SequenceDefinition::enabled_nodes`].
+pub fn enabled_nodes(root: &dyn Node) -> Vec<&dyn Node> {
+    let mut out = Vec::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if !node.is_enabled() {
+            continue;
+        }
+        out.push(node);
+        stack.extend(node.children().iter().rev().map(|child| &**child));
+    }
+    out
+}
+
 /// Base trait for all behaviour-tree nodes.
 #[async_trait]
 pub trait Node: Send + Sync {
@@ -345,6 +363,9 @@ pub struct RuntimeNode {
     pub children: Vec<Box<dyn Node>>,
     pub status: NodeStatus,
     pub current_iteration: u32,
+    /// Set on a Loop by a checkpoint resume: its next pass is the one the run
+    /// stopped in, and continues it rather than starting the body over.
+    pub resumed: bool,
 }
 
 impl RuntimeNode {
@@ -354,6 +375,7 @@ impl RuntimeNode {
             children: Vec::new(),
             status: NodeStatus::Pending,
             current_iteration: 0,
+            resumed: false,
         }
     }
 
@@ -381,6 +403,7 @@ impl Node for RuntimeNode {
     }
 
     async fn execute(&mut self, context: &mut ExecutionContext) -> NodeStatus {
+        context.resume.node_started(self.id());
         if !self.definition.enabled {
             self.status = NodeStatus::Skipped;
             return NodeStatus::Skipped;
@@ -405,6 +428,7 @@ impl Node for RuntimeNode {
         }
 
         self.status = NodeStatus::Running;
+        context.run.take_settings();
         // render the node display name through the interpolation
         // engine so user-authored templates like
         // "Image ${target.name} with ${filter}" become live labels in the
@@ -500,6 +524,7 @@ impl Node for RuntimeNode {
     fn reset(&mut self) {
         self.status = NodeStatus::Pending;
         self.current_iteration = 0;
+        self.resumed = false;
         for child in &mut self.children {
             child.reset();
         }
@@ -544,6 +569,7 @@ impl Node for RuntimeNode {
             if let Some(&iter) = map.get(self.id()) {
                 self.current_iteration = iter;
             }
+            self.resumed = true;
         }
         for child in &mut self.children {
             child.restore_loop_iterations(map);
@@ -633,17 +659,19 @@ mod disconnect_recovery_tests {
         let inst = ctx.to_instruction_context("test-node").await;
         // Writing through the InstructionContext side is visible on the
         // ExecutionContext side (same Arc allocation).
-        inst.device_disconnect_recovery_pending
+        inst.run
+            .device_disconnect_recovery_pending
             .store(true, Ordering::Relaxed);
         assert!(
-            ctx.device_disconnect_recovery_pending
+            ctx.run
+                .device_disconnect_recovery_pending
                 .load(Ordering::Relaxed),
             "pending flag must be shared across the context boundary"
         );
         assert!(
             Arc::ptr_eq(
-                &ctx.device_disconnect_recovery_pending,
-                &inst.device_disconnect_recovery_pending
+                &ctx.run.device_disconnect_recovery_pending,
+                &inst.run.device_disconnect_recovery_pending
             ),
             "both contexts must reference the same flag allocation"
         );
@@ -718,6 +746,41 @@ mod resume_short_circuit_tests {
             enabled: true,
             children: Vec::new(),
         })
+    }
+
+    /// A setting changed during a run reaches the plan's next step: each node
+    /// takes the run's settings as it starts (an Autofocus node then reads its
+    /// filter offsets, a target its site), and the step before it ran with
+    /// what it started with.
+    #[tokio::test]
+    async fn the_next_step_takes_settings_changed_during_the_run() {
+        let executor = crate::executor::SequenceExecutor::new();
+        let mut ctx = ExecutionContext::new_for_test("root".to_string());
+        ctx.run.settings = Some(executor.run_config_store());
+
+        let mut first = delay_node("first", 0.0);
+        first.execute(&mut ctx).await;
+        let during_first = ctx.run.rig.clone();
+
+        executor
+            .handle()
+            .update_run_config(|config| {
+                config.filter_focus_offsets =
+                    std::collections::HashMap::from([("Ha".to_string(), 120)]);
+                config.latitude = Some(46.0);
+                config.longitude = Some(7.0);
+            })
+            .await
+            .expect("the settings apply");
+        assert!(during_first.filter_focus_offsets.is_empty());
+
+        let mut next = delay_node("next", 0.0);
+        next.execute(&mut ctx).await;
+        assert_eq!(ctx.run.rig.filter_focus_offsets.get("Ha"), Some(&120));
+        assert_eq!(
+            (ctx.run.rig.latitude, ctx.run.rig.longitude),
+            (Some(46.0), Some(7.0))
+        );
     }
 
     /// A node whose status was restored to `Success` on resume must

@@ -3,15 +3,17 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' hide CameraState;
+import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/device_heartbeat_health_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/services/device_reconnect_coordinator.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
 
+import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 /// Verifies that heartbeat events arriving on the equipment
 /// event stream are routed into `deviceHeartbeatHealthProvider` by
@@ -38,12 +40,16 @@ void main() {
     when(
       () => mockBackend.polarAlignmentEvents,
     ).thenAnswer((_) => const Stream.empty());
+    when(
+      () => mockBackend.nativeReconnectedDeviceTypes,
+    ).thenReturn(const {DeviceType.mount});
 
     container = ProviderContainer(
       overrides: [
         backendProvider.overrideWith(
           (ref) => _TestBackendNotifier(ref, mockBackend),
         ),
+        inMemoryDatabaseOverride(),
       ],
     );
 
@@ -344,50 +350,32 @@ void main() {
     verifyNever(() => mockBackend.connectDevice(any(), any()));
   });
 
-  group('DeviceReconnectCoordinator.nativeOwnsReconnect policy table', () {
-    // This table MUST mirror the native source of truth exactly:
-    // `DeviceManager::get_heartbeat_config(device_type)` →
-    // `HeartbeatConfig::for_*()` in
-    // native/skotiq_native/bridge/src/device_manager/. A drift here
-    // re-opens the dual-reconnect race (Dart competes with the native
-    // loop) or strands a device with no reconnect engine at all.
-    const nativeOwned = <DeviceType>{
-      DeviceType.mount, // for_mount: auto_reconnect = true
-      DeviceType.dome, // for_dome: auto_reconnect = true
-      DeviceType.weather, // for_weather: auto_reconnect = true
-      DeviceType.safetyMonitor, // for_safety_monitor: auto_reconnect = true
-      DeviceType.guider, // for_guider: auto_reconnect = true
-      DeviceType.coverCalibrator, // for_cover_calibrator: auto_reconnect = true
-    };
-    const dartOwned = <DeviceType>{
-      DeviceType.camera, // for_camera: auto_reconnect = false
-      DeviceType.focuser, // for_focuser: auto_reconnect = false
-      DeviceType.filterWheel, // for_filter_wheel: auto_reconnect = false
-      DeviceType.rotator, // for_rotator: auto_reconnect = false
-      DeviceType.switch_, // for_switch: auto_reconnect = false
-    };
-
-    test('every DeviceType is classified exactly once', () {
-      // Guards against a new DeviceType being added without a matching
-      // native-ownership decision (the switch in nativeOwnsReconnect would
-      // fail to compile, but the test also documents the full set).
+  // The backend says which types its native side reconnects (the native
+  // policy table, read over the FFI); the coordinator defers exactly those and
+  // keeps every other type for itself.
+  test('the coordinator defers exactly the types the backend reconnects', () {
+    when(
+      () => mockBackend.nativeReconnectedDeviceTypes,
+    ).thenReturn(const {DeviceType.focuser, DeviceType.dome});
+    final coordinator = container.read(
+      Provider(
+        (ref) => DeviceReconnectCoordinator(
+          ref: ref,
+          backend: mockBackend,
+          hostOwnsRecovery: false,
+          resumeSequence: () async {},
+          pauseSequence: () async {},
+          surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+          connect: (type, deviceId) async {},
+        ),
+      ),
+    );
+    for (final type in DeviceType.values) {
       expect(
-        {...nativeOwned, ...dartOwned},
-        DeviceType.values.toSet(),
-        reason: 'all DeviceTypes must appear in exactly one ownership set',
+        coordinator.nativeOwnsReconnect(type),
+        type == DeviceType.focuser || type == DeviceType.dome,
+        reason: type.name,
       );
-      expect(nativeOwned.intersection(dartOwned), isEmpty);
-    });
-
-    for (final type in nativeOwned) {
-      test('${type.name} is native-owned', () {
-        expect(DeviceReconnectCoordinator.nativeOwnsReconnect(type), isTrue);
-      });
-    }
-    for (final type in dartOwned) {
-      test('${type.name} is Dart-owned', () {
-        expect(DeviceReconnectCoordinator.nativeOwnsReconnect(type), isFalse);
-      });
     }
   });
 
@@ -430,9 +418,11 @@ void main() {
       coordinator = DeviceReconnectCoordinator(
         ref: ref,
         backend: mockBackend,
+        hostOwnsRecovery: false,
         resumeSequence: () async {},
         pauseSequence: () async {},
         surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+        connect: (type, deviceId) async {},
         retryDelays: const [
           Duration(milliseconds: 2),
           Duration(milliseconds: 2),
@@ -476,6 +466,68 @@ void main() {
     await coordinator.attemptReconnect(DeviceType.focuser, deviceId);
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(reconnectCalls, DeviceReconnectCoordinator.maxReconnectAttempts + 1);
+
+    coordinator.cancelAll();
+  });
+
+  // The rig, Nov 8 2026: the camera at native:zwo:1 came back at
+  // native:zwo:0 and the reconnect kept asking for native:zwo:1.
+  test('a reconnect goes where the profile device is now, and a device '
+      'arriving on the bus restarts an exhausted reconnect', () async {
+    final attempted = <String>[];
+    var arrived = false;
+    var resolveFailures = 0;
+    late DeviceReconnectCoordinator coordinator;
+    final coordinatorProvider = Provider<DeviceReconnectCoordinator>((ref) {
+      coordinator = DeviceReconnectCoordinator(
+        ref: ref,
+        backend: mockBackend,
+        hostOwnsRecovery: false,
+        resumeSequence: () async {},
+        pauseSequence: () async {},
+        surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+        connect: (type, deviceId) async {},
+        retryDelays: const [Duration(milliseconds: 2)],
+        reconnectTarget: (type, deviceId) async {
+          if (!arrived) {
+            resolveFailures++;
+            throw StateError('the camera is not on the bus');
+          }
+          return 'native:zwo:0';
+        },
+        reconnectAttempt: (type, deviceId) async => attempted.add(deviceId),
+      );
+      return coordinator;
+    });
+    coordinator = container.read(coordinatorProvider);
+
+    // A camera is Dart-owned for reconnect; enable it.
+    container.read(cameraStateProvider.notifier).setAutoReconnect(true);
+    await coordinator.attemptReconnect(DeviceType.camera, 'native:zwo:1');
+    // Wait (bounded, not a fixed sleep: the full suite runs under load) for
+    // the three quick attempts to run out.
+    Future<void> until(bool Function() done) async {
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (!done() && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    }
+
+    await until(
+      () => resolveFailures >= DeviceReconnectCoordinator.maxReconnectAttempts,
+    );
+    expect(resolveFailures, DeviceReconnectCoordinator.maxReconnectAttempts);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(attempted, isEmpty, reason: 'every attempt failed to resolve');
+
+    arrived = true;
+    coordinator.onDeviceArrived(DeviceType.focuser);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(attempted, isEmpty, reason: 'a focuser is not the camera');
+
+    coordinator.onDeviceArrived(DeviceType.camera);
+    await until(() => attempted.isNotEmpty);
+    expect(attempted, ['native:zwo:0']);
 
     coordinator.cancelAll();
   });

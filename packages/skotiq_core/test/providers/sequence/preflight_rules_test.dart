@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show QueryExecutor, Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,8 +8,7 @@ import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/images_dao.dart';
 import 'package:skotiq_core/src/database/daos/polar_alignment_history_dao.dart';
 import 'package:skotiq_core/src/database/daos/targets_dao.dart';
-import 'package:skotiq_core/src/database/database.dart'
-    hide Sequence, SequenceNode;
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart'
     show FrameType;
@@ -25,9 +26,12 @@ import 'package:skotiq_core/src/providers/polar_alignment_provider.dart';
 import 'package:skotiq_core/src/providers/preflight_providers.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/preflight_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/equipment_health_service.dart';
 import 'package:skotiq_core/src/services/time_sync_service.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/settings/preflight_strictness.dart';
 
 // Test scaffolding.
 
@@ -80,7 +84,12 @@ class _FakeTimeProbe implements TimeSyncProbe {
   final bool shouldThrow;
   @override
   Future<TimeSyncResult> queryOffset() async {
-    if (shouldThrow) throw Exception('network unavailable');
+    if (shouldThrow) {
+      throw TimeoutException(
+        'pool.ntp.org did not answer within 3 s',
+        const Duration(seconds: 3),
+      );
+    }
     return TimeSyncResult(
       offsetSeconds: _offsetSecs,
       server: 'test.pool.ntp',
@@ -117,8 +126,8 @@ Future<ProviderContainer> _buildContainer({
   OpticalTrainBaseline? current,
   TimeSyncProbe? timeProbe,
   Future<void> Function(SkotiqDatabase db)? seed,
-  List<Target>? hostTargets,
-  List<CapturedImage>? hostImages,
+  List<DbTarget>? hostTargets,
+  List<DbCapturedImage>? hostImages,
 }) async {
   final QueryExecutor exec = NativeDatabase.memory();
   final db = SkotiqDatabase.forTesting(exec);
@@ -365,7 +374,7 @@ void main() {
 
       expect(issues, isNotEmpty);
       expect(issues.first.title, 'Missing Dark Frames');
-      expect(issues.first.description, contains('temp=15.0C'));
+      expect(issues.first.description, contains(', 15.0°C, binning'));
       expect(
         issues.first.description,
         contains('Temperatures are the setpoints this sequence cools to.'),
@@ -447,7 +456,7 @@ void main() {
     test(
       'uses host-backed target and image streams without local DAO',
       () async {
-        final targetRow = Target(
+        final targetRow = DbTarget(
           id: 99,
           name: 'M51',
           catalogId: 'M51',
@@ -463,9 +472,9 @@ void main() {
           updatedAt: DateTime.now(),
           isFavorite: false,
         );
-        final frames = <CapturedImage>[
+        final frames = <DbCapturedImage>[
           for (var i = 0; i < 10; i++)
-            CapturedImage(
+            DbCapturedImage(
               id: i,
               filePath: '/tmp/m51_$i.fits',
               fileName: 'm51_$i.fits',
@@ -981,6 +990,11 @@ void main() {
       );
       expect(issues.first.severity, ValidationSeverity.info);
       expect(issues.first.title, 'Time Sync Check Unavailable');
+      expect(
+        issues.first.description,
+        'Could not reach a time server to check the system clock: '
+        'pool.ntp.org did not answer within 3 s.',
+      );
     });
   });
 

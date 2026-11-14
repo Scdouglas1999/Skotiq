@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/merged_sections.dart';
 import 'package:skotiq_app/screens/settings/settings_catalog.dart';
 import 'package:skotiq_app/screens/settings/widgets/focus_model_settings.dart';
@@ -8,8 +9,8 @@ import '../../harness/harness.dart';
 
 /// Focus Model shipped with no way to open it.
 ///
-/// `kMergedSectionAliases` mapped `focus-model` onto `autofocus` and
-/// `kSettingsSectionIndex` listed the key, so every deep link and search hit
+/// The `focus-model` alias mapped onto `autofocus`, so every deep link and
+/// search hit
 /// resolved successfully — to an Autofocus pane that did not contain the widget.
 /// Repo-wide, `FocusModelSettings`'s only references were inside its own
 /// declaration: a whole settings screen with no route into it, which the
@@ -20,8 +21,10 @@ import '../../harness/harness.dart';
 /// renders the pane.
 void main() {
   test('the focus-model key still merges into Autofocus', () {
-    expect(kMergedSectionAliases['focus-model'], 'autofocus');
-    expect(kSettingsSectionIndex.containsKey('focus-model'), isTrue);
+    expect(
+      SettingsSectionId.resolve('focus-model'),
+      SettingsSectionId.autofocus,
+    );
   });
 
   testWidgets('the Autofocus section renders the Focus Model pane', (
@@ -54,7 +57,11 @@ void main() {
     addTearDown(database.close);
     await pumpAppScreen(
       tester,
-      const FocusModelSettings(embedded: true),
+      const SettingsFormScope(
+        narrow: false,
+        embedded: true,
+        child: FocusModelSettings(),
+      ),
       size: const Size(1280, 1000),
       database: database,
       settle: false,

@@ -4,7 +4,9 @@
 // estimator's time.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';
@@ -18,7 +20,7 @@ final nightActiveStepProvider = Provider<NightPlanEntry?>((ref) {
   if (!ref.watch(nightRunPhaseProvider).isRunLive) return null;
   final tree = ref.watch(nightPlanTreeProvider);
   if (tree == null) return null;
-  final progress = ref.watch(sequenceProgressProvider);
+  final progress = ref.watch(sequenceStepProgressProvider);
   final currentId = progress.currentNodeId;
   if (currentId != null) {
     final index = tree.stepIndexOf(currentId);
@@ -36,21 +38,19 @@ final nightActiveStepProvider = Provider<NightPlanEntry?>((ref) {
 String nightStepLabel(SequenceNode node) {
   if (node is ExposureNode) {
     final filter = node.filter;
-    final burst = '${node.count} × ${_seconds(node.durationSecs)} s';
+    final burst =
+        '${node.count} × ${QuantityFormat.trimmed(node.durationSecs)} s';
     return filter == null || filter.isEmpty ? burst : '$filter $burst';
   }
   return node.name;
 }
 
-String _seconds(double secs) => secs == secs.roundToDouble()
-    ? secs.round().toString()
-    : secs.toStringAsFixed(1);
-
 PlanStepStatus _statusOf(NodeStatus? status) => switch (status) {
       NodeStatus.success => PlanStepStatus.done,
       NodeStatus.running => PlanStepStatus.active,
       NodeStatus.failure => PlanStepStatus.failed,
-      NodeStatus.skipped || NodeStatus.cancelled => PlanStepStatus.skipped,
+      NodeStatus.skipped => PlanStepStatus.skipped,
+      NodeStatus.cancelled => PlanStepStatus.stopped,
       NodeStatus.pending || null => PlanStepStatus.pending,
     };
 
@@ -91,7 +91,7 @@ final nightPlanStepsProvider = Provider<List<PlanStepVm>>((ref) {
   // Statuses describe the run that set them. Before a run starts they are
   // whatever the previous run left, so a plan waiting to start reads pending.
   final hasRun = phase.isRunLive || phase == NightRunPhase.finished;
-  final progress = ref.watch(sequenceProgressProvider);
+  final progress = ref.watch(sequenceStepProgressProvider);
   final tally = ref.watch(nodeExposureTallyProvider);
   final active = ref.watch(nightActiveStepProvider);
   final timing = ref.watch(nightPlanTimingProvider);
@@ -134,7 +134,8 @@ final nightPlanStepsProvider = Provider<List<PlanStepVm>>((ref) {
                 : planned(id);
           case PlanStepStatus.done ||
                 PlanStepStatus.failed ||
-                PlanStepStatus.skipped:
+                PlanStepStatus.skipped ||
+                PlanStepStatus.stopped:
             final finished = status == PlanStepStatus.done
                 ? recorded.succeededAt(id)
                 : recorded.completed[id];

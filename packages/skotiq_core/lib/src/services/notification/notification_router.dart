@@ -23,18 +23,18 @@
 // per-transport [lastResult] surface for the UI.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import '../../models/backend/event_types.dart';
 import '../../models/notification/notification_categories.dart';
-import '../../providers/sequence/run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 import 'event_classifier.dart';
+import 'notification_presentation.dart';
 import 'notification_signature.dart';
 import 'notification_template.dart';
 import 'stop_push_arbiter.dart';
 import 'transports/notification_transport.dart';
 import 'transports/system_push_transport.dart';
-import 'transports/in_app_transport.dart';
+import '../logging_service.dart';
 
 /// What one routed message actually did.
 ///
@@ -42,7 +42,8 @@ import 'transports/in_app_transport.dart';
 /// row off, below the row's severity floor, debounced, rate-limited, no
 /// configured transport, and already-said — and a producer that reports
 /// "notified" needs to know which one happened. [dispatched] names the
-/// transports the message was HANDED TO; each transport's own success or
+/// transports the message was HANDED TO (never one that declines it, such as
+/// Mobile push for an event switched off there); each transport's own success or
 /// failure lands later in [NotificationRouter.lastResults], because the sends
 /// are deliberately not awaited.
 class NotificationRouteOutcome {
@@ -79,6 +80,8 @@ class NotificationRouter {
   /// Per-category rate-limit window state.
   final Map<NotificationCategory, _RateWindow> _rateWindows = {};
 
+  final ConnectingDevices _connecting = ConnectingDevices();
+
   /// Per-category last fire time (for debouncing).
   final Map<NotificationCategory, DateTime> _lastFireTime = {};
 
@@ -91,7 +94,7 @@ class NotificationRouter {
   ///     the classifier may map to the same category from more than one wire
   ///     event — an operator Stop arrives as BOTH a sequencer `Error` carrying
   ///     the "Sequence cancelled" notice AND the `Stopped` lifecycle event, and
-  ///   * an explicit [route] / [routeBridgeCriticalPush] call from the Run
+  ///   * an explicit [route] / [routeCriticalPush] call from the Run
   ///     Dashboard critical-events bridge (which observes the bridge-typed
   ///     event history — a different representation of the SAME backend events
   ///     with no shared id to dedup on).
@@ -151,8 +154,6 @@ class NotificationRouter {
              )
            : matrix;
 
-  // Public surface
-
   NotificationRoutingMatrix get matrix => _matrix;
 
   Map<NotificationTransportKind, NotificationResult> get lastResults =>
@@ -191,17 +192,15 @@ class NotificationRouter {
     _subscription = events.listen(
       _onEvent,
       onError: (e) {
-        developer.log(
+        Log.error(
           '[NotificationRouter] Event stream error: $e',
-          name: 'NotificationRouter',
-          level: 1000,
+          source: 'NotificationRouter',
           error: e,
         );
       },
     );
   }
 
-  /// Dispose all subscriptions + transports.
   Future<void> dispose() async {
     await _subscription?.cancel();
     _subscription = null;
@@ -228,32 +227,49 @@ class NotificationRouter {
     if (_isDebounced(category, rule)) return;
     if (_isRateLimited(category, rule)) return;
 
-    final eligible = _eligibleTransports(rule.transports);
+    final configured = _eligibleTransports(rule.transports);
+    if (configured.isEmpty) return;
+
+    if (category == NotificationCategory.sequenceStopped) {
+      _lastFireTime[category] = _now();
+      _recordRateHit(category);
+      _routeStopped(rule, contextValues, configured);
+      return;
+    }
+
+    final message = _render(category, rule, contextValues);
+    final eligible = _willing(configured, message);
     if (eligible.isEmpty) return;
 
     _lastFireTime[category] = _now();
     _recordRateHit(category);
-
-    if (category == NotificationCategory.sequenceStopped) {
-      _routeStopped(rule, contextValues, eligible);
-      return;
-    }
-
-    final ctx = NotificationContext(contextValues);
-    final title = renderNotificationTemplate(
-      rule.titleTemplate ?? _defaultTitleTemplate(category),
-      ctx,
-      clock: _now,
-    );
-    final body = renderNotificationTemplate(
-      rule.bodyTemplate ?? _defaultBodyTemplate(category),
-      ctx,
-      clock: _now,
-    );
-
     for (final transport in eligible) {
-      _dispatch(transport, category, title, body);
+      _dispatch(transport, message);
     }
+  }
+
+  /// A classified event is presented at its category's severity; [severity]
+  /// on [route] only decides whether the rule's floor lets it through.
+  NotificationMessage _render(
+    NotificationCategory category,
+    NotificationRoutingRule rule,
+    Map<String, String> values,
+  ) {
+    final ctx = NotificationContext(values);
+    final defaults = NotificationPresentation.of(category);
+    return NotificationMessage(
+      category: category,
+      title: renderNotificationTemplate(
+        rule.titleTemplate ?? defaults.title,
+        ctx,
+        clock: _now,
+      ),
+      body: renderNotificationTemplate(
+        rule.bodyTemplate ?? defaults.body,
+        ctx,
+        clock: _now,
+      ),
+    );
   }
 
   /// A stop is the one category whose copy depends on an event OTHER than the
@@ -297,10 +313,10 @@ class NotificationRouter {
     final rule = _ruleFor(NotificationCategory.sequenceStopped);
     if (!rule.enabled) return;
     if (!rule.transports.contains(NotificationTransportKind.systemPush)) return;
-    developer.log(
+    Log.debug(
       '[$kStopClassificationLogTag] notification_router: pushing a '
       '${decision?.author.name ?? 'cause-neutral'} stop to the phone',
-      name: 'NotificationRouter',
+      source: 'NotificationRouter',
     );
     _dispatchStop(transport, rule, values, decision);
   }
@@ -312,48 +328,29 @@ class NotificationRouter {
     SequenceStopDecision? decision,
   ) {
     final clause = sequenceStopCauseClause(decision);
-    final ctx = NotificationContext({
-      ...values,
-      kStopCauseContextKey: clause.isEmpty
-          ? 'Sequence stopped'
-          : 'Sequence stopped $clause',
-    });
     _dispatch(
       transport,
-      NotificationCategory.sequenceStopped,
-      renderNotificationTemplate(
-        rule.titleTemplate ??
-            _defaultTitleTemplate(NotificationCategory.sequenceStopped),
-        ctx,
-        clock: _now,
-      ),
-      renderNotificationTemplate(
-        rule.bodyTemplate ??
-            _defaultBodyTemplate(NotificationCategory.sequenceStopped),
-        ctx,
-        clock: _now,
-      ),
+      _render(NotificationCategory.sequenceStopped, rule, {
+        ...values,
+        kStopCauseContextKey: clause.isEmpty
+            ? 'Sequence stopped'
+            : 'Sequence stopped $clause',
+      }),
     );
   }
 
-  /// Route the Run Dashboard critical-events bridge's phone-push through the
-  /// single systemPush producer.
+  /// Page the phone at `critical` priority with copy the caller already
+  /// rendered, for alerts that have no [NotificationCategory] of their own:
+  /// the Run Dashboard's critical-events bridge (generic system errors, FITS
+  /// save failures) and the recovery entry/exit pushes.
   ///
-  /// The bridge escalates every `isCriticalEvent` (banner + toast + audible)
-  /// and forwards its phone-push through here, so there is exactly ONE
-  /// systemPush producer.
+  /// When the classifier also recognizes the underlying event (a guiding
+  /// StarLost, say) the router's own event-stream subscription pushes too; the
+  /// systemPush content-signature dedup collapses the pair into one page.
   ///
-  /// Some bridge-flagged events (generic system errors / FITS save failures)
-  /// have no [NotificationCategory] and the classifier path will not push them,
-  /// so this entry point forces a `critical` push with the copy the bridge
-  /// already rendered (`Critical · <category>` / detail). For events the
-  /// classifier does recognise (a guiding StarLost, say) the router's own
-  /// core-stream subscription also pushes; the systemPush content-signature
-  /// dedup collapses the pair into one page.
-  ///
-  /// Respects the master push gate (the transport's `enabled` config) and the
-  /// matrix master `enabled` flag.
-  void routeBridgeCriticalPush({
+  /// Respects the push master gate (inside the transport's broadcaster) and
+  /// the matrix master `enabled` flag.
+  void routeCriticalPush({
     required String title,
     required String body,
     required String eventType,
@@ -408,18 +405,13 @@ class NotificationRouter {
   /// enabled/severity/debounce/rate gates, on the row the operator can see and
   /// edit in Settings.
   ///
-  /// [deepLink] is the `type[:arg]` tap payload. The systemPush transport and
-  /// the in-app banner act on it; the others ignore it, because an email has
-  /// nowhere to navigate to.
-  /// Returns what actually left the process, or why nothing did.
+  /// [severity] is the message's own: it is checked against the row's floor
+  /// and it is what the transports present (toast style, Pushover priority,
+  /// the embed color of a `custom` message).
   ///
-  /// Every gate below is a legitimate reason to send nothing, and each one used
-  /// to be a bare `return` — so a producer could only ever report that it had
-  /// asked. The dawn autopilot's morning message is the one surface that lists
-  /// the night's delivery problems, and it was telling the operator it had been
-  /// sent on nights where the routing row was off, the phone was not paired, or
-  /// the debounce swallowed it. A caller that states an outcome needs the
-  /// outcome.
+  /// Returns what was handed to a transport, or which gate sent nothing, so a
+  /// caller that states an outcome (the dawn autopilot's morning message lists
+  /// the night's delivery problems) can state the real one.
   NotificationRouteOutcome routeRendered({
     required NotificationCategory category,
     required String title,
@@ -457,13 +449,26 @@ class NotificationRouter {
       );
     }
 
-    final eligible = _eligibleTransports(
+    final configured = _eligibleTransports(
       explicitTransports ?? baseRule.transports,
     );
-    if (eligible.isEmpty) {
+    if (configured.isEmpty) {
       return NotificationRouteOutcome.dropped(
         'No transport on the ${category.name} routing row is configured — '
         'nothing is paired or set up to receive it',
+      );
+    }
+    final message = NotificationMessage(
+      category: category,
+      title: title,
+      body: body,
+      severity: severity,
+      deepLink: deepLink,
+    );
+    final eligible = _willing(configured, message);
+    if (eligible.isEmpty) {
+      return NotificationRouteOutcome.dropped(
+        configured.map((t) => t.declines(message)).nonNulls.join('; '),
       );
     }
 
@@ -471,9 +476,7 @@ class NotificationRouter {
     _recordRateHit(category);
     final dispatched = <NotificationTransportKind>[];
     for (final transport in eligible) {
-      if (_dispatch(transport, category, title, body, deepLink: deepLink)) {
-        dispatched.add(transport.kind);
-      }
+      if (_dispatch(transport, message)) dispatched.add(transport.kind);
     }
     if (dispatched.isEmpty) {
       return const NotificationRouteOutcome.dropped(
@@ -503,9 +506,7 @@ class NotificationRouter {
     late NotificationResult result;
     try {
       result = await transport.send(
-        category: category,
-        title: title,
-        body: body,
+        NotificationMessage(category: category, title: title, body: body),
       );
     } catch (error) {
       result = NotificationResult.fail(error.toString());
@@ -521,6 +522,9 @@ class NotificationRouter {
   // Internal: event mapping
 
   void _onEvent(SkotiqEvent event) {
+    // Followed whether or not notifications are on, so turning them on
+    // mid-connect does not lose the thread.
+    final failedConnect = _connecting.isFailedConnect(event);
     if (!_matrix.enabled) return;
 
     // NotificationNode emits a sequencer event of type
@@ -555,11 +559,19 @@ class NotificationRouter {
       final title = 'Skotiq $latest available';
       final body =
           'Open Settings > Updates to install the new build (currently on $current).';
-      for (final transport in _eligibleTransports(const [
-        NotificationTransportKind.inApp,
-        NotificationTransportKind.systemPush,
-      ])) {
-        _dispatch(transport, NotificationCategory.custom, title, body);
+      final message = NotificationMessage(
+        category: NotificationCategory.custom,
+        title: title,
+        body: body,
+      );
+      for (final transport in _willing(
+        _eligibleTransports(const [
+          NotificationTransportKind.inApp,
+          NotificationTransportKind.systemPush,
+        ]),
+        message,
+      )) {
+        _dispatch(transport, message);
       }
       return;
     }
@@ -581,6 +593,10 @@ class NotificationRouter {
       // run's stop episode.
       _stopPushArbiter.noteRunBoundary();
     }
+    // A connect that did not succeed is not a lost device. Whoever asked
+    // for the connect is told why it failed; the device service tells the
+    // rest (see `_handleDeviceError`).
+    if (failedConnect) return;
 
     // Single source of truth for event -> category classification, shared
     // with PushNotificationService (see event_classifier.dart).
@@ -624,8 +640,6 @@ class NotificationRouter {
     ctx.addAll(overrides); // overrides win
     return ctx;
   }
-
-  // Internal: filters / dispatch
 
   NotificationRoutingRule _ruleFor(NotificationCategory category) {
     final activeSeq = _activeSequenceId;
@@ -671,67 +685,47 @@ class NotificationRouter {
 
   /// Hand one message to one transport. Returns false when the dedupe window
   /// swallowed it, which is the seventh way a routed message can send nothing.
-  bool _dispatch(
-    NotificationTransport transport,
-    NotificationCategory category,
-    String title,
-    String body, {
-    String? deepLink,
-  }) {
+  bool _dispatch(NotificationTransport transport, NotificationMessage message) {
     // Cross-producer de-duplication. Several converging inputs describe one
     // physical happening (see [_recentSignatures]); the operator must be told
     // once. The signature is per transport kind, so an external alert is never
     // swallowed because the UI already said it.
-    if (_isDuplicate(transport.kind, title, body)) return false;
+    if (_isDuplicate(transport.kind, message.title, message.body)) return false;
 
     // Fire and forget — the transport's own timeout caps the wait. We
     // record the result so the settings UI can show the latest status.
     Future.microtask(() async {
       late NotificationResult result;
       try {
-        // The phone and the in-app banner can act on a deep link; the base
-        // signature carries no such parameter, so the transports that
-        // understand it are asked for it by type.
-        result = switch (transport) {
-          SystemPushTransport() => await transport.send(
-            category: category,
-            title: title,
-            body: body,
-            deepLink: deepLink,
-          ),
-          InAppTransport() => await transport.sendWithLink(
-            category: category,
-            title: title,
-            body: body,
-            deepLink: deepLink,
-          ),
-          _ => await transport.send(
-            category: category,
-            title: title,
-            body: body,
-          ),
-        };
+        result = await transport.send(message);
       } catch (error, stackTrace) {
         result = NotificationResult.fail(error.toString());
-        developer.log(
+        Log.error(
           '[NotificationRouter] ${transport.name} threw while sending: $error',
-          name: 'NotificationRouter',
-          level: 1000,
+          source: 'NotificationRouter',
           error: error,
           stackTrace: stackTrace,
         );
       }
       _lastResults[transport.kind] = result;
-      if (!result.success) {
-        developer.log(
+      if (!result.success && !result.skipped) {
+        Log.warning(
           '[NotificationRouter] ${transport.name} send failed: ${result.error}',
-          name: 'NotificationRouter',
-          level: 900,
+          source: 'NotificationRouter',
         );
       }
     });
     return true;
   }
+
+  /// The transports of [configured] that will try to send [message].
+  List<NotificationTransport> _willing(
+    List<NotificationTransport> configured,
+    NotificationMessage message,
+  ) => [
+    for (final transport in configured)
+      if (transport.declines(message) == null) transport,
+  ];
 
   List<NotificationTransport> _eligibleTransports(
     Iterable<NotificationTransportKind> kinds,
@@ -781,162 +775,6 @@ class NotificationRouter {
     if (last != null && now.difference(last) < window) return true;
     seen[signature] = now;
     return false;
-  }
-
-  // Default templates
-
-  static String _defaultTitleTemplate(NotificationCategory category) {
-    switch (category) {
-      case NotificationCategory.sequenceStarted:
-        return 'Sequence started';
-      case NotificationCategory.sequenceCompleted:
-        return 'Sequence complete';
-      case NotificationCategory.sequenceFailed:
-        return 'Sequence failed';
-      case NotificationCategory.sequenceStopped:
-        return 'Sequence stopped';
-      case NotificationCategory.sequencePaused:
-        return 'Sequence paused';
-      case NotificationCategory.sequenceResumed:
-        return 'Sequence resumed';
-      case NotificationCategory.targetStarted:
-        return 'Target started: \${target.name}';
-      case NotificationCategory.targetCompleted:
-        return 'Target complete: \${target.name}';
-      case NotificationCategory.meridianFlipPerformed:
-        return 'Meridian flip performed';
-      case NotificationCategory.autofocusCompleted:
-        return 'Autofocus complete';
-      case NotificationCategory.autofocusContinued:
-        return 'Autofocus failed — continuing';
-      case NotificationCategory.autofocusFailed:
-        return 'Autofocus failed';
-      case NotificationCategory.frameCaptured:
-        return 'Frame captured';
-      case NotificationCategory.frameRejected:
-        return 'Frames being rejected';
-      case NotificationCategory.problemNoticed:
-        return 'Problem noticed — the run continues';
-      case NotificationCategory.exposureFailed:
-        return 'Exposure failed';
-      case NotificationCategory.recoveryStarted:
-        return 'Recovery started';
-      case NotificationCategory.recoveryRecovered:
-        return 'Recovery succeeded';
-      case NotificationCategory.recoveryGaveUp:
-        return 'Recovery gave up';
-      case NotificationCategory.guidingLost:
-        return 'Guiding lost';
-      case NotificationCategory.guidingRecovered:
-        return 'Guiding recovered';
-      case NotificationCategory.weatherUnsafe:
-        return 'Weather unsafe';
-      case NotificationCategory.weatherSafeAgain:
-        return 'Weather safe again';
-      case NotificationCategory.cloudArriving:
-        return 'Clouds arriving';
-      case NotificationCategory.cloudOpening:
-        return 'Sky is clearing';
-      case NotificationCategory.diskSpaceLow:
-        return 'Disk space low';
-      case NotificationCategory.equipmentDisconnected:
-        return 'Equipment disconnected';
-      case NotificationCategory.triggerFired:
-        return 'Trigger fired';
-      case NotificationCategory.transientDiscovered:
-        return 'Possible new transient';
-      // The dawn autopilot always composes its own headline from the night it
-      // just processed and routes it through [routeRendered]; this default is
-      // what a matrix test-send shows, never what the morning message says.
-      case NotificationCategory.darkroomDraftReady:
-        return 'Your draft is ready';
-      case NotificationCategory.custom:
-        return 'Skotiq notification';
-    }
-  }
-
-  static String _defaultBodyTemplate(NotificationCategory category) {
-    switch (category) {
-      case NotificationCategory.targetStarted:
-        return 'Starting target \${target.name} at \${time.clock}.';
-      case NotificationCategory.targetCompleted:
-        return 'Finished imaging \${target.name} at \${time.clock}.';
-      case NotificationCategory.sequenceStarted:
-        return 'Sequence started at \${time.clock}.';
-      case NotificationCategory.sequenceCompleted:
-        return 'Sequence completed successfully at \${time.clock}.';
-      case NotificationCategory.sequenceFailed:
-        return 'Sequence aborted at \${time.clock}.';
-      // Only the wire may name the author: `stop.cause` reads "Sequence
-      // stopped", "Sequence stopped by request", "Sequence stopped by
-      // autopilot" or "Sequence stopped by the disk-space watchdog" depending
-      // on what the executor's decision row proved. A fixed "by request" here
-      // would have a weather abort at 3 a.m. claim a human asked for it.
-      case NotificationCategory.sequenceStopped:
-        return '\${stop.cause} at \${time.clock}.';
-      case NotificationCategory.frameCaptured:
-        return 'Frame \${frame} captured (\${exposure.duration}s).';
-      case NotificationCategory.exposureFailed:
-        return 'Exposure failed: \${frame.reason}.';
-      case NotificationCategory.equipmentDisconnected:
-        // Names the device, never its wire id. The classifier
-        // resolves `equipment.device_name` through `friendlyNameFromDeviceId`
-        // and falls back to the device type, so this sentence always has a
-        // subject. The type is deliberately not repeated in front of the name
-        // ("Guider Built-in Multi-Star Guider disconnected.").
-        return '\${equipment.device_name} disconnected.';
-      case NotificationCategory.weatherUnsafe:
-        return 'Safety monitor reports unsafe conditions.';
-      case NotificationCategory.weatherSafeAgain:
-        return 'Conditions safe again.';
-      case NotificationCategory.diskSpaceLow:
-        return 'Storage usage exceeded safe threshold.';
-      case NotificationCategory.guidingLost:
-        return 'Guide star lost; guiding stopped.';
-      case NotificationCategory.guidingRecovered:
-        return 'Guiding recovered.';
-      case NotificationCategory.recoveryStarted:
-        return 'Executor entered recovery at \${time.clock}.';
-      case NotificationCategory.recoveryRecovered:
-        return 'Executor recovered at \${time.clock}.';
-      case NotificationCategory.recoveryGaveUp:
-        return 'Executor exhausted recovery attempts.';
-      case NotificationCategory.meridianFlipPerformed:
-        return 'Meridian flip completed.';
-      case NotificationCategory.autofocusCompleted:
-        return 'Autofocus run completed.';
-      case NotificationCategory.autofocusContinued:
-        return 'Autofocus could not converge; the sequence continues on the '
-            'restored last-good focus.';
-      case NotificationCategory.autofocusFailed:
-        return 'Autofocus run failed.';
-      case NotificationCategory.problemNoticed:
-        return '\${problem.source}: \${problem.message}';
-      case NotificationCategory.frameRejected:
-        return '\${frame.streak} frames in a row were rejected '
-            '(\${frame.reason}). The run continues.';
-      case NotificationCategory.cloudArriving:
-        return 'Cloud cover increasing.';
-      case NotificationCategory.cloudOpening:
-        return 'Cloud cover decreasing.';
-      case NotificationCategory.triggerFired:
-        return 'The \${trigger.name} trigger fired.';
-      case NotificationCategory.transientDiscovered:
-        return 'First Light caught something at \${transient.coords} '
-            '(SNR \${transient.snr}). Chase it before it fades.';
-      // As with the title: the dawn autopilot supplies the real body, which
-      // names what was integrated, what the calibration matched and where the
-      // files went.
-      case NotificationCategory.darkroomDraftReady:
-        return 'The dawn Darkroom pass finished; open the draft to see what '
-            'it did.';
-      case NotificationCategory.sequencePaused:
-        return 'Sequence paused at \${time.clock}.';
-      case NotificationCategory.sequenceResumed:
-        return 'Sequence resumed at \${time.clock}.';
-      case NotificationCategory.custom:
-        return 'Skotiq fired a custom notification.';
-    }
   }
 }
 

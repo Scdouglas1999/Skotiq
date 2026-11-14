@@ -18,7 +18,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   group('MosaicPanelInfo', () {
@@ -95,16 +95,13 @@ void main() {
     test('default_constructor_uses_documented_defaults', () {
       const cfg = SequenceOverheadConfig();
       expect(cfg.slewSecs, equals(30.0));
-      expect(cfg.autofocusSecs, equals(180.0));
       expect(cfg.filterChangeSecs, equals(10.0));
       expect(cfg.ditherSecs, equals(15.0));
       expect(cfg.meridianFlipSecs, equals(300.0));
       expect(cfg.guideAcquireSecs, equals(30.0));
       expect(cfg.plateSolveSecs, equals(15.0));
       expect(cfg.coolingSecs, equals(600.0));
-      expect(cfg.warmingSecs, equals(300.0));
       expect(cfg.downloadOverheadPerExposureSecs, equals(3.0));
-      expect(cfg.coverMoveSecs, equals(30.0));
       expect(cfg.centerTargetSecs, equals(45.0));
     });
 
@@ -121,16 +118,6 @@ void main() {
   });
 
   group('SequenceEstimate', () {
-    test('total_estimated_includes_overhead', () {
-      const e = SequenceEstimate(
-        estimatedSecs: 3600,
-        overheadSecs: 900,
-        singleIterationSecs: 600,
-        isUnbounded: false,
-      );
-      expect(e.totalEstimatedSecs, equals(4500));
-    });
-
     test('format_returns_iter_marker_for_unbounded', () {
       const e = SequenceEstimate(
         estimatedSecs: 600,
@@ -156,28 +143,6 @@ void main() {
         isUnbounded: false,
       );
       expect(e.format(), equals('2h 30m'));
-    });
-
-    test('format_with_overhead_collapses_to_integration_when_no_overhead', () {
-      const e = SequenceEstimate(
-        estimatedSecs: 3600,
-        singleIterationSecs: 3600,
-        isUnbounded: false,
-      );
-      expect(e.formatWithOverhead(), equals('1h 0m'));
-    });
-
-    test('format_with_overhead_includes_total_band', () {
-      const e = SequenceEstimate(
-        estimatedSecs: 23400, // 6h 30m
-        overheadSecs: 9900, // 2h 45m
-        singleIterationSecs: 23400,
-        isUnbounded: false,
-      );
-      expect(
-        e.formatWithOverhead(),
-        equals('Integration: 6h 30m | Est. total: ~9h 15m'),
-      );
     });
 
     test('equality_via_props_distinguishes_until_time', () {

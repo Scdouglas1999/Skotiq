@@ -2,7 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/preview_transform.dart';
 
@@ -45,8 +46,6 @@ void toggleAnnotationDrawPalette(WidgetRef ref) {
   }
   ref.read(annotationDrawPaletteOpenProvider.notifier).state = !open;
 }
-
-// Custom annotation painter
 
 /// Renders all user-drawn custom annotations on the image overlay.
 ///
@@ -112,7 +111,6 @@ class CustomAnnotationPainter extends CustomPainter {
     final center = _toScreen(annotation.x, annotation.y);
     final screenRadius = (annotation.radius ?? 0) * zoomLevel;
 
-    // Dashed circle
     final paint = Paint()
       ..color = color.withValues(alpha: alpha)
       ..style = PaintingStyle.stroke
@@ -120,13 +118,11 @@ class CustomAnnotationPainter extends CustomPainter {
 
     _drawDashedCircle(canvas, center, screenRadius, paint);
 
-    // Small filled center dot
     final dotPaint = Paint()
       ..color = color.withValues(alpha: alpha)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, 2.5, dotPaint);
 
-    // Label below the circle
     if (annotation.label.isNotEmpty) {
       _drawLabel(
         canvas,
@@ -187,10 +183,8 @@ class CustomAnnotationPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    // Dashed line from start to end
     _drawDashedLine(canvas, start, end, paint);
 
-    // Arrowhead at end
     final dx = end.dx - start.dx;
     final dy = end.dy - start.dy;
     final angle = math.atan2(dy, dx);
@@ -214,7 +208,6 @@ class CustomAnnotationPainter extends CustomPainter {
       ..close();
     canvas.drawPath(path, headPaint);
 
-    // Label at the midpoint above the line
     if (annotation.label.isNotEmpty) {
       final mid = Offset((start.dx + end.dx) / 2, (start.dy + end.dy) / 2);
       _drawLabel(
@@ -260,7 +253,6 @@ class CustomAnnotationPainter extends CustomPainter {
 
     if (annotation.label.isEmpty) return;
 
-    // Small pin/marker at the position
     final markerPaint = Paint()
       ..color = color.withValues(alpha: alpha)
       ..style = PaintingStyle.fill;
@@ -273,7 +265,6 @@ class CustomAnnotationPainter extends CustomPainter {
       ..strokeWidth = 1.0;
     canvas.drawCircle(pos, 4.0, borderPaint);
 
-    // Text label to the right of the marker
     _drawLabel(
       canvas,
       annotation.label,
@@ -323,7 +314,6 @@ class CustomAnnotationPainter extends CustomPainter {
         ? position.dx - textPainter.width / 2
         : position.dx;
 
-    // Background pill
     const pad = 3.0;
     final bgRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(
@@ -351,8 +341,6 @@ class CustomAnnotationPainter extends CustomPainter {
         oldDelegate.activeAnnotation != activeAnnotation;
   }
 }
-
-// Drawing gesture layer
 
 /// Transparent overlay that captures drawing gestures when a tool is active.
 ///
@@ -391,8 +379,6 @@ class _CustomAnnotationDrawingLayerState
 
   String _nextId() => 'custom_${DateTime.now().microsecondsSinceEpoch}';
 
-  // Circle drawing
-
   void _onCirclePanStart(DragStartDetails details) {
     final center = _toImage(details.localPosition);
     setState(() {
@@ -420,7 +406,6 @@ class _CustomAnnotationDrawingLayerState
   void _onCirclePanEnd(DragEndDetails details) {
     if (_activeAnnotation == null) return;
     if ((_activeAnnotation!.radius ?? 0) < 3) {
-      // Too small, discard
       setState(() => _activeAnnotation = null);
       return;
     }
@@ -428,8 +413,6 @@ class _CustomAnnotationDrawingLayerState
     setState(() => _activeAnnotation = null);
     _showLabelDialog(annotation);
   }
-
-  // Arrow drawing
 
   void _onArrowPanStart(DragStartDetails details) {
     final start = _toImage(details.localPosition);
@@ -463,7 +446,6 @@ class _CustomAnnotationDrawingLayerState
     final dy =
         (_activeAnnotation!.y2 ?? _activeAnnotation!.y) - _activeAnnotation!.y;
     if (math.sqrt(dx * dx + dy * dy) < 5) {
-      // Too short, discard
       setState(() => _activeAnnotation = null);
       return;
     }
@@ -471,8 +453,6 @@ class _CustomAnnotationDrawingLayerState
     setState(() => _activeAnnotation = null);
     _showLabelDialog(annotation);
   }
-
-  // Text tool
 
   void _onTextTapDown(TapDownDetails details) {
     final pos = _toImage(details.localPosition);
@@ -484,8 +464,6 @@ class _CustomAnnotationDrawingLayerState
     );
     _showLabelDialog(annotation, required: true);
   }
-
-  // Delete tool
 
   void _onDeleteTapDown(TapDownDetails details) {
     final tapImage = _toImage(details.localPosition);
@@ -546,8 +524,6 @@ class _CustomAnnotationDrawingLayerState
     final py = point.dy - projY;
     return math.sqrt(px * px + py * py);
   }
-
-  // Label dialog
 
   Future<void> _showLabelDialog(
     CustomAnnotation annotation, {
@@ -640,7 +616,6 @@ class _CustomAnnotationDrawingLayerState
       );
     }
 
-    // A tool is active — capture gestures.
     Widget gestureChild = CustomPaint(
       painter: painter,
       size: Size.infinite,
@@ -679,7 +654,6 @@ class _CustomAnnotationDrawingLayerState
       }
     }
 
-    // Show a custom cursor to indicate drawing mode
     return MouseRegion(
       cursor:
           deleteTool ? SystemMouseCursors.click : SystemMouseCursors.precise,
@@ -687,8 +661,6 @@ class _CustomAnnotationDrawingLayerState
     );
   }
 }
-
-// Drawing toolbar
 
 /// A small floating toolbar for selecting annotation drawing tools.
 ///

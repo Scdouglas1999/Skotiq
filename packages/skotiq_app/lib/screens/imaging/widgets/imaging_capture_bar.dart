@@ -1,25 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../../tours/tour_target.dart';
+import '../../../widgets/sensitivity_field.dart';
+import '../../../services/manual_capture_controller.dart';
 import '../../../utils/snackbar_helper.dart';
-import 'imaging_view_prefs.dart';
 import 'measured_width.dart';
 import 'stretch_controls.dart';
-
-/// Whether Loop keeps the frames it captures.
-///
-/// Loop is a live-view mode, so saving defaults off. A choice to save is
-/// remembered across restarts: forgetting it lost the next night's frames
-/// without a word.
-final loopSavesFramesProvider =
-    StateNotifierProvider<PersistedBoolNotifier, bool>(
-  (ref) => PersistedBoolNotifier('imaging.loopSavesFrames'),
-);
 
 /// Identifies the capture bar's "Save loop frames" toggle for tests.
 const loopSaveFramesToggleKey = Key('imaging.loopSaveFramesToggle');
@@ -62,8 +54,11 @@ class ImagingCaptureBar extends ConsumerStatefulWidget {
   /// Width of the two mono fields (`mockups/imaging.html`).
   static const double _fieldWidth = 92;
 
-  /// Width of the filter dropdown.
   static const double _filterWidth = 96;
+
+  /// Width of the ISO picker that replaces the gain field for a DSLR: room
+  /// for "ISO 25600" and the chevron.
+  static const double _isoWidth = 124;
 
   @override
   ConsumerState<ImagingCaptureBar> createState() => _ImagingCaptureBarState();
@@ -123,7 +118,9 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
           .read(manualExposureSettingsUpdaterProvider)
           .update(ref.read(exposureSettingsProvider).copyWith(filter: name));
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Failed to change filter: $e');
+      if (mounted)
+        context.showErrorSnackBar(
+            'Failed to change filter: ${userFacingError(e)}');
     }
   }
 
@@ -134,6 +131,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
     final exposureSettings = ref.watch(exposureSettingsProvider);
     final cameraState = ref.watch(cameraStateProvider);
     final filterState = ref.watch(filterWheelStateProvider);
+    final sensitivity = ref.watch(cameraSensitivityProvider);
     final saveLoopFrames = ref.watch(loopSavesFramesProvider);
     final isConnected =
         cameraState.connectionState == DeviceConnectionState.connected;
@@ -197,7 +195,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                     enabled: snapshotEnabled,
                     onTap: onSnapshot,
                     child: SkotiqButton(
-                      key: ImagingTutorialKeys.snapshotBtn,
+                      key: TourTarget.imagingSnapshotButton.key,
                       label: snapshotLabel,
                       icon: isSingleCapture
                           ? SkotiqIcons.loading
@@ -215,7 +213,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                     enabled: loopEnabled,
                     onTap: onToggleLoop,
                     child: SkotiqButton(
-                      key: ImagingTutorialKeys.loopBtn,
+                      key: TourTarget.imagingLoopButton.key,
                       label: loopLabel,
                       icon: isStoppingCapture
                           ? SkotiqIcons.loading
@@ -244,16 +242,28 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                           ),
                     ),
                   ),
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  SizedBox(
-                    width: _fieldWidth,
-                    child: _GainField(
-                      value: exposureSettings.gain,
-                      onChanged: (int gain) => ref
-                          .read(manualExposureSettingsUpdaterProvider)
-                          .update(exposureSettings.copyWith(gain: gain)),
+                  if (sensitivity.hasGain) ...<Widget>[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    SizedBox(
+                      width: sensitivity is IsoSensitivity
+                          ? ImagingCaptureBar._isoWidth
+                          : _fieldWidth,
+                      child: SensitivityField(
+                        sensitivity: sensitivity,
+                        value: exposureSettings.gain,
+                        labelled: true,
+                        onChanged: (int gain) => ref
+                            .read(manualExposureSettingsUpdaterProvider)
+                            .update(exposureSettings.copyWith(gain: gain)),
+                        gainField: (_) => _GainField(
+                          value: exposureSettings.gain,
+                          onChanged: (int gain) => ref
+                              .read(manualExposureSettingsUpdaterProvider)
+                              .update(exposureSettings.copyWith(gain: gain)),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                   if (filterState.filterNames.isNotEmpty) ...<Widget>[
                     const SizedBox(width: SkotiqTokens.spaceSm),
                     SizedBox(
@@ -261,7 +271,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                       child: Semantics(
                         label: 'Filter',
                         child: SkotiqDropdown(
-                          key: ImagingTutorialKeys.filterSelector,
+                          key: TourTarget.imagingFilterSelector.key,
                           value: _shownFilter(filterState, exposureSettings),
                           items: filterState.filterNames,
                           isExpanded: true,
@@ -432,7 +442,7 @@ class _ExposureFieldState extends State<_ExposureField> {
     return Semantics(
       label: 'Exposure${widget.hostSuffix}, seconds',
       child: SkotiqTextField(
-        key: ImagingTutorialKeys.exposureSlider,
+        key: TourTarget.imagingExposureSlider.key,
         controller: _controller,
         focusNode: _focusNode,
         prefixIcon: SkotiqIcons.clock,

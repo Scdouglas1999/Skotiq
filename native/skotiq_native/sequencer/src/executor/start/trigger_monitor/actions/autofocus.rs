@@ -3,6 +3,7 @@
 //! guider dead pauses it.
 
 use super::*;
+use crate::instructions::AutofocusProgress;
 
 /// What a trigger-fired autofocus needs.
 pub(in super::super) struct AutofocusRequest<'a> {
@@ -10,7 +11,6 @@ pub(in super::super) struct AutofocusRequest<'a> {
     pub trigger_name: &'a str,
     pub rig: &'a Rig,
     pub run: &'a RunControl,
-    pub decisions: &'a DecisionLog,
     /// The context progress is published through, under a synthetic node id.
     pub progress_context: &'a ExecutionContext,
     pub camera_claim: &'a mut TriggerCameraClaim,
@@ -22,14 +22,13 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
         trigger_name,
         rig,
         run,
-        decisions,
         progress_context,
         camera_claim,
     } = request;
     tracing::info!("Executing autofocus as trigger recovery action");
     if let Some(missing) = autofocus_trigger_skip_reason(
-        rig.context.camera_id.as_ref(),
-        rig.context.focuser_id.as_ref(),
+        rig.devices().camera_id.as_ref(),
+        rig.devices().focuser_id.as_ref(),
     ) {
         skip_impossible_autofocus(trigger_name, missing, rig, run).await;
         return ActionFlow::Finished;
@@ -39,8 +38,8 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
     // the sweep waits for a clean frame (see the frame watch).
     {
         let mut state = rig.trigger_state.write().await;
-        if let Some(reason) = state.autofocus_hold.clone() {
-            state.autofocus_wanted_while_held = true;
+        if let Some(reason) = state.latches.autofocus_hold.clone() {
+            state.latches.autofocus_wanted_while_held = true;
             drop(state);
             camera_claim.release().await;
             tracing::info!(
@@ -55,7 +54,7 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
     let af_ctx = rig.instruction_context(rig.target().await, run);
     // The operator's tuning, seeded at start from the sequence's Autofocus
     // node or pushed through the runtime config.
-    let af_config = match rig.runtime_config.read().autofocus.clone() {
+    let af_config = match rig.runtime_config.trigger_autofocus() {
         Some(cfg) => cfg,
         None => {
             tracing::warn!(
@@ -95,23 +94,17 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
         run.warning(message);
         return ActionFlow::Finished;
     };
-    let total_steps = af_config.steps_out.saturating_mul(2).saturating_add(1);
-    let progress_fn = move |progress: f64, detail_str: String| {
-        let (step, hfr) = parse_autofocus_detail(&detail_str);
+    let total_steps = af_config.sweep_point_count();
+    let progress_fn = move |percent: f64, progress: &AutofocusProgress| {
         progress_context.send_progress(ProgressUpdate::instruction_progress(
             progress_node_id.clone(),
             "Autofocus",
-            progress,
-            ProgressDetail::Autofocus {
-                step: step.unwrap_or(0),
-                total_steps,
-                current_hfr: hfr,
-            },
+            percent,
+            autofocus_detail(progress, total_steps),
         ));
     };
     // Recorded so the decision row can name the focus the run kept.
-    let position_before_af =
-        read_focuser_position(&rig.device_ops, rig.context.focuser_id.as_ref()).await;
+    let position_before_af = crate::instructions::read_autofocus_position(&af_ctx).await;
 
     let af_result = crate::instructions::execute_autofocus_admitted(
         &af_config,
@@ -126,7 +119,7 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
     // pause check, starts one more unguided light.
     if af_result.status == NodeStatus::Failure
         && !run.is_cancelled()
-        && autofocus_trigger_failure_cost(af_result.data.as_ref())
+        && autofocus_trigger_failure_cost(&af_result)
             == AutofocusTriggerFailureCost::EveryFrameUnguided
     {
         run.hold_node_tree();
@@ -162,7 +155,7 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
         trigger_name,
         rig,
         run,
-        decisions,
+        af_ctx: &af_ctx,
         af_result,
         tolerance_ratio: af_config.failure_hfr_tolerance_ratio,
         position_before_af,
@@ -187,7 +180,7 @@ async fn skip_impossible_autofocus(trigger_name: &str, missing: &str, rig: &Rig,
         .write()
         .await
         .clear_autofocus_invalidation();
-    run.error(format!(
+    run.step_problem(format!(
         "Trigger '{trigger_name}' asked for an autofocus but {missing} \
          configured for this run. The refocus was skipped and imaging \
          continues — focus is not being corrected automatically."
@@ -205,7 +198,7 @@ fn record_failed_sweep(ts: &mut crate::triggers::TriggerState) {
         "Autofocus failed; the HFR baseline stays at the last good focus ({:?}) and the \
          interval cadence anchor advanced so the failed sweep does not re-fire on every \
          subsequent frame",
-        ts.baseline_hfr
+        ts.latches.baseline_hfr
     );
 }
 
@@ -214,7 +207,7 @@ struct FailedSweep<'a> {
     trigger_name: &'a str,
     rig: &'a Rig,
     run: &'a RunControl,
-    decisions: &'a DecisionLog,
+    af_ctx: &'a crate::instructions::InstructionContext,
     af_result: crate::instructions::InstructionResult,
     tolerance_ratio: f64,
     position_before_af: Option<i32>,
@@ -229,39 +222,36 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
         trigger_name,
         rig,
         run,
-        decisions,
+        af_ctx,
         af_result,
         tolerance_ratio,
         position_before_af,
     } = sweep;
     let verdict = {
         let ts = rig.trigger_state.read().await;
-        autofocus_failure_verdict(ts.baseline_hfr, ts.current_hfr, tolerance_ratio)
+        autofocus_failure_verdict(
+            ts.latches.baseline_hfr,
+            ts.latches.current_hfr,
+            tolerance_ratio,
+        )
     };
     record_failed_sweep(&mut *rig.trigger_state.write().await);
 
-    // Absent (not `false`) when the sweep never moved the focuser.
-    let origin_restored = af_result
-        .data
-        .as_ref()
-        .and_then(|data| data.get("autofocus_origin_restored"))
-        .and_then(|value| value.as_bool());
-    let position_after_af =
-        read_focuser_position(&rig.device_ops, rig.context.focuser_id.as_ref()).await;
-    let failure_cost = autofocus_trigger_failure_cost(af_result.data.as_ref());
-    let reason = af_result
-        .message
-        .unwrap_or_else(|| "autofocus did not converge".to_string());
-
-    if failure_cost == AutofocusTriggerFailureCost::EveryFrameUnguided {
+    if autofocus_trigger_failure_cost(&af_result) == AutofocusTriggerFailureCost::EveryFrameUnguided
+    {
         // The guider was stopped and not proven back. Every further frame
         // would trail, so the run pauses: reversible by one button, and
         // nothing is moved or closed. Safety triggers keep acting while
         // paused. Decided before the focus verdict, which a dead guider with
         // good focus would otherwise pass.
+        let reason = af_result
+            .message
+            .as_deref()
+            .unwrap_or("autofocus did not converge");
+        let position_after_af = crate::instructions::read_autofocus_position(af_ctx).await;
         let hold =
-            autofocus_trigger_unguided_hold(trigger_id, trigger_name, &reason, position_after_af);
-        decisions.send(hold.decision);
+            autofocus_trigger_unguided_hold(trigger_id, trigger_name, reason, position_after_af);
+        af_ctx.run.emit_decision(hold.decision);
         tracing::error!("{}", hold.operator_message);
         // Or the trigger re-fires on resume and stops the guider again.
         rig.trigger_state
@@ -270,9 +260,8 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
             .clear_autofocus_invalidation();
         run.pause(Some(
             "Paused: autofocus left the guider stopped".to_string(),
-        ))
-        .await;
-        run.error(hold.operator_message);
+        ));
+        run.held(hold.operator_message);
         return;
     }
 
@@ -292,18 +281,20 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
         ),
         AutofocusOutcome::Unmeasurable => String::new(),
     };
-    let continuation = autofocus_trigger_continuation(
-        trigger_id,
-        trigger_name,
-        &reason,
+    let mut line = crate::instructions::record_autofocus_failed_continuing(
+        af_ctx,
+        &format!("Autofocus trigger '{trigger_name}'"),
+        serde_json::json!({
+            "trigger_id": trigger_id,
+            "trigger_name": trigger_name,
+        }),
+        &af_result,
         position_before_af,
-        position_after_af,
-        origin_restored,
-    );
-    decisions.send(continuation.decision);
-    let message = format!("{}{}", continuation.operator_message, focus_note);
-    tracing::warn!("{}", message);
-    run.warning(message);
+    )
+    .await;
+    line.message.push_str(&focus_note);
+    tracing::warn!("{}", line.message);
+    run.send(line.into_event());
 }
 
 #[cfg(test)]
@@ -321,7 +312,10 @@ mod tests {
             ts.increment_exposure_count();
         }
         record_failed_sweep(&mut ts);
-        assert_eq!(ts.baseline_hfr, Some(2.0));
-        assert_eq!(ts.last_autofocus_frame, 12, "the cadence anchor moves");
+        assert_eq!(ts.latches.baseline_hfr, Some(2.0));
+        assert_eq!(
+            ts.latches.last_autofocus_frame, 12,
+            "the cadence anchor moves"
+        );
     }
 }

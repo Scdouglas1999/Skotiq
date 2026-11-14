@@ -5,7 +5,11 @@
 // ("45 484"), degrees with "°C". Unknown input returns null, never "0".
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+
+import '../../night_control_contracts.dart';
 
 /// The session providers' "now". Tests pin it; the app reads the shared
 /// 30-second ticker so elapsed times and the dawn row stay current.
@@ -41,22 +45,22 @@ String nightSignedDelta(double delta, int decimals) {
   return delta > 0 ? '+$text' : '$_minus$text';
 }
 
+/// A focuser position with its unit: `25 000 steps`.
+NightText nightFocuserSteps(int position) => NightText(
+      'nightSessionFocuserSteps',
+      params: <String, String>{'position': nightGrouped(position)},
+    );
+
+/// ` · HFR 2.10 px`, the HFR clause of a log line.
+String nightHfrClause(double hfr) => ' · HFR ${nightFixed(hfr, 2)} px';
+
 /// `−10.0 °C`.
 String nightCelsius(double value) => '${nightFixed(value, 1)} °C';
-
-/// `639 GB`, `2.6 GB`, `512 MB`.
-String nightBytes(int bytes) {
-  const gb = 1024 * 1024 * 1024;
-  const mb = 1024 * 1024;
-  if (bytes >= 100 * gb) return '${(bytes / gb).round()} GB';
-  if (bytes >= gb) return '${(bytes / gb).toStringAsFixed(1)} GB';
-  return '${(bytes / mb).round()} MB';
-}
 
 /// `4h 12m`; null for no time at all.
 String? nightDuration(double? seconds) {
   if (seconds == null || !seconds.isFinite || seconds <= 0) return null;
-  return DurationFormat.seconds(seconds, style: DurationStyle.compactTrimmed);
+  return DurationFormat.seconds(seconds, style: DurationStyle.coarse);
 }
 
 /// The fewest values a night median is taken over. One or two frames make a
@@ -74,13 +78,6 @@ double? nightMedian(Iterable<double?> values) {
   return sorted.length.isOdd
       ? sorted[mid]
       : (sorted[mid - 1] + sorted[mid]) / 2;
-}
-
-/// Wall-clock `HH:mm` for an instant, in the app's configured time zone.
-String nightClockTime(Clock clock, DateTime instant) {
-  final wall = clock.fromUtc(instant.toUtc());
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${two(wall.hour)}:${two(wall.minute)}';
 }
 
 /// Whether [state] is an explicit, live connection.

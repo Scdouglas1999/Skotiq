@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 import 'handler_test_helpers.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
@@ -78,6 +78,17 @@ void main() {
         expect(control.statusCode, HttpStatus.unauthorized);
       },
     );
+
+    // A phone reads `authRequired` to decide whether to pair before its
+    // first call. Told `false` by a server that refuses every call, it skipped
+    // pairing and could only report a connection error.
+    test('advertises that a token is required', () async {
+      final info = await _request(client, baseUri, '/api/info');
+
+      expect(info.body['authRequired'], isTrue);
+      expect(info.body['authenticationMode'], 'token');
+      expect(server.isAuthRequired, isTrue);
+    });
 
     test('pairing and dashboard bootstrap surface stays reachable', () async {
       // /api/info is public so a client can discover the appliance pre-pairing.
@@ -188,6 +199,13 @@ void main() {
       await server.stop();
       await pairingService.close();
       container.dispose();
+    });
+
+    test('advertises that no token is required', () async {
+      final info = await _request(client, baseUri, '/api/info');
+
+      expect(info.body['authRequired'], isFalse);
+      expect(info.body['authenticationMode'], 'none');
     });
 
     test('serves privileged endpoints without a token', () async {

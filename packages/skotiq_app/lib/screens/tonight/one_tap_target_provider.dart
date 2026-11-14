@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Tonight's single opinionated target for the one-tap flow.
 ///
@@ -32,7 +33,5 @@ final oneTapTargetProvider =
       if (s.targetId == chosenId) return s;
     }
   }
-  // Scheduler had no eligible pick (or it isn't in the suggestion set) — fall
-  // back to the top-scored whole-night candidate.
   return suggestions.first;
 });

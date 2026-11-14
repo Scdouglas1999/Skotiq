@@ -3,24 +3,26 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
 import '../sequencer_screen.dart';
 import '../../../utils/authority_bound_dialog.dart';
-import '../../../utils/sequence_mutator_helper.dart';
+import '../sequence_mutator_helper.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
-import '../plan_math.dart';
+import '../widgets/save_sequence.dart';
 
 part 'sequence_library_tab/library_header.dart';
 part 'sequence_library_tab/library_filter_row.dart';
 part 'sequence_library_tab/action_button.dart';
 part 'sequence_library_tab/sequence_card.dart';
 part 'sequence_library_tab/supporting_widgets.dart';
-part 'sequence_library_tab/save_sequence_dialog.dart';
 part 'sequence_library_tab/version_history_dialog.dart';
 part 'sequence_library_tab/tag_editor_dialog.dart';
 part 'sequence_library_tab/sequence_card_dialogs.dart';
@@ -50,7 +52,6 @@ final sequenceTagFilterProvider =
 final sequenceFavoritesOnlyProvider =
     StateProvider.autoDispose<bool>((ref) => false);
 
-/// Sort order for sequences
 enum SequenceSortOrder { name, dateModified, dateCreated, nodeCount }
 
 /// Provider for sort order
@@ -152,17 +153,10 @@ class SequenceLibraryTab extends ConsumerWidget {
       padding: EdgeInsets.all(isMobile ? 12 : 24),
       child: Column(
         children: [
-          // Header
           _LibraryHeader(colors: colors),
-
           const SizedBox(height: 16),
-
-          // Tag / favorite filter row
           _LibraryFilterRow(colors: colors),
-
           const SizedBox(height: 16),
-
-          // Content
           Expanded(
             child: filteredAsync.when(
               data: (filtered) {
@@ -234,7 +228,7 @@ class SequenceLibraryTab extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      error.toString(),
+                      userFacingError(error),
                       style: TextStyle(
                           color: colors.textMuted,
                           fontSize: SkotiqTypography.fontSize12),

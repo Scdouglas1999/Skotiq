@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import '../../services/manual_capture_controller.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../utils/transient_bottom_inset.dart';
 import 'widgets/fullscreen_image_viewer.dart';
@@ -22,17 +27,12 @@ import 'widgets/imaging_side_panel.dart';
 import 'widgets/imaging_status_strip.dart';
 import 'widgets/live_preview_area.dart';
 import 'widgets/meridian_flip_countdown_banner.dart';
-import 'widgets/preview_display_scale.dart' show previewFitScaleProvider;
+import '../../widgets/image_preview/preview_display_scale.dart'
+    show previewFitScaleProvider;
 import 'widgets/stacking_panel.dart';
-import '../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../tours/tour_target.dart';
 
 part 'imaging_screen/imaging_screen_actions.dart';
-
-/// Provider to check if annotation catalog is installed
-final annotationCatalogInstalledProvider = FutureProvider<bool>((ref) async {
-  final status = await CatalogManager.instance.getAnnotationCatalogStatus();
-  return status.isInstalled;
-});
 
 /// The Imaging screen's top-level tabs (06 §Imaging).
 enum ImagingTab {
@@ -59,18 +59,30 @@ class ImagingScreen extends ConsumerStatefulWidget {
 }
 
 class _ImagingScreenState extends ConsumerState<ImagingScreen> {
-  /// Which top-level tab is showing.
   ImagingTab _tab = ImagingTab.liveView;
 
   /// The page header's `panel-right` toggle.
   bool _sidePanelCollapsed = false;
 
-  // Local capture state
-  bool _isLooping = false;
-  bool _isSingleCapture = false;
-  bool _singleCapturePreviewReady = false;
-  bool _isStoppingCapture = false;
-  ImagingService? _manualCaptureService;
+  /// The controller of a snapshot or loop this screen started, so leaving
+  /// the screen stops it: a capture must not keep exposing after its Stop
+  /// control goes.
+  ManualCaptureController? _startedCapture;
+
+  bool get _isLooping => ref.read(manualLoopStatusProvider).looping;
+
+  /// A frame is being taken: a manual snapshot, or an exposure the other
+  /// end of the link (or a sequence) is running.
+  bool get _isSingleCapture =>
+      ref.read(manualCaptureControllerProvider).isSnapshot ||
+      (!_isLooping && ref.read(cameraStateProvider).isExposing);
+
+  bool get _isSavingCapture =>
+      ref.read(manualCaptureControllerProvider).snapshotPreviewReady;
+
+  bool get _isStoppingCapture =>
+      ref.read(manualCaptureControllerProvider).isStopping ||
+      ref.read(manualLoopStatusProvider).stopping;
 
   /// Measured lift, in logical pixels, that a floating snackbar needs in order
   /// to clear the capture controls this layout is showing — the distance from
@@ -84,8 +96,6 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
     setState(() => _captureBarHeight = height);
   }
 
-  void _update(VoidCallback callback) => setState(callback);
-
   @override
   void initState() {
     super.initState();
@@ -98,14 +108,10 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
 
   @override
   void dispose() {
-    if ((_isSingleCapture || _isLooping) && _manualCaptureService != null) {
-      // Manual capture belongs to this screen. In particular, a Loop must not
-      // keep exposing indefinitely after navigation removes its only Stop
-      // control. ImagingService targets the backend/device admitted at start.
-      // ConsumerState.ref is already invalid while Riverpod unmounts this
-      // element, so retain the service admitted by the active action.
-      _manualCaptureService!.cancelExposure();
-    }
+    // Stopped after the unmount, since stopping changes state this screen
+    // still watches.
+    final startedCapture = _startedCapture;
+    if (startedCapture != null) scheduleMicrotask(startedCapture.stop);
     super.dispose();
   }
 
@@ -116,14 +122,25 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Sync snapshot exposure defaults from the active equipment profile
     ref.watch(syncExposureFromProfileProvider);
-    // Put each autofocus frame on the canvas while a run measures it.
-    ref.watch(autofocusPreviewFeederProvider);
+
+    // The loop and any exposure in flight decide what Snapshot and Loop
+    // offer, in this window and the one at the other end of the link.
+    ref.watch(manualLoopStatusProvider);
+    ref.watch(manualCaptureControllerProvider);
+    ref.watch(cameraStateProvider.select((s) => s.isExposing));
 
     final colors = context.skotiqColors;
     final selectedSection = ref.watch(selectedImagingPanelProvider);
-    final frameCount = ref.watch(recentSessionFramesProvider).length;
+    // The kept light frames: what Session frames shows as kept (flats and
+    // darks of the night are not session frames).
+    final frameCount = ref.watch(
+      recentSessionFramesProvider.select(
+        (frames) => frames
+            .where((frame) => frame.settings.frameType == FrameType.light)
+            .length,
+      ),
+    );
     final narrow = MediaQuery.sizeOf(context).width <
         ShellChromeMetrics.shellLayoutBreakpoint;
 
@@ -147,7 +164,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
               icon: SkotiqIcons.camera,
               title: 'Imaging',
               tabs: AdaptiveTabBar(
-                key: ImagingTutorialKeys.tabBar,
+                key: TourTarget.imagingTabBar.key,
                 horizontalPadding: 0,
                 tabs: <AdaptiveTab>[
                   for (final ImagingTab tab in ImagingTab.values)
@@ -207,9 +224,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
                 ImagingTab.liveView =>
                   _liveView(colors, selectedSection, narrow),
                 ImagingTab.liveStack => _liveStack(colors, narrow),
-                ImagingTab.sessionFrames => ImagingSessionFrames(
-                    onFrameSelected: _showFrame,
-                  ),
+                ImagingTab.sessionFrames => const ImagingSessionFrames(),
               },
             ),
           ],
@@ -362,7 +377,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
                 onSectionSelected: _selectSection,
                 isLooping: _isLooping,
                 isSingleCapture: _isSingleCapture,
-                isSavingCapture: _singleCapturePreviewReady,
+                isSavingCapture: _isSavingCapture,
                 isStoppingCapture: _isStoppingCapture,
                 onSnapshot: _takeSnapshot,
                 onToggleLoop: _toggleLoop,
@@ -394,7 +409,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
       children: <Widget>[
         Positioned.fill(
           child: LivePreviewArea(
-            key: ImagingTutorialKeys.previewArea,
+            key: TourTarget.imagingPreviewArea.key,
             colors: colors,
             zoomLevel: viewerState.zoomLevel,
             panOffset: viewerState.panOffset,
@@ -423,7 +438,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
                 child: ImagingCaptureBar(
                   isLooping: _isLooping,
                   isSingleCapture: _isSingleCapture,
-                  isSavingCapture: _singleCapturePreviewReady,
+                  isSavingCapture: _isSavingCapture,
                   isStoppingCapture: _isStoppingCapture,
                   onSnapshot: _takeSnapshot,
                   onToggleLoop: _toggleLoop,
@@ -444,11 +459,6 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
       return;
     }
     FullscreenImageViewer.show(context, image);
-  }
-
-  /// Puts a session frame back on the canvas and returns to the viewer.
-  void _showFrame(CapturedImage frame) {
-    setState(() => _tab = ImagingTab.liveView);
   }
 }
 
@@ -522,6 +532,7 @@ class _ControlsSheet extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(right: 2),
                             child: SkotiqChip(
+                              key: ImagingSidePanel.sections[i].buttonKey,
                               label: ImagingSidePanel.sections[i].tooltip,
                               icon: ImagingSidePanel.sections[i].icon,
                               selected: i == selectedSection,
@@ -610,7 +621,7 @@ class _SheetSnapshotButton extends ConsumerWidget {
         DeviceConnectionState.connected;
     final enabled = connected && !isSingleCapture && !isLooping;
     return SkotiqButton(
-      key: ImagingTutorialKeys.snapshotBtn,
+      key: TourTarget.imagingSnapshotButton.key,
       label: isSingleCapture
           ? (isStoppingCapture
               ? 'Stopping…'
@@ -627,7 +638,6 @@ class _SheetSnapshotButton extends ConsumerWidget {
   }
 }
 
-/// The sheet's Loop button.
 class _SheetLoopButton extends ConsumerWidget {
   const _SheetLoopButton({
     required this.isLooping,
@@ -647,7 +657,7 @@ class _SheetLoopButton extends ConsumerWidget {
         DeviceConnectionState.connected;
     final enabled = connected && !isSingleCapture && !isStoppingCapture;
     return SkotiqButton(
-      key: ImagingTutorialKeys.loopBtn,
+      key: TourTarget.imagingLoopButton.key,
       label: isStoppingCapture
           ? 'Stopping…'
           : isLooping

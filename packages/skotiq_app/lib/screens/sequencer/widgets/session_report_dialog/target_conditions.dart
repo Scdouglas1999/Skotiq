@@ -101,7 +101,7 @@ class _ConditionsRow extends StatelessWidget {
         if (report.avgTemperatureC != null)
           _StatChip(
             label: 'Mean temp',
-            value: '${report.avgTemperatureC!.toStringAsFixed(1)} C',
+            value: formatCelsius(report.avgTemperatureC),
             colors: colors,
           ),
         if (report.avgHumidityPercent != null)
@@ -156,7 +156,7 @@ class _TargetBlock extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                '${target.framesAccepted}/${target.framesAttempted} frames | ${DurationFormat.seconds(target.totalIntegrationSecs, style: DurationStyle.hoursMinutes, rounding: DurationRounding.truncate)}',
+                '${target.framesAccepted}/${target.framesAttempted} frames | ${DurationFormat.seconds(target.totalIntegrationSecs, style: DurationStyle.short, rounding: DurationRounding.truncate)}',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize12,
                     color: colors.textMuted),
@@ -184,14 +184,15 @@ class _TargetBlock extends StatelessWidget {
                 ),
                 children: [
                   _headerCell('Filter'),
-                  _headerCell('Att.'),
-                  _headerCell('Acc.'),
-                  _headerCell('Rej.'),
+                  _headerCell('Taken'),
+                  _headerCell('Accepted'),
+                  _headerCell('Rejected'),
                   _headerCell('Integration'),
-                  _headerCell('HFR'),
-                  _headerCell('FWHM'),
+                  _headerCell('HFR (px)'),
+                  _headerCell('FWHM (px)'),
                   _headerCell('Stars'),
-                  _headerCell('RMS'),
+                  // ASCII, not U+2033: the bundled fonts have no prime glyph.
+                  _headerCell('RMS (")'),
                 ],
               ),
               for (final f in target.filters)
@@ -205,7 +206,7 @@ class _TargetBlock extends StatelessWidget {
                       color: f.framesRejected > 0 ? colors.warning : null,
                     ),
                     _bodyCell(DurationFormat.seconds(f.totalIntegrationSecs,
-                        style: DurationStyle.hoursMinutes,
+                        style: DurationStyle.short,
                         rounding: DurationRounding.truncate)),
                     _bodyCell(_formatDouble(f.meanHfr, 2)),
                     _bodyCell(_formatDouble(f.meanFwhm, 2)),

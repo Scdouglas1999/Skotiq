@@ -1,8 +1,5 @@
 part of '../transient_alert_provider.dart';
 
-/// Storage key prefix for transient alert settings in the database
-const String _settingsKeyPrefix = 'transient_alert_';
-
 /// Notifier for managing transient alert settings with persistence.
 ///
 /// Settings are persisted to the app settings database and loaded on startup.
@@ -11,7 +8,7 @@ class TransientAlertSettingsNotifier
     extends StateNotifier<TransientAlertSettings> {
   final SettingsDao _settingsDao;
   final LoggingService _logger;
-  final NetworkBackend? _remote;
+  final HostTransients? _remote;
   bool _initialized = false;
   Completer<void>? _loadCompleter;
   TransientAlertSettings _confirmedSettings =
@@ -25,7 +22,7 @@ class TransientAlertSettingsNotifier
   TransientAlertSettingsNotifier({
     required SettingsDao settingsDao,
     required LoggingService logger,
-    NetworkBackend? remote,
+    HostTransients? remote,
   }) : _settingsDao = settingsDao,
        _logger = logger,
        _remote = remote,
@@ -84,20 +81,6 @@ class TransientAlertSettingsNotifier
     }
   }
 
-  double _parseFiniteDouble(String? raw, double fallback) {
-    final value = raw == null ? null : double.tryParse(raw);
-    return value != null && value.isFinite ? value : fallback;
-  }
-
-  bool _parseBool(String? raw, bool fallback) {
-    return switch (raw?.trim().toLowerCase()) {
-      'true' => true,
-      'false' => false,
-      _ => fallback,
-    };
-  }
-
-  /// Load settings from persistent storage
   Future<void> _loadSettings() async {
     if (_initialized) return;
     final revisionAtStart = _requestRevision;
@@ -108,46 +91,30 @@ class TransientAlertSettingsNotifier
           ? await _settingsDao.getAllSettings()
           : _remoteSettingsAsStored(await remote.getTransientSettings());
 
-      // Parse enabled sources
-      final sourcesJson = allSettings['${_settingsKeyPrefix}enabled_sources'];
+      final defaults = TransientAlertSettings.defaultSettings;
       final enabledSources =
-          _parseSources(sourcesJson) ??
-          TransientAlertSettings.defaultSettings.enabledSources;
-
-      // Parse types to monitor
-      final typesJson = allSettings['${_settingsKeyPrefix}types_to_monitor'];
+          _parseSources(
+            StoreSettings.transientAlertSources.valueIn(allSettings),
+          ) ??
+          defaults.enabledSources;
       final typesToMonitor =
-          _parseTypes(typesJson) ??
-          TransientAlertSettings.defaultSettings.typesToMonitor;
-
-      // Parse numeric and boolean settings
-      final magnitudeThreshold = _parseFiniteDouble(
-        allSettings['${_settingsKeyPrefix}magnitude_threshold'],
-        TransientAlertSettings.defaultSettings.magnitudeThreshold,
-      );
-
-      final notifyOnNew = _parseBool(
-        allSettings['${_settingsKeyPrefix}notify_on_new'],
-        TransientAlertSettings.defaultSettings.notifyOnNew,
-      );
-
-      final autoQueueBright = _parseBool(
-        allSettings['${_settingsKeyPrefix}auto_queue_bright'],
-        TransientAlertSettings.defaultSettings.autoQueueBright,
-      );
-
-      final autoQueueMagnitude = _parseFiniteDouble(
-        allSettings['${_settingsKeyPrefix}auto_queue_magnitude'],
-        TransientAlertSettings.defaultSettings.autoQueueMagnitude,
-      );
+          _parseTypes(StoreSettings.transientAlertTypes.valueIn(allSettings)) ??
+          defaults.typesToMonitor;
+      final magnitudeThreshold = StoreSettings.transientAlertMagnitudeThreshold
+          .valueIn(allSettings);
 
       final loaded = TransientAlertSettings(
         enabledSources: enabledSources,
         magnitudeThreshold: magnitudeThreshold,
         typesToMonitor: typesToMonitor,
-        notifyOnNew: notifyOnNew,
-        autoQueueBright: autoQueueBright,
-        autoQueueMagnitude: autoQueueMagnitude,
+        notifyOnNew: StoreSettings.transientAlertNotifyOnNew.valueIn(
+          allSettings,
+        ),
+        autoQueueBright: StoreSettings.transientAlertAutoQueueBright.valueIn(
+          allSettings,
+        ),
+        autoQueueMagnitude: StoreSettings.transientAlertAutoQueueMagnitude
+            .valueIn(allSettings),
       );
       if (mounted && revisionAtStart == _requestRevision) {
         _confirmedSettings = loaded;
@@ -176,7 +143,6 @@ class TransientAlertSettingsNotifier
     }
   }
 
-  /// Save all current settings to persistent storage
   Future<void> _saveSettings(TransientAlertSettings settings) async {
     try {
       final remote = _remote;
@@ -194,23 +160,24 @@ class TransientAlertSettingsNotifier
           'autoQueueMagnitude': settings.autoQueueMagnitude,
         });
       } else {
-        await _settingsDao.setSettings({
-          '${_settingsKeyPrefix}enabled_sources': json.encode(
-            settings.enabledSources.map((s) => s.name).toList(),
+        await _settingsDao.writeAll([
+          StoreSettings.transientAlertSources.to(
+            json.encode(settings.enabledSources.map((s) => s.name).toList()),
           ),
-          '${_settingsKeyPrefix}types_to_monitor': json.encode(
-            settings.typesToMonitor.map((t) => t.name).toList(),
+          StoreSettings.transientAlertTypes.to(
+            json.encode(settings.typesToMonitor.map((t) => t.name).toList()),
           ),
-          '${_settingsKeyPrefix}magnitude_threshold': settings
-              .magnitudeThreshold
-              .toString(),
-          '${_settingsKeyPrefix}notify_on_new': settings.notifyOnNew.toString(),
-          '${_settingsKeyPrefix}auto_queue_bright': settings.autoQueueBright
-              .toString(),
-          '${_settingsKeyPrefix}auto_queue_magnitude': settings
-              .autoQueueMagnitude
-              .toString(),
-        });
+          StoreSettings.transientAlertMagnitudeThreshold.to(
+            settings.magnitudeThreshold,
+          ),
+          StoreSettings.transientAlertNotifyOnNew.to(settings.notifyOnNew),
+          StoreSettings.transientAlertAutoQueueBright.to(
+            settings.autoQueueBright,
+          ),
+          StoreSettings.transientAlertAutoQueueMagnitude.to(
+            settings.autoQueueMagnitude,
+          ),
+        ]);
       }
       _logger.debug(
         'Transient alert settings saved',
@@ -225,26 +192,26 @@ class TransientAlertSettingsNotifier
     }
   }
 
+  /// The host's settings as the rows that would store them, so one reader
+  /// serves the host's snapshot and this computer's database.
   Map<String, String> _remoteSettingsAsStored(Map<String, dynamic> settings) {
     final enabledSources = settings['enabledSources'];
     final typesToMonitor = settings['typesToMonitor'];
     return {
       if (enabledSources is List)
-        '${_settingsKeyPrefix}enabled_sources': json.encode(enabledSources),
+        StoreSettings.transientAlertSources.key: json.encode(enabledSources),
       if (typesToMonitor is List)
-        '${_settingsKeyPrefix}types_to_monitor': json.encode(typesToMonitor),
-      if (settings['magnitudeThreshold'] != null)
-        '${_settingsKeyPrefix}magnitude_threshold':
-            settings['magnitudeThreshold'].toString(),
-      if (settings['notifyOnNew'] != null)
-        '${_settingsKeyPrefix}notify_on_new': settings['notifyOnNew']
-            .toString(),
-      if (settings['autoQueueBright'] != null)
-        '${_settingsKeyPrefix}auto_queue_bright': settings['autoQueueBright']
-            .toString(),
-      if (settings['autoQueueMagnitude'] != null)
-        '${_settingsKeyPrefix}auto_queue_magnitude':
-            settings['autoQueueMagnitude'].toString(),
+        StoreSettings.transientAlertTypes.key: json.encode(typesToMonitor),
+      for (final MapEntry(key: wire, value: setting)
+          in <String, Setting<Object?>>{
+            'magnitudeThreshold':
+                StoreSettings.transientAlertMagnitudeThreshold,
+            'notifyOnNew': StoreSettings.transientAlertNotifyOnNew,
+            'autoQueueBright': StoreSettings.transientAlertAutoQueueBright,
+            'autoQueueMagnitude':
+                StoreSettings.transientAlertAutoQueueMagnitude,
+          }.entries)
+        if (settings[wire] != null) setting.key: settings[wire].toString(),
     };
   }
 
@@ -272,13 +239,11 @@ class TransientAlertSettingsNotifier
     return operation;
   }
 
-  /// Update all settings at once
   Future<void> updateSettings(TransientAlertSettings settings) async {
     await loaded;
     await _queueSettingsUpdate(settings);
   }
 
-  /// Toggle a specific source on or off
   Future<void> toggleSource(TransientSource source) async {
     await loaded;
     final newSources = Set<TransientSource>.from(
@@ -294,7 +259,6 @@ class TransientAlertSettingsNotifier
     );
   }
 
-  /// Toggle a specific transient type on or off
   Future<void> toggleType(TransientType type) async {
     await loaded;
     final newTypes = Set<TransientType>.from(_requestedSettings.typesToMonitor);
@@ -308,7 +272,6 @@ class TransientAlertSettingsNotifier
     );
   }
 
-  /// Set the magnitude threshold for alerts
   Future<void> setMagnitudeThreshold(double threshold) async {
     if (!threshold.isFinite) {
       throw ArgumentError.value(threshold, 'threshold', 'must be finite');
@@ -319,7 +282,6 @@ class TransientAlertSettingsNotifier
     );
   }
 
-  /// Set whether to notify on new alerts
   Future<void> setNotifyOnNew(bool notify) async {
     await loaded;
     await _queueSettingsUpdate(
@@ -327,7 +289,6 @@ class TransientAlertSettingsNotifier
     );
   }
 
-  /// Set whether to auto-queue bright transients
   Future<void> setAutoQueueBright(bool autoQueue) async {
     await loaded;
     await _queueSettingsUpdate(
@@ -335,7 +296,6 @@ class TransientAlertSettingsNotifier
     );
   }
 
-  /// Set the magnitude threshold for auto-queuing
   Future<void> setAutoQueueMagnitude(double magnitude) async {
     if (!magnitude.isFinite) {
       throw ArgumentError.value(magnitude, 'magnitude', 'must be finite');
@@ -355,10 +315,10 @@ final transientAlertSettingsProvider =
     >((ref) {
       final settingsDao = ref.watch(settingsDaoProvider);
       final logger = ref.watch(loggingServiceProvider);
-      final backend = ref.watch(backendProvider);
+      final remote = ref.watch(linkedHostTransientsProvider);
       return TransientAlertSettingsNotifier(
         settingsDao: settingsDao,
         logger: logger,
-        remote: backend is NetworkBackend ? backend : null,
+        remote: remote,
       );
     });

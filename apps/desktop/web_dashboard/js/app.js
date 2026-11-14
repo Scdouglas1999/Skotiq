@@ -43,6 +43,10 @@
     filterWheelPositionsLoading: false,
     rotatorStatus: null,
     readoutModes: [],
+    // The connected camera's ISO speeds (DSLR or mirrorless), and the camera
+    // they were read for; empty for a gain camera.
+    cameraIsoSpeeds: [],
+    cameraIsoSpeedsDeviceId: null,
     selectedReadoutMode: null,
     lastAutofocusResult: null,
     lastImagePositionAngle: null,
@@ -504,6 +508,9 @@
 
   function describeConnectFailure(e) {
     const status = e && e.status;
+    if (e && e.kind === 'version_mismatch') {
+      return { kind: 'version_mismatch', message: e.message };
+    }
     // A scope refusal and a rejected credential are different events with
     // different fixes, and collapsing them into one "rejected" sentence sent
     // an operator holding a perfectly valid read-only token to the Remote
@@ -731,6 +738,7 @@
         // remaining attempts, and each retry re-prints the same refusal into
         // the operator's log. Stop and report it.
         if (e && (e.status === 401 || e.status === 403)) break;
+        if (e && e.kind === 'version_mismatch') break;
       }
     }
 
@@ -1799,6 +1807,7 @@
       // These are best-effort — handlers log on failure rather than blocking
       // the panel render.
       maybeLoadCameraReadoutModes();
+      maybeLoadCameraSensitivity();
       maybeLoadFilterWheelPositions();
     } catch (e) {
       // Recorded, not only logged: the panel's stale line is drawn from this.
@@ -1877,7 +1886,7 @@
 
   async function fetchGuidingStatus() {
     try {
-      const status = await api.phd2GetStatus();
+      const status = await api.guiderGetStatus();
       state.guidingStatus = status;
       renderGuidingPanel();
       markPanelFresh('guiding');
@@ -1966,6 +1975,76 @@
     }
   }
 
+  // A DSLR or mirrorless camera's gain is one of its ISO speeds: the gain
+  // field becomes an ISO picker, and the offset row goes (such bodies have
+  // no offset control).
+  async function maybeLoadCameraSensitivity() {
+    const deviceId = state.cameraDeviceId;
+    if (state.cameraIsoSpeedsDeviceId === deviceId) return;
+    state.cameraIsoSpeedsDeviceId = deviceId;
+    state.cameraIsoSpeeds = [];
+    if (deviceId) {
+      try {
+        const caps = await api.cameraGetCapabilities(deviceId);
+        if (state.cameraDeviceId !== deviceId) return;
+        state.cameraIsoSpeeds = Array.isArray(caps && caps.isoSpeeds) ? caps.isoSpeeds : [];
+      } catch (e) {
+        state.cameraIsoSpeedsDeviceId = null;
+        addLogEntry('error', describeApiError(e, 'Camera capabilities load'));
+      }
+    }
+    renderCameraSensitivity();
+  }
+
+  function renderCameraSensitivity() {
+    const iso = state.cameraIsoSpeeds.length > 0;
+    const gainInput = document.getElementById('camera-gain');
+    const isoSelect = document.getElementById('camera-iso');
+    const label = document.getElementById('camera-gain-label');
+    const offsetRow = document.getElementById('camera-offset-row');
+    const apply = document.getElementById('btn-camera-apply-gain');
+    if (!gainInput || !isoSelect) return;
+    gainInput.hidden = iso;
+    isoSelect.hidden = !iso;
+    if (label) {
+      label.textContent = iso ? 'ISO' : 'Gain';
+      label.htmlFor = iso ? 'camera-iso' : 'camera-gain';
+    }
+    if (offsetRow) offsetRow.hidden = iso;
+    if (apply) apply.setAttribute('aria-label', iso ? 'Apply ISO to camera' : 'Apply gain to camera');
+    if (!iso) return;
+    const current = nearestIsoSpeed(parseInt(gainInput.value, 10));
+    clearElement(isoSelect);
+    for (const speed of state.cameraIsoSpeeds) {
+      const opt = document.createElement('option');
+      opt.value = String(speed);
+      opt.textContent = String(speed);
+      isoSelect.appendChild(opt);
+    }
+    isoSelect.value = String(current);
+  }
+
+  // The offered speed nearest to `value` by ratio, as the camera drivers
+  // choose; the lowest speed for a value that is not a number.
+  function nearestIsoSpeed(value) {
+    const speeds = state.cameraIsoSpeeds;
+    if (!Number.isFinite(value) || value < 1) return speeds[0];
+    let best = speeds[0];
+    for (const speed of speeds) {
+      if (Math.abs(Math.log(speed / value)) < Math.abs(Math.log(best / value))) best = speed;
+    }
+    return best;
+  }
+
+  // The gain the camera controls hold: the ISO picker's speed for a DSLR,
+  // the gain field otherwise.
+  function currentCameraGain() {
+    if (state.cameraIsoSpeeds.length > 0) {
+      return parseInt(document.getElementById('camera-iso').value, 10);
+    }
+    return parseInt(document.getElementById('camera-gain').value, 10);
+  }
+
   async function maybeLoadFilterWheelPositions() {
     if (!state.filterWheelDeviceId) return;
     if (state.filterWheelPositionsLoading) return;
@@ -1992,146 +2071,136 @@
   // Server events (WebSocket)
   // =========================================================================
 
-  function handleServerEvent(data) {
-    const category = data.category || data.event_category || 'system';
-    const message = data.message || data.description || messageFromPayload(data);
+  // The event types each panel follows, named from the generated table of
+  // what a host sends (js/wire-events.js).
+  const CAMERA_STATUS_EVENTS = new Set([
+    WIRE_EVENTS.imaging.exposureStarted,
+    WIRE_EVENTS.imaging.exposureProgress,
+    WIRE_EVENTS.imaging.temperatureChanged,
+  ]);
+  const EXPOSURE_DONE_EVENTS = new Set([
+    WIRE_EVENTS.imaging.exposureCompleted,
+    WIRE_EVENTS.imaging.exposureComplete,
+    WIRE_EVENTS.imaging.imageReady,
+  ]);
+  const DEVICE_LIST_EVENTS = new Set([
+    WIRE_EVENTS.equipment.connecting,
+    WIRE_EVENTS.equipment.connected,
+    WIRE_EVENTS.equipment.disconnected,
+    WIRE_EVENTS.equipment.deviceDiscovered,
+    WIRE_EVENTS.equipment.deviceLost,
+  ]);
+  const CAMERA_DEVICE_EVENTS = new Set([
+    WIRE_EVENTS.equipment.cameraCoolingStarted,
+    WIRE_EVENTS.equipment.cameraCoolingReached,
+    WIRE_EVENTS.equipment.cameraWarmingStarted,
+    WIRE_EVENTS.equipment.cameraWarmingCompleted,
+    WIRE_EVENTS.equipment.cameraTemperatureChanged,
+    WIRE_EVENTS.equipment.cameraSettingsChanged,
+  ]);
+  const MOUNT_EVENTS = new Set([
+    WIRE_EVENTS.equipment.mountSlewStarted,
+    WIRE_EVENTS.equipment.mountSlewCompleted,
+    WIRE_EVENTS.equipment.mountTrackingStarted,
+    WIRE_EVENTS.equipment.mountTrackingStopped,
+    WIRE_EVENTS.equipment.mountParkStarted,
+    WIRE_EVENTS.equipment.mountParkCompleted,
+    WIRE_EVENTS.equipment.mountUnparked,
+  ]);
+  const FOCUSER_EVENTS = new Set([
+    WIRE_EVENTS.equipment.focuserMoveStarted,
+    WIRE_EVENTS.equipment.focuserMoveCompleted,
+    WIRE_EVENTS.equipment.autofocusProgress,
+  ]);
+  const FILTER_WHEEL_EVENTS = new Set([
+    WIRE_EVENTS.equipment.filterChanging,
+    WIRE_EVENTS.equipment.filterChanged,
+  ]);
+  const ROTATOR_EVENTS = new Set([
+    WIRE_EVENTS.equipment.rotatorMoveStarted,
+    WIRE_EVENTS.equipment.rotatorMoveCompleted,
+  ]);
+  // A guide step carries no rolling RMS or app state; these change them.
+  const GUIDING_STATUS_EVENTS = new Set([
+    WIRE_EVENTS.guiding.guidingStarted,
+    WIRE_EVENTS.guiding.guidingStopped,
+    WIRE_EVENTS.guiding.settleDone,
+    WIRE_EVENTS.guiding.settling,
+    WIRE_EVENTS.guiding.appState,
+    WIRE_EVENTS.guiding.connected,
+    WIRE_EVENTS.guiding.disconnected,
+  ]);
 
-    addLogEntry(category, message);
+  function handleServerEvent(data) {
+    const category = data.category;
+    const type = data.eventType;
+    const payload = data.data || {};
+
+    addLogEntry(category, messageFromPayload(data));
 
     // Drive panel state from WS events first; only fall back to REST when an
     // event is too coarse to update the panel.
-    if (category === 'camera' || category === 'imaging') {
-      const eventType = data.eventType || data.event || '';
-      // For temperature/cooling updates we still need a REST round-trip
-      // because the WS event only carries the delta, not the full snapshot.
-      if (eventType === 'TemperatureChanged' || eventType === 'ExposureProgress'
-          || eventType === 'ExposureStarted' || eventType === 'ExposureStartedWithFrame') {
-        fetchCameraStatusIfConnected();
+    switch (category) {
+      case 'imaging':
+        // The event carries a delta, not the camera's full status.
+        if (CAMERA_STATUS_EVENTS.has(type)) fetchCameraStatusIfConnected();
+        // Image fetch is *only* driven by completion events; a duration-based
+        // timer would fire against exposures that never completed.
+        if (EXPOSURE_DONE_EVENTS.has(type)) {
+          cancelPendingImageFetch();
+          fetchLastImage();
+        }
+        markPanelFresh('camera');
+        break;
+      case 'equipment':
+        // PropertyChanged and healthy heartbeats can arrive several times a
+        // second; only these change what a panel shows.
+        if (DEVICE_LIST_EVENTS.has(type) || (
+          type === WIRE_EVENTS.equipment.heartbeatStatusChanged
+            && payload.status === 'disconnected')) {
+          fetchDevices();
+        }
+        if (CAMERA_DEVICE_EVENTS.has(type)) fetchCameraStatusIfConnected();
+        if (MOUNT_EVENTS.has(type)) fetchMountStatusIfConnected();
+        if (FOCUSER_EVENTS.has(type)) fetchFocuserStatusIfConnected();
+        if (FILTER_WHEEL_EVENTS.has(type)) fetchFilterWheelStatusIfConnected();
+        if (ROTATOR_EVENTS.has(type)) fetchRotatorStatusIfConnected();
+        break;
+      case 'sequencer':
+        // Checkpoint state and analytics change in lock step with the
+        // sequencer, so all three refresh together — but COALESCED, never
+        // once per event. See scheduleSequencerRefresh().
+        scheduleSequencerRefresh();
+        break;
+      case 'safety':
+        fetchOpsWeatherAndSafety();
+        break;
+      case 'guiding': {
+        const guide = extractGuideStep(type, payload);
+        if (guide) addGuideDataPoint(guide.raPx, guide.decPx);
+        if (GUIDING_STATUS_EVENTS.has(type)) fetchGuidingStatus();
+        markPanelFresh('guiding');
+        break;
       }
-      // Image fetch is *only* driven by completion events; a duration-based
-      // timer would fire against exposures that never completed.
-      if (isExposureCompleteEvent(eventType)) {
-        cancelPendingImageFetch();
-        fetchLastImage();
-      }
-      // Capture plate-solve PA from imaging events so the rotator panel can
-      // sync to the image. Many plate-solve events publish 'positionAngle'
-      // (or 'pa') in their payload; we accept both.
-      const imgPayload = data.data || data;
-      const pa = imgPayload && (imgPayload.positionAngle ?? imgPayload.pa
-        ?? imgPayload.position_angle);
-      if (typeof pa === 'number' && isFinite(pa)) {
-        state.lastImagePositionAngle = Number(pa);
-        renderRotatorPanel();
-      }
-      markPanelFresh('camera');
-    } else if (category === 'mount') {
-      fetchMountStatusIfConnected();
-    } else if (category === 'focuser') {
-      const eventType = data.eventType || data.event || '';
-      fetchFocuserStatusIfConnected();
-      if (eventType === 'AutofocusComplete' || eventType === 'autofocus_complete') {
-        // Capture the result payload so the panel can show "last autofocus"
-        // even after the device returns to idle.
-        state.lastAutofocusResult = data.data || data.result || data;
-        renderFocuserPanel();
-      }
-    } else if (category === 'filterWheel' || category === 'filter_wheel') {
-      fetchFilterWheelStatusIfConnected();
-    } else if (category === 'rotator') {
-      fetchRotatorStatusIfConnected();
-    } else if (category === 'sequencer') {
-      // Checkpoint state and analytics change in lock step with the sequencer,
-      // so all three refresh together — but COALESCED, never once per event.
-      // See scheduleSequencerRefresh().
-      scheduleSequencerRefresh();
-    } else if (category === 'dome') {
-      fetchOpsDomeStatusIfConnected();
-    } else if (category === 'safety' || category === 'safetyMonitor'
-        || category === 'weather') {
-      fetchOpsWeatherAndSafety();
-    } else if (category === 'profile' || category === 'profiles') {
-      fetchOpsProfiles();
-    } else if (category === 'guiding' || category === 'phd2') {
-      const eventType = data.eventType || data.event || '';
-      // The canonical field names for guide-step coordinates are raPx /
-      // decPx. The server emitter publishes these alongside legacy names;
-      // accept either so the dashboard works across server versions.
-      const payload = data.data || data;
-      const guide = extractGuideStep(payload);
-      if (guide) {
-        addGuideDataPoint(guide.raPx, guide.decPx);
-      }
-      // Full status snapshots need a REST round-trip because the WS event
-      // doesn't carry the rolling RMS or app state.
-      if (eventType === 'GuidingStarted' || eventType === 'GuidingStopped'
-          || eventType === 'Settled' || eventType === 'Settling'
-          || eventType === 'AppState' || eventType === 'Connected'
-          || eventType === 'Disconnected') {
-        fetchGuidingStatus();
-      }
-      markPanelFresh('guiding');
-    } else if (category === 'equipment') {
-      // Only lifecycle events change inventory. PropertyChanged and healthy
-      // heartbeat events can arrive several times per second; refetching the
-      // complete inventory on each one also reloaded filter-wheel metadata,
-      // producing request storms when a stale wheel was failing.
-      const eventType = data.eventType || data.event || '';
-      const payload = data.data || data;
-      const heartbeatDisconnected = eventType === 'HeartbeatStatusChanged'
-        && String(payload.status || '').toLowerCase() === 'disconnected';
-      if (eventType === 'Connecting' || eventType === 'Connected'
-          || eventType === 'Disconnected' || eventType === 'DeviceDiscovered'
-          || eventType === 'DeviceLost' || heartbeatDisconnected) {
-        fetchDevices();
-      }
-    } else if (category === 'polarAlignment' || category === 'polar_alignment') {
-      // Polar alignment progress feed. Three event types come through the
-      // polarAlignment category:
-      //   PolarAlignment          — drift/error update (azArcmin, altArcmin, totalArcmin)
-      //   PolarAlignmentStatus    — phase + statusMessage
-      //   PolarAlignmentImage     — solver image preview (ignored here; the
-      //                             dashboard renders the regular last image)
-      handlePolarAlignmentEvent(data);
+      case 'polarAlignment':
+        handlePolarAlignmentEvent(type, payload);
+        break;
     }
   }
 
-  function isExposureCompleteEvent(eventType) {
-    if (!eventType) return false;
-    return eventType === 'exposure_complete' || eventType === 'ExposureComplete'
-        || eventType === 'image_ready' || eventType === 'ImageReady'
-        || eventType === 'ExposureCompleted' || eventType === 'ExposureCompletedWithFrame';
-  }
-
-  function extractGuideStep(payload) {
-    if (!payload || typeof payload !== 'object') return null;
-    // Canonical: raPx, decPx.
-    if (payload.raPx !== undefined && payload.decPx !== undefined) {
-      return { raPx: Number(payload.raPx), decPx: Number(payload.decPx) };
+  /// A guide step's correction in guide-camera pixels, or null.
+  function extractGuideStep(type, payload) {
+    if (type !== WIRE_EVENTS.guiding.guideStep) return null;
+    if (typeof payload.RADistanceRaw !== 'number'
+        || typeof payload.DECDistanceRaw !== 'number') {
+      return null;
     }
-    // Backend currently emits RADistanceRaw/DECDistanceRaw inside the event
-    // `data` payload. Accept both so we work whether the backend has been
-    // updated yet or not.
-    if (payload.RADistanceRaw !== undefined && payload.DECDistanceRaw !== undefined) {
-      return {
-        raPx: Number(payload.RADistanceRaw),
-        decPx: Number(payload.DECDistanceRaw),
-      };
-    }
-    // Legacy camelCase names. Keep accepting for backward compatibility.
-    if (payload.raDistance !== undefined && payload.decDistance !== undefined) {
-      return {
-        raPx: Number(payload.raDistance),
-        decPx: Number(payload.decDistance),
-      };
-    }
-    return null;
+    return { raPx: payload.RADistanceRaw, decPx: payload.DECDistanceRaw };
   }
 
   function messageFromPayload(data) {
-    const t = data.eventType || data.event || data.type;
-    if (t) return String(t);
-    return JSON.stringify(data);
+    const message = data.data && data.data.message;
+    return typeof message === 'string' && message ? message : data.eventType;
   }
 
   // =========================================================================
@@ -2145,7 +2214,7 @@
     }
 
     const exposureTime = parseFloat(document.getElementById('exposure-time').value);
-    const gain = parseInt(document.getElementById('camera-gain').value, 10);
+    const gain = currentCameraGain();
     const binning = parseInt(document.getElementById('camera-binning').value, 10);
 
     if (isNaN(exposureTime) || exposureTime <= 0) {
@@ -2157,7 +2226,9 @@
     // the latest dashboard intent rather than relying on a separate
     // /api/camera/offset call (which still works, but a single round-trip
     // is friendlier on slow links).
-    const offsetRaw = document.getElementById('camera-offset');
+    const offsetRaw = state.cameraIsoSpeeds.length > 0
+      ? null
+      : document.getElementById('camera-offset');
     const offset = offsetRaw ? parseInt(offsetRaw.value, 10) : NaN;
     let subframe;
     try {
@@ -2696,7 +2767,7 @@
 
   async function handleGuideStart() {
     try {
-      await api.phd2StartGuiding();
+      await api.guiderStartGuiding();
       addLogEntry('guiding', 'Guiding started');
       showToast('Guiding started');
     } catch (e) {
@@ -2706,7 +2777,7 @@
 
   async function handleGuideStop() {
     try {
-      await api.phd2StopGuiding();
+      await api.guiderStopGuiding();
       addLogEntry('guiding', 'Guiding stopped');
     } catch (e) {
       showToast('Guide stop failed: ' + e.message, 'error');
@@ -2729,7 +2800,7 @@
       (document.getElementById('guide-dither-amount') || {}).value,
     );
     try {
-      await api.phd2Dither(isFinite(amount) ? amount : 5.0);
+      await api.guiderDither(isFinite(amount) ? amount : 5.0);
       addLogEntry('guiding', 'Dither requested');
       showToast('Dither sent');
     } catch (e) {
@@ -2741,18 +2812,18 @@
     const g = state.guidingStatus;
     const paused = g && (g.paused === true || String(g.state || '').toLowerCase() === 'paused');
     try {
-      await api.phd2SetPaused(!paused);
-      addLogEntry('guiding', paused ? 'Guiding resumed (PHD2)' : 'Guiding paused (PHD2)');
-      showToast(paused ? 'PHD2 resumed' : 'PHD2 paused');
+      await api.guiderSetPaused(!paused);
+      addLogEntry('guiding', paused ? 'Guiding resumed' : 'Guiding paused');
+      showToast(paused ? 'Guiding resumed' : 'Guiding paused');
       await refreshGuidingStatus();
     } catch (e) {
-      showToast('PHD2 pause toggle failed: ' + e.message, 'error');
+      showToast((paused ? 'Resume' : 'Pause') + ' failed: ' + e.message, 'error');
     }
   }
 
   async function refreshGuidingStatus() {
     try {
-      const status = await api.phd2GetStatus();
+      const status = await api.guiderGetStatus();
       state.guidingStatus = status;
       renderGuidingPanel();
       markPanelFresh('guiding');
@@ -2772,6 +2843,11 @@
     const offsetInput = document.getElementById('camera-offset');
     if (gainInput && document.activeElement !== gainInput && status.gain != null) {
       gainInput.value = String(status.gain);
+    }
+    const isoSelect = document.getElementById('camera-iso');
+    if (isoSelect && state.cameraIsoSpeeds.length > 0
+        && document.activeElement !== isoSelect && status.gain != null) {
+      isoSelect.value = String(nearestIsoSpeed(status.gain));
     }
     if (offsetInput && document.activeElement !== offsetInput && status.offset != null) {
       offsetInput.value = String(status.offset);
@@ -2795,14 +2871,15 @@
 
   async function handleCameraApplyGain() {
     if (!state.cameraDeviceId) return;
-    const v = parseInt(document.getElementById('camera-gain').value, 10);
+    const iso = state.cameraIsoSpeeds.length > 0;
+    const v = currentCameraGain();
     if (isNaN(v)) { showToast('Gain must be an integer', 'error'); return; }
     try {
       await api.cameraSetGain(state.cameraDeviceId, v);
-      addLogEntry('camera', 'Gain set to ' + v);
-      showToast('Gain applied');
+      addLogEntry('camera', (iso ? 'ISO set to ' : 'Gain set to ') + v);
+      showToast(iso ? 'ISO applied' : 'Gain applied');
     } catch (e) {
-      showToast('Set gain failed: ' + e.message, 'error');
+      showToast((iso ? 'Set ISO failed: ' : 'Set gain failed: ') + e.message, 'error');
     }
   }
 
@@ -3109,13 +3186,31 @@
       return;
     }
     try {
-      const result = await api.autofocusStart(state.focuserDeviceId, state.cameraDeviceId);
-      state.lastAutofocusResult = result;
+      const started = await api.autofocusStart(state.focuserDeviceId, state.cameraDeviceId);
       addLogEntry('focuser', 'Autofocus started');
       showToast('Autofocus started');
+      const result = await api.followJob(started, { timeoutMs: 1800000 });
+      state.lastAutofocusResult = result;
       renderFocuserPanel();
+      const best = wireNumber(result && result.bestPosition);
+      const hfr = wireNumber(result && result.bestHfr);
+      const summary = 'Autofocus finished' +
+        (best != null ? ' at ' + Math.round(best) : '') +
+        (hfr != null ? ', HFR ' + hfr.toFixed(2) : '');
+      addLogEntry('focuser', summary);
+      showToast(summary);
     } catch (e) {
-      showToast('Autofocus failed: ' + e.message, 'error');
+      if (e && e.kind === 'job_cancelled') {
+        addLogEntry('focuser', 'Autofocus cancelled');
+        showToast('Autofocus cancelled');
+        return;
+      }
+      // The host's reason arrives wrapped in its own "failed" prefixes.
+      const why = String((e && e.message) || e)
+        .replace(/^Operation failed:\s*/, '')
+        .replace(/^Autofocus failed:\s*/, '');
+      addLogEntry('error', 'Autofocus failed: ' + why);
+      showToast('Autofocus failed: ' + why, 'error');
     }
   }
 
@@ -4208,10 +4303,10 @@
 
     // RMS values. Two corrections live here:
     //
-    //  * The key is `rmsRa`, not `rmsRA` (GET /api/phd2/status). The capitalised
+    //  * The key is `rmsRa`, not `rmsRA` (GET /api/guider/status). The capitalised
     //    spelling matched nothing, so the RA row never left "--" even while
     //    guiding.
-    //  * A disconnected PHD2 reports 0.0 for all three. Rendering that gave a
+    //  * A disconnected guider reports 0.0 for all three. Rendering that gave a
     //    dead guider a flawless 0.00" RMS — the most reassuring possible
     //    reading of no data at all. Only a connected guider's numbers show.
     const connected = g.connected === true;
@@ -5956,18 +6051,23 @@
       // Hint with current mount position if we have one — speeds up the solve
       // substantially compared to a blind solve, especially on phones over
       // a slow link where every retry counts.
-      const hint = state.mountStatus
-        ? {
-            ra: state.mountStatus.rightAscension,
-            dec: state.mountStatus.declination,
-          }
+      // The mount reports RA in hours; the solver takes its hint, and gives
+      // its answer, in degrees.
+      const mountRaHours = state.mountStatus
+        ? wireNumber(state.mountStatus.rightAscension)
+        : null;
+      const hint = mountRaHours != null
+        ? { ra: mountRaHours * 15, dec: state.mountStatus.declination }
         : {};
       const result = await api.plateSolve(filePath, hint);
       state.lastPlateSolve = result;
 
+      // A host from before a failed solve ended its job `failed` reports the
+      // failure inside a finished job's result.
       if (!result || !result.success) {
-        const msg = result && result.error ? result.error : 'Plate solve failed';
-        throw new Error(msg);
+        throw new Error(
+          result && result.error ? result.error : 'the solver found no solution',
+        );
       }
 
       // Make the position-angle available to the rotator panel exactly the
@@ -5978,10 +6078,11 @@
         renderRotatorPanel();
       }
 
+      const solvedRaHours = solvedRaInHours(result);
       renderPlateSolveResult(result, filePath);
       const solvedRotation = wireNumber(result.rotation);
       addLogEntry('imaging',
-        'Plate-solve: RA ' + formatRA(result.ra) +
+        'Plate-solve: RA ' + formatRA(solvedRaHours) +
         ' Dec ' + formatDec(result.dec) +
         (solvedRotation != null ? ' PA ' + solvedRotation.toFixed(2) + '°' : ''));
 
@@ -5990,7 +6091,20 @@
           showToast('No mount connected — solved but cannot sync', 'error');
           return;
         }
-        await api.mountSync(state.mountDeviceId, result.ra, result.dec);
+        // The solve stands whatever the sync does: a refused sync is told as
+        // that, with the host's reason, under the solved position.
+        try {
+          if (solvedRaHours == null) {
+            throw new Error('the solve reported no right ascension to sync to');
+          }
+          await api.mountSync(state.mountDeviceId, solvedRaHours, result.dec);
+        } catch (syncError) {
+          const why = serverMessageOf(syncError);
+          if (resultEl) resultEl.textContent += '\nMount not synced: ' + why;
+          addLogEntry('error', 'Mount sync failed: ' + why);
+          showToast('Solved, but the mount was not synced: ' + why, 'error');
+          return;
+        }
         addLogEntry('mount', 'Mount synced to plate-solved RA/Dec');
         showToast('Plate-solved and synced mount');
       } else {
@@ -6003,11 +6117,35 @@
     }
   }
 
+  /// The reason a request was refused, in the host's words when its answer
+  /// carried a message, else the error's own.
+  function serverMessageOf(e) {
+    const body = e && e.detail && e.detail.body;
+    if (body) {
+      try {
+        const parsed = JSON.parse(body);
+        if (parsed && typeof parsed.message === 'string' && parsed.message) {
+          return parsed.message;
+        }
+      } catch (_) {
+        // Not JSON: the error's own text is all there is.
+      }
+    }
+    return e && e.message ? e.message : String(e);
+  }
+
+  /// A solve's right ascension in hours, which is what the mount and the
+  /// readouts use. The solver reports degrees.
+  function solvedRaInHours(result) {
+    const degrees = wireNumber(result && result.ra);
+    return degrees != null ? degrees / 15 : null;
+  }
+
   function renderPlateSolveResult(result, filePath) {
     const el = document.getElementById('plate-solve-result');
     if (!el) return;
     const lines = [];
-    lines.push('RA  ' + formatRA(result.ra));
+    lines.push('RA  ' + formatRA(solvedRaInHours(result)));
     lines.push('Dec ' + formatDec(result.dec));
     const pixelScale = wireNumber(result.pixelScale);
     if (pixelScale != null) {
@@ -6119,20 +6257,14 @@
     }
   }
 
-  function handlePolarAlignmentEvent(data) {
-    const eventType = data.eventType || data.event || '';
-    const payload = data.data || data;
-    if (eventType === 'PolarAlignmentStatus') {
-      state.polarAlignment.phase = String(payload.phase || payload.status || 'unknown');
-      state.polarAlignment.statusMessage = String(payload.statusMessage || payload.status || '');
-    } else if (eventType === 'PolarAlignment') {
-      // The error event carries azArcmin/altArcmin and (optionally) total.
-      const az = Number(payload.azArcmin != null ? payload.azArcmin : (payload.az_arcmin || 0));
-      const alt = Number(payload.altArcmin != null ? payload.altArcmin : (payload.alt_arcmin || 0));
-      const total = payload.totalArcmin != null
-        ? Number(payload.totalArcmin)
-        : Math.sqrt(az * az + alt * alt);
-      state.polarAlignment.totalErrorArcmin = total;
+  function handlePolarAlignmentEvent(type, payload) {
+    if (type === WIRE_EVENTS.polarAlignment.polarAlignmentStatus) {
+      state.polarAlignment.phase = String(payload.phase || 'unknown');
+      state.polarAlignment.statusMessage = String(payload.status || '');
+    } else if (type === WIRE_EVENTS.polarAlignment.polarAlignment) {
+      // The host sends the error in arcseconds.
+      const arcsec = wireNumber(payload.total_error);
+      state.polarAlignment.totalErrorArcmin = arcsec == null ? null : arcsec / 60;
     }
     renderPolarAlignmentPanel();
   }
@@ -6438,6 +6570,10 @@
       rotation: rotation || 0,
       panelsHorizontal: cols,
       panelsVertical: rows,
+      // Panels run from the top-left corner and reverse direction every row,
+      // so each slew to the next row is one panel long.
+      startCorner: 'topLeft',
+      serpentine: true,
     };
   }
 
@@ -6532,7 +6668,6 @@
         config,
         exposure,
         options: {
-          serpentineOrdering: true,
           centerAfterSlew: true,
         },
       });
@@ -6818,13 +6953,16 @@
     setWizardError('framing-modal', '');
     try {
       const { ra, dec } = readFramingCoordinates();
-      document.getElementById('framing-action-status').textContent =
-        'Centering on target (plate-solve iteration)...';
+      const statusEl = document.getElementById('framing-action-status');
+      statusEl.textContent = 'Centering on target (plate-solve iteration)...';
       const result = await api.framingCenterOnTarget(ra, dec, {
         maxIterations: 5,
         toleranceArcsec: 30.0,
         exposureTime: 3.0,
         binning: 2,
+        onProgress: (job) => {
+          if (job && job.progressMessage) statusEl.textContent = job.progressMessage;
+        },
       });
       // An unreported iteration count reads '--', not 0: "0 iter" claims the
       // centering converged without moving, which is a result nobody sent.
@@ -6832,17 +6970,26 @@
       const iters = iterCount != null ? String(iterCount) : '--';
       const offset = wireNumber(result && result.finalOffsetArcsec);
       const off = offset != null ? offset.toFixed(1) + '"' : '--';
-      if (result && result.success) {
-        document.getElementById('framing-action-status').textContent =
-          'Centered (' + iters + ' iter, residual ' + off + ')';
-        addLogEntry('mount', 'Framing: centered (' + iters + ' iter)');
-        showToast('Centered on target');
-      } else {
-        const err = result && result.errorMessage ? result.errorMessage : 'unknown failure';
-        throw new Error('Centering failed: ' + err);
+      // A failed centering ends its job `failed` and is thrown above; a host
+      // from before that reports it inside a finished job's result.
+      if (!result || !result.success) {
+        throw new Error(
+          result && result.errorMessage
+            ? result.errorMessage
+            : 'the host gave no reason',
+        );
       }
+      statusEl.textContent = 'Centered (' + iters + ' iter, residual ' + off + ')';
+      addLogEntry('mount', 'Framing: centered (' + iters + ' iter)');
+      showToast('Centered on target');
     } catch (e) {
-      setWizardError('framing-modal', e.message);
+      const cancelled = e && e.kind === 'job_cancelled';
+      document.getElementById('framing-action-status').textContent =
+        cancelled ? 'Centering cancelled' : 'Centering failed';
+      setWizardError(
+        'framing-modal',
+        cancelled ? 'Centering was cancelled.' : 'Centering failed: ' + e.message,
+      );
       addLogEntry('error', describeApiError(e, 'Centering'));
     }
   }

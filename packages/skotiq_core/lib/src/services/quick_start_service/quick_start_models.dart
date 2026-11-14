@@ -1,27 +1,24 @@
 part of '../quick_start_service.dart';
 
-// EquipmentSnapshot - Captures equipment state for quick session resumption
-
 /// Represents a snapshot of equipment state at a point in time.
 /// Used to restore equipment settings when resuming a session.
 class EquipmentSnapshot {
   /// Target temperature for camera cooling (Celsius)
   final double? coolerTargetTemp;
 
-  /// Camera gain setting
   final int? cameraGain;
 
-  /// Camera offset setting
   final int? cameraOffset;
 
-  /// Camera horizontal binning
   final int? cameraBinX;
 
-  /// Camera vertical binning
   final int? cameraBinY;
 
   /// Filter wheel position (0-indexed)
   final int? filterPosition;
+
+  /// The name of the filter at [filterPosition] when it was recorded.
+  final String? filterName;
 
   /// Focuser position in steps
   final int? focuserPosition;
@@ -29,7 +26,6 @@ class EquipmentSnapshot {
   /// Last used exposure time in seconds
   final double? exposureTime;
 
-  /// When this snapshot was captured
   final DateTime capturedAt;
 
   const EquipmentSnapshot({
@@ -39,12 +35,12 @@ class EquipmentSnapshot {
     this.cameraBinX,
     this.cameraBinY,
     this.filterPosition,
+    this.filterName,
     this.focuserPosition,
     this.exposureTime,
     required this.capturedAt,
   });
 
-  /// Create a copy with some fields replaced
   EquipmentSnapshot copyWith({
     double? coolerTargetTemp,
     int? cameraGain,
@@ -52,6 +48,7 @@ class EquipmentSnapshot {
     int? cameraBinX,
     int? cameraBinY,
     int? filterPosition,
+    String? filterName,
     int? focuserPosition,
     double? exposureTime,
     DateTime? capturedAt,
@@ -63,13 +60,13 @@ class EquipmentSnapshot {
       cameraBinX: cameraBinX ?? this.cameraBinX,
       cameraBinY: cameraBinY ?? this.cameraBinY,
       filterPosition: filterPosition ?? this.filterPosition,
+      filterName: filterName ?? this.filterName,
       focuserPosition: focuserPosition ?? this.focuserPosition,
       exposureTime: exposureTime ?? this.exposureTime,
       capturedAt: capturedAt ?? this.capturedAt,
     );
   }
 
-  /// Convert to JSON map for database storage
   Map<String, dynamic> toJson() {
     return {
       'coolerTargetTemp': coolerTargetTemp,
@@ -78,13 +75,13 @@ class EquipmentSnapshot {
       'cameraBinX': cameraBinX,
       'cameraBinY': cameraBinY,
       'filterPosition': filterPosition,
+      'filterName': filterName,
       'focuserPosition': focuserPosition,
       'exposureTime': exposureTime,
       'capturedAt': capturedAt.toIso8601String(),
     };
   }
 
-  /// Create from JSON map (from database)
   factory EquipmentSnapshot.fromJson(Map<String, dynamic> json) {
     return EquipmentSnapshot(
       coolerTargetTemp: jsonDouble(
@@ -111,6 +108,10 @@ class EquipmentSnapshot {
         json['filterPosition'],
         context: 'equipment_snapshot.filterPosition',
       ),
+      filterName: jsonString(
+        json['filterName'],
+        context: 'equipment_snapshot.filterName',
+      ),
       focuserPosition: jsonInt(
         json['focuserPosition'],
         context: 'equipment_snapshot.focuserPosition',
@@ -128,10 +129,8 @@ class EquipmentSnapshot {
     );
   }
 
-  /// Convert to JSON string for database storage
   String toJsonString() => jsonEncode(toJson());
 
-  /// Create from JSON string (from database)
   factory EquipmentSnapshot.fromJsonString(String jsonStr) {
     final json = decodeJsonObjectString(
       jsonStr,
@@ -140,7 +139,6 @@ class EquipmentSnapshot {
     return EquipmentSnapshot.fromJson(json);
   }
 
-  /// Check if this snapshot has meaningful equipment data
   bool get hasEquipmentData {
     return coolerTargetTemp != null ||
         cameraGain != null ||
@@ -197,24 +195,18 @@ class EquipmentSnapshot {
   }
 }
 
-// QuickStartContext - Full context for quick session resumption
-
 /// Contains all the information needed to quickly resume a previous session.
 /// This includes session details, target info, sequence progress, and equipment state.
 class QuickStartContext {
-  /// Database ID of the session
   final int sessionId;
 
   /// User-provided session name
   final String? sessionName;
 
-  /// Equipment profile ID used in this session
   final int? profileId;
 
-  /// Equipment profile name
   final String? profileName;
 
-  /// Target ID being imaged
   final int? targetId;
 
   /// Target name (e.g., "Orion Nebula")
@@ -226,10 +218,8 @@ class QuickStartContext {
   /// Target declination in decimal degrees
   final double? targetDec;
 
-  /// Sequence ID being executed
   final int? sequenceId;
 
-  /// Sequence name
   final String? sequenceName;
 
   /// Number of frames completed in the sequence
@@ -238,10 +228,8 @@ class QuickStartContext {
   /// Total frames planned in the sequence
   final int totalFrames;
 
-  /// When the session was last active
   final DateTime lastSessionDate;
 
-  /// Captured equipment state
   final EquipmentSnapshot? equipmentSnapshot;
 
   /// Total integration time accumulated in hours
@@ -250,6 +238,10 @@ class QuickStartContext {
   /// True only when the execution backend has a resumable checkpoint for this
   /// sequence. Historical session progress alone is not a checkpoint.
   final bool canResumeFromCheckpoint;
+
+  /// True when the operator stopped the run (keeping its resume point);
+  /// false when it was interrupted, by a crash or a closed app.
+  final bool stoppedByOperator;
 
   const QuickStartContext({
     required this.sessionId,
@@ -268,6 +260,7 @@ class QuickStartContext {
     this.equipmentSnapshot,
     this.totalIntegrationHours = 0.0,
     this.canResumeFromCheckpoint = false,
+    this.stoppedByOperator = false,
   });
 
   /// Decorate this historical context with the backend's current checkpoint.
@@ -293,9 +286,10 @@ class QuickStartContext {
       completedFrames: matches
           ? math.max(completedFrames, checkpoint.completedExposures)
           : completedFrames,
-      totalFrames: matches
-          ? math.max(totalFrames, checkpoint.completedExposures)
-          : totalFrames,
+      // The plan's total, never the frames taken: a total equal to the
+      // frames taken read as a finished run, and the prompt then offered
+      // nothing for a run stopped with its resume point kept.
+      totalFrames: totalFrames,
       lastSessionDate: lastSessionDate,
       equipmentSnapshot: equipmentSnapshot,
       totalIntegrationHours: matches
@@ -305,26 +299,22 @@ class QuickStartContext {
             )
           : totalIntegrationHours,
       canResumeFromCheckpoint: matches,
+      stoppedByOperator: stoppedByOperator,
     );
   }
 
-  /// Calculate the percentage of frames completed
   double get progressPercentage {
     if (totalFrames == 0) return 0.0;
     return (completedFrames / totalFrames * 100).clamp(0.0, 100.0);
   }
 
-  /// Check if the session has meaningful progress
   bool get hasProgress => completedFrames > 0 || totalIntegrationHours > 0;
 
-  /// Check if this context has target coordinates
   bool get hasTargetCoordinates => targetRa != null && targetDec != null;
 
-  /// Check if this context has equipment snapshot
   bool get hasEquipmentSnapshot =>
       equipmentSnapshot != null && equipmentSnapshot!.hasEquipmentData;
 
-  /// Get a display-friendly session description
   String get displayDescription {
     final parts = <String>[];
 
@@ -337,7 +327,11 @@ class QuickStartContext {
     }
 
     if (completedFrames > 0) {
-      parts.add('$completedFrames/$totalFrames frames');
+      parts.add(
+        totalFrames > 0
+            ? '$completedFrames/$totalFrames frames'
+            : '$completedFrames frames',
+      );
     }
 
     if (totalIntegrationHours > 0) {
@@ -347,7 +341,6 @@ class QuickStartContext {
     return parts.join(' - ');
   }
 
-  /// Get how long ago the session was active
   Duration get timeSinceLastSession {
     return DateTime.now().difference(lastSessionDate);
   }

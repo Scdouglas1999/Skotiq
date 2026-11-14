@@ -13,9 +13,10 @@
 //! - Configurable timeouts for all operations
 
 use crate::error::{IndiError, IndiResult};
+use crate::protocol::names::*;
 use crate::{
-    IndiDevice, IndiPermission, IndiProperty, IndiPropertyState, IndiPropertyType, IndiSwitchRule,
-    IndiTimeoutConfig, IndiTimeoutError, INDI_DEFAULT_PORT,
+    IndiDevice, IndiDeviceDescription, IndiPermission, IndiProperty, IndiPropertyState,
+    IndiPropertyType, IndiSwitchRule, IndiTimeoutConfig, IndiTimeoutError, INDI_DEFAULT_PORT,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use quick_xml::events::Event;
@@ -44,13 +45,22 @@ pub use event::*;
 use jitter::*;
 pub(crate) use xml::*;
 
-/// Supported INDI protocol versions
-pub const INDI_PROTOCOL_VERSIONS: &[&str] = &["1.7", "1.8", "1.9"];
-
-/// Default protocol version to use
 pub const DEFAULT_PROTOCOL_VERSION: &str = "1.7";
 
 const EVENT_CHANNEL_CAPACITY: usize = 1024;
+
+/// Whether a property update time read after a command is from a newer
+/// update than the one read before it.
+fn is_newer_update(before_ms: Option<u64>, after_ms: Option<u64>) -> bool {
+    match (before_ms, after_ms) {
+        (None, Some(_)) => true,
+        (Some(before), Some(after)) => after > before,
+        _ => false,
+    }
+}
+
+/// How long a driver gets to read a device back as connected or disconnected.
+const DEVICE_CONFIRM_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Number element limits (min, max, step)
 #[derive(Debug, Clone, Default)]
@@ -61,19 +71,15 @@ pub struct NumberLimits {
     pub format: Option<String>,
 }
 
-/// Type alias for property value storage
 type PropertyValueMap = HashMap<(String, String, String), String>;
 
-/// Type alias for number limits storage
 type NumberLimitsMap = HashMap<(String, String, String), NumberLimits>;
 
-/// Type alias for latest BLOB payload storage.
 type BlobMap = HashMap<(String, String, String), Vec<u8>>;
 
 /// Milliseconds since UNIX epoch when a property last received a `set*Vector` update.
 type PropertyUpdateMap = HashMap<(String, String), u64>;
 
-/// INDI client for communicating with an INDI server
 pub struct IndiClient {
     host: String,
     port: u16,
@@ -94,23 +100,15 @@ pub struct IndiClient {
     last_keepalive_response_ms: Arc<AtomicU64>,
     /// Atomic flag to prevent overlapping keepalive checks
     keepalive_in_progress: Arc<AtomicBool>,
-    /// Atomic flag indicating reconnection is in progress
     reconnecting: Arc<AtomicBool>,
-    /// Atomic reconnection attempt counter
     reconnect_attempts: Arc<AtomicU32>,
-    /// Reader task status
     reader_status: Arc<RwLock<ReaderStatus>>,
     /// Consecutive reader failure count (for supervision)
     reader_consecutive_failures: Arc<AtomicU32>,
-    /// Shutdown signal sender
     shutdown_tx: Option<oneshot::Sender<()>>,
-    /// Protocol configuration
     protocol_config: ProtocolConfig,
-    /// Detected server protocol version
     server_version: Arc<RwLock<Option<String>>>,
-    /// Reconnection configuration
     reconnection_config: ReconnectionConfig,
-    /// Reader task supervision configuration
     reader_task_config: ReaderTaskConfig,
     /// Per-instance jitter PRNG used for reconnect/restart backoff. See
     /// [`make_jitter_rng`] for the seeding rationale.
@@ -118,12 +116,10 @@ pub struct IndiClient {
 }
 
 impl IndiClient {
-    /// Create a new INDI client
     pub fn new(host: &str, port: Option<u16>) -> Self {
         Self::with_timeout_config(host, port, IndiTimeoutConfig::default())
     }
 
-    /// Create a new INDI client with custom timeout configuration
     pub fn with_timeout_config(
         host: &str,
         port: Option<u16>,
@@ -165,7 +161,6 @@ impl IndiClient {
         }
     }
 
-    /// Create a new INDI client with full configuration
     pub fn with_full_config(
         host: &str,
         port: Option<u16>,
@@ -228,47 +223,42 @@ impl IndiClient {
         }
     }
 
-    /// Get the timeout configuration
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
     pub fn timeout_config(&self) -> &IndiTimeoutConfig {
         &self.timeout_config
     }
 
-    /// Set the timeout configuration
     pub fn set_timeout_config(&mut self, config: IndiTimeoutConfig) {
         self.timeout_config = config;
     }
 
-    /// Get the protocol configuration
     pub fn protocol_config(&self) -> &ProtocolConfig {
         &self.protocol_config
     }
 
-    /// Set the protocol configuration
-    pub fn set_protocol_config(&mut self, config: ProtocolConfig) {
-        self.protocol_config = config;
-    }
-
-    /// Get the reconnection configuration
     pub fn reconnection_config(&self) -> &ReconnectionConfig {
         &self.reconnection_config
     }
 
-    /// Set the reconnection configuration
     pub fn set_reconnection_config(&mut self, config: ReconnectionConfig) {
         self.reconnection_config = config;
     }
 
-    /// Get the reader task configuration
     pub fn reader_task_config(&self) -> &ReaderTaskConfig {
         &self.reader_task_config
     }
 
-    /// Set the reader task configuration
     pub fn set_reader_task_config(&mut self, config: ReaderTaskConfig) {
         self.reader_task_config = config;
     }
 
-    /// Get the detected server protocol version
     pub async fn server_version(&self) -> Option<String> {
         self.server_version.read().await.clone()
     }
@@ -283,7 +273,6 @@ impl IndiClient {
             .ok_or_else(|| IndiError::ProtocolError("Server version not detected".to_string()))
     }
 
-    /// Subscribe to INDI events
     pub fn subscribe(&self) -> broadcast::Receiver<IndiEvent> {
         self.event_tx.subscribe()
     }
@@ -304,12 +293,10 @@ impl IndiClient {
         ))
     }
 
-    /// Connect to the INDI server
     pub async fn connect(&mut self) -> IndiResult<()> {
         let addr = format!("{}:{}", self.host, self.port);
         let connection_timeout = self.timeout_config.connection_timeout();
 
-        // Apply connection timeout
         let stream = match timeout(connection_timeout, TcpStream::connect(&addr)).await {
             Ok(Ok(stream)) => stream,
             Ok(Err(e)) => {
@@ -329,15 +316,12 @@ impl IndiClient {
 
         let (read_half, write_half) = stream.into_split();
 
-        // Create channel for sending commands
         let (tx, rx) = mpsc::channel::<String>(100);
         self.tx = Some(tx);
 
-        // Create shutdown channel for reader task supervision
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         self.shutdown_tx = Some(shutdown_tx);
 
-        // Spawn writer task
         tokio::spawn(Self::writer_task(
             write_half,
             rx,
@@ -352,7 +336,6 @@ impl IndiClient {
         self.last_keepalive_response_ms.store(now, Ordering::SeqCst);
         self.keepalive_in_progress.store(false, Ordering::SeqCst);
 
-        // Spawn supervised reader task
         let devices = self.devices.clone();
         let properties = self.properties.clone();
         let property_values = self.property_values.clone();
@@ -372,13 +355,10 @@ impl IndiClient {
         // to a shared global PRNG.
         let jitter_rng = self.jitter_rng.clone();
 
-        // Reset consecutive failures on successful connect
         self.reader_consecutive_failures.store(0, Ordering::SeqCst);
 
-        // Update reader status
         *self.reader_status.write().await = ReaderStatus::Running;
 
-        // Emit health changed event - reader is now healthy
         send_indi_event(
             &self.event_tx,
             IndiEvent::ReaderHealthChanged {
@@ -412,7 +392,6 @@ impl IndiClient {
             .await;
         });
 
-        // Mark as connected
         self.connected.store(true, Ordering::SeqCst);
         send_indi_event(
             &self.event_tx,
@@ -439,7 +418,6 @@ impl IndiClient {
     pub async fn disconnect(&mut self) -> IndiResult<()> {
         tracing::info!("Disconnecting from INDI server {}:{}", self.host, self.port);
 
-        // Send shutdown signal to reader task
         if let Some(tx) = self.shutdown_tx.take() {
             let _ = tx.send(());
         }
@@ -465,10 +443,8 @@ impl IndiClient {
         self.reconnecting.store(false, Ordering::SeqCst);
         self.reconnect_attempts.store(0, Ordering::SeqCst);
 
-        // Update reader status
         *self.reader_status.write().await = ReaderStatus::Stopped;
 
-        // Emit events
         send_indi_event(
             &self.event_tx,
             IndiEvent::ReaderHealthChanged {
@@ -487,12 +463,10 @@ impl IndiClient {
         Ok(())
     }
 
-    /// Check if connected
     pub async fn is_connected(&self) -> bool {
         self.connected.load(Ordering::SeqCst)
     }
 
-    /// Get reader task status
     pub async fn reader_status(&self) -> ReaderStatus {
         *self.reader_status.read().await
     }
@@ -512,7 +486,6 @@ impl IndiClient {
         failures == 0 && self.connected.load(Ordering::SeqCst)
     }
 
-    /// Get the number of consecutive reader failures
     pub fn reader_consecutive_failures(&self) -> u32 {
         self.reader_consecutive_failures.load(Ordering::SeqCst)
     }

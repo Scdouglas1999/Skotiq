@@ -9,21 +9,6 @@ enum MountSiteSyncDirection {
   mountToComputer,
 }
 
-/// What the app does when a connected mount disagrees with the computer.
-enum MountSiteSyncMode {
-  /// Ask every time the two disagree.
-  ask,
-
-  /// Always push the computer's values without asking.
-  alwaysComputerToMount,
-
-  /// Always adopt the mount's values without asking.
-  alwaysMountToComputer,
-
-  /// Never compare and never ask.
-  never,
-}
-
 /// A side-by-side of what the computer believes and what the mount believes.
 ///
 /// Held as data rather than acted on: neither source is automatically right. A

@@ -5,6 +5,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/widgets/skotiq_bottom_navigation.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 /// Pump the bar at [route] and return the labels of the selected slots.
 ///
@@ -182,5 +183,33 @@ void main() {
             'Bottom nav tap target height below ${SkotiqTokens.minTouchTarget}pt',
       );
     }
+  });
+
+  testWidgets('the More sheet opens Session replay', (tester) async {
+    final selected = <AppRoute>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Scaffold(
+          bottomNavigationBar: SkotiqBottomNavigation(
+            currentRoute: '/dashboard',
+            onRouteSelected: selected.add,
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('More'));
+    await tester.pumpAndSettle();
+
+    // The default 800x600 test view gives the sheet less height than the
+    // list needs, so this also proves the sheet scrolls instead of clipping.
+    await tester.ensureVisible(find.text('Session replay'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Session replay'));
+    await tester.pumpAndSettle();
+
+    expect(selected, [AppRoute.sessionReplay]);
+    expect(find.text('Session replay'), findsNothing);
+    expect(await _selectedLabels(tester, '/session-replay/12'), ['More']);
   });
 }

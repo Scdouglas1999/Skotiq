@@ -2,17 +2,18 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/imaging_models.dart' show CoolingStatus;
 import '../providers/equipment_provider.dart';
 import '../providers/imaging_provider.dart'
     show coolingStatusProvider, temperatureHistoryProvider;
-import 'logging_service.dart';
 import '../models/sequence/sequence_models.dart'
     show SequenceExecutionStateCapabilities;
 import '../providers/sequence/sequence_progress.dart'
     show sequenceExecutionStateProvider;
+import '../backend/roles/host_data/host_link.dart';
+import '../models/backend/backend_types.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Maximum absolute deviation, in degrees Celsius, between the live sensor
 /// temperature and the cooling target at which the cooler is considered to
@@ -26,8 +27,8 @@ const double _atTargetToleranceC = 1.0;
 ///
 /// Separate from `DeviceService` so the polling lifecycle is owned by a
 /// dedicated collaborator. The poller is started by
-/// [DeviceService.connectCamera] and stopped by
-/// [DeviceService.disconnectCamera] / `prepareForBackendSwap` /
+/// [DeviceService.connect] and stopped by
+/// [DeviceService.disconnect] / `prepareForBackendSwap` /
 /// `dispose`. A monotonic generation counter is used to ignore stale
 /// timer ticks left over from a previous camera id, which is essential
 /// when the user swaps cameras without explicitly disconnecting first.
@@ -35,15 +36,21 @@ class CameraTemperaturePoller {
   CameraTemperaturePoller({
     required Ref ref,
     required SkotiqBackend backend,
+    HostLink? hostLink,
     Duration interval = const Duration(seconds: 5),
     Duration idleInterval = const Duration(seconds: 30),
   }) : _ref = ref,
        _backend = backend,
+       _hostLink = hostLink,
        _interval = interval,
        _idleInterval = idleInterval;
 
   final Ref _ref;
   final SkotiqBackend _backend;
+
+  /// The link to the camera's host, or null where the camera is this
+  /// process's own.
+  final HostLink? _hostLink;
 
   /// Poll cadence while the cooler is actively running — the sensor temperature
   /// is moving, so the UI wants frequent updates.
@@ -136,14 +143,16 @@ class CameraTemperaturePoller {
     // identical warning to the log every 5 s until the operator re-pairs.
     // Ticks keep rescheduling (each becomes a cheap flag check) so polling
     // resumes on its own once a reconnect clears the latch.
-    final backend = _backend;
-    if (backend is NetworkBackend && backend.isAuthTokenRejected) return;
+    if (_hostLink?.isAuthTokenRejected == true) return;
 
     try {
       final status = await _backend.getCameraStatus(deviceId);
       if (_connectedCameraId != deviceId || _generation != generation) {
         return;
       }
+      _ref
+          .read(deviceReadHealthProvider.notifier)
+          .recordSuccess(DeviceType.camera, deviceId);
 
       _settleStaleExposure(status.state);
 
@@ -160,22 +169,15 @@ class CameraTemperaturePoller {
       final power = status.coolerPower;
       final targetTemp = status.targetTemp;
 
-      try {
-        final logger = _ref.read(loggingServiceProvider);
-        logger.debug(
+      logSafely(
+        _ref,
+        (logger) => logger.debug(
           'Camera temp: ${temp?.toStringAsFixed(1) ?? "null"}°C, '
           'power: ${power?.toStringAsFixed(0) ?? "null"}%, '
           'target: ${targetTemp?.toStringAsFixed(1) ?? "null"}°C',
           source: 'CameraTemperaturePoller',
-        );
-      } on Object catch (e) {
-        // Why: logger lookup happens inside a temperature poll tick; if the
-        // logging service itself is mid-disposal we must not propagate up the
-        // poll loop. Diagnostic-only failure — emit to stderr so it isn't
-        // fully silent.
-        // ignore: avoid_print
-        print('CameraTemperaturePoller: temp-log emission failed: $e');
-      }
+        ),
+      );
 
       if (temp != null) {
         _ref.read(cameraStateProvider.notifier).updateTemperature(temp, power);
@@ -199,12 +201,13 @@ class CameraTemperaturePoller {
         // Cooler power is duty cycle, not the on/off authority. A regulated
         // cooler legitimately reports 0% while holding its target, and some
         // drivers do not expose power at all. CameraStatus.coolerOn is the
-        // authoritative state on both FFI and remote backends.
-        final isCooling = status.coolerOn;
-        // Drive the adaptive poll cadence: frequent while cooling, relaxed when
-        // the cooler is off. (Only updated on a real reading; a null/errored
-        // poll leaves the cadence unchanged.)
-        _coolerActive = isCooling;
+        // authoritative state on both FFI and remote backends; null when the
+        // camera cannot say.
+        final isCooling = status.coolerOn == true;
+        // Drive the adaptive poll cadence: frequent unless the cooler is known
+        // to be off. (Only updated on a real reading; a null/errored poll
+        // leaves the cadence unchanged.)
+        _coolerActive = status.coolerOn != false;
         final isAtTarget =
             isCooling && (temp - effectiveTarget).abs() <= _atTargetToleranceC;
 
@@ -220,23 +223,18 @@ class CameraTemperaturePoller {
       if (_connectedCameraId != deviceId || _generation != generation) {
         return;
       }
-      try {
-        final logger = _ref.read(loggingServiceProvider);
-        logger.warning(
+      // The temperature, cooler and settings the camera slot shows are now
+      // older than this poll; say so wherever they are shown.
+      _ref
+          .read(deviceReadHealthProvider.notifier)
+          .recordFailure(DeviceType.camera, deviceId, e);
+      logSafely(
+        _ref,
+        (logger) => logger.warning(
           'Temperature polling error: $e',
           source: 'CameraTemperaturePoller',
-        );
-      } on Object catch (loggerErr) {
-        // Why: nested catch around logger emission during the poll-loop's
-        // error path. If the logging provider is itself disposing we must
-        // not re-throw — that would mask the original temperature-polling
-        // failure. Surface to stderr so it isn't fully silent.
-        // ignore: avoid_print
-        print(
-          'CameraTemperaturePoller: warn-log emission failed: '
-          '$loggerErr (original temp-poll error: $e)',
-        );
-      }
+        ),
+      );
     }
   }
 }

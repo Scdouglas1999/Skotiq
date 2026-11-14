@@ -5,18 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart'
+import 'package:skotiq_astro/format.dart' show DurationFormat, QuantityFormat;
+import 'package:skotiq_core/backend.dart' show ImagingBackend;
+import 'package:skotiq_core/database.dart'
+    show DbCapturedImage, FramePhotometricCalibrationRow;
+import 'package:skotiq_core/errors.dart' show userFacingError;
+import 'package:skotiq_core/providers.dart'
+    show imagingBackendProvider, isRemoteModeProvider;
+import 'package:skotiq_core/services.dart'
     show
-        imagingBackendProvider,
-        ImagingBackend,
-        imagingRecordsRepositoryProvider,
-        isRemoteModeProvider,
-        DbCapturedImage,
-        FramePhotometricCalibrationRow,
+        imagingRecordsProvider,
         FrameQualityAssessment,
         FrameQualityAssessmentService,
-        FrameQualityLevel,
-        frameExclusionKindOf;
+        FrameQualityLevel;
 
 import '../../../utils/snackbar_helper.dart';
 import '../analytics_screen.dart' show dbSessionImagesProvider;
@@ -25,6 +26,7 @@ import 'frame_detail_dialog.dart';
 import '../../../utils/image_decode_size.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
+import 'package:skotiq_core/models.dart';
 
 part 'image_thumbnail_strip_parts/_chips.dart';
 part 'image_thumbnail_strip_parts/_thumbnail.dart';
@@ -37,6 +39,11 @@ enum _QualityFilter {
 
 /// Fixed height for the horizontal thumbnail rail (not a chart plot area).
 const double kAnalyticsThumbnailRailHeight = 120;
+
+/// A rail tile's width: room for the verdict badge and the HFR badge side by
+/// side without either being cut off.
+const double _kThumbnailWidth = 116;
+const double _kThumbnailGap = 8;
 
 /// Horizontal scrollable strip of image thumbnails.
 ///
@@ -269,8 +276,7 @@ class _ImageThumbnailStripState extends State<ImageThumbnailStrip> {
                       controller: _railController,
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.only(bottom: 10),
-                      // Fixed-width thumbnails (100w + 8 right padding = 108).
-                      itemExtent: 108,
+                      itemExtent: _kThumbnailWidth + _kThumbnailGap,
                       itemCount: filteredImages.length,
                       itemBuilder: (context, index) {
                         final image = filteredImages[index];

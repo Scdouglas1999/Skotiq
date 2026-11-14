@@ -45,8 +45,8 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 // This crate provides the FFI bridge between Dart and the native Rust backend.
 // All public functions are exposed via flutter_rust_bridge.
 
-pub mod adaptive_polling;
-mod api;
+pub(crate) mod adaptive_polling;
+pub(crate) mod api;
 // the per-frame exposure-parameter apply logic (gain/offset/binning) is
 // platform-independent and lives here so it compiles and is regression-tested
 // on every platform; the Windows-only `ascom_wrapper` worker calls into it.
@@ -54,71 +54,34 @@ mod ascom_exposure_apply;
 // the ASCOM SensorType → Bayer-order mapping is shared by the Windows-only COM
 // worker and the platform-independent Alpaca download path, so it lives here
 // and is regression-tested on every platform.
-mod ascom_sensor_type;
 #[cfg(windows)]
 mod ascom_wrapper;
 mod builtin_guider;
 mod depthlock_service;
-mod device;
-mod device_capabilities;
-mod device_id;
-mod device_manager;
+pub(crate) mod device;
+pub(crate) mod device_capabilities;
+pub(crate) mod device_id;
+pub(crate) mod device_manager;
+mod discovery;
 mod dispatch;
-mod error;
-mod event;
+pub(crate) mod error;
+pub(crate) mod event;
 mod filter_matching;
+mod frame_display;
+mod frame_header;
+mod guider;
 mod hotplug;
-/// THE simulated-capture entry point: the one place a simulated frame is
-/// produced, shared by the sequencer download and the Imaging screen's manual
-/// capture so both see the same sky.
-mod sim_capture;
-/// Synthetic frame generation for the simulator camera (unit-tested against the
-/// real star detector; see the module docs for why that matters).
-mod sim_frame;
-/// `SKOTIQ_SIM_REPLAY`: answer simulated lights with recorded rig frames.
-mod sim_replay;
-/// Real-sky star source for the simulator camera, read out of the plate
-/// solver's own star database so a simulated frame can actually be solved.
-mod sim_sky;
-mod stacking_api;
-mod state;
-mod storage;
-mod timeout_ops;
-mod unified_device_ops;
+mod last_frame;
+mod sequence_run;
+mod simulator;
+pub(crate) mod state;
+pub(crate) mod storage;
+pub(crate) mod timeout_ops;
+pub(crate) mod unified_device_ops;
 mod util;
 
-// `api` and `event` both carry `imaging` and `sequencer` submodules, so the
-// globs re-export those NAMES ambiguously. Nothing resolves them at the root.
-#[allow(ambiguous_glob_reexports)]
-pub use api::*;
-pub use device::*;
-// `DefectMapCorrectionRecord` is referenced in the
-// FRB-generated impl SseDecode / IntoIntoDart blocks (because it is
-// embedded as an `Option<_>` field on `FitsWriteHeaderRich`). FRB's
-// parser produces unqualified references in those generated impls, so
-// the type must be reachable at the crate root for the generated code
-// to compile. Re-exporting it here pulls it into `crate::` scope where
-// `frb_generated.rs` looks for it.
-pub use device_capabilities::*;
-pub use device_id::*;
-pub use device_manager::*;
-pub use error::*;
-#[allow(ambiguous_glob_reexports)]
-pub use event::*;
-// FRB-generated impl SseDecode / IntoIntoDart blocks embed unqualified
-// references to `DefectMapCorrectionRecord` (as an `Option<_>` field on
-// `FitsWriteHeaderRich`), so the type must be reachable at the crate root
-// for the generated code to compile. Sequencer exposes the source at
-// `skotiq_sequencer::scheduling::frame_context::DefectMapCorrectionRecord`.
-pub use skotiq_sequencer::scheduling::frame_context::DefectMapCorrectionRecord;
-pub use stacking_api::*;
-pub use state::*;
-pub use storage::*;
-pub use timeout_ops::*;
-pub use unified_device_ops::*;
-
-use futures::FutureExt;
-use std::panic::{self, AssertUnwindSafe};
+use crate::error::SkotiqError;
+use std::panic;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
@@ -144,7 +107,6 @@ static RUNTIME_INIT_FAILED: AtomicBool = AtomicBool::new(false);
 /// Used to provide consistent error messages when RUNTIME_INIT_FAILED is true.
 static RUNTIME_ERROR_MSG: OnceLock<String> = OnceLock::new();
 
-/// Global log directory path
 static LOG_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 /// Global log file guard (keeps file writer alive)
@@ -334,7 +296,6 @@ fn init_native_internal(log_directory: Option<String>) -> Result<(), SkotiqError
 
         LOG_DIR.set(log_path.clone()).ok();
 
-        // Create daily rolling file appender
         let file_appender = tracing_appender::rolling::daily(&log_path, "skotiq.log");
         let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
@@ -387,13 +348,6 @@ fn init_native_internal(log_directory: Option<String>) -> Result<(), SkotiqError
     Ok(())
 }
 
-/// Initialize the native bridge (legacy, console-only logging)
-/// Must be called once at app startup
-#[flutter_rust_bridge::frb(sync)]
-pub fn init_native() -> Result<(), SkotiqError> {
-    init_native_with_logging(None)
-}
-
 /// Get the current log directory path
 #[flutter_rust_bridge::frb(sync)]
 pub fn get_log_directory() -> Option<String> {
@@ -409,53 +363,6 @@ pub fn get_current_log_file() -> Option<String> {
             .to_string_lossy()
             .to_string()
     })
-}
-
-/// List all available log files
-pub fn list_log_files() -> Vec<String> {
-    if let Some(log_dir) = LOG_DIR.get() {
-        if let Ok(entries) = std::fs::read_dir(log_dir) {
-            return entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_name().to_string_lossy().starts_with("skotiq.log"))
-                .map(|e| e.path().to_string_lossy().to_string())
-                .collect();
-        }
-    }
-    Vec::new()
-}
-
-/// Read a log file's contents
-pub fn read_log_file(path: String) -> Result<String, SkotiqError> {
-    std::fs::read_to_string(&path)
-        .map_err(|e| SkotiqError::IoError(format!("Failed to read log file: {}", e)))
-}
-
-/// Export all logs to a single file for diagnostics
-pub fn export_logs_to_file(output_path: String) -> Result<(), SkotiqError> {
-    let mut output = std::fs::File::create(&output_path)
-        .map_err(|e| SkotiqError::IoError(format!("Failed to create export file: {}", e)))?;
-
-    use std::io::Write;
-
-    // Write header
-    writeln!(output, "=== Skotiq Log Export ===").ok();
-    writeln!(output, "Exported: {}", chrono::Local::now().to_rfc3339()).ok();
-    writeln!(output, "").ok();
-
-    // Write all log files in chronological order
-    let mut log_files = list_log_files();
-    log_files.sort();
-
-    for log_file in log_files {
-        writeln!(output, "\n=== {} ===\n", log_file).ok();
-        if let Ok(content) = std::fs::read_to_string(&log_file) {
-            write!(output, "{}", content).ok();
-        }
-    }
-
-    tracing::info!("Logs exported to: {}", output_path);
-    Ok(())
 }
 
 /// Clean up old log files, keeping only the most recent N days
@@ -518,12 +425,6 @@ fn cleanup_old_logs(log_dir: &PathBuf, keep_days: i64) {
     }
 }
 
-/// Get the version of the native library
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_native_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
-}
-
 // FFI boundary panic safety
 
 /// Run a synchronous operation with panic catching: a panic becomes
@@ -540,30 +441,6 @@ where
             tracing::error!("Panic caught at FFI boundary: {}", panic_msg);
             Err(SkotiqError::Internal(format!(
                 "Internal panic: {}",
-                panic_msg
-            )))
-        }
-    }
-}
-
-/// Run a future with panic catching: a panic during polling becomes
-/// `SkotiqError::Internal` rather than unwinding across the FFI boundary.
-/// The future is wrapped in `AssertUnwindSafe` so async code can be caught.
-pub(crate) async fn catch_panic_async<F, T>(f: F) -> Result<T, SkotiqError>
-where
-    F: std::future::Future<Output = Result<T, SkotiqError>>,
-{
-    // Use tokio's spawn_blocking with catch_unwind for the future
-    // Note: For truly async code, we catch panics differently
-    let result = AssertUnwindSafe(f).catch_unwind().await;
-
-    match result {
-        Ok(inner_result) => inner_result,
-        Err(panic_payload) => {
-            let panic_msg = extract_panic_message(&panic_payload);
-            tracing::error!("Async panic caught at FFI boundary: {}", panic_msg);
-            Err(SkotiqError::Internal(format!(
-                "Internal panic in async operation: {}",
                 panic_msg
             )))
         }
@@ -588,29 +465,4 @@ fn extract_panic_message(payload: &Box<dyn std::any::Any + Send>) -> String {
 /// created. An alias for [`ensure_runtime`]; it never panics.
 pub(crate) fn get_runtime() -> Result<&'static Runtime, SkotiqError> {
     ensure_runtime()
-}
-
-/// Execute a future on the global runtime from a synchronous FFI entry point,
-/// converting runtime-initialization failure and any panic in the async code
-/// into a `SkotiqError`.
-pub fn run_async_safe<F, T>(future: F) -> Result<T, SkotiqError>
-where
-    F: std::future::Future<Output = Result<T, SkotiqError>> + Send + 'static,
-    T: Send + 'static,
-{
-    let runtime = get_runtime()?;
-
-    // Wrap in catch_unwind for panic safety
-    match panic::catch_unwind(AssertUnwindSafe(|| {
-        runtime.block_on(async { catch_panic_async(future).await })
-    })) {
-        Ok(result) => result,
-        Err(panic_payload) => {
-            let msg = extract_panic_message(&panic_payload);
-            Err(SkotiqError::Internal(format!(
-                "Panic during async execution: {}",
-                msg
-            )))
-        }
-    }
 }

@@ -5,8 +5,7 @@ part of '../notification_routing_settings.dart';
 // publishes retained HA config/state topics over the same host.
 
 class _HomeAssistantSection extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _HomeAssistantSection({required this.isMobile});
+  const _HomeAssistantSection();
 
   @override
   ConsumerState<_HomeAssistantSection> createState() =>
@@ -43,7 +42,7 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
 
   @override
   Widget build(BuildContext context) {
-    if (ref.watch(backendProvider) is NetworkBackend) {
+    if (ref.watch(isRemoteModeProvider)) {
       return const _RemoteHomeAssistantSection();
     }
     final cfgAsync = ref.watch(homeAssistantConfigProvider);
@@ -76,11 +75,9 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
                 value: cfg.enabled,
                 onChanged: (v) {
                   if (v && !brokerConfigured) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Set an MQTT broker host above before enabling '
-                              'Home Assistant discovery')),
+                    context.showInfoSnackBar(
+                      'Set an MQTT broker host above before enabling '
+                      'Home Assistant discovery',
                     );
                     setState(() => _refusedFlips++);
                     return;
@@ -97,7 +94,6 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
                 context: context,
                 controller: _deviceName,
                 hint: 'Skotiq Observatory',
-                isMobile: widget.isMobile,
               ),
             ),
             SettingRow(
@@ -121,10 +117,7 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
                   await _save(
                       (c) => c.copyWith(deviceName: _deviceName.text.trim()));
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Home Assistant config saved')),
-                  );
+                  context.showInfoSnackBar('Home Assistant config saved');
                 },
               ),
               isLast: true,
@@ -146,6 +139,22 @@ class _RemoteHomeAssistantSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The section edits the host's MQTT broker, whose password the host
+    // keeps, so the host serves it only to a link with admin access.
+    if (hostRefusesAdminOnly(ref)) {
+      return const SettingsSection(
+        title: 'Home Assistant (imaging host)',
+        children: [
+          SettingRow(
+            icon: LucideIcons.home,
+            title: 'Publish to Home Assistant',
+            subtitle: 'Uses the imaging host\'s MQTT broker and its password.',
+            trailing: AdminOnlyNotice(),
+            stackWhenNarrow: true,
+          ),
+        ],
+      );
+    }
     final hostAsync = ref.watch(remoteHomeAssistantHostSettingsProvider);
     return hostAsync.when(
       loading: () => const SettingsSection(
@@ -305,12 +314,12 @@ class _RemoteHomeAssistantFormState
       _error = null;
     });
     try {
-      final backend = ref.read(backendProvider);
-      if (backend is! NetworkBackend) {
+      final hostNotifications = ref.read(linkedHostNotificationsProvider);
+      if (hostNotifications == null) {
         throw StateError('The imaging host is no longer connected.');
       }
       final replacement = _password.text;
-      final updated = await backend.updateHomeAssistantHostSettings(
+      final updated = await hostNotifications.updateHomeAssistantHostSettings(
         config: HomeAssistantDiscoveryConfig(
           enabled: _enabled,
           deviceName: _deviceName.text.trim(),
@@ -337,10 +346,8 @@ class _RemoteHomeAssistantFormState
         _saving = false;
       });
       ref.invalidate(remoteHomeAssistantHostSettingsProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Home Assistant configuration saved on imaging host'),
-        ),
+      context.showInfoSnackBar(
+        'Home Assistant configuration saved on imaging host',
       );
     } catch (_) {
       if (!mounted) return;
@@ -354,8 +361,6 @@ class _RemoteHomeAssistantFormState
 
   @override
   Widget build(BuildContext context) {
-    final mobile =
-        MediaQuery.sizeOf(context).width < SkotiqTokens.breakpointTablet;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -399,7 +404,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _deviceName,
                 hint: 'Skotiq Observatory',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -424,7 +428,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _host,
                 hint: 'homeassistant.local',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -435,7 +438,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _port,
                 hint: _useTls ? '8883' : '1883',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -446,7 +448,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _username,
                 hint: 'optional',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -457,7 +458,6 @@ class _RemoteHomeAssistantFormState
               controller: _password,
               hasStoredValue: _passwordConfigured,
               hint: 'Enter a replacement password',
-              isMobile: mobile,
               onChanged: _markPasswordChanged,
             ),
             SettingRow(
@@ -467,7 +467,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _topic,
                 hint: 'skotiq/notifications',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -478,7 +477,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _clientId,
                 hint: 'skotiq',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -502,7 +500,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _discoveryPrefix,
                 hint: 'homeassistant',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),

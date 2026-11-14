@@ -2,9 +2,6 @@
 
 use super::*;
 
-// Types and constants from SVBCameraSDK.h.
-
-/// SVBony error codes
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SvbError {
@@ -58,53 +55,112 @@ impl SvbError {
         }
     }
 
-    pub(crate) fn to_native_error(self, msg: &str) -> NativeError {
+    /// The error for a failed call on a camera that `connect` opened;
+    /// `action` says what was being done ("set the readout region").
+    pub(crate) fn to_native_error(self, action: &str) -> DriverError {
         match self {
-            SvbError::Success => {
-                NativeError::SdkError(format!("SVBony {} called to_native_error on Success", msg))
+            SvbError::Success => DriverError::SdkError(format!(
+                "SVBony: could not {} (the SDK reported success as a failure)",
+                action
+            )),
+            // The SDK drops a camera that leaves the bus from its list, and
+            // every later call on its ID answers one of the first two.
+            SvbError::InvalidIndex | SvbError::InvalidId | SvbError::CameraRemoved => {
+                DriverError::Disconnected
             }
-            SvbError::InvalidIndex | SvbError::InvalidId => {
-                NativeError::InvalidDevice(format!("SVBony {}: {:?}", msg, self))
-            }
-            SvbError::CameraClosed => NativeError::NotConnected,
-            SvbError::CameraRemoved => NativeError::Disconnected,
+            SvbError::CameraClosed => DriverError::NotConnected,
             SvbError::Timeout => {
-                NativeError::Timeout(format!("SVBony {}: operation timed out", msg))
+                DriverError::Timeout(format!("SVBony: could not {}: the camera did not answer", action))
             }
             SvbError::InvalidControlType
             | SvbError::InvalidSize
             | SvbError::InvalidImgType
             | SvbError::OutOfBoundary
-            | SvbError::InvalidSequence
             | SvbError::InvalidMode
             | SvbError::InvalidDirection
             | SvbError::InvalidPath
-            | SvbError::InvalidFileFormat => {
-                NativeError::InvalidParameter(format!("SVBony {}: {:?}", msg, self))
+            | SvbError::InvalidFileFormat
+            | SvbError::BufferTooSmall => DriverError::InvalidParameter(format!(
+                "SVBony: could not {}: the camera refused it ({:?})",
+                action, self
+            )),
+            SvbError::InvalidSequence | SvbError::VideoModeActive | SvbError::ExposureInProgress => {
+                DriverError::SdkError(format!(
+                    "SVBony: could not {}: the camera is busy capturing ({:?})",
+                    action, self
+                ))
             }
-            SvbError::BufferTooSmall => {
-                NativeError::InvalidParameter(format!("SVBony {}: buffer too small", msg))
-            }
-            SvbError::VideoModeActive | SvbError::ExposureInProgress => {
-                NativeError::SdkError(format!("SVBony {}: camera busy ({:?})", msg, self))
-            }
-            SvbError::GeneralError => NativeError::SdkError(format!(
-                "SVBony {}: general error - camera may be in use by another application",
-                msg
+            SvbError::GeneralError => DriverError::SdkError(format!(
+                "SVBony: could not {}: the camera reported a general error (a value out of range, or the camera did not respond)",
+                action
             )),
             SvbError::UnknownSensorType | SvbError::End => {
-                NativeError::SdkError(format!("SVBony {}: {:?}", msg, self))
+                DriverError::SdkError(format!("SVBony: could not {} ({:?})", action, self))
             }
         }
     }
 }
 
-/// SVBony image types
+/// The output formats Skotiq reads frames in (SVB_IMG_TYPE). RAW is the
+/// sensor mosaic; Y is luma, which is what the monochrome models offer
+/// ("in most cases, monochrome cameras will be Y16 and color cameras will be
+/// RAW16", indi-svbony svbony_base.cpp:472).
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SvbImgType {
     Raw8 = 0,
     Raw16 = 4,
+    Y8 = 5,
+    Y16 = 9,
+}
+
+/// SVB_IMG_END: the end of `SVB_CAMERA_PROPERTY.SupportedVideoFormat`.
+const SVB_IMG_END: c_int = -1;
+
+impl SvbImgType {
+    pub(crate) fn from_code(code: c_int) -> Option<Self> {
+        match code {
+            0 => Some(Self::Raw8),
+            4 => Some(Self::Raw16),
+            5 => Some(Self::Y8),
+            9 => Some(Self::Y16),
+            _ => None,
+        }
+    }
+
+    /// The deepest format the camera lists, the raw mosaic before luma at
+    /// equal depth (NINA SVBonySDK.cs:125-157 orders them the same way). The
+    /// list ends at SVB_IMG_END; RAW10/12/14, Y10/12/14 and RGB are skipped.
+    pub(crate) fn preferred(supported: &[c_int]) -> Option<Self> {
+        let listed: Vec<Self> = supported
+            .iter()
+            .take_while(|&&code| code != SVB_IMG_END)
+            .filter_map(|&code| Self::from_code(code))
+            .collect();
+        [Self::Raw16, Self::Y16, Self::Raw8, Self::Y8]
+            .into_iter()
+            .find(|format| listed.contains(format))
+    }
+
+    pub(crate) fn bytes_per_sample(self) -> i32 {
+        match self {
+            Self::Raw8 | Self::Y8 => 1,
+            Self::Raw16 | Self::Y16 => 2,
+        }
+    }
+
+    /// RAW frames carry the sensor's color filter; luma frames do not.
+    pub(crate) fn is_mosaic(self) -> bool {
+        matches!(self, Self::Raw8 | Self::Raw16)
+    }
+
+    /// 8-bit samples keep their own value (no scaling to 16 bits).
+    pub(crate) fn sample_layout(self) -> SampleLayout {
+        match self.bytes_per_sample() {
+            1 => SampleLayout::U8Unscaled,
+            _ => SampleLayout::U16Little,
+        }
+    }
 }
 
 /// Full-scale ADU of the delivered pixel container for an SVBony camera whose
@@ -116,7 +172,7 @@ pub(crate) enum SvbImgType {
 /// (2024-05-06): "MaxBitDepth in SVB_CAMERA_PROPERTY returns the actual bit
 /// width of the sensor" (`SDKs/SVBony/SVBONY/ReadMe.txt:424,430`).
 ///
-/// With `SVB_IMG_RAW16` selected the SDK left-justifies those sensor bits into
+/// With a 16-bit format selected the SDK left-justifies those sensor bits into
 /// the 16-bit buffer, exactly like ZWO. Measured on an SV305 (12-bit sensor):
 /// every RAW16 pixel value is a multiple of 16 and saturation sits at 65536 ADU
 /// rather than 4096 — the left-justification signature — so the reachable ceiling
@@ -124,30 +180,30 @@ pub(crate) enum SvbImgType {
 /// (<https://forums.sharpcap.co.uk/viewtopic.php?t=4837>, posts #3 and #6).
 /// Reporting `(1 << MaxBitDepth) - 1` understates it 16x and puts every
 /// percent-of-full-scale consumer — flat-frame targets above all — out of reach.
+/// Y16 is taken to be justified the same way; that has not been measured.
 ///
-/// `SVB_IMG_RAW8` is a genuine 8-bit container (the SDK takes the high bits), so
-/// its ceiling is 255 regardless of sensor bit depth. `connect()` falls back to
-/// RAW8 when a model does not offer RAW16, and a sensor-derived ceiling there
-/// overstates an 8-bit frame by up to 16x in the other direction.
-///
-/// `bit_depth == 0` or `>= 16` means either an unpopulated property or a
-/// genuinely 16-bit ADC; both take the container's own ceiling rather than
-/// underflowing to 0, which would report "this camera cannot produce any signal".
+/// An 8-bit format is a genuine 8-bit container (the SDK takes the high bits),
+/// so its ceiling is 255 regardless of sensor bit depth.
 pub(crate) fn container_max_adu(image_type: SvbImgType, bit_depth: u32) -> u32 {
-    const CONTAINER_BITS: u32 = 16;
-    const CONTAINER_MAX: u32 = u16::MAX as u32;
-    match image_type {
-        SvbImgType::Raw8 => u32::from(u8::MAX),
-        SvbImgType::Raw16 => {
-            if bit_depth == 0 || bit_depth >= CONTAINER_BITS {
-                return CONTAINER_MAX;
-            }
-            (((1u32 << bit_depth) - 1) << (CONTAINER_BITS - bit_depth)) & CONTAINER_MAX
-        }
+    if image_type.bytes_per_sample() == 1 {
+        return u32::from(u8::MAX);
     }
+    crate::camera_core::raw16_container_max_adu(bit_depth)
 }
 
-/// SVBony control types for camera settings
+/// SVB_CAMERA_MODE values Skotiq uses.
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SvbCameraMode {
+    /// Free-running video: the camera exposes frame after frame.
+    Normal = 0,
+    /// One frame per SVBSendSoftTrigger.
+    SoftTrigger = 1,
+}
+
+/// SVB_CONTROL_TYPE values Skotiq reads or sets by name. The others
+/// (gamma, contrast, white balance, flip, sharpness, saturation, frame speed,
+/// bad-pixel correction...) are only ever put back to their defaults at connect.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SvbControlType {
@@ -158,6 +214,50 @@ pub(crate) enum SvbControlType {
     TargetTemperature = 15,
     CurrentTemperature = 16,
     CoolerPower = 17,
+}
+
+/// The SVB_CONTROL_TYPE name for log and error text.
+pub(crate) fn control_name(control_type: c_int) -> &'static str {
+    const NAMES: [&str; 20] = [
+        "gain",
+        "exposure",
+        "gamma",
+        "gamma contrast",
+        "red white balance",
+        "green white balance",
+        "blue white balance",
+        "flip",
+        "frame speed",
+        "contrast",
+        "sharpness",
+        "saturation",
+        "auto target brightness",
+        "offset",
+        "cooler switch",
+        "cooler target temperature",
+        "sensor temperature",
+        "cooler power",
+        "bad pixel correction",
+        "bad pixel correction threshold",
+    ];
+    usize::try_from(control_type)
+        .ok()
+        .and_then(|i| NAMES.get(i))
+        .copied()
+        .unwrap_or("an unknown control")
+}
+
+impl SvbControlType {
+    /// Controls connect leaves as the camera holds them: the exposure, which
+    /// every exposure sets, and the cooler, so a cooler that is running keeps
+    /// running across a reconnect.
+    pub(crate) const KEPT_AT_CONNECT: [SvbControlType; 5] = [
+        Self::Exposure,
+        Self::CoolerEnable,
+        Self::TargetTemperature,
+        Self::CurrentTemperature,
+        Self::CoolerPower,
+    ];
 }
 
 /// Camera info structure (SVB_CAMERA_INFO)
@@ -206,7 +306,6 @@ pub(crate) struct SvbCameraPropertyEx {
     pub(crate) unused: [c_int; 64],
 }
 
-/// Control caps structure
 #[repr(C)]
 #[derive(Debug)]
 pub(crate) struct SvbControlCaps {
@@ -218,4 +317,34 @@ pub(crate) struct SvbControlCaps {
     pub(crate) is_auto_supported: c_int,
     pub(crate) is_writable: c_int,
     pub(crate) control_type: c_int,
+    pub(crate) unused: [c_char; 32],
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// SVB_ERROR_INVALID_INDEX and SVB_ERROR_INVALID_ID on an open camera
+    /// were a generic device error, so a USB drop never started the
+    /// reconnect.
+    #[test]
+    fn an_id_the_sdk_dropped_reads_as_disconnected() {
+        for error in [
+            SvbError::InvalidIndex,
+            SvbError::InvalidId,
+            SvbError::CameraRemoved,
+        ] {
+            assert!(
+                matches!(
+                    error.to_native_error("read the temperature"),
+                    DriverError::Disconnected
+                ),
+                "{error:?}"
+            );
+        }
+        assert!(matches!(
+            SvbError::CameraClosed.to_native_error("read the temperature"),
+            DriverError::NotConnected
+        ));
+    }
 }

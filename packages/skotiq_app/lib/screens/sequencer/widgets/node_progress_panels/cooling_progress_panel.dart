@@ -26,42 +26,26 @@ class _ProgressPanelContainer extends StatelessWidget {
   }
 }
 
-/// Progress panel for cooling/warming operations
 class _CoolingProgressPanel extends StatelessWidget {
   final SkotiqColors colors;
   final double progressPercent;
-  final String detail;
+
+  /// What the step last read from the camera; null before its first report.
+  final ThermalInstructionProgressDetail? reading;
   final bool isWarming;
 
   const _CoolingProgressPanel({
     required this.colors,
     required this.progressPercent,
-    required this.detail,
+    required this.reading,
     required this.isWarming,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Parse detail string: "Cooling: 15.2°C → -10.0°C (85% power)"
-    // or "At target: -10.3°C (45% power)"
-    final tempMatch = RegExp(r'(-?\d+\.?\d*)°C').allMatches(detail);
-    final powerMatch = RegExp(r'(\d+\.?\d*)% power').firstMatch(detail);
-
-    double? currentTemp;
-    double? targetTemp;
-    double? power;
-
-    if (tempMatch.isNotEmpty) {
-      final temps = tempMatch
-          .map((m) => double.tryParse(m.group(1) ?? ''))
-          .whereType<double>()
-          .toList();
-      if (temps.isNotEmpty) currentTemp = temps[0];
-      if (temps.length > 1) targetTemp = temps[1];
-    }
-    if (powerMatch != null) {
-      power = double.tryParse(powerMatch.group(1) ?? '');
-    }
+    final currentTemp = reading?.currentTempC;
+    final targetTemp = reading?.targetTempC;
+    final power = reading?.coolerPowerPercent;
 
     return _ProgressPanelContainer(
       colors: colors,
@@ -69,7 +53,6 @@ class _CoolingProgressPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
           Row(
             children: [
               Icon(
@@ -86,11 +69,8 @@ class _CoolingProgressPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-
-          // Temperature display
           Row(
             children: [
-              // Current temp
               _TempDisplay(
                 colors: colors,
                 label: 'Current',
@@ -98,28 +78,23 @@ class _CoolingProgressPanel extends StatelessWidget {
                 isTarget: false,
               ),
               const SizedBox(width: 16),
-              // Arrow
               Icon(
                 SkotiqIcons.arrowRight,
                 size: 16,
                 color: colors.textMuted,
               ),
               const SizedBox(width: 16),
-              // Target temp
               _TempDisplay(
                 colors: colors,
                 label: 'Target',
-                temp: targetTemp ?? currentTemp,
+                temp: targetTemp,
                 isTarget: true,
               ),
               const Spacer(),
-              // Power gauge
               if (power != null) _PowerGauge(colors: colors, power: power),
             ],
           ),
           const SizedBox(height: 12),
-
-          // Progress bar
           _AnimatedProgressBar(
             colors: colors,
             progress: progressPercent / 100.0,
@@ -157,7 +132,7 @@ class _TempDisplay extends StatelessWidget {
           ),
         ),
         Text(
-          temp != null ? '${temp!.toStringAsFixed(1)}°C' : '--°C',
+          temp != null ? formatCelsius(temp!) : '--°C',
           style: TextStyle(
             fontSize: SkotiqTypography.fontSize16,
             fontWeight: FontWeight.w700,

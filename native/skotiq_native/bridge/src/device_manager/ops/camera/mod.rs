@@ -39,7 +39,8 @@
 //! * `pixel_size_x/y` → 0.0 → "unknown" in UI scale bars.
 //! * `max_adu` → `65535` — the 16-bit max representable in standard ASCOM
 //!   camera readouts; safe default for histogram scaling.
-//! * boolean caps (`can_cool`, `cooler_on`) → `false` — feature-not-declared.
+//! * `can_cool` → `false` — feature-not-declared. `cooler_on` is never
+//!   defaulted: a cooler state the driver did not report stays `None`.
 //! * `gain`/`offset` → 0 — bottom of the legal ASCOM gain table; user
 //!   adjusts via the gain UI before exposing.
 //!
@@ -55,15 +56,6 @@
 //! Connection-level errors are not silenced here; this layer composes
 //! values *after* `with_camera!` has already established the device path.
 
-use crate::device::*;
-use crate::device_manager::DeviceManager;
-use crate::dispatch::DeviceOpError;
-use skotiq_native::camera::{ExposureParams, ImageData, SubFrame};
-#[cfg(windows)]
-use skotiq_native::traits::NativeCamera;
-use std::sync::Arc;
-use tracing::warn;
-
 /// Sentinel meaning "this camera setting could not be read".
 ///
 /// `ImageMetadata.gain`/`offset` are plain `i32` (unlike `temperature`, which is
@@ -72,12 +64,9 @@ use tracing::warn;
 /// Real gain/offset values are never negative, so a negative marker is
 /// unambiguous, and [`camera_setting_or_unknown`] converts it back to `None` at
 /// the one boundary that feeds FITS metadata.
-pub(crate) const UNKNOWN_CAMERA_SETTING: i32 = -1;
+pub(crate) use skotiq_device::UNKNOWN_CAMERA_SETTING;
 
 /// `None` when a camera setting was recorded as unreadable, else `Some(value)`.
-///
-/// Keeps a failed device read from outranking the operator's configured value in
-/// `image_data.gain.or(config.gain)`.
 pub(crate) fn camera_setting_or_unknown(value: i32) -> Option<i32> {
     if value <= UNKNOWN_CAMERA_SETTING {
         None
@@ -86,25 +75,29 @@ pub(crate) fn camera_setting_or_unknown(value: i32) -> Option<i32> {
     }
 }
 
-/// Parse the integer value out of a fixed-format 80-byte FITS header card.
-///
-/// FITS mandates `KEYWORD = value / comment` with the value right-justified in
-/// bytes 10..30, so splitting on `=` and taking everything before any `/` is
-/// sufficient — no full FITS parser needed for NAXIS1/NAXIS2. Returns `None`
-/// for a malformed card so the caller can fall back rather than trust a guess.
-fn parse_fits_card_u32(card: &[u8]) -> Option<u32> {
-    let text = std::str::from_utf8(card).ok()?;
-    let after_eq = text.split_once('=')?.1;
-    let value = after_eq.split('/').next()?.trim();
-    value.parse::<u32>().ok()
+/// What a frame records for one camera setting, gain or offset: nothing for a
+/// camera that has no such control (FLI, Atik CCDs), so its frames carry no
+/// card and no database value a calibration match could read as 0; else the
+/// camera's report for the frame, or the commanded value when the camera could
+/// not read one back. `has_control` is `None` when the camera's status could
+/// not be read, and the report then stands.
+pub(crate) fn frame_setting(
+    has_control: Option<bool>,
+    reported: i32,
+    commanded: Option<i32>,
+) -> Option<i32> {
+    if has_control == Some(false) {
+        return None;
+    }
+    camera_setting_or_unknown(reported).or(commanded)
 }
 
 // The simulated sky and the plate scale it hangs off now live in
-// `crate::sim_capture`, next to the renderer, so the Imaging screen's manual
+// `crate::simulator::capture`, next to the renderer, so the Imaging screen's manual
 // capture and this sequencer download cannot drift apart. Imported here only
 // for the tests below, which pin their behaviour.
 #[cfg(test)]
-use crate::sim_capture::{
+use crate::simulator::capture::{
     sim_plate_scale_arcsec_per_px, sim_sky_view, SIM_DEFAULT_FOCAL_LENGTH_MM,
 };
 
@@ -113,50 +106,7 @@ pub(crate) mod exposure;
 pub(crate) mod settings;
 pub(crate) mod status;
 #[cfg(test)]
-mod fits_card_tests {
-    use super::parse_fits_card_u32;
-
-    /// These two cards are the verbatim 80-byte headers from a BLOB captured off
-    /// a live `indi_simulator_ccd` at 2x2 binning, where CCD_INFO advertised the
-    /// unbinned 1280x1024 while the frame was really 640x512. Reading NAXIS is
-    /// what keeps those two facts from being confused.
-    #[test]
-    fn parses_naxis_cards_from_a_real_indi_blob() {
-        let naxis1 =
-            b"NAXIS1  =                  640 / length of data axis 1                          ";
-        let naxis2 =
-            b"NAXIS2  =                  512 / length of data axis 2                          ";
-        assert_eq!(parse_fits_card_u32(naxis1), Some(640));
-        assert_eq!(parse_fits_card_u32(naxis2), Some(512));
-    }
-
-    #[test]
-    fn rejects_cards_it_cannot_trust() {
-        // No '=', a non-numeric value, and a float value all fall back to None
-        // so the caller keeps its own dimensions instead of using a bad parse.
-        assert_eq!(parse_fits_card_u32(b"COMMENT no equals sign here"), None);
-        assert_eq!(
-            parse_fits_card_u32(b"NAXIS1  =                    T / bad"),
-            None
-        );
-        assert_eq!(
-            parse_fits_card_u32(b"NAXIS1  =                 6.40 / float"),
-            None
-        );
-        assert_eq!(
-            parse_fits_card_u32(b"NAXIS1  =                   -1 / negative"),
-            None
-        );
-    }
-
-    #[test]
-    fn parses_a_card_with_no_comment() {
-        assert_eq!(
-            parse_fits_card_u32(b"NAXIS1  =                 4144"),
-            Some(4144)
-        );
-    }
-
+mod camera_setting_tests {
     /// A gain of 0 is a LEGITIMATE setting (unity gain on many cameras), so the
     /// unknown marker must be distinguishable from it — that conflation is what
     /// let a failed read outrank the operator's configured gain.
@@ -174,16 +124,39 @@ mod fits_card_tests {
         );
         assert_eq!(camera_setting_or_unknown(0).or(Some(120)), Some(0));
     }
+
+    #[test]
+    fn a_camera_without_the_control_records_no_value() {
+        use super::{frame_setting, UNKNOWN_CAMERA_SETTING};
+
+        // FLI and Atik CCD drivers report 0 and a sequence may still command
+        // a gain; neither is a fact about the frame.
+        assert_eq!(frame_setting(Some(false), 0, Some(120)), None);
+        assert_eq!(
+            frame_setting(Some(false), UNKNOWN_CAMERA_SETTING, None),
+            None
+        );
+        assert_eq!(frame_setting(Some(true), 0, Some(120)), Some(0));
+        assert_eq!(
+            frame_setting(Some(true), UNKNOWN_CAMERA_SETTING, Some(120)),
+            Some(120)
+        );
+        // Status unreadable: the camera's own report stands.
+        assert_eq!(frame_setting(None, 139, Some(120)), Some(139));
+        assert_eq!(
+            frame_setting(None, UNKNOWN_CAMERA_SETTING, Some(120)),
+            Some(120)
+        );
+    }
 }
 
 #[cfg(test)]
 mod sim_camera_tests {
-    use crate::api::devices::simulation::{
-        clear_sim_exposure, get_sim_camera, sim_singleton_test_lock,
-    };
-    use crate::api::get_device_manager;
     use crate::device::{CameraState, DeviceInfo, DeviceType, DriverType};
-    use skotiq_native::camera::FrameType;
+    use crate::device_manager::get_device_manager;
+    use crate::simulator::camera::{clear_sim_exposure, get_sim_camera};
+    use crate::simulator::sim_singleton_test_lock;
+    use skotiq_device::FrameType;
 
     /// `expect_err` on a `Result<ImageData, _>` would dump a whole 1920x1080
     /// frame into the failure output, which buries the assertion.
@@ -210,7 +183,7 @@ mod sim_camera_tests {
             unique_id: None,
             display_name: "Simulated Camera".to_string(),
         };
-        get_device_manager().register_device(info, false).await;
+        crate::simulator::register_connected(get_device_manager(), info).await;
         get_sim_camera().write().await.status.connected = true;
         clear_sim_exposure().await;
     }
@@ -339,6 +312,56 @@ mod sim_camera_tests {
         );
     }
 
+    /// An abort while the frame is being read answers the download at once,
+    /// and the read that was given up is not left behind to take the next
+    /// exposure's frame.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn an_abort_during_the_download_leaves_the_next_exposure_its_frame() {
+        use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
+        let _serialized = sim_singleton_test_lock().lock().await;
+        let device_id = "sim_camera_abort_in_download";
+        attach_sim_camera(device_id).await;
+        let mgr = get_device_manager();
+        faults::arm(
+            "camera.download",
+            FaultSpec::new(Trigger::Times(1), Effect::Delay(600)),
+        );
+
+        mgr.camera_start_exposure(device_id, 0.05, None, None, 1, 1, FrameType::Light)
+            .await
+            .unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let slow = tokio::spawn(async move {
+            get_device_manager()
+                .camera_download_image("sim_camera_abort_in_download")
+                .await
+                .map(|_| ())
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let asked = std::time::Instant::now();
+        mgr.camera_abort_exposure(device_id).await.unwrap();
+        let answer = slow.await.unwrap();
+        faults::clear("camera.download");
+        assert!(
+            asked.elapsed() < std::time::Duration::from_millis(300),
+            "the download waited {:?} after the abort",
+            asked.elapsed()
+        );
+        let error = answer
+            .expect_err("an aborted exposure has no frame")
+            .to_string();
+        assert!(error.contains("aborted"), "{error}");
+
+        mgr.camera_start_exposure(device_id, 0.05, None, None, 1, 1, FrameType::Light)
+            .await
+            .unwrap();
+        // Past the moment the abandoned read would have woken.
+        tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+        mgr.camera_download_image(device_id)
+            .await
+            .expect("the next exposure's frame is still there to read");
+    }
+
     /// Downloading without having started anything is a caller bug, not an
     /// invitation to synthesize a frame out of the last request's parameters.
     #[tokio::test]
@@ -360,12 +383,12 @@ mod sim_camera_tests {
 #[cfg(test)]
 mod sim_sky_wiring_tests {
     use super::*;
-    use crate::api::devices::simulation::{
-        clear_sim_exposure, get_sim_camera, get_sim_mount, sim_singleton_test_lock,
-    };
-    use crate::api::get_device_manager;
     use crate::device::{DeviceInfo, DeviceType, DriverType};
-    use skotiq_native::camera::FrameType;
+    use crate::device_manager::get_device_manager;
+    use crate::simulator::camera::{clear_sim_exposure, get_sim_camera};
+    use crate::simulator::mount::get_sim_mount;
+    use crate::simulator::sim_singleton_test_lock;
+    use skotiq_device::FrameType;
 
     /// The declared simulated rig: 3.76 um pixels behind the default 1000 mm
     /// profile. If this number moves, every rendered field is at a scale the
@@ -393,9 +416,9 @@ mod sim_sky_wiring_tests {
         assert!(
             sim_sky_view(
                 3.76,
-                crate::sim_frame::SIM_W,
-                crate::sim_frame::SIM_H,
-                crate::sim_capture::SimOptics::ImagingTrain,
+                crate::simulator::frame::SIM_W,
+                crate::simulator::frame::SIM_H,
+                crate::simulator::capture::SimOptics::ImagingTrain,
             )
             .await
             .is_none(),
@@ -412,9 +435,9 @@ mod sim_sky_wiring_tests {
             assert!(
                 sim_sky_view(
                     bad,
-                    crate::sim_frame::SIM_W,
-                    crate::sim_frame::SIM_H,
-                    crate::sim_capture::SimOptics::ImagingTrain,
+                    crate::simulator::frame::SIM_W,
+                    crate::simulator::frame::SIM_H,
+                    crate::simulator::capture::SimOptics::ImagingTrain,
                 )
                 .await
                 .is_none(),
@@ -457,7 +480,7 @@ mod sim_sky_wiring_tests {
             }
         }
         let catalog = tempfile::TempDir::new().unwrap();
-        crate::sim_sky::astap_integration::write_synthetic_area(
+        crate::simulator::sky::astap_integration::write_synthetic_area(
             &catalog.path().join("d05_0001.1476"),
             &stars,
         );
@@ -465,7 +488,7 @@ mod sim_sky_wiring_tests {
         // Exactly what the Plate Solving settings screen writes. The store is
         // shared and process-lifetime on purpose — see
         // `sim_capture::shared_platesolver_store`.
-        crate::sim_capture::shared_platesolver_store();
+        crate::simulator::capture::shared_platesolver_store();
         let previous = crate::state::get_platesolver_preference().unwrap_or_default();
         crate::state::save_platesolver_preference(&crate::storage::PlateSolverPreference {
             catalog_path: catalog.path().to_string_lossy().to_string(),
@@ -476,11 +499,9 @@ mod sim_sky_wiring_tests {
         {
             // The simulated mount keeps coordinates of date; point it at the
             // J2000 field the way a slew would.
-            let (mount_ra, mount_dec) = crate::device_manager::epoch::j2000_to_mount_frame(
-                DriverType::Simulator,
-                ra_hours,
-                dec_deg,
-            );
+            let (mount_ra, mount_dec) =
+                crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
+                    .j2000_to_mount(ra_hours, dec_deg);
             let mut mount = get_sim_mount().write().await;
             mount.status.connected = true;
             mount.status.right_ascension = mount_ra;
@@ -488,7 +509,7 @@ mod sim_sky_wiring_tests {
         }
         // So the field sits where the projection puts it rather than where an
         // earlier test's accumulated drift left it.
-        crate::api::devices::simulation::reset_sim_guide_offset().await;
+        crate::simulator::guiding::reset_sim_guide_offset().await;
 
         let device_id = "sim_camera_sky_wiring";
         let info = DeviceInfo {
@@ -503,7 +524,7 @@ mod sim_sky_wiring_tests {
             display_name: "Simulated Camera".to_string(),
         };
         let mgr = get_device_manager();
-        mgr.register_device(info, false).await;
+        crate::simulator::register_connected(mgr, info).await;
         get_sim_camera().write().await.status.connected = true;
         clear_sim_exposure().await;
 
@@ -568,7 +589,9 @@ mod sim_sky_wiring_tests {
     #[tokio::test]
     #[ignore = "needs astap_cli and a star database; see the doc comment to run it"]
     async fn a_downloaded_simulator_frame_solves_at_the_mounts_pointing() {
-        use crate::sim_sky::astap_integration::{astap_dir, read_crval, write_fits, PIXEL_UM};
+        use crate::simulator::sky::astap_integration::{
+            astap_dir, read_crval, write_fits, PIXEL_UM,
+        };
 
         let _serialized = sim_singleton_test_lock().lock().await;
         let dir = astap_dir();
@@ -596,11 +619,9 @@ mod sim_sky_wiring_tests {
         {
             // The simulated mount keeps coordinates of date; point it at the
             // J2000 field the way a slew would.
-            let (mount_ra, mount_dec) = crate::device_manager::epoch::j2000_to_mount_frame(
-                DriverType::Simulator,
-                ra_hours,
-                dec_deg,
-            );
+            let (mount_ra, mount_dec) =
+                crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
+                    .j2000_to_mount(ra_hours, dec_deg);
             let mut mount = get_sim_mount().write().await;
             mount.status.connected = true;
             mount.status.right_ascension = mount_ra;
@@ -620,7 +641,7 @@ mod sim_sky_wiring_tests {
             display_name: "Simulated Camera".to_string(),
         };
         let mgr = get_device_manager();
-        mgr.register_device(info, false).await;
+        crate::simulator::register_connected(mgr, info).await;
         get_sim_camera().write().await.status.connected = true;
         clear_sim_exposure().await;
 

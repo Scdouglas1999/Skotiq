@@ -5,8 +5,6 @@ part of '../flat_wizard_provider.dart';
 /// Settings, filter-list and one-line state operations for
 /// [FlatWizardNotifier].
 extension FlatWizardSettingsOps on FlatWizardNotifier {
-  // Mode management
-
   void setMode(FlatWizardMode mode) {
     state = state.copyWith(mode: mode);
   }
@@ -14,8 +12,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   void setTwilightMode(TwilightMode mode) {
     state = state.copyWith(twilightMode: mode);
   }
-
-  // Global settings
 
   void updateGlobalSettings(FlatWizardGlobalSettings settings) {
     _settingsRevision++;
@@ -73,8 +69,8 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     try {
       final raw = await ref
           .read(settingsDaoProvider)
-          .getSetting(FlatWizardNotifier._globalSettingsKey);
-      if (raw == null || raw.isEmpty) return;
+          .read(StoreSettings.flatWizard);
+      if (raw == null) return;
       // A run in flight or an eager user edit owns the live settings — never
       // clobber it with the stale on-disk value.
       if (_running || _settingsRevision != revisionAtStart) return;
@@ -101,11 +97,10 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
         ),
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         'FlatWizard: could not restore persisted global settings (using '
         'defaults): $e',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
         error: e,
       );
     }
@@ -131,27 +126,25 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     unawaited(
       ref
           .read(settingsDaoProvider)
-          .setSetting(FlatWizardNotifier._globalSettingsKey, payload)
+          .write(StoreSettings.flatWizard, payload)
           .catchError((Object e) {
-            developer.log(
+            Log.warning(
               'FlatWizard: failed to persist global settings: $e',
-              name: 'FlatWizardNotifier',
-              level: 900,
+              source: 'FlatWizardNotifier',
               error: e,
             );
           }),
     );
   }
 
-  // Filter management
-
-  /// Load filters from connected filter wheel.
+  /// Load one row per filter of [effectiveFiltersProvider], each with its
+  /// saved settings and its suggested exposure.
   ///
   /// The wheel, profile and camera listeners often fire together; a load
   /// already running absorbs those calls into one follow-up load, so a
   /// companion asks the host for each filter's flat history once, not once per
   /// listener.
-  Future<void> loadFiltersFromWheel() {
+  Future<void> loadFilters() {
     final running = _filterLoad;
     if (running != null) {
       _filterReloadRequested = true;
@@ -160,14 +153,14 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     final load = () async {
       do {
         _filterReloadRequested = false;
-        await _loadFiltersFromWheelOnce();
+        await _loadFiltersOnce();
       } while (_filterReloadRequested && mounted);
     }();
     _filterLoad = load;
     return load.whenComplete(() => _filterLoad = null);
   }
 
-  Future<void> _loadFiltersFromWheelOnce() async {
+  Future<void> _loadFiltersOnce() async {
     // No-op while a capture run holds the busy latch. This rebuilds
     // `filterSettings` from scratch (statuses reset to pending, capturedCount to
     // 0), and the screen re-invokes it on every init (postFrameCallback); doing
@@ -176,7 +169,8 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     if (_running) return;
 
     final fwState = ref.read(filterWheelStateProvider);
-    if (fwState.filterNames.isEmpty) {
+    final filterNames = ref.read(effectiveFiltersProvider);
+    if (filterNames.isEmpty) {
       _filterRevision++;
       if (_loadedFilterKey != null) {
         _loadedFilterKey = null;
@@ -185,10 +179,11 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       return;
     }
 
-    final backend = ref.read(backendProvider);
+    final remote = ref.read(linkedHostCalibrationFramesProvider);
     final db = ref.read(databaseProvider);
     final profileId = ref.read(activeEquipmentProfileProvider)?.id;
-    final key = _filterPreferencesKey();
+    final row = _filterPreferences();
+    final key = row.key;
     final revision = ++_filterRevision;
     if (_loadedFilterKey != null && _loadedFilterKey != key) {
       state = state.copyWith(filterSettings: const [], currentFilterIndex: 0);
@@ -200,7 +195,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       }
     } else {
       try {
-        final raw = await ref.read(settingsDaoProvider).getSetting(key);
+        final raw = await ref.read(settingsDaoProvider).read(row);
         if (raw != null) {
           for (final entry in jsonDecode(raw) as List) {
             final filter = FlatFilterSettings.fromJson(
@@ -210,17 +205,16 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
           }
         }
       } catch (error) {
-        developer.log(
+        Log.warning(
           'Could not restore flat filter settings: $error',
-          name: 'FlatWizardNotifier',
-          level: 900,
+          source: 'FlatWizardNotifier',
         );
       }
     }
 
     final filterSettings = <FlatFilterSettings>[];
-    for (int i = 0; i < fwState.filterNames.length; i++) {
-      final filterName = fwState.filterNames[i];
+    for (int i = 0; i < filterNames.length; i++) {
+      final filterName = filterNames[i];
 
       // Get suggested exposure from history. On a remote client the local
       // `flat_history` table is empty (the master owns it), so derive the
@@ -228,9 +222,9 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       // `getSuggestedExposure`'s last-N-average logic — instead of the
       // always-null local DAO read.
       final double? suggested;
-      if (backend is NetworkBackend) {
+      if (remote != null) {
         suggested = await _remoteSuggestedExposure(
-          backend,
+          remote,
           filterName: filterName,
           profileId: profileId,
         );
@@ -250,7 +244,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
 
     if (_running ||
         revision != _filterRevision ||
-        key != _filterPreferencesKey()) {
+        key != _filterPreferences().key) {
       return;
     }
     _loadedFilterKey = key;
@@ -281,12 +275,12 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   /// sourced from the master via `GET /api/calibration/flats`. Returns null
   /// when the host has no history for this filter.
   Future<double?> _remoteSuggestedExposure(
-    NetworkBackend backend, {
+    HostCalibrationFrames remote, {
     required String filterName,
     int? profileId,
   }) async {
     try {
-      final entries = await backend.listFlats(
+      final entries = await remote.listFlats(
         filter: filterName,
         equipmentProfileId: profileId,
         limit: 5,
@@ -300,10 +294,9 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       // read on the local path). But unlike an empty history, a fault is a
       // diagnosable condition — record it instead of silently conflating the
       // two so a misconfigured/offline host is visible in the logs.
-      developer.log(
+      Log.warning(
         'FlatWizard: remote flat-history fetch failed for $filterName: $e',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
         error: e,
       );
       debugRemoteFaultSink?.call(e);
@@ -337,13 +330,20 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     _persistFilterSettings();
   }
 
-  String _filterPreferencesKey() =>
-      'flat_wizard_filters.v1.${jsonEncode([ref.read(activeEquipmentProfileProvider)?.id, ref.read(cameraStateProvider).deviceId, ref.read(filterWheelStateProvider).deviceId])}';
+  /// The row holding the filter choices for the profile, camera and filter
+  /// wheel in use.
+  Setting<String?> _filterPreferences() => StoreSettings.flatWizardFilters.row(
+    jsonEncode([
+      ref.read(activeEquipmentProfileProvider)?.id,
+      ref.read(cameraStateProvider).deviceId,
+      ref.read(filterWheelStateProvider).deviceId,
+    ]),
+  );
 
   void _persistFilterSettings() {
     _filterRevision++;
-    final key = _filterPreferencesKey();
-    _loadedFilterKey = key;
+    final row = _filterPreferences();
+    _loadedFilterKey = row.key;
     // Only user choices survive a restart, never a previous run's progress.
     final payload = jsonEncode([
       for (final f in state.filterSettings)
@@ -362,12 +362,11 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     ]);
     final dao = ref.read(settingsDaoProvider);
     _filterSettingsWrite = _filterSettingsWrite
-        .then((_) => dao.setSetting(key, payload))
+        .then((_) => dao.write(row, payload))
         .catchError((Object error) {
-          developer.log(
+          Log.warning(
             'Could not save flat filter settings: $error',
-            name: 'FlatWizardNotifier',
-            level: 900,
+            source: 'FlatWizardNotifier',
           );
         });
   }
@@ -427,8 +426,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
 
     state = state.copyWith(filterSettings: sorted);
   }
-
-  // Visualization toggles
 
   void toggleAduGraph(bool show) {
     state = state.copyWith(showAduGraph: show);
@@ -495,8 +492,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     );
   }
 
-  // ADU history
-
   void addAduMeasurement(double exposure, double adu) {
     final measurement = AduMeasurement(
       exposure: exposure,
@@ -510,8 +505,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     state = state.copyWith(aduHistory: []);
   }
 
-  // Image preview
-
   /// Publish the frame the preview panel should show.
   ///
   /// Typed on purpose. The panel needs the frame's dimensions to render it, so
@@ -522,8 +515,6 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   void setLastImage(String? path, CapturedImageResult? imageData) {
     state = state.copyWith(lastImagePath: path, lastImageData: imageData);
   }
-
-  // Filter progress
 
   /// Internal run-progress update: advances the "current filter" as the run
   /// loop walks its queue. Unguarded on purpose — the run OWNS this while it

@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import '../harness/in_memory_database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -45,38 +46,6 @@ void main() {
       expect(rows.single.id, 4);
       expect(rows.single.name, 'Host LRGB');
       verify(() => backend.getSequenceList()).called(1);
-    });
-
-    test('allDbTemplatesProvider uses templates list endpoint', () async {
-      final backend = _MockNetworkBackend();
-      when(() => backend.getSequenceTemplates()).thenAnswer(
-        (_) async => [
-          {
-            'id': 9,
-            'name': 'Ha template',
-            'description': null,
-            'rootNodeId': null,
-            'isTemplate': true,
-            'createdAt': DateTime(2026, 2, 1).millisecondsSinceEpoch,
-            'updatedAt': DateTime(2026, 2, 2).millisecondsSinceEpoch,
-          },
-        ],
-      );
-
-      final container = ProviderContainer(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          backendProvider.overrideWith(
-            (ref) => _FixedBackendNotifier(ref, backend),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      final rows = await container.read(allDbTemplatesProvider.future);
-      expect(rows, hasLength(1));
-      expect(rows.single.isTemplate, isTrue);
-      verify(() => backend.getSequenceTemplates()).called(1);
     });
   });
 }

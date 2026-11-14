@@ -4,7 +4,9 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 
 import 'handler_test_helpers.dart';
@@ -28,13 +30,14 @@ void main() {
       container: container,
       bindLocalOnly: true,
       authToken: 'admin-token',
+      scopedAuthTokens: const {'control-token': HeadlessTokenScope.control},
       webSocketHeartbeatInterval: const Duration(hours: 1),
       webSocketHeartbeatTimeout: const Duration(hours: 2),
     );
     await server.start();
     socket = await WebSocket.connect(
       'ws://127.0.0.1:${server.actualPort}'
-      '/events?token=admin-token&apiVersion=2.6.0',
+      '/events?token=admin-token',
     );
     messages = StreamIterator<dynamic>(socket);
     expect(await messages.moveNext(), isTrue);
@@ -103,4 +106,100 @@ void main() {
       expect(encodingFailures, isEmpty);
     },
   );
+
+  group('a credential setting change', () {
+    SkotiqEvent webhookChanged() => SkotiqEvent(
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: EventSeverity.info,
+      category: EventCategory.system,
+      eventType: settingsChangedEventType,
+      data: const {
+        'key': 'discordWebhook',
+        'value': 'https://discord.com/api/webhooks/1/secret',
+      },
+    );
+
+    Future<StreamIterator<dynamic>> connect(
+      String token, {
+      String? since,
+    }) async {
+      final linked = await WebSocket.connect(
+        'ws://127.0.0.1:${server.actualPort}'
+        '/events?token=$token${since ?? ''}',
+      );
+      addTearDown(linked.close);
+      final frames = StreamIterator<dynamic>(linked);
+      addTearDown(frames.cancel);
+      return frames;
+    }
+
+    Future<Map> nextEvent(StreamIterator<dynamic> frames) async {
+      while (await frames.moveNext()) {
+        final frame = jsonDecode(frames.current as String) as Map;
+        if (frame['type'] == 'event') return frame;
+      }
+      fail('the socket closed before an event arrived');
+    }
+
+    test('reaches a link with admin access as the value and any other link '
+        'as the marker', () async {
+      final control = await connect('control-token');
+      // The control socket's first frame says it is attached.
+      expect(await control.moveNext(), isTrue);
+
+      server.broadcastEvent(webhookChanged());
+
+      expect(
+        ((await nextEvent(messages))['data'] as Map)['value'],
+        'https://discord.com/api/webhooks/1/secret',
+      );
+      expect(
+        ((await nextEvent(control))['data'] as Map)['value'],
+        credentialSetMarker,
+      );
+    });
+
+    test('is replayed and listed with the marker to a link without admin '
+        'access', () async {
+      final stamped = server.broadcastEvent(webhookChanged())!;
+      await nextEvent(messages);
+
+      final replayed = await connect(
+        'control-token',
+        since: '&since=0&instance=${stamped.serverInstanceId}',
+      );
+      final replay = await nextEvent(replayed);
+      expect(replay['replay'], isTrue);
+      expect((replay['data'] as Map)['value'], credentialSetMarker);
+
+      Future<List> recentEvents(String token) async {
+        final client = HttpClient();
+        addTearDown(client.close);
+        final request = await client.getUrl(
+          Uri.parse(
+            'http://127.0.0.1:${server.actualPort}/api/runtime/recent-events',
+          ),
+        );
+        request.headers.set('Authorization', 'Bearer $token');
+        final response = await request.close();
+        expect(response.statusCode, HttpStatus.ok);
+        final body =
+            jsonDecode(await utf8.decodeStream(response))
+                as Map<String, dynamic>;
+        return [
+          for (final event in body['events'] as List)
+            if ((event as Map)['eventType'] == settingsChangedEventType) event,
+        ];
+      }
+
+      expect(
+        ((await recentEvents('control-token')).single['data'] as Map)['value'],
+        credentialSetMarker,
+      );
+      expect(
+        ((await recentEvents('admin-token')).single['data'] as Map)['value'],
+        'https://discord.com/api/webhooks/1/secret',
+      );
+    });
+  });
 }

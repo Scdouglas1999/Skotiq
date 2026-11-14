@@ -6,7 +6,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart' show VCurvePoint;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart' show DeviceType, VCurvePoint;
+import 'package:skotiq_core/providers.dart' show focuserStateProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
@@ -14,12 +16,17 @@ import '../../actions/night_action_controller.dart';
 import '../../data/session/session_events_provider.dart';
 import '../../data/session/session_format.dart';
 import '../../night_control_contracts.dart';
+import '../../../../utils/v_curve_chart_data.dart';
 import '../panel_ops.dart';
 import '../panel_widgets.dart';
 import 'focus_panel_vm.dart';
+import '../stale_readings_note.dart';
+import '../../../../router/settings_sections.dart';
+import '../../../../router/app_routes.dart';
 
 /// Where "Settings…" goes.
-const String kNightAutofocusSettingsRoute = '/settings?section=autofocus';
+final String kNightAutofocusSettingsRoute =
+    AppRoutes.settings(SettingsSectionId.autofocus);
 
 /// The jog buttons' steps, in board order.
 const List<int> kNightFocuserJogSteps = <int>[-500, -100, -10, 10, 100, 500];
@@ -35,6 +42,10 @@ class NightFocusTab extends ConsumerWidget {
     final vm = ref.watch(nightFocusPanelProvider);
     return NightPanelBody(
       children: <Widget>[
+        NightStaleReadingsNote(
+          type: DeviceType.focuser,
+          deviceId: ref.watch(focuserStateProvider).deviceId,
+        ),
         NightAutofocusSection(vm: vm),
         NightFocuserSection(vm: vm),
         if (vm.tempComp != null) NightTempCompSection(tempComp: vm.tempComp!),
@@ -53,7 +64,6 @@ class NightAutofocusSection extends ConsumerWidget {
 
   final NightFocusPanelVm vm;
 
-  /// The V-curve's height on the board.
   static const double chartHeight = 120;
 
   @override
@@ -61,7 +71,7 @@ class NightAutofocusSection extends ConsumerWidget {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
     final running = vm.status == NightAutofocusStatus.running;
-    final (String? note, MetricTone? tone) = switch (vm.status) {
+    final (String? note, MetricGridTone? tone) = switch (vm.status) {
       NightAutofocusStatus.running => (
           vm.point != null && vm.totalPoints != null
               ? l10n.text(
@@ -72,15 +82,15 @@ class NightAutofocusSection extends ConsumerWidget {
                   },
                 )
               : l10n.text('nightPanelAfRunning'),
-          MetricTone.warning,
+          MetricGridTone.warning,
         ),
       NightAutofocusStatus.done => (
           l10n.text('nightPanelAfDone'),
-          MetricTone.good,
+          MetricGridTone.good,
         ),
       NightAutofocusStatus.failed => (
           l10n.text('nightPanelAfFailed'),
-          MetricTone.bad,
+          MetricGridTone.bad,
         ),
       NightAutofocusStatus.idle => (null, null),
     };
@@ -117,7 +127,7 @@ class NightAutofocusSection extends ConsumerWidget {
               density: VCurveChartDensity.compact,
               series: <VCurveSeries>[
                 VCurveSeries(
-                  points: points,
+                  points: points.toChartSamples(),
                   color: colors.primary,
                   label: l10n.text('nightPanelAutofocus'),
                   vertexPosition: vm.bestPosition,
@@ -126,7 +136,7 @@ class NightAutofocusSection extends ConsumerWidget {
                   highlightLatest: running,
                 ),
               ],
-              focusRange: vm.focusRange,
+              focusRange: vm.focusRange?.toChartRange(),
               gridColor: colors.border,
               textColor: colors.textMuted,
               repaintTick: vm.point ?? points.length,
@@ -134,7 +144,7 @@ class NightAutofocusSection extends ConsumerWidget {
             ),
           ),
           if (vm.bestPosition != null || vm.fitQuality != null)
-            NightPanelNote(_fitNote(l10n), tone: MetricTone.good),
+            NightPanelNote(_fitNote(l10n), tone: MetricGridTone.good),
           _PointsTable(
             points: points,
             starCounts: vm.starCounts,
@@ -229,7 +239,7 @@ class NightAutofocusSection extends ConsumerWidget {
 }
 
 /// "#  pos  HFR  [stars]", the newest row in the warning tone while the run
-/// goes on.
+/// goes on. A point the fit left out is gray, with the reason under it.
 class _PointsTable extends StatelessWidget {
   const _PointsTable({
     required this.points,
@@ -286,17 +296,39 @@ class _PointsTable extends StatelessWidget {
           ),
           for (var i = 0; i < points.length; i++)
             MergeSemantics(
-              child: row(
-                <String>[
-                  '${i + 1}',
-                  nightGrouped(points[i].position),
-                  points[i].hfr.toStringAsFixed(2),
-                  if (showStars)
-                    i < stars.length && stars[i] != null
-                        ? '${stars[i]}'
-                        : kReadoutUnknown,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  row(
+                    <String>[
+                      '${i + 1}',
+                      nightGrouped(points[i].position),
+                      points[i].hfr.toStringAsFixed(2),
+                      if (showStars)
+                        i < stars.length && stars[i] != null
+                            ? '${stars[i]}'
+                            : kReadoutUnknown,
+                    ],
+                    points[i].isRejected
+                        ? colors.textMuted
+                        : i == highlight
+                            ? colors.warning
+                            : colors.textPrimary,
+                  ),
+                  if (points[i].rejectedReason case final reason?)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 22, bottom: 2),
+                      child: Text(
+                        l10n.text(
+                          'nightPanelAfLeftOut',
+                          params: <String, String>{'reason': reason},
+                        ),
+                        style: SkotiqTypography.monoXs
+                            .copyWith(color: colors.textMuted),
+                      ),
+                    ),
                 ],
-                i == highlight ? colors.warning : colors.textPrimary,
               ),
             ),
         ],
@@ -384,7 +416,7 @@ class _NightFocuserSectionState extends ConsumerState<NightFocuserSection> {
       trailing: !vm.focuserConnected
           ? l10n.text('nightPanelFocuserNotConnected')
           : (trailing.isEmpty ? null : trailing.join(' · ')),
-      trailingTone: vm.focuserConnected ? null : MetricTone.warning,
+      trailingTone: vm.focuserConnected ? null : MetricGridTone.warning,
       children: <Widget>[
         MergeSemantics(
           child: Row(
@@ -507,7 +539,7 @@ class NightTempCompSection extends StatelessWidget {
     return NightPanelSection(
       title: title,
       trailing: l10n.text('nightPanelOn'),
-      trailingTone: MetricTone.good,
+      trailingTone: MetricGridTone.good,
       children: <Widget>[
         MetricGrid(
           columns: 3,
@@ -547,62 +579,74 @@ class NightRecentRunsSection extends StatelessWidget {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
     final mono = SkotiqTypography.monoXs.copyWith(color: colors.textPrimary);
+    final muted = SkotiqTypography.caption.copyWith(color: colors.textMuted);
     return NightPanelSection(
       title: l10n.text('nightPanelRecentRuns'),
       trailing: l10n.text('nightPanelThisSession'),
       divider: false,
       gap: 3,
       children: <Widget>[
-        if (runs.isEmpty) NightPanelNote(l10n.text('nightPanelNoRuns')),
+        if (runs.isEmpty)
+          NightPanelNote(l10n.text('nightPanelNoRuns'))
+        else
+          ExcludeSemantics(
+            child: _runRow(
+              time: l10n.text('nightPanelRunTime'),
+              position: l10n.text('nightPanelAfPos'),
+              hfr: l10n.text('nightPanelAfHfr'),
+              took: l10n.text('nightPanelRunTook'),
+              valueStyle: muted,
+              mutedStyle: muted,
+            ),
+          ),
         for (final run in runs.take(kNightRecentRunsShown))
           MergeSemantics(
-            child: Row(
-              children: <Widget>[
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    nightPanelClock(run.at),
-                    style: SkotiqTypography.caption.copyWith(
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: SkotiqTokens.spaceSm),
-                Expanded(
-                  child: Text(
-                    run.position == null
-                        ? kReadoutUnknown
-                        : nightGrouped(run.position!),
-                    style: mono,
-                  ),
-                ),
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    run.hfr == null
-                        ? kReadoutUnknown
-                        : run.hfr!.toStringAsFixed(2),
-                    style: mono,
-                  ),
-                ),
-                SizedBox(
-                  width: 56,
-                  child: Text(
-                    run.duration == null
-                        ? ''
-                        : nightDuration(run.duration!.inSeconds.toDouble()) ??
-                            '',
-                    textAlign: TextAlign.end,
-                    style: SkotiqTypography.caption.copyWith(
-                      color: colors.textMuted,
-                    ),
-                    maxLines: 1,
-                  ),
-                ),
-              ],
+            child: _runRow(
+              time: ClockFormat.hm(run.at),
+              position: run.position == null
+                  ? kReadoutUnknown
+                  : nightGrouped(run.position!),
+              hfr: run.hfr == null
+                  ? kReadoutUnknown
+                  : run.hfr!.toStringAsFixed(2),
+              took: run.duration == null
+                  ? ''
+                  : nightDuration(run.duration!.inSeconds.toDouble()) ?? '',
+              valueStyle: mono,
+              mutedStyle: muted,
             ),
           ),
       ],
     );
   }
+
+  /// "time  position  HFR px  took", the columns the header names.
+  static Widget _runRow({
+    required String time,
+    required String position,
+    required String hfr,
+    required String took,
+    required TextStyle valueStyle,
+    required TextStyle mutedStyle,
+  }) =>
+      Row(
+        children: <Widget>[
+          SizedBox(width: 40, child: Text(time, style: mutedStyle)),
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          Expanded(child: Text(position, style: valueStyle)),
+          SizedBox(
+            width: 48,
+            child: Text(hfr, style: valueStyle, maxLines: 1),
+          ),
+          SizedBox(
+            width: 48,
+            child: Text(
+              took,
+              textAlign: TextAlign.end,
+              style: mutedStyle,
+              maxLines: 1,
+            ),
+          ),
+        ],
+      );
 }

@@ -59,11 +59,7 @@ Future<ExportTarget?> chooseExportTarget({
   final isTouch =
       debugIsTouchPlatformOverride ?? (Platform.isAndroid || Platform.isIOS);
   if (isTouch) {
-    final documents = await resolveSkotiqDocumentsDirectory();
-    final directory = Directory('${documents.path}/Skotiq/exports');
-    if (!await directory.exists()) {
-      await directory.create(recursive: true);
-    }
+    final directory = await resolveSkotiqExportsDirectory();
     return ExportTarget(
       path: '${directory.path}/${sanitizeExportFileName(suggestedName)}',
       needsShareSheet: true,

@@ -1,7 +1,11 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show tryParseWireTime;
+import 'linked_host.dart';
+import '../errors/error_text.dart';
 import '../models/weather/weather_models.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/settings/app_settings.dart';
@@ -10,15 +14,12 @@ import '../models/sequence/sequence_models.dart'
         ConditionsScoreWeights,
         SequenceExecutionState,
         SequenceExecutionStateCapabilities;
-import '../backend/disconnected_backend.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/network_backend.dart';
-import '../services/scheduler/sky_calculations.dart';
+import 'sequence/plan_run_end.dart';
 import '../services/adaptive_swap_service.dart';
 import '../services/safe_rig_service.dart';
 import '../services/safety_config_service.dart';
 import '../services/weather/weather_threshold_evaluator.dart';
-import '../services/logging_service.dart';
 import '../database/database.dart' as db;
 import 'session_provider.dart';
 import 'database_provider.dart';
@@ -29,10 +30,13 @@ import 'weather_providers.dart';
 import 'equipment_provider.dart';
 import 'settings_provider.dart';
 import 'ui_notification_provider.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'sequence_provider.dart';
-import '../services/end_of_night_calibration/eon_providers.dart'
+import 'end_of_night_calibration/eon_providers.dart'
     show calibrationOnlyRunActiveProvider;
+import '../settings/app_settings_state.g.dart';
+import '../services/logging_service.dart';
 
 part 'weather_safety/weather_safety_models.dart';
 part 'weather_safety/weather_safety_sources.dart';
@@ -44,7 +48,6 @@ part 'weather_safety/weather_star_evidence.dart';
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
 
-/// Notifier for weather safety state
 class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   final Ref _ref;
   final BackendNotifier _backendNotifier;
@@ -71,7 +74,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// The verdict last sent to the sequencer, re-sent on every heartbeat so a
   /// quiet spell in the evaluation never reads as a dead feed.
   ({bool? unsafe, bool advisory})? _lastVerdict;
-  int? _lastResumeAfterSecs;
 
   SkyStarEvidence? _starEvidence;
   bool _decisionPolicyWatched = false;
@@ -100,7 +102,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
 
   /// Periodic re-evaluation interval (5 minutes)
   static const _evaluationInterval = Duration(minutes: 5);
-  static const _parkBeforeDawnLeadTime = Duration(minutes: 30);
 
   /// Ceiling on how long [evaluateNow] waits for an evaluation to settle.
   static const _evaluateNowTimeout = Duration(seconds: 10);
@@ -162,11 +163,12 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
        _clock = clock ?? DateTime.now,
        super(WeatherSafetyState.initial()) {
     final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final remote = _ref.read(linkedHostWeatherProvider);
+    if (remote != null) {
       _startRemoteStatusPolling();
       return;
     }
-    if (backend is DisconnectedBackend) {
+    if (backend.hasNoHost) {
       // UI-only mode has no rig to protect and no authority to issue hardware
       // commands. Keep the conservative unknown/unsafe verdict so imaging is
       // never presented as weather-safe, but make the state passive: evaluating
@@ -291,12 +293,11 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
         _evaluationPending = true;
         return;
       }
-      developer.log(
+      Log.warning(
         'weather: an evaluation has not finished in '
         '${WeatherSafetyNotifier._evaluationWedgeTimeout.inSeconds} s; '
         'starting a fresh one',
-        name: 'WeatherSafety',
-        level: 900,
+        source: 'WeatherSafety',
       );
     }
     _evaluationInFlight = true;
@@ -320,7 +321,8 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     } catch (error) {
       if (!mounted) return;
       final failure = WeatherSafetyState.initial().copyWith(
-        failModeWarning: 'Weather safety configuration unavailable: $error',
+        failModeWarning:
+            'Weather safety configuration unavailable: ${userFacingError(error)}',
         lastEvaluation: DateTime.now(),
       );
       state = failure;
@@ -414,7 +416,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       unawaited(_refreshStarEvidence());
     }
 
-    // Determine data source
     final hasLiveHardwareSource =
         _isLiveReading(hardwareWeatherReading) ||
         _isLiveReading(safetyMonitorReading);
@@ -430,7 +431,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     if (alertStale) {
       failModeWarning ??=
           'The weather forecast has not refreshed since '
-          '${_clockTime(rawAlert.generatedAt)}; it is not being acted on';
+          '${ClockFormat.hm(rawAlert.generatedAt.toLocal())}; it is not being acted on';
     }
     bool useFailMode = false;
 
@@ -453,7 +454,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     if (state.status == WeatherSafetyStatus.snoozed &&
         state.snoozeUntil != null &&
         DateTime.now().isBefore(state.snoozeUntil!)) {
-      // Keep snoozed state
       finalStatus = WeatherSafetyStatus.snoozed;
       finalActions = WeatherSafetyActions.safe;
     } else if (!weatherSettings.weatherSafetyEnabled) {
@@ -608,9 +608,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       forecastActs: forecastActs,
       forecastHoldsRun: policy.forecastHoldsRun,
     );
-    if (_decisionPolicyWatched) {
-      _lastResumeAfterSecs = policy.requiredSafeDurationSeconds;
-    }
     unawaited(_pushWeatherVerdict(pushed.unsafe, advisory: pushed.advisory));
 
     if (previousStatus == WeatherSafetyStatus.unsafe &&
@@ -679,12 +676,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     return _clock().difference(alert.generatedAt) > maxAge;
   }
 
-  static String _clockTime(DateTime at) {
-    final local = at.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}';
-  }
-
   /// The decision policy as loaded so far; the defaults until it is.
   WeatherDecisionPolicy _currentDecisionPolicy() {
     if (!_decisionPolicyWatched) return WeatherDecisionPolicy.defaults;
@@ -730,9 +721,9 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     _scheduleSourceChangeEvaluation();
   }
 
-  static List<StarSample> _starSamples(List<db.CapturedImage> rows) => [
+  static List<StarSample> _starSamples(List<db.DbCapturedImage> rows) => [
     for (final row in rows)
-      if (row.frameType.toLowerCase() == 'light' && row.starCount != null)
+      if (row.isLight && row.starCount != null)
         (
           capturedAt: row.capturedAt,
           stars: row.starCount!,
@@ -740,7 +731,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
         ),
   ];
 
-  /// Determine if dome should be closed
   bool _shouldCloseDome(WeatherAlert? alert) {
     if (alert == null || alert.level != AlertLevel.critical) {
       return false;
@@ -768,10 +758,8 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     final snoozeUntil = DateTime.now().add(duration);
     final why = reason ?? 'Operator says the sky is clear';
 
-    // Cancel existing snooze timer if any
     _snoozeTimer?.cancel();
 
-    // Set snooze state
     state = state.copyWith(
       status: WeatherSafetyStatus.snoozed,
       snoozeUntil: snoozeUntil,
@@ -779,10 +767,10 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       actions: WeatherSafetyActions.safe,
     );
 
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final remote = _ref.read(linkedHostWeatherProvider);
+    if (remote != null) {
       unawaited(
-        backend
+        remote
             .acknowledgeSafetyCondition(
               reason: why,
               durationMinutes: duration.inMinutes.clamp(1, 1440),
@@ -791,7 +779,8 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
             .catchError((Object error) {
               if (mounted) {
                 state = WeatherSafetyState.initial().copyWith(
-                  failModeWarning: 'Could not snooze host safety: $error',
+                  failModeWarning:
+                      'Could not snooze host safety: ${userFacingError(error)}',
                   lastEvaluation: DateTime.now(),
                 );
               }
@@ -808,20 +797,14 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     unawaited(_pushWeatherVerdict(null));
     unawaited(_pushOperatorClear(duration.inSeconds, why));
 
-    // Start timer to end snooze
     _snoozeTimer = Timer(duration, () {
       if (!mounted) return;
       cancelSnooze();
     });
   }
 
-  void _logOperatorWeatherAction(String message) {
-    try {
-      _ref.read(loggingServiceProvider).info(message, source: 'WeatherSafety');
-    } catch (_) {
-      developer.log(message, name: 'WeatherSafety');
-    }
-  }
+  void _logOperatorWeatherAction(String message) =>
+      Log.info(message, source: 'WeatherSafety');
 
   Future<void> _pushOperatorClear(int seconds, String reason) async {
     try {
@@ -832,10 +815,9 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
             reason: reason,
           );
     } catch (error) {
-      developer.log(
+      Log.warning(
         'weather: could not send the clear-sky override: $error',
-        name: 'WeatherSafety',
-        level: 900,
+        source: 'WeatherSafety',
       );
     }
   }
@@ -858,20 +840,21 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       ),
       clearSnooze: true,
     );
-    final backend = _ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final remote = _ref.read(linkedHostWeatherProvider);
+    if (remote == null) {
       _logOperatorWeatherAction('Weather verdict override ended');
       unawaited(_pushOperatorClear(0, 'Override ended'));
     }
-    if (backend is NetworkBackend) {
+    if (remote != null) {
       unawaited(
-        backend
+        remote
             .cancelSafetyAcknowledgement()
             .then((_) => _refreshRemoteStatus())
             .catchError((Object error) {
               if (mounted) {
                 state = WeatherSafetyState.initial().copyWith(
-                  failModeWarning: 'Could not cancel host snooze: $error',
+                  failModeWarning:
+                      'Could not cancel host snooze: ${userFacingError(error)}',
                   lastEvaluation: DateTime.now(),
                 );
               }
@@ -884,7 +867,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
 
   /// Force immediate re-evaluation of all safety sources
   void forceEvaluation() {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(isRemoteModeProvider)) {
       unawaited(_refreshRemoteStatus());
       return;
     }
@@ -899,7 +882,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// route awaits this before answering, so an unbounded wait would hang the
   /// request rather than merely delaying it.
   Future<void> evaluateNow({Duration timeout = _evaluateNowTimeout}) async {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(isRemoteModeProvider)) {
       await _refreshRemoteStatus();
       return;
     }
@@ -926,7 +909,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   }
 }
 
-/// Provider for weather safety state
 final weatherSafetyProvider =
     StateNotifierProvider<WeatherSafetyNotifier, WeatherSafetyState>((ref) {
       ref.watch(backendProvider);

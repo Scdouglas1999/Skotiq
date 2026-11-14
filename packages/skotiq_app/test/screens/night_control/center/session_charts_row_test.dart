@@ -8,7 +8,10 @@ import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart'
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/screens/night_control/night_control_layout.dart';
+import 'package:skotiq_app/utils/guide_distance.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../golden/surface_golden_harness.dart';
@@ -126,7 +129,7 @@ void main() {
             ],
           ),
         ),
-        nightGuideScaleProvider.overrideWithValue(1.5),
+        guideScaleProvider.overrideWithValue(1.5),
       ],
       child: const SessionChartsRow(),
       size: const Size(1200, 120),
@@ -185,7 +188,7 @@ void main() {
                     12 - m * 1.94,
                   ),
               ],
-              tone: SeriesTone.secondary,
+              tone: SeriesChartTone.secondary,
             ),
           ],
           from: NightFixtures.at(18, 22),
@@ -205,7 +208,7 @@ void main() {
     expect(find.text('Focus'), findsOneWidget);
     expect(
       _allText(tester),
-      contains(RegExp(r'best 45\s484 · HFR 1\.98 · 13\.1 °C')),
+      contains(RegExp(r'best 45\s484 · HFR 1\.98 px · 13\.1 °C')),
     );
     expect(find.text('Guider idle'), findsOneWidget);
     expect(find.text('Start looping'), findsOneWidget);
@@ -213,6 +216,84 @@ void main() {
     expect(find.text('since 18:22'), findsOneWidget);
     expect(_allText(tester), contains('sensor −7.4 °C'));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('in a single column the cards stack at full width',
+      (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(NightFixtures.ready()),
+      child: const SessionChartsRow(),
+      size: const Size(420, 900),
+      mode: NightControlMode.singleColumn,
+    );
+    final focus = tester.getRect(find.text('Focus'));
+    final guiding = tester.getRect(find.text('Guiding'));
+    final cooling = tester.getRect(find.text('Cooling'));
+    expect(guiding.top, greaterThan(focus.bottom));
+    expect(cooling.top, greaterThan(guiding.bottom));
+    for (final title in [focus, guiding, cooling]) {
+      expect(title.left, lessThan(40));
+      expect(title.right, lessThanOrEqualTo(420));
+    }
+    expect(find.text('Start looping'), findsOneWidget);
+    expect(tester.getRect(find.text('Start looping')).right,
+        lessThanOrEqualTo(420));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'before a run, an autofocus under way draws in the Focus card point '
+      'by point, over the last finished one', (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(
+        NightFixtures.ready(),
+        lastAutofocus: const NightAutofocusCurveVm(
+          points: <(int, double)>[(45184, 3.1), (45484, 1.98), (45784, 3.0)],
+          bestPosition: 45484,
+          bestHfr: 1.98,
+        ),
+        liveAutofocus: const NightLiveAutofocusVm(
+          points: <(int, double)>[
+            (24800, 3.84),
+            (24850, 3.49),
+            (24900, 3.13),
+            (24950, 2.80),
+          ],
+          point: 4,
+          totalPoints: 9,
+        ),
+      ),
+      child: const SessionChartsRow(),
+      size: const Size(744, 120),
+    );
+    expect(find.text('Running · point 4 of 9'), findsOneWidget);
+    expect(
+      _allText(tester),
+      contains(RegExp(r'latest 24\s950 steps · HFR 2\.80 px')),
+    );
+    expect(_allText(tester), isNot(contains('best 45')));
+    expect(find.text('No autofocus run since Skotiq started'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an autofocus waiting for its first point says so',
+      (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(
+        NightFixtures.ready(),
+        liveAutofocus: const NightLiveAutofocusVm(
+          points: <(int, double)>[],
+        ),
+      ),
+      child: const SessionChartsRow(),
+      size: const Size(744, 120),
+    );
+    expect(find.text('Running'), findsOneWidget);
+    expect(find.text('Waiting for the first point'), findsOneWidget);
+    expect(find.text('No autofocus run since Skotiq started'), findsNothing);
   });
 
   testWidgets(
@@ -300,12 +381,12 @@ void main() {
           SeriesLineVm(
             id: NightSeriesId.guideRa,
             points: ra,
-            tone: SeriesTone.primary,
+            tone: SeriesChartTone.primary,
           ),
           SeriesLineVm(
             id: NightSeriesId.guideDec,
             points: dec,
-            tone: SeriesTone.tertiary,
+            tone: SeriesChartTone.tertiary,
           ),
         ],
         from: start,

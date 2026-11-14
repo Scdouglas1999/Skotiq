@@ -2,6 +2,13 @@
 
 Persistent working instructions for agents in this repo.
 
+## Before changing code
+
+Read `.claude/skills/skotiq-dev/SKILL.md` first (Claude agents load it as the `skotiq-dev`
+skill). It says which file owns each kind of fact, gives a recipe for each common change, lists
+the owner's product rules, and says which checks prove a change. `melos run audit:architecture`
+checks the structural rules and names where a change goes when it fails.
+
 ## Codebase navigation
 
 This project keeps a knowledge graph at `graphify-out/` (see also `CLAUDE.md`).

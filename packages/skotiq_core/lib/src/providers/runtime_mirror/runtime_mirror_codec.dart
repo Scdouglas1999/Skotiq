@@ -29,6 +29,7 @@ int? jsonInt(Object? value) => value is num ? value.toInt() : null;
 
 String? jsonString(Object? value) => value is String ? value : null;
 
-DateTime? jsonInstant(Object? value) => value is num
-    ? DateTime.fromMillisecondsSinceEpoch(value.toInt(), isUtc: true)
-    : null;
+/// An instant sent as UTC epoch milliseconds, in the container's local time:
+/// what a clock or a date on screen shows.
+DateTime? jsonInstant(Object? value) =>
+    value is num ? DateTime.fromMillisecondsSinceEpoch(value.toInt()) : null;

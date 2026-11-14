@@ -134,7 +134,10 @@ pub fn compute_polar_misalignment_from_drift(
     //     az_axis  = (-sin(LST), cos(LST), 0)
     //
     // For the southern hemisphere we flip the pole and altitude axis.
-    let lst_hours = crate::local_sidereal_time(crate::julian_day(&current.when), observer_lon_deg);
+    let lst_hours = crate::meridian::local_sidereal_time(
+        crate::meridian::julian_day(&current.when),
+        observer_lon_deg,
+    );
     let lst_rad = (lst_hours * 15.0).to_radians();
     let phi_rad = observer_lat_deg.to_radians();
 
@@ -202,7 +205,10 @@ mod tests {
         pole_az_offset_arcsec: f64,
         pole_alt_offset_arcsec: f64,
     ) -> SolvedFrame {
-        let lst_hours = crate::local_sidereal_time(crate::julian_day(&when), observer_lon_deg);
+        let lst_hours = crate::meridian::local_sidereal_time(
+            crate::meridian::julian_day(&when),
+            observer_lon_deg,
+        );
         let lst_rad = (lst_hours * 15.0).to_radians();
         let phi_rad = observer_lat_deg.to_radians();
 
@@ -295,7 +301,10 @@ mod tests {
     }
 
     fn lst_deg(when: DateTime<Utc>, observer_lon_deg: f64) -> f64 {
-        let lst_hours = crate::local_sidereal_time(crate::julian_day(&when), observer_lon_deg);
+        let lst_hours = crate::meridian::local_sidereal_time(
+            crate::meridian::julian_day(&when),
+            observer_lon_deg,
+        );
         let mut lst = lst_hours * 15.0;
         lst = lst.rem_euclid(360.0);
         lst

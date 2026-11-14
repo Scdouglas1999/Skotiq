@@ -2,9 +2,6 @@
 
 part of '../../sequence_models.dart';
 
-// Instruction nodes
-
-/// Slew to target instruction
 class SlewNode extends SequenceNode {
   final bool useTargetCoords;
   final double? customRa;
@@ -24,16 +21,7 @@ class SlewNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'SlewToTarget';
-
-  @override
-  String get iconName => 'compass';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.mount};
+  NodeKind<SlewNode> get kind => NodeKinds.slew;
 
   @override
   SlewNode copyWith({
@@ -103,16 +91,7 @@ class CenterNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'CenterTarget';
-
-  @override
-  String get iconName => 'crosshair';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.mount, DeviceType.camera};
+  NodeKind<CenterNode> get kind => NodeKinds.center;
 
   @override
   CenterNode copyWith({
@@ -234,7 +213,6 @@ abstract class AdaptiveExposureConfig with _$AdaptiveExposureConfig {
   }
 }
 
-/// Take exposure instruction
 class ExposureNode extends SequenceNode {
   final double durationSecs;
   final int count;
@@ -275,20 +253,10 @@ class ExposureNode extends SequenceNode {
     this.adaptiveExposure,
   });
 
-  /// Get estimated total duration
   double get totalDurationSecs => durationSecs * count;
 
   @override
-  String get nodeType => 'TakeExposure';
-
-  @override
-  String get iconName => 'camera';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.camera};
+  NodeKind<ExposureNode> get kind => NodeKinds.exposure;
 
   @override
   ExposureNode copyWith({
@@ -402,19 +370,7 @@ class AutofocusNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'Autofocus';
-
-  @override
-  String get iconName => 'focus';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {
-    DeviceType.camera,
-    DeviceType.focuser,
-  };
+  NodeKind<AutofocusNode> get kind => NodeKinds.autofocus;
 
   @override
   AutofocusNode copyWith({
@@ -507,16 +463,7 @@ class DitherNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'Dither';
-
-  @override
-  String get iconName => 'shuffle';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.guider};
+  NodeKind<DitherNode> get kind => NodeKinds.dither;
 
   @override
   DitherNode copyWith({
@@ -588,16 +535,7 @@ class StartGuidingNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'StartGuiding';
-
-  @override
-  String get iconName => 'crosshair';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.guider};
+  NodeKind<StartGuidingNode> get kind => NodeKinds.startGuiding;
 
   @override
   StartGuidingNode copyWith({
@@ -651,16 +589,7 @@ class StopGuidingNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'StopGuiding';
-
-  @override
-  String get iconName => 'x-circle';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.guider};
+  NodeKind<StopGuidingNode> get kind => NodeKinds.stopGuiding;
 
   @override
   StopGuidingNode copyWith({

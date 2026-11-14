@@ -32,7 +32,7 @@ Three rules from 02 that everything below assumes: depth comes from **tone, not 
 | **Theme** | `theme/skotiq_theme.dart` | Assembles `ThemeData` + `ColorScheme` from the colors; `AppearanceAccents` per-theme swatches |
 | **Decorations** | `theme/skotiq_decorations.dart` | Reusable `BoxDecoration` factories (panel, well, field, popover, dialog, glass); shadows live in these factories, not in a token |
 | **Components** | `lib/src/components/`, `lib/src/layout/` | Panels and wells, readouts, buttons, fields and form rows, chips and pills, banners, list rows, side panel, night band, checklist |
-| **Domain `*Colors`** | e.g. `theme/skotiq_chart_colors.dart`, `theme/annotation_type_colors.dart` | Fixed hues, or theme-derived colors, for charts, annotations and protocol badges |
+| **Domain `*Colors`** | e.g. `theme/skotiq_chart_colors.dart`, `theme/filter_colors.dart` | Fixed hues, or theme-derived colors, for charts and filters. Colors keyed by an app type (annotation object types, annotation status, driver backends) live in `skotiq_app` next to the feature that uses them, because the kit does not depend on `skotiq_core` |
 
 Barrel exports: `skotiq_theme_system.dart` for the theme layers, `skotiq_ui.dart` for the components.
 
@@ -74,7 +74,7 @@ Add a **domain `*Colors` class** when:
 - Multiple unrelated features share the same specialized palette (PSF heatmap gradients, backend protocol badges)
 - The color **derives from** `SkotiqColors` for interactive states but is not a general UI token (`AnnotationStatusColors`, `SkotiqChartColors.selectedFrame`)
 
-Keep domain classes in `packages/skotiq_ui/lib/src/theme/` and export them from `skotiq_theme_system.dart`.
+Keep domain classes that take only plain values in `packages/skotiq_ui/lib/src/theme/` and export them from `skotiq_theme_system.dart`. A class that switches over a `skotiq_core` type goes in `skotiq_app` next to its consumers (`AnnotationTypeColors`, `AnnotationStatusColors`, `BackendProtocolColors`).
 
 The filter palette (L / R / G / B / Ha / OIII / SII) is a domain palette: legal in charts and thumbnails, never on chrome. The same rule is why a handful of `Color(0x…)` literals survive the audit — equipment-profile identity swatches, a diverging ramp endpoint, a fixed-palette annotation dialog. Those are data. Making them follow the theme would turn a data colour into a chrome colour, which is worse than the literal.
 

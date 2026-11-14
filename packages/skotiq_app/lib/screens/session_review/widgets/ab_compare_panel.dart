@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../session_review_controller.dart';
-import 'master_preview_view.dart';
+import '../../../widgets/master_preview/master_preview_view.dart';
 
 /// Side-by-side A/B comparison of two [IntegrationSettings] recipes over the
 /// same accepted subs.
 ///
 /// The comparison is EXPLORATORY: it must not change the controller's working
-/// settings, persist a master, or flip the shared hero/`lastOutcome`. Each side
+/// settings, persist a master, or change the hero. Each side
 /// runs `controller.reIntegratePreview(settings)`, a throwaway non-persisting
 /// integration, which is what guarantees that.
 ///

@@ -7,12 +7,14 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
-import '../backend/ffi_backend.dart' show FfiBackend;
 import '../database/daos/images_dao.dart';
-import '../services/logging_service.dart';
-import '../services/wcs/wcs_sip_codec.dart';
+import '../models/imaging/sip_terms.dart';
+import '../services/wcs/plate_solve_data_from_result.dart'
+    show PlateSolveResultWcs;
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'logging_service_provider.dart';
 
 /// The `captured_images` inserts still in flight, by file path, so a later
 /// update to the same frame can wait for its row instead of missing it.
@@ -104,7 +106,7 @@ final backgroundSolveRecorderProvider = Provider<BackgroundSolveRecorder>((
   ref,
 ) {
   final backend = ref.watch(backendProvider);
-  if (backend is! FfiBackend) return (_, _) async {};
+  if (!backend.ownsDeviceBridge) return (_, _) async {};
   final dao = ref.watch(imagesDaoProvider);
   final tracker = ref.watch(frameRegistrationTrackerProvider);
   final logger = ref.watch(loggingServiceProvider);
@@ -123,16 +125,7 @@ final backgroundSolveRecorderProvider = Provider<BackgroundSolveRecorder>((
         cd1_2: result.cd12,
         cd2_1: result.cd21,
         cd2_2: result.cd22,
-        sip: encodeSolvedSip(
-          aOrder: result.sipAOrder,
-          bOrder: result.sipBOrder,
-          aCoeffs: result.sipACoeffs,
-          bCoeffs: result.sipBCoeffs,
-          apOrder: result.sipApOrder,
-          bpOrder: result.sipBpOrder,
-          apCoeffs: result.sipApCoeffs,
-          bpCoeffs: result.sipBpCoeffs,
-        ),
+        sip: encodeSolvedSip(result.sipTerms),
       );
     } catch (e) {
       logger.warning(
@@ -152,7 +145,7 @@ typedef BackgroundSolveFailureRecorder = Future<void> Function(String filePath);
 final backgroundSolveFailureRecorderProvider =
     Provider<BackgroundSolveFailureRecorder>((ref) {
       final backend = ref.watch(backendProvider);
-      if (backend is! FfiBackend) return (_) async {};
+      if (!backend.ownsDeviceBridge) return (_) async {};
       final dao = ref.watch(imagesDaoProvider);
       final tracker = ref.watch(frameRegistrationTrackerProvider);
       final logger = ref.watch(loggingServiceProvider);

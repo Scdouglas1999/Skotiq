@@ -140,7 +140,7 @@ fn tan_header() -> FitsHeader {
 }
 
 #[test]
-fn reference_wcs_reads_cd_and_cdelt_forms_and_refuses_sip() {
+fn reference_wcs_reads_cd_and_cdelt_forms_and_refuses_other_projections() {
     let mut cd = tan_header();
     cd.set_float("CD1_1", -4e-4);
     cd.set_float("CD1_2", 1e-5);
@@ -157,8 +157,18 @@ fn reference_wcs_reads_cd_and_cdelt_forms_and_refuses_sip() {
     assert!((wcs.cd1_1 + 4e-4).abs() < 1e-12 && (wcs.cd2_2 - 4e-4).abs() < 1e-12);
 
     let mut sip = cd.clone();
+    sip.set_string("CTYPE1", "RA---TAN-SIP");
+    sip.set_string("CTYPE2", "DEC--TAN-SIP");
     sip.set_int("A_ORDER", 2);
-    assert!(reference_wcs(&sip).is_err());
+    sip.set_float("A_2_0", 1e-6);
+    sip.set_int("B_ORDER", 2);
+    sip.set_float("B_0_2", 1e-6);
+    assert_eq!(reference_wcs(&sip).unwrap(), reference_wcs(&cd).unwrap());
+
+    let mut sine = cd.clone();
+    sine.set_string("CTYPE1", "RA---SIN");
+    sine.set_string("CTYPE2", "DEC--SIN");
+    assert!(reference_wcs(&sine).is_err());
 
     let mut unstated = cd.clone();
     unstated.set_string("RADESYS", "FK4");
@@ -168,6 +178,35 @@ fn reference_wcs_reads_cd_and_cdelt_forms_and_refuses_sip() {
     fk5.set_string("RADESYS", "FK5");
     fk5.set_float("EQUINOX", 2000.0);
     assert!(reference_wcs(&fk5).is_ok());
+}
+
+/// A sub the app solved carries ASTAP's `-sip` solution, written into the
+/// frame the way every solve is; it anchors a goal by the solution's linear
+/// part.
+#[test]
+fn an_app_solved_sub_anchors_a_goal() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../test-fixtures/solver-wcs-2026-11-12/astap-sip.wcs");
+    let solve = SipWcs::from_header(&skotiq_imaging::read_fits_header(&fixture).unwrap()).unwrap();
+    assert!(solve.has_forward_sip());
+    let mut frame = FitsHeader::new();
+    frame.set_string("IMAGETYP", "Light");
+    solve.write_to_header(&mut frame);
+    assert_eq!(frame.get_string("CTYPE1"), Some("RA---TAN-SIP"));
+
+    let geometry = ReferenceGeometry::from_header(&frame, 4656, 3520).unwrap();
+    let linear = SipWcs::tan_only(
+        solve.crval1,
+        solve.crval2,
+        solve.crpix1,
+        solve.crpix2,
+        solve.cd1_1,
+        solve.cd1_2,
+        solve.cd2_1,
+        solve.cd2_2,
+    );
+    assert_eq!(geometry.wcs(), linear);
+    assert!((geometry.pixel_scale_arcsec() - 0.6164).abs() < 1e-3);
 }
 
 #[test]

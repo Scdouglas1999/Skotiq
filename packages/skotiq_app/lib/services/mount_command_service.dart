@@ -1,9 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/providers.dart' as core_providers
+    show stopGuidingForMove;
 
-import '../models/command_action_result.dart';
+import 'command_action_result.dart';
 
-/// Provider for the MountCommandService.
 final mountCommandServiceProvider = Provider((ref) {
   final backend = ref.watch(deviceBackendProvider);
   final deviceService = ref.watch(deviceServiceProvider);
@@ -44,7 +49,6 @@ class MountCommandService {
     return mount.deviceId;
   }
 
-  /// Returns true if a mount is currently connected.
   bool get isConnected => _connectedMountId != null;
 
   Future<MountCapabilities> _getCapabilities(String deviceId) async {
@@ -102,7 +106,6 @@ class MountCommandService {
     return null;
   }
 
-  /// Toggles between parked and unparked state.
   Future<CommandActionResult> togglePark() async {
     return _runExclusive((deviceId) async {
       final unparkRequested = _mountState.isParked;
@@ -123,17 +126,19 @@ class MountCommandService {
               'This mount reports that park is unsupported',
             );
           }
+          final refused = await _clearForMove(deviceId);
+          if (refused != null) return refused;
           await _deviceService.parkMount();
         }
         return CommandActionResult.ok;
       } catch (e) {
         final operation = unparkRequested ? 'unpark' : 'park';
-        return CommandActionResult.failure('Failed to $operation mount: $e');
+        return CommandActionResult.failure(
+            'Failed to $operation mount: ${userFacingError(e)}');
       }
     });
   }
 
-  /// Parks the mount.
   Future<CommandActionResult> park() async {
     return _runExclusive((deviceId) async {
       try {
@@ -145,15 +150,17 @@ class MountCommandService {
             'This mount reports that park is unsupported',
           );
         }
+        final refused = await _clearForMove(deviceId);
+        if (refused != null) return refused;
         await _deviceService.parkMount();
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to park mount: $e');
+        return CommandActionResult.failure(
+            'Failed to park mount: ${userFacingError(e)}');
       }
     });
   }
 
-  /// Unparks the mount.
   Future<CommandActionResult> unpark() async {
     return _runExclusive((deviceId) async {
       try {
@@ -168,10 +175,29 @@ class MountCommandService {
         await _deviceService.unparkMount();
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to unpark mount: $e');
+        return CommandActionResult.failure(
+            'Failed to unpark mount: ${userFacingError(e)}');
       }
     });
   }
+
+  /// [stopGuidingForMove]'s answer as a command result: the refusal to give
+  /// when guiding did not stop and the mount must stay where it is, null when
+  /// the move may go.
+  Future<CommandActionResult?> stopGuidingForMove() async {
+    try {
+      await core_providers.stopGuidingForMove(_ref);
+      return null;
+    } on GuidingDidNotStopException catch (e) {
+      return CommandActionResult.failure(userFacingError(e));
+    }
+  }
+
+  /// Stops guiding for a move of [deviceId]: the refusal to give when the
+  /// move must not go, because guiding did not stop or the mount changed
+  /// while it was stopping.
+  Future<CommandActionResult?> _clearForMove(String deviceId) async =>
+      await stopGuidingForMove() ?? _connectionChanged(deviceId);
 
   /// Slews the mount to the specified RA/Dec coordinates.
   ///
@@ -197,6 +223,8 @@ class MountCommandService {
             'This mount reports that GoTo slewing is unsupported',
           );
         }
+        final refused = await _clearForMove(deviceId);
+        if (refused != null) return refused;
         await _deviceService.slewMountToCoordinates(ra, dec);
         if (showFeedback) {
           return const CommandActionResult.success(message: 'Slew complete');
@@ -205,7 +233,8 @@ class MountCommandService {
       } on MountSlewException catch (e) {
         return CommandActionResult.failure(e.message);
       } catch (e) {
-        return CommandActionResult.failure('Slew failed: $e');
+        return CommandActionResult.failure(
+            'Slew failed: ${userFacingError(e)}');
       }
     });
   }
@@ -236,11 +265,11 @@ class MountCommandService {
       }
       return CommandActionResult.ok;
     } catch (e) {
-      return CommandActionResult.failure('Failed to abort slew: $e');
+      return CommandActionResult.failure(
+          'Failed to abort slew: ${userFacingError(e)}');
     }
   }
 
-  /// Sets the mount tracking state.
   Future<CommandActionResult> setTracking(bool enabled) async {
     return _runExclusive((deviceId) async {
       try {
@@ -255,12 +284,12 @@ class MountCommandService {
         await _deviceService.setMountTracking(enabled);
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to set tracking: $e');
+        return CommandActionResult.failure(
+            'Failed to set tracking: ${userFacingError(e)}');
       }
     });
   }
 
-  /// Toggles the mount tracking state.
   Future<CommandActionResult> toggleTracking() async {
     if (!isConnected) {
       return const CommandActionResult.failure('No mount connected');
@@ -289,12 +318,12 @@ class MountCommandService {
         await _deviceService.setMountTrackingRate(rate.index);
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Failed to set tracking rate: $e');
+        return CommandActionResult.failure(
+            'Failed to set tracking rate: ${userFacingError(e)}');
       }
     });
   }
 
-  /// Syncs the mount to the specified RA/Dec coordinates.
   Future<CommandActionResult> sync(double ra, double dec) async {
     final coordinateError = _equatorialCoordinateError(ra, dec);
     if (coordinateError != null) {
@@ -315,47 +344,8 @@ class MountCommandService {
           message: 'Mount synced to coordinates',
         );
       } catch (e) {
-        return CommandActionResult.failure('Sync failed: $e');
-      }
-    });
-  }
-
-  /// Slews the mount to the specified Alt/Az coordinates.
-  Future<CommandActionResult> slewToAltAz(
-    double altitude,
-    double azimuth, {
-    bool showFeedback = true,
-  }) async {
-    if (!altitude.isFinite || altitude < -90 || altitude > 90) {
-      return const CommandActionResult.failure(
-        'Altitude must be between -90 and +90 degrees',
-      );
-    }
-    if (!azimuth.isFinite || azimuth < 0 || azimuth > 360) {
-      return const CommandActionResult.failure(
-        'Azimuth must be between 0 and 360 degrees',
-      );
-    }
-    return _runExclusive((deviceId) async {
-      try {
-        final capabilities = await _getCapabilities(deviceId);
-        final changed = _connectionChanged(deviceId);
-        if (changed != null) return changed;
-        if (!capabilities.supportsAltAz) {
-          return const CommandActionResult.failure(
-            'This mount reports that Alt/Az slewing is unsupported',
-          );
-        }
-        await _deviceService.slewMountToAltAz(altitude, azimuth);
-        if (showFeedback) {
-          return CommandActionResult.success(
-            message:
-                'Alt/Az slew complete at ${altitude.toStringAsFixed(1)}°, ${azimuth.toStringAsFixed(1)}°',
-          );
-        }
-        return CommandActionResult.ok;
-      } catch (e) {
-        return CommandActionResult.failure('Alt/Az slew failed: $e');
+        return CommandActionResult.failure(
+            'Sync failed: ${userFacingError(e)}');
       }
     });
   }
@@ -381,6 +371,8 @@ class MountCommandService {
         if (_mountState.isParked) {
           return const CommandActionResult.failure(homeWhileParkedMessage);
         }
+        final refused = await _clearForMove(deviceId);
+        if (refused != null) return refused;
         final outcome = await _deviceService.findMountHome();
         return switch (outcome) {
           MountHomeOutcome.confirmed => const CommandActionResult.success(
@@ -393,7 +385,8 @@ class MountCommandService {
       } on MountHomeException catch (e) {
         return CommandActionResult.failure(e.message);
       } catch (e) {
-        return CommandActionResult.failure('Home failed: $e');
+        return CommandActionResult.failure(
+            'Home failed: ${userFacingError(e)}');
       }
     });
   }
@@ -421,7 +414,8 @@ class MountCommandService {
           message: 'Park position set to where the mount is pointing',
         );
       } catch (e) {
-        return CommandActionResult.failure('Set park failed: $e');
+        return CommandActionResult.failure(
+            'Set park failed: ${userFacingError(e)}');
       }
     });
   }
@@ -459,7 +453,6 @@ class MountCommandService {
     return null;
   }
 
-  /// Why Home refuses a parked mount.
   static const String homeWhileParkedMessage =
       'The mount is parked. Unpark it before sending it home.';
 
@@ -467,7 +460,6 @@ class MountCommandService {
   static const String homeUnconfirmedMessage =
       'The mount moved and stopped, but its driver cannot confirm it is at home';
 
-  /// Sends a pulse guide command in the specified direction.
   Future<CommandActionResult> pulseGuide(
     String direction, {
     int durationMs = 500,
@@ -517,7 +509,8 @@ class MountCommandService {
         );
         return CommandActionResult.ok;
       } catch (e) {
-        return CommandActionResult.failure('Pulse guide failed: $e');
+        return CommandActionResult.failure(
+            'Pulse guide failed: ${userFacingError(e)}');
       }
     });
   }

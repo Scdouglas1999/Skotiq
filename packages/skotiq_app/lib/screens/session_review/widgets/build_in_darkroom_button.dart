@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skotiq_core/models.dart' show IntegratedMaster;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
@@ -23,7 +24,6 @@ String sessionReviewBuildLocation(String? targetName) {
       : darkroomFramingLocation(name);
 }
 
-/// "Build masters" in the session review.
 class BuildInDarkroomButton extends ConsumerWidget {
   /// The session's target, as the guided build names it; null when the
   /// session's frames name none.
@@ -87,6 +87,44 @@ class BuildInDarkroomButton extends ConsumerWidget {
         size: size,
         semanticsHint: where,
         onPressed: () => context.go(sessionReviewBuildLocation(targetName)),
+      ),
+    );
+  }
+}
+
+/// Opens [master] in the Darkroom editor, where gradient removal, color
+/// calibration, star reduction and channel combination are recipe steps.
+///
+/// Refused on a machine that cannot open the Darkroom, with the reason on the
+/// control before anybody presses it.
+class EditMasterInDarkroomButton extends ConsumerWidget {
+  final IntegratedMaster master;
+
+  const EditMasterInDarkroomButton({super.key, required this.master});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final refusal = watchDarkroomHostOnlyRefusal(ref);
+    const label = 'Edit in the Darkroom';
+    final button = SkotiqButton(
+      key: const ValueKey('session_review_edit_in_darkroom'),
+      label: label,
+      icon: SkotiqIcons.aperture,
+      variant: ButtonVariant.secondary,
+      size: ButtonSize.small,
+      onPressed: refusal != null
+          ? null
+          : () => openDarkroomForMasterRow(context, ref, master.id),
+    );
+    if (refusal == null) return button;
+    return Tooltip(
+      message: refusal,
+      child: Semantics(
+        container: true,
+        button: true,
+        enabled: false,
+        label: unavailableControlName(label, refusal),
+        child: ExcludeSemantics(child: button),
       ),
     );
   }

@@ -13,8 +13,15 @@ const _adminToken = 'skotiq-mobile-smoke-admin-token';
 const _viewToken = 'skotiq-mobile-smoke-view-token';
 const _controlToken = 'skotiq-mobile-smoke-control-token';
 const _evidenceDir = 'docs/production-readiness';
-const _expectedAppVersion = '2.6.0';
-const _expectedApiVersion = '2.6.0';
+String _expectedAppVersion() {
+  final source = File.fromUri(
+    Platform.script.resolve('../../version.yaml'),
+  ).readAsStringSync();
+  final match = RegExp(r'^version:\s*"([^"\n]+)"', multiLine: true)
+      .firstMatch(source);
+  if (match == null) throw const FormatException('Missing release in version.yaml');
+  return match.group(1)!;
+}
 
 void main(List<String> args) async {
   if (!Platform.isWindows) {
@@ -266,15 +273,10 @@ Future<void> _verifyHeadlessPreconditions(
 ) async {
   final info = await _request(client, baseUri, '/api/info');
   _expectStatus('/api/info', info, HttpStatus.ok);
-  if (info.json['version'] != _expectedAppVersion) {
+  final expectedVersion = _expectedAppVersion();
+  if (info.json['version'] != expectedVersion) {
     throw StateError(
-      'Expected app version $_expectedAppVersion, got ${info.json['version']}',
-    );
-  }
-  if (info.json['apiVersion'] != _expectedApiVersion) {
-    throw StateError(
-      'Expected API version $_expectedApiVersion, got '
-      '${info.json['apiVersion']}',
+      'Expected app version $expectedVersion, got ${info.json['version']}',
     );
   }
 

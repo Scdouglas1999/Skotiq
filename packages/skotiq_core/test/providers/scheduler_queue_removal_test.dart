@@ -12,13 +12,13 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:skotiq_core/src/database/database.dart' hide Sequence;
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/scheduler_provider.dart';
-import 'package:skotiq_core/src/services/planning/project_service.dart';
-import 'package:skotiq_core/src/services/scheduler/integration_goal_service.dart';
-import 'package:skotiq_core/src/services/scheduler/scheduler_queue_service.dart';
+import 'package:skotiq_core/src/providers/planning/project_service_provider.dart';
+import 'package:skotiq_core/src/providers/scheduler/integration_goal_service_provider.dart';
+import 'package:skotiq_core/src/providers/scheduler/scheduler_queue_service_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -70,7 +70,6 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     final filtersState = ref.watch(suggestionFilterProvider);
     final candidatesAsync = ref.watch(plannerFilteredSuggestionsProvider);
 
-    // Keep the search field in sync if the provider changes from elsewhere.
     if (_searchController.text != filtersState.searchQuery) {
       _searchController.value = TextEditingValue(
         text: filtersState.searchQuery,
@@ -187,6 +186,8 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       scrollController: _scrollController,
       selectedTargetId: selected?.targetId,
       onSelect: (target) => setState(() => _selectedTargetId = target.targetId),
+      onImageTonight: (target) =>
+          _createSequence(context, colors, target, plan),
       riskFactors: plan.riskFactors,
     );
 
@@ -253,16 +254,23 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     SessionOptimizationPlan plan,
   ) async {
     try {
+      final estimate = ref
+          .read(plannerTargetIntegrationPreviewProvider(target.targetId))
+          .valueOrNull;
       final filter = plan.recommendedFilterName;
       final options = await showAutoBuildOptions(
         context,
         ref,
         target,
-        suggestedSeconds: plan.primaryTarget?.targetId == target.targetId &&
-                filter != null &&
-                plan.recommendedExposureSeconds > 0
-            ? {filter: plan.recommendedExposureSeconds}
-            : const {},
+        suggestedSeconds: estimate != null &&
+                estimate.filterNames.isNotEmpty &&
+                estimate.subExposureSecs > 0
+            ? {estimate.filterNames.first: estimate.subExposureSecs}
+            : plan.primaryTarget?.targetId == target.targetId &&
+                    filter != null &&
+                    plan.recommendedExposureSeconds > 0
+                ? {filter: plan.recommendedExposureSeconds}
+                : const {},
       );
       if (options == null || !context.mounted) return;
       final built = await buildPlanTonightTargetSequence(
@@ -281,30 +289,22 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       );
       if (!loaded || !context.mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.l10n.text(
-              'plannerDraftCreated',
-              params: {
-                'target': target.targetName,
-                'exposure': planTonightSequenceSummary(built),
-              },
-            ),
-          ),
-          backgroundColor: colors.success,
+      context.showSuccessSnackBar(
+        context.l10n.text(
+          'plannerDraftCreated',
+          params: {
+            'target': target.targetName,
+            'exposure': planTonightSequenceSummary(built),
+          },
         ),
       );
 
-      context.go('/sequencer');
+      // Tonight is where a built night is started; the Sequencer stays one
+      // tap away from its plan card.
+      context.go(AppRoute.tonight.path);
     } on SmartNightBuildException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: colors.error,
-        ),
-      );
+      context.showErrorSnackBar(e.message);
     }
   }
 
@@ -314,7 +314,7 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     TargetSuggestion target,
   ) {
     ref.read(framingProvider.notifier).setTargetSuggestion(target);
-    context.goNamed('framing');
+    context.go(AppRoutes.planner(tab: PlannerTab.framing));
   }
 
   Widget _buildLoadingState(SkotiqColors colors) {
@@ -349,7 +349,8 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
                   label: l10n.text('plannerNoSiteAction'),
                   variant: ButtonVariant.secondary,
                   size: ButtonSize.small,
-                  onPressed: () => context.go('/settings?section=location'),
+                  onPressed: () =>
+                      openSettings(context, SettingsSectionId.location),
                 ),
               )
             : EmptyState(

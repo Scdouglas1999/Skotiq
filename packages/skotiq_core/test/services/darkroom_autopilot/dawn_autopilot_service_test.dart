@@ -16,8 +16,10 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show UpdateKind, Value, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {
@@ -483,6 +485,7 @@ void main() {
       darkroom: darkroom,
       photometry: DawnPhotometryResolver(
         coneSearch: (centre, radius, {maxMagnitude}) async => catalog,
+        readHeader: (_) async => FrameHeader(const {}),
       ),
       delivery: DeliveryService(
         targets: DeliveryTargetsDao(db),
@@ -491,7 +494,7 @@ void main() {
             transportFactory ?? (destination, jobId) => _RefusingTransport(),
       ),
       notifier: notifier,
-      outputDirectory: () async => output.path,
+      darkroomDirectory: () async => '${output.path}/darkroom',
     );
   }
 
@@ -1652,8 +1655,8 @@ void main() {
     },
   );
 
-  test('a job left running by a dead process is re-queued at open and drained '
-      'on the next start', () async {
+  test('a job left running by a dead process is re-queued and drained on the '
+      'next start', () async {
     final crashDir = await Directory.systemTemp.createTemp('dawn-crash');
     addTearDown(() => crashDir.delete(recursive: true));
     final file = File('${crashDir.path}/skotiq.sqlite');
@@ -1699,8 +1702,10 @@ void main() {
     await DarkroomJobsDao(first).markRunning(jobId);
     await first.close();
 
+    // The next start: the host runs its crash recovery on the database.
     final second = SkotiqDatabase.forTesting(NativeDatabase(file));
     addTearDown(second.close);
+    await recoverFromPreviousProcessExit(second);
     final recovered = await DarkroomJobsDao(second).getById(jobId);
     expect(recovered!.state, DarkroomJobState.queued);
     expect(recovered.note, contains('Re-queued'));
@@ -1720,6 +1725,7 @@ void main() {
       darkroom: crashDarkroom,
       photometry: DawnPhotometryResolver(
         coneSearch: (centre, radius, {maxMagnitude}) async => const [],
+        readHeader: (_) async => FrameHeader(const {}),
       ),
       delivery: DeliveryService(
         targets: DeliveryTargetsDao(second),
@@ -1727,7 +1733,7 @@ void main() {
         transportFactory: (destination, jobId) => _RefusingTransport(),
       ),
       notifier: notifier,
-      outputDirectory: () async => crashDir.path,
+      darkroomDirectory: () async => '${crashDir.path}/darkroom',
     );
 
     final outcomes = await service.drainQueue();
@@ -1769,6 +1775,7 @@ void main() {
 
       final second = SkotiqDatabase.forTesting(NativeDatabase(file));
       addTearDown(second.close);
+      await recoverFromPreviousProcessExit(second);
       final recovered = await DarkroomJobsDao(second).getById(jobId);
 
       expect(recovered!.state, DarkroomJobState.failed);
@@ -2250,6 +2257,35 @@ void main() {
     final live = await buildService().liveJobsForSession(sessionId);
 
     expect(live.map((j) => j.id), [older, newer]);
+  });
+
+  test('a Stop over a session cancels every queued pass and leaves a finished '
+      'one as it ended', () async {
+    final sessionId = await insertSession();
+    final jobs = DarkroomJobsDao(db);
+    final first = await jobs.enqueue(
+      sessionId: sessionId,
+      kind: DarkroomJobKind.manual,
+    );
+    final second = await jobs.enqueue(
+      sessionId: sessionId,
+      kind: DarkroomJobKind.manual,
+    );
+    final done = await jobs.enqueue(
+      sessionId: sessionId,
+      kind: DarkroomJobKind.manual,
+    );
+    await jobs.markRunning(done);
+    await jobs.markDone(done);
+
+    await buildService().cancelLivePassesForSession(
+      sessionId,
+      reason: 'Stopped from the Darkroom pass view',
+    );
+
+    expect((await jobs.getById(first))!.state, DarkroomJobState.cancelled);
+    expect((await jobs.getById(second))!.state, DarkroomJobState.cancelled);
+    expect((await jobs.getById(done))!.state, DarkroomJobState.done);
   });
 
   test('a night that rendered no draft never announces "0 drafts"', () async {

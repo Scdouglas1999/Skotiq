@@ -2,12 +2,10 @@
 //!
 //! A *wizard* is a multi-step automation routine following the pattern "for
 //! each step in a plan: do work, emit progress, check cancellation, optionally
-//! record resumable state, repeat." The four production wizards today are:
+//! record resumable state, repeat." The three production wizards today are:
 //!
 //! * `FlatWizard` — iterates exposure trials in a binary search to converge
 //!   on a target ADU.
-//! * `Mosaic` — validates / computes a panel grid (today: a single
-//!   compute step; future: per-panel slew + center + expose).
 //! * `PolarAlignment` — measures three sky positions, then enters an
 //!   adjustment refinement loop.
 //! * `AllSkyPolar` — captures a baseline frame, then loops on drift-pair
@@ -17,12 +15,11 @@
 //!
 //! * The [`Wizard`] trait — wizards plug in by listing their steps and
 //!   describing how to execute one step. Wizards may run a fixed plan
-//!   (mosaic, polar alignment) or extend the plan dynamically based on
+//!   (polar alignment) or extend the plan dynamically based on
 //!   step results (flat wizard's binary search, all-sky polar's
 //!   adjustment loop).
 //! * The [`WizardExecutor`] — drives a `Wizard` through its plan,
-//!   handling cancellation, progress callbacks, and step-level
-//!   checkpointing.
+//!   handling cancellation and step-level checkpointing.
 //! * The [`WizardCheckpoint`] schema — JSON-serializable record of
 //!   completed step indices for a given wizard instance, lifted into
 //!   [`crate::checkpoint::SessionCheckpoint::wizard_states`] so a
@@ -35,23 +32,21 @@
 //! FITS files, UI events, plate-solve callbacks, final `InstructionResult`
 //! payload, and step ordering are all preserved. The executor adds:
 //!
-//! * Uniform `"Step X/Y: <description>"` progress messages.
 //! * Pre-step cancellation checks.
 //! * Optional persistence of completed step indices through
 //!   [`WizardCheckpointSink`].
 //!
-//! Each wizard remains free to emit its own fine-grained progress
-//! callbacks **inside** [`Wizard::execute_step`] (e.g. flat wizard's
-//! "Iteration 5/10: testing 0.42s exposure"). The executor's progress
-//! emission is in addition to, not in place of, those.
+//! The wizard owns its progress: it reports through the reporter handed to
+//! [`Wizard::execute_step`], and the executor reports none of its own. A plan
+//! that grows as it runs (the flat wizard's search) has no step count to
+//! divide by, and a second reporter on the same bar moved it backwards.
 //!
 //! # Plugin extensibility
 //!
 //! A future plugin that wants to author a new wizard implements [`Wizard`]
 //! for its config type and delegates to a [`WizardExecutor`]. It then gets
-//! progress, cancellation, and resume support "for free" without having
-//! to reimplement those concerns. See `wizard_test_support` in this
-//! module for an example.
+//! cancellation and resume support "for free" without having
+//! to reimplement those concerns.
 
 use crate::checkpoint::WizardCheckpoint;
 use crate::instructions::InstructionContext;
@@ -101,8 +96,7 @@ pub trait Wizard: Send {
     /// internal state via `&mut self`; the executor only orchestrates.
     ///
     /// `idx` is the zero-based step index within the (possibly
-    /// extended) plan. `progress` lets the wizard emit fine-grained
-    /// progress messages on top of the executor's step-level emission.
+    /// extended) plan. `progress` is the wizard's progress line and bar.
     async fn execute_step(
         &mut self,
         ctx: &InstructionContext,
@@ -161,12 +155,13 @@ pub enum WizardStepOutcome<K> {
     Failed(String),
 }
 
-/// Hook invoked by the executor to surface step-level progress to the
-/// outer sequencer UI. Implementations typically wrap the existing
-/// instruction-level progress callback (`Fn(f64, String)`).
+/// Where a wizard reports its progress to the outer sequencer UI.
+/// Implementations typically wrap the instruction-level progress callback
+/// (`Fn(f64, String)`).
 pub trait WizardProgressReporter: Send + Sync {
     /// Emit a progress update. `fraction` is 0.0..=1.0 representing
-    /// overall wizard progress. `message` is a UI-ready string.
+    /// overall wizard progress and never goes down within a run. `message`
+    /// is a UI-ready string.
     fn report(&self, fraction: f64, message: String);
 }
 
@@ -193,36 +188,6 @@ impl<'a> WizardProgressReporter for BorrowedProgressReporter<'a> {
         if let Some(cb) = self.callback {
             cb(fraction * 100.0, message);
         }
-    }
-}
-
-/// Adapter that wraps a closure-style progress callback (the legacy
-/// `Fn(f64, String)` shape used throughout `instructions.rs`).
-pub struct ClosureProgressReporter<F>
-where
-    F: Fn(f64, String) + Send + Sync,
-{
-    callback: F,
-}
-
-impl<F> ClosureProgressReporter<F>
-where
-    F: Fn(f64, String) + Send + Sync,
-{
-    pub fn new(callback: F) -> Self {
-        Self { callback }
-    }
-}
-
-impl<F> WizardProgressReporter for ClosureProgressReporter<F>
-where
-    F: Fn(f64, String) + Send + Sync,
-{
-    fn report(&self, fraction: f64, message: String) {
-        // Why: callers pass `fraction` as 0.0..=1.0 but legacy callbacks
-        // expect 0..=100 percentage. Scale here so wizard implementations
-        // can think in fractions while callers stay drop-in compatible.
-        (self.callback)(fraction * 100.0, message);
     }
 }
 
@@ -293,7 +258,8 @@ pub async fn wait_for_slew_complete(
         || async {
             SlewSample {
                 slewing: Some(
-                    ctx.device_ops
+                    ctx.run
+                        .device_ops
                         .mount_is_slewing(mount_id)
                         .await
                         .unwrap_or(false),
@@ -339,11 +305,10 @@ impl WizardCheckpointSink for NullCheckpointSink {
 /// 2. Builds the initial plan via [`Wizard::plan_steps`].
 /// 3. For each step from `resume_idx` onward:
 ///    a. Checks the cancellation token.
-///    b. Reports "Step X/Y: <description>" via `progress`.
-///    c. Awaits [`Wizard::execute_step`].
-///    d. Handles the outcome: advances, extends the plan, terminates
+///    b. Awaits [`Wizard::execute_step`], handing it `progress`.
+///    c. Handles the outcome: advances, extends the plan, terminates
 ///    early, or surfaces a failure.
-///    e. Persists the completed step index.
+///    d. Persists the completed step index.
 /// 4. Invokes [`Wizard::finalize`] with the terminal status and clears
 ///    the checkpoint on success.
 pub struct WizardExecutor<'a> {
@@ -423,24 +388,6 @@ impl<'a> WizardExecutor<'a> {
 
             let step = plan[idx].clone();
             let description = wizard.describe_step(&step, idx);
-            // Why: `idx` and `plan.len()` are bounded by realistic step counts
-            // (max iterations are u32-bounded); u32 → f64 widening is lossless.
-            let fraction = if plan.is_empty() {
-                0.0
-            } else {
-                (idx as f64) / (plan.len() as f64)
-            };
-            self.progress.report(
-                fraction,
-                format!(
-                    "{}: step {}/{} — {}",
-                    wizard_name,
-                    idx + 1,
-                    plan.len(),
-                    description
-                ),
-            );
-
             tracing::debug!(
                 "Wizard '{}' running step {}/{}: {}",
                 wizard_name,
@@ -488,9 +435,6 @@ impl<'a> WizardExecutor<'a> {
 
         let status = terminal.unwrap_or(WizardRunStatus::Completed);
         if status.is_success() {
-            // Final progress at 100%.
-            self.progress
-                .report(1.0, format!("{} complete", wizard_name));
             // Clear the checkpoint so a fresh run starts at step 0.
             self.checkpoint_sink.clear(checkpoint_key);
         }
@@ -594,73 +538,10 @@ mod tests {
     }
 
     fn dummy_ctx() -> InstructionContext {
-        InstructionContext {
-            node_id: String::new(),
-            target_ra: None,
-            target_dec: None,
-            target_rotation: None,
-            target_name: None,
-            current_filter: None,
-            current_binning: crate::Binning::One,
-            cancellation_token: Arc::new(AtomicBool::new(false)),
-            camera_id: None,
-            mount_id: None,
-            focuser_id: None,
-            filterwheel_id: None,
-            rotator_id: None,
-            dome_id: None,
-            cover_calibrator_id: None,
-            save_path: None,
-            latitude: None,
-            longitude: None,
-            device_ops: Arc::new(crate::device_ops::NullDeviceOps),
-            trigger_state: None,
-            filter_focus_offsets: std::collections::HashMap::new(),
-            event_tx: None,
-            recovery_request_tx: None,
-            device_disconnect_recovery_pending: std::sync::Arc::new(
-                std::sync::atomic::AtomicBool::new(false),
-            ),
-            session_id: String::new(),
-            target_id: None,
-            mosaic_panel: None,
-            current_filter_index: None,
-            set_temp_c: None,
-            bayer_pattern: None,
-            observer_name: None,
-            site_elevation_m: None,
-            camera_make: None,
-            camera_model: None,
-            telescope_name: None,
-            telescope_focal_length_mm: None,
-            telescope_aperture_mm: None,
-            last_plate_solve: Arc::new(tokio::sync::RwLock::new(None)),
-            hfr_baseline: Arc::new(tokio::sync::RwLock::new(None)),
-            hfr_baseline_samples: Arc::new(tokio::sync::RwLock::new(Vec::new())),
-            star_count_baselines: Default::default(),
-            consecutive_rejects: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            frames_accepted: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            frames_rejected: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            default_quality_check: None,
-            reject_folder_path: None,
-            defect_map_apply: Arc::new(tokio::sync::RwLock::new(None)),
-            // Forensics test scaffolding.
-            forensics_history: Arc::new(
-                tokio::sync::RwLock::new(std::collections::VecDeque::new()),
-            ),
-            current_sky_brightness_mag: Arc::new(tokio::sync::RwLock::new(None)),
-            cloud_motion_snapshot: Arc::new(tokio::sync::RwLock::new(
-                crate::node::context::CloudMotionSnapshot::default(),
-            )),
-            current_wind_kph: Arc::new(tokio::sync::RwLock::new(None)),
-            current_sensor_temp_c: Arc::new(tokio::sync::RwLock::new(None)),
-            // Replay Debug — test contexts don't emit decisions.
-            decision_tx: None,
-            active_sequence_run_id: Arc::new(parking_lot::RwLock::new(None)),
-            dither_barrier: None,
-            device_retry: crate::instructions::DeviceRetryHandle::single_attempt(),
-            target_light_filters: Vec::new(),
-        }
+        InstructionContext::new(
+            crate::instructions::RunShared::new(Arc::new(crate::device_ops::NullDeviceOps)),
+            Arc::new(AtomicBool::new(false)),
+        )
     }
 
     #[tokio::test]

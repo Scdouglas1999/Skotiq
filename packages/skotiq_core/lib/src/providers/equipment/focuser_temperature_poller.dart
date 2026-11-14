@@ -2,12 +2,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/equipment/equipment_models.dart';
-import '../../services/logging_service.dart';
 import '../backend_provider.dart';
 import 'focuser_state_provider.dart';
+import '../logging_service_provider.dart';
 
 /// Reads a connected focuser's temperature on a fixed cadence on the machine
 /// that owns the rig.
@@ -24,6 +23,7 @@ final focuserTemperaturePollerProvider = Provider<FocuserTemperaturePoller>((
   final poller = FocuserTemperaturePoller(
     ref: ref,
     backend: ref.watch(backendProvider),
+    focuserIsHere: !ref.watch(isRemoteModeProvider),
   );
   ref.listen<FocuserState>(
     focuserStateProvider,
@@ -38,12 +38,15 @@ class FocuserTemperaturePoller {
   FocuserTemperaturePoller({
     required Ref ref,
     required SkotiqBackend backend,
+    required bool focuserIsHere,
     this.interval = const Duration(seconds: 30),
   }) : _ref = ref,
-       _backend = backend;
+       _backend = backend,
+       _focuserIsHere = focuserIsHere;
 
   final Ref _ref;
   final SkotiqBackend _backend;
+  final bool _focuserIsHere;
   final Duration interval;
 
   Timer? _timer;
@@ -57,7 +60,7 @@ class FocuserTemperaturePoller {
   void follow(FocuserState state) {
     final deviceId = state.deviceId;
     final readable =
-        _backend is! NetworkBackend &&
+        _focuserIsHere &&
         state.connectionState == DeviceConnectionState.connected &&
         deviceId != null &&
         deviceId.isNotEmpty &&

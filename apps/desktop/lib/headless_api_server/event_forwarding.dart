@@ -10,9 +10,9 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
   /// snapshot consumers, and future replay subscribers see a consistent
   /// shape.
   ///
-  /// SkotiqEvents whose `eventType` is in the command-completion
-  /// table get their originating `correlatingCommandId` stamped from the
-  /// correlator on a best-effort basis.
+  /// An event that completes a command ([commandCompletionOf]) gets its
+  /// originating `correlatingCommandId` stamped from the correlator on a
+  /// best-effort basis.
   ///
   /// The replay buffer append is done BEFORE the early-return on empty
   /// sockets: SSE clients and the snapshot endpoint can still pick up
@@ -34,6 +34,7 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
       return null;
     }
     _eventReplayBuffer.append(stamped);
+    _nightEventLog.append(stamped);
     _emitStampedEvent(stamped);
     return stamped;
   }
@@ -59,16 +60,18 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
     }
 
     _eventSeq += 1;
-    final operation = operationForCompletionEvent(base.eventType);
-    final deviceId = base.data['deviceId'] is String
-        ? base.data['deviceId'] as String
+    var correlatingCommandId = base.correlatingCommandId;
+    final completion = correlatingCommandId == null
+        ? commandCompletionOf(base)
         : null;
-    String? correlatingCommandId = base.correlatingCommandId;
-    if (correlatingCommandId == null && operation != null) {
-      correlatingCommandId = _commandCorrelator.stampEvent(
-        operation: operation,
-        deviceId: deviceId,
-      );
+    if (completion != null) {
+      for (final operation in completion.operations) {
+        correlatingCommandId = _commandCorrelator.stampEvent(
+          operation: operation,
+          deviceId: completion.deviceId,
+        );
+        if (correlatingCommandId != null) break;
+      }
     }
     return base.copyWith(
       seq: _eventSeq,
@@ -77,19 +80,32 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
     );
   }
 
-  /// Serialise a stamped event and push to every connected socket.
+  /// Serialise a stamped event and push to every connected socket, with
+  /// credential values hidden from sockets without admin access.
   void _emitStampedEvent(SkotiqEvent stamped) {
     if (_sockets.isEmpty) return;
     final jsonEvent = _encodeStampedEventForWire(stamped);
     if (jsonEvent == null) return;
+    final limited = eventWithCredentialsHidden(stamped);
+    final limitedJson = identical(limited, stamped)
+        ? jsonEvent
+        : _encodeStampedEventForWire(limited);
     for (final socket in List.of(_sockets)) {
+      final frame = _adminSockets.contains(socket) ? jsonEvent : limitedJson;
+      if (frame == null) continue;
       try {
-        socket.sink.add(jsonEvent);
+        socket.sink.add(frame);
       } catch (e) {
         _logWarning('Error broadcasting to socket: $e');
       }
     }
   }
+
+  /// [event] as [socket] may receive it.
+  SkotiqEvent _eventFor(WebSocketChannel socket, SkotiqEvent event) =>
+      _adminSockets.contains(socket)
+      ? event
+      : eventWithCredentialsHidden(event);
 
   /// Encode a stamped event into the WebSocket wire envelope. Returns
   /// null if encoding failed (logged inside).
@@ -99,20 +115,6 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
   }) {
     try {
       final json = stamped.toJson();
-      if (stamped.category == EventCategory.guiding &&
-          stamped.eventType == 'GuideStep') {
-        final data = json['data'];
-        if (data is Map<String, dynamic>) {
-          final raRaw = data['RADistanceRaw'];
-          final decRaw = data['DECDistanceRaw'];
-          if (raRaw is num && !data.containsKey('raPx')) {
-            data['raPx'] = raRaw.toDouble();
-          }
-          if (decRaw is num && !data.containsKey('decPx')) {
-            data['decPx'] = decRaw.toDouble();
-          }
-        }
-      }
       return jsonEncode(
         _eventJsonSafe({'type': 'event', if (replay) 'replay': true, ...json}),
       );

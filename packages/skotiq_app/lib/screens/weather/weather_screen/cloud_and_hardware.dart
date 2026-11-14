@@ -8,14 +8,14 @@ part of '../weather_screen.dart';
 /// radar to float over. Same widgets either way — there is one of everything
 /// (02 rule 4).
 class _WeatherConditions extends ConsumerWidget {
-  /// Whether the radar-derived figures (cloud cover, alert level, motion) have
-  /// a site to have been measured for. Without one only the hardware sensors
-  /// and the safety verdict are real.
+  /// Whether the forecast and map have an observing site. Hardware sensors
+  /// and the safety verdict do not depend on a site being set.
   final bool radarAvailable;
 
   final WeatherAlert? alert;
   final CloudMotion? motion;
   final DateTime? lastUpdate;
+  final bool fetchFailed;
   final double? cloudCoverPercent;
   final double? alertRadiusKm;
   final bool expanded;
@@ -27,6 +27,7 @@ class _WeatherConditions extends ConsumerWidget {
     required this.alert,
     required this.motion,
     required this.lastUpdate,
+    this.fetchFailed = false,
     required this.cloudCoverPercent,
     required this.alertRadiusKm,
     required this.expanded,
@@ -40,6 +41,10 @@ class _WeatherConditions extends ConsumerWidget {
     final safetyDeviceState = ref.watch(safetyMonitorStateProvider);
     final settings = ref.watch(weatherSettingsProvider);
     final safetyState = ref.watch(weatherSafetyProvider);
+    final forecast = ref.watch(cloudCoverForecastProvider).valueOrNull;
+    final validAt = forecast?.validAt?.toUtc();
+    final forecastSource = '${forecast?.source ?? 'Weather'} model · '
+        '${validAt == null ? 'sample time unavailable' : '${ClockFormat.dateHm(validAt)} UTC'}';
 
     final hasWeatherDevice =
         weatherState.connectionState == DeviceConnectionState.connected;
@@ -54,11 +59,11 @@ class _WeatherConditions extends ConsumerWidget {
         ),
       if (hasWeatherDevice) ...[
         if (weatherState.temperature != null)
-          ('Temperature', '${weatherState.temperature!.toStringAsFixed(1)} °C'),
+          ('Temperature', formatCelsius(weatherState.temperature!)),
         if (weatherState.humidity != null)
           ('Humidity', '${weatherState.humidity!.toStringAsFixed(0)} %'),
         if (weatherState.dewPoint != null)
-          ('Dew point', '${weatherState.dewPoint!.toStringAsFixed(1)} °C'),
+          ('Dew point', formatCelsius(weatherState.dewPoint!)),
         if (weatherState.windSpeed != null)
           ('Wind', '${weatherState.windSpeed!.toStringAsFixed(1)} m/s'),
         if (weatherState.cloudCover != null)
@@ -73,7 +78,7 @@ class _WeatherConditions extends ConsumerWidget {
         if (weatherState.rainRate != null && weatherState.rainRate! > 0)
           ('Rain', '${weatherState.rainRate!.toStringAsFixed(1)} mm/hr'),
         if (weatherState.lastUpdated != null)
-          ('Updated', _relativeAge(weatherState.lastUpdated!)),
+          ('Updated', RelativeTime.ago(weatherState.lastUpdated!)),
       ],
     ];
 
@@ -95,11 +100,11 @@ class _WeatherConditions extends ConsumerWidget {
                     Readout(
                       value: cloudCoverPercent?.toStringAsFixed(0),
                       unit: '%',
-                      label: 'Cloud cover',
+                      label: 'Forecast cloud cover',
                       valueColor: _cloudCoverTone(colors, cloudCoverPercent),
                     ),
                     Readout(
-                      key: WeatherTutorialKeys.alertRadius,
+                      key: TourTarget.weatherAlertRadius.key,
                       value: alertRadiusKm?.toStringAsFixed(0),
                       unit: 'km',
                       label: 'Alert radius',
@@ -119,6 +124,19 @@ class _WeatherConditions extends ConsumerWidget {
                 ),
             ],
           ),
+        if (radarAvailable && cloudCoverPercent != null) ...[
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          Text(
+            forecastSource,
+            style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+          ),
+          Text(
+            'Model estimate, not an observation. Check the local sky; '
+            'satellite brightness is a separate measurement.',
+            style:
+                SkotiqTypography.caption.copyWith(color: colors.textSecondary),
+          ),
+        ],
         if (expanded) ...[
           if (radarAvailable) ...[
             if (showHeadline) const SizedBox(height: SkotiqTokens.spaceMd),
@@ -126,6 +144,7 @@ class _WeatherConditions extends ConsumerWidget {
               alert: alert,
               motion: motion,
               lastUpdate: lastUpdate,
+              fetchFailed: fetchFailed,
             ),
           ],
           if (sensorRows.isNotEmpty) ...[
@@ -141,6 +160,7 @@ class _WeatherConditions extends ConsumerWidget {
                 weatherPolicyArmedLabel(
                   armed: safetyState.autoParkArmed,
                   toggledOn: settings.autoParkEnabled,
+                  monitoring: safetyState.monitoringEnabled,
                 ),
               ),
               (
@@ -148,6 +168,7 @@ class _WeatherConditions extends ConsumerWidget {
                 weatherPolicyArmedLabel(
                   armed: safetyState.autoResumeArmed,
                   toggledOn: settings.autoResumeEnabled,
+                  monitoring: safetyState.monitoringEnabled,
                 ),
               ),
             ],
@@ -169,7 +190,6 @@ class _WeatherConditions extends ConsumerWidget {
   }
 }
 
-/// A hairline between blocks inside the conditions HUD.
 class _ConditionsDivider extends StatelessWidget {
   const _ConditionsDivider();
 
@@ -203,12 +223,4 @@ class _ConditionsEyebrow extends StatelessWidget {
       ),
     );
   }
-}
-
-/// "just now" / "3m ago" / "2h ago".
-String _relativeAge(DateTime time) {
-  final diff = DateTime.now().difference(time);
-  if (diff.inSeconds < 60) return 'just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-  return '${diff.inHours}h ago';
 }

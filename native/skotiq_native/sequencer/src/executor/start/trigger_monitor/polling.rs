@@ -8,11 +8,12 @@ use super::*;
 pub(super) struct DevicePoller {
     device_ops: SharedDeviceOps,
     trigger_manager: Arc<RwLock<TriggerManager>>,
-    runtime_config: Arc<StdRwLock<RuntimeConfig>>,
+    runtime_config: RunConfigStore,
     events: broadcast::Sender<ExecutorEvent>,
     mount_id: Option<String>,
     focuser_id: Option<String>,
-    dome_id: Option<String>,
+    /// The dome assigned to the run, if any; see `run_dome_id`.
+    assigned_dome_id: Option<String>,
     /// The previous safety poll failed, so its warning is not repeated.
     safety_poll_last_was_error: bool,
     last_safety_poll_at: Option<std::time::Instant>,
@@ -34,9 +35,9 @@ impl DevicePoller {
     pub(super) fn new(
         device_ops: SharedDeviceOps,
         trigger_manager: Arc<RwLock<TriggerManager>>,
-        runtime_config: Arc<StdRwLock<RuntimeConfig>>,
+        runtime_config: RunConfigStore,
         events: broadcast::Sender<ExecutorEvent>,
-        rig: &TriggerActionContext,
+        rig: &RunRig,
     ) -> Self {
         Self {
             device_ops,
@@ -45,7 +46,7 @@ impl DevicePoller {
             events,
             mount_id: rig.mount_id.clone(),
             focuser_id: rig.focuser_id.clone(),
-            dome_id: rig.dome_id.clone(),
+            assigned_dome_id: rig.dome_id.clone(),
             safety_poll_last_was_error: false,
             last_safety_poll_at: None,
             last_mount_poll_at: None,
@@ -96,7 +97,7 @@ impl DevicePoller {
             &mut self.verdict_stale_warned,
         ) {
             tracing::warn!("{}", msg);
-            let _ = self.events.send(ExecutorEvent::Error { message: msg });
+            let _ = self.events.send(ExecutorEvent::RunHeld { message: msg });
         }
         if stale_verdict_dropped {
             let message =
@@ -160,7 +161,7 @@ impl DevicePoller {
             }
             NoDataResolution::Safe => {
                 if first_error {
-                    if crate::device_ops::is_no_safety_device_configured(&error) {
+                    if error == crate::device_ops::DeviceError::NO_SAFETY_DEVICE {
                         // Fail open on a rig without a safety device is the
                         // operator's setting; the app's weather verdict still
                         // holds the run when the sky turns.
@@ -185,12 +186,30 @@ impl DevicePoller {
                          weather_safe unchanged and emitting alert",
                         error
                     );
-                    let _ = self.events.send(ExecutorEvent::Error {
-                        message: format!(
-                            "Safety poll failed: {}. WarnOnly mode keeps the \
-                             previous safety state — operator attention required.",
-                            error
-                        ),
+                    // With the weather last known safe the run carries on,
+                    // which is news. With it last known unsafe the run is
+                    // already held for the weather, and stays held.
+                    let was_safe = {
+                        let manager = self.trigger_manager.read().await;
+                        let state = manager.state();
+                        let safe = state.read().await.telemetry.weather_safe;
+                        safe
+                    };
+                    let _ = self.events.send(if was_safe {
+                        ExecutorEvent::StepProblem {
+                            message: format!(
+                                "The safety monitor could not be read: {error}. The run goes \
+                                 on, taking the weather as safe as it last was; check the \
+                                 monitor."
+                            ),
+                        }
+                    } else {
+                        ExecutorEvent::Warning {
+                            message: format!(
+                                "The safety monitor could not be read: {error}. The weather \
+                                 is still taken as unsafe, as it last was; check the monitor."
+                            ),
+                        }
                     });
                 }
                 None
@@ -206,7 +225,7 @@ impl DevicePoller {
         &mut self,
         is_safe: Option<bool>,
         guiding_rms: Option<f64>,
-        humidity: Option<Result<Option<f64>, String>>,
+        humidity: Option<crate::device_ops::DeviceResult<Option<f64>>>,
         verdict_staleness_secs: u64,
         fail_mode: SafetyFailMode,
     ) -> (bool, bool) {
@@ -214,14 +233,13 @@ impl DevicePoller {
         let trigger_state = manager.state();
         let mut state = trigger_state.write().await;
         if let Some(safe) = is_safe {
-            state.weather_safe = safe;
+            state.telemetry.weather_safe = safe;
         }
-        state.safety_fail_mode = fail_mode;
         let stale = state.is_weather_verdict_stale_unsafe(verdict_staleness_secs);
         let stale_verdict_dropped = stale && !stale_unsafe_verdict_holds(fail_mode);
         if stale_verdict_dropped {
-            state.weather_verdict_unsafe = None;
-            state.weather_verdict_advisory = false;
+            state.telemetry.weather_verdict_unsafe = None;
+            state.telemetry.weather_verdict_advisory = false;
         }
         let verdict_stale_unsafe = stale && stale_unsafe_verdict_holds(fail_mode);
 
@@ -246,30 +264,20 @@ impl DevicePoller {
             Some(Ok(None)) | None => {}
         }
 
-        // Mobile rigs configure the site after the mount connects.
-        if state.observer_latitude.is_none() {
-            if let Some((lat, lon)) = self.device_ops.get_observer_location() {
-                state.observer_latitude = Some(lat);
-                state.observer_longitude = Some(lon);
-                tracing::debug!(
-                    "Observer location set for dawn/altitude triggers: {}, {}",
-                    lat,
-                    lon
-                );
-            }
-        }
-
         // Keep an upcoming dawn cached whenever a site is known, so a
         // multi-night run keeps its dawn protection.
-        if let (Some(lat), Some(lon)) = (state.observer_latitude, state.observer_longitude) {
+        if let (Some(lat), Some(lon)) = (
+            state.settings.observer_latitude,
+            state.settings.observer_longitude,
+        ) {
             let now = chrono::Utc::now().timestamp();
-            let needs_refresh = match state.dawn_time {
+            let needs_refresh = match state.telemetry.dawn_time {
                 None => true,
                 Some(t) => t <= now,
             };
             if needs_refresh {
                 let new_dawn = crate::triggers::calculate_dawn_time(lat, lon);
-                state.dawn_time = Some(new_dawn);
+                state.telemetry.dawn_time = Some(new_dawn);
                 tracing::debug!(
                     "dawn_time computed for ({}, {}): {} (next astronomical twilight)",
                     lat,
@@ -282,14 +290,14 @@ impl DevicePoller {
         // The altitude and meridian triggers evaluate the TARGET's position,
         // from its own coordinates, the site and the clock.
         match target_sky_state(
-            state.target_ra,
-            state.target_dec,
-            state.observer_latitude,
-            state.observer_longitude,
+            state.target.target_ra,
+            state.target.target_dec,
+            state.settings.observer_latitude,
+            state.settings.observer_longitude,
             chrono::Utc::now(),
         ) {
             Some(sky) => {
-                state.current_altitude = Some(sky.altitude_degrees);
+                state.target.current_altitude = Some(sky.altitude_degrees);
                 state.update_hour_angle(sky.hour_angle_hours);
                 tracing::trace!(
                     "Computed target sky state: altitude {:.2}°, hour angle {:+.4}h",
@@ -300,14 +308,14 @@ impl DevicePoller {
             None => {
                 // Nothing to compute from: drop values left by a checkpoint or
                 // another target rather than let the triggers judge them.
-                state.current_altitude = None;
-                state.current_hour_angle = None;
+                state.target.current_altitude = None;
+                state.target.current_hour_angle = None;
 
                 // A target without a site leaves altitude and meridian
                 // protection off. A Warning, not an Error (the run is fine;
                 // protection is missing), given once.
-                if state.target_ra.is_some()
-                    && state.target_dec.is_some()
+                if state.target.target_ra.is_some()
+                    && state.target.target_dec.is_some()
                     && !self.altitude_warned_no_location
                 {
                     let msg = "AltitudeLimit and meridian-flip triggers need \
@@ -369,10 +377,10 @@ impl DevicePoller {
                 if !RunMode::new(executor_state, state.run.hold())
                     .is_some_and(RunMode::reads_tracking_edge) =>
             {
-                state.mount_status_query_failed = false;
+                state.telemetry.mount_status_query_failed = false;
             }
             Ok(is_tracking) => {
-                state.mount_status_query_failed = false;
+                state.telemetry.mount_status_query_failed = false;
                 // `mount_is_tracking` still holds the previous reading here,
                 // which the loss edge is detected against.
                 if apply_mount_tracking_poll(&mut state, *is_tracking) {
@@ -389,21 +397,21 @@ impl DevicePoller {
                     tracing::info!("Mount tracking resumed, cancelling tracking limit wait");
                     state.reset_tracking_limit_detection();
                 }
-                state.mount_is_tracking = Some(*is_tracking);
+                state.telemetry.mount_is_tracking = Some(*is_tracking);
             }
             Err(e) => {
                 tracing::warn!(
                     "Mount status query failed: {} - possible connection loss",
                     e
                 );
-                state.mount_status_query_failed = true;
+                state.telemetry.mount_status_query_failed = true;
             }
         }
         if let Ok(slewing) = slewing_result {
-            state.mount_slewing = Some(slewing);
+            state.telemetry.mount_slewing = Some(slewing);
         }
         if let Ok(parked) = parked_result {
-            state.mount_parked = Some(parked);
+            state.telemetry.mount_parked = Some(parked);
         }
         if let Ok(pier_side) = pier_side_result {
             state.update_pier_side(wire_pier_side(pier_side));
@@ -450,12 +458,18 @@ impl DevicePoller {
 
     /// The dome shutter, on the safety cadence.
     async fn poll_dome(&self, poll_now: bool) {
-        let (Some(dome_id), true) = (self.dome_id.as_deref(), poll_now) else {
+        if !poll_now {
+            return;
+        }
+        let Some(dome_id) =
+            crate::instructions::run_dome_id(self.assigned_dome_id.as_deref(), &self.device_ops)
+                .await
+        else {
             return;
         };
         if let Ok(status) = bounded_poll(
             "dome_get_shutter_status",
-            self.device_ops.dome_get_shutter_status(dome_id),
+            self.device_ops.dome_get_shutter_status(&dome_id),
         )
         .await
         {
@@ -463,7 +477,7 @@ impl DevicePoller {
             let trigger_state = manager.state();
             let mut state = trigger_state.write().await;
             state.update_dome_status(status.clone());
-            if status != "Open" && state.dome_shutter_open_expected {
+            if status != "Open" && state.telemetry.dome_shutter_open_expected {
                 tracing::warn!("Dome shutter not open during sequence: {}", status);
             }
         }
@@ -479,7 +493,7 @@ impl DevicePoller {
             .as_ref()
             .map(|status| status.is_guiding)
             .map_err(|_| ());
-        let mount_tracking = state.mount_is_tracking;
+        let mount_tracking = state.telemetry.mount_is_tracking;
         match state.guiding.observe_guider_on_mount(poll, mount_tracking) {
             GuiderObservation::GuidingAgain => tracing::info!(
                 "[GUIDING] The guider is guiding again; dithers and guiding checks resume"

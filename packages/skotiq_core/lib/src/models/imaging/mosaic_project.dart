@@ -5,17 +5,17 @@
 /// capture targets ([MosaicProjectPanel] rows) and, once stitched, to the final
 /// integrated mosaic master.
 ///
-/// The two records map 1:1 to the raw-DDL `mosaic_projects` / `mosaic_panels`
-/// tables (see [SkotiqDatabase._createMosaicTables]) and are read/written
-/// via the plain [MosaicProjectsDao] / [MosaicPanelsDao]
-/// (`customSelect`/`customInsert`), mirroring `CampaignsDao` /
-/// `NarrowbandCompositesDao`.
+/// The two records map 1:1 to the `mosaic_projects` / `mosaic_panels` tables
+/// (see `database/schema/mosaic.drift`) and are read/written via
+/// [MosaicProjectsDao] / [MosaicPanelsDao].
 ///
 /// Naming note: the capture-geometry value object [MosaicPanel] in
 /// `services/mosaic_service.dart` is an in-memory generation result and already
 /// occupies the `MosaicPanel` name in the barrel. The DURABLE per-panel record
 /// is therefore [MosaicProjectPanel] to avoid a barrel-export collision.
 library;
+
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicStartCorner;
 
 /// Lifecycle status of a [MosaicProject].
 ///
@@ -84,7 +84,12 @@ class MosaicProject {
   /// Mosaic-wide position angle (degrees), applied to every panel.
   final double positionAngleDeg;
 
-  /// Lifecycle status.
+  /// Where panel numbering starts and whether it snakes: the
+  /// `mosaicCaptureOrder` that gave each panel its `panelIndex`.
+  final MosaicStartCorner startCorner;
+
+  final bool serpentine;
+
   final MosaicProjectStatus status;
 
   /// The stitched output's `integrated_masters.id`, or null until the stitcher
@@ -119,6 +124,8 @@ class MosaicProject {
     required this.cols,
     this.overlapPct = 15.0,
     this.positionAngleDeg = 0.0,
+    this.startCorner = MosaicStartCorner.topLeft,
+    this.serpentine = true,
     this.status = MosaicProjectStatus.planning,
     this.outputMasterId,
     required this.createdAt,
@@ -132,7 +139,6 @@ class MosaicProject {
   /// mosaic (it carries a hub mosaic id).
   bool get isPublished => hubMosaicId != null && hubMosaicId!.isNotEmpty;
 
-  /// Total panels in the grid.
   int get totalPanels => rows * cols;
 
   /// True once the stitched output master has been produced.
@@ -147,6 +153,8 @@ class MosaicProject {
     int? cols,
     double? overlapPct,
     double? positionAngleDeg,
+    MosaicStartCorner? startCorner,
+    bool? serpentine,
     MosaicProjectStatus? status,
     int? outputMasterId,
     DateTime? createdAt,
@@ -163,6 +171,8 @@ class MosaicProject {
       cols: cols ?? this.cols,
       overlapPct: overlapPct ?? this.overlapPct,
       positionAngleDeg: positionAngleDeg ?? this.positionAngleDeg,
+      startCorner: startCorner ?? this.startCorner,
+      serpentine: serpentine ?? this.serpentine,
       status: status ?? this.status,
       outputMasterId: outputMasterId ?? this.outputMasterId,
       createdAt: createdAt ?? this.createdAt,
@@ -255,7 +265,6 @@ class MosaicProjectPanel {
   /// Number of accepted frames captured for this panel so far.
   final int capturedCount;
 
-  /// Lifecycle status.
   final MosaicPanelStatus status;
 
   /// The hub rig fingerprint this panel is assigned to for distributed capture,

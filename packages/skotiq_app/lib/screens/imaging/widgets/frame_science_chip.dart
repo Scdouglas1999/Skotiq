@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/router/app_routes.dart';
+import 'package:skotiq_app/router/analytics_route.dart';
 
 class FrameScienceChip extends ConsumerWidget {
   const FrameScienceChip({super.key});
@@ -21,7 +23,7 @@ class FrameScienceChip extends ConsumerWidget {
         calibration.limitingMag5Sigma ?? calibration.limitingMag3Sigma;
 
     return InkWell(
-      onTap: () => context.go('/science'),
+      onTap: () => context.go(AppRoutes.analytics(tab: AnalyticsTab.science)),
       borderRadius: SkotiqTokens.borderRadiusMd,
       child: ConstrainedBox(
         constraints: const BoxConstraints(

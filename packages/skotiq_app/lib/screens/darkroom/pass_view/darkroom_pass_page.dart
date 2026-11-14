@@ -5,11 +5,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../session_review/auto_integration_service.dart';
 import 'pass_view.dart';
+import 'package:skotiq_core/providers.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class DarkroomPassPage extends ConsumerStatefulWidget {
   const DarkroomPassPage({super.key, required this.runId});
@@ -54,9 +56,7 @@ class _DarkroomPassPageState extends ConsumerState<DarkroomPassPage> {
         await ref.read(passRunCancellerProvider).cancel(widget.runId);
       }
       if (sessionId != null) {
-        await ref
-            .read(autoIntegrationServiceProvider)
-            .cancelDarkroomPassForSession(
+        await ref.read(dawnAutopilotServiceProvider).cancelLivePassesForSession(
               sessionId,
               reason: 'Stopped from the Darkroom pass view',
             );
@@ -64,10 +64,8 @@ class _DarkroomPassPageState extends ConsumerState<DarkroomPassPage> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _stopRequested = false);
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'The pass could not be stopped: $error',
-        severity: SkotiqAlertSeverity.error,
+      context.showErrorSnackBar(
+        'The pass could not be stopped: ${userFacingError(error)}',
       );
     }
   }
@@ -98,7 +96,7 @@ class _DarkroomPassPageState extends ConsumerState<DarkroomPassPage> {
         child: EmptyState(
           icon: SkotiqIcons.imageOff,
           title: 'This pass could not be read',
-          body: '$error',
+          body: userFacingError(error),
         ),
       ),
       data: (tl) {

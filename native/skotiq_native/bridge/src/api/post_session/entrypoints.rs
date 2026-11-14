@@ -1,4 +1,4 @@
-use super::*;
+use crate::error::SkotiqError;
 
 /// One-shot batch integration of a sub list into a linear FITS master.
 ///
@@ -17,30 +17,7 @@ use super::*;
 /// encoding of a [`CancelledOutcome`] (`{"kind":"cancelled", …}`) and writes no
 /// master — cancellation is never reported as a partial success.
 pub fn api_integrate_session(args_json: String) -> Result<String, String> {
-    let args: IntegrateSessionArgs =
-        serde_json::from_str(&args_json).map_err(|e| format!("invalid integrate args: {e}"))?;
-    let run_id = args.run_id.clone();
-    let lane = args.telemetry.lane.clone();
-    let result = integrate_session(args);
-    match &result {
-        Ok(r) => tracing::info!(
-            "integration {run_id:?} finished: {} subs integrated, {} rejected",
-            r.frames_integrated,
-            r.frames_rejected
-        ),
-        Err(e) => tracing::warn!("integration {run_id:?} failed: {e}"),
-    }
-    emit_pass_telemetry(
-        &run_id,
-        "run_ended",
-        serde_json::json!({
-            "lane": lane,
-            "ok": result.is_ok(),
-            "error": result.as_ref().err(),
-        }),
-    );
-    let result = result?;
-    serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
+    skotiq_processing::post_session::entrypoints::integrate_session(args_json)
 }
 
 /// Multi-night accumulating master. `op` selects the operation:
@@ -68,45 +45,7 @@ pub fn api_integrate_session(args_json: String) -> Result<String, String> {
 /// [`api_integrate_session`] does: a cancelled fold returns the encoded
 /// [`CancelledOutcome`] and leaves the sidecar untouched.
 pub fn api_master_accumulate(args_json: String) -> Result<String, String> {
-    let op: MasterOp =
-        serde_json::from_str(&args_json).map_err(|e| format!("invalid accumulate args: {e}"))?;
-    let started = std::time::Instant::now();
-    let result = master_accumulate_op(&op.op, &args_json);
-    match &result {
-        Ok(_) => tracing::info!(
-            "master {} finished in {:.1} s",
-            op.op,
-            started.elapsed().as_secs_f64()
-        ),
-        Err(e) => tracing::warn!(
-            "master {} failed after {:.1} s: {e}",
-            op.op,
-            started.elapsed().as_secs_f64()
-        ),
-    }
-    result
-}
-
-fn master_accumulate_op(op: &str, args_json: &str) -> Result<String, String> {
-    let encoded = match op {
-        "create" => serde_json::to_string(&master_create(args_json)?),
-        "add" => serde_json::to_string(&master_add(args_json)?),
-        "finalize" => serde_json::to_string(&master_finalize(args_json)?),
-        "info" => serde_json::to_string(&master_info(args_json)?),
-        "build" => serde_json::to_string(&master_build(args_json)?),
-        "checkCalibration" => serde_json::to_string(&check_build_calibration(args_json)?),
-        "deliverUniform" => serde_json::to_string(&super::uniform_delivery::deliver(args_json)?),
-        "registrationPreview" => serde_json::to_string(
-            &super::registration_preview::registration_preview(args_json)?,
-        ),
-        "deliver" => serde_json::to_string(&master_deliver(args_json)?),
-        other => {
-            return Err(format!(
-                "unknown master op '{other}'; expected create/add/finalize/info/build/checkCalibration/deliver/deliverUniform/registrationPreview"
-            ))
-        }
-    };
-    encoded.map_err(|e| format!("failed to encode result: {e}"))
+    skotiq_processing::post_session::entrypoints::master_accumulate(args_json)
 }
 
 /// Build a unit-mean master flat from raw flats (+ optional bias / dark-flat
@@ -116,18 +55,7 @@ fn master_accumulate_op(op: &str, args_json: &str) -> Result<String, String> {
 /// `args_json` is a [`BuildMasterFlatArgs`]; the result is a
 /// [`BuildMasterFlatResult`].
 pub fn api_build_master_flat(args_json: String) -> Result<String, String> {
-    let args: BuildMasterFlatArgs =
-        serde_json::from_str(&args_json).map_err(|e| format!("invalid flat args: {e}"))?;
-    let output = args.output_path.clone();
-    let result = build_master_flat_impl(args).inspect_err(|e| {
-        tracing::warn!("master flat '{output}' failed: {e}");
-    })?;
-    tracing::info!(
-        "master flat '{output}' built from {} flats ({} left out)",
-        result.frame_count,
-        result.excluded.len()
-    );
-    serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
+    skotiq_processing::post_session::entrypoints::build_master_flat(args_json)
 }
 
 /// Build a dark or bias master from raw frames on disk: a winsorized
@@ -137,13 +65,17 @@ pub fn api_build_master_flat(args_json: String) -> Result<String, String> {
 /// light leak) are left out and reported.
 ///
 /// `args_json` is a [`BuildCalibrationMasterArgs`]; the result is a
-/// [`BuildCalibrationMasterResult`].
-pub fn api_build_calibration_master(args_json: String) -> Result<String, String> {
-    let args: BuildCalibrationMasterArgs = serde_json::from_str(&args_json)
-        .map_err(|e| format!("invalid calibration master args: {e}"))?;
-    let result = build_calibration_master_impl(args)
-        .inspect_err(|e| tracing::warn!("calibration master failed: {e}"))?;
-    serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
+/// [`BuildCalibrationMasterResult`]. Frames that cannot make one master (too
+/// few, unreadable, disagreeing, leaking light) are `InvalidInput` with the
+/// reason; a master that could not be written is `OperationFailed`.
+pub fn api_build_calibration_master(args_json: String) -> Result<String, SkotiqError> {
+    use skotiq_imaging::calibration_master_stream::MasterBuildError;
+    skotiq_processing::post_session::entrypoints::build_calibration_master(args_json).map_err(|e| {
+        match e {
+            MasterBuildError::Refused(reason) => SkotiqError::InvalidInput(reason),
+            MasterBuildError::Failed(reason) => SkotiqError::OperationFailed(reason),
+        }
+    })
 }
 
 /// Re-export an in-memory pixel buffer as a 16-bit or float FITS master with
@@ -153,10 +85,7 @@ pub fn api_build_calibration_master(args_json: String) -> Result<String, String>
 /// `args_json` is a [`SaveFitsMasterArgs`]; the result is a
 /// [`SaveFitsMasterResult`].
 pub fn api_save_fits_master(args_json: String) -> Result<String, String> {
-    let args: SaveFitsMasterArgs =
-        serde_json::from_str(&args_json).map_err(|e| format!("invalid save args: {e}"))?;
-    let result = save_fits_master_impl(args)?;
-    serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
+    skotiq_processing::post_session::entrypoints::save_fits_master(args_json)
 }
 
 /// Set, read, or drop the cancellation flag for a post-session run.
@@ -178,8 +107,5 @@ pub fn api_save_fits_master(args_json: String) -> Result<String, String> {
 /// [`PostSessionCancelResult`]. A blank `runId`, an unknown `op`, or clearing a
 /// live run surface as `Err(String)`.
 pub fn api_post_session_cancel(args_json: String) -> Result<String, String> {
-    let args: PostSessionCancelArgs =
-        serde_json::from_str(&args_json).map_err(|e| format!("invalid cancel args: {e}"))?;
-    let result = post_session_cancel(args)?;
-    serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
+    skotiq_processing::post_session::entrypoints::post_session_cancel(args_json)
 }

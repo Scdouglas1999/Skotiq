@@ -17,13 +17,18 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import 'package:skotiq_app/widgets/plate_solver_required_banner.dart';
 import 'package:skotiq_app/widgets/slew_dropdown_button.dart';
-import '../../../widgets/tutorial_keys/framing_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../framing_altaz.dart';
 import 'framing_panel_parts.dart';
 
@@ -110,8 +115,7 @@ class _FramingTelescopeSectionState
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final framingState = ref.watch(framingProvider);
-    final solverDetection = ref.watch(plateSolverDetectionProvider);
-    final solverPreference = ref.watch(plateSolverPreferenceProvider);
+    final solverReady = ref.watch(plateSolverReadyProvider);
 
     final target = framingState.target;
     // The aim is where the telescope will actually point - the dragged
@@ -122,11 +126,7 @@ class _FramingTelescopeSectionState
     final hasTarget = target != null;
     final latestCameraFrame = ref.watch(currentImageProvider);
     final hasCameraFrame = latestCameraFrame?.filePath != null;
-    final detection = solverDetection.valueOrNull;
-    final preference = solverPreference.valueOrNull;
-    final hasSolver = detection != null &&
-        preference != null &&
-        detection.supports(preference.choice);
+    final hasSolver = solverReady == true;
 
     // The readiness note must come from the SAME predicate that enables the
     // slew button. [SlewDropdownButton] gates itself on the mount being
@@ -178,7 +178,7 @@ class _FramingTelescopeSectionState
       children: [
         if (hasTarget)
           SlewDropdownButton(
-            key: FramingTutorialKeys.slewBtn,
+            key: TourTarget.framingSlewButton.key,
             // Slew to where the reticle was dragged, not the view center.
             ra: aimTarget!.raHours,
             dec: aimTarget.decDegrees,
@@ -204,6 +204,15 @@ class _FramingTelescopeSectionState
             'slewing.',
             color: colors.warning,
           ),
+        // The button falls back to a plain slew without a solver; this says
+        // why centering is not on offer and where to set it up.
+        if (hasTarget && solverReady == false)
+          const PlateSolverRequiredBanner(
+            contextMessage:
+                'Slew points the mount at the target. Centering it, and '
+                'solving the latest camera frame below, need ASTAP or '
+                'Astrometry.net.',
+          ),
         // Advisory, and shown even when the slew is allowed: the mount will
         // happily drive into the ground.
         if (hasTarget && isBelowHorizon)
@@ -219,7 +228,6 @@ class _FramingTelescopeSectionState
           canSolve: hasTarget && hasCameraFrame && hasSolver && !_isSolving,
           hasTarget: hasTarget,
           hasCameraFrame: hasCameraFrame,
-          hasSolver: hasSolver,
           outcome: _lastSolve,
           onSolve: _solveCurrentFrame,
         ),
@@ -333,17 +341,17 @@ class _FramingTelescopeSectionState
       if (!_ownsSolve(backend, revision)) return;
       setState(() {
         _isSolving = false;
-        _lastSolve = _SolveOutcome.failed(e.toString());
+        _lastSolve = _SolveOutcome.failed(userFacingError(e));
       });
       if (!mounted) return;
-      context.showErrorSnackBar('Solve failed: $e');
+      context.showErrorSnackBar('Solve failed: ${userFacingError(e)}');
     }
   }
 
   bool _ownsSolve(SkotiqBackend backend, int revision) =>
       mounted &&
       revision == _solveRevision &&
-      identical(ref.read(backendProvider), backend);
+      ref.backendScopeOver(backend).isCurrent;
 }
 
 /// The solve action, its precondition line and the inline outcome.
@@ -353,7 +361,6 @@ class _SolveStep extends StatelessWidget {
   final bool canSolve;
   final bool hasTarget;
   final bool hasCameraFrame;
-  final bool hasSolver;
   final _SolveOutcome? outcome;
   final VoidCallback onSolve;
 
@@ -363,7 +370,6 @@ class _SolveStep extends StatelessWidget {
     required this.canSolve,
     required this.hasTarget,
     required this.hasCameraFrame,
-    required this.hasSolver,
     required this.outcome,
     required this.onSolve,
   });
@@ -392,14 +398,6 @@ class _SolveStep extends StatelessWidget {
         if (outcome != null) ...[
           const SizedBox(height: SkotiqTokens.spaceSm),
           _SolveOutcomeView(colors: colors, outcome: outcome!),
-        ] else if (hasTarget && hasCameraFrame && !hasSolver) ...[
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          const PlateSolverRequiredBanner(
-            contextMessage:
-                'Framing solves the latest camera exposure to measure how '
-                'far the mount is from your target. Set up ASTAP (or '
-                'Astrometry.net) to enable this.',
-          ),
         ],
       ],
     );
@@ -444,8 +442,8 @@ class _SolveOutcomeView extends StatelessWidget {
     final deltaMessage = against != null
         ? _formatDelta(result: result, target: against)
         : 'Solved center: '
-            '${CoordinateFormat.ra(result.ra, seconds: SecondsPrecision.integerRounded)} '
-            '${CoordinateFormat.dec(result.dec, seconds: SecondsPrecision.integerRounded)}';
+            '${CoordinateFormat.raReadout(result.ra)} '
+            '${CoordinateFormat.decReadout(result.dec)}';
 
     return SkotiqBanner(
         title: 'Frame solved', message: deltaMessage, tone: BannerTone.success);
@@ -479,8 +477,8 @@ class _SolveOutcomeView extends StatelessWidget {
     final decDir = decDeltaDeg >= 0 ? 'N' : 'S';
 
     return 'Solved center '
-        '${CoordinateFormat.ra(result.ra, seconds: SecondsPrecision.integerRounded)} '
-        '${CoordinateFormat.dec(result.dec, seconds: SecondsPrecision.integerRounded)}\n'
+        '${CoordinateFormat.raReadout(result.ra)} '
+        '${CoordinateFormat.decReadout(result.dec)}\n'
         'Offset from target: '
         '${raDeltaArcmin.toStringAsFixed(1)}\' $raDir, '
         '${decDeltaArcmin.toStringAsFixed(1)}\' $decDir';

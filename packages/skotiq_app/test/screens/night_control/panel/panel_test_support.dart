@@ -10,11 +10,13 @@ import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/scheduler_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/last_frame_metrics_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/night_log_provider.dart';
+import 'package:skotiq_app/screens/night_control/data/session/run_grading_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
@@ -22,8 +24,10 @@ import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/camera/camera_panel_vm.dart';
 import 'package:skotiq_app/screens/night_control/panel/focus/focus_panel_vm.dart';
 import 'package:skotiq_app/screens/night_control/panel/night_right_panel.dart';
+import 'package:skotiq_app/screens/night_control/panel/overview/after_run_section.dart';
 import 'package:skotiq_app/screens/night_control/panel/panel_ops.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../fixtures/night_fixtures.dart';
@@ -182,7 +186,7 @@ abstract final class PanelFixtures {
       lines: <SeriesLineVm>[
         SeriesLineVm(
           id: NightSeriesId.sensorTemp,
-          tone: SeriesTone.secondary,
+          tone: SeriesChartTone.secondary,
           points: <SeriesPoint>[
             for (var m = 0; m <= 60; m += 5)
               SeriesPoint(
@@ -281,6 +285,7 @@ List<Override> panelOverrides({
   FakeActionApi? api,
   bool focusActive = false,
   bool guideAlert = false,
+  NextUseStep? nextStep,
 }) =>
     <Override>[
       nightRunPhaseProvider.overrideWithValue(board.phase),
@@ -293,6 +298,13 @@ List<Override> panelOverrides({
       ),
       nightLogProvider.overrideWithValue(board.log),
       nightBeforeYouStartProvider.overrideWithValue(board.checklist),
+      nightAfterRunProvider.overrideWithValue(
+        const NightAfterRunVm(
+          sessionId: 7,
+          mountUnparked: true,
+          coolerOn: true,
+        ),
+      ),
       nightManualActionsProvider.overrideWithValue(board.actions),
       nightActionStateProvider.overrideWithValue(board.actionState),
       nightActionApiProvider.overrideWithValue(api ?? FakeActionApi()),
@@ -306,6 +318,11 @@ List<Override> panelOverrides({
       nightPanelOpsProvider.overrideWithValue(ops ?? FakePanelOps()),
       nightFocusActiveProvider.overrideWithValue(focusActive),
       nightGuideAlertProvider.overrideWithValue(guideAlert),
+      nextUsePromptProvider.overrideWithValue(nextStep),
+      // The plan's optional parts, off unless a test turns one on.
+      nightAdaptiveExposureProvider.overrideWithValue(null),
+      nightPlanSchedulerProvider.overrideWithValue(null),
+      liveBroadcastProvider.overrideWithValue(null),
     ];
 
 /// Pumps [child] at the panel's size (300 × 758 by default) inside a router,

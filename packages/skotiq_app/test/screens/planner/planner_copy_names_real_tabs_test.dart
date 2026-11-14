@@ -56,11 +56,16 @@ void main() {
       'Its',
       'One',
       'Planner',
+      // The enum type in a parameter list (`PlannerTab tab`).
+      'PlannerTab',
     };
 
     final offenders = <String>[];
     for (final entity in dir.listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      // The goal and constraint editors are dialogs with one fixed column,
+      // and their "above" and "below" compare quantities.
+      if (entity.path.contains('/planner/editors/')) continue;
       final lines = entity.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
@@ -107,6 +112,9 @@ void main() {
     final offenders = <String>[];
     for (final entity in dir.listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      // The goal and constraint editors are dialogs with one fixed column,
+      // and their "above" and "below" compare quantities.
+      if (entity.path.contains('/planner/editors/')) continue;
       final lines = entity.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];

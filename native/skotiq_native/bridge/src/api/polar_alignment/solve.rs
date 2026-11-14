@@ -1,17 +1,15 @@
-use super::*;
+use crate::api::polar_alignment::pole_slew::POLE_REGION_OFFSET_DEG;
+use crate::device_manager::get_device_manager;
 
 // How a polar-alignment frame is plate solved.
 //
 // Every frame in this feature is taken within ~30° of the celestial pole with
-// the mount pointing where the mount says it points. That is a position hint,
-// and it is the difference between an ASTAP run that searches one cone of sky
-// and one that searches all of it: on the owner's rig a hinted capture solves
-// in ~5 s while the same field solved blind took 26.5 s on a good night and
-// blew through a 30 s budget on a bad one. The pointing model is unaligned
-// during polar alignment — that is the whole point of running it — so the hint
-// carries a deliberately generous search radius instead of the 5° a
-// centring solve uses, and a hinted attempt that fails still falls back to the
-// blind solve that used to be the only path.
+// the mount pointing where the mount says it points. That position hint lets
+// ASTAP search one cone of sky instead of all of it, several times faster. The
+// pointing model is unaligned during polar alignment (that is what the run
+// fixes), so the hint carries a generous search radius instead of the 5° a
+// centering solve uses, and a hinted attempt that fails falls back to a blind
+// solve.
 
 /// Search radius for a polar-alignment hinted solve, in degrees.
 ///
@@ -50,7 +48,6 @@ pub(crate) struct PolarSolveHint {
     pub(crate) ra_degrees: f64,
     /// Degrees, `[-90, 90]`.
     pub(crate) dec_degrees: f64,
-    /// Degrees.
     pub(crate) search_radius_deg: f64,
 }
 

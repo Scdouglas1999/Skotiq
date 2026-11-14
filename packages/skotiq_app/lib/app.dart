@@ -1,31 +1,33 @@
-import 'widgets/mount/mount_site_reconciliation_card.dart';
+import 'startup/mount_site_reconciliation_card.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:skotiq_app/router/app_router.dart';
-import 'package:skotiq_app/services/location_sync_service.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
-import 'package:skotiq_app/widgets/quick_start_checker.dart';
-import 'package:skotiq_app/widgets/your_sky_off_notice.dart';
-import 'package:skotiq_app/widgets/auto_discovery_launcher.dart';
+import 'package:skotiq_app/startup/quick_start_checker.dart';
+import 'package:skotiq_app/startup/update/update_manager_widget.dart';
+import 'package:skotiq_app/startup/your_sky_off_notice.dart';
 import 'package:skotiq_app/widgets/red_night_filter.dart';
-import 'package:skotiq_app/widgets/startup_auto_connect_launcher.dart';
-import 'package:skotiq_app/widgets/database_recovery_launcher.dart';
-import 'package:skotiq_app/widgets/equipment_onboarding_launcher.dart';
-import 'package:skotiq_app/widgets/auto_integration_launcher.dart';
+import 'package:skotiq_app/startup/always_on_services.dart';
+import 'package:skotiq_app/utils/startup_surface_queue.dart';
+import 'package:skotiq_app/startup/database_recovery_launcher.dart';
+import 'package:skotiq_app/startup/equipment_onboarding_launcher.dart';
+import 'package:skotiq_app/startup/night_end_toasts.dart';
 
 class SkotiqApp extends ConsumerWidget {
-  final bool isMobile;
   final bool isDesktop;
 
+  /// Always-on services that live in the app embedding this one (the phone
+  /// app's platform integrations), started with the shared ones.
+  final List<AlwaysOnService> platformServices;
+
   const SkotiqApp({
-    this.isMobile = false,
     this.isDesktop = false,
+    this.platformServices = const [],
     super.key,
   });
 
@@ -95,30 +97,6 @@ class SkotiqApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
-    // Activate location sync to keep planetarium in sync with settings
-    ref.watch(locationSyncProvider);
-    ref.watch(pushNotificationServiceProvider);
-    ref.watch(remoteSessionSyncProvider);
-    ref.watch(hostLocalSyncProvider);
-    ref.watch(sequenceLibrarySyncProvider);
-    ref.watch(remoteSequenceEditorSyncProvider);
-    // MASTER -> SLAVE: push the master's open sequencer canvas to slaves live.
-    // Self-gates to a no-op unless this instance is a serving FfiBackend master.
-    ref.watch(masterSequenceEditorMirrorProvider);
-    // Runtime results (solves, centering, autofocus, the frame on screen):
-    // published by a hardware-owning host, reported up by a linked client.
-    ref.watch(hostRuntimeMirrorProvider);
-    ref.watch(clientRuntimeReporterProvider);
-    // Keep science.camera.* (read noise / gain / saturation) in sync with
-    // the connected camera or active profile so photometry works without
-    // manual sensor-spec entry.
-    ref.watch(scienceCameraAutoConfigProvider);
-    // Keep the Night Narrator alive for the active session: it is a plain
-    // Provider (recreated when the session id changes) and nothing else
-    // watches it, so without this watch it would never instantiate and no
-    // detector could ever fire. Mirrors the always-on service keepalives above.
-    ref.watch(narratorServiceProvider);
-
     // Get settings
     final settingsAsync = ref.watch(appSettingsProvider);
     final settings = settingsAsync.valueOrNull;
@@ -130,116 +108,142 @@ class SkotiqApp extends ConsumerWidget {
       accentColorHex: settings?.accentColor,
     );
 
-    return StartupAutoConnectLauncher(
-      child: AutoDiscoveryLauncher(
-        child: QuickStartChecker(
-          child: YourSkyOffNoticeChecker(
-            child: AnnotatedRegion<SystemUiOverlayStyle>(
-              value: systemUiOverlayStyleFor(theme),
-              child: MaterialApp.router(
-                title: 'Skotiq',
-                theme: theme,
-                debugShowCheckedModeBanner: false,
-                routerConfig: router,
-                localizationsDelegates:
-                    SkotiqLocalizations.localizationsDelegates,
-                supportedLocales: SkotiqLocalizations.supportedLocales,
-                locale: _resolveLocale(settings?.language),
-                builder: (context, child) {
-                  // Calculate UI scale factor INSIDE builder where we have proper MediaQuery
-                  // The outer context doesn't have accurate devicePixelRatio from the window
-                  final uiScaleFactor = _calculateUiScaleFactor(
-                    context,
-                    uiScaleSetting,
-                  );
-                  final combinedTextScale = textScaleFactor * uiScaleFactor;
+    return AlwaysOnServicesScope(
+      role: isDesktop
+          ? (ref.watch(remoteClientLaunchProvider)
+              ? AppRole.linkedClient
+              : AppRole.hostGui)
+          : AppRole.mobile,
+      platformServices: platformServices,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: systemUiOverlayStyleFor(theme),
+        child: MaterialApp.router(
+          title: 'Skotiq',
+          theme: theme,
+          debugShowCheckedModeBanner: false,
+          routerConfig: router,
+          localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
+          supportedLocales: SkotiqLocalizations.supportedLocales,
+          locale: _resolveLocale(settings?.language),
+          builder: (context, child) {
+            // Calculate UI scale factor INSIDE builder where we have proper MediaQuery
+            // The outer context doesn't have accurate devicePixelRatio from the window
+            final uiScaleFactor = _calculateUiScaleFactor(
+              context,
+              uiScaleSetting,
+            );
+            final combinedTextScale = textScaleFactor * uiScaleFactor;
 
-                  // Scale text only. Flutter handles DPI scaling for the widget
-                  // tree natively, and a Transform.scale over the whole tree
-                  // causes rendering artifacts.
-                  final appChild = child ?? const SizedBox.shrink();
-                  Widget scaledChild = appChild;
+            // Scale text only. Flutter handles DPI scaling for the widget
+            // tree natively, and a Transform.scale over the whole tree
+            // causes rendering artifacts.
+            final appChild = child ?? const SizedBox.shrink();
+            Widget scaledChild = appChild;
 
-                  if (uiScaleFactor != 1.0 || textScaleFactor != 1.0) {
-                    // Apply combined text scaling from both UI scale and font size settings
-                    // Why: copyWith requires the full MediaQueryData; granular
-                    // accessors only return individual fields. This intentionally
-                    // rebuilds on any MQ change so that nested widgets receive a
-                    // correctly-merged inherited MediaQuery.
-                    scaledChild = MediaQuery(
-                      data: MediaQuery.of(context).copyWith(
-                        textScaler: TextScaler.linear(combinedTextScale),
-                      ),
-                      child: appChild,
-                    );
-                  }
-                  // Wrap with ScaledConfigProvider to make responsive scaling
-                  // configuration available to all descendant widgets. Everything
-                  // below inherits the app's text scale and theme — putting a
-                  // launcher's dialog outside this would render it at unscaled
-                  // size on high-DPI displays.
-                  //
-                  // Single-spine startup model (Onboarding & First-Light IA, C13):
-                  // the launcher stack is now exactly two startup gates, ordered
-                  // by priority so the higher-priority one always wins the dialog
-                  // stack:
-                  //
-                  //   1. DatabaseRecoveryLauncher — one-shot "your data was reset"
-                  //      dialog after corruption recovery. Outermost so it fires
-                  //      before the user is pulled into onboarding for what would
-                  //      otherwise look like a fresh install.
-                  //   2. EquipmentOnboardingLauncher — routes a brand-new install
-                  //      (zero profiles, no onboarding completion record) to the
-                  //      `/onboarding` spine. This is the *single* entry point for
-                  //      first-run setup; the spine itself hands off to first
-                  //      light by routing to `/imaging?firstLight=1` when setup
-                  //      finishes (see app_router.dart's FirstLightQueryLauncher).
-                  //
-                  // The legacy first-launch tour overlay (OnboardingTourLauncher)
-                  // and the first-night wizard auto-launcher
-                  // (FirstNightWizardLauncher) were removed from the startup spine:
-                  // both are now replay-only, reachable from Settings → Help &
-                  // Tutorials. Collapsing them here means a first-run user follows
-                  // one linear path (recovery → equipment onboarding → first light)
-                  // instead of racing overlapping auto-launching dialogs.
-                  // The site/time card sits INSIDE the startup gates: it is
-                  // raised by connecting a mount, which cannot happen until the
-                  // user is past onboarding, and it must never outrank the
-                  // "your data was reset" dialog.
-                  Widget result = ScaledConfigProvider(
-                    child: AutoIntegrationLauncher(
-                      child: DatabaseRecoveryLauncher(
-                        child: EquipmentOnboardingLauncher(
-                          child: MountSiteReconciliationListener(
-                            child: scaledChild,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
+            if (uiScaleFactor != 1.0 || textScaleFactor != 1.0) {
+              // Apply combined text scaling from both UI scale and font size settings
+              // Why: copyWith requires the full MediaQueryData; granular
+              // accessors only return individual fields. This intentionally
+              // rebuilds on any MQ change so that nested widgets receive a
+              // correctly-merged inherited MediaQuery.
+              scaledChild = MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(combinedTextScale),
+                ),
+                child: appChild,
+              );
+            }
+            // Everything below inherits the app's text scale and theme;
+            // a prompt raised from outside this builder would render
+            // unscaled on high-DPI displays.
+            Widget result = StartupPrompts(child: scaledChild);
 
-                  // Desktop and Android both install Skotiq from its
-                  // GitHub releases, so both can update in place. (The old
-                  // reasoning here — that mobile updates through an app store
-                  // — was never true of this APK: it is sideloaded, so with
-                  // the manager left off, an Android install had no way to
-                  // learn a new version existed.) iOS is excluded because
-                  // sideloading an update is not possible there.
-                  if (isDesktop || (!kIsWeb && Platform.isAndroid)) {
-                    result = UpdateManagerWidget(
-                      // This builder sits above the router's Navigator; the
-                      // update dialogs need the key to reach it.
-                      navigatorKey: router.routerDelegate.navigatorKey,
-                      child: result,
-                    );
-                  }
-                  return RedNightScreen(child: result);
-                },
-              ),
-            ),
-          ),
+            // Desktop and Android both install Skotiq from its
+            // GitHub releases, so both can update in place. (The old
+            // reasoning here — that mobile updates through an app store
+            // — was never true of this APK: it is sideloaded, so with
+            // the manager left off, an Android install had no way to
+            // learn a new version existed.) iOS is excluded because
+            // sideloading an update is not possible there.
+            if (isDesktop || (!kIsWeb && Platform.isAndroid)) {
+              result = UpdateManagerWidget(
+                // This builder sits above the router's Navigator; the
+                // update dialogs need the key to reach it.
+                navigatorKey: router.routerDelegate.navigatorKey,
+                child: result,
+              );
+            }
+            return RedNightScreen(child: result);
+          },
         ),
       ),
     );
   }
+}
+
+/// The widgets that raise a prompt by themselves, at launch or on an event.
+///
+/// Their order here does not matter. What the user sees first is decided by
+/// [StartupSurface]: each launcher takes its turn in the
+/// [StartupSurfaceQueue], so a new install is led through one path (data
+/// reset notice, interrupted run, interrupted session, previous setup,
+/// equipment setup) with one prompt on screen at a time.
+class StartupPrompts extends StatelessWidget {
+  const StartupPrompts({super.key, required this.child});
+
+  final Widget child;
+
+  static final List<Widget Function(Widget child)> _launchers = [
+    (child) => DatabaseRecoveryLauncher(child: child),
+    (child) => QuickStartChecker(child: child),
+    (child) => EquipmentOnboardingLauncher(child: child),
+    (child) => YourSkyOffNoticeChecker(child: child),
+    (child) => MountSiteReconciliationListener(child: child),
+    (child) => NightEndToasts(child: child),
+  ];
+
+  @override
+  Widget build(BuildContext context) =>
+      _launchers.fold(child, (inner, wrap) => wrap(inner));
+}
+
+/// Runs the always-on services of [role] for as long as the app is mounted.
+class AlwaysOnServicesScope extends ConsumerStatefulWidget {
+  const AlwaysOnServicesScope({
+    super.key,
+    required this.role,
+    required this.child,
+    this.platformServices = const [],
+  });
+
+  final AppRole role;
+  final List<AlwaysOnService> platformServices;
+  final Widget child;
+
+  @override
+  ConsumerState<AlwaysOnServicesScope> createState() =>
+      _AlwaysOnServicesScopeState();
+}
+
+class _AlwaysOnServicesScopeState extends ConsumerState<AlwaysOnServicesScope> {
+  late final AlwaysOnServices _services;
+
+  @override
+  void initState() {
+    super.initState();
+    _services = startAlwaysOnServices(
+      ProviderScope.containerOf(context, listen: false),
+      widget.role,
+      platformServices: widget.platformServices,
+    );
+  }
+
+  @override
+  void dispose() {
+    _services.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

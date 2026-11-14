@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/darkroom_navigation.dart' show darkroomPassLocation;
+import '../../../utils/darkroom_navigation.dart'
+    show DarkroomTab, darkroomPassLocation, darkroomTabLocation;
 import 'activity_panel.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// How many nights the history shows before "Show all".
 const int _nightsShown = 7;
@@ -97,8 +101,8 @@ class _NightRun extends ConsumerWidget {
               ),
               Text(
                 finished == null
-                    ? 'running since ${clockLabel(run.startedAt)}'
-                    : '${clockLabel(run.startedAt)} to ${clockLabel(finished)}',
+                    ? 'running since ${ClockFormat.hm(run.startedAt.toLocal())}'
+                    : '${ClockFormat.hm(run.startedAt.toLocal())} to ${ClockFormat.hm(finished.toLocal())}',
                 style: SkotiqTypography.monoXs.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -248,7 +252,7 @@ class _TargetLine extends StatelessWidget {
       state: target.build.state,
       onOpen: () => context.go(
         target.waitingForCalibration
-            ? '/darkroom?tab=calibration'
+            ? darkroomTabLocation(DarkroomTab.calibration)
             : waiting
                 ? darkroomFramingRoute(target.target)
                 : darkroomTargetRoute(target.target),
@@ -379,7 +383,7 @@ class RecentBuildsPanel extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    clockLabel(b.finishedAt ?? b.startedAt),
+                    ClockFormat.hm((b.finishedAt ?? b.startedAt).toLocal()),
                     style: SkotiqTypography.monoXs.copyWith(
                       color: colors.textMuted,
                     ),
@@ -461,7 +465,7 @@ class PassesPanel extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        '${nightLabel(pass.startedAt)}  ${clockLabel(pass.startedAt)}',
+                        '${nightLabel(pass.startedAt)}  ${ClockFormat.hm(pass.startedAt.toLocal())}',
                         style: SkotiqTypography.monoXs.copyWith(
                           color: colors.textMuted,
                         ),

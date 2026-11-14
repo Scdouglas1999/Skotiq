@@ -23,6 +23,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show skotiqRelease;
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/models/backend/event_types.dart';
 
@@ -299,7 +301,7 @@ void main() {
               ..headers.contentType = ContentType.json
               ..write(
                 jsonEncode({
-                  'version': '2.5.0',
+                  'version': skotiqRelease,
                   'serverInstanceId': currentInstance,
                 }),
               );
@@ -601,7 +603,7 @@ void main() {
 /// reconnect-URL tests once the implementation lands).
 Future<HttpServer> _startServer(
   void Function(WebSocket socket) onSocket, {
-  Map<String, dynamic> infoBody = const {'version': '2.5.0'},
+  Map<String, dynamic> infoBody = const {'version': skotiqRelease},
   Map<String, dynamic> devicesBody = const {'devices': []},
   void Function(HttpRequest request)? onWsRequest,
 }) async {

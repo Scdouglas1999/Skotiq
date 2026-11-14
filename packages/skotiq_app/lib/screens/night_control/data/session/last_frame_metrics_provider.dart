@@ -10,16 +10,19 @@
 // shows its value with no delta; nothing is compared against a made-up
 // baseline.
 
-import 'dart:math' as math;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
+import '../../../../services/run_dashboard_providers.dart'
     show runDashboardActiveTargetProvider;
 import '../../night_control_contracts.dart';
 import 'session_format.dart';
 import 'session_frames_provider.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 /// Which way is better for a metric.
 enum _Better { lower, higher, neither }
@@ -43,15 +46,15 @@ MetricVm _metric(
   final text = '${nightFixed(value, decimals)}$unit';
   if (median == null) return MetricVm(label: label, value: text);
   final delta = value - median;
-  var tone = MetricTone.neutral;
+  var tone = MetricGridTone.neutral;
   final scale = median.abs();
   if (better != _Better.neither && scale > 0) {
     final improving = better == _Better.lower ? delta < 0 : delta > 0;
     final share = delta.abs() / scale;
     if (improving && share >= _improvementShare) {
-      tone = MetricTone.good;
+      tone = MetricGridTone.good;
     } else if (!improving && share >= _worseningShare) {
-      tone = MetricTone.warning;
+      tone = MetricGridTone.warning;
     }
   }
   return MetricVm(
@@ -62,33 +65,11 @@ MetricVm _metric(
   );
 }
 
-/// Great-circle separation in arcseconds; RA in hours, Dec in degrees.
-double nightSeparationArcsec(
-  double ra1Hours,
-  double dec1Deg,
-  double ra2Hours,
-  double dec2Deg,
-) {
-  const toRad = math.pi / 180;
-  final ra1 = ra1Hours * 15 * toRad;
-  final ra2 = ra2Hours * 15 * toRad;
-  final d1 = dec1Deg * toRad;
-  final d2 = dec2Deg * toRad;
-  final sinDd = math.sin((d2 - d1) / 2);
-  final sinDr = math.sin((ra2 - ra1) / 2);
-  final h = sinDd * sinDd + math.cos(d1) * math.cos(d2) * sinDr * sinDr;
-  return 2 * math.asin(math.min(1, math.sqrt(h))) / toRad * 3600;
-}
-
-/// `0.8"`, `12.4'`, `1.2°`. ASCII marks: the bundled faces have no ″ or ′.
-String nightAngle(double arcsec) {
-  if (arcsec < 60) return '${arcsec.toStringAsFixed(1)}"';
-  if (arcsec < 3600) return "${(arcsec / 60).toStringAsFixed(1)}'";
-  return '${(arcsec / 3600).toStringAsFixed(1)}°';
-}
-
 final nightLastFrameProvider = Provider<NightLastFrameVm?>((ref) {
-  final current = ref.watch(currentImageProvider);
+  // An autofocus or solve frame on screen is not the night's last frame:
+  // the newest light row stands in for it, as it does with nothing shown.
+  final shown = ref.watch(currentImageProvider);
+  final current = shown != null && shown.isUtilityFrame ? null : shown;
   final lights = ref.watch(nightSessionLightRowsProvider);
   if (current == null && lights.isEmpty) return null;
 
@@ -120,14 +101,13 @@ final nightLastFrameProvider = Provider<NightLastFrameVm?>((ref) {
       row.isPlateSolved &&
       solvedRa != null &&
       solvedDec != null) {
-    solve = nightAngle(
-      nightSeparationArcsec(
-        solvedRa,
-        solvedDec,
-        target.raHours,
-        target.decDegrees,
-      ),
-    );
+    solve = AngleFormat.arcsec(AstronomyCalculations.angularSeparation(
+          ra1Deg: solvedRa * 15.0,
+          dec1Deg: solvedDec,
+          ra2Deg: target.raHours * 15.0,
+          dec2Deg: target.decDegrees,
+        ) *
+        3600);
   }
 
   final histogram = current?.histogram;

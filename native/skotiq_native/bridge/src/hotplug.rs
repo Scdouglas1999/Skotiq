@@ -53,13 +53,13 @@
 //! (see `event.rs`); the FRB bindings carry the typed fields directly, so the
 //! Dart side maps the variant without decoding a hand-built JSON payload.
 
-use crate::api::{api_invalidate_discovery_cache, get_state};
-use crate::device::{ConnectionState, DeviceType, DriverType};
-use crate::event::{EquipmentEvent, EventSeverity};
+use crate::device::{DeviceInfo, DeviceType, DriverType};
+use crate::device_manager::get_device_manager;
+use crate::event::equipment::{EquipmentEvent, EventSeverity};
+use crate::state::get_state;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Mutex as StdMutex;
-use std::sync::OnceLock;
+use std::sync::{Mutex as StdMutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 static LISTENER_STARTED: AtomicBool = AtomicBool::new(false);
@@ -296,15 +296,13 @@ async fn poll_once(suppress_events: bool) {
     // So (1) skip probing any (driver, device_type) bus that has a connected
     // device and carry its cached entries forward unchanged, and (2) never emit
     // a removal for a connected device id.
-    let connected = get_state().get_all_device_states().await;
+    let connected: Vec<DeviceInfo> = get_device_manager().get_connected_device_infos().await;
     let connected_keys: HashSet<(DriverType, String)> = connected
         .iter()
-        .filter(|d| d.connection_state == ConnectionState::Connected)
-        .map(|d| (d.driver_type, d.device_id.clone()))
+        .map(|d| (d.driver_type, d.id.clone()))
         .collect();
     let connected_types: HashSet<(DriverType, DeviceType)> = connected
         .iter()
-        .filter(|d| d.connection_state == ConnectionState::Connected)
         .map(|d| (d.driver_type, d.device_type))
         .collect();
 
@@ -333,7 +331,7 @@ async fn poll_once(suppress_events: bool) {
             NativeScan::Scan(serial) => Some(serial),
         };
         if let Some(serial) = serial {
-            match crate::api::discovery::scan_native_for_type_public(device_type, serial).await {
+            match crate::discovery::scan_native_for_type_with(device_type, serial).await {
                 Ok(devices) => {
                     for dev in devices {
                         observed.insert(
@@ -375,7 +373,7 @@ async fn poll_once(suppress_events: bool) {
             );
             carry_forward_cached(&mut observed, DriverType::Ascom, device_type);
         } else {
-            match crate::api::discovery::scan_ascom_for_type_public(device_type).await {
+            match crate::discovery::scan_ascom_for_type(device_type).await {
                 Ok(devices) => {
                     for dev in devices {
                         observed.insert(
@@ -543,7 +541,7 @@ fn invalidate_discovery_caches() {
     match crate::get_runtime() {
         Ok(runtime) => {
             runtime.spawn(async {
-                api_invalidate_discovery_cache().await;
+                crate::discovery::forget().await;
             });
         }
         Err(err) => {

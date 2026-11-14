@@ -1,21 +1,16 @@
 import '../processing_options_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/user_facing_error.dart';
-import '../../session_review/auto_integration_service.dart';
 import '../../settings/delivery_settings.dart';
-import '../../settings/settings_screen.dart' show SettingsSectionRequest;
+import '../../../router/settings_sections.dart';
 import 'activity_panel.dart';
-
-/// Open the Settings section [sectionKey] names.
-void _openSettings(BuildContext context, String sectionKey) {
-  SettingsSectionRequest.raise(sectionKey);
-  context.go('/settings?section=$sectionKey');
-}
+import '../../../router/app_routes.dart';
 
 /// What Delivery holds for the night right now, in one sentence, from the
 /// same verdict the Delivery page states for each destination.
@@ -83,9 +78,6 @@ class _AutomationSettingsPanelState
     setState(() => _error = null);
     try {
       await write(ref.read(nightEndAutomationActionsProvider));
-      // The build switch is also read through the older provider by the
-      // pages that still show it.
-      ref.invalidate(autoIntegrationEnabledProvider);
     } catch (e) {
       if (mounted) {
         setState(
@@ -137,7 +129,10 @@ class _AutomationSettingsPanelState
             onChanged: (on) => _save((a) => a.setCalibrate(on)),
             link: (
               'Calibration options',
-              () => _openSettings(context, 'end-of-night-calibration'),
+              () => openSettings(
+                    context,
+                    SettingsSectionId.endOfNightCalibration,
+                  ),
             ),
           ),
           _Step(
@@ -153,6 +148,7 @@ class _AutomationSettingsPanelState
             onChanged: (on) => _save((a) => a.setBuild(on)),
             footer: Column(children: [
               const ProcessingDefaultsPanel(),
+              const SizedBox(height: SkotiqTokens.spaceLg),
               Row(children: [
                 Expanded(
                     child: Column(
@@ -197,7 +193,10 @@ class _AutomationSettingsPanelState
             enabled: loaded && s.build,
             disabledReason: s.build ? null : 'Needs Build masters.',
             onChanged: (on) => _save((a) => a.setDeliver(on)),
-            link: ('Destinations', () => _openSettings(context, 'delivery')),
+            link: (
+              'Destinations',
+              () => openSettings(context, SettingsSectionId.delivery),
+            ),
           ),
           _Step(
             number: 4,
@@ -212,7 +211,7 @@ class _AutomationSettingsPanelState
             onChanged: (on) => _save((a) => a.setMorningMessage(on)),
             link: (
               'Notifications',
-              () => _openSettings(context, 'notifications'),
+              () => openSettings(context, SettingsSectionId.notifications),
             ),
             last: true,
           ),

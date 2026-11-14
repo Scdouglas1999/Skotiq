@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart' show wireEventFromTyped;
+import 'package:skotiq_core/bridge_events.dart' as sk;
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_mobile/services/mobile_event_notifier.dart';
 import 'package:skotiq_mobile/services/mobile_preferences.dart';
 import 'package:skotiq_mobile/services/notification_service.dart';
@@ -40,20 +43,8 @@ class _RecordingNotificationService implements MobileNotificationSink {
   Future<void> notifySafety({
     required String title,
     required String body,
-    String? eventType,
   }) async {
-    calls.add(
-      NotifyCall('safety', {
-        'title': title,
-        'body': body,
-        if (eventType != null) 'eventType': eventType,
-      }),
-    );
-  }
-
-  @override
-  Future<void> notifyMountParked(String reason) async {
-    calls.add(NotifyCall('mountParked', {'reason': reason}));
+    calls.add(NotifyCall('safety', {'title': title, 'body': body}));
   }
 
   @override
@@ -90,8 +81,8 @@ class _RecordingNotificationService implements MobileNotificationSink {
   }
 
   @override
-  Future<void> notifyLowDiskSpace(double remainingGB) async {
-    calls.add(NotifyCall('lowDiskSpace', {'gb': remainingGB}));
+  Future<void> notifyLowDiskSpace(String message) async {
+    calls.add(NotifyCall('lowDiskSpace', {'message': message}));
   }
 
   @override
@@ -168,6 +159,27 @@ SkotiqEvent _ev(
   );
 }
 
+/// [payload] as a host sends it: encoded to the wire, through JSON, and read
+/// back the way a linked phone's backend reads it.
+SkotiqEvent _fromHost(
+  sk.EventCategory category,
+  sk.EventPayload payload, {
+  sk.EventSeverity severity = sk.EventSeverity.warning,
+}) {
+  final wire = wireEventFromTyped(
+    sk.SkotiqEvent(
+      eventId: BigInt.zero,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: severity,
+      category: category,
+      payload: payload,
+    ),
+  );
+  return SkotiqEvent.fromWireJson(
+    jsonDecode(jsonEncode(wire.toJson())) as Map<String, dynamic>,
+  );
+}
+
 void main() {
   late StreamController<SkotiqEvent> eventStream;
   late _RecordingNotificationService notifications;
@@ -201,390 +213,318 @@ void main() {
     await Future<void>.delayed(Duration.zero);
   }
 
-  group('Safety category', () {
-    test('WeatherUnsafe -> safety notification with reason', () async {
-      await emit(
-        _ev(
-          EventCategory.safety,
-          'WeatherUnsafe',
-          data: {'reason': 'High wind 45 km/h'},
-          severity: EventSeverity.critical,
-        ),
-      );
-      expect(notifications.calls, hasLength(1));
-      expect(notifications.calls.single.kind, 'safety');
-      expect(notifications.calls.single.data['title'], 'Weather Unsafe');
-      expect(
-        notifications.calls.single.data['body'],
-        contains('High wind 45 km/h'),
-      );
-    });
+  Future<void> emitTyped(
+    sk.EventCategory category,
+    sk.EventPayload payload, {
+    sk.EventSeverity severity = sk.EventSeverity.warning,
+  }) => emit(_fromHost(category, payload, severity: severity));
 
-    test('EmergencyStop -> safety notification', () async {
-      await emit(
-        _ev(
-          EventCategory.safety,
-          'EmergencyStop',
-          data: {'reason': 'Operator panic stop'},
-          severity: EventSeverity.critical,
+  Future<void> emitEquipment(
+    sk.EquipmentEvent event, {
+    sk.EventSeverity severity = sk.EventSeverity.error,
+  }) => emitTyped(
+    sk.EventCategory.equipment,
+    sk.EventPayload.equipment(event),
+    severity: severity,
+  );
+
+  group('Safety', () {
+    test('weather unsafe raises the safety alarm', () async {
+      await emitTyped(
+        sk.EventCategory.safety,
+        const sk.EventPayload.safety(
+          sk.SafetyEvent.weatherUnsafe(reason: 'High wind 45 km/h'),
         ),
+        severity: sk.EventSeverity.critical,
       );
       expect(notifications.calls.single.kind, 'safety');
-      expect(notifications.calls.single.data['body'], 'Operator panic stop');
+      expect(notifications.calls.single.data['title'], 'Weather unsafe');
     });
 
-    test('ParkInitiated -> mount parked notification', () async {
-      await emit(
-        _ev(
-          EventCategory.safety,
-          'ParkInitiated',
-          data: {'reason': 'Weather safety triggered'},
+    test('an emergency stop and a park raise the safety alarm too', () async {
+      await emitTyped(
+        sk.EventCategory.safety,
+        const sk.EventPayload.safety(
+          sk.SafetyEvent.emergencyStop(reason: 'Operator panic stop'),
         ),
       );
-      expect(notifications.calls.single.kind, 'mountParked');
-      expect(
-        notifications.calls.single.data['reason'],
-        'Weather safety triggered',
-      );
+      expect(notifications.calls.single.kind, 'safety');
     });
 
-    test('WeatherSafe -> no notification (recovery is silent)', () async {
-      await emit(_ev(EventCategory.safety, 'WeatherSafe'));
+    test('weather safe again is silent', () async {
+      await emitTyped(
+        sk.EventCategory.safety,
+        const sk.EventPayload.safety(sk.SafetyEvent.weatherSafe()),
+      );
       expect(notifications.calls, isEmpty);
     });
 
-    test('respects notifySafety mute toggle', () async {
+    test('respects the safety mute', () async {
       await prefs.setNotifySafety(false);
-      await emit(
-        _ev(EventCategory.safety, 'WeatherUnsafe', data: {'reason': 'rain'}),
-      );
-      expect(notifications.calls, isEmpty);
-    });
-
-    test('debounces repeat WeatherUnsafe within window', () async {
-      await emit(
-        _ev(EventCategory.safety, 'WeatherUnsafe', data: {'reason': 'rain'}),
-      );
-      await emit(
-        _ev(EventCategory.safety, 'WeatherUnsafe', data: {'reason': 'rain'}),
-      );
-      expect(notifications.calls, hasLength(1));
-    });
-  });
-
-  group('Guiding category', () {
-    test('StarLost -> guiding lost notification', () async {
-      await emit(
-        _ev(
-          EventCategory.guiding,
-          'StarLost',
-          severity: EventSeverity.critical,
-        ),
-      );
-      expect(notifications.calls.single.kind, 'guidingLost');
-    });
-
-    test('LostStar legacy spelling -> guiding lost notification', () async {
-      await emit(_ev(EventCategory.guiding, 'LostStar'));
-      expect(notifications.calls.single.kind, 'guidingLost');
-    });
-
-    test('Disconnected -> guiding lost notification', () async {
-      await emit(_ev(EventCategory.guiding, 'Disconnected'));
-      expect(notifications.calls.single.kind, 'guidingLost');
-      expect(
-        notifications.calls.single.data['reason'],
-        contains('disconnected'),
-      );
-    });
-
-    test('respects notifyGuiding mute toggle', () async {
-      await prefs.setNotifyGuiding(false);
-      await emit(_ev(EventCategory.guiding, 'StarLost'));
-      expect(notifications.calls, isEmpty);
-    });
-  });
-
-  group('Imaging category', () {
-    test('ExposureFailed -> exposure failed notification', () async {
-      await emit(
-        _ev(
-          EventCategory.imaging,
-          'ExposureFailed',
-          data: {'error': 'Camera offline'},
-        ),
-      );
-      expect(notifications.calls.single.kind, 'exposureFailed');
-      expect(notifications.calls.single.data['error'], 'Camera offline');
-    });
-
-    test('ExposureFailed_Old legacy variant -> notification', () async {
-      await emit(
-        _ev(
-          EventCategory.imaging,
-          'ExposureFailed_Old',
-          data: {'reason': 'Shutter jam'},
-        ),
-      );
-      expect(notifications.calls.single.kind, 'exposureFailed');
-      expect(notifications.calls.single.data['error'], 'Shutter jam');
-    });
-
-    test('respects notifyExposureFailed mute toggle', () async {
-      await prefs.setNotifyExposureFailed(false);
-      await emit(
-        _ev(EventCategory.imaging, 'ExposureFailed', data: {'error': 'x'}),
-      );
-      expect(notifications.calls, isEmpty);
-    });
-
-    test('non-failure imaging events are ignored', () async {
-      await emit(_ev(EventCategory.imaging, 'ExposureStarted'));
-      await emit(_ev(EventCategory.imaging, 'ExposureCompleted'));
-      await emit(_ev(EventCategory.imaging, 'ImageReady'));
-      expect(notifications.calls, isEmpty);
-    });
-  });
-
-  group('Equipment category', () {
-    test('Disconnected -> equipment disconnected notification', () async {
-      await emit(
-        _ev(
-          EventCategory.equipment,
-          'Disconnected',
-          data: {'device_type': 'Camera', 'device_id': 'asi:0'},
-        ),
-      );
-      expect(notifications.calls.single.kind, 'equipmentDisconnected');
-      expect(notifications.calls.single.data['deviceType'], 'Camera');
-      expect(notifications.calls.single.data['deviceId'], 'asi:0');
-    });
-
-    test('Error with disconnect keyword -> notification', () async {
-      await emit(
-        _ev(
-          EventCategory.equipment,
-          'Error',
-          data: {'device_type': 'Mount', 'message': 'COM port lost connection'},
-        ),
-      );
-      expect(notifications.calls.single.kind, 'equipmentDisconnected');
-    });
-
-    test('Error without transport keyword -> ignored', () async {
-      await emit(
-        _ev(
-          EventCategory.equipment,
-          'Error',
-          data: {'device_type': 'Mount', 'message': 'Slew exceeded soft limit'},
+      await emitTyped(
+        sk.EventCategory.safety,
+        const sk.EventPayload.safety(
+          sk.SafetyEvent.weatherUnsafe(reason: 'rain'),
         ),
       );
       expect(notifications.calls, isEmpty);
     });
 
-    test(
-      'HeartbeatStatusChanged -> notification on Disconnected status',
-      () async {
-        await emit(
-          _ev(
-            EventCategory.equipment,
-            'HeartbeatStatusChanged',
-            data: {
-              'device_type': 'Focuser',
-              'device_id': 'native:zwo:eaf:0',
-              'status': 'Disconnected',
-            },
+    test('a repeat inside the window buzzes once', () async {
+      for (var i = 0; i < 2; i++) {
+        await emitTyped(
+          sk.EventCategory.safety,
+          const sk.EventPayload.safety(
+            sk.SafetyEvent.weatherUnsafe(reason: 'rain'),
           ),
         );
+      }
+      expect(notifications.calls, hasLength(1));
+    });
+  });
+
+  group('Guiding', () {
+    test('a lost star raises guiding lost', () async {
+      await emitTyped(
+        sk.EventCategory.guiding,
+        const sk.EventPayload.guiding(sk.GuidingEvent.lostStar()),
+      );
+      expect(notifications.calls.single.kind, 'guidingLost');
+    });
+
+    test('the guider disconnecting raises guiding lost', () async {
+      await emitTyped(
+        sk.EventCategory.guiding,
+        const sk.EventPayload.guiding(sk.GuidingEvent.disconnected()),
+      );
+      expect(notifications.calls.single.kind, 'guidingLost');
+    });
+
+    test('respects the guiding mute', () async {
+      await prefs.setNotifyGuiding(false);
+      await emitTyped(
+        sk.EventCategory.guiding,
+        const sk.EventPayload.guiding(sk.GuidingEvent.lostStar()),
+      );
+      expect(notifications.calls, isEmpty);
+    });
+  });
+
+  group('Imaging', () {
+    test('a failed exposure says why', () async {
+      await emitTyped(
+        sk.EventCategory.imaging,
+        const sk.EventPayload.imaging(
+          sk.ImagingEvent.exposureFailed(error: 'Readout timed out'),
+        ),
+      );
+      expect(notifications.calls.single.kind, 'exposureFailed');
+      expect(notifications.calls.single.data['error'], contains('Readout'));
+    });
+
+    test('respects the exposure-failed mute', () async {
+      await prefs.setNotifyExposureFailed(false);
+      await emitTyped(
+        sk.EventCategory.imaging,
+        const sk.EventPayload.imaging(
+          sk.ImagingEvent.exposureFailed(error: 'x'),
+        ),
+      );
+      expect(notifications.calls, isEmpty);
+    });
+  });
+
+  group('Equipment', () {
+    test(
+      'a device the heartbeat gave up on is reported disconnected',
+      () async {
+        // What the host's heartbeat sends when a device stops answering.
+        await emitEquipment(
+          const sk.EquipmentEvent.heartbeatStatusChanged(
+            deviceType: 'focuser',
+            deviceId: 'sim_focuser_1',
+            status: sk.HeartbeatStatus.disconnected,
+            consecutiveFailures: 3,
+          ),
+        );
+        await emitEquipment(
+          const sk.EquipmentEvent.error(
+            deviceType: 'focuser',
+            deviceId: 'sim_focuser_1',
+            message:
+                'Device unresponsive after 3 heartbeat failures: timed out',
+          ),
+        );
+        expect(notifications.calls, hasLength(1));
         expect(notifications.calls.single.kind, 'equipmentDisconnected');
+        expect(notifications.calls.single.data['deviceType'], 'focuser');
       },
     );
 
-    test('respects notifyEquipmentDisconnected toggle', () async {
+    test('a disconnect names the device', () async {
+      await emitEquipment(
+        const sk.EquipmentEvent.disconnected(
+          deviceType: 'camera',
+          deviceId: 'sim_camera_1',
+        ),
+      );
+      expect(notifications.calls.single.kind, 'equipmentDisconnected');
+      expect(notifications.calls.single.data['deviceId'], isNotEmpty);
+    });
+
+    test('a connect that does not succeed is not a disconnect', () async {
+      await emitEquipment(
+        const sk.EquipmentEvent.connecting(
+          deviceType: 'focuser',
+          deviceId: 'sim_focuser_1',
+          deviceName: 'Focuser Simulator',
+        ),
+        severity: sk.EventSeverity.info,
+      );
+      await emitEquipment(
+        const sk.EquipmentEvent.error(
+          deviceType: 'focuser',
+          deviceId: 'sim_focuser_1',
+          message: 'No power',
+        ),
+      );
+      expect(notifications.calls, isEmpty);
+    });
+
+    test('respects the equipment mute', () async {
       await prefs.setNotifyEquipmentDisconnected(false);
-      await emit(
-        _ev(
-          EventCategory.equipment,
-          'Disconnected',
-          data: {'device_type': 'Camera', 'device_id': 'asi:0'},
+      await emitEquipment(
+        const sk.EquipmentEvent.disconnected(
+          deviceType: 'camera',
+          deviceId: 'sim_camera_1',
         ),
       );
       expect(notifications.calls, isEmpty);
     });
   });
 
-  group('Sequencer category', () {
-    test(
-      'NodeCompleted with failed autofocus -> autofocus failed notification',
-      () async {
-        await emit(
-          _ev(
-            EventCategory.sequencer,
-            'NodeCompleted',
-            data: {
-              'node_id': 'af-1',
-              'node_type': 'Autofocus',
-              'status': 'failed',
-            },
+  group('Sequencer', () {
+    sk.EventPayload decision({sk.SequencerNotice? notice}) =>
+        sk.EventPayload.sequencer(
+          sk.SequencerEvent.decisionLogged(
+            timestampIso: '2026-11-13T02:00:00Z',
+            category: 'autofocus',
+            summary: 'Autofocus did not converge; continuing on the last focus',
+            detailsJson: '{}',
+            notice: notice,
           ),
+        );
+
+    test(
+      'an autofocus the run carried on through raises autofocus failed',
+      () async {
+        await emitTyped(
+          sk.EventCategory.sequencer,
+          decision(notice: const sk.SequencerNotice.autofocusContinued()),
+          severity: sk.EventSeverity.info,
         );
         expect(notifications.calls.single.kind, 'autofocusFailed');
       },
     );
 
-    test('NodeCompleted with success=false bool variant works', () async {
-      await emit(
-        _ev(
-          EventCategory.sequencer,
-          'NodeCompleted',
-          data: {'node_id': 'af-1', 'node_type': 'Autofocus', 'success': false},
-        ),
-      );
-      expect(notifications.calls.single.kind, 'autofocusFailed');
-    });
-
-    test('NodeCompleted with successful autofocus -> ignored', () async {
-      await emit(
-        _ev(
-          EventCategory.sequencer,
-          'NodeCompleted',
-          data: {
-            'node_id': 'af-1',
-            'node_type': 'Autofocus',
-            'status': 'success',
-          },
-        ),
+    test('a decision row with no notice is silent', () async {
+      await emitTyped(
+        sk.EventCategory.sequencer,
+        decision(),
+        severity: sk.EventSeverity.info,
       );
       expect(notifications.calls, isEmpty);
     });
 
-    test('NodeCompleted for non-autofocus failure -> ignored', () async {
-      await emit(
-        _ev(
-          EventCategory.sequencer,
-          'NodeCompleted',
-          data: {
-            'node_id': 'exp-1',
-            'node_type': 'Exposure',
-            'status': 'failed',
-          },
-        ),
+    test('respects the autofocus mute', () async {
+      await prefs.setNotifyAutofocusFailed(false);
+      await emitTyped(
+        sk.EventCategory.sequencer,
+        decision(notice: const sk.SequencerNotice.autofocusContinued()),
       );
       expect(notifications.calls, isEmpty);
     });
 
-    test('TargetCompleted -> notification', () async {
-      await emit(
-        _ev(
-          EventCategory.sequencer,
-          'TargetCompleted',
-          data: {'target_name': 'M31'},
+    test('a finished target is named', () async {
+      await emitTyped(
+        sk.EventCategory.sequencer,
+        const sk.EventPayload.sequencer(
+          sk.SequencerEvent.targetCompleted(targetName: 'M31'),
         ),
       );
       expect(notifications.calls.single.kind, 'targetCompleted');
       expect(notifications.calls.single.data['targetName'], 'M31');
     });
 
-    test('TargetCompleted respects mute toggle', () async {
-      await prefs.setNotifyTargetCompleted(false);
-      await emit(
-        _ev(
-          EventCategory.sequencer,
-          'TargetCompleted',
-          data: {'target_name': 'M31'},
-        ),
-      );
-      expect(notifications.calls, isEmpty);
-    });
-
-    test(
-      'InstructionProgress meridian -> meridian flip notification',
-      () async {
-        await emit(
-          _ev(
-            EventCategory.sequencer,
-            'InstructionProgress',
-            data: {
-              'node_id': 'mf-1',
-              'instruction': 'Meridian flip',
-              'progress_percent': 30.0,
-              'detail': 'Slewing past meridian',
-            },
+    test('a meridian flip alerts once however long it reports', () async {
+      for (final progress in [10.0, 50.0, 90.0]) {
+        await emitTyped(
+          sk.EventCategory.sequencer,
+          sk.EventPayload.sequencer(
+            sk.SequencerEvent.instructionProgress(
+              nodeId: 'flip',
+              instruction: 'Meridian flip',
+              progressPercent: progress,
+              detail: 'Flipping',
+            ),
           ),
         );
-        expect(notifications.calls.single.kind, 'meridianFlip');
-      },
-    );
-
-    test('InstructionProgress non-meridian -> ignored', () async {
-      await emit(
-        _ev(
-          EventCategory.sequencer,
-          'InstructionProgress',
-          data: {
-            'node_id': 'cool-1',
-            'instruction': 'Cool Camera',
-            'progress_percent': 50.0,
-            'detail': 'Cooling',
-          },
-        ),
-      );
-      expect(notifications.calls, isEmpty);
+      }
+      expect(notifications.calls.single.kind, 'meridianFlip');
     });
   });
 
-  group('System category', () {
-    test('DiskSpaceLow -> low disk space notification', () async {
-      await emit(
-        _ev(EventCategory.system, 'DiskSpaceLow', data: {'available_gb': 2.5}),
+  group('System', () {
+    test('low disk space raises the disk alert', () async {
+      await emitTyped(
+        sk.EventCategory.system,
+        const sk.EventPayload.system(
+          sk.SystemEvent.diskSpaceLow(availableGb: 1.5),
+        ),
       );
       expect(notifications.calls.single.kind, 'lowDiskSpace');
-      expect(notifications.calls.single.data['gb'], 2.5);
     });
 
-    test('DiskSpaceLow respects mute toggle', () async {
+    test('respects the disk mute', () async {
       await prefs.setNotifyDiskLow(false);
-      await emit(
-        _ev(EventCategory.system, 'DiskSpaceLow', data: {'available_gb': 2.5}),
-      );
-      expect(notifications.calls, isEmpty);
-    });
-
-    test('Other system events -> ignored', () async {
-      await emit(_ev(EventCategory.system, 'Initialized'));
-      await emit(
-        _ev(
-          EventCategory.system,
-          'Notification',
-          data: {'title': 'Hello', 'message': 'World', 'level': 'info'},
+      await emitTyped(
+        sk.EventCategory.system,
+        const sk.EventPayload.system(
+          sk.SystemEvent.diskSpaceLow(availableGb: 1.5),
         ),
       );
       expect(notifications.calls, isEmpty);
     });
   });
 
-  group('Push dedupe', () {
-    test(
-      'mobile-direct event is suppressed within dedupe window after push',
-      () async {
-        notifier.recordPushReceived('WeatherUnsafe');
-        await emit(
-          _ev(EventCategory.safety, 'WeatherUnsafe', data: {'reason': 'rain'}),
-        );
-        expect(notifications.calls, isEmpty);
-      },
-    );
+  group('Host push dedupe', () {
+    // The host's push carries the notification category's storage key as
+    // its `eventType`.
+    test('a direct alert right after the host pushed it is skipped', () async {
+      notifier.recordPushReceived(
+        NotificationCategory.weatherUnsafe.storageKey,
+      );
+      await emitTyped(
+        sk.EventCategory.safety,
+        const sk.EventPayload.safety(
+          sk.SafetyEvent.weatherUnsafe(reason: 'rain'),
+        ),
+      );
+      expect(notifications.calls, isEmpty);
+    });
 
-    test(
-      'different eventType than the push is not dedupe-suppressed',
-      () async {
-        notifier.recordPushReceived('Completed');
-        await emit(
-          _ev(EventCategory.safety, 'WeatherUnsafe', data: {'reason': 'rain'}),
-        );
-        expect(notifications.calls, hasLength(1));
-      },
-    );
+    test('a push about something else does not skip it', () async {
+      notifier.recordPushReceived(
+        NotificationCategory.sequenceCompleted.storageKey,
+      );
+      await emitTyped(
+        sk.EventCategory.safety,
+        const sk.EventPayload.safety(
+          sk.SafetyEvent.weatherUnsafe(reason: 'rain'),
+        ),
+      );
+      expect(notifications.calls, hasLength(1));
+    });
   });
 
   group('Polar alignment category', () {

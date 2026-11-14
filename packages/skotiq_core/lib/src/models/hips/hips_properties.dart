@@ -1,6 +1,5 @@
-import 'dart:developer' as developer;
-
 import 'package:equatable/equatable.dart';
+import '../../services/logging_service.dart';
 
 /// Sky reference frame a HiPS survey is tiled in.
 ///
@@ -87,7 +86,6 @@ enum HipsTileFormat {
 /// defaulting: the survey's geometry and tile format cannot be guessed. The
 /// [key] (when known) identifies the offending property line.
 class HipsPropertiesParseException implements Exception {
-  /// Human-readable description of the failure.
   final String message;
 
   /// The property key that triggered the failure, if a single key is at fault.
@@ -275,11 +273,10 @@ class HipsProperties extends Equatable {
     if (rawTileWidth == null) {
       tileWidth = defaultTileWidth;
       tileWidthWasDefaulted = true;
-      developer.log(
+      Log.info(
         'hips_tile_width absent in properties; applying HiPS standard default '
         'of $defaultTileWidth px',
-        name: logName,
-        level: 800, // INFO
+        source: logName,
       );
     } else {
       tileWidth = _parseIntValue(

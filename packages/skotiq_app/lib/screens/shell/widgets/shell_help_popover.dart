@@ -1,15 +1,16 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../tours/tour.dart';
+import '../../../tours/tour_overlay.dart';
+import '../../../tours/tour_runner.dart';
 import '../shell_navigation.dart';
 import 'window_chrome.dart' show commandPaletteShortcutLabel;
+import 'package:skotiq_core/services.dart';
 
 /// Where "Open the manual" goes.
 ///
@@ -20,10 +21,6 @@ import 'window_chrome.dart' show commandPaletteShortcutLabel;
 const String kManualUrl = 'https://github.com/Scdouglas1999/Skotiq';
 
 /// The top bar's help button (05 §11).
-///
-/// This is what replaced ten per-screen tour nudges. The tours themselves are
-/// unchanged and still run through `TutorialOverlay`; what changed is that the
-/// operator asks for one instead of being interrupted by an offer of one.
 class ShellHelpButton extends ConsumerWidget {
   const ShellHelpButton({super.key});
 
@@ -58,7 +55,7 @@ class ShellHelpButton extends ConsumerWidget {
       ),
     );
 
-    final screen = _currentScreen(context);
+    final tourHere = _tourHere(context);
     showMenu<_HelpAction>(
       context: context,
       position: position,
@@ -74,7 +71,7 @@ class ShellHelpButton extends ConsumerWidget {
           value: _HelpAction.tour,
           icon: LucideIcons.compass,
           label: 'Tour this screen',
-          enabled: screen.tour != null,
+          enabled: tourHere != null,
         ),
         _item(
           colors,
@@ -93,9 +90,8 @@ class ShellHelpButton extends ConsumerWidget {
       if (action == null || !context.mounted) return;
       switch (action) {
         case _HelpAction.tour:
-          final tour = screen.tour;
-          if (tour == null) return;
-          ref.read(tutorialProvider.notifier).startTutorial(tour);
+          if (tourHere == null) return;
+          ref.read(tourRunnerProvider.notifier).start(tourHere);
         case _HelpAction.shortcuts:
           showShellShortcuts(context);
         case _HelpAction.manual:
@@ -103,10 +99,9 @@ class ShellHelpButton extends ConsumerWidget {
             Uri.parse(kManualUrl),
             mode: LaunchMode.externalApplication,
           ).catchError((Object e) {
-            developer.log(
+            Log.warning(
               '[ShellHelp] Could not open the manual: $e',
-              name: 'ShellHelp',
-              level: 900,
+              source: 'ShellHelp',
               error: e,
             );
             return false;
@@ -155,47 +150,31 @@ class ShellHelpButton extends ConsumerWidget {
     );
   }
 
-  /// The screen the operator is looking at, and the tour that covers it.
-  _HelpScreen _currentScreen(BuildContext context) {
+  /// The tour about the screen on show. Routes without one get a disabled
+  /// "Tour this screen", because a menu item that silently does nothing is
+  /// worse than one that says it has nothing to offer.
+  Tour? _tourHere(BuildContext context) {
     final location = GoRouter.of(context)
         .routerDelegate
         .currentConfiguration
         .lastOrNull
         ?.matchedLocation;
-    final path = (location ?? '/dashboard').split('?').first;
-    for (final entry in _tours.entries) {
-      if (ShellNavigation.locationIsUnder(path, entry.key)) {
-        return _HelpScreen(path, entry.value);
-      }
+    for (var route = AppRoute.of(location ?? AppRoute.tonight.path);
+        route != null;
+        route = route.parent) {
+      final tours = Tour.forScreen(route);
+      if (tours.isEmpty) continue;
+      // Plan carries a tour per tab; the one whose controls are on show is
+      // the one about what the user is looking at.
+      return tours.length == 1
+          ? tours.single
+          : tours
+              .where((tour) => tour.steps.any((step) =>
+                  step.target != null && tourTargetIsOnShow(step.target!)))
+              .firstOrNull;
     }
-    return _HelpScreen(path, null);
+    return null;
   }
-}
-
-/// Which deep tour covers which route.
-///
-/// Only the routes that HAVE a tour appear; the rest get a disabled "Tour this
-/// screen", because a menu item that silently does nothing is worse than one
-/// that says it has nothing to offer.
-const Map<String, TutorialCategory> _tours = {
-  '/dashboard': TutorialCategory.dashboardTour,
-  '/equipment': TutorialCategory.equipmentTour,
-  '/imaging': TutorialCategory.imagingTour,
-  '/guiding': TutorialCategory.guidingTour,
-  '/sequencer': TutorialCategory.sequencerTour,
-  '/planetarium': TutorialCategory.planetariumTour,
-  '/framing': TutorialCategory.framingTour,
-  '/analytics': TutorialCategory.analyticsTour,
-  '/flat-wizard': TutorialCategory.flatWizardTour,
-  '/weather': TutorialCategory.weatherTour,
-  '/settings': TutorialCategory.settingsTour,
-  '/polar-alignment': TutorialCategory.polarAlignmentTour,
-};
-
-class _HelpScreen {
-  final String route;
-  final TutorialCategory? tour;
-  const _HelpScreen(this.route, this.tour);
 }
 
 enum _HelpAction { tour, shortcuts, manual }

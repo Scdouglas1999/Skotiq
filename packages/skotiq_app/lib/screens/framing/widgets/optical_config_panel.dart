@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 /// Panel that displays optical configuration from the active equipment profile.
 /// Shows telescope specs, camera specs, FOV, and image scale.
@@ -16,7 +18,6 @@ class OpticalConfigPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
 
-    // Watch optical config from provider
     final opticalConfig = ref.watch(opticalConfigProvider);
     final activeProfile = ref.watch(activeEquipmentProfileProvider);
 
@@ -121,7 +122,7 @@ class OpticalConfigPanel extends ConsumerWidget {
           icon: SkotiqIcons.settings2,
           variant: ButtonVariant.secondary,
           size: ButtonSize.small,
-          onPressed: () => context.go('/equipment'),
+          onPressed: () => context.go(AppRoute.equipment.path),
         ),
       ],
     );
@@ -137,7 +138,6 @@ class OpticalConfigPanel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Telescope info
         if (config.telescopeName != null) ...[
           Row(
             children: [
@@ -156,16 +156,11 @@ class OpticalConfigPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
         ],
-
-        // Optical specs
         Text(
           _formatOpticalSpecs(config),
           style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
-
         const SizedBox(height: 12),
-
-        // Camera info
         if (config.cameraName != null) ...[
           Row(
             children: [
@@ -184,20 +179,15 @@ class OpticalConfigPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
         ],
-
-        // Sensor specs
         if (config.sensorWidth != null && config.sensorHeight != null)
           Text(
             _formatSensorSpecs(config),
             style:
                 SkotiqTypography.caption.copyWith(color: colors.textSecondary),
           ),
-
         const SizedBox(height: 16),
         Divider(color: colors.border, height: 1),
         const SizedBox(height: 12),
-
-        // FOV and Scale
         _buildMetricRow(
           'FOV',
           config.fovString ?? kReadoutUnknown,
@@ -209,10 +199,7 @@ class OpticalConfigPanel extends ConsumerWidget {
           config.scaleString ?? kReadoutUnknown,
           colors,
         ),
-
         const SizedBox(height: 16),
-
-        // Profile switcher
         _ProfileSwitcher(currentProfile: profile),
       ],
     );

@@ -5,15 +5,11 @@ part of '../profile_editor_dialog.dart';
 /// The binning factors this editor offers. Square only (binX == binY).
 const List<int> _binningFactors = [1, 2, 3, 4];
 
-/// Width of the label column in the SDK recommendation well.
 const double _recommendationLabelWidth = 104;
 
-/// Widest the "connect a camera" note beside the auto-detect buttons gets.
 const double _autoDetectNoteMaxWidth = 240;
 
 extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
-  // Section 4: filters
-
   Widget _buildFiltersSection(SkotiqColors colors, ThemeData theme) {
     final filterWheelState = ref.watch(filterWheelStateProvider);
     final wheelConnected =
@@ -40,7 +36,6 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Column headings
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     SkotiqTokens.spaceSm,
@@ -75,8 +70,6 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
                     ],
                   ),
                 ),
-
-                // Filter rows
                 if (_filterControllers.isEmpty)
                   Padding(
                     padding: SkotiqTokens.paddingLg,
@@ -104,7 +97,6 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
 
-          // Action buttons
           Row(
             children: [
               SkotiqButton(
@@ -133,9 +125,8 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
     );
   }
 
-  // Section 5: camera defaults
-
   Widget _buildCameraDefaultsSection(SkotiqColors colors, ThemeData theme) {
+    final sensitivity = _profileCameraSensitivity();
     return _SectionBlock(
       title: 'Camera defaults',
       icon: LucideIcons.settings2,
@@ -152,29 +143,39 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
         mainAxisSize: MainAxisSize.min,
         children: [
           _EditorRow(
-            label: 'Gain',
-            child: SkotiqTextField(
-              controller: _gainController,
-              hint: 'e.g., 100',
-              mono: true,
-              errorText: _fieldErrors[ProfileEditorField.gain],
-              onChanged: (_) => clearFieldError(ProfileEditorField.gain),
-              keyboardType: TextInputType.number,
+            label: sensitivity.label,
+            child: SensitivityField(
+              value: int.tryParse(_gainController.text.trim()),
+              sensitivity: sensitivity,
+              onChanged: (iso) => setState(() {
+                _gainController.text = '$iso';
+                clearFieldError(ProfileEditorField.gain);
+              }),
+              gainField: (_) => SkotiqTextField(
+                controller: _gainController,
+                hint: 'e.g., 100',
+                mono: true,
+                errorText: _fieldErrors[ProfileEditorField.gain],
+                onChanged: (_) => clearFieldError(ProfileEditorField.gain),
+                keyboardType: TextInputType.number,
+              ),
             ),
           ),
           const SizedBox(height: _rowGap),
-          _EditorRow(
-            label: 'Offset',
-            child: SkotiqTextField(
-              controller: _offsetController,
-              hint: 'e.g., 10',
-              mono: true,
-              errorText: _fieldErrors[ProfileEditorField.offset],
-              onChanged: (_) => clearFieldError(ProfileEditorField.offset),
-              keyboardType: TextInputType.number,
+          if (sensitivity.hasOffset) ...[
+            _EditorRow(
+              label: 'Offset',
+              child: SkotiqTextField(
+                controller: _offsetController,
+                hint: 'e.g., 10',
+                mono: true,
+                errorText: _fieldErrors[ProfileEditorField.offset],
+                onChanged: (_) => clearFieldError(ProfileEditorField.offset),
+                keyboardType: TextInputType.number,
+              ),
             ),
-          ),
-          const SizedBox(height: _rowGap),
+            const SizedBox(height: _rowGap),
+          ],
           _EditorRow(
             label: 'Binning',
             child: Align(
@@ -244,7 +245,17 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
     );
   }
 
-  // Auto-detect recommended camera gain/offset
+  /// The sensitivity of this profile's camera when it is the one connected;
+  /// gain otherwise, since only a connected body says which ISO speeds it has.
+  ExposureSensitivity _profileCameraSensitivity() {
+    final cameraState = ref.watch(cameraStateProvider);
+    final connected =
+        cameraState.connectionState == DeviceConnectionState.connected &&
+            cameraState.deviceId == _cameraId;
+    return connected
+        ? ref.watch(cameraSensitivityProvider)
+        : const GainSensitivity();
+  }
 
   /// Build the auto-detect button row.
   ///
@@ -446,7 +457,7 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
     } catch (e) {
       if (!mounted) return;
       // Surface the failure to the user — never silently fall back.
-      context.showErrorSnackBar('Auto-detect failed: $e');
+      context.showErrorSnackBar('Auto-detect failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() {

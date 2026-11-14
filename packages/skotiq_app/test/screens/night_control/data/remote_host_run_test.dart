@@ -6,6 +6,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.dart';
@@ -13,8 +14,10 @@ import 'package:skotiq_app/screens/night_control/data/session/session_frames_pro
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
-import 'package:skotiq_core/src/database/database.dart' as db;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/database.dart' as db;
 
 import 'plan/plan_test_support.dart';
 
@@ -33,7 +36,7 @@ _MockNetworkBackend _link() {
   return backend;
 }
 
-db.CapturedImage _row(
+db.DbCapturedImage _row(
   int id,
   int sessionId,
   DateTime at, {
@@ -41,7 +44,7 @@ db.CapturedImage _row(
   String type = 'light',
   bool accepted = true,
 }) =>
-    db.CapturedImage(
+    db.DbCapturedImage(
       id: id,
       filePath: 'C:/Users/scdou/Documents/frame_$id.fits',
       fileName: 'frame_$id.fits',
@@ -72,6 +75,10 @@ db.ImagingSession _session(int id, DateTime start, String status) =>
       autofocusCount: 0,
     );
 
+/// The host's id for the plan the client shows. A plan's id is made where the
+/// plan is opened, so it is never the client's id for the same plan.
+const _hostPlanId = 'the-plan-as-the-host-opened-it';
+
 /// Apply what the host's runtime mirror publishes for its run record.
 void _hostRecord(
   ProviderContainer client,
@@ -79,6 +86,8 @@ void _hostRecord(
   SequenceTerminalRunResult? terminal,
   CompletedImagingRun? imagingRun,
   LastEndedRun? lastEnded,
+  bool lastEndedPlanLoaded = true,
+  SequenceStopDecision? stopEvidence,
   DateTime? runStartedAt,
 }) {
   applyHostRuntimeUpdate(
@@ -90,7 +99,10 @@ void _hostRecord(
         terminal: terminal,
         imagingRun: imagingRun,
         lastEnded: lastEnded,
+        lastEndedPlanLoaded: lastEnded != null && lastEndedPlanLoaded,
+        stopEvidence: stopEvidence,
         runStartedAt: runStartedAt,
+        stats: null,
       )),
     ),
     networkBackend: backend,
@@ -129,7 +141,7 @@ void main() {
       () async {
     final plan = TwoTargetPlan();
     final runStart = DateTime(2026, 10, 19, 19, 50);
-    final rows = <db.CapturedImage>[
+    final rows = <db.DbCapturedImage>[
       for (var i = 0; i < 3; i++)
         _row(500 + i, 113, runStart.add(Duration(minutes: 2 + i))),
       for (var i = 0; i < 2; i++)
@@ -162,7 +174,7 @@ void main() {
     const imaging = SequenceTerminalRunResult(
       generation: 4,
       outcome: SequenceExecutionState.completed,
-      runStatus: 'completed',
+      runStatus: SequenceRunStatus.completed,
       runId: 41,
       dbSessionId: 113,
     );
@@ -172,14 +184,14 @@ void main() {
       terminal: const SequenceTerminalRunResult(
         generation: 5,
         outcome: SequenceExecutionState.idle,
-        runStatus: 'stopped',
+        runStatus: SequenceRunStatus.stopped,
         runId: 42,
         dbSessionId: 114,
         isCalibration: true,
       ),
       imagingRun: CompletedImagingRun(imaging, _stats(5, 1)),
       lastEnded: LastEndedRun(
-        sequenceId: plan.sequence.id,
+        sequenceId: _hostPlanId,
         endedAt: runStart.add(const Duration(minutes: 22)),
       ),
       runStartedAt: runStart.add(const Duration(minutes: 19)),
@@ -204,13 +216,50 @@ void main() {
     );
   });
 
+  test(
+      'a run the host ended for another plan does not finish the plan this '
+      'client shows', () async {
+    final plan = TwoTargetPlan();
+    final backend = _link();
+    final client = planContainer(
+      now: evening,
+      sequence: plan.sequence,
+      backend: backend,
+    );
+    addTearDown(client.dispose);
+    client.read(lastEndedRunProvider);
+
+    LastEndedRun ended() => LastEndedRun(
+          sequenceId: _hostPlanId,
+          endedAt: DateTime(2026, 10, 19, 20, 5),
+        );
+    _hostRecord(client, backend, lastEnded: ended());
+    expect(client.read(nightRunPhaseProvider), NightRunPhase.finished);
+
+    // Nothing here says who ended it: the host's record does.
+    expect(client.read(nightHeaderProvider).ending, NightRunEnding.ended);
+    _hostRecord(
+      client,
+      backend,
+      lastEnded: ended(),
+      stopEvidence:
+          const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+    );
+    expect(client.read(nightHeaderProvider).ending, NightRunEnding.stopped);
+
+    // The host has since opened another plan.
+    _hostRecord(client, backend,
+        lastEnded: ended(), lastEndedPlanLoaded: false);
+    expect(client.read(nightRunPhaseProvider), isNot(NightRunPhase.finished));
+  });
+
   test('SY-25: a client restarted during a paused run counts the run frames',
       () async {
     final plan = TwoTargetPlan();
     final runStart = DateTime(2026, 10, 19, 19, 50);
     // The client came back 75 minutes into the run, after a failed flip.
     final now = runStart.add(const Duration(minutes: 75));
-    final rows = <db.CapturedImage>[
+    final rows = <db.DbCapturedImage>[
       for (var i = 0; i < 3; i++)
         _row(600 + i, 120, runStart.add(Duration(minutes: 2 + i))),
     ];
@@ -232,10 +281,10 @@ void main() {
       ),
       // What this client saw arrive since it restarted: nothing.
       sessionFrames: const [],
+      // The start as a client that missed it records it: when it joined.
+      run: RunRecord(startedAt: now),
       extra: [
         allDbImagesProvider.overrideWith((ref) => Stream.value(rows)),
-        // The start as a client that missed it records it: when it joined.
-        runStartedAtProvider.overrideWith((ref) => now),
       ],
     );
     addTearDown(client.dispose);
@@ -258,7 +307,7 @@ void main() {
   test('SY-37: at the run end the frame views keep the run', () async {
     final plan = TwoTargetPlan();
     final runStart = DateTime(2026, 10, 19, 19, 50);
-    final rows = <db.CapturedImage>[
+    final rows = <db.DbCapturedImage>[
       for (var i = 0; i < 3; i++)
         _row(700 + i, 130, runStart.add(Duration(minutes: 2 + i)),
             accepted: i != 1),
@@ -289,7 +338,7 @@ void main() {
     const result = SequenceTerminalRunResult(
       generation: 7,
       outcome: SequenceExecutionState.failed,
-      runStatus: 'failed',
+      runStatus: SequenceRunStatus.failed,
       runId: 50,
       dbSessionId: 130,
     );
@@ -299,7 +348,7 @@ void main() {
       terminal: result,
       imagingRun: CompletedImagingRun(result, _stats(3, 1)),
       lastEnded: LastEndedRun(
-        sequenceId: plan.sequence.id,
+        sequenceId: _hostPlanId,
         endedAt: runStart.add(const Duration(minutes: 10)),
       ),
       runStartedAt: runStart,
@@ -326,5 +375,53 @@ void main() {
         .firstWhere((s) => s.nodeId == plan.m74L.id);
     expect(done.status, PlanStepStatus.done);
     expect(done.when, isNull);
+  });
+
+  // Owner, 2026-11-08: a crash or an update mid-night must not start the
+  // night over. The restored run opens a new session on the host.
+  test(
+      'a host restarted mid-night: the client lists the whole night, the '
+      'plan counts the restored run', () async {
+    final plan = TwoTargetPlan();
+    final runStart = DateTime(2026, 11, 7, 21, 10);
+    final restored = DateTime(2026, 11, 8, 0, 40);
+    final rows = <db.DbCapturedImage>[
+      for (var i = 0; i < 3; i++)
+        _row(700 + i, 130, runStart.add(Duration(minutes: 3 * i))),
+      for (var i = 0; i < 2; i++)
+        _row(710 + i, 131, restored.add(Duration(minutes: 3 * i))),
+      // The night before: not tonight's.
+      _row(600, 129, DateTime(2026, 11, 6, 23)),
+    ];
+    final backend = _link();
+    final client = planContainer(
+      now: restored.add(const Duration(minutes: 10)),
+      sequence: plan.sequence,
+      backend: backend,
+      extra: [
+        allDbImagesProvider.overrideWith((ref) => Stream.value(rows)),
+        allSessionsProvider.overrideWith(
+          (ref) => Stream.value([
+            _session(131, restored, 'active'),
+            _session(130, runStart, 'interrupted'),
+            _session(129, DateTime(2026, 11, 6, 22), 'completed'),
+          ]),
+        ),
+      ],
+    );
+    addTearDown(client.dispose);
+    await _settle(client, [
+      nightSessionFramesProvider,
+      nightSessionStatsProvider,
+      nightFrameSeriesProvider,
+    ]);
+
+    expect(client.read(nightSessionIdProvider), 131);
+    final frames = client.read(nightSessionFramesProvider);
+    expect(frames.map((f) => f.id), [700, 701, 702, 710, 711]);
+    expect(frames.last.frameNumber, 5);
+    expect(client.read(nightFrameSeriesProvider).sampleCount, 5);
+    expect(client.read(nightSessionStatsProvider).frameCount, 5);
+    expect(client.read(nightRunLightRowsProvider), hasLength(2));
   });
 }

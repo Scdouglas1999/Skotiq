@@ -5,7 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
@@ -16,6 +20,8 @@ import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 import 'nights_strip.dart';
 import 'tile_crop.dart';
+import 'package:skotiq_core/providers.dart';
+import '../../../utils/snackbar_helper.dart';
 
 const double _heroHeight = 292;
 
@@ -128,7 +134,7 @@ String darkroomHeroSentence(DarkroomTarget target, DarkroomBuildJob? job) {
   final more = target.newSubsInBuiltNights;
   final topUp = target.nights
       .where((n) => n.use == DarkroomNightUse.partly)
-      .map((n) => darkroomShortDate(n.evening))
+      .map((n) => ClockFormat.monthDay(n.evening.toLocal()))
       .join(', ');
   if (fresh > 0 && more > 0) {
     return '$fresh new night${fresh == 1 ? '' : 's'} since your last '
@@ -553,7 +559,7 @@ class _Legend extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         for (final f in filters)
-          item(swatch(darkroomFilterColor(f, colors)), f),
+          item(swatch(FilterColors.forName(f, colors: colors)), f),
         if (hasPause)
           item(
             SizedBox(
@@ -616,7 +622,7 @@ class _LastMasters extends StatelessWidget {
       trailing: newest == null
           ? null
           : Text(
-              '${darkroomShortDate(newest)}'
+              '${ClockFormat.monthDay(newest.toLocal())}'
               '${nights == 0 ? '' : ' · $nights night${nights == 1 ? '' : 's'}'}',
               style: SkotiqTypography.caption.copyWith(
                 color: colors.textSecondary,
@@ -822,9 +828,7 @@ class _JobBanner extends ConsumerWidget {
                     unawaited(
                       jobs.resume(folder).catchError((Object e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                            SnackBar(content: Text('$e')),
-                          );
+                          context.showErrorSnackBar(userFacingError(e));
                         }
                       }),
                     );
@@ -845,4 +849,4 @@ class _JobBanner extends ConsumerWidget {
 
 /// Integration as `2h 24m`, `40s`: hours and minutes once there is an hour.
 String _darkroomSpan(num seconds) =>
-    DurationFormat.seconds(seconds, style: DurationStyle.compactTrimmed);
+    DurationFormat.seconds(seconds, style: DurationStyle.coarse);

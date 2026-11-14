@@ -1,11 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../accessible_dropdown.dart';
-import 'adaptive_chart_container.dart';
+import '../../../widgets/accessible_dropdown.dart';
+import '../../../widgets/adaptive_chart_container.dart';
 
 /// FWHM-surface ramp endpoints, as NAMES rather than painted colours.
 ///

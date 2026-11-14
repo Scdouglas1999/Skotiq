@@ -1,10 +1,13 @@
+import '../../models/imaging/imaging_models.dart' show FrameType;
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../../database/database.dart' show CapturedImage;
+import '../../database/database.dart' show DbCapturedImage;
 import '../../models/sequence/sequence_models.dart';
+import '../../models/sequence/sequence_run_status.dart';
 import '../calibration_master_builder.dart';
 import 'eon_plan.dart';
 import 'eon_settings.dart';
@@ -36,7 +39,7 @@ class EonRunResult {
   final int? runId;
 
   /// `completed`, `stopped`, `paused-stopped` or `failed`.
-  final String runStatus;
+  final SequenceRunStatus runStatus;
 }
 
 /// Everything the step does to the rig and the app, so the step itself can be
@@ -45,7 +48,7 @@ abstract class EonRig {
   DateTime now();
 
   /// Light frames recorded since [since], oldest first.
-  Future<List<CapturedImage>> lightFramesSince(DateTime since);
+  Future<List<DbCapturedImage>> lightFramesSince(DateTime since);
 
   /// The connected camera, or null when none is connected.
   Future<EonCameraInfo?> camera();
@@ -73,7 +76,7 @@ abstract class EonRig {
   /// Stop the calibration run started by [runSequence].
   Future<void> stopRun();
 
-  Future<List<CapturedImage>> framesOfRun(int runId);
+  Future<List<DbCapturedImage>> framesOfRun(int runId);
 
   Future<CalibrationMasterBuildResult> buildMaster(
     CalibrationMasterBuildRequest request,
@@ -438,8 +441,8 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     final stopped = _cancelRequested;
     _cancelRequested = false;
     report.runId = result.runId;
-    report.runStatus = result.runStatus;
-    if (result.runStatus != 'completed' && !stopped) {
+    report.runStatus = result.runStatus.token;
+    if (result.runStatus != SequenceRunStatus.completed && !stopped) {
       report.problems.add(
         'The calibration run ${eonRunEndWords(result.runStatus)} before '
         'taking every frame',
@@ -455,7 +458,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     }
 
     final frames = result.runId == null
-        ? const <CapturedImage>[]
+        ? const <DbCapturedImage>[]
         : await _rig.framesOfRun(result.runId!);
     report.framesCaptured = frames.length;
     _set(EonPhase.buildingMasters, 'Building masters', report);
@@ -610,29 +613,21 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
   }
 
   Future<void> _buildMasters(
-    List<CapturedImage> frames,
+    List<DbCapturedImage> frames,
     EonFrameNeeds needs,
     EonSettings config,
     EonReport report,
   ) async {
-    final groups = <(String, int, int, int, int, int), List<CapturedImage>>{};
+    final groups =
+        <(String, int, int?, int?, int, int), List<DbCapturedImage>>{};
     for (final frame in frames) {
-      final type = frame.frameType.toLowerCase();
-      if (type != 'dark' && type != 'bias') continue;
-      final gain = frame.gain;
-      final offset = frame.offset;
-      if (gain == null || offset == null) {
-        report.problems.add(
-          'Excluded ${frame.fileName} from master building: '
-          'the recorded gain or offset is missing.',
-        );
-        continue;
-      }
+      final type = frame.recordedFrameType;
+      if (type != FrameType.dark && type != FrameType.bias) continue;
       final key = (
-        type,
+        type!.record,
         (frame.exposureDuration * 1000).round(),
-        gain,
-        offset,
+        frame.gain,
+        frame.offset,
         frame.binX,
         frame.binY,
       );
@@ -664,10 +659,10 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       final temp = temps.isEmpty
           ? null
           : temps.reduce((a, b) => a + b) / temps.length;
+      final settings = gainOffsetLabel(gain, offset);
       final label = type == 'bias'
-          ? 'bias, gain $gain, offset $offset, bin ${binX}x$binY'
-          : '${_trim(exposure)} s darks, gain $gain, offset $offset, '
-                'bin ${binX}x$binY';
+          ? 'bias, $settings, bin ${binX}x$binY'
+          : '${_trim(exposure)} s darks, $settings, bin ${binX}x$binY';
       if (type == 'dark' && group.length < config.darkCount ||
           type == 'bias' && group.length < config.biasCount) {
         report.problems.add(
@@ -687,7 +682,8 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       }
       final name =
           '${type == 'bias' ? 'MasterBias' : 'MasterDark_${_trim(exposure)}s'}'
-          '_g${gain}_o${offset}_${_tempTag(temp)}_bin$binX'
+          '${gain == null ? '' : '_g$gain'}${offset == null ? '' : '_o$offset'}'
+          '_${_tempTag(temp)}_bin$binX'
           '_$stamp.fits';
       final output = p.join(p.dirname(group.first.filePath), 'Masters', name);
       try {
@@ -758,10 +754,13 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
 /// How a calibration run's recorded status reads in a sentence ("The
 /// calibration run was stopped before taking every frame"); the status
 /// itself (`paused-stopped`) is a record value, not words.
-String eonRunEndWords(String runStatus) => switch (runStatus) {
-  'stopped' || 'paused-stopped' => 'was stopped',
-  'failed' => 'failed',
-  'aborted' || 'cancelled' => 'was ended',
-  'interrupted' => 'was interrupted',
-  _ => 'ended',
+String eonRunEndWords(SequenceRunStatus runStatus) => switch (runStatus) {
+  SequenceRunStatus.stopped ||
+  SequenceRunStatus.stoppedResumable => 'was stopped',
+  SequenceRunStatus.failed => 'failed',
+  SequenceRunStatus.aborted => 'was ended',
+  SequenceRunStatus.interrupted => 'was interrupted',
+  SequenceRunStatus.completed ||
+  SequenceRunStatus.running ||
+  SequenceRunStatus.paused => 'ended',
 };

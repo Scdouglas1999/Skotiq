@@ -11,7 +11,7 @@ use super::*;
 async fn unpark_is_a_logged_no_op_when_the_mount_is_not_parked() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_mount_parked(false));
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
 
     let result = execute_unpark(&ctx).await;
 
@@ -28,7 +28,7 @@ async fn unpark_is_a_logged_no_op_when_the_mount_is_not_parked() {
 async fn unpark_runs_when_the_mount_reports_parked() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_mount_parked(true));
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
 
     let result = execute_unpark(&ctx).await;
 
@@ -44,7 +44,7 @@ async fn unpark_still_runs_when_the_parked_state_cannot_be_read() {
     let ops =
         Arc::new(ScriptedDomeRotatorOps::new().with_mount_is_parked_error("AtPark not supported"));
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
 
     let result = execute_unpark(&ctx).await;
 
@@ -63,7 +63,7 @@ fn fast_home_timing() -> HomeTiming {
 
 async fn home_ctx(ops: Arc<ScriptedDomeRotatorOps>) -> InstructionContext {
     let mut ctx = ctx_with_ops(ops).await;
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
     ctx
 }
 
@@ -129,7 +129,7 @@ async fn home_succeeds_unconfirmed_when_the_driver_does_not_report_at_home() {
     let ops = Arc::new(
         ScriptedDomeRotatorOps::new()
             .with_mount_slewing_states(vec![true, false])
-            .with_at_home(Err("AtHome not implemented".to_string())),
+            .with_at_home(Err("AtHome not implemented".into())),
     );
     let ctx = home_ctx(ops.clone()).await;
 
@@ -208,9 +208,7 @@ fn home_mount_node_type_round_trips_through_the_wire_tag() {
         serde_json::to_string(&crate::NodeType::HomeMount).unwrap(),
         r#"{"type":"HomeMount"}"#
     );
-    assert!(crate::node::registry::registry()
-        .build(&crate::NodeType::HomeMount)
-        .is_some());
+    assert!(crate::node::registry::instruction_for(&crate::NodeType::HomeMount).is_some());
 }
 
 /// A home is the run's own move, and the tracking stop it leaves behind is
@@ -225,9 +223,9 @@ async fn homing_is_never_read_as_lost_tracking() {
     let mut ctx = home_ctx(ops.clone()).await;
     let mut state = crate::triggers::TriggerState::new();
     state.set_mount_tracking_expected(true);
-    state.mount_is_tracking = Some(true);
+    state.telemetry.mount_is_tracking = Some(true);
     let state = Arc::new(tokio::sync::RwLock::new(state));
-    ctx.trigger_state = Some(state.clone());
+    ctx.run.trigger_state = Some(state.clone());
 
     let result = execute_home_mount_with(&ctx, fast_home_timing()).await;
     assert_eq!(result.status, NodeStatus::Success);
@@ -250,12 +248,12 @@ async fn homing_is_never_read_as_lost_tracking() {
 async fn park_stops_a_looping_guider_before_the_mount_parks() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
     ));
     trigger_state.write().await.set_guiding_enabled(true);
-    ctx.trigger_state = Some(trigger_state.clone());
+    ctx.run.trigger_state = Some(trigger_state.clone());
 
     let result = execute_park(&ctx).await;
 
@@ -277,7 +275,7 @@ async fn park_goes_ahead_when_the_guider_cannot_be_stopped() {
     ] {
         let ops = Arc::new(ops);
         let mut ctx = ctx_with_ops(ops.clone()).await;
-        ctx.mount_id = Some("mount-1".to_string());
+        ctx.run.rig.mount_id = Some("mount-1".to_string());
 
         let result = execute_park(&ctx).await;
 

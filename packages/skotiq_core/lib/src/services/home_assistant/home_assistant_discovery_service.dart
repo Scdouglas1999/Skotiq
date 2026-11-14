@@ -15,7 +15,6 @@
 // whole device instead of showing stale state.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,10 +31,11 @@ import '../../providers/sequence_stats_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/weather_safety_provider.dart';
 import '../notification/transports/mqtt_transport.dart' show MqttSocketOpener;
-import '../scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'ha_discovery_payloads.dart';
 import 'ha_mqtt_session_client.dart';
 import 'home_assistant_discovery_config.dart';
+import '../logging_service.dart';
 
 const _logName = 'HomeAssistantDiscovery';
 
@@ -101,8 +101,6 @@ class HomeAssistantDiscoveryService {
     await _stop();
   }
 
-  // Session lifecycle
-
   Future<void> _restart() async {
     await _stop();
     await reconcile();
@@ -148,16 +146,15 @@ class HomeAssistantDiscoveryService {
       }
       _publishStates();
       _stateTimer = Timer.periodic(haStatePublishInterval, (_) => _tick());
-      developer.log(
+      Log.debug(
         '[HomeAssistant] Discovery active on ${_broker.host}:${_broker.port} '
         'as device "${payloads.deviceName}"',
-        name: _logName,
+        source: _logName,
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[HomeAssistant] Failed to start discovery session: $e',
-        name: _logName,
-        level: 900,
+        source: _logName,
         error: e,
       );
       _client = null;
@@ -226,8 +223,6 @@ class HomeAssistantDiscoveryService {
     );
   }
 
-  // Discovery + state publishing
-
   bool get _domeConnected =>
       _ref.read(domeStateProvider).connectionState ==
       DeviceConnectionState.connected;
@@ -271,10 +266,9 @@ class HomeAssistantDiscoveryService {
         client.publish(topic, entry.value, retain: true);
         _published[topic] = entry.value;
       } catch (e) {
-        developer.log(
+        Log.warning(
           '[HomeAssistant] State publish failed: $e',
-          name: _logName,
-          level: 900,
+          source: _logName,
         );
         return;
       }
@@ -289,13 +283,9 @@ class HomeAssistantDiscoveryService {
     final safety = _ref.read(weatherSafetyProvider);
     states[HaEntityKeys.safety] = onOff(!safety.isSafe);
 
-    // Sequencer.
     final execState = _ref.read(sequenceExecutionStateProvider);
     final progress = _ref.read(sequenceProgressProvider);
-    final sequenceActive =
-        execState == SequenceExecutionState.running ||
-        execState == SequenceExecutionState.paused;
-    states[HaEntityKeys.sequenceRunning] = onOff(sequenceActive);
+    states[HaEntityKeys.sequenceRunning] = onOff(execState.isLive);
     states[HaEntityKeys.sequencePaused] = onOff(
       execState == SequenceExecutionState.paused,
     );
@@ -326,7 +316,6 @@ class HomeAssistantDiscoveryService {
       states[HaEntityKeys.lastHfr] = lastHfr.toStringAsFixed(2);
     }
 
-    // Guiding.
     final phd2State = _ref.read(phd2StateProvider);
     states[HaEntityKeys.guiding] = onOff(
       phd2State == Phd2State.guiding || phd2State == Phd2State.settling,
@@ -334,7 +323,6 @@ class HomeAssistantDiscoveryService {
     final guideStats = _ref.read(guideStatsProvider);
     states[HaEntityKeys.guideRms] = guideStats.rmsTotal.toStringAsFixed(2);
 
-    // Camera.
     final camera = _ref.read(cameraStateProvider);
     states[HaEntityKeys.cameraCooling] = onOff(camera.isCooling);
     if (camera.temperature != null) {
@@ -369,18 +357,16 @@ class HomeAssistantDiscoveryService {
     // retained topic only updates when the value meaningfully moves.
     final settings = _ref.read(appSettingsProvider).valueOrNull;
     if (settings != null) {
-      final (altitude, _) = SkyCalculations.sunAltAz(
-        time: DateTime.now().toUtc(),
-        latitudeDegrees: settings.latitude,
-        longitudeDegrees: settings.longitude,
+      final (altitude, _) = AstronomyCalculations.sunAltAz(
+        dt: DateTime.now().toUtc(),
+        latitudeDeg: settings.latitude,
+        longitudeDeg: settings.longitude,
       );
       states[HaEntityKeys.sunAltitude] = altitude.toStringAsFixed(1);
     }
 
     return states;
   }
-
-  // Commands from Home Assistant
 
   void _handleCommand(String topic, String payload) {
     final payloads = _payloads;
@@ -415,17 +401,16 @@ class HomeAssistantDiscoveryService {
     String label,
     Future<void> Function() action,
   ) async {
-    developer.log('[HomeAssistant] Command from HA: $label', name: _logName);
+    Log.debug('[HomeAssistant] Command from HA: $label', source: _logName);
     try {
       await action();
     } catch (e) {
       // Executor throws on invalid transitions (e.g. pause while idle);
       // log it and let the next state tick republish the truth so the
       // HA switch snaps back.
-      developer.log(
+      Log.warning(
         '[HomeAssistant] Command "$label" rejected: $e',
-        name: _logName,
-        level: 900,
+        source: _logName,
       );
     } finally {
       _publishStates();

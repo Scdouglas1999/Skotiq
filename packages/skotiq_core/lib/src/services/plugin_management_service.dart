@@ -23,7 +23,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 
 import 'logging_service.dart';
@@ -38,7 +37,6 @@ class InstalledPluginManifest {
   /// manifest (legacy `.dart` bundles).
   final String id;
 
-  /// Human-readable name.
   final String name;
 
   /// Semantic version string.
@@ -47,7 +45,6 @@ class InstalledPluginManifest {
   /// Author or maintainer of the plugin (free-form string).
   final String? author;
 
-  /// Plugin description.
   final String? description;
 
   /// The operator preference recorded by the archive API. Never runtime
@@ -445,8 +442,6 @@ class PluginManagementService {
     return null;
   }
 
-  // Internal: registry persistence
-
   Future<Map<String, InstalledPluginManifest>> _loadRegistry() async {
     final pluginDir = await _pluginDirectory();
     final file = File(path.join(pluginDir.path, registryFileName));
@@ -654,12 +649,3 @@ class PluginManagementService {
     return id.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
   }
 }
-
-/// Riverpod provider for [PluginManagementService]. The directory
-/// override is null in production; tests inject a temp directory via
-/// `overrideWithProvider`/`overrideWith`.
-final pluginManagementServiceProvider = Provider<PluginManagementService>((
-  ref,
-) {
-  return PluginManagementService(logger: ref.watch(loggingServiceProvider));
-});

@@ -65,14 +65,22 @@ use crate::scheduling::TargetScore;
 /// neither block a faint-only session (which would happen if defaulted to
 /// Faint) nor steal priority from a bright backup in poor conditions
 /// (which would happen if defaulted to Bright).
+///
+/// On the wire a tier is its [`BrightnessTier::as_str`] name, which is what
+/// the sequence editor writes into a target. The capitalized names are read
+/// too: checkpoints written before this held them.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+#[serde(rename_all = "lowercase")]
 pub enum BrightnessTier {
     /// Galaxies, faint nebulae — needs pristine sky.
+    #[serde(alias = "Faint")]
     Faint,
     /// Bright galaxies, medium nebulae — tolerates degraded sky.
     #[default]
+    #[serde(alias = "Medium")]
     Medium,
     /// Planetary nebulae, open clusters — tolerates poor sky.
+    #[serde(alias = "Bright")]
     Bright,
 }
 
@@ -414,8 +422,6 @@ impl InstantExt for Instant {
         self.checked_duration_since(other).unwrap_or_default()
     }
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {

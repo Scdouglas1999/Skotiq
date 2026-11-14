@@ -4,7 +4,8 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Result of encoding a host [CapturedImageResult.displayData] buffer to JPEG.
 class DisplayBufferJpegEncodeResult {
@@ -27,7 +28,6 @@ class DisplayBufferJpegEncodeResult {
   final String metaHeaderValue;
 }
 
-/// Return a wire-safe UTC timestamp for camera frames.
 String capturedImageTimestampUtc(String value) => normalizeUtcTimestamp(value);
 
 /// Tail of the encode queue. Only one full-resolution encode runs at a time:

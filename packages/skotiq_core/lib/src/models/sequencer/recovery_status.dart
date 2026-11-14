@@ -186,7 +186,6 @@ class RecoveryStatus extends Equatable {
   /// UTC timestamp when the loop entered the `Recovering` state.
   final DateTime startedAt;
 
-  /// What triggered the loop.
   final RecoveryCause cause;
 
   /// UTC timestamp of the most recent attempt. `null` before the first.
@@ -204,7 +203,6 @@ class RecoveryStatus extends Equatable {
   /// Total time budget (seconds).
   final double maxDurationSecs;
 
-  /// Current sub-phase.
   final RecoveryPhase phase;
 
   /// Most recent failure message, if any.

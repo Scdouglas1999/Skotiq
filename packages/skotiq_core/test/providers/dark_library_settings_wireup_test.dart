@@ -3,17 +3,14 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        BackendNotifier,
-        DarkGroupKey,
-        NetworkBackend,
-        SkotiqBackend,
-        backendProvider;
+import 'package:skotiq_core/backend.dart' show NetworkBackend, SkotiqBackend;
+import 'package:skotiq_core/database.dart' show DarkGroupKey;
+import 'package:skotiq_core/providers.dart'
+    show BackendNotifier, backendProvider;
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/dark_library_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
-import 'package:skotiq_core/src/services/calibration_service.dart';
+import 'package:skotiq_core/src/providers/calibration_service_providers.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -40,19 +37,6 @@ void main() {
     tearDown(() async {
       container.dispose();
       await database.close();
-    });
-
-    test('autoDarkSubtractEnabledProvider reads calibrationSettings', () async {
-      // This provider and the calibration pipeline share one backing value:
-      // `dark_library.auto_subtract` and `calibration.auto_calibrate` must not
-      // diverge.
-      final notifier = container.read(calibrationSettingsProvider.notifier);
-      await notifier.setAutoCalibrate(true);
-
-      expect(container.read(autoDarkSubtractEnabledProvider), isTrue);
-
-      await notifier.setAutoCalibrate(false);
-      expect(container.read(autoDarkSubtractEnabledProvider), isFalse);
     });
 
     test(

@@ -1,4 +1,3 @@
-// Labelled-setting row and tip-list item used across the polar alignment side panels.
 part of '../polar_alignment_screen.dart';
 
 class _SettingRow extends StatelessWidget {

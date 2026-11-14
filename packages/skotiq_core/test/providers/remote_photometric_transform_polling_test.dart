@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -50,7 +52,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         backendProvider.overrideWith((ref) => _BackendNotifier(ref, backend)),
-        remotePhotometricTransformPollIntervalProvider.overrideWithValue(
+        remoteSciencePollIntervalProvider.overrideWithValue(
           const Duration(milliseconds: 5),
         ),
       ],
@@ -59,7 +61,7 @@ void main() {
 
     final values = <List<PhotometricTransformRow>>[];
     final errors = <Object>[];
-    final subscription = container.listen(allPhotometricTransformsProvider, (
+    final subscription = container.listen(activeProfileTransformsProvider, (
       previous,
       next,
     ) {

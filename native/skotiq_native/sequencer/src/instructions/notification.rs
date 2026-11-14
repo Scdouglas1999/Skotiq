@@ -7,7 +7,6 @@ use super::*;
 
 // Notification instruction
 
-/// Execute notification
 pub async fn execute_notification(
     config: &NotificationConfig,
     ctx: &InstructionContext,
@@ -27,6 +26,7 @@ pub async fn execute_notification(
     );
 
     if let Err(e) = ctx
+        .run
         .device_ops
         .send_notification(
             level,

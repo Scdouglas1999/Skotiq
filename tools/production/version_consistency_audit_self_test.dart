@@ -3,11 +3,11 @@ import 'dart:io';
 
 /// Self-test for tools/production/version_consistency_audit.dart.
 ///
-/// Exercises the gate against temporary fixtures: it must pass when the three
-/// version sources (version.yaml, desktop pubspec, mobile pubspec) and the OTA
-/// builder all agree, and fail closed (exit 1) when versions disagree, when
-/// build numbers disagree, or when the OTA builder stops sourcing its version
-/// from version.yaml.
+/// Exercises the gate against temporary fixtures: it must pass when the
+/// version sources (version.yaml, desktop pubspec, mobile pubspec,
+/// installer.iss) and the OTA builder all agree, and fail closed (exit 1) when
+/// versions disagree, when build numbers disagree, or when the OTA builder
+/// stops sourcing its version from version.yaml.
 Future<void> main() async {
   final repoRoot = Directory.current;
   final script = File(
@@ -126,6 +126,59 @@ Future<void> main() async {
       'OTA drift report should surface the version-source issue',
     );
 
+    // --- The installer still names the previous release.
+    await _writeFixture(
+      temp,
+      versionYamlVersion: '5.0.0',
+      versionYamlBuild: 23,
+      desktopVersion: '5.0.0+23',
+      mobileVersion: '5.0.0+23',
+      installerVersion: '4.3.0',
+      otaReadsVersionYaml: true,
+    );
+    final installerDrift = await _runAudit(
+      temp,
+      jsonOut: 'report.json',
+      allowFailure: true,
+    );
+    _expect(
+      installerDrift.exitCode == 1,
+      'installer version drift should fail (exit 1), got '
+      '${installerDrift.exitCode}',
+    );
+    _expect(
+      (_readJson(temp, 'report.json')['issues'] as List)
+          .join('\n')
+          .contains('installer.iss=4.3.0'),
+      'installer drift report should name the installer version',
+    );
+
+    // --- The release a linked client compares still names the previous one.
+    await _writeFixture(
+      temp,
+      versionYamlVersion: '5.0.0',
+      versionYamlBuild: 23,
+      desktopVersion: '5.0.0+23',
+      mobileVersion: '5.0.0+23',
+      linkRelease: '4.3.0',
+      otaReadsVersionYaml: true,
+    );
+    final linkDrift = await _runAudit(
+      temp,
+      jsonOut: 'report.json',
+      allowFailure: true,
+    );
+    _expect(
+      linkDrift.exitCode == 1,
+      'link release drift should fail (exit 1), got ${linkDrift.exitCode}',
+    );
+    _expect(
+      (_readJson(temp, 'report.json')['issues'] as List)
+          .join('\n')
+          .contains('link_version.dart=4.3.0'),
+      'link release drift report should name the link release',
+    );
+
     stdout.writeln('Version consistency audit self-test passed.');
   } finally {
     await temp.delete(recursive: true);
@@ -139,13 +192,23 @@ Future<void> _writeFixture(
   required String desktopVersion,
   required String mobileVersion,
   required bool otaReadsVersionYaml,
+  String? installerVersion,
+  String? linkRelease,
 }) async {
   await _writeFile(root, 'version.yaml', '''
 version: "$versionYamlVersion"
 build_number: $versionYamlBuild
 channel: "stable"
-min_update_version: "2.0.0"
 ''');
+  await _writeFile(root, 'apps/desktop/installer/installer.iss', '''
+#define MyAppName "Skotiq"
+#define MyAppVersion "${installerVersion ?? versionYamlVersion}"
+''');
+  await _writeFile(
+    root,
+    'packages/skotiq_remote_protocol/lib/src/link_version.dart',
+    "const String skotiqRelease = '${linkRelease ?? versionYamlVersion}';\n",
+  );
   await _writeFile(root, 'apps/desktop/pubspec.yaml', '''
 name: skotiq_desktop
 publish_to: 'none'

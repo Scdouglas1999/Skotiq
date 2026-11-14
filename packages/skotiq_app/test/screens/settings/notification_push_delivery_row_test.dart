@@ -13,8 +13,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/notification_settings.dart';
-import 'package:skotiq_app/services/push_delivery_targets_provider.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/screens/settings/push_delivery_targets_provider.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 

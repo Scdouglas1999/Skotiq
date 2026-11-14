@@ -3,15 +3,18 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/imaging/widgets/overlay_painters.dart';
+import 'package:skotiq_app/widgets/image_preview/overlay_painters.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../fixtures/night_fixtures.dart';
 import 'center_test_support.dart';
@@ -184,7 +187,7 @@ void main() {
     expect(find.textContaining('Snapshot · L 5 s'), findsOneWidget);
     expect(find.textContaining('not saved'), findsOneWidget);
     expect(find.textContaining('Solved 01h36m40s'), findsOneWidget);
-    expect(find.textContaining("0.4' off"), findsOneWidget);
+    expect(find.textContaining('24.0" off'), findsOneWidget);
   });
 
   testWidgets('view buttons sit over a frame and toggle the shared viewer',
@@ -339,6 +342,30 @@ void overlayTests() {
     await tester.pump();
     expect(starCircles(), findsNothing);
     expect(find.textContaining('2 stars'), findsNothing);
+  });
+
+  testWidgets('on a phone-width stage the star count and HFR are not cut',
+      (tester) async {
+    final image = testFrame();
+    final container = await pumpCenter(
+      tester,
+      <Override>[
+        ...centerOverrides(NightFixtures.running(), image: image),
+        currentFrameStarsProvider.overrideWith((ref) async => _twoStars),
+      ],
+      child: const FrameStage(),
+      size: const Size(400, 320),
+    );
+    container.read(currentImageProvider.notifier).state = image;
+    await tester.pump();
+    await tester.tap(find.text('Stars'));
+    await tester.pump();
+    await tester.pump();
+    final status = tester.renderObject<RenderParagraph>(
+      find.textContaining('HFR 2.30 px'),
+    );
+    expect(status.didExceedMaxLines, isFalse);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Stars says when it is still looking', (tester) async {

@@ -50,7 +50,6 @@ class StackAndShareResult {
   /// without overloading the boolean.
   final int channels;
 
-  /// When the stack was produced.
   final DateTime createdAt;
 
   /// Path to the exported, share-ready image, if exported.
@@ -79,7 +78,6 @@ class StackAndShareResult {
     this.stats = const LiveStackingStats(),
   });
 
-  /// Number of frames rejected during the run.
   int get framesRejected =>
       (framesAttempted - framesStacked).clamp(0, framesAttempted);
 

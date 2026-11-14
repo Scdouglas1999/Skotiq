@@ -1,28 +1,30 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../database/daos/dark_library_dao.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
-import '../models/calibration/remote_calibration_models.dart';
-import '../services/calibration_master_builder.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
+import 'linked_host.dart';
+import 'host_role.dart';
+import '../errors/error_text.dart';
 import '../services/calibration_service.dart';
 import '../services/dark_library_service.dart';
+import '../settings/store_settings.dart';
 import '../utils/resilient_poll_stream.dart';
-import 'backend_provider.dart';
+import '../backend/remote_host.dart';
 import 'database_provider.dart';
+import 'calibration_master_builder_provider.dart';
+import 'calibration_service_providers.dart';
+import '../services/logging_service.dart';
 
-/// DAO provider for DarkLibraryDao.
 final darkLibraryDaoProvider = Provider<DarkLibraryDao>((ref) {
   return DarkLibraryDao(ref.watch(databaseProvider));
 });
 
-/// Service provider for DarkLibraryService.
 final darkLibraryServiceProvider = Provider<DarkLibraryService>((ref) {
   return DarkLibraryService(
     ref.watch(darkLibraryDaoProvider),
@@ -32,7 +34,7 @@ final darkLibraryServiceProvider = Provider<DarkLibraryService>((ref) {
 
 /// Reactive stream of all dark library entries (newest first).
 ///
-/// On a remote client (`NetworkBackend`) the slave's local `dark_library`
+/// On a linked client the slave's local `dark_library`
 /// table is never populated — the user's darks/biases live on the master —
 /// so the DAO stream would render empty. That branch polls the host's
 /// `GET /api/calibration/darks` (`listDarks()`) and maps each
@@ -41,56 +43,60 @@ final darkLibraryServiceProvider = Provider<DarkLibraryService>((ref) {
 final darkLibraryEntriesProvider = StreamProvider<List<DarkLibraryEntry>>((
   ref,
 ) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteDarkEntries(backend);
-  }
-  return ref.watch(darkLibraryDaoProvider).watchAllEntries();
+  return ref.watch(_darkLibraryReadsProvider).watchEntries();
 });
+
+/// Reads of the dark library: this machine's table, or the linked host's.
+typedef _DarkLibraryReads = ({
+  Stream<List<DarkLibraryEntry>> Function() watchEntries,
+  Future<DarkLibraryStats> Function(List<DarkLibraryEntry> entries) stats,
+  Future<DarkLibrarySettingsSnapshot> Function(Ref ref) settings,
+});
+
+final _darkLibraryReadsProvider = hostRoleProvider<_DarkLibraryReads>(
+  here: (ref) {
+    final dao = ref.watch(darkLibraryDaoProvider);
+    return (
+      watchEntries: dao.watchAllEntries,
+      stats: (_) => dao.getStats(),
+      settings: (ref) async => DarkLibrarySettingsSnapshot.fromRows(
+        await ref.watch(allSettingsProvider.future),
+      ),
+    );
+  },
+  linked: (ref, host) {
+    final frames = host.calibrationFrames;
+    return (
+      watchEntries: () => _pollRemoteDarkEntries(frames),
+      stats: (entries) async => _statsFromEntries(entries),
+      settings: (_) async => DarkLibrarySettingsSnapshot.fromJson(
+        await frames.getDarkLibrarySettings(),
+      ),
+    );
+  },
+);
 
 /// Library statistics (refreshes when entries change).
 ///
-/// On a remote client the local DAO `getStats()` reads the empty slave DB, so
-/// derive the stats from the (remote-aware) entries stream instead.
+/// A linked client derives them from the host's entries; the host asks its
+/// own table.
 final darkLibraryStatsProvider = FutureProvider<DarkLibraryStats>((ref) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final entries = await ref.watch(darkLibraryEntriesProvider.future);
-    return _statsFromEntries(entries);
-  }
-  // Depend on the entries stream so stats refresh on any change
-  ref.watch(darkLibraryEntriesProvider);
-  return ref.read(darkLibraryDaoProvider).getStats();
+  final entries = await ref.watch(darkLibraryEntriesProvider.future);
+  return ref.watch(_darkLibraryReadsProvider).stats(entries);
 });
 
-/// Distinct parameter groups in the library.
-final darkLibraryGroupsProvider = FutureProvider<List<DarkGroupKey>>((
-  ref,
-) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final entries = await ref.watch(darkLibraryEntriesProvider.future);
-    return _groupsFromEntries(entries);
-  }
-  ref.watch(darkLibraryEntriesProvider);
-  return ref.read(darkLibraryDaoProvider).getDistinctGroups();
-});
-
-/// Polls the host's dark library and emits only on change, mirroring the
-/// `_pollRemote` change-guard used by the canonical remote list providers in
-/// `database_provider.dart`.
+/// Polls the host's dark library and emits only on change.
 Stream<List<DarkLibraryEntry>> _pollRemoteDarkEntries(
-  NetworkBackend backend, {
+  HostCalibrationFrames remote, {
   Duration interval = const Duration(seconds: 10),
 }) => resilientDistinctPoll(
-  fetch: () => _fetchRemoteDarkEntries(backend),
+  fetch: () => _fetchRemoteDarkEntries(remote),
   unchanged: listEquals,
   interval: interval,
   onRetainedError: (error, stackTrace) {
-    developer.log(
+    Log.warning(
       'Remote dark-library poll failed; retaining last value',
-      name: 'DarkLibraryProvider',
-      level: 900,
+      source: 'DarkLibraryProvider',
       error: error,
       stackTrace: stackTrace,
     );
@@ -98,11 +104,11 @@ Stream<List<DarkLibraryEntry>> _pollRemoteDarkEntries(
 );
 
 Future<List<DarkLibraryEntry>> _fetchRemoteDarkEntries(
-  NetworkBackend backend,
+  HostCalibrationFrames remote,
 ) async {
   // listDarks() with no filter returns both darks and biases (frameType
   // carried on each row). Order newest-first to match `watchAllEntries()`.
-  final rows = await backend.listDarks();
+  final rows = await remote.listDarks();
   final mapped = rows.map(_darkEntryFromRemote).toList()
     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   return mapped;
@@ -149,97 +155,24 @@ DarkLibraryStats _statsFromEntries(List<DarkLibraryEntry> entries) {
   );
 }
 
-/// Reconstructs the distinct parameter groups from a flat entry list.
-List<DarkGroupKey> _groupsFromEntries(List<DarkLibraryEntry> entries) {
-  final seen = <String, DarkGroupKey>{};
-  for (final e in entries) {
-    final key = DarkGroupKey(
-      exposureTime: e.exposureTime,
-      gain: e.gain,
-      offset: e.offset,
-      binX: e.binX,
-      binY: e.binY,
-      frameType: e.frameType,
-    );
-    seen['${e.exposureTime}|${e.gain}|${e.offset}|${e.binX}|${e.binY}|'
-            '${e.frameType}'] =
-        key;
-  }
-  return seen.values.toList();
-}
-
-/// Whether auto-dark-subtraction is enabled.
+/// The operator's tolerances for the dark selection rule, read by every
+/// caller of it (live calibration, the Darkroom, coverage).
 ///
-/// Reads the calibration store, not the `dark_library.auto_subtract` key: the
-/// calibration pipeline (`imaging_service.dart`) consults only
-/// `calibrationSettingsProvider.autoCalibrate`, so anything else here would be
-/// a dead write with a live-looking toggle. The legacy
-/// `dark_library.auto_subtract` key migrates once via
-/// [migrateLegacyDarkLibrarySettings].
-final autoDarkSubtractEnabledProvider = Provider<bool>((ref) {
-  // Watch calibration settings so dark-library UI updates reactively.
-  return ref.watch(calibrationSettingsProvider.select((s) => s.autoCalibrate));
-});
-
-/// Settings key for the dark-library exposure-match tolerance (seconds).
-///
-/// Default written into `app_settings` is `0.5`. See [DarkLibraryMatchTolerances]
-/// for the rationale.
-const String darkLibraryExposureToleranceKey =
-    'dark_library.exposure_tolerance';
-
-/// Settings key for the dark-library temperature-match tolerance (°C).
-const String darkLibraryTempToleranceKey = 'dark_library.temp_tolerance';
-
-/// Unified tolerances for dark-frame matching.
-///
-/// This is the SINGLE source of truth that both the coverage UI
-/// (`DarkLibraryCoverageService.evaluate`) and the runtime calibration
-/// matcher (`DarkLibraryDao.findBestMatch` via `DarkLibraryService`) must
-/// consult so the green "all darks present" badge can never contradict
-/// `findMatchingDark` returning null.
-///
-/// Values are read from `app_settings`:
-///   * `dark_library.exposure_tolerance` (default 0.5s)
-///   * `dark_library.temp_tolerance`     (default 1.0°C; a stored 2.0 from an
-///     earlier migration is honored)
-///
-/// Invalid stored values (negative, NaN, inf, unparseable) throw via
-/// [DarkLibraryMatchTolerances.validated] rather than being clamped: a clamped
-/// tolerance silently changes which darks match.
+/// A stored tolerance that is not a number, or is negative, throws rather
+/// than being clamped or read as the default: a tolerance other than the one
+/// the operator stored silently changes which darks match.
 final darkLibraryMatchTolerancesProvider = Provider<DarkLibraryMatchTolerances>(
   (ref) {
     final settings = ref.watch(allSettingsProvider);
     return settings.when(
-      data: (s) {
-        final exposureRaw = s[darkLibraryExposureToleranceKey];
-        final tempRaw = s[darkLibraryTempToleranceKey];
-        // Defaults: 0.5s exposure, 1.0°C temperature. If the legacy
-        // dark_library.temp_tolerance default of 2.0 is present it is
-        // honored as-is (it is a user-tunable value, not a migration).
-        final exposureSecs = exposureRaw == null
-            ? DarkLibraryMatchTolerances.defaults.exposureSecs
-            : (double.tryParse(exposureRaw) ??
-                  (throw ArgumentError.value(
-                    exposureRaw,
-                    darkLibraryExposureToleranceKey,
-                    'Setting "$darkLibraryExposureToleranceKey" is not a valid '
-                    'number of seconds',
-                  )));
-        final temperatureC = tempRaw == null
-            ? DarkLibraryMatchTolerances.defaults.temperatureC
-            : (double.tryParse(tempRaw) ??
-                  (throw ArgumentError.value(
-                    tempRaw,
-                    darkLibraryTempToleranceKey,
-                    'Setting "$darkLibraryTempToleranceKey" is not a valid '
-                    'number of degrees',
-                  )));
-        return DarkLibraryMatchTolerances.validated(
-          exposureSecs: exposureSecs,
-          temperatureC: temperatureC,
-        );
-      },
+      data: (rows) => DarkLibraryMatchTolerances.validated(
+        exposureSecs: StoreSettings.darkExposureTolerance.decodeStrict(
+          rows[StoreSettings.darkExposureTolerance.key],
+        ),
+        temperatureC: StoreSettings.darkTemperatureTolerance.decodeStrict(
+          rows[StoreSettings.darkTemperatureTolerance.key],
+        ),
+      ),
       loading: () => DarkLibraryMatchTolerances.defaults,
       error: (_, __) => DarkLibraryMatchTolerances.defaults,
     );
@@ -272,50 +205,48 @@ class DarkLibrarySettingsSnapshot {
       temperatureTolerance: temperature,
     );
   }
+
+  /// What the stored [rows] hold.
+  factory DarkLibrarySettingsSnapshot.fromRows(Map<String, String> rows) =>
+      DarkLibrarySettingsSnapshot(
+        autoCalibrate: StoreSettings.calibrationAutoCalibrate.valueIn(rows),
+        temperatureTolerance: StoreSettings.darkTemperatureTolerance.valueIn(
+          rows,
+        ),
+      );
+
+  Map<String, dynamic> toJson() => {
+    'autoCalibrate': autoCalibrate,
+    'temperatureTolerance': temperatureTolerance,
+  };
 }
 
 final darkLibrarySettingsProvider =
     FutureProvider.autoDispose<DarkLibrarySettingsSnapshot>((ref) async {
-      final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        return DarkLibrarySettingsSnapshot.fromJson(
-          await backend.getDarkLibrarySettings(),
-        );
-      }
-      final stored = await ref.watch(allSettingsProvider.future);
-      final temperature = double.tryParse(
-        stored[darkLibraryTempToleranceKey] ?? '',
-      );
-      return DarkLibrarySettingsSnapshot(
-        autoCalibrate: stored['calibration.auto_calibrate'] == 'true',
-        temperatureTolerance:
-            temperature ?? DarkLibraryMatchTolerances.defaults.temperatureC,
-      );
+      return ref.watch(_darkLibraryReadsProvider).settings(ref);
     });
 
 final darkLibrarySettingsActionsProvider = Provider((ref) {
-  final backend = ref.watch(backendProvider);
+  final remote = ref.watch(linkedHostCalibrationFramesProvider);
   return DarkLibrarySettingsActions(
     ref,
-    remote: backend is NetworkBackend ? backend : null,
-    localCalibration: backend is NetworkBackend
+    remote: remote,
+    localCalibration: remote != null
         ? null
         : ref.read(calibrationSettingsProvider.notifier),
-    localSettings: backend is NetworkBackend
-        ? null
-        : ref.read(settingsDaoProvider),
+    localSettings: remote != null ? null : ref.read(settingsDaoProvider),
   );
 });
 
 class DarkLibrarySettingsActions {
   final Ref _ref;
-  final NetworkBackend? _remote;
+  final HostCalibrationFrames? _remote;
   final CalibrationSettingsNotifier? _localCalibration;
   final SettingsDao? _localSettings;
 
   DarkLibrarySettingsActions(
     this._ref, {
-    required NetworkBackend? remote,
+    required HostCalibrationFrames? remote,
     required CalibrationSettingsNotifier? localCalibration,
     required SettingsDao? localSettings,
   }) : _remote = remote,
@@ -338,40 +269,23 @@ class DarkLibrarySettingsActions {
     if (_remote != null) {
       await _remote.updateDarkLibrarySettings(temperatureTolerance: value);
     } else {
-      await _localSettings!.setSetting(
-        darkLibraryTempToleranceKey,
-        value.toString(),
+      await _localSettings!.write(
+        StoreSettings.darkTemperatureTolerance,
+        value,
       );
     }
     _ref.invalidate(darkLibrarySettingsProvider);
   }
 }
 
-/// Migrate the legacy `dark_library.auto_subtract` setting into
-/// `calibrationSettingsProvider` on first launch after the unification.
-///
-/// Why: existing users who toggled the dark-library UI before the v2.5
-/// reconciliation had their preference written to a key the calibration
-/// pipeline never read. This helper is invoked from the calibration
-/// notifier's load path so the user's intent is preserved across the
-/// upgrade. The legacy key is cleared after migration so we don't keep
-/// reading the stale value.
-Future<bool?> readLegacyAutoSubtractFlag(SettingsDao dao) async {
-  final value = await dao.getSetting('dark_library.auto_subtract');
-  if (value == null) return null;
-  return value == 'true';
-}
-
 /// StateNotifier for managing the dark library UI state.
 final darkLibraryNotifierProvider =
     StateNotifierProvider<DarkLibraryNotifier, DarkLibraryUiState>((ref) {
-      final backend = ref.watch(backendProvider);
+      final remote = ref.watch(linkedHostCalibrationFramesProvider);
       return DarkLibraryNotifier(
         ref,
-        remote: backend is NetworkBackend ? backend : null,
-        local: backend is NetworkBackend
-            ? null
-            : ref.read(darkLibraryServiceProvider),
+        remote: remote,
+        local: remote != null ? null : ref.read(darkLibraryServiceProvider),
       );
     });
 
@@ -430,12 +344,12 @@ class DarkLibraryUiState {
 
 class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
   final Ref ref;
-  final NetworkBackend? _remote;
+  final HostCalibrationFrames? _remote;
   final DarkLibraryService? _local;
 
   DarkLibraryNotifier(
     this.ref, {
-    required NetworkBackend? remote,
+    required HostCalibrationFrames? remote,
     required DarkLibraryService? local,
   }) : _remote = remote,
        _local = local,
@@ -539,7 +453,9 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
             : 'Master dark created.',
       );
     } catch (e) {
-      _finishMutation(error: 'Failed to create master dark: $e');
+      _finishMutation(
+        error: 'Failed to create master dark: ${userFacingError(e)}',
+      );
     }
   }
 
@@ -564,11 +480,10 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
             : 'No orphaned entries found.',
       );
     } catch (e) {
-      _finishMutation(error: 'Failed to clean orphans: $e');
+      _finishMutation(error: 'Failed to clean orphans: ${userFacingError(e)}');
     }
   }
 
-  /// Delete a single entry.
   Future<void> deleteEntry(int id, {bool deleteFile = false}) async {
     if (!_startMutation(
       DarkLibraryMutation.deleteEntry,
@@ -586,11 +501,10 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
       _refreshLibrary();
       _finishMutation(status: 'Entry deleted.');
     } catch (e) {
-      _finishMutation(error: 'Failed to delete entry: $e');
+      _finishMutation(error: 'Failed to delete entry: ${userFacingError(e)}');
     }
   }
 
-  /// Clear the entire library.
   Future<void> clearLibrary({bool deleteFiles = false}) async {
     if (!_startMutation(
       DarkLibraryMutation.clearLibrary,
@@ -607,7 +521,7 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
       _refreshLibrary();
       _finishMutation(status: 'Library cleared ($removed entries removed).');
     } catch (e) {
-      _finishMutation(error: 'Failed to clear library: $e');
+      _finishMutation(error: 'Failed to clear library: ${userFacingError(e)}');
     }
   }
 
@@ -654,7 +568,9 @@ class DarkLibraryNotifier extends StateNotifier<DarkLibraryUiState> {
       return removed;
     } catch (error) {
       if (!mounted) rethrow;
-      _finishMutation(error: 'Failed to delete group: $error');
+      _finishMutation(
+        error: 'Failed to delete group: ${userFacingError(error)}',
+      );
       rethrow;
     }
   }

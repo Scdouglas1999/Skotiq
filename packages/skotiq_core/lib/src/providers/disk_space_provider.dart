@@ -1,15 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 
-import '../backend/network_backend.dart';
+import 'host_role.dart';
 import '../models/backend/device_capabilities.dart';
 import '../services/disk_space_guard.dart';
 import '../services/disk_space_service.dart';
-import '../services/logging_service.dart';
-import 'backend_provider.dart';
 import 'capability_provider.dart';
 import 'equipment_provider.dart';
 import 'sequence_provider.dart';
 import 'settings_provider.dart';
+import 'logging_service_provider.dart';
 
 /// Host-OS disk-space query backend.
 ///
@@ -39,34 +39,45 @@ final diskSpaceGuardProvider = Provider<DiskSpaceGuardService>((ref) {
 final captureDirDiskSpaceProvider = StreamProvider.autoDispose<DiskSpaceInfo?>((
   ref,
 ) async* {
-  // Remote host: the capture directory lives on the HOST filesystem, so ask
-  // the host over the API. A local `df` against the host's path resolves on
-  // the CLIENT filesystem and can only fail.
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    yield await backend.getHostCaptureDiskSpace();
-    while (true) {
-      await Future<void>.delayed(const Duration(seconds: 10));
-      yield await backend.getHostCaptureDiskSpace();
-    }
-  }
-
-  final settings = await ref.watch(appSettingsProvider.future);
-  final path = settings.imageOutputPath;
-  if (path.isEmpty) {
-    yield null;
-    return;
-  }
-  final guard = ref.watch(diskSpaceGuardProvider);
-
-  // Emit an initial sample immediately so the UI doesn't sit in a loading
-  // state for 10s on first build, then keep polling.
-  yield await guard.sample(path);
-  while (true) {
-    await Future<void>.delayed(const Duration(seconds: 10));
-    yield await guard.sample(path);
-  }
+  yield* ref.watch(_captureDiskSamplesProvider)(ref);
 });
+
+/// A sample now and one every 10 s after: of this machine's capture folder,
+/// or the one the linked host reports for its own.
+final _captureDiskSamplesProvider =
+    hostRoleProvider<Stream<DiskSpaceInfo?> Function(Ref ref)>(
+      here: (_) => (ref) async* {
+        final settings = await ref.watch(appSettingsProvider.future);
+        final path = settings.imageOutputPath;
+        if (path.isEmpty) {
+          yield null;
+          return;
+        }
+        final guard = ref.watch(diskSpaceGuardProvider);
+        yield await guard.sample(path);
+        while (true) {
+          await Future<void>.delayed(const Duration(seconds: 10));
+          yield await guard.sample(path);
+        }
+      },
+      linked: (_, host) => (_) async* {
+        yield await host.files.getHostCaptureDiskSpace();
+        while (true) {
+          await Future<void>.delayed(const Duration(seconds: 10));
+          yield await host.files.getHostCaptureDiskSpace();
+        }
+      },
+    );
+
+/// The capture folder's free space as shown ("252 GiB"), or null before the
+/// first sample.
+///
+/// For `captureDirDiskSpaceProvider.select(freeSpaceText)`: the byte count
+/// changes with every sample while the shown size rarely does.
+String? freeSpaceText(AsyncValue<DiskSpaceInfo?> space) {
+  final info = space.valueOrNull;
+  return info == null ? null : ByteFormat.size(info.freeBytes);
+}
 
 /// Snapshot returned by [sequenceDiskProjectionProvider] holding both the
 /// projected byte count and the projection severity. `null` for `projection`
@@ -107,8 +118,15 @@ final sequenceDiskProjectionProvider =
       // Look up camera capabilities from the connected camera (if any). Without
       // capabilities the projection still runs but the severity is "info"
       // (size unknown). The guard takes a nullable.
-      final cameraState = ref.watch(cameraStateProvider);
-      final cameraId = cameraState.deviceId ?? '';
+      // Each recompute asks the OS for free space (a `df`, or a PowerShell
+      // process on Windows). It follows the capture folder's 10 s free-space
+      // sample and the camera's id, not the whole camera state, which changes
+      // with every temperature poll and exposure progress tick.
+      ref.watch(
+        captureDirDiskSpaceProvider.select((s) => s.valueOrNull?.freeBytes),
+      );
+      final cameraId =
+          ref.watch(cameraStateProvider.select((c) => c.deviceId)) ?? '';
       CameraCapabilities? capabilities;
       if (cameraId.isNotEmpty) {
         capabilities = await ref.watch(

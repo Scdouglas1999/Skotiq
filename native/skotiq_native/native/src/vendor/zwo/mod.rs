@@ -5,18 +5,13 @@
 //!
 //! ## Thread Safety
 //!
-//! The ASI SDK is NOT thread-safe. All SDK operations are protected by per-SDK
-//! mutexes from `crate::sync`:
-//! - `zwo_camera_mutex()` - ASI Camera SDK (ASICamera2.dll)
-//! - `zwo_eaf_mutex()` - EAF Focuser SDK (EAF_focuser.dll)
-//! - `zwo_efw_mutex()` - EFW Filter Wheel SDK (EFW_filter.dll)
-//!
-//! ## Timeout Handling
-//!
-//! All SDK operations that can potentially hang (exposure polling, image download,
-//! focuser moves, filter wheel moves) have configurable timeouts via `NativeTimeoutConfig`.
-//! Use the helper methods like `wait_for_exposure_complete`, `move_focuser_with_timeout`,
-//! and `move_filterwheel_with_timeout` to ensure operations don't block indefinitely.
+//! The ZWO SDKs are NOT thread-safe. Each of the three libraries has its own
+//! lock, owned by its SDK slot, and a function table is only reachable through
+//! the guard that holds that lock (`AsiSdk::lock()`, `EafSdk::lock()`,
+//! `EfwSdk::lock()`):
+//! - `AsiSdk` - ASI Camera SDK (ASICamera2.dll)
+//! - `EafSdk` - EAF Focuser SDK (EAF_focuser.dll)
+//! - `EfwSdk` - EFW Filter Wheel SDK (EFW_filter.dll)
 
 // c_long is i32 on Windows and i64 on Linux (LP64), so the `as i32` casts on
 // SDK control values are identity on one platform and a real (documented,
@@ -26,15 +21,11 @@
 #![allow(clippy::unnecessary_cast)]
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
-use crate::camera::*;
-use crate::sync::{zwo_camera_mutex, zwo_eaf_mutex, zwo_efw_mutex};
-use crate::traits::*;
-use crate::utils::{
-    calculate_buffer_size_i32, safe_cstr_to_string, wait_for_exposure, wait_for_filterwheel_move,
-    wait_for_focuser_move, CleanupGuard,
-};
-use crate::NativeVendor;
+use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
 use async_trait::async_trait;
+use skotiq_device::camera::*;
+use skotiq_device::Vendor;
+use skotiq_device::*;
 use skotiq_imaging::buffer_pool::global_u8_pool;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_int, c_long, c_uchar, CStr};
@@ -68,13 +59,14 @@ use sdk::*;
 // which surfaces as spurious "Heartbeat failure" warnings in the UI.
 //
 // Lock ordering rule (must be respected everywhere to prevent deadlock):
-//   Registry lock  MUST NOT be held while acquiring the SDK mutex.
+//   The registry lock MUST NOT be held while waiting for an SDK guard
+//   (`EafSdk::lock()` / `EfwSdk::lock()`).
 //   Acquire registry lock → read/copy entry → RELEASE registry lock → then
-//   acquire SDK mutex if needed. Discovery acquires the SDK mutex first (before
-//   reading the registry), so inside the discovery loop the SDK mutex is
-//   already held; acquiring the registry lock there (briefly, no SDK call
-//   while holding it) is safe because the registry lock is never taken in the
-//   other direction (registry → then SDK mutex).
+//   take the SDK guard if needed. Discovery takes the SDK guard first (before
+//   reading the registry), so inside the discovery loop the guard is already
+//   held; acquiring the registry lock there (briefly, no SDK call while
+//   holding it) is safe because the registry lock is never taken in the
+//   other direction (registry → then SDK guard).
 //
 // Both registries use std::sync::Mutex (not tokio::sync::Mutex) because all
 // accesses are brief, synchronous, non-blocking, and must not span await points.
@@ -115,4 +107,25 @@ static CONNECTED_EFW: OnceLock<Mutex<HashMap<i32, ConnectedEfwEntry>>> = OnceLoc
 
 fn connected_efw() -> &'static Mutex<HashMap<i32, ConnectedEfwEntry>> {
     CONNECTED_EFW.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Whether `id` is among the devices an EAF or EFW SDK lists. `count` is the
+/// SDK's `*GetNum`, which also refreshes the SDK's id table: `*Open` answers
+/// INVALID_ID for an id the table does not hold yet.
+fn id_is_listed(count: c_int, get_id: impl Fn(c_int, &mut c_int) -> c_int, id: c_int) -> bool {
+    (0..count).any(|index| {
+        let mut listed: c_int = -1;
+        get_id(index, &mut listed) == 0 && listed == id
+    })
+}
+
+/// An EAF or EFW serial number as Skotiq has always shown it: the bytes in hex
+/// up to the first zero byte; `None` when the first byte is zero.
+fn accessory_serial(id: [c_uchar; 8]) -> Option<String> {
+    let serial: String = id
+        .iter()
+        .take_while(|&&b| b != 0)
+        .map(|&b| format!("{:02X}", b))
+        .collect();
+    (!serial.is_empty()).then_some(serial)
 }

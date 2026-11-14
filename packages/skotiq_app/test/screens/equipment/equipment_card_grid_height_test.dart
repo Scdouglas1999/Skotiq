@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/widgets/connected_device_card.dart';
 import 'package:skotiq_app/screens/equipment/widgets/device_tile_width.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../golden/surface_golden_harness.dart';
@@ -158,7 +159,7 @@ class _FilterWheelRow extends StatelessWidget {
                 width: _tile,
                 child: DeviceTileWidth(
                   width: _tile,
-                  child: ConnectedDeviceCard(type: ConnectedDeviceType.camera),
+                  child: ConnectedDeviceCard(type: DeviceType.camera),
                 ),
               ),
               SizedBox(width: 16),
@@ -167,7 +168,7 @@ class _FilterWheelRow extends StatelessWidget {
                 child: DeviceTileWidth(
                   width: _tile,
                   child: ConnectedDeviceCard(
-                    type: ConnectedDeviceType.filterWheel,
+                    type: DeviceType.filterWheel,
                   ),
                 ),
               ),
@@ -198,7 +199,7 @@ class _CardRow extends StatelessWidget {
                 width: 320,
                 child: DeviceTileWidth(
                   width: 320,
-                  child: ConnectedDeviceCard(type: ConnectedDeviceType.camera),
+                  child: ConnectedDeviceCard(type: DeviceType.camera),
                 ),
               ),
               SizedBox(width: 16),
@@ -206,7 +207,7 @@ class _CardRow extends StatelessWidget {
                 width: 320,
                 child: DeviceTileWidth(
                   width: 320,
-                  child: ConnectedDeviceCard(type: ConnectedDeviceType.mount),
+                  child: ConnectedDeviceCard(type: DeviceType.mount),
                 ),
               ),
               SizedBox(width: 16),
@@ -214,7 +215,7 @@ class _CardRow extends StatelessWidget {
                 width: 320,
                 child: DeviceTileWidth(
                   width: 320,
-                  child: ConnectedDeviceCard(type: ConnectedDeviceType.dome),
+                  child: ConnectedDeviceCard(type: DeviceType.dome),
                 ),
               ),
             ],

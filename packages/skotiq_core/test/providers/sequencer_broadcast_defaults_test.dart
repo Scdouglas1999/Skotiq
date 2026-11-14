@@ -8,7 +8,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/database/database.dart' hide Sequence;
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/sequencer_defaults.dart';
@@ -47,7 +47,6 @@ void main() {
     test('first build returns sane initial defaults', () async {
       await _warmAndPump(container);
       final defaults = container.read(sequencerDefaultsProvider);
-      expect(defaults.livestackingDefaultPort, 8081);
       expect(defaults.livestackingPublicByDefault, isFalse);
       expect(
         defaults.livestackingDefaultStackMethod,
@@ -66,7 +65,6 @@ void main() {
       final notifier = container.read(sequencerDefaultsProvider.notifier);
 
       await notifier.updateLiveStackingDefaults(
-        defaultPort: 9090,
         publicByDefault: true,
         defaultStackMethod: LiveStackingMethod.medianRej,
         defaultWatermark: r'M31 — L ${integration.hms}',
@@ -75,7 +73,6 @@ void main() {
       );
 
       final after = container.read(sequencerDefaultsProvider);
-      expect(after.livestackingDefaultPort, 9090);
       expect(after.livestackingPublicByDefault, isTrue);
       expect(
         after.livestackingDefaultStackMethod,
@@ -90,7 +87,6 @@ void main() {
 
       // Verify the SettingsDao persisted everything verbatim.
       final dao = container.read(settingsDaoProvider);
-      expect(await dao.getSetting('livestacking_default_port'), '9090');
       expect(await dao.getSetting('livestacking_public_by_default'), 'true');
       expect(
         await dao.getSetting('livestacking_default_stack_method'),
@@ -127,21 +123,6 @@ void main() {
   });
 
   group('LiveStackingThumbnailSize', () {
-    test('storageKey round-trips through fromStorageKey', () {
-      for (final size in LiveStackingThumbnailSize.values) {
-        expect(LiveStackingThumbnailSize.fromStorageKey(size.storageKey), size);
-      }
-      // Unknown key falls back to medium (defence-in-depth).
-      expect(
-        LiveStackingThumbnailSize.fromStorageKey('hd-bogus'),
-        LiveStackingThumbnailSize.medium,
-      );
-      expect(
-        LiveStackingThumbnailSize.fromStorageKey(null),
-        LiveStackingThumbnailSize.medium,
-      );
-    });
-
     test('label includes the pixel dimensions', () {
       expect(LiveStackingThumbnailSize.small.label, contains('640'));
       expect(LiveStackingThumbnailSize.medium.label, contains('1280'));

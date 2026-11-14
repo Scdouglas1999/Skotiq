@@ -3,7 +3,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show LinkVersion, skotiqRelease;
+import 'package:skotiq_core/backend.dart';
 
 Future<HttpServer> _server(
   Future<void> Function(HttpRequest request) handler,
@@ -74,7 +76,7 @@ void main() {
           observed[1].value(HttpHeaders.authorizationHeader),
           'Bearer new-token',
         );
-        expect(observed[0].value('x-skotiq-api-version'), isNotEmpty);
+        expect(observed[0].value(LinkVersion.header), skotiqRelease);
         expect(observed[0].value('x-request-id'), isNotEmpty);
         expect(
           observed[1].value('x-request-id'),

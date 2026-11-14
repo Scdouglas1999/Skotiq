@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import '../../framing/altitude_chart.dart';
+import '../../../widgets/altitude_chart.dart';
 import 'notes_panel.dart';
-import '../plan_math.dart';
 import 'target_coordinates.dart';
 
 /// A rich card widget for displaying target header nodes in the sequencer.
@@ -55,7 +56,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
   @override
   void initState() {
     super.initState();
-    // Hide altitude chart by default on mobile to save space
     _showAltitudeChart = !widget.isMobile;
   }
 
@@ -75,12 +75,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
         return Colors.transparent;
     }
   }
-
-  String _formatRA(double raHours) =>
-      CoordinateFormat.ra(raHours, seconds: SecondsPrecision.integerRounded);
-
-  String _formatDec(double decDegrees) => CoordinateFormat.dec(decDegrees,
-      seconds: SecondsPrecision.integerRounded);
 
   /// Whether this target header's subtree is being executed **right now**.
   ///
@@ -131,16 +125,12 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header row
                 _buildHeader(node, statusColor, isRunning),
 
-                // Coordinates row
                 _buildCoordinatesRow(node),
 
-                // Altitude chart (collapsible)
                 if (_showAltitudeChart) _buildAltitudeChart(node),
 
-                // Constraints row (if any)
                 if (node.hasTimeConstraints || node.hasAltitudeConstraints)
                   _buildConstraintsRow(node),
 
@@ -183,7 +173,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
       ),
       child: Row(
         children: [
-          // Status indicator
           if (widget.nodeStatus != null &&
               widget.nodeStatus != NodeStatus.pending)
             Container(
@@ -218,7 +207,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           ),
           const SizedBox(width: SkotiqTokens.spaceSm + 2),
 
-          // Target name
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,7 +231,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
             ),
           ),
 
-          // Mosaic panel badge
           if (node.mosaicPanel != null)
             SkotiqChip(label: node.mosaicPanel!.displayLabel),
 
@@ -268,7 +255,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
                 : 'Show altitude chart',
           ),
 
-          // Menu button
           PopupMenuButton<String>(
             icon: Icon(
               LucideIcons.moreVertical,
@@ -351,23 +337,22 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               spacing: 16,
               runSpacing: 4,
               children: [
-                // RA
                 _CoordinateChip(
                   label: 'RA',
-                  value: unset ? 'Not set' : _formatRA(node.raHours),
+                  value: unset
+                      ? 'Not set'
+                      : CoordinateFormat.raReadout(node.raHours),
                   colors: widget.colors,
                   isPlaceholder: unset,
                 ),
-
-                // Dec
                 _CoordinateChip(
                   label: 'Dec',
-                  value: unset ? 'Not set' : _formatDec(node.decDegrees),
+                  value: unset
+                      ? 'Not set'
+                      : CoordinateFormat.decReadout(node.decDegrees),
                   colors: widget.colors,
                   isPlaceholder: unset,
                 ),
-
-                // Rotation (if set)
                 if (node.rotation != null)
                   _CoordinateChip(
                     label: '↻',
@@ -377,8 +362,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
               ],
             ),
           ),
-
-          // Priority badge
           if (node.priority > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -456,11 +439,10 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
       ),
       child: Row(
         children: [
-          // Time constraints
           if (node.startAfter != null)
             _ConstraintChip(
               icon: LucideIcons.clock,
-              label: 'Start: ${_formatTime(node.startAfter!)}',
+              label: 'Start: ${ClockFormat.hm(node.startAfter!)}',
               colors: widget.colors,
             ),
           if (node.startAfter != null && node.endBefore != null)
@@ -468,11 +450,9 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           if (node.endBefore != null)
             _ConstraintChip(
               icon: LucideIcons.timer,
-              label: 'End: ${_formatTime(node.endBefore!)}',
+              label: 'End: ${ClockFormat.hm(node.endBefore!)}',
               colors: widget.colors,
             ),
-
-          // Altitude constraints
           if (node.hasTimeConstraints && node.hasAltitudeConstraints)
             const SizedBox(width: 12),
           if (node.minAltitude != null)
@@ -542,7 +522,10 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
       NodeStatus.success => 'Completed',
       NodeStatus.failure => 'Failed',
       NodeStatus.skipped => 'Skipped',
-      NodeStatus.cancelled => 'Canceled',
+      NodeStatus.cancelled
+          when stats.hasPlannedFrames && stats.hasKnownCompletion =>
+        'Stopped · ${stats.completedFrames} of ${stats.totalFrames} frames',
+      NodeStatus.cancelled => 'Stopped',
       _ => targetCoordinatesUnset(widget.node) ? 'Needs coordinates' : 'Ready',
     };
 
@@ -553,14 +536,14 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     final String planLabel;
     if (plan.hasOpenEndedLoop) {
       final loopPart = plan.openEndedBudgetSecs > 0
-          ? 'Looping • up to ${_formatDuration(plan.openEndedBudgetSecs)} (until window end)'
+          ? 'Looping • up to ${DurationFormat.seconds(plan.openEndedBudgetSecs, style: DurationStyle.coarse)} (until window end)'
           : 'Looping until window end';
       planLabel = plan.frames > 0
           ? '${plan.frames} planned exposures + $loopPart'
           : loopPart;
     } else if (plan.frames > 0) {
       final counted =
-          '${plan.frames} planned exposures • ${_formatDuration(plan.integrationSecs)}';
+          '${plan.frames} planned exposures • ${DurationFormat.seconds(plan.integrationSecs, style: DurationStyle.coarse)}';
       // Under a time/altitude/forever loop the counted figure is one pass, not
       // the night's total — say so rather than quoting a floor as the plan.
       planLabel = plan.hasUnboundedRepeat
@@ -630,8 +613,11 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     // directly above it in the same card read "~34s". The estimate beside it
     // uses the shared compact duration format, so this uses it too and the two
     // halves of one card finally quote the same unit.
-    final completedElapsed = _formatDuration(stats.completedIntegrationSecs);
-    final totalElapsed = _formatDuration(stats.totalIntegrationSecs);
+    final completedElapsed = DurationFormat.seconds(
+        stats.completedIntegrationSecs,
+        style: DurationStyle.coarse);
+    final totalElapsed = DurationFormat.seconds(stats.totalIntegrationSecs,
+        style: DurationStyle.coarse);
     final progressState = executionState == SequenceExecutionState.paused
         ? SkotiqProgressState.paused
         : SkotiqProgressState.normal;
@@ -688,12 +674,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     );
   }
 
-  String _formatTime(DateTime time) {
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
-
   /// Count the frames and integration time planned under this target.
   ///
   /// Delegates to the shared [plannedCaptureUnder] walk so this card, the
@@ -704,9 +684,6 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     if (sequence == null) return PlannedCapture.empty;
     return plannedCaptureUnder(sequence, widget.node.id);
   }
-
-  String _formatDuration(double totalSeconds) =>
-      DurationFormat.seconds(totalSeconds, style: DurationStyle.compact);
 }
 
 class _CoordinateChip extends StatelessWidget {
@@ -782,7 +759,6 @@ class _ConstraintChip extends StatelessWidget {
   }
 }
 
-/// Spinning icon for running state
 class _SpinningIcon extends StatefulWidget {
   final IconData icon;
   final Color color;

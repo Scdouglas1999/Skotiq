@@ -76,8 +76,11 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
         : 2.0;
 
     return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: Semantics(
+      padding: const EdgeInsets.only(right: _kThumbnailGap),
+      child: Tooltip(
+        message: _qualityTooltip(),
+        waitDuration: const Duration(milliseconds: 400),
+        child: Semantics(
           button: true,
           enabled: true,
           child: InkWell(
@@ -86,7 +89,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
             onSecondaryTap: () => _showFrameMenu(context),
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
             child: Container(
-              width: 100,
+              width: _kThumbnailWidth,
               decoration: BoxDecoration(
                 color: colors.well,
                 borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
@@ -207,65 +210,40 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                               },
                             ),
                           ),
-                          // Quality badge (GOOD / NEEDS REVIEW / POOR) is added
-                          // AFTER the thumbnail so it paints ON TOP of it: as
-                          // the Stack's first child it is covered by every
-                          // thumbnail that loads (Image.memory, BoxFit.cover,
-                          // infinite width/height).
+                          // The badges are added AFTER the thumbnail so they
+                          // paint ON TOP of it: as the Stack's first child
+                          // they are covered by every thumbnail that loads.
                           //
-                          // An unmeasured frame gets an explicit UNRATED chip
-                          // rather than a missing badge, so "no grade" reads as a
-                          // statement instead of as a rendering gap.
+                          // An unmeasured frame gets an explicit "Unrated"
+                          // chip rather than a missing badge, so "no grade"
+                          // reads as a statement instead of a rendering gap.
                           Positioned(
                             top: 4,
                             left: 4,
-                            child: Tooltip(
-                              message: _qualityTooltip(),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: qualityColor.withValues(alpha: 0.92),
-                                  borderRadius: BorderRadius.circular(
-                                      SkotiqTokens.radiusInline4),
-                                ),
-                                child: Text(
-                                  widget.assessment?.label.toUpperCase() ??
-                                      'UNRATED',
-                                  style: SkotiqTypography.caption.copyWith(
-                                    color: SkotiqColors.dark.textPrimary,
-                                    fontWeight: FontWeight.w600,
+                            right: 4,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Flexible(
+                                  child: _TileBadge(
+                                    label: _qualityBadgeLabel(),
+                                    color: qualityColor,
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: SkotiqTokens.spaceXs),
+                                if (widget.image.hfr != null)
+                                  _TileBadge(
+                                    label: '${QuantityFormat.trimmed(
+                                      widget.image.hfr!,
+                                    )} px',
+                                    color: _getHfrColor(
+                                      widget.image.hfr!,
+                                      colors,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                          if (widget.image.hfr != null)
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getHfrColor(widget.image.hfr!, colors)
-                                      .withValues(alpha: 0.9),
-                                  borderRadius: BorderRadius.circular(
-                                      SkotiqTokens.radiusInline4),
-                                ),
-                                child: Text(
-                                  widget.image.hfr!.toStringAsFixed(1),
-                                  style: SkotiqTypography.caption.copyWith(
-                                    color: SkotiqColors.dark.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
                           // P2.3 science badges: small solve checkmark + optional
                           // ZP chip. Sit bottom-right so they don't fight the HFR
                           // and quality badges, and only appear when there is
@@ -349,7 +327,9 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          '${widget.image.exposureDuration.toInt()}s',
+                          DurationFormat.seconds(
+                            widget.image.exposureDuration,
+                          ),
                           style: SkotiqTypography.caption
                               .copyWith(color: colors.textSecondary),
                         ),
@@ -371,14 +351,10 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                               ),
                               if (widget.assessment!.needsReview &&
                                   widget.assessment!.reasons.isNotEmpty)
-                                Tooltip(
-                                  message:
-                                      widget.assessment!.reasons.join('\n'),
-                                  child: Icon(
-                                    SkotiqIcons.info,
-                                    size: 10,
-                                    color: qualityColor,
-                                  ),
+                                Icon(
+                                  SkotiqIcons.info,
+                                  size: 10,
+                                  color: qualityColor,
                                 ),
                             ],
                           ),
@@ -388,11 +364,12 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                 ],
               ),
             ),
-          )),
+          ),
+        ),
+      ),
     );
   }
 
-  /// Opens the frame inspector, unless the caller supplied its own handler.
   Future<void> _handleTap() async {
     final override = widget.onImageTap;
     if (override != null) {
@@ -409,6 +386,14 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
     // strip and the four charts, all of which read the same polled provider.
     if (changed && mounted) ref.invalidate(dbSessionImagesProvider);
   }
+
+  /// The verdict in a word, short enough to sit beside the HFR badge.
+  String _qualityBadgeLabel() => switch (widget.assessment?.level) {
+        null => 'Unrated',
+        FrameQualityLevel.good => 'Good',
+        FrameQualityLevel.needsReview => 'Review',
+        FrameQualityLevel.poor => 'Poor',
+      };
 
   String _qualityTooltip() {
     if (widget.assessment == null) {
@@ -517,7 +502,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
   /// mutate an empty companion DB), then refresh the polled session images.
   Future<void> _setAccepted(bool accepted) async {
     try {
-      final repo = ref.read(imagingRecordsRepositoryProvider);
+      final repo = ref.read(imagingRecordsProvider);
       if (accepted) {
         await repo.acceptImage(widget.image.id);
       } else {
@@ -527,7 +512,8 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
       ref.invalidate(dbSessionImagesProvider);
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Failed to update frame: $e');
+      context
+          .showErrorSnackBar('Failed to update frame: ${userFacingError(e)}');
     }
   }
 

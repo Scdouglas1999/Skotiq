@@ -5,15 +5,11 @@
 
 use super::*;
 
-// Wait time instruction
-
-/// Execute wait for time
 pub async fn execute_wait_time(
     config: &WaitTimeConfig,
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> InstructionResult {
-    // Wait until specific time
     if let Some(until) = config.wait_until {
         let now = chrono::Utc::now().timestamp();
         if now < until {
@@ -22,7 +18,7 @@ pub async fn execute_wait_time(
             // any positive value.
             let total_wait_secs = u64::try_from(until - now).unwrap_or(0);
             let wait_until_str = chrono::DateTime::from_timestamp(until, 0)
-                .map(|dt| dt.format("%H:%M:%S").to_string())
+                .map(|dt| dt.format("%H:%M:%S UTC").to_string())
                 // Why: `from_timestamp` only fails for out-of-range
                 // i64 seconds (year ±5_400_000); user input here is bounded by the UI
                 // datetime picker. Raw epoch seconds as the display fallback preserves
@@ -35,7 +31,6 @@ pub async fn execute_wait_time(
                 total_wait_secs
             );
 
-            // Emit initial progress
             if let Some(cb) = progress_callback {
                 cb(0.0, format!("Waiting until {}", wait_until_str));
             }
@@ -67,15 +62,11 @@ pub async fn execute_wait_time(
         return InstructionResult::success_with_message("Wait time reached");
     }
 
-    // Wait for twilight
     if let Some(twilight) = &config.wait_for_twilight {
         tracing::info!("Waiting for {:?} twilight", twilight);
 
         // Calculate twilight time based on observer location
-        let observer_location = match (ctx.latitude, ctx.longitude) {
-            (Some(lat), Some(lon)) => Some((lat, lon)),
-            _ => ctx.device_ops.get_observer_location(),
-        };
+        let observer_location = ctx.run.rig.latitude.zip(ctx.run.rig.longitude);
         let (lat, lon) = match observer_location {
             Some(loc) => loc,
             None => {
@@ -104,7 +95,6 @@ Sequence cannot wait for an unreachable twilight state.",
                 twilight
             );
 
-            // Emit initial progress
             if let Some(cb) = progress_callback {
                 cb(0.0, format!("Waiting for {:?} twilight", twilight));
             }

@@ -1,20 +1,25 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 // CatalogSearchResult: the Add Target sheet searches the installed sky
 // catalogs, not only the target library. catalogStateProvider: and when no
 // catalog has been downloaded there is nothing on this machine to search, so
 // the sheet must say that instead of "nothing matches".
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show CatalogSearchResult, catalogStateProvider;
+    show catalogStateProvider;
+import 'package:skotiq_astro/skotiq_astro.dart' show CatalogSearchResult;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../scheduler/widgets/integration_goals_editor.dart';
+import '../editors/integration_goals_editor.dart';
 import '../../sequencer/widgets/smart_night_dialog.dart';
+import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
+import 'package:skotiq_core/services.dart';
 
 part 'projects_tab_content/project_header.dart';
 part 'projects_tab_content/progress_widgets.dart';
@@ -96,13 +101,9 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
   /// the local DB write would be lost). Gate the mutation affordances on a
   /// slave with a clear notice instead of letting ProjectService throw.
   bool _blockedOnRemote() {
-    if (ref.read(backendProvider) is! NetworkBackend) return false;
+    if (!ref.read(isRemoteModeProvider)) return false;
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Projects are managed on the imaging host.'),
-        ),
-      );
+      context.showInfoSnackBar('Projects are managed on the imaging host.');
     }
     return true;
   }
@@ -114,9 +115,7 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       await ref.read(activeProjectIdProvider.notifier).setActiveProject(id);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save the active project.')),
-        );
+        context.showErrorSnackBar('Could not save the active project.');
       }
     } finally {
       if (mounted) setState(() => _changingProject = false);
@@ -125,9 +124,7 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
 
   void _showProjectError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    context.showInfoSnackBar(message);
   }
 
   bool _beginProjectMutation() {
@@ -141,7 +138,7 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
   }
 
   bool _backendIs(Object backend) =>
-      identical(ref.read(backendProvider), backend);
+      ref.scopeOver<Object>(backendProvider, backend).isCurrent;
 
   int? _effectiveActiveProjectId() {
     final projects = ref.read(projectListProvider).valueOrNull;
@@ -159,8 +156,6 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       'current host.',
     );
   }
-
-  // Create / edit / delete project
 
   Future<void> _openCreateDialog() async {
     if (_projectMutationInFlight || _changingProject) return;
@@ -364,8 +359,6 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
     }
   }
 
-  // Add target
-
   Future<void> _openAddTargetDialog(int projectId, Set<int> attachedIds) async {
     if (_projectMutationInFlight || _changingProject) return;
     if (_blockedOnRemote()) return;
@@ -471,28 +464,13 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
     }
   }
 
-  // Edit goals
-
-  Future<void> _openGoalsDialog(int targetId, String targetName) async {
-    final profile = ref.read(activeEquipmentProfileProvider);
-    final availableFilters =
-        profile != null ? List<String>.from(profile.filterNames) : <String>[];
-    await showDialog<void>(
-      context: context,
-      builder: (_) => SkotiqDialog(
-        title: 'Integration goals — $targetName',
-        icon: LucideIcons.target,
-        width: 720,
-        child: IntegrationGoalsEditor(
-          targetId: targetId,
-          targetName: targetName,
-          availableFilters: availableFilters,
-        ),
-      ),
-    );
-  }
-
-  // Smart night handoff (component C11)
+  Future<void> _openGoalsDialog(int targetId, String targetName) =>
+      showIntegrationGoalsDialog(
+        context,
+        ref,
+        targetId: targetId,
+        targetName: targetName,
+      );
 
   /// One-click handoff of the active project's still-incomplete targets into
   /// the Smart Night planner. Reads the active project's roll-up, pulls out the
@@ -533,10 +511,8 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       }
 
       if (progress == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Select a project before planning in Smart Night.'),
-          ),
+        context.showInfoSnackBar(
+          'Select a project before planning in Smart Night.',
         );
         return;
       }
@@ -551,13 +527,9 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
           .map((t) => t.targetId)
           .toList(growable: false);
       if (incompleteIds.isEmpty) {
-        final colors = SkotiqColors.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('"${active.name}" has no incomplete targets left to '
-                'plan — every target has met its integration goals.'),
-            backgroundColor: colors.success,
-          ),
+        context.showSuccessSnackBar(
+          '"${active.name}" has no incomplete targets left to '
+          'plan — every target has met its integration goals.',
         );
         return;
       }
@@ -578,8 +550,6 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       }
     }
   }
-
-  // Body
 
   Widget _buildBody({
     required SkotiqColors colors,
@@ -641,8 +611,6 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
     );
   }
 
-  // Active-selection reconciliation
-
   /// Schedule a write of [fallbackId] into the persisted active-project id.
   ///
   /// Called from `build` when the header resolved to `projects.first` because
@@ -701,11 +669,10 @@ class _ProjectsTabContentState extends ConsumerState<ProjectsTabContent> {
       // in this file with no snackbar (it is a repair the operator never asked
       // for), so the log is the only signal that the selection on screen is not
       // the one that will come back after a restart.
-      developer.log(
+      Log.warning(
         'Could not persist the reconciled active project ($resolved); the tab '
         'shows it but the selection was not saved: $e',
-        name: 'ProjectsTab',
-        level: 900,
+        source: 'ProjectsTab',
       );
       _reconcileFailedFor = resolved;
     }

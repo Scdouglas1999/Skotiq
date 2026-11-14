@@ -1,6 +1,6 @@
+import '../models/backend/device_capabilities.dart';
 import '../models/sequence/sequence_models.dart';
 part 'sequence_diff_service/node_field_diff.dart';
-part 'sequence_diff_service/node_describe.dart';
 
 /// Structural diff between two [Sequence] snapshots.
 ///
@@ -42,9 +42,11 @@ class SequenceDiffService {
   /// (we are comparing runs, not edit history) — the node-id-based
   /// matching depends on stable per-node UUIDs, which the sequence
   /// editor preserves on every edit (`copyWith` always keeps `id`).
+  /// [sensitivity] words an exposure's gain change ("Gain" or "ISO").
   SequenceDiffResult diff({
     required Sequence previous,
     required Sequence current,
+    ExposureSensitivity sensitivity = const GainSensitivity(),
   }) {
     final previousIds = previous.nodes.keys.toSet();
     final currentIds = current.nodes.keys.toSet();
@@ -80,7 +82,7 @@ class SequenceDiffService {
     for (final id in currentIds.intersection(previousIds)) {
       final before = previous.nodes[id]!;
       final after = current.nodes[id]!;
-      final fieldChanges = _diffNodes(before, after);
+      final fieldChanges = _diffNodes(before, after, sensitivity);
       if (fieldChanges.isNotEmpty) {
         modified.add(
           NodeDiffEntry(
@@ -110,7 +112,6 @@ class SequenceDiffService {
   }
 }
 
-/// Result of [SequenceDiffService.diff].
 class SequenceDiffResult {
   final String previousName;
   final String currentName;

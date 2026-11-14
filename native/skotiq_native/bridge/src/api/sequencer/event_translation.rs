@@ -1,4 +1,4 @@
-use super::*;
+use crate::event::sequencer::SequencerEvent;
 
 /// dispatch a structured `ProgressDetail` to a typed `SequencerEvent`
 /// variant. Returns `None` when the variant has no first-class typed bridge
@@ -17,7 +17,7 @@ pub(crate) fn typed_sequencer_event_from_progress_detail(
     use skotiq_sequencer::ProgressDetail as PD;
     // Import the bridge-side `SchedulerScoreEntry` so the FRB-public mapping
     // doesn't reach back into the sequencer crate's internal summary type.
-    use crate::event::SchedulerScoreEntry;
+    use crate::event::sequencer::SchedulerScoreEntry;
     match detail {
         PD::FrameAccepted {
             frame,
@@ -73,7 +73,7 @@ pub(crate) fn typed_sequencer_event_from_progress_detail(
             node_id: node_id.to_string(),
             frame: *frame,
             total: *total,
-            reason: reason.clone(),
+            reason: reason.to_string(),
             hfr: *hfr,
             eccentricity: *eccentricity,
             star_count: *star_count,
@@ -283,18 +283,11 @@ pub(crate) fn structured_progress_payload_from_progress_detail(
 pub(crate) fn recovery_cause_fields(
     cause: &skotiq_sequencer::recovery::RecoveryCause,
 ) -> (String, Option<String>) {
-    use skotiq_sequencer::recovery::RecoveryCause as RC;
-    match cause {
-        RC::GuideStarLost => ("GuideStarLost".to_string(), None),
-        RC::SlewFailed => ("SlewFailed".to_string(), None),
-        RC::PlateSolveFailed => ("PlateSolveFailed".to_string(), None),
-        RC::WeatherUnsafe => ("WeatherUnsafe".to_string(), None),
-        RC::MountTrackingLost => ("MountTrackingLost".to_string(), None),
-        RC::FocusDriftCritical => ("FocusDriftCritical".to_string(), None),
-        RC::ConsecutiveRejectsExceeded => ("ConsecutiveRejectsExceeded".to_string(), None),
-        RC::DeviceDisconnected => ("DeviceDisconnected".to_string(), None),
-        RC::Custom(label) => ("Custom".to_string(), Some(label.clone())),
-    }
+    let custom_label = match cause {
+        skotiq_sequencer::recovery::RecoveryCause::Custom(label) => Some(label.clone()),
+        _ => None,
+    };
+    (cause.policy().kind.to_string(), custom_label)
 }
 
 /// Phase enum → stable Debug-format string. Matches the JSON wire shape

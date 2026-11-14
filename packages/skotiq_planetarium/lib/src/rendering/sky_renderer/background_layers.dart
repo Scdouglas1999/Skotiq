@@ -11,7 +11,6 @@ extension _SkyCanvasPainterBackgroundLayers on SkyCanvasPainter {
 
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
 
-    // Check if twilight gradient is enabled
     if (!qualityConfig.enableTwilightGradient) {
       // Simple dark gradient for performance mode - use cached shader
       final shader = _PaintCache.getDarkBackgroundShader(size);
@@ -40,10 +39,8 @@ extension _SkyCanvasPainterBackgroundLayers on SkyCanvasPainter {
       return;
     }
 
-    // Get twilight colors based on sun altitude
     final (zenithColor, horizonColor) = _getTwilightColors(sunAlt);
 
-    // Create vertical gradient
     final gradient = LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
@@ -60,7 +57,6 @@ extension _SkyCanvasPainterBackgroundLayers on SkyCanvasPainter {
     );
     final radialShader = radialGradient.createShader(rect);
 
-    // Cache both shaders
     _backgroundGradientCache.store(verticalShader, radialShader, sunAlt, size);
 
     final paint = _PaintCache.getBackgroundPaint(verticalShader);

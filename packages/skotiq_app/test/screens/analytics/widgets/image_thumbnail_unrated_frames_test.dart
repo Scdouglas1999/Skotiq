@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/image_thumbnail_strip.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 DbCapturedImage _frame({
@@ -74,13 +74,13 @@ void main() {
     expect(find.text('Total: 6'), findsOneWidget);
   });
 
-  testWidgets('an unmeasured frame is badged UNRATED, not GOOD',
+  testWidgets('an unmeasured frame is badged Unrated, not Good',
       (tester) async {
     await tester.pumpWidget(_strip([_frame(id: 9, type: 'dark')]));
     await tester.pump();
 
-    expect(find.text('UNRATED'), findsOneWidget);
-    expect(find.text('GOOD'), findsNothing);
+    expect(find.text('Unrated'), findsOneWidget);
+    expect(find.text('Good'), findsNothing);
     expect(
       find.textContaining('75 score'),
       findsNothing,

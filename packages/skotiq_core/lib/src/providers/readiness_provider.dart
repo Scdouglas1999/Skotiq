@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/backend/device_types.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/readiness/readiness_models.dart';
 import 'dark_library_provider.dart';
@@ -34,10 +35,10 @@ final readinessReportProvider = Provider<ReadinessReport>((ref) {
   // Connection is satisfied ONLY on an explicit `connected` state. Every other
   // state (disconnected / connecting / error) is fail-closed to false.
   final cameraConnected =
-      ref.watch(cameraStateProvider).connectionState ==
+      ref.watch(cameraStateProvider.select((c) => c.connectionState)) ==
       DeviceConnectionState.connected;
   final mountConnected =
-      ref.watch(mountStateProvider).connectionState ==
+      ref.watch(mountStateProvider.select((m) => m.connectionState)) ==
       DeviceConnectionState.connected;
 
   // Location & output path (persisted settings)
@@ -87,18 +88,17 @@ final readinessReportProvider = Provider<ReadinessReport>((ref) {
       .watch(offlineProfileDeviceNamesProvider)
       .where(
         (name) =>
-            name != ProfileDeviceSlot.camera.displayName &&
-            name != ProfileDeviceSlot.mount.displayName,
+            name != DeviceType.camera.displayName &&
+            name != DeviceType.mount.displayName,
       )
       .toList(growable: false);
 
   // The assignment SET, not just the offline subset: an empty offline list
   // means "nothing assigned is down", which over an empty profile is vacuous.
   // The profile-devices rule needs the counts to tell those apart.
-  final assignedProfileSlots = ref.watch(assignedProfileDeviceSlotsProvider);
+  final assignedProfileSlots = ref.watch(rigDevicesProvider).assigned;
   final otherAssignedProfileSlots = assignedProfileSlots.where(
-    (slot) =>
-        slot != ProfileDeviceSlot.camera && slot != ProfileDeviceSlot.mount,
+    (slot) => slot != DeviceType.camera && slot != DeviceType.mount,
   );
 
   return buildReadinessReport(
@@ -115,13 +115,4 @@ final readinessReportProvider = Provider<ReadinessReport>((ref) {
     assignedProfileDeviceCount: assignedProfileSlots.length,
     otherAssignedProfileDeviceCount: otherAssignedProfileSlots.length,
   );
-});
-
-/// Cheap selector for the top-line readiness level.
-///
-/// Watch this from chips/pills/badges that only need the traffic-light color
-/// and label — it rebuilds only when the *overall* level changes, not on every
-/// per-item detail tweak that leaves [ReadinessReport.overall] unchanged.
-final readinessOverallProvider = Provider<ReadinessLevel>((ref) {
-  return ref.watch(readinessReportProvider).overall;
 });

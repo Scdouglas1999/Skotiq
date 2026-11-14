@@ -19,7 +19,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'device_action_finder.dart';
 import 'package:skotiq_app/screens/equipment/widgets/connected_device_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 import '../../../harness/harness.dart';
 
@@ -30,8 +32,7 @@ class _FailingSettingsNotifier extends AppSettingsNotifier {
   }
 }
 
-Future<HarnessHandle> _pump(
-    WidgetTester tester, ConnectedDeviceType type) async {
+Future<HarnessHandle> _pump(WidgetTester tester, DeviceType type) async {
   final handle = await pumpAppScreen(
     tester,
     ConnectedDeviceCard(type: type),
@@ -40,9 +41,16 @@ Future<HarnessHandle> _pump(
   // Resolve the settings provider so the dialog reads real values and post-save
   // state reads are deterministic.
   await handle.container.read(appSettingsProvider.future);
+  _connect(handle, type);
   await tester.pump();
   return handle;
 }
+
+/// The configuration controls belong to a connected device.
+void _connect(HarnessHandle handle, DeviceType type) =>
+    readDeviceConnectionNotifier(handle.container, type)
+      ..setConnecting('test-${type.name}')
+      ..setConnected();
 
 Future<void> _openDialog(WidgetTester tester) async {
   await tester.tap(skotiqIconButton('Settings'));
@@ -74,7 +82,7 @@ void main() {
     testWidgets(
         'holds no flip switch or minutes of its own and points to the '
         "run's meridian flip settings", (tester) async {
-      await _pump(tester, ConnectedDeviceType.mount);
+      final handle = await _pump(tester, DeviceType.mount);
       await _openDialog(tester);
 
       expect(find.text('Mount configuration'), findsOneWidget);
@@ -90,6 +98,11 @@ void main() {
       await tester.tap(find.text('Close'));
       await _waitForDialogToClose(tester, 'Mount configuration');
       expect(find.text('Mount configuration'), findsNothing);
+
+      // A connected mount polls its position; let go of it before teardown.
+      readDeviceConnectionNotifier(handle.container, DeviceType.mount)
+          .setDisconnected();
+      await tester.pump();
     });
   });
 
@@ -100,14 +113,16 @@ void main() {
 
     testWidgets('settings failure does not open a default-valued editor',
         (tester) async {
-      await pumpAppScreen(
+      final handle = await pumpAppScreen(
         tester,
-        const ConnectedDeviceCard(type: ConnectedDeviceType.focuser),
+        const ConnectedDeviceCard(type: DeviceType.focuser),
         extraOverrides: [
           appSettingsProvider.overrideWith(_FailingSettingsNotifier.new),
         ],
         settle: false,
       );
+      _connect(handle, DeviceType.focuser);
+      await tester.pump();
 
       await _openDialog(tester);
 
@@ -120,7 +135,7 @@ void main() {
 
     testWidgets('malformed coefficient does zero work and stays open',
         (tester) async {
-      final handle = await _pump(tester, ConnectedDeviceType.focuser);
+      final handle = await _pump(tester, DeviceType.focuser);
       final before = handle.container
           .read(appSettingsProvider)
           .requireValue
@@ -138,7 +153,7 @@ void main() {
     });
 
     testWidgets('NaN coefficient is rejected and stays open', (tester) async {
-      final handle = await _pump(tester, ConnectedDeviceType.focuser);
+      final handle = await _pump(tester, DeviceType.focuser);
       final before = handle.container
           .read(appSettingsProvider)
           .requireValue
@@ -157,7 +172,7 @@ void main() {
 
     testWidgets('Infinity coefficient is rejected and stays open',
         (tester) async {
-      await _pump(tester, ConnectedDeviceType.focuser);
+      await _pump(tester, DeviceType.focuser);
 
       await _openDialog(tester);
       await tester.enterText(coeffField(), 'Infinity');
@@ -168,11 +183,9 @@ void main() {
 
     testWidgets('out-of-range backlash (10001) is rejected and stays open',
         (tester) async {
-      final handle = await _pump(tester, ConnectedDeviceType.focuser);
-      final before = handle.container
-          .read(appSettingsProvider)
-          .requireValue
-          .backlashCompensation;
+      final handle = await _pump(tester, DeviceType.focuser);
+      final before =
+          handle.container.read(appSettingsProvider).requireValue.afBacklashIn;
 
       await _openDialog(tester);
       await tester.enterText(coeffField(), '2.0');
@@ -181,17 +194,14 @@ void main() {
 
       expect(find.text('Focuser configuration'), findsOneWidget);
       expect(
-        handle.container
-            .read(appSettingsProvider)
-            .requireValue
-            .backlashCompensation,
+        handle.container.read(appSettingsProvider).requireValue.afBacklashIn,
         before,
       );
     });
 
     testWidgets('boundary values (coeff 0, backlash 10000) save and close',
         (tester) async {
-      final handle = await _pump(tester, ConnectedDeviceType.focuser);
+      final handle = await _pump(tester, DeviceType.focuser);
 
       await _openDialog(tester);
       await tester.enterText(coeffField(), '0');
@@ -202,7 +212,7 @@ void main() {
       expect(find.text('Focuser configuration'), findsNothing);
       final state = handle.container.read(appSettingsProvider).requireValue;
       expect(state.tempCoefficient, 0);
-      expect(state.backlashCompensation, 10000);
+      expect(state.afBacklashIn, 10000);
     });
   });
 }

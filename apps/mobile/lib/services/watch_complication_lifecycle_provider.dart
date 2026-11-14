@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import 'watch_complication_service.dart';
+import 'package:skotiq_core/services.dart';
 
 /// bridges Riverpod sequence + weather state to the Apple Watch
 /// complication.
@@ -243,27 +244,14 @@ class WatchComplicationLifecycleController {
       _lastPublishAt = _now();
       _lastPublishedSnapshot = snapshot;
     } catch (e, st) {
-      // Loud failure (developer.log + Riverpod logger). We do not
-      // re-throw inside a Riverpod listener callback chain — the next
-      // state change will retry naturally.
-      developer.log(
+      // Not rethrown inside a Riverpod listener callback chain; the next
+      // state change retries.
+      Log.error(
         '[WatchComplicationLifecycle] publish failed: $e',
-        name: 'WatchComplicationLifecycle',
-        level: 1000,
+        source: 'WatchComplicationLifecycle',
         error: e,
         stackTrace: st,
       );
-      try {
-        _ref
-            .read(loggingServiceProvider)
-            .warning(
-              'WatchComplication publish failed: $e',
-              source: 'WatchComplicationLifecycle',
-            );
-      } catch (_) {
-        // Logging service may not be wired during early app start. The
-        // developer.log call above is the authoritative surface.
-      }
     }
   }
 
@@ -274,8 +262,6 @@ class WatchComplicationLifecycleController {
     _pendingPublishTimer = null;
     _pendingSnapshot = null;
   }
-
-  // Test hooks ---------------------------------------------------------------
 
   /// Last snapshot pushed to the host (or null if none yet).
   WatchComplicationSnapshot? get lastPublishedSnapshotForTest =>

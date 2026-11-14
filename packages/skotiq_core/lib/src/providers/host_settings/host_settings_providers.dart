@@ -2,22 +2,19 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
+import '../linked_host.dart';
 import '../../database/database.dart' show SkotiqDatabase;
 import '../../models/backend/host_mutation_event.dart';
-import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart';
 import '../settings_provider.dart';
 import 'host_settings_store.dart';
 import 'publishing_settings_dao.dart';
 import 'remote_settings_dao.dart';
+import '../../settings/app_settings_state.g.dart';
 
-export 'host_settings_store.dart'
-    show
-        HostSettingsStore,
-        HostSettingsStoreSupport,
-        HostSettingUnavailableError;
+export 'host_settings_store.dart' show HostSettingsStore;
 export 'remote_settings_dao.dart' show RemoteSettingsDao, AppSettingsRows;
+export 'credential_settings.dart';
 export 'settings_key_scope.dart';
 
 /// Bumped when the settings rows change underneath the providers that read
@@ -26,14 +23,43 @@ export 'settings_key_scope.dart';
 /// every provider that watches the DAO reads the new values.
 final settingsStoreRevisionProvider = StateProvider<int>((ref) => 0);
 
+/// Settings rows that changed under this app: on a linked client, rows the
+/// host's store reports changed (by the host's own screen, the API or another
+/// client); on the host, rows a client or script wrote over the API. A row
+/// this app wrote itself is not reported, so a reader can re-read on every
+/// event without fighting its own edits.
+final settingsRowChangesProvider = Provider<SettingsRowChanges>((ref) {
+  final changes = SettingsRowChanges();
+  ref.onDispose(changes.dispose);
+  return changes;
+});
+
+/// Broadcast of changed `app_settings` keys; see [settingsRowChangesProvider].
+class SettingsRowChanges {
+  final StreamController<Set<String>> _controller =
+      StreamController<Set<String>>.broadcast();
+
+  Stream<Set<String>> get stream => _controller.stream;
+
+  void announce(Iterable<String> keys) {
+    final set = keys.toSet();
+    if (set.isEmpty || _controller.isClosed) return;
+    _controller.add(set);
+  }
+
+  void dispose() => unawaited(_controller.close());
+}
+
 /// The imaging host's key/value settings, or null when this app owns the
 /// hardware itself.
 final hostSettingsStoreProvider = Provider<HostSettingsStore?>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) return null;
-  final store = HostSettingsStore(backend);
-  final changes = store.changes.listen((_) {
+  final rigSettings = ref.watch(linkedHostRigSettingsProvider);
+  final events = ref.watch(linkedHostEventsProvider);
+  if (rigSettings == null || events == null) return null;
+  final store = HostSettingsStore(rigSettings, events);
+  final changes = store.changes.listen((keys) {
     ref.read(settingsStoreRevisionProvider.notifier).state++;
+    ref.read(settingsRowChangesProvider).announce(keys);
   });
   ref.onDispose(() {
     unawaited(changes.cancel());
@@ -42,37 +68,28 @@ final hostSettingsStoreProvider = Provider<HostSettingsStore?>((ref) {
   return store;
 });
 
-/// How much of the host's key/value settings this client reaches, or null
-/// when this app owns the hardware itself.
-final hostSettingsStoreSupportProvider =
-    FutureProvider<HostSettingsStoreSupport?>((ref) async {
-      final store = ref.watch(hostSettingsStoreProvider);
-      if (store == null) return null;
-      await store.ensureLoaded();
-      return store.support;
-    });
-
-/// Host-owned settings this client has had to read from its own database
-/// because the host could not serve them.
-final hostSettingsUnsharedKeysProvider = StreamProvider<Set<String>>((
-  ref,
-) async* {
+/// On a linked client, whether its credential has admin access to the host,
+/// which the admin-only settings need ([adminOnlyRow]). Null when this
+/// app owns the hardware itself.
+final hostAdminAccessProvider = FutureProvider<bool?>((ref) async {
   final store = ref.watch(hostSettingsStoreProvider);
-  if (store == null) {
-    yield const {};
-    return;
-  }
-  yield store.unsharedKeys;
-  yield* store.unsharedKeyChanges;
+  if (store == null) return null;
+  await store.ensureLoaded();
+  return store.adminAccess;
 });
 
 /// The DAO the machine that owns the hardware reads `app_settings` through:
 /// its own database, announcing host-owned writes to linked clients.
 PublishingSettingsDao buildHostSettingsDao(Ref ref, SkotiqDatabase database) {
   final container = ref.container;
+  // A write can finish after the provider that built this DAO is gone (a
+  // start-up migration nobody awaits); then there is no host left to tell.
+  var live = true;
+  ref.onDispose(() => live = false);
   return PublishingSettingsDao(
     database,
     onHostRowsWritten: (keys) {
+      if (!live) return;
       container
           .read(hostMutationEventHubProvider)
           .publishRemoteOnly(

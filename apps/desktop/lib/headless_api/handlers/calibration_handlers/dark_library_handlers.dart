@@ -1,25 +1,10 @@
 part of '../calibration_handlers.dart';
 
 extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
-  // Calibration settings
-
-  Future<Map<String, dynamic>> _calibrationSettingsJson() async {
-    final stored = await container.read(settingsDaoProvider).getAllSettings();
-
-    String? pathSetting(String key) {
-      final value = stored[key]?.trim();
-      return value == null || value.isEmpty ? null : value;
-    }
-
-    return {
-      'autoCalibrate': stored['calibration.auto_calibrate'] == 'true',
-      'masterFlatPath': pathSetting('calibration.master_flat_path'),
-      'masterBiasPath': pathSetting('calibration.master_bias_path'),
-      'autoDarkFromLibrary':
-          stored['calibration.auto_dark_from_library'] != 'false',
-      'manualDarkPath': pathSetting('calibration.manual_dark_path'),
-    };
-  }
+  Future<Map<String, dynamic>> _calibrationSettingsJson() async =>
+      CalibrationSettings.fromRows(
+        await container.read(settingsDaoProvider).getAllSettings(),
+      ).toRemoteJson();
 
   Future<Response> handleGetCalibrationSettings(Request request) async {
     return jsonOk(await _calibrationSettingsJson());
@@ -31,26 +16,27 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
     final updates = <String, String>{};
 
     if (payload.containsKey('autoCalibrate')) {
-      updates['calibration.auto_calibrate'] = requireBool(
-        payload,
-        'autoCalibrate',
-      ).toString();
+      updates.addAll(
+        StoreSettings.calibrationAutoCalibrate.toRows(
+          requireBool(payload, 'autoCalibrate'),
+        ),
+      );
     }
     if (payload.containsKey('autoDarkFromLibrary')) {
-      updates['calibration.auto_dark_from_library'] = requireBool(
-        payload,
-        'autoDarkFromLibrary',
-      ).toString();
+      updates.addAll(
+        StoreSettings.calibrationAutoDarkFromLibrary.toRows(
+          requireBool(payload, 'autoDarkFromLibrary'),
+        ),
+      );
     }
     for (final entry in const {
-      'masterFlatPath': 'calibration.master_flat_path',
-      'masterBiasPath': 'calibration.master_bias_path',
-      'manualDarkPath': 'calibration.manual_dark_path',
+      'masterFlatPath': StoreSettings.calibrationMasterFlatPath,
+      'masterBiasPath': StoreSettings.calibrationMasterBiasPath,
+      'manualDarkPath': StoreSettings.calibrationManualDarkPath,
     }.entries) {
       if (payload.containsKey(entry.key)) {
-        updates[entry.value] = _validatedCalibrationFilePath(
-          payload,
-          entry.key,
+        updates.addAll(
+          entry.value.toRows(_validatedCalibrationFilePath(payload, entry.key)),
         );
       }
     }
@@ -116,19 +102,10 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
     return value;
   }
 
-  // Dark library
-
-  Future<Map<String, dynamic>> _darkSettingsJson() async {
-    final stored = await container.read(settingsDaoProvider).getAllSettings();
-    final temperature = double.tryParse(
-      stored[darkLibraryTempToleranceKey] ?? '',
-    );
-    return {
-      'autoCalibrate': stored['calibration.auto_calibrate'] == 'true',
-      'temperatureTolerance':
-          temperature ?? DarkLibraryMatchTolerances.defaults.temperatureC,
-    };
-  }
+  Future<Map<String, dynamic>> _darkSettingsJson() async =>
+      DarkLibrarySettingsSnapshot.fromRows(
+        await container.read(settingsDaoProvider).getAllSettings(),
+      ).toJson();
 
   Future<Response> handleGetDarkSettings(Request request) async {
     return jsonOk(await _darkSettingsJson());
@@ -151,12 +128,12 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
         message: 'At least one dark-library setting is required',
       );
     }
-    await container.read(settingsDaoProvider).setSettings({
+    await container.read(settingsDaoProvider).writeAll([
       if (autoCalibrate != null)
-        'calibration.auto_calibrate': autoCalibrate.toString(),
+        StoreSettings.calibrationAutoCalibrate.to(autoCalibrate),
       if (temperature != null)
-        darkLibraryTempToleranceKey: temperature.toString(),
-    });
+        StoreSettings.darkTemperatureTolerance.to(temperature),
+    ]);
     return jsonOk(await _darkSettingsJson());
   }
 
@@ -175,8 +152,9 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
   DarkGroupKey _darkGroupFromPayload(Map<String, dynamic> payload) {
     return DarkGroupKey(
       exposureTime: requireDouble(payload, 'exposureTime', min: 0, max: 86400),
-      gain: requireInt(payload, 'gain', min: 0),
-      offset: requireInt(payload, 'offset', min: 0),
+      // Absent for a camera without gain or offset control.
+      gain: optionalInt(payload, 'gain', min: 0),
+      offset: optionalInt(payload, 'offset', min: 0),
       binX: requireInt(payload, 'binX', min: 1, max: 16),
       binY: requireInt(payload, 'binY', min: 1, max: 16),
       frameType: _darkFrameType(payload),
@@ -251,13 +229,22 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       }
     }
     final build = container.read(calibrationMasterBuildProvider);
-    final built = await build(
-      CalibrationMasterBuildRequest(
-        kind: group.frameType,
-        framePaths: framePaths,
-        outputPath: outputPath,
-      ),
-    );
+    final CalibrationMasterBuildResult built;
+    try {
+      built = await build(
+        CalibrationMasterBuildRequest(
+          kind: group.frameType,
+          framePaths: framePaths,
+          outputPath: outputPath,
+        ),
+      );
+    } on CalibrationMasterRefused catch (e) {
+      throw HandlerFailure(
+        code: 'master_refused',
+        message: e.reason,
+        statusCode: HttpStatus.unprocessableEntity,
+      );
+    }
     final id = await container
         .read(darkLibraryServiceProvider)
         .registerMaster(built, frameType: group.frameType);
@@ -319,7 +306,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
 
     final json = <Map<String, dynamic>>[];
     for (final entry in entries) {
-      json.add(await _darkEntryToWire(entry));
+      json.add((await _darkEntryToWire(entry)).toJson());
     }
     return jsonOk({'darks': json, 'count': json.length});
   }
@@ -334,7 +321,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
         'message': 'No dark library entry with id $iid',
       });
     }
-    return jsonOk({'dark': await _darkEntryToWire(entry)});
+    return jsonOk({'dark': (await _darkEntryToWire(entry)).toJson()});
   }
 
   /// POST /api/calibration/darks  — register an existing file by path.
@@ -344,8 +331,8 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
 
     final filePath = requireString(payload, 'filePath');
     final exposureDuration = requireDouble(payload, 'exposureDuration', min: 0);
-    final gain = optionalInt(payload, 'gain') ?? 0;
-    final offset = optionalInt(payload, 'offset') ?? 0;
+    final gain = optionalInt(payload, 'gain');
+    final offset = optionalInt(payload, 'offset');
     final binX = optionalInt(payload, 'binX', min: 1) ?? 1;
     final binY = optionalInt(payload, 'binY', min: 1) ?? 1;
     final sensorTempC = optionalDouble(payload, 'sensorTempC');
@@ -397,7 +384,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
         message: 'Failed to read back newly-created dark library entry',
       );
     }
-    return jsonCreated({'dark': await _darkEntryToWire(entry)});
+    return jsonCreated({'dark': (await _darkEntryToWire(entry)).toJson()});
   }
 
   /// POST /api/calibration/darks/upload — multipart-ish (FITS body + JSON
@@ -448,8 +435,8 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
 
     final exposureDuration = requireDouble(meta, 'exposureDuration', min: 0);
     final sensorTempC = optionalDouble(meta, 'sensorTempC');
-    final gain = optionalInt(meta, 'gain') ?? 0;
-    final offset = optionalInt(meta, 'offset') ?? 0;
+    final gain = optionalInt(meta, 'gain');
+    final offset = optionalInt(meta, 'offset');
     final binX = optionalInt(meta, 'binX', min: 1) ?? 1;
     final binY = optionalInt(meta, 'binY', min: 1) ?? 1;
     final frameType = optionalString(meta, 'frameType') ?? 'dark';
@@ -559,7 +546,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       );
     }
     return jsonCreated({
-      'dark': await _darkEntryToWire(entry),
+      'dark': (await _darkEntryToWire(entry)).toJson(),
       'bytesWritten': bytesWritten,
     });
   }
@@ -584,70 +571,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       });
     }
 
-    final int fileLength;
-    final DateTime mtime;
-    try {
-      fileLength = await file.length();
-      mtime = await file.lastModified();
-    } on PathAccessException catch (e) {
-      _logWarning('Permission denied reading dark $iid: $e');
-      return jsonForbidden({
-        'error': 'permission_denied',
-        'path': entry.filePath,
-      });
-    } on FileSystemException catch (e) {
-      return jsonInternalServerError({
-        'error': 'stat_failed',
-        'detail': e.message,
-      });
-    }
-
-    final fileName = p.basename(entry.filePath);
-    final lower = fileName.toLowerCase();
-    String contentType;
-    if (lower.endsWith('.fits') || lower.endsWith('.fit')) {
-      contentType = 'application/fits';
-    } else if (lower.endsWith('.xisf')) {
-      contentType = 'application/x-xisf';
-    } else {
-      contentType = 'application/octet-stream';
-    }
-
-    final etag = '"dark-$iid-${mtime.millisecondsSinceEpoch}"';
-    final rangeHeader = request.headers['range'];
-    final ifRange = request.headers['if-range'];
-    final ifRangeMatches = ifRange == null || ifRange == etag;
-    final shouldHonourRange = rangeHeader != null && ifRangeMatches;
-
-    if (!shouldHonourRange) {
-      return attachmentResponse(
-        file.openRead(),
-        fileName: fileName,
-        contentType: contentType,
-        contentLength: fileLength,
-        headers: {'accept-ranges': 'bytes', 'etag': etag},
-      );
-    }
-
-    final int rangeStart;
-    final int rangeEnd;
-    try {
-      final parsed = parseRangeHeader(rangeHeader, fileLength);
-      rangeStart = parsed.start;
-      rangeEnd = parsed.end;
-    } on FormatException catch (e) {
-      return rangeNotSatisfiableResponse(fileLength, reason: e.message);
-    }
-
-    return partialContentResponse(
-      file.openRead(rangeStart, rangeEnd + 1),
-      start: rangeStart,
-      end: rangeEnd,
-      totalLength: fileLength,
-      contentType: contentType,
-      fileName: fileName,
-      headers: {'etag': etag},
-    );
+    return fileDownloadResponse(request, file, etagKey: 'dark-$iid');
   }
 
   /// DELETE /api/calibration/darks/{id}?deleteFile=true
@@ -704,14 +628,14 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
     final payload = await readJsonObject(request);
 
     final exposureDuration = requireDouble(payload, 'exposureDuration', min: 0);
-    final gain = optionalInt(payload, 'gain') ?? 0;
-    final offset = optionalInt(payload, 'offset') ?? 0;
+    final gain = optionalInt(payload, 'gain');
+    final offset = optionalInt(payload, 'offset');
     final binX = optionalInt(payload, 'binX', min: 1) ?? 1;
     final binY = optionalInt(payload, 'binY', min: 1) ?? 1;
     final sensorTempC = optionalDouble(payload, 'sensorTempC');
     final frameType = optionalString(payload, 'frameType') ?? 'dark';
 
-    DarkLibraryMatchTolerances tolerances = DarkLibraryMatchTolerances.defaults;
+    var tolerances = container.read(darkLibraryMatchTolerancesProvider);
     final tolMap = optionalObject(payload, 'tolerances');
     if (tolMap != null) {
       final exposureRatio = optionalDouble(tolMap, 'exposureSecondsRatio');
@@ -729,16 +653,18 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       );
     }
 
-    final match = await _database.darkLibraryDao.findBestMatch(
-      exposureTime: exposureDuration,
-      gain: gain,
-      offset: offset,
-      binX: binX,
-      binY: binY,
-      temperature: sensorTempC,
-      tolerances: tolerances,
-      frameType: frameType,
-    );
+    final match = await container
+        .read(darkLibraryServiceProvider)
+        .findMatchingDark(
+          exposureTime: exposureDuration,
+          gain: gain,
+          offset: offset,
+          binX: binX,
+          binY: binY,
+          temperature: sensorTempC,
+          tolerances: tolerances,
+          frameType: frameType,
+        );
     if (match == null) {
       return jsonNotFound({
         'error': 'no_matching_dark',
@@ -746,7 +672,7 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
             'No dark library entry matches the requested capture parameters',
       });
     }
-    return jsonOk({'dark': await _darkEntryToWire(match)});
+    return jsonOk({'dark': (await _darkEntryToWire(match)).toJson()});
   }
 
   /// POST /api/calibration/match-dark
@@ -770,8 +696,8 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
     final payload = await readJsonObject(request);
 
     final exposureTime = requireDouble(payload, 'exposureTime', min: 0);
-    final gain = requireInt(payload, 'gain');
-    final offset = optionalInt(payload, 'offset') ?? 0;
+    final gain = optionalInt(payload, 'gain');
+    final offset = optionalInt(payload, 'offset');
     final binX = optionalInt(payload, 'binX', min: 1) ?? 1;
     final binY = optionalInt(payload, 'binY', min: 1) ?? 1;
     final temperature = optionalDouble(payload, 'temperature');
@@ -794,10 +720,10 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       return jsonOk({'matched': null});
     }
     _logInfo(
-      'Matched dark for remote calibration: ${match.filePath} '
+      'Matched dark for remote calibration: ${match.calibrationPath} '
       '(exposure=${match.exposureTime}s, temp=${match.temperature}C)',
     );
-    return jsonOk({'matched': match.filePath});
+    return jsonOk({'matched': match.calibrationPath});
   }
 
   /// POST /api/calibration/darks/backfill-sizes

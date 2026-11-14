@@ -32,15 +32,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' hide CameraState;
+import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/services/device_exceptions.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
 import 'package:skotiq_core/src/services/switch_channel_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -163,7 +164,7 @@ void main() {
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.connectSwitch(deviceId);
+      await service.connect(DeviceType.switch_, deviceId);
 
       final state = container.read(switchStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -185,7 +186,7 @@ void main() {
       bridge.states = [true, false, true];
 
       final service = container.read(deviceServiceProvider);
-      await service.connectSwitch(deviceId);
+      await service.connect(DeviceType.switch_, deviceId);
 
       final state = container.read(switchStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -217,7 +218,9 @@ void main() {
         SwitchChannelService.switchBridgeGetMax = (_) async =>
             throw StateError('channel snapshot unavailable');
 
-        await container.read(deviceServiceProvider).connectSwitch(deviceId);
+        await container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.switch_, deviceId);
 
         final state = container.read(switchStateProvider);
         expect(state.connectionState, DeviceConnectionState.connected);
@@ -235,7 +238,7 @@ void main() {
 
         final service = container.read(deviceServiceProvider);
         await expectLater(
-          service.connectSwitch(deviceId),
+          service.connect(DeviceType.switch_, deviceId),
           throwsA(
             isA<InvalidDeviceIdException>()
                 .having((e) => e.deviceType, 'deviceType', 'switch')
@@ -249,8 +252,8 @@ void main() {
       },
     );
 
-    test('connectSwitch resets state to disconnected and rethrows on backend '
-        'failure', () async {
+    test('connectSwitch rethrows on backend failure and the slot holds no '
+        'switch but names the one that failed', () async {
       const deviceId = TestFixtures.switchId;
 
       when(
@@ -259,12 +262,14 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       await expectLater(
-        service.connectSwitch(deviceId),
+        service.connect(DeviceType.switch_, deviceId),
         throwsA(isA<Exception>()),
       );
 
       final state = container.read(switchStateProvider);
-      expect(state.connectionState, DeviceConnectionState.disconnected);
+      expect(state.connectionState, DeviceConnectionState.error);
+      expect(state.deviceId, isNull);
+      expect(state.lastError?.deviceId, deviceId);
     });
 
     test('disconnectSwitch clears state when device was connected', () async {
@@ -279,7 +284,7 @@ void main() {
       ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.disconnectSwitch();
+      await service.disconnect(DeviceType.switch_);
 
       expect(
         container.read(switchStateProvider).connectionState,
@@ -294,7 +299,7 @@ void main() {
         'was connected', () async {
       final service = container.read(deviceServiceProvider);
       await expectLater(
-        service.disconnectSwitch(),
+        service.disconnect(DeviceType.switch_),
         throwsA(
           isA<DeviceNotConnectedException>().having(
             (e) => e.deviceType,

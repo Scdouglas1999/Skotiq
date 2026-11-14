@@ -2,8 +2,7 @@
 // altitude plot with the moon, the horizon limit, now and the flip.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show CoordinateFormat, SecondsPrecision, SexagesimalStyle;
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
@@ -85,20 +84,11 @@ class NightTargetSection extends ConsumerWidget {
       <(String, String?)>[
         (
           l10n.text('nightCtlRa'),
-          CoordinateFormat.ra(
-            target.raHours,
-            style: SexagesimalStyle.compactLetters,
-            seconds: SecondsPrecision.integerRounded,
-            wrapHours: true,
-          ),
+          CoordinateFormat.raDense(target.raHours),
         ),
         (
           l10n.text('nightCtlDec'),
-          CoordinateFormat.dec(
-            target.decDegrees,
-            style: SexagesimalStyle.compactLetters,
-            seconds: SecondsPrecision.integerRounded,
-          ).replaceFirst('-', '−'),
+          CoordinateFormat.decDense(target.decDegrees).replaceFirst('-', '−'),
         ),
         (
           l10n.text('nightCtlRotation'),
@@ -268,22 +258,24 @@ class _AltitudeChart extends StatelessWidget {
     final facts = <String>[
       if (target.transitAt case final at?)
         target.transitAltitudeDeg == null
-            ? l10n.text('nightCtlAltSemTransit', params: {'time': nightHm(at)})
+            ? l10n.text('nightCtlAltSemTransit',
+                params: {'time': ClockFormat.hm(at)})
             : l10n.text('nightCtlAltSemTransitAt', params: {
-                'time': nightHm(at),
+                'time': ClockFormat.hm(at),
                 'deg': target.transitAltitudeDeg!.round().toString(),
               }),
       if (target.belowLimitAt case final at?)
         l10n.text('nightCtlAltSemBelow', params: {
           'deg': limit,
-          'time': nightHm(at),
+          'time': ClockFormat.hm(at),
         }),
     ];
     final extras = <String>[
       if (target.moonSet case final at?)
-        l10n.text('nightCtlAltSemMoonSet', params: {'time': nightHm(at)}),
+        l10n.text('nightCtlAltSemMoonSet',
+            params: {'time': ClockFormat.hm(at)}),
       if (target.flipAt case final at?)
-        l10n.text('nightCtlAltSemFlip', params: {'time': nightHm(at)}),
+        l10n.text('nightCtlAltSemFlip', params: {'time': ClockFormat.hm(at)}),
     ];
     final head = l10n.text('nightCtlAltSem', params: {'name': target.name});
     final buffer = StringBuffer(head);
@@ -524,7 +516,8 @@ class _Legend extends StatelessWidget {
           if (target.flipAt case final flip?)
             item(
               colors.warning,
-              l10n.text('nightCtlLegendFlip', params: {'time': nightHm(flip)}),
+              l10n.text('nightCtlLegendFlip',
+                  params: {'time': ClockFormat.hm(flip)}),
               ink: colors.warning,
             ),
           item(

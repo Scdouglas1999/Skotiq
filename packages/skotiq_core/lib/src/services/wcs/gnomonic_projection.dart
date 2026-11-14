@@ -1,20 +1,17 @@
-// Pure-Dart gnomonic (TAN) projection between sky (RA, Dec) and image pixel
-// coordinates. Used by the catalog overlay (F5-CATALOG-OVERLAY) to draw
-// Messier / NGC / IC / bright stars on a plate-solved capture.
-//
-// Why a dedicated module: the legacy `WcsOverlay` in `wcs_overlay.dart`
-// uses a small-angle approximation (no `tan`, no proper denominator) that
-// breaks down at the >1 degree FOV scales most amateur astrographs work at.
-// Catalog overlay needs the real spherical math so a galaxy 30 arcmin off
-// the optical axis still lands on the correct pixel.
+// Gnomonic (TAN) projection between sky (RA, Dec) and image pixel
+// coordinates: the one projection for every overlay and cross-match on a
+// plate-solved frame.
 
 import 'dart:math' as math;
+
+import '../../models/science/science_models.dart' show WcsSolution;
+import '../../models/imaging/sip_terms.dart';
 
 /// Solved World Coordinate System for a captured frame, expressed in the
 /// units the existing `PlateSolveResult` carries:
 ///
-/// - [raHours]      — image-centre right ascension (hours, J2000)
-/// - [decDegrees]   — image-centre declination (degrees, J2000)
+/// - [raHours]      — right ascension of the reference pixel (hours, J2000)
+/// - [decDegrees]   — declination of the reference pixel (degrees, J2000)
 /// - [rotationDeg]  — field rotation in degrees as the native parser reports
 ///                    it (ASTAP's CROTA2: east of north if not flipped).
 /// - [pixelScaleArcsec] — plate scale in arcseconds per pixel.
@@ -24,8 +21,8 @@ import 'dart:math' as math;
 /// values at pixel centres: (0, 0) is the centre of the first stored pixel,
 /// x runs along a row and y along the stored row order. This is the frame the
 /// star detector reports in and the order the preview draws rows in. The
-/// reference pixel is the image centre, `((W - 1) / 2, (H - 1) / 2)`, which is
-/// ASTAP's CRPIX less one.
+/// reference pixel is ([referenceX], [referenceY]) when given, else the image
+/// centre `((W - 1) / 2, (H - 1) / 2)`; either is the FITS CRPIX less one.
 ///
 /// The sky-to-pixel mapping is the standard FITS one: `(xi, eta) = CD (u, v)`
 /// with `(u, v)` the offset from the reference pixel. When the CD matrix is
@@ -47,23 +44,18 @@ class SolvedWcs {
   final double? cd2_1;
   final double? cd2_2;
 
-  /// SIP forward distortion (`A_ORDER`/`B_ORDER` and their coefficient
-  /// lists, row-major `(i, j)` at index `i * (order + 1) + j`). Empty/zero ->
-  /// no forward distortion. AP/BP are the SIP inverse; when absent the
-  /// projection falls back to an iterative Newton correction.
-  final int aOrder;
-  final int bOrder;
-  final List<double> aCoeffs;
-  final List<double> bCoeffs;
-  final int apOrder;
-  final int bpOrder;
-  final List<double> apCoeffs;
-  final List<double> bpCoeffs;
+  /// SIP distortion. Without the inverse (`AP`/`BP`) the projection inverts
+  /// the forward polynomials by Newton iteration.
+  final SipTerms sip;
 
   /// Whether the frame's parity is mirrored (det CD > 0), e.g. one reflection
   /// in a Newtonian. Only consulted when no CD matrix is present, because the
   /// matrix carries its own parity.
   final bool mirrored;
+
+  /// 0-based reference pixel, or null for the image centre.
+  final double? referenceX;
+  final double? referenceY;
 
   const SolvedWcs({
     required this.raHours,
@@ -76,16 +68,129 @@ class SolvedWcs {
     this.cd1_2,
     this.cd2_1,
     this.cd2_2,
-    this.aOrder = 0,
-    this.bOrder = 0,
-    this.aCoeffs = const [],
-    this.bCoeffs = const [],
-    this.apOrder = 0,
-    this.bpOrder = 0,
-    this.apCoeffs = const [],
-    this.bpCoeffs = const [],
+    this.sip = noSipTerms,
     this.mirrored = false,
+    this.referenceX,
+    this.referenceY,
   });
+
+  /// The WCS a FITS header states as CRVAL (degrees), CRPIX (1-based), a CD
+  /// matrix (degrees per pixel) and its SIP terms, or null when a scalar is
+  /// missing or not finite, or the matrix is singular.
+  static SolvedWcs? tryFromFits({
+    required double? crval1,
+    required double? crval2,
+    required double? crpix1,
+    required double? crpix2,
+    required double? cd1_1,
+    required double? cd1_2,
+    required double? cd2_1,
+    required double? cd2_2,
+    SipTerms sip = noSipTerms,
+    required int imageWidth,
+    required int imageHeight,
+  }) {
+    if (crval1 == null ||
+        crval2 == null ||
+        crpix1 == null ||
+        crpix2 == null ||
+        cd1_1 == null ||
+        cd1_2 == null ||
+        cd2_1 == null ||
+        cd2_2 == null) {
+      return null;
+    }
+    final determinant = cd1_1 * cd2_2 - cd1_2 * cd2_1;
+    final scalars = [crval1, crval2, crpix1, crpix2, determinant];
+    if (!scalars.every((v) => v.isFinite) || determinant.abs() <= 1e-30) {
+      return null;
+    }
+    return SolvedWcs(
+      raHours: crval1 / 15.0,
+      decDegrees: crval2,
+      rotationDeg: rotationFromCd(
+        cd1_1: cd1_1,
+        cd1_2: cd1_2,
+        cd2_1: cd2_1,
+        cd2_2: cd2_2,
+      ),
+      pixelScaleArcsec: math.sqrt(determinant.abs()) * 3600.0,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
+      cd1_1: cd1_1,
+      cd1_2: cd1_2,
+      cd2_1: cd2_1,
+      cd2_2: cd2_2,
+      sip: sip,
+      referenceX: crpix1 - 1.0,
+      referenceY: crpix2 - 1.0,
+    );
+  }
+
+  /// A science solve over a [imageWidth] x [imageHeight] frame.
+  factory SolvedWcs.ofSolution(
+    WcsSolution solution, {
+    required int imageWidth,
+    required int imageHeight,
+  }) => SolvedWcs(
+    raHours: solution.raHours,
+    decDegrees: solution.decDegrees,
+    rotationDeg: solution.rotationDegrees,
+    pixelScaleArcsec: solution.pixelScaleArcsecPerPixel,
+    imageWidth: imageWidth,
+    imageHeight: imageHeight,
+    cd1_1: solution.cd1_1,
+    cd1_2: solution.cd1_2,
+    cd2_1: solution.cd2_1,
+    cd2_2: solution.cd2_2,
+    sip: solution.sip,
+  );
+
+  /// The 0-based pixel the solution is referenced at: [referenceX] and
+  /// [referenceY] when given, else the image centre.
+  ({double x, double y}) get referencePixel => (
+    x: referenceX ?? (imageWidth - 1) / 2.0,
+    y: referenceY ?? (imageHeight - 1) / 2.0,
+  );
+
+  /// This solution as a FITS header states it: CRVAL in degrees, the 1-based
+  /// CRPIX, and the CD matrix the projection uses ([effectiveCd]).
+  ({
+    double crval1,
+    double crval2,
+    double crpix1,
+    double crpix2,
+    double cd1_1,
+    double cd1_2,
+    double cd2_1,
+    double cd2_2,
+  })
+  get fitsTerms {
+    final cd = effectiveCd;
+    final reference = referencePixel;
+    return (
+      crval1: raHours * 15.0,
+      crval2: decDegrees,
+      crpix1: reference.x + 1.0,
+      crpix2: reference.y + 1.0,
+      cd1_1: cd.cd1_1,
+      cd1_2: cd.cd1_2,
+      cd2_1: cd.cd2_1,
+      cd2_2: cd.cd2_2,
+    );
+  }
+
+  /// Radius in degrees of a catalog cone search that covers the frame: half
+  /// the diagonal plus a 10 % margin, kept to the range a cone search answers
+  /// usefully.
+  double get coneSearchRadiusDegrees {
+    final halfDiagonal =
+        0.5 *
+        math.sqrt(imageWidth * imageWidth + imageHeight * imageHeight) *
+        pixelScaleArcsec /
+        3600.0;
+    return (halfDiagonal * 1.1).clamp(0.05, 30.0);
+  }
 
   /// True iff a full, finite, invertible CD matrix is present.
   bool get hasCdMatrix =>
@@ -154,11 +259,73 @@ class SolvedWcs {
 
   /// True iff forward SIP coefficients are present.
   bool get hasForwardSip =>
-      aOrder > 0 && bOrder > 0 && aCoeffs.isNotEmpty && bCoeffs.isNotEmpty;
+      sip.aOrder > 0 &&
+      sip.bOrder > 0 &&
+      sip.aCoeffs.isNotEmpty &&
+      sip.bCoeffs.isNotEmpty;
 
   /// True iff inverse SIP coefficients are present.
   bool get hasInverseSip =>
-      apOrder > 0 && bpOrder > 0 && apCoeffs.isNotEmpty && bpCoeffs.isNotEmpty;
+      sip.apOrder > 0 &&
+      sip.bpOrder > 0 &&
+      sip.apCoeffs.isNotEmpty &&
+      sip.bpCoeffs.isNotEmpty;
+
+  /// The same solution over the same frame: every field, coefficients
+  /// included.
+  @override
+  bool operator ==(Object other) =>
+      other is SolvedWcs &&
+      other.raHours == raHours &&
+      other.decDegrees == decDegrees &&
+      other.rotationDeg == rotationDeg &&
+      other.pixelScaleArcsec == pixelScaleArcsec &&
+      other.imageWidth == imageWidth &&
+      other.imageHeight == imageHeight &&
+      other.cd1_1 == cd1_1 &&
+      other.cd1_2 == cd1_2 &&
+      other.cd2_1 == cd2_1 &&
+      other.cd2_2 == cd2_2 &&
+      other.mirrored == mirrored &&
+      other.referenceX == referenceX &&
+      other.referenceY == referenceY &&
+      other.sip.aOrder == sip.aOrder &&
+      other.sip.bOrder == sip.bOrder &&
+      other.sip.apOrder == sip.apOrder &&
+      other.sip.bpOrder == sip.bpOrder &&
+      _sameValues(other.sip.aCoeffs, sip.aCoeffs) &&
+      _sameValues(other.sip.bCoeffs, sip.bCoeffs) &&
+      _sameValues(other.sip.apCoeffs, sip.apCoeffs) &&
+      _sameValues(other.sip.bpCoeffs, sip.bpCoeffs);
+
+  @override
+  int get hashCode => Object.hash(
+    raHours,
+    decDegrees,
+    rotationDeg,
+    pixelScaleArcsec,
+    imageWidth,
+    imageHeight,
+    cd1_1,
+    cd1_2,
+    cd2_1,
+    cd2_2,
+    mirrored,
+    referenceX,
+    referenceY,
+    sip.aOrder,
+    Object.hashAll(sip.aCoeffs),
+    Object.hashAll(sip.bCoeffs),
+  );
+
+  static bool _sameValues(List<double> a, List<double> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 
   /// True iff every WCS field is finite and the plate scale is positive.
   /// The overlay must refuse to project against a zero pixel scale: dividing
@@ -235,7 +402,6 @@ class SkyBoundingBox {
   bool containsDecDeg(double decDeg) =>
       decDeg >= decMinDeg && decDeg <= decMaxDeg;
 
-  /// Whether the given coordinate falls within the bounding box.
   bool contains({required double raDeg, required double decDeg}) =>
       containsDecDeg(decDeg) && containsRaDeg(raDeg);
 }
@@ -275,7 +441,7 @@ class GnomonicProjection {
   final double _invCd2_1;
   final double _invCd2_2;
 
-  /// 0-based reference pixel (the image centre).
+  /// 0-based reference pixel.
   final double _refX;
   final double _refY;
 
@@ -300,8 +466,8 @@ class GnomonicProjection {
       _invCd1_2 = -_cd1_2 / (_cd1_1 * _cd2_2 - _cd1_2 * _cd2_1),
       _invCd2_1 = -_cd2_1 / (_cd1_1 * _cd2_2 - _cd1_2 * _cd2_1),
       _invCd2_2 = _cd1_1 / (_cd1_1 * _cd2_2 - _cd1_2 * _cd2_1),
-      _refX = (wcs.imageWidth - 1) / 2.0,
-      _refY = (wcs.imageHeight - 1) / 2.0;
+      _refX = wcs.referencePixel.x,
+      _refY = wcs.referencePixel.y;
 
   /// Project (RA, Dec) to image pixels using the TAN (gnomonic) projection.
   ///
@@ -347,8 +513,8 @@ class GnomonicProjection {
     var u = x - _refX;
     var v = y - _refY;
     if (wcs.hasForwardSip) {
-      final fu = _sipPoly(wcs.aOrder, wcs.aCoeffs, u, v);
-      final fv = _sipPoly(wcs.bOrder, wcs.bCoeffs, u, v);
+      final fu = _sipPoly(wcs.sip.aOrder, wcs.sip.aCoeffs, u, v);
+      final fv = _sipPoly(wcs.sip.bOrder, wcs.sip.bCoeffs, u, v);
       u += fu;
       v += fv;
     }
@@ -382,6 +548,12 @@ class GnomonicProjection {
       decDegrees: decRad * 180.0 / math.pi,
     );
   }
+
+  /// Sky position of the image centre.
+  ({double raDegrees, double decDegrees}) get imageCentre => pixelToWorld(
+    x: (wcs.imageWidth - 1) / 2.0,
+    y: (wcs.imageHeight - 1) / 2.0,
+  );
 
   /// Direction of north and east on the image at the reference pixel, as
   /// unit vectors in pixel coordinates (+x along a row, +y along the stored
@@ -558,15 +730,15 @@ class GnomonicProjection {
   (double, double) _undistortIntermediate(double a, double b) {
     if (wcs.hasInverseSip) {
       return (
-        a + _sipPoly(wcs.apOrder, wcs.apCoeffs, a, b),
-        b + _sipPoly(wcs.bpOrder, wcs.bpCoeffs, a, b),
+        a + _sipPoly(wcs.sip.apOrder, wcs.sip.apCoeffs, a, b),
+        b + _sipPoly(wcs.sip.bpOrder, wcs.sip.bpCoeffs, a, b),
       );
     }
     var u = a;
     var w = b;
     for (var iter = 0; iter < 8; iter++) {
-      final fu = u + _sipPoly(wcs.aOrder, wcs.aCoeffs, u, w);
-      final fw = w + _sipPoly(wcs.bOrder, wcs.bCoeffs, u, w);
+      final fu = u + _sipPoly(wcs.sip.aOrder, wcs.sip.aCoeffs, u, w);
+      final fw = w + _sipPoly(wcs.sip.bOrder, wcs.sip.bCoeffs, u, w);
       u -= fu - a;
       w -= fw - b;
     }

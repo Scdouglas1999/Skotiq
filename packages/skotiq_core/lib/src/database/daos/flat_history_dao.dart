@@ -193,7 +193,6 @@ class FlatHistoryDao extends DatabaseAccessor<SkotiqDatabase>
   /// Clear old history entries (keep last N per filter)
   Future<void> pruneHistory({int keepPerFilter = 50}) async {
     await transaction(() async {
-      // Get distinct filter names
       final filters =
           await (selectOnly(flatHistory, distinct: true)
                 ..addColumns([flatHistory.filterName]))
@@ -201,7 +200,6 @@ class FlatHistoryDao extends DatabaseAccessor<SkotiqDatabase>
               .get();
 
       for (final filter in filters) {
-        // Get IDs to keep
         final keepIds =
             await (select(flatHistory)
                   ..where((t) => t.filterName.equals(filter))
@@ -211,7 +209,6 @@ class FlatHistoryDao extends DatabaseAccessor<SkotiqDatabase>
                 .get();
 
         if (keepIds.isNotEmpty) {
-          // Delete entries not in keep list
           await (delete(flatHistory)..where(
                 (t) => t.filterName.equals(filter) & t.id.isNotIn(keepIds),
               ))

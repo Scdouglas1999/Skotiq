@@ -13,17 +13,100 @@
 //!      Replay screen can render an audit trail of operator actions.
 //!
 //! What is deliberately NOT here:
-//!   * Steady-state config pushes (`update_dither_config`, `update_location`,
-//!     …) — those live in `runtime_config.rs` because they mutate the
-//!     [`RuntimeConfig`] handle rather than driving the executor task.
+//!   * The operator's settings: one [`RunConfig`], changed through
+//!     [`super::ExecutorHandle::apply_run_config`] rather than by driving the
+//!     executor task.
 //!   * Recovery state-machine accessors (`current_recovery`,
 //!     `recovery_history`) — those live in `recovery.rs`. The operator
 //!     `recovery_try_now` / `recovery_abort` *commands* live here because
 //!     they are lifecycle gestures (drive the loop), not state reads.
 
 use super::{ExecutorCommand, SequenceExecutor};
-use crate::NodeId;
+use crate::decision::{DecisionCategory, DecisionEvent, RunStop};
+
+/// Who asked a run to stop.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StopOrigin {
+    /// A human.
+    Operator,
+    /// The autopilot, on an unattended re-plan.
+    Scheduler,
+    /// Any other named part of the system (a failed-launch rollback, say): a
+    /// stop nobody commanded.
+    System(String),
+}
+
+impl StopOrigin {
+    /// Read the origin as the app sends it: nothing or `"operator"` is a
+    /// human, `"scheduler"` the autopilot, any other name a system stop.
+    pub fn from_wire(origin: Option<&str>) -> Self {
+        match origin {
+            None | Some("operator") => Self::Operator,
+            Some("scheduler") => Self::Scheduler,
+            Some(other) => Self::System(other.to_string()),
+        }
+    }
+
+    fn wire_name(&self) -> &str {
+        match self {
+            Self::Operator => "operator",
+            Self::Scheduler => "scheduler",
+            Self::System(name) => name,
+        }
+    }
+
+    fn decision_summary(&self) -> &'static str {
+        match self {
+            Self::Operator => "Operator: stop",
+            Self::Scheduler => "Autopilot: stop",
+            Self::System(_) => "System: stop",
+        }
+    }
+
+    fn run_stop(&self) -> RunStop {
+        match self {
+            Self::Operator => RunStop::Operator,
+            Self::Scheduler => RunStop::Autopilot,
+            Self::System(name) => RunStop::System {
+                origin: name.clone(),
+            },
+        }
+    }
+}
+use crate::{ExecutorState, NodeId};
 use std::sync::atomic::Ordering;
+use tokio::sync::{mpsc, watch};
+
+/// A run asked to stop, to wait for until it has ended.
+#[must_use = "a stop is confirmed only once the run has ended"]
+pub struct RunStopping {
+    /// `None` when no run was ever started.
+    completion: Option<watch::Receiver<bool>>,
+    /// The run's command channel, held open until the run has ended. A closed
+    /// channel ends the run's command handler, and the run then stops polling
+    /// its trigger monitor while a dawn park's shutdown steps are still
+    /// running in it.
+    commands: Option<mpsc::Sender<ExecutorCommand>>,
+}
+
+impl RunStopping {
+    /// Wait until the run has ended, its hardware cancelled and its rig put
+    /// away as its stopping phase requires.
+    pub async fn finished(self) -> Result<(), String> {
+        let _commands = self.commands;
+        match self.completion {
+            Some(mut completion) => completion
+                .wait_for(|ended| *ended)
+                .await
+                .map(|_| ())
+                .map_err(|_| {
+                    "Executor task ended without confirming hardware cancellation cleanup"
+                        .to_string()
+                }),
+            None => Ok(()),
+        }
+    }
+}
 
 impl SequenceExecutor {
     /// Pause the sequence. The currently-running instruction (e.g. an in-
@@ -34,7 +117,7 @@ impl SequenceExecutor {
     /// sequence is a no-op (the channel send is dropped silently by the
     /// command loop's `Pause` arm).
     pub async fn pause(&self) -> Result<(), String> {
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::Pause)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -46,71 +129,80 @@ impl SequenceExecutor {
     /// Resume from a `Paused` state. The executor task wakes via the shared
     /// `resume_notify` and the node tree picks up at the next walk step.
     pub async fn resume(&self) -> Result<(), String> {
-        if let Some(tx) = &self.command_tx {
-            tx.send(ExecutorCommand::Resume)
-                .await
-                .map_err(|e| e.to_string())?;
-        }
-        self.emit_manual_intervention("resume", serde_json::json!({}));
-        Ok(())
+        self.handle().resume().await
+    }
+
+    /// Whether a run is under way: started and not yet at its end. Such a run
+    /// announces its own end.
+    pub fn has_run_in_flight(&self) -> bool {
+        matches!(
+            self.run_state.get(),
+            ExecutorState::Running
+                | ExecutorState::Paused
+                | ExecutorState::Recovering
+                | ExecutorState::Stopping
+        )
     }
 
     /// Stop the sequence. Sets the shared cancellation flag *before* sending
     /// the channel command so the active instruction enters its hardware
     /// cancellation path immediately, then waits for the supervised executor
     /// task to finish that cleanup before confirming termination. Only after
-    /// that acknowledgment is the local `command_tx` dropped.
+    /// that acknowledgment is the run's command sender dropped.
     pub async fn stop(&mut self) -> Result<(), String> {
-        self.stop_with_origin(None).await
+        self.stop_with_origin(StopOrigin::Operator).await
     }
 
-    /// [`Self::stop`] with the CALLER'S identity. The stop decision is what
+    /// [`Self::stop`] with the caller's identity. The stop decision is what
     /// the dashboard's stop row claims "Stopped by request" off, and the
-    /// scheduler drives this same path on unattended re-plans — an autopilot
+    /// scheduler drives this same path on unattended re-plans: an autopilot
     /// stop must not wear the operator's evidence.
-    /// `origin` of `None` or `"operator"` is a human; `"scheduler"` is the
-    /// autopilot.
-    pub async fn stop_with_origin(&mut self, origin: Option<&str>) -> Result<(), String> {
-        self.is_cancelled.store(true, Ordering::Release);
+    pub async fn stop_with_origin(&mut self, origin: StopOrigin) -> Result<(), String> {
+        self.request_stop(origin).await.finished().await
+    }
 
-        if let Some(tx) = &self.command_tx {
+    /// Ask the run to stop and hand back its end to wait for.
+    ///
+    /// The run's stopping phase can take minutes: an exposure being aborted,
+    /// or the plan's shutdown steps a dawn park started, which a stop does not
+    /// cut short. A caller that shares the executor behind a lock waits on the
+    /// returned [`RunStopping`] after releasing it, so status reads and other
+    /// requests are answered meanwhile and see the run as `Stopping`.
+    pub async fn request_stop(&mut self, origin: StopOrigin) -> RunStopping {
+        self.is_cancelled.store(true, Ordering::Release);
+        // The run's command handler is not listening while a trigger's
+        // shutdown steps finish, so the state is turned here as well.
+        self.run_state.begin_stopping();
+
+        if let Some(tx) = self.commands.sender() {
             let _ = tx.send(ExecutorCommand::Stop).await;
         }
 
-        match origin {
-            Some("scheduler") => {
-                // Not a manual intervention: record it as the system event
-                // it is, under the normal decision-logging gate (autopilot
-                // noise may be silenced; operator evidence may not).
-                self.emit_lifecycle_system_decision(
-                    "Autopilot: stop",
-                    serde_json::json!({ "origin": "scheduler", "action": "stop" }),
-                );
+        match &origin {
+            // The one decision that is never silenceable: it is the only
+            // evidence the stop was human rather than a safety abort.
+            // It is never silenced by the decision-logging preference, or a
+            // press with logging off would read the same as an unattended
+            // weather abort.
+            StopOrigin::Operator => {
+                let row = self
+                    .handle()
+                    .manual_intervention_row("stop", serde_json::json!({}))
+                    .with_stop(origin.run_stop());
+                let _ = self.decision_tx.send(row);
             }
-            Some(other) if other != "operator" => {
-                // Any other named system origin (e.g. a failed-launch
-                // rollback): a stop nobody commanded. Gated system event,
-                // and the feed's stop row stays cause-neutral.
-                self.emit_lifecycle_system_decision(
-                    "System: stop",
-                    serde_json::json!({ "origin": other, "action": "stop" }),
-                );
-            }
-            // None / "operator": a human's stop — the one decision that is
-            // never silenceable, because it is the only evidence the stop
-            // was human rather than a safety abort.
-            _ => self.emit_manual_intervention("stop", serde_json::json!({})),
+            // What the system did, under the normal decision-logging gate.
+            StopOrigin::Scheduler | StopOrigin::System(_) => self.emit_lifecycle_system_decision(
+                origin.decision_summary(),
+                serde_json::json!({ "origin": origin.wire_name(), "action": "stop" }),
+                origin.run_stop(),
+            ),
         }
 
-        let completion_result = if let Some(completion_rx) = self.run_completion_rx.take() {
-            completion_rx.await.map_err(|_| {
-                "Executor task ended without confirming hardware cancellation cleanup".to_string()
-            })
-        } else {
-            Ok(())
-        };
-        self.command_tx = None;
-        completion_result
+        RunStopping {
+            completion: self.run_completion_rx.clone(),
+            commands: self.commands.take(),
+        }
     }
 
     /// Replay Debug — emit a [`crate::decision::DecisionCategory::ManualIntervention`]
@@ -125,52 +217,31 @@ impl SequenceExecutor {
     /// `runtime_config.rs` emit their own `RuntimeConfigUpdated` event
     /// instead.
     pub(super) fn emit_manual_intervention(&self, action: &str, details: serde_json::Value) {
-        // The "stop" decision is the ONLY event that distinguishes an
-        // operator's stop from a safety abort (every cancellation path emits
-        // the same cancel-notice pair), and the dashboard's stop row claims
-        // "Stopped by request" solely off it. Evidence of an operator action
-        // must not be silenceable by the decision-logging preference, or a
-        // press with logging off renders byte-identical to an unattended
-        // weather abort.
-        if action != "stop" && !self.decision_logging_enabled() {
-            return;
-        }
-        let summary = format!("Operator: {}", action);
-        let mut full = details;
-        if let serde_json::Value::Object(ref mut m) = full {
-            m.insert(
-                "action".to_string(),
-                serde_json::Value::String(action.to_string()),
-            );
-        } else {
-            full = serde_json::json!({ "action": action, "data": full });
-        }
-        let ev = crate::decision::DecisionEvent {
-            timestamp: chrono::Utc::now(),
-            category: crate::decision::DecisionCategory::ManualIntervention,
-            summary,
-            details: full,
-            node_id: None,
-            sequence_run_id: self.active_sequence_run_id(),
-        };
-        let _ = self.decision_tx.send(ev);
+        self.handle().emit_manual_intervention(action, details);
     }
 
     /// Replay Debug — emit a [`crate::decision::DecisionCategory::SystemEvent`]
     /// decision from a lifecycle method. Unlike the operator's stop
     /// decision this respects the decision-logging gate: it records what
     /// the SYSTEM did, not evidence of a human action.
-    fn emit_lifecycle_system_decision(&self, summary: &str, details: serde_json::Value) {
+    fn emit_lifecycle_system_decision(
+        &self,
+        summary: &str,
+        details: serde_json::Value,
+        stop: RunStop,
+    ) {
         if !self.decision_logging_enabled() {
             return;
         }
-        let ev = crate::decision::DecisionEvent {
+        let ev = DecisionEvent {
             timestamp: chrono::Utc::now(),
-            category: crate::decision::DecisionCategory::SystemEvent,
+            category: DecisionCategory::SystemEvent,
             summary: summary.to_string(),
             details,
             node_id: None,
             sequence_run_id: self.active_sequence_run_id(),
+            notice: None,
+            stop: Some(stop),
         };
         let _ = self.decision_tx.send(ev);
     }
@@ -197,7 +268,7 @@ impl SequenceExecutor {
         message: Option<String>,
         structured_detail_json: Option<String>,
     ) -> Result<(), String> {
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::PluginNodeFinished {
                 node_id,
                 success,
@@ -215,7 +286,7 @@ impl SequenceExecutor {
     /// Skip the running step: the instruction in progress (an exposure is
     /// aborted) ends as Skipped and the run continues with the next step.
     pub async fn skip(&self) -> Result<(), String> {
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::Skip)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -233,7 +304,7 @@ impl SequenceExecutor {
         // Direct atomic write so even an executor without an active
         // command channel still observes the request (e.g. tests).
         self.recovery_signals.request_try_now();
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::RecoveryTryNow)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -247,7 +318,7 @@ impl SequenceExecutor {
     /// executor is not in `Recovering`.
     pub async fn recovery_abort(&self) -> Result<(), String> {
         self.recovery_signals.request_abort();
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::RecoveryAbort)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -265,7 +336,7 @@ impl SequenceExecutor {
     /// otherwise be dropped without the caller knowing.
     pub async fn skip_to_node(&self, node_id: NodeId) -> Result<(), String> {
         let node_id_for_decision = node_id.clone();
-        if let Some(tx) = &self.command_tx {
+        if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::SkipToNode(node_id))
                 .await
                 .map_err(|e| e.to_string())?;

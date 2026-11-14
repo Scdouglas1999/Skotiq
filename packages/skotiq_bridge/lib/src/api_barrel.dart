@@ -1,14 +1,11 @@
 /// Aggregate re-export of the split `api/` subdir. FRB regenerates the
 /// individual `api/*.dart` files; this barrel is the stable hand-written
-/// surface consumers such as `bridge_stub.dart` import from.
+/// surface the package exports.
 library;
 
-export 'api.dart';
-export 'api/api_version.dart';
 export 'api/connection.dart';
-export 'api/connection/alpaca_connections.dart';
-export 'api/connection/ascom_connections.dart';
 export 'api/darkroom/entrypoints.dart';
+export 'api/defect_map.dart';
 export 'api/depthlock.dart';
 export 'api/devices/camera.dart';
 export 'api/devices/cover_calibrator.dart';
@@ -17,12 +14,7 @@ export 'api/devices/environment.dart';
 export 'api/devices/filter_wheel.dart';
 export 'api/devices/focuser.dart';
 export 'api/devices/mount.dart';
-export 'api/devices/simulation/camera.dart';
-export 'api/devices/simulation/environment.dart';
-export 'api/devices/simulation/filter_wheel.dart';
-export 'api/devices/simulation/focuser.dart';
-export 'api/devices/simulation/mount.dart';
-export 'api/devices/simulation/rotator.dart';
+export 'api/devices/rotator.dart';
 export 'api/devices/switch.dart';
 export 'api/diagnostics.dart';
 export 'api/discovery.dart';
@@ -30,11 +22,15 @@ export 'api/event_stream.dart';
 export 'api/finishing_analyze.dart';
 export 'api/finishing_combine.dart';
 export 'api/finishing_enhance.dart';
+export 'api/frame_file.dart';
+export 'api/guiding.dart';
 export 'api/heartbeat.dart';
 export 'api/hotplug.dart';
 export 'api/imaging.dart';
 export 'api/init.dart';
+export 'api/live_stacking.dart';
 export 'api/mosaic.dart';
+export 'api/mount_guard.dart';
 export 'api/phd2.dart';
 export 'api/plate_solve.dart';
 export 'api/polar_alignment/entrypoints.dart';
@@ -46,9 +42,7 @@ export 'api/sequencer.dart';
 export 'api/sequencer/event_bridge.dart';
 export 'api/sequencer/lifecycle.dart';
 export 'api/sequencer/mosaic.dart';
-export 'api/sequencer/node_factory.dart';
 export 'api/sequencer/runtime_config.dart';
-export 'api/session.dart';
 export 'api/sky_atlas.dart';
 export 'api/sky_atlas/frames.dart';
 export 'api/sky_atlas/regions.dart';

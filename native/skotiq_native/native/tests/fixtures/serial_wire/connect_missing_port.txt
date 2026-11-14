@@ -1,0 +1,7 @@
+skywatcher id=native:skywatcher:_dev_skotiq-no-such-port
+  -> Err(SdkError("Failed to open serial port: No such file or directory"))
+ioptron id=native:ioptron:_dev_skotiq-no-such-port
+  -> Err(SdkError("Failed to open serial port: No such file or directory"))
+lx200 id=native:onstep:_dev_skotiq-no-such-port
+  -> Err(SdkError("Failed to open serial port: No such file or directory"))
+skywatcher windows-style id=native:skywatcher:COM4_sub

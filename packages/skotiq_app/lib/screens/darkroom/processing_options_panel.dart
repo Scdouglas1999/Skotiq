@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class ProcessingOptionsPanel extends StatelessWidget {
@@ -12,13 +15,15 @@ class ProcessingOptionsPanel extends StatelessWidget {
       this.enabled = true,
       this.width,
       this.height,
-      this.frames});
+      this.frames,
+      this.title = 'Processing'});
   final DarkroomProcessingOptions value;
   final ValueChanged<DarkroomProcessingOptions> onChanged;
   final bool enabled;
   final int? width;
   final int? height;
   final int? frames;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +31,9 @@ class ProcessingOptionsPanel extends StatelessWidget {
     final style = SkotiqTypography.bodySm
         .copyWith(color: context.skotiqColors.textSecondary);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Processing', style: SkotiqTypography.bodyStrong),
+      Text(title,
+          style: SkotiqTypography.bodyStrong
+              .copyWith(color: context.skotiqColors.textPrimary)),
       const SizedBox(height: 8),
       Text('Normalization', style: style),
       SkotiqDropdown(
@@ -82,7 +89,7 @@ class ProcessingOptionsPanel extends StatelessWidget {
         if (width != null && height != null)
           Text(
               '${width! * scale} × ${height! * scale} pixels before cropping.'
-              '${frames == null ? '' : ' About ${(width! * height! * scale * scale * frames! * 8 / (1 << 30)).toStringAsFixed(1)} GB of working files for $frames monochrome frames, plus masters.'}',
+              '${frames == null ? '' : ' About ${ByteFormat.size(width! * height! * scale * scale * frames! * 8)} of working files for $frames monochrome frames, plus masters.'}',
               style: style),
       ],
     ]);
@@ -105,11 +112,11 @@ class _ProcessingDefaultsPanelState
   Widget build(BuildContext context) {
     final settings = ref.watch(darkroomProcessingOptionsProvider);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const SizedBox(height: 12),
-      const Text('Defaults for new builds'),
+      const SizedBox(height: SkotiqTokens.spaceMd),
       if (_error != null || settings.hasError)
-        Text(_error ?? '${settings.error}'),
+        Text(_error ?? userFacingError(settings.error!)),
       ProcessingOptionsPanel(
+          title: 'Processing for new builds',
           value: settings.valueOrNull ?? const DarkroomProcessingOptions(),
           enabled: settings.hasValue && !_saving,
           onChanged: (value) async {
@@ -124,8 +131,8 @@ class _ProcessingDefaultsPanelState
               ref.invalidate(darkroomProcessingOptionsProvider);
             } catch (e) {
               if (mounted) {
-                setState(
-                    () => _error = 'Could not save processing options: $e');
+                setState(() => _error =
+                    'Could not save processing options: ${userFacingError(e)}');
               }
             } finally {
               if (mounted) setState(() => _saving = false);

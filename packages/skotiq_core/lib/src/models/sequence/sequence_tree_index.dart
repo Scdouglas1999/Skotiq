@@ -136,6 +136,49 @@ class SequenceTreeIndex {
     return out;
   }
 
+  /// Whether a run executes [nodeId]: the node and every ancestor are
+  /// enabled. A disabled container switches off everything under it, the way
+  /// the native sequencer skips it, so nothing under it may block, check or
+  /// pre-flight a run. False for an id not in the sequence.
+  ///
+  /// The one rule for "enabled" in a plan; see [Sequence.enabledNodes].
+  bool isEnabled(String nodeId) {
+    final known = _enabled[nodeId];
+    if (known != null) return known;
+    final chain = <String>[];
+    var verdict = true;
+    String? cursor = nodeId;
+    while (cursor != null) {
+      final cached = _enabled[cursor];
+      if (cached != null) {
+        verdict = cached;
+        break;
+      }
+      final node = _nodes[cursor];
+      if (node == null) {
+        verdict = cursor != nodeId;
+        break;
+      }
+      // A cycle (a corrupt import) never reaches a root: nothing on it runs.
+      if (chain.contains(cursor)) {
+        verdict = false;
+        break;
+      }
+      chain.add(cursor);
+      if (!node.isEnabled) {
+        verdict = false;
+        break;
+      }
+      cursor = _parentById[cursor];
+    }
+    for (final id in chain) {
+      _enabled[id] = verdict;
+    }
+    return _enabled[nodeId] ?? verdict;
+  }
+
+  final Map<String, bool> _enabled = {};
+
   /// Count of descendants of [nodeId]; equivalent to `descendantsOf(id).length`
   /// without materializing the intermediate list.
   int countDescendants(String nodeId) => descendantsOf(nodeId).length;

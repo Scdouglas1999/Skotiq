@@ -22,6 +22,7 @@ import 'package:skotiq_core/src/providers/polar_alignment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend initial) : super() {

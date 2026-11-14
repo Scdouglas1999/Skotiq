@@ -3,8 +3,9 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/services/hardware_presets/hardware_presets_service.dart';
 
 /// End-to-end provider test for the hardware-presets library.
@@ -90,13 +91,10 @@ void main() {
       expect(live.allTelescopes().first, custom);
       expect(live.allTelescopes().length, builtInTelescopePresets.length + 1);
 
-      // The convenience read provider sees it too.
-      expect(container.read(telescopePresetsProvider).first, custom);
-
       // The JSON blob was actually written under the versioned key.
       final settingsDao = container.read(settingsDaoProvider);
       final raw = await settingsDao.getSetting(
-        HardwarePresetsService.telescopeOverridesSettingKey,
+        'hardware_presets.telescopes.v1',
       );
       expect(raw, isNotNull);
       final decoded = HardwarePresetsService.telescopeOverridesFromJson(
@@ -134,7 +132,10 @@ void main() {
     );
     await notifier.saveCameraPreset(custom);
 
-    expect(container.read(cameraDefaultsPresetsProvider).first, custom);
+    expect(
+      container.read(hardwarePresetsServiceProvider).allCameras().first,
+      custom,
+    );
 
     final reloaded = await readFromFreshContainer((_) async {});
     expect(reloaded.allCameras().first, custom);
@@ -322,7 +323,7 @@ void main() {
       // confirm the load future rejects rather than silently falling back.
       final settingsDao = container.read(settingsDaoProvider);
       await settingsDao.setSetting(
-        HardwarePresetsService.telescopeOverridesSettingKey,
+        'hardware_presets.telescopes.v1',
         jsonEncode({'not': 'a list'}),
       );
 

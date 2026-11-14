@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 
 import '../backend/skotiq_backend.dart';
 import '../backend/skotiq_exception.dart'
@@ -13,7 +14,8 @@ import '../providers/equipment_provider.dart';
 import '../providers/imaging_provider.dart' show coolingSettingsProvider;
 import '../providers/sequence/sequence_progress.dart'
     show sequenceExecutionStateProvider;
-import 'logging_service.dart';
+import '../models/backend/backend_types.dart';
+import '../providers/logging_service_provider.dart';
 
 /// What a call to [CameraWarmupController.start] did.
 enum CameraWarmupOutcome {
@@ -69,7 +71,6 @@ class CameraWarmupController {
 
   _WarmupRun? _run;
 
-  /// True while a warm-up is in progress.
   bool get isWarming => _run != null;
 
   /// Begin a gradual warm-up, or report why there is nothing to warm.
@@ -127,15 +128,19 @@ class CameraWarmupController {
     final status = await _readStatus(deviceId);
     if (run.canceled) return CameraWarmupOutcome.canceled;
 
-    final coolerOn = status?.coolerOn ?? cameraState.isCooling;
+    // A cooler the camera cannot report is warmed like one that is on: it
+    // may be cooling from an earlier session, and warming an idle one is
+    // harmless.
+    final coolerOn = status == null ? cameraState.coolerOn : status.coolerOn;
     final coolerPower = status?.coolerPower ?? cameraState.coolerPower;
     final sensorTemp = status?.sensorTemp ?? cameraState.temperature;
     final tempText = sensorTemp?.toStringAsFixed(1) ?? '?';
 
-    if (!coolerOn) {
+    if (coolerOn == false) {
       finishEarly();
       notifier.setCooling(false);
-      _log(
+      logSafely(
+        _ref,
         (l) => l.info(
           'Warm-up not needed: the cooler is already off '
           '(sensor $tempText°C), nothing to warm',
@@ -153,7 +158,8 @@ class CameraWarmupController {
         finishEarly();
       }
       _markCoolerOff();
-      _log(
+      logSafely(
+        _ref,
         (l) => l.info(
           'Warm-up not needed: the cooler was idle '
           '(${coolerPower.toStringAsFixed(0)}% power, sensor $tempText°C) '
@@ -170,12 +176,13 @@ class CameraWarmupController {
     final stepPerTick = ratePerMin / 6.0; // six 10-second ticks per minute
     const maxWarmingDuration = Duration(minutes: 30);
 
-    _log(
+    logSafely(
+      _ref,
       (l) => l.info(
-        'Starting gradual warm-up from ${startTemp.toStringAsFixed(1)}°C '
+        'Starting gradual warm-up from ${formatCelsius(startTemp)} '
         'at ${ratePerMin.toStringAsFixed(1)}°C/min (power-based stopping); '
         'the cooler was holding '
-        '${run.priorSetpoint!.toStringAsFixed(1)}°C',
+        '${formatCelsius(run.priorSetpoint!)}',
       ),
     );
 
@@ -196,7 +203,7 @@ class CameraWarmupController {
       await _command(run, enabled: false);
       if (run.canceled) return;
       _markCoolerOff();
-      _log((l) => l.info(describe(power)));
+      logSafely(_ref, (l) => l.info(describe(power)));
     }
 
     // One tick of the warm-up state machine. Returns true when warming is
@@ -209,13 +216,17 @@ class CameraWarmupController {
     Future<bool> runTick() async {
       final state = _ref.read(cameraStateProvider);
       if (state.connectionState != DeviceConnectionState.connected) {
-        _log((l) => l.warning('Warm-up stopped: camera disconnected'));
+        logSafely(
+          _ref,
+          (l) => l.warning('Warm-up stopped: camera disconnected'),
+        );
         return true;
       }
       if (state.deviceId != deviceId) {
         // The camera was swapped or reconnected under a different id; the
         // set-points we are pushing would target the wrong device.
-        _log(
+        logSafely(
+          _ref,
           (l) => l.warning(
             'Warm-up stopped: camera device id changed '
             '($deviceId -> ${state.deviceId})',
@@ -224,7 +235,8 @@ class CameraWarmupController {
         return true;
       }
       if (_runOwnsHardware()) {
-        _log(
+        logSafely(
+          _ref,
           (l) => l.warning(
             'Warm-up stopped: a sequence run took over the camera; the '
             'cooler is left to the run',
@@ -235,9 +247,10 @@ class CameraWarmupController {
 
       final live = await _readStatus(deviceId);
       if (run.canceled) return true;
-      if (live != null && !live.coolerOn) {
+      if (live != null && live.coolerOn == false) {
         _markCoolerOff();
-        _log(
+        logSafely(
+          _ref,
           (l) => l.info(
             'Warm-up ended: the cooler was switched off by another command '
             '(sensor ${live.sensorTemp?.toStringAsFixed(1) ?? "?"}°C)',
@@ -258,7 +271,8 @@ class CameraWarmupController {
                 'Sensor: ${temp?.toStringAsFixed(1) ?? "?"}°C',
           );
         } catch (e) {
-          _log(
+          logSafely(
+            _ref,
             (l) => l.error('Failed to disable cooler at end of warm-up: $e'),
           );
           // Keep the routine active and retry. Declaring completion here
@@ -277,7 +291,8 @@ class CameraWarmupController {
                 '${temp?.toStringAsFixed(1) ?? "?"}°C',
           );
         } catch (e) {
-          _log(
+          logSafely(
+            _ref,
             (l) =>
                 l.error('Failed to disable cooler after warm-up timeout: $e'),
           );
@@ -300,10 +315,11 @@ class CameraWarmupController {
         await _command(run, enabled: true, targetTemp: currentSetpoint);
         if (!run.canceled) notifier.setTargetTemp(currentSetpoint);
       } catch (e) {
-        _log(
+        logSafely(
+          _ref,
           (l) => l.error(
             'Error during warm-up step '
-            '(setpoint ${currentSetpoint.toStringAsFixed(1)}°C): $e',
+            '(setpoint ${formatCelsius(currentSetpoint)}): $e',
           ),
         );
         // Not fatal: the next tick tries again, and the 30-minute safety
@@ -322,7 +338,7 @@ class CameraWarmupController {
           // A throwing tick must never silently kill the loop with the
           // cooler still enabled: log and retry next tick; the 30-minute
           // safety limit bounds the worst case.
-          _log((l) => l.error('Warm-up tick failed: $e'));
+          logSafely(_ref, (l) => l.error('Warm-up tick failed: $e'));
           finished = false;
         }
         if (run.canceled) return;
@@ -393,7 +409,10 @@ class CameraWarmupController {
     try {
       return await _bounded(_backend.getCameraStatus(deviceId));
     } on Object catch (e) {
-      _log((l) => l.warning('Warm-up could not read camera status: $e'));
+      logSafely(
+        _ref,
+        (l) => l.warning('Warm-up could not read camera status: $e'),
+      );
       return null;
     }
   }
@@ -427,11 +446,15 @@ class CameraWarmupController {
     run.settled = true;
     final prior = run.priorSetpoint;
     if (!run.seeded || prior == null) {
-      _log((l) => l.info('Warm-up canceled before it changed the cooler'));
+      logSafely(
+        _ref,
+        (l) => l.info('Warm-up canceled before it changed the cooler'),
+      );
       return;
     }
     if (!run.restoreRequested) {
-      _log(
+      logSafely(
+        _ref,
         (l) => l.info(
           'Warm-up canceled; the cooler is left for the next cooler command',
         ),
@@ -455,17 +478,19 @@ class CameraWarmupController {
       } on Object {
         // Teardown; the log line below is what matters.
       }
-      _log(
+      logSafely(
+        _ref,
         (l) => l.info(
           'Warm-up canceled; the cooler is back at the '
-          '${prior.toStringAsFixed(1)}°C it held before',
+          '${formatCelsius(prior)} it held before',
         ),
       );
     } on Object catch (e) {
-      _log(
+      logSafely(
+        _ref,
         (l) => l.error(
           'Warm-up canceled, but putting the cooler back to '
-          '${prior.toStringAsFixed(1)}°C failed: $e. The cooler is still on '
+          '${formatCelsius(prior)} failed: $e. The cooler is still on '
           'at the warm-up set-point.',
         ),
       );
@@ -479,18 +504,6 @@ class CameraWarmupController {
       '${_driverCallTimeout.inSeconds} s',
     ),
   );
-
-  void _log(void Function(LoggingService logger) emit) {
-    try {
-      final logger = _ref.read(loggingServiceProvider);
-      emit(logger);
-    } on Object catch (loggerErr) {
-      // Diagnostic-only path; never let logger emission failures mask
-      // a higher-priority cooling fault.
-      // ignore: avoid_print
-      print('CameraWarmupController: logger emission failed: $loggerErr');
-    }
-  }
 }
 
 /// One warm-up from start to its end or cancel.

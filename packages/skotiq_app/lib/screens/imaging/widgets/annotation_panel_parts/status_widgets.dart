@@ -250,7 +250,6 @@ class AnnotationStatusIndicator extends ConsumerWidget {
             : (annotationState.errorDetails ??
                 _getActionHint(annotationState.status));
 
-    // Don't show anything if annotations are disabled
     if (annotationSettings != null && !annotationSettings.enabled) {
       return const SizedBox.shrink();
     }

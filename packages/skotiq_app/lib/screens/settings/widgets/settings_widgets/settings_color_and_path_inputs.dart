@@ -46,8 +46,8 @@ class SettingsColorPicker extends StatefulWidget {
   /// May be asynchronous so a failed save can restore the confirmed color.
   final FutureOr<void> Function(String) onColorSelected;
 
-  final bool isMobile;
-
+  /// Unused: the swatches are the same size on every layout. Accepted so
+  /// existing call sites keep compiling.
   /// The swatches to offer, as `(hex, name)`. Defaults to the dark set; the
   /// Appearance page passes the set for the theme actually in force.
   final List<(String, String)>? swatches;
@@ -56,7 +56,6 @@ class SettingsColorPicker extends StatefulWidget {
     super.key,
     required this.selectedColor,
     required this.onColorSelected,
-    this.isMobile = false,
     this.swatches,
   });
 
@@ -71,56 +70,55 @@ class SettingsColorPicker extends StatefulWidget {
 }
 
 class _SettingsColorPickerState extends State<SettingsColorPicker> {
-  late String _selectedColor;
-  int _editGeneration = 0;
-  int _activeWrites = 0;
-  Future<void> _writeTail = Future<void>.value();
+  final SettingsNoticeController _notice = SettingsNoticeController();
+  late String _selectedColor = widget.selectedColor;
+  late final SettingWriter<String> _writer = SettingWriter<String>(
+    initial: widget.selectedColor,
+    equals: _sameColor,
+    onRollback: _onRollback,
+  );
+
+  static bool _sameColor(String a, String b) =>
+      a.toLowerCase() == b.toLowerCase();
 
   @override
-  void initState() {
-    super.initState();
-    _selectedColor = widget.selectedColor;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
   }
 
   @override
   void didUpdateWidget(covariant SettingsColorPicker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_activeWrites == 0) _selectedColor = widget.selectedColor;
+    _sync();
+  }
+
+  void _sync() {
+    final show = _writer.accept(
+      widget.selectedColor,
+      authority: SettingsFormScope.authorityOf(context),
+    );
+    if (show) _selectedColor = widget.selectedColor;
+  }
+
+  void _onRollback(String restored, String attempted, Object error) {
+    if (!mounted) return;
+    setState(() => _selectedColor = restored);
+    settingsReportRollback(context, _notice, error);
   }
 
   void _selectColor(String color) {
-    if (color.toLowerCase() == _selectedColor.toLowerCase()) return;
-    final generation = ++_editGeneration;
-    final callback = widget.onColorSelected;
+    if (_sameColor(color, _selectedColor)) return;
+    _notice.clear();
     setState(() => _selectedColor = color);
+    _writer.submit(color, widget.onColorSelected);
+  }
 
-    _activeWrites++;
-    final operation = _writeTail.then((_) async {
-      try {
-        await Future<void>.sync(() => callback(color));
-      } catch (e) {
-        // The swatch snaps back to the confirmed colour, which is the honest
-        // rendering, but the revert alone does not say a save was attempted
-        // and refused. Log so a settings backend that is rejecting writes is
-        // diagnosable instead of looking like a UI that ignores taps.
-        developer.log(
-          'Settings color write failed; reverted the swatch to the last '
-          'confirmed value: $e',
-          name: 'SettingsInput',
-          level: 900,
-        );
-        if (mounted && generation == _editGeneration) {
-          setState(() => _selectedColor = widget.selectedColor);
-        }
-      } finally {
-        _activeWrites--;
-      }
-    });
-    _writeTail = operation.then<void>(
-      (_) {},
-      onError: (Object _, StackTrace __) {},
-    );
-    unawaited(operation);
+  @override
+  void dispose() {
+    _writer.close();
+    _notice.dispose();
+    super.dispose();
   }
 
   @override
@@ -131,21 +129,24 @@ class _SettingsColorPickerState extends State<SettingsColorPicker> {
     // shrink, so on a narrowed settings detail pane it pushed the last
     // swatches off-screen (unpickable) and overflowed by >100 px. `Wrap`
     // still renders as one line whenever the row has room.
-    return Wrap(
-      spacing: SkotiqTokens.spaceSm,
-      runSpacing: SkotiqTokens.spaceSm,
-      alignment: WrapAlignment.end,
-      children: (widget.swatches ?? SettingsColorPicker.accentColors)
-          .map((colorData) {
-        final (hex, name) = colorData;
+    return SettingsFieldNotice(
+      controller: _notice,
+      child: Wrap(
+        spacing: SkotiqTokens.spaceSm,
+        runSpacing: SkotiqTokens.spaceSm,
+        alignment: WrapAlignment.end,
+        children: (widget.swatches ?? SettingsColorPicker.accentColors)
+            .map((colorData) {
+          final (hex, name) = colorData;
 
-        return _buildColorCircle(
-          colors,
-          hex,
-          name,
-          SettingsColorPicker.swatchSize,
-        );
-      }).toList(),
+          return _buildColorCircle(
+            colors,
+            hex,
+            name,
+            SettingsColorPicker.swatchSize,
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -243,11 +244,9 @@ class SettingsPathInput extends StatefulWidget {
   /// case the field snaps back to [path] on the next build.
   final FutureOr<void> Function(String)? onPathEntered;
 
-  final bool isMobile;
-
-  /// If true, use flexible width (useful for stacked mobile layouts)
-
-  final bool flexible;
+  /// Take the full width of the row in the narrow layout, for a row that
+  /// stacks there.
+  final bool fillWhenNarrow;
 
   /// Identity of the backend/host that owns [onBrowse]. A changed identity
   /// invalidates an in-flight picker and immediately unlocks this control.
@@ -258,8 +257,7 @@ class SettingsPathInput extends StatefulWidget {
     required this.path,
     required this.onBrowse,
     this.onPathEntered,
-    this.isMobile = false,
-    this.flexible = false,
+    this.fillWhenNarrow = false,
     this.authorityKey,
   });
 
@@ -273,7 +271,15 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
 
   TextEditingController? _controller;
   FocusNode? _focusNode;
-  bool _committing = false;
+
+  // The typed path goes through the same writer as every other input, so
+  // commits are serialized and a refused path is reported. Unlike the other
+  // inputs the handler owns validation and may decline without throwing, so
+  // the stored [SettingsPathInput.path] is re-shown after every attempt.
+  late final SettingWriter<String> _writer = SettingWriter<String>(
+    initial: widget.path,
+    onRollback: _onRollback,
+  );
 
   bool get _editable => widget.onPathEntered != null;
 
@@ -288,6 +294,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
 
   @override
   void dispose() {
+    _writer.close();
     _focusNode?.removeListener(_onFocusChange);
     _focusNode?.dispose();
     _controller?.dispose();
@@ -304,11 +311,13 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
     // Adopt the stored value whenever it is not being typed into: a browse, a
     // host switch, or a refused write all have to be visible here. Never while
     // focused, or the caret would jump under the operator's hands.
+    final show = _writer.accept(
+      widget.path,
+      authority: widget.authorityKey,
+      editing: _focusNode?.hasFocus == true,
+    );
     final controller = _controller;
-    if (controller != null &&
-        !_committing &&
-        _focusNode?.hasFocus != true &&
-        controller.text != widget.path) {
+    if (show && controller != null && controller.text != widget.path) {
       controller.text = widget.path;
     }
   }
@@ -321,28 +330,34 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
     }
   }
 
-  Future<void> _commit() async {
+  void _commit() {
     final controller = _controller;
     final handler = widget.onPathEntered;
-    if (controller == null || handler == null || _committing) return;
+    if (controller == null || handler == null || _writer.busy) return;
     final typed = controller.text;
     if (typed == widget.path) return;
-    _committing = true;
-    try {
-      await Future<void>.sync(() => handler(typed));
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not use that path: $error')),
-        );
+    _writer.submit(typed, (value) async {
+      try {
+        await Future<void>.sync(() => handler(value));
+      } finally {
+        _showStoredPath();
       }
-    } finally {
-      _committing = false;
-      // Whatever the handler decided, the stored value is the truth.
-      if (mounted && controller.text != widget.path) {
-        setState(() => controller.text = widget.path);
-      }
+    });
+  }
+
+  void _showStoredPath() {
+    final controller = _controller;
+    if (mounted && controller != null && controller.text != widget.path) {
+      setState(() => controller.text = widget.path);
     }
+  }
+
+  void _onRollback(String restored, String attempted, Object error) {
+    if (!mounted) return;
+    _showStoredPath();
+    context.showErrorSnackBar(
+      'Could not use that path: ${userFacingError(error)}',
+    );
   }
 
   Future<void> _browse() async {
@@ -353,8 +368,8 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
       await Future<void>.sync(widget.onBrowse);
     } catch (error) {
       if (mounted && generation == _browseGeneration) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update this path: $error')),
+        context.showErrorSnackBar(
+          'Could not update this path: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -367,15 +382,15 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    final narrow = SettingsFormScope.narrowOf(context);
 
-    final textStyle = (widget.isMobile
-            ? SkotiqTypography.caption
-            : SkotiqTypography.captionSm)
-        .copyWith(
+    final textStyle =
+        (narrow ? SkotiqTypography.caption : SkotiqTypography.captionSm)
+            .copyWith(
       color: widget.path.isEmpty ? colors.textMuted : colors.textPrimary,
     );
     final verticalPadding =
-        widget.isMobile ? SkotiqTokens.spaceSm : SkotiqTokens.radiusSm;
+        narrow ? SkotiqTokens.spaceSm : SkotiqTokens.radiusSm;
 
     Widget pathContainer = _editable
         ? Container(
@@ -421,7 +436,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
             ),
           );
 
-    final designWidth = widget.isMobile ? 140.0 : 180.0;
+    final designWidth = narrow ? 140.0 : 180.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -430,11 +445,17 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
         // narrower than the design width can afford, fall back to the
         // flexible layout (path shrinks, button stays) instead of holding a
         // fixed 180 px box and overflowing.
-        final flexible = widget.flexible ||
+        final flexible = (narrow && widget.fillWhenNarrow) ||
             (constraints.hasBoundedWidth &&
                 constraints.maxWidth <
                     designWidth + _browseButtonAllowance + _spaceSm);
-        return _buildRow(colors, pathContainer, designWidth, flexible);
+        return _buildRow(
+          colors,
+          pathContainer,
+          designWidth,
+          flexible,
+          narrow,
+        );
       },
     );
   }
@@ -448,6 +469,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
     Widget pathContainer,
     double designWidth,
     bool flexible,
+    bool narrow,
   ) {
     if (!flexible) {
       pathContainer = SizedBox(
@@ -465,7 +487,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
           onTap: _browsing ? null : _browse,
           child: Container(
             padding: EdgeInsets.all(
-                widget.isMobile ? SkotiqTokens.spaceSm : SkotiqTokens.radiusSm),
+                narrow ? SkotiqTokens.spaceSm : SkotiqTokens.radiusSm),
             decoration: BoxDecoration(
               color: colors.well,
               borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
@@ -473,20 +495,16 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
             ),
             child: _browsing
                 ? SizedBox.square(
-                    dimension: widget.isMobile
-                        ? SkotiqTokens.iconSm
-                        : SkotiqTokens.iconXs,
+                    dimension:
+                        narrow ? SkotiqTokens.iconSm : SkotiqTokens.iconXs,
                     child: SkotiqSpinner(
-                        size: widget.isMobile
-                            ? SkotiqTokens.iconSm
-                            : SkotiqTokens.iconXs,
+                        size:
+                            narrow ? SkotiqTokens.iconSm : SkotiqTokens.iconXs,
                         color: colors.primary),
                   )
                 : Icon(
                     LucideIcons.folderOpen,
-                    size: widget.isMobile
-                        ? SkotiqTokens.iconSm
-                        : SkotiqTokens.iconXs,
+                    size: narrow ? SkotiqTokens.iconSm : SkotiqTokens.iconXs,
                     color: colors.textSecondary,
                   ),
           ),

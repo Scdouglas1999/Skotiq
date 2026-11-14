@@ -1,11 +1,12 @@
+import '../models/imaging/session_status.dart';
 import 'dart:async';
 
 import '../database/daos/sequence_checkpoints_dao.dart';
 import '../database/session_orphan_sweep.dart';
-import 'imaging_records_repository.dart';
 import 'logging_service.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import '../backend/roles/host_data/imaging_records.dart';
 
-/// Configuration for session checkpointing
 class SessionCheckpointConfig {
   /// Re-persist the current statistics on this interval even when no frame has
   /// arrived.
@@ -17,7 +18,6 @@ class SessionCheckpointConfig {
   /// stale until the next frame.
   final Duration checkpointTimeInterval;
 
-  /// Whether automatic checkpointing is enabled
   final bool enabled;
 
   const SessionCheckpointConfig({
@@ -37,7 +37,6 @@ class SessionCheckpointConfig {
   }
 }
 
-/// Statistics tracked during a session for checkpointing
 class SessionStats {
   final int completedExposures;
   final int failedExposures;
@@ -81,7 +80,6 @@ class SessionStats {
     );
   }
 
-  /// Calculate success rate
   double get successRate {
     final total = completedExposures + failedExposures;
     if (total == 0) return 1.0;
@@ -89,7 +87,6 @@ class SessionStats {
   }
 }
 
-/// Result of a session recovery operation
 class SessionRecoveryInfo {
   final int sessionId;
   final String? sessionName;
@@ -112,9 +109,8 @@ class SessionRecoveryInfo {
   Duration get duration => stats.lastUpdated.difference(startTime);
 }
 
-/// Service for managing imaging session lifecycle with persistence and recovery
 class SessionService {
-  final ImagingRecordsRepository _records;
+  final ImagingRecords _records;
   final SequenceCheckpointsDao?
   checkpointsDao; // Optional, for sequence integration
   final LoggingService _logger;
@@ -122,7 +118,6 @@ class SessionService {
   SessionCheckpointConfig _config = const SessionCheckpointConfig();
   Timer? _checkpointTimer;
 
-  // Current session tracking
   int? _currentSessionId;
   SessionStats? _currentStats;
   Future<void>? _checkpointDrain;
@@ -132,7 +127,6 @@ class SessionService {
   int _sessionGeneration = 0;
   bool _disposed = false;
 
-  // Status tracking
   final _statusController = StreamController<String>.broadcast();
 
   final DateTime Function() _now;
@@ -142,7 +136,7 @@ class SessionService {
   /// timezone. Defaults to [DateTime.now] for tests and for hosts that
   /// have not configured a TZ override
   SessionService({
-    required ImagingRecordsRepository records,
+    required ImagingRecords records,
     this.checkpointsDao,
     required LoggingService logger,
     DateTime Function()? nowProvider,
@@ -150,20 +144,15 @@ class SessionService {
        _logger = logger,
        _now = nowProvider ?? DateTime.now;
 
-  /// Stream of status updates
   Stream<String> get statusStream => _statusController.stream;
 
   /// Current session ID (null if no active session)
   int? get currentSessionId => _currentSessionId;
 
-  /// Whether a session is currently active
   bool get hasActiveSession => _currentSessionId != null;
 
-  /// Current session statistics
   SessionStats? get currentStats => _currentStats;
 
-  /// Start a new imaging session
-  /// Returns the session ID
   Future<int> startSession({
     String? name,
     int? targetId,
@@ -248,7 +237,7 @@ class SessionService {
     );
     if (_disposed) {
       try {
-        await _records.endSession(sessionId, status: 'aborted');
+        await _records.endSession(sessionId, status: SessionStatus.aborted);
       } catch (error) {
         _logger.error(
           'Could not abort session $sessionId after SessionService was '
@@ -259,12 +248,10 @@ class SessionService {
       throw StateError('SessionService was disposed while starting a session.');
     }
 
-    // Initialize tracking
     _sessionGeneration++;
     _currentSessionId = sessionId;
     _currentStats = SessionStats(lastUpdated: _now());
 
-    // Start checkpoint timer if enabled
     if (_config.enabled) {
       _startCheckpointTimer();
     }
@@ -307,7 +294,7 @@ class SessionService {
       '${closed.length == 1 ? 'it' : 'them'} (id'
       '${closed.length == 1 ? '' : 's'} ${closed.join(', ')}); '
       "${closed.length == 1 ? 'it is' : 'they are'} recorded as "
-      "'$kInterruptedSessionStatus' so this run can open its own session",
+      "'${SessionStatus.interrupted.token}' so this run can open its own session",
       source: 'SessionService',
     );
   }
@@ -349,7 +336,6 @@ class SessionService {
     }
   }
 
-  /// Manually trigger a checkpoint save
   Future<void> checkpoint() async {
     if (_currentSessionId == null || _currentStats == null) {
       _logger.debug(
@@ -372,7 +358,7 @@ class SessionService {
   /// row. Clearing identity unconditionally (in a `finally`, say) would leave
   /// the DB row stuck `active` forever, because the early return above then
   /// makes every retry a no-op.
-  Future<void> endSession({String status = 'completed'}) {
+  Future<void> endSession({SessionStatus status = SessionStatus.completed}) {
     if (_disposed) {
       return Future<void>.error(
         StateError('Cannot end a session after SessionService disposal.'),
@@ -391,7 +377,7 @@ class SessionService {
     return operation;
   }
 
-  Future<void> _endSessionOnce({required String status}) async {
+  Future<void> _endSessionOnce({required SessionStatus status}) async {
     // A Stop/Abort tap can race a slow host-side Start. Wait for the admitted
     // start to establish its durable id, then finalize that exact session;
     // returning early here would leave a session running with no visible owner.
@@ -405,11 +391,10 @@ class SessionService {
     }
 
     _logger.info(
-      'Ending session $sessionId with status: $status',
+      'Ending session $sessionId with status: ${status.token}',
       source: 'SessionService',
     );
 
-    // Calculate final statistics
     final stats = _currentStats ?? SessionStats(lastUpdated: _now());
 
     try {
@@ -419,7 +404,6 @@ class SessionService {
         await _performCheckpoint();
       }
 
-      // Update session with final statistics and status
       await _records.updateSessionStats(
         sessionId,
         totalExposures: stats.completedExposures + stats.failedExposures,
@@ -431,7 +415,6 @@ class SessionService {
         autofocusCount: stats.autofocusCount,
       );
 
-      // Set end time and status
       await _records.endSession(sessionId, status: status);
     } catch (e) {
       _logger.error(
@@ -472,23 +455,7 @@ class SessionService {
 
   /// Abort the current session (marks as 'aborted' status)
   Future<void> abortSession() async {
-    await endSession(status: 'aborted');
-  }
-
-  /// Mark session as error state
-  Future<void> errorSession(String errorMessage) async {
-    if (_currentSessionId != null && _currentStats != null) {
-      // Optionally store error message in notes
-      final currentSession = await _records.getSessionById(_currentSessionId!);
-      if (currentSession != null) {
-        final notes = currentSession.notes ?? '';
-        final errorNotes = notes.isEmpty
-            ? errorMessage
-            : '$notes\n\nError: $errorMessage';
-        await _records.updateSessionNotes(_currentSessionId!, errorNotes);
-      }
-    }
-    await endSession(status: 'error');
+    await endSession(status: SessionStatus.aborted);
   }
 
   /// Check for incomplete sessions (crashed/interrupted sessions)
@@ -508,7 +475,7 @@ class SessionService {
       // only ever a session a live executor is driving, and offering to recover
       // a run that is still going would be offering to recover from nothing.
       final incompleteSessions = allSessions
-          .where((s) => s.status == kInterruptedSessionStatus)
+          .where((s) => s.sessionStatus == SessionStatus.interrupted)
           .toList();
 
       if (incompleteSessions.isEmpty) {
@@ -522,9 +489,8 @@ class SessionService {
         source: 'SessionService',
       );
 
-      // Convert to recovery info
       final recoveryInfoList = <SessionRecoveryInfo>[];
-      final tonight = _observingNightOf(_now());
+      final tonight = observingNightOf(_now());
       for (final session in incompleteSessions) {
         // The session ran until its last frame, not until now: an unclosed
         // session from yesterday read "25h 25m".
@@ -551,7 +517,7 @@ class SessionService {
         // hours or days before (rig, 2026-11-03: two 0-exposure test runs and
         // a QA plan from Nov 1).
         final captured = hasFrames || session.totalExposures > 0;
-        if (!captured || _observingNightOf(lastActivity) != tonight) {
+        if (!captured || observingNightOf(lastActivity) != tonight) {
           _logger.debug(
             'Not offering interrupted session ${session.id} for recovery: '
             '${captured ? 'it belongs to an earlier night' : 'it captured nothing'}',
@@ -593,17 +559,6 @@ class SessionService {
     }
   }
 
-  /// The local date of the evening an observing night started on. A night
-  /// runs from local noon to local noon, so a frame after midnight belongs to
-  /// the evening before.
-  static DateTime _observingNightOf(DateTime time) {
-    final local = time.toLocal();
-    final evening = local.hour < 12
-        ? DateTime(local.year, local.month, local.day - 1)
-        : DateTime(local.year, local.month, local.day);
-    return evening;
-  }
-
   /// Resume an interrupted session
   Future<void> recoverSession(int sessionId) async {
     if (_currentSessionId != null) {
@@ -618,7 +573,7 @@ class SessionService {
       throw Exception('Session $sessionId not found');
     }
 
-    if (session.status != kInterruptedSessionStatus) {
+    if (session.sessionStatus != SessionStatus.interrupted) {
       throw Exception(
         'Session $sessionId was not left interrupted, so there is nothing to '
         'resume (status: ${session.status})',
@@ -630,7 +585,6 @@ class SessionService {
     // about to take frames again must not keep saying it ended.
     await _records.reopenSession(sessionId);
 
-    // Restore session state
     _sessionGeneration++;
     _currentSessionId = sessionId;
     _currentStats = SessionStats(
@@ -643,7 +597,6 @@ class SessionService {
       lastUpdated: _now(),
     );
 
-    // Start checkpoint timer
     if (_config.enabled) {
       _startCheckpointTimer();
     }
@@ -672,21 +625,17 @@ class SessionService {
     await _records.abortSession(sessionId);
   }
 
-  /// Update checkpoint configuration
   void updateConfig(SessionCheckpointConfig config) {
     final wasEnabled = _config.enabled;
     final previousInterval = _config.checkpointTimeInterval;
     _config = config;
 
     if (_config.enabled && !wasEnabled && _currentSessionId != null) {
-      // Checkpointing was just enabled, start timer
       _startCheckpointTimer();
     } else if (!_config.enabled && wasEnabled) {
-      // Checkpointing was just disabled, stop timer
       _stopCheckpointTimer();
     } else if (_config.enabled &&
         _config.checkpointTimeInterval != previousInterval) {
-      // Interval changed, restart timer
       _stopCheckpointTimer();
       _startCheckpointTimer();
     }
@@ -694,10 +643,7 @@ class SessionService {
     _logger.debug('Configuration updated', source: 'SessionService');
   }
 
-  /// Get current configuration
   SessionCheckpointConfig get config => _config;
-
-  // Private helper methods
 
   void _startCheckpointTimer() {
     _stopCheckpointTimer(); // Ensure no duplicate timers
@@ -796,7 +742,6 @@ class SessionService {
     }
   }
 
-  /// Dispose of resources
   void dispose() {
     if (_disposed) return;
     _disposed = true;

@@ -11,9 +11,10 @@
 // (screen_shell.dart), which is what made the two surfaces disagree.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/equipment_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/models/equipment_profile.dart'
-    as remote_profile;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/models.dart' as remote_profile;
 
 import '../../harness/harness.dart';
 import '../../harness/provider_teardown.dart';

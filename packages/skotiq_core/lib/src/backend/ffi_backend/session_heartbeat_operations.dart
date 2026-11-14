@@ -1,8 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
-  // Image Download (for Mobile - local FFI)
-
   @override
   Future<List<CapturedImage>> getSessionImages(int sessionId) async {
     if (_database == null) {
@@ -28,7 +26,7 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
             binningX: dbImg.binX,
             binningY: dbImg.binY,
             filter: dbImg.filter,
-            frameType: _frameTypeFromString(dbImg.frameType),
+            frameType: dbImg.recordedFrameType ?? FrameType.light,
           ),
           stats: dbImg.hfr != null || dbImg.starCount != null
               ? ImageStats(
@@ -57,7 +55,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
     }
 
     try {
-      // Get image metadata from database
       final imagesDao = ImagesDao(_database);
       final dbImage = await imagesDao.getImageById(imageId);
 
@@ -81,7 +78,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
       );
       if (sidecarBytes != null) return sidecarBytes;
 
-      // Check if file exists
       final file = File(dbImage.filePath);
       if (!await file.exists()) {
         throw dart_error.SkotiqError(
@@ -119,7 +115,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
     }
 
     try {
-      // Get image metadata from database
       final imagesDao = ImagesDao(_database);
       final dbImage = await imagesDao.getImageById(imageId);
 
@@ -130,7 +125,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
         );
       }
 
-      // Check if source file exists
       final sourceFile = File(dbImage.filePath);
       if (!await sourceFile.exists()) {
         throw dart_error.SkotiqError(
@@ -139,14 +133,11 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
         );
       }
 
-      // Create destination directory if needed
       final destFile = File(localPath);
       await destFile.parent.create(recursive: true);
 
-      // Get file size for progress tracking
       final fileSize = await sourceFile.length();
 
-      // Copy file with progress tracking
       final sourceStream = sourceFile.openRead();
       final sink = destFile.openWrite();
 
@@ -164,7 +155,6 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
         await sink.close();
       }
 
-      // Final progress callback
       if (onProgress != null) {
         onProgress(1.0);
       }
@@ -173,66 +163,21 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
     }
   }
 
-  FrameType _frameTypeFromString(String str) {
-    switch (str.toLowerCase()) {
-      case 'light':
-        return FrameType.light;
-      case 'dark':
-        return FrameType.dark;
-      case 'flat':
-        return FrameType.flat;
-      case 'bias':
-        return FrameType.bias;
-      case 'darkflat':
-        return FrameType.darkFlat;
-      default:
-        return FrameType.light;
-    }
-  }
-
-  ImageFileFormat _imageFormatFromString(String str) {
-    switch (str.toLowerCase()) {
-      case 'fits':
-        return ImageFileFormat.fits;
-      case 'xisf':
-        return ImageFileFormat.xisf;
-      case 'tiff':
-        return ImageFileFormat.tiff;
-      case 'png':
-        return ImageFileFormat.png;
-      case 'jpeg':
-      case 'jpg':
-        return ImageFileFormat.jpeg;
-      default:
-        return ImageFileFormat.fits;
-    }
-  }
-
-  // Device health monitoring
+  ImageFileFormat _imageFormatFromString(String str) =>
+      ImageFileFormat.fromRecord(str) ?? ImageFileFormat.fits;
 
   @override
-  Future<void> startDeviceHeartbeat({
-    required DeviceType deviceType,
-    required String deviceId,
-    required int intervalMs,
-  }) async {
-    final bridgeType = _toBridgeDeviceType(deviceType);
-    await bridge_api.apiStartDeviceHeartbeat(
-      deviceType: bridgeType,
-      deviceId: deviceId,
-      intervalMs: BigInt.from(intervalMs),
-    );
-  }
-
-  @override
-  Future<void> stopDeviceHeartbeat(String deviceId) async {
-    await bridge_api.apiStopDeviceHeartbeat(deviceId: deviceId);
+  Set<DeviceType> get nativeReconnectedDeviceTypes {
+    if (!bridge.NativeBridge.isNativeAvailable) return const {};
+    return _NativeProcessState.nativeReconnectedDeviceTypes ??= {
+      for (final type in bridge.apiNativeReconnectedDeviceTypes())
+        _fromBridgeDeviceType(type),
+    };
   }
 
   @override
   Future<(int, bool)> getDeviceHealth(String deviceId) async {
-    final result = await bridge_api.apiGetDeviceHealth(deviceId: deviceId);
-    // Convert PlatformInt64 to int
+    final result = await bridge.apiGetDeviceHealth(deviceId: deviceId);
     final timestamp = result.$1.toInt();
     final isHealthy = result.$2;
     return (timestamp, isHealthy);

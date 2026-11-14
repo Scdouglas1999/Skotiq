@@ -1,3 +1,5 @@
+import '../../models/imaging/frame_type_record.dart';
+import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -7,31 +9,24 @@ import 'package:path/path.dart' as p;
 import '../../database/daos/sky_atlas_dao.dart';
 import '../../database/database.dart';
 import '../../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
+import '../../settings/store_settings.dart';
 import '../logging_service.dart';
-import '../wcs/gnomonic_projection.dart';
+import '../../database/daos/images_dao.dart' show StoredWcsDistortion;
+import '../wcs/plate_solve_data_from_result.dart' show storedFrameWcs;
 import 'sky_atlas_models.dart';
 import 'sky_atlas_seam.dart';
 import '../../utils/skotiq_data_directory.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+
 part 'sky_atlas_service/atlas_models.dart';
 part 'sky_atlas_service/internals.dart';
 
-/// App setting that turns the Your Sky atlas fold (and so First Light) on or
-/// off; anything but `false` means on.
-const String skyAtlasSettingKey = 'science.feature.sky_atlas';
-
-/// Setting holding the atlas size limit in GB ("0" = no limit).
-const String skyAtlasLimitSettingKey = 'science.sky_atlas.limit_gb';
-
-/// Size limit applied until the user picks one. With compressed tiles this is
-/// several hundred hours of a typical field mix; reaching it only stops new
-/// folds, it never deletes tiles.
-const int defaultSkyAtlasLimitGb = 25;
-
-/// The stored limit in GB; unset or unreadable means [defaultSkyAtlasLimitGb].
+/// The stored atlas size limit in GB; unset, unreadable or negative means
+/// [defaultSkyAtlasLimitGb], and 0 means no limit.
 int parseSkyAtlasLimitGb(String? raw) {
-  final parsed = int.tryParse(raw?.trim() ?? '');
-  if (parsed == null || parsed < 0) return defaultSkyAtlasLimitGb;
-  return parsed;
+  const setting = StoreSettings.scienceSkyAtlasLimitGb;
+  final gb = setting.decode(raw?.trim(), setting.fallback);
+  return gb < 0 ? setting.fallback : gb;
 }
 
 /// Orchestrates Pillar A ("Your Sky") — the personal sky atlas.
@@ -205,7 +200,8 @@ class SkyAtlasService {
     if (!_limitReported) {
       _limitReported = true;
       _logger.warning(
-        'Sky atlas: ${_gb(used)} GB on disk reached the ${_gb(limit)} GB '
+        'Sky atlas: ${ByteFormat.size(used)} on disk reached the '
+        '${ByteFormat.size(limit)} '
         'limit; new frames are not being added.',
         source: _logSource,
       );
@@ -213,8 +209,6 @@ class SkyAtlasService {
     }
     return true;
   }
-
-  static String _gb(int bytes) => (bytes / 1e9).toStringAsFixed(1);
 
   /// Whether the user has Your Sky turned on.
   Future<bool> isEnabled() async {
@@ -271,8 +265,8 @@ class SkyAtlasService {
       _logger.info(
         'Sky atlas: compressed ${outcome.compacted} tile'
         '${outcome.compacted == 1 ? '' : 's'}, '
-        '${_gb(outcome.bytesBefore)} GB to '
-        '${_gb(outcome.bytesAfter)} GB on disk.',
+        '${ByteFormat.size(outcome.bytesBefore)} to '
+        '${ByteFormat.size(outcome.bytesAfter)} on disk.',
         source: _logSource,
       );
       return outcome;
@@ -401,50 +395,27 @@ class SkyAtlasService {
   /// are the frame's pixel dimensions (the FITS dims), needed for the reference
   /// pixel.
   Future<AtlasFoldSummary?> autoFoldCapturedImage({
-    required CapturedImage image,
+    required DbCapturedImage image,
     required int imageWidth,
     required int imageHeight,
-    SolvedWcsDistortion distortion = const SolvedWcsDistortion(),
+    StoredWcsDistortion? distortion,
     AtlasInterp interp = AtlasInterp.lanczos3,
   }) async {
     final enabled = _autoFoldEnabled;
     if (enabled != null && !await enabled()) return null;
-    if (image.frameType.toLowerCase() != 'light') return null;
+    if (!image.isLight) return null;
     if (await _atStorageLimit()) return null;
     // A rejected frame (trailed, clouded, defocused) would degrade the deep
     // template every later frame is compared against.
     if (!image.isAccepted) return null;
-    if (!image.isPlateSolved ||
-        image.solvedRa == null ||
-        image.solvedDec == null) {
-      return null;
-    }
     if (image.filePath.trim().isEmpty) return null;
-    if (imageWidth <= 0 || imageHeight <= 0) return null;
-
-    final solvedWcs = SolvedWcs(
-      raHours: image.solvedRa!,
-      decDegrees: image.solvedDec!,
-      rotationDeg: image.solvedRotation ?? 0.0,
-      pixelScaleArcsec: image.solvedPixelScale ?? 0.0,
+    final solvedWcs = storedFrameWcs(
+      image,
+      stored: distortion,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
-      cd1_1: distortion.cd1_1,
-      cd1_2: distortion.cd1_2,
-      cd2_1: distortion.cd2_1,
-      cd2_2: distortion.cd2_2,
-      aOrder: distortion.aOrder,
-      bOrder: distortion.bOrder,
-      aCoeffs: distortion.aCoeffs,
-      bCoeffs: distortion.bCoeffs,
-      apOrder: distortion.apOrder,
-      bpOrder: distortion.bpOrder,
-      apCoeffs: distortion.apCoeffs,
-      bpCoeffs: distortion.bpCoeffs,
     );
-    // A solve with neither a CD matrix nor a positive pixel scale cannot yield
-    // an invertible geometry; skip rather than feeding the native fold garbage.
-    if (!solvedWcs.hasCdMatrix && solvedWcs.pixelScaleArcsec <= 0) return null;
+    if (solvedWcs == null) return null;
 
     final frame = SolvedFrameRef.fromSolvedWcs(
       framePath: image.filePath,
@@ -710,11 +681,11 @@ class SkyAtlasService {
     return candidates
         .where(
           (t) =>
-              _coneSeparationDeg(
-                centerRaDeg,
-                centerDecDeg,
-                t.centerRaDeg,
-                t.centerDecDeg,
+              AstronomyCalculations.angularSeparation(
+                ra1Deg: centerRaDeg,
+                dec1Deg: centerDecDeg,
+                ra2Deg: t.centerRaDeg,
+                dec2Deg: t.centerDecDeg,
               ) <=
               radiusDeg,
         )
@@ -735,26 +706,6 @@ class SkyAtlasService {
         lastFoldIso: row.lastFoldAt?.toUtc().toIso8601String(),
         channels: row.channels,
       );
-
-  /// Great-circle separation (deg) via the haversine formula — robust at the
-  /// small angles cone selection queries at.
-  static double _coneSeparationDeg(
-    double ra1Deg,
-    double dec1Deg,
-    double ra2Deg,
-    double dec2Deg,
-  ) {
-    const deg2rad = math.pi / 180.0;
-    final dRa = (ra2Deg - ra1Deg) * deg2rad;
-    final dDec = (dec2Deg - dec1Deg) * deg2rad;
-    final lat1 = dec1Deg * deg2rad;
-    final lat2 = dec2Deg * deg2rad;
-    final a =
-        math.sin(dDec / 2) * math.sin(dDec / 2) +
-        math.cos(lat1) * math.cos(lat2) * math.sin(dRa / 2) * math.sin(dRa / 2);
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return c / deg2rad;
-  }
 
   /// Per-tile coverage rows for the heat overlay / gallery, deepest first, by
   /// the native full-scan of the on-disk `.skt` sidecars.
@@ -875,8 +826,6 @@ class SkyAtlasService {
     );
   }
 
-  // Regions
-
   /// All persisted regions (newest first).
   Future<List<SkyAtlasRegionRow>> regions() => _dao.getAllRegions();
 
@@ -966,8 +915,6 @@ class SkyAtlasService {
   /// Reactive region timeline for a live scrubber.
   Stream<List<SkyAtlasFoldRow>> watchRegionTimeline(int regionId) =>
       _dao.watchFoldsForRegionOverTime(regionId);
-
-  // Internals
 
   /// Blend a pulled community `.skt` accumulator into the swarm OVERLAY tree so
   /// its depth can surface in "Your Sky" — without ever touching the user's

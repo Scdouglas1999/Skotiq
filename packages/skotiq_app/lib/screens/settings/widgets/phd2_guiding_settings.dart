@@ -3,18 +3,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:file_selector/file_selector.dart';
 
-import '../../../utils/user_facing_error.dart';
 import '../../../widgets/remote_host_path_dialog.dart';
+import 'admin_only.dart';
 import 'settings_widgets.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class Phd2GuidingSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const Phd2GuidingSettings({super.key, this.isMobile = false});
+  const Phd2GuidingSettings({super.key});
 
   @override
   ConsumerState<Phd2GuidingSettings> createState() =>
@@ -22,9 +24,6 @@ class Phd2GuidingSettings extends ConsumerStatefulWidget {
 }
 
 class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
-  final _portController = TextEditingController();
-  final _hostController = TextEditingController();
-
   bool _testing = false;
 
   /// Outcome of the last probe: `null` until one has run.
@@ -35,13 +34,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
   /// it still matches the configured endpoint, so an edited host/port can never
   /// display an old "PHD2 answered" against a different address.
   String? _testedEndpoint;
-
-  @override
-  void dispose() {
-    _portController.dispose();
-    _hostController.dispose();
-    super.dispose();
-  }
 
   static String _endpointOf(AppSettingsState settings) {
     final host = settings.phd2Host.trim().isEmpty
@@ -60,7 +52,7 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
   /// equipment profile that replied.
   Future<void> _testConnection(AppSettingsState settings) async {
     if (_testing) return;
-    final authority = ref.read(backendProvider);
+    final startedOn = ref.backendScope();
     final host = settings.phd2Host.trim().isEmpty
         ? 'localhost'
         : settings.phd2Host.trim();
@@ -87,7 +79,7 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
 
     if (!mounted) return;
     // A host switch mid-probe means the answer describes the previous rig.
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (startedOn.isStale) {
       setState(() {
         _testing = false;
         _testOutcome = null;
@@ -177,12 +169,8 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
       await write();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not save the PHD2 $what: ${userFacingError(e)}',
-            ),
-          ),
+        context.showErrorSnackBar(
+          'Could not save the PHD2 $what: ${userFacingError(e)}',
         );
       }
       rethrow;
@@ -190,7 +178,7 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
   }
 
   Future<void> _selectPhd2Path() async {
-    final authority = ref.read(backendProvider);
+    final startedOn = ref.backendScope();
     final isRemote = ref.read(isRemoteModeProvider);
     String? initialDir;
     if (!isRemote && Platform.isWindows) {
@@ -226,14 +214,10 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
     if (!mounted) {
       return;
     }
-    if (!identical(ref.read(backendProvider), authority)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'The imaging host changed while choosing the PHD2 path. '
-            'Choose it again for the current host.',
-          ),
-        ),
+    if (startedOn.isStale) {
+      context.showInfoSnackBar(
+        'The imaging host changed while choosing the PHD2 path. '
+        'Choose it again for the current host.',
       );
       return;
     }
@@ -242,13 +226,9 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
       try {
         await ref.read(appSettingsProvider.notifier).setPhd2Path(result);
       } catch (e) {
-        if (mounted && identical(ref.read(backendProvider), authority)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Could not save the PHD2 path: ${userFacingError(e)}',
-              ),
-            ),
+        if (mounted && startedOn.isCurrent) {
+          context.showErrorSnackBar(
+            'Could not save the PHD2 path: ${userFacingError(e)}',
           );
         }
       }
@@ -260,11 +240,8 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -272,6 +249,7 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
         final authority = ref.watch(backendProvider);
 
         return SettingsPage(
+          hideHeader: false,
           title: 'PHD2 guiding',
           description: 'Configure PHD2 guiding software connection',
           children: [
@@ -283,7 +261,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
                   title: 'Host',
                   subtitle: 'PHD2 server hostname or IP address',
                   trailing: SettingsTextInput(
-                    controller: _hostController,
                     authoritativeValue: settings.phd2Host,
                     authorityKey: authority,
                     hint: 'localhost',
@@ -300,7 +277,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
                   title: 'Port',
                   subtitle: 'PHD2 server port (default: 4400)',
                   trailing: SettingsNumberInput(
-                    controller: _portController,
                     authoritativeValue: settings.phd2Port.toDouble(),
                     authorityKey: authority,
                     suffix: '',
@@ -321,11 +297,13 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
                   subtitle: settings.phd2Path.isEmpty
                       ? 'Auto-detect (optional)'
                       : settings.phd2Path,
-                  trailing: SettingsPathInput(
-                    key: const ValueKey('phd2_executable_path'),
-                    path: settings.phd2Path,
-                    authorityKey: authority,
-                    onBrowse: _selectPhd2Path,
+                  trailing: AdminOnlyControl(
+                    child: SettingsPathInput(
+                      key: const ValueKey('phd2_executable_path'),
+                      path: settings.phd2Path,
+                      authorityKey: authority,
+                      onBrowse: _selectPhd2Path,
+                    ),
                   ),
                 ),
                 SettingRow(

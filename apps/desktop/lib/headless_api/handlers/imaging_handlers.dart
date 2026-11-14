@@ -3,19 +3,47 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// bridge-boundary: imaging_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:path/path.dart' as path;
 import 'package:shelf/shelf.dart';
 
+import '../admin_only_settings.dart';
 import '../job_manager.dart';
+import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'device_handlers.dart' show requestPrefersLegacyBlocking;
 import 'filesystem_handlers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for imaging and plate solve endpoints
-class ImagingHandlers {
+class ImagingHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    ImagingApi.plateSolve: handlePlateSolve,
+    ImagingApi.getFitsDimensions: handleGetFitsDimensions,
+    ImagingApi.detectPlateSolvers: handleDetectPlateSolvers,
+    ImagingApi.verifyPlateSolver: handleVerifyPlateSolver,
+    ImagingApi.getPlateSolverConfig: handleGetPlateSolverConfig,
+    ImagingApi.setPlateSolverConfig: handleSetPlateSolverConfig,
+    ImagingApi.getImageStats: handleGetImageStats,
+    ImagingApi.autoStretchImage: handleAutoStretchImage,
+    ImagingApi.getStarCrops: handleGetStarCrops,
+    ImagingApi.debayerImage: handleDebayerImage,
+    ImagingApi.getLastRawImageData: handleGetLastRawImageData,
+    ImagingApi.saveFitsFile: handleSaveFitsFile,
+    ImagingApi.saveFitsFromLastCapture: handleSaveFitsFromLastCapture,
+    ImagingApi.calibrateImageFile: handleCalibrateImageFile,
+    ImagingApi.clearDeviceImage: handleClearDeviceImage,
+  };
+
   final ProviderContainer container;
 
   /// optional job manager. When wired, plate-solve returns
@@ -67,8 +95,6 @@ class ImagingHandlers {
     return jsonBadRequest({..._hostOnlyProcessingBody, 'operation': operation});
   }
 
-  // Plate solving
-
   Future<Response> handlePlateSolve(Request request) async {
     _logInfo('[API] POST /api/plate-solve');
     final payload = await readJsonObject(request);
@@ -113,6 +139,15 @@ class ImagingHandlers {
           if (cancellation.isCancelled) {
             throw const JobCancelledException(
               'Plate-solve cancellation requested by client',
+            );
+          }
+          // A job whose work failed ends `failed`: the job's state is what
+          // the job list, the failure notices and the clients go by.
+          if (!solve.success) {
+            throw JobFailedException(
+              code: 'plate_solve_failed',
+              message: solve.error ?? 'The solver found no solution.',
+              details: _plateSolveJson(solve),
             );
           }
           return _plateSolveJson(solve);
@@ -195,24 +230,45 @@ class ImagingHandlers {
     return jsonOk({'width': fits.width, 'height': fits.height});
   }
 
+  /// Detects again through the host's own provider, so this window and
+  /// every linked client show what the asking client is told.
   Future<Response> handleDetectPlateSolvers(Request request) async {
-    final backend = container.read(imagingBackendProvider);
-    final detection = await backend.detectPlateSolvers();
-    return jsonOk({
-      'astapPath': detection.astapPath,
-      'astrometryPath': detection.astrometryPath,
-      'catalogName': detection.catalogName,
-      'catalogMagnitudeLimit': detection.catalogMagnitudeLimit,
-      'catalogPath': detection.catalogPath,
-    });
+    final detection = await container.refresh(
+      plateSolverDetectionProvider.future,
+    );
+    return jsonOk(detection.toJson());
   }
 
+  /// Runs the solver at `executablePath` to read its version. A request
+  /// without admin access may run only a solver this host is already set to
+  /// use, configured or found.
   Future<Response> handleVerifyPlateSolver(Request request) async {
     _logInfo('[API] POST /api/plate-solver/verify');
     final payload = await readJsonObject(request);
     final executablePath = requireString(payload, 'executablePath');
 
     final backend = container.read(imagingBackendProvider);
+    if (!requestHasAdminAccess(request)) {
+      final configured = await backend.getPlateSolverConfig();
+      final detected = await backend.detectPlateSolvers();
+      final hostSolvers = {
+        configured.astapPath,
+        configured.astrometryPath,
+        detected.astapPath,
+        detected.astrometryPath,
+      }..removeWhere((path) => path == null || path.isEmpty);
+      if (!hostSolvers.contains(executablePath)) {
+        throw HandlerFailure(
+          code: adminOnlyRefusalCode(AdminOnly.hostProgram),
+          statusCode: HttpStatus.forbidden,
+          message:
+              'Only a link with admin access can run a program the imaging '
+              'computer is not set to use. Verify the configured solver, or '
+              'link with admin access.',
+          details: const {'requiredLevel': 'admin'},
+        );
+      }
+    }
     final info = await backend.verifyPlateSolver(executablePath);
     return jsonOk({
       'path': info.path,
@@ -224,12 +280,7 @@ class ImagingHandlers {
   Future<Response> handleGetPlateSolverConfig(Request request) async {
     final backend = container.read(imagingBackendProvider);
     final pref = await backend.getPlateSolverConfig();
-    return jsonOk({
-      'astapPath': pref.astapPath,
-      'astrometryPath': pref.astrometryPath,
-      'catalogPath': pref.catalogPath,
-      'solverChoice': pref.choice.serialized,
-    });
+    return jsonOk(pref.toJson());
   }
 
   Future<Response> handleSetPlateSolverConfig(Request request) async {
@@ -257,11 +308,21 @@ class ImagingHandlers {
     );
 
     final backend = container.read(imagingBackendProvider);
+    final current = await backend.getPlateSolverConfig();
+    refuseAdminOnlyChange(request, {
+      if (pref.astapPath != current.astapPath)
+        'astapPath': AdminOnly.hostProgram,
+      if (pref.astrometryPath != current.astrometryPath)
+        'astrometryPath': AdminOnly.hostProgram,
+    });
     await backend.setPlateSolverConfig(pref);
+    // The host's providers read the saved preference and detect with its
+    // paths again; the plate-solver channel tells every linked client.
+    container
+      ..invalidate(plateSolverPreferenceProvider)
+      ..invalidate(plateSolverDetectionProvider);
     return jsonOk({'status': 'saved'});
   }
-
-  // Image processing
 
   Future<Response> handleGetImageStats(Request request) async {
     return _rejectClientPixelUpload('POST /api/imaging/stats');
@@ -347,10 +408,8 @@ class ImagingHandlers {
   }
 
   Future<Response> handleSaveFitsFromLastCapture(Request request) async {
-    _logInfo('[API] POST /api/imaging/save-fits-from-capture');
     final payload = await readJsonObject(request);
     final deviceId = requireString(payload, 'deviceId');
-    final filePath = requireString(payload, 'filePath');
     final headerJson = requireObject(payload, 'headerData');
     // FitsWriteHeader.fromJson hard-casts exposureTime/captureTimestamp/
     // frameType, so omitting (or mis-casing) any one of them turned into a 500
@@ -367,6 +426,32 @@ class ImagingHandlers {
       );
     }
 
+    final backend = container.read(imagingBackendProvider);
+    // A scratch frame (live view, a loop's frame) goes where this host keeps
+    // its scratch files; a client names only the file.
+    final scratchName = optionalString(payload, 'scratchName');
+    if (scratchName != null) {
+      final String savedPath;
+      try {
+        savedPath = await backend.saveScratchFrameFromLastCapture(
+          deviceId: deviceId,
+          name: scratchName,
+          headerData: headerData,
+        );
+      } on ArgumentError {
+        throw BadRequestError(
+          field: 'scratchName',
+          expected: 'a file name with no folder',
+          message: 'A scratch frame is named by a plain file name',
+        );
+      }
+      if (showApiCapturesInPreview) {
+        unawaited(_showSavedCaptureInPreview(deviceId, savedPath, headerData));
+      }
+      return jsonOk({'status': 'saved', 'path': savedPath});
+    }
+
+    final filePath = requireString(payload, 'filePath');
     final canonicalFilePath = await FileSystemHandlers(
       container,
     ).canonicalizeAllowedPath(filePath);
@@ -386,18 +471,18 @@ class ImagingHandlers {
     // mirror a host path.
     await Directory(path.dirname(canonicalFilePath)).create(recursive: true);
 
-    final backend = container.read(imagingBackendProvider);
-    await backend.saveFitsFromLastCapture(
+    final savedPath = await backend.saveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: canonicalFilePath,
       headerData: headerData,
+      // A remote live-view or loop frame is no keeper; only a client that
+      // says so gets the camera's file kept.
+      keepCameraFile: optionalBool(payload, 'keepCameraFile') ?? false,
     );
     if (showApiCapturesInPreview) {
-      unawaited(
-        _showSavedCaptureInPreview(deviceId, canonicalFilePath, headerData),
-      );
+      unawaited(_showSavedCaptureInPreview(deviceId, savedPath, headerData));
     }
-    return jsonOk({'status': 'saved'});
+    return jsonOk({'status': 'saved', 'path': savedPath});
   }
 
   /// Every remote capture, keeper or scratch, ends with this save, so it is
@@ -414,12 +499,8 @@ class ImagingHandlers {
           .read(backendProvider)
           .cameraGetLastImage(deviceId);
       if (result == null) return;
-      final frameType = FrameType.values.firstWhere(
-        (type) =>
-            type.displayName.toLowerCase() == header.frameType.toLowerCase() ||
-            type.name.toLowerCase() == header.frameType.toLowerCase(),
-        orElse: () => FrameType.light,
-      );
+      final frameType =
+          FrameType.fromImageType(header.frameType) ?? FrameType.light;
       final DateTime capturedAt;
       try {
         capturedAt = parseUtcTimestamp(header.captureTimestamp);

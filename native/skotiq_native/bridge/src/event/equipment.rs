@@ -1,4 +1,5 @@
-use super::*;
+use flutter_rust_bridge::frb;
+use serde::{Deserialize, Serialize};
 
 /// Event severity levels
 #[frb]
@@ -39,18 +40,21 @@ pub enum HeartbeatStatus {
     Reconnected,
 }
 
-/// Equipment-specific events
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EquipmentEvent {
     // Generic device events
+    /// `device_name` is the name the device is shown by, so a linked client
+    /// that never ran discovery labels it the way the host does.
     Connecting {
         device_type: String,
         device_id: String,
+        device_name: String,
     },
     Connected {
         device_type: String,
         device_id: String,
+        device_name: String,
     },
     Disconnected {
         device_type: String,
@@ -68,63 +72,109 @@ pub enum EquipmentEvent {
         message: String,
     },
 
-    // Mount events
+    // Mount events. Every device event names its device, so a second mount,
+    // focuser, wheel or rotator is never taken for the one in the app's slot.
     MountSlewStarted {
+        device_id: String,
         ra: f64,
         dec: f64,
     },
     MountSlewCompleted {
+        device_id: String,
         ra: f64,
         dec: f64,
     },
-    MountTrackingStarted,
-    MountTrackingStopped,
-    MountParkStarted,
-    MountParkCompleted,
-    MountUnparked,
+    MountTrackingStarted {
+        device_id: String,
+    },
+    MountTrackingStopped {
+        device_id: String,
+    },
+    MountParkStarted {
+        device_id: String,
+    },
+    MountParkCompleted {
+        device_id: String,
+    },
+    MountUnparked {
+        device_id: String,
+    },
 
     // Focuser events
     FocuserMoveStarted {
+        device_id: String,
         target_position: i32,
     },
     FocuserMoveCompleted {
+        device_id: String,
         position: i32,
-    },
-    FocuserTemperatureChanged {
-        temperature: f64,
     },
 
     // Filter wheel events
     /// Positions are the wheel's 0-based slots; the names are the profile's
     /// names for the slots moved from and to, when it has them.
     FilterChanging {
+        device_id: String,
         from_position: i32,
         to_position: i32,
         filter_name: Option<String>,
         from_filter_name: Option<String>,
     },
     FilterChanged {
+        device_id: String,
         position: i32,
         filter_name: Option<String>,
     },
 
     // Rotator events
     RotatorMoveStarted {
+        device_id: String,
         target_angle: f64,
     },
     RotatorMoveCompleted {
+        device_id: String,
         angle: f64,
     },
 
-    // Camera events
+    // Camera events. The cooler events name the camera, so a cooled guide
+    // camera is never taken for the imaging camera.
     CameraCoolingStarted {
+        device_id: String,
         target_temp: f64,
     },
     CameraCoolingReached {
+        device_id: String,
         temperature: f64,
     },
-    CameraWarmingStarted,
-    CameraWarmingCompleted,
+    CameraWarmingStarted {
+        device_id: String,
+    },
+    CameraWarmingCompleted {
+        device_id: String,
+    },
+    /// The sensor temperature and cooler power a status read of the camera
+    /// returned, published when either has changed since the last one
+    /// published for that camera (0.1 C, 1 %), so every UI and linked client
+    /// shows the reading the host took.
+    CameraTemperatureChanged {
+        device_id: String,
+        temperature: f64,
+        cooler_power: Option<f64>,
+    },
+    /// The camera's readout settings as it reports them, published after a
+    /// gain, offset or binning change and once on connect. Every field is
+    /// the camera's full current value, not only the one that changed.
+    CameraSettingsChanged {
+        device_id: String,
+        gain: i32,
+        /// `gain` is an ISO speed, and the camera has no offset (a DSLR or
+        /// mirrorless body).
+        #[serde(default)]
+        gain_is_iso: bool,
+        offset: i32,
+        bin_x: i32,
+        bin_y: i32,
+    },
 
     // Heartbeat monitoring events
     HeartbeatStarted {
@@ -181,4 +231,44 @@ pub enum EquipmentEvent {
         driver: String,
         id: String,
     },
+}
+
+impl EquipmentEvent {
+    /// The device the event is about.
+    pub(crate) fn device_id(&self) -> &str {
+        match self {
+            EquipmentEvent::Connecting { device_id, .. }
+            | EquipmentEvent::Connected { device_id, .. }
+            | EquipmentEvent::Disconnected { device_id, .. }
+            | EquipmentEvent::PropertyChanged { device_id, .. }
+            | EquipmentEvent::Error { device_id, .. }
+            | EquipmentEvent::MountSlewStarted { device_id, .. }
+            | EquipmentEvent::MountSlewCompleted { device_id, .. }
+            | EquipmentEvent::MountTrackingStarted { device_id }
+            | EquipmentEvent::MountTrackingStopped { device_id }
+            | EquipmentEvent::MountParkStarted { device_id }
+            | EquipmentEvent::MountParkCompleted { device_id }
+            | EquipmentEvent::MountUnparked { device_id }
+            | EquipmentEvent::FocuserMoveStarted { device_id, .. }
+            | EquipmentEvent::FocuserMoveCompleted { device_id, .. }
+            | EquipmentEvent::FilterChanging { device_id, .. }
+            | EquipmentEvent::FilterChanged { device_id, .. }
+            | EquipmentEvent::RotatorMoveStarted { device_id, .. }
+            | EquipmentEvent::RotatorMoveCompleted { device_id, .. }
+            | EquipmentEvent::CameraCoolingStarted { device_id, .. }
+            | EquipmentEvent::CameraCoolingReached { device_id, .. }
+            | EquipmentEvent::CameraWarmingStarted { device_id }
+            | EquipmentEvent::CameraWarmingCompleted { device_id }
+            | EquipmentEvent::CameraTemperatureChanged { device_id, .. }
+            | EquipmentEvent::CameraSettingsChanged { device_id, .. }
+            | EquipmentEvent::HeartbeatStarted { device_id, .. }
+            | EquipmentEvent::HeartbeatStopped { device_id, .. }
+            | EquipmentEvent::HeartbeatStatusChanged { device_id, .. }
+            | EquipmentEvent::HeartbeatReconnecting { device_id, .. }
+            | EquipmentEvent::HeartbeatReconnected { device_id, .. } => device_id,
+            EquipmentEvent::DeviceDiscovered { id, .. } | EquipmentEvent::DeviceLost { id, .. } => {
+                id
+            }
+        }
+    }
 }

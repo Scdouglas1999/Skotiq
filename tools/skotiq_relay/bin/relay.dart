@@ -61,11 +61,7 @@ void main(List<String> args) async {
         'relay_state.json',
     tlsCertificatePath: tlsCert,
     tlsPrivateKeyPath: tlsKey,
-    maxAppliances: intOpt(
-      'max-appliances',
-      'SKOTIQ_RELAY_MAX_APPLIANCES',
-      50,
-    ),
+    maxAppliances: intOpt('max-appliances', 'SKOTIQ_RELAY_MAX_APPLIANCES', 50),
     maxClientsPerAppliance: intOpt(
       'max-clients',
       'SKOTIQ_RELAY_MAX_CLIENTS',

@@ -21,10 +21,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../plan_math.dart';
 import 'exposure_node_thumbnail_strip.dart';
 import 'node_progress_panels.dart';
 
@@ -134,22 +136,11 @@ SubtreeActivity subtreeActivityProgress(
   var ran = progress.nodeStatuses[rootId] != null;
   final visited = <String>{rootId};
 
-  /// Per-pass frames for the three capture node types, mirroring the cases
-  /// `plannedCaptureUnder` counts. Open-ended SmartExposure contributes none
-  /// by definition.
-  int perPassFrames(SequenceNode node) => switch (node) {
-        ExposureNode n => n.count,
-        SciencePhotometryNode n => n.count,
-        SmartExposureNode n =>
-          n.loopUntilStopped ? 0 : n.plans.fold(0, (s, p) => s + p.count),
-        _ => 0,
-      };
-
   void visit(SequenceNode node, bool underRepeat) {
     if (!node.isEnabled) return;
     if (progress.nodeStatuses[node.id] != null) ran = true;
 
-    final frames = perPassFrames(node);
+    final frames = node.framesPerPass;
     if (frames > 0) {
       if (underRepeat) {
         // Per-node statuses reset every pass, so scaling them into a run
@@ -237,18 +228,6 @@ final _subtreeActivityProvider =
   );
 });
 
-/// The node categories the tree treats as containers — the same list
-/// `node_tree_view.dart` uses to decide which rows get children. The
-/// Activity tab keys its subtree section off the identical set so a row and
-/// its inspector agree about what "a container" is.
-bool _isContainerNode(SequenceNode node) =>
-    node is TargetHeaderNode ||
-    node is LoopNode ||
-    node is InstructionSetNode ||
-    node is ParallelNode ||
-    node is ConditionalNode ||
-    node is RecoveryNode;
-
 class NodeActivityTab extends ConsumerWidget {
   final SkotiqColors colors;
   final SequenceNode node;
@@ -303,7 +282,7 @@ class NodeActivityTab extends ConsumerWidget {
         structured != null ||
         tally != null;
 
-    final isContainer = _isContainerNode(node);
+    final isContainer = node.kind.isContainer;
     final subtree = isContainer
         ? ref.watch(_subtreeActivityProvider(node.id).select((s) => s))
         : null;
@@ -596,7 +575,7 @@ class _ExposureActivitySectionState
             Text(
               DurationFormat.seconds(
                 frames.durationSecs * frames.totalFrames,
-                style: DurationStyle.compactTrimmed,
+                style: DurationStyle.coarse,
               ),
               style: SkotiqTypography.monoSm.copyWith(
                 color: colors.textMuted,
@@ -775,6 +754,10 @@ class _SubtreeActivitySection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rollup = ref.watch(nodeRollupDurationProvider(nodeId));
+    final openEnd = ref.watch(nodeRollupOpenEndProvider(nodeId));
+    final length = openEnd == null
+        ? formatRollupDuration(rollup)
+        : formatNodeRollup(rollup, openEnd);
     final hasPlan = subtree.plannedFrames > 0 || subtree.hasOpenEndedLoop;
 
     if (!subtree.ran ||
@@ -787,12 +770,14 @@ class _SubtreeActivitySection extends ConsumerWidget {
           ? '${subtree.plannedFrames}+ frames planned'
           : '${subtree.plannedFrames} frames planned';
       return Semantics(
-        label: '$frameLabel, estimated ${formatRollupDuration(rollup)}',
+        label: openEnd == null
+            ? '$frameLabel, estimated $length'
+            : '$frameLabel, runs $length',
         // The wrapped Text would otherwise announce the same sentence again.
         excludeSemantics: true,
         child: Text(
           hasPlan
-              ? '$frameLabel · ${formatRollupDuration(rollup)}'
+              ? '$frameLabel · $length'
               : 'No exposures planned under this node.',
           style: SkotiqTypography.bodySm.copyWith(
             color: colors.textMuted,
@@ -805,7 +790,9 @@ class _SubtreeActivitySection extends ConsumerWidget {
     final remaining =
         Duration(seconds: (rollup.inSeconds * (1 - fraction)).round());
     final summary = '${subtree.doneFrames} / ${subtree.plannedFrames} frames';
-    final remainingLabel = '${formatRollupDuration(remaining)} left';
+    final remainingLabel = openEnd == null
+        ? '${formatRollupDuration(remaining)} left'
+        : 'runs $length';
 
     return Semantics(
       label: '$summary captured, $remainingLabel',

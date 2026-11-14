@@ -3,13 +3,15 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'node_palette_empty_state.dart';
 import 'node_palette_search.dart';
 import 'palette_copy.dart';
-import 'palette_icon_map.dart';
+import 'palette_category_color.dart';
+import 'tree_insert.dart';
+import 'node_appearance.dart';
 
 class NodePalette extends ConsumerStatefulWidget {
   final SkotiqColors colors;
@@ -41,8 +43,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
     super.dispose();
   }
 
-  IconData _getIcon(String iconName) => nodePaletteIconFor(iconName);
-
   void _clearSearch() {
     _searchController.clear();
     setState(() => _searchQuery = '');
@@ -60,12 +60,10 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
     // node_palette_search.dart.
     final filteredCategories = rankNodePaletteMatches(categories, _searchQuery);
 
-    // Mobile bottom sheet layout
     if (widget.isMobileSheet) {
       return _buildMobileSheetContent(filteredCategories);
     }
 
-    // Desktop sidebar layout
     return _buildDesktopSidebarContent(filteredCategories);
   }
 
@@ -74,7 +72,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Handle bar
         Center(
           child: Container(
             margin: const EdgeInsets.only(top: 12, bottom: 8),
@@ -86,8 +83,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
             ),
           ),
         ),
-
-        // Header with search
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
@@ -110,7 +105,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Search
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
@@ -164,10 +158,7 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
             ],
           ),
         ),
-
         Divider(color: widget.colors.border, height: 1),
-
-        // Categories list - using provided scroll controller for DraggableScrollableSheet
         Expanded(
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(
@@ -193,7 +184,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
                         category: category,
                         colors: widget.colors,
                         categoryColor: _getCategoryColor(category.name),
-                        getIcon: _getIcon,
                         isMobile: true,
                         onNodeAdded: widget.onNodeAdded,
                       );
@@ -223,7 +213,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Container(
               padding: EdgeInsets.all(headerPadding),
               decoration: BoxDecoration(
@@ -268,7 +257,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
                     ],
                   ),
                   SizedBox(height: Responsive.spacing(context, 12)),
-                  // Search
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: searchPadding),
                     decoration: BoxDecoration(
@@ -325,7 +313,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
               ),
             ),
 
-            // Categories
             Expanded(
               child: ScrollConfiguration(
                 behavior: ScrollConfiguration.of(context).copyWith(
@@ -352,7 +339,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
                             category: category,
                             colors: widget.colors,
                             categoryColor: _getCategoryColor(category.name),
-                            getIcon: _getIcon,
                           );
                         },
                       ),
@@ -367,7 +353,6 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
             // Category color legend so the palette is self-describing.
             _PaletteColorLegend(colors: widget.colors),
 
-            // Help tip
             Container(
               padding: EdgeInsets.all(tipPadding),
               margin:
@@ -407,7 +392,6 @@ class _CategorySection extends ConsumerStatefulWidget {
   final NodePaletteCategory category;
   final SkotiqColors colors;
   final Color categoryColor;
-  final IconData Function(String) getIcon;
   final bool isMobile;
   final VoidCallback? onNodeAdded;
 
@@ -415,7 +399,6 @@ class _CategorySection extends ConsumerStatefulWidget {
     required this.category,
     required this.colors,
     required this.categoryColor,
-    required this.getIcon,
     this.isMobile = false,
     this.onNodeAdded,
   });
@@ -441,7 +424,6 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Category header
         InkWell(
           onTap: () => setState(() => _isExpanded = !_isExpanded),
           child: Padding(
@@ -462,7 +444,7 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
                     bordered: false,
                   ),
                   child: Icon(
-                    widget.getIcon(widget.category.icon),
+                    nodeIcon(widget.category.icon),
                     size: badgeIconSize,
                     color: widget.categoryColor,
                   ),
@@ -489,8 +471,6 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
             ),
           ),
         ),
-
-        // Items
         AnimatedCrossFade(
           firstChild: Padding(
             padding: EdgeInsets.only(
@@ -504,7 +484,6 @@ class _CategorySectionState extends ConsumerState<_CategorySection> {
                   item: item,
                   colors: widget.colors,
                   categoryColor: widget.categoryColor,
-                  getIcon: widget.getIcon,
                   isMobile: isMobile,
                   onNodeAdded: widget.onNodeAdded,
                 );
@@ -526,7 +505,6 @@ class _DraggableNodeItem extends ConsumerStatefulWidget {
   final NodePaletteItem item;
   final SkotiqColors colors;
   final Color categoryColor;
-  final IconData Function(String) getIcon;
   final bool isMobile;
   final VoidCallback? onNodeAdded;
 
@@ -534,7 +512,6 @@ class _DraggableNodeItem extends ConsumerStatefulWidget {
     required this.item,
     required this.colors,
     required this.categoryColor,
-    required this.getIcon,
     this.isMobile = false,
     this.onNodeAdded,
   });
@@ -547,34 +524,13 @@ class _DraggableNodeItemState extends ConsumerState<_DraggableNodeItem> {
   bool _isHovered = false;
 
   void _addNode() {
-    // Refuse the click while the executor owns the
-    // tree. Editor still throws SequenceLockedException as a last line
-    // of defense; this just keeps the affordance honest.
-    if (!ref.read(canEditSequenceProvider)) return;
-    final node = widget.item.createNode();
-    final notifier = ref.read(currentSequenceProvider.notifier);
-    // With nothing open there is nothing to add to: start a sequence for the
-    // node, as "Add a target" does, instead of dropping the tap.
-    if (ref.read(currentSequenceProvider) == null) {
-      notifier.createSequence();
-      ref.read(selectedNodeIdProvider.notifier).state = null;
-    }
-    final selectedId = ref.read(selectedNodeIdProvider);
-    notifier.addNode(
-      node,
-      parentId: selectedId,
+    final inserted = insertIntoTree(
+      context,
+      ref,
+      widget.item,
+      parentId: ref.read(selectedNodeIdProvider),
     );
-
-    // Add any pre-configured children (e.g. Autofocus inside HFR Triggered AF)
-    final children = widget.item.createChildren?.call();
-    if (children != null) {
-      for (final child in children) {
-        notifier.addNode(child, parentId: node.id);
-      }
-    }
-
-    ref.read(selectedNodeIdProvider.notifier).state = node.id;
-    widget.onNodeAdded?.call();
+    if (inserted) widget.onNodeAdded?.call();
   }
 
   @override
@@ -626,7 +582,7 @@ class _DraggableNodeItemState extends ConsumerState<_DraggableNodeItem> {
                     borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                   ),
                   child: Icon(
-                    widget.getIcon(widget.item.icon),
+                    nodeIcon(widget.item.icon),
                     size: 20,
                     color: widget.categoryColor,
                   ),
@@ -691,7 +647,7 @@ class _DraggableNodeItemState extends ConsumerState<_DraggableNodeItem> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  widget.getIcon(widget.item.icon),
+                  nodeIcon(widget.item.icon),
                   size: feedbackIconSize,
                   color: widget.categoryColor,
                 ),
@@ -744,7 +700,7 @@ class _DraggableNodeItemState extends ConsumerState<_DraggableNodeItem> {
                             BorderRadius.circular(SkotiqTokens.radiusMd),
                       ),
                       child: Icon(
-                        widget.getIcon(widget.item.icon),
+                        nodeIcon(widget.item.icon),
                         size: itemIconSize,
                         color: widget.categoryColor,
                       ),

@@ -7,19 +7,31 @@
 use super::*;
 #[cfg(windows)]
 use crate::ascom_wrapper::mount::test_support::{build_test_mount_wrapper, TestMountResponses};
+use crate::device::DriverType;
 use crate::state::AppState;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
+mod alpaca_mount;
+mod capabilities;
 mod guards;
 mod heartbeat_config;
 mod heartbeat_events;
 mod identity;
 mod indi_ids;
+mod indi_release;
+mod listing_order;
 mod mount_home;
 mod mount_ops;
 mod mount_set_park;
+mod mount_trace;
+mod native_camera_probe;
+mod native_mount_probe;
+mod omnisim;
+mod omnisim_camera;
+mod omnisim_mount;
+mod protocol_errors;
 mod reconnect_state;
 mod simulator;
 mod switch_ops;
@@ -29,7 +41,16 @@ mod switch_ops;
 /// the SAME lock — two independent mutexes over one shared state exclude
 /// nothing.
 fn simulator_singleton_test_lock() -> &'static Mutex<()> {
-    crate::api::devices::simulation::sim_singleton_test_lock()
+    crate::simulator::sim_singleton_test_lock()
+}
+
+/// Releases a simulated device the way `disconnect_device` does: through its
+/// handle, and nothing to do when it has none.
+async fn release_simulator(manager: &DeviceManager, info: &DeviceInfo) -> Result<(), String> {
+    match manager.handles.remove(&info.id) {
+        Some(handle) => handle.disconnect().await.map_err(|e| e.to_string()),
+        None => Ok(()),
+    }
 }
 
 fn build_switch_info(id: &str, driver_type: DriverType) -> DeviceInfo {
@@ -65,48 +86,19 @@ fn build_device_manager() -> DeviceManager {
         app_state: AppState::new(),
         devices: RwLock::new(HashMap::new()),
         observed_identities: RwLock::new(HashMap::new()),
+        expected_models: Default::default(),
         reconnect_config: ReconnectConfig::default(),
-        stop_reconnect: Arc::new(RwLock::new(false)),
+        handles: Default::default(),
         native_devices: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_cameras: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_mounts: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_focusers: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_filter_wheels: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_rotators: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_domes: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_weather: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_safety_monitors: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_switches: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_cover_calibrators: RwLock::new(HashMap::new()),
         indi_clients: RwLock::new(HashMap::new()),
-        alpaca_cameras: RwLock::new(HashMap::new()),
-        alpaca_mounts: RwLock::new(HashMap::new()),
-        alpaca_focusers: RwLock::new(HashMap::new()),
-        alpaca_filter_wheels: RwLock::new(HashMap::new()),
-        alpaca_rotators: RwLock::new(HashMap::new()),
-        alpaca_domes: RwLock::new(HashMap::new()),
-        alpaca_weather: RwLock::new(HashMap::new()),
-        alpaca_safety_monitors: RwLock::new(HashMap::new()),
-        alpaca_switches: RwLock::new(HashMap::new()),
-        alpaca_cover_calibrators: RwLock::new(HashMap::new()),
-        native_cameras: RwLock::new(HashMap::new()),
-        native_focusers: RwLock::new(HashMap::new()),
-        native_filter_wheels: RwLock::new(HashMap::new()),
-        native_mounts: RwLock::new(HashMap::new()),
         heartbeat_tasks: RwLock::new(HashMap::new()),
         reconnect_cancel_tokens: RwLock::new(HashMap::new()),
         active_operations: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
         usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+        command_activity: Default::default(),
+        published_temperatures: Default::default(),
+        status_reads: Default::default(),
+        pixel_size_notices: Default::default(),
     }
 }
 
@@ -126,15 +118,15 @@ struct FakeIdentityDevice {
 }
 
 #[async_trait::async_trait]
-impl skotiq_native::traits::NativeDevice for FakeIdentityDevice {
+impl skotiq_device::DeviceDriver for FakeIdentityDevice {
     fn id(&self) -> &str {
         &self.id
     }
     fn name(&self) -> &str {
         &self.model
     }
-    fn vendor(&self) -> skotiq_native::NativeVendor {
-        skotiq_native::NativeVendor::Zwo
+    fn vendor(&self) -> skotiq_device::Vendor {
+        skotiq_device::Vendor::Zwo
     }
     fn serial_number(&self) -> Option<String> {
         self.serial.clone()
@@ -142,10 +134,36 @@ impl skotiq_native::traits::NativeDevice for FakeIdentityDevice {
     fn is_connected(&self) -> bool {
         true
     }
-    async fn connect(&mut self) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn connect(&mut self) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn disconnect(&mut self) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn disconnect(&mut self) -> Result<(), skotiq_device::DriverError> {
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl skotiq_device::FilterWheelDriver for FakeIdentityDevice {
+    async fn move_to_position(&mut self, _position: i32) -> Result<(), skotiq_device::DriverError> {
+        Ok(())
+    }
+    async fn get_position(&self) -> Result<i32, skotiq_device::DriverError> {
+        Ok(0)
+    }
+    async fn is_moving(&self) -> Result<bool, skotiq_device::DriverError> {
+        Ok(false)
+    }
+    async fn get_filter_count(&self) -> i32 {
+        5
+    }
+    async fn get_filter_names(&self) -> Result<Vec<String>, skotiq_device::DriverError> {
+        Ok(Vec::new())
+    }
+    async fn set_filter_name(
+        &mut self,
+        _position: i32,
+        _name: String,
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
 }
@@ -177,14 +195,14 @@ async fn install_fake_device(manager: &DeviceManager, id: &str, model: &str, ser
     );
 }
 
-// `connect_simulator` / `disconnect_simulator` must flip the matching
-// `simulation.rs` singleton's `connected` flag, and the heartbeat path for
+// Connecting a simulator and disconnecting its handle must flip the matching
+// simulator singleton's `connected` flag, and the heartbeat path for
 // `DriverType::Simulator` must read that flag rather than report healthy
 // unconditionally — otherwise a "connected" simulator has no driver state
 // behind it.
 //
 // Tests use distinct device_type prefixes to avoid cross-test interference
-// through the process-wide simulation.rs singletons.
+// through the process-wide simulator singletons.
 fn build_sim_info(id: &str, device_type: DeviceType) -> DeviceInfo {
     DeviceInfo {
         id: id.to_string(),

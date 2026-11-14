@@ -9,14 +9,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../../../services/mount_command_service.dart';
 import '../../../../utils/snackbar_helper.dart';
 import 'mount_jog.dart';
-import 'night_panel_parts.dart';
+import '../panel_widgets.dart';
 
 /// Identity for the pad's Stop all motion button.
 const ValueKey<String> mountJogStopKey = ValueKey<String>('mountJog.stop');
@@ -142,7 +145,7 @@ class _NightMountMovePadState extends ConsumerState<NightMountMovePad> {
         );
 
     final pad = SizedBox(
-      width: _cell * 3 + kNightPanelCellGap * 2,
+      width: _cell * 3 + SkotiqTokens.spaceXs * 2,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -150,7 +153,7 @@ class _NightMountMovePadState extends ConsumerState<NightMountMovePad> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [arrow('north', 'N', 'nightScopeNorth')],
           ),
-          const SizedBox(height: kNightPanelCellGap),
+          const SizedBox(height: SkotiqTokens.spaceXs),
           // East on the left, as the sky looks facing the meridian.
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -160,7 +163,7 @@ class _NightMountMovePadState extends ConsumerState<NightMountMovePad> {
               arrow('west', 'W', 'nightScopeWest'),
             ],
           ),
-          const SizedBox(height: kNightPanelCellGap),
+          const SizedBox(height: SkotiqTokens.spaceXs),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [arrow('south', 'S', 'nightScopeSouth')],
@@ -395,8 +398,8 @@ class _NightMountMovePadState extends ConsumerState<NightMountMovePad> {
         } catch (error) {
           if (mounted) {
             context.showErrorSnackBar(
-              context.l10n
-                  .text('nightScopeJogFailed', params: {'error': '$error'}),
+              context.l10n.text('nightScopeJogFailed',
+                  params: {'error': userFacingError(error)}),
             );
           }
           // The driver may still have started the axis before throwing.
@@ -440,8 +443,8 @@ class _NightMountMovePadState extends ConsumerState<NightMountMovePad> {
     } catch (error) {
       if (mounted) {
         context.showErrorSnackBar(
-          context.l10n
-              .text('nightScopeJogStopFailed', params: {'error': '$error'}),
+          context.l10n.text('nightScopeJogStopFailed',
+              params: {'error': userFacingError(error)}),
         );
       }
     }

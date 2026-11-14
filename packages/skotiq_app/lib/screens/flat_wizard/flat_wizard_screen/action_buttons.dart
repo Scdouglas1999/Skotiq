@@ -9,6 +9,7 @@ class _ActionButtons extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(flatWizardProvider);
     final notifier = ref.read(flatWizardProvider.notifier);
+    final saveFolder = ref.watch(flatWizardSaveFolderProvider);
 
     // The terminal error is a verdict ("no frames were saved"); on its own it
     // names no cause and no next step. Pair it with the measured diagnosis and
@@ -22,15 +23,36 @@ class _ActionButtons extends ConsumerWidget {
         Row(children: [
           const Icon(LucideIcons.folder, size: 16),
           const SizedBox(width: SkotiqTokens.spaceSm),
-          Expanded(
+          if (saveFolder == null)
+            const Expanded(
               child: Text(
-            state.globalSettings.savePath ?? 'Choose where to save flats',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: SkotiqTypography.bodySm,
-          )),
+                'Choose where to save flats',
+                style: SkotiqTypography.bodySm,
+              ),
+            )
+          else ...[
+            const Text('Saves to ', style: SkotiqTypography.bodySm),
+            Expanded(
+              child: Tooltip(
+                message: saveFolder,
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Text(
+                    pathTail(
+                      saveFolder,
+                      maxWidth: constraints.maxWidth,
+                      style: SkotiqTypography.bodySm,
+                      textScaler: MediaQuery.textScalerOf(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: SkotiqTypography.bodySm,
+                  ),
+                ),
+              ),
+            ),
+          ],
           SkotiqButton(
-              label: 'Folder',
+              label: saveFolder == null ? 'Choose…' : 'Change…',
               variant: ButtonVariant.ghost,
               size: ButtonSize.small,
               onPressed:
@@ -85,7 +107,7 @@ class _ActionButtons extends ConsumerWidget {
                   // changed tab. The selected mode is the one the tour should
                   // spotlight, so only it claims it.
                   key: mode == state.mode
-                      ? FlatWizardTutorialKeys.startBtn
+                      ? TourTarget.flatStartButton.key
                       : null,
                   label: mode == FlatWizardMode.quick
                       ? 'Start capture'
@@ -105,15 +127,15 @@ class _ActionButtons extends ConsumerWidget {
   Future<void> _chooseFolder(BuildContext context, WidgetRef ref) async {
     final notifier = ref.read(flatWizardProvider.notifier);
     if (!notifier.reserveStartPrompt()) return;
-    final authority = ref.read(backendProvider);
+    final hostScope = ref.backendScope();
     final settings = ref.read(flatWizardProvider).globalSettings;
     try {
       final result = await SavePathDialog.show(context,
-          currentPath: settings.savePath,
+          currentPath: ref.read(flatWizardSaveFolderProvider),
           createDateSubfolder: settings.createDateSubfolder,
           createFilterSubfolders: settings.createFilterSubfolders);
       if (result == null || !context.mounted) return;
-      if (!identical(authority, ref.read(backendProvider))) {
+      if (hostScope.isStale) {
         notifier.setWarningMessage(
             'The imaging host changed. Choose the folder again.');
         return;
@@ -134,21 +156,21 @@ class _ActionButtons extends ConsumerWidget {
     final notifier = ref.read(flatWizardProvider.notifier);
     final state = ref.read(flatWizardProvider);
     if (state.isCapturing || !notifier.reserveStartPrompt()) return;
-    final authority = ref.read(backendProvider);
+    final hostScope = ref.backendScope();
 
     try {
-      // Ensure a save path is set — prompt for one if missing.
-      if (state.globalSettings.savePath == null ||
-          state.globalSettings.savePath!.isEmpty) {
+      // Flats default to the capture folder; only a computer with neither
+      // has to be asked.
+      if (ref.read(flatWizardSaveFolderProvider) == null) {
         final result = await SavePathDialog.show(
           context,
-          currentPath: state.globalSettings.savePath,
+          currentPath: null,
           createDateSubfolder: state.globalSettings.createDateSubfolder,
           createFilterSubfolders: state.globalSettings.createFilterSubfolders,
         );
 
         if (result == null || !context.mounted) return;
-        if (!identical(ref.read(backendProvider), authority)) {
+        if (hostScope.isStale) {
           notifier.setWarningMessage(
             'The imaging host changed while choosing the flat-frame folder. '
             'Choose it again for the current host.',
@@ -166,8 +188,7 @@ class _ActionButtons extends ConsumerWidget {
         );
       }
 
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
+      if (!context.mounted || hostScope.isStale) {
         return;
       }
 
@@ -177,8 +198,9 @@ class _ActionButtons extends ConsumerWidget {
       notifier.releaseStartPrompt();
       await notifier.runCapture();
     } catch (error) {
-      if (context.mounted && identical(ref.read(backendProvider), authority)) {
-        notifier.setErrorMessage('Could not start flat capture: $error');
+      if (context.mounted && hostScope.isCurrent) {
+        notifier.setErrorMessage(
+            'Could not start flat capture: ${userFacingError(error)}');
       }
     } finally {
       notifier.releaseStartPrompt();

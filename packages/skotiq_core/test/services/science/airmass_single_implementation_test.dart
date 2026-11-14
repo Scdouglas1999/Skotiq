@@ -25,7 +25,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Walks up from the test's working directory to the repository root — the
 /// directory holding both `packages/` and `apps/`. Tests run with the package
@@ -79,7 +79,7 @@ List<File> _libraryDartSources() {
 /// The canonical implementation. Relative to the repo root so the assertion
 /// below names one exact file rather than "whichever file matched".
 const String _canonicalPath =
-    'packages/skotiq_planetarium/lib/src/astronomy/'
+    'packages/skotiq_astro/lib/src/astronomy/'
     'astronomy_calculations.dart';
 
 /// Numeric fingerprints of the airmass formulas. Any of these appearing in a

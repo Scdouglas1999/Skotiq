@@ -4,7 +4,7 @@ import '../database/database.dart' as db;
 import 'equipment_profile.dart' as remote_profile;
 
 /// Canonical, lossless converters between the SQLite Drift row
-/// (`db.EquipmentProfile`) and the REST wire model
+/// (`db.DbEquipmentProfile`) and the REST wire model
 /// (`remote_profile.EquipmentProfile`).
 ///
 /// This is the SINGLE source of truth for equipment-profile mapping shared by
@@ -19,13 +19,12 @@ import 'equipment_profile.dart' as remote_profile;
 
 /// READER: Drift row -> REST wire model (for GET /api/profiles and the active
 /// profile endpoint). Maps every column the wire model can carry.
-remote_profile.EquipmentProfile dbProfileToRemote(db.EquipmentProfile row) {
+remote_profile.EquipmentProfile dbProfileToRemote(db.DbEquipmentProfile row) {
   return remote_profile.EquipmentProfile(
     id: row.id.toString(),
     name: row.name,
     description: row.description,
 
-    // Device identifiers
     cameraId: row.cameraId,
     mountId: row.mountId,
     focuserId: row.focuserId,
@@ -40,12 +39,10 @@ remote_profile.EquipmentProfile dbProfileToRemote(db.EquipmentProfile row) {
     switchId: row.switchId,
     coverCalibratorId: row.coverCalibratorId,
 
-    // Optical setup
     focalLength: row.focalLength,
     aperture: row.aperture,
     focalRatio: row.focalRatio,
 
-    // Camera defaults
     defaultGain: row.defaultGain,
     defaultOffset: row.defaultOffset,
     defaultBinX: row.defaultBinX,
@@ -54,14 +51,11 @@ remote_profile.EquipmentProfile dbProfileToRemote(db.EquipmentProfile row) {
     coolOnConnect: row.coolOnConnect,
     defaultCenteringExposure: row.defaultCenteringExposure,
 
-    // Filter configuration
     filterNames: row.filterNames,
     filterFocusOffsets: row.filterFocusOffsets,
 
-    // Meridian flip overrides
     meridianFlipOverrides: row.meridianFlipOverrides,
 
-    // User-friendly device names
     cameraName: row.cameraName,
     mountName: row.mountName,
     focuserName: row.focuserName,
@@ -77,17 +71,14 @@ remote_profile.EquipmentProfile dbProfileToRemote(db.EquipmentProfile row) {
     telescopeFocalLength: row.telescopeFocalLength ?? 0.0,
     telescopeAperture: row.telescopeAperture ?? 0.0,
 
-    // Customization
     profileIcon: row.profileIcon,
     profileColor: row.profileColor,
     sortOrder: row.sortOrder,
     isDefault: row.isDefault,
 
-    // Timestamps
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
 
-    // State
     isActive: row.isActive,
   );
 }
@@ -100,69 +91,15 @@ remote_profile.EquipmentProfile dbProfileToRemote(db.EquipmentProfile row) {
 /// left absent so SQLite assigns the autoincrement key.
 db.EquipmentProfilesCompanion remoteProfileToCompanion(
   remote_profile.EquipmentProfile profile,
-) {
-  return db.EquipmentProfilesCompanion.insert(
-    name: profile.name,
-    description: Value(profile.description),
-
-    // Device identifiers
-    cameraId: Value(profile.cameraId),
-    mountId: Value(profile.mountId),
-    focuserId: Value(profile.focuserId),
-    filterWheelId: Value(profile.filterWheelId),
-    guiderId: Value(profile.guiderId),
-    guideCameraId: Value(profile.guideCameraId),
-    guideFocalLength: Value(profile.guideFocalLength),
-    rotatorId: Value(profile.rotatorId),
-    domeId: Value(profile.domeId),
-    weatherId: Value(profile.weatherId),
-    safetyMonitorId: Value(profile.safetyMonitorId),
-    switchId: Value(profile.switchId),
-    coverCalibratorId: Value(profile.coverCalibratorId),
-
-    // Optical setup
-    focalLength: Value(profile.focalLength),
-    aperture: Value(profile.aperture),
-    focalRatio: Value(profile.focalRatio),
-
-    // Camera defaults
-    defaultGain: Value(profile.defaultGain),
-    defaultOffset: Value(profile.defaultOffset),
-    defaultBinX: Value(profile.defaultBinX),
-    defaultBinY: Value(profile.defaultBinY),
-    defaultCoolingTemp: Value(profile.defaultCoolingTemp),
-    coolOnConnect: Value(profile.coolOnConnect),
-    defaultCenteringExposure: Value(profile.defaultCenteringExposure),
-
-    // Filter configuration
-    filterNames: Value(profile.filterNames),
-    filterFocusOffsets: Value(profile.filterFocusOffsets),
-
-    // Meridian flip overrides
-    meridianFlipOverrides: Value(profile.meridianFlipOverrides),
-
-    // User-friendly device names
-    cameraName: Value(profile.cameraName),
-    mountName: Value(profile.mountName),
-    focuserName: Value(profile.focuserName),
-    filterWheelName: Value(profile.filterWheelName),
-    guiderName: Value(profile.guiderName),
-    guideCameraName: Value(profile.guideCameraName),
-    rotatorName: Value(profile.rotatorName),
-    safetyMonitorName: Value(profile.safetyMonitorName),
-    switchName: Value(profile.switchName),
-
-    // Telescope/OTA
-    telescopeName: Value(profile.telescopeName),
-    telescopeFocalLength: Value(profile.telescopeFocalLength),
-    telescopeAperture: Value(profile.telescopeAperture),
-
-    // Customization
-    profileIcon: Value(profile.profileIcon),
-    profileColor: Value(profile.profileColor),
-    sortOrder: Value(profile.sortOrder),
-  );
-}
+) => remoteProfileToDbRow(profile)
+    .toCompanion(false)
+    .copyWith(
+      id: const Value.absent(),
+      isDefault: const Value.absent(),
+      isActive: const Value.absent(),
+      createdAt: const Value.absent(),
+      updatedAt: const Value.absent(),
+    );
 
 /// UPDATE / SLAVE-POLL READER: REST wire model -> full Drift row for
 /// `dao.updateProfile(...)` (which does a full-row `.replace`).
@@ -174,19 +111,18 @@ db.EquipmentProfilesCompanion remoteProfileToCompanion(
 /// database_provider), the remote payload's own flags are carried through so
 /// the slave's `allProfilesProvider`/`activeProfileProvider` stream produces
 /// rows identical to the host's.
-db.EquipmentProfile remoteProfileToDbRow(
+db.DbEquipmentProfile remoteProfileToDbRow(
   remote_profile.EquipmentProfile profile, {
-  db.EquipmentProfile? existing,
+  db.DbEquipmentProfile? existing,
   DateTime? now,
 }) {
   // Injectable write clock keeps the updatedAt bump deterministic under test.
   final writeStamp = now ?? DateTime.now().toUtc();
-  return db.EquipmentProfile(
+  return db.DbEquipmentProfile(
     id: int.tryParse(profile.id) ?? 0,
     name: profile.name,
     description: profile.description,
 
-    // Device identifiers
     cameraId: profile.cameraId,
     mountId: profile.mountId,
     focuserId: profile.focuserId,
@@ -201,12 +137,10 @@ db.EquipmentProfile remoteProfileToDbRow(
     switchId: profile.switchId,
     coverCalibratorId: profile.coverCalibratorId,
 
-    // Optical setup
     focalLength: profile.focalLength,
     aperture: profile.aperture,
     focalRatio: profile.focalRatio,
 
-    // Camera defaults
     defaultGain: profile.defaultGain,
     defaultOffset: profile.defaultOffset,
     defaultBinX: profile.defaultBinX,
@@ -215,7 +149,6 @@ db.EquipmentProfile remoteProfileToDbRow(
     coolOnConnect: profile.coolOnConnect,
     defaultCenteringExposure: profile.defaultCenteringExposure,
 
-    // Filter configuration
     filterNames: profile.filterNames,
     filterFocusOffsets: profile.filterFocusOffsets,
 
@@ -228,7 +161,6 @@ db.EquipmentProfile remoteProfileToDbRow(
     meridianFlipOverrides:
         profile.meridianFlipOverrides ?? existing?.meridianFlipOverrides,
 
-    // User-friendly device names
     cameraName: profile.cameraName,
     mountName: profile.mountName,
     focuserName: profile.focuserName,
@@ -239,12 +171,10 @@ db.EquipmentProfile remoteProfileToDbRow(
     safetyMonitorName: profile.safetyMonitorName,
     switchName: profile.switchName,
 
-    // Telescope/OTA
     telescopeName: profile.telescopeName,
     telescopeFocalLength: profile.telescopeFocalLength,
     telescopeAperture: profile.telescopeAperture,
 
-    // Customization
     profileIcon: profile.profileIcon,
     profileColor: profile.profileColor,
     // Preserve sort order / default / active flags from the existing row on the

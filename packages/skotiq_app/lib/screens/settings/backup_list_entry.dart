@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
 
 /// One row in the Backup & Restore list, portable across the local backend
 /// (files on disk) and a remote headless host (`/api/backup/list`).
@@ -9,10 +9,9 @@ import 'package:skotiq_core/skotiq_core.dart';
 /// The [id] is the only field safe to use as an action target: for a remote
 /// host it is the stable, process-independent backup id the host derives from
 /// the filename (see the desktop `BackupHandlers._idForBackupFile`); for a
-/// local file it is a path-derived key. [filePath] is retained for the local
-/// restore path and for backward compatibility with older hosts, but a remote
-/// restore/delete/download always addresses the backup by [id] so no absolute
-/// server path crosses the wire.
+/// local file it is a path-derived key. [filePath] is the local restore path;
+/// a remote restore/delete/download addresses the backup by [id], so no
+/// absolute server path crosses the wire.
 @immutable
 class BackupListEntry {
   final String id;
@@ -82,12 +81,10 @@ List<BackupListEntry> parseRemoteBackupList(List<Map<String, dynamic>> rows) {
 }
 
 /// Stable identity of a backend, used to reject a slow list result or a row
-/// action after the user has switched host or mode mid-flight. Remote backends
-/// key on `host:port` (a reconnect to a different rig yields a different token);
-/// every non-network backend shares the `local` token. A row loaded against
-/// one token must never dispatch its action against a different one — that is
-/// how an old row would otherwise target the current host.
-String backendBackupToken(SkotiqBackend backend) => backend is NetworkBackend
-    ? 'remote:${identityHashCode(backend)}:'
-        '${backend.serverHost}:${backend.serverPort}'
-    : 'local:${identityHashCode(backend)}';
+/// action after the user has switched host or mode mid-flight. Every backend
+/// instance has its own token, so a reconnect to the same rig is a new owner.
+/// A row loaded against one token must never dispatch its action against a
+/// different one — that is how an old row would otherwise target the current
+/// host.
+String backendBackupToken(SkotiqBackend backend) =>
+    '${backend.runtimeType}:${identityHashCode(backend)}';

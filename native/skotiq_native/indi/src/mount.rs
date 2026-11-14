@@ -4,8 +4,8 @@
 
 use crate::client::IndiClient;
 use crate::error::{IndiError, IndiResult};
-use crate::protocol::coord_elements::*;
-use crate::protocol::standard_properties::*;
+use crate::protocol::names::*;
+use skotiq_device::GuideDirection;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -40,16 +40,6 @@ fn resolve_equatorial_coord_property(has_eod: bool, has_j2000: bool) -> Equatori
     }
 }
 
-/// Timed pulse-guide direction (INDI `TELESCOPE_TIMED_GUIDE_*`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IndiMountGuideDirection {
-    North,
-    South,
-    East,
-    West,
-}
-
-/// INDI Mount device wrapper
 pub struct IndiMount {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
@@ -62,16 +52,16 @@ impl IndiMount {
         client: &IndiClient,
         device_name: &str,
     ) -> Option<&'static str> {
-        let slew = client.get_switch(device_name, ON_COORD_SET, "SLEW").await;
-        let sync = client.get_switch(device_name, ON_COORD_SET, "SYNC").await;
-        let track = client.get_switch(device_name, ON_COORD_SET, "TRACK").await;
+        let slew = client.get_switch(device_name, ON_COORD_SET, SLEW).await;
+        let sync = client.get_switch(device_name, ON_COORD_SET, SYNC).await;
+        let track = client.get_switch(device_name, ON_COORD_SET, TRACK).await;
 
         if slew == Some(true) {
-            Some("SLEW")
+            Some(SLEW)
         } else if sync == Some(true) {
-            Some("SYNC")
+            Some(SYNC)
         } else if track.is_some() {
-            Some("TRACK")
+            Some(TRACK)
         } else {
             None
         }
@@ -82,13 +72,13 @@ impl IndiMount {
     /// when the driver does not offer TRACK.
     async fn goto_coord_set_mode(client: &IndiClient, device_name: &str) -> &'static str {
         if client
-            .get_switch(device_name, ON_COORD_SET, "TRACK")
+            .get_switch(device_name, ON_COORD_SET, TRACK)
             .await
             .is_some()
         {
-            "TRACK"
+            TRACK
         } else {
-            "SLEW"
+            SLEW
         }
     }
 
@@ -112,7 +102,6 @@ impl IndiMount {
         }
     }
 
-    /// Create a new INDI mount wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -139,7 +128,7 @@ impl IndiMount {
 
     /// Detect which equatorial coordinate vector this mount uses (J2000 vs of-date).
     ///
-    /// Resolved via `get_property_state` on connect and on first use; reads, slews, syncs,
+    /// Resolved on first use, once the driver has defined one of them; reads, slews, syncs,
     /// and slew-busy checks all use the same property (audit ND-).
     async fn equatorial_coord_property(&self) -> EquatorialCoordProperty {
         if let Some(prop) = *self.equatorial_coord_property.read().await {
@@ -155,50 +144,8 @@ impl IndiMount {
         prop
     }
 
-    /// Re-detect equatorial coordinate property after connect or property discovery.
-    async fn refresh_equatorial_coord_property(&self) {
-        let client = self.client.read().await;
-        let (prop, resolved) =
-            Self::detect_equatorial_coord_property(&client, &self.device_name).await;
-        let mut cache = self.equatorial_coord_property.write().await;
-        if resolved {
-            *cache = Some(prop);
-        } else {
-            *cache = None;
-        }
-    }
-
-    /// Get the device name
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    /// Connect to the mount
-    pub async fn connect(&self) -> IndiResult<()> {
-        {
-            let mut client = self.client.write().await;
-            client.connect_device(&self.device_name).await?;
-        }
-        self.refresh_equatorial_coord_property().await;
-        Ok(())
-    }
-
-    /// Disconnect from the mount
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        let result = client.disconnect_device(&self.device_name).await;
-        *self.equatorial_coord_property.write().await = None;
-        result
-    }
-
-    /// Check if connected
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
     /// Get current coordinates (RA in hours, Dec in degrees)
-    pub async fn get_coordinates(&self) -> Result<(f64, f64), String> {
+    pub async fn get_coordinates(&self) -> IndiResult<(f64, f64)> {
         let coord = self.equatorial_coord_property().await;
         let client = self.client.read().await;
         let prop = coord.as_str();
@@ -206,12 +153,12 @@ impl IndiMount {
         let ra = client
             .get_number(&self.device_name, prop, RA)
             .await
-            .ok_or_else(|| format!("RA not available on {}", prop))?;
+            .ok_or_else(|| IndiError::Unavailable(format!("RA not available on {}", prop)))?;
 
         let dec = client
             .get_number(&self.device_name, prop, DEC)
             .await
-            .ok_or_else(|| format!("Dec not available on {}", prop))?;
+            .ok_or_else(|| IndiError::Unavailable(format!("Dec not available on {}", prop)))?;
 
         Ok((ra, dec))
     }
@@ -235,7 +182,6 @@ impl IndiMount {
             .set_switch(&self.device_name, ON_COORD_SET, goto_mode, true)
             .await?;
 
-        // Set target coordinates
         if let Err(error) = client
             .set_numbers(
                 &self.device_name,
@@ -337,7 +283,7 @@ impl IndiMount {
         ra_hours: f64,
         dec_degrees: f64,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -349,7 +295,6 @@ impl IndiMount {
         let coord = self.equatorial_coord_property().await;
         let coord_prop = coord.as_str();
 
-        // Start the slew
         {
             let mut client = self.client.write().await;
             let previous_mode = Self::current_on_coord_set_mode(&client, &self.device_name).await;
@@ -367,20 +312,17 @@ impl IndiMount {
             {
                 Self::restore_on_coord_set_mode(&mut client, &self.device_name, previous_mode)
                     .await;
-                return Err(error.to_string());
+                return Err(error);
             }
         }
 
-        // Wait for slew to complete
         let client = self.client.read().await;
         client
             .wait_for_property_not_busy(&self.device_name, coord_prop, timeout_duration)
             .await
-            .map_err(|e| {
-                format!(
-                    "Mount slew to RA={:.4}h, Dec={:.4}° failed: {}",
-                    ra_hours, dec_degrees, e
-                )
+            .map_err(|e| IndiError::Failed {
+                what: format!("Mount slew to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees),
+                cause: Box::new(e),
             })
     }
 
@@ -389,12 +331,10 @@ impl IndiMount {
         let coord = self.equatorial_coord_property().await;
         let mut client = self.client.write().await;
 
-        // Set coordinate mode to SYNC
         client
-            .set_switch(&self.device_name, ON_COORD_SET, "SYNC", true)
+            .set_switch(&self.device_name, ON_COORD_SET, SYNC, true)
             .await?;
 
-        // Set target coordinates
         client
             .set_numbers(
                 &self.device_name,
@@ -404,27 +344,24 @@ impl IndiMount {
             .await
     }
 
-    /// Abort slew
     pub async fn abort_slew(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, TELESCOPE_ABORT_MOTION, "ABORT", true)
+            .set_switch(&self.device_name, TELESCOPE_ABORT_MOTION, ABORT, true)
             .await
     }
 
-    /// Park the mount
     pub async fn park(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, TELESCOPE_PARK, "PARK", true)
+            .set_switch(&self.device_name, TELESCOPE_PARK, PARK, true)
             .await
     }
 
-    /// Unpark the mount
     pub async fn unpark(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, TELESCOPE_PARK, "UNPARK", true)
+            .set_switch(&self.device_name, TELESCOPE_PARK, UNPARK, true)
             .await
     }
 
@@ -440,7 +377,7 @@ impl IndiMount {
     pub async fn try_is_parked(&self) -> Result<bool, IndiError> {
         let client = self.client.read().await;
         match client
-            .get_switch(&self.device_name, TELESCOPE_PARK, "PARK")
+            .get_switch(&self.device_name, TELESCOPE_PARK, PARK)
             .await
         {
             Some(v) => Ok(v),
@@ -451,16 +388,15 @@ impl IndiMount {
         }
     }
 
-    /// Set tracking state
     pub async fn set_tracking(&self, enabled: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         if enabled {
             client
-                .set_switch(&self.device_name, TELESCOPE_TRACK_STATE, "TRACK_ON", true)
+                .set_switch(&self.device_name, TELESCOPE_TRACK_STATE, TRACK_ON, true)
                 .await
         } else {
             client
-                .set_switch(&self.device_name, TELESCOPE_TRACK_STATE, "TRACK_OFF", true)
+                .set_switch(&self.device_name, TELESCOPE_TRACK_STATE, TRACK_OFF, true)
                 .await
         }
     }
@@ -475,7 +411,7 @@ impl IndiMount {
     pub async fn try_is_tracking(&self) -> Result<bool, IndiError> {
         let client = self.client.read().await;
         match client
-            .get_switch(&self.device_name, TELESCOPE_TRACK_STATE, "TRACK_ON")
+            .get_switch(&self.device_name, TELESCOPE_TRACK_STATE, TRACK_ON)
             .await
         {
             Some(v) => Ok(v),
@@ -514,59 +450,41 @@ impl IndiMount {
         }
     }
 
-    /// Move north
     pub async fn move_north(&self, start: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(
-                &self.device_name,
-                TELESCOPE_MOTION_NS,
-                "MOTION_NORTH",
-                start,
-            )
+            .set_switch(&self.device_name, TELESCOPE_MOTION_NS, MOTION_NORTH, start)
             .await
     }
 
-    /// Move south
     pub async fn move_south(&self, start: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(
-                &self.device_name,
-                TELESCOPE_MOTION_NS,
-                "MOTION_SOUTH",
-                start,
-            )
+            .set_switch(&self.device_name, TELESCOPE_MOTION_NS, MOTION_SOUTH, start)
             .await
     }
 
-    /// Move west
     pub async fn move_west(&self, start: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, TELESCOPE_MOTION_WE, "MOTION_WEST", start)
+            .set_switch(&self.device_name, TELESCOPE_MOTION_WE, MOTION_WEST, start)
             .await
     }
 
-    /// Move east
     pub async fn move_east(&self, start: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, TELESCOPE_MOTION_WE, "MOTION_EAST", start)
+            .set_switch(&self.device_name, TELESCOPE_MOTION_WE, MOTION_EAST, start)
             .await
     }
 
     /// Pulse-guide for `duration_ms` using standard timed-guide number properties.
-    pub async fn pulse_guide(
-        &self,
-        direction: IndiMountGuideDirection,
-        duration_ms: u32,
-    ) -> IndiResult<()> {
+    pub async fn pulse_guide(&self, direction: GuideDirection, duration_ms: u32) -> IndiResult<()> {
         let (property, element) = match direction {
-            IndiMountGuideDirection::North => (TELESCOPE_TIMED_GUIDE_NS, "TIMED_GUIDE_N"),
-            IndiMountGuideDirection::South => (TELESCOPE_TIMED_GUIDE_NS, "TIMED_GUIDE_S"),
-            IndiMountGuideDirection::East => (TELESCOPE_TIMED_GUIDE_WE, "TIMED_GUIDE_E"),
-            IndiMountGuideDirection::West => (TELESCOPE_TIMED_GUIDE_WE, "TIMED_GUIDE_W"),
+            GuideDirection::North => (TELESCOPE_TIMED_GUIDE_NS, TIMED_GUIDE_N),
+            GuideDirection::South => (TELESCOPE_TIMED_GUIDE_NS, TIMED_GUIDE_S),
+            GuideDirection::East => (TELESCOPE_TIMED_GUIDE_WE, TIMED_GUIDE_E),
+            GuideDirection::West => (TELESCOPE_TIMED_GUIDE_WE, TIMED_GUIDE_W),
         };
         let mut client = self.client.write().await;
         client
@@ -575,13 +493,13 @@ impl IndiMount {
     }
 
     /// Custom tracking rates in arcsec/s (`TELESCOPE_TRACK_RATE`).
-    pub async fn set_tracking_rate(&self, ra_rate: f64, dec_rate: f64) -> IndiResult<()> {
+    pub async fn set_custom_tracking_rate(&self, ra_rate: f64, dec_rate: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
             .set_numbers(
                 &self.device_name,
                 TELESCOPE_TRACK_RATE,
-                &[("TRACK_RATE_RA", ra_rate), ("TRACK_RATE_DE", dec_rate)],
+                &[(TRACK_RATE_RA, ra_rate), (TRACK_RATE_DE, dec_rate)],
             )
             .await
     }
@@ -641,7 +559,7 @@ impl IndiMount {
 
         let mode = format!("SLEW{rate_clamped}");
         client
-            .set_switch(&self.device_name, "SLEWMODE", &mode, true)
+            .set_switch(&self.device_name, SLEWMODE, &mode, true)
             .await
     }
 
@@ -670,7 +588,7 @@ impl IndiMount {
     pub async fn find_home(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, TELESCOPE_HOME, "GO", true)
+            .set_switch(&self.device_name, TELESCOPE_HOME, GO, true)
             .await
     }
 
@@ -679,7 +597,7 @@ impl IndiMount {
     pub async fn can_set_park(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_switch(&self.device_name, TELESCOPE_PARK_OPTION, "PARK_CURRENT")
+            .get_switch(&self.device_name, TELESCOPE_PARK_OPTION, PARK_CURRENT)
             .await
             .is_some()
     }
@@ -693,15 +611,10 @@ impl IndiMount {
     pub async fn set_park_to_current(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(
-                &self.device_name,
-                TELESCOPE_PARK_OPTION,
-                "PARK_CURRENT",
-                true,
-            )
+            .set_switch(&self.device_name, TELESCOPE_PARK_OPTION, PARK_CURRENT, true)
             .await?;
         if client
-            .get_switch(&self.device_name, TELESCOPE_PARK_OPTION, "PARK_WRITE_DATA")
+            .get_switch(&self.device_name, TELESCOPE_PARK_OPTION, PARK_WRITE_DATA)
             .await
             .is_some()
         {
@@ -709,7 +622,7 @@ impl IndiMount {
                 .set_switch(
                     &self.device_name,
                     TELESCOPE_PARK_OPTION,
-                    "PARK_WRITE_DATA",
+                    PARK_WRITE_DATA,
                     true,
                 )
                 .await?;
@@ -718,16 +631,16 @@ impl IndiMount {
     }
 
     /// Get horizontal coordinates (Altitude, Azimuth)
-    pub async fn get_horizontal_coordinates(&self) -> Result<(f64, f64), String> {
+    pub async fn get_horizontal_coordinates(&self) -> IndiResult<(f64, f64)> {
         let client = self.client.read().await;
         let alt = client
             .get_number(&self.device_name, HORIZONTAL_COORD, ALT)
             .await
-            .ok_or_else(|| "Altitude not available".to_string())?;
+            .ok_or_else(|| IndiError::Unavailable("Altitude not available".to_string()))?;
         let az = client
             .get_number(&self.device_name, HORIZONTAL_COORD, AZ)
             .await
-            .ok_or_else(|| "Azimuth not available".to_string())?;
+            .ok_or_else(|| IndiError::Unavailable("Azimuth not available".to_string()))?;
         Ok((alt, az))
     }
 }
@@ -739,7 +652,7 @@ fn pick_slew_rate_element(rate: i32, elements: &[String]) -> Option<String> {
     }
 
     let idx = usize::try_from(rate.max(0)).unwrap_or(0);
-    const STANDARD: [&str; 4] = ["SLEW_GUIDE", "SLEW_CENTERING", "SLEW_FIND", "SLEW_MAX"];
+    const STANDARD: [&str; 4] = [SLEW_GUIDE, SLEW_CENTERING, SLEW_FIND, SLEW_MAX];
 
     if let Some(name) = STANDARD.get(idx) {
         if elements.iter().any(|e| e == name) {
@@ -764,6 +677,8 @@ fn pick_slew_rate_element(rate: i32, elements: &[String]) -> Option<String> {
         .cloned()
         .or_else(|| elements.last().cloned())
 }
+
+indi_device!(IndiMount);
 
 #[cfg(test)]
 mod tests {
@@ -947,7 +862,6 @@ mod tests {
         let (mount, server, captured, transcript) =
             mount_from_fake_server_with_transcript(payload.as_bytes(), EQUATORIAL_EOD_COORD).await;
 
-        mount.connect().await.expect("connect mount on fake server");
         mount
             .slew_to_coordinates(11.0, 46.0)
             .await
@@ -1002,7 +916,6 @@ mod tests {
         let (mount, server, captured) =
             mount_from_fake_server(payload.as_bytes(), EQUATORIAL_COORD).await;
 
-        mount.connect().await.expect("connect mount on fake server");
         mount
             .slew_to_coordinates(11.0, 46.0)
             .await
@@ -1030,7 +943,6 @@ mod tests {
         let (mount, server, captured) =
             mount_from_fake_server(payload.as_bytes(), EQUATORIAL_EOD_COORD).await;
 
-        mount.connect().await.expect("connect mount on fake server");
         mount
             .slew_to_coordinates(11.0, 46.0)
             .await
@@ -1069,8 +981,6 @@ mod tests {
         );
         let (mount, server, captured) =
             mount_from_fake_server(payload.as_bytes(), EQUATORIAL_EOD_COORD).await;
-
-        mount.connect().await.expect("connect mount on fake server");
 
         let (ra, dec) = mount
             .get_coordinates()
@@ -1175,7 +1085,6 @@ mod tests {
             Duration::from_millis(300),
         )
         .await;
-        mount.connect().await.expect("connect mount on fake server");
 
         mount
             .slew_to_coordinates(11.0, 46.0)
@@ -1206,7 +1115,6 @@ mod tests {
             Duration::from_millis(100),
         )
         .await;
-        mount.connect().await.expect("connect mount on fake server");
 
         let result = mount.slew_to_coordinates(11.0, 46.0).await;
         assert!(result.is_err(), "a refused goto returned {:?}", result);
@@ -1235,7 +1143,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention either the coordinates or that we're not connected
-            assert!(e.contains("RA=10.5") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("RA=10.5")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 
@@ -1253,7 +1164,6 @@ mod tests {
         )));
         let _mount = IndiMount::new(client.clone(), "TestMount");
 
-        // Verify the timeout config is accessible
         let timeout_secs = {
             let c = client.read().await;
             c.timeout_config().mount_slew_timeout_secs

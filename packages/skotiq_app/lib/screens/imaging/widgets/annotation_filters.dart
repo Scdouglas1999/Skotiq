@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
-/// Maps an [ObjectType] to its corresponding set of [AnnotationObjectFilter]s.
 Set<AnnotationObjectFilter> filtersForObjectType(ObjectType type) {
   switch (type) {
     case ObjectType.galaxy:
@@ -22,8 +21,6 @@ Set<AnnotationObjectFilter> filtersForObjectType(ObjectType type) {
   }
 }
 
-/// Returns true if the given [ObjectType] is visible given the current
-/// set of active [AnnotationObjectFilter]s.
 bool isTypeVisibleFromSettings(
   ObjectType type,
   Set<AnnotationObjectFilter> filters,
@@ -31,7 +28,6 @@ bool isTypeVisibleFromSettings(
   return filtersForObjectType(type).any(filters.contains);
 }
 
-/// Filter chip for object type filtering
 class AnnotationFilterChip extends StatelessWidget {
   final String label;
   final int count;

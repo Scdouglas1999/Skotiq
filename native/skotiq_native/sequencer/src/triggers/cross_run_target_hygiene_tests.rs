@@ -6,24 +6,22 @@ fn reset_for_new_run_drops_the_previous_runs_target() {
     let mut state = TriggerState::new();
     state.set_target(270.0, 60.0);
     state.set_meridian_target("B".to_string());
-    state.current_altitude = Some(10.5);
-    state.current_hour_angle = Some(11.18);
-    state.next_meridian_flip_time = Some(1);
+    state.target.current_altitude = Some(10.5);
+    state.target.current_hour_angle = Some(11.18);
     state.tracking.set_limit_detected_at(Some(1));
     state.update_plate_solve(270.1, 60.1, 1.2);
 
     state.reset_for_new_run();
 
-    assert_eq!(state.target_ra, None);
-    assert_eq!(state.target_dec, None);
-    assert_eq!(state.current_target_name, None);
-    assert_eq!(state.current_altitude, None);
-    assert_eq!(state.current_hour_angle, None);
-    assert_eq!(state.next_meridian_flip_time, None);
+    assert_eq!(state.target.target_ra, None);
+    assert_eq!(state.target.target_dec, None);
+    assert_eq!(state.target.current_target_name, None);
+    assert_eq!(state.target.current_altitude, None);
+    assert_eq!(state.target.current_hour_angle, None);
     assert_eq!(state.tracking.limit_detected_at(), None);
-    assert_eq!(state.last_plate_solve_ra, None);
-    assert_eq!(state.last_plate_solve_dec, None);
-    assert_eq!(state.last_plate_solve_pixel_scale, None);
+    assert_eq!(state.target.last_plate_solve_ra, None);
+    assert_eq!(state.target.last_plate_solve_dec, None);
+    assert_eq!(state.target.last_plate_solve_pixel_scale, None);
 }
 
 #[test]
@@ -35,16 +33,16 @@ fn a_resumed_run_keeps_the_target_restored_from_its_checkpoint() {
 
     state.reset_for_new_run();
 
-    assert_eq!(state.target_ra, Some(270.0));
-    assert_eq!(state.target_dec, Some(60.0));
-    assert_eq!(state.current_target_name, Some("B".to_string()));
+    assert_eq!(state.target.target_ra, Some(270.0));
+    assert_eq!(state.target.target_dec, Some(60.0));
+    assert_eq!(state.target.current_target_name, Some("B".to_string()));
     assert!(
         !state.restored_from_checkpoint,
         "the resume flag is one-shot: the run after the resume must clear the target"
     );
 
     state.reset_for_new_run();
-    assert_eq!(state.target_ra, None);
+    assert_eq!(state.target.target_ra, None);
 }
 
 #[tokio::test]
@@ -55,7 +53,7 @@ async fn altitude_limit_does_not_fire_for_a_run_with_no_target() {
     // frames.
     let mut state = TriggerState::new();
     state.set_target(270.0, 60.0);
-    state.current_altitude = Some(10.5);
+    state.target.current_altitude = Some(10.5);
 
     let mut previous_run = Trigger::new(
         "altitude_limit",
@@ -95,7 +93,7 @@ async fn meridian_flip_does_not_fire_for_a_run_with_no_target() {
     let mut state = TriggerState::new();
     state.set_target(270.0, 60.0);
     state.update_hour_angle(11.18);
-    state.pier_side = Some(PierSide::West);
+    state.telemetry.pier_side = Some(PierSide::West);
 
     let mut previous_run = Trigger::new(
         "meridian_flip",
@@ -114,7 +112,7 @@ async fn meridian_flip_does_not_fire_for_a_run_with_no_target() {
     // The mount keeps reporting; the monitor loop refreshes hour angle and
     // pier side every tick regardless of whether a target is set.
     state.update_hour_angle(11.18);
-    state.pier_side = Some(PierSide::West);
+    state.telemetry.pier_side = Some(PierSide::West);
 
     let mut next_run = Trigger::new(
         "meridian_flip",
@@ -149,7 +147,7 @@ fn parked_calibration_run_state() -> TriggerState {
     state.set_target(270.0, 60.0);
     // The target really is past the meridian — well beyond the 5-minute gate.
     state.update_hour_angle(1.5);
-    state.pier_side = Some(PierSide::West);
+    state.telemetry.pier_side = Some(PierSide::West);
     state
 }
 
@@ -174,15 +172,15 @@ async fn meridian_flip_does_not_arm_on_a_parked_mount() {
 
     // Control: identical state, mount tracking the target.
     let mut tracking = parked_calibration_run_state();
-    tracking.mount_parked = Some(false);
-    tracking.mount_is_tracking = Some(true);
+    tracking.telemetry.mount_parked = Some(false);
+    tracking.telemetry.mount_is_tracking = Some(true);
     assert!(
         meridian_trigger(config.clone()).check(&tracking).await,
         "a tracked target past the meridian must still fire the flip"
     );
 
     let mut parked = parked_calibration_run_state();
-    parked.mount_parked = Some(true);
+    parked.telemetry.mount_parked = Some(true);
     assert!(
         !meridian_trigger(config).check(&parked).await,
         "a parked mount is not following the target; the flip must not arm"
@@ -198,8 +196,8 @@ async fn meridian_flip_does_not_arm_when_the_mount_is_not_tracking() {
     };
 
     let mut idle = parked_calibration_run_state();
-    idle.mount_parked = Some(false);
-    idle.mount_is_tracking = Some(false);
+    idle.telemetry.mount_parked = Some(false);
+    idle.telemetry.mount_is_tracking = Some(false);
     assert!(
         !meridian_trigger(config).check(&idle).await,
         "a mount that is not tracking is not following the target; no flip"
@@ -217,15 +215,15 @@ async fn meridian_flip_hour_angle_threshold_honours_the_same_mount_guards() {
     };
 
     let mut tracking = parked_calibration_run_state();
-    tracking.mount_parked = Some(false);
-    tracking.mount_is_tracking = Some(true);
+    tracking.telemetry.mount_parked = Some(false);
+    tracking.telemetry.mount_is_tracking = Some(true);
     assert!(
         meridian_trigger(config.clone()).check(&tracking).await,
         "HourAngleThreshold must still fire for a tracked target"
     );
 
     let mut parked = parked_calibration_run_state();
-    parked.mount_parked = Some(true);
+    parked.telemetry.mount_parked = Some(true);
     assert!(
         !meridian_trigger(config).check(&parked).await,
         "HourAngleThreshold must not arm on a parked mount either"
@@ -243,8 +241,8 @@ async fn a_mount_that_never_reports_park_or_tracking_is_unaffected() {
     };
 
     let silent = parked_calibration_run_state();
-    assert_eq!(silent.mount_parked, None);
-    assert_eq!(silent.mount_is_tracking, None);
+    assert_eq!(silent.telemetry.mount_parked, None);
+    assert_eq!(silent.telemetry.mount_is_tracking, None);
     assert!(
         meridian_trigger(config).check(&silent).await,
         "a mount with no park/tracking readings must still be able to flip"
@@ -263,10 +261,10 @@ async fn on_tracking_limit_hit_is_exempt_from_the_not_tracking_guard() {
 
     let mut state = parked_calibration_run_state();
     state.tracking.restore(true, true, None);
-    state.mount_is_tracking = Some(false);
-    state.mount_status_query_failed = false;
-    state.mount_slewing = Some(false);
-    state.mount_parked = Some(false);
+    state.telemetry.mount_is_tracking = Some(false);
+    state.telemetry.mount_status_query_failed = false;
+    state.telemetry.mount_slewing = Some(false);
+    state.telemetry.mount_parked = Some(false);
     state
         .tracking
         .set_limit_detected_at(Some(chrono::Utc::now().timestamp() - 600));
@@ -305,7 +303,7 @@ fn altitude_trigger(min_altitude: f64) -> Trigger {
 fn low_target_state() -> TriggerState {
     let mut state = parked_calibration_run_state();
     // M4's altitude at the moment of the observed run, against the 30° default.
-    state.current_altitude = Some(16.6);
+    state.target.current_altitude = Some(16.6);
     state
 }
 
@@ -314,15 +312,15 @@ async fn altitude_limit_does_not_fire_on_a_parked_mount() {
     // Control: same low target, mount actually tracking it — the trigger's
     // whole reason to exist, and it must still fire.
     let mut tracking = low_target_state();
-    tracking.mount_parked = Some(false);
-    tracking.mount_is_tracking = Some(true);
+    tracking.telemetry.mount_parked = Some(false);
+    tracking.telemetry.mount_is_tracking = Some(true);
     assert!(
         altitude_trigger(30.0).check(&tracking).await,
         "a tracked target below the floor is exactly what AltitudeLimit is for"
     );
 
     let mut parked = low_target_state();
-    parked.mount_parked = Some(true);
+    parked.telemetry.mount_parked = Some(true);
     assert!(
         !altitude_trigger(30.0).check(&parked).await,
         "a parked mount is not following the target; skipping to the next one \
@@ -333,8 +331,8 @@ async fn altitude_limit_does_not_fire_on_a_parked_mount() {
 #[tokio::test]
 async fn altitude_limit_does_not_fire_when_the_mount_is_not_tracking() {
     let mut idle = low_target_state();
-    idle.mount_parked = Some(false);
-    idle.mount_is_tracking = Some(false);
+    idle.telemetry.mount_parked = Some(false);
+    idle.telemetry.mount_is_tracking = Some(false);
     assert!(
         !altitude_trigger(30.0).check(&idle).await,
         "a mount that has stopped tracking is not following the target"
@@ -344,8 +342,8 @@ async fn altitude_limit_does_not_fire_when_the_mount_is_not_tracking() {
 #[tokio::test]
 async fn a_mount_that_never_reports_park_or_tracking_keeps_altitude_protection() {
     let silent = low_target_state();
-    assert_eq!(silent.mount_parked, None);
-    assert_eq!(silent.mount_is_tracking, None);
+    assert_eq!(silent.telemetry.mount_parked, None);
+    assert_eq!(silent.telemetry.mount_is_tracking, None);
     assert!(
         altitude_trigger(30.0).check(&silent).await,
         "None is 'the mount never said', not 'the mount is parked' — a driver \
@@ -359,9 +357,9 @@ async fn altitude_limit_still_judges_the_target_not_the_mount() {
     // is the target's. A tracking mount whose target is comfortably high must
     // not fire however low the tube itself happens to be sitting.
     let mut high_target = parked_calibration_run_state();
-    high_target.mount_parked = Some(false);
-    high_target.mount_is_tracking = Some(true);
-    high_target.current_altitude = Some(64.0);
+    high_target.telemetry.mount_parked = Some(false);
+    high_target.telemetry.mount_is_tracking = Some(true);
+    high_target.target.current_altitude = Some(64.0);
     assert!(
         !altitude_trigger(30.0).check(&high_target).await,
         "a target above the floor must not fire"
@@ -370,9 +368,9 @@ async fn altitude_limit_still_judges_the_target_not_the_mount() {
     // And with no target-derived altitude at all (no site, or no target yet)
     // there is nothing to judge, so nothing fires.
     let mut unknown = parked_calibration_run_state();
-    unknown.mount_parked = Some(false);
-    unknown.mount_is_tracking = Some(true);
-    unknown.current_altitude = None;
+    unknown.telemetry.mount_parked = Some(false);
+    unknown.telemetry.mount_is_tracking = Some(true);
+    unknown.target.current_altitude = None;
     assert!(
         !altitude_trigger(30.0).check(&unknown).await,
         "an unknown altitude is not a low altitude"
@@ -396,7 +394,7 @@ async fn a_new_run_measures_temperature_from_its_own_first_reading() {
         let state = manager.state();
         let mut state = state.write().await;
         state.update_temperature(10.0);
-        state.baseline_focuser_position = Some(25_000);
+        state.latches.baseline_focuser_position = Some(25_000);
     }
 
     manager.reset_for_new_run().await;
@@ -405,8 +403,8 @@ async fn a_new_run_measures_temperature_from_its_own_first_reading() {
     assert!(manager.check_all().await.is_empty());
     let state = manager.state();
     let state = state.read().await;
-    assert_eq!(state.baseline_temperature, Some(13.0));
-    assert_eq!(state.baseline_focuser_position, None);
+    assert_eq!(state.latches.baseline_temperature, Some(13.0));
+    assert_eq!(state.latches.baseline_focuser_position, None);
 }
 
 /// A resume re-measures the temperature baseline too: the checkpoint's
@@ -419,8 +417,8 @@ fn a_resumed_run_remeasures_the_temperature_baseline() {
 
     state.reset_for_new_run();
 
-    assert_eq!(state.baseline_temperature, None);
-    assert_eq!(state.current_temperature, None);
+    assert_eq!(state.latches.baseline_temperature, None);
+    assert_eq!(state.latches.current_temperature, None);
 }
 
 /// A cooldown started in the previous run does not silence the trigger in
@@ -441,7 +439,7 @@ async fn a_new_run_starts_with_no_trigger_in_cooldown() {
         let state = manager.state();
         let mut state = state.write().await;
         state.update_temperature(10.0);
-        state.current_temperature = Some(13.0);
+        state.latches.current_temperature = Some(13.0);
     }
     let mut fired = manager.check_all().await;
     assert_eq!(fired.len(), 1);
@@ -469,11 +467,11 @@ async fn tracking_limit_recovery_keeps_the_scheduled_flip_armed() {
     };
     let mut state = TriggerState::new();
     state.set_target(35.64, 42.35);
-    state.current_hour_angle = Some(0.4);
-    state.pier_side = Some(PierSide::West);
-    state.mount_is_tracking = Some(false);
-    state.mount_slewing = Some(false);
-    state.mount_parked = Some(false);
+    state.target.current_hour_angle = Some(0.4);
+    state.telemetry.pier_side = Some(PierSide::West);
+    state.telemetry.mount_is_tracking = Some(false);
+    state.telemetry.mount_slewing = Some(false);
+    state.telemetry.mount_parked = Some(false);
     state
         .tracking
         .restore(true, true, Some(chrono::Utc::now().timestamp() - 3600));
@@ -487,35 +485,35 @@ async fn tracking_limit_recovery_keeps_the_scheduled_flip_armed() {
 fn tracking_limit_recovery_requires_a_real_pre_flip_tracking_loss() {
     let mut s = TriggerState::new();
     s.set_target(35.64, 42.35);
-    s.current_hour_angle = Some(-0.55);
-    s.pier_side = Some(PierSide::West);
-    s.mount_is_tracking = Some(false);
-    s.mount_parked = Some(false);
-    s.mount_slewing = Some(false);
+    s.target.current_hour_angle = Some(-0.55);
+    s.telemetry.pier_side = Some(PierSide::West);
+    s.telemetry.mount_is_tracking = Some(false);
+    s.telemetry.mount_parked = Some(false);
+    s.telemetry.mount_slewing = Some(false);
     s.tracking.restore(true, true, Some(1));
     assert!(tracking_limit_recovery_candidate(&s));
     let original = s.clone();
-    s.mount_parked = Some(true);
+    s.telemetry.mount_parked = Some(true);
     assert!(!tracking_limit_recovery_candidate(&s));
     s = original.clone();
-    s.mount_slewing = Some(true);
+    s.telemetry.mount_slewing = Some(true);
     assert!(!tracking_limit_recovery_candidate(&s));
     s = original.clone();
-    s.mount_status_query_failed = true;
+    s.telemetry.mount_status_query_failed = true;
     assert!(!tracking_limit_recovery_candidate(&s));
     s = original.clone();
-    s.pier_side = Some(PierSide::East);
+    s.telemetry.pier_side = Some(PierSide::East);
     assert!(!tracking_limit_recovery_candidate(&s));
     s = original.clone();
-    s.pier_side = None;
+    s.telemetry.pier_side = None;
     assert!(!tracking_limit_recovery_candidate(&s));
     s = original.clone();
     s.tracking.set_expected(false);
     assert!(!tracking_limit_recovery_candidate(&s));
     s = original.clone();
-    s.current_hour_angle = Some(-6.0);
+    s.target.current_hour_angle = Some(-6.0);
     assert!(!tracking_limit_recovery_candidate(&s));
     s = original;
-    s.current_hour_angle = Some(f64::NAN);
+    s.target.current_hour_angle = Some(f64::NAN);
     assert!(!tracking_limit_recovery_candidate(&s));
 }

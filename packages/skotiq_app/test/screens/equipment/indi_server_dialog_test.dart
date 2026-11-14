@@ -13,8 +13,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/equipment/dialogs/indi_server_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/widgets/indi_server_dialog.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 import '../../harness/harness.dart';
 

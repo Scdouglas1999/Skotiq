@@ -1,48 +1,14 @@
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../services/host_folders.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/remote_directory_picker_dialog.dart';
-
-Future<String?> chooseFlatWizardSavePath({
-  required bool isRemote,
-  required Future<String?> Function() pickLocal,
-  required Future<String?> Function() pickRemote,
-}) =>
-    isRemote ? pickRemote() : pickLocal();
-
-typedef FlatWizardSavePathPicker = Future<String?> Function({
-  required BuildContext context,
-  required bool isRemote,
-  required String? currentPath,
-});
-
-final flatWizardSavePathPickerProvider = Provider<FlatWizardSavePathPicker>((
-  ref,
-) {
-  return ({
-    required BuildContext context,
-    required bool isRemote,
-    required String? currentPath,
-  }) {
-    return chooseFlatWizardSavePath(
-      isRemote: isRemote,
-      pickLocal: () => getDirectoryPath(
-        confirmButtonText: 'Select',
-        initialDirectory: currentPath,
-      ),
-      pickRemote: () => RemoteDirectoryPickerDialog.show(
-        context,
-        title: 'Select host flat-frame folder',
-        initialPath: currentPath,
-      ),
-    );
-  };
-});
 
 class SavePathDialog extends ConsumerStatefulWidget {
   final String? currentPath;
@@ -112,16 +78,19 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
         _pathController.text.isNotEmpty ? _pathController.text : null;
     setState(() => _isBrowsing = true);
     try {
-      final result = await ref.read(flatWizardSavePathPickerProvider)(
-        context: context,
-        isRemote: authority is NetworkBackend,
-        currentPath: current,
-      );
+      final result = await ref.read(hostFoldersProvider).pickUsable(
+            context,
+            title: ref.read(isRemoteModeProvider)
+                ? 'Select host flat-frame folder'
+                : 'Select flat-frame folder',
+            initialPath: current,
+          );
       if (!_isCurrentBrowse(generation, authority)) return;
       if (result != null) _pathController.text = result;
     } catch (error) {
       if (mounted && _isCurrentBrowse(generation, authority)) {
-        context.showErrorSnackBar('Could not choose a save folder: $error');
+        context.showErrorSnackBar(
+            'Could not choose a save folder: ${userFacingError(error)}');
       }
     } finally {
       if (_isCurrentBrowse(generation, authority)) {
@@ -133,7 +102,7 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
   bool _isCurrentBrowse(int generation, SkotiqBackend authority) {
     return mounted &&
         generation == _browseGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.backendScopeOver(authority).isCurrent;
   }
 
   void _confirm() {
@@ -174,7 +143,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
                 Row(
                   children: [
                     Container(
@@ -196,7 +164,7 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Save Location Required',
+                            'Folder for flats',
                             style: TextStyle(
                               fontSize: SkotiqTypography.fontSize18,
                               fontWeight: FontWeight.bold,
@@ -205,7 +173,7 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Choose where to save your flat frames',
+                            'Flats are saved here, in the subfolders chosen below.',
                             style: TextStyle(
                               fontSize: SkotiqTypography.fontSize13,
                               color: colors.textSecondary,
@@ -217,8 +185,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                   ],
                 ),
                 const SizedBox(height: 24),
-
-                // Path input
                 Row(
                   children: [
                     Expanded(
@@ -238,8 +204,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                   ],
                 ),
                 const SizedBox(height: 20),
-
-                // Options
                 _OptionCheckbox(
                   value: _createDateSubfolder,
                   onChanged: (v) {
@@ -248,7 +212,7 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                     }
                   },
                   label: 'Create date subfolder automatically',
-                  description: 'e.g., /2026-01-07/',
+                  description: 'e.g., /${ClockFormat.date(DateTime.now())}/',
                   colors: colors,
                 ),
                 const SizedBox(height: 12),
@@ -264,8 +228,6 @@ class _SavePathDialogState extends ConsumerState<SavePathDialog> {
                   colors: colors,
                 ),
                 const SizedBox(height: 24),
-
-                // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [

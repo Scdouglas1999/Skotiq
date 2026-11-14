@@ -37,7 +37,7 @@ use crate::wizard::{
 };
 use crate::InstructionContext;
 use chrono::Utc;
-use skotiq_imaging::{BayerPattern, ImageData as ImagingImageData, PixelType};
+use skotiq_imaging::{ImageData as ImagingImageData, PixelType};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -73,7 +73,6 @@ impl std::fmt::Display for PolarAlignError {
 }
 impl std::error::Error for PolarAlignError {}
 
-/// Configuration for an all-sky polar alignment run.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AllSkyPolarAlignConfig {
     pub exposure_time: f64,
@@ -283,7 +282,7 @@ where
             };
 
             (self.error_callback)(&result);
-            let _ = ctx.device_ops.polar_align_update(&result).await;
+            let _ = ctx.run.device_ops.polar_align_update(&result).await;
 
             tracing::info!(
                 "All-sky polar align: total={:.1}\" (Δaz={:.1}\", Δalt={:.1}\")",
@@ -338,14 +337,13 @@ where
         (self.status_callback)(status_msg.to_string(), None);
 
         let image_data = ctx
+            .run
             .device_ops
             .camera_start_exposure(
-                &self.camera_id,
-                self.config.exposure_time,
-                self.config.gain,
-                self.config.offset,
-                self.binning,
-                self.binning,
+                crate::device_ops::ExposureRequest::new(&self.camera_id, self.config.exposure_time)
+                    .gain(self.config.gain)
+                    .offset(self.config.offset)
+                    .binning(self.binning, self.binning),
             )
             .await
             .map_err(|e| PolarAlignError::DeviceError(format!("Camera capture failed: {}", e)))?;
@@ -358,7 +356,10 @@ where
 
         (self.status_callback)("All-sky: plate-solving...".to_string(), None);
 
-        let solve_future = ctx.device_ops.plate_solve(&image_data, None, None, None);
+        let solve_future = ctx
+            .run
+            .device_ops
+            .plate_solve(&image_data, None, None, None);
         let solve_result = match tokio::time::timeout(
             Duration::from_secs_f64(self.config.solve_timeout),
             solve_future,
@@ -371,7 +372,7 @@ where
                     "Solver returned unsuccessful result".to_string(),
                 ));
             }
-            Ok(Err(e)) => return Err(PolarAlignError::SolveFailed(e)),
+            Ok(Err(e)) => return Err(PolarAlignError::SolveFailed(e.to_string())),
             Err(_) => {
                 return Err(PolarAlignError::SolveFailed(format!(
                     "Solver timed out after {:.1}s",
@@ -409,22 +410,23 @@ where
     E: Fn(&PolarAlignResult) + Send + Sync,
 {
     // Pre-flight: require an external plate solver.
-    if !skotiq_imaging::is_solver_available() {
+    if !skotiq_platesolve::is_solver_available() {
         return Err(PolarAlignError::SolverUnavailable);
     }
 
     let camera_id = ctx
+        .run
+        .rig
         .camera_id
         .clone()
         .ok_or_else(|| PolarAlignError::DeviceError("No camera connected".to_string()))?;
 
-    let (observer_lat, observer_lon) = match (ctx.latitude, ctx.longitude) {
-        (Some(lat), Some(lon)) => (lat, lon),
-        _ => ctx
-            .device_ops
-            .get_observer_location()
-            .ok_or(PolarAlignError::LocationMissing)?,
-    };
+    let (observer_lat, observer_lon) = ctx
+        .run
+        .rig
+        .latitude
+        .zip(ctx.run.rig.longitude)
+        .ok_or(PolarAlignError::LocationMissing)?;
 
     // Why: `config.binning` is `Option<i32>` — user-supplied
     // override. `None` means "use the all-sky polar default (2x2 binning)" —
@@ -461,14 +463,14 @@ fn emit_adjustment_preview(
     solved_ra: Option<f64>,
     solved_dec: Option<f64>,
 ) {
-    let is_color = image_data.sensor_type.as_deref() == Some("Color");
-    let bayer_pattern = image_data.bayer_offset.map(|(x, y)| match (x % 2, y % 2) {
-        (0, 0) => BayerPattern::RGGB,
-        (1, 0) => BayerPattern::GRBG,
-        (0, 1) => BayerPattern::GBRG,
-        (1, 1) => BayerPattern::BGGR,
-        _ => BayerPattern::RGGB,
-    });
+    // An X-Trans frame has no 2x2 cell to demosaic with; it previews as
+    // luminance.
+    let is_color = image_data.sensor_type.as_deref() == Some("Color")
+        && !matches!(
+            image_data.color_filter,
+            Some(skotiq_cfa::ColorFilterArray::XTrans(_))
+        );
+    let bayer_pattern = image_data.bayer_cell();
 
     let packed_data: Vec<u8> = image_data
         .data
@@ -481,6 +483,7 @@ fn emit_adjustment_preview(
         channels: 1,
         pixel_type: PixelType::U16,
         data: packed_data,
+        range: skotiq_imaging::SampleRange::ADU,
     };
 
     if let Ok(jpeg) = prepare_image_for_display(&imaging_image, is_color, bayer_pattern) {

@@ -2,7 +2,8 @@
 // record is what keeps the night's results on Tonight (qa-pair QP-22).
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 void main() {
   test(
@@ -15,16 +16,46 @@ void main() {
           .read(currentSequenceProvider.notifier)
           .createSequence(name: 'M35');
       final id = container.read(currentSequenceProvider)!.id;
-      final execution = container.read(sequenceExecutionStateProvider.notifier);
+      final execution = container.read(runRecordProvider.notifier);
 
-      execution.state = SequenceExecutionState.running;
+      execution.setLifecycle(SequenceExecutionState.running);
       expect(container.read(lastEndedRunProvider), isNull);
-      execution.state = SequenceExecutionState.stopping;
-      execution.state = SequenceExecutionState.idle;
+      execution.setLifecycle(SequenceExecutionState.stopping);
+      execution.setLifecycle(SequenceExecutionState.idle);
       expect(container.read(lastEndedRunProvider)?.sequenceId, id);
 
-      execution.state = SequenceExecutionState.running;
+      execution.setLifecycle(SequenceExecutionState.running);
       expect(container.read(lastEndedRunProvider), isNull);
+    },
+  );
+
+  test(
+    'records the plan of a run that ends after a failed stop or cleanup',
+    () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.listen(lastEndedRunProvider, (_, __) {});
+      container
+          .read(currentSequenceProvider.notifier)
+          .createSequence(name: 'M35');
+      final id = container.read(currentSequenceProvider)!.id;
+      final execution = container.read(runRecordProvider.notifier);
+
+      for (final stuck in [
+        SequenceExecutionState.stopFailed,
+        SequenceExecutionState.cleanupFailed,
+      ]) {
+        execution.setLifecycle(SequenceExecutionState.running);
+        execution.setLifecycle(SequenceExecutionState.stopping);
+        execution.setLifecycle(stuck);
+        expect(container.read(lastEndedRunProvider), isNull);
+        execution.setLifecycle(SequenceExecutionState.idle);
+        expect(
+          container.read(lastEndedRunProvider)?.sequenceId,
+          id,
+          reason: '$stuck',
+        );
+      }
     },
   );
 }

@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   group('DarkLibraryCoverageService', () {
@@ -24,7 +26,10 @@ void main() {
       expect(report.isCovered, isFalse);
       expect(report.missing, hasLength(1));
       expect(report.underCovered, isEmpty);
-      expect(report.missing.single.describe(), contains('duration=180s'));
+      expect(
+        report.missing.single.describe(),
+        startsWith('180 s darks at gain '),
+      );
     });
 
     test('treats a master dark inside tolerance as covered', () {
@@ -89,7 +94,7 @@ void main() {
 
     test('regression: exact-exposure-and-temperature match counts as'
         'covered with the default tolerances', () {
-      // The coverage UI and DarkLibraryDao.findBestMatch must agree on the
+      // The coverage UI and `selectDark` must agree on the
       // same 60.0s/60.0s pair: different tolerances have the UI claim "all
       // darks present" while the runtime match returns null on
       // floating-point representation alone.

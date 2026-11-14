@@ -25,14 +25,8 @@ import 'package:skotiq_plugins/skotiq_plugins.dart';
 // surfaced through their package barrels).
 // ignore: implementation_imports
 import 'package:skotiq_plugins/src/plugin_registration.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart';
-// Real DB + database provider so a "live" enablement notifier can drive the
-// host and persist through the same Drift path production uses.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/database/database.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/database_provider.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Fake C4 notifier exposing a fixed enabled-set and recording setEnabled calls.
@@ -221,8 +215,6 @@ void main() {
   const pushoverId = kPushoverPluginId;
   const haId = kHomeAssistantPluginId;
 
-  // Nullable: the pure-unit `formatRelativeTime` group never builds a host, so
-  // tearDown must tolerate it being unset.
   PluginHost? host;
 
   // Render at a tall desktop surface so every plugin row (and its Configure
@@ -272,7 +264,7 @@ void main() {
     await tester.tap(find.text('Open Notification Routing'));
     await _pumpFrames(tester);
 
-    expect(navigated, contains('notification-routing'));
+    expect(navigated, ['notifications']);
   });
 
   testWidgets('renders one row per registered plugin', (tester) async {
@@ -507,10 +499,9 @@ void main() {
 
     expect(find.text('Discord test message sent.'), findsOneWidget);
 
-    // The success toast schedules a 4s auto-dismiss Timer (SkotiqToast).
-    // Pump past it so the overlay entry removes itself and no Timer is left
+    // Pump past the success snackbar's time on screen so no Timer is left
     // pending when the widget tree is torn down (which would fail the test).
-    await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(seconds: 11));
     await _pumpFrames(tester, frames: 20);
   });
 
@@ -550,39 +541,6 @@ void main() {
     await _pumpUntil(tester, find.text('Discord test failed'));
 
     expect(find.text('Discord test failed'), findsOneWidget);
-  });
-
-  group('formatRelativeTime', () {
-    final base = DateTime(2026, 5, 30, 12, 0, 0);
-
-    test('clamps near-now / future to "just now"', () {
-      expect(formatRelativeTime(base, now: base), 'just now');
-      expect(
-        formatRelativeTime(base.add(const Duration(minutes: 5)), now: base),
-        'just now',
-      );
-      expect(
-        formatRelativeTime(base.subtract(const Duration(seconds: 10)),
-            now: base),
-        'just now',
-      );
-    });
-
-    test('formats minutes, hours, and days', () {
-      expect(
-        formatRelativeTime(base.subtract(const Duration(minutes: 3)),
-            now: base),
-        '3m ago',
-      );
-      expect(
-        formatRelativeTime(base.subtract(const Duration(hours: 2)), now: base),
-        '2h ago',
-      );
-      expect(
-        formatRelativeTime(base.subtract(const Duration(days: 5)), now: base),
-        '5d ago',
-      );
-    });
   });
 }
 

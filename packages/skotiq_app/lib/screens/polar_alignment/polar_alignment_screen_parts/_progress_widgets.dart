@@ -1,4 +1,3 @@
-// Step-by-step progress UI for the polar alignment routine: per-measurement tiles, progress steps and connectors, instruction lines, error read-outs, and the spinner that ticks elapsed seconds while a solve is running.
 part of '../polar_alignment_screen.dart';
 
 class _ProgressStep extends StatelessWidget {
@@ -82,7 +81,6 @@ class _ProgressConnector extends StatelessWidget {
   }
 }
 
-/// Task 4.4: Solve progress indicator with timer
 class _SolveProgressIndicator extends StatefulWidget {
   final SkotiqColors colors;
   final String status;

@@ -5,15 +5,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/hardware_presets/hardware_preset_models.dart';
 import '../services/hardware_presets/hardware_presets_service.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
+import '../database/daos/settings_dao.dart';
 
 /// Riverpod plumbing for the hardware-presets library.
 ///
 /// Wires the pure [HardwarePresetsService] to persistence. The user override
-/// lists live as JSON blobs in `app_settings` keyed by
-/// [HardwarePresetsService.telescopeOverridesSettingKey] /
-/// [HardwarePresetsService.cameraOverridesSettingKey], and mutations persist
-/// *before* updating in-memory state.
+/// lists live as JSON documents in [StoreSettings.telescopePresetOverrides] /
+/// [StoreSettings.cameraPresetOverrides], and mutations persist *before*
+/// updating in-memory state.
 ///
 /// The built-in catalogs are immutable: editing a built-in preset stores an
 /// `isBuiltIn: false` override copy under its (stable) id, which the service's
@@ -30,23 +31,6 @@ final hardwarePresetsServiceProvider =
       notifier._load();
       return notifier;
     });
-
-/// All telescope presets (overrides merged over built-ins). Convenience read
-/// for the preset-picker UI so it doesn't reach through the notifier.
-final telescopePresetsProvider = Provider<List<TelescopePreset>>(
-  (ref) => ref.watch(hardwarePresetsServiceProvider).allTelescopes(),
-);
-
-/// All camera-defaults presets (overrides merged over built-ins).
-///
-/// Named `cameraDefaultsPresetsProvider` rather than `cameraPresetsProvider`
-/// to avoid colliding with the pre-existing barrel export of the same short
-/// name in `camera_presets_provider.dart` (which owns gain/offset acquisition
-/// presets, a different domain). The name also tracks the model
-/// [CameraDefaultsPreset].
-final cameraDefaultsPresetsProvider = Provider<List<CameraDefaultsPreset>>(
-  (ref) => ref.watch(hardwarePresetsServiceProvider).allCameras(),
-);
 
 class HardwarePresetsNotifier extends StateNotifier<HardwarePresetsService> {
   HardwarePresetsNotifier(this._ref)
@@ -90,11 +74,11 @@ class HardwarePresetsNotifier extends StateNotifier<HardwarePresetsService> {
   Future<void> _load() async {
     try {
       final settingsDao = _ref.read(settingsDaoProvider);
-      final telescopeRaw = await settingsDao.getSetting(
-        HardwarePresetsService.telescopeOverridesSettingKey,
+      final telescopeRaw = await settingsDao.read(
+        StoreSettings.telescopePresetOverrides,
       );
-      final cameraRaw = await settingsDao.getSetting(
-        HardwarePresetsService.cameraOverridesSettingKey,
+      final cameraRaw = await settingsDao.read(
+        StoreSettings.cameraPresetOverrides,
       );
 
       // A malformed blob throws FormatException here — surfaced, not swallowed.
@@ -192,8 +176,6 @@ class HardwarePresetsNotifier extends StateNotifier<HardwarePresetsService> {
     state = state.withOverrides(cameraOverrides: next);
   }
 
-  // Internals.
-
   /// The current telescope overrides, recovered as the merged-list entries that
   /// are not built-ins. Because the merge places overrides first and de-dupes
   /// by id, every non-built-in entry in [HardwarePresetsService.allTelescopes]
@@ -218,8 +200,8 @@ class HardwarePresetsNotifier extends StateNotifier<HardwarePresetsService> {
     List<TelescopePreset> overrides,
   ) async {
     final settingsDao = _ref.read(settingsDaoProvider);
-    await settingsDao.setSetting(
-      HardwarePresetsService.telescopeOverridesSettingKey,
+    await settingsDao.write(
+      StoreSettings.telescopePresetOverrides,
       HardwarePresetsService.encodeTelescopeOverrides(overrides),
     );
   }
@@ -228,8 +210,8 @@ class HardwarePresetsNotifier extends StateNotifier<HardwarePresetsService> {
     List<CameraDefaultsPreset> overrides,
   ) async {
     final settingsDao = _ref.read(settingsDaoProvider);
-    await settingsDao.setSetting(
-      HardwarePresetsService.cameraOverridesSettingKey,
+    await settingsDao.write(
+      StoreSettings.cameraPresetOverrides,
       HardwarePresetsService.encodeCameraOverrides(overrides),
     );
   }

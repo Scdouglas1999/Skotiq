@@ -13,7 +13,8 @@
 // without pumping a dialog: a test can drive [MosaicProjectCreationController]
 // directly and assert it calls `createProject` with the design's values.
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// The snapshot of the wizard's mosaic design that becomes a durable project.
 ///

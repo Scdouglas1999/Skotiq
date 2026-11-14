@@ -1,0 +1,383 @@
+//! The ZWO drivers against the fake SDKs that model ASICamera2.h, EAF_focuser.h
+//! and EFW_filter.h (`tests/fake_sdk/{asi,eaf,efw}.rs`). The tests share one
+//! loaded SDK and the fakes' environment switches, so they run in one child
+//! process, one at a time.
+
+#![cfg(target_os = "linux")]
+
+#[path = "fake_sdk_linux/harness.rs"]
+mod harness;
+
+use skotiq_device::SubFrame;
+use skotiq_device::{BayerPattern, CameraDriver, DeviceDriver, DriverError};
+use skotiq_device::{ExposureParams, FilterWheelDriver, FocuserDriver, FrameType, ImageData};
+use skotiq_native::vendor::zwo::{self, ZwoCamera, ZwoFilterWheel, ZwoFocuser};
+
+#[test]
+fn zwo_drivers_against_the_fake_sdks() {
+    harness::FakeSdk::build("zwo", &[harness::ASI, harness::EAF, harness::EFW])
+        .run_ignored("", &[]);
+}
+
+const COOLED_MONO: i32 = 0;
+const UNCOOLED_COLOR: i32 = 1;
+const EIGHT_BIT_MONO: i32 = 2;
+
+fn exposure(duration_secs: f64, bin: i32, subframe: Option<SubFrame>) -> ExposureParams {
+    ExposureParams {
+        duration_secs,
+        gain: Some(100),
+        offset: Some(20),
+        bin_x: bin,
+        bin_y: bin,
+        subframe,
+        readout_mode: None,
+        frame_type: FrameType::Light,
+    }
+}
+
+fn roi(start_x: u32, start_y: u32, width: u32, height: u32) -> SubFrame {
+    SubFrame {
+        start_x,
+        start_y,
+        width,
+        height,
+    }
+}
+
+async fn connected(camera_id: i32) -> ZwoCamera {
+    let mut camera = ZwoCamera::new(camera_id);
+    camera.connect().await.expect("connect");
+    camera
+}
+
+async fn take(camera: &mut ZwoCamera, params: ExposureParams) -> ImageData {
+    camera.start_exposure(params).await.expect("start exposure");
+    assert!(camera.is_exposure_complete().await.expect("poll"));
+    camera.download_image().await.expect("download")
+}
+
+/// The fake's pixels hold `1000 + 256 * row + column` of the binned sensor grid.
+fn sensor_origin(frame: &ImageData) -> (u32, u32) {
+    let value = u32::from(frame.data[0]) - 1000;
+    (value % 256, value / 256)
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_focuser_connects_from_a_saved_profile_before_any_scan() {
+    // Runs first (libtest orders tests by name): nothing has called EAFGetNum yet.
+    let mut focuser = ZwoFocuser::new(0);
+    focuser.connect().await.expect("connect");
+    assert_eq!(focuser.get_max_position().await, 60_000);
+    focuser.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_wheel_connects_while_it_is_still_counting_its_slots() {
+    let mut wheel = ZwoFilterWheel::new(0);
+    wheel.connect().await.expect("connect");
+    assert_eq!(wheel.get_filter_count().await, 7);
+    wheel.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn binning_is_limited_to_the_bins_the_camera_lists() {
+    let mut color = connected(UNCOOLED_COLOR).await;
+    assert_eq!(color.capabilities().max_bin_x, 2);
+    let refused = color.start_exposure(exposure(1.0, 4, None)).await;
+    match refused {
+        Err(DriverError::InvalidParameter(message)) => {
+            assert!(message.contains("1, 2"), "{message}")
+        }
+        other => panic!("bin 4 on a camera that bins 1 and 2: {other:?}"),
+    }
+    color.disconnect().await.unwrap();
+
+    let mut mono = connected(COOLED_MONO).await;
+    assert_eq!(mono.capabilities().max_bin_x, 4);
+    assert!(matches!(
+        mono.start_exposure(exposure(1.0, 3, None)).await,
+        Err(DriverError::InvalidParameter(_))
+    ));
+    assert!(matches!(
+        mono.set_binning(2, 1).await,
+        Err(DriverError::InvalidParameter(_))
+    ));
+    let binned = take(&mut mono, exposure(1.0, 4, None)).await;
+    assert_eq!((binned.width, binned.height), (16, 12));
+    mono.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn an_exposure_longer_than_the_camera_takes_is_refused_not_shortened() {
+    let mut camera = connected(COOLED_MONO).await;
+    assert_eq!(
+        camera.get_exposure_range().await.unwrap(),
+        Some((0.000001, 60.0))
+    );
+    match camera.start_exposure(exposure(120.0, 1, None)).await {
+        Err(DriverError::InvalidParameter(message)) => assert!(message.contains("60"), "{message}"),
+        other => panic!("a 120 s request on a camera that exposes up to 60 s: {other:?}"),
+    }
+    let frame = take(&mut camera, exposure(60.0, 1, None)).await;
+    assert_eq!(frame.metadata.exposure_time, 60.0);
+    camera.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_subframe_is_read_where_the_frame_says_it_was() {
+    let mut mono = connected(COOLED_MONO).await;
+    // The SDK takes widths in multiples of 8 and heights in multiples of 2.
+    let frame = take(&mut mono, exposure(1.0, 1, Some(roi(3, 5, 21, 9)))).await;
+    assert_eq!((frame.width, frame.height), (16, 8));
+    assert_eq!(sensor_origin(&frame), (3, 5));
+    let applied = frame.metadata.subframe.clone().expect("subframe recorded");
+    assert_eq!(
+        (
+            applied.start_x,
+            applied.start_y,
+            applied.width,
+            applied.height
+        ),
+        (3, 5, 16, 8)
+    );
+
+    // Past the right edge of the 64-pixel sensor.
+    assert!(matches!(
+        mono.start_exposure(exposure(1.0, 1, Some(roi(56, 0, 16, 8))))
+            .await,
+        Err(DriverError::InvalidParameter(_))
+    ));
+
+    // A full frame after a subframe is the whole sensor again.
+    let full = take(&mut mono, exposure(1.0, 1, None)).await;
+    assert_eq!((full.width, full.height), (64, 48));
+    assert_eq!(sensor_origin(&full), (0, 0));
+    assert!(full.metadata.subframe.is_none());
+    mono.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_color_subframe_starts_on_the_cell_its_bayer_pattern_names() {
+    let mut color = connected(UNCOOLED_COLOR).await;
+    let frame = take(&mut color, exposure(1.0, 1, Some(roi(3, 5, 21, 9)))).await;
+    assert_eq!(sensor_origin(&frame), (2, 4));
+    assert_eq!(frame.bayer_pattern, Some(BayerPattern::Rggb.into()));
+    let applied = frame.metadata.subframe.clone().expect("subframe recorded");
+    assert_eq!((applied.start_x, applied.start_y), (2, 4));
+    color.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_color_frame_names_the_pattern_the_camera_delivered() {
+    let mut color = connected(UNCOOLED_COLOR).await;
+
+    std::env::set_var("FAKE_ASI_MONO_BIN", "1");
+    let mono_binned = take(&mut color, exposure(1.0, 2, None)).await;
+    let unbinned = take(&mut color, exposure(1.0, 1, None)).await;
+    std::env::remove_var("FAKE_ASI_MONO_BIN");
+    assert_eq!(mono_binned.bayer_pattern, None);
+    assert_eq!(unbinned.bayer_pattern, Some(BayerPattern::Rggb.into()));
+
+    for (flip, pattern) in [
+        ("1", BayerPattern::Grbg),
+        ("2", BayerPattern::Gbrg),
+        ("3", BayerPattern::Bggr),
+    ] {
+        std::env::set_var("FAKE_ASI_FLIP", flip);
+        let frame = take(&mut color, exposure(1.0, 1, None)).await;
+        assert_eq!(frame.bayer_pattern, Some(pattern.into()), "flip {flip}");
+    }
+    std::env::remove_var("FAKE_ASI_FLIP");
+    color.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_wheel_unplugged_while_connected_and_replaced_is_seen_as_the_new_wheel() {
+    let mut wheel = ZwoFilterWheel::new(0);
+    wheel.connect().await.expect("connect");
+    std::env::set_var("FAKE_EFW_REMOVED", "1");
+    let _ = wheel.disconnect().await;
+    std::env::remove_var("FAKE_EFW_REMOVED");
+    std::env::set_var("FAKE_EFW_SLOTS", "5");
+    let wheels = zwo::discover_filter_wheels().await.expect("discovery");
+    std::env::remove_var("FAKE_EFW_SLOTS");
+    assert_eq!(wheels.len(), 1);
+    assert_eq!(wheels[0].slot_count, 5);
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_camera_without_16_bit_readout_connects_in_8_bit() {
+    let mut camera = connected(EIGHT_BIT_MONO).await;
+    let sensor = camera.get_sensor_info();
+    assert_eq!((sensor.bit_depth, sensor.max_adu), (8, 255 << 8));
+    let frame = take(&mut camera, exposure(1.0, 1, None)).await;
+    assert_eq!((frame.width, frame.height), (32, 16));
+    assert_eq!(frame.bits_per_pixel, 8);
+    // 1000 + 256 * 0 + 1, low byte, scaled to the 16-bit container.
+    assert_eq!(frame.data[1], ((1001u16) & 0xff) << 8);
+    camera.disconnect().await.unwrap();
+}
+
+/// `ASI_TARGET_TEMP` and `ASI_COOLER_ON` in `ASIControlType`.
+const TARGET_TEMP: &str = "16";
+const COOLER_ON: &str = "17";
+
+/// A camera whose cooler cannot be read back may still be cooling from an
+/// earlier session, so its cooler is unknown until this connection sets it,
+/// never "off at -10 C".
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_cooler_that_cannot_be_read_back_is_unknown_until_it_is_set() {
+    let mut camera = connected(COOLED_MONO).await;
+    std::env::set_var("FAKE_ASI_UNREADABLE", format!("{TARGET_TEMP},{COOLER_ON}"));
+    let before = camera.get_status().await;
+    let set = camera.set_cooler(true, Some(-15.0)).await;
+    let after = camera.get_status().await;
+    std::env::remove_var("FAKE_ASI_UNREADABLE");
+    let before = before.expect("status");
+    set.expect("cooler on");
+    let after = after.expect("status");
+    assert_eq!((before.cooler_on, before.target_temp), (None, None));
+    assert_eq!(
+        (after.cooler_on, after.target_temp),
+        (Some(true), Some(-15.0))
+    );
+    camera.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_camera_with_a_high_speed_mode_offers_it_and_its_frames_name_the_mode() {
+    let mut camera = connected(UNCOOLED_COLOR).await;
+    let names: Vec<String> = camera
+        .get_readout_modes()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|mode| mode.name)
+        .collect();
+    assert_eq!(names, ["Normal", "High speed"]);
+    let frame = take(&mut camera, exposure(0.01, 1, None)).await;
+    assert_eq!(frame.metadata.readout_mode.as_deref(), Some("Normal"));
+
+    let fast = camera.get_readout_modes().await.unwrap().remove(1);
+    camera.set_readout_mode(&fast).await.expect("high speed");
+    let frame = take(&mut camera, exposure(0.01, 1, None)).await;
+    assert_eq!(frame.metadata.readout_mode.as_deref(), Some("High speed"));
+
+    let normal = camera.get_readout_modes().await.unwrap().remove(0);
+    camera.set_readout_mode(&normal).await.expect("normal");
+    camera.disconnect().await.unwrap();
+
+    let mut mono = connected(COOLED_MONO).await;
+    assert!(mono.get_readout_modes().await.unwrap().is_empty());
+    let frame = take(&mut mono, exposure(0.01, 1, None)).await;
+    assert_eq!(frame.metadata.readout_mode, None);
+    assert!(matches!(
+        mono.set_readout_mode(&fast).await,
+        Err(DriverError::NotSupported)
+    ));
+    mono.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_camera_unplugged_while_connected_reads_as_disconnected() {
+    let mut camera = connected(COOLED_MONO).await;
+    std::env::set_var("FAKE_ASI_GONE", "1");
+    let status = camera.get_status().await;
+    let started = camera.start_exposure(exposure(1.0, 1, None)).await;
+    let mut absent = ZwoCamera::new(COOLED_MONO);
+    let reconnect = absent.connect().await;
+    std::env::remove_var("FAKE_ASI_GONE");
+    assert!(
+        matches!(status, Err(DriverError::Disconnected)),
+        "{status:?}"
+    );
+    assert!(
+        matches!(started, Err(DriverError::Disconnected)),
+        "{started:?}"
+    );
+    // Not there when a connect looks for it: a wrong id, not a lost camera.
+    assert!(
+        matches!(reconnect, Err(DriverError::InvalidDevice(_))),
+        "{reconnect:?}"
+    );
+    camera.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_focuser_unplugged_while_connected_reads_as_disconnected() {
+    let mut focuser = ZwoFocuser::new(0);
+    focuser.connect().await.expect("connect");
+    std::env::set_var("FAKE_EAF_GONE", "1");
+    let position = focuser.get_position().await;
+    let moved = focuser.move_to(2_000).await;
+    std::env::remove_var("FAKE_EAF_GONE");
+    assert!(
+        matches!(position, Err(DriverError::Disconnected)),
+        "{position:?}"
+    );
+    assert!(matches!(moved, Err(DriverError::Disconnected)), "{moved:?}");
+    focuser.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_wheel_unplugged_while_connected_reads_as_disconnected() {
+    let mut wheel = ZwoFilterWheel::new(0);
+    wheel.connect().await.expect("connect");
+    std::env::set_var("FAKE_EFW_GONE", "1");
+    let position = wheel.get_position().await;
+    let moved = wheel.move_to_position(2).await;
+    std::env::remove_var("FAKE_EFW_GONE");
+    assert!(
+        matches!(position, Err(DriverError::Disconnected)),
+        "{position:?}"
+    );
+    assert!(matches!(moved, Err(DriverError::Disconnected)), "{moved:?}");
+    wheel.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn unreadable_color_controls_do_not_stamp_a_guessed_pattern() {
+    let mut color = connected(UNCOOLED_COLOR).await;
+    for (control, bin) in [("9", 1), ("18", 2)] {
+        let baseline = take(&mut color, exposure(1.0, bin, None)).await;
+        std::env::set_var("FAKE_ASI_UNREADABLE", control);
+        let frame = take(&mut color, exposure(1.0, bin, None)).await;
+        std::env::remove_var("FAKE_ASI_UNREADABLE");
+        assert_eq!(frame.bayer_pattern, None, "control {control}");
+        assert_eq!(frame.data, baseline.data, "raw samples must survive");
+    }
+    std::env::set_var("FAKE_ASI_UNREADABLE", "9");
+    std::env::set_var("FAKE_ASI_CAPS_ERROR", "1");
+    let frame = take(&mut color, exposure(1.0, 1, None)).await;
+    std::env::remove_var("FAKE_ASI_CAPS_ERROR");
+    std::env::remove_var("FAKE_ASI_UNREADABLE");
+    assert_eq!(
+        frame.bayer_pattern, None,
+        "a failed control list is not unsupported"
+    );
+    std::env::set_var("FAKE_ASI_UNSUPPORTED", "9,18");
+    let frame = take(&mut color, exposure(1.0, 2, None)).await;
+    std::env::remove_var("FAKE_ASI_UNSUPPORTED");
+    assert_eq!(
+        frame.bayer_pattern,
+        Some(BayerPattern::Rggb.into()),
+        "absent controls cannot flip or mono-bin the frame"
+    );
+    color.disconnect().await.unwrap();
+}

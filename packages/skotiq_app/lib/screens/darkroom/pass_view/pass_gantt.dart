@@ -5,7 +5,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'pass_view_charts.dart';
@@ -128,7 +129,6 @@ class _GanttPainter extends CustomPainter {
         labelWidth, topPad, size.width - 2, topPad + _rowsHeight(rowCount));
     double x(Duration d) => plot.left + d.inMilliseconds / spanMs * plot.width;
 
-    // Clock scale and gridlines.
     final grid = Paint()
       ..color = colors.border
       ..strokeWidth = 1;
@@ -137,7 +137,7 @@ class _GanttPainter extends CustomPainter {
     for (var t = 0.0; t <= totalSec + 1e-6; t += step) {
       final px = plot.left + t / totalSec * plot.width;
       canvas.drawLine(Offset(px, plot.top), Offset(px, plot.bottom + 3), grid);
-      _text(canvas, passClock(Duration(seconds: t.round())),
+      _text(canvas, ClockFormat.stopwatch(Duration(seconds: t.round())),
           Offset(px, plot.bottom + 5), axis,
           align: t == 0
               ? TextAlign.left
@@ -145,7 +145,6 @@ class _GanttPainter extends CustomPainter {
     }
     _text(canvas, 'm:ss', Offset(0, plot.bottom + 5), axis);
 
-    // Row labels.
     final rows = <String?>[
       for (final l in snapshot.lanes) l.lane,
       if (after.isNotEmpty) null,
@@ -158,8 +157,9 @@ class _GanttPainter extends CustomPainter {
       final top = plot.top + i * (rowHeight + rowGap);
       final f = rows[i];
       final label = f ?? afterLabel;
-      final color =
-          f == null ? colors.textSecondary : passFilterColor(f, colors);
+      final color = f == null
+          ? colors.textSecondary
+          : FilterColors.forName(f, colors: colors);
       canvas.drawRect(Rect.fromLTWH(0, top + rowHeight / 2 - 4, 8, 8),
           Paint()..color = color);
       _text(
@@ -172,7 +172,6 @@ class _GanttPainter extends CustomPainter {
       );
     }
 
-    // Blocks.
     final ink = SkotiqTypography.monoXs
         .copyWith(fontSize: SkotiqTypography.fontSize9_5, height: 1);
     var stageIndex = <String?, int>{};
@@ -186,7 +185,7 @@ class _GanttPainter extends CustomPainter {
           ? colors.error
           : (s.lane == null
               ? colors.textSecondary
-              : passFilterColor(s.lane!, colors));
+              : FilterColors.forName(s.lane!, colors: colors));
       // Adjacent stages alternate two strengths of the lane color.
       final fill = base.withValues(alpha: n.isEven ? 0.92 : 0.62);
       final left = x(s.start);
@@ -229,7 +228,6 @@ class _GanttPainter extends CustomPainter {
           canvas.drawRect(r, outline);
         }
       }
-      // One cut per finished sub.
       final cut = Paint()
         ..color = colors.background.withValues(alpha: 0.55)
         ..strokeWidth = 1;
@@ -285,7 +283,7 @@ class _GanttPainter extends CustomPainter {
     canvas.drawLine(Offset(nx, plot.top - 4), Offset(nx, plot.bottom + 2), now);
     _text(
       canvas,
-      'now ${passClock(snapshot.elapsed)}',
+      'now ${ClockFormat.stopwatch(snapshot.elapsed)}',
       Offset(nx, 0),
       axis.copyWith(color: colors.primary),
       align: nx > plot.right - 50 ? TextAlign.right : TextAlign.center,

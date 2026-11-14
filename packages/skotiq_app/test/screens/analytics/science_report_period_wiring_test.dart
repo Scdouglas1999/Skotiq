@@ -15,7 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart'
     show dbSessionImagesProvider;
 import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 const int _sessionId = 7;
@@ -47,12 +49,11 @@ PeriodAnalysisResult _period() => const PeriodAnalysisResult(
 
 /// Captures what the tab hands the exporter instead of writing a file.
 class _RecordingExporter implements ScienceReportExporter {
-  PeriodAnalysisResult? seenPeriod;
+  PeriodFinding? seenPeriod;
   int calls = 0;
 
   @override
-  Future<File> exportToDisk(int sessionId,
-      {PeriodAnalysisResult? period}) async {
+  Future<File> exportToDisk(int sessionId, {PeriodFinding? period}) async {
     calls++;
     seenPeriod = period;
     final dir = await Directory.systemTemp.createTemp('sk-report-wiring-');
@@ -62,7 +63,7 @@ class _RecordingExporter implements ScienceReportExporter {
   }
 
   @override
-  Future<String> buildMarkdown(int sessionId, {PeriodAnalysisResult? period}) =>
+  Future<String> buildMarkdown(int sessionId, {PeriodFinding? period}) =>
       Future.value('stub');
 
   @override
@@ -111,7 +112,7 @@ ImagingSession _session() => ImagingSession(
 Widget _tab(_RecordingExporter exporter) => ProviderScope(
       overrides: [
         allSessionsProvider.overrideWith((ref) => Stream.value([_session()])),
-        latestScienceSessionProvider.overrideWith((ref) async => _sessionId),
+        scienceDefaultSessionProvider.overrideWith((ref) async => _sessionId),
         sessionPhotometryProvider.overrideWith(
           (ref, id) => Stream.value(_measurements()),
         ),
@@ -136,8 +137,8 @@ Widget _tab(_RecordingExporter exporter) => ProviderScope(
         sessionFrameQualityMetricsProvider.overrideWith(
           (ref, id) => Stream.value(const <ScienceFrameQualityMetricsRow>[]),
         ),
-        sessionTileMetricsProvider.overrideWith(
-          (ref, id) => Stream.value(const <ScienceTileMetricRow>[]),
+        frameTileMetricsProvider.overrideWith(
+          (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
         ),
         dbSessionImagesProvider.overrideWith(
           (ref, id) => Stream.value(const <DbCapturedImage>[]),
@@ -183,6 +184,6 @@ void main() {
       isNotNull,
       reason: 'the report cannot contain a period the button never passed',
     );
-    expect(exporter.seenPeriod!.lombScargle.bestPeriod, closeTo(0.0138, 1e-6));
+    expect(exporter.seenPeriod!.lombScarglePeriodDays, closeTo(0.0138, 1e-6));
   });
 }

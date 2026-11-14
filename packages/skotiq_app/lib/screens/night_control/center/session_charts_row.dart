@@ -14,9 +14,13 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../utils/guide_distance.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../data/plan/night_run_phase_provider.dart';
 import '../data/session/session_format.dart';
@@ -24,15 +28,10 @@ import '../data/session/session_series_provider.dart';
 import '../data/session/guide_series_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
-import 'center_format.dart';
 import 'chart_axes.dart';
 import 'frame_stage.dart' show nightIsBeforeRun;
 
 part 'session_charts_ready.dart';
-
-// ---------------------------------------------------------------------------
-// The row
-// ---------------------------------------------------------------------------
 
 class SessionChartsRow extends ConsumerWidget {
   const SessionChartsRow({super.key});
@@ -43,74 +42,59 @@ class SessionChartsRow extends ConsumerWidget {
     final density = NightControlDensity.maybeOf(context);
     final height = density?.chartRowHeight ?? NightControlLayout.chartRowHeight;
     final before = nightIsBeforeRun(ref.watch(nightRunPhaseProvider));
+    // A camera without a cooler (a DSLR, most guide cameras) has no
+    // cooling card.
     final cells = before
-        ? const <Widget>[_FocusCard(), _GuiderIdleCard(), _CoolingCard()]
+        ? <Widget>[
+            const _FocusCard(),
+            const _GuiderIdleCard(),
+            if (ref.watch(cameraHasCoolerProvider)) const _CoolingCard(),
+          ]
         : const <Widget>[_HfrChart(), _GuideChart(), _TemperatureChart()];
 
-    final single = density?.mode == NightControlMode.singleColumn;
+    // In a single column the page scrolls, so the cards stack at full width.
+    // A pager with the next card peeking in read as clipped cards, and a
+    // mouse could not turn its pages.
+    if (density?.mode == NightControlMode.singleColumn) {
+      return Container(
+        color: colors.surface,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            for (final cell in cells)
+              Container(
+                height: height,
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: colors.border)),
+                ),
+                child: cell,
+              ),
+          ],
+        ),
+      );
+    }
     return Container(
       height: height,
       decoration: BoxDecoration(
         color: colors.surface,
         border: Border(top: BorderSide(color: colors.border)),
       ),
-      child: single
-          ? _Pager(cells: cells)
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (var i = 0; i < cells.length; i++)
-                  Expanded(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: i < cells.length - 1
-                            ? Border(right: BorderSide(color: colors.border))
-                            : const Border(),
-                      ),
-                      child: cells[i],
-                    ),
-                  ),
-              ],
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          for (var i = 0; i < cells.length; i++)
+            Expanded(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: i < cells.length - 1
+                      ? Border(right: BorderSide(color: colors.border))
+                      : const Border(),
+                ),
+                child: cells[i],
+              ),
             ),
-    );
-  }
-}
-
-/// The single column's charts: one card per page, the next one peeking in
-/// so the row reads as swipeable.
-class _Pager extends StatefulWidget {
-  const _Pager({required this.cells});
-
-  final List<Widget> cells;
-
-  @override
-  State<_Pager> createState() => _PagerState();
-}
-
-class _PagerState extends State<_Pager> {
-  final PageController _controller = PageController(viewportFraction: 0.9);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.skotiqColors;
-    return PageView(
-      controller: _controller,
-      padEnds: false,
-      children: <Widget>[
-        for (final cell in widget.cells)
-          DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(right: BorderSide(color: colors.border)),
-            ),
-            child: cell,
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -331,21 +315,12 @@ class _ChartBody extends StatelessWidget {
 // Mapping the view models onto the kit chart
 // ---------------------------------------------------------------------------
 
-SeriesChartTone _tone(SeriesTone tone) => switch (tone) {
-      SeriesTone.primary => SeriesChartTone.primary,
-      SeriesTone.secondary => SeriesChartTone.secondary,
-      SeriesTone.tertiary => SeriesChartTone.tertiary,
-      SeriesTone.muted => SeriesChartTone.muted,
-      SeriesTone.warning => SeriesChartTone.warning,
-      SeriesTone.error => SeriesChartTone.error,
-    };
-
 SeriesChartLine _line(SeriesLineVm line, {double? minY, double? maxY}) =>
     SeriesChartLine(
       points: <(DateTime, double?)>[
         for (final point in line.points) (point.t, point.y),
       ],
-      tone: _tone(line.tone),
+      tone: line.tone,
       axis: line.secondaryAxis ? SeriesChartAxis.right : SeriesChartAxis.left,
       dashed: line.dashed,
       stepped: line.stepped,
@@ -415,9 +390,8 @@ Widget _legend(
             : line.dashed
                 ? _SwatchKind.dashed
                 : _SwatchKind.line,
-        swatchColor: line == null
-            ? null
-            : SeriesChart.colorFor(_tone(line.tone), colors),
+        swatchColor:
+            line == null ? null : SeriesChart.colorFor(line.tone, colors),
         rank: line == null && !keep.contains(item.label.key) ? 2 : 0,
       ),
     );
@@ -622,7 +596,7 @@ class _HfrChart extends ConsumerWidget {
     ];
     final afTimes = <String>[
       for (final marker in vm.markers)
-        if (marker.kind == SeriesMarkerKind.autofocus) nightClockHm(marker.t),
+        if (marker.kind == SeriesMarkerKind.autofocus) ClockFormat.hm(marker.t),
     ];
 
     final values = _values(hfr);
@@ -704,7 +678,7 @@ class _GuideChart extends ConsumerWidget {
     final vm = ref.watch(nightGuideSeriesProvider);
     final window = ref.watch(nightGuideWindowProvider);
     // Arcseconds only when the guider reports its pixel scale.
-    final arcsec = ref.watch(nightGuideScaleProvider) != null;
+    final arcsec = ref.watch(guideScaleProvider) != null;
     String unit(String key) => arcsec ? '${key}Arcsec' : key;
     final title = l10n.text('nightCtrChartGuide');
     final ra = _values(_lineOf(vm, NightSeriesId.guideRa));
@@ -844,7 +818,7 @@ class _GuideChart extends ConsumerWidget {
     lines.add(
       SeriesChartLine(
         points: points,
-        tone: _tone(line.tone),
+        tone: line.tone,
         minY: -span,
         maxY: span,
       ),
@@ -999,7 +973,7 @@ class _TemperatureChart extends ConsumerWidget {
               l10n.text(
                 'nightCtrSemAfShift',
                 params: <String, String>{
-                  'time': nightClockHm(shift!.at),
+                  'time': ClockFormat.hm(shift!.at),
                   'steps': signedSteps(steps),
                 },
               ),
@@ -1020,7 +994,7 @@ class _TemperatureChart extends ConsumerWidget {
     } else if (shift != null) {
       final at = l10n.text(
         'nightCtrFocusLastAfAt',
-        params: <String, String>{'time': nightClockHm(shift.at)},
+        params: <String, String>{'time': ClockFormat.hm(shift.at)},
       );
       final steps = shift.steps;
       if (steps == null) {
@@ -1029,7 +1003,7 @@ class _TemperatureChart extends ConsumerWidget {
         note = l10n.text(
           'nightCtrFocusLastAf',
           params: <String, String>{
-            'time': nightClockHm(shift.at),
+            'time': ClockFormat.hm(shift.at),
             'steps': signedSteps(steps),
           },
         );
@@ -1044,7 +1018,7 @@ class _TemperatureChart extends ConsumerWidget {
     } else if (from != null) {
       note = l10n.text(
         'nightCtrSince',
-        params: <String, String>{'time': nightClockHm(from)},
+        params: <String, String>{'time': ClockFormat.hm(from)},
       );
     }
 

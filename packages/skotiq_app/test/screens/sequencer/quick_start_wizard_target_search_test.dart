@@ -12,9 +12,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/quick_start_wizard_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show CelestialCoordinate, DeepSkyObject, DsoType, loadedDsosProvider;
+    show loadedDsosProvider;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show CelestialCoordinate, DeepSkyObject, DsoType;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -187,7 +192,7 @@ void main() {
     final ra = tester.widget<TextField>(
       find.widgetWithText(TextField, 'Right Ascension'),
     );
-    expect(ra.controller!.text, startsWith('5h 35m'));
+    expect(ra.controller!.text, startsWith('05h 35m'));
   });
 
   testWidgets('a name the catalog lacks goes to SIMBAD by exact name',

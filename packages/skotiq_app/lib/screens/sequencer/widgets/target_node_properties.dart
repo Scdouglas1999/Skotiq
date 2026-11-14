@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import 'framing_assistant_inline.dart';
 import 'node_property_widgets.dart';
 import 'target_coordinates.dart';
@@ -74,54 +77,52 @@ class TargetGroupProperties extends ConsumerWidget {
               colors: colors,
               value: node.targetName,
               onChanged: (value) {
-                ref.read(currentSequenceProvider.notifier).updateNode(
-                      node.copyWith(targetName: value),
+                ref
+                    .read(currentSequenceProvider.notifier)
+                    .editNode<TargetHeaderNode>(
+                      node.id,
+                      (current) => current.copyWith(targetName: value),
                     );
               },
             ),
           ),
-          Row(
-            children: [
-              Expanded(
-                child: NodePropertyField(
-                  colors: colors,
-                  label: 'RA (hours)',
-                  child: NodeNumberInput(
-                    colors: colors,
-                    value: node.raHours,
-                    suffix: 'h',
-                    min: 0,
-                    max: 24,
-                    decimals: 4,
-                    onChanged: (value) {
-                      ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(raHours: value),
-                          );
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: NodePropertyField(
-                  colors: colors,
-                  label: 'Dec (degrees)',
-                  child: NodeNumberInput(
-                    colors: colors,
-                    value: node.decDegrees,
-                    suffix: '\u00B0',
-                    min: -90,
-                    max: 90,
-                    decimals: 4,
-                    onChanged: (value) {
-                      ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(decDegrees: value),
-                          );
-                    },
-                  ),
-                ),
-              ),
-            ],
+          // One field per row: side by side in the inspector each field was
+          // about 30 px wide and showed "02" for 2.702.
+          NodePropertyField(
+            colors: colors,
+            label: 'RA',
+            child: NodeNumberInput(
+              colors: colors,
+              value: node.raHours,
+              suffix: 'h',
+              min: 0,
+              max: 24,
+              decimals: 4,
+              parse: CoordinateParser.parseRa,
+              onChanged: (value) {
+                ref.read(currentSequenceProvider.notifier).updateNode(
+                      node.copyWith(raHours: value),
+                    );
+              },
+            ),
+          ),
+          NodePropertyField(
+            colors: colors,
+            label: 'Dec',
+            child: NodeNumberInput(
+              colors: colors,
+              value: node.decDegrees,
+              suffix: '\u00B0',
+              min: -90,
+              max: 90,
+              decimals: 4,
+              parse: CoordinateParser.parseDec,
+              onChanged: (value) {
+                ref.read(currentSequenceProvider.notifier).updateNode(
+                      node.copyWith(decDegrees: value),
+                    );
+              },
+            ),
           ),
           // Name resolution: a named target must resolve to coordinates.
           // Otherwise "M31" sitting at the 0h/+0° default is a runnable state
@@ -383,7 +384,6 @@ class TargetGroupProperties extends ConsumerWidget {
               ],
             ),
           ),
-          // start_when / end_when crossings editor.
           const SizedBox(height: 16),
           _TriggerSection(
             colors: colors,
@@ -421,7 +421,6 @@ class TargetGroupProperties extends ConsumerWidget {
               ),
             ),
           ],
-          // Per-target integration budget editor.
           const SizedBox(height: 16),
           _IntegrationBudgetSection(colors: colors, node: node),
         ],

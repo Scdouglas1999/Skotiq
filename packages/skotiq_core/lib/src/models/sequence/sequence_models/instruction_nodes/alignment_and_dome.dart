@@ -2,22 +2,18 @@
 
 part of '../../sequence_models.dart';
 
-/// Meridian Flip instruction
 class MeridianFlipNode extends SequenceNode {
-  // Trigger conditions
   final MeridianTriggerMethod triggerMethod;
   final double minutesPastMeridian;
   final double minutesBeforeLimit;
   final double hourAngleThreshold;
 
-  // Flip sequence options
   final bool pauseGuiding;
   final bool autoCenter;
   final bool refocusAfter;
   final double settleTime;
   final bool resumeGuiding;
 
-  // Error handling
   final int maxRetries;
   final FlipFailureAction failureAction;
 
@@ -63,25 +59,7 @@ class MeridianFlipNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'MeridianFlip';
-
-  @override
-  String get iconName => 'refresh-cw';
-
-  /// A meridian flip is a parallel hour-angle / pier-side watchdog that fires
-  /// whenever the configured trigger condition is met, regardless of where the
-  /// node sits in the tree — it is not an ordered instruction that runs once in
-  /// sequence. Classifying it as [NodeCategory.trigger] drives the warning
-  /// color and watchdog affordance in every category-switch renderer
-  /// (sequence_tree, sequence_minimap, visual_timeline, _input_primitives).
-  ///
-  /// Note: execution dispatch is unaffected — the Rust-bound executor matches
-  /// `MeridianFlipNode` by concrete type, not by [category].
-  @override
-  NodeCategory get category => NodeCategory.trigger;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.mount};
+  NodeKind<MeridianFlipNode> get kind => NodeKinds.meridianFlip;
 
   /// Plain field-replace copy. Per-field UX side-effects (specifically the
   /// "edit clears useGlobalDefaults" sticky override) live in
@@ -151,7 +129,6 @@ class MeridianFlipNode extends SequenceNode {
   ];
 }
 
-/// Open Dome instruction
 class OpenDomeNode extends SequenceNode {
   final bool shutterOnly;
 
@@ -167,16 +144,7 @@ class OpenDomeNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'OpenDome';
-
-  @override
-  String get iconName => 'home';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.dome};
+  NodeKind<OpenDomeNode> get kind => NodeKinds.openDome;
 
   @override
   OpenDomeNode copyWith({
@@ -205,7 +173,6 @@ class OpenDomeNode extends SequenceNode {
   List<Object?> get props => [...super.props, shutterOnly];
 }
 
-/// Close Dome instruction
 class CloseDomeNode extends SequenceNode {
   final bool shutterOnly;
 
@@ -221,16 +188,7 @@ class CloseDomeNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'CloseDome';
-
-  @override
-  String get iconName => 'home';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.dome};
+  NodeKind<CloseDomeNode> get kind => NodeKinds.closeDome;
 
   @override
   CloseDomeNode copyWith({
@@ -259,7 +217,6 @@ class CloseDomeNode extends SequenceNode {
   List<Object?> get props => [...super.props, shutterOnly];
 }
 
-/// Park Dome instruction
 class ParkDomeNode extends SequenceNode {
   final bool shutterOnly;
 
@@ -275,16 +232,7 @@ class ParkDomeNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'ParkDome';
-
-  @override
-  String get iconName => 'parking-circle';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.dome};
+  NodeKind<ParkDomeNode> get kind => NodeKinds.parkDome;
 
   @override
   ParkDomeNode copyWith({
@@ -313,7 +261,6 @@ class ParkDomeNode extends SequenceNode {
   List<Object?> get props => [...super.props, shutterOnly];
 }
 
-/// Polar alignment instruction
 class PolarAlignmentNode extends SequenceNode {
   final double exposureDuration;
   final int binning;
@@ -345,16 +292,7 @@ class PolarAlignmentNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'PolarAlignment';
-
-  @override
-  String get iconName => 'compass';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.camera, DeviceType.mount};
+  NodeKind<PolarAlignmentNode> get kind => NodeKinds.polarAlignment;
 
   @override
   PolarAlignmentNode copyWith({

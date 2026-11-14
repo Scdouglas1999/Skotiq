@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+
+import '../../harness/host_open_plan.dart';
 
 /// Coverage for the active-plan-owner concept: the autopilot (and the other
 /// automated planners) must hand the editor slot back and forth with the human
@@ -130,7 +133,9 @@ void main() {
       expect(editor.isDirty, isTrue);
     });
 
-    test('releaseOwnership with empty manual editor clears the canvas', () {
+    // Cleared, a stopped one-tap night read "No plan loaded" over the
+    // frames it had just taken.
+    test('releaseOwnership with nothing stashed keeps the plan that ran', () {
       final c = newContainer();
       final editor = c.read(currentSequenceProvider.notifier);
 
@@ -143,7 +148,8 @@ void main() {
       expect(c.read(currentSequenceProvider), isNotNull);
 
       editor.releaseOwnership();
-      expect(c.read(currentSequenceProvider), isNull);
+      expect(c.read(currentSequenceProvider)!.name, 'Autopilot Plan');
+      expect(editor.isDirty, isFalse);
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.manual);
     });
 
@@ -203,20 +209,12 @@ void main() {
       final fileService = c.read(sequenceFileServiceProvider);
       final hostPlan = buildSequence(name: 'Host Autopilot', databaseId: 11);
 
-      await applyRemoteSyncEvent(
-        c,
-        buildHostMutationEvent(
-          entityType: HostMutationEntity.sequenceEditor,
-          action: HostMutationAction.updated,
-          entityId: '11',
-          extra: {
-            'sequence': fileService.sequenceToMap(hostPlan),
-            'databaseId': 11,
-            'isDirty': false,
-            'activePlanOwner': ActivePlanOwner.autopilot.wireValue,
-          },
-        ),
-      );
+      showHostOpenPlan(c, {
+        'sequence': fileService.sequenceToMap(hostPlan),
+        'databaseId': 11,
+        'isDirty': false,
+        'activePlanOwner': ActivePlanOwner.autopilot.wireValue,
+      });
 
       expect(c.read(currentSequenceProvider)!.name, 'Host Autopilot');
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.autopilot);
@@ -227,19 +225,11 @@ void main() {
       final fileService = c.read(sequenceFileServiceProvider);
       final hostPlan = buildSequence(name: 'Legacy Host', databaseId: 12);
 
-      await applyRemoteSyncEvent(
-        c,
-        buildHostMutationEvent(
-          entityType: HostMutationEntity.sequenceEditor,
-          action: HostMutationAction.updated,
-          entityId: '12',
-          extra: {
-            'sequence': fileService.sequenceToMap(hostPlan),
-            'databaseId': 12,
-            'isDirty': false,
-          },
-        ),
-      );
+      showHostOpenPlan(c, {
+        'sequence': fileService.sequenceToMap(hostPlan),
+        'databaseId': 12,
+        'isDirty': false,
+      });
 
       expect(c.read(currentSequenceProvider)!.name, 'Legacy Host');
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.manual);
@@ -250,28 +240,15 @@ void main() {
       final fileService = c.read(sequenceFileServiceProvider);
 
       // Slave first mirrors a host autopilot plan.
-      await applyRemoteSyncEvent(
-        c,
-        buildHostMutationEvent(
-          entityType: HostMutationEntity.sequenceEditor,
-          action: HostMutationAction.updated,
-          extra: {
-            'sequence': fileService.sequenceToMap(buildSequence()),
-            'isDirty': false,
-            'activePlanOwner': ActivePlanOwner.autopilot.wireValue,
-          },
-        ),
-      );
+      showHostOpenPlan(c, {
+        'sequence': fileService.sequenceToMap(buildSequence()),
+        'isDirty': false,
+        'activePlanOwner': ActivePlanOwner.autopilot.wireValue,
+      });
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.autopilot);
 
       // Host closes its editor.
-      await applyRemoteSyncEvent(
-        c,
-        buildHostMutationEvent(
-          entityType: HostMutationEntity.sequenceEditor,
-          action: HostMutationAction.cleared,
-        ),
-      );
+      showHostOpenPlan(c, null);
 
       expect(c.read(currentSequenceProvider), isNull);
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.manual);

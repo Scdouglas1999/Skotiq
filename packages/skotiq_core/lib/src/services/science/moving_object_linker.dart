@@ -1,13 +1,14 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
 
 import '../../models/science/science_models.dart';
 import '../../utils/utc_timestamp.dart';
+import '../frame_header.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' show SkotiqError;
 
-/// Image size and timing from a FITS primary header, read without decoding
-/// the pixels.
+/// Image size and timing from a frame's header, read without decoding the
+/// pixels.
 class FitsFrameSummary {
   const FitsFrameSummary({
     required this.width,
@@ -34,60 +35,25 @@ class FitsFrameSummary {
   }
 }
 
-/// Read the primary header of the FITS file at [path]; null when the file is
-/// not a readable FITS image.
+/// Read the header of the FITS or XISF frame at [path]; null when the file is
+/// not a readable frame.
 Future<FitsFrameSummary?> readFitsFrameSummary(String path) async {
-  RandomAccessFile? file;
+  final FrameHeader header;
   try {
-    file = await File(path).open();
-    final cards = <String, String>{};
-    for (var block = 0; block < 64; block++) {
-      final bytes = await file.read(2880);
-      if (bytes.length < 2880) return null;
-      final text = latin1.decode(bytes);
-      for (var c = 0; c < 36; c++) {
-        final card = text.substring(c * 80, c * 80 + 80);
-        final key = card.substring(0, 8).trim();
-        if (key == 'END') {
-          final w = _parseCard(cards['NAXIS1'], int.tryParse);
-          final h = _parseCard(cards['NAXIS2'], int.tryParse);
-          if (w == null || h == null) return null;
-          final exp =
-              _parseCard(cards['EXPTIME'], double.tryParse) ??
-              _parseCard(cards['EXPOSURE'], double.tryParse);
-          return FitsFrameSummary(
-            width: w,
-            height: h,
-            dateObs: tryParseUtcTimestamp(cards['DATE-OBS']),
-            exposureSeconds: exp,
-            filter: cards['FILTER'],
-          );
-        }
-        if (card.length > 10 && card.substring(8, 10) == '= ') {
-          var value = card.substring(10);
-          final slash = value.indexOf(" /");
-          if (!value.trimLeft().startsWith("'") && slash >= 0) {
-            value = value.substring(0, slash);
-          }
-          value = value.trim();
-          if (value.startsWith("'")) {
-            final end = value.indexOf("'", 1);
-            value = value.substring(1, end < 0 ? value.length : end).trim();
-          }
-          cards.putIfAbsent(key, () => value);
-        }
-      }
-    }
+    header = await readFrameHeader(path);
+  } on SkotiqError {
     return null;
-  } on FileSystemException {
-    return null;
-  } finally {
-    await file?.close();
   }
+  final size = header.imageSize;
+  if (size == null) return null;
+  return FitsFrameSummary(
+    width: size.width,
+    height: size.height,
+    dateObs: tryParseUtcTimestamp(header.string('DATE-OBS')),
+    exposureSeconds: header.firstNumber(const ['EXPTIME', 'EXPOSURE']),
+    filter: header.string('FILTER'),
+  );
 }
-
-T? _parseCard<T>(String? raw, T? Function(String) parse) =>
-    raw == null ? null : parse(raw);
 
 /// One source detected in one frame, already placed on the sky through that
 /// frame's own plate solve.
@@ -329,7 +295,14 @@ String continuedCandidateId(
     final dec = row.decDegrees + dist * math.cos(pa);
     final cosDec = math.cos(row.decDegrees * math.pi / 180.0);
     final ra = row.raDegrees + dist * math.sin(pa) / math.max(cosDec, 1e-6);
-    final sep = _separationArcsec(ra, dec, match.raDegrees, match.decDegrees);
+    final sep =
+        AstronomyCalculations.angularSeparation(
+          ra1Deg: ra,
+          dec1Deg: dec,
+          ra2Deg: match.raDegrees,
+          dec2Deg: match.decDegrees,
+        ) *
+        3600.0;
     if (sep <= toleranceArcsec && sep < bestSep) {
       bestSep = sep;
       best = row.candidateId;
@@ -423,18 +396,6 @@ _LineFit? _fitLine(List<_Point> hits, List<double> times) {
       cosc;
   const r2as = 180.0 / math.pi * 3600.0;
   return (xi * r2as, eta * r2as);
-}
-
-double _separationArcsec(double ra1, double dec1, double ra2, double dec2) {
-  const d2r = math.pi / 180.0;
-  final dLat = (dec2 - dec1) * d2r;
-  final dLon = (ra2 - ra1) * d2r;
-  final h =
-      math.pow(math.sin(dLat / 2), 2) +
-      math.cos(dec1 * d2r) *
-          math.cos(dec2 * d2r) *
-          math.pow(math.sin(dLon / 2), 2);
-  return 2 * math.asin(math.sqrt(h).clamp(0.0, 1.0)) / d2r * 3600.0;
 }
 
 /// Uniform spatial hash over one frame's tangent-plane points.

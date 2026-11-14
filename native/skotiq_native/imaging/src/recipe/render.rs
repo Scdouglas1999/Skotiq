@@ -26,9 +26,7 @@ use std::sync::Arc;
 use serde_json::Value;
 
 use super::cache::{CacheKey, RenderCache};
-use super::model::{
-    OpApplied, OpContext, OpError, OpImage, OpStage, Recipe, RecipeError, CANCEL_POLL_PIXELS,
-};
+use super::model::{OpApplied, OpContext, OpError, OpImage, OpStage, Recipe, RecipeError};
 use super::pyramid::ImagePyramid;
 use super::registry::OpRegistry;
 
@@ -64,11 +62,8 @@ impl StepOutcome {
 pub struct StepReport {
     /// Index of the step in the recipe.
     pub index: usize,
-    /// Operation id.
     pub op_id: String,
-    /// Operation version.
     pub op_version: u32,
-    /// What happened.
     pub outcome: StepOutcome,
     /// What the operation solved while it ran (see [`OpApplied::measurement`]),
     /// or `None` when it measured nothing and for every outcome but
@@ -113,7 +108,6 @@ impl RenderReport {
 /// A rendered image and the report describing how it was produced.
 #[derive(Debug, Clone)]
 pub struct RenderOutput {
-    /// The rendered image.
     pub image: Arc<OpImage>,
     /// What each step did.
     pub report: RenderReport,
@@ -420,9 +414,6 @@ pub fn render_preview(
         RenderOptions::full().at_level(level),
     )
 }
-
-/// The pixel budget between cancel polls, re-exported for operation authors.
-pub const OP_CANCEL_POLL_PIXELS: usize = CANCEL_POLL_PIXELS;
 
 #[cfg(test)]
 #[path = "render_tests.rs"]

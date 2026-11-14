@@ -30,11 +30,10 @@ class ResolvedCalibration {
   };
 }
 
-/// The eight plate-solved WCS scalars in the CD-matrix form ASTAP /
-/// `WcsInfo::from_plate_solve` (`imaging/src/fits.rs:1094`) emit. Returned by a
-/// [MasterPlateSolver] and persisted verbatim via
-/// [IntegratedMastersDao.updateWcs] so the catalog annotation overlay and colour
-/// calibration can both reconstruct a `WcsOverlay`.
+/// The eight plate-solved WCS scalars in FITS terms (CRVAL in degrees,
+/// 1-based CRPIX, the CD matrix). Returned by a [MasterPlateSolver] and
+/// persisted verbatim via [IntegratedMastersDao.updateWcs] so the catalog
+/// annotation overlay and colour calibration can both read it.
 class MasterWcsSolution {
   final double crval1;
   final double crval2;
@@ -55,6 +54,21 @@ class MasterWcsSolution {
     required this.cd2_1,
     required this.cd2_2,
   });
+
+  /// The FITS terms of [wcs].
+  factory MasterWcsSolution.of(SolvedWcs wcs) {
+    final fits = wcs.fitsTerms;
+    return MasterWcsSolution(
+      crval1: fits.crval1,
+      crval2: fits.crval2,
+      crpix1: fits.crpix1,
+      crpix2: fits.crpix2,
+      cd1_1: fits.cd1_1,
+      cd1_2: fits.cd1_2,
+      cd2_1: fits.cd2_1,
+      cd2_2: fits.cd2_2,
+    );
+  }
 }
 
 /// A fail-soft plate-solve of a finished master FITS. Implementations wrap
@@ -89,7 +103,7 @@ typedef MasterColorCalibrator =
     Future<String?> Function({
       required String masterFits,
       required String outputFits,
-      required WcsOverlay wcs,
+      required SolvedWcs wcs,
       required int channels,
     });
 

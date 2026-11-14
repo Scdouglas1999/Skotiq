@@ -1,26 +1,10 @@
-//! Atik SDK FFI types (from AtikDefs.h / AtikCameras.h).
+//! Atik SDK types and constants (from AtikDefs.h / AtikCameras.h), and what
+//! the SDK's answers mean.
 
 use super::*;
 
-// Types and constants from AtikDefs.h and AtikCameras.h.
-
-/// Atik SDK handle type
 pub(crate) type ArtemisHandle = *mut c_void;
 
-/// Wrapper to make raw pointer Send + Sync
-/// SAFETY: The Atik SDK requires that all calls to a given camera handle
-/// be serialized, which we ensure through the Mutex wrapper in AtikCamera.
-pub(crate) struct HandleWrapper(pub(crate) ArtemisHandle);
-// SAFETY: HandleWrapper is only ever accessed while holding the per-camera
-// `handle: Mutex<HandleWrapper>` AND the global `atik_mutex()` async lock, so
-// no two threads ever touch the raw ArtemisHandle concurrently.
-unsafe impl Send for HandleWrapper {}
-// SAFETY: Same justification as `Send` above — the wrapped raw pointer is
-// never dereferenced outside the global Atik SDK mutex, so shared references
-// across threads cannot trigger concurrent FFI calls.
-unsafe impl Sync for HandleWrapper {}
-
-/// Atik error codes
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ArtemisError {
@@ -51,16 +35,24 @@ impl ArtemisError {
         }
     }
 
-    pub(crate) fn to_native_error(self, msg: &str) -> NativeError {
-        tracing::error!(
-            "Atik SDK error during '{}': {:?}. Check camera connection and SDK installation.",
-            msg,
-            self
-        );
-        NativeError::SdkError(format!(
-            "Atik {}: {:?}. Ensure camera is connected and AtikCameras driver is installed.",
-            msg, self
-        ))
+    /// The error a caller sees when `operation` failed with this code. The
+    /// meanings are the ones the SDK Developer's Guide gives (section 5.10).
+    pub(crate) fn to_native_error(self, operation: &str) -> DriverError {
+        match self {
+            ArtemisError::NotConnected => DriverError::Disconnected,
+            ArtemisError::NoResponse => DriverError::Timeout(format!(
+                "the Atik camera did not answer while trying to {operation}"
+            )),
+            ArtemisError::InvalidParameter => DriverError::InvalidParameter(format!(
+                "the Atik camera refused to {operation}: a value is outside what it accepts"
+            )),
+            ArtemisError::InvalidFunction => DriverError::SdkError(format!(
+                "could not {operation}: this Atik camera does not have that feature"
+            )),
+            other => DriverError::SdkError(format!(
+                "could not {operation}: the Atik SDK answered {other:?}"
+            )),
+        }
     }
 }
 
@@ -79,9 +71,46 @@ pub(crate) struct ArtemisProperties {
     pub(crate) manufacturer: [c_char; 40],
 }
 
-// Camera flags from ARTEMISPROPERTIESCAMERAFLAGS
+// ARTEMISPROPERTIESCAMERAFLAGS
 pub(crate) const ARTEMIS_CAMERA_HAS_SHUTTER: c_int = 16;
 pub(crate) const ARTEMIS_CAMERA_HAS_GUIDE_PORT: c_int = 32;
+pub(crate) const ARTEMIS_CAMERA_HAS_EIGHT_BIT_MODE: c_int = 256;
+
+// ARTEMISCOOLINGINFO
+pub(crate) const ARTEMIS_COOLING_INFO_HASCOOLING: c_int = 1;
+pub(crate) const ARTEMIS_COOLING_INFO_SETPOINTCONTROL: c_int = 16;
+pub(crate) const ARTEMIS_COOLING_INFO_WARMINGUP: c_int = 32;
+pub(crate) const ARTEMIS_COOLING_INFO_COOLINGON: c_int = 64;
+
+// ARTEMISCAMERASTATE
+pub(crate) const CAMERA_ERROR: c_int = -1;
+pub(crate) const CAMERA_IDLE: c_int = 0;
+
+// CameraSpecificOptionsIDs. Data layouts are in "CMOS Camera Specific
+// Options" and the Apx60 Programmers Guide that ship with the SDK.
+/// u16: 0 custom, 1 low, 2 medium, 3 high.
+pub(crate) const ID_GO_PRESET_MODE: u16 = 1;
+/// 5 bytes: present flag, gain u16, offset u16. Low; medium and high follow.
+pub(crate) const ID_GO_PRESET_LOW: u16 = 2;
+/// 6 bytes to read (min, max, current as u16), 2 bytes to set.
+pub(crate) const ID_GO_CUSTOM_GAIN: u16 = 5;
+pub(crate) const ID_GO_CUSTOM_OFFSET: u16 = 6;
+/// bool: the 12-bit samples sit in the upper bits of the 16-bit word.
+pub(crate) const ID_PAD_DATA: u16 = 13;
+/// u16: 0 power save, 1 normal, 2 fast.
+pub(crate) const ID_EXPOSURE_SPEED: u16 = 14;
+pub(crate) const EXPOSURE_SPEED_POWER_SAVE: u16 = 0;
+/// In fast mode frames arrive only through a callback, never through
+/// ArtemisImageBuffer.
+pub(crate) const EXPOSURE_SPEED_FAST: u16 = 2;
+/// TE series (TE Series Programmers Guide): 6 bytes to read (min, max,
+/// current as u16). 0 lowest noise and 1 low noise read through ADC1, which
+/// has its own offset and no gain; 2 preview reads through ADC2, which takes
+/// the custom gain and offset.
+pub(crate) const ID_READOUT_MODE_TE: u16 = 20;
+pub(crate) const READOUT_MODE_TE_PREVIEW: u16 = 2;
+/// The TE series' ADC1 offset: 6 bytes to read, 2 to set.
+pub(crate) const ID_ADC1_OFFSET_TE: u16 = 88;
 
 // ARTEMISCOLOURTYPE (AtikDefs.h:53-61). Note that 0 is NOT "monochrome":
 // the vendor header documents it as "either the device is not a camera or the
@@ -101,12 +130,18 @@ impl AtikSensorColour {
     pub(crate) fn is_color(self) -> bool {
         matches!(self, AtikSensorColour::Rggb)
     }
+}
 
-    pub(crate) fn bayer_pattern(self) -> Option<BayerPattern> {
-        match self {
-            AtikSensorColour::Mono => None,
-            AtikSensorColour::Rggb => Some(BayerPattern::Rggb),
-        }
+/// The colour of the pixel at (x, y) of an RGGB mosaic, named as the 2x2 cell
+/// that starts there. The SDK's "normal offset" of a colour camera and an odd
+/// subframe origin both move the cell this way (INDI writes the offsets as
+/// XBAYROFF/YBAYROFF over RGGB, NINA as BayerOffsetX/Y).
+pub(crate) fn rggb_cell_at(x: i64, y: i64) -> BayerPattern {
+    match (x.rem_euclid(2), y.rem_euclid(2)) {
+        (0, 0) => BayerPattern::Rggb,
+        (1, 0) => BayerPattern::Grbg,
+        (0, _) => BayerPattern::Gbrg,
+        _ => BayerPattern::Bggr,
     }
 }
 

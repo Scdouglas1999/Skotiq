@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
@@ -75,7 +77,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
   Future<void> _save() async {
     setState(() => _isSaving = true);
 
-    // Read location data
     final location = ref.read(observerLocationProvider);
     final activeProfile = ref.read(activeProfileProvider).valueOrNull;
 
@@ -141,7 +142,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Object info (read-only)
               _InfoRow(
                 label: 'Object',
                 value: widget.object.name,
@@ -166,15 +166,12 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
               const SizedBox(height: 8),
               _InfoRow(
                 label: 'Time',
-                value: _formatTimestamp(DateTime.now()),
+                value: ClockFormat.dateHms(DateTime.now()),
                 colors: colors,
               ),
-
               const SizedBox(height: 16),
               Divider(color: colors.border),
               const SizedBox(height: 16),
-
-              // Rating
               Text(
                 'Rating',
                 style:
@@ -201,10 +198,7 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
                   );
                 }),
               ),
-
               const SizedBox(height: 16),
-
-              // Seeing conditions
               Text(
                 'Seeing',
                 style:
@@ -217,10 +211,7 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
                 onChanged: (v) => setState(() => _seeingConditions = v),
                 colors: colors,
               ),
-
               const SizedBox(height: 16),
-
-              // Transparency
               Text(
                 'Transparency',
                 style:
@@ -233,10 +224,7 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
                 onChanged: (v) => setState(() => _transparency = v),
                 colors: colors,
               ),
-
               const SizedBox(height: 16),
-
-              // Notes
               Text(
                 'Notes',
                 style:
@@ -292,11 +280,6 @@ class _ObservationLogDialogState extends ConsumerState<ObservationLogDialog> {
       ],
     );
     return PopScope(canPop: !_isSaving, child: dialog);
-  }
-
-  String _formatTimestamp(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
   }
 }
 

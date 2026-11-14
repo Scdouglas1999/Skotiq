@@ -27,6 +27,5 @@ class SequenceVersions extends Table {
   /// the snapshot was captured automatically without a caller-supplied label.
   TextColumn get label => text().nullable()();
 
-  /// When this version was captured.
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }

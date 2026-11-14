@@ -4,10 +4,14 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as backend_events;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as backend_events;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -54,8 +58,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.read(liveSequenceStatsProvider.notifier).state =
-        SequenceRunStats();
+    container.read(runRecordProvider.notifier).setStats(SequenceRunStats());
     return (container, container.read(sequenceExecutorProvider));
   }
 
@@ -166,8 +169,9 @@ void main() {
 
   test('a failed flip records an error and does NOT count as a flip', () {
     final (container, executor) = build();
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     executor.handleSequencerEventForTest(
       flipEvent(
@@ -227,6 +231,27 @@ void main() {
     expect(stats.warningMessages.single, contains('was aborted'));
   });
 
+  test('a refusal that ends in a period is not given a second one', () {
+    final (container, executor) = build();
+
+    executor.handleSequencerEventForTest(
+      flipEvent(
+        outcome: 'aborted',
+        attempts: 0,
+        error:
+            "Meridian flip refused: cover 'cover-1' is closed (state=1). Open "
+            'the cover before flipping or post-flip plate solve will fail.',
+      ),
+    );
+
+    final warning = container
+        .read(liveSequenceStatsProvider)!
+        .warningMessages
+        .single;
+    expect(warning, contains('plate solve will fail. The mount was NOT'));
+    expect(warning, isNot(contains('..')));
+  });
+
   test('the flip verdict survives the stats JSON round-trip', () {
     final (container, executor) = build();
 
@@ -255,8 +280,9 @@ void main() {
     // `ended_at` forever and the still-active imaging session refuses the next
     // start with `active_session_exists`.
     final (container, executor) = build();
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     executor.handleSequencerEventForTest(
       backend_events.SkotiqEvent(
@@ -291,7 +317,7 @@ void main() {
     final (container, executor) = build();
 
     executor.handleSequencerEventForTest(
-      flipEvent(outcome: meridianFlipPierChangedOutcome, newPierSide: 'East'),
+      flipEvent(outcome: 'pier_changed', newPierSide: 'East'),
     );
     expect(container.read(liveSequenceStatsProvider)!.meridianFlips, 1);
 
@@ -314,12 +340,13 @@ void main() {
 
   test('a flip whose recovery failed after the pier changed says so', () {
     final (container, executor) = build();
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     executor
       ..handleSequencerEventForTest(
-        flipEvent(outcome: meridianFlipPierChangedOutcome, newPierSide: 'East'),
+        flipEvent(outcome: 'pier_changed', newPierSide: 'East'),
       )
       ..handleSequencerEventForTest(
         flipEvent(

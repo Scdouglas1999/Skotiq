@@ -1,9 +1,9 @@
 /// The durable dawn-job record — one unit of overnight Darkroom work whose
 /// state survives a crash, a force quit, or safing mid-run.
 ///
-/// A [DarkroomJob] maps 1:1 to a row of the raw-DDL `darkroom_jobs` table (see
-/// `SkotiqDatabase._createDarkroomTables`) and is read/written through the
-/// plain [DarkroomJobsDao].
+/// A [DarkroomJob] maps 1:1 to a row of the `darkroom_jobs` table (see
+/// `database/schema/darkroom.drift`) and is read/written through
+/// [DarkroomJobsDao].
 ///
 /// The in-memory `JobManager` under `apps/desktop/lib/headless_api/` is purged
 /// at 24 h and cleared on server stop, and does not exist at all in the GUI
@@ -193,10 +193,8 @@ class DarkroomJob {
   /// work item and has nothing to process once its session is gone.
   final int? sessionId;
 
-  /// What asked for this job.
   final DarkroomJobKind kind;
 
-  /// Lifecycle state.
   final DarkroomJobState state;
 
   /// Fraction complete in `0.0 .. 1.0`. Advances only while [state] is

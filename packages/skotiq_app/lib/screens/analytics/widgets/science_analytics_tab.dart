@@ -1,18 +1,24 @@
+import '../analytics_exports.dart';
 import 'dart:math' as math;
 import 'dart:io';
 
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:path/path.dart' as path;
 
+import '../../../services/host_folders.dart';
 import '../../../utils/exported_file_reveal.dart';
-import '../../accessible_dropdown.dart';
+import '../../../utils/frame_rows_hold.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import '../analytics_screen.dart'
     show dbSessionImagesProvider, standaloneImagesProvider;
 import '../quick_capture_selection.dart';
@@ -31,11 +37,13 @@ import 'night_story_timeline.dart';
 import 'science_timeline_scrubber.dart';
 import 'science_campaign_strip.dart';
 import 'science_trend_cards.dart';
-import 'adaptive_chart_container.dart';
-import 'chart_axis.dart';
+import '../../../widgets/adaptive_chart_container.dart';
 import 'science_onboarding/science_ladder_card.dart';
 import 'science_onboarding/science_empty_onramp.dart';
 import 'science_onboarding/science_nav_row_card.dart';
+import '../../../router/settings_sections.dart';
+import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'science_analytics_tab/navigation_and_snapshots.dart';
 part 'science_analytics_tab/science_info_and_series_chart.dart';
@@ -56,68 +64,6 @@ class _ScienceSectionKeys {
   final GlobalKey anomalies = GlobalKey();
 }
 
-/// The session this tab falls back to when nothing is live and the user has
-/// not chosen one: the most recent session that actually contains light frames.
-///
-/// Defaulting to `allSessions.first` (simply the newest row) meant a session
-/// that only recorded darks or aborted before its first light left the whole
-/// tab reading "Science idle — waiting for the first captured frame" while
-/// nights of photometry sat one row below it.
-final latestScienceSessionProvider = FutureProvider<int?>((ref) async {
-  final backend = ref.watch(backendProvider);
-  // A linked client asks the same question of the host's frames, so both
-  // machines open on the same session. Returning null here opened the client
-  // on the quick captures while the host opened on its last night.
-  if (backend is NetworkBackend) {
-    final rows = await ref.watch(allDbImagesProvider.future);
-    return latestSessionIdWithLightFrames(rows);
-  }
-  // Watching the session stream reruns the query whenever a session row is
-  // written — including the status/end-time update a run makes when it
-  // finishes, which is the moment the answer changes.
-  await ref.watch(allSessionsProvider.future);
-  return ref.read(imagesDaoProvider).getLatestSessionIdWithLightFrames();
-});
-
-/// The session of the newest light frame that belongs to one, the question
-/// `ImagesDao.getLatestSessionIdWithLightFrames` answers on the host.
-int? latestSessionIdWithLightFrames(Iterable<DbCapturedImage> rows) {
-  DbCapturedImage? newest;
-  for (final row in rows) {
-    if (row.sessionId == null || row.frameType.toLowerCase() != 'light') {
-      continue;
-    }
-    if (newest == null || row.capturedAt.isAfter(newest.capturedAt)) {
-      newest = row;
-    }
-  }
-  return newest?.sessionId;
-}
-
-/// The most recent session that carries an actual science PRODUCT — a
-/// photometry measurement or a plate-solved frame. Not the same question as
-/// the newest session holding light frames: two test frames shot after a
-/// photometry night are lights, but carry no product.
-///
-/// Ordering comes from [allSessionsProvider] (newest first) rather than from
-/// the product timestamps, so "most recent" means the same thing here as in
-/// the session picker beside it.
-final latestScienceProductSessionProvider = FutureProvider<int?>((ref) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) return null;
-  final sessions = await ref.watch(allSessionsProvider.future);
-  if (sessions.isEmpty) return null;
-  final withProducts = <int>{
-    ...await ref.read(scienceDaoProvider).getSessionIdsWithPhotometry(),
-    ...await ref.read(imagesDaoProvider).getSessionIdsWithSolvedFrames(),
-  };
-  if (withProducts.isEmpty) return null;
-  for (final session in sessions) {
-    if (withProducts.contains(session.id)) return session.id;
-  }
-  return null;
-});
-
 class ScienceAnalyticsTab extends ConsumerStatefulWidget {
   const ScienceAnalyticsTab({super.key});
 
@@ -134,9 +80,11 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
   // explorer and insights panels track the latest frame.
   int? _selectedFrameImageId;
 
+  final _frameTiles = FrameRowsHold<ScienceTileMetricRow>();
+
   // Session chosen in the session bar. Null means "follow the live session, or
   // the most recent one with light frames".
-  int? _selectedSessionId;
+  int? get _selectedSessionId => ref.watch(analyticsSessionPickProvider);
 
   @override
   void dispose() {
@@ -156,9 +104,9 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
       return _buildSessionIndexState(colors, sessionsAsync);
     }
     final allSessions = sessionsAsync.valueOrNull ?? const <ImagingSession>[];
-    // A manual pick wins, then the live session, then the newest session that
-    // carries a science product, then the newest holding light frames, and only
-    // then the newest session at all.
+    // A manual pick wins, then the live session, then the session the host's
+    // Science tab opens on (scienceDefaultSessionProvider), and only then the
+    // newest session at all.
     final pickedSessionId =
         allSessions.any((session) => session.id == _selectedSessionId)
             ? _selectedSessionId
@@ -169,16 +117,13 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
     final quickCapturesPinned =
         _selectedSessionId == kQuickCaptureSessionSelection;
     // Hoisted out of the ?? chain so the watches are unconditional.
-    final latestProductSessionId =
-        ref.watch(latestScienceProductSessionProvider).valueOrNull;
-    final latestLightSessionId =
-        ref.watch(latestScienceSessionProvider).valueOrNull;
+    final defaultSessionId =
+        ref.watch(scienceDefaultSessionProvider).valueOrNull;
     final activeSessionId = quickCapturesPinned
         ? null
         : pickedSessionId ??
             liveSessionId ??
-            latestProductSessionId ??
-            latestLightSessionId ??
+            defaultSessionId ??
             allSessions.firstOrNull?.id;
 
     final scienceErrors = <Object>[];
@@ -255,11 +200,15 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
       frameMetrics = resolvedRows(
         ref.watch(sessionFrameQualityMetricsProvider(activeSessionId)),
       );
-      tileMetrics = resolvedRows(
-        ref.watch(sessionTileMetricsProvider(activeSessionId)),
+      final frameTiles = ref.watch(
+        frameTileMetricsProvider(
+          (sessionId: activeSessionId, capturedImageId: _selectedFrameImageId),
+        ),
       );
+      track(frameTiles);
+      tileMetrics =
+          _frameTiles.rowsFor(activeSessionId, frameTiles.valueOrNull);
     } else {
-      // No session available — show standalone/quick capture science data
       final sessionlessPhotometry = ref.watch(sessionlessPhotometryProvider);
       track(sessionlessPhotometry);
       photometryObjectId = _reviewedPhotometryObjectId(
@@ -287,8 +236,9 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
       frameMetrics = resolvedRows(
         ref.watch(sessionlessFrameQualityMetricsProvider),
       );
-      tileMetrics = resolvedRows(
-        ref.watch(sessionlessTileMetricsProvider),
+      tileMetrics = _tileMetricSnapshotForImage(
+        resolvedRows(ref.watch(sessionlessTileMetricsProvider)),
+        _selectedFrameImageId,
       );
     }
 
@@ -323,8 +273,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
 
     final latestPsfTiles = _latestPsfSnapshot(psfTiles);
     final latestResiduals = _latestResidualSnapshot(residuals);
-    final latestTileMetrics =
-        _tileMetricSnapshotForImage(tileMetrics, _selectedFrameImageId);
     // Memoized via Riverpod so a re-render that doesn't change the underlying
     // PSF/residual snapshots reuses the prior analysis instead of recomputing
     // it on every frame.
@@ -354,9 +302,8 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
         : ref.watch(dbSessionImagesProvider(activeSessionId));
     track(imagesAsync);
     final imageList = imagesAsync.valueOrNull ?? const [];
-    final lightFrames = imageList
-        .where((image) => image.frameType.toLowerCase() == 'light')
-        .toList(growable: false);
+    final lightFrames =
+        imageList.where((image) => image.isLight).toList(growable: false);
     final solvedFrames =
         lightFrames.where((image) => image.isPlateSolved).length;
     final calibratedRowCount = calibrations.where((c) => c.isCalibrated).length;
@@ -516,7 +463,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             iconColor: colors.info,
             label: 'Observing alerts (Transients)',
             labelColor: colors.textPrimary,
-            onTap: () => context.go('/transients'),
+            onTap: () => context.go(AppRoutes.observingAlerts()),
           ),
           const SizedBox(height: 12),
           // Jump nav for the three logical sections below. Sits at the top of
@@ -550,7 +497,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
           if (isNarrow) ...[
             ScienceSurfaceExplorer(
               colors: colors,
-              tiles: latestTileMetrics,
+              tiles: tileMetrics,
             ),
             const SizedBox(height: 12),
             ScienceOverlayComposer(colors: colors),
@@ -581,7 +528,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
                   flex: 2,
                   child: ScienceSurfaceExplorer(
                     colors: colors,
-                    tiles: latestTileMetrics,
+                    tiles: tileMetrics,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -627,7 +574,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
           const SizedBox(height: 12),
           NightStoryTimeline(sessionId: activeSessionId),
           const SizedBox(height: 24),
-          // Section: photometry
           KeyedSubtree(
             key: _sectionKeys.photometry,
             child: _SectionHeading(
@@ -694,7 +640,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             campaignSessionCount: campaignSessionCount,
           ),
           const SizedBox(height: 24),
-          // Section: field quality
           KeyedSubtree(
             key: _sectionKeys.fieldQuality,
             child: _SectionHeading(
@@ -715,15 +660,10 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
                         if (rejected != null &&
                             rejected > 0 &&
                             context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Rejected $rejected frame'
-                                '${rejected == 1 ? "" : "s"} '
-                                'using the threshold rules.',
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                            ),
+                          context.showInfoSnackBar(
+                            'Rejected $rejected frame'
+                            '${rejected == 1 ? "" : "s"} '
+                            'using the threshold rules.',
                           );
                         }
                       },
@@ -777,7 +717,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
           const SizedBox(height: 16),
           _PhotometricTransformsCard(colors: colors),
           const SizedBox(height: 24),
-          // Section: anomalies
           KeyedSubtree(
             key: _sectionKeys.anomalies,
             child: _SectionHeading(
@@ -805,7 +744,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
               lineRatios: lineRatios,
             ),
           ),
-          // MPC export panel -- only shown when moving object candidates exist
           if (moving.isNotEmpty) ...[
             const SizedBox(height: 16),
             MpcExportPanel(colors: colors, candidates: moving),

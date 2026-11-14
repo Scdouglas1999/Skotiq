@@ -3,10 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'activity_panel.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// The build running now: its stage, how far it is, the time left, and Stop.
 /// A build that ended (stopped by a restart or by Stop, failed, or done)
@@ -27,7 +31,7 @@ class _RunningBuildPanelState extends ConsumerState<RunningBuildPanel> {
     try {
       await action();
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = userFacingError(e));
     }
   }
 
@@ -170,7 +174,7 @@ class _Progress extends StatelessWidget {
             padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
             child: Text(
               'Started by the night-end automation at '
-              '${clockLabel(job.startedAt)}.',
+              '${ClockFormat.hm(job.startedAt.toLocal())}.',
               style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ),
@@ -224,7 +228,7 @@ class _Ended extends ConsumerWidget {
             ),
             if (ended != null)
               Text(
-                clockLabel(ended),
+                ClockFormat.hm(ended.toLocal()),
                 style: SkotiqTypography.monoXs.copyWith(
                   color: colors.textSecondary,
                 ),

@@ -1,15 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-// FramingPlateScale is the C1 single-source-of-truth astrometric scale shared by
-// every framing painter and the gesture hit-tester. It lives in skotiq_core's
-// models layer and is not surfaced through the public barrel, so it is imported
-// directly here, matching the established app->core src-model convention used by
-// the sibling background painters in this same folder.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
-// FramingMosaicConfig / FramingMosaicPanel are exported from the public barrel.
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel;
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Equipment FOV rectangle drawn at the canvas center when the preview FOV is
@@ -81,12 +74,10 @@ class FramingFOVPainter extends CustomPainter {
 
     final center = Offset(size.width / 2, size.height / 2);
 
-    // Semi-transparent fill
     final fillPaint = Paint()
       ..color = colors.primary.withValues(alpha: SkotiqTokens.opacitySubtle)
       ..style = PaintingStyle.fill;
 
-    // Border
     final borderPaint = Paint()
       ..color = colors.primary
       ..strokeWidth = 2
@@ -98,13 +89,11 @@ class FramingFOVPainter extends CustomPainter {
       height: rectHeight,
     );
 
-    // Draw frame
     final rrect = RRect.fromRectAndRadius(
         rect, const Radius.circular(SkotiqTokens.radiusXs));
     canvas.drawRRect(rrect, fillPaint);
     canvas.drawRRect(rrect, borderPaint);
 
-    // Draw corner markers
     _drawCorners(canvas, rect, borderPaint);
 
     // Draw rotation handle. The handle geometry is published via the static
@@ -122,7 +111,6 @@ class FramingFOVPainter extends CustomPainter {
       borderPaint,
     );
 
-    // Draw rotation icon
     final iconPainter = TextPainter(
       text: TextSpan(
         text: '↻',
@@ -138,12 +126,10 @@ class FramingFOVPainter extends CustomPainter {
           center.dx - iconPainter.width / 2, handleY - iconPainter.height / 2),
     );
 
-    // Draw cardinal directions
     if (showDirections) {
       _drawCardinalDirections(canvas, center, rectWidth, rectHeight);
     }
 
-    // Draw FOV dimensions
     final fovText =
         '${fovWidth.toStringAsFixed(2)}° × ${fovHeight.toStringAsFixed(2)}°';
     final textPainter = TextPainter(
@@ -180,25 +166,21 @@ class FramingFOVPainter extends CustomPainter {
     final cornerLength = math.min(rect.width, rect.height) * 0.1;
     paint.strokeWidth = 3;
 
-    // Top-left
     canvas.drawLine(
         Offset(rect.left, rect.top + cornerLength), rect.topLeft, paint);
     canvas.drawLine(
         rect.topLeft, Offset(rect.left + cornerLength, rect.top), paint);
 
-    // Top-right
     canvas.drawLine(
         Offset(rect.right - cornerLength, rect.top), rect.topRight, paint);
     canvas.drawLine(
         rect.topRight, Offset(rect.right, rect.top + cornerLength), paint);
 
-    // Bottom-right
     canvas.drawLine(Offset(rect.right, rect.bottom - cornerLength),
         rect.bottomRight, paint);
     canvas.drawLine(rect.bottomRight,
         Offset(rect.right - cornerLength, rect.bottom), paint);
 
-    // Bottom-left
     canvas.drawLine(
         Offset(rect.left + cornerLength, rect.bottom), rect.bottomLeft, paint);
     canvas.drawLine(
@@ -287,13 +269,11 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
 
     final center = Offset(size.width / 2, size.height / 2);
 
-    // Semi-transparent fill for the equipment FOV area
     final fillPaint = Paint()
       ..color =
           colors.info.withValues(alpha: opacity * SkotiqTokens.opacityStrong)
       ..style = PaintingStyle.fill;
 
-    // Border for the equipment FOV
     final borderPaint = Paint()
       ..color = colors.info.withValues(alpha: SkotiqTokens.opacityHoverBorder)
       ..strokeWidth = 2
@@ -317,16 +297,13 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
       Paint()..color = colors.surfaceOverlay.withValues(alpha: opacity),
     );
 
-    // Draw equipment FOV frame
     final rrect = RRect.fromRectAndRadius(
         rect, const Radius.circular(SkotiqTokens.radiusXs));
     canvas.drawRRect(rrect, fillPaint);
     canvas.drawRRect(rrect, borderPaint);
 
-    // Draw corner brackets
     _drawCornerBrackets(canvas, rect, borderPaint);
 
-    // Draw equipment FOV label
     final fovText =
         'Equipment FOV: ${fovWidth.toStringAsFixed(2)}° × ${fovHeight.toStringAsFixed(2)}°';
     final textPainter = TextPainter(
@@ -338,7 +315,6 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
     );
     textPainter.layout();
 
-    // Draw text background
     final textBg = Rect.fromCenter(
       center: Offset(center.dx, rect.top - 16),
       width: textPainter.width + 16,
@@ -364,7 +340,6 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
           rect.top - textPainter.height / 2 - 16),
     );
 
-    // Draw cardinal directions inside the equipment FOV
     if (showDirections) {
       _drawCardinalDirections(canvas, center, rectWidth, rectHeight);
     }
@@ -374,25 +349,21 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
     final bracketLength = math.min(rect.width, rect.height) * 0.12;
     paint.strokeWidth = 3;
 
-    // Top-left bracket
     canvas.drawLine(Offset(rect.left - 2, rect.top + bracketLength),
         Offset(rect.left - 2, rect.top - 2), paint);
     canvas.drawLine(Offset(rect.left - 2, rect.top - 2),
         Offset(rect.left + bracketLength, rect.top - 2), paint);
 
-    // Top-right bracket
     canvas.drawLine(Offset(rect.right - bracketLength, rect.top - 2),
         Offset(rect.right + 2, rect.top - 2), paint);
     canvas.drawLine(Offset(rect.right + 2, rect.top - 2),
         Offset(rect.right + 2, rect.top + bracketLength), paint);
 
-    // Bottom-right bracket
     canvas.drawLine(Offset(rect.right + 2, rect.bottom - bracketLength),
         Offset(rect.right + 2, rect.bottom + 2), paint);
     canvas.drawLine(Offset(rect.right + 2, rect.bottom + 2),
         Offset(rect.right - bracketLength, rect.bottom + 2), paint);
 
-    // Bottom-left bracket
     canvas.drawLine(Offset(rect.left + bracketLength, rect.bottom + 2),
         Offset(rect.left - 2, rect.bottom + 2), paint);
     canvas.drawLine(Offset(rect.left - 2, rect.bottom + 2),
@@ -449,7 +420,7 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
 /// shows beneath them.
 class FramingMosaicGridPainter extends CustomPainter {
   final FramingMosaicConfig config;
-  final List<FramingMosaicPanel> panels;
+  final List<MosaicPanel> panels;
   final double fovWidth;
   final double fovHeight;
   final double zoom;
@@ -487,12 +458,10 @@ class FramingMosaicGridPainter extends CustomPainter {
     final panelWidth = fovWidth * scale;
     final panelHeight = fovHeight * scale;
 
-    // Calculate step size accounting for overlap
     final overlapFactor = 1 - (config.overlapPercent / 100);
     final stepX = panelWidth * overlapFactor;
     final stepY = panelHeight * overlapFactor;
 
-    // Calculate total mosaic extent
     final totalWidth = panelWidth + (config.columns - 1) * stepX;
     final totalHeight = panelHeight + (config.rows - 1) * stepY;
 
@@ -500,7 +469,6 @@ class FramingMosaicGridPainter extends CustomPainter {
     final startX = center.dx - totalWidth / 2 + panelWidth / 2;
     final startY = center.dy - totalHeight / 2 + panelHeight / 2;
 
-    // Draw mosaic outline
     final outlinePaint = Paint()
       ..color = colors.warning.withValues(alpha: SkotiqTokens.opacityHalf)
       ..style = PaintingStyle.stroke
@@ -515,7 +483,6 @@ class FramingMosaicGridPainter extends CustomPainter {
       outlinePaint,
     );
 
-    // Draw sequence path if enabled
     if (showSequencePath && panels.length > 1) {
       final pathPaint = Paint()
         ..color =
@@ -527,7 +494,7 @@ class FramingMosaicGridPainter extends CustomPainter {
       bool first = true;
 
       for (final panel in panels) {
-        final panelX = startX + panel.column * stepX;
+        final panelX = startX + panel.col * stepX;
         final panelY = startY + panel.row * stepY;
 
         if (first) {
@@ -541,21 +508,18 @@ class FramingMosaicGridPainter extends CustomPainter {
       canvas.drawPath(path, pathPaint);
     }
 
-    // Draw individual panels
     for (int i = 0; i < panels.length; i++) {
       final panel = panels[i];
-      final panelX = startX + panel.column * stepX;
+      final panelX = startX + panel.col * stepX;
       final panelY = startY + panel.row * stepY;
       final isSelected = i == selectedPanelIndex;
 
-      // Panel rect
       final panelRect = Rect.fromCenter(
         center: Offset(panelX, panelY),
         width: panelWidth,
         height: panelHeight,
       );
 
-      // Draw panel fill
       final fillPaint = Paint()
         ..color = isSelected
             ? colors.primary.withValues(alpha: SkotiqTokens.opacityMedium)
@@ -563,7 +527,6 @@ class FramingMosaicGridPainter extends CustomPainter {
         ..style = PaintingStyle.fill;
       canvas.drawRect(panelRect, fillPaint);
 
-      // Draw panel border
       final borderPaint = Paint()
         ..color = isSelected
             ? colors.primary.withValues(alpha: SkotiqTokens.opacityHoverBorder)
@@ -572,11 +535,10 @@ class FramingMosaicGridPainter extends CustomPainter {
         ..strokeWidth = isSelected ? 2 : 1;
       canvas.drawRect(panelRect, borderPaint);
 
-      // Draw panel number
       if (showPanelNumbers) {
         final textPainter = TextPainter(
           text: TextSpan(
-            text: '${panel.index + 1}',
+            text: '${panel.number}',
             style: SkotiqTypography.label.copyWith(
               color: isSelected ? colors.primary : colors.warning,
               fontWeight: FontWeight.bold,
@@ -595,7 +557,6 @@ class FramingMosaicGridPainter extends CustomPainter {
         );
       }
 
-      // Draw crosshair on selected panel
       if (isSelected) {
         final crosshairPaint = Paint()
           ..color = colors.primary.withValues(alpha: SkotiqTokens.opacityMuted)
@@ -614,10 +575,9 @@ class FramingMosaicGridPainter extends CustomPainter {
       }
     }
 
-    // Draw start indicator
     if (panels.isNotEmpty) {
       final firstPanel = panels.first;
-      final startX2 = startX + firstPanel.column * stepX;
+      final startX2 = startX + firstPanel.col * stepX;
       final startY2 = startY + firstPanel.row * stepY;
 
       final startPaint = Paint()

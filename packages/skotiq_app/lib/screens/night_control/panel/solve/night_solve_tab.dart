@@ -6,11 +6,13 @@
 // sync and Center pause a running run first and resume it after; Solve
 // alone touches no device and solves the frame already on screen.
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:go_router/go_router.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
@@ -18,17 +20,18 @@ import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import '../../night_control_contracts.dart';
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
-import '../mount/night_panel_parts.dart';
+import '../../../../services/run_dashboard_providers.dart';
+import '../panel_widgets.dart';
 import 'recent_solves_provider.dart';
 import 'solve_sections.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 class NightSolveTab extends ConsumerWidget {
   const NightSolveTab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return const NightPanelScroll(
+    return const NightPanelBody(
       children: [
         _LastSolveSection(),
         NightSolveSettingsSection(),
@@ -38,34 +41,6 @@ class NightSolveTab extends ConsumerWidget {
     );
   }
 }
-
-/// Angular distance in arcseconds between two J2000 positions.
-double separationArcsec(
-  double raDeg1,
-  double decDeg1,
-  double raDeg2,
-  double decDeg2,
-) {
-  const rad = math.pi / 180;
-  final d1 = decDeg1 * rad, d2 = decDeg2 * rad;
-  final dRa = (raDeg1 - raDeg2) * rad;
-  final sinDDec = math.sin((d2 - d1) / 2);
-  final sinDRa = math.sin(dRa / 2);
-  final h = sinDDec * sinDDec + math.cos(d1) * math.cos(d2) * sinDRa * sinDRa;
-  return 2 * math.asin(math.sqrt(h.clamp(0.0, 1.0))) / rad * 3600;
-}
-
-/// `0.8"`, `4.2'`, `2.2°`: an angle in arcseconds at a readable unit.
-/// Plain ASCII marks: the mono face has no double prime.
-String formatArcsec(double arcsec) {
-  if (arcsec < 60) return '${arcsec.toStringAsFixed(1)}"';
-  if (arcsec < 3600) return "${(arcsec / 60).toStringAsFixed(1)}'";
-  return '${(arcsec / 3600).toStringAsFixed(1)}°';
-}
-
-/// `23:49`.
-String formatClockTime(DateTime t) =>
-    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 /// A solver result field that is set: finite and, for sizes, positive.
 double? _known(double value, {bool positive = false}) =>
@@ -77,7 +52,6 @@ class _LastSolveSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final solveState = ref.watch(plateSolveStateProvider);
     final result = solveState.lastResult;
     final records = ref.watch(nightRecentSolvesProvider);
@@ -87,13 +61,24 @@ class _LastSolveSection extends ConsumerWidget {
     final settings = ref.watch(appSettingsProvider).valueOrNull;
     final clock = ref.watch(clockProvider);
 
+    // The operator's last solve pairs with the solver's result; a run's
+    // centering solves arrive as records only.
     NightSolveRecord? lastRecord;
+    NightSolveRecord? newestRunSolve;
     for (final record in records) {
-      if (record.kind == NightSolveKind.solve) {
-        lastRecord = record;
-        break;
+      if (record.kind != NightSolveKind.solve) continue;
+      if (record.byRun) {
+        newestRunSolve ??= record;
+      } else {
+        lastRecord ??= record;
       }
     }
+    final runSolve = newestRunSolve != null &&
+            (result == null ||
+                lastRecord == null ||
+                newestRunSolve.at.isAfter(lastRecord.at))
+        ? newestRunSolve
+        : null;
     final solved = result != null && result.success;
 
     // The solver's own timing pairs with the result shown; the controller's
@@ -104,36 +89,61 @@ class _LastSolveSection extends ConsumerWidget {
         : action.lastSolveDuration;
 
     final String status;
-    final Color statusColor;
+    final MetricGridTone? statusTone;
     bool inFlight(ManualActionId id) => action.isBusy && action.active == id;
 
     if (solveState.isSolving || inFlight(ManualActionId.solve)) {
       status = l10n.text('nightScopeSolveSolving');
-      statusColor = colors.warning;
+      statusTone = MetricGridTone.warning;
+    } else if (runSolve != null) {
+      status = [
+        l10n.text('nightScopeSolveSolved'),
+        ClockFormat.hm(clock.toNightClock(runSolve.at)),
+      ].join(' · ');
+      statusTone = MetricGridTone.good;
+    } else if (inputs.solverMissing) {
+      status = l10n.text('nightScopeSolverMissing');
+      statusTone = MetricGridTone.warning;
     } else if (result == null) {
       status = l10n.text('nightScopeSolveNone');
-      statusColor = colors.textMuted;
+      statusTone = null;
     } else {
       final parts = <String>[
         l10n.text(solved ? 'nightScopeSolveSolved' : 'nightScopeSolveFailed'),
         if (lastRecord != null)
-          formatClockTime(clock.toNightClock(lastRecord.at)),
+          ClockFormat.hm(clock.toNightClock(lastRecord.at)),
         if (duration != null)
           '${(duration.inMilliseconds / 1000).toStringAsFixed(1)} s',
       ];
       status = parts.join(' · ');
-      statusColor = solved ? colors.success : colors.error;
+      statusTone = solved ? MetricGridTone.good : MetricGridTone.bad;
     }
 
-    final ra = solved ? _known(result.ra) : null;
-    final dec = solved ? _known(result.dec) : null;
-    final scale = solved ? _known(result.pixelScale, positive: true) : null;
-    final fieldW = solved ? _known(result.fieldWidth, positive: true) : null;
-    final fieldH = solved ? _known(result.fieldHeight, positive: true) : null;
-    final rotation = solved ? _known(result.rotation) : null;
-    final offTarget = ra == null || dec == null || target == null
-        ? null
-        : separationArcsec(ra, dec, target.raHours * 15, target.decDegrees);
+    // A run's solve reports its position and its distance from the run's
+    // target; the solver's other measurements stay with the operator's.
+    final fromResult = solved && runSolve == null;
+    final ra = runSolve != null
+        ? runSolve.raDegrees
+        : (fromResult ? _known(result.ra) : null);
+    final dec = runSolve != null
+        ? runSolve.decDegrees
+        : (fromResult ? _known(result.dec) : null);
+    final scale = fromResult ? _known(result.pixelScale, positive: true) : null;
+    final fieldW =
+        fromResult ? _known(result.fieldWidth, positive: true) : null;
+    final fieldH =
+        fromResult ? _known(result.fieldHeight, positive: true) : null;
+    final rotation = fromResult ? _known(result.rotation) : null;
+    final offTarget = runSolve?.offsetArcsec ??
+        (ra == null || dec == null || target == null
+            ? null
+            : AstronomyCalculations.angularSeparation(
+                  ra1Deg: ra,
+                  dec1Deg: dec,
+                  ra2Deg: target.raHours * 15,
+                  dec2Deg: target.decDegrees,
+                ) *
+                3600);
 
     // The controller's gating, so the action bar and this tab never
     // disagree. A solve started elsewhere (the Imaging screen) holds the solver too.
@@ -152,30 +162,19 @@ class _LastSolveSection extends ConsumerWidget {
     return NightPanelSection(
       title: l10n.text('nightScopeSolveLast'),
       trailing: status,
-      trailingColor: statusColor,
+      trailingTone: statusTone,
       children: [
         NightPanelValues(
           columns: 2,
           items: [
             MetricGridItem(
               label: l10n.text('nightScopeRa'),
-              value: ra == null
-                  ? null
-                  : CoordinateFormat.raFromDegrees(
-                      ra,
-                      style: SexagesimalStyle.compactLetters,
-                      seconds: SecondsPrecision.integerRounded,
-                    ),
+              value:
+                  ra == null ? null : CoordinateFormat.raDenseFromDegrees(ra),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeDec'),
-              value: dec == null
-                  ? null
-                  : CoordinateFormat.dec(
-                      dec,
-                      style: SexagesimalStyle.compactLetters,
-                      seconds: SecondsPrecision.integerRounded,
-                    ),
+              value: dec == null ? null : CoordinateFormat.decDense(dec),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeSolveRotation'),
@@ -195,29 +194,46 @@ class _LastSolveSection extends ConsumerWidget {
             ),
             MetricGridItem(
               label: l10n.text('nightScopeSolveOffTarget'),
-              value: offTarget == null ? null : formatArcsec(offTarget),
+              value: offTarget == null ? null : AngleFormat.arcsec(offTarget),
             ),
           ],
         ),
-        if (result != null && !result.success && result.error != null)
-          NightPanelNote(result.error!, color: colors.error),
+        if (runSolve == null &&
+            result != null &&
+            !result.success &&
+            result.error != null)
+          NightPanelNote(result.error!,
+              tone: MetricGridTone.bad, maxLines: null),
+        if (inputs.solverMissing)
+          NightPanelNote(
+            l10n.text('nightScopeSolverMissingNote'),
+            tone: MetricGridTone.warning,
+          ),
         // Solve & sync on its own row: its label does not fit a third of
-        // the panel.
+        // the panel. Without a solver, setting one up takes its place.
         NightPanelButtonGrid(
           columns: 1,
           buttons: [
-            NightPanelButtonSpec(
-              key: const ValueKey<String>('nightSolve.solveSync'),
-              label: l10n.text('nightActSolveSync'),
-              emphasized: true,
-              busy: inFlight(ManualActionId.solveSync),
-              disabledReason: syncReason,
-              onPressed: syncReason == null
-                  ? () => unawaited(
-                        ref.read(nightActionApiProvider).solveAndSync(),
-                      )
-                  : null,
-            ),
+            if (inputs.solverMissing)
+              NightPanelButtonSpec(
+                key: const ValueKey<String>('nightSolve.setUpSolver'),
+                label: l10n.text('nightScopeSolverSetUp'),
+                emphasized: true,
+                onPressed: () => context.go(kNightSolveSettingsRoute),
+              )
+            else
+              NightPanelButtonSpec(
+                key: const ValueKey<String>('nightSolve.solveSync'),
+                label: l10n.text('nightActSolveSync'),
+                emphasized: true,
+                busy: inFlight(ManualActionId.solveSync),
+                disabledReason: syncReason,
+                onPressed: syncReason == null
+                    ? () => unawaited(
+                          ref.read(nightActionApiProvider).solveAndSync(),
+                        )
+                    : null,
+              ),
           ],
         ),
         NightPanelButtonGrid(

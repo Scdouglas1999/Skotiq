@@ -26,9 +26,9 @@ extension _DeviceServiceProfileConnections on DeviceService {
   /// * One device failing does NOT block any other device. Per-device
   ///   errors are reported as `failed` events; the stream itself never
   ///   errors and always closes cleanly once every device is settled.
-  /// * The original backend error rides on the `failed` event verbatim
-  ///   (driver error, "device not reachable", USB hub blip); it is never
-  ///   swallowed or rewritten.
+  /// * The original backend error rides on the `failed` event as `error`
+  ///   (driver error, "device not reachable", USB hub blip), and its reason
+  ///   in words as `errorMessage`; it is never swallowed.
   /// * If [profile] has no configured devices, the stream closes
   ///   immediately with no events.
   ///
@@ -41,94 +41,30 @@ extension _DeviceServiceProfileConnections on DeviceService {
   Stream<DeviceConnectProgress> _connectAllFromProfile(
     EquipmentProfileModel profile,
   ) {
-    // (id, deviceType label, connector, saved name, discovery type). Order is
-    // informational only: every device is dispatched in parallel.
+    // Order is informational only: every device is dispatched in parallel.
+    // The guide camera rides with the guider: it is a profile field, not a
+    // slot, and connects as a second camera.
     final entries =
         <(String?, String, Future<void> Function(String), String?, DeviceType)>[
-          (
-            profile.cameraId,
-            'camera',
-            connectCamera,
-            profile.cameraName,
-            DeviceType.camera,
-          ),
-          (
-            profile.mountId,
-            'mount',
-            connectMount,
-            profile.mountName,
-            DeviceType.mount,
-          ),
-          (
-            profile.focuserId,
-            'focuser',
-            connectFocuser,
-            profile.focuserName,
-            DeviceType.focuser,
-          ),
-          (
-            profile.filterWheelId,
-            'filter wheel',
-            connectFilterWheel,
-            profile.filterWheelName,
-            DeviceType.filterWheel,
-          ),
-          (
-            profile.guideCameraId,
-            'guide camera',
-            connectGuideCamera,
-            profile.guideCameraName,
-            DeviceType.camera,
-          ),
-          (
-            profile.guiderId,
-            'guider',
-            connectGuider,
-            profile.guiderName,
-            DeviceType.guider,
-          ),
-          (
-            profile.rotatorId,
-            'rotator',
-            connectRotator,
-            profile.rotatorName,
-            DeviceType.rotator,
-          ),
-          (profile.domeId, 'dome', connectDome, null, DeviceType.dome),
-          (
-            profile.weatherId,
-            'weather station',
-            connectWeather,
-            null,
-            DeviceType.weather,
-          ),
-          (
-            profile.safetyMonitorId,
-            'safety monitor',
-            connectSafetyMonitor,
-            profile.safetyMonitorName,
-            DeviceType.safetyMonitor,
-          ),
-          (
-            profile.switchId,
-            'switch',
-            connectSwitch,
-            profile.switchName,
-            DeviceType.switch_,
-          ),
-          (
-            profile.coverCalibratorId,
-            'cover calibrator',
-            connectCoverCalibrator,
-            null,
-            DeviceType.coverCalibrator,
-          ),
+          for (final slot in deviceSlots) ...[
+            if (slot.type == DeviceType.guider)
+              (
+                profile.guideCameraId,
+                'guide camera',
+                connectGuideCamera,
+                profile.guideCameraName,
+                DeviceType.camera,
+              ),
+            (
+              profile.deviceIdFor(slot.type),
+              slot.noun,
+              (id) => connect(slot.type, id),
+              profile.deviceNameFor(slot.type),
+              slot.type,
+            ),
+          ],
         ];
 
-    // Use a single-subscription StreamController so events are buffered
-    // until the caller subscribes. A broadcast controller would drop the
-    // initial `connecting` events because the caller hasn't yet attached
-    // its `await for` listener at the moment we add them.
     final controller = StreamController<DeviceConnectProgress>();
 
     // Filter to only configured devices. An empty list still produces a
@@ -210,7 +146,7 @@ extension _DeviceServiceProfileConnections on DeviceService {
                     deviceId: id,
                     status: DeviceConnectProgressStatus.failed,
                     error: error,
-                    errorMessage: error.toString(),
+                    errorMessage: connectFailureReason(error),
                   ),
                 );
               }
@@ -235,56 +171,82 @@ extension _DeviceServiceProfileConnections on DeviceService {
     return controller.stream;
   }
 
-  /// Check each positional native id in [active] against the name the profile
-  /// saved for it, and move it to the device that carries that name. The
-  /// corrected ids are written back to the profile so the next connect, and
-  /// every screen that shows the profile, names the right device.
+  /// Check each positional id in [active] against the name the profile saved
+  /// for it, and move it to the device that carries that name. The corrected
+  /// ids are written back to the profile so the next connect, and every screen
+  /// that shows the profile, names the right device.
   ///
   /// Discovery for a type that fails or does not answer in time leaves that
-  /// slot on its saved id: an unverifiable position is connected as before.
+  /// slot on its saved id: an unverifiable position is connected as before,
+  /// and the host still refuses a device that answers as another model.
   Future<Map<String, ProfileSlotResolution>> _resolveProfilePositions(
     EquipmentProfileModel profile,
     List<(String, String, Future<void> Function(String), String?, DeviceType)>
     active,
+  ) => _resolveProfileSlots(profile, [
+    for (final (savedId, label, _, savedName, type) in active)
+      (label: label, savedId: savedId, savedName: savedName, type: type),
+  ]);
+
+  /// Resolve [slots] of [profile] together (see [resolveProfileSlots]),
+  /// write any moved ids back to the profile, and record what each slot must
+  /// be for [_expectedModelFor].
+  Future<Map<String, ProfileSlotResolution>> _resolveProfileSlots(
+    EquipmentProfileModel profile,
+    List<({String label, String savedId, String? savedName, DeviceType type})>
+    slots,
   ) async {
-    final resolutions = <String, ProfileSlotResolution>{};
-    final corrections = <DeviceType, String>{};
-    for (final (savedId, label, _, savedName, type) in active) {
-      if (!isPositionalDeviceId(savedId) ||
-          savedName == null ||
-          savedName.trim().isEmpty) {
-        resolutions[label] = ProfileSlotResolution.keep(savedId);
+    final discovered = <DeviceType, List<DeviceInfo>>{};
+    for (final slot in slots) {
+      final name = slot.savedName;
+      if (!isPositionalDeviceId(slot.savedId) ||
+          name == null ||
+          name.trim().isEmpty ||
+          discovered.containsKey(slot.type)) {
         continue;
       }
-      List<DeviceInfo> discovered;
       try {
-        discovered = await _backend
-            .discoverDevices(type)
+        discovered[slot.type] = await _backend
+            .discoverDevices(slot.type)
             .timeout(DeviceService._profilePositionDiscoveryTimeout);
       } catch (e) {
         _ref
             .read(loggingServiceProvider)
             .warning(
-              'Could not check which $label is at $savedId ($e); '
-              'connecting the saved id',
+              'Could not check which ${slot.label} is at ${slot.savedId} '
+              '($e); connecting the saved id',
               source: 'DeviceService',
             );
-        discovered = const [];
+        discovered[slot.type] = const [];
       }
-      final resolution = resolveProfileSlot(
-        savedId: savedId,
-        savedName: savedName,
-        deviceLabel: label,
-        discovered: discovered,
-      );
-      resolutions[label] = resolution;
+    }
+    final typeOf = {for (final slot in slots) slot.label: slot.type};
+    final resolutions = resolveProfileSlots([
+      for (final slot in slots)
+        (label: slot.label, savedId: slot.savedId, savedName: slot.savedName),
+    ], (label) => discovered[typeOf[label]] ?? const []);
+
+    if (_slotExpectationsProfileId != profile.id) {
+      _slotExpectations.clear();
+      _slotExpectationsProfileId = profile.id;
+    }
+    final corrections = <String, String>{};
+    for (final slot in slots) {
+      final resolution = resolutions[slot.label]!;
+      final id = resolution.deviceId;
+      final name = slot.savedName?.trim();
+      if (id != null && name != null && name.isNotEmpty) {
+        _slotExpectations[slot.label] = (deviceId: id, model: name);
+      } else {
+        _slotExpectations.remove(slot.label);
+      }
       if (resolution.corrected) {
-        corrections[type] = resolution.deviceId!;
+        corrections[slot.label] = id!;
         _ref
             .read(loggingServiceProvider)
             .warning(
-              'Profile ${profile.name}: $savedName moved from $savedId to '
-              '${resolution.deviceId}; connecting it there and updating the '
+              'Profile ${profile.name}: ${slot.savedName} moved from '
+              '${slot.savedId} to $id; connecting it there and updating the '
               'profile',
               source: 'DeviceService',
             );
@@ -295,17 +257,10 @@ extension _DeviceServiceProfileConnections on DeviceService {
       try {
         await _ref
             .read(profileServiceProvider)
-            .updateProfileDevices(
-              profileId,
-              cameraId: corrections[DeviceType.camera],
-              mountId: corrections[DeviceType.mount],
-              focuserId: corrections[DeviceType.focuser],
-              filterWheelId: corrections[DeviceType.filterWheel],
-              guiderId: corrections[DeviceType.guider],
-              rotatorId: corrections[DeviceType.rotator],
-              safetyMonitorId: corrections[DeviceType.safetyMonitor],
-              switchId: corrections[DeviceType.switch_],
-            );
+            .updateProfileDevices(profileId, {
+              for (final slot in deviceSlots)
+                if (corrections[slot.noun] case final id?) slot.type: id,
+            }, guideCameraId: corrections['guide camera']);
       } catch (e) {
         _ref
             .read(loggingServiceProvider)
@@ -319,63 +274,183 @@ extension _DeviceServiceProfileConnections on DeviceService {
     return resolutions;
   }
 
-  /// Disconnect all devices
+  /// The profile slots a reconnect of [type] at [deviceId] has to resolve,
+  /// main slot first. Empty when [deviceId] is not the active profile's
+  /// device for [type], or is not a position on the bus.
   ///
-  /// Each device-type disconnect now throws [DeviceNotConnectedException]
-  /// when the matching state provider has no `deviceId`. For a
-  /// bulk-disconnect sweep that is the normal case (most equipment profiles
-  /// list only a handful of devices), so we silence that specific exception
-  /// and let every other failure (driver error, stale handle, timeout, …)
-  /// propagate so the caller can surface it. We deliberately do not use
-  /// `Future.wait`: a single failure there cancels reporting of the others.
-  Future<void> _disconnectAll() async {
-    final disconnects = <(Future<void> Function(), String)>[
-      (disconnectCamera, 'camera'),
-      (disconnectMount, 'mount'),
-      (disconnectFocuser, 'focuser'),
-      (disconnectFilterWheel, 'filter wheel'),
-      (disconnectGuider, 'guider'),
-      (disconnectRotator, 'rotator'),
-      (disconnectDome, 'dome'),
-      (disconnectWeather, 'weather station'),
-      (disconnectSafetyMonitor, 'safety monitor'),
-      (disconnectSwitch, 'switch'),
-      (disconnectCoverCalibrator, 'cover calibrator'),
+  /// Both camera slots resolve together: after the bus re-enumerates, the
+  /// main camera can come back at the guide camera's old id.
+  List<({String label, String savedId, String? savedName, DeviceType type})>
+  _reconnectSlots(EquipmentProfileModel profile, DeviceType type, String id) {
+    if (!isPositionalDeviceId(id)) return const [];
+    ({String label, String savedId, String? savedName, DeviceType type})? slot(
+      String label,
+      String? savedId,
+      String? savedName,
+    ) => savedId == null || savedId.isEmpty
+        ? null
+        : (label: label, savedId: savedId, savedName: savedName, type: type);
+    final slots = [
+      if (type.slot.checksModel)
+        slot(
+          type.slot.noun,
+          profile.deviceIdFor(type),
+          profile.deviceNameFor(type),
+        ),
+      if (type == DeviceType.camera)
+        slot('guide camera', profile.guideCameraId, profile.guideCameraName),
+    ].nonNulls.toList();
+    if (slots.isEmpty || slots.first.savedId != id) return const [];
+    return slots;
+  }
+
+  /// Where a reconnect of the profile's [type] device, last at [deviceId],
+  /// has to go: the id the profile's saved name is at now. Returns
+  /// [deviceId] unchanged for a device the profile does not name. Throws
+  /// with the reason when the slot cannot be resolved safely (the device the
+  /// profile names is not found and something else is at its id, or two
+  /// devices carry its name).
+  Future<String> _reconnectTarget(DeviceType type, String deviceId) async {
+    final profile = _ref.read(activeEquipmentProfileProvider);
+    if (profile == null) return deviceId;
+    final slots = _reconnectSlots(profile, type, deviceId);
+    if (slots.isEmpty) return deviceId;
+    final resolution = (await _resolveProfileSlots(
+      profile,
+      slots,
+    ))[slots.first.label]!;
+    final refusal = resolution.refusal;
+    if (refusal != null) throw StateError(refusal);
+    return resolution.deviceId!;
+  }
+
+  /// The model the device at [deviceId] must be for the profile slot
+  /// [label], or null when nothing is expected (the id is not a bus position,
+  /// or it is not the profile's device for that slot). The host passes it to
+  /// the driver layer, which refuses a device that answers as another model.
+  String? _expectedModelFor(String label, String deviceId) {
+    if (!isPositionalDeviceId(deviceId)) return null;
+    final resolved = _slotExpectation(label);
+    if (resolved != null && resolved.deviceId == deviceId) {
+      return resolved.model;
+    }
+    final profile = _ref.read(activeEquipmentProfileProvider);
+    if (profile == null) return null;
+    String? id;
+    String? name;
+    if (label == 'guide camera') {
+      (id, name) = (profile.guideCameraId, profile.guideCameraName);
+    } else {
+      for (final slot in deviceSlots) {
+        if (slot.checksModel && slot.noun == label) {
+          id = profile.deviceIdFor(slot.type);
+          name = profile.deviceNameFor(slot.type);
+        }
+      }
+    }
+    if (id != deviceId || name == null || name.trim().isEmpty) return null;
+    return name.trim();
+  }
+
+  /// Connect every device [profile] assigns and publish each outcome to
+  /// [deviceConnectionProgressProvider], which is where every surface that
+  /// shows a sweep reads it.
+  Future<ConnectSweepResult> _connectProfile(
+    EquipmentProfileModel profile, {
+    required String source,
+  }) => _runSweep(source, connectAllFromProfile(profile));
+
+  /// A device the last sweep reports as failed is retried through the sweep,
+  /// so the sweep's record does not keep calling a connected device failed.
+  Future<void> _retryConnect(DeviceType type) async {
+    final deviceId = _ref.read(type.slot.state).retryDeviceId;
+    if (deviceId == null) throw DeviceNotConnectedException(type.slot.noun);
+    final label = type.slot.noun;
+    final recorded = _ref
+        .read(deviceConnectionProgressProvider)
+        .byDevice[label];
+    if (recorded == null ||
+        recorded.status != DeviceConnectProgressStatus.failed ||
+        recorded.deviceId != deviceId) {
+      return connect(type, deviceId);
+    }
+    await _retryFailedConnects(only: label);
+    final outcome = _ref.read(deviceConnectionProgressProvider).byDevice[label];
+    if (outcome?.status == DeviceConnectProgressStatus.failed) {
+      throw outcome!.error ??
+          StateError(outcome.errorMessage ?? 'The $label did not connect.');
+    }
+  }
+
+  /// Try the devices that failed in the last sweep again, or only the one
+  /// recorded as [only] (a guider with its guide camera); the ones that
+  /// connected are left alone.
+  Future<ConnectSweepResult> _retryFailedConnects({String? only}) {
+    final last = _ref.read(deviceConnectionProgressProvider);
+    final labels = only == null
+        ? null
+        : {only, if (only == DeviceType.guider.slot.noun) guideCameraLabel};
+    final failed = [
+      for (final event in last.byDeviceType.values)
+        if (event.status == DeviceConnectProgressStatus.failed &&
+            (labels == null || labels.contains(event.deviceType)))
+          event,
     ];
-
-    final errors = <String>[];
-    // The guide camera has no device slot of its own; the profile names it.
-    final guideCameraId = _ref
-        .read(activeEquipmentProfileProvider)
-        ?.guideCameraId;
-    if (guideCameraId != null && guideCameraId.isNotEmpty) {
-      try {
-        await _backend.disconnectDevice(DeviceType.camera, guideCameraId);
-      } catch (e) {
-        // A guide camera that was never connected has nothing to disconnect.
-        _ref
-            .read(loggingServiceProvider)
-            .info(
-              'Guide camera $guideCameraId not disconnected: $e',
-              source: 'DeviceService',
-            );
+    // The guide camera first: the built-in guider takes its frames there.
+    failed.sort(
+      (a, b) => (a.deviceType == 'guide camera' ? 0 : 1).compareTo(
+        b.deviceType == 'guide camera' ? 0 : 1,
+      ),
+    );
+    Stream<DeviceConnectProgress> attempts() async* {
+      for (final event in failed) {
+        final label = event.deviceType;
+        yield DeviceConnectProgress(
+          deviceType: label,
+          deviceId: event.deviceId,
+          status: DeviceConnectProgressStatus.connecting,
+        );
+        try {
+          if (label == 'guide camera') {
+            await _connectGuideCamera(event.deviceId);
+          } else {
+            final slot = deviceSlots.firstWhere((s) => s.noun == label);
+            await _connect(slot.type, event.deviceId);
+          }
+          yield DeviceConnectProgress(
+            deviceType: label,
+            deviceId: event.deviceId,
+            status: DeviceConnectProgressStatus.connected,
+          );
+        } catch (error) {
+          yield DeviceConnectProgress(
+            deviceType: label,
+            deviceId: event.deviceId,
+            status: DeviceConnectProgressStatus.failed,
+            error: error,
+            errorMessage: connectFailureReason(error),
+          );
+        }
       }
     }
-    for (final (disconnect, name) in disconnects) {
-      try {
-        await disconnect();
-      } on DeviceNotConnectedException {
-        // Expected — the matching device type is not currently connected.
-        continue;
-      } catch (e) {
-        errors.add('$name: $e');
-      }
-    }
 
-    if (errors.isNotEmpty) {
-      throw Exception(
-        'Some devices failed to disconnect:\n${errors.join('\n')}',
-      );
+    return _runSweep(last.source, attempts(), keep: last.byDeviceType);
+  }
+
+  Future<ConnectSweepResult> _runSweep(
+    String source,
+    Stream<DeviceConnectProgress> events, {
+    Map<String, DeviceConnectProgress> keep = const {},
+  }) async {
+    final progress = _ref.read(deviceConnectionProgressProvider.notifier);
+    progress.startSweep(source: source);
+    keep.values.forEach(progress.record);
+    try {
+      await events.forEach(progress.record);
+    } finally {
+      progress.endSweep();
     }
+    final outcome = _ref.read(deviceConnectionProgressProvider);
+    return (connected: outcome.connectedCount, failures: outcome.failures);
   }
 }

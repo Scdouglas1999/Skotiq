@@ -218,7 +218,7 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
             // glyph; the acquire quartet is four different instructions and
             // gets the "several things in one" glyph instead.
             group.kind == FoldKind.filterRun
-                ? sequenceNodeIcon('camera')
+                ? nodeIcon(NodeKinds.exposure.icon)
                 : LucideIcons.layers,
             size: _ledgerIconSize,
             // Every node a run can hold — the four acquire leaves and the
@@ -392,8 +392,10 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
     final group = widget.group;
 
     var total = Duration.zero;
+    NodeOpenEnd? openEnd;
     for (final memberId in group.memberIds) {
       total += ref.watch(nodeRollupDurationProvider(memberId));
+      openEnd ??= ref.watch(nodeRollupOpenEndProvider(memberId));
     }
 
     LedgerEta? earliest;
@@ -411,11 +413,16 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
     final count = group.count;
     return (
       columns: LedgerColumns(
-        filterExp:
-            durationSecs == null ? '' : '${formatLedgerSeconds(durationSecs)}s',
+        filterExp: durationSecs == null
+            ? ''
+            : '${QuantityFormat.trimmed(durationSecs)}s',
         count: count == null ? '' : '${count * group.memberIds.length}',
-        duration: total.inSeconds <= 0 ? '' : formatRollupDuration(total),
-        eta: earliest == null ? '' : formatLedgerClock(earliest.start),
+        duration: openEnd != null
+            ? formatNodeRollup(total, openEnd)
+            : total.inSeconds <= 0
+                ? ''
+                : formatRollupDuration(total),
+        eta: earliest == null ? '' : ClockFormat.hm(earliest.start.toLocal()),
       ),
       etaMuted: earliest != null && !earliest.isActual && state.hasBar,
     );

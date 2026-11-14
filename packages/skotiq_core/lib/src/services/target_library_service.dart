@@ -1,39 +1,29 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/database.dart' as db;
-import '../providers/backend_provider.dart';
+import '../providers/async_scope.dart';
 import '../providers/database_provider.dart';
 import 'catalog_target_resolver.dart';
-import 'logging_service.dart';
+import '../backend/roles/host_data/host_imaging_records.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Host-aware targets-library CRUD for planetarium and transient flows.
 class TargetLibraryService {
-  TargetLibraryService(Ref ref, {SkotiqBackend? backend})
+  /// [hostRecords] is the linked host's library, or null where the library
+  /// is this process's database.
+  TargetLibraryService(Ref ref, {HostImagingRecords? hostRecords})
     : _ref = ref,
-      _backend = backend ?? ref.read(backendProvider),
-      _backendNotifier = ref.read(backendProvider.notifier);
+      _host = ref.providerBackendScope(),
+      _hostRecords = hostRecords;
 
   final Ref _ref;
-  final SkotiqBackend _backend;
-  final BackendNotifier _backendNotifier;
-  bool _retired = false;
+  final AsyncScope<SkotiqBackend> _host;
+  final HostImagingRecords? _hostRecords;
 
-  bool get _hasAuthority =>
-      !_retired && _backendNotifier.isCurrentBackend(_backend);
-
-  void retire() => _retired = true;
-
-  void _ensureAuthority() {
-    if (_hasAuthority) return;
-    throw StateError(
-      'The imaging host changed while the target library was being updated. '
-      'The stale result was discarded; try the action again on the current '
-      'host.',
-    );
-  }
+  void _ensureSameHost() =>
+      _host.ensureCurrent('the target library was being updated');
 
   /// Creates a row in the targets library on the imaging host (remote) or
   /// local SQLite (FFI). Returns the new target id.
@@ -52,10 +42,10 @@ class TargetLibraryService {
     bool isFavorite = false,
     int priority = 5,
   }) async {
-    _ensureAuthority();
-    final backend = _backend;
-    if (backend is NetworkBackend) {
-      final id = await backend.createTarget({
+    _ensureSameHost();
+    final host = _hostRecords;
+    if (host != null) {
+      final id = await host.createTarget({
         'name': name,
         'ra': raHours,
         'dec': decDegrees,
@@ -70,7 +60,7 @@ class TargetLibraryService {
         'isFavorite': isFavorite,
         'priority': priority,
       });
-      _ensureAuthority();
+      _ensureSameHost();
       _invalidateCatalog();
       return id;
     }
@@ -93,13 +83,13 @@ class TargetLibraryService {
         priority: Value(priority),
       ),
     );
-    _ensureAuthority();
+    _ensureSameHost();
     _invalidateCatalog();
     return id;
   }
 
   /// Resolves an existing library target or creates one on the host/local DB.
-  Future<db.Target> ensureCatalogTarget({
+  Future<db.DbTarget> ensureCatalogTarget({
     required String targetName,
     required double raHours,
     required double decDegrees,
@@ -109,9 +99,9 @@ class TargetLibraryService {
     double? magnitude,
     double? sizeArcmin,
   }) async {
-    _ensureAuthority();
+    _ensureSameHost();
     final candidates = await _loadTargets();
-    _ensureAuthority();
+    _ensureSameHost();
     final existing = resolveDbTargetForCatalog(
       candidates: candidates,
       targetName: targetName,
@@ -133,17 +123,17 @@ class TargetLibraryService {
       magnitude: magnitude,
       sizeArcmin: sizeArcmin,
     );
-    _ensureAuthority();
+    _ensureSameHost();
 
     final refreshed = await _loadTargets();
-    _ensureAuthority();
+    _ensureSameHost();
     for (final target in refreshed) {
       if (target.id == id) {
         return target;
       }
     }
 
-    return db.Target(
+    return db.DbTarget(
       id: id,
       name: targetName,
       catalogId: catalogId ?? targetName,
@@ -165,16 +155,32 @@ class TargetLibraryService {
     );
   }
 
-  Future<List<db.Target>> _loadTargets() async {
-    final backend = _backend;
-    if (backend is NetworkBackend) {
-      final rows = await backend.getAllTargets();
+  /// Saved targets matching [query]: the linked host searches its own
+  /// library, this machine its database.
+  Future<List<db.DbTarget>> searchTargets(String query) async {
+    _ensureSameHost();
+    final host = _hostRecords;
+    final List<db.DbTarget> rows;
+    if (host != null) {
+      final json = await host.searchTargets(query);
+      rows = json.map(db.DbTarget.fromJson).toList();
+    } else {
+      rows = await _ref.read(targetsDaoProvider).searchTargets(query);
+    }
+    _ensureSameHost();
+    return rows;
+  }
+
+  Future<List<db.DbTarget>> _loadTargets() async {
+    final host = _hostRecords;
+    if (host != null) {
+      final rows = await host.getAllTargets();
       // Drop rows the host sent without a usable sky coordinate rather than
       // failing the whole library. `_targetFromRemoteJson` refuses to invent an
       // RA/Dec, which is right — but mapping straight over the list would let a
       // single bad row from an older or third-party host take away every target
       // the operator has. Skip the row, say so, and keep the rest.
-      final targets = <db.Target>[];
+      final targets = <db.DbTarget>[];
       for (final row in rows) {
         try {
           targets.add(_targetFromRemoteJson(row));
@@ -187,13 +193,13 @@ class TargetLibraryService {
               );
         }
       }
-      return List<db.Target>.unmodifiable(targets);
+      return List<db.DbTarget>.unmodifiable(targets);
     }
     final dao = _ref.read(targetsDaoProvider);
     return dao.getAllTargets();
   }
 
-  db.Target _targetFromRemoteJson(Map<String, dynamic> json) {
+  db.DbTarget _targetFromRemoteJson(Map<String, dynamic> json) {
     DateTime dateTime(Object? value) {
       if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
       if (value is String) {
@@ -216,7 +222,7 @@ class TargetLibraryService {
       );
     }
 
-    return db.Target(
+    return db.DbTarget(
       id: (json['id'] as num).toInt(),
       name: json['name'] as String? ?? 'Untitled target',
       catalogId: json['catalogId'] as String?,
@@ -248,10 +254,3 @@ class TargetLibraryService {
     _ref.invalidate(favoriteDbTargetsProvider);
   }
 }
-
-final targetLibraryServiceProvider = Provider<TargetLibraryService>((ref) {
-  final backend = ref.watch(backendProvider);
-  final service = TargetLibraryService(ref, backend: backend);
-  ref.onDispose(service.retire);
-  return service;
-});

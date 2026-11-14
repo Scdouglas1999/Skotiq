@@ -1,19 +1,19 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_updater/skotiq_updater.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 // Why still imported: UpdatePushDiscovery (LAN update-push responder) lives in
 // skotiq_remote_protocol/discovery.dart. The package carries no server of
 // its own; only the discovery primitives are used here.
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:path/path.dart' as path;
 
-import 'headless_api/update_wiring.dart';
-import 'headless_api_server.dart';
+import 'host/host_server.dart';
 import 'secret_file.dart';
 
 const String _logSource = 'DesktopBootstrap';
@@ -106,19 +106,6 @@ Future<void> _resumeDarkroomWork(
   }
 }
 
-/// Start the host-owned background services this GUI is responsible for: the
-/// Darkroom's durable work, and the embedded server for mobile/remote access.
-///
-/// Why the remote half delegates to [HeadlessApiServer]: the GUI and headless
-/// mode serve mobile/web clients from ONE server, so a client sees the same
-/// endpoint set whichever mode is running. The GUI gets the modular handlers,
-/// pairing flow, scoped tokens, and middleware stack for free.
-///
-/// The Darkroom half is started here rather than inside [_runBackgroundServices]
-/// so that it is reached before that function's first `await`. Everything in
-/// there is remote-access plumbing — a token file, a UDP receiver bind — and a
-/// rig whose delivery journal is owed a sweep is owed it whether or not any of
-/// that plumbing answers.
 /// The remote-access settings this run applies. `--serve` turns the server
 /// on for this run only: the stored setting, which every later plain launch
 /// reads, is left as the user set it.
@@ -129,143 +116,27 @@ AppSettingsState effectiveRemoteAccessSettings(
     ? settings.copyWith(webServerEnabled: true)
     : settings;
 
-void startBackgroundServices(
-  ProviderContainer container, {
-  required String appVersion,
-  required int appBuildNumber,
-  bool forceServe = false,
-}) {
-  resumeDarkroomWork(
-    container: container,
-    logger: container.read(loggingServiceProvider),
-    logSource: _logSource,
-  );
-  Future.microtask(
-    () => _runBackgroundServices(
-      container,
-      appVersion: appVersion,
-      appBuildNumber: appBuildNumber,
-      forceServe: forceServe,
-    ),
-  );
-}
+/// The GUI host's remote access server, which follows the Remote Access
+/// settings: it starts, stops and restarts as the operator changes the switch
+/// or the port. Restarts are queued so a quick run of edits cannot leave two
+/// servers racing for one port.
+///
+/// The server itself, and everything that hangs off it, is started by
+/// [startHostServer], the same as on the daemon.
+class GuiRemoteAccess {
+  GuiRemoteAccess({
+    required this.container,
+    required this.logger,
+    required this.launchArgs,
+    required this.forceServe,
+  });
 
-Future<void> _runBackgroundServices(
-  ProviderContainer container, {
-  required String appVersion,
-  required int appBuildNumber,
-  required bool forceServe,
-}) async {
-  final logger = container.read(loggingServiceProvider);
-  final persistentToken = await _getOrCreateRemoteAccessToken(logger);
-
-  final apiLifecycle = _ApiServerLifecycle(
-    container: container,
-    logger: logger,
-    persistentToken: persistentToken,
-    appVersion: appVersion,
-    appBuildNumber: appBuildNumber,
-  );
-
-  try {
-    AppSettingsState? lastAppliedSettings;
-    container.listen<AsyncValue<AppSettingsState>>(appSettingsProvider, (
-      _,
-      next,
-    ) {
-      final stored = next.valueOrNull;
-      if (stored == null) {
-        return;
-      }
-      final settings = effectiveRemoteAccessSettings(
-        stored,
-        forceServe: forceServe,
-      );
-
-      final shouldRestart =
-          lastAppliedSettings == null ||
-          lastAppliedSettings!.webServerEnabled != settings.webServerEnabled ||
-          lastAppliedSettings!.webServerPort != settings.webServerPort;
-
-      if (!shouldRestart) {
-        return;
-      }
-
-      lastAppliedSettings = settings;
-      unawaited(apiLifecycle.scheduleUpdate(settings));
-    }, fireImmediately: true);
-
-    await _startLanPushReceiver(
-      logger: logger,
-      appVersion: appVersion,
-      appBuildNumber: appBuildNumber,
-    );
-
-    // Eager-init: the focuser temperature compensation controller listens
-    // to FocuserState updates and AppSettings changes. It must exist before
-    // the focuser connects, otherwise the first temperature reading is
-    // missed and the baseline never captures.
-    container.read(focuserTempCompensationProvider);
-
-    // DEV-P3-1: install the capability-refresh-on-connect listener so the
-    // UI sees fresh capability data after the next device reconnect. Must
-    // attach before the first connect transition or we miss the edge.
-    container.read(capabilityRefreshOnConnectProvider);
-
-    // C8: install the camera-preset seed-on-connect listener so the factory
-    // unity_gain preset is seeded from the camera's CameraRecommendedSettings
-    // the first time a camera connects. Like the capability-refresh listener
-    // above, this Provider<void> only attaches its ref.listen side effect when
-    // something reads it — so it MUST be eager-initialised here, before the
-    // first connect transition, or the seeding never fires. Camera connection
-    // is a host-side (FfiBackend) concern; the mobile companion mirrors host
-    // state over NetworkBackend and never connects a camera locally, so this
-    // wiring lives only in the desktop bootstrap.
-    container.read(cameraPresetsSeedOnConnectProvider);
-
-    // Architecture-unification, Subsystem 3: eager-mount the
-    // NotificationRouter. It is the single producer for ALL notification
-    // transports (in-app, mobile push, plus the external ones — Discord,
-    // email, Telegram, Pushover, MQTT, webhook). Reading it here attaches its
-    // backend event-stream subscription at app start, so those transports
-    // fire for any routed event even when no sequence is running (e.g. a
-    // weather-unsafe abort or equipment disconnect during idle). Without this
-    // eager read the router only existed once a UI surface that depends on it
-    // was built, so at-idle external alerts were silently dead.
-    container.read(notificationRouterProvider);
-
-    // v4 couch-grade remote: eager-mount the Home Assistant discovery
-    // service. Like the router above, it is a background MQTT publisher
-    // with no UI surface, so it must be read at startup to run. It is a
-    // no-op until the user enables discovery in Settings.
-    container.read(homeAssistantDiscoveryProvider);
-  } catch (e) {
-    logger.error(
-      'Background services failed to initialize',
-      source: _logSource,
-      fields: {'error': '$e'},
-    );
-  }
-
-  logger.info(
-    'Desktop GUI remote access is authenticated for non-local clients',
-    source: _logSource,
-  );
-}
-
-/// Owns the lifecycle of the embedded [HeadlessApiServer] for the desktop GUI.
-/// Restarts in response to settings changes are queued so a rapid sequence of
-/// edits cannot leave two server instances racing on the same port.
-class _ApiServerLifecycle {
   final ProviderContainer container;
   final LoggingService logger;
-  final String persistentToken;
-  final String appVersion;
-  final int appBuildNumber;
+  final List<String> launchArgs;
+  final bool forceServe;
 
-  HeadlessApiServer? _apiServer;
-  DiscoveryBroadcaster? _discoveryBroadcaster;
-  MdnsServiceRegistration? _mdnsRegistration;
+  RunningHostServer? _running;
   StreamSubscription<dynamic>? _collaborationSubscription;
 
   /// Feeds [WebServerState.connectedClients] from the server's socket
@@ -273,28 +144,54 @@ class _ApiServerLifecycle {
   /// count different things: co-imaging participants versus every attached
   /// remote client.
   StreamSubscription<int>? _connectedClientSubscription;
+  ProviderSubscription<AsyncValue<AppSettingsState>>? _settingsSubscription;
 
+  String? _persistentToken;
+  AppSettingsState? _lastApplied;
   AppSettingsState? _queuedSettings;
   bool _isApplying = false;
 
-  /// the OTA update controller wired into the API server. Owned
-  /// here so it gets torn down whenever the server is stopped (e.g. the
-  /// operator toggles remote access off in settings).
-  UpdateController? _updateController;
+  /// Starts following the settings. Returns once the listener is in place;
+  /// the server comes up in the background.
+  Future<void> start() async {
+    _persistentToken = await _getOrCreateRemoteAccessToken(logger);
+    _settingsSubscription = container.listen<AsyncValue<AppSettingsState>>(
+      appSettingsProvider,
+      (_, next) {
+        final stored = next.valueOrNull;
+        if (stored == null) return;
+        final settings = effectiveRemoteAccessSettings(
+          stored,
+          forceServe: forceServe,
+        );
+        final last = _lastApplied;
+        if (last != null &&
+            last.webServerEnabled == settings.webServerEnabled &&
+            last.webServerPort == settings.webServerPort) {
+          return;
+        }
+        _lastApplied = settings;
+        unawaited(_schedule(settings));
+      },
+      fireImmediately: true,
+    );
+    logger.info(
+      'Desktop GUI remote access is authenticated for non-local clients',
+      source: _logSource,
+    );
+  }
 
-  _ApiServerLifecycle({
-    required this.container,
-    required this.logger,
-    required this.persistentToken,
-    required this.appVersion,
-    required this.appBuildNumber,
-  });
+  /// Stops following the settings and stops the server.
+  Future<void> stop() async {
+    _settingsSubscription?.close();
+    _settingsSubscription = null;
+    final last = _lastApplied;
+    if (last != null) await _stop(last);
+  }
 
-  Future<void> scheduleUpdate(AppSettingsState settings) async {
+  Future<void> _schedule(AppSettingsState settings) async {
     _queuedSettings = settings;
-    if (_isApplying) {
-      return;
-    }
+    if (_isApplying) return;
 
     _isApplying = true;
     try {
@@ -315,33 +212,9 @@ class _ApiServerLifecycle {
     await _connectedClientSubscription?.cancel();
     _connectedClientSubscription = null;
 
-    _discoveryBroadcaster?.stop();
-    _discoveryBroadcaster = null;
-
-    // mDNS unregister before the HTTP socket closes so dialing clients see
-    // the service vanish rather than getting refused connections to a port
-    // we're about to free.
-    final mdns = _mdnsRegistration;
-    _mdnsRegistration = null;
-    if (mdns != null) {
-      await mdns.stop();
-    }
-
-    final running = _apiServer;
-    _apiServer = null;
-    if (running != null) {
-      // detach the update controller BEFORE stopping the server so
-      // the controller's event subscription is cancelled cleanly. The
-      // controller itself is disposed below.
-      running.setUpdateController(null);
-      await running.stop();
-    }
-
-    final updateController = _updateController;
-    _updateController = null;
-    if (updateController != null) {
-      await updateController.dispose();
-    }
+    final running = _running;
+    _running = null;
+    await running?.stop(logger, _logSource);
 
     container
         .read(webServerStateProvider.notifier)
@@ -363,335 +236,69 @@ class _ApiServerLifecycle {
       return;
     }
 
-    final nextServer = HeadlessApiServer(
-      port: settings.webServerPort,
-      container: container,
-      // GUI mode is always LAN-accessible (the operator opted in via the
-      // remote access toggle); pairing/scoped tokens still gate writes.
-      bindLocalOnly: false,
-      // A client's captures appear in this window's image view too.
-      showApiCapturesInPreview: true,
-      authToken: persistentToken,
-      requireAuth: true,
-    );
-
+    final RunningHostServer running;
     try {
-      logger.info(
-        'Starting authenticated desktop remote access server',
-        source: _logSource,
+      running = await startHostServer(
+        container: container,
+        logger: logger,
+        logSource: _logSource,
+        config: HostServerConfig(
+          port: settings.webServerPort,
+          hostMode: SkotiqHostMode.gui,
+          // Turning Remote Access on is the operator opting in to the LAN;
+          // pairing and scoped tokens still gate every write.
+          bindLocalOnly: false,
+          showApiCapturesInPreview: true,
+          authToken: _persistentToken,
+          requireAuth: true,
+          relayArgs: launchArgs,
+        ),
       );
-      await nextServer.start();
-      _apiServer = nextServer;
-      logger.info(
-        'Remote access started',
-        source: _logSource,
-        fields: {'port': nextServer.actualPort},
-      );
-
-      container
-          .read(webServerStateProvider.notifier)
-          .setRunning(
-            isRunning: true,
-            actualPort: nextServer.actualPort,
-            configuredPort: settings.webServerPort,
-            bindLocalOnly: false,
-            requiresAuthentication: true,
-            dashboardAvailable: true,
-            serverFingerprint: computeServerFingerprint(persistentToken),
-          );
-
-      try {
-        final appVersion = container.read(appVersionProvider).version;
-        _discoveryBroadcaster = await SkotiqDiscovery.startBroadcasting(
-          webPort: nextServer.actualPort,
-          signalingPort: nextServer.actualPort,
-          name: 'Skotiq',
-          version: appVersion,
-          scheme: nextServer.isTlsActive ? 'https' : 'http',
-          fingerprint: nextServer.serverFingerprint,
-          authRequired: true,
-          authenticationMode: 'token',
-          pairingSupported: true,
-        );
-        logger.info(
-          'UDP discovery broadcasting on port 45679 (HTTP ${nextServer.actualPort})',
-          source: _logSource,
-        );
-      } catch (e) {
-        logger.warning(
-          'UDP discovery broadcaster failed to start',
-          source: _logSource,
-          fields: {'error': '$e'},
-        );
-      }
-
-      // mDNS / Bonjour advertisement. Additive to UDP broadcast above —
-      // most modern Wi-Fi APs block client-to-client broadcast, and Tailscale
-      // / VPN segments have no broadcast domain at all. Register
-      // `_skotiq._tcp` so phones discover the GUI server in those
-      // topologies without needing the QR or manual entry.
-      try {
-        final appVersion = container.read(appVersionProvider).version;
-        final txt = <String, String>{
-          'version': appVersion,
-          'scheme': nextServer.isTlsActive ? 'https' : 'http',
-          'fingerprint': nextServer.serverFingerprint,
-          'pairingSupported': 'true',
-          'name': 'Skotiq',
-        };
-        final registration = MdnsServiceRegistration(
-          name: 'Skotiq',
-          port: nextServer.actualPort,
-          txt: txt,
-          onWarning: (msg) => logger.warning(msg, source: _logSource),
-        );
-        await registration.start();
-        _mdnsRegistration = registration;
-        if (registration.isRegistered) {
-          logger.info(
-            'mDNS advertisement active',
-            source: _logSource,
-            fields: {
-              'service': '_skotiq._tcp',
-              'port': nextServer.actualPort,
-              'scheme': txt['scheme']!,
-              'fingerprint': nextServer.serverFingerprint,
-            },
-          );
-        }
-      } catch (e) {
-        logger.warning(
-          'mDNS registration failed unexpectedly',
-          source: _logSource,
-          fields: {'error': '$e'},
-        );
-      }
-
-      _collaborationSubscription = nextServer.collaborationManager.stream
-          .listen((collabState) {
-            container
-                .read(webServerStateProvider.notifier)
-                .setActiveViewers(collabState.viewers.length);
-          });
-
-      // "Is anyone connected?" is answered by the socket registry, not by the
-      // co-imaging viewer list — a paired phone streaming /events all night
-      // never joins a collaboration session.
-      _connectedClientSubscription = nextServer.connectedClientCountStream
-          .listen((count) {
-            container
-                .read(webServerStateProvider.notifier)
-                .setConnectedClients(count);
-          });
-      container
-          .read(webServerStateProvider.notifier)
-          .setConnectedClients(nextServer.connectedClientCount);
-
-      try {
-        final pushService = container.read(pushNotificationServiceProvider);
-        nextServer.setPushNotificationStream(
-          pushService.notifications.map(
-            (notification) => notification.toJson(),
-          ),
-        );
-        logger.info(
-          'Push notifications wired to web server',
-          source: _logSource,
-        );
-      } catch (e) {
-        logger.warning(
-          'Push notification setup failed',
-          source: _logSource,
-          fields: {'error': '$e'},
-        );
-      }
-
-      // provision the OTA update controller and bind it to the
-      // server so paired phones can drive `/api/system/update/*`. The
-      // controller wraps the same UpdateService that the GUI's update
-      // manager widget uses; in GUI mode the LAN push receiver (started
-      // separately via _startLanPushReceiver) feeds the GUI's
-      // UpdateNotifier, so both transports remain functional.
-      try {
-        final stack = await provisionUpdateStack(
-          currentVersion: appVersion,
-          currentBuildNumber: appBuildNumber,
-          logger: logger,
-          logSource: _logSource,
-          applySafetyCheck: () =>
-              defaultUpdateApplySafetyCheckWithReader(container.read),
-        );
-        if (stack != null) {
-          _updateController = stack.controller;
-          nextServer.setUpdateController(stack.controller);
-          logger.info(
-            'OTA update endpoints wired to web server',
-            source: _logSource,
-            fields: {
-              'channel': stack.controller.channel,
-              'updateSource': stack.controller.updateSourceLabel,
-            },
-          );
-        }
-      } catch (e, st) {
-        logger.warning(
-          'OTA update endpoint wiring failed; /api/system/update/* '
-          'will be unavailable for this session',
-          source: _logSource,
-          fields: {'error': '$e', 'stack': '$st'},
-        );
-      }
-
-      // LAN UDP push broadcaster. GUI mode is always LAN-exposed
-      // (the operator opted in via Remote access), so we always wire the
-      // broadcaster here. The fingerprint we hand to it is the same one
-      // computed by the server for /api/info — paired phones already
-      // hold this string from the enrollment QR/handshake.
-      try {
-        final pushBroadcaster = LanPushBroadcaster(
-          serverFingerprint: nextServer.serverFingerprint,
-          logger: (level, message, {fields}) {
-            switch (level) {
-              case LanPushLogLevel.info:
-                logger.info(message, source: _logSource, fields: fields);
-                break;
-              case LanPushLogLevel.warning:
-                logger.warning(message, source: _logSource, fields: fields);
-                break;
-              case LanPushLogLevel.error:
-                logger.error(message, source: _logSource, fields: fields);
-                break;
-            }
-          },
-        );
-        nextServer.setLanPushBroadcaster(pushBroadcaster);
-        await pushBroadcaster.start();
-        logger.info(
-          'LAN push broadcaster started',
-          source: _logSource,
-          fields: {
-            'port': pushBroadcaster.port,
-            'interfaces': pushBroadcaster.activeSinkCount,
-          },
-        );
-      } catch (e) {
-        logger.warning(
-          'LAN push broadcaster failed to start',
-          source: _logSource,
-          fields: {'error': '$e'},
-        );
-      }
-
-      // Phase D — wire cellular (FCM/APNs) remote push delivery. Reads
-      // push_config.json from the app-support dir (or SKOTIQ_PUSH_CONFIG):
-      // the real FCM/APNs senders activate when the operator has supplied a
-      // service-account JSON / .p8 key. Missing cloud credentials leave
-      // cellular delivery disabled; mock would-send delivery is available only
-      // through an explicit `mock:true` development configuration.
-      try {
-        final appSupportDir = await resolveSkotiqDataDirectory();
-        final delivery = await nextServer.wireRemotePushDelivery(
-          appSupportDir: appSupportDir.path,
-          log: (message) => logger.info(message, source: _logSource),
-        );
-        logger.info(
-          delivery is MockRemotePushDelivery
-              ? 'Cellular push delivery wired (mock — no cloud credentials)'
-              : delivery == null
-              ? 'Cellular push delivery not wired (no channel configured)'
-              : 'Cellular push delivery wired (cloud channel configured)',
-          source: _logSource,
-        );
-      } catch (e) {
-        logger.warning(
-          'Cellular push delivery failed to wire',
-          source: _logSource,
-          fields: {'error': '$e'},
-        );
-      }
     } catch (e) {
       logger.error(
         'Remote access failed to start',
         source: _logSource,
         fields: {'error': '$e'},
       );
-      await nextServer.stop();
       await _stop(settings, error: 'Remote access failed to start: $e');
+      return;
     }
-  }
-}
+    _running = running;
+    final server = running.server;
 
-Future<void> _startLanPushReceiver({
-  required LoggingService logger,
-  required String appVersion,
-  required int appBuildNumber,
-}) async {
-  try {
-    var isReceivingLanPush = false;
-    final pushSecret = await _getOrCreatePushSecret(logger);
-    final lanPushReceiver = LanPushReceiver(
-      currentVersion: appVersion,
-      currentBuildNumber: appBuildNumber,
-      pushSecret: pushSecret,
-    );
-    lanPushReceiver.onUpdateReceived = (manifest, stagingPath) {
-      isReceivingLanPush = false;
-      logger.info(
-        'Update received via LAN push',
-        source: _logSource,
-        fields: {'version': manifest.version},
-      );
-      LanPushNotifier.notifyUpdateReceived(manifest, stagingPath);
-    };
-    lanPushReceiver.onProgress = (received, total, progress, message) {
-      isReceivingLanPush = total > 0 && received < total;
-      logger.debug(
-        'LAN push progress',
-        source: _logSource,
-        fields: {
-          'progress_pct': (progress * 100).toStringAsFixed(1),
-          'received': received,
-          'total': total,
-          'message': message,
-        },
-      );
-      LanPushNotifier.notifyProgress(received, total, progress, message);
-    };
-    lanPushReceiver.onError = (error) {
-      isReceivingLanPush = false;
-      logger.error(
-        'LAN push error',
-        source: _logSource,
-        fields: {'error': error},
-      );
-      LanPushNotifier.notifyError(error);
-    };
-    await lanPushReceiver.startServer();
-    logger.info('LAN push receiver started on port 45680', source: _logSource);
+    container
+        .read(webServerStateProvider.notifier)
+        .setRunning(
+          isRunning: true,
+          actualPort: server.actualPort,
+          configuredPort: settings.webServerPort,
+          bindLocalOnly: false,
+          requiresAuthentication: true,
+          dashboardAvailable: true,
+          serverFingerprint: server.serverFingerprint,
+        );
 
-    await UpdatePushDiscovery.startResponding(
-      name: 'Skotiq',
-      version: appVersion,
-      buildNumber: appBuildNumber,
-      isReceivingCallback: () => isReceivingLanPush,
-    );
-    logger.info('Update push discovery responder started', source: _logSource);
-  } catch (e) {
-    final message = '$e';
-    if (message.contains('no trusted public key compiled in')) {
-      // Unsigned local/development builds deliberately disable LAN updates.
-      // This is an expected capability state, not an operational failure.
-      logger.info(
-        'LAN push receiver disabled for this unsigned build',
-        source: _logSource,
-      );
-    } else {
-      logger.warning(
-        'LAN push receiver failed',
-        source: _logSource,
-        fields: {'error': message},
-      );
-    }
+    _collaborationSubscription = server.collaborationManager.stream.listen((
+      collabState,
+    ) {
+      container
+          .read(webServerStateProvider.notifier)
+          .setActiveViewers(collabState.viewers.length);
+    });
+
+    // "Is anyone connected?" is answered by the socket registry, not by the
+    // co-imaging viewer list — a paired phone streaming /events all night
+    // never joins a collaboration session.
+    _connectedClientSubscription = server.connectedClientCountStream.listen((
+      count,
+    ) {
+      container
+          .read(webServerStateProvider.notifier)
+          .setConnectedClients(count);
+    });
+    container
+        .read(webServerStateProvider.notifier)
+        .setConnectedClients(server.connectedClientCount);
   }
 }
 
@@ -702,7 +309,10 @@ Future<void> initialiseCatalogManager(LoggingService logger) async {
   try {
     final appDataDir = await resolveSkotiqDataDirectory();
     final catalogDir = path.join(appDataDir.path, 'catalogs');
-    await CatalogManager.instance.initialize(catalogDir);
+    await CatalogManager.instance.initialize(
+      catalogDir,
+      builtIn: builtInCatalogs,
+    );
     logger.info('Catalog manager initialized', source: _logSource);
   } catch (e) {
     logger.error(
@@ -744,38 +354,14 @@ Future<bool> shouldStartMinimized(ProviderContainer container) async {
 Future<String> _getOrCreateRemoteAccessToken(LoggingService logger) async {
   final appData = await resolveSkotiqDataDirectory();
   final tokenFile = File(path.join(appData.path, 'remote_access_token.txt'));
-
-  if (await tokenFile.exists()) {
-    final existing = (await tokenFile.readAsString()).trim();
-    if (existing.isNotEmpty) {
-      // Repair a file an older build created world-readable.
-      await restrictSecretFile(tokenFile);
-      return existing;
-    }
+  final token = await readOrCreateSecretFile(tokenFile, generateSecretHex);
+  if (token.created) {
+    logger.info(
+      'Generated new remote-access bearer token. Pair via the dashboard or '
+      'copy the token from this file to configure mobile/CLI clients.',
+      source: _logSource,
+      fields: {'token_path': tokenFile.path},
+    );
   }
-
-  // 32 bytes of cryptographically random hex; matches the entropy that
-  // HeadlessApiServer.requireAuth uses internally when no token is supplied.
-  final rng = Random.secure();
-  final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
-  final token = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  await writeSecretFile(tokenFile, token);
-  logger.info(
-    'Generated new remote-access bearer token. Pair via the dashboard or '
-    'copy the token from this file to configure mobile/CLI clients.',
-    source: _logSource,
-    fields: {'token_path': tokenFile.path},
-  );
-  return token;
-}
-
-/// Load or generate the LAN push authentication secret. Persisted in the app
-/// data directory so it survives restarts. The same secret must be configured
-/// on the push tool (dev machine) to authenticate.
-///
-/// the implementation moved to `headless_api/update_wiring.dart` so
-/// the headless daemon can reuse it. This wrapper preserves the original
-/// call sites in this file.
-Future<String> _getOrCreatePushSecret(LoggingService logger) {
-  return getOrCreatePushSecret(logger, logSource: _logSource);
+  return token.value;
 }

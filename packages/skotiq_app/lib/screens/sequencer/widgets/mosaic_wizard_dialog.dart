@@ -18,15 +18,18 @@
 // `_buildResumeBanner` below.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
+import 'package:skotiq_astro/skotiq_astro.dart' show MosaicPanel;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:go_router/go_router.dart';
@@ -35,6 +38,7 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/gated_action.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import 'mosaic_wizard_dialog/mosaic_project_creation_controller.dart';
+import '../../../router/app_routes.dart';
 part 'mosaic_wizard_dialog/config_controls.dart';
 part 'mosaic_wizard_dialog/panel_position.dart';
 part 'mosaic_wizard_dialog/visual_planner.dart';
@@ -75,7 +79,11 @@ MosaicExposureSettings mosaicWizardExposureSettingsForContext(
 ) =>
     smartNightMosaicExposureSettings(exposureContext);
 
-class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
+class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
+    with HostBoundDialogState<MosaicWizardDialog> {
+  @override
+  String? get hostChangedMessage => null;
+
   late double _centerRa;
   late double _centerDec;
 
@@ -135,22 +143,12 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
   CheckpointInfo? _resumableMosaicCheckpoint;
   bool _isCreatingProject = false;
   String? _checkpointAction;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _authorityGeneration = 0;
 
   bool get _isBusy => _isCreatingProject || _checkpointAction != null;
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (identical(previous, next) || !mounted) return;
-        _authorityGeneration++;
-        closeAuthorityBoundDialog(context);
-      },
-    );
     _centerRa = widget.initialRa ?? 0.0;
     _centerDec = widget.initialDec ?? 0.0;
     // Seed the panel size from the rig: focal length (profile) + sensor
@@ -176,17 +174,6 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
     });
   }
 
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
-  }
-
-  bool _isCurrentAuthority(SkotiqBackend backend, int generation) =>
-      mounted &&
-      generation == _authorityGeneration &&
-      identical(ref.read(backendProvider), backend);
-
   /// Memoised spherical panel geometry (centre/row/col, WITHOUT the
   /// disabled overlay). Recomputed only when a geometry input changes, since
   /// [build] runs [_calculatePanels] on every frame and the planner does real
@@ -198,8 +185,8 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
-    final isRemote = backend is NetworkBackend;
-    final isDisconnected = backend is DisconnectedBackend;
+    final isRemote = ref.watch(isRemoteModeProvider);
+    final isDisconnected = backend.hasNoHost;
     final canCreateProject = !isRemote && !isDisconnected;
     final panels = _calculatePanels();
     final smartExposure = mosaicWizardExposureSettingsForContext(
@@ -382,8 +369,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
                         exposure.isMultiFilter ? exposure.filters!.length : 1,
                     exposureSecsPerPanel: exposureSecsPerPanel,
                     exposuresPerPanel: exposuresPerPanel,
-                    estTimeHours:
-                        _calculateTotalTime(exposureSecsPerPanel) / 3600,
+                    estTimeHours: _estimatedTime().inSeconds / 3600,
                     totalExposures: _activePanelCount * exposuresPerPanel,
                   ),
                   const SizedBox(height: 16),
@@ -626,5 +612,3 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog> {
     );
   }
 }
-
-// Configuration widgets

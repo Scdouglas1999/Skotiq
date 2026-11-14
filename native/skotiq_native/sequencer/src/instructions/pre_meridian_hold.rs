@@ -21,8 +21,6 @@ const POLL_INTERVAL: Duration = Duration::from_secs(5);
 /// How long the hold may outlast its own prediction before it gives up on the
 /// hour angle ever arriving.
 const OVERRUN_ALLOWANCE_MINUTES: f64 = 15.0;
-/// Hour angle advances this many sidereal minutes per solar minute.
-const SIDEREAL_RATE: f64 = 1.002_737_909;
 
 /// Hold before the meridian when the next `exposure_secs` frame would still be
 /// exposing at the moment tracking is due to stop.
@@ -43,14 +41,17 @@ pub(crate) async fn hold_before_meridian(
     control: &BurstControl<'_>,
     hour_angle: &(dyn Fn() -> Option<f64> + Send + Sync),
 ) -> Result<Option<MountMotion>, InstructionResult> {
-    let (Some(lock), Some(mount_id)) = (ctx.trigger_state.as_ref(), ctx.mount_id.as_deref()) else {
+    let (Some(lock), Some(mount_id)) = (
+        ctx.run.trigger_state.as_ref(),
+        ctx.run.rig.mount_id.as_deref(),
+    ) else {
         return Ok(None);
     };
     let (pause_before, threshold_min) = {
         let state = lock.read().await;
         let (Some(pause_before), Some(threshold_min)) = (
-            state.meridian_pause_before_minutes,
-            state.meridian_flip_minutes_past,
+            state.trigger_config.meridian_pause_before_minutes,
+            state.trigger_config.meridian_flip_minutes_past,
         ) else {
             return Ok(None);
         };
@@ -59,7 +60,7 @@ pub(crate) async fn hold_before_meridian(
         if state
             .flip_blocked(crate::MeridianTriggerMethod::MinutesPastMeridian)
             .is_some()
-            || matches!(state.pier_side, Some(crate::PierSide::East))
+            || matches!(state.telemetry.pier_side, Some(crate::PierSide::East))
         {
             return Ok(None);
         }
@@ -92,7 +93,7 @@ pub(crate) async fn hold_before_meridian(
         state.run.begin_hold(crate::triggers::RunHold::PreMeridian);
         state.set_mount_tracking_expected(false);
     }
-    if let Err(error) = ctx.device_ops.mount_set_tracking(mount_id, false).await {
+    if let Err(error) = ctx.run.device_ops.mount_set_tracking(mount_id, false).await {
         lock.write().await.run.end_hold();
         motion.end().await;
         let message = format!(
@@ -103,11 +104,13 @@ pub(crate) async fn hold_before_meridian(
         control.report(&message);
         return Err(InstructionResult::failure(message));
     }
-    lock.write().await.mount_is_tracking = Some(false);
+    lock.write().await.telemetry.mount_is_tracking = Some(false);
 
     let minutes_to_flip = threshold_min - entry_ha_min;
     let flip_at = chrono::Local::now()
-        + chrono::Duration::seconds((minutes_to_flip * 60.0 / SIDEREAL_RATE).round() as i64);
+        + chrono::Duration::seconds(
+            (minutes_to_flip * 60.0 / crate::meridian::SIDEREAL_PER_SOLAR).round() as i64,
+        );
     let message = format!(
         "Stopped tracking {}; the flip runs when {target} is {threshold_min:.0} min past it \
          (at about {}).",
@@ -120,7 +123,9 @@ pub(crate) async fn hold_before_meridian(
     // Its own bound, not the flip gate's 30 minutes: the hold is as long as the
     // operator made it, and only an hour angle that never arrives overruns it.
     let bound = Duration::from_secs_f64(
-        (minutes_to_flip.max(0.0) / SIDEREAL_RATE + OVERRUN_ALLOWANCE_MINUTES) * 60.0,
+        (minutes_to_flip.max(0.0) / crate::meridian::SIDEREAL_PER_SOLAR
+            + OVERRUN_ALLOWANCE_MINUTES)
+            * 60.0,
     );
     let started = tokio::time::Instant::now();
     loop {
@@ -133,12 +138,12 @@ pub(crate) async fn hold_before_meridian(
             break;
         }
         if started.elapsed() > bound {
-            let restored = ctx.device_ops.mount_set_tracking(mount_id, true).await;
+            let restored = ctx.run.device_ops.mount_set_tracking(mount_id, true).await;
             {
                 let mut state = lock.write().await;
                 state.run.end_hold();
                 if restored.is_ok() {
-                    state.mount_is_tracking = Some(true);
+                    state.telemetry.mount_is_tracking = Some(true);
                 }
             }
             motion.end().await;
@@ -178,7 +183,7 @@ pub(crate) async fn hold_before_meridian(
         return Err(end_hold_on_cancel(ctx, lock, motion, control).await);
     }
 
-    if let Err(error) = ctx.device_ops.mount_set_tracking(mount_id, true).await {
+    if let Err(error) = ctx.run.device_ops.mount_set_tracking(mount_id, true).await {
         lock.write().await.run.end_hold();
         motion.end().await;
         let message = format!("Could not restart tracking for the meridian flip: {error}");
@@ -192,7 +197,7 @@ pub(crate) async fn hold_before_meridian(
     {
         let mut state = lock.write().await;
         state.run.end_hold();
-        state.mount_is_tracking = Some(true);
+        state.telemetry.mount_is_tracking = Some(true);
     }
     let message = format!(
         "{} is {threshold_min:.0} min past the meridian; tracking is back on and the flip \
@@ -213,11 +218,12 @@ pub(crate) async fn hold_before_meridian(
 pub(crate) async fn pick_up_guiding_after_hold(
     ctx: &InstructionContext,
 ) -> Option<InstructionResult> {
-    let trigger_state = ctx.trigger_state.as_ref()?;
+    let trigger_state = ctx.run.trigger_state.as_ref()?;
     if !trigger_state.read().await.guiding.resume_pending() {
         return None;
     }
     let guiding_now = ctx
+        .run
         .device_ops
         .guider_get_status()
         .await

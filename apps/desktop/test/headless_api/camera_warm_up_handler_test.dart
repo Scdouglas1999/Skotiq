@@ -6,7 +6,10 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:shelf/shelf.dart';
 
@@ -34,6 +37,12 @@ void main() {
     when(
       () => service.warmCamera(ratePerMin: any(named: 'ratePerMin')),
     ).thenAnswer((_) async => CameraWarmupOutcome.started);
+    when(
+      () => service.setCameraCooling(
+        enabled: any(named: 'enabled'),
+        targetTemp: any(named: 'targetTemp'),
+      ),
+    ).thenAnswer((_) async {});
     when(
       () => backend.cameraSetCooling(
         deviceId: any(named: 'deviceId'),
@@ -71,8 +80,9 @@ void main() {
   });
 
   test('a run that owns the cooler refuses the warm-up with 409', () async {
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     final response = await handlers.handleCameraStartWarmUp(
       _post('/api/camera/warm-up'),
@@ -105,14 +115,45 @@ void main() {
         ),
       );
 
+      // The host's camera cools through DeviceService, as the host UI's
+      // cooler controls do, so the cooling goal is recorded too.
       verifyInOrder([
         () => service.cancelWarmCamera(restorePriorSetting: false),
-        () => backend.cameraSetCooling(
-          deviceId: 'sim_camera_1',
-          enabled: true,
-          targetTemp: -10.0,
-        ),
+        () => service.setCameraCooling(enabled: true, targetTemp: -10.0),
       ]);
+      verifyNever(
+        () => backend.cameraSetCooling(
+          deviceId: any(named: 'deviceId'),
+          enabled: any(named: 'enabled'),
+          targetTemp: any(named: 'targetTemp'),
+        ),
+      );
     },
   );
+
+  test('a cooler command for another camera does not touch the host '
+      'camera\'s warm-up', () async {
+    await translateHandlerErrors(
+      handlers.handleCameraSetCooling(
+        _post('/api/camera/cooling', {
+          'deviceId': 'guide_camera',
+          'enabled': true,
+          'targetTemp': -5.0,
+        }),
+      ),
+    );
+
+    verifyNever(
+      () => service.cancelWarmCamera(
+        restorePriorSetting: any(named: 'restorePriorSetting'),
+      ),
+    );
+    verify(
+      () => backend.cameraSetCooling(
+        deviceId: 'guide_camera',
+        enabled: true,
+        targetTemp: -5.0,
+      ),
+    ).called(1);
+  });
 }

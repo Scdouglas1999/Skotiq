@@ -14,7 +14,7 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';

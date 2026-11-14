@@ -4,17 +4,44 @@ import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../job_manager.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 part 'session_handlers/thumbnail_handlers.dart';
 
 /// Handlers for polar alignment and session/image endpoints
-class SessionHandlers {
+class SessionHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SessionApi.startPolarAlignment: handleStartPolarAlignment,
+    SessionApi.startAllSkyPolarAlignment: handleStartAllSkyPolarAlignment,
+    SessionApi.stopPolarAlignment: handleStopPolarAlignment,
+    SessionApi.getSessionImages: handleGetSessionImages,
+    SessionApi.getAllImages: handleGetAllImages,
+    SessionApi.getRecentImages: handleGetRecentImages,
+    SessionApi.getStandaloneImages: handleGetStandaloneImages,
+    SessionApi.backfillThumbnails: handleBackfillThumbnails,
+    SessionApi.createImage: handleCreateImage,
+    SessionApi.getImageById: handleGetImageById,
+    SessionApi.updateImage: handleUpdateImage,
+    SessionApi.getImageThumbnail: handleGetImageThumbnail,
+    SessionApi.regenerateImageThumbnail: handleRegenerateImageThumbnail,
+    SessionApi.downloadImage: handleDownloadImage,
+    SessionApi.exportSessionJson: handleExportSessionJson,
+    SessionApi.exportSessionCsv: handleExportSessionCsv,
+    SessionApi.exportSessionHtml: handleExportSessionHtml,
+    SessionApi.exportSession: handleExportSession,
+  };
+
   final ProviderContainer container;
 
   /// Optional job manager used by the thumbnail-backfill endpoint in the
@@ -50,8 +77,6 @@ class SessionHandlers {
     }
     return id;
   }
-
-  // Polar alignment
 
   Future<Response> handleStartPolarAlignment(Request request) async {
     _logInfo('[API] POST /api/polar-alignment/start');
@@ -167,8 +192,6 @@ class SessionHandlers {
         .startAllSkyAlignment(config);
     return jsonOk({"status": "started"});
   }
-
-  // Session images
 
   Future<Response> handleGetSessionImages(
     Request request,
@@ -298,7 +321,7 @@ class SessionHandlers {
         fileSize: Value(fileSize),
         sessionId: Value(optionalInt(payload, 'sessionId')),
         targetId: Value(optionalInt(payload, 'targetId')),
-        frameType: Value(requireString(payload, 'frameType')),
+        frameType: Value(_frameTypeRecord(payload)),
         // Every numeric below is PERSISTED into captured_images and then read by
         // analytics, image grading, the dark/flat matcher and plate-solve
         // history. Unbounded, this endpoint accepted (and would have stored)
@@ -448,7 +471,7 @@ class SessionHandlers {
       final cd21 = optionalDouble(payload, 'solvedCd2_1');
       final cd22 = optionalDouble(payload, 'solvedCd2_2');
       await container
-          .read(imagingRecordsRepositoryProvider)
+          .read(imagingRecordsProvider)
           .updatePlateSolveResult(
             iid,
             solvedRa: requireDouble(payload, 'solvedRa'),
@@ -614,12 +637,10 @@ class SessionHandlers {
     required String contentType,
   }) async {
     final sid = _parsePathId(sessionId, 'sessionId');
-    final database = container.read(databaseProvider);
-    final service = SessionExportService(
-      sessionsDao: database.sessionsDao,
-      imagesDao: database.imagesDao,
+    final filePath = await exportAction(
+      container.read(sessionExportServiceProvider),
+      sid,
     );
-    final filePath = await exportAction(service, sid);
     final file = File(filePath);
 
     if (!await file.exists()) {
@@ -684,4 +705,19 @@ class SessionHandlers {
       'eccentricity': thumb.eccentricity,
     };
   }
+}
+
+/// The payload's `frameType` in the spelling every image row uses; a name
+/// that is no frame type is a bad request, so a typo never files darks as
+/// lights.
+String _frameTypeRecord(Map<String, dynamic> payload) {
+  final named = requireString(payload, 'frameType');
+  final type =
+      FrameType.fromRecord(named) ??
+      (throw BadRequestError(
+        field: 'frameType',
+        expected: 'one of: ${FrameType.values.map((t) => t.record).join(', ')}',
+        message: 'Unknown frame type "$named"',
+      ));
+  return type.record;
 }

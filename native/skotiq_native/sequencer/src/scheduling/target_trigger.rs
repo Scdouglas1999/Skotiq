@@ -37,8 +37,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::meridian::hour_angle;
-use crate::scheduling::astronomy::{local_sidereal_time, object_alt_az};
+use crate::meridian::{hour_angle, julian_day, local_sidereal_time};
+use crate::scheduling::astronomy::object_alt_az;
 
 /// One leaf or compound condition that can gate a target's start / end.
 ///
@@ -107,9 +107,8 @@ impl TriggerObserverContext {
         alt
     }
 
-    /// Current hour angle in hours.
     pub fn current_hour_angle_hours(&self) -> f64 {
-        let lst = local_sidereal_time(&self.now, self.longitude_deg);
+        let lst = local_sidereal_time(julian_day(&self.now), self.longitude_deg);
         hour_angle(self.target_ra_hours, lst)
     }
 }

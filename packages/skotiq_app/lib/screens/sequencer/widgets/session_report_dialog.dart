@@ -5,16 +5,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../run_status_presentation.dart';
+import '../../../widgets/run_status/run_status_presentation.dart';
 import 'notes_panel.dart';
+import '../../../router/settings_sections.dart';
+import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
 part 'session_report_dialog/header_overview.dart';
 part 'session_report_dialog/target_conditions.dart';
 part 'session_report_dialog/recovery_insights.dart';
@@ -27,7 +34,6 @@ part 'session_report_dialog/diagnostic_issue_tile.dart';
 /// button. Renders the per-target / per-filter rollup, guiding summary,
 /// mount events and recorded errors and exposes Markdown / .txt exports.
 class SessionReportDialog extends ConsumerWidget {
-  /// The session whose report should be rendered.
   final int sessionId;
 
   /// The completed run's `sequence_runs.id`, passed EXPLICITLY when the report
@@ -75,7 +81,7 @@ class SessionReportDialog extends ConsumerWidget {
         child: EmptyState(
           icon: LucideIcons.alertTriangle,
           title: 'Could not build session report',
-          body: '$err',
+          body: userFacingError(err),
           action: SkotiqButton(
             label: 'Retry',
             icon: LucideIcons.refreshCw,
@@ -101,11 +107,10 @@ class _ReportBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateFormat = DateFormat('MMM d, yyyy HH:mm');
     // The client ROLE, not the connection: a desktop launched with
     // `--remote-host` that has not reached its rig is `Disconnected`, so
-    // `backend is NetworkBackend` read false for the whole pre-handshake
-    // window — and this button then offered "Review & Integrate" on a machine
+    // `backend.remoteHost != null` read false for the whole pre-handshake
+    // window — and this button then offered "Session review" on a machine
     // that owns none of the host's subs and pushed it onto the host-only wall.
     final isRemote = ref.watch(isRemoteClientProvider);
     return SkotiqDialog(
@@ -122,23 +127,20 @@ class _ReportBody extends ConsumerWidget {
       actions: [
         if (report.sessionId > 0)
           SkotiqButton(
-            label: isRemote ? 'Review on imaging host' : 'Review & Integrate',
+            label: isRemote ? 'Review on imaging host' : 'Session review',
             icon: LucideIcons.sparkles,
             variant: ButtonVariant.outline,
             size: ButtonSize.small,
             onPressed: () {
               if (isRemote) {
-                SkotiqToastHelper.show(
-                  context: context,
-                  message: 'Session Review uses full-resolution files stored '
-                      'on the imaging host. Open Skotiq there to continue.',
-                  severity: SkotiqAlertSeverity.info,
-                  icon: LucideIcons.monitor,
+                context.showInfoSnackBar(
+                  'Session Review uses full-resolution files stored '
+                  'on the imaging host. Open Skotiq there to continue.',
                 );
                 return;
               }
               Navigator.of(context).pop();
-              context.push('/session-review?session=${report.sessionId}');
+              context.push(AppRoutes.sessionReviewOfSession(report.sessionId));
             },
           ),
         SkotiqButton(
@@ -154,7 +156,6 @@ class _ReportBody extends ConsumerWidget {
           _Header(
             report: report,
             colors: colors,
-            dateFormat: dateFormat,
             onCopyMarkdown: () => _copyMarkdown(context, ref),
             onExportTxt: () => _exportText(context, ref),
           ),
@@ -276,7 +277,8 @@ class _ReportBody extends ConsumerWidget {
                 colors: colors,
               ),
               error: (error, _) => _AuxiliaryReportState(
-                label: 'Could not load recovery history: $error',
+                label:
+                    'Could not load recovery history: ${userFacingError(error)}',
                 colors: colors,
                 error: true,
                 onRetry: () => ref.invalidate(
@@ -317,7 +319,8 @@ class _ReportBody extends ConsumerWidget {
                 colors: colors,
               ),
               error: (error, _) => _AuxiliaryReportState(
-                label: 'Could not load diagnostic settings: $error',
+                label:
+                    'Could not load diagnostic settings: ${userFacingError(error)}',
                 colors: colors,
                 error: true,
                 onRetry: () => ref.invalidate(appSettingsProvider),
@@ -334,7 +337,8 @@ class _ReportBody extends ConsumerWidget {
                     colors: colors,
                   ),
                   error: (error, _) => _AuxiliaryReportState(
-                    label: 'Could not load optical-train diagnostics: $error',
+                    label:
+                        'Could not load optical-train diagnostics: ${userFacingError(error)}',
                     colors: colors,
                     error: true,
                     onRetry: () => ref.invalidate(
@@ -487,7 +491,8 @@ class _ReportBody extends ConsumerWidget {
                 colors: colors,
               ),
               error: (error, _) => _AuxiliaryReportState(
-                label: 'Could not load retrospective suggestions: $error',
+                label:
+                    'Could not load retrospective suggestions: ${userFacingError(error)}',
                 colors: colors,
                 error: true,
                 onRetry: () => ref.invalidate(
@@ -599,12 +604,14 @@ class _ReportBody extends ConsumerWidget {
         style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
       );
 
-  bool get _wasStoppedByOperator => runWasStoppedByOperator(report.status);
+  SequenceRunStatus? get _status => SequenceRunStatus.tryParse(report.status);
+
+  bool get _wasStoppedByOperator => _status?.stoppedByOperator ?? false;
 
   /// The report's error messages minus, on an operator stop, the cancellation
   /// notice that a Stop always produces. See [runErrorMessagesFor].
   List<String> get _errorMessages =>
-      runErrorMessagesFor(report.status, report.errorMessages);
+      runErrorMessagesFor(_status, report.errorMessages);
 
   /// The cause to headline, or null when there is nothing to explain.
   ///
@@ -664,11 +671,9 @@ class _ReportBody extends ConsumerWidget {
     final markdown = service.renderMarkdown(report);
     await Clipboard.setData(ClipboardData(text: markdown));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Session report copied as Markdown'),
-        duration: Duration(seconds: 2),
-      ),
+    context.showInfoSnackBar(
+      'Session report copied as Markdown',
+      duration: Duration(seconds: 2),
     );
   }
 
@@ -721,21 +726,17 @@ class _ReportBody extends ConsumerWidget {
       final file = File(p.join(dir.path, filename));
       await file.writeAsString(text);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Report exported to ${file.path}'),
-          duration: const Duration(seconds: 6),
-          action: SnackBarAction(
-            label: 'Copy path',
-            onPressed: () => Clipboard.setData(ClipboardData(text: file.path)),
-          ),
+      context.showInfoSnackBar(
+        'Report exported to ${file.path}',
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Copy path',
+          onPressed: () => Clipboard.setData(ClipboardData(text: file.path)),
         ),
       );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
-      );
+      context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
     }
   }
 }

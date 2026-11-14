@@ -17,9 +17,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show AstronomyCalculations;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -405,8 +408,9 @@ void main() {
         await container
             .read(globalMeridianFlipSettingsProvider.notifier)
             .setStandaloneMonitoringEnabled(true);
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.running);
 
         final monitor = container.read(
           meridianFlipStandaloneMonitorProvider.notifier,
@@ -472,7 +476,7 @@ void main() {
         // the threshold. Easier: choose RA = LST - desired_HA. Compute LST
         // explicitly so the test is deterministic.
         final now = DateTime.now().toUtc();
-        final lst = computeLocalSiderealTimeHours(now, -75.0);
+        final lst = AstronomyCalculations.localSiderealTime(now, -75.0);
         // Target an HA of +0.5 hours (past meridian) — well above the default
         // 5 min (0.083 h) trigger.
         final ra = (lst - 0.5) % 24.0;
@@ -619,8 +623,9 @@ void main() {
           dec: -20,
         ),
       );
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
 
       final succeeded = await container
           .read(meridianFlipStandaloneMonitorProvider.notifier)
@@ -714,38 +719,19 @@ void main() {
     );
   });
 
-  // The standalone monitor and SchedulerEngine both delegate their LST/HA math
-  // to SkyCalculations. These pin that the monitor's public free-function entry
-  // points are exact aliases of it, with no behaviour of their own.
-  group('LST/HA helpers share one implementation', () {
-    test(
-      'computeLocalSiderealTimeHours == SkyCalculations.localSiderealTimeHours',
-      () {
-        final t = DateTime.utc(2024, 3, 1, 6, 45, 0);
-        const lon = -71.0;
-        expect(
-          computeLocalSiderealTimeHours(t, lon),
-          equals(SkyCalculations.localSiderealTimeHours(t, lon)),
-        );
-      },
-    );
-
-    test('computeHourAngleHours == SkyCalculations.hourAngleHours', () {
-      expect(
-        computeHourAngleHours(5.5, 9.25),
-        equals(SkyCalculations.hourAngleHours(5.5, 9.25)),
-      );
-    });
-
+  group('LST/HA conventions', () {
     test('pinned LST (Meeus 12.a) and HA convention', () {
       // GMST at 1987-04-10 00:00 UTC, Greenwich = 197.693195° (Meeus 12.a).
-      final lst = computeLocalSiderealTimeHours(
+      final lst = AstronomyCalculations.localSiderealTime(
         DateTime.utc(1987, 4, 10, 0, 0, 0),
         0.0,
       );
       expect(lst * 15.0, closeTo(197.693195, 1e-4));
       // HA = LST - RA, positive => west of meridian / already flipped.
-      expect(computeHourAngleHours(lst - 2.0, lst), closeTo(2.0, 1e-9));
+      expect(
+        AstronomyCalculations.hourAngleHours(lst - 2.0, lst),
+        closeTo(2.0, 1e-9),
+      );
     });
   });
 }

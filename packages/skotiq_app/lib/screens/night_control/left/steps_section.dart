@@ -11,17 +11,19 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart' show selectedNodeIdProvider;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart' show selectedNodeIdProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../data/plan/night_flip_provider.dart';
+import '../data/plan/night_run_phase_provider.dart';
 import '../data/plan/plan_steps_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
 import 'left_section_frame.dart';
 import 'night_time_format.dart';
+import '../../../router/app_routes.dart';
 
 class NightStepsSection extends ConsumerStatefulWidget {
   const NightStepsSection({super.key});
@@ -80,7 +82,7 @@ class _NightStepsSectionState extends ConsumerState<NightStepsSection> {
   void _open(String nodeId) {
     ref.read(selectedNodeIdProvider.notifier).state = nodeId;
     NightControlDensity.maybeOf(context)?.closePlanDrawer?.call();
-    context.go(kSequencerRoutePath);
+    context.go(AppRoute.sequencer.path);
   }
 
   @override
@@ -89,6 +91,10 @@ class _NightStepsSectionState extends ConsumerState<NightStepsSection> {
     final colors = context.skotiqColors;
     final steps = ref.watch(nightPlanStepsProvider);
     final flip = ref.watch(nightFlipStepProvider);
+    final paused = switch (ref.watch(nightRunPhaseProvider)) {
+      NightRunPhase.pausedByUser || NightRunPhase.pausedForAction => true,
+      _ => false,
+    };
     final scrollsItself =
         NightControlDensity.maybeOf(context)?.slotsScrollThemselves ?? true;
     final active =
@@ -116,6 +122,7 @@ class _NightStepsSectionState extends ConsumerState<NightStepsSection> {
                   _StepRow(
                     key: identical(step, active) ? _activeKey : null,
                     step: step,
+                    paused: paused,
                     colors: colors,
                     onTap: () => _open(step.nodeId),
                   ),
@@ -234,11 +241,15 @@ class _StepRow extends StatelessWidget {
   const _StepRow({
     super.key,
     required this.step,
+    required this.paused,
     required this.colors,
     required this.onTap,
   });
 
   final PlanStepVm step;
+
+  /// The run is paused, so the active step is held, not running.
+  final bool paused;
   final SkotiqColors colors;
   final VoidCallback onTap;
 
@@ -252,22 +263,30 @@ class _StepRow extends StatelessWidget {
       PlanStepStatus.active => colors.textPrimary,
       PlanStepStatus.pending => colors.textSecondary,
       PlanStepStatus.failed => colors.error,
-      PlanStepStatus.done || PlanStepStatus.skipped => colors.textMuted,
+      PlanStepStatus.done ||
+      PlanStepStatus.skipped ||
+      PlanStepStatus.stopped =>
+        colors.textMuted,
     };
     final (icon, iconColor) = switch (step.status) {
       PlanStepStatus.done => (LucideIcons.check, colors.textMuted),
-      PlanStepStatus.active => (LucideIcons.play, colors.primary),
+      PlanStepStatus.active => paused
+          ? (LucideIcons.pause, colors.warning)
+          : (LucideIcons.play, colors.primary),
       PlanStepStatus.pending => (LucideIcons.dot, colors.textSecondary),
       PlanStepStatus.failed => (LucideIcons.x, colors.error),
       PlanStepStatus.skipped => (LucideIcons.skipForward, colors.textMuted),
+      PlanStepStatus.stopped => (LucideIcons.square, colors.textMuted),
     };
     final when = _when(step.when);
     final statusText = l10n.text(switch (step.status) {
       PlanStepStatus.done => 'nightCtlStepDone',
-      PlanStepStatus.active => 'nightCtlStepActive',
+      PlanStepStatus.active =>
+        paused ? 'nightCtlStepPaused' : 'nightCtlStepActive',
       PlanStepStatus.pending => 'nightCtlStepPending',
       PlanStepStatus.failed => 'nightCtlStepFailed',
       PlanStepStatus.skipped => 'nightCtlStepSkipped',
+      PlanStepStatus.stopped => 'nightCtlStepStopped',
     });
     final indent = (step.depth.clamp(0, 4) * 6).toDouble();
 
@@ -331,7 +350,7 @@ class _StepRow extends StatelessWidget {
   /// "19:52" recorded, "≈03:40" planned, "44/60" running.
   static String? _when(StepWhen? when) => switch (when) {
         null => null,
-        StepWhenActual(:final at) => nightHm(at),
+        StepWhenActual(:final at) => ClockFormat.hm(at),
         StepWhenPlanned(:final at) =>
           nightHmMaybeEstimated(at, estimated: true),
         StepWhenProgress(:final done, :final total) =>

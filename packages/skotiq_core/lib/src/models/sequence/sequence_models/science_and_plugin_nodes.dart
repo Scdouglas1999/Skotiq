@@ -92,16 +92,12 @@ class SciencePhotometryNode extends SequenceNode {
   /// differential magnitude against [referenceStars].
   final bool applyDifferential;
 
-  /// Per-frame quality gates.
   final PhotometryQualityGates quality;
 
-  /// Optional gain override.
   final int? gain;
 
-  /// Optional offset override.
   final int? offset;
 
-  /// Binning.
   final BinningMode binning;
 
   SciencePhotometryNode({
@@ -126,21 +122,6 @@ class SciencePhotometryNode extends SequenceNode {
     this.binning = BinningMode.one,
   });
 
-  @override
-  String get nodeType => 'SciencePhotometry';
-
-  @override
-  String get iconName => 'analytics';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {
-    DeviceType.camera,
-    DeviceType.filterWheel,
-  };
-
   bool get isPhotometricFilter => isPhotometricFilterBand(filter);
 
   /// True when the configured cadence is structurally invalid. The
@@ -148,6 +129,9 @@ class SciencePhotometryNode extends SequenceNode {
   /// `exposure_secs + max_cadence_gap_secs`, so the only nonsense
   /// values are negative or NaN. We treat `< 0` as impossible.
   bool get hasImpossibleCadence => maxCadenceGapSecs < 0.0;
+
+  @override
+  NodeKind<SciencePhotometryNode> get kind => NodeKinds.sciencePhotometry;
 
   @override
   SciencePhotometryNode copyWith({
@@ -381,13 +365,10 @@ class PluginInstructionNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'PluginNode';
+  NodeKind<PluginInstructionNode> get kind => NodeKinds.plugin;
 
   @override
   String get iconName => iconHint;
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
 
   /// Composite registry key, mirroring `PluginNodeRegistration.composeKey`.
   /// Lives here so the executor can build the lookup key without depending

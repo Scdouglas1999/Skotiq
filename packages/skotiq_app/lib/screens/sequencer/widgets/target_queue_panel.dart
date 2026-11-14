@@ -34,17 +34,20 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/add_target_header_helper.dart';
+import '../add_target_header_helper.dart';
 import '../../../utils/count_label.dart';
-import '../../accessible_dropdown.dart';
-import '../plan_math.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import 'sequence_tree.dart' show revealSequenceRow, treeNodeKeyRegistryProvider;
 import 'target_coordinates.dart';
 import 'target_header_card.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Drag payload type carried by `Draggable<TargetQueueDragPayload>` from
 /// the queue panel to the sequence tree. Carries the source queued
@@ -96,7 +99,6 @@ bool _isQualifiedTargetName(String candidate, String base) {
   return RegExp(r'[\s\(\[\{\-–—/:]').hasMatch(candidate[base.length]);
 }
 
-/// Sort modes for the target queue list.
 enum _QueueSortMode {
   userOrder,
   score,
@@ -122,7 +124,6 @@ extension _QueueSortModeLabel on _QueueSortMode {
   }
 }
 
-/// Filter modes.
 enum _QueueFilterMode {
   all,
   aboveHorizon,
@@ -279,7 +280,7 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
     final colors = widget.colors;
     final queue = ref.watch(targetQueueProvider);
     final observer = ref.watch(observerLocationProvider);
-    final horizonDeg = ref.watch(planetariumEffectiveHorizonDegProvider);
+    final horizonDeg = ref.watch(altitudeFloorProvider).lowestDeg;
     // Live 30s tick — altitude / time-to-set need to refresh as the
     // sky moves. Cadence intentionally matches the dashboard's altitude
     // card (see clock_provider.dart).
@@ -499,8 +500,6 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
   }
 }
 
-// Section chrome
-
 /// The padding both target lists take, so the sequence rows and the wishlist
 /// rows share one left edge down the whole panel.
 const EdgeInsets _listPadding =
@@ -691,8 +690,6 @@ class _Dropdown<T> extends StatelessWidget {
   }
 }
 
-// In this sequence
-
 /// What a target's subtree plans to capture, in one phrase.
 ///
 /// Reads the shared [plannedCaptureUnder] walk, so this row, the target card
@@ -707,7 +704,7 @@ String targetPlanSummary(PlannedCapture planned) {
   if (planned.frames > 0) {
     final integration = DurationFormat.seconds(
       planned.integrationSecs,
-      style: DurationStyle.compact,
+      style: DurationStyle.coarse,
     );
     parts.add(
       '${countLabel(planned.frames, 'frame')} \u00b7 $integration'
@@ -718,7 +715,7 @@ String targetPlanSummary(PlannedCapture planned) {
     final budget = planned.openEndedBudgetSecs > 0
         ? 'looping up to ${DurationFormat.seconds(
             planned.openEndedBudgetSecs,
-            style: DurationStyle.compact,
+            style: DurationStyle.coarse,
           )}'
         : 'looping until the window closes';
     parts.add(parts.isEmpty ? _sentenceCase(budget) : budget);
@@ -778,15 +775,8 @@ class _InSequenceRow extends ConsumerWidget {
     final chipLabels = unset
         ? const <String>['Not set']
         : <String>[
-            CoordinateFormat.raHm(
-              node.raHours,
-              style: SexagesimalStyle.compactLetters,
-              wrapHours: true,
-            ),
-            CoordinateFormat.decDm(
-              node.decDegrees,
-              style: SexagesimalStyle.compactLetters,
-            ),
+            CoordinateFormat.raCompact(node.raHours),
+            CoordinateFormat.decCompact(node.decDegrees),
           ];
 
     return Semantics(
@@ -893,8 +883,6 @@ class _TargetChip extends StatelessWidget {
   }
 }
 
-// Single queue row + draggable
-
 class _QueueRow extends ConsumerWidget {
   final SkotiqColors colors;
   final QueuedTarget target;
@@ -970,9 +958,7 @@ class _QueueRow extends ConsumerWidget {
       targetNode: node,
     );
     if (added && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added ${target.displayName} to sequence')),
-      );
+      context.showInfoSnackBar('Added ${target.displayName} to sequence');
     }
   }
 }
@@ -1010,7 +996,7 @@ class _RowCard extends StatelessWidget {
         : _formatTimeRemaining(v!.setTime!);
 
     final coordsText =
-        'RA ${_formatHours(target.coordinates.ra)}  Dec ${_formatDegrees(target.coordinates.dec)}';
+        'RA ${CoordinateFormat.raCompact(target.coordinates.ra)}  Dec ${CoordinateFormat.decCompact(target.coordinates.dec)}';
 
     final accent = target.isActive ? colors.primary : colors.border;
     return Container(
@@ -1107,20 +1093,6 @@ class _RowCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _formatHours(double ra) {
-    final h = ra.floor();
-    final m = ((ra - h) * 60).floor();
-    return '${h.toString().padLeft(2, '0')}h${m.toString().padLeft(2, '0')}m';
-  }
-
-  static String _formatDegrees(double dec) {
-    final sign = dec >= 0 ? '+' : '-';
-    final absDec = dec.abs();
-    final d = absDec.floor();
-    final m = ((absDec - d) * 60).floor();
-    return '$sign${d.toString().padLeft(2, '0')}°${m.toString().padLeft(2, '0')}\'';
   }
 
   static String _formatTimeRemaining(DateTime when) {

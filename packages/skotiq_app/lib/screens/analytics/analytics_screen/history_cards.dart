@@ -1,13 +1,11 @@
-// ignore_for_file: unused_element_parameter
-
 part of '../analytics_screen.dart';
 
 class _ProjectsTab extends ConsumerWidget {
-  const _ProjectsTab({super.key});
+  const _ProjectsTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isRemote = ref.watch(backendProvider) is NetworkBackend;
+    final isRemote = ref.watch(isRemoteModeProvider);
     return Padding(
       padding: const EdgeInsets.all(SkotiqTokens.space2xl),
       child: Column(
@@ -34,7 +32,7 @@ class _ProjectsTab extends ConsumerWidget {
                   );
                   return;
                 }
-                context.push('/mosaic');
+                context.push(AppRoute.mosaicProjects.path);
               },
             ),
           ),
@@ -46,7 +44,6 @@ class _ProjectsTab extends ConsumerWidget {
   }
 }
 
-/// Session history card widget
 class _SessionHistoryCard extends ConsumerWidget {
   final ImagingSession session;
 
@@ -85,17 +82,15 @@ class _SessionHistoryCard extends ConsumerWidget {
           ),
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
-        // One chip component, one chip geometry. The old badge was a solid
-        // fill with 9 px text -- a size that 03 §2 says does not exist.
         SkotiqChip(
-          label: session.status,
-          tone: _statusTone(session.status),
+          label: sessionStatusLabel(session.status),
+          tone: sessionStatusTone(session.status),
         ),
       ],
     );
 
     final dateText = Text(
-      DateFormat('MMM d, yyyy HH:mm').format(session.startTime),
+      ClockFormat.monthDayYearHm(session.startTime.toLocal()),
       style: SkotiqTypography.bodySm.copyWith(
         color: colors.textSecondary,
       ),
@@ -106,9 +101,6 @@ class _SessionHistoryCard extends ConsumerWidget {
     // Every chip carries a caption. Four bare numbers behind icons ("4h 12m",
     // "206", "3.4h", "2.14") left the two durations indistinguishable and gave
     // no clue that the last figure was HFR in pixels.
-    // Five measurements, so five Readouts (05 §3): a mono value over a quiet
-    // uppercase label. They used to be boxed icon+number chips, which is the
-    // chip component's job and not a measurement's.
     final statReadouts = <Widget>[
       Readout(
         size: ReadoutSize.sm,
@@ -216,31 +208,10 @@ class _SessionHistoryCard extends ConsumerWidget {
     );
   }
 
-  /// A session's status as a chip tone. Status colours mean status (02);
-  /// an unknown status has no tone at all rather than an invented one.
-  static ChipTone _statusTone(String status) {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return ChipTone.success;
-      case 'active':
-        return ChipTone.primary;
-      case 'aborted':
-        return ChipTone.warning;
-      case 'error':
-        return ChipTone.error;
-      default:
-        return ChipTone.neutral;
-    }
-  }
-
-  /// Integration in hours, dropping to minutes and seconds below the point
-  /// where "0.0h" stops carrying information.
-  static String? _formatIntegrationHours(double seconds) {
-    if (!seconds.isFinite || seconds <= 0) return null;
-    if (seconds >= 3600) return '${(seconds / 3600).toStringAsFixed(1)}h';
-    if (seconds >= 60) return '${(seconds / 60).round()}m';
-    return '${seconds.round()}s';
-  }
+  static String? _formatIntegrationHours(double seconds) =>
+      !seconds.isFinite || seconds <= 0
+          ? null
+          : DurationFormat.decimalHours(seconds);
 
   void _showSessionDetail(
       BuildContext context, WidgetRef ref, ImagingSession session) {
@@ -253,5 +224,3 @@ class _SessionHistoryCard extends ConsumerWidget {
 
 /// Gap between two of a history card's [Readout]s.
 const double _historyReadoutGap = 20;
-
-/// Session detail dialog with export functionality

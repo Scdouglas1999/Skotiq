@@ -17,7 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:skotiq_app/screens/diagnostics/diagnostics_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
 
@@ -42,7 +43,7 @@ const _phonePortraitSizes = <Size>[
 Future<void> _pumpAndCheck(WidgetTester tester, Size size) async {
   await pumpAppScreen(
     tester,
-    const DiagnosticsScreen(),
+    const DiagnosticsTabContent(showTitle: true),
     size: size,
     settle: false,
     extraOverrides: _overrides(),

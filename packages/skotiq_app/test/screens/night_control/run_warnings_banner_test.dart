@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/run_warnings_banner.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 const _center = 'Center: Failed to center within 5.0" after 5 attempts.';
@@ -34,7 +35,11 @@ Future<ProviderContainer> _pump(
   double width = 1316,
 }) async {
   final container = ProviderContainer(
-    overrides: [liveSequenceStatsProvider.overrideWith((ref) => stats)],
+    overrides: [
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(ref, RunRecord(stats: stats)),
+      )
+    ],
   );
   addTearDown(container.dispose);
   tester.view.physicalSize = Size(width, 600);
@@ -86,17 +91,62 @@ void main() {
     await tester.pump();
     expect(find.textContaining('run warning'), findsNothing);
 
-    container.read(liveSequenceStatsProvider.notifier).state =
-        _stats(const [_center, _limit]);
+    container
+        .read(runRecordProvider.notifier)
+        .setStats(_stats(const [_center, _limit]));
     await tester.pump();
     expect(find.textContaining('run warning'), findsNothing,
         reason: 'the same warnings again stay hidden');
 
-    container.read(liveSequenceStatsProvider.notifier).state =
-        _stats(const [_center, _limit, _early]);
+    container
+        .read(runRecordProvider.notifier)
+        .setStats(_stats(const [_center, _limit, _early]));
     await tester.pump();
     expect(find.text('3 run warnings'), findsOneWidget);
     expect(find.text(_early), findsOneWidget);
+  });
+
+  testWidgets('hiding it outlasts leaving Tonight and reaches the link',
+      (tester) async {
+    final container = await _pump(tester, _stats(const [_center, _limit]));
+    await tester.tap(find.byTooltip('Hide until the next warning'));
+    await tester.pump();
+
+    // The hidden list is shared state, not the widget's: the noticeAcks
+    // runtime channel carries it to the other end of a link.
+    final acks = container.read(noticeAcknowledgmentsProvider);
+    expect(acks.runWarnings?.covers(null, const [_center, _limit]), isTrue);
+
+    // Leaving Tonight disposes the banner; coming back must not show it.
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: SizedBox()),
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: NightRunWarningsBanner()),
+        ),
+      ),
+    );
+    expect(find.textContaining('run warning'), findsNothing);
+  });
+
+  testWidgets('hidden on the other end of a link hides it here',
+      (tester) async {
+    final container = await _pump(tester, _stats(const [_center]));
+    expect(find.text('1 run warning'), findsOneWidget);
+    container.read(noticeAcknowledgmentsProvider.notifier).state =
+        const NoticeAcknowledgments().hidingRunWarnings(null, const [_center]);
+    await tester.pump();
+    expect(find.textContaining('run warning'), findsNothing);
   });
 
   testWidgets('fits a phone width', (tester) async {

@@ -1,20 +1,24 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/unified_device.dart';
 import '../models/equipment/discovery_state.dart';
-import '../services/device_service.dart';
 import '../services/device_matching_service.dart';
 import 'backend_provider.dart';
 import 'settings_provider.dart';
+import '../models/backend/backend_types.dart';
+import 'device_service_providers.dart';
 
-/// Provider for the device matching service
+/// The one bucket a linked client's discovery fills: its host answers for
+/// every driver in a single sweep (see `_getAvailableBackends`).
+const DriverType linkedHostScanBucket = DriverType.native;
+
 final deviceMatchingServiceProvider = Provider<DeviceMatchingService>((ref) {
   return DeviceMatchingService();
 });
 
-/// Provider for unified device discovery state
 final unifiedDiscoveryProvider =
     StateNotifierProvider<UnifiedDiscoveryNotifier, UnifiedDiscoveryState>((
       ref,
@@ -68,12 +72,10 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
       futures.add(_discoverBackend(backend));
     }
 
-    // Process results as they complete
     final results = await Future.wait(futures);
 
     if (!_canPublish(generation)) return;
 
-    // Collect all devices
     final allDevices = <DeviceInfo>[];
     final updatedStates = <DriverType, BackendDiscoveryState>{};
 
@@ -115,12 +117,10 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     // Drop this backend's stale devices as soon as rescan starts.
     state = _discoveringStateForBackends([backend], mergeWithExisting: true);
 
-    // Discover
     final result = await _discoverBackend(backend, host: host, port: port);
 
     if (!_canPublish(generation)) return;
 
-    // Update state with results
     final updatedStates = Map<DriverType, BackendDiscoveryState>.from(
       state.backendStates,
     );
@@ -134,13 +134,11 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
       completedAt: DateTime.now(),
     );
 
-    // Rebuild raw devices from all backends
     final allDevices = <DeviceInfo>[];
     for (final backendState in updatedStates.values) {
       allDevices.addAll(backendState.devices);
     }
 
-    // Re-group devices
     final matchingService = _ref.read(deviceMatchingServiceProvider);
     final groupedDevices = matchingService.groupDevices(allDevices);
 
@@ -216,13 +214,11 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
       );
     }
 
-    // Rebuild raw devices from all backends
     final allDevices = <DeviceInfo>[];
     for (final backendState in updatedStates.values) {
       allDevices.addAll(backendState.devices);
     }
 
-    // Re-group devices
     final matchingService = _ref.read(deviceMatchingServiceProvider);
     final groupedDevices = matchingService.groupDevices(allDevices);
 
@@ -233,17 +229,14 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     );
   }
 
-  /// Refresh discovery for all backends
   Future<void> refresh() async {
     await discoverAll();
   }
 
-  /// Cancel ongoing discovery
   void cancel() {
     _invalidateInFlightDiscovery();
   }
 
-  /// Clear all discovery results
   void clear() {
     _invalidateInFlightDiscovery();
     state = const UnifiedDiscoveryState();
@@ -308,10 +301,10 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     // connect-triggered rescan clears each stale bucket and re-filters by
     // DriverType, which drops the host's devices and makes the whole list
     // vanish. Collapse to a single bucket so the full remote list is always
-    // merged and rebuilt as one unit. (Mirrors AutoDiscoveryLauncher, which
-    // also short-circuits on isRemoteModeProvider.)
+    // merged and rebuilt as one unit. (The scan at launch is a host start-up
+    // step and never runs on a client.)
     if (_ref.read(isRemoteModeProvider)) {
-      return const [DriverType.native];
+      return const [linkedHostScanBucket];
     }
 
     final backends = <DriverType>[
@@ -333,7 +326,6 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
     return backends;
   }
 
-  /// Discover devices from a specific backend
   Future<_BackendResult> _discoverBackend(
     DriverType backend, {
     String? host,
@@ -426,7 +418,11 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
         error: errors.isEmpty ? null : errors.join('; '),
       );
     } catch (e) {
-      return _BackendResult(backend: backend, devices: [], error: e.toString());
+      return _BackendResult(
+        backend: backend,
+        devices: [],
+        error: userFacingError(e),
+      );
     }
   }
 }
@@ -448,7 +444,6 @@ List<DriverType> discoveryBackendsForPolicy(
       .toList(growable: false);
 }
 
-/// Internal result class for backend discovery
 class _BackendResult {
   final DriverType backend;
   final List<DeviceInfo> devices;
@@ -461,9 +456,6 @@ class _BackendResult {
   });
 }
 
-// Convenience providers for grouped devices by type
-
-/// Provider for unified safety monitors
 final unifiedSafetyMonitorsProvider = Provider<List<UnifiedDevice>>((ref) {
   final discovery = ref.watch(unifiedDiscoveryProvider);
   return discovery.getDevicesByType(DeviceType.safetyMonitor);

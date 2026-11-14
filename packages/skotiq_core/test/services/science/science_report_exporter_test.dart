@@ -5,10 +5,13 @@
 // asserted to contain the section headers and the headline numbers. Any drift —
 // a typo in a section title, a unit swap, a missing field — fails the test.
 
+import 'dart:io';
+
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 SkotiqDatabase _openInMemory() {
   return SkotiqDatabase.forTesting(NativeDatabase.memory());
@@ -186,7 +189,7 @@ void main() {
       ),
     );
 
-    final md = await exporter.buildMarkdown(sessionId, period: period);
+    final md = await exporter.buildMarkdown(sessionId, period: period.finding);
     expect(md, contains('## Period analysis'));
     expect(md, contains('Lomb-Scargle best period:** 0.400000 d'));
     expect(md, contains('FAP 1.20e-5'));
@@ -223,5 +226,45 @@ void main() {
     // The unlabelled forms must not appear: a bare local time is ambiguous.
     expect(md, isNot(contains('- **Started:**')));
     expect(md, isNot(contains('- **Ended:**')));
+  });
+
+  test('the period a client sends reads the same as the one it ran', () async {
+    final finding = PeriodFinding.fromJson(
+      const PeriodFinding(
+        lombScarglePeriodDays: 0.4,
+        peakPower: 0.9,
+        falseAlarmProbability: 1.2e-5,
+        baselineDays: 0.3,
+        searchedMinPeriodDays: 0.05,
+        searchedMaxPeriodDays: 1.6,
+        blsPeriodDays: 0.4001,
+        transitDepthMag: 0.031,
+        transitDurationDays: 0.02,
+        signalDetectionEfficiency: 9.4,
+      ).toJson(),
+    );
+    expect(finding.observedCycles, closeTo(0.75, 1e-9));
+    expect(finding.isPeriodConstrained, isFalse);
+    expect(
+      () => PeriodFinding.fromJson(const {'lombScarglePeriodDays': 'x'}),
+      throwsFormatException,
+    );
+  });
+
+  test('a report is saved into the exports folder', () async {
+    final temp = await Directory.systemTemp.createTemp('skotiq-report-');
+    addTearDown(() => temp.delete(recursive: true));
+    final file = await ScienceReportExporter.save(
+      '# report',
+      12,
+      exports: () async => temp,
+    );
+    expect(file.parent.path, temp.path);
+    expect(
+      file.uri.pathSegments.last,
+      startsWith('science_report_session_12_'),
+    );
+    expect(file.path, endsWith('.md'));
+    expect(await file.readAsString(), '# report');
   });
 }

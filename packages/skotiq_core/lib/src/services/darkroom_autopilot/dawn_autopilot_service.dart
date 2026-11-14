@@ -48,6 +48,7 @@ import '../darkroom_delivery/delivery_artifact.dart';
 import '../darkroom_delivery/delivery_failure.dart';
 import '../darkroom_delivery/delivery_service.dart';
 import '../logging_service.dart';
+import '../wcs/master_wcs.dart';
 import 'darkroom_seam.dart';
 import 'dawn_draft_builder.dart';
 import 'dawn_job_report.dart';
@@ -61,7 +62,6 @@ class DawnJobOutcome {
   /// The `darkroom_jobs.id` this outcome belongs to.
   final int jobId;
 
-  /// The job's final state.
   final DarkroomJobState state;
 
   /// The morning report, or null when the job stopped before one could be
@@ -150,7 +150,7 @@ class DawnAutopilotService {
   final DawnPhotometryResolver _photometry;
   final DeliveryService _delivery;
   final DawnMorningNotifier _notifier;
-  final Future<String> Function() _outputDirectory;
+  final Future<String> Function() _darkroomDirectoryPath;
   final LoggingService? _logger;
 
   /// Where the drafts stage of a session's pass is reported, for the
@@ -220,7 +220,7 @@ class DawnAutopilotService {
     required DawnPhotometryResolver photometry,
     required DeliveryService delivery,
     required DawnMorningNotifier notifier,
-    required Future<String> Function() outputDirectory,
+    required Future<String> Function() darkroomDirectory,
     LoggingService? logger,
     PassReporter? passReporter,
     DateTime Function()? clock,
@@ -234,7 +234,7 @@ class DawnAutopilotService {
        _photometry = photometry,
        _delivery = delivery,
        _notifier = notifier,
-       _outputDirectory = outputDirectory,
+       _darkroomDirectoryPath = darkroomDirectory,
        _logger = logger,
        _passReporter = passReporter,
        _clock = clock ?? DateTime.now;
@@ -555,6 +555,19 @@ class DawnAutopilotService {
         reason: reason ?? 'Canceled before the job started',
         now: _clock(),
       );
+    }
+  }
+
+  /// Ask every pass live over [sessionId] to stop.
+  ///
+  /// Every live job is stopped, not only the newest, so no pass over the
+  /// session runs on to delivery after a Stop.
+  Future<void> cancelLivePassesForSession(
+    int sessionId, {
+    String? reason,
+  }) async {
+    for (final job in await liveJobsForSession(sessionId)) {
+      await requestCancel(job.id!, reason: reason);
     }
   }
 
@@ -1243,19 +1256,7 @@ class DawnAutopilotService {
         ? const DawnPhotometry.unavailable(
             'the master library row is gone, so its astrometry cannot be read',
           )
-        : await _photometry.resolve(
-            master: master,
-            wcs: overlayFromMasterWcs(
-              crval1: row.wcsCrval1,
-              crval2: row.wcsCrval2,
-              crpix1: row.wcsCrpix1,
-              crpix2: row.wcsCrpix2,
-              cd11: row.wcsCd1_1,
-              cd12: row.wcsCd1_2,
-              cd21: row.wcsCd2_1,
-              cd22: row.wcsCd2_2,
-            ),
-          );
+        : await _photometry.resolve(master: master, wcs: row.solvedWcs);
 
     final DawnDraft draft;
     try {
@@ -1415,7 +1416,7 @@ class DawnAutopilotService {
       await _recipes.updateSteps(
         id,
         stepsJson,
-        schemaVersion: kRecipeSchemaVersion,
+        schemaVersion: recipeSchemaVersion,
         now: now,
       );
       await _recipes.rename(id, name, now: now);
@@ -1431,7 +1432,7 @@ class DawnAutopilotService {
       stepsJson: stepsJson,
       createdBy: RecipeAuthor.autopilot,
       draftNotes: _recipeNotes(draftNotes),
-      schemaVersion: kRecipeSchemaVersion,
+      schemaVersion: recipeSchemaVersion,
       createdAt: now,
     );
   }
@@ -1633,19 +1634,7 @@ class DawnAutopilotService {
         'the master library row is gone, so its astrometry cannot be read',
       );
     }
-    return _photometry.resolve(
-      master: master,
-      wcs: overlayFromMasterWcs(
-        crval1: row.wcsCrval1,
-        crval2: row.wcsCrval2,
-        crpix1: row.wcsCrpix1,
-        crpix2: row.wcsCrpix2,
-        cd11: row.wcsCd1_1,
-        cd12: row.wcsCd1_2,
-        cd21: row.wcsCd2_1,
-        cd22: row.wcsCd2_2,
-      ),
-    );
+    return _photometry.resolve(master: master, wcs: row.solvedWcs);
   }
 
   /// The draft's account in the shape the recipe row stores.
@@ -1997,8 +1986,7 @@ class DawnAutopilotService {
 
   /// The directory the job's drafts and report land in, created if absent.
   Future<String> _darkroomDirectory() async {
-    final base = await _outputDirectory();
-    final directory = p.join(base, 'darkroom');
+    final directory = await _darkroomDirectoryPath();
     await Directory(directory).create(recursive: true);
     return directory;
   }

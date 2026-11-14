@@ -33,12 +33,16 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_controller.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
 import 'package:skotiq_app/screens/darkroom/edit/darkroom_editor.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart' show TestBackendNotifier;
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
 
 const String _masterPath = '/tmp/skotiq-test/m31_B.fits';
 
@@ -200,7 +204,7 @@ class _EmptyPhotometry extends DawnPhotometryResolver {
 
   @override
   Future<DawnPhotometry> resolve(
-          {required DawnMaster master, required WcsOverlay? wcs}) async =>
+          {required DawnMaster master, required SolvedWcs? wcs}) async =>
       const DawnPhotometry.unavailable('no catalog stars in this test');
 }
 

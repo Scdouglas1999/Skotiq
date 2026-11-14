@@ -12,7 +12,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/update_handlers.dart';
 import 'package:skotiq_desktop/headless_api/job_manager.dart';
@@ -25,6 +25,10 @@ import 'handler_test_helpers.dart';
 /// Records every call so the test can assert exactly which controller
 /// methods the handler hit and with what arguments.
 class _FakeUpdateController implements UpdateController {
+  /// The handlers use only what is overridden below.
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   final StreamController<UpdateEvent> _events =
       StreamController<UpdateEvent>.broadcast();
 
@@ -697,7 +701,7 @@ void main() {
     test('UpdateAvailable controller event reaches WS broadcast', () async {
       final socket = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}/events'
-        '?token=admin-token&apiVersion=2.6.0',
+        '?token=admin-token',
       );
       final received = <Map<String, dynamic>>[];
       final completer = Completer<Map<String, dynamic>>();

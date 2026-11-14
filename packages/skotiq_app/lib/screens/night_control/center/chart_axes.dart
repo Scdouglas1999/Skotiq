@@ -8,10 +8,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../data/session/session_format.dart';
-import 'center_format.dart';
 
 /// The axis label style: 9 px mono, line height 1.
 TextStyle nightAxisStyle(BuildContext context) =>
@@ -20,81 +20,6 @@ TextStyle nightAxisStyle(BuildContext context) =>
       height: 1,
       color: context.skotiqColors.textMuted,
     );
-
-/// Up to [maxTicks] round values inside [lo]..[hi]: the largest round step
-/// that leaves at least two of them, thinned to the outermost when there are
-/// more than [maxTicks], else just the two ends.
-@visibleForTesting
-List<double> nightAxisTicks(double lo, double hi, int maxTicks) {
-  if (!(hi > lo) || !lo.isFinite || !hi.isFinite) return <double>[lo];
-  List<double> inside(double step) => <double>[
-        for (var v = (lo / step - 1e-9).ceil() * step;
-            v <= hi + step * 1e-9;
-            v += step)
-          // Snap away float noise such as 0.30000000000000004 and -0.0.
-          _snap(v, step),
-      ];
-
-  final exponent = (math.log(hi - lo) / math.ln10).floor();
-  // Steps from coarse to fine; the finest that still fits [maxTicks] wins.
-  var best = const <double>[];
-  for (var e = exponent; e >= exponent - 3; e--) {
-    for (final mantissa in const <double>[5, 2.5, 2, 1]) {
-      final step = mantissa * math.pow(10, e).toDouble();
-      final ticks = inside(step);
-      if (ticks.length <= maxTicks) {
-        if (ticks.length > best.length) best = ticks;
-        continue;
-      }
-      if (best.length >= 2) return best;
-      // Too many and nothing coarser had two: evenly spaced, both ends
-      // kept, so ±1 rather than −1, 0, 1 when only two fit.
-      final last = ticks.length - 1;
-      return <double>[
-        for (var i = 0; i < maxTicks; i++)
-          ticks[(i * last / math.max(1, maxTicks - 1)).round()],
-      ];
-    }
-  }
-  return best.length >= 2 ? best : <double>[lo, hi];
-}
-
-double _snap(double v, double step) {
-  final snapped = (v / step).round() * step;
-  final decimals = nightAxisDecimals(step);
-  final fixed = double.parse(snapped.toStringAsFixed(decimals));
-  return fixed == 0 ? 0 : fixed;
-}
-
-/// Decimals that show a step of [step] exactly (at most 3).
-@visibleForTesting
-int nightAxisDecimals(double step) {
-  for (var d = 0; d < 3; d++) {
-    final scaled = step * math.pow(10, d);
-    if ((scaled - scaled.roundToDouble()).abs() < 1e-6) return d;
-  }
-  return 3;
-}
-
-/// Clock ticks between [from] and [to] on a round minute step, as many as
-/// [maxLabels] allows.
-@visibleForTesting
-List<DateTime> nightTimeTicks(DateTime from, DateTime to, int maxLabels) {
-  final span = to.difference(from).inMinutes;
-  if (span <= 0 || maxLabels <= 0) return const <DateTime>[];
-  for (final step in const <int>[1, 2, 5, 10, 15, 30, 60, 120, 180, 240]) {
-    if (span / step > maxLabels + 1) continue;
-    final startOfDay = DateTime(from.year, from.month, from.day);
-    final minutesIn = from.difference(startOfDay).inMinutes;
-    var t = startOfDay.add(Duration(minutes: (minutesIn ~/ step + 1) * step));
-    final ticks = <DateTime>[];
-    for (; !t.isAfter(to); t = t.add(Duration(minutes: step))) {
-      ticks.add(t);
-    }
-    if (ticks.length <= maxLabels) return ticks;
-  }
-  return const <DateTime>[];
-}
 
 /// A series chart with its value scales, clock scale and gridlines.
 class NightChartAxes extends StatelessWidget {
@@ -175,11 +100,12 @@ class NightChartAxes extends StatelessWidget {
         final range = painter.valueRange(axis);
         if (range == null) return const <(double, String)>[];
         final fixed = axis == SeriesChartAxis.left ? leftTicks : null;
-        final ticks = fixed ?? nightAxisTicks(range.$1, range.$2, maxTicks);
+        final ticks = fixed ??
+            ChartScale.ticksWithin(range.$1, range.$2, maxTicks).values;
         // A round step shows exactly; the two-end fallback shows to 0.01.
         final decimals = ticks.length < 2
             ? 1
-            : math.min(nightAxisDecimals(ticks[1] - ticks[0]), 2);
+            : math.min(ChartScale.decimalsFor(ticks[1] - ticks[0]), 2);
         return <(double, String)>[
           for (final t in ticks) (t, format(t, decimals)),
         ];
@@ -213,15 +139,12 @@ class NightChartAxes extends StatelessWidget {
       final leftWidth = widest(left);
       final rightWidth = widest(right);
       final plotWidth = constraints.maxWidth - leftWidth - rightWidth;
-      final range = painter.timeRange;
       final clockWidth = widest(const <(double, String)>[(0, '00:00')]) + 6;
-      final timeTicks = range == null || plotWidth <= 0
-          ? const <DateTime>[]
-          : nightTimeTicks(
-              DateTime.fromMillisecondsSinceEpoch(range.$1),
-              DateTime.fromMillisecondsSinceEpoch(range.$2),
-              (plotWidth / clockWidth).floor(),
-            );
+      final timeTicks = nightClockTicks(
+        painter: painter,
+        width: plotWidth,
+        labelWidth: clockWidth,
+      );
 
       // Labels closer than a line apart: keep the outer ones.
       // Each label with the y it sits at, in chart order.
@@ -332,6 +255,53 @@ class NightChartAxes extends StatelessWidget {
   }
 }
 
+/// Clock ticks on a round step whose labels, [labelWidth] wide and centered
+/// on their ticks (the outer ones held inside [width]), all fit side by side.
+///
+/// Counting labels by width alone let the first label, pushed right to stay
+/// inside the scale, cover the second, and the scale read 02:00, 06:00, 08:00.
+@visibleForTesting
+List<DateTime> nightClockTicks({
+  required SeriesChartPainter painter,
+  required double width,
+  required double labelWidth,
+}) {
+  final range = painter.timeRange;
+  if (range == null || width <= 0) return const <DateTime>[];
+  for (var most = (width / labelWidth).floor(); most > 0; most--) {
+    final ticks = ChartScale.clockTicks(
+      DateTime.fromMillisecondsSinceEpoch(range.$1),
+      DateTime.fromMillisecondsSinceEpoch(range.$2),
+      most,
+    );
+    if (_labelLefts(painter, ticks, width, labelWidth).length == ticks.length) {
+      return ticks;
+    }
+  }
+  return const <DateTime>[];
+}
+
+/// Where each label of [ticks] starts, leaving out a label that would cover
+/// the one before it.
+List<(DateTime, double)> _labelLefts(
+  SeriesChartPainter painter,
+  List<DateTime> ticks,
+  double width,
+  double labelWidth,
+) {
+  final out = <(DateTime, double)>[];
+  var lastRight = double.negativeInfinity;
+  for (final t in ticks) {
+    final x = painter.xOf(t, width);
+    if (x == null) continue;
+    final left = (x - labelWidth / 2).clamp(0.0, width - labelWidth);
+    if (left < lastRight) continue;
+    lastRight = left + labelWidth;
+    out.add((t, left));
+  }
+  return out;
+}
+
 class _TimeScale extends StatelessWidget {
   const _TimeScale({
     required this.painter,
@@ -350,20 +320,14 @@ class _TimeScale extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final labels = <Widget>[];
-    var lastRight = double.negativeInfinity;
-    for (final t in ticks) {
-      final x = painter.xOf(t, width);
-      if (x == null) continue;
-      final left = (x - labelWidth / 2).clamp(0.0, width - labelWidth);
-      if (left < lastRight) continue;
-      lastRight = left + labelWidth;
+    for (final (t, left) in _labelLefts(painter, ticks, width, labelWidth)) {
       labels.add(
         Positioned(
           left: left,
           top: 3,
           width: labelWidth,
           child: Text(
-            nightClockHm(t),
+            ClockFormat.hm(t),
             style: style,
             maxLines: 1,
             softWrap: false,
@@ -462,7 +426,6 @@ class NightChartStrips extends StatelessWidget {
   final DateTime? from;
   final DateTime? to;
 
-  /// The space between two bands.
   static const double gap = 4;
 
   @override
@@ -516,13 +479,13 @@ class NightChartStrips extends StatelessWidget {
           continue;
         }
         final maxTicks = bandHeight >= labelHeight * 5 ? 3 : 2;
-        var ticks = nightAxisTicks(range.$1, range.$2, maxTicks);
+        var ticks = ChartScale.ticksWithin(range.$1, range.$2, maxTicks).values;
         if (bandHeight < labelHeight * 1.5 && ticks.length > 1) {
           ticks = <double>[ticks.last];
         }
         final decimals = ticks.length < 2
             ? 1
-            : math.min(nightAxisDecimals(ticks[1] - ticks[0]), 2);
+            : math.min(ChartScale.decimalsFor(ticks[1] - ticks[0]), 2);
         final strip = strips[i];
         final kept = <(double, String)>[];
         double? lastY;
@@ -554,15 +517,12 @@ class NightChartStrips extends StatelessWidget {
         rightWidth = rightWidth == 0 ? 0 : rightWidth.ceilToDouble() + 4;
       }
       final plotWidth = constraints.maxWidth - leftWidth - rightWidth;
-      final range = painters.last.timeRange;
       final clockWidth = textWidth('00:00', style).ceilToDouble() + 9;
-      final timeTicks = range == null || plotWidth <= 0
-          ? const <DateTime>[]
-          : nightTimeTicks(
-              DateTime.fromMillisecondsSinceEpoch(range.$1),
-              DateTime.fromMillisecondsSinceEpoch(range.$2),
-              (plotWidth / clockWidth).floor(),
-            );
+      final timeTicks = nightClockTicks(
+        painter: painters.last,
+        width: plotWidth,
+        labelWidth: clockWidth,
+      );
 
       Widget band(int i) {
         final strip = strips[i];

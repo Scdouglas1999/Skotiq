@@ -1,51 +1,5 @@
 part of '../science_analytics_tab.dart';
 
-/// Export the Science tab's shortcut report without ever reading a remote
-/// controller's empty local database. The local path preserves the existing
-/// Markdown exporter; a remote client downloads the host-generated PDF and
-/// stores a copy in its own exports directory.
-///
-/// [period] is the period search the operator ran on this tab. It is UI state,
-/// never a stored product, so it has to travel with the export request: with it
-/// omitted the report's "Period analysis" section says "Not run for this
-/// session" while the panel two inches above the button is showing the result.
-Future<File> exportScienceShortcutReport({
-  required SkotiqBackend backend,
-  required int sessionId,
-  required ScienceReportExporter localExporter,
-  PeriodAnalysisResult? period,
-  Future<Directory> Function()? documentsDirectoryProvider,
-  DateTime? generatedAt,
-}) async {
-  if (backend is! NetworkBackend) {
-    return localExporter.exportToDisk(sessionId, period: period);
-  }
-
-  final bytes = await backend.generateObservationReport(sessionId);
-  if (bytes.isEmpty) {
-    throw StateError('The imaging host returned an empty science report.');
-  }
-  final documents =
-      await (documentsDirectoryProvider ?? resolveSkotiqDocumentsDirectory)();
-  final exportDirectory = Directory(
-    path.join(documents.path, 'Skotiq', 'exports'),
-  );
-  await exportDirectory.create(recursive: true);
-  final timestamp = (generatedAt ?? DateTime.now())
-      .toIso8601String()
-      .replaceAll(':', '-')
-      .split('.')
-      .first;
-  final file = File(
-    path.join(
-      exportDirectory.path,
-      'science_report_session_${sessionId}_$timestamp.pdf',
-    ),
-  );
-  await file.writeAsBytes(bytes, flush: true);
-  return file;
-}
-
 /// Inline export button that routes to the consolidated [ScienceExportHub]
 /// pre-selected to a specific dataset, so there is one canonical export
 /// surface rather than a CSV writer per card.
@@ -158,22 +112,16 @@ class _ScienceJumpNav extends ConsumerWidget {
   Future<void> _exportReport(
       BuildContext context, WidgetRef ref, int sessionId) async {
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Generating science report…'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
+    messenger.showInfoSnackBar(
+      'Generating science report…',
+      duration: Duration(seconds: 2),
     );
     try {
-      final backend = ref.read(backendProvider);
-      final exporter = ref.read(scienceReportExporterProvider);
-      final file = await exportScienceShortcutReport(
-        backend: backend,
-        sessionId: sessionId,
-        localExporter: exporter,
-        period: ref.read(periodAnalysisProvider).result,
-      );
+      final folders = ref.read(localFoldersProvider);
+      final file = await ref.read(analyticsExportsProvider).scienceReport(
+            sessionId,
+            period: ref.read(periodAnalysisProvider).result?.finding,
+          );
       if (!context.mounted) return;
       messenger.clearSnackBars();
       // On mobile the app-docs file is unreachable and "Open folder"
@@ -185,40 +133,23 @@ class _ScienceJumpNav extends ConsumerWidget {
           subject: 'Skotiq science report',
         );
       } else {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Saved to ${file.path}'),
-            action: SnackBarAction(
-              label: 'Open folder',
-              onPressed: () async {
-                final dir = file.parent.path;
-                await _openInShell(dir);
-              },
-            ),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 6),
+        messenger.showInfoSnackBar(
+          'Saved to ${file.path}',
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'Open folder',
+            onPressed: () async {
+              if (context.mounted) {
+                await folders.reveal(context, file.parent.path);
+              }
+            },
           ),
         );
       }
     } catch (e) {
       if (!context.mounted) return;
       messenger.clearSnackBars();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Export failed: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  Future<void> _openInShell(String path) async {
-    if (Platform.isWindows) {
-      await Process.start('explorer', [path], runInShell: true);
-    } else if (Platform.isMacOS) {
-      await Process.start('open', [path], runInShell: true);
-    } else if (Platform.isLinux) {
-      await Process.start('xdg-open', [path], runInShell: true);
+      messenger.showErrorSnackBar('Export failed: ${userFacingError(e)}');
     }
   }
 }

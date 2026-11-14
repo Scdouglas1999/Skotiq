@@ -3,7 +3,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 class _Science extends Mock implements ScienceBackend {}
 
@@ -29,7 +32,7 @@ void main() {
       final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       final science = _Science();
       final published = <int>[];
-      final repo = ImagingRecordsRepository.local(
+      final repo = LocalImagingRecords(
         sessionsDao: db.sessionsDao,
         imagesDao: db.imagesDao,
         onSolvedFrameFold: (id) async {
@@ -40,7 +43,7 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(db),
           scienceSettingsProvider.overrideWith(_Settings.new),
-          imagingRecordsRepositoryProvider.overrideWithValue(repo),
+          imagingRecordsProvider.overrideWithValue(repo),
           scienceBackendProvider.overrideWithValue(science),
         ],
       );

@@ -1,6 +1,6 @@
 import '../../database/daos/flat_history_dao.dart';
 import '../../models/calibration/dark_library_match_tolerances.dart';
-import '../../providers/profiles_provider.dart' show EquipmentProfileModel;
+import '../../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import '../dark_library_coverage_service.dart';
 import '../dark_library_service.dart';
 import '../session_optimizer_service.dart' show SmartNightExposureContext;
@@ -23,6 +23,7 @@ class SmartNightDarkLibraryCoverage {
   /// requirements (e.g. to opt in to auto-scheduling dark capture).
   Future<List<String>> missingNotes({
     required EquipmentProfileModel profile,
+    required List<String> availableFilters,
     required SmartNightStrategy strategy,
     required SmartNightSettings settings,
     required SmartNightExposureContext exposureContext,
@@ -31,6 +32,7 @@ class SmartNightDarkLibraryCoverage {
   }) async {
     final result = await missing(
       profile: profile,
+      availableFilters: availableFilters,
       strategy: strategy,
       settings: settings,
       exposureContext: exposureContext,
@@ -43,8 +45,11 @@ class SmartNightDarkLibraryCoverage {
   /// Compute both the structured [DarkFrameRequirement]s missing from
   /// the library AND the human-readable note strings, sharing the same
   /// underlying coverage evaluation so the two views never disagree.
+  ///
+  /// [availableFilters] is the rig's filter list (`effectiveFiltersProvider`).
   Future<SmartNightDarkLibraryMissing> missing({
     required EquipmentProfileModel profile,
+    required List<String> availableFilters,
     required SmartNightStrategy strategy,
     required SmartNightSettings settings,
     required SmartNightExposureContext exposureContext,
@@ -53,7 +58,7 @@ class SmartNightDarkLibraryCoverage {
   }) async {
     final filters = resolveSmartNightFilterSet(
       strategy: strategy,
-      availableFilters: profile.filterNames,
+      availableFilters: availableFilters,
     );
     if (filters.isEmpty) return const SmartNightDarkLibraryMissing.empty();
 

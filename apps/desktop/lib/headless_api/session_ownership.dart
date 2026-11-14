@@ -15,7 +15,7 @@
 
 import 'dart:async';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Snapshot of the current operator. Immutable; manager rebuilds a new
 /// snapshot on every claim/release/heartbeat.
@@ -312,100 +312,3 @@ class SessionOwnershipManager {
     _emitEvent(event);
   }
 }
-
-/// Resolve whether [path] (without query string) is a destructive endpoint
-/// that requires session ownership.
-///
-/// The rule: a POST that commands hardware or run state requires ownership;
-/// status, equipment-detail, profile, history and analytics endpoints stay
-/// open to viewers because they touch nothing. The enrolled paths are
-/// [_ownershipRequiredPaths].
-bool isOwnershipRequired({required String method, required String path}) {
-  if (method.toUpperCase() != 'POST') return false;
-  return _ownershipRequiredPaths.contains(path);
-}
-
-const Set<String> _ownershipRequiredPaths = {
-  // Sequencer execution control
-  '/api/sequencer/start',
-  '/api/night/scheduled-start',
-  '/api/night/scheduled-start/cancel',
-  '/api/sequencer/stop',
-  '/api/sequencer/pause',
-  '/api/sequencer/resume',
-  '/api/sequencer/request-meridian-flip',
-  '/api/sequencer/skip',
-  '/api/sequencer/skip-to-node',
-  '/api/sequencer/reset',
-  // Mount
-  '/api/mount/slew',
-  '/api/mount/slew-alt-az',
-  '/api/mount/sync',
-  '/api/mount/park',
-  '/api/mount/unpark',
-  '/api/mount/abort',
-  '/api/mount/home',
-  '/api/mount/find-home',
-  '/api/mount/set-park',
-  '/api/mount/move-axis',
-  '/api/mount/pulse-guide',
-  '/api/mount/set-tracking-rate',
-  '/api/mount/tracking',
-  // Dome
-  '/api/dome/open',
-  '/api/dome/close',
-  '/api/dome/slew',
-  '/api/dome/sync',
-  '/api/dome/park',
-  '/api/dome/home',
-  '/api/dome/halt',
-  // Camera
-  '/api/camera/expose',
-  '/api/camera/abort',
-  '/api/camera/cooling',
-  '/api/camera/warm-up',
-  '/api/camera/warm-up/cancel',
-  '/api/camera/readoutMode',
-  '/api/camera/gain',
-  '/api/camera/offset',
-  // Focuser
-  '/api/focuser/move-to',
-  '/api/focuser/move-relative',
-  '/api/focuser/halt',
-  '/api/focuser/autofocus/start',
-  '/api/focuser/autofocus/cancel',
-  // Filter wheel
-  '/api/filter-wheel/position',
-  '/api/filter-wheel/names',
-  '/api/filter-wheel/set-by-name',
-  // Rotator
-  '/api/rotator/move-to',
-  '/api/rotator/move-relative',
-  '/api/rotator/halt',
-  '/api/rotator/sync',
-  // Plate solve + framing
-  '/api/plate-solve',
-  '/api/framing/slew-to-target',
-  '/api/framing/center-on-target',
-  '/api/framing/sync',
-  '/api/framing/rotate-to',
-  '/api/framing/abort-slew',
-  '/api/framing/park',
-  '/api/framing/unpark',
-  // Planetarium mount control (real hardware motion, same as the mount /
-  // framing slew endpoints)
-  '/api/planetarium/slew-to',
-  '/api/planetarium/sync-to',
-  '/api/planetarium/center-on',
-  // Polar alignment
-  '/api/polar-alignment/start',
-  '/api/polar-alignment/all-sky/start',
-  '/api/polar-alignment/stop',
-  // Cover / calibrator / switch
-  '/api/cover/open',
-  '/api/cover/close',
-  '/api/cover/brightness',
-  '/api/cover/calibrator-on',
-  '/api/cover/calibrator-off',
-  '/api/switch/set',
-};

@@ -2,11 +2,13 @@
 //!
 //! Provides network scanning for INDI servers and device enumeration.
 
-use crate::{IndiClient, IndiProperty, INDI_DEFAULT_PORT};
+use crate::{IndiClient, INDI_DEFAULT_PORT};
 use if_addrs::get_if_addrs;
 use mdns_sd::{ServiceDaemon, ServiceEvent};
+use skotiq_device::DeviceKind;
 use std::collections::HashSet;
 use std::time::Duration;
+use tokio::sync::RwLock;
 
 /// Discovered INDI server information
 #[derive(Debug, Clone)]
@@ -16,28 +18,71 @@ pub struct IndiServer {
     pub devices: Vec<IndiDeviceInfo>,
 }
 
-/// Discovered INDI device information
+/// A device on an INDI server that Skotiq drives.
 #[derive(Debug, Clone)]
 pub struct IndiDeviceInfo {
     pub name: String,
-    pub device_type: IndiDeviceType,
-    pub properties: Vec<String>,
+    pub kind: DeviceKind,
 }
 
-/// INDI device type (inferred from properties)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum IndiDeviceType {
-    Camera,
-    Telescope,
-    Focuser,
-    FilterWheel,
-    Dome,
-    Rotator,
-    Guider,
-    Weather,
-    SafetyMonitor,
-    CoverCalibrator,
-    Unknown,
+/// How long the definitions must stop changing before a server counts as
+/// having announced all its devices. INDI has no end-of-definitions message.
+const DEFINITIONS_QUIET: Duration = Duration::from_millis(300);
+
+/// Waits up to `limit` for a server's device definitions: until every device
+/// announced so far has a settled kind and no device or property was added
+/// for [`DEFINITIONS_QUIET`].
+///
+/// A server announces a device's name before its properties, and a classifier
+/// that ran at the first name would see only the CONNECTION switch.
+pub async fn wait_for_definitions(client: &RwLock<IndiClient>, limit: Duration) {
+    let start = tokio::time::Instant::now();
+    let mut last_count = None;
+    let mut quiet_since = start;
+    loop {
+        let (count, settled) = {
+            let client = client.read().await;
+            let devices = client.get_devices().await;
+            let mut count = devices.len();
+            let mut settled = !devices.is_empty();
+            for device in &devices {
+                let description = client.describe_device(&device.name).await;
+                count += description.properties.len();
+                settled &= description.is_settled();
+            }
+            (count, settled)
+        };
+        let now = tokio::time::Instant::now();
+        if last_count != Some(count) {
+            last_count = Some(count);
+            quiet_since = now;
+        }
+        if (settled && now - quiet_since >= DEFINITIONS_QUIET) || now - start >= limit {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// The devices `client` knows of that Skotiq drives, each with its kind.
+/// Devices of no kind Skotiq drives are logged and left out.
+pub async fn list_devices(client: &IndiClient) -> Vec<IndiDeviceInfo> {
+    let mut out = Vec::new();
+    for device in client.get_devices().await {
+        let description = client.describe_device(&device.name).await;
+        match description.kind() {
+            Some(kind) => out.push(IndiDeviceInfo {
+                name: device.name,
+                kind,
+            }),
+            None => tracing::warn!(
+                "Skipping INDI device '{}' of a kind Skotiq does not drive (interface {:?})",
+                device.name,
+                description.interface
+            ),
+        }
+    }
+    out
 }
 
 /// Scan localhost for INDI server on default port
@@ -53,38 +98,20 @@ pub async fn discover_server(host: &str, port: u16) -> Option<IndiServer> {
         return None;
     }
 
-    // Server is listening, try to connect and enumerate devices
     let mut client = IndiClient::new(host, Some(port));
     if client.connect().await.is_err() {
         return None;
     }
-
-    // Wait a short time for device definitions to come in
-    tokio::time::sleep(Duration::from_millis(1500)).await;
-
-    // Get discovered devices
-    let devices = client.get_devices().await;
-    let mut device_infos = Vec::new();
-
-    for device in devices {
-        let properties = client.get_properties(&device.name).await;
-        let device_type = infer_device_type(&properties);
-        let property_names: Vec<String> = properties.iter().map(|p| p.name.clone()).collect();
-
-        device_infos.push(IndiDeviceInfo {
-            name: device.name,
-            device_type,
-            properties: property_names,
-        });
-    }
-
-    // Disconnect
+    let client = RwLock::new(client);
+    wait_for_definitions(&client, Duration::from_secs(5)).await;
+    let mut client = client.into_inner();
+    let devices = list_devices(&client).await;
     let _ = client.disconnect().await;
 
     Some(IndiServer {
         host: host.to_string(),
         port,
-        devices: device_infos,
+        devices,
     })
 }
 
@@ -92,7 +119,6 @@ pub async fn discover_server(host: &str, port: u16) -> Option<IndiServer> {
 pub async fn discover_common_hosts() -> Vec<IndiServer> {
     let mut servers = Vec::new();
 
-    // Common hosts to check
     let hosts = vec![
         "127.0.0.1",
         "localhost",
@@ -116,7 +142,6 @@ pub async fn discover_common_hosts() -> Vec<IndiServer> {
 pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
     let mut discovered_servers = Vec::new();
 
-    // Create mDNS service daemon
     let mdns = match ServiceDaemon::new() {
         Ok(d) => d,
         Err(e) => {
@@ -131,7 +156,6 @@ pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
     // Service type for INDI servers
     let service_type = "_indi._tcp.local.";
 
-    // Browse for INDI services
     let receiver = match mdns.browse(service_type) {
         Ok(r) => r,
         Err(e) => {
@@ -148,7 +172,6 @@ pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
     let start = std::time::Instant::now();
     let mut discovered_addresses = std::collections::HashSet::new();
 
-    // Listen for mDNS responses
     while start.elapsed() < timeout {
         let remaining = timeout - start.elapsed();
 
@@ -166,7 +189,6 @@ pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
                     ServiceEvent::ServiceResolved(info) => {
                         tracing::debug!("mDNS service resolved: {:?}", info);
 
-                        // Extract host and port
                         let _host = info.get_hostname().to_string();
                         let port = info.get_port();
 
@@ -175,7 +197,6 @@ pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
                             let host_ip = addr.to_string();
                             let key = format!("{}:{}", host_ip, port);
 
-                            // Avoid duplicates
                             if !discovered_addresses.contains(&key) {
                                 discovered_addresses.insert(key);
 
@@ -224,7 +245,6 @@ pub async fn discover_mdns(timeout: Duration) -> Vec<IndiServer> {
         }
     }
 
-    // Shutdown mDNS daemon
     if let Err(e) = mdns.shutdown() {
         tracing::warn!("Failed to shutdown mDNS daemon: {}", e);
     }
@@ -274,7 +294,6 @@ pub async fn discover_local_network(timeout: Duration) -> Vec<IndiServer> {
             }
         }
 
-        // Process remaining handles
         for handle in handles {
             if let Ok(Some(server)) = handle.await {
                 servers.push(server);
@@ -285,7 +304,6 @@ pub async fn discover_local_network(timeout: Duration) -> Vec<IndiServer> {
     servers
 }
 
-/// Quick TCP port check
 async fn check_port_open(addr: &str, timeout: Duration) -> bool {
     tokio::time::timeout(timeout, tokio::net::TcpStream::connect(addr))
         .await
@@ -296,103 +314,6 @@ async fn check_port_open(addr: &str, timeout: Duration) -> bool {
         // are both legitimate "not open" outcomes; treating them as `false` is the
         // intended behavior and the entire scanner is best-effort.
         .unwrap_or(false)
-}
-
-/// Infer device type from its properties
-fn infer_device_type(properties: &[IndiProperty]) -> IndiDeviceType {
-    let prop_names: Vec<&str> = properties.iter().map(|p| p.name.as_str()).collect();
-
-    // Check for camera-specific properties
-    if prop_names
-        .iter()
-        .any(|p| *p == "CCD_EXPOSURE" || *p == "CCD_INFO" || *p == "CCD_FRAME" || *p == "CCD1")
-    {
-        return IndiDeviceType::Camera;
-    }
-
-    // Check for mount/telescope properties
-    if prop_names.iter().any(|p| {
-        *p == "EQUATORIAL_EOD_COORD"
-            || *p == "ON_COORD_SET"
-            || *p == "TELESCOPE_TRACK_MODE"
-            || *p == "TELESCOPE_MOTION_NS"
-    }) {
-        return IndiDeviceType::Telescope;
-    }
-
-    // Check for focuser properties
-    if prop_names
-        .iter()
-        .any(|p| *p == "ABS_FOCUS_POSITION" || *p == "REL_FOCUS_POSITION" || *p == "FOCUS_MOTION")
-    {
-        return IndiDeviceType::Focuser;
-    }
-
-    // Check for filter wheel properties
-    if prop_names
-        .iter()
-        .any(|p| *p == "FILTER_SLOT" || *p == "FILTER_NAME")
-    {
-        return IndiDeviceType::FilterWheel;
-    }
-
-    // Check for dome properties
-    if prop_names
-        .iter()
-        .any(|p| *p == "DOME_SHUTTER" || *p == "DOME_MOTION" || *p == "ABS_DOME_POSITION")
-    {
-        return IndiDeviceType::Dome;
-    }
-
-    // Check for rotator properties
-    if prop_names
-        .iter()
-        .any(|p| *p == "ABS_ROTATOR_ANGLE" || *p == "ROTATOR_ANGLE")
-    {
-        return IndiDeviceType::Rotator;
-    }
-
-    // Check for guider properties
-    if prop_names
-        .iter()
-        .any(|p| *p == "TELESCOPE_TIMED_GUIDE_NS" || *p == "TELESCOPE_TIMED_GUIDE_WE")
-    {
-        return IndiDeviceType::Guider;
-    }
-
-    // Check for safety monitor properties (before weather since safety may include weather)
-    if prop_names
-        .iter()
-        .any(|p| *p == "SAFETY_STATUS" || *p == "AUX_SAFETY")
-    {
-        return IndiDeviceType::SafetyMonitor;
-    }
-
-    // Check for weather properties
-    if prop_names
-        .iter()
-        .any(|p| *p == "WEATHER_STATUS" || *p == "WEATHER_PARAMETERS")
-    {
-        // Weather devices with safety status are primarily safety monitors
-        if prop_names.iter().any(|p| p.contains("SAFE")) {
-            return IndiDeviceType::SafetyMonitor;
-        }
-        return IndiDeviceType::Weather;
-    }
-
-    // Check for cover calibrator / flat panel properties
-    // INDI uses: CAP_PARK (dust cap), FLAT_LIGHT_CONTROL, FLAT_LIGHT_INTENSITY
-    if prop_names.iter().any(|p| {
-        *p == "CAP_PARK"
-            || *p == "FLAT_LIGHT_CONTROL"
-            || *p == "FLAT_LIGHT_INTENSITY"
-            || *p == "DUSTCAP_CONTROL"
-            || *p == "LIGHTBOX_BRIGHTNESS"
-    }) {
-        return IndiDeviceType::CoverCalibrator;
-    }
-
-    IndiDeviceType::Unknown
 }
 
 /// Get local subnet prefixes (first 3 octets of local IPs)
@@ -415,16 +336,4 @@ fn get_local_subnets() -> Vec<(u8, u8, u8)> {
     let mut subnets: Vec<_> = subnets.into_iter().collect();
     subnets.sort_unstable();
     subnets
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_discover_localhost() {
-        // This test only passes if an INDI server is running locally
-        let result = discover_localhost().await;
-        println!("Localhost discovery result: {:?}", result);
-    }
 }

@@ -67,7 +67,6 @@ class _SessionHeaderAction {
   /// only exists while the menu is open.
   final Key? buttonKey;
 
-  /// True when the action can run on this machine.
   bool get available => unavailableReason == null;
 }
 
@@ -90,7 +89,7 @@ class _SessionGrading {
     var accepted = 0;
     var rejected = 0;
     for (final image in images) {
-      if (image.frameType != 'light') continue;
+      if (!image.isLight) continue;
       if (image.isAccepted) {
         accepted++;
       } else {
@@ -101,7 +100,6 @@ class _SessionGrading {
   }
 }
 
-/// Gap between two of the detail dialog's [Readout]s.
 const double _dialogStatGap = 24;
 
 class _SessionDetailDialog extends ConsumerStatefulWidget {
@@ -147,12 +145,12 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final imagesAsyncValue = ref.watch(dbSessionImagesProvider(session.id));
-    // The client ROLE, not the connection. `backend is NetworkBackend` is a
+    // The client ROLE, not the connection. `backend.remoteHost != null` is a
     // CONNECTION fact: a desktop launched with `--remote-host` that has not
     // reached its rig is `Disconnected`, so that test read false for the whole
     // pre-handshake window and after every drop — and during exactly that
     // window this dialog kept its host-capable labels, "Refine in Darkroom"
-    // explained itself only after the press, and "Review & integrate" did not
+    // explained itself only after the press, and "Session review" did not
     // refuse at all: it popped the dialog and landed the operator on the
     // Session Review host-only wall. Both actions ask the same question every
     // other Darkroom entry point asks, in the words
@@ -189,7 +187,6 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
               decoration: BoxDecoration(
@@ -230,8 +227,8 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              DateFormat('MMM d, yyyy HH:mm')
-                                  .format(session.startTime),
+                              ClockFormat.monthDayYearHm(
+                                  session.startTime.toLocal()),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: SkotiqTypography.bodySm.copyWith(
@@ -284,22 +281,18 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
                 ),
               ),
 
-            // Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Statistics
                     _buildStatisticsSection(
                       context,
                       colors,
                       imagesAsyncValue,
                     ),
                     const SizedBox(height: SkotiqTokens.spaceLg),
-
-                    // Images
                     imagesAsyncValue.when(
                       data: (images) =>
                           _buildImagesSection(context, colors, images),
@@ -308,7 +301,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
                       ),
                       error: (err, stack) => _AnalyticsError(
                         title: 'Frames did not load',
-                        message: err.toString(),
+                        error: err,
                       ),
                     ),
                   ],
@@ -334,17 +327,15 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     required SkotiqLocalizations l10n,
   }) {
     return [
-      // Open the Session Review / Morning Report (cull + integrate).
       _SessionHeaderAction(
         buttonKey: const ValueKey('session_detail_review'),
         icon: LucideIcons.sparkles,
-        label: reviewRefusal == null
-            ? 'Review & integrate'
-            : 'Review on imaging host',
+        label:
+            reviewRefusal == null ? 'Session review' : 'Review on imaging host',
         unavailableReason: reviewRefusal,
         onPressed: () {
           Navigator.of(context).pop();
-          context.push('/session-review?session=${session.id}');
+          context.push(AppRoutes.sessionReviewOfSession(session.id));
         },
       ),
       // Open the night's linear master in the Darkroom. Both refusals are
@@ -385,13 +376,11 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
           openDarkroomForMaster(context, masterId);
         },
       ),
-      // View the rich Feature-A session report.
       _SessionHeaderAction(
         icon: LucideIcons.fileBarChart,
         label: 'Session report',
         onPressed: () => SessionReportDialog.show(context, session.id),
       ),
-      // Export buttons
       _SessionHeaderAction(
         icon: LucideIcons.fileJson,
         label: l10n.text('analyticsExportJson'),
@@ -589,8 +578,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
             ),
             _buildStat(
               l10n.text('analyticsIntegration'),
-              (session.totalIntegrationSecs / 3600).toStringAsFixed(2),
-              unit: 'h',
+              DurationFormat.decimalHours(session.totalIntegrationSecs),
             ),
             _buildStat(
               l10n.text('analyticsAvgHfr'),
@@ -622,9 +610,6 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     );
   }
 
-  /// One of the night's numbers. A [Readout], so the value leads and the label
-  /// sits under it in 11 px muted caps — the pair used to be the other way up,
-  /// with the label above a `h5` value.
   Widget _buildStat(String label, String? value, {String? unit}) {
     return Readout(label: label, value: value, unit: unit);
   }
@@ -634,9 +619,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     SkotiqColors colors,
     List<DbCapturedImage> images,
   ) {
-    final lightCount = images
-        .where((image) => image.frameType.toLowerCase() == 'light')
-        .length;
+    final lightCount = images.where((image) => image.isLight).length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -668,144 +651,55 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
     );
   }
 
-  Future<void> _exportJson(BuildContext context, WidgetRef ref) async {
-    try {
-      final backend = ref.read(backendProvider);
-      if (backend is NetworkBackend) {
-        final filePath = await _saveRemoteExport(backend, session.id, 'json');
-        if (context.mounted) {
-          await revealExportedFile(
-            context,
-            filePath,
-            subject: 'Skotiq session data',
-          );
-        }
-        return;
-      }
-      final clock = ref.read(clockProvider);
-      final exportService = SessionExportService(
-        sessionsDao: ref.read(sessionsDaoProvider),
-        imagesDao: ref.read(imagesDaoProvider),
-        nowProvider: clock.now,
-      );
-
-      // The export lands in resolveSkotiqDocumentsDirectory(), which is the
-      // private sandbox on Android/iOS — an "Exported to: <path>" line there
-      // names a file the user cannot open, so hand it to the share sheet.
-      final filePath = await exportService.exportToJson(session.id);
-
-      if (context.mounted) {
-        await revealExportedFile(
-          context,
-          filePath,
-          subject: 'Skotiq session data',
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
-      }
-    }
-  }
-
-  Future<void> _exportCsv(BuildContext context, WidgetRef ref) async {
-    try {
-      final backend = ref.read(backendProvider);
-      if (backend is NetworkBackend) {
-        final filePath = await _saveRemoteExport(backend, session.id, 'csv');
-        if (context.mounted) {
-          await revealExportedFile(
-            context,
-            filePath,
-            subject: 'Skotiq session data',
-          );
-        }
-        return;
-      }
-      final clock = ref.read(clockProvider);
-      final exportService = SessionExportService(
-        sessionsDao: ref.read(sessionsDaoProvider),
-        imagesDao: ref.read(imagesDaoProvider),
-        nowProvider: clock.now,
-      );
-
-      // Same sandbox problem as the JSON export: reveal rather than announce
-      // a path the phone user can never reach.
-      final filePath = await exportService.exportToCsv(session.id);
-
-      if (context.mounted) {
-        await revealExportedFile(
-          context,
-          filePath,
-          subject: 'Skotiq session data',
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
-      }
-    }
-  }
-
-  /// Export the session to CSV and hand it to the platform's reachable
-  /// destination.
-  ///
-  /// Routed through [revealExportedFile] — share sheet on Android/iOS, path
-  /// snackbar on desktop — because `Share.shareXFiles` is unimplemented on the
-  /// shipping desktop build.
-  Future<void> _exportAndShare(BuildContext context, WidgetRef ref) async {
-    try {
-      final backend = ref.read(backendProvider);
-      final String filePath;
-      if (backend is NetworkBackend) {
-        filePath = await _saveRemoteExport(backend, session.id, 'csv');
-      } else {
-        final clock = ref.read(clockProvider);
-        final exportService = SessionExportService(
-          sessionsDao: ref.read(sessionsDaoProvider),
-          imagesDao: ref.read(imagesDaoProvider),
-          nowProvider: clock.now,
-        );
-        // CSV is the most universal format to hand off.
-        filePath = await exportService.exportToCsv(session.id);
-      }
-
-      if (!context.mounted) return;
-      await revealExportedFile(
+  Future<void> _exportJson(BuildContext context, WidgetRef ref) => _export(
         context,
-        filePath,
+        ref,
+        SessionExportFormat.json,
+        subject: 'Skotiq session data',
+      );
+
+  Future<void> _exportCsv(BuildContext context, WidgetRef ref) => _export(
+        context,
+        ref,
+        SessionExportFormat.csv,
+        subject: 'Skotiq session data',
+      );
+
+  /// CSV is the most universal format to hand off.
+  Future<void> _exportAndShare(BuildContext context, WidgetRef ref) => _export(
+        context,
+        ref,
+        SessionExportFormat.csv,
         subject: 'Session data for ${session.name ?? "session"}',
       );
+
+  /// Writes the export and hands it to [revealExportedFile]: the share sheet
+  /// on Android and iOS, where the file is in the app's private folder, and
+  /// a snackbar with the path on desktop.
+  Future<void> _export(
+    BuildContext context,
+    WidgetRef ref,
+    SessionExportFormat format, {
+    required String subject,
+  }) async {
+    try {
+      final filePath = await ref
+          .read(analyticsExportsProvider)
+          .sessionExport(session.id, format);
+      if (!context.mounted) return;
+      await revealExportedFile(context, filePath, subject: subject);
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     }
   }
 
   Future<void> _exportReport(BuildContext context, WidgetRef ref) async {
     try {
-      final backend = ref.read(backendProvider);
-      if (backend is NetworkBackend) {
-        final filePath = await _saveRemoteExport(backend, session.id, 'html');
-        if (context.mounted) {
-          await revealExportedFile(
-            context,
-            filePath,
-            subject: 'Skotiq session report',
-          );
-        }
-        return;
-      }
-      final clock = ref.read(clockProvider);
-      final exportService = SessionExportService(
-        sessionsDao: ref.read(sessionsDaoProvider),
-        imagesDao: ref.read(imagesDaoProvider),
-        nowProvider: clock.now,
-      );
-
-      final filePath = await exportService.exportToHtml(session.id);
-
+      final filePath = await ref
+          .read(analyticsExportsProvider)
+          .sessionExport(session.id, SessionExportFormat.html);
       if (context.mounted) {
         await revealExportedFile(
           context,
@@ -815,70 +709,9 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Report export failed: $e');
+        context
+            .showErrorSnackBar('Report export failed: ${userFacingError(e)}');
       }
     }
   }
-}
-
-Stream<List<DbCapturedImage>> _pollRemoteSessionImages(
-  NetworkBackend backend,
-  int sessionId, {
-  required Duration interval,
-}) =>
-    _pollRemoteImages(
-      () => _fetchRemoteSessionImages(backend, sessionId),
-      interval: interval,
-    );
-
-Stream<List<DbCapturedImage>> _pollRemoteStandaloneImages(
-  NetworkBackend backend, {
-  required Duration interval,
-}) =>
-    _pollRemoteImages(
-      () => _fetchRemoteStandaloneImages(backend),
-      interval: interval,
-    );
-
-Stream<List<DbCapturedImage>> _pollRemoteImages(
-  Future<List<DbCapturedImage>> Function() fetch, {
-  required Duration interval,
-}) =>
-    resilientDistinctPoll(
-      fetch: fetch,
-      unchanged: listEquals,
-      interval: interval,
-    );
-
-Future<List<DbCapturedImage>> _fetchRemoteSessionImages(
-  NetworkBackend backend,
-  int sessionId,
-) async {
-  final rows = await backend.getSessionImageRows(sessionId);
-  return rows.map(DbCapturedImage.fromJson).toList(growable: false);
-}
-
-Future<List<DbCapturedImage>> _fetchRemoteStandaloneImages(
-  NetworkBackend backend,
-) async {
-  final rows = await backend.getStandaloneImageRows();
-  return rows.map(DbCapturedImage.fromJson).toList(growable: false);
-}
-
-Future<String> _saveRemoteExport(
-  NetworkBackend backend,
-  int sessionId,
-  String format,
-) async {
-  final bytes = await backend.downloadSessionExport(sessionId, format);
-  final docsDir = await resolveSkotiqDocumentsDirectory();
-  final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
-  if (!await exportDir.exists()) {
-    await exportDir.create(recursive: true);
-  }
-  final fileName =
-      'session_${sessionId}_${DateTime.now().millisecondsSinceEpoch}.$format';
-  final filePath = path.join(exportDir.path, fileName);
-  await File(filePath).writeAsBytes(bytes, flush: true);
-  return filePath;
 }

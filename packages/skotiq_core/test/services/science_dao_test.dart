@@ -221,7 +221,7 @@ void main() {
       ),
     ]);
 
-    final rows = await dao.watchTileMetricsForSession(sessionId).first;
+    final rows = await dao.watchFrameTileMetrics(sessionId).first;
     expect(rows.length, 2);
     expect(rows.first.capturedImageId, imageId);
   });

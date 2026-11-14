@@ -12,7 +12,7 @@ class _DiagnosticsContent extends ConsumerWidget {
   /// True when this is the quick-capture bucket rather than a real session
   /// row — its science products carry a NULL session_id and are read through
   /// the `sessionless*` providers.
-  bool get _isQuickCapture => sessionId == _kQuickCaptureSessionId;
+  bool get _isQuickCapture => sessionId == kQuickCaptureSessionSelection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -159,7 +159,6 @@ class _DesktopLayout extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left column: health grade + issues
         SizedBox(
           width: panelWidth,
           child: SingleChildScrollView(
@@ -177,7 +176,6 @@ class _DesktopLayout extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        // Right column: field map + residual overlay
         Expanded(
           child: SingleChildScrollView(
             child: Column(
@@ -234,5 +232,3 @@ class _MobileLayout extends StatelessWidget {
     );
   }
 }
-
-// Health grade card

@@ -17,9 +17,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/widgets/update_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/models.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -49,7 +52,8 @@ Future<void> _pump(WidgetTester tester, _MockNetworkBackend backend) async {
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
-        home: const Scaffold(body: UpdateSettings(isMobile: true)),
+        home: const Scaffold(
+            body: SettingsFormScope(narrow: true, child: UpdateSettings())),
       ),
     ),
   );

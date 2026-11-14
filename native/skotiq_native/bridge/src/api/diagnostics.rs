@@ -1,28 +1,4 @@
-// split from monolithic api.rs
-#![allow(unused_imports)]
-// Shared imports inherited from the monolithic api.rs.
-use crate::device::*;
-use crate::device_manager::DeviceManager;
-use crate::error::*;
-use crate::event::*;
-use crate::state::*;
-use crate::storage::{AppSettings, ObserverLocation};
-use crate::unified_device_ops::create_unified_device_ops;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use skotiq_imaging::{
-    calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
-    DebayerAlgorithm, FitsHeader, ImageData,
-};
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
-use tokio::sync::RwLock;
-// Sibling-module items via the parent's pub use re-exports.
-use super::*;
+use crate::error::SkotiqError;
 
 // Device capability reporting API
 
@@ -32,17 +8,17 @@ use super::*;
 /// The result varies by device type (camera, mount, focuser, filter wheel).
 pub async fn api_get_device_capabilities(
     device_id: String,
-) -> Result<crate::device_capabilities::DeviceCapabilities, SkotiqError> {
+) -> Result<crate::device_capabilities::types::DeviceCapabilities, SkotiqError> {
     crate::device_capabilities::get_device_capabilities(&device_id).await
 }
 
 /// Get camera capabilities for a specific camera device.
 pub async fn api_get_camera_capabilities(
     device_id: String,
-) -> Result<crate::device_capabilities::CameraCapabilities, SkotiqError> {
+) -> Result<crate::device_capabilities::types::CameraCapabilities, SkotiqError> {
     let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
     match caps {
-        crate::device_capabilities::DeviceCapabilities::Camera(c) => Ok(c),
+        crate::device_capabilities::types::DeviceCapabilities::Camera(c) => Ok(c),
         _ => Err(SkotiqError::not_supported(
             &device_id,
             "Device is not a camera",
@@ -53,10 +29,10 @@ pub async fn api_get_camera_capabilities(
 /// Get mount capabilities for a specific mount device.
 pub async fn api_get_mount_capabilities(
     device_id: String,
-) -> Result<crate::device_capabilities::MountCapabilities, SkotiqError> {
+) -> Result<crate::device_capabilities::types::MountCapabilities, SkotiqError> {
     let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
     match caps {
-        crate::device_capabilities::DeviceCapabilities::Mount(m) => Ok(m),
+        crate::device_capabilities::types::DeviceCapabilities::Mount(m) => Ok(m),
         _ => Err(SkotiqError::not_supported(
             &device_id,
             "Device is not a mount",
@@ -67,10 +43,10 @@ pub async fn api_get_mount_capabilities(
 /// Get focuser capabilities for a specific focuser device.
 pub async fn api_get_focuser_capabilities(
     device_id: String,
-) -> Result<crate::device_capabilities::FocuserCapabilities, SkotiqError> {
+) -> Result<crate::device_capabilities::types::FocuserCapabilities, SkotiqError> {
     let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
     match caps {
-        crate::device_capabilities::DeviceCapabilities::Focuser(f) => Ok(f),
+        crate::device_capabilities::types::DeviceCapabilities::Focuser(f) => Ok(f),
         _ => Err(SkotiqError::not_supported(
             &device_id,
             "Device is not a focuser",
@@ -81,10 +57,10 @@ pub async fn api_get_focuser_capabilities(
 /// Get filter wheel capabilities for a specific filter wheel device.
 pub async fn api_get_filterwheel_capabilities(
     device_id: String,
-) -> Result<crate::device_capabilities::FilterWheelCapabilities, SkotiqError> {
+) -> Result<crate::device_capabilities::types::FilterWheelCapabilities, SkotiqError> {
     let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
     match caps {
-        crate::device_capabilities::DeviceCapabilities::FilterWheel(fw) => Ok(fw),
+        crate::device_capabilities::types::DeviceCapabilities::FilterWheel(fw) => Ok(fw),
         _ => Err(SkotiqError::not_supported(
             &device_id,
             "Device is not a filter wheel",
@@ -95,10 +71,10 @@ pub async fn api_get_filterwheel_capabilities(
 /// Get rotator capabilities for a specific rotator device.
 pub async fn api_get_rotator_capabilities(
     device_id: String,
-) -> Result<crate::device_capabilities::RotatorCapabilities, SkotiqError> {
+) -> Result<crate::device_capabilities::types::RotatorCapabilities, SkotiqError> {
     let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
     match caps {
-        crate::device_capabilities::DeviceCapabilities::Rotator(r) => Ok(r),
+        crate::device_capabilities::types::DeviceCapabilities::Rotator(r) => Ok(r),
         _ => Err(SkotiqError::not_supported(
             &device_id,
             "Device is not a rotator",
@@ -109,10 +85,10 @@ pub async fn api_get_rotator_capabilities(
 /// Get dome capabilities for a specific dome device.
 pub async fn api_get_dome_capabilities(
     device_id: String,
-) -> Result<crate::device_capabilities::DomeCapabilities, SkotiqError> {
+) -> Result<crate::device_capabilities::types::DomeCapabilities, SkotiqError> {
     let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
     match caps {
-        crate::device_capabilities::DeviceCapabilities::Dome(d) => Ok(d),
+        crate::device_capabilities::types::DeviceCapabilities::Dome(d) => Ok(d),
         _ => Err(SkotiqError::not_supported(
             &device_id,
             "Device is not a dome",
@@ -123,10 +99,10 @@ pub async fn api_get_dome_capabilities(
 /// Get cover calibrator capabilities for a specific cover calibrator device.
 pub async fn api_get_cover_calibrator_capabilities(
     device_id: String,
-) -> Result<crate::device_capabilities::CoverCalibratorCapabilities, SkotiqError> {
+) -> Result<crate::device_capabilities::types::CoverCalibratorCapabilities, SkotiqError> {
     let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
     match caps {
-        crate::device_capabilities::DeviceCapabilities::CoverCalibrator(cc) => Ok(cc),
+        crate::device_capabilities::types::DeviceCapabilities::CoverCalibrator(cc) => Ok(cc),
         _ => Err(SkotiqError::not_supported(
             &device_id,
             "Device is not a cover calibrator",
@@ -134,49 +110,19 @@ pub async fn api_get_cover_calibrator_capabilities(
     }
 }
 
-/// Get weather capabilities for a specific weather/observing conditions device.
-pub async fn api_get_weather_capabilities(
-    device_id: String,
-) -> Result<crate::device_capabilities::WeatherCapabilities, SkotiqError> {
-    let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
-    match caps {
-        crate::device_capabilities::DeviceCapabilities::Weather(w) => Ok(w),
-        _ => Err(SkotiqError::not_supported(
-            &device_id,
-            "Device is not a weather station",
-        )),
-    }
-}
-
-/// Get safety monitor capabilities for a specific safety monitor device.
-pub async fn api_get_safety_monitor_capabilities(
-    device_id: String,
-) -> Result<crate::device_capabilities::SafetyMonitorCapabilities, SkotiqError> {
-    let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
-    match caps {
-        crate::device_capabilities::DeviceCapabilities::SafetyMonitor(sm) => Ok(sm),
-        _ => Err(SkotiqError::not_supported(
-            &device_id,
-            "Device is not a safety monitor",
-        )),
-    }
-}
-
 /// Get switch capabilities for a specific switch device.
 pub async fn api_get_switch_capabilities(
     device_id: String,
-) -> Result<crate::device_capabilities::SwitchCapabilities, SkotiqError> {
+) -> Result<crate::device_capabilities::types::SwitchCapabilities, SkotiqError> {
     let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
     match caps {
-        crate::device_capabilities::DeviceCapabilities::Switch(s) => Ok(s),
+        crate::device_capabilities::types::DeviceCapabilities::Switch(s) => Ok(s),
         _ => Err(SkotiqError::not_supported(
             &device_id,
             "Device is not a switch",
         )),
     }
 }
-
-// Device quirks
 
 /// Information about a known device quirk, suitable for UI display.
 pub struct QuirkInfo {
@@ -235,10 +181,10 @@ pub fn api_get_qhy_discovery_status() -> QhyDiscoveryStatus {
 
 /// Helper to get the QHY discovery timeout from quirks
 pub(crate) fn get_qhy_discovery_timeout_ms() -> u64 {
+    use skotiq_device::Vendor;
     use skotiq_native::quirks::{get_quirks_for_vendor, DiscoveryQuirk, Quirk};
-    use skotiq_native::NativeVendor;
 
-    let quirks = get_quirks_for_vendor(&NativeVendor::Qhy);
+    let quirks = get_quirks_for_vendor(&Vendor::Qhy);
     for quirk in quirks {
         if let Quirk::Discovery(DiscoveryQuirk::DiscoveryTimeoutMs(timeout)) = quirk {
             return timeout;

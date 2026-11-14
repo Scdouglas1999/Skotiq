@@ -20,8 +20,9 @@
 // rows, which come from longer-lived sources, stayed.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
-import 'package:skotiq_core/skotiq_core.dart'
+import 'package:skotiq_core/providers.dart'
     show
         cameraStateProvider,
         eventHistoryProvider,
@@ -30,10 +31,14 @@ import 'package:skotiq_core/skotiq_core.dart'
         guiderStateProvider,
         mountStateProvider,
         rotatorStateProvider;
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
-    show RunDashboardEvent, RunDashboardEventSeverity, runDashboardFeedRows;
+import '../../../../services/run_dashboard_providers.dart'
+    show
+        RunDashboardEvent,
+        RunDashboardEventSeverity,
+        isUserFacingRunEvent,
+        runDashboardFeedRows;
 import '../../night_control_contracts.dart';
 import 'session_events_provider.dart';
 import 'session_format.dart';
@@ -85,8 +90,10 @@ class NightLogFeedRecorder extends Notifier<List<sk_events.SkotiqEvent>> {
     Iterable<sk_events.SkotiqEvent> events,
   ) =>
       events.where(
-        (event) => !_feedTitlesLeftOut
-            .contains(sk_events.skotiqEventDisplayTitle(event)),
+        (event) =>
+            isUserFacingRunEvent(event) &&
+            !_feedTitlesLeftOut
+                .contains(sk_events.skotiqEventDisplayTitle(event)),
       );
 
   /// The history only ever gains events at its front; the ones not in
@@ -105,12 +112,13 @@ class NightLogFeedRecorder extends Notifier<List<sk_events.SkotiqEvent>> {
   }
 }
 
-MetricTone _toneOf(RunDashboardEventSeverity severity) => switch (severity) {
+MetricGridTone _toneOf(RunDashboardEventSeverity severity) =>
+    switch (severity) {
       RunDashboardEventSeverity.critical ||
       RunDashboardEventSeverity.error =>
-        MetricTone.bad,
-      RunDashboardEventSeverity.warning => MetricTone.warning,
-      RunDashboardEventSeverity.info => MetricTone.neutral,
+        MetricGridTone.bad,
+      RunDashboardEventSeverity.warning => MetricGridTone.warning,
+      RunDashboardEventSeverity.info => MetricGridTone.neutral,
     };
 
 /// Connected devices' names by device id. Device events carry only the id;
@@ -181,13 +189,13 @@ final nightLogProvider = Provider<List<NightLogEntryVm>>((ref) {
           params: <String, String>{
             'n': '${i + 1}',
             'filter': filter == null || filter.isEmpty ? '' : ' $filter',
-            'hfr': hfr == null ? '' : ' · HFR ${nightFixed(hfr, 2)}',
+            'hfr': hfr == null ? '' : nightHfrClause(hfr),
             'reason': rejected && reason != null && reason.isNotEmpty
                 ? ' ($reason)'
                 : '',
           },
         ),
-        tone: rejected ? MetricTone.bad : MetricTone.neutral,
+        tone: rejected ? MetricGridTone.bad : MetricGridTone.neutral,
       ),
     );
   }
@@ -205,7 +213,7 @@ final nightLogProvider = Provider<List<NightLogEntryVm>>((ref) {
                 'nightSessionLogAutofocus',
                 params: <String, String>{
                   'position': nightGrouped(position),
-                  'hfr': hfr == null ? '' : ' · HFR ${nightFixed(hfr, 2)}',
+                  'hfr': hfr == null ? '' : nightHfrClause(hfr),
                   'duration': duration == null ? '' : ' · $duration',
                 },
               ),

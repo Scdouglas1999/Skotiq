@@ -8,7 +8,7 @@
 //! node/
 //!   context.rs                  ExecutionContext (Clone-able)
 //!   progress.rs                 ProgressUpdate + ProgressDetail (structured)
-//!   registry.rs                 InstructionNode trait + static registry
+//!   registry.rs                 InstructionNode trait + the NodeType match
 //!   runtime.rs                  RuntimeNode + Node trait + dispatch
 //!   instructions/               one file per instruction (29 leaf nodes)
 //!   logic/                      target_header, loop, parallel, conditional,
@@ -28,20 +28,14 @@ pub(crate) mod instructions;
 pub(crate) mod logic;
 pub(crate) mod progress;
 pub(crate) mod registry;
+pub(crate) mod resume;
 pub(crate) mod runtime;
 
 pub use context::{CloudMotionSnapshot, ExecutionContext};
 pub use progress::{ProgressDetail, ProgressUpdate};
-pub use runtime::{Node, RuntimeNode};
+pub use runtime::{enabled_nodes, Node, RuntimeNode};
 
-// Re-export the astronomical helpers the rest of the crate already addresses
-// via `crate::node::julian_day` / `crate::node::local_sidereal_time`.
-pub use crate::meridian::{julian_day, local_sidereal_time};
-
-// The instruction registry is not part of the public API but is exposed for
-// the unit tests in `registry.rs` and any future plugin authors who want to
-// inspect available variants.
-pub use registry::{node_type_discriminant, registry, InstructionNode, InstructionRegistry};
+pub use registry::{instruction_for, InstructionNode};
 
 // Re-export the sequential helper so external callers (tests, the executor's
 // resume path) can poke at execute_children_sequential without having to
@@ -63,7 +57,7 @@ mod tests {
         assert_eq!(ctx.node_id, "test_node");
         assert!(ctx.target_ra.is_none());
         assert!(ctx.target_dec.is_none());
-        assert!(ctx.camera_id.is_none());
+        assert!(ctx.run.rig.camera_id.is_none());
     }
 
     /// ExecutionContext exposes SkipToNode plumbing via
@@ -219,38 +213,6 @@ mod tests {
         assert_eq!(update.current_frame, Some(5));
         assert_eq!(update.total_frames, Some(10));
         assert_eq!(update.completed_exposure_secs, Some(60.0));
-    }
-
-    #[test]
-    fn test_julian_day_calculation() {
-        use chrono::{TimeZone, Utc};
-        let dt = Utc.with_ymd_and_hms(2000, 1, 1, 12, 0, 0).unwrap();
-        let jd = julian_day(&dt);
-        assert!((jd - 2451545.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_julian_day_another_epoch() {
-        use chrono::{TimeZone, Utc};
-        let dt = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
-        let jd = julian_day(&dt);
-        assert!((jd - 2460310.5).abs() < 0.1);
-    }
-
-    #[test]
-    fn test_local_sidereal_time() {
-        let jd = 2451545.0;
-        let lst = local_sidereal_time(jd, 0.0);
-        assert!(lst > 18.0 && lst < 19.0);
-    }
-
-    #[test]
-    fn test_local_sidereal_time_with_longitude() {
-        let jd = 2451545.0;
-        let lst_greenwich = local_sidereal_time(jd, 0.0);
-        let lst_east = local_sidereal_time(jd, 15.0); // 15 deg east = 1h
-        let diff = lst_east - lst_greenwich;
-        assert!((diff - 1.0).abs() < 0.1 || (diff + 23.0).abs() < 0.1);
     }
 
     #[test]
@@ -413,8 +375,8 @@ mod tests {
             while !monitor_stop.load(AtomicOrdering::Relaxed) {
                 {
                     let guard = monitor_state.read().await;
-                    let _ = guard.current_target_name.clone();
-                    let _ = guard.completed_exposures;
+                    let _ = guard.target.current_target_name.clone();
+                    let _ = guard.latches.completed_exposures;
                 }
                 monitor_count.fetch_add(1, AtomicOrdering::Relaxed);
                 sleep(Duration::from_millis(10)).await;
@@ -449,12 +411,13 @@ mod tests {
         let final_state = trigger_state.read().await;
         let writers_u32 = u32::try_from(WRITERS).expect("WRITERS fits in u32");
         assert_eq!(
-            final_state.completed_exposures,
+            final_state.latches.completed_exposures,
             writers_u32,
             "every concurrent writer's increment must be observed; missing {} writes",
-            writers_u32 - final_state.completed_exposures
+            writers_u32 - final_state.latches.completed_exposures
         );
         let name = final_state
+            .target
             .current_target_name
             .as_ref()
             .expect("current_target_name must be set by at least one writer");

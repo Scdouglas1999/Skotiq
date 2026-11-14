@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../backend/roles/host_data/observing_lists_store.dart';
 import '../database.dart';
 import '../tables/observing_lists.dart';
 
@@ -39,12 +40,11 @@ class ObservingListDuplicateItemException extends StateError {
 
 @DriftAccessor(tables: [ObservingLists, ObservingListItems])
 class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$ObservingListsDaoMixin {
+    with _$ObservingListsDaoMixin
+    implements ObservingListsStore {
   ObservingListsDao(super.db);
 
-  // ─── List CRUD ──────────────────────────────────────────────────────────────
-
-  /// Create a new observing list. Returns the generated row ID.
+  @override
   Future<int> createList({required String name, String? description}) async {
     final maxOrder = await _maxListSortOrder();
     return into(observingLists).insert(
@@ -56,7 +56,7 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Update an existing observing list's name/description.
+  @override
   Future<void> updateList({
     required int id,
     String? name,
@@ -78,6 +78,7 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Delete an observing list and all its items (cascade).
+  @override
   Future<int> deleteList(int id) {
     return (delete(observingLists)..where((t) => t.id.equals(id))).go();
   }
@@ -89,14 +90,13 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
     )..orderBy([(t) => OrderingTerm.asc(t.sortOrder)])).get();
   }
 
-  /// Watch all observing lists as a reactive stream.
+  @override
   Stream<List<ObservingList>> watchAllLists() {
     return (select(
       observingLists,
     )..orderBy([(t) => OrderingTerm.asc(t.sortOrder)])).watch();
   }
 
-  /// Get a single observing list by ID.
   Future<ObservingList?> getListById(int id) {
     return (select(
       observingLists,
@@ -104,6 +104,7 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Duplicate a list and all its items. Returns the new list's ID.
+  @override
   Future<int> duplicateList(int sourceListId) async {
     final source = await getListById(sourceListId);
     if (source == null) {
@@ -143,11 +144,10 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  // ─── Item CRUD ──────────────────────────────────────────────────────────────
-
   /// Add an item to an observing list. Returns the generated row ID.
   /// If the catalogId already exists in the list, throws an
   /// [ObservingListDuplicateItemException].
+  @override
   Future<int> addItem({
     required int listId,
     required String objectName,
@@ -159,7 +159,6 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
     double? sizeArcmin,
     String? notes,
   }) async {
-    // Check for duplicate catalog IDs within the same list
     if (catalogId != null) {
       final existing =
           await (select(observingListItems)..where(
@@ -192,7 +191,6 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
       ),
     );
 
-    // Touch the parent list's updatedAt
     await (update(observingLists)..where((t) => t.id.equals(listId))).write(
       ObservingListsCompanion(updatedAt: Value(DateTime.now())),
     );
@@ -200,7 +198,7 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
     return id;
   }
 
-  /// Remove an item from an observing list.
+  @override
   Future<int> removeItem(int itemId) async {
     // Get listId before deleting to update parent timestamp
     final item = await (select(
@@ -223,6 +221,7 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
   /// caller can tell "saved" from "there was no such item" — discarding the
   /// count let the headless API answer `200 {"status":"updated"}` for an id
   /// that does not exist, leaving a client believing an edit had persisted.
+  @override
   Future<int> updateItemNotes(int itemId, String? notes) {
     return (update(observingListItems)..where((t) => t.id.equals(itemId)))
         .write(ObservingListItemsCompanion(notes: Value(notes)));
@@ -236,7 +235,7 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Watch all items for a given list as a reactive stream.
+  @override
   Stream<List<ObservingListItem>> watchItemsForList(int listId) {
     return (select(observingListItems)
           ..where((t) => t.listId.equals(listId))
@@ -244,7 +243,6 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  /// Reorder items within a list.
   Future<void> reorderItems(int listId, List<int> orderedItemIds) async {
     await transaction(() async {
       for (var i = 0; i < orderedItemIds.length; i++) {
@@ -258,7 +256,6 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Get the number of items in a list.
   Future<int> getItemCount(int listId) async {
     final countExpr = observingListItems.id.count();
     final query = selectOnly(observingListItems)
@@ -279,7 +276,7 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
     return results.whereType<String>().toSet();
   }
 
-  /// Watch all catalog IDs across all lists as a reactive stream.
+  @override
   Stream<Set<String>> watchAllListedCatalogIds() {
     final query = selectOnly(observingListItems, distinct: true)
       ..addColumns([observingListItems.catalogId])
@@ -304,7 +301,7 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
     return results.whereType<String>().toSet();
   }
 
-  /// Watch catalog IDs for a specific list.
+  @override
   Stream<Set<String>> watchCatalogIdsForList(int listId) {
     final query = selectOnly(observingListItems, distinct: true)
       ..addColumns([observingListItems.catalogId])
@@ -318,7 +315,6 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
         .map((list) => list.whereType<String>().toSet());
   }
 
-  /// Check if a catalog ID exists in any list.
   Future<bool> isInAnyList(String catalogId) async {
     final query = select(observingListItems)
       ..where((t) => t.catalogId.equals(catalogId))
@@ -327,7 +323,7 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
     return results.isNotEmpty;
   }
 
-  /// Get which lists contain a given catalog ID.
+  @override
   Future<List<ObservingList>> getListsContaining(String catalogId) async {
     final itemQuery = selectOnly(observingListItems, distinct: true)
       ..addColumns([observingListItems.listId])
@@ -343,8 +339,6 @@ class ObservingListsDao extends DatabaseAccessor<SkotiqDatabase>
           ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
         .get();
   }
-
-  // ─── Helpers ────────────────────────────────────────────────────────────────
 
   Future<int> _maxListSortOrder() async {
     final query = selectOnly(observingLists)

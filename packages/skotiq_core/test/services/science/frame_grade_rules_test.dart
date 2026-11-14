@@ -1,17 +1,18 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart'
     as drift
-    show CapturedImage;
+    show DbCapturedImage;
 
-drift.CapturedImage _light({
+drift.DbCapturedImage _light({
   int id = 1,
   double? hfr,
   int? starCount,
   double? guidingRmsTotal,
 }) {
   final ts = DateTime(2026, 1, 1);
-  return drift.CapturedImage(
+  return drift.DbCapturedImage(
     id: id,
     filePath: '/tmp/$id.fits',
     fileName: '$id.fits',

@@ -18,7 +18,8 @@ import 'package:skotiq_app/screens/night_control/data/session/session_frames_pro
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/night_control_layout.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_backend.dart';
@@ -119,6 +120,7 @@ List<Override> centerOverrides(
   NightSeriesVm? guideSeries,
   NightLastSessionVm? lastSession,
   NightAutofocusCurveVm? lastAutofocus,
+  NightLiveAutofocusVm? liveAutofocus,
   NightGuiderIdleVm? guider,
   NightSeriesVm? coolerHistory,
 }) {
@@ -148,6 +150,7 @@ List<Override> centerOverrides(
     nightStageStretchProvider.overrideWithValue(false),
     nightLastSessionProvider.overrideWithValue(lastSession),
     nightLastAutofocusProvider.overrideWithValue(lastAutofocus),
+    nightLiveAutofocusProvider.overrideWithValue(liveAutofocus),
     nightGuiderIdleProvider.overrideWithValue(
       guider ??
           const NightGuiderIdleVm(

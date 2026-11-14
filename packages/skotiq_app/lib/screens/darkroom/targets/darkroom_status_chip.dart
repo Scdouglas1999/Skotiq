@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
 import 'darkroom_targets_model.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// One line on what a target needs, and the tone it is drawn in.
 (String, Color) darkroomTargetStatus(

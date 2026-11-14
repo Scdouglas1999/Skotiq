@@ -1,11 +1,13 @@
+import 'async_scope.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend.dart';
 import 'backend_provider.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import '../services/push_notification_service.dart';
+import '../database/daos/settings_dao.dart';
+import '../services/logging_service.dart';
 
 /// Notifier that manages push notification configuration, persisted to database
 class PushNotificationConfigNotifier
@@ -15,7 +17,7 @@ class PushNotificationConfigNotifier
   @override
   Future<PushNotificationConfig> build() async {
     final dao = ref.read(settingsDaoProvider);
-    final json = await dao.getSetting('push_notification_config');
+    final json = await dao.read(StoreSettings.pushNotifications);
     if (json != null) {
       try {
         final map = jsonDecode(json) as Map<String, dynamic>;
@@ -33,10 +35,9 @@ class PushNotificationConfigNotifier
               map['notifyEquipmentDisconnected'] as bool? ?? false,
         );
       } catch (e, stackTrace) {
-        developer.log(
+        Log.error(
           '[PushNotificationConfig] Failed to parse config: $e',
-          name: 'PushNotificationConfig',
-          level: 1000,
+          source: 'PushNotificationConfig',
           error: e,
           stackTrace: stackTrace,
         );
@@ -62,8 +63,8 @@ class PushNotificationConfigNotifier
       'notifyAutofocusFailed': config.notifyAutofocusFailed,
       'notifyEquipmentDisconnected': config.notifyEquipmentDisconnected,
     });
-    await dao.setSetting('push_notification_config', json);
-    if (!identical(ref.read(settingsDaoProvider), dao)) {
+    await dao.write(StoreSettings.pushNotifications, json);
+    if (ref.scopeOver(settingsDaoProvider, dao).isStale) {
       throw StateError(
         'The settings database changed while saving push notifications.',
       );
@@ -159,8 +160,7 @@ const PushNotificationConfig _failClosedPushConfig = PushNotificationConfig(
 final pushNotificationServiceProvider = Provider<PushNotificationService>((
   ref,
 ) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  if (ref.watch(isRemoteModeProvider)) {
     // A controller neither serves paired phones nor owns the host's push
     // configuration. Keep its broadcaster inert and do not initialize an
     // unrelated controller-side config authority merely because the shared

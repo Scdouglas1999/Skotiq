@@ -9,7 +9,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'pass_gantt.dart';
@@ -195,7 +196,8 @@ class _ChartTitle extends StatelessWidget {
           style: SkotiqTypography.labelStrongSm
               .copyWith(color: colors.textSecondary),
         ),
-        key(Container(color: passFilterColor(lane, colors)), 'measured'),
+        key(Container(color: FilterColors.forName(lane, colors: colors)),
+            'measured'),
         key(
           Row(
             children: <Widget>[
@@ -284,7 +286,7 @@ class _StageTiming extends StatelessWidget {
         leftText = 'unknown';
         leftColor = colors.warning;
       } else {
-        leftText = '${fromHistory ? '~' : ''}${passClock(left)}';
+        leftText = '${fromHistory ? '~' : ''}${ClockFormat.stopwatch(left)}';
         leftColor = colors.textPrimary;
       }
       rows.add(
@@ -305,8 +307,8 @@ class _StageTiming extends StatelessWidget {
               _cell(total == 0 ? '' : '$done/$total', 50,
                   mono.copyWith(color: colors.textSecondary)),
               _cell(perSub, 46, mono),
-              _cell(took == Duration.zero ? '' : passClock(took), 46,
-                  mono.copyWith(color: colors.textSecondary)),
+              _cell(took == Duration.zero ? '' : ClockFormat.stopwatch(took),
+                  46, mono.copyWith(color: colors.textSecondary)),
               _cell(leftText, 60, mono.copyWith(color: leftColor)),
             ],
           ),
@@ -772,7 +774,7 @@ class _DraftList extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    took == null ? '' : passClock(took),
+                    took == null ? '' : ClockFormat.stopwatch(took),
                     style: SkotiqTypography.monoXs
                         .copyWith(color: colors.textSecondary),
                   ),

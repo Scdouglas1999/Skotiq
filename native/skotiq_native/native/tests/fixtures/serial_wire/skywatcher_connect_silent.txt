@@ -1,0 +1,7 @@
+call connect
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :e1\r
+> :e1\r
+> :e1\r
+  -> Err(Timeout("Sky-Watcher mount did not answer :e1 (3 tries)"))
+  connected=false

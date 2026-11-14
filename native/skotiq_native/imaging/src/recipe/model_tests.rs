@@ -202,6 +202,32 @@ fn an_f32_image_carries_its_samples_verbatim() {
     assert_eq!(image.to_image_data().pixel_type, PixelType::F32);
 }
 
+/// A recipe's parameters are in the master's own units, so a `[0, 1]` master
+/// enters as the numbers it holds; its range rides along, through an
+/// operation's output and a change of geometry, to the export.
+#[test]
+fn a_unit_range_master_keeps_its_numbers_and_its_range() {
+    let source =
+        ImageData::from_f32(2, 2, 1, &[0.25, 0.5, 0.75, 1.0]).with_range(crate::SampleRange::UNIT);
+    let image = OpImage::from_image_data(&source, FitsHeader::new()).expect("image reads");
+    assert_eq!(image.data(), &[0.25, 0.5, 0.75, 1.0]);
+    assert_eq!(image.range(), crate::SampleRange::UNIT);
+
+    let edited = image
+        .with_data(vec![0.1, 0.2, 0.3, 0.4])
+        .expect("same geometry");
+    assert_eq!(edited.range(), crate::SampleRange::UNIT);
+    let cropped = edited.with_geometry(2, 1, 1, vec![0.1, 0.2]).expect("crop");
+    let out = cropped.to_image_data();
+    assert_eq!(out.range, crate::SampleRange::UNIT);
+    assert_eq!(out.as_f32().unwrap(), [0.1, 0.2]);
+
+    // A master in ADU says so too.
+    let adu = ImageData::from_f32(1, 1, 1, &[1200.0]);
+    let image = OpImage::from_image_data(&adu, FitsHeader::new()).expect("image reads");
+    assert_eq!(image.to_image_data().range, crate::SampleRange::ADU);
+}
+
 #[test]
 fn a_u16_image_carries_its_adu_values_unscaled() {
     let source = ImageData::from_u16(2, 1, 1, &[0, 65535]);

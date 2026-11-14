@@ -1,4 +1,12 @@
-use super::*;
+use crate::builtin_guider::config::{Vec2, GUIDE_MAX_MATCH_DISTANCE_PX};
+use crate::builtin_guider::loop_runner::ensure_connected;
+use crate::builtin_guider::metrics::recent_rms;
+use crate::builtin_guider::state::{state, BuiltinGuiderState, SettleSpec};
+use crate::error::SkotiqError;
+use crate::event::equipment::EventSeverity;
+use crate::event::guiding::GuidingEvent;
+use crate::state::get_state;
+use std::time::{Duration, Instant};
 
 /// Golden angle (radians) — successive multiples spread points evenly around the
 /// circle without ever repeating, the basis of the sunflower/spiral dither.
@@ -122,6 +130,11 @@ pub async fn dither(
                 "Built-in guider dither requires active guiding; not guiding".to_string(),
             ));
         }
+        if guard.paused {
+            return Err(SkotiqError::InvalidState(
+                "Guiding is paused. Resume guiding before dithering.".to_string(),
+            ));
+        }
         // Advance the bounded pattern so each dither walks to fresh pixels
         // instead of re-treading the same spot (a fixed/random small jump
         // re-walks the same neighbourhood). Adaptive: scale by recent RMS so the
@@ -215,7 +228,7 @@ pub async fn dither(
             guard.settle_deadline = None;
             guard.settle_timeout_deadline = None;
             guard.settling = false;
-            return Err(SkotiqError::OperationFailed(format!(
+            return Err(SkotiqError::Timeout(format!(
                 "Built-in guider dither did not settle within {:.0}s",
                 timeout_secs + 10.0
             )));

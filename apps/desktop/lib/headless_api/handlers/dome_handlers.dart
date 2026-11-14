@@ -1,13 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// bridge-boundary: dome_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:shelf/shelf.dart';
 
+import '../device_commands_route.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for dome control endpoints
-class DomeHandlers {
+class DomeHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    DomeApi.open: handleDomeOpen,
+    DomeApi.close: handleDomeClose,
+    DomeApi.slew: handleDomeSlew,
+    DomeApi.domeSync: handleDomeSync,
+    DomeApi.park: handleDomePark,
+    DomeApi.home: handleDomeHome,
+    DomeApi.halt: handleDomeHalt,
+    DomeApi.status: handleDomeStatus,
+    DomeApi.capabilities: handleDomeCapabilities,
+  };
+
   final ProviderContainer container;
 
   DomeHandlers(this.container);
@@ -90,7 +107,7 @@ class DomeHandlers {
       operation: 'open shutter',
       capability: 'canSetShutter',
     );
-    await bridge.apiDomeOpenShutter(deviceId: deviceId);
+    await deviceCommandsOf(container).domeOpenShutter(deviceId);
     return jsonOk({'status': 'opening', 'deviceId': deviceId});
   }
 
@@ -111,7 +128,7 @@ class DomeHandlers {
       operation: 'close shutter',
       capability: 'canSetShutter',
     );
-    await bridge.apiDomeCloseShutter(deviceId: deviceId);
+    await deviceCommandsOf(container).domeCloseShutter(deviceId);
     return jsonOk({'status': 'closing', 'deviceId': deviceId});
   }
 
@@ -136,7 +153,7 @@ class DomeHandlers {
       operation: 'slew',
       capability: 'canSetAzimuth',
     );
-    await bridge.apiDomeSlewToAzimuth(deviceId: deviceId, azimuth: azimuth);
+    await deviceCommandsOf(container).domeSlewToAzimuth(deviceId, azimuth);
     return jsonOk({
       'status': 'slewing',
       'deviceId': deviceId,
@@ -166,7 +183,7 @@ class DomeHandlers {
       capability: 'canSlave',
     );
 
-    await bridge.apiDomeSetSlaved(deviceId: deviceId, slaved: enable);
+    await deviceCommandsOf(container).domeSetSlaved(deviceId, enable);
     return jsonOk({
       'status': enable ? 'sync_enabled' : 'sync_disabled',
       'deviceId': deviceId,
@@ -191,7 +208,7 @@ class DomeHandlers {
       operation: 'park',
       capability: 'canPark',
     );
-    await bridge.apiDomePark(deviceId: deviceId);
+    await deviceCommandsOf(container).domePark(deviceId);
     return jsonOk({'status': 'parking', 'deviceId': deviceId});
   }
 
@@ -214,7 +231,7 @@ class DomeHandlers {
       capability: 'canFindHome',
     );
 
-    await bridge.apiDomeFindHome(deviceId: deviceId);
+    await deviceCommandsOf(container).domeFindHome(deviceId);
     return jsonOk({'status': 'homing', 'deviceId': deviceId});
   }
 
@@ -237,7 +254,7 @@ class DomeHandlers {
       capability: 'canAbort',
     );
 
-    await bridge.apiDomeAbortSlew(deviceId: deviceId);
+    await deviceCommandsOf(container).domeAbortSlew(deviceId);
     return jsonOk({'status': 'halted', 'deviceId': deviceId});
   }
 

@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/user_facing_error.dart';
 import '../../../widgets/your_sky_opt_in.dart';
 import 'settings_widgets.dart';
+import '../../../utils/snackbar_helper.dart';
 
 String? _validatePositiveScienceId(String value) {
   if (value.isEmpty) return null;
@@ -21,7 +26,9 @@ String? _validatePositiveScienceId(String value) {
 String? _validateAtlasLimitGb(String value) {
   if (value.isEmpty) return null;
   final parsed = int.tryParse(value);
-  if (parsed == null || parsed < 0) return 'Enter a whole number of GB';
+  if (parsed == null || parsed < 0) {
+    return 'Enter a whole number of ${ByteFormat.gigaUnit}';
+  }
   return null;
 }
 
@@ -66,9 +73,7 @@ Object _rowAuthority(Object? backend, int commits) =>
     Object.hash(identityHashCode(backend), commits);
 
 class ScienceSettingsPage extends ConsumerWidget {
-  final bool isMobile;
-
-  const ScienceSettingsPage({super.key, this.isMobile = false});
+  const ScienceSettingsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,12 +81,10 @@ class ScienceSettingsPage extends ConsumerWidget {
     final scienceNotifier = ref.read(scienceSettingsProvider.notifier);
 
     return scienceAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: isMobile,
+      loading: () => const SettingsLoadingState(
         message: 'Loading science settings...',
       ),
       error: (error, stack) => SettingsErrorState(
-        isMobile: isMobile,
         error: error,
         onRetry: () => ref.invalidate(scienceSettingsProvider),
       ),
@@ -90,12 +93,9 @@ class ScienceSettingsPage extends ConsumerWidget {
           title: 'Science',
           description:
               'Advanced, informational-only scientific analysis. No frames are auto-deleted.',
-          isMobile: isMobile,
-          hideHeader: isMobile,
           children: [
             SettingsSection(
               title: 'Mode',
-              isMobile: isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.flaskConical,
@@ -107,7 +107,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                     onChanged: (value) =>
                         scienceNotifier.setAdvancedModeEnabled(value),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.layers,
@@ -120,13 +119,11 @@ class ScienceSettingsPage extends ConsumerWidget {
                         scienceNotifier.setOverlayEnabled(value),
                   ),
                   isLast: true,
-                  isMobile: isMobile,
                 ),
               ],
             ),
             SettingsSection(
               title: 'Features',
-              isMobile: isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.activity,
@@ -139,7 +136,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.gauge,
@@ -152,7 +148,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.cloud,
@@ -165,7 +160,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.layoutGrid,
@@ -178,7 +172,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.map,
@@ -191,13 +184,13 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.layers,
                   title: 'Your Sky atlas',
                   subtitle: 'Off unless you turn it on. Stacks each accepted, '
-                      'solved light into your sky atlas: about 1.5 GB per '
+                      'solved light into your sky atlas: about 1.5 '
+                      '${ByteFormat.gigaUnit} per '
                       'target per night. First Light and shared imaging '
                       'need it.',
                   trailing: SettingsSwitch(
@@ -210,12 +203,10 @@ class ScienceSettingsPage extends ConsumerWidget {
                             false,
                           ),
                   ),
-                  isMobile: isMobile,
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.hardDrive,
-                  title: 'Your Sky size limit (GB)',
+                  title: 'Your Sky size limit (${ByteFormat.gigaUnit})',
                   subtitle: 'New frames stop being added to the atlas when it '
                       'reaches this size. Nothing is deleted. 0 means no limit.',
                   hint: '$defaultSkyAtlasLimitGb',
@@ -229,7 +220,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _SkyAtlasStorageRow(
-                  isMobile: isMobile,
                   limitGb: science.skyAtlasLimitGb,
                 ),
                 SettingRow(
@@ -243,7 +233,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.slidersHorizontal,
@@ -256,7 +245,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.layoutTemplate,
@@ -270,7 +258,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.boxSelect,
@@ -284,7 +271,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.sliders,
@@ -297,7 +283,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                     value: science.autoFrameGradingEnabled,
                     onChanged: scienceNotifier.setAutoFrameGradingEnabled,
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.fileText,
@@ -312,23 +297,19 @@ class ScienceSettingsPage extends ConsumerWidget {
                     onChanged: scienceNotifier.setFitsHeaderWritebackEnabled,
                   ),
                   isLast: true,
-                  isMobile: isMobile,
                 ),
               ],
             ),
-            SettingsSection(
+            const SettingsSection(
               title: 'Photometric catalog',
-              isMobile: isMobile,
               children: [
-                _ScienceOnlineCatalogRow(isMobile: isMobile),
+                _ScienceOnlineCatalogRow(),
               ],
             ),
             SettingsSection(
               title: 'AAVSO',
-              isMobile: isMobile,
               children: [
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.userCheck,
                   title: 'AAVSO observer code',
                   subtitle: 'Your assigned AAVSO observer initials (1-5 chars, '
@@ -346,10 +327,8 @@ class ScienceSettingsPage extends ConsumerWidget {
             ),
             SettingsSection(
               title: 'Minor Planet Center (MPC)',
-              isMobile: isMobile,
               children: [
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.star,
                   title: 'MPC observatory code',
                   subtitle: 'Your 3-character MPC observatory code (e.g., '
@@ -363,7 +342,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   onCommit: scienceNotifier.setMpcObservatoryCode,
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.bookOpen,
                   title: 'Astrometric catalog',
                   subtitle:
@@ -379,10 +357,8 @@ class ScienceSettingsPage extends ConsumerWidget {
             ),
             SettingsSection(
               title: 'Observer identity',
-              isMobile: isMobile,
               children: [
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.user,
                   title: 'Observer name',
                   subtitle:
@@ -398,10 +374,8 @@ class ScienceSettingsPage extends ConsumerWidget {
             ),
             SettingsSection(
               title: 'Transient Name Server (TNS)',
-              isMobile: isMobile,
               children: [
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.hash,
                   title: 'Bot id',
                   subtitle: 'Your TNS bot id (tns_marker tns_id).',
@@ -416,7 +390,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.bot,
                   title: 'Bot name',
                   subtitle: 'Your TNS bot name (tns_marker name).',
@@ -426,7 +399,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   onCommit: scienceNotifier.setTnsBotName,
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.users,
                   title: 'Reporting group id',
                   subtitle: 'Your TNS reporting_group_id.',
@@ -442,7 +414,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.database,
                   title: 'Data source id',
                   subtitle: 'Your TNS discovery_data_source_id.',
@@ -458,7 +429,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.edit3,
                   title: 'Reporter name',
                   subtitle: 'Reporter shown on TNS (falls back to observer '
@@ -469,16 +439,14 @@ class ScienceSettingsPage extends ConsumerWidget {
                   onCommit: scienceNotifier.setTnsReporterName,
                 ),
                 const _TnsApiKeyRow(),
-                _TnsSandboxRow(isMobile: isMobile),
+                const _TnsSandboxRow(),
               ],
             ),
-            SettingsSection(
+            const SettingsSection(
               title: 'Camera',
-              isMobile: isMobile,
               children: [
-                _ScienceCameraAutoRow(isMobile: isMobile),
+                _ScienceCameraAutoRow(),
                 _ScienceCameraValueRow(
-                  isMobile: isMobile,
                   settingKey: 'science.camera.read_noise_e',
                   icon: LucideIcons.zap,
                   title: 'Camera read noise (e⁻)',
@@ -489,7 +457,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   max: 30.0,
                 ),
                 _ScienceCameraValueRow(
-                  isMobile: isMobile,
                   settingKey: 'science.camera.gain_e_per_adu',
                   icon: LucideIcons.activity,
                   title: 'Camera gain (e⁻/ADU)',
@@ -501,7 +468,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   max: 50.0,
                 ),
                 _ScienceCameraValueRow(
-                  isMobile: isMobile,
                   settingKey: 'science.camera.saturation_adu',
                   icon: LucideIcons.sun,
                   title: 'Saturation level (ADU)',
@@ -535,7 +501,6 @@ class ScienceSettingsPage extends ConsumerWidget {
 /// is science-specific — normalisation, per-field validation shown in the
 /// subtitle, and the failure toast.
 class _ScienceTextRow extends ConsumerStatefulWidget {
-  final bool isMobile;
   final IconData icon;
   final String title;
   final String subtitle;
@@ -557,7 +522,6 @@ class _ScienceTextRow extends ConsumerStatefulWidget {
   final String? Function(String value)? validate;
 
   const _ScienceTextRow({
-    required this.isMobile,
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -577,7 +541,6 @@ class _ScienceTextRow extends ConsumerStatefulWidget {
 }
 
 class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
-  final _controller = TextEditingController();
   late final List<TextInputFormatter>? _formatters = _buildFormatters();
   String? _rowError;
   int _commits = 0;
@@ -592,12 +555,6 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
         ),
     ];
     return formatters.isEmpty ? null : formatters;
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   Future<void> _commit(String raw) async {
@@ -616,8 +573,7 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
           '${userFacingError(error)}';
       if (mounted) {
         setState(() => _rowError = message);
-        ScaffoldMessenger.maybeOf(context)
-            ?.showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.maybeOf(context)?.showInfoSnackBar(message);
       }
       // Hands the failure back to SettingsTextInput, which restores the stored
       // value. Swallowing it here would leave unsaved text on screen looking
@@ -634,18 +590,15 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
       title: widget.title,
       subtitle: _rowError ?? widget.subtitle,
       trailing: SettingsTextInput(
-        controller: _controller,
         authoritativeValue: widget.value,
         authorityKey: _rowAuthority(ref.watch(backendProvider), _commits),
         hint: widget.hint,
         width: widget.width,
-        isMobile: widget.isMobile,
         keyboardType: widget.numeric ? TextInputType.number : null,
         inputFormatters: _formatters,
         onChanged: _commit,
       ),
       isLast: widget.isLast,
-      isMobile: widget.isMobile,
     );
   }
 }
@@ -659,7 +612,6 @@ class _TnsApiKeyRow extends ConsumerStatefulWidget {
 }
 
 class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
-  final _controller = TextEditingController();
   bool _hasKey = false;
   String? _writeError;
 
@@ -672,12 +624,6 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
   void initState() {
     super.initState();
     _loadHas();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   Future<void> _loadHas() async {
@@ -712,8 +658,7 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
         final message =
             'Could not store the TNS bot key: ${userFacingError(error)}';
         setState(() => _writeError = message);
-        ScaffoldMessenger.maybeOf(context)
-            ?.showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.maybeOf(context)?.showInfoSnackBar(message);
       }
       return;
     }
@@ -736,7 +681,6 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
                   'it.'
               : 'Your TNS bot API key — stored securely, never in backups.'),
       trailing: SettingsTextInput(
-        controller: _controller,
         authoritativeValue: '',
         authorityKey: _authority,
         hint: _hasKey ? '•••••• (stored securely)' : 'paste key',
@@ -744,7 +688,6 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
         obscure: true,
         onChanged: _commit,
       ),
-      isMobile: false,
     );
   }
 }
@@ -752,8 +695,7 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
 /// Toggle between the TNS production endpoint and the sandbox (for testing —
 /// sandbox submits never create a public AT record).
 class _TnsSandboxRow extends ConsumerWidget {
-  final bool isMobile;
-  const _TnsSandboxRow({required this.isMobile});
+  const _TnsSandboxRow();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -770,7 +712,6 @@ class _TnsSandboxRow extends ConsumerWidget {
             ref.read(scienceSettingsProvider.notifier).setTnsUseSandbox(value),
       ),
       isLast: true,
-      isMobile: isMobile,
     );
   }
 }
@@ -780,8 +721,7 @@ class _TnsSandboxRow extends ConsumerWidget {
 /// fields keep their deep photometry offline, and everything else falls
 /// back to the bundled HYG catalog.
 class _ScienceOnlineCatalogRow extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _ScienceOnlineCatalogRow({this.isMobile = false});
+  const _ScienceOnlineCatalogRow();
 
   @override
   ConsumerState<_ScienceOnlineCatalogRow> createState() =>
@@ -801,12 +741,8 @@ class _ScienceOnlineCatalogRowState
           .setOnlineCatalogEnabled(value);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not save catalog setting: ${userFacingError(error)}',
-            ),
-          ),
+        context.showErrorSnackBar(
+          'Could not save catalog setting: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -833,7 +769,6 @@ class _ScienceOnlineCatalogRowState
         onChanged: _setEnabled,
       ),
       isLast: true,
-      isMobile: widget.isMobile,
     );
   }
 }
@@ -843,8 +778,7 @@ class _ScienceOnlineCatalogRowState
 /// the connected camera (or active profile); manually editing any of them
 /// flips this off so user values are never silently overwritten.
 class _ScienceCameraAutoRow extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _ScienceCameraAutoRow({this.isMobile = false});
+  const _ScienceCameraAutoRow();
 
   @override
   ConsumerState<_ScienceCameraAutoRow> createState() =>
@@ -863,12 +797,8 @@ class _ScienceCameraAutoRowState extends ConsumerState<_ScienceCameraAutoRow> {
           .setCameraAutoManaged(value);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not save camera setting: ${userFacingError(error)}',
-            ),
-          ),
+        context.showErrorSnackBar(
+          'Could not save camera setting: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -897,7 +827,6 @@ class _ScienceCameraAutoRowState extends ConsumerState<_ScienceCameraAutoRow> {
         value: autoManaged,
         onChanged: _setAutoManaged,
       ),
-      isMobile: widget.isMobile,
     );
   }
 }
@@ -912,7 +841,6 @@ class _ScienceCameraAutoRowState extends ConsumerState<_ScienceCameraAutoRow> {
 /// these rows have to *say* why an entry is refused, and a digits-only
 /// formatter would swallow the offending text before the row ever sees it.
 class _ScienceCameraValueRow extends ConsumerStatefulWidget {
-  final bool isMobile;
   final String settingKey;
   final IconData icon;
   final String title;
@@ -933,7 +861,6 @@ class _ScienceCameraValueRow extends ConsumerStatefulWidget {
     required this.max,
     this.integer = false,
     this.isLast = false,
-    this.isMobile = false,
   });
 
   @override
@@ -943,7 +870,6 @@ class _ScienceCameraValueRow extends ConsumerStatefulWidget {
 
 class _ScienceCameraValueRowState
     extends ConsumerState<_ScienceCameraValueRow> {
-  final _controller = TextEditingController();
   String? _rowError;
   int _commits = 0;
 
@@ -951,12 +877,6 @@ class _ScienceCameraValueRowState
   /// up. It is what makes a clamped entry ("100000" → "65535") visible the
   /// moment it is written instead of a frame later.
   String? _pendingWrite;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   Future<void> _commit(String raw) async {
     final parsed = double.tryParse(raw.trim());
@@ -978,12 +898,8 @@ class _ScienceCameraValueRowState
       ref.invalidate(scienceRawSettingsProvider);
       if (mounted) {
         setState(() => _rowError = 'Could not save this value');
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Could not save camera value: ${userFacingError(error)}',
-            ),
-          ),
+        context.showErrorSnackBar(
+          'Could not save camera value: ${userFacingError(error)}',
         );
       }
       rethrow;
@@ -1012,16 +928,13 @@ class _ScienceCameraValueRowState
       title: widget.title,
       subtitle: _rowError ?? widget.subtitle,
       trailing: SettingsTextInput(
-        controller: _controller,
         authoritativeValue: _pendingWrite ?? stored ?? widget.defaultText,
         authorityKey: _rowAuthority(ref.watch(backendProvider), _commits),
         width: 72,
-        isMobile: widget.isMobile,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: _commit,
       ),
       isLast: widget.isLast,
-      isMobile: widget.isMobile,
     );
   }
 }
@@ -1030,10 +943,9 @@ class _ScienceCameraValueRowState
 /// tiles saved by older versions in the compressed format. Hidden on a
 /// companion, whose atlas is on the imaging host.
 class _SkyAtlasStorageRow extends ConsumerStatefulWidget {
-  final bool isMobile;
   final int limitGb;
 
-  const _SkyAtlasStorageRow({required this.isMobile, required this.limitGb});
+  const _SkyAtlasStorageRow({required this.limitGb});
 
   @override
   ConsumerState<_SkyAtlasStorageRow> createState() =>
@@ -1055,7 +967,8 @@ class _SkyAtlasStorageRowState extends ConsumerState<_SkyAtlasStorageRow> {
       _result = outcome.compacted == 0
           ? 'All tiles are already compressed.'
           : 'Compressed ${outcome.compacted} tiles from '
-              '${_gb(outcome.bytesBefore)} GB to ${_gb(outcome.bytesAfter)} GB.';
+              '${ByteFormat.size(outcome.bytesBefore)} to '
+              '${ByteFormat.size(outcome.bytesAfter)}.';
     } catch (error) {
       if (!mounted) return;
       _result = 'Could not compress tiles: ${userFacingError(error)}';
@@ -1066,8 +979,6 @@ class _SkyAtlasStorageRowState extends ConsumerState<_SkyAtlasStorageRow> {
       }
     }
   }
-
-  static String _gb(int bytes) => (bytes / 1e9).toStringAsFixed(1);
 
   @override
   Widget build(BuildContext context) {
@@ -1084,9 +995,11 @@ class _SkyAtlasStorageRowState extends ConsumerState<_SkyAtlasStorageRow> {
     } else {
       final limit = widget.limitGb;
       subtitle = limit > 0
-          ? '${_gb(bytes)} GB of $limit GB used. Compressing rewrites tiles '
+          ? '${ByteFormat.size(bytes)} of $limit ${ByteFormat.gigaUnit} used. '
+              'Compressing rewrites tiles '
               'saved by older versions at a fraction of the size.'
-          : '${_gb(bytes)} GB used. Compressing rewrites tiles saved by older '
+          : '${ByteFormat.size(bytes)} used. Compressing rewrites tiles saved '
+              'by older '
               'versions at a fraction of the size.';
     }
     return SettingRow(
@@ -1098,7 +1011,6 @@ class _SkyAtlasStorageRowState extends ConsumerState<_SkyAtlasStorageRow> {
         variant: ButtonVariant.secondary,
         onPressed: _compacting || bytes == null ? null : _compact,
       ),
-      isMobile: widget.isMobile,
     );
   }
 }

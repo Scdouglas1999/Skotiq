@@ -15,22 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
 import 'package:skotiq_app/screens/analytics/widgets/analytics_empty_state.dart';
 import 'package:skotiq_app/screens/diagnostics/diagnostics_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao());
-
-  @override
-  // ignore: invalid_use_of_protected_member
-  TutorialProgress get state => const TutorialProgress(tutorialsEnabled: false);
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
 
 /// A session whose PSF field measured cleanly, so Diagnostics reaches its
 /// DATA branch — the health grade card with its two score bars — rather than
@@ -82,7 +69,6 @@ Widget _host(Widget child, {List<Override> extraOverrides = const []}) =>
             .overrideWith((ref) => Stream.value(const <DbCapturedImage>[])),
         allSessionsProvider
             .overrideWith((ref) => Stream.value(const <ImagingSession>[])),
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
         ...extraOverrides,
       ],
       child: MaterialApp(

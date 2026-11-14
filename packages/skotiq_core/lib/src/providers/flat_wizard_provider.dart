@@ -1,39 +1,68 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting, listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
+
+import 'linked_host.dart';
+import '../backend/remote_host.dart';
+import '../backend/skotiq_backend.dart';
 import '../utils/host_paths.dart';
 import '../backend/network_backend.dart';
-import '../models/backend/fits_header.dart' show FitsWriteHeader;
-import '../models/backend/image_result.dart' show CapturedImageResult;
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/flat_wizard/flat_capture_config.dart';
+import '../models/imaging/imaging_models.dart' show ExposureSettings, FrameType;
 import '../models/flat_wizard/flat_wizard_state.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
 import '../services/flat_exposure_calculator.dart';
 import '../services/calibration_backlog_service.dart';
+import '../services/flat_exposure_follower.dart';
+import '../services/frame_identity.dart';
+import 'settings_provider.dart';
 import '../services/flat_wizard_service.dart';
 import '../services/sky_brightness_tracker.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'flat_wizard_output.dart';
+import 'imaging_service_providers.dart';
 import 'profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
+import '../database/daos/settings_dao.dart';
+import '../models/backend/backend_types.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
+import 'calibration_backlog_service_provider.dart';
+import '../services/logging_service.dart';
 
 part 'flat_wizard/flat_output_paths.dart';
 part 'flat_wizard/flat_camera_config.dart';
 part 'flat_wizard/flat_wizard_settings_ops.dart';
 part 'flat_wizard/flat_wizard_run.dart';
 
-/// Provider for flat wizard state
 final flatWizardProvider =
     StateNotifierProvider<FlatWizardNotifier, FlatWizardState>((ref) {
       return FlatWizardNotifier(ref);
     });
+
+/// The folder flats are saved under: the one the operator chose, else
+/// `Flats` in the capture folder (the host's on a linked client). Null only
+/// when neither is set.
+final flatWizardSaveFolderProvider = Provider<String?>((ref) {
+  final chosen = ref.watch(
+    flatWizardProvider.select((state) => state.globalSettings.savePath),
+  );
+  if (chosen != null && chosen.isNotEmpty) return chosen;
+  final captureFolder =
+      ref.watch(appSettingsProvider).valueOrNull?.imageOutputPath ?? '';
+  return defaultFlatFolder(
+    captureFolder,
+    onHost: ref.watch(isRemoteModeProvider),
+  );
+});
 
 /// A filter queued for capture, paired with its STABLE index into
 /// `FlatWizardState.filterSettings`. Carrying the original index (rather than a
@@ -68,10 +97,6 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
   @visibleForTesting
   void Function(Object error)? debugRemoteFaultSink;
 
-  /// Settings key the persisted global-settings JSON blob lives under (the six
-  /// user-facing fields — save path, targets, frame count, subfolder toggles).
-  static const String _globalSettingsKey = 'flat_wizard_global_settings';
-
   /// Bumped on every user settings edit. The async hydrate captures this before
   /// its DB read and re-checks it afterward; a hydrate that resolves AFTER the
   /// user (or a run) has already touched the settings is discarded so it cannot
@@ -85,28 +110,24 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
 
   FlatWizardNotifier(this.ref) : super(const FlatWizardState()) {
     unawaited(_hydrateGlobalSettings());
-    ref.listen(filterWheelStateProvider, (previous, next) {
-      if (previous?.deviceId != next.deviceId ||
-          !listEquals(previous?.filterNames, next.filterNames)) {
-        unawaited(loadFiltersFromWheel());
-      }
+    ref.listen(effectiveFiltersProvider, (previous, next) {
+      if (!listEquals(previous, next)) unawaited(loadFilters());
+    });
+    ref.listen(filterWheelStateProvider.select((w) => w.deviceId), (_, _) {
+      unawaited(loadFilters());
     });
     ref.listen(activeEquipmentProfileProvider.select((p) => p?.id), (_, _) {
-      unawaited(loadFiltersFromWheel());
+      unawaited(loadFilters());
     });
     ref.listen(cameraStateProvider.select((c) => c.deviceId), (_, _) {
-      unawaited(loadFiltersFromWheel());
+      unawaited(loadFilters());
     });
   }
-
-  // Capture control
 
   bool _startPromptReserved = false;
 
   /// Whether capture startup or a capture run currently owns the wizard.
   bool get isBusy => _running || _startPromptReserved;
-
-  // Reset
 
   void reset() {
     // Refuse to wipe state out from under an active run; cancel it instead.

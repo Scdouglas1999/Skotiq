@@ -1,5 +1,3 @@
-// ignore_for_file: unused_element
-
 part of '../polar_alignment_screen.dart';
 
 extension _ConfigurationPanel on _PolarAlignmentScreenState {
@@ -17,7 +15,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
       color: colors.surface,
       child: Column(
         children: [
-          // Configuration section
           Expanded(
             child: SingleChildScrollView(
               controller: _configScrollController,
@@ -37,7 +34,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
                     _buildIdleGuide(colors),
                     const SizedBox(height: SkotiqTokens.spaceLg),
                   ],
-                  // Essential settings - always visible
                   _buildSectionHeader(
                       colors, 'Essential', SkotiqIcons.settings),
                   const SizedBox(height: 12),
@@ -48,7 +44,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
 
                   const SizedBox(height: 16),
 
-                  // Common settings - collapsible
                   _dimWhileRunning(
                     isRunning,
                     _buildCommonSettings(colors, config, isRunning),
@@ -56,7 +51,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
 
                   const SizedBox(height: 8),
 
-                  // Advanced settings - collapsible
                   _dimWhileRunning(
                     isRunning,
                     _buildAdvancedSettings(colors, config, isRunning),
@@ -70,7 +64,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
                     _buildAdjustmentTips(colors),
                   ],
 
-                  // History panel (shown when toggled)
                   if (ui.showHistoryPanel) ...[
                     const SizedBox(height: 24),
                     KeyedSubtree(
@@ -125,6 +118,22 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
     );
   }
 
+  /// The site decides the pole (the run uses the site's hemisphere), so this
+  /// states it rather than offering a choice that could contradict the site.
+  Widget _hemisphereFromSite(SkotiqColors colors) {
+    final site = ref.watch(appObserverLocationProvider);
+    return Text(
+      site == null
+          ? 'From your observing location (not set yet)'
+          : '${site.latitude >= 0 ? 'North' : 'South'} · from your site at '
+              '${AngleFormat.latitude(site.latitude, decimals: 1)}',
+      key: TourTarget.polarHemisphere.key,
+      style: SkotiqTypography.bodySm.copyWith(
+        color: site == null ? colors.textMuted : colors.textPrimary,
+      ),
+    );
+  }
+
   /// The kit's section title (05 §15), not a hand-built icon + h6 row.
   Widget _buildSectionHeader(SkotiqColors colors, String title, IconData icon) {
     return SectionTitle(icon: icon, title: title);
@@ -139,33 +148,21 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
 
     return Column(
       children: [
-        // Hemisphere
         _SettingRow(
           label: 'Hemisphere',
-          tooltip:
-              'Northern or Southern hemisphere determines celestial pole position',
+          tooltip: 'The pole the mount is aligned on. It follows the '
+              'latitude of your observing location.',
           colors: colors,
-          child: PolarAlignmentSegmentedButton<bool>(
-            buttonKey: PolarAlignmentTutorialKeys.hemisphere,
-            segments: const [
-              ButtonSegment(value: true, label: Text('North')),
-              ButtonSegment(value: false, label: Text('South')),
-            ],
-            selected: {config.isNorth},
-            onSelectionChanged:
-                isRunning ? null : (v) => configNotifier.setIsNorth(v.first),
-          ),
+          child: _hemisphereFromSite(colors),
         ),
         const SizedBox(height: 12),
-
-        // Exposure time
         _SettingRow(
           label: 'Exposure',
           tooltip:
               'Longer exposures capture more stars but slow down iterations',
           colors: colors,
           child: Row(
-            key: PolarAlignmentTutorialKeys.exposure,
+            key: TourTarget.polarExposure.key,
             children: [
               Expanded(
                 child: Slider(
@@ -223,7 +220,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
             ],
           ),
           children: [
-            // Binning
             _SettingRow(
               label: 'Binning',
               tooltip: 'Binning 2 solves in a quarter of the time; alignment '
@@ -242,15 +238,13 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Step size
             _SettingRow(
               label: 'Step size',
               tooltip:
                   'Distance between measurement points. Larger = more accurate but may hit mount limits',
               colors: colors,
               child: Row(
-                key: PolarAlignmentTutorialKeys.stepSize,
+                key: TourTarget.polarStepSize.key,
                 children: [
                   Expanded(
                     child: Slider(
@@ -276,8 +270,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Direction
             _SettingRow(
               label: 'Direction',
               tooltip:
@@ -329,7 +321,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
             ],
           ),
           children: [
-            // Manual rotation toggle
             _SettingRow(
               label: 'Manual rotation',
               tooltip: 'Enable for star trackers without GoTo capability',
@@ -342,8 +333,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Solve timeout
             _SettingRow(
               label: 'Solve timeout',
               tooltip: 'Budget for one frame: a solve hinted from the mount '
@@ -375,8 +364,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Start position
             _SettingRow(
               label: 'Start from',
               tooltip: 'Current: measure from where the scope points now. '
@@ -395,8 +382,6 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Auto-complete threshold
             _SettingRow(
               label: 'Auto-Complete',
               tooltip:

@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -37,7 +38,9 @@ void main() {
       container.read(sessionTransparencySamplesProvider(9).future),
       container.read(sessionPsfTilesProvider(9).future),
       container.read(sessionFrameQualityMetricsProvider(9).future),
-      container.read(sessionTileMetricsProvider(9).future),
+      container.read(
+        frameTileMetricsProvider((sessionId: 9, capturedImageId: null)).future,
+      ),
       container.read(sessionResidualVectorsProvider(9).future),
       container.read(sessionMovingObjectCandidatesProvider(9).future),
       container.read(sessionLineRatioProductsProvider(9).future),

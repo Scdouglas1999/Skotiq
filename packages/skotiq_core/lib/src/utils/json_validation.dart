@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 Map<String, dynamic> decodeJsonObjectString(
   String jsonStr, {
@@ -102,12 +101,23 @@ DateTime? jsonDateTime(dynamic value, {required String context}) {
   return DateTime.parse(normalized);
 }
 
-void logJsonWarning(String context, Object error, [StackTrace? stackTrace]) {
-  developer.log(
-    '$context: $error',
-    name: 'JsonValidation',
-    level: 900,
-    error: error,
-    stackTrace: stackTrace,
-  );
-}
+/// Numbers out of decoded JSON for readers that take what is there: a value
+/// that is not a number reads as zero, and a list keeps only its numbers.
+double lenientDouble(Object? value) => value is num ? value.toDouble() : 0.0;
+
+double? lenientNullableDouble(Object? value) =>
+    value is num ? value.toDouble() : null;
+
+int lenientInt(Object? value) => value is num ? value.toInt() : 0;
+
+List<double> lenientDoubleList(Object? value) => [
+  if (value is List)
+    for (final entry in value)
+      if (entry is num) entry.toDouble(),
+];
+
+List<int> lenientIntList(Object? value) => [
+  if (value is List)
+    for (final entry in value)
+      if (entry is num) entry.toInt(),
+];

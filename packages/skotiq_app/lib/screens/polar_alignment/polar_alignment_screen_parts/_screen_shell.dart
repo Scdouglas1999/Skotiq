@@ -1,5 +1,3 @@
-// ignore_for_file: unused_element
-
 part of '../polar_alignment_screen.dart';
 
 extension _ScreenShell on _PolarAlignmentScreenState {
@@ -70,7 +68,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
       if (context.canPop()) {
         context.pop();
       } else {
-        context.go('/imaging');
+        context.go(AppRoute.imaging.path);
       }
     }
 
@@ -290,7 +288,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
             // surfaces (02 rule 5).
             message: disabledReason ?? 'Start polar alignment',
             child: SkotiqButton(
-              key: PolarAlignmentTutorialKeys.startBtn,
+              key: TourTarget.polarStartButton.key,
               // Just "Start" on a phone: the header already says what is
               // being started.
               label: MediaQuery.sizeOf(context).width <
@@ -332,7 +330,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
               if (context.canPop()) {
                 context.pop();
               } else {
-                context.go('/imaging');
+                context.go(AppRoute.imaging.path);
               }
             },
           ),

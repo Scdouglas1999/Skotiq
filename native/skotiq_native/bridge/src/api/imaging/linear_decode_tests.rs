@@ -1,7 +1,6 @@
-use super::image_data_to_linear_f64;
 use skotiq_imaging::{ImageData, PixelType};
 
-/// The star field survives a write_fits -> read_fits -> decode round trip.
+/// The star field survives a write_fits -> read_frame -> decode round trip.
 /// A big-endian decode passes none of these: 440 ADU reads back as 47105 and
 /// the 40614 ADU star as 42654, inverting the contrast so star detection
 /// finds nothing.
@@ -23,8 +22,8 @@ fn round_trips_u16_fits_pixels_through_the_linear_decoder() {
     let header = skotiq_imaging::FitsHeader::new();
     skotiq_imaging::write_fits(&path, &image, &header).unwrap();
 
-    let (read_back, _) = skotiq_imaging::read_fits(&path).unwrap();
-    let linear = image_data_to_linear_f64(&read_back);
+    let (read_back, _) = skotiq_imaging::read_frame(&path).unwrap();
+    let linear = read_back.samples_f64();
 
     assert_eq!(linear.len(), samples.len());
     for (i, &expected) in samples.iter().enumerate() {
@@ -45,7 +44,7 @@ fn agrees_with_image_data_native_accessors() {
     image.data[0..2].copy_from_slice(&440u16.to_le_bytes());
     image.data[2..4].copy_from_slice(&40614u16.to_le_bytes());
 
-    let linear = image_data_to_linear_f64(&image);
+    let linear = image.samples_f64();
     let native = image.as_u16().unwrap();
 
     assert_eq!(linear, vec![native[0] as f64, native[1] as f64]);
@@ -58,5 +57,5 @@ fn round_trips_f32_pixels() {
     image.data[0..4].copy_from_slice(&1.5f32.to_le_bytes());
     image.data[4..8].copy_from_slice(&(-2.25f32).to_le_bytes());
 
-    assert_eq!(image_data_to_linear_f64(&image), vec![1.5, -2.25]);
+    assert_eq!(image.samples_f64(), vec![1.5, -2.25]);
 }

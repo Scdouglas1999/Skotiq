@@ -93,9 +93,12 @@ class SchedulerCandidateLoader {
     // INNER JOIN would return no rows ("nothing eligible"). Source everything
     // from the host instead. goalService is already host-aware (above), so the
     // per-goal counts in the shared assembly loop are correct too.
-    if (backend is NetworkBackend) {
+    final hostTargets = ref.read(linkedHostImagingRecordsProvider);
+    final hostPlanning = ref.read(linkedHostPlanningProvider);
+    if (hostTargets != null && hostPlanning != null) {
       return _loadRemote(
-        backend: backend,
+        hostTargets: hostTargets,
+        remote: hostPlanning,
         goalService: goalService,
         projectId: projectId,
         availableFilters: availableFilters,
@@ -106,99 +109,39 @@ class SchedulerCandidateLoader {
 
     final db = ref.read(databaseProvider);
 
-    // Make sure all three scheduler tables exist before we read them. The
-    // integration-goal service already ensures its own schema; we ensure
-    // the other two here using the shared DDL constants.
-    await db.customStatement(targetConstraintsSchemaSql);
+    final planning = db.planningDao;
+    // In a project, the effective priority is the membership override when
+    // set, else the target's own priority, and the engine sees that ranking.
+    final targetRows = await planning.schedulerTargets(projectId: projectId);
     requireAuthority();
-    await db.customStatement(targetConstraintsTargetIndexSql);
-    requireAuthority();
-    await db.customStatement(horizonProfilesSchemaSql);
-    requireAuthority();
-
-    final List<QueryRow> targetRows;
-    if (projectId != null) {
-      // Defensive: the planner tables are created by the v40 migration, but a
-      // fresh database built without migrations (or a scheduler tick that runs
-      // before the planner UI has touched ProjectService) must still find them.
-      // Re-running the DDL is a no-op on an existing schema (`IF NOT EXISTS`).
-      // These constants are the canonical project DDL, owned by ProjectService.
-      await db.customStatement(projectsSchemaSql);
-      requireAuthority();
-      await db.customStatement(projectTargetsSchemaSql);
-      requireAuthority();
-      await db.customStatement(projectTargetsProjectIndexSql);
-      requireAuthority();
-
-      // Restrict to the project's members. The effective priority is the
-      // membership override when set, else the target's own priority — and we
-      // order by that effective value so the engine sees project-scoped ranking.
-      targetRows = await db
-          .customSelect(
-            'SELECT t.id, t.name, t.ra, t.dec, '
-            'COALESCE(pt.priority_override, t.priority) AS priority, '
-            't.object_type, t.notes '
-            'FROM targets t '
-            'INNER JOIN project_targets pt ON pt.target_id = t.id '
-            'WHERE pt.project_id = ? '
-            'ORDER BY priority DESC, t.name ASC',
-            variables: [Variable.withInt(projectId)],
-          )
-          .get();
-      requireAuthority();
-    } else {
-      targetRows = await db
-          .customSelect(
-            'SELECT id, name, ra, dec, priority, object_type, notes FROM targets ORDER BY priority DESC, name ASC',
-          )
-          .get();
-      requireAuthority();
-    }
 
     // Pre-fetch all constraints + horizon profiles in two queries.
-    final constraintRows = await db
-        .customSelect(
-          'SELECT id, target_id, kind, payload_json, enabled FROM target_constraints WHERE enabled = 1',
-        )
-        .get();
+    final constraintRows = await planning.enabledTargetConstraints();
     requireAuthority();
-    final horizonRows = await db
-        .customSelect('SELECT id, name, samples_json FROM horizon_profiles')
-        .get();
+    final horizonRows = await loadHorizonProfiles(db);
     requireAuthority();
 
     final horizonProfiles = <int, HorizonProfile>{};
-    for (final row in horizonRows) {
-      final hp = HorizonProfile.fromRow(
-        id: row.read<int>('id'),
-        name: row.read<String>('name'),
-        samplesJson: row.read<String>('samples_json'),
-      );
+    for (final hp in horizonRows) {
       horizonProfiles[hp.id!] = hp;
     }
 
     final constraintsByTarget = <int, List<TargetConstraint>>{};
     for (final row in constraintRows) {
-      final tc = TargetConstraint.fromRow(
-        id: row.read<int>('id'),
-        targetId: row.read<int>('target_id'),
-        kindName: row.read<String>('kind'),
-        payloadJson: row.read<String>('payload_json'),
-        enabled: row.read<int>('enabled') == 1,
-      );
+      final tc = targetConstraintFromRow(row);
       constraintsByTarget.putIfAbsent(tc.targetId, () => []).add(tc);
     }
 
     final targets = targetRows
         .map(
           (row) => _LoaderTarget(
-            id: row.read<int>('id'),
-            name: row.read<String>('name'),
-            raHours: row.read<double>('ra'),
-            decDegrees: row.read<double>('dec'),
-            priority: row.read<int>('priority'),
-            objectType: row.readNullable<String>('object_type'),
-            notes: row.readNullable<String>('notes'),
+            id: row.id,
+            name: row.name,
+            raHours: row.ra,
+            decDegrees: row.dec,
+            priority: row.priority,
+            objectType: row.objectType,
+            notes: row.notes,
           ),
         )
         .toList();
@@ -220,7 +163,8 @@ class SchedulerCandidateLoader {
   /// the autopilot preview gates with the SAME constraints/horizons/scope the
   /// operator configured on the master — not an un-gated, always-eligible set.
   Future<List<SchedulerCandidate>> _loadRemote({
-    required NetworkBackend backend,
+    required HostImagingRecords hostTargets,
+    required HostPlanningData remote,
     required IntegrationGoalService goalService,
     int? projectId,
     required List<String> availableFilters,
@@ -228,7 +172,7 @@ class SchedulerCandidateLoader {
     required void Function() requireAuthority,
   }) async {
     // Host catalog rows, indexed by id.
-    final rawTargets = await backend.getAllTargets();
+    final rawTargets = await hostTargets.getAllTargets();
     requireAuthority();
     final byId = <int, _LoaderTarget>{};
     for (final json in rawTargets) {
@@ -249,7 +193,7 @@ class SchedulerCandidateLoader {
     if (projectId != null) {
       // Project scope: the membership rows carry the per-project priority
       // override; fall back to the target's own priority when unset.
-      final memberships = await backend.getProjectTargets(projectId);
+      final memberships = await remote.getProjectTargets(projectId);
       requireAuthority();
       final scoped = <_LoaderTarget>[];
       for (final m in memberships) {
@@ -271,7 +215,7 @@ class SchedulerCandidateLoader {
     }
 
     // Host constraints (enabled only, matching the local query) + horizons.
-    final allConstraints = await backend.getTargetConstraints();
+    final allConstraints = await remote.getTargetConstraints();
     requireAuthority();
     final constraintsByTarget = <int, List<TargetConstraint>>{};
     for (final tc in allConstraints) {
@@ -279,7 +223,7 @@ class SchedulerCandidateLoader {
       constraintsByTarget.putIfAbsent(tc.targetId, () => []).add(tc);
     }
     final horizonProfiles = <int, HorizonProfile>{};
-    final remoteHorizons = await backend.getHorizonProfiles();
+    final remoteHorizons = await remote.getHorizonProfiles();
     requireAuthority();
     for (final hp in remoteHorizons) {
       if (hp.id != null) horizonProfiles[hp.id!] = hp;

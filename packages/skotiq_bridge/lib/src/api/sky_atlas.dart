@@ -6,10 +6,6 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `describe_atlas_error`, `ensure_parent_dir`, `list_tiles_on_disk`, `mode_from_clip`, `open_atlas`, `parse_interp`, `read_frame`, `wcs_info_from_tile`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AtlasAction`, `CompactArgs`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
-
 /// Sky-atlas dispatcher. `args_json` carries an `"action"` selecting the
 /// operation; the remaining fields are the action-specific payload documented in
 /// `docs/skotiq_5_0_contracts.md` §2.1. Returns the action's JSON result.

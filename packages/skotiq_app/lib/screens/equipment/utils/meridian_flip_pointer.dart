@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
-import 'package:go_router/go_router.dart';
+import '../../../router/settings_sections.dart';
+import '../../../router/app_routes.dart';
 
 /// Where the mount's meridian flips are set. Every run arms its own flip
 /// trigger from these settings; the equipment screens hold none of their own.
@@ -10,5 +11,5 @@ const String kMeridianFlipSettingsPointer =
 /// Open Settings at the Sequencer section, which holds the meridian flip
 /// settings.
 void openMeridianFlipSettings(BuildContext context) {
-  GoRouter.of(context).go('/settings?section=sequencer');
+  openSettings(context, SettingsSectionId.sequencer);
 }

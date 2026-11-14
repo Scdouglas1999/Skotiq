@@ -4,6 +4,7 @@ import 'package:skotiq_core/src/providers/equipment/focuser_state_provider.dart'
 import 'package:skotiq_core/src/providers/equipment/focuser_temp_compensation_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 class _FakeAppSettingsNotifier extends AppSettingsNotifier {
   _FakeAppSettingsNotifier(this._initial);

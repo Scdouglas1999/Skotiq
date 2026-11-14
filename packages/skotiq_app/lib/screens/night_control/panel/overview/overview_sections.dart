@@ -4,12 +4,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../data/session/session_format.dart';
 import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
+import '../../night_tone_color.dart';
 
 /// The most log lines the tab lists where the log cannot scroll on its own.
 const int kNightPanelLogLines = 20;
@@ -167,6 +169,8 @@ class NightSessionSection extends StatelessWidget {
             items: nightMetricItems(session.metrics, l10n),
             semanticLabel: title,
           ),
+        if (session.rejectStreak case final streak?)
+          NightPanelNote(streak.resolve(l10n), tone: MetricGridTone.bad),
       ],
     );
   }
@@ -302,17 +306,17 @@ class NightConditionsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = SkotiqLocalizations.of(context);
-    final (String? note, MetricTone? tone) = conditions.verdictUnknown
-        ? (l10n.text('nightPanelSafetyUnknown'), MetricTone.warning)
+    final (String? note, MetricGridTone? tone) = conditions.verdictUnknown
+        ? (l10n.text('nightPanelSafetyUnknown'), MetricGridTone.warning)
         : switch (conditions.source) {
             ConditionsSource.none => (
                 l10n.text('nightPanelNoWeatherSource'),
-                MetricTone.warning,
+                MetricGridTone.warning,
               ),
             ConditionsSource.device || ConditionsSource.forecast => switch (
                   conditions.safe) {
-                true => (l10n.text('nightPanelSafe'), MetricTone.good),
-                false => (l10n.text('nightPanelUnsafe'), MetricTone.bad),
+                true => (l10n.text('nightPanelSafe'), MetricGridTone.good),
+                false => (l10n.text('nightPanelUnsafe'), MetricGridTone.bad),
                 null => conditions.source == ConditionsSource.forecast
                     ? (l10n.text('nightPanelForecastOnly'), null)
                     : (null, null),
@@ -438,7 +442,7 @@ class _NightLogSectionState extends State<NightLogSection> {
             children: <Widget>[
               SizedBox(
                 width: 40,
-                child: Text(nightPanelClock(entry.at), style: timeStyle),
+                child: Text(ClockFormat.hm(entry.at), style: timeStyle),
               ),
               const SizedBox(width: SkotiqTokens.spaceXs),
               Expanded(
@@ -447,7 +451,7 @@ class _NightLogSectionState extends State<NightLogSection> {
                   child: Text(
                     entry.message.resolve(l10n),
                     style: SkotiqTypography.caption.copyWith(
-                      color: entry.tone == MetricTone.neutral
+                      color: entry.tone == MetricGridTone.neutral
                           ? colors.textSecondary
                           : nightToneColor(entry.tone, colors),
                     ),
@@ -530,16 +534,19 @@ class NightChecklistSection extends StatelessWidget {
       trailingTone: items.isEmpty
           ? null
           : open == 0
-              ? MetricTone.good
+              ? MetricGridTone.good
               : blocked
-                  ? MetricTone.bad
-                  : MetricTone.warning,
+                  ? MetricGridTone.bad
+                  : MetricGridTone.warning,
       gap: SkotiqTokens.spaceXs,
       children: <Widget>[
         for (final item in items) _row(item, l10n, colors),
       ],
     );
   }
+
+  static final double _captionLine = SkotiqTypography.caption.fontSize! *
+      (SkotiqTypography.caption.height ?? 1);
 
   Widget _row(
     ChecklistItemVm item,
@@ -551,17 +558,17 @@ class NightChecklistSection extends StatelessWidget {
       ChecklistItemState.ok => (
           LucideIcons.check,
           'nightPanelCheckOk',
-          MetricTone.good,
+          MetricGridTone.good,
         ),
       ChecklistItemState.attention => (
           LucideIcons.alertTriangle,
           'nightPanelCheckAttention',
-          MetricTone.warning,
+          MetricGridTone.warning,
         ),
       ChecklistItemState.blocked => (
           LucideIcons.x,
           'nightPanelCheckBlocked',
-          MetricTone.bad,
+          MetricGridTone.bad,
         ),
     };
     final title = item.title.resolve(l10n);
@@ -571,7 +578,7 @@ class NightChecklistSection extends StatelessWidget {
         ? colors.textPrimary
         : nightToneColor(tone, colors);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Expanded(
           child: Semantics(
@@ -582,10 +589,12 @@ class NightChecklistSection extends StatelessWidget {
             ].join(', '),
             excludeSemantics: true,
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                // Centered on the detail's first line.
                 SizedBox(
                   width: 14,
+                  height: _captionLine,
                   child: Icon(
                     mark,
                     size: 11,
@@ -606,26 +615,16 @@ class NightChecklistSection extends StatelessWidget {
                 ),
                 const SizedBox(width: SkotiqTokens.spaceXs),
                 Expanded(
-                  // The column is narrow; the full detail is one hover away.
-                  child: detail == null
-                      ? Text(
-                          kReadoutUnknown,
-                          style: SkotiqTypography.caption.copyWith(
-                            color: detailColor,
-                          ),
-                          maxLines: 1,
-                        )
-                      : Tooltip(
-                          message: detail,
-                          child: Text(
-                            detail,
-                            style: SkotiqTypography.caption.copyWith(
-                              color: detailColor,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                  // Two lines: the second half of a detail is why the row
+                  // matters ("solving and centering will fail").
+                  child: Text(
+                    detail ?? kReadoutUnknown,
+                    style: SkotiqTypography.caption.copyWith(
+                      color: detailColor,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

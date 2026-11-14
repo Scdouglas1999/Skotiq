@@ -4,13 +4,12 @@ part of '../flat_wizard_provider.dart';
 
 /// The capture lifecycle for [FlatWizardNotifier].
 extension FlatWizardRun on FlatWizardNotifier {
-  // Capture lifecycle
-
   /// Run the full flat-capture lifecycle for the current mode: per-filter
   /// calibration, frame capture, FITS save, and history recording.
   ///
-  /// This is the single authoritative entry point. The screen only resolves
-  /// the save path (dialog) and calls this; all validation, cancellation, and
+  /// This is the single authoritative entry point. The screen asks for a
+  /// folder only when neither a chosen one nor a capture folder exists, and
+  /// calls this; all validation, cancellation, and
   /// truthful outcome reporting live here so the UI cannot drift from reality.
   ///
   /// Contract:
@@ -33,10 +32,9 @@ extension FlatWizardRun on FlatWizardNotifier {
     // Busy latch FIRST (synchronous, before any await) so a second start is
     // rejected even while the async validation below is in flight.
     if (_running) {
-      developer.log(
+      Log.warning(
         'FlatWizard: runCapture ignored — a run is already active',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
       );
       return;
     }
@@ -53,12 +51,20 @@ extension FlatWizardRun on FlatWizardNotifier {
       // frames were actually shot at.
       final runSettings = state.globalSettings;
       final backend = ref.read(backendProvider);
+      final hostFiles = ref.read(linkedHostFilesProvider);
       final cameraState = ref.read(cameraStateProvider);
       // Build the service inline from the current backend + settings rather
       // than `ref.read(flatWizardServiceProvider)`: that provider `ref.watch`es
       // THIS provider's state, so reading it from our own notifier would form a
       // circular provider dependency.
-      final flatService = FlatWizardService.fromSettings(backend, runSettings);
+      final calibrationAttempts =
+          ref.read(appSettingsProvider).valueOrNull?.flatCalibrationAttempts ??
+          20;
+      final flatService = FlatWizardService.fromSettings(
+        backend,
+        runSettings,
+        calibrationAttempts: calibrationAttempts,
+      );
       final db = ref.read(databaseProvider);
       final activeProfile = ref.read(activeEquipmentProfileProvider);
       final profileId = activeProfile?.id;
@@ -80,14 +86,28 @@ extension FlatWizardRun on FlatWizardNotifier {
         return;
       }
 
-      var savePath = runSettings.savePath;
-      if (savePath == null || savePath.isEmpty) {
-        setErrorMessage('No save path set');
+      // Without a chosen folder, flats go to `Flats` in the capture folder.
+      // On a host that folder may not exist yet, so the capture folder is
+      // what gets checked; the host creates the rest when it writes.
+      final chosen = runSettings.savePath;
+      final usesCaptureFolder = chosen == null || chosen.isEmpty;
+      var savePath = usesCaptureFolder
+          ? (ref.read(appSettingsProvider).valueOrNull?.imageOutputPath ?? '')
+                .trim()
+          : chosen;
+      if (savePath.isEmpty) {
+        setErrorMessage(
+          'No folder for flats: choose one, or set the capture folder in '
+          'Settings.',
+        );
         return;
       }
-      if (backend is NetworkBackend) {
+      if (hostFiles != null) {
         try {
-          savePath = await validateRemoteFlatOutputDirectory(backend, savePath);
+          savePath = await validateRemoteFlatOutputDirectory(
+            hostFiles,
+            savePath,
+          );
         } catch (error) {
           setErrorMessage(
             'Flat-frame save path is not usable on the imaging host: $error',
@@ -96,10 +116,22 @@ extension FlatWizardRun on FlatWizardNotifier {
           return;
         }
       }
+      if (usesCaptureFolder) {
+        savePath = defaultFlatFolder(savePath, onHost: hostFiles != null)!;
+      }
 
       final queue = _buildFilterQueue();
       if (queue.isEmpty) {
         setErrorMessage('No filters selected');
+        return;
+      }
+      final wheel = ref.read(filterWheelStateProvider);
+      if (queue.length > 1 &&
+          wheel.connectionState != DeviceConnectionState.connected) {
+        setErrorMessage(
+          'Connect a filter wheel to capture flats for several filters. '
+          'Without a wheel, capture one manually installed filter at a time.',
+        );
         return;
       }
 
@@ -162,7 +194,7 @@ extension FlatWizardRun on FlatWizardNotifier {
       // Committed: from here we are truly capturing
       _prepareFiltersForRun(queue);
       ref.read(flatRunOutputProvider.notifier).state = FlatRunOutput(
-        remote: backend is NetworkBackend,
+        remote: hostFiles != null,
       );
       state = state.copyWith(
         isCapturing: true,
@@ -175,14 +207,15 @@ extension FlatWizardRun on FlatWizardNotifier {
 
       // Base save path with optional date subfolder.
       // On a linked client the folder is the host's, joined in its style.
-      final paths = backend is NetworkBackend
-          ? hostPathContext(savePath)
-          : p.context;
+      final paths = hostFiles != null ? hostPathContext(savePath) : p.context;
       var baseSavePath = savePath;
       if (runSettings.createDateSubfolder) {
-        baseSavePath = paths.join(baseSavePath, _fmtDate(DateTime.now()));
+        baseSavePath = paths.join(
+          baseSavePath,
+          ClockFormat.date(DateTime.now()),
+        );
       }
-      final createOutputLocally = backend is! NetworkBackend;
+      final createOutputLocally = hostFiles == null;
       await prepareFlatOutputDirectory(
         baseSavePath,
         createLocally: createOutputLocally,
@@ -332,7 +365,6 @@ extension FlatWizardRun on FlatWizardNotifier {
         updateFilterCalibration(idx, calibration.exposure, calibration.adu);
         updateFilterStatus(idx, FilterCalibrationStatus.capturing);
 
-        // Frame capture
         var filterSavePath = baseSavePath;
         if (runSettings.createFilterSubfolders) {
           filterSavePath = paths.join(
@@ -351,11 +383,53 @@ extension FlatWizardRun on FlatWizardNotifier {
         var frameCancelled = false;
         var frameHalted = false;
 
+        // Every frame's ADU steers the next exposure, so the frames stay in
+        // the tolerance band while twilight changes the sky; see
+        // [FlatExposureFollower]. A frame that lands outside the band is not
+        // saved and not counted (as in NINA): a flat at the wrong level
+        // calibrates worse than one fewer flat.
+        final follower = FlatExposureFollower(
+          targetAdu: targetAdu,
+          tolerancePercent: tolerance,
+          minExposure: minExp,
+          maxExposure: maxExp,
+          changingLight: runMode == FlatWizardMode.skyFlats,
+        );
+        follower.record(
+          exposure: calibration.exposure,
+          adu: calibration.adu,
+          start: DateTime.now().subtract(
+            Duration(microseconds: (calibration.exposure * 1e6).round()),
+          ),
+        );
+        var frameExposure = calibration.exposure;
+        var discarded = 0;
+        var discardedInARow = 0;
+        String? lightStop;
+
         for (int frameNum = 1; frameNum <= frameCount; frameNum++) {
           if (cancelToken.isCancelled) {
             frameCancelled = true;
             break;
           }
+
+          switch (follower.next(plannedStart: DateTime.now())) {
+            case FlatExposureNext(exposure: final planned):
+              frameExposure = planned;
+            case FlatExposureOutOfRange(:final tooDark, :final neededExposure):
+              lightStop = tooDark
+                  ? '${filterSetting.filterName}: the sky is now too dark '
+                        'for flats — the target needs '
+                        '${neededExposure.toStringAsFixed(1)} s, over the '
+                        '${maxExp.toStringAsFixed(1)} s maximum exposure. '
+                        'Stopped with $savedCount of $frameCount frames.'
+                  : '${filterSetting.filterName}: the sky is now too bright '
+                        'for flats — the target needs '
+                        '${neededExposure.toStringAsFixed(3)} s, under the '
+                        '${minExp.toStringAsFixed(3)} s minimum exposure. '
+                        'Stopped with $savedCount of $frameCount frames.';
+          }
+          if (lightStop != null) break;
 
           // Fast-fail if the camera dropped between frames rather than waiting
           // out this frame's exposure timeout.
@@ -371,18 +445,15 @@ extension FlatWizardRun on FlatWizardNotifier {
           setStatusMessage(
             '${filterSetting.filterName}: Capturing frame $frameNum/$frameCount',
           );
-          setExposing(
-            true,
-            startTime: DateTime.now(),
-            duration: calibration.exposure,
-          );
+          final frameStart = DateTime.now();
+          setExposing(true, startTime: frameStart, duration: frameExposure);
 
           // Authoritative capture: waits for the real completion event (no
           // fixed delay), aborts the hardware on cancel/timeout, and uses the
           // one resolved effective config (gain/offset/binning).
           final capture = await flatService.exposeAndAwait(
             deviceId: cameraId,
-            exposureTime: calibration.exposure,
+            exposureTime: frameExposure,
             gain: config.gain,
             offset: config.offset,
             binX: config.binX,
@@ -422,22 +493,72 @@ extension FlatWizardRun on FlatWizardNotifier {
             continue;
           }
 
+          final frameAdu = capture.image?.stats.mean;
+          if (frameAdu != null) {
+            follower.record(
+              exposure: frameExposure,
+              adu: frameAdu,
+              start: frameStart,
+            );
+            addAduMeasurement(frameExposure, frameAdu);
+            if (!follower.inBand(frameAdu)) {
+              discarded++;
+              discardedInARow++;
+              setWarningMessage(
+                '${filterSetting.filterName}: $discarded frame'
+                '${discarded == 1 ? '' : 's'} outside the '
+                '±${tolerance.toStringAsFixed(0)}% band not kept (last '
+                '${frameAdu.round()} ADU at '
+                '${frameExposure.toStringAsFixed(2)} s); adjusting the '
+                'exposure.',
+              );
+              if (discardedInARow >= calibrationAttempts) {
+                lightStop =
+                    '${filterSetting.filterName}: $discardedInARow frames in a '
+                    'row landed outside the band — stopped with $savedCount '
+                    'of $frameCount frames. Raise "Exposure calibration '
+                    'attempts" or widen the tolerance.';
+                break;
+              }
+              frameNum--; // not counted toward the requested frames
+              continue;
+            }
+            discardedInARow = 0;
+            // The filter card shows the exposure the frames are being taken
+            // at now, not the calibration's.
+            updateFilterCalibration(idx, frameExposure, frameAdu);
+          }
+
           // Save the frame. A save failure IS a capture failure: the frame is
           // surfaced as failed and NOT counted.
           final captureTime = DateTime.now();
-          final filename =
-              '${_sanitizeComponent('Flat_${filterSetting.filterName}_'
-              '${_fmtStamp(captureTime)}_$frameNum')}.fits';
-          final filePath = paths.join(filterSavePath, filename);
+          final String filePath;
           try {
-            await backend.saveFitsFromLastCapture(
+            final requestedPath = await ref
+                .read(imagingServiceProvider)
+                .keeperFilePath(
+                  folder: filterSavePath,
+                  exposureSettings: ExposureSettings(
+                    exposureTime: frameExposure,
+                    gain: historyGain,
+                    offset: config.offset ?? cameraState.offset ?? 0,
+                    binningX: config.binX,
+                    binningY: config.binY,
+                    frameType: FrameType.flat,
+                    filter: filterSetting.filterName,
+                  ),
+                  targetName: FrameType.flat.imageType,
+                );
+            filePath = await backend.saveFitsFromLastCapture(
               deviceId: cameraId,
-              filePath: filePath,
-              headerData: FitsWriteHeader(
-                frameType: 'FLAT',
+              filePath: requestedPath,
+              keepCameraFile: true,
+              headerData: await manualFrameHeader(
+                ref,
+                frameType: FrameType.flat.imageType,
                 filter: filterSetting.filterName,
-                exposureTime: calibration.exposure,
-                captureTimestamp: captureTime.toUtc().toIso8601String(),
+                exposureTime: frameExposure,
+                startedAtUtc: captureTime,
                 gain: config.gain,
                 offset: config.offset,
                 binX: config.binX,
@@ -457,7 +578,7 @@ extension FlatWizardRun on FlatWizardNotifier {
             backend: backend,
             filePath: filePath,
             filter: filterSetting.filterName,
-            exposureSeconds: calibration.exposure,
+            exposureSeconds: frameExposure,
             capturedAt: captureTime,
             gain: config.gain,
             offset: config.offset,
@@ -466,10 +587,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           );
           incrementFilterCapturedCount(idx);
           final image = capture.image;
-          if (image != null) {
-            setLastImage(filePath, image);
-            addAduMeasurement(calibration.exposure, image.stats.mean);
-          }
+          if (image != null) setLastImage(filePath, image);
         }
 
         // Truthful per-filter status from the real saved count
@@ -505,6 +623,11 @@ extension FlatWizardRun on FlatWizardNotifier {
           );
         }
 
+        // The light ran out of range, or kept leaving the band: this filter
+        // stops with what it has and the run moves on. A notice, not a halt;
+        // set last so a later notice for this filter does not hide it.
+        if (lightStop != null) setWarningMessage(lightStop);
+
         // Fail-safe stop: a timed-out / uncertain-camera frame stops the whole
         // run, never just this filter.
         if (frameHalted) break;
@@ -524,10 +647,9 @@ extension FlatWizardRun on FlatWizardNotifier {
         _setFinalStatus(queue: queue, cancelled: cancelled);
       }
     } catch (e, st) {
-      developer.log(
+      Log.error(
         'FlatWizard: capture run failed: $e',
-        name: 'FlatWizardNotifier',
-        level: 1000,
+        source: 'FlatWizardNotifier',
         error: e,
         stackTrace: st,
       );
@@ -543,10 +665,9 @@ extension FlatWizardRun on FlatWizardNotifier {
         try {
           unawaited(ref.read(calibrationBacklogProvider.notifier).refresh());
         } on Object catch (e) {
-          developer.log(
+          Log.warning(
             'FlatWizard: calibration backlog refresh skipped: $e',
-            name: 'FlatWizardNotifier',
-            level: 900,
+            source: 'FlatWizardNotifier',
           );
         }
       }
@@ -557,7 +678,7 @@ extension FlatWizardRun on FlatWizardNotifier {
   /// frames are on this computer, record it so it waits in the calibration
   /// library like any other raw calibration frame until a master covers it.
   Future<void> _recordSavedFlat({
-    required Object backend,
+    required SkotiqBackend backend,
     required String filePath,
     required String filter,
     required double exposureSeconds,
@@ -583,7 +704,7 @@ extension FlatWizardRun on FlatWizardNotifier {
       filters: {...output.filters, filter: existing.withPath(filePath)},
       remote: output.remote,
     );
-    if (backend is NetworkBackend) return;
+    if (ref.read(isRemoteModeProvider)) return;
     try {
       await ref
           .read(calibrationBacklogServiceProvider)
@@ -599,10 +720,9 @@ extension FlatWizardRun on FlatWizardNotifier {
             sensorTemp: ref.read(cameraStateProvider).temperature,
           );
     } catch (e, st) {
-      developer.log(
+      Log.warning(
         'FlatWizard: could not record $filePath: $e',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
         error: e,
         stackTrace: st,
       );
@@ -758,11 +878,10 @@ extension FlatWizardRun on FlatWizardNotifier {
       fwNotifier.setMoving(isMoving);
       settledHere = !isMoving && status.position == position;
     } catch (e) {
-      developer.log(
+      Log.warning(
         'FlatWizard: could not confirm the wheel position before moving to '
         '$position ($e) — commanding the move rather than assuming',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
       );
     }
     if (settledHere) {
@@ -772,10 +891,9 @@ extension FlatWizardRun on FlatWizardNotifier {
     try {
       await deviceBackend.filterWheelSetPosition(fwState.deviceId!, position);
     } catch (e) {
-      developer.log(
+      Log.error(
         'FlatWizard: filter wheel move to $position failed: $e',
-        name: 'FlatWizardNotifier',
-        level: 1000,
+        source: 'FlatWizardNotifier',
         error: e,
       );
       return 'filter wheel failed to move ($e)';
@@ -826,23 +944,22 @@ extension FlatWizardRun on FlatWizardNotifier {
     // A named-filter exposure is unsafe while position is unverified. Stop
     // rather than silently photographing through whichever filter happens to
     // be in the optical path.
-    developer.log(
+    Log.warning(
       'FlatWizard: filter wheel settle not confirmed within '
       '${maxWait.inSeconds}s (stopping fail-safe)',
-      name: 'FlatWizardNotifier',
-      level: 900,
+      source: 'FlatWizardNotifier',
     );
     return 'filter wheel did not confirm position $position within '
         '${maxWait.inSeconds}s';
   }
 
   /// Record a completed filter's calibration to flat history. Preserves the
-  /// remote-vs-local routing exactly: on a [NetworkBackend] the record is
+  /// remote-vs-local routing exactly: on a linked client the record is
   /// posted to the master (so its library learns from the remote session);
   /// otherwise it is written to the local DAO. Never throws — a history-write
   /// failure must not fail the capture (the frames are already on disk).
   Future<void> _recordFlatHistory({
-    required dynamic backend,
+    required SkotiqBackend backend,
     required dynamic db,
     required int? profileId,
     required String filterName,
@@ -865,8 +982,9 @@ extension FlatWizardRun on FlatWizardNotifier {
       final twilightPhase = runMode == FlatWizardMode.skyFlats
           ? (runTwilightMode == TwilightMode.dawn ? 'dawn' : 'dusk')
           : null;
-      if (backend is NetworkBackend) {
-        await backend.recordFlat(
+      final remote = ref.read(linkedHostCalibrationFramesProvider);
+      if (remote != null) {
+        await remote.recordFlat(
           filter: filterName,
           exposureDuration: exposure,
           adu: adu.toInt(),
@@ -895,11 +1013,10 @@ extension FlatWizardRun on FlatWizardNotifier {
       // invisible on the appliance. Log at warning level AND surface a
       // non-fatal warning so the operator knows the flat LIBRARY did not learn
       // this exposure (their frames are still saved).
-      developer.log(
+      Log.warning(
         'FlatWizard: failed to record calibration to flat history for '
         '$filterName: $e',
-        name: 'FlatWizardNotifier',
-        level: 900,
+        source: 'FlatWizardNotifier',
         error: e,
         stackTrace: st,
       );

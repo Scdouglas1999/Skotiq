@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../sequence_fold_model.dart';
 import 'delete_node_confirmation.dart';
 import 'node_palette_empty_state.dart';
 import 'node_palette_search.dart';
-import 'palette_icon_map.dart';
+import 'palette_category_color.dart';
 import 'sequence_tree/fold_group_actions.dart';
+import 'tree_insert.dart';
+import 'node_appearance.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Right-click / long-press context menu for nodes in the sequencer tree.
 ///
@@ -505,7 +510,8 @@ class SequenceTreeContextMenu extends ConsumerWidget {
           await ref.read(sequenceExecutorProvider).skipToNode(first.id);
         } catch (e) {
           if (!context.mounted) return;
-          _showSnackBar(context, 'Failed to skip to "${first.name}": $e');
+          _showSnackBar(context,
+              'Failed to skip to "${first.name}": ${userFacingError(e)}');
         }
     }
   }
@@ -560,10 +566,10 @@ class SequenceTreeContextMenu extends ConsumerWidget {
         _insertSibling(context, ref, sequence, node, offset: 1);
         break;
       case _TreeMenuAction.moveUp:
-        _moveSibling(ref, sequence, node, delta: -1);
+        notifier.shiftNode(node.id, -1);
         break;
       case _TreeMenuAction.moveDown:
-        _moveSibling(ref, sequence, node, delta: 1);
+        notifier.shiftNode(node.id, 1);
         break;
       case _TreeMenuAction.duplicate:
         notifier.duplicateNode(node.id);
@@ -603,7 +609,8 @@ class SequenceTreeContextMenu extends ConsumerWidget {
           await ref.read(sequenceExecutorProvider).skipToNode(node.id);
         } catch (e) {
           if (!context.mounted) return;
-          _showSnackBar(context, 'Failed to skip to "${node.name}": $e');
+          _showSnackBar(context,
+              'Failed to skip to "${node.name}": ${userFacingError(e)}');
         }
         break;
     }
@@ -634,14 +641,11 @@ class SequenceTreeContextMenu extends ConsumerWidget {
     final notifier = ref.read(currentSequenceProvider.notifier);
     final selected = ref.read(multiSelectedNodeIdsProvider);
 
-    // Trivial cases: 0 or 1 selection, or right-click outside the multi-
-    // selection → fall back to single-node wrap of the clicked node.
     if (selected.length < 2 || !selected.contains(node.id)) {
       notifier.wrapNode(node.id, makeWrapper());
       return;
     }
 
-    // All selected nodes must share the same parent.
     String? sharedParent;
     for (final id in selected) {
       final n = sequence.nodes[id];
@@ -695,41 +699,9 @@ class SequenceTreeContextMenu extends ConsumerWidget {
     }
   }
 
-  /// Shift [node] one slot within its own parent. Uses the same
-  /// `moveNode(id, parentId, index)` call the tree's drag-drop and kebab
-  /// Move Up / Move Down go through, so the three surfaces produce one
-  /// undo entry shape and one reindex path.
-  void _moveSibling(
-    WidgetRef ref,
-    Sequence sequence,
-    SequenceNode node, {
-    required int delta,
-  }) {
-    final parentId = node.parentId;
-    if (parentId == null) return;
-    final parent = sequence.nodes[parentId];
-    if (parent == null) return;
-    final index = parent.childIds.indexOf(node.id);
-    final target = index + delta;
-    // The menu entries are pre-disabled at the ends; this guard only covers
-    // a programmatic call.
-    if (index < 0 || target < 0 || target >= parent.childIds.length) return;
-    ref.read(currentSequenceProvider.notifier).moveNode(
-          node.id,
-          parentId,
-          target,
-        );
-  }
-
   void _showSnackBar(BuildContext context, String message) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: colors.error,
-        duration: const Duration(seconds: 4),
-      ),
-    );
+    context.showErrorSnackBar(message, duration: const Duration(seconds: 4));
   }
 
   /// Open the node-palette sheet rooted at this node's parent so the new
@@ -857,20 +829,13 @@ class _InsertNodePickerState extends ConsumerState<_InsertNodePicker> {
   }
 
   void _insert(NodePaletteItem item) {
-    final newNode = item.createNode();
-    final notifier = ref.read(currentSequenceProvider.notifier);
-    notifier.addNode(
-      newNode,
+    insertIntoTree(
+      context,
+      ref,
+      item,
       parentId: widget.parentId,
       index: widget.index,
     );
-    final children = item.createChildren?.call();
-    if (children != null) {
-      for (final c in children) {
-        notifier.addNode(c, parentId: newNode.id);
-      }
-    }
-    ref.read(selectedNodeIdProvider.notifier).state = newNode.id;
     widget.onDismiss();
   }
 
@@ -1019,7 +984,7 @@ class _InsertNodePickerState extends ConsumerState<_InsertNodePicker> {
                                                       SkotiqTokens.radiusMd),
                                             ),
                                             child: Icon(
-                                              nodePaletteIconFor(item.icon),
+                                              nodeIcon(item.icon),
                                               size: 14,
                                               color: categoryColor,
                                             ),

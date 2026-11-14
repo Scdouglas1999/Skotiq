@@ -8,10 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/catalog_settings_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/models.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -38,7 +41,9 @@ Future<void> _pump(WidgetTester tester, {SkotiqBackend? backend}) async {
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
-        home: const Scaffold(body: CatalogSettingsScreen(isMobile: true)),
+        home: const Scaffold(
+            body: SettingsFormScope(
+                narrow: true, child: CatalogSettingsScreen())),
       ),
     ),
   );
@@ -67,10 +72,10 @@ void main() {
     await for (final entity in catalogDirectory.list()) {
       await entity.delete(recursive: true);
     }
-    await File(CatalogManager.instance.starCatalogPath).writeAsString(
+    await File(CatalogManager.instance.pathOf(SkyCatalog.stars)).writeAsString(
       'id,proper,ra,dec,mag\n1,Polaris,2.5,89.2,1.9\n',
     );
-    await File(CatalogManager.instance.dsoCatalogPath).writeAsString(
+    await File(CatalogManager.instance.pathOf(SkyCatalog.dso)).writeAsString(
       'Name,RA,Dec,V-Mag\nNGC224,00:42:44,+41:16:09,3.4\n',
     );
   });

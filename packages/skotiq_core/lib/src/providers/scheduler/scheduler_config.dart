@@ -24,11 +24,10 @@ class SchedulerConfigStore {
   SchedulerConfigStore(this._dao);
 
   final SettingsDao _dao;
-  static const String _key = 'scheduler_config';
 
   Future<SchedulerConfig> load() async {
-    final raw = await _dao.getSetting(_key);
-    if (raw == null || raw.isEmpty) return SchedulerConfig.defaults;
+    final raw = await _dao.read(StoreSettings.schedulerConfig);
+    if (raw == null) return SchedulerConfig.defaults;
     try {
       return SchedulerConfig.fromStorageJson(
         jsonDecode(raw) as Map<String, dynamic>,
@@ -42,7 +41,10 @@ class SchedulerConfigStore {
   }
 
   Future<void> save(SchedulerConfig config) {
-    return _dao.setSetting(_key, jsonEncode(config.toStorageJson()));
+    return _dao.write(
+      StoreSettings.schedulerConfig,
+      jsonEncode(config.toStorageJson()),
+    );
   }
 }
 
@@ -62,25 +64,25 @@ final schedulerPersistedConfigProvider = FutureProvider<SchedulerConfig>((ref) {
 /// settings row was still loading.
 final schedulerConfigUserDirtyProvider = StateProvider<bool>((ref) => false);
 
-/// The site's minimum imaging altitude in degrees — the ONE number.
-///
-/// The scheduler's [SchedulerConfig.minAltitudeDegrees] is the only
-/// operator-editable minimum altitude in the product (Plan Tonight → Schedule →
-/// Scoring weights), so it is the authority. Everything that gates on "is this
-/// target high enough" reads it here instead of carrying a private constant:
-/// the Smart Night sequence builder, the mosaic panel altitude waits, and the
-/// threshold line the altitude charts draw. A private constant anywhere lets
-/// one screen admit a target another refuses.
+/// How high a target must stand at this site: the one altitude-floor rule
+/// ([AltitudeFloor]). The operator's horizon when one is set, otherwise the
+/// scheduler's minimum altitude ([SchedulerConfig.minAltitudeDegrees], Plan
+/// Tonight → Schedule → Scoring weights), with learned obstructions merged in.
+/// The scheduler, the sequence builders, framing waits, the altitude charts,
+/// the time-to-set readouts and the plan timer all read it here.
 ///
 /// Per-target overrides (`targets.min_altitude`, carried on
 /// `ForecastTarget.minAltitudeDeg`) are a deliberate exception: a specific
-/// target may need to clear more than the site does. This provider is the
-/// FLOOR, not a replacement for those.
-final siteMinimumAltitudeDegProvider = Provider<double>((ref) {
+/// target may need to clear more than the site does.
+final altitudeFloorProvider = Provider<AltitudeFloor>((ref) {
   final persisted = ref.watch(schedulerPersistedConfigProvider).valueOrNull;
   // Before the durable row has loaded (or when it has never been written) the
   // engine itself runs on SchedulerConfig.defaults, so that is the honest
   // answer here too — never a second hard-coded number.
-  return persisted?.minAltitudeDegrees ??
-      SchedulerConfig.defaults.minAltitudeDegrees;
+  return AltitudeFloor(
+    horizon: ref.watch(horizonProfileProvider),
+    minimumDeg:
+        persisted?.minAltitudeDegrees ??
+        SchedulerConfig.defaults.minAltitudeDegrees,
+  );
 });

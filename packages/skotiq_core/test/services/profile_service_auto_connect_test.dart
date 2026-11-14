@@ -2,13 +2,17 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
 
 /// Contract coverage for [ProfileService.autoConnectOnStartup] — the single
-/// core the desktop [StartupAutoConnectLauncher] and the headless
-/// `headlessAutoConnectBootstrap` both drive.
+/// core the `equipment auto-connect` host start-up step (`hostAutoConnect`)
+/// drives on the GUI host and the daemon.
 ///
 /// The contract under test:
 ///   * No-op when the setting is off, and no-op when there is no startup
@@ -22,6 +26,8 @@ import 'package:skotiq_core/src/models/equipment_profile.dart'
 ///     [ProfileAutoConnectException] after the whole sweep instead of aborting
 ///     on the first failure.
 class _MockFfiBackend extends Mock implements FfiBackend {}
+
+class _MockRemoteBackend extends Mock implements NetworkBackend {}
 
 class _MockDeviceService extends Mock implements DeviceService {}
 
@@ -111,6 +117,27 @@ void main() {
     return backend;
   }
 
+  test(
+    'a linked startup uses the profiles list without an older-host retry',
+    () async {
+      final backend = _MockRemoteBackend();
+      when(backend.getProfiles).thenAnswer((_) async => []);
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      final ds = _MockDeviceService();
+      final container = buildContainer(
+        backend: backend,
+        deviceService: ds,
+        autoConnectEnabled: true,
+      );
+      await container.read(profileServiceProvider).autoConnectOnStartup();
+      verify(backend.getProfiles).called(1);
+      verifyNever(backend.getActiveProfile);
+      verifyNever(() => ds.connectProfile(any(), source: any(named: 'source')));
+    },
+  );
+
   test('does nothing when the auto-connect setting is off', () async {
     final backend = healthyBackend();
     final ds = _MockDeviceService();
@@ -132,7 +159,7 @@ void main() {
 
     // Never activates and never connects when disabled.
     verifyNever(() => backend.saveProfile(any()));
-    verifyNever(() => ds.connectAllFromProfile(any()));
+    verifyNever(() => ds.connectProfile(any(), source: any(named: 'source')));
   });
 
   test(
@@ -150,7 +177,7 @@ void main() {
       await container.read(profileServiceProvider).autoConnectOnStartup();
 
       verifyNever(() => backend.saveProfile(any()));
-      verifyNever(() => ds.connectAllFromProfile(any()));
+      verifyNever(() => ds.connectProfile(any(), source: any(named: 'source')));
     },
   );
 
@@ -187,7 +214,7 @@ void main() {
     );
 
     // ...and NOT a single device was connected.
-    verifyNever(() => ds.connectAllFromProfile(any()));
+    verifyNever(() => ds.connectProfile(any(), source: any(named: 'source')));
   });
 
   test('attempts every slot (incl. switch + safety monitor) and aggregates '
@@ -196,31 +223,26 @@ void main() {
     final ds = _MockDeviceService();
     // Camera + mount connect; switch + safety monitor fail. The stream never
     // errors — a single bad device must not abort the sweep.
-    when(() => ds.connectAllFromProfile(any())).thenAnswer(
-      (_) => Stream<DeviceConnectProgress>.fromIterable(const [
-        DeviceConnectProgress(
-          deviceType: 'camera',
-          deviceId: 'ascom:camera:1',
-          status: DeviceConnectProgressStatus.connected,
-        ),
-        DeviceConnectProgress(
-          deviceType: 'mount',
-          deviceId: 'ascom:mount:1',
-          status: DeviceConnectProgressStatus.connected,
-        ),
-        DeviceConnectProgress(
-          deviceType: 'switch',
-          deviceId: 'ascom:switch:1',
-          status: DeviceConnectProgressStatus.failed,
-          errorMessage: 'switch offline',
-        ),
-        DeviceConnectProgress(
-          deviceType: 'safety monitor',
-          deviceId: 'ascom:safety:1',
-          status: DeviceConnectProgressStatus.failed,
-          errorMessage: 'safety monitor offline',
-        ),
-      ]),
+    when(
+      () => ds.connectProfile(any(), source: any(named: 'source')),
+    ).thenAnswer(
+      (_) async => (
+        connected: 2,
+        failures: const [
+          DeviceConnectProgress(
+            deviceType: 'switch',
+            deviceId: 'ascom:switch:1',
+            status: DeviceConnectProgressStatus.failed,
+            errorMessage: 'switch offline',
+          ),
+          DeviceConnectProgress(
+            deviceType: 'safety monitor',
+            deviceId: 'ascom:safety:1',
+            status: DeviceConnectProgressStatus.failed,
+            errorMessage: 'safety monitor offline',
+          ),
+        ],
+      ),
     );
 
     final container = buildContainer(
@@ -251,9 +273,11 @@ void main() {
     expect(caught, isA<ProfileAutoConnectException>());
     final ex = caught! as ProfileAutoConnectException;
     expect(ex.profileName, 'Rig');
-    expect(ex.failures, hasLength(2));
-    expect(ex.failures.join('; '), contains('switch'));
-    expect(ex.failures.join('; '), contains('safety monitor'));
+    expect(ex.described, [
+      'Switch: switch offline',
+      'Safety monitor: safety monitor offline',
+    ]);
+    expect(ex.toString(), contains('ascom:switch:1'));
 
     // Activation happened exactly once, before the connect sweep.
     verify(() => backend.saveProfile(any())).called(1);
@@ -261,7 +285,7 @@ void main() {
     // The full profile (including the switch + safety-monitor slots) was
     // handed to the connector.
     final captured = verify(
-      () => ds.connectAllFromProfile(captureAny()),
+      () => ds.connectProfile(captureAny(), source: 'Startup auto-connect'),
     ).captured;
     final passed = captured.single as EquipmentProfileModel;
     expect(passed.switchId, 'ascom:switch:1');

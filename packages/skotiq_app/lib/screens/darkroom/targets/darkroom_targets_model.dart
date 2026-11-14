@@ -8,7 +8,11 @@ library;
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// A sub further than this from the target's catalog position, by the
 /// mount's reported pointing, is drawn as off target. Guided tracking lets the
@@ -35,15 +39,17 @@ const List<String> darkroomFilterOrder = [
   'SII',
 ];
 
-int compareDarkroomFilters(String a, String b) {
-  int rank(String f) {
-    final i = darkroomFilterOrder.indexWhere(
-      (o) => o.toLowerCase() == f.toLowerCase(),
-    );
-    return i < 0 ? darkroomFilterOrder.length : i;
-  }
+/// Where [filter] sits in [darkroomFilterOrder]; filters it does not name
+/// share the last place.
+int darkroomFilterRank(String filter) {
+  final i = darkroomFilterOrder.indexWhere(
+    (o) => o.toLowerCase() == filter.toLowerCase(),
+  );
+  return i < 0 ? darkroomFilterOrder.length : i;
+}
 
-  final byRank = rank(a).compareTo(rank(b));
+int compareDarkroomFilters(String a, String b) {
+  final byRank = darkroomFilterRank(a).compareTo(darkroomFilterRank(b));
   return byRank != 0 ? byRank : a.compareTo(b);
 }
 
@@ -150,19 +156,17 @@ class DarkroomNight {
   List<String> get filters =>
       {for (final s in subs) s.filter}.toList()..sort(compareDarkroomFilters);
 
-  /// A night with kept subs and none of them in the current masters.
   bool get isNew => kept > 0 && use == DarkroomNightUse.none;
 
-  /// Kept subs the current masters do not hold.
   int get notInMasters => kept - inMasters;
 
   /// The one thing worth knowing about how the night went.
   String get note {
     final flip = marks.where((m) => m.label == 'flip').firstOrNull;
-    if (flip != null) return 'Flip at ${hhmm(flip.at)}';
+    if (flip != null) return 'Flip at ${ClockFormat.hm(flip.at.toLocal())}';
     final lost = marks.where((m) => m.label != 'flip').firstOrNull;
-    if (lost != null) return 'Stars lost ${hhmm(lost.at)}';
-    return 'Ended ${hhmm(last)}';
+    if (lost != null) return 'Stars lost ${ClockFormat.hm(lost.at.toLocal())}';
+    return 'Ended ${ClockFormat.hm(last.toLocal())}';
   }
 }
 
@@ -270,27 +274,6 @@ class DarkroomTarget {
 
 String two(int v) => v.toString().padLeft(2, '0');
 
-/// Local wall-clock time, `HH:MM`.
-String hhmm(DateTime t) {
-  final l = t.toLocal();
-  return '${two(l.hour)}:${two(l.minute)}';
-}
-
-/// Degrees between two equatorial positions, RA in hours.
-double darkroomSeparationDeg(
-  double ra1Hours,
-  double dec1Deg,
-  double ra2Hours,
-  double dec2Deg,
-) {
-  const rad = math.pi / 180;
-  final a1 = ra1Hours * 15 * rad, d1 = dec1Deg * rad;
-  final a2 = ra2Hours * 15 * rad, d2 = dec2Deg * rad;
-  final cosSep = math.sin(d1) * math.sin(d2) +
-      math.cos(d1) * math.cos(d2) * math.cos(a1 - a2);
-  return math.acos(cosSep.clamp(-1.0, 1.0)) / rad;
-}
-
 /// The nights of [frames], newest first. [folded] holds the image ids a
 /// build of the current masters was given, [used] those it integrated.
 List<DarkroomNight> buildDarkroomNights(
@@ -358,7 +341,13 @@ String? _side(String? raw) {
 bool _offTarget(DbCapturedImage f, DbTarget? target) {
   final ra = f.mountRa, dec = f.mountDec;
   if (target == null || ra == null || dec == null) return false;
-  return darkroomSeparationDeg(ra, dec, target.ra, target.dec) * 60 >
+  return AstronomyCalculations.angularSeparation(
+            ra1Deg: ra * 15.0,
+            dec1Deg: dec,
+            ra2Deg: target.ra * 15.0,
+            dec2Deg: target.dec,
+          ) *
+          60 >
       darkroomOffTargetArcmin;
 }
 
@@ -415,7 +404,49 @@ List<DarkroomNightMark> _marks(List<DarkroomSub> subs) {
   return marks;
 }
 
-/// Whether [master] belongs to the target listed as [key] with row [row].
+/// The target [master] belongs to.
+///
+/// The target row's name when the master carries one; otherwise the `target`
+/// the guided build recorded in the master's settings; otherwise the master's
+/// own name with its filter suffix taken off. The guided build keys its jobs by
+/// the same name, so an image lands under the target the Targets tab lists.
+String darkroomMasterTargetName(
+  IntegratedMaster master,
+  Map<int, String> targetNames,
+) {
+  final byId = master.targetId == null ? null : targetNames[master.targetId];
+  if (byId != null && byId.trim().isNotEmpty) return byId.trim();
+  try {
+    final settings = jsonDecode(master.settingsJson);
+    if (settings is Map && settings['target'] is String) {
+      final name = (settings['target'] as String).trim();
+      if (name.isNotEmpty) return name;
+    }
+  } on FormatException {
+    // Settings that are not JSON name no target; the master's name does.
+  }
+  var name = master.name.trim();
+  final filter = master.filter?.trim();
+  if (filter != null && filter.isNotEmpty) {
+    for (final separator in const [' · ', ' - ', ' ']) {
+      final suffix = '$separator$filter';
+      if (name.toLowerCase().endsWith(suffix.toLowerCase())) {
+        name = name.substring(0, name.length - suffix.length).trim();
+        break;
+      }
+    }
+  }
+  // Session Review names a master "<target> · <filter>"; what follows the dot
+  // is never part of the target.
+  final dot = name.indexOf(' · ');
+  if (dot > 0) name = name.substring(0, dot).trim();
+  return name.isEmpty ? 'Unnamed target' : name;
+}
+
+/// Whether [master] belongs to the target listed as [key] with row [row]: the
+/// target row it records, the frames it folded, else the target
+/// [darkroomMasterTargetName] reads, the same one the Edit tab's library
+/// files it under.
 bool darkroomMasterBelongsTo(
   IntegratedMaster master,
   String key, {
@@ -427,17 +458,10 @@ bool darkroomMasterBelongsTo(
     return master.targetId == row.id;
   }
   if (frameIds.isNotEmpty && foldedIds.any(frameIds.contains)) return true;
-  try {
-    final settings = jsonDecode(master.settingsJson);
-    if (settings is Map && settings['target'] is String) {
-      return settings['target'] == key;
-    }
-  } on FormatException {
-    // Not a build plan; fall back to the name.
-  }
-  final name = normalizeDarkroomTargetName(master.name);
   final wanted = normalizeDarkroomTargetName(key);
-  return wanted.isNotEmpty && name.startsWith(wanted);
+  return wanted.isNotEmpty &&
+      normalizeDarkroomTargetName(darkroomMasterTargetName(master, const {})) ==
+          wanted;
 }
 
 /// The Targets tab's list: every target with lights or masters, the most

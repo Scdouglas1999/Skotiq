@@ -1,11 +1,15 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for safety monitor endpoints
 ///
@@ -13,7 +17,16 @@ import '../validation.dart';
 /// various conditions like weather, power status, or custom sensor inputs.
 /// Multiple safety monitors can be connected, and all must report "safe"
 /// for the system to consider conditions safe for imaging.
-class SafetyMonitorHandlers {
+class SafetyMonitorHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SafetyMonitorApi.safetyStatus: handleSafetyStatus,
+    SafetyMonitorApi.getSafetySettings: handleGetSafetySettings,
+    SafetyMonitorApi.updateSafetySettings: handleUpdateSafetySettings,
+    SafetyMonitorApi.acknowledgeUnsafe: handleAcknowledgeUnsafe,
+    SafetyMonitorApi.cancelAcknowledgement: handleCancelAcknowledgement,
+  };
+
   final ProviderContainer container;
 
   SafetyMonitorHandlers(this.container);
@@ -45,12 +58,6 @@ class SafetyMonitorHandlers {
     _ => SafetyFailMode.failClosed,
   };
 
-  String _failModeToSequencer(SafetyFailMode mode) => switch (mode) {
-    SafetyFailMode.failOpen => 'fail_open',
-    SafetyFailMode.failClosed => 'fail_closed',
-    SafetyFailMode.warnOnly => 'warn_only',
-  };
-
   int _parseIntSetting(Map<String, String> settings, String key, int fallback) {
     final raw = settings[key];
     if (raw == null) return fallback;
@@ -77,8 +84,6 @@ class SafetyMonitorHandlers {
       'enabledMonitors': <String>[],
     };
   }
-
-  // Safety status
 
   /// Exact aggregate host-safety projection shared by both aggregate response
   /// shapes. Keeping this in one map prevents the no-dedicated-monitor branch
@@ -108,7 +113,7 @@ class SafetyMonitorHandlers {
         'shouldPark': safety.actions.shouldPark,
         'shouldCloseDome': safety.actions.shouldCloseDome,
         'reason': safety.actions.reason,
-        'resumeCheckTime': safety.actions.resumeCheckTime?.toIso8601String(),
+        'resumeCheckTime': safety.actions.resumeCheckTime?.toWireTime(),
         'advisoryOnly': safety.actions.advisoryOnly,
       },
       // Which input decides, and what the run's own frames say: a forecast
@@ -122,15 +127,15 @@ class SafetyMonitorHandlers {
         final evidence? => {
           'latestStars': evidence.latestStars,
           'typicalStars': evidence.typicalStars,
-          'latestAt': evidence.latestAt.toUtc().toIso8601String(),
+          'latestAt': evidence.latestAt.toWireTime(),
           'clear': evidence.clear,
         },
         null => null,
       },
       'snoozeReason': safety.snoozeReason,
       'failModeWarning': safety.failModeWarning,
-      'lastEvaluation': safety.lastEvaluation?.toIso8601String(),
-      'snoozeUntil': safety.snoozeUntil?.toIso8601String(),
+      'lastEvaluation': safety.lastEvaluation?.toWireTime(),
+      'snoozeUntil': safety.snoozeUntil?.toWireTime(),
     };
   }
 
@@ -148,16 +153,13 @@ class SafetyMonitorHandlers {
       _logError('Failed to read connected devices for safety status: $e');
     }
 
-    // Filter to safety monitors
     final safetyMonitors = connectedDevices
         .where((d) => d.deviceType == DeviceType.safetyMonitor)
         .toList();
 
-    // Read the real safety monitor device state from the provider
     final safetyMonitorState = container.read(safetyMonitorStateProvider);
 
     if (deviceId != null && deviceId.isNotEmpty) {
-      // Return status for specific device
       final monitor = safetyMonitors.firstWhere(
         (d) => d.id == deviceId,
         orElse: () => const DeviceInfo(
@@ -179,7 +181,6 @@ class SafetyMonitorHandlers {
         }, statusCode: 503);
       }
 
-      // Use real safety state from the connected device
       final isDeviceMatch = safetyMonitorState.deviceId == deviceId;
       final isConnected =
           isDeviceMatch &&
@@ -199,8 +200,8 @@ class SafetyMonitorHandlers {
         "deviceId": deviceId,
         "deviceName": monitor.name,
         "isSafe": safetyMonitorState.isSafe,
-        "lastChecked": safetyMonitorState.lastChecked?.toIso8601String(),
-        "lastUpdate": DateTime.now().toIso8601String(),
+        "lastChecked": safetyMonitorState.lastChecked?.toWireTime(),
+        "lastUpdate": DateTime.now().toWireTime(),
       });
     }
 
@@ -215,11 +216,10 @@ class SafetyMonitorHandlers {
         ..._aggregateSafetyPayload(weatherSafety),
         "monitorsConnected": 0,
         "monitors": <Map<String, dynamic>>[],
-        "lastUpdate": DateTime.now().toIso8601String(),
+        "lastUpdate": DateTime.now().toWireTime(),
       });
     }
 
-    // Build per-monitor status using real device state
     final monitorStatuses = safetyMonitors.map((m) {
       final isThisDevice = safetyMonitorState.deviceId == m.id;
       final isConnected =
@@ -232,7 +232,7 @@ class SafetyMonitorHandlers {
         'connected': isConnected,
         'isSafe': isConnected ? safetyMonitorState.isSafe : null,
         'lastChecked': isConnected
-            ? safetyMonitorState.lastChecked?.toIso8601String()
+            ? safetyMonitorState.lastChecked?.toWireTime()
             : null,
       };
     }).toList();
@@ -241,11 +241,9 @@ class SafetyMonitorHandlers {
       ..._aggregateSafetyPayload(weatherSafety),
       "monitorsConnected": safetyMonitors.length,
       "monitors": monitorStatuses,
-      "lastUpdate": DateTime.now().toIso8601String(),
+      "lastUpdate": DateTime.now().toWireTime(),
     });
   }
-
-  // Safety settings
 
   /// GET /api/safety/settings
   /// Gets safety-related settings.
@@ -274,7 +272,6 @@ class SafetyMonitorHandlers {
     _logInfo('POST /api/safety/settings');
     final payload = await readJsonObject(request);
 
-    // Validate fail mode if provided
     final failMode = optionalString(payload, 'failMode');
     if (failMode != null) {
       const validModes = ['fail_open', 'fail_closed', 'warn_only'];
@@ -292,7 +289,6 @@ class SafetyMonitorHandlers {
     optionalInt(payload, 'requiredSafeDurationSeconds', min: 0);
 
     final settingsNotifier = container.read(appSettingsProvider.notifier);
-    final backend = container.read(sequencerBackendProvider);
     final safetyConfig = container.read(safetyConfigStoreProvider);
 
     if (failMode != null) {
@@ -300,7 +296,6 @@ class SafetyMonitorHandlers {
       // safety_fail_mode is owned by app_settings; the notifier setter is the
       // canonical writer so state + persistence stay in lockstep.
       await settingsNotifier.setSafetyFailMode(mode);
-      await backend.sequencerSetSafetyFailMode(_failModeToSequencer(mode));
     }
 
     final autoParkOnUnsafe = optionalBool(payload, 'autoParkOnUnsafe');
@@ -326,7 +321,6 @@ class SafetyMonitorHandlers {
 
     final checkInterval = optionalInt(payload, 'checkIntervalSeconds');
     if (checkInterval != null) {
-      await backend.sequencerSetSafetyCheckIntervalSeconds(checkInterval);
       await safetyConfig.setCheckIntervalSeconds(checkInterval);
     }
 
@@ -344,8 +338,6 @@ class SafetyMonitorHandlers {
     return jsonOk({'status': 'updated', 'settings': updated});
   }
 
-  // Safety acknowledgement
-
   /// POST /api/safety/acknowledge
   /// Acknowledges an unsafe condition, allowing operations to continue despite the warning.
   /// This is typically used when the operator has manually verified conditions are acceptable.
@@ -362,7 +354,7 @@ class SafetyMonitorHandlers {
       'reason': reason,
       'deviceId': optionalString(payload, 'deviceId'),
       'durationMinutes': durationMinutes,
-      'acknowledgedAt': DateTime.now().toUtc().toIso8601String(),
+      'acknowledgedAt': DateTime.now().toWireTime(),
     };
     await container
         .read(settingsDaoProvider)
@@ -378,8 +370,7 @@ class SafetyMonitorHandlers {
       'status': 'acknowledged',
       'snoozeUntil': DateTime.now()
           .add(Duration(minutes: durationMinutes))
-          .toUtc()
-          .toIso8601String(),
+          .toWireTime(),
       'warningDelaySeconds': _parseIntSetting(stored, _kWarningDelayKey, 60),
     });
   }

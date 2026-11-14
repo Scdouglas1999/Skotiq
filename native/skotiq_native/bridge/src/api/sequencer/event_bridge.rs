@@ -1,4 +1,16 @@
-use super::*;
+use super::get_sequence_executor;
+use crate::api::sequencer::event_translation::{
+    recovery_event_completed, recovery_event_gave_up, recovery_event_progress,
+    recovery_event_started, structured_progress_payload_from_progress_detail,
+    typed_sequencer_event_from_progress_detail,
+};
+use crate::error::SkotiqError;
+use crate::event::bus::EventPayload;
+use crate::event::correlation::create_event_auto_id;
+use crate::event::equipment::{EventCategory, EventSeverity};
+use crate::event::sequencer::{SequencerErrorKind, SequencerEvent};
+use crate::state::{get_state, SharedAppState};
+use skotiq_sequencer::{ExecutorEvent, ExecutorState, NodeStatus};
 
 /// Set once the two event bridges below are running, so a second call cannot
 /// stand up a second copy of them.
@@ -146,6 +158,8 @@ pub(crate) async fn run_decision_event_loop(
             details_json,
             node_id: decision.node_id,
             sequence_run_id: decision.sequence_run_id,
+            notice: decision.notice.map(Into::into),
+            stop: decision.stop.map(Into::into),
         };
         state.publish_event(create_event_auto_id(
             EventSeverity::Info,
@@ -182,30 +196,23 @@ pub(crate) async fn run_sequencer_event_loop(
                 std::mem::discriminant(&event)
             );
             let skotiq_event = match &event {
-                ExecutorEvent::StateChanged(s) => {
-                    let _state_str = match s {
-                        ExecutorState::Running => "running",
-                        ExecutorState::Paused => "paused",
-                        ExecutorState::Cancelled => "cancelled",
-                        ExecutorState::Completed => "completed",
+                // A finished run is announced by `SequenceCompleted` and a
+                // failed one by `SequenceFailed`, each sent just before the
+                // state turns, so those states announce nothing here.
+                ExecutorEvent::StateChanged(s) => Some(create_event_auto_id(
+                    EventSeverity::Info,
+                    EventCategory::Sequencer,
+                    EventPayload::Sequencer(match s {
+                        ExecutorState::Paused => SequencerEvent::Paused,
+                        ExecutorState::Cancelled => SequencerEvent::Stopped {
+                            sequence_run_id: get_sequence_executor()
+                                .read()
+                                .await
+                                .active_sequence_run_id(),
+                        },
                         _ => continue,
-                    };
-                    Some(create_event_auto_id(
-                        EventSeverity::Info,
-                        EventCategory::Sequencer,
-                        EventPayload::Sequencer(match s {
-                            ExecutorState::Paused => SequencerEvent::Paused,
-                            ExecutorState::Cancelled => SequencerEvent::Stopped {
-                                sequence_run_id: get_sequence_executor()
-                                    .read()
-                                    .await
-                                    .active_sequence_run_id(),
-                            },
-                            ExecutorState::Completed => SequencerEvent::Completed,
-                            _ => continue,
-                        }),
-                    ))
-                }
+                    }),
+                )),
                 ExecutorEvent::DepthGoalCompleted {
                     node_id,
                     filter_name,
@@ -315,15 +322,11 @@ pub(crate) async fn run_sequencer_event_loop(
                 // rather than the terminal `Failed` one. Without it the real
                 // cause of a failure (daylight gate, missing device, refused
                 // slew) never left the Rust log.
-                ExecutorEvent::InstructionFailed { node_name, message } => {
-                    Some(create_event_auto_id(
-                        EventSeverity::Error,
-                        EventCategory::Sequencer,
-                        EventPayload::Sequencer(SequencerEvent::Error {
-                            message: format!("{}: {}", node_name, message),
-                        }),
-                    ))
-                }
+                ExecutorEvent::InstructionFailed { node_name, message } => Some(run_error_event(
+                    SequencerErrorKind::StepFailed,
+                    format!("{}: {}", node_name, message),
+                    None,
+                )),
                 ExecutorEvent::ExposureStarted {
                     frame,
                     total,
@@ -441,25 +444,35 @@ pub(crate) async fn run_sequencer_event_loop(
                         }),
                     ))
                 }
-                ExecutorEvent::Error { message } => Some(create_event_auto_id(
-                    EventSeverity::Error,
-                    EventCategory::Sequencer,
-                    EventPayload::Sequencer(SequencerEvent::Error {
-                        message: message.clone(),
-                    }),
+                ExecutorEvent::Error { message } => Some(run_error_event(
+                    SequencerErrorKind::StepFailed,
+                    message.clone(),
+                    None,
                 )),
-                // Same payload, different SEVERITY — which is what every
-                // downstream consumer routes on. Reusing the payload keeps the
-                // wire format (and the generated FRB bindings) unchanged; Dart
-                // reads `SkotiqEvent.severity` to decide whether a message
-                // is a run failure or an advisory, exactly as it already does
-                // for `MeridianFlipOutcome`.
-                ExecutorEvent::Warning { message } => Some(create_event_auto_id(
-                    EventSeverity::Warning,
-                    EventCategory::Sequencer,
-                    EventPayload::Sequencer(SequencerEvent::Error {
-                        message: message.clone(),
-                    }),
+                ExecutorEvent::Cancelled => Some(run_error_event(
+                    SequencerErrorKind::Cancelled,
+                    "Sequence cancelled".to_string(),
+                    None,
+                )),
+                ExecutorEvent::Warning { message } => Some(run_error_event(
+                    SequencerErrorKind::Advisory,
+                    message.clone(),
+                    None,
+                )),
+                ExecutorEvent::NoticedWarning { notice, message } => Some(run_error_event(
+                    SequencerErrorKind::Advisory,
+                    message.clone(),
+                    Some(notice.clone().into()),
+                )),
+                ExecutorEvent::StepProblem { message } => Some(run_error_event(
+                    SequencerErrorKind::StepProblem,
+                    message.clone(),
+                    None,
+                )),
+                ExecutorEvent::RunHeld { message } => Some(run_error_event(
+                    SequencerErrorKind::RunHeld,
+                    message.clone(),
+                    None,
                 )),
                 ExecutorEvent::MeridianFlipOutcome {
                     outcome,
@@ -479,14 +492,12 @@ pub(crate) async fn run_sequencer_event_loop(
                     // wobbled and the operator should look at the framing.
                     // The pier-change notice comes before the verdict and
                     // only says the mount reached its new side.
-                    let severity = match outcome.as_str() {
-                        skotiq_sequencer::meridian_flip_executor::PIER_CHANGED_OUTCOME => {
-                            EventSeverity::Info
-                        }
-                        "success" if failed_steps.is_empty() => EventSeverity::Info,
-                        "success" => EventSeverity::Warning,
-                        "aborted" => EventSeverity::Warning,
-                        _ => EventSeverity::Critical,
+                    use skotiq_sequencer::meridian_flip_executor::FlipOutcome;
+                    let severity = match outcome {
+                        FlipOutcome::PierChanged => EventSeverity::Info,
+                        FlipOutcome::Success if failed_steps.is_empty() => EventSeverity::Info,
+                        FlipOutcome::Success | FlipOutcome::Aborted => EventSeverity::Warning,
+                        FlipOutcome::Failed => EventSeverity::Critical,
                     };
                     tracing::info!(
                         "[EVENT_SUB] Meridian flip outcome: {} for '{}' after {} attempt{} \
@@ -502,7 +513,7 @@ pub(crate) async fn run_sequencer_event_loop(
                         severity,
                         EventCategory::Sequencer,
                         EventPayload::Sequencer(SequencerEvent::MeridianFlipOutcome {
-                            outcome: outcome.clone(),
+                            outcome: (*outcome).into(),
                             target_name: target_name.clone(),
                             new_pier_side: new_pier_side.clone(),
                             duration_secs: *duration_secs,
@@ -518,16 +529,16 @@ pub(crate) async fn run_sequencer_event_loop(
                     trigger_name,
                     action,
                 } => {
-                    if action == "Continue" {
+                    if *action == skotiq_sequencer::TriggerFiredAction::Continue {
                         tracing::debug!(
-                            "Trigger fired: {} ({}) - {}",
+                            "Trigger fired: {} ({}) - {:?}",
                             trigger_name,
                             trigger_id,
                             action
                         );
                     } else {
                         tracing::info!(
-                            "Trigger fired: {} ({}) - {}",
+                            "Trigger fired: {} ({}) - {:?}",
                             trigger_name,
                             trigger_id,
                             action
@@ -539,7 +550,7 @@ pub(crate) async fn run_sequencer_event_loop(
                         EventPayload::Sequencer(SequencerEvent::TriggerFired {
                             trigger_id: trigger_id.clone(),
                             trigger_name: trigger_name.clone(),
-                            action: action.clone(),
+                            action: (*action).into(),
                         }),
                     ))
                 }
@@ -595,7 +606,7 @@ pub(crate) async fn run_sequencer_event_loop(
                 // call returns it to Dart.
                 ExecutorEvent::AutofocusProgress { focuser_id, detail } => {
                     state.publish_equipment_event(
-                        crate::event::EquipmentEvent::PropertyChanged {
+                        crate::event::equipment::EquipmentEvent::PropertyChanged {
                             device_type: "focuser".to_string(),
                             device_id: focuser_id.clone(),
                             property: "AutofocusProgress".to_string(),
@@ -611,22 +622,12 @@ pub(crate) async fn run_sequencer_event_loop(
                     message,
                     result_json,
                 } => {
-                    let result = result_json
-                        .as_deref()
-                        .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok());
-                    let value = serde_json::json!({
-                        "status": status,
-                        "message": message,
-                        "result": result,
-                    });
-                    state.publish_equipment_event(
-                        crate::event::EquipmentEvent::PropertyChanged {
-                            device_type: "focuser".to_string(),
-                            device_id: focuser_id.clone(),
-                            property: "AutofocusFinished".to_string(),
-                            value: value.to_string(),
-                        },
-                        EventSeverity::Info,
+                    crate::util::executor_event_bridge::publish_autofocus_finished(
+                        state,
+                        focuser_id,
+                        *status,
+                        message.as_deref(),
+                        result_json.as_deref(),
                     );
                     None
                 }
@@ -671,46 +672,45 @@ pub(crate) async fn run_sequencer_event_loop(
     }
 }
 
-/// Stream of sequencer events (separate from main event stream for real-time progress)
-#[flutter_rust_bridge::frb(ignore)]
-pub fn api_sequencer_event_stream() -> impl futures::Stream<Item = String> {
-    let rx = {
-        let executor = get_sequence_executor().blocking_read();
-        executor.subscribe()
-    };
-
-    async_stream::stream! {
-        let mut rx = rx;
-        loop {
-            match rx.recv().await {
-                Ok(event) => {
-                    if let Ok(json) = serde_json::to_string(&event) {
-                        yield json;
-                    }
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                    // Update the global dropped event counter
-                    let previous_total = TOTAL_DROPPED_EVENTS.fetch_add(n, Ordering::Relaxed);
-                    let new_total = previous_total + n;
-
-                    tracing::warn!(
-                        "[SEQUENCER_EVENT_STREAM] Event stream lagged! Skipped {} events (total dropped: {}). \
-                        Consider increasing buffer size or optimizing event handling.",
-                        n, new_total
-                    );
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                    break;
-                }
-            }
+/// Wait until nothing listens to the executor's events: a test that ended a
+/// moment ago may still be letting go of its listeners, and a second live
+/// bridge would publish every event twice.
+#[cfg(test)]
+pub(crate) async fn wait_for_no_event_listeners() {
+    for _ in 0..200 {
+        if get_sequence_executor()
+            .read()
+            .await
+            .event_subscriber_count()
+            == 0
+        {
+            return;
         }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     }
+}
+
+/// A run's error-payload event of `kind`, at the severity that kind has.
+fn run_error_event(
+    kind: SequencerErrorKind,
+    message: String,
+    notice: Option<crate::event::sequencer::SequencerNotice>,
+) -> crate::event::bus::SkotiqEvent {
+    create_event_auto_id(
+        kind.run_severity(),
+        EventCategory::Sequencer,
+        EventPayload::Sequencer(SequencerEvent::Error {
+            message,
+            kind,
+            notice,
+        }),
+    )
 }
 
 #[cfg(test)]
 mod frame_event_capture_tests {
-    use crate::api::sequencer::typed_sequencer_event_from_progress_detail;
-    use crate::event::SequencerEvent;
+    use crate::api::sequencer::event_translation::typed_sequencer_event_from_progress_detail;
+    use crate::event::sequencer::SequencerEvent;
     use skotiq_sequencer::scheduling::FrameCaptureMetadata;
     use skotiq_sequencer::ProgressDetail;
 
@@ -719,6 +719,7 @@ mod frame_event_capture_tests {
     fn populated_capture() -> FrameCaptureMetadata {
         FrameCaptureMetadata {
             gain: Some(139),
+            gain_is_iso: true,
             offset: Some(21),
             sensor_temp_c: Some(-9.5),
             cooler_power_percent: Some(63.5),
@@ -782,7 +783,10 @@ mod frame_event_capture_tests {
         let detail = ProgressDetail::FrameRejected {
             frame: 8,
             total: 10,
-            reason: "HFR 4.9 above threshold 3.5".to_string(),
+            reason: skotiq_sequencer::quality::RejectReason::HfrAboveLimit {
+                hfr: 4.9,
+                limit: 3.5,
+            },
             hfr: Some(4.9),
             eccentricity: Some(0.62),
             star_count: Some(88),
@@ -805,8 +809,13 @@ mod frame_event_capture_tests {
 
         match event {
             SequencerEvent::FrameRejected {
-                capture: forwarded, ..
-            } => assert_eq!(forwarded, (&capture).into()),
+                capture: forwarded,
+                reason,
+                ..
+            } => {
+                assert_eq!(forwarded, (&capture).into());
+                assert_eq!(reason, "HFR 4.90 px exceeds absolute threshold 3.50 px");
+            }
             other => panic!("expected FrameRejected, got {:?}", other),
         }
     }
@@ -814,7 +823,9 @@ mod frame_event_capture_tests {
 
 #[cfg(test)]
 mod event_bridge_idempotence_tests {
-    use crate::api::sequencer::{api_sequencer_subscribe_events, get_sequence_executor};
+
+    use crate::api::sequencer::event_bridge::api_sequencer_subscribe_events;
+    use crate::api::sequencer::get_sequence_executor;
 
     /// Wait for the executor's event-broadcast receiver count to stop changing,
     /// so the assertion is not racing the supervised task's first `subscribe()`.
@@ -847,6 +858,9 @@ mod event_bridge_idempotence_tests {
     /// events are being duplicated.
     #[tokio::test]
     async fn subscribing_again_does_not_add_a_second_event_listener() {
+        // Other tests listen to the same executor for their own runs.
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
+        crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
         api_sequencer_subscribe_events()
             .await
             .expect("first subscribe should succeed");
@@ -869,6 +883,88 @@ mod event_bridge_idempotence_tests {
             1,
             "re-subscribing must not stand up another listener; a second one \
              duplicates every sequencer event on the way to the UI"
+        );
+    }
+}
+
+#[cfg(test)]
+mod terminal_announcement_tests {
+    use super::run_sequencer_event_loop;
+    use crate::event::bus::EventPayload;
+    use crate::event::sequencer::SequencerEvent;
+    use crate::state::get_state;
+    use skotiq_sequencer::{ExecutorEvent, ExecutorState};
+
+    /// Sequencer lifecycle events the bridge publishes for `sent`, in order.
+    async fn published_for(sent: Vec<ExecutorEvent>) -> Vec<SequencerEvent> {
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
+        let mut published = get_state().event_bus.subscribe();
+        let (tx, mut rx) = tokio::sync::broadcast::channel(16);
+        for event in sent {
+            tx.send(event).expect("the bridge loop holds a receiver");
+        }
+        drop(tx);
+        run_sequencer_event_loop(&mut rx, get_state()).await;
+
+        let mut out = Vec::new();
+        while let Ok(event) = published.try_recv() {
+            if let EventPayload::Sequencer(
+                e @ (SequencerEvent::Completed
+                | SequencerEvent::Failed { .. }
+                | SequencerEvent::Paused
+                | SequencerEvent::Stopped { .. }),
+            ) = event.payload
+            {
+                out.push(e);
+            }
+        }
+        out
+    }
+
+    /// A run that finishes sends `SequenceCompleted` and then its state turns
+    /// Completed. The rig log showed `Completed` twice for one run.
+    #[tokio::test]
+    async fn a_finished_run_is_announced_once() {
+        let published = published_for(vec![
+            ExecutorEvent::SequenceCompleted,
+            ExecutorEvent::StateChanged(ExecutorState::Completed),
+        ])
+        .await;
+        assert!(
+            matches!(published.as_slice(), [SequencerEvent::Completed]),
+            "{published:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_failed_run_is_announced_once() {
+        let published = published_for(vec![
+            ExecutorEvent::SequenceFailed {
+                error: "slew refused".into(),
+            },
+            ExecutorEvent::StateChanged(ExecutorState::Failed),
+        ])
+        .await;
+        assert!(
+            matches!(published.as_slice(), [SequencerEvent::Failed { .. }]),
+            "{published:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_pause_and_a_cancel_are_announced_from_the_state() {
+        let published = published_for(vec![
+            ExecutorEvent::StateChanged(ExecutorState::Paused),
+            ExecutorEvent::StateChanged(ExecutorState::Running),
+            ExecutorEvent::StateChanged(ExecutorState::Cancelled),
+        ])
+        .await;
+        assert!(
+            matches!(
+                published.as_slice(),
+                [SequencerEvent::Paused, SequencerEvent::Stopped { .. }]
+            ),
+            "{published:?}"
         );
     }
 }

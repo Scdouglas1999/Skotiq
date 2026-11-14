@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/onboarding/steps/capture_dir_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../harness/fake_host_folders.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -25,7 +27,7 @@ class _TestOnboardingNotifier extends OnboardingNotifier {
 
 ({ProviderContainer container, _SwitchingBackendNotifier backendNotifier})
     _container({
-  required OnboardingCaptureDirectoryPicker picker,
+  required FolderPick picker,
   required OnboardingCaptureDirectoryWriter writer,
 }) {
   late _SwitchingBackendNotifier backendNotifier;
@@ -37,7 +39,7 @@ class _TestOnboardingNotifier extends OnboardingNotifier {
             _SwitchingBackendNotifier(ref, _MockNetworkBackend());
       }),
       onboardingDraftProvider.overrideWith(_TestOnboardingNotifier.new),
-      onboardingCaptureDirectoryPickerProvider.overrideWithValue(picker),
+      fakeHostFoldersPerHost(() => FakeHostFolders(onPick: picker)),
       onboardingCaptureDirectoryWriterProvider.overrideWithValue(writer),
     ],
   );
@@ -63,8 +65,7 @@ void main() {
     var pickerCalls = 0;
     final writes = <String>[];
     final h = _container(
-      picker: (context, {required isRemote, required initialPath}) {
-        expect(isRemote, isTrue);
+      picker: ({required initialPath}) {
         pickerCalls++;
         return pickerCalls == 1 ? first.future : second.future;
       },
@@ -114,8 +115,7 @@ void main() {
       (tester) async {
     final picker = Completer<String?>();
     final h = _container(
-      picker: (context, {required isRemote, required initialPath}) =>
-          picker.future,
+      picker: ({required initialPath}) => picker.future,
       writer: (path) async {},
     );
     addTearDown(h.container.dispose);

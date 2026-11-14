@@ -27,6 +27,7 @@ import 'package:skotiq_core/src/services/transient_alert_service.dart';
 
 import '../fakes/fakes.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/providers/transient_alert_service_provider.dart';
 
 /// Service whose getAllAlerts hands back a controllable completer per call so
 /// the test can hold a fetch "in flight" and count how many fetches ran.
@@ -320,6 +321,55 @@ void main() {
     },
   );
 
+  for (final invalidState in [null, 'not-a-state']) {
+    test('the remote feed rejects alert state $invalidState', () async {
+      final backend = _MockNetworkBackend();
+      when(() => backend.getTransientSettings()).thenAnswer((_) async => {});
+      when(() => backend.getActiveTransients()).thenAnswer(
+        (_) async => {
+          'alerts': [
+            {
+              'id': 'alert',
+              'name': 'alert',
+              'type': 'other',
+              'raHours': 12.5,
+              'decDegrees': 20.0,
+              'discoveryTime': 1793664000000,
+              'lastUpdated': 1793664000000,
+              'source': 'manual',
+              'priority': 5,
+              if (invalidState != null) 'state': invalidState,
+            },
+          ],
+        },
+      );
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+          settingsDaoProvider.overrideWithValue(db.settingsDao),
+          allTransientDetectionsProvider.overrideWith(
+            (ref) => Stream.value(const <TransientDetectionRow>[]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(transientAlertSettingsProvider.notifier).loaded;
+      final subscription = container.listen(
+        activeTransientAlertsProvider,
+        (_, __) {},
+        fireImmediately: true,
+      );
+      addTearDown(subscription.close);
+      await expectLater(
+        container.read(activeTransientAlertsProvider.future),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  }
+
   // SY-02: a linked client's badge counts what the host's badge counts. The
   // host now serves its First Light detections with their state; one the
   // host already reviewed is not new on the client either.
@@ -344,9 +394,8 @@ void main() {
         'alerts': [
           served('firstlight:1', 'newAlert'),
           served('firstlight:2', 'acknowledged'),
-          // An older host sends no state: the alert reads as new.
-          served('aavso:1', null),
-          served('aavso:2', 'not-a-state'),
+          served('aavso:1', 'queued'),
+          served('aavso:2', 'dismissed'),
         ],
       },
     );
@@ -378,10 +427,10 @@ void main() {
       {
         'firstlight:1': TransientAlertState.newAlert,
         'firstlight:2': TransientAlertState.acknowledged,
-        'aavso:1': TransientAlertState.newAlert,
-        'aavso:2': TransientAlertState.newAlert,
+        'aavso:1': TransientAlertState.queued,
+        'aavso:2': TransientAlertState.dismissed,
       },
     );
-    expect(container.read(unacknowledgedAlertCountProvider), 3);
+    expect(container.read(unacknowledgedAlertCountProvider), 1);
   });
 }

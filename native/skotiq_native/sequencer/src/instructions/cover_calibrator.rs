@@ -4,6 +4,7 @@
 //! see them, and `super::*` supplies the imports the original file had.
 
 use super::*;
+use skotiq_device::ascom::cover_calibrator::Settle;
 
 // Cover calibrator (flat panel / dust cover) instructions
 
@@ -18,7 +19,6 @@ pub async fn execute_open_cover(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Opening cover".to_string());
     }
@@ -34,9 +34,13 @@ pub async fn execute_open_cover(
         cb(50.0, "Waiting for cover to open".to_string());
     }
 
-    // Start opening the cover
-    if let Err(e) = ctx.device_ops.cover_calibrator_open_cover(&device_id).await {
-        return InstructionResult::failure(format!("Failed to open cover: {}", e));
+    if let Err(e) = ctx
+        .run
+        .device_ops
+        .cover_calibrator_open_cover(&device_id)
+        .await
+    {
+        return InstructionResult::failure(format!("Failed to open cover: {}", e)).caused_by(&e);
     }
 
     // Wait for cover to reach open state with timeout
@@ -44,7 +48,6 @@ pub async fn execute_open_cover(
     let timeout = Duration::from_secs(u64::from(config.timeout_secs));
     match wait_for_cover_state(&device_id, 3, ctx, timeout).await {
         Ok(_) => {
-            // Report completion
             if let Some(cb) = progress_callback {
                 cb(100.0, "Cover open".to_string());
             }
@@ -65,7 +68,6 @@ pub async fn execute_close_cover(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Closing cover".to_string());
     }
@@ -81,13 +83,13 @@ pub async fn execute_close_cover(
         cb(50.0, "Waiting for cover to close".to_string());
     }
 
-    // Start closing the cover
     if let Err(e) = ctx
+        .run
         .device_ops
         .cover_calibrator_close_cover(&device_id)
         .await
     {
-        return InstructionResult::failure(format!("Failed to close cover: {}", e));
+        return InstructionResult::failure(format!("Failed to close cover: {}", e)).caused_by(&e);
     }
 
     // Wait for cover to reach closed state with timeout
@@ -95,7 +97,6 @@ pub async fn execute_close_cover(
     let timeout = Duration::from_secs(u64::from(config.timeout_secs));
     match wait_for_cover_state(&device_id, 1, ctx, timeout).await {
         Ok(_) => {
-            // Report completion
             if let Some(cb) = progress_callback {
                 cb(100.0, "Cover closed".to_string());
             }
@@ -116,7 +117,6 @@ pub async fn execute_calibrator_on(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Turning on calibrator".to_string());
     }
@@ -140,11 +140,13 @@ pub async fn execute_calibrator_on(
 
     // Turn on the calibrator at specified brightness
     if let Err(e) = ctx
+        .run
         .device_ops
         .cover_calibrator_calibrator_on(&device_id, config.brightness)
         .await
     {
-        return InstructionResult::failure(format!("Failed to turn on calibrator: {}", e));
+        return InstructionResult::failure(format!("Failed to turn on calibrator: {}", e))
+            .caused_by(&e);
     }
 
     // Wait for calibrator to reach ready state with timeout
@@ -160,11 +162,11 @@ pub async fn execute_calibrator_on(
             // (it propagated via `?`). The successful "wait for state 3" check
             // (`wait_for_calibrator_state`) is the load-bearing readiness signal.
             let actual_brightness = ctx
+                .run
                 .device_ops
                 .cover_calibrator_get_brightness(&device_id)
                 .await
                 .unwrap_or(config.brightness);
-            // Report completion
             if let Some(cb) = progress_callback {
                 cb(
                     100.0,
@@ -191,7 +193,6 @@ pub async fn execute_calibrator_off(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Turning off calibrator".to_string());
     }
@@ -209,11 +210,13 @@ pub async fn execute_calibrator_off(
 
     // Turn off the calibrator
     if let Err(e) = ctx
+        .run
         .device_ops
         .cover_calibrator_calibrator_off(&device_id)
         .await
     {
-        return InstructionResult::failure(format!("Failed to turn off calibrator: {}", e));
+        return InstructionResult::failure(format!("Failed to turn off calibrator: {}", e))
+            .caused_by(&e);
     }
 
     // Wait for calibrator to reach off state with timeout
@@ -221,7 +224,6 @@ pub async fn execute_calibrator_off(
     let timeout = Duration::from_secs(u64::from(config.timeout_secs));
     match wait_for_calibrator_state(&device_id, 1, ctx, timeout).await {
         Ok(_) => {
-            // Report completion
             if let Some(cb) = progress_callback {
                 cb(100.0, "Calibrator off".to_string());
             }
@@ -231,7 +233,8 @@ pub async fn execute_calibrator_off(
     }
 }
 
-/// Wait for cover to reach target state with timeout
+/// Wait for cover to reach target state with timeout; see [`Settle::cover`]
+/// for when the wait is over.
 /// States: 0=NotPresent, 1=Closed, 2=Moving, 3=Open, 4=Unknown, 5=Error
 pub(crate) async fn wait_for_cover_state(
     device_id: &str,
@@ -251,10 +254,14 @@ pub(crate) async fn wait_for_cover_state(
     };
 
     loop {
-        // Check cancellation
         if ctx.cancellation_token.load(Ordering::Relaxed) {
             // Try to halt cover movement
-            if let Err(error) = ctx.device_ops.cover_calibrator_halt_cover(device_id).await {
+            if let Err(error) = ctx
+                .run
+                .device_ops
+                .cover_calibrator_halt_cover(device_id)
+                .await
+            {
                 tracing::warn!(
                     "Cover '{}': halt failed while cancelling the wait for the {} state ({}); \
                      the cover may still be moving",
@@ -266,29 +273,28 @@ pub(crate) async fn wait_for_cover_state(
             return Err("Operation cancelled".to_string());
         }
 
-        // Check current state
         match ctx
+            .run
             .device_ops
             .cover_calibrator_get_cover_state(device_id)
             .await
         {
-            Ok(state) => {
-                if state == target_state {
-                    tracing::debug!("Cover reached {} state", state_name);
+            Ok(state) => match Settle::cover(state.into(), target_state.into()) {
+                Settle::Done => {
+                    tracing::debug!("Cover reached {} state (reported {})", state_name, state);
                     return Ok(());
                 }
-                if state == 5 {
-                    return Err("Cover reported error state".to_string());
+                Settle::Failed => return Err("Cover reported error state".to_string()),
+                Settle::Waiting => {
+                    tracing::trace!("Cover state: {}, waiting for {}", state, state_name);
                 }
-                tracing::trace!("Cover state: {}, waiting for {}", state, state_name);
-            }
+            },
             Err(e) => {
                 tracing::warn!("Error checking cover state: {}", e);
                 // Continue polling - transient error
             }
         }
 
-        // Check timeout
         if start.elapsed() > timeout {
             return Err(format!(
                 "Cover did not reach {} state within {} seconds",
@@ -302,7 +308,8 @@ pub(crate) async fn wait_for_cover_state(
     }
 }
 
-/// Wait for calibrator to reach target state with timeout
+/// Wait for calibrator to reach target state with timeout; see
+/// [`Settle::calibrator`] for when the wait is over.
 /// States: 0=NotPresent, 1=Off, 2=NotReady, 3=Ready, 4=Unknown, 5=Error
 pub(crate) async fn wait_for_calibrator_state(
     device_id: &str,
@@ -322,9 +329,9 @@ pub(crate) async fn wait_for_calibrator_state(
     };
 
     loop {
-        // Check cancellation
         if ctx.cancellation_token.load(Ordering::Relaxed) {
             if let Err(error) = ctx
+                .run
                 .device_ops
                 .cover_calibrator_calibrator_off(device_id)
                 .await
@@ -337,7 +344,12 @@ pub(crate) async fn wait_for_calibrator_state(
                     error
                 );
             }
-            if let Err(error) = ctx.device_ops.cover_calibrator_halt_cover(device_id).await {
+            if let Err(error) = ctx
+                .run
+                .device_ops
+                .cover_calibrator_halt_cover(device_id)
+                .await
+            {
                 tracing::warn!(
                     "Calibrator '{}': cover halt failed while cancelling the wait for the {} \
                      state ({}); the cover may still be moving",
@@ -349,31 +361,39 @@ pub(crate) async fn wait_for_calibrator_state(
             return Err("Operation cancelled".to_string());
         }
 
-        // Check current state
         match ctx
+            .run
             .device_ops
             .cover_calibrator_get_calibrator_state(device_id)
             .await
         {
-            Ok(state) => {
-                if state == target_state {
-                    tracing::debug!("Calibrator reached {} state", state_name);
+            Ok(state) => match Settle::calibrator(state.into(), target_state.into()) {
+                Settle::Done => {
+                    tracing::debug!(
+                        "Calibrator reached {} state (reported {})",
+                        state_name,
+                        state
+                    );
                     return Ok(());
                 }
-                if state == 5 {
-                    return Err("Calibrator reported error state".to_string());
+                Settle::Failed => return Err("Calibrator reported error state".to_string()),
+                Settle::Waiting => {
+                    tracing::trace!("Calibrator state: {}, waiting for {}", state, state_name);
                 }
-                tracing::trace!("Calibrator state: {}, waiting for {}", state, state_name);
-            }
+            },
             Err(e) => {
                 tracing::warn!("Error checking calibrator state: {}", e);
                 // Continue polling - transient error
             }
         }
 
-        // Check timeout
         if start.elapsed() > timeout {
-            if let Err(error) = ctx.device_ops.cover_calibrator_halt_cover(device_id).await {
+            if let Err(error) = ctx
+                .run
+                .device_ops
+                .cover_calibrator_halt_cover(device_id)
+                .await
+            {
                 tracing::warn!(
                     "Calibrator '{}': cover halt failed after the {} state timed out ({}); the \
                      cover may still be moving",

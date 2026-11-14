@@ -103,7 +103,6 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
   // inserting a stop per node into the tab order.
   final FocusNode _rowFocusNode = FocusNode(debugLabel: 'sequence-tree-row');
 
-  // For progress panel persistence
   bool _showProgressPanel = false;
   DateTime? _lastRunningTime;
   Timer? _panelPersistTimer;
@@ -148,12 +147,10 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
   }
 
   bool get _shouldShowProgressPanel {
-    // Show panel whenever node is running
     if (widget.nodeStatus == NodeStatus.running) {
       return true;
     }
 
-    // Show panel during persistence period after node stops running
     if (_showProgressPanel && _lastRunningTime != null) {
       final elapsed = DateTime.now().difference(_lastRunningTime!);
       return elapsed < _panelPersistDuration;
@@ -187,8 +184,9 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
     final globalAfMethod = node is AutofocusNode && node.useSettingsDefaults
         ? ref.watch(autofocusSettingsProvider).method
         : null;
-    final summaryFragments =
-        nodeSummary(node, globalAutofocusMethod: globalAfMethod);
+    final summaryFragments = nodeSummary(node,
+        globalAutofocusMethod: globalAfMethod,
+        sensitivity: ref.watch(cameraSensitivityProvider));
     final summaryA11yText = _summaryA11yText(summaryFragments);
     // The collapsed-container rollup, shown on the title row only when the
     // density has stripped the inline extras (compact): an expanded container
@@ -312,7 +310,6 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
             ),
           ),
         ),
-        // Progress panel for expanded details
         if (widget.showInlineExtras && _shouldShowProgressPanel)
           getProgressPanelForNode(
             node: widget.node,
@@ -458,7 +455,7 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
           // second inset (panel -> well is the deepest nesting there is).
           if (isNested)
             Icon(
-              _getIcon(),
+              nodeIcon(widget.node.iconName),
               size: iconSize,
               color: widget.isSelected
                   ? widget.colors.primary
@@ -477,14 +474,14 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
                   : SkotiqDecorations.well(widget.colors),
               child: _isExecuting
                   ? _SpinningIcon(
-                      icon: _getIcon(),
+                      icon: nodeIcon(widget.node.iconName),
                       color: widget.isSelected
                           ? widget.colors.primary
                           : widget.colors.textSecondary,
                       size: iconSize,
                     )
                   : Icon(
-                      _getIcon(),
+                      nodeIcon(widget.node.iconName),
                       size: iconSize,
                       color: widget.isSelected
                           ? widget.colors.primary
@@ -496,7 +493,6 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
                   ? SkotiqTokens.spaceMd + 2
                   : SkotiqTokens.spaceSm + 2),
 
-          // Name and subtitle
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,12 +522,11 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
                                   : (isSkipped || isCancelled)
                                       ? widget.colors.textMuted
                                       : widget.colors.textPrimary,
-                          decoration: isDisabled || isSkipped || isCancelled
+                          decoration: isDisabled || isSkipped
                               ? TextDecoration.lineThrough
                               : null,
-                          decorationColor: isSkipped || isCancelled
-                              ? widget.colors.textMuted
-                              : null,
+                          decorationColor:
+                              isSkipped ? widget.colors.textMuted : null,
                         ),
                         softWrap: false,
                         overflow: TextOverflow.ellipsis,
@@ -571,7 +566,6 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
                           : null,
                     ),
                   ),
-                // Show node comment as gray italic text
                 if (widget.showInlineExtras &&
                     widget.node.comment != null &&
                     widget.node.comment!.isNotEmpty)
@@ -588,7 +582,6 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
                       maxLines: 1,
                     ),
                   ),
-                // Show progress bar for running instructions
                 if (isRunning &&
                     widget.progressPercent != null &&
                     widget.progressPercent! > 0)

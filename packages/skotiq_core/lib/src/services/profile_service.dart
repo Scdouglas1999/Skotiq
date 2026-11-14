@@ -1,143 +1,64 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/network_backend.dart';
 import '../database/database.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/equipment_profile.dart' as remote_profile;
 import '../models/equipment_profile_validation.dart';
-import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
-import '../providers/device_connection_progress_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
-import '../providers/profile_activation_writethrough.dart';
-import 'logging_service.dart';
+import '../models/equipment_profile_model.dart';
 import '../providers/settings_provider.dart';
-import '../providers/unified_discovery_provider.dart';
 import '../utils/json_validation.dart';
-import 'device_exceptions.dart';
 import 'device_service.dart';
 import 'optical_train_limits.dart';
+import '../backend/roles/host_data/host_profiles.dart';
+import '../models/backend/backend_types.dart';
+import '../providers/device_service_providers.dart';
+import '../providers/async_scope.dart';
+import 'logging_service.dart';
 
 part 'profile_service/profile_export_data.dart';
 part 'profile_service/profile_service_types.dart';
 part 'profile_service/profile_backends.dart';
 
-/// Service for managing equipment profiles with auto-connect and import/export
 class ProfileService {
   final Ref _ref;
 
-  ProfileService(this._ref);
+  /// The linked host's profiles, or null where the profiles are in this
+  /// process's database.
+  final HostProfiles? _hostProfiles;
 
-  _BackendAuthority get _authority {
-    final owner = _ref.read(backendProvider.notifier);
-    return (owner: owner, backend: owner.currentBackend);
-  }
+  ProfileService(this._ref, {HostProfiles? hostProfiles})
+    : _hostProfiles = hostProfiles;
+
+  /// Read through the container: a continuation that outlives a backend swap
+  /// must not touch this service's own `Ref`.
+  _BackendAuthority get _authority => _ref.container.backendScopes().begin();
 
   EquipmentProfilesNotifier get _profilesNotifier =>
       _ref.read(equipmentProfilesProvider.notifier);
 
-  // Profile validation
-
-  /// Validate that all devices in a profile are currently discoverable
-  ///
-  /// Checks each device ID configured in the profile against currently
-  /// discovered devices. Returns a result indicating which devices are
-  /// available and which are missing.
-  Future<ProfileValidationResult> validateProfile(int profileId) async {
-    final authority = _authority;
-    final profile = await _getProfileModelById(profileId, authority: authority);
-
-    if (profile == null) {
-      throw Exception('Profile not found');
-    }
-
-    // Get the current discovery state
-    final discoveryState = _ref.read(unifiedDiscoveryProvider);
-    final rawDevices = discoveryState.rawDevices;
-
-    // Build set of discovered device IDs for fast lookup
-    final discoveredIds = rawDevices.map((d) => d.id).toSet();
-
-    final missingDevices = <String>[];
-    final availableDevices = <String>[];
-    final missingDeviceIds = <String, String>{};
-
-    // Check each device type
-    void checkDevice(String? deviceId, String deviceType) {
-      if (deviceId != null && deviceId.isNotEmpty) {
-        if (discoveredIds.contains(deviceId)) {
-          availableDevices.add(deviceType);
-        } else {
-          missingDevices.add(deviceType);
-          missingDeviceIds[deviceType] = deviceId;
-        }
-      }
-    }
-
-    checkDevice(profile.cameraId, 'Camera');
-    checkDevice(profile.mountId, 'Mount');
-    checkDevice(profile.focuserId, 'Focuser');
-    checkDevice(profile.filterWheelId, 'Filter Wheel');
-    checkDevice(profile.guiderId, 'Guider');
-    checkDevice(profile.rotatorId, 'Rotator');
-    checkDevice(profile.domeId, 'Dome');
-    checkDevice(profile.weatherId, 'Weather');
-    checkDevice(profile.safetyMonitorId, 'Safety Monitor');
-    checkDevice(profile.switchId, 'Switch');
-    checkDevice(profile.coverCalibratorId, 'Cover Calibrator');
-
-    return ProfileValidationResult(
-      isValid: missingDevices.isEmpty,
-      missingDevices: missingDevices,
-      availableDevices: availableDevices,
-      missingDeviceIds: missingDeviceIds,
-    );
-  }
-
-  // Profile Loading with Auto-Connect
-
   /// Load and activate a profile, optionally connecting devices
   Future<void> loadProfile(int profileId, {bool autoConnect = false}) async {
     final authority = _authority;
-    final backend = authority.backend;
-    if (backend is NetworkBackend) {
-      await backend.loadProfile(profileId.toString());
-      _requireAuthority(authority);
-      _ref.invalidate(equipmentProfilesProvider);
-      if (autoConnect) {
-        final profile = await _getProfileModelById(
-          profileId,
-          authority: authority,
-        );
-        if (profile != null) {
-          await _connectProfileDevicesFromModel(profile);
-          _requireAuthority(authority);
-        }
-      }
-      return;
-    }
-
-    // Route activation through the single, remote-aware notifier authority so
-    // the local path updates SQLite AND write-throughs the active row into the
-    // native executor store (rather than a bare DAO write that the Rust
-    // sequencer never sees). The notifier refreshes provider state itself.
+    // The notifier is the one activation writer: the host's load endpoint on
+    // a linked client; here SQLite and the native executor store together, so
+    // the Rust sequencer never runs a profile the UI does not show.
     await _profilesNotifier.setActiveProfile(profileId);
     _requireAuthority(authority);
 
     if (autoConnect) {
-      final dao = _ref.read(equipmentProfilesDaoProvider);
-      final profile = await dao.getProfileById(profileId);
-      _requireAuthority(authority);
+      final profile = await _getProfileModelById(
+        profileId,
+        authority: authority,
+      );
       if (profile != null) {
-        await _connectProfileDevicesFromModel(
-          EquipmentProfileModel.fromDatabase(profile),
-        );
+        await _connectProfileDevicesFromModel(profile);
         _requireAuthority(authority);
       }
     }
@@ -208,9 +129,6 @@ class ProfileService {
     _requireAuthority(authority);
   }
 
-  // Profile Import/Export
-
-  /// Export a profile to JSON
   Future<String> exportProfileToJson(int profileId) async {
     final authority = _authority;
     final profile = await _getProfileModelById(profileId, authority: authority);
@@ -226,20 +144,18 @@ class ProfileService {
     return jsonEncode(profileExportEnvelope([exportData.toJson()]));
   }
 
-  /// Export a profile to a file
   Future<void> exportProfileToFile(int profileId, String filePath) async {
     final json = await exportProfileToJson(profileId);
     final file = File(filePath);
     await file.writeAsString(json);
   }
 
-  /// Export all profiles to JSON
   Future<String> exportAllProfilesToJson() async {
     final authority = _authority;
-    final backend = authority.backend;
+    final host = _hostProfiles;
     final List<ProfileExportData> exportData;
-    if (backend is NetworkBackend) {
-      final profiles = await backend.getProfiles();
+    if (host != null) {
+      final profiles = await host.getProfiles();
       _requireAuthority(authority);
       exportData = profiles
           .map(
@@ -262,14 +178,12 @@ class ProfileService {
     );
   }
 
-  /// Export all profiles to a file
   Future<void> exportAllProfilesToFile(String filePath) async {
     final json = await exportAllProfilesToJson();
     final file = File(filePath);
     await file.writeAsString(json);
   }
 
-  /// Import a profile from JSON
   Future<int> importProfileFromJson(String json) async {
     final authority = _authority;
     final profiles = profilesFromExportDocument(json);
@@ -283,14 +197,12 @@ class ProfileService {
     return await _createProfileFromExport(exportData, authority: authority);
   }
 
-  /// Import a profile from a file
   Future<int> importProfileFromFile(String filePath) async {
     final file = File(filePath);
     final json = await file.readAsString();
     return await importProfileFromJson(json);
   }
 
-  /// Import all profiles from JSON (batch import)
   Future<List<int>> importAllProfilesFromJson(String json) async {
     final authority = _authority;
     final profilesData = profilesFromExportDocument(json);
@@ -320,148 +232,47 @@ class ProfileService {
     return ids;
   }
 
-  /// Import all profiles from a file
   Future<List<int>> importAllProfilesFromFile(String filePath) async {
     final file = File(filePath);
     final json = await file.readAsString();
     return await importAllProfilesFromJson(json);
   }
 
-  // Profile management
-
-  /// Create a new empty profile
-  Future<int> createProfile(String name, {String? description}) async {
-    final authority = _authority;
-    if (authority.backend is NetworkBackend) {
-      final id = await _profilesNotifier.createProfile(
-        name: name,
-        description: description,
-      );
-      _requireAuthority(authority);
-      return id;
-    }
-
-    final dao = _ref.read(equipmentProfilesDaoProvider);
-    final id = await dao.createProfile(
-      EquipmentProfilesCompanion.insert(
-        name: name,
-        description: Value(description),
-      ),
-    );
-    _requireAuthority(authority);
-    _ref.invalidate(equipmentProfilesProvider);
-    return id;
-  }
-
-  /// Duplicate an existing profile
   Future<int> duplicateProfile(int sourceId, String newName) async {
     final authority = _authority;
-    if (authority.backend is NetworkBackend) {
-      final id = await _profilesNotifier.duplicateProfile(sourceId, newName);
-      _requireAuthority(authority);
-      return id;
-    }
-
-    final dao = _ref.read(equipmentProfilesDaoProvider);
-    final id = await dao.duplicateProfile(sourceId, newName);
+    final id = await _profilesNotifier.duplicateProfile(sourceId, newName);
     _requireAuthority(authority);
-    _ref.invalidate(equipmentProfilesProvider);
     return id;
   }
 
-  /// Delete a profile
   Future<void> deleteProfile(int profileId) async {
     final authority = _authority;
-    if (authority.backend is NetworkBackend) {
-      await _profilesNotifier.deleteProfile(profileId);
-      _requireAuthority(authority);
-      return;
-    }
-
-    final dao = _ref.read(equipmentProfilesDaoProvider);
-    await dao.deleteProfile(profileId);
+    await _profilesNotifier.deleteProfile(profileId);
     _requireAuthority(authority);
-    _ref.invalidate(equipmentProfilesProvider);
   }
 
-  /// Clear specific device assignments from a profile
-  ///
-  /// [deviceTypes] is a set of device type names (e.g., 'Camera', 'Mount')
-  /// that should be cleared (set to null) in the profile.
-  Future<void> clearDevicesFromProfile(
-    int profileId,
-    Set<String> deviceTypes,
-  ) async {
-    final authority = _authority;
-    final profile = await _getProfileModelById(profileId, authority: authority);
-    if (profile == null) {
-      throw Exception('Profile not found');
-    }
-
-    await _persistProfileModel(
-      profile.copyWith(
-        cameraId: deviceTypes.contains('Camera') ? null : profile.cameraId,
-        mountId: deviceTypes.contains('Mount') ? null : profile.mountId,
-        focuserId: deviceTypes.contains('Focuser') ? null : profile.focuserId,
-        filterWheelId: deviceTypes.contains('Filter Wheel')
-            ? null
-            : profile.filterWheelId,
-        guiderId: deviceTypes.contains('Guider') ? null : profile.guiderId,
-        rotatorId: deviceTypes.contains('Rotator') ? null : profile.rotatorId,
-        domeId: deviceTypes.contains('Dome') ? null : profile.domeId,
-        weatherId: deviceTypes.contains('Weather') ? null : profile.weatherId,
-        safetyMonitorId: deviceTypes.contains('Safety Monitor')
-            ? null
-            : profile.safetyMonitorId,
-        switchId: deviceTypes.contains('Switch') ? null : profile.switchId,
-        coverCalibratorId: deviceTypes.contains('Cover Calibrator')
-            ? null
-            : profile.coverCalibratorId,
-      ),
-      authority: authority,
-    );
-  }
-
-  /// Update profile device assignments
+  /// Assign [devices] (slot type to device id) in a profile, leaving every
+  /// other slot as it is. [guideCameraId] is the built-in guider's camera,
+  /// which is a profile field without a slot of its own.
   Future<void> updateProfileDevices(
-    int profileId, {
-    String? cameraId,
-    String? mountId,
-    String? focuserId,
-    String? filterWheelId,
-    String? guiderId,
-    String? rotatorId,
-    String? domeId,
-    String? weatherId,
-    String? safetyMonitorId,
-    String? switchId,
-    String? coverCalibratorId,
+    int profileId,
+    Map<DeviceType, String> devices, {
+    String? guideCameraId,
   }) async {
     final authority = _authority;
-    final profile = await _getProfileModelById(profileId, authority: authority);
+    var profile = await _getProfileModelById(profileId, authority: authority);
     if (profile == null) {
       throw Exception('Profile not found');
     }
-
+    for (final MapEntry(key: type, value: deviceId) in devices.entries) {
+      profile = profile!.withDeviceId(type, deviceId);
+    }
     await _persistProfileModel(
-      profile.copyWith(
-        cameraId: cameraId ?? profile.cameraId,
-        mountId: mountId ?? profile.mountId,
-        focuserId: focuserId ?? profile.focuserId,
-        filterWheelId: filterWheelId ?? profile.filterWheelId,
-        guiderId: guiderId ?? profile.guiderId,
-        rotatorId: rotatorId ?? profile.rotatorId,
-        domeId: domeId ?? profile.domeId,
-        weatherId: weatherId ?? profile.weatherId,
-        safetyMonitorId: safetyMonitorId ?? profile.safetyMonitorId,
-        switchId: switchId ?? profile.switchId,
-        coverCalibratorId: coverCalibratorId ?? profile.coverCalibratorId,
-      ),
+      profile!.copyWith(guideCameraId: guideCameraId),
       authority: authority,
     );
   }
 
-  /// Update profile optical configuration
   Future<void> updateProfileOptics(
     int profileId, {
     double? focalLength,
@@ -484,7 +295,6 @@ class ProfileService {
     );
   }
 
-  /// Update profile default camera settings
   Future<void> updateProfileCameraDefaults(
     int profileId, {
     int? defaultGain,
@@ -511,133 +321,6 @@ class ProfileService {
     );
   }
 
-  /// Save all currently connected devices to the active profile
-  ///
-  /// Reads current device states and updates the active profile with
-  /// all connected device IDs. Returns true if saved successfully.
-  Future<bool> saveConnectedDevicesToProfile() async {
-    final authority = _authority;
-    final activeModel = await _getActiveProfileModel(authority: authority);
-
-    if (activeModel == null) {
-      developer.log(
-        'ProfileService: No active profile to save devices to',
-        name: 'ProfileService',
-        level: 900,
-      );
-      return false;
-    }
-
-    // Read all device states
-    final cameraState = _ref.read(cameraStateProvider);
-    final mountState = _ref.read(mountStateProvider);
-    final focuserState = _ref.read(focuserStateProvider);
-    final filterWheelState = _ref.read(filterWheelStateProvider);
-    final guiderState = _ref.read(guiderStateProvider);
-    final rotatorState = _ref.read(rotatorStateProvider);
-    final domeState = _ref.read(domeStateProvider);
-    final weatherState = _ref.read(weatherStateProvider);
-    final safetyMonitorState = _ref.read(safetyMonitorStateProvider);
-    final switchState = _ref.read(switchStateProvider);
-    final coverCalibratorState = _ref.read(coverCalibratorStateProvider);
-
-    // Collect connected device IDs
-    String? cameraId;
-    String? mountId;
-    String? focuserId;
-    String? filterWheelId;
-    String? guiderId;
-    String? rotatorId;
-    String? domeId;
-    String? weatherId;
-    String? safetyMonitorId;
-    String? switchId;
-    String? coverCalibratorId;
-
-    if (cameraState.connectionState == DeviceConnectionState.connected) {
-      cameraId = cameraState.deviceId;
-    }
-    if (mountState.connectionState == DeviceConnectionState.connected) {
-      mountId = mountState.deviceId;
-    }
-    if (focuserState.connectionState == DeviceConnectionState.connected) {
-      focuserId = focuserState.deviceId;
-    }
-    if (filterWheelState.connectionState == DeviceConnectionState.connected) {
-      filterWheelId = filterWheelState.deviceId;
-    }
-    if (guiderState.connectionState == DeviceConnectionState.connected) {
-      guiderId = guiderState.deviceId;
-    }
-    if (rotatorState.connectionState == DeviceConnectionState.connected) {
-      rotatorId = rotatorState.deviceId;
-    }
-    if (domeState.connectionState == DeviceConnectionState.connected) {
-      domeId = domeState.deviceId;
-    }
-    if (weatherState.connectionState == DeviceConnectionState.connected) {
-      weatherId = weatherState.deviceId;
-    }
-    if (safetyMonitorState.connectionState == DeviceConnectionState.connected) {
-      safetyMonitorId = safetyMonitorState.deviceId;
-    }
-    if (switchState.connectionState == DeviceConnectionState.connected) {
-      switchId = switchState.deviceId;
-    }
-    if (coverCalibratorState.connectionState ==
-        DeviceConnectionState.connected) {
-      coverCalibratorId = coverCalibratorState.deviceId;
-    }
-
-    // Check if any devices are connected
-    final hasConnectedDevices =
-        cameraId != null ||
-        mountId != null ||
-        focuserId != null ||
-        filterWheelId != null ||
-        guiderId != null ||
-        rotatorId != null ||
-        domeId != null ||
-        weatherId != null ||
-        safetyMonitorId != null ||
-        switchId != null ||
-        coverCalibratorId != null;
-
-    if (!hasConnectedDevices) {
-      developer.log(
-        'ProfileService: No connected devices to save',
-        name: 'ProfileService',
-        level: 800,
-      );
-      return false;
-    }
-
-    await _persistProfileModel(
-      activeModel.copyWith(
-        cameraId: cameraId ?? activeModel.cameraId,
-        mountId: mountId ?? activeModel.mountId,
-        focuserId: focuserId ?? activeModel.focuserId,
-        filterWheelId: filterWheelId ?? activeModel.filterWheelId,
-        guiderId: guiderId ?? activeModel.guiderId,
-        rotatorId: rotatorId ?? activeModel.rotatorId,
-        domeId: domeId ?? activeModel.domeId,
-        weatherId: weatherId ?? activeModel.weatherId,
-        safetyMonitorId: safetyMonitorId ?? activeModel.safetyMonitorId,
-        switchId: switchId ?? activeModel.switchId,
-        coverCalibratorId: coverCalibratorId ?? activeModel.coverCalibratorId,
-      ),
-      authority: authority,
-    );
-
-    developer.log(
-      'ProfileService: Saved connected devices to profile "${activeModel.name}"',
-      name: 'ProfileService',
-      level: 800,
-    );
-    return true;
-  }
-
-  /// Update profile filter configuration
   Future<void> updateProfileFilters(
     int profileId, {
     List<String>? filterNames,
@@ -665,32 +348,28 @@ class ProfileService {
     final activeProfile = await _getActiveProfileModel(authority: authority);
 
     if (activeProfile == null) {
-      developer.log(
+      Log.warning(
         'ProfileService: No active profile to sync filters to',
-        name: 'ProfileService',
-        level: 900,
+        source: 'ProfileService',
       );
       return false;
     }
 
-    // Import the equipment provider to access filter wheel state
     final filterWheelState = _ref.read(filterWheelStateProvider);
 
     if (filterWheelState.connectionState != DeviceConnectionState.connected) {
-      developer.log(
+      Log.warning(
         'ProfileService: Filter wheel not connected',
-        name: 'ProfileService',
-        level: 900,
+        source: 'ProfileService',
       );
       return false;
     }
 
     final hwFilterNames = filterWheelState.filterNames;
     if (hwFilterNames.isEmpty) {
-      developer.log(
+      Log.warning(
         'ProfileService: No filter names from hardware',
-        name: 'ProfileService',
-        level: 900,
+        source: 'ProfileService',
       );
       return false;
     }
@@ -713,10 +392,9 @@ class ProfileService {
       authority: authority,
     );
 
-    developer.log(
+    Log.info(
       'ProfileService: Synced ${hwFilterNames.length} filters to profile "${activeProfile.name}"',
-      name: 'ProfileService',
-      level: 800,
+      source: 'ProfileService',
     );
     return true;
   }
@@ -757,8 +435,3 @@ class ProfileService {
     return true;
   }
 }
-
-/// Provider for the profile service
-final profileServiceProvider = Provider<ProfileService>((ref) {
-  return ProfileService(ref);
-});

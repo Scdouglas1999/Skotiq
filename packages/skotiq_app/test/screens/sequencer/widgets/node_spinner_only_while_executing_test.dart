@@ -27,7 +27,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequencer_density.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -66,10 +67,11 @@ Future<String> _pumpRunningNode(
   // liveValidationProvider debounces with a 500ms one-shot Timer on mutation.
   await tester.pump(const Duration(milliseconds: 600));
 
-  container.read(sequenceExecutionStateProvider.notifier).state =
-      SequenceExecutionState.running;
   container
-      .read(sequenceProgressProvider.notifier)
+      .read(runRecordProvider.notifier)
+      .setLifecycle(SequenceExecutionState.running);
+  container
+      .read(runRecordProvider.notifier)
       .updateNodeStatus(node.id, NodeStatus.running);
   await tester.pump(const Duration(milliseconds: 16));
   return node.id;
@@ -79,7 +81,7 @@ void _setExecutionState(
   ProviderContainer container,
   SequenceExecutionState state,
 ) {
-  container.read(sequenceExecutionStateProvider.notifier).state = state;
+  container.read(runRecordProvider.notifier).setLifecycle(state);
 }
 
 void main() {

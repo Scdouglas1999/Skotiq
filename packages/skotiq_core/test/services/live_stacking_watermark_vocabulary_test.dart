@@ -6,15 +6,16 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/providers/live_stacking_broadcast_service_providers.dart';
 
 LiveStackingNode _node(String watermark) => LiveStackingNode(
   id: 'ls-vocab',
   name: 'Live Stacking',
   mode: LiveStackingMode.broadcastOnly,
   stackMethod: LiveStackingMethod.average,
-  broadcastPort: 8081,
   watermarkText: watermark,
 );
 

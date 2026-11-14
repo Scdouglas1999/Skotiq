@@ -10,9 +10,10 @@ import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 class TestBackendNotifier extends BackendNotifier {
   TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -45,14 +46,6 @@ void main() {
       () => mockBackend.polarAlignmentEvents,
     ).thenAnswer((_) => const Stream.empty());
     when(() => mockBackend.getConnectedDevices()).thenAnswer((_) async => []);
-    when(
-      () => mockBackend.startDeviceHeartbeat(
-        deviceType: any(named: 'deviceType'),
-        deviceId: any(named: 'deviceId'),
-        intervalMs: any(named: 'intervalMs'),
-      ),
-    ).thenAnswer((_) async {});
-    when(() => mockBackend.stopDeviceHeartbeat(any())).thenAnswer((_) async {});
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(database),
@@ -103,20 +96,13 @@ void main() {
     ).thenAnswer((_) async => status);
 
     final service = container.read(deviceServiceProvider);
-    await service.connectFilterWheel(deviceId);
+    await service.connect(DeviceType.filterWheel, deviceId);
 
     final state = container.read(filterWheelStateProvider);
     expect(state.connectionState, DeviceConnectionState.connected);
     expect(state.currentPosition, status.position);
     expect(state.filterNames, status.filterNames);
     expect(state.isMoving, status.moving);
-    verify(
-      () => mockBackend.startDeviceHeartbeat(
-        deviceType: DeviceType.filterWheel,
-        deviceId: deviceId,
-        intervalMs: 10000,
-      ),
-    ).called(1);
   });
 
   test(
@@ -158,7 +144,7 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       await expectLater(
-        service.connectFilterWheel(deviceId),
+        service.connect(DeviceType.filterWheel, deviceId),
         throwsA(
           isA<StateError>().having(
             (error) => error.message,
@@ -168,20 +154,13 @@ void main() {
         ),
       );
 
-      expect(
-        container.read(filterWheelStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
-      );
+      final wheel = container.read(filterWheelStateProvider);
+      expect(wheel.connectionState, DeviceConnectionState.error);
+      expect(wheel.deviceId, isNull);
+      expect(wheel.lastError?.deviceId, deviceId);
       verify(
         () => mockBackend.disconnectDevice(DeviceType.filterWheel, deviceId),
       ).called(1);
-      verifyNever(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.filterWheel,
-          deviceId: deviceId,
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      );
     },
   );
 

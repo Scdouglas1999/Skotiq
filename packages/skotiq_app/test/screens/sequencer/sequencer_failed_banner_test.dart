@@ -12,7 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -38,9 +39,12 @@ List<Override> _overrides(SequenceRunStats stats) {
   notifier.state = _seedSequence();
   return [
     currentSequenceProvider.overrideWith((_) => notifier),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.failed),
-    liveSequenceStatsProvider.overrideWith((ref) => stats),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(
+        ref,
+        RunRecord(lifecycle: SequenceExecutionState.failed, stats: stats),
+      ),
+    ),
     // The Ledger's minute clock is a periodic timer that outlives the test
     // body; the banner does not read it.
     ledgerClockProvider

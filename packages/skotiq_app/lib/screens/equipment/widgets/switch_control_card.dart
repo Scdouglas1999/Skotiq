@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
@@ -11,11 +14,10 @@ import '../../../utils/snackbar_helper.dart';
 /// Per-channel control for a connected multi-channel Switch / power box (dew
 /// heaters, outlets, etc.).
 ///
-/// Switches are not a [ConnectedDeviceType], so they get no standard device
-/// card; the Equipment screen renders this card directly when a switch is
-/// connected. Reads/writes go through [DeviceService] → SwitchChannelService,
-/// which now works over the network as well as locally (the remote-switch fix),
-/// so a tablet operator can toggle the rig's dew heaters / power outlets.
+/// A switch's card is its channel list rather than the standard device card.
+/// Reads and writes go through [DeviceService] → SwitchChannelService, locally
+/// and over the network, so a tablet operator can toggle the rig's dew
+/// heaters and power outlets.
 class SwitchControlCard extends ConsumerStatefulWidget {
   const SwitchControlCard({super.key});
 
@@ -66,7 +68,8 @@ class _SwitchControlCardState extends ConsumerState<SwitchControlCard> {
       await service.refreshSwitchChannels();
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Channel refresh failed: $e');
+        context
+            .showErrorSnackBar('Channel refresh failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -83,7 +86,7 @@ class _SwitchControlCardState extends ConsumerState<SwitchControlCard> {
       await service.setSwitchChannel(index, value);
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Switch failed: $e');
+        context.showErrorSnackBar('Switch failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -100,7 +103,7 @@ class _SwitchControlCardState extends ConsumerState<SwitchControlCard> {
       await service.setSwitchChannelValue(index, value);
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Switch failed: $e');
+        context.showErrorSnackBar('Switch failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {

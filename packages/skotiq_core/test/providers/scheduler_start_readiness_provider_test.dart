@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 
 ReadinessReport _report({
   ReadinessLevel critical = ReadinessLevel.ready,
@@ -219,7 +222,7 @@ void main() {
         low.blockers
             .singleWhere((issue) => issue.id == SchedulerReadinessIssueId.disk)
             .detail,
-        contains('Less than 2 GB'),
+        contains('Less than 2.0 GiB'),
       );
 
       final unknownDisk = _container(diskUnknown: true);

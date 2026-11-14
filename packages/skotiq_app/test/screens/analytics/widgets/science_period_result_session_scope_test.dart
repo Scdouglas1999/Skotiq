@@ -16,7 +16,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart'
     show dbSessionImagesProvider;
 import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A genuine result, produced by the real service from a clean 0.5 d sinusoid,
@@ -89,7 +92,7 @@ Widget _tab() => ProviderScope(
             _session(5, 'Night E - M13'),
           ]),
         ),
-        latestScienceSessionProvider.overrideWith((ref) async => 4),
+        scienceDefaultSessionProvider.overrideWith((ref) async => 4),
         sessionPhotometryProvider
             .overrideWith((ref, id) => Stream.value(_curve(id))),
         sessionTransparencySamplesProvider.overrideWith(
@@ -113,8 +116,8 @@ Widget _tab() => ProviderScope(
         sessionFrameQualityMetricsProvider.overrideWith(
           (ref, id) => Stream.value(const <ScienceFrameQualityMetricsRow>[]),
         ),
-        sessionTileMetricsProvider.overrideWith(
-          (ref, id) => Stream.value(const <ScienceTileMetricRow>[]),
+        frameTileMetricsProvider.overrideWith(
+          (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
         ),
         dbSessionImagesProvider.overrideWith(
           (ref, id) => Stream.value(const <DbCapturedImage>[]),

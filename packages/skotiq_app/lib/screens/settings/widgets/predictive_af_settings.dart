@@ -14,28 +14,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-// Hide skotiq_core's ConnectionState — Flutter's async.ConnectionState
-// is what FutureBuilder needs in this file, and the two collide via the
-// barrel. (See skotiq_core.dart re: device_types.dart.)
-import 'package:skotiq_core/skotiq_core.dart' hide ConnectionState;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'settings_widgets.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Settings page: "Autofocus → Predictive". Surfaces the auto-learn toggle,
 /// the confidence thresholds, the drift-detection knobs, and a viewer that
 /// lists every persisted per-filter model with re-train / export actions.
 class PredictiveAfSettingsPage extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  /// When true, render without an own scroll view / header (embedded in a
-  /// merged section's single outer scroll).
-  final bool embedded;
-
   const PredictiveAfSettingsPage({
     super.key,
-    this.isMobile = false,
-    this.embedded = false,
   });
 
   @override
@@ -46,7 +40,7 @@ class PredictiveAfSettingsPage extends ConsumerStatefulWidget {
 class _PredictiveAfSettingsPageState
     extends ConsumerState<PredictiveAfSettingsPage> {
   StreamSubscription<DriftStatus>? _driftSub;
-  ProviderSubscription<SkotiqBackend>? _backendSub;
+  ProviderSubscription<PredictiveAfSettingsController>? _hostSub;
   ProviderSubscription<EquipmentProfileModel?>? _profileSub;
   String? _latestDriftWarning;
   Future<PredictiveAfSettingsSnapshot>? _snapshotFuture;
@@ -59,7 +53,11 @@ class _PredictiveAfSettingsPageState
   @override
   void initState() {
     super.initState();
-    _backendSub = ref.listenManual<SkotiqBackend>(backendProvider, (
+    // The settings' store, not the backend: a backend listener runs before
+    // the providers derived from the backend are rebuilt, so the reads below
+    // would still see the previous host.
+    _hostSub = ref.listenManual<PredictiveAfSettingsController>(
+        predictiveAfSettingsControllerProvider, (
       previous,
       next,
     ) {
@@ -89,7 +87,7 @@ class _PredictiveAfSettingsPageState
   void _attachDriftListener() {
     final revision = ++_driftRevision;
     _driftSub?.cancel();
-    if (ref.read(backendProvider) is NetworkBackend) {
+    if (ref.read(isRemoteModeProvider)) {
       _driftSub = null;
       return;
     }
@@ -147,7 +145,7 @@ class _PredictiveAfSettingsPageState
   void dispose() {
     _driftRevision++;
     _driftSub?.cancel();
-    _backendSub?.close();
+    _hostSub?.close();
     _profileSub?.close();
     super.dispose();
   }
@@ -162,9 +160,6 @@ class _PredictiveAfSettingsPageState
       description:
           'Learn per-filter focus/temperature slope across sessions and skip '
           'manual autofocus when the model is confident.',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile || widget.embedded,
-      scrollable: !widget.embedded,
       children: [
         if (_latestDriftWarning != null)
           _DriftWarningBanner(
@@ -218,7 +213,6 @@ class _PredictiveAfSettingsPageState
     return [
       SettingsSection(
         title: 'Gates',
-        isMobile: widget.isMobile,
         children: [
           _settingRow(
             icon: LucideIcons.brainCircuit,
@@ -240,8 +234,9 @@ class _PredictiveAfSettingsPageState
             subtitle: 'Below this count, even a high-R² model still forces a '
                 'real AF sweep so the predictor cannot lock onto a tiny '
                 'sample window by coincidence.',
-            trailing: _NumberField(
-              initialValue: config.minSamplesForTrust.toDouble(),
+            trailing: SettingsNumberInput(
+              suffix: '',
+              authoritativeValue: config.minSamplesForTrust.toDouble(),
               min: 3,
               max: 50,
               decimals: 0,
@@ -257,8 +252,9 @@ class _PredictiveAfSettingsPageState
             icon: LucideIcons.checkCircle,
             title: 'High-confidence threshold (R²)',
             subtitle: 'R² ≥ this → apply prediction directly.',
-            trailing: _NumberField(
-              initialValue: config.highConfidenceThreshold,
+            trailing: SettingsNumberInput(
+              suffix: '',
+              authoritativeValue: config.highConfidenceThreshold,
               min: 0.5,
               max: 1.0,
               decimals: 2,
@@ -274,8 +270,9 @@ class _PredictiveAfSettingsPageState
             icon: LucideIcons.alertCircle,
             title: 'Low-confidence threshold (R²)',
             subtitle: 'R² < this → force a real AF sweep.',
-            trailing: _NumberField(
-              initialValue: config.lowConfidenceThreshold,
+            trailing: SettingsNumberInput(
+              suffix: '',
+              authoritativeValue: config.lowConfidenceThreshold,
               min: 0.0,
               max: 0.9,
               decimals: 2,
@@ -292,8 +289,9 @@ class _PredictiveAfSettingsPageState
             title: 'Drift threshold (steps)',
             subtitle: 'How many focuser steps a prediction can be off before '
                 'counting as a "bad" run for drift tracking.',
-            trailing: _NumberField(
-              initialValue: config.driftThresholdSteps.toDouble(),
+            trailing: SettingsNumberInput(
+              suffix: '',
+              authoritativeValue: config.driftThresholdSteps.toDouble(),
               min: 20,
               max: 2000,
               decimals: 0,
@@ -310,8 +308,9 @@ class _PredictiveAfSettingsPageState
             title: 'Bad runs before warning',
             subtitle: 'Consecutive bad predictions required before the app '
                 'surfaces a re-train notification.',
-            trailing: _NumberField(
-              initialValue: config.driftRunsBeforeWarn.toDouble(),
+            trailing: SettingsNumberInput(
+              suffix: '',
+              authoritativeValue: config.driftRunsBeforeWarn.toDouble(),
               min: 1,
               max: 20,
               decimals: 0,
@@ -328,7 +327,6 @@ class _PredictiveAfSettingsPageState
       ),
       SettingsSection(
         title: 'Learned models',
-        isMobile: widget.isMobile,
         children: [
           _ModelViewer(
             controller: controller,
@@ -348,13 +346,12 @@ class _PredictiveAfSettingsPageState
     required Widget trailing,
     bool isLast = false,
   }) {
-    if (widget.isMobile) {
+    if (SettingsFormScope.narrowOf(context)) {
       return SettingRow(
         icon: icon,
         title: title,
         subtitle: subtitle,
         trailing: trailing,
-        isMobile: true,
       );
     }
     return Padding(
@@ -474,8 +471,8 @@ class _ModelViewer extends StatelessWidget {
                     onReload();
                   } catch (error) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Re-train failed: $error')),
+                      context.showErrorSnackBar(
+                        'Re-train failed: ${userFacingError(error)}',
                       );
                     }
                   }
@@ -489,17 +486,13 @@ class _ModelViewer extends StatelessWidget {
                     if (!context.mounted || json == null) return;
                     await Clipboard.setData(ClipboardData(text: json));
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Copied ${model.filterName} model JSON to clipboard',
-                        ),
-                      ),
+                    context.showInfoSnackBar(
+                      'Copied ${model.filterName} model JSON to clipboard',
                     );
                   } catch (error) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Export failed: $error')),
+                      context.showErrorSnackBar(
+                        'Export failed: ${userFacingError(error)}',
                       );
                     }
                   }
@@ -685,8 +678,8 @@ class _ModelRowState extends State<_ModelRow> {
           if (m.lastUsedAt != null) ...[
             const SizedBox(height: 4),
             Text(
-              'Last used: ${_formatTimeAgo(m.lastUsedAt!)} · '
-              'Last trained: ${_formatTimeAgo(m.lastTrainedAt)}',
+              'Last used: ${RelativeTime.ago(m.lastUsedAt!)} · '
+              'Last trained: ${RelativeTime.ago(m.lastTrainedAt)}',
               style: SkotiqTypography.captionSm.copyWith(
                 color: c.textMuted,
               ),
@@ -735,14 +728,6 @@ class _ModelRowState extends State<_ModelRow> {
       height: 8,
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
-  }
-
-  String _formatTimeAgo(DateTime t) {
-    final diff = DateTime.now().difference(t);
-    if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
   }
 }
 
@@ -868,71 +853,4 @@ class _ScatterPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ScatterPainter old) =>
       old.samples != samples || old.model.uuid != model.uuid;
-}
-
-/// Single number field used by the settings page. Avoids requiring callers
-/// to manage a TextEditingController for each row.
-class _NumberField extends StatefulWidget {
-  final double initialValue;
-  final double min;
-  final double max;
-  final int decimals;
-  final FutureOr<void> Function(double) onChanged;
-
-  const _NumberField({
-    required this.initialValue,
-    required this.min,
-    required this.max,
-    required this.decimals,
-    required this.onChanged,
-  });
-
-  @override
-  State<_NumberField> createState() => _NumberFieldState();
-}
-
-class _NumberFieldState extends State<_NumberField> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text: widget.initialValue.toStringAsFixed(widget.decimals),
-    );
-  }
-
-  @override
-  void didUpdateWidget(covariant _NumberField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialValue == widget.initialValue &&
-        oldWidget.decimals == widget.decimals) {
-      return;
-    }
-
-    final nextText = widget.initialValue.toStringAsFixed(widget.decimals);
-    if (_controller.text == nextText) return;
-    _controller.value = TextEditingValue(
-      text: nextText,
-      selection: TextSelection.collapsed(offset: nextText.length),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SettingsNumberInput(
-      controller: _controller,
-      suffix: '',
-      min: widget.min,
-      max: widget.max,
-      decimals: widget.decimals,
-      onChanged: widget.onChanged,
-    );
-  }
 }

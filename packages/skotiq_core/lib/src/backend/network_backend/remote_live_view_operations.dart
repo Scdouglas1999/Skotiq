@@ -33,19 +33,12 @@ mixin _NetworkBackendRemoteLiveViewOperations on _NetworkBackendTransport {
     var closed = false;
 
     Future<void> openSocket() async {
-      final query = <String, String>{};
-      if (authToken != null && authToken!.isNotEmpty) {
-        // Prefer the one-shot WS ticket so the bearer token stays out of the
-        // WebSocket URL; fall back to ?token= for older servers.
-        final wsTicket = await _mintWsTicket();
-        if (wsTicket != null) {
-          query['ticket'] = wsTicket;
-        } else {
-          query['token'] = authToken!;
-        }
-      }
-      final uri = _wsUri('/ws/live-view', query);
       try {
+        // A one-shot ticket keeps the bearer token out of the WebSocket URL.
+        final wsTicket = await _mintWsTicket();
+        final uri = _wsUri(WebSocketApi.liveView, {
+          if (wsTicket != null) 'ticket': wsTicket,
+        });
         channel = IOWebSocketChannel.connect(uri);
         // IOWebSocketChannel reports a failed connection on BOTH the stream
         // (handled by the onError below, which routes to the controller) and
@@ -103,10 +96,9 @@ mixin _NetworkBackendRemoteLiveViewOperations on _NetworkBackendTransport {
                 }
                 // ready/pong: nothing to surface to the consumer.
               } catch (e) {
-                developer.log(
+                Log.warning(
                   '[NetworkBackend] /ws/live-view JSON decode failed: $e',
-                  name: 'NetworkBackend',
-                  level: 900,
+                  source: 'NetworkBackend',
                 );
               }
             } else if (raw is List<int>) {
@@ -114,11 +106,10 @@ mixin _NetworkBackendRemoteLiveViewOperations on _NetworkBackendTransport {
               pendingMeta = null;
               if (meta == null) {
                 // Stray binary frame with no preceding meta — log + drop.
-                developer.log(
+                Log.warning(
                   '[NetworkBackend] /ws/live-view: received binary frame '
                   'with no preceding meta envelope; dropping',
-                  name: 'NetworkBackend',
-                  level: 900,
+                  source: 'NetworkBackend',
                 );
                 return;
               }
@@ -280,7 +271,7 @@ mixin _NetworkBackendRemoteLiveViewOperations on _NetworkBackendTransport {
       final msg =
           '[NetworkBackend] live-view: falling back from WebRTC to '
           'WS — $reason';
-      developer.log(msg, name: 'NetworkBackend', level: 800);
+      Log.info(msg, source: 'NetworkBackend');
       if (onFallback != null) onFallback(msg);
     }
 

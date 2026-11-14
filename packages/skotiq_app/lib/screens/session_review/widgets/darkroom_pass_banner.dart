@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
@@ -154,9 +154,8 @@ class _CompletedPass extends ConsumerWidget {
     // filled in — the sentence stands without the time rather than naming an
     // hour nothing recorded.
     final finished = pass.finishedAt;
-    final when = finished == null
-        ? ''
-        : ' at ${DateFormat('HH:mm').format(finished.toLocal())}';
+    final when =
+        finished == null ? '' : ' at ${ClockFormat.hm(finished.toLocal())}';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),

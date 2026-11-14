@@ -232,16 +232,14 @@ class _NoteEditorDialogState extends ConsumerState<NoteEditorDialog> {
     // Require either a body or sentiment so we never persist an
     // empty stub note that the user can't find later.
     if (body.isEmpty && _sentiment == null && title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Add a title, body, or sentiment before saving.'),
-        ),
+      context.showInfoSnackBar(
+        'Add a title, body, or sentiment before saving.',
       );
       return;
     }
     setState(() => _saving = true);
     try {
-      final service = ref.read(notesRepositoryProvider);
+      final service = ref.read(notesJournalProvider);
       final JournalNote saved;
       if (widget.existing == null) {
         saved = await service.addNote(
@@ -267,9 +265,7 @@ class _NoteEditorDialogState extends ConsumerState<NoteEditorDialog> {
       Navigator.of(context).pop(saved);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save note: $e')),
-      );
+      context.showErrorSnackBar('Failed to save note: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -290,9 +286,7 @@ class _NoteEditorDialogState extends ConsumerState<NoteEditorDialog> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete: $e')),
-      );
+      context.showErrorSnackBar('Failed to delete: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

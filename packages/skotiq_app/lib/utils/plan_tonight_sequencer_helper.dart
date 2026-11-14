@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 import '../widgets/auto_build_options_dialog.dart';
+import 'held_future.dart';
+import 'snackbar_helper.dart';
 
-/// Build a multi-filter Smart Night sequence for a Plan Tonight target.
 Future<SingleTargetSequenceResult> buildPlanTonightTargetSequence({
   required WidgetRef ref,
   required TargetSuggestion target,
@@ -110,9 +111,12 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
     );
   }
 
-  final settings = await ref.read(appSettingsProvider.future);
+  // The screens that plan from here do not watch the exposure context, so
+  // it is held while it is read: read bare, a reload that started while it
+  // loaded was never finished and planning waited for good.
+  final settings = await readHeld(ref, appSettingsProvider);
   final exposureContext =
-      await ref.read(smartNightExposureContextProvider.future);
+      await readHeld(ref, smartNightExposureContextProvider);
 
   final window = SmartNightService(
     suggestionService: ref.read(targetSuggestionServiceProvider),
@@ -168,12 +172,12 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
     useExposurePresets: options != null && !options.useCalculator,
     defaultFrameDurationSecs: options?.exposures ??
         const SmartNightSettings().defaultFrameDurationSecs,
-    // The site minimum altitude belongs to the site, not to this builder.
+    // The site's altitude floor belongs to the site, not to this builder.
     // Leaving it at the SmartNightSettings default meant this path refused
     // targets at 27 deg ("no usable imaging window ... at min altitude 30")
     // that the scheduler on the very same screen was scoring as eligible
     // against its own 25 deg.
-    minAltitudeDeg: ref.read(siteMinimumAltitudeDegProvider),
+    minAltitudeDeg: ref.read(altitudeFloorProvider).lowestDeg,
     defaultIntegrationBudgetHours: integrationBudgetHours ??
         const SmartNightSettings().defaultIntegrationBudgetHours,
     targetSnr: settings.smartNightTargetSnr,
@@ -205,7 +209,6 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   );
 }
 
-/// Build a [TargetSuggestion] from a framed target.
 Future<TargetSuggestion> framingTargetSuggestion({
   required WidgetRef ref,
   required FramingTarget target,
@@ -263,7 +266,7 @@ Future<TargetSuggestion> catalogTargetSuggestion({
         date: AstronomyCalculations.nightDateOf(window.start),
         latitudeDeg: settings.latitude,
         longitudeDeg: settings.longitude,
-        minAltitude: ref.read(siteMinimumAltitudeDegProvider),
+        minAltitude: ref.read(altitudeFloorProvider).lowestDeg,
       );
 
   final altAz = AstronomyCalculations.objectAltAz(
@@ -330,7 +333,6 @@ Future<TargetSuggestion> catalogTargetSuggestion({
   );
 }
 
-/// Build and load a Plan Tonight multi-filter sequence into the editor.
 Future<bool> addPlanTonightTargetToSequencer({
   required BuildContext context,
   required WidgetRef ref,
@@ -356,9 +358,7 @@ Future<bool> addPlanTonightTargetToSequencer({
     );
   } on SmartNightBuildException catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      context.showInfoSnackBar(e.message);
     }
     return false;
   }
@@ -387,7 +387,6 @@ Future<bool> addFramedTargetToSequencer({
 }) async {
   final framingState = ref.read(framingProvider);
 
-  // Mosaic dispatch — only when the user has actually generated panels.
   if (framingState.mosaicEnabled && framingState.mosaicPanels.isNotEmpty) {
     return _addFramedMosaicToSequencer(
       context: context,
@@ -423,66 +422,10 @@ Future<bool> addFramedTargetToSequencer({
     );
   } on SmartNightBuildException catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      context.showInfoSnackBar(e.message);
     }
     return false;
   }
-}
-
-/// Resolve the per-panel FOV in arcminutes from framing state.
-///
-/// Custom equipment is the most authoritative source. When the user has
-/// configured custom equipment in the framing screen we use its computed
-/// FOV directly. Otherwise we fall back to the active equipment profile
-/// via `framingFOVProvider`. The preview FOV (`previewFovDegrees`) is
-/// explicitly NOT used: it controls how much sky context the survey
-/// preview shows, not the actual sensor footprint.
-Future<({double widthArcmin, double heightArcmin})?> _resolvePanelFovArcmin({
-  required WidgetRef ref,
-  required FramingState framingState,
-}) async {
-  if (framingState.useCustomEquipment && framingState.customEquipment != null) {
-    final eq = framingState.customEquipment!;
-    return (
-      widthArcmin: eq.fovWidthDeg * 60.0,
-      heightArcmin: eq.fovHeightDeg * 60.0,
-    );
-  }
-
-  final result = await ref.read(framingFOVProvider.future);
-  final eq = result.equipment;
-  if (eq == null) return null;
-  return (
-    widthArcmin: eq.fovWidthDeg * 60.0,
-    heightArcmin: eq.fovHeightDeg * 60.0,
-  );
-}
-
-/// Build a [MosaicConfig] from framing-screen state for the sequencer.
-///
-/// Pure function — does not touch riverpod or context. Tests can hit this
-/// directly to verify the framing-UI knobs (columns/rows/overlap%) map to
-/// the service-layer geometry (panelWidthArcmin/panelHeightArcmin/...).
-MosaicConfig buildFramingMosaicConfig({
-  required FramingTarget target,
-  required FramingState framingState,
-  required double panelWidthArcmin,
-  required double panelHeightArcmin,
-  double? rotationOverrideDegrees,
-}) {
-  final framingMosaicConfig = framingState.mosaicConfig;
-  return MosaicConfig(
-    centerRa: target.raHours,
-    centerDec: target.decDegrees,
-    panelWidthArcmin: panelWidthArcmin,
-    panelHeightArcmin: panelHeightArcmin,
-    overlapPercent: framingMosaicConfig.overlapPercent,
-    rotation: rotationOverrideDegrees ?? framingState.rotation,
-    panelsHorizontal: framingMosaicConfig.columns,
-    panelsVertical: framingMosaicConfig.rows,
-  );
 }
 
 /// Construct the mosaic name that the framing → sequencer handoff uses for
@@ -494,13 +437,13 @@ String framingMosaicNameFor(FramingTarget target) {
           '${target.decDegrees.toStringAsFixed(1)}°';
 }
 
-/// Build a mosaic [Sequence] from the framing screen's mosaic configuration
-/// and load it into the editor.
+/// Build a mosaic [Sequence] from the mosaic drawn in the framing screen and
+/// load it into the editor.
 ///
-/// Reuses [MosaicService.createMosaicSequence] — the same code path the
-/// in-sequencer Mosaic Wizard uses — so per-panel `TargetHeaderNode`
-/// metadata (mosaic name + panel index/row/col/total) flows into FITS
-/// headers identically across both entry points.
+/// The targets are [MosaicService]'s panel headers for the drawn panels, in
+/// the canvas's capture order, so this and Add to sequence give the same
+/// targets. Each panel waits for the site's altitude floor, so a panel
+/// never starts imaging below it.
 Future<bool> _addFramedMosaicToSequencer({
   required BuildContext context,
   required WidgetRef ref,
@@ -509,71 +452,17 @@ Future<bool> _addFramedMosaicToSequencer({
   double? rotationDegrees,
   bool replaceSequence = false,
 }) async {
-  final fov = await _resolvePanelFovArcmin(
-    ref: ref,
-    framingState: framingState,
-  );
-  if (!context.mounted) return false;
-  if (fov == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Cannot build mosaic: equipment FOV is unavailable. Configure a '
-          'camera + focal length in your active profile (or use custom '
-          'equipment in framing) and try again.',
-        ),
-      ),
-    );
-    return false;
-  }
-
-  final config = buildFramingMosaicConfig(
-    target: target,
-    framingState: framingState,
-    panelWidthArcmin: fov.widthArcmin,
-    panelHeightArcmin: fov.heightArcmin,
-    rotationOverrideDegrees: rotationDegrees,
-  );
-
-  const mosaicService = MosaicService();
-  final validation = mosaicService.validateMosaic(config);
-  if (!validation.isValid) {
-    if (!context.mounted) return false;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Mosaic configuration invalid: ${validation.errors.join("; ")}',
-        ),
-      ),
-    );
-    return false;
-  }
-
   final exposureContext =
       ref.read(smartNightExposureContextProvider).valueOrNull;
-  final exposure = smartNightMosaicExposureSettings(exposureContext);
-
-  final options = MosaicSequenceOptions(
-    serpentineOrdering: framingState.mosaicConfig.serpentine,
-    centerAfterSlew: true,
-    autofocusPerPanel: false,
-    // W1 no-daylight/altitude gate: default each panel's minAltitude to the
-    // Smart Night floor so every panel TargetHeader carries a
-    // `start_when AltitudeAbove` wait (serialized as `min_altitude`). Without
-    // this the headless mosaic path gated on altitude but the framing →
-    // sequencer path did not, so a panel could start imaging while still below
-    // the horizon floor. STRENGTHENS the gate; it never weakens the Dart Sun
-    // gate (W1) or the W5 weather gate.
-    minAltitude: ref.read(siteMinimumAltitudeDegProvider),
-  );
-
   final mosaicName = framingMosaicNameFor(target);
-
-  final nodes = mosaicService.createMosaicSequence(
+  final nodes = const MosaicService().sequenceForPanels(
     mosaicName: mosaicName,
-    config: config,
-    exposure: exposure,
-    options: options,
+    panels: framingState.mosaicPanels,
+    rotation: rotationDegrees ?? framingState.rotation,
+    exposure: smartNightMosaicExposureSettings(exposureContext),
+    options: MosaicSequenceOptions(
+      minAltitude: ref.read(altitudeFloorProvider).lowestDeg,
+    ),
   );
 
   return _loadMosaicNodesIntoEditor(
@@ -617,9 +506,7 @@ Future<bool> _loadMosaicNodesIntoEditor({
       return true;
     } on SequenceLockedException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        context.showInfoSnackBar(e.message);
       }
       return false;
     }
@@ -668,9 +555,7 @@ Future<bool> _loadMosaicNodesIntoEditor({
     return loadReplacing();
   } on SequenceLockedException catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      context.showInfoSnackBar(e.message);
     }
     return false;
   }
@@ -806,9 +691,7 @@ Future<bool> loadPlanTonightSequenceIntoEditor({
       return true;
     } on SequenceLockedException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        context.showInfoSnackBar(e.message);
       }
       return false;
     }
@@ -836,9 +719,7 @@ Future<bool> loadPlanTonightSequenceIntoEditor({
     return loadReplacing();
   } on SequenceLockedException catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      context.showInfoSnackBar(e.message);
     }
     return false;
   }

@@ -17,9 +17,13 @@ import 'package:skotiq_app/screens/flat_wizard/flat_wizard_screen.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 // Prefixed: this package and skotiq_core both export a TargetScore.
 import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -427,9 +431,9 @@ class _ScreenshotSequence extends CurrentSequenceNotifier {
   }
 }
 
-class _ScreenshotProgress extends SequenceProgressNotifier {
+class _ScreenshotProgress extends RunRecordNotifier {
   _ScreenshotProgress() {
-    updateState(SequenceExecutionState.running);
+    setLifecycle(SequenceExecutionState.running);
     setTotals(36, 6480);
     // Six frames in, two of each filter, and the seventh - an Ha - is
     // exposing. Everything below has to agree with that: the ring, the
@@ -535,6 +539,7 @@ class _ConnectedGuider extends GuiderStateNotifier {
     setConnected();
     setGuiding(true);
     updateRms(0.31, 0.27, 0.42);
+    setPixelScale(1.34);
   }
 }
 
@@ -577,7 +582,6 @@ class _SeededGuideStats extends GuideStatsNotifier {
       hfd: 3.1,
       starX: 612.4,
       starY: 388.9,
-      pixelScale: 1.34,
       frameCount: 1148,
     );
   }
@@ -621,7 +625,6 @@ class _ActiveSession extends SessionStateNotifier {
       rejectedExposures: 2,
       totalIntegrationSecs: 12900,
       currentFilter: 'Ha',
-      isGuiding: true,
       isCapturing: true,
       avgHfr: 2.13,
       avgGuidingRmsRa: 0.31,
@@ -715,10 +718,7 @@ final _sharedOverrides = <Override>[
   smartNightExposureContextProvider.overrideWith((ref) async => null),
   currentSequenceProvider.overrideWith((ref) => _ScreenshotSequence()),
   selectedNodeIdProvider.overrideWith((ref) => 'nb-smart'),
-  sequenceExecutionStateProvider.overrideWith(
-    (ref) => SequenceExecutionState.running,
-  ),
-  sequenceProgressProvider.overrideWith((ref) => _ScreenshotProgress()),
+  runRecordProvider.overrideWith((ref) => _ScreenshotProgress()),
   schedulerPreviewDecisionProvider.overrideWith((ref) async {
     return _schedulerDecision;
   }),
@@ -749,7 +749,7 @@ final _sharedOverrides = <Override>[
   // Per-filter integration for the Tonight progress panel. Without it every
   // filter row reads "0 / 36" while the ring claims the run is underway.
   runDashboardSessionIntegrationProvider(42).overrideWith(
-    (ref) async => const RunDashboardSessionIntegration(
+    (ref) async => const IntegrationByFilter(
       acceptedSecs: {'Ha': 1080},
       totalSecs: {'Ha': 1260},
     ),
@@ -949,7 +949,8 @@ void main() {
     );
     await _capture(
       tester,
-      screen: const SettingsScreen(initialSection: 'equipment-profiles'),
+      screen: SettingsScreen(
+          initialSection: SettingsSectionId.resolve('equipment-profiles')),
       fileName: 'settings-equipment-profiles.png',
     );
   }, timeout: const Timeout(Duration(minutes: 5)));

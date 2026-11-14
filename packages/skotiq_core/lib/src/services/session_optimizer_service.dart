@@ -2,7 +2,7 @@ import '../database/database.dart' as db;
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/session_report.dart';
-import '../utils/duration_format.dart';
+import 'package:skotiq_astro/format.dart';
 import 'mosaic_service.dart';
 import 'target_suggestion_service.dart';
 import 'smart_night/exposure_calculator.dart';
@@ -453,7 +453,7 @@ class SessionOptimizerService {
     required TargetSuggestionConfig config,
     required double latitude,
     required double longitude,
-    required List<db.Target> targets,
+    required List<db.DbTarget> targets,
     required List<db.ImagingSession> sessions,
     DateTime? observationTime,
     OpticalConfig? opticalConfig,
@@ -624,7 +624,7 @@ class SessionOptimizerService {
           thresholds.altitudeSuggestionMarginDeg;
       final formattedDur = DurationFormat.of(
         Duration(seconds: trace.secondsBelowMinAltitude.round()),
-        style: DurationStyle.compact,
+        style: DurationStyle.coarse,
       );
       final id =
           'altitude_window:${trace.targetId ?? trace.targetName.toLowerCase()}';
@@ -655,7 +655,6 @@ class SessionOptimizerService {
       );
     }
 
-    // -- Autofocus frequency ----------------------------------------------
     final wallHours = report.wallClockDuration.inSeconds / 3600.0;
     if (wallHours > 0.5) {
       final afRuns = report.mountStats.autofocusRuns;
@@ -733,7 +732,6 @@ class SessionOptimizerService {
       }
     }
 
-    // -- Rejection rate ---------------------------------------------------
     final attempted = report.totalFramesAttempted;
     if (attempted >= 10) {
       final rejected = report.totalFramesRejected;
@@ -761,7 +759,6 @@ class SessionOptimizerService {
       }
     }
 
-    // -- Guiding degraded --------------------------------------------------
     final gs = report.guideStats;
     final meanTotal = gs.meanRmsTotalArcsec;
     if (meanTotal != null && meanTotal >= thresholds.guidingDegradedArcsec) {
@@ -789,7 +786,6 @@ class SessionOptimizerService {
       );
     }
 
-    // -- Effective imaging fraction (efficiency) ---------------------------
     if (report.wallClockDuration.inMinutes >= 30) {
       final eff = report.effectiveImagingFraction;
       if (eff > 0 && eff < thresholds.efficiencyLowFraction) {

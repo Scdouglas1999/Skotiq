@@ -38,7 +38,6 @@ class _DraggableSnippetItemState extends State<_DraggableSnippetItem> {
   Widget build(BuildContext context) {
     final isMobile = widget.isMobile;
 
-    // On mobile, use tap instead of drag
     if (isMobile) {
       return _buildMobileItem();
     }

@@ -12,7 +12,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/guiding_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/harness.dart';
@@ -29,6 +30,22 @@ class _ConnectedGuiderNotifier extends GuiderStateNotifier {
       rmsRa: 0.42,
       rmsDec: 0.37,
       rmsTotal: 0.56,
+    );
+  }
+}
+
+/// The same guider, having reported its guide camera's scale.
+class _ScaledGuiderNotifier extends GuiderStateNotifier {
+  _ScaledGuiderNotifier(super.ref) {
+    // ignore: invalid_use_of_protected_member
+    state = const GuiderState(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: 'simulator:guider:0',
+      isGuiding: true,
+      rmsRa: 0.42,
+      rmsDec: 0.37,
+      rmsTotal: 0.56,
+      pixelScaleArcsecPerPixel: 2.0,
     );
   }
 }
@@ -65,7 +82,6 @@ class _ScaledGuideStatsNotifier extends GuideStatsNotifier {
       peakDec: 0.89,
       snr: 18.0,
       starMass: 4200,
-      pixelScale: 2.0,
       frameCount: 100,
     );
   }
@@ -120,7 +136,7 @@ void main() {
       const GuidingPanel(colors: SkotiqColors.dark),
       size: const Size(380, 900),
       extraOverrides: [
-        guiderStateProvider.overrideWith(_ConnectedGuiderNotifier.new),
+        guiderStateProvider.overrideWith(_ScaledGuiderNotifier.new),
         guideStatsProvider.overrideWith(_ScaledGuideStatsNotifier.new),
         isBuiltinGuiderProvider.overrideWithValue(false),
       ],
@@ -130,8 +146,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 25));
     }
 
-    // 1.23 px at 2.00"/px.
-    expect(find.text('2.46"'), findsOneWidget);
-    expect(find.text('1.78"'), findsOneWidget);
+    // 1.23 px at 2.00″/px.
+    expect(find.text('2.46″'), findsOneWidget);
+    expect(find.text('1.78″'), findsOneWidget);
   });
 }

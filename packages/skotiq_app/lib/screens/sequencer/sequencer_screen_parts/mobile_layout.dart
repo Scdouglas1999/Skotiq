@@ -91,19 +91,17 @@ class _MobileBuilderLayout extends ConsumerWidget {
               // File/edit actions (New, Open, Save, Undo) — mobile remote
               // clients need the same affordances as the desktop builder.
               SequenceToolbar(
-                  key: SequencerTutorialKeys.toolbar, colors: colors),
+                  key: TourTarget.sequencerToolbar.key, colors: colors),
 
-              // Compact playback controls.
               MobilePlaybackBar(colors: colors),
 
               // Live telemetry while executing — a wrapping stat strip so the
               // dense readout reflows instead of overflowing a phone column.
               if (isRunning) _MobileTelemetryStrip(colors: colors),
 
-              // Progress bar (when running).
               if (isRunning)
                 SequenceProgressBar(
-                    key: SequencerTutorialKeys.progressBar, colors: colors),
+                    key: TourTarget.sequencerProgressBar.key, colors: colors),
 
               // Tree (portrait: full width; landscape: split with properties).
               Expanded(
@@ -156,7 +154,6 @@ class _MobileBuilderLayout extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                 ],
-                // Add-node FAB.
                 FloatingActionButton(
                   heroTag: 'add_node_fab',
                   backgroundColor: colors.primary,
@@ -200,7 +197,7 @@ class _LandscapePropertiesPane extends ConsumerWidget {
               ),
             )
           : NodePropertiesPanel(
-              key: SequencerTutorialKeys.propertiesPanel,
+              key: TourTarget.sequencerPropertiesPanel.key,
               colors: colors,
               // The landscape pane is narrow (~40% of a phone's long edge), so
               // use the mobile-sheet rendering, which is built to reflow/scroll
@@ -238,7 +235,7 @@ class _MobileTelemetryStrip extends ConsumerWidget {
           label: 'Cam',
           icon: LucideIcons.thermometer,
           value: camera.temperature != null
-              ? '${camera.temperature!.toStringAsFixed(1)}°C'
+              ? formatCelsius(camera.temperature!)
               : '--',
         ),
       if (connected(focuser.connectionState))
@@ -262,7 +259,10 @@ class _MobileTelemetryStrip extends ConsumerWidget {
           icon: LucideIcons.crosshair,
           value: guider.isGuiding
               ? (guider.rmsTotal != null
-                  ? '${guider.rmsTotal!.toStringAsFixed(2)}"'
+                  ? guideDistanceText(
+                      guider.rmsTotal!,
+                      ref.watch(guideScaleProvider),
+                    )
                   : 'Guiding')
               : 'Idle',
           accent: guider.isGuiding

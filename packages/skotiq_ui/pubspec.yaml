@@ -8,13 +8,14 @@ environment:
   flutter: ">=3.0.0"
 
 dependencies:
+  # Formatters only (package:skotiq_astro/format.dart); astro is pure Dart.
+  skotiq_astro:
+    path: ../skotiq_astro
   skotiq_design:
     path: ../skotiq_design
   flutter:
     sdk: flutter
   lucide_icons: ^0.257.0
-  skotiq_core:
-    path: ../skotiq_core
 
 dev_dependencies:
   flutter_test:

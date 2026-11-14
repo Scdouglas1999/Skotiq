@@ -45,7 +45,7 @@ List<String> darkroomMeasuredValueLines(String name, Object? value) {
       if (value is Map) {
         return [
           for (final entry in value.entries)
-            '${_roleName('${entry.key}')} stars: half-flux radius '
+            '${darkroomRoleName('${entry.key}')} stars: half-flux radius '
                 '${_num(_halfFlux(entry.value), 2)} px',
         ];
       }
@@ -55,7 +55,7 @@ List<String> darkroomMeasuredValueLines(String name, Object? value) {
 
 String _inputLine(Object? input) {
   if (input is! Map) return '$input';
-  final role = _roleName('${input['role']}');
+  final role = darkroomRoleName('${input['role']}');
   final filter = input['filter'];
   final name =
       filter is String && filter.trim().isNotEmpty ? '$filter ($role)' : role;
@@ -75,7 +75,8 @@ String _inputLine(Object? input) {
   return '$name: $file';
 }
 
-String _roleName(String role) => switch (role) {
+/// A master's role in a recipe in words: "Ha", "red", "one-shot color".
+String darkroomRoleName(String role) => switch (role) {
       'luminance' => 'luminance',
       'red' => 'red',
       'green' => 'green',
@@ -99,6 +100,8 @@ String _fitName(String key) {
       return 'OIII matched to Ha';
     case 'siiToHAlpha':
       return 'SII matched to Ha';
+    case 'oiiiToSii':
+      return 'OIII matched to SII';
   }
   if (key.startsWith('session')) {
     return 'Master ${key.substring('session'.length)} matched to its filter\'s '

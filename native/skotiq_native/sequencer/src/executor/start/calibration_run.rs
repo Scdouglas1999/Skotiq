@@ -1,4 +1,4 @@
-use crate::executor::RECOVERY_NODE_TRIGGER_PREFIX;
+use crate::triggers::TriggerOrigin;
 use crate::{NodeType, SequenceDefinition};
 
 /// A sequence that only takes calibration frames — darks, bias, flats — and
@@ -11,10 +11,10 @@ use crate::{NodeType, SequenceDefinition};
 /// Triggers the sequence declares itself through Recovery nodes still apply.
 pub(super) fn is_calibration_only(sequence: &SequenceDefinition) -> bool {
     let mut calibration_frames = false;
-    for node in sequence.nodes.iter().filter(|n| n.enabled) {
+    for node in sequence.enabled_nodes() {
         match &node.node_type {
             NodeType::TakeExposure(config) => {
-                if !is_calibration_frame_type(&config.frame_type) {
+                if !config.frame_type.is_calibration() {
                     return false;
                 }
                 calibration_frames = true;
@@ -44,16 +44,9 @@ pub(super) fn is_calibration_only(sequence: &SequenceDefinition) -> bool {
     calibration_frames
 }
 
-pub(super) fn is_calibration_frame_type(frame_type: &str) -> bool {
-    matches!(
-        frame_type.trim().to_ascii_lowercase().as_str(),
-        "dark" | "bias" | "flat" | "darkflat"
-    )
-}
-
 /// Whether a fired trigger may act in a calibration-only run.
-pub(super) fn acts_in_calibration_run(trigger_id: &str) -> bool {
-    trigger_id.starts_with(RECOVERY_NODE_TRIGGER_PREFIX)
+pub(super) fn acts_in_calibration_run(origin: TriggerOrigin) -> bool {
+    origin.is_recovery_node()
 }
 
 #[cfg(test)]
@@ -75,7 +68,7 @@ mod tests {
 
     fn exposure(frame_type: &str) -> NodeType {
         NodeType::TakeExposure(ExposureConfig {
-            frame_type: frame_type.into(),
+            frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             ..Default::default()
         })
     }
@@ -136,20 +129,31 @@ mod tests {
     }
 
     #[test]
+    fn a_light_inside_a_disabled_group_does_not_count() {
+        let mut group = node("group", NodeType::Loop(LoopConfig::default()));
+        group.enabled = false;
+        group.children = vec!["light".into()];
+        let mut sequence = plan(vec![node("dark", exposure("Dark")), group]);
+        sequence.nodes.push(node("light", exposure("Light")));
+        assert!(is_calibration_only(&sequence));
+    }
+
+    #[test]
     fn only_sequence_recovery_triggers_act_in_a_calibration_run() {
-        for standard in [
-            "dither_interval",
-            "autofocus_interval",
-            "dawn_approaching",
-            "meridian_flip",
-            "weather_unsafe",
-            "temperature_shift",
-            "guide_star_lost",
-        ] {
-            assert!(!acts_in_calibration_run(standard), "{standard}");
+        for standard in crate::triggers::StandardTrigger::ALL {
+            assert!(
+                !acts_in_calibration_run(standard.build().origin()),
+                "{standard:?}"
+            );
         }
-        assert!(acts_in_calibration_run(&format!(
-            "{RECOVERY_NODE_TRIGGER_PREFIX}node-1"
-        )));
+        assert!(!acts_in_calibration_run(TriggerOrigin::Other));
+        let declared = crate::triggers::Trigger::for_recovery_node(
+            "node-1",
+            "Recovery: clouds",
+            crate::TriggerType::WeatherUnsafe,
+            crate::RecoveryAction::ParkAndAbort,
+        );
+        assert_eq!(declared.id, "recovery_node:node-1");
+        assert!(acts_in_calibration_run(declared.origin()));
     }
 }

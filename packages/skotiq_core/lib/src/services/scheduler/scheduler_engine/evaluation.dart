@@ -375,10 +375,10 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
   /// because the Sun is still down, so this returns false and the engine only
   /// stops the sequence rather than parking.
   bool _isEndOfNight(DateTime now) {
-    final (sunAlt, _) = SkyCalculations.sunAltAz(
-      time: now,
-      latitudeDegrees: _site.latitudeDegrees,
-      longitudeDegrees: _site.longitudeDegrees,
+    final (sunAlt, _) = AstronomyCalculations.sunAltAz(
+      dt: now,
+      latitudeDeg: _site.latitudeDegrees,
+      longitudeDeg: _site.longitudeDegrees,
     );
     return sunAlt > _config.maxSunAltitudeDegrees;
   }

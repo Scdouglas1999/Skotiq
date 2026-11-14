@@ -11,10 +11,14 @@
 // autofocus runs and dithers. A metric with no source is left out of the list.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 import '../../night_control_contracts.dart';
 import 'session_format.dart';
+import 'run_grading_provider.dart';
 import 'session_frames_provider.dart';
 
 /// Free space on the capture volume, in bytes; null until a sample lands.
@@ -37,7 +41,17 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
   final freeBytes = ref.watch(nightCaptureFreeBytesProvider);
   final now = ref.watch(nightSessionNowProvider);
 
-  final start = session.isActive ? session.startTime : live?.startTime;
+  final runStart = session.isActive ? session.startTime : live?.startTime;
+  // The night's first frame, when an earlier run of the same night (one a
+  // crash or a restart ended) began before this one.
+  final firstFrame = lights.isEmpty ? null : lights.first.capturedAt;
+  final start = runStart == null
+      ? firstFrame
+      : firstFrame != null &&
+              firstFrame.isBefore(runStart) &&
+              observingNight(firstFrame) == observingNight(runStart)
+          ? firstFrame
+          : runStart;
   final end = session.isActive ? now : live?.endTime ?? now;
   final elapsed =
       start == null || end.isBefore(start) ? null : end.difference(start);
@@ -64,7 +78,9 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
       : ref.watch(usbDisconnectLogProvider).countSince(start);
 
   return NightSessionVm(
-    frameCount: live?.framesCaptured ?? (lights.isEmpty ? null : lights.length),
+    // The night's rows once there are any: the run's own counter starts
+    // over with a run restored after a restart.
+    frameCount: lights.isNotEmpty ? lights.length : live?.framesCaptured,
     elapsed: elapsed,
     metrics: <MetricVm>[
       if (accepted != null)
@@ -76,7 +92,7 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
         MetricVm(
           label: const NightText('nightSessionStatRejected'),
           value: '$rejected',
-          valueTone: rejected > 0 ? MetricTone.bad : MetricTone.neutral,
+          valueTone: rejected > 0 ? MetricGridTone.bad : MetricGridTone.neutral,
         ),
       if (integration != null)
         MetricVm(
@@ -102,14 +118,31 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
       if (freeBytes != null)
         MetricVm(
           label: const NightText('nightSessionStatDisk'),
-          value: nightBytes(freeBytes),
+          value: ByteFormat.size(freeBytes),
         ),
       if (dropouts != null)
         MetricVm(
           label: const NightText('nightSessionStatDropouts'),
           value: '$dropouts',
-          valueTone: dropouts > 0 ? MetricTone.warning : MetricTone.neutral,
+          valueTone:
+              dropouts > 0 ? MetricGridTone.warning : MetricGridTone.neutral,
         ),
     ],
+    rejectStreak:
+        session.isActive ? _rejectStreak(ref.watch(runGradingProvider)) : null,
   );
 });
+
+/// "3 frames rejected in a row: HFR 4.10 above 3.00" while the run's grader
+/// is rejecting frames one after another; null once it accepts one.
+NightText? _rejectStreak(FrameGradeRunSummary grading) {
+  final count = grading.consecutiveRejects;
+  if (count == 0) return null;
+  final reason = grading.lastReject?.reason.trim() ?? '';
+  final key =
+      count == 1 ? 'nightSessionRejectedLast' : 'nightSessionRejectedInARow';
+  return NightText(
+    reason.isEmpty ? key : '${key}Reason',
+    params: <String, String>{'count': '$count', 'reason': reason},
+  );
+}

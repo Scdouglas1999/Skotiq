@@ -16,7 +16,6 @@ enum _EmptyQueueCause {
   /// candidate query can never return a row.
   activeProjectEmpty,
 
-  /// The target catalog itself is empty.
   catalogEmpty,
 
   /// Targets exist in scope but none of them carries an integration goal.
@@ -101,7 +100,8 @@ class _NoTargetsEmptyState extends ConsumerWidget {
             // The add-target / integration-goals surface is the Projects tab,
             // not the default (Recommendation) landing page that a bare
             // `/planner` resolves to.
-            onPressed: () => context.go('/planner?tab=projects'),
+            onPressed: () =>
+                context.go(AppRoutes.planner(tab: PlannerTab.projects)),
           );
 
     return EmptyState.compact(

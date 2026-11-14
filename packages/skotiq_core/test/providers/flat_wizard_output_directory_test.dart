@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../fakes/fake_network_client.dart';
 
@@ -44,7 +45,7 @@ void main() {
     );
 
     final path = await validateRemoteFlatOutputDirectory(
-      backend,
+      backend.remoteHost!.files,
       '/host/flats/.',
     );
 
@@ -70,7 +71,7 @@ void main() {
     );
 
     await expectLater(
-      validateRemoteFlatOutputDirectory(backend, '/missing'),
+      validateRemoteFlatOutputDirectory(backend.remoteHost!.files, '/missing'),
       throwsA(
         isA<StateError>().having(
           (error) => error.message,

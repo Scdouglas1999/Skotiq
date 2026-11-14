@@ -20,6 +20,7 @@ import 'package:skotiq_core/src/providers/polar_alignment_provider.dart';
 import 'package:skotiq_core/src/models/phd2_models.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _SwappableBackendNotifier extends BackendNotifier {
   _SwappableBackendNotifier(super.ref, SkotiqBackend initial) : super() {
@@ -211,10 +212,7 @@ void main() {
   test('late old-host star image is discarded after backend swap', () async {
     final imageGate = Completer<Phd2StarImage>();
     when(
-      () => oldBackend.guiderGetStarImage(
-        deviceId: any(named: 'deviceId'),
-        size: any(named: 'size'),
-      ),
+      () => oldBackend.guiderGetStarImage(size: any(named: 'size')),
     ).thenAnswer((_) => imageGate.future);
 
     final container = buildContainer();
@@ -257,10 +255,7 @@ void main() {
 
   test('a star image is polled when PHD2 is already looping', () async {
     when(
-      () => oldBackend.guiderGetStarImage(
-        deviceId: any(named: 'deviceId'),
-        size: any(named: 'size'),
-      ),
+      () => oldBackend.guiderGetStarImage(size: any(named: 'size')),
     ).thenAnswer(
       (_) async => Phd2StarImage(
         frame: 3,
@@ -344,6 +339,10 @@ void main() {
       when(
         () => oldBackend.builtinGuiderGetConfig(),
       ).thenAnswer((_) => configGate.future);
+      const newHostConfig = BuiltinGuiderConfig(gain: 321);
+      when(
+        () => newBackend.builtinGuiderGetConfig(),
+      ).thenAnswer((_) async => newHostConfig);
 
       final container = buildContainer();
       final fetch = container
@@ -358,7 +357,11 @@ void main() {
       await fetch;
       await _pump();
 
-      expect(container.read(builtinGuiderConfigProvider).isLoading, isTrue);
+      expect(
+        container.read(builtinGuiderConfigProvider).valueOrNull,
+        newHostConfig,
+        reason: 'the new host is read; the old host\'s late answer is dropped',
+      );
     },
   );
 }

@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../widgets/tutorial_keys/flat_wizard_keys.dart';
+import '../../utils/path_tail.dart';
+import '../../tours/tour_target.dart';
 import 'flat_failure_diagnosis.dart';
 import 'widgets/flat_build_master_step.dart';
 import 'widgets/flat_wizard_split_view.dart';
 import 'widgets/flat_preview_panel.dart';
 import 'widgets/save_path_dialog.dart';
+import '../../widgets/sensitivity_field.dart';
 
 part 'flat_wizard_screen/capture_mode_controls.dart';
 part 'flat_wizard_screen/filter_controls.dart';
@@ -37,9 +41,8 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
         initialIndex: ref.read(flatWizardProvider).mode.index);
     _tabController.addListener(_onTabChanged);
 
-    // Load filters on first build
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(flatWizardProvider.notifier).loadFiltersFromWheel();
+      ref.read(flatWizardProvider.notifier).loadFilters();
     });
   }
 
@@ -71,7 +74,7 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
         // live "Capturing" chip as the header's action. This was a bespoke
         // 'surface' bar with the title folded inline beside the tab strip.
         PageHeader(
-          key: FlatWizardTutorialKeys.tabs,
+          key: TourTarget.flatModeTabs.key,
           icon: LucideIcons.sun,
           title: 'Flat wizard',
           tabs: AnimatedBuilder(
@@ -101,7 +104,6 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
           ],
         ),
 
-        // Split view content
         Expanded(
           child: FlatWizardSplitView(
             controlsPanel: Column(children: [
@@ -119,7 +121,7 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
                 child: _ActionButtons(mode: state.mode),
               ),
             ]),
-            previewPanel: FlatPreviewPanel(key: FlatWizardTutorialKeys.preview),
+            previewPanel: FlatPreviewPanel(key: TourTarget.flatPreview.key),
           ),
         ),
       ],

@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/exported_file_reveal.dart';
@@ -74,7 +78,6 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
     final obsCode = scienceSettings.mpcObservatoryCode;
     final hasObsCode = obsCode.length == 3;
 
-    // Build observation groups for display
     final groups = buildObservationGroups(widget.candidates);
 
     return SkotiqPanel(
@@ -140,7 +143,6 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
             const SizedBox(height: 8),
           ],
 
-          // Select All / Deselect All controls
           Row(
             children: [
               _SmallActionButton(
@@ -186,7 +188,6 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
           ),
           const SizedBox(height: 8),
 
-          // Observation groups list
           ...groups.map((group) => _ObservationGroupTile(
                 colors: widget.colors,
                 group: group,
@@ -232,7 +233,6 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
           ],
           const SizedBox(height: 8),
 
-          // Export actions
           Row(
             children: [
               Expanded(
@@ -328,7 +328,7 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('MPC export failed: $e');
+        context.showErrorSnackBar('MPC export failed: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) {
@@ -358,7 +358,7 @@ class _MpcExportPanelState extends ConsumerState<MpcExportPanel> {
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Copy failed: $e');
+        context.showErrorSnackBar('Copy failed: ${userFacingError(e)}');
       }
     }
   }
@@ -482,13 +482,13 @@ class _ObservationGroupTile extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        _formatRaBrief(obs.raDegrees),
+                        CoordinateFormat.raDenseFromDegrees(obs.raDegrees),
                         style: SkotiqTypography.monoCaption
                             .copyWith(color: colors.textMuted),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _formatDecBrief(obs.decDegrees),
+                        CoordinateFormat.decDense(obs.decDegrees),
                         style: SkotiqTypography.monoCaption
                             .copyWith(color: colors.textMuted),
                       ),
@@ -514,23 +514,6 @@ class _ObservationGroupTile extends StatelessWidget {
         '${utc.day.toString().padLeft(2, '0')} '
         '${utc.hour.toString().padLeft(2, '0')}:'
         '${utc.minute.toString().padLeft(2, '0')} UTC';
-  }
-
-  String _formatRaBrief(double raDeg) => CoordinateFormat.raFromDegrees(
-        raDeg,
-        style: SexagesimalStyle.compactLetters,
-        seconds: SecondsPrecision.oneDecimalPadded,
-      );
-
-  String _formatDecBrief(double decDeg) {
-    final sign = decDeg < 0 ? '-' : '+';
-    final abs = decDeg.abs();
-    final d = abs.floor();
-    final m = ((abs - d) * 60.0).floor();
-    final s = (((abs - d) * 60.0 - m) * 60.0);
-    return '$sign${d.toString().padLeft(2, '0')}d'
-        '${m.toString().padLeft(2, '0')}\''
-        '${s.toStringAsFixed(0).padLeft(2, '0')}"';
   }
 }
 

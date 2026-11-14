@@ -9,21 +9,15 @@
 /// package) so every surface scales consistently rather than each one inventing
 /// its own "big mode" font size.
 ///
-/// The preference persists through the generic key-value [SettingsDao] (the same
-/// flexible settings table the auto-stretch / theme knobs use). That table takes
-/// arbitrary string keys, so no schema migration is required to add this one —
-/// the value is just stored under [_glanceModeKey].
+/// The preference is [StoreSettings.glanceMode], kept on each computer.
 library;
-
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
-
-/// Settings key under which the glance-mode flag is persisted in the
-/// key-value [SettingsDao]. Kept private; callers toggle through the notifier.
-const String _glanceModeKey = 'glance_mode_enabled';
+import '../database/daos/settings_dao.dart';
+import '../services/logging_service.dart';
 
 /// Whether glance mode (large secondary-status type) is currently active.
 ///
@@ -58,19 +52,15 @@ class GlanceModeNotifier extends StateNotifier<bool> {
     final revisionAtStart = _requestRevision;
 
     try {
-      final dao = _ref.read(settingsDaoProvider);
-      final value = await dao.getSetting(_glanceModeKey);
-      if (value != null && revisionAtStart == _requestRevision && mounted) {
-        final enabled = value == 'true';
+      final enabled = await _ref
+          .read(settingsDaoProvider)
+          .read(StoreSettings.glanceMode);
+      if (revisionAtStart == _requestRevision && mounted) {
         _requestedState = enabled;
         state = enabled;
       }
     } catch (e) {
-      developer.log(
-        'Failed to load glance-mode setting: $e',
-        name: 'GlanceMode',
-        level: 1000,
-      );
+      Log.error('Failed to load glance-mode setting: $e', source: 'GlanceMode');
     }
   }
 
@@ -104,14 +94,11 @@ class GlanceModeNotifier extends StateNotifier<bool> {
 
   Future<void> _persist(bool enabled) async {
     try {
-      final dao = _ref.read(settingsDaoProvider);
-      await dao.setSetting(_glanceModeKey, enabled.toString());
+      await _ref
+          .read(settingsDaoProvider)
+          .write(StoreSettings.glanceMode, enabled);
     } catch (e) {
-      developer.log(
-        'Failed to save glance-mode setting: $e',
-        name: 'GlanceMode',
-        level: 1000,
-      );
+      Log.error('Failed to save glance-mode setting: $e', source: 'GlanceMode');
       rethrow;
     }
   }

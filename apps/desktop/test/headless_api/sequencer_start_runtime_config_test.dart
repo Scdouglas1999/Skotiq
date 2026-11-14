@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
 import 'package:shelf/shelf.dart';
 
@@ -21,7 +23,7 @@ import 'handler_test_helpers.dart';
 /// empty. The identical thresholds pushed by hand through
 /// `POST /api/sequencer/update-default-quality-check` on the SAME live process
 /// rejected every frame on the next run. The thresholds worked; nothing sent
-/// them.
+/// them. The run configuration now carries them.
 class _MockHostBackend extends Mock implements SkotiqBackend {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -150,17 +152,22 @@ void main() {
         // go: thresholds that arrive afterwards are too late for the first
         // frame, which is the frame a start under cloud most needs graded.
         verifyInOrder([
-          () => host.sequencerUpdateDefaultQualityCheck(
-            hfrThreshold: any(named: 'hfrThreshold'),
-            hfrBaselinePercent: any(named: 'hfrBaselinePercent'),
-            eccentricityThreshold: any(named: 'eccentricityThreshold'),
-            starCountMin: 100000,
-            maxConsecutiveRejects: 9999,
-            enabled: true,
-          ),
-          () => host.sequencerUpdateRejectFolderPath('/captures/rejects'),
+          () => host.sequencerApplyRunConfig(any()),
           () => host.sequencerStart(),
         ]);
+        final sent = verify(
+          () => host.sequencerApplyRunConfig(captureAny()),
+        ).captured;
+        final config = jsonDecode(sent.last as String) as Map<String, dynamic>;
+        expect(config['default_quality_check'], {
+          'hfr_threshold': _gradingOn.imageGradingHfrThresholdPx,
+          'hfr_baseline_percent': _gradingOn.imageGradingHfrBaselinePercent,
+          'eccentricity_threshold':
+              _gradingOn.imageGradingEccentricityThreshold,
+          'star_count_min': 100000,
+          'max_consecutive_rejects': 9999,
+        });
+        expect(config['reject_folder_path'], '/captures/rejects');
       },
     );
 
@@ -168,15 +175,8 @@ void main() {
       'a runtime-config push that fails refuses the start and says why',
       () async {
         when(
-          () => host.sequencerUpdateDefaultQualityCheck(
-            hfrThreshold: any(named: 'hfrThreshold'),
-            hfrBaselinePercent: any(named: 'hfrBaselinePercent'),
-            eccentricityThreshold: any(named: 'eccentricityThreshold'),
-            starCountMin: any(named: 'starCountMin'),
-            maxConsecutiveRejects: any(named: 'maxConsecutiveRejects'),
-            enabled: any(named: 'enabled'),
-          ),
-        ).thenThrow(StateError('executor rejected the quality check'));
+          () => host.sequencerApplyRunConfig(any()),
+        ).thenThrow(StateError('executor refused the settings'));
         container = build();
         handlers = SequencerHandlers(container);
         await load(container, _wireSequence());

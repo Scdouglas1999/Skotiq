@@ -4,8 +4,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../localization/skotiq_localizations.dart';
 import 'catalog_settings_screen.dart';
 import 'delivery_settings.dart';
-import 'equipment_profiles_screen.dart';
+import '../equipment/widgets/profiles_manager.dart';
 import 'settings_search_index.g.dart';
+import '../../router/settings_sections.dart';
 import 'integrations_settings.dart';
 import 'backup_screen.dart';
 import 'merged_sections.dart';
@@ -14,6 +15,7 @@ import 'widgets/adaptive_exposure_settings.dart';
 import 'widgets/about_settings.dart';
 import 'widgets/captured_images_settings.dart';
 import 'widgets/rig_catalog_settings.dart';
+import 'widgets/settings_widgets.dart' show SettingsFormScope;
 import 'widgets/update_settings.dart';
 import 'widgets/annotation_settings.dart';
 import 'widgets/appearance_settings.dart';
@@ -39,45 +41,45 @@ import 'widgets/science_settings.dart';
 import 'widgets/sequencer_settings.dart';
 import 'widgets/weather_safety_settings.dart';
 
-/// A single, navigable Settings section.
-///
-/// The [key] is the stable deep-link identifier used by
-/// `context.go('/settings?section=<key>')` and is part of the app's navigation
-/// contract — see [SettingsCatalog]. [build] returns the detail widget for this
-/// section.
-class SettingsSectionDef {
-  /// Stable deep-link key, e.g. `'location'`.
-  final String key;
+export '../../router/settings_sections.dart';
 
-  /// Display label. Pass a [labelKey] for sections with a localized string.
+/// One Settings section as the screen shows it: its identity plus the label
+/// in the current language, its icon, its search synonyms and its page.
+class SettingsSectionDef {
+  final SettingsSectionId id;
+
+  /// Display label in the current language.
   final String label;
 
   final IconData icon;
 
-  /// Hand-written synonyms — terms a user might type that appear NOWHERE in the
+  /// Hand-written synonyms: terms a user might type that appear nowhere in the
   /// section's own text ('dark mode' for Appearance, 'ASCOM' for a page headed
-  /// 'Drivers').
+  /// 'Drivers', 'capture folder' for a row titled 'Image output').
   ///
-  /// The rendered row titles are NOT listed here; they come from
-  /// [kSettingsSearchTerms], which is GENERATED from the section widgets. A
-  /// hand-written index rots silently — a row that cannot be found by typing
-  /// its own visible title looks like a missing setting.
+  /// The rendered row titles are not listed here; they come from
+  /// [kSettingsSearchTerms], which is generated from the section widgets.
+  /// Kept small and deliberate: a synonym that is too generous makes the
+  /// search match everything.
   final List<String> keywords;
 
-  /// Builds the detail pane for this section. [isMobile] is threaded through to
-  /// every settings widget.
-  final Widget Function(bool isMobile) build;
+  /// Builds the detail pane. The form factor comes from the enclosing
+  /// [SettingsFormScope].
+  final WidgetBuilder build;
 
   const SettingsSectionDef({
-    required this.key,
+    required this.id,
     required this.label,
     required this.icon,
     required this.build,
     this.keywords = const [],
   });
 
-  /// True if [query] (already lower-cased) matches this section's title, one of
-  /// its hand-written synonyms, or the title of any row it renders.
+  /// The stable deep-link key, e.g. `'location'`.
+  String get key => id.key;
+
+  /// True if [query] (already lower-cased) matches this section's title, one
+  /// of its synonyms, or the title of any row it renders.
   bool matches(String query) {
     if (label.toLowerCase().contains(query)) return true;
     for (final keyword in keywords) {
@@ -90,778 +92,614 @@ class SettingsSectionDef {
   }
 }
 
-/// A collapsible group of related [SettingsSectionDef]s in the sidebar.
+/// A group of [SettingsSectionDef]s in the sidebar.
 class SettingsGroupDef {
-  /// Structural identity, always English. Matched against [kGroupTitles] by
-  /// callers that resolve a section's owning group without a [BuildContext], so
-  /// it must NOT follow the locale.
-  final String title;
+  final SettingsGroupId id;
 
-  /// What the user reads. Separate from [title] precisely because that one is an
-  /// identifier: with only the English literal to render, the settings sidebar
-  /// showed translated leaf items under untranslated group headers ("Apariencia"
-  /// and "Ubicación" beneath a header reading "EQUIPMENT").
+  /// What the user reads, in the current language.
   final String displayTitle;
 
   final IconData icon;
   final List<SettingsSectionDef> sections;
 
   const SettingsGroupDef({
-    required this.title,
+    required this.id,
+    required this.displayTitle,
     required this.icon,
     required this.sections,
-    String? displayTitle,
-  }) : displayTitle = displayTitle ?? title;
+  });
+
+  /// English name; an identifier, not for display.
+  String get title => id.title;
 }
 
-/// Resolves localized section labels at build time.
+/// The Settings catalog in the current language.
 ///
-/// Most sections have a localized label key (`settingsXxx`); a few keep
-/// literals. Building the catalog through a [BuildContext] lets labels follow
-/// the active locale instead of being frozen at first build.
+/// Structure (which sections exist, their groups and order) comes from
+/// [SettingsSectionId] alone. This only attaches what the screen shows for
+/// each one, and the `switch` in [_sectionDef] is exhaustive, so a section
+/// cannot be declared without a page or shown without being declared.
 List<SettingsGroupDef> buildSettingsGroups(BuildContext context) {
   final l10n = context.l10n;
   String t(String key) => l10n.text(key);
 
   return [
-    SettingsGroupDef(
-      title: 'General',
-      displayTitle: t('settingsGroupGeneral'),
-      icon: LucideIcons.settings,
-      sections: [
-        SettingsSectionDef(
-          key: 'general',
-          label: t('settingsGeneral'),
-          icon: LucideIcons.settings,
-          keywords: const [
-            'language',
-            'units',
-            'startup',
-            'defaults',
-            'time format',
-          ],
-          build: (isMobile) => GeneralSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'appearance',
-          label: t('settingsAppearance'),
-          icon: LucideIcons.palette,
-          keywords: const [
-            'theme',
-            'dark mode',
-            'light mode',
-            'colors',
-            'sidebar',
-            'font',
-          ],
-          build: (isMobile) => AppearanceSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'location',
-          label: t('settingsLocation'),
-          icon: LucideIcons.mapPin,
-          keywords: const [
-            'latitude',
-            'longitude',
-            'elevation',
-            'horizon',
-            'timezone',
-            'observing site',
-            'coordinates',
-          ],
-          build: (isMobile) => LocationSettingsPage(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'files-storage',
-          label: t('settingsFilesStorage'),
-          icon: LucideIcons.folder,
-          keywords: const [
-            'file paths',
-            'image output',
-            'directory',
-            'folder',
-            'auto-save',
-            'autosave',
-            'backups',
-            'storage',
-            'save interval',
-          ],
-          build: (isMobile) => FilesAndStorageSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'help',
-          label: t('settingsHelpTutorials'),
-          icon: LucideIcons.helpCircle,
-          keywords: const [
-            'tutorials',
-            'tours',
-            'guides',
-            'walkthrough',
-            'onboarding',
-          ],
-          build: (isMobile) => HelpTutorialsSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'about',
-          label: t('settingsAbout'),
-          icon: LucideIcons.info,
-          keywords: const [
-            'version',
-            'license',
-            'credits',
-            'updates',
-            'build',
-          ],
-          build: (isMobile) => AboutSettings(isMobile: isMobile),
-        ),
-      ],
-    ),
-    SettingsGroupDef(
-      title: 'Equipment',
-      displayTitle: t('settingsGroupEquipment'),
-      icon: LucideIcons.boxes,
-      sections: [
-        SettingsSectionDef(
-          key: 'connection',
-          label: t('settingsConnection'),
-          icon: LucideIcons.wifi,
-          keywords: const [
-            'ascom',
-            'alpaca',
-            'indi',
-            'devices',
-            'driver',
-            'network',
-            'host',
-            'port',
-          ],
-          build: (isMobile) => ConnectionSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'equipment-profiles',
-          label: t('settingsEquipmentProfiles'),
-          icon: LucideIcons.boxes,
-          keywords: const [
-            'camera',
-            'mount',
-            'focuser',
-            'filter wheel',
-            'guider',
-            'gear',
-            'rig',
-          ],
-          build: (isMobile) => EquipmentProfilesScreen(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'phd2-guiding',
-          label: t('settingsPhd2Guiding'),
-          icon: LucideIcons.target,
-          keywords: const [
-            'phd2',
-            'guiding',
-            'dithering',
-            'calibration',
-            'rms',
-            'star lost',
-          ],
-          build: (isMobile) => Phd2GuidingSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'plate-solving',
-          label: t('settingsPlateSolving'),
-          icon: LucideIcons.crosshair,
-          keywords: const [
-            'astap',
-            'astrometry',
-            'blind solve',
-            'catalog',
-            'sync',
-            'center',
-            'wcs',
-          ],
-          build: (isMobile) => PlateSolvingSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'autofocus',
-          label: t('settingsAutofocus'),
-          icon: LucideIcons.focus,
-          keywords: const [
-            'focus',
-            'hfr',
-            'curve',
-            'v-curve',
-            'temperature compensation',
-            'predictive',
-            'focus model',
-            'slope',
-            'per-filter',
-            'backlash',
-          ],
-          build: (isMobile) => AutofocusMergedSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'calibration',
-          label: t('settingsCalibration'),
-          icon: LucideIcons.sliders,
-          keywords: const [
-            'flats',
-            'darks',
-            'bias',
-            'master frames',
-            'calibration',
-            'dark library',
-            'calibration library',
-            'auto-calibrate',
-            'temperature tolerance',
-            'defect map',
-          ],
-          build: (isMobile) => CalibrationSettingsRedirect(isMobile: isMobile),
-        ),
-      ],
-    ),
-    SettingsGroupDef(
-      title: 'Imaging',
-      displayTitle: t('settingsGroupImaging'),
-      icon: LucideIcons.camera,
-      sections: [
-        SettingsSectionDef(
-          key: 'imaging',
-          label: t('settingsImaging'),
-          icon: LucideIcons.camera,
-          keywords: const [
-            'exposure',
-            'gain',
-            'offset',
-            'binning',
-            'file format',
-            'fits',
-            'frame naming',
-          ],
-          build: (isMobile) => ImagingSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'adaptive-exposure',
-          label: t('settingsAdaptiveExposure'),
-          icon: LucideIcons.sun,
-          keywords: const [
-            'auto exposure',
-            'sky background',
-            'sub length',
-            'optimization',
-            'sky brightness',
-          ],
-          build: (isMobile) => AdaptiveExposureSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'image-grading',
-          label: t('settingsImageGrading'),
-          icon: LucideIcons.star,
-          keywords: const [
-            'hfr',
-            'eccentricity',
-            'star count',
-            'reject',
-            'quality',
-            'grading thresholds',
-          ],
-          build: (isMobile) => ImageGradingSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'annotations',
-          label: t('settingsAnnotations'),
-          icon: LucideIcons.tag,
-          keywords: const [
-            'labels',
-            'overlay',
-            'dso',
-            'stars',
-            'grid',
-            'constellation',
-          ],
-          build: (isMobile) => AnnotationSettingsPage(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'catalogs',
-          label: t('settingsCatalogs'),
-          icon: LucideIcons.database,
-          keywords: const [
-            'messier',
-            'ngc',
-            'ic',
-            'star catalog',
-            'database',
-            'download',
-          ],
-          build: (isMobile) => CatalogSettingsScreen(isMobile: isMobile),
-        ),
-      ],
-    ),
-    SettingsGroupDef(
-      title: 'Automation & Safety',
-      displayTitle: t('settingsGroupAutomationSafety'),
-      icon: LucideIcons.listOrdered,
-      sections: [
-        SettingsSectionDef(
-          key: 'sequencer',
-          label: t('settingsSequencer'),
-          icon: LucideIcons.listOrdered,
-          keywords: const [
-            'sequence',
-            'automation',
-            'triggers',
-            'meridian flip',
-            'recovery',
-            'behavior tree',
-          ],
-          build: (isMobile) => SequencerSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'preflight',
-          label: t('settingsPreflight'),
-          icon: LucideIcons.clipboardCheck,
-          keywords: const [
-            'preflight',
-            'checklist',
-            'readiness',
-            'startup checks',
-            'safety',
-          ],
-          build: (isMobile) => PreflightSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'weather-safety',
-          label: t('settingsWeatherSafety'),
-          icon: LucideIcons.cloudSun,
-          keywords: const [
-            'clouds',
-            'rain',
-            'wind',
-            'safety monitor',
-            'humidity',
-            'roof',
-            'abort',
-          ],
-          build: (isMobile) => WeatherSafetySettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'adaptive-conditions',
-          label: t('settingsAdaptiveConditions'),
-          icon: LucideIcons.cloud,
-          keywords: const [
-            'seeing',
-            'transparency',
-            'conditions',
-            'adaptive',
-            'sky quality',
-          ],
-          build: (isMobile) => AdaptiveConditionsSettings(isMobile: isMobile),
-        ),
-        // The darks and bias the night's lights need, taken when imaging
-        // ends. Before the Darkroom because its masters feed that pass.
-        SettingsSectionDef(
-          key: 'end-of-night-calibration',
-          label: 'End-of-night calibration',
-          icon: LucideIcons.moonStar,
-          keywords: const [
-            'darks',
-            'bias',
-            'calibration',
-            'dark library',
-            'master dark',
-            'end of night',
-            'dawn',
-            'cap',
-            'warm up',
-            'unattended',
-          ],
-          build: (isMobile) =>
-              EndOfNightCalibrationSettings(isMobile: isMobile),
-        ),
-        // The night-end automation lives in the Darkroom's Activity tab; this
-        // entry, beside Delivery, takes the operator there.
-        SettingsSectionDef(
-          key: 'darkroom',
-          label: 'Night-end automation',
-          icon: LucideIcons.sparkles,
-          keywords: const [
-            'darkroom',
-            'autopilot',
-            'auto-integrate',
-            'auto integrate',
-            'post-session',
-            'masters',
-            'build masters',
-            'dawn',
-            'morning message',
-            'delivery',
-            'night end',
-            'unattended',
-          ],
-          build: (isMobile) => DarkroomAutopilotSettings(isMobile: isMobile),
-        ),
-        // Where the night's masters, draft render and report leave the rig —
-        // the tail of the unattended night, so it sits with the rest of it
-        // rather than under Advanced between the Log Viewer and Replay Debug.
-        SettingsSectionDef(
-          key: 'delivery',
-          label: 'Delivery',
-          icon: LucideIcons.send,
-          keywords: const [
-            'delivery',
-            'destination',
-            'watched folder',
-            'sftp',
-            'nas',
-            'copy',
-            'artifacts',
-            'masters',
-            'peer',
-            'pull',
-          ],
-          build: (isMobile) => DeliverySettings(isMobile: isMobile),
-        ),
-      ],
-    ),
-    SettingsGroupDef(
-      title: 'Science',
-      displayTitle: t('settingsGroupScience'),
-      icon: LucideIcons.flaskConical,
-      sections: [
-        SettingsSectionDef(
-          key: 'science',
-          label: t('settingsScience'),
-          icon: LucideIcons.flaskConical,
-          keywords: const [
-            'photometry',
-            'astrometry',
-            'measurements',
-            'aavso',
-            'variable stars',
-            'science frames',
-          ],
-          build: (isMobile) => ScienceSettingsPage(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'observation-log',
-          label: t('settingsObservationLog'),
-          icon: LucideIcons.bookOpen,
-          keywords: const [
-            'log',
-            'journal',
-            'session notes',
-            'records',
-            'history',
-          ],
-          build: (isMobile) => const ObservationLogSettings(),
-        ),
-        SettingsSectionDef(
-          key: 'observing-lists',
-          label: t('settingsObservingLists'),
-          icon: LucideIcons.list,
-          keywords: const [
-            'target list',
-            'wishlist',
-            'plan',
-            'import',
-            'export',
-          ],
-          build: (isMobile) => const ObservingListsSettings(),
-        ),
-      ],
-    ),
-    SettingsGroupDef(
-      title: 'Notifications & Remote',
-      displayTitle: t('settingsGroupNotificationsRemote'),
-      icon: LucideIcons.bell,
-      sections: [
-        SettingsSectionDef(
-          key: 'notifications',
-          label: t('settingsNotifications'),
-          icon: LucideIcons.bell,
-          keywords: const [
-            'alerts',
-            'push',
-            'pushover',
-            'discord',
-            'routing',
-            'channels',
-            'per-category',
-            'email',
-          ],
-          // NotificationSettings already embeds the per-event routing matrix
-          // (NotificationRoutingSettings), so the `notification-routing` alias
-          // resolves here and the page surfaces both — no second stack needed.
-          build: (isMobile) => NotificationSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'integrations',
-          label: t('settingsIntegrations'),
-          icon: LucideIcons.puzzle,
-          keywords: const [
-            'plugins',
-            'discord',
-            'pushover',
-            'home assistant',
-            'webhook',
-            'third-party',
-          ],
-          build: (isMobile) => IntegrationsSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'remote-access',
-          label: t('settingsRemoteAccess'),
-          icon: LucideIcons.globe,
-          keywords: const [
-            'remote control',
-            'pairing',
-            'discovery',
-            'mobile',
-            'web',
-            'encryption',
-            'companion',
-          ],
-          build: (isMobile) => RemoteAccessSettings(isMobile: isMobile),
-        ),
-      ],
-    ),
-    SettingsGroupDef(
-      title: 'Advanced',
-      displayTitle: t('settingsGroupAdvanced'),
-      icon: LucideIcons.bug,
-      sections: [
-        SettingsSectionDef(
-          key: 'logs',
-          label: t('settingsLogs'),
-          icon: LucideIcons.fileText,
-          keywords: const [
-            'log viewer',
-            'diagnostics',
-            'debug log',
-            'errors',
-            'verbosity',
-          ],
-          build: (isMobile) => LogViewer(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'backup',
-          label: 'Backup & restore',
-          icon: LucideIcons.archive,
-          keywords: const [
-            'backup',
-            'restore',
-            'export',
-            'import',
-            'snapshot',
-            'database',
-            'migrate',
-          ],
-          build: (isMobile) => const BackupScreen(),
-        ),
-        SettingsSectionDef(
-          key: 'updates',
-          label: 'Appliance updates',
-          icon: LucideIcons.downloadCloud,
-          keywords: const [
-            'update',
-            'ota',
-            'upgrade',
-            'firmware',
-            'version',
-            'rollback',
-            'appliance',
-          ],
-          build: (isMobile) => UpdateSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'rig-catalogs',
-          label: 'Appliance catalogs',
-          icon: LucideIcons.library,
-          keywords: const [
-            'catalog',
-            'plate solve',
-            'star catalog',
-            'astrometry',
-            'download catalog',
-            'appliance',
-            'rig',
-          ],
-          build: (isMobile) => RigCatalogSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'captured-images',
-          label: 'Captured images',
-          icon: LucideIcons.image,
-          keywords: const [
-            'gallery',
-            'images',
-            'frames',
-            'captures',
-            'thumbnails',
-            'photos',
-            'appliance',
-          ],
-          build: (isMobile) => CapturedImagesSettings(isMobile: isMobile),
-        ),
-        SettingsSectionDef(
-          key: 'replay-debug',
-          label: t('settingsReplayDebug'),
-          icon: LucideIcons.bug,
-          keywords: const [
-            'replay',
-            'debug',
-            'session replay',
-            'recording',
-            'developer',
-          ],
-          build: (isMobile) => ReplayDebugSettings(isMobile: isMobile),
-        ),
-      ],
-    ),
+    for (final group in SettingsGroupId.values)
+      SettingsGroupDef(
+        id: group,
+        displayTitle: t(group.titleKey),
+        icon: _groupIcon(group),
+        sections: [
+          for (final id in group.sections) _sectionDef(id, t),
+        ],
+      ),
   ];
 }
 
-/// Stable deep-link keys that point at a different section than their own key
-/// because the source section was merged away. Old `?section=<key>` URLs and
-/// in-app buttons must still land somewhere sensible.
-const Map<String, String> kMergedSectionAliases = {
-  // Files & Storage = file-paths + auto-save
-  'file-paths': 'files-storage',
-  'auto-save': 'files-storage',
-  // Autofocus = autofocus + predictive-af
-  'predictive-af': 'autofocus',
-  'focus-model': 'autofocus',
-  // Notifications = notifications + notification-routing
-  'notification-routing': 'notifications',
-  // Calibration, Dark library and Calibration library moved to the
-  // Darkroom's Calibration tab; the Calibration entry redirects there.
-  'dark-library': 'calibration',
-  'calibration-library': 'calibration',
-};
+IconData _groupIcon(SettingsGroupId group) => switch (group) {
+      SettingsGroupId.general => LucideIcons.settings,
+      SettingsGroupId.equipment => LucideIcons.boxes,
+      SettingsGroupId.imaging => LucideIcons.camera,
+      SettingsGroupId.automationSafety => LucideIcons.listOrdered,
+      SettingsGroupId.science => LucideIcons.flaskConical,
+      SettingsGroupId.notificationsRemote => LucideIcons.bell,
+      SettingsGroupId.advanced => LucideIcons.bug,
+    };
 
-/// Resolves a deep-link [key] (including merged-away aliases) to the section
-/// that should open, or `null` if no section matches.
-SettingsSectionDef? resolveSection(
-  List<SettingsGroupDef> groups,
-  String? key,
+SettingsSectionDef _sectionDef(
+  SettingsSectionId id,
+  String Function(String key) t,
 ) {
-  final resolvedKey = resolveSectionKey(key);
-  if (resolvedKey == null) return null;
-  for (final group in groups) {
-    for (final section in group.sections) {
-      if (section.key == resolvedKey) return section;
-    }
-  }
-  return null;
+  return switch (id) {
+    SettingsSectionId.general => SettingsSectionDef(
+        id: id,
+        label: t('settingsGeneral'),
+        icon: LucideIcons.settings,
+        keywords: const [
+          'language',
+          'units',
+          'startup',
+          'defaults',
+          'time format',
+        ],
+        build: (context) => const GeneralSettings(),
+      ),
+    SettingsSectionId.appearance => SettingsSectionDef(
+        id: id,
+        label: t('settingsAppearance'),
+        icon: LucideIcons.palette,
+        keywords: const [
+          'theme',
+          'dark mode',
+          'light mode',
+          'colors',
+          'sidebar',
+          'font',
+        ],
+        build: (context) => const AppearanceSettings(),
+      ),
+    SettingsSectionId.location => SettingsSectionDef(
+        id: id,
+        label: t('settingsLocation'),
+        icon: LucideIcons.mapPin,
+        keywords: const [
+          'latitude',
+          'longitude',
+          'elevation',
+          'horizon',
+          'timezone',
+          'observing site',
+          'coordinates',
+        ],
+        build: (context) => const LocationSettingsPage(),
+      ),
+    SettingsSectionId.filesStorage => SettingsSectionDef(
+        id: id,
+        label: t('settingsFilesStorage'),
+        icon: LucideIcons.folder,
+        keywords: const [
+          'file paths',
+          'image output',
+          'directory',
+          'folder',
+          'auto-save',
+          'autosave',
+          'backups',
+          'storage',
+          'save interval',
+
+          // The Dashboard says "capture directory" and the status bar "save
+          // path" for the row this page titles "Image output".
+          'capture folder',
+          'capture directory',
+          'save path',
+          'image folder',
+          'disk space',
+          'free space',
+          'storage location',
+        ],
+        build: (context) => const FilesAndStorageSettings(),
+      ),
+    SettingsSectionId.help => SettingsSectionDef(
+        id: id,
+        label: t('settingsHelpTutorials'),
+        icon: LucideIcons.helpCircle,
+        keywords: const [
+          'tutorials',
+          'tours',
+          'guides',
+          'walkthrough',
+          'onboarding',
+        ],
+        build: (context) => const HelpTutorialsSettings(),
+      ),
+    SettingsSectionId.about => SettingsSectionDef(
+        id: id,
+        label: t('settingsAbout'),
+        icon: LucideIcons.info,
+        keywords: const [
+          'version',
+          'license',
+          'credits',
+          'updates',
+          'build',
+        ],
+        build: (context) => const AboutSettings(),
+      ),
+    SettingsSectionId.connection => SettingsSectionDef(
+        id: id,
+        label: t('settingsConnection'),
+        icon: LucideIcons.wifi,
+        keywords: const [
+          'ascom',
+          'alpaca',
+          'indi',
+          'devices',
+          'driver',
+          'network',
+          'host',
+          'port',
+        ],
+        build: (context) => const ConnectionSettings(),
+      ),
+    SettingsSectionId.equipmentProfiles => SettingsSectionDef(
+        id: id,
+        label: t('settingsEquipmentProfiles'),
+        icon: LucideIcons.boxes,
+        keywords: const [
+          'camera',
+          'mount',
+          'focuser',
+          'filter wheel',
+          'guider',
+          'gear',
+          'rig',
+        ],
+        build: (context) => const ProfilesManager(),
+      ),
+    SettingsSectionId.phd2Guiding => SettingsSectionDef(
+        id: id,
+        label: t('settingsPhd2Guiding'),
+        icon: LucideIcons.target,
+        keywords: const [
+          'phd2',
+          'guiding',
+          'dithering',
+          'calibration',
+          'rms',
+          'star lost',
+        ],
+        build: (context) => const Phd2GuidingSettings(),
+      ),
+    SettingsSectionId.plateSolving => SettingsSectionDef(
+        id: id,
+        label: t('settingsPlateSolving'),
+        icon: LucideIcons.crosshair,
+        keywords: const [
+          'astap',
+          'astrometry',
+          'blind solve',
+          'catalog',
+          'sync',
+          'center',
+          'wcs',
+        ],
+        build: (context) => const PlateSolvingSettings(),
+      ),
+    SettingsSectionId.autofocus => SettingsSectionDef(
+        id: id,
+        label: t('settingsAutofocus'),
+        icon: LucideIcons.focus,
+        keywords: const [
+          'focus',
+          'hfr',
+          'curve',
+          'v-curve',
+          'temperature compensation',
+          'predictive',
+          'focus model',
+          'slope',
+          'per-filter',
+          'backlash',
+        ],
+        build: (context) => const AutofocusMergedSettings(),
+      ),
+    SettingsSectionId.calibration => SettingsSectionDef(
+        id: id,
+        label: t('settingsCalibration'),
+        icon: LucideIcons.sliders,
+        keywords: const [
+          'flats',
+          'darks',
+          'bias',
+          'master frames',
+          'calibration',
+          'dark library',
+          'calibration library',
+          'auto-calibrate',
+          'temperature tolerance',
+          'defect map',
+        ],
+        build: (context) => const CalibrationSettingsRedirect(),
+      ),
+    SettingsSectionId.imaging => SettingsSectionDef(
+        id: id,
+        label: t('settingsImaging'),
+        icon: LucideIcons.camera,
+        keywords: const [
+          'exposure',
+          'gain',
+          'offset',
+          'binning',
+          'file format',
+          'fits',
+          'frame naming',
+        ],
+        build: (context) => const ImagingSettings(),
+      ),
+    SettingsSectionId.adaptiveExposure => SettingsSectionDef(
+        id: id,
+        label: t('settingsAdaptiveExposure'),
+        icon: LucideIcons.sun,
+        keywords: const [
+          'auto exposure',
+          'sky background',
+          'sub length',
+          'optimization',
+          'sky brightness',
+        ],
+        build: (context) => const AdaptiveExposureSettings(),
+      ),
+    SettingsSectionId.imageGrading => SettingsSectionDef(
+        id: id,
+        label: t('settingsImageGrading'),
+        icon: LucideIcons.star,
+        keywords: const [
+          'hfr',
+          'eccentricity',
+          'star count',
+          'reject',
+          'quality',
+          'grading thresholds',
+        ],
+        build: (context) => const ImageGradingSettings(),
+      ),
+    SettingsSectionId.annotations => SettingsSectionDef(
+        id: id,
+        label: t('settingsAnnotations'),
+        icon: LucideIcons.tag,
+        keywords: const [
+          'labels',
+          'overlay',
+          'dso',
+          'stars',
+          'grid',
+          'constellation',
+        ],
+        build: (context) => const AnnotationSettingsPage(),
+      ),
+    SettingsSectionId.catalogs => SettingsSectionDef(
+        id: id,
+        label: t('settingsCatalogs'),
+        icon: LucideIcons.database,
+        keywords: const [
+          'messier',
+          'ngc',
+          'ic',
+          'star catalog',
+          'database',
+          'download',
+        ],
+        build: (context) => const CatalogSettingsScreen(),
+      ),
+    SettingsSectionId.sequencer => SettingsSectionDef(
+        id: id,
+        label: t('settingsSequencer'),
+        icon: LucideIcons.listOrdered,
+        keywords: const [
+          'sequence',
+          'automation',
+          'triggers',
+          'meridian flip',
+          'recovery',
+          'behavior tree',
+        ],
+        build: (context) => const SequencerSettings(),
+      ),
+    SettingsSectionId.preflight => SettingsSectionDef(
+        id: id,
+        label: t('settingsPreflight'),
+        icon: LucideIcons.clipboardCheck,
+        keywords: const [
+          'preflight',
+          'checklist',
+          'readiness',
+          'startup checks',
+          'safety',
+        ],
+        build: (context) => const PreflightSettings(),
+      ),
+    SettingsSectionId.weatherSafety => SettingsSectionDef(
+        id: id,
+        label: t('settingsWeatherSafety'),
+        icon: LucideIcons.cloudSun,
+        keywords: const [
+          'clouds',
+          'rain',
+          'wind',
+          'safety monitor',
+          'humidity',
+          'roof',
+          'abort',
+        ],
+        build: (context) => const WeatherSafetySettings(),
+      ),
+    SettingsSectionId.adaptiveConditions => SettingsSectionDef(
+        id: id,
+        label: t('settingsAdaptiveConditions'),
+        icon: LucideIcons.cloud,
+        keywords: const [
+          'seeing',
+          'transparency',
+          'conditions',
+          'adaptive',
+          'sky quality',
+        ],
+        build: (context) => const AdaptiveConditionsSettings(),
+      ),
+    SettingsSectionId.endOfNightCalibration => SettingsSectionDef(
+        id: id,
+        label: 'End-of-night calibration',
+        icon: LucideIcons.moonStar,
+        keywords: const [
+          'darks',
+          'bias',
+          'calibration',
+          'dark library',
+          'master dark',
+          'end of night',
+          'dawn',
+          'cap',
+          'warm up',
+          'unattended',
+        ],
+        build: (context) => const EndOfNightCalibrationSettings(),
+      ),
+    SettingsSectionId.darkroom => SettingsSectionDef(
+        id: id,
+        label: 'Night-end automation',
+        icon: LucideIcons.sparkles,
+        keywords: const [
+          'darkroom',
+          'autopilot',
+          'auto-integrate',
+          'auto integrate',
+          'post-session',
+          'masters',
+          'build masters',
+          'dawn',
+          'morning message',
+          'delivery',
+          'night end',
+          'unattended',
+        ],
+        build: (context) => const DarkroomAutopilotSettings(),
+      ),
+    SettingsSectionId.delivery => SettingsSectionDef(
+        id: id,
+        label: 'Delivery',
+        icon: LucideIcons.send,
+        keywords: const [
+          'delivery',
+          'destination',
+          'watched folder',
+          'sftp',
+          'nas',
+          'copy',
+          'artifacts',
+          'masters',
+          'peer',
+          'pull',
+        ],
+        build: (context) => const DeliverySettings(),
+      ),
+    SettingsSectionId.science => SettingsSectionDef(
+        id: id,
+        label: t('settingsScience'),
+        icon: LucideIcons.flaskConical,
+        keywords: const [
+          'photometry',
+          'astrometry',
+          'measurements',
+          'aavso',
+          'variable stars',
+          'science frames',
+        ],
+        build: (context) => const ScienceSettingsPage(),
+      ),
+    SettingsSectionId.observationLog => SettingsSectionDef(
+        id: id,
+        label: t('settingsObservationLog'),
+        icon: LucideIcons.bookOpen,
+        keywords: const [
+          'log',
+          'journal',
+          'session notes',
+          'records',
+          'history',
+        ],
+        build: (context) => const ObservationLogSettings(),
+      ),
+    SettingsSectionId.observingLists => SettingsSectionDef(
+        id: id,
+        label: t('settingsObservingLists'),
+        icon: LucideIcons.list,
+        keywords: const [
+          'target list',
+          'wishlist',
+          'plan',
+          'import',
+          'export',
+        ],
+        build: (context) => const ObservingListsSettings(),
+      ),
+    SettingsSectionId.notifications => SettingsSectionDef(
+        id: id,
+        label: t('settingsNotifications'),
+        icon: LucideIcons.bell,
+        keywords: const [
+          'alerts',
+          'push',
+          'pushover',
+          'discord',
+          'routing',
+          'channels',
+          'per-category',
+          'email',
+        ],
+        // NotificationSettings already embeds the per-event routing matrix
+        // (NotificationRoutingSettings), so the `notification-routing` alias
+        // resolves here and the page surfaces both — no second stack needed.
+        build: (context) => const NotificationSettings(),
+      ),
+    SettingsSectionId.integrations => SettingsSectionDef(
+        id: id,
+        label: t('settingsIntegrations'),
+        icon: LucideIcons.puzzle,
+        keywords: const [
+          'plugins',
+          'discord',
+          'pushover',
+          'home assistant',
+          'webhook',
+          'third-party',
+        ],
+        build: (context) => const IntegrationsSettings(),
+      ),
+    SettingsSectionId.remoteAccess => SettingsSectionDef(
+        id: id,
+        label: t('settingsRemoteAccess'),
+        icon: LucideIcons.globe,
+        keywords: const [
+          'remote control',
+          'imaging computer',
+          'link',
+          'connect',
+          'use this computer',
+          'pairing',
+          'discovery',
+          'mobile',
+          'web',
+          'encryption',
+          'companion',
+        ],
+        build: (context) => const RemoteAccessSettings(),
+      ),
+    SettingsSectionId.logs => SettingsSectionDef(
+        id: id,
+        label: t('settingsLogs'),
+        icon: LucideIcons.fileText,
+        keywords: const [
+          'log viewer',
+          'diagnostics',
+          'debug log',
+          'errors',
+          'verbosity',
+        ],
+        build: (context) => const LogViewer(),
+      ),
+    SettingsSectionId.backup => SettingsSectionDef(
+        id: id,
+        label: 'Backup & restore',
+        icon: LucideIcons.archive,
+        keywords: const [
+          'backup',
+          'restore',
+          'export',
+          'import',
+          'snapshot',
+          'database',
+          'migrate',
+        ],
+        build: (context) => const BackupScreen(),
+      ),
+    SettingsSectionId.updates => SettingsSectionDef(
+        id: id,
+        label: 'Appliance updates',
+        icon: LucideIcons.downloadCloud,
+        keywords: const [
+          'update',
+          'ota',
+          'upgrade',
+          'firmware',
+          'version',
+          'rollback',
+          'appliance',
+        ],
+        build: (context) => const UpdateSettings(),
+      ),
+    SettingsSectionId.rigCatalogs => SettingsSectionDef(
+        id: id,
+        label: 'Appliance catalogs',
+        icon: LucideIcons.library,
+        keywords: const [
+          'catalog',
+          'plate solve',
+          'star catalog',
+          'astrometry',
+          'download catalog',
+          'appliance',
+          'rig',
+        ],
+        build: (context) => const RigCatalogSettings(),
+      ),
+    SettingsSectionId.capturedImages => SettingsSectionDef(
+        id: id,
+        label: 'Captured images',
+        icon: LucideIcons.image,
+        keywords: const [
+          'gallery',
+          'images',
+          'frames',
+          'captures',
+          'thumbnails',
+          'photos',
+          'appliance',
+        ],
+        build: (context) => const CapturedImagesSettings(),
+      ),
+    SettingsSectionId.replayDebug => SettingsSectionDef(
+        id: id,
+        label: t('settingsReplayDebug'),
+        icon: LucideIcons.bug,
+        keywords: const [
+          'replay',
+          'debug',
+          'session replay',
+          'recording',
+          'developer',
+        ],
+        build: (context) => const ReplayDebugSettings(),
+      ),
+  };
 }
-
-/// Resolves a deep-link [key] (including merged-away aliases) to the stable
-/// section key that should open, or `null` if [key] is null or unknown.
-///
-/// Locale-independent (no [BuildContext] / labels), so it is safe to call from
-/// `initState` before the first build.
-String? resolveSectionKey(String? key) {
-  if (key == null) return null;
-  final target = kMergedSectionAliases[key] ?? key;
-  for (final group in _structuralGroups) {
-    if (group.contains(target)) return target;
-  }
-  return null;
-}
-
-/// The stable key of the very first section (the default selection / fallback).
-const String kFirstSectionKey = 'general';
-
-/// Group titles in structural order. These are fixed English literals (not
-/// localized), kept in lock-step with [buildSettingsGroups] and
-/// [_structuralGroups]. Locale-independent so callers in `initState` can resolve
-/// a section's owning group without a [BuildContext].
-const List<String> kGroupTitles = [
-  'General',
-  'Equipment',
-  'Imaging',
-  'Automation & Safety',
-  'Science',
-  'Notifications & Remote',
-  'Advanced',
-];
-
-/// The structural group title that contains [key], or the first group's title
-/// if [key] is not found. Locale-independent.
-String groupTitleForKey(String key) {
-  for (var i = 0; i < _structuralGroups.length; i++) {
-    if (_structuralGroups[i].contains(key)) return kGroupTitles[i];
-  }
-  return kGroupTitles.first;
-}
-
-/// Backward-compatible derived index map.
-///
-/// Selection is driven by KEY internally; this exists only so external code
-/// (and the navigation-contract tests) that still reads an integer index keeps
-/// compiling. The index is the section's flat position across all groups, which
-/// is stable for a given catalog ordering. Merged-away aliases resolve to their
-/// combined section's index.
-final Map<String, int> kSettingsSectionIndex = _deriveSectionIndex();
-
-Map<String, int> _deriveSectionIndex() {
-  // The flat ordering is independent of locale, so a label-free traversal of
-  // the catalog structure is sufficient and avoids needing a BuildContext.
-  final flatKeys = <String>[];
-  for (final group in _structuralGroups) {
-    for (final key in group) {
-      flatKeys.add(key);
-    }
-  }
-  final map = <String, int>{};
-  for (var i = 0; i < flatKeys.length; i++) {
-    map[flatKeys[i]] = i;
-  }
-  // Merged-away aliases share their combined section's index.
-  kMergedSectionAliases.forEach((alias, target) {
-    final index = map[target];
-    if (index != null) map[alias] = index;
-  });
-  return map;
-}
-
-/// The catalog's structural ordering (group -> section keys), kept in lock-step
-/// with [buildSettingsGroups]. Used only to derive [kSettingsSectionIndex]
-/// without a [BuildContext].
-const List<List<String>> _structuralGroups = [
-  ['general', 'appearance', 'location', 'files-storage', 'help', 'about'],
-  [
-    'connection',
-    'equipment-profiles',
-    'phd2-guiding',
-    'plate-solving',
-    'autofocus',
-    'calibration',
-  ],
-  [
-    'imaging',
-    'adaptive-exposure',
-    'image-grading',
-    'annotations',
-    'catalogs',
-  ],
-  [
-    'sequencer',
-    'preflight',
-    'weather-safety',
-    'adaptive-conditions',
-    'end-of-night-calibration',
-    'darkroom',
-    'delivery',
-  ],
-  ['science', 'observation-log', 'observing-lists'],
-  ['notifications', 'integrations', 'remote-access'],
-  [
-    'logs',
-    'backup',
-    'updates',
-    'rig-catalogs',
-    'captured-images',
-    'focus-model',
-    'replay-debug',
-  ],
-];

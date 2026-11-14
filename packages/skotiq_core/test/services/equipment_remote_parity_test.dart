@@ -4,15 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' hide CameraState;
+import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/backend/host_mutation_event.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
 import 'package:skotiq_core/src/providers/remote_sync_handler.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
-import 'package:skotiq_core/src/services/profile_service.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/profile_service_provider.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -56,7 +57,10 @@ void main() {
             ),
           ],
         );
-        when(() => backend.saveProfile(any())).thenAnswer((_) async {});
+        when(
+          () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
+        ).thenAnswer((_) async {});
+        when(() => backend.lastSavedProfileId).thenReturn('9');
 
         final container = ProviderContainer(
           overrides: [
@@ -69,10 +73,13 @@ void main() {
         addTearDown(container.dispose);
 
         final service = container.read(profileServiceProvider);
-        await service.updateProfileDevices(9, cameraId: 'new-cam');
+        await service.updateProfileDevices(9, {DeviceType.camera: 'new-cam'});
 
         final captured = verify(
-          () => backend.saveProfile(captureAny()),
+          () => backend.saveProfileFields(
+            captureAny(),
+            fields: any(named: 'fields'),
+          ),
         ).captured;
         final saved = captured.single as remote_profile.EquipmentProfile;
         expect(saved.id, '9');
@@ -107,7 +114,7 @@ void main() {
 
         final assigning = container
             .read(profileServiceProvider)
-            .updateProfileDevices(9, cameraId: 'new-cam');
+            .updateProfileDevices(9, {DeviceType.camera: 'new-cam'});
         await untilCalled(() => hostA.getProfiles());
         backendNotifier.switchTo(hostB);
         profiles.complete([
@@ -119,8 +126,12 @@ void main() {
         ]);
 
         await expectLater(assigning, throwsStateError);
-        verifyNever(() => hostA.saveProfile(any()));
-        verifyNever(() => hostB.saveProfile(any()));
+        for (final host in [hostA, hostB]) {
+          verifyNever(() => host.saveProfile(any()));
+          verifyNever(
+            () => host.saveProfileFields(any(), fields: any(named: 'fields')),
+          );
+        }
       },
     );
 
@@ -132,7 +143,7 @@ void main() {
     // on every Connected/Disconnected. Connection STATE is mirrored via the
     // per-device state providers instead. (See remote_sync_handler.dart's
     // _applyEquipmentEvent 'Connected' case.) Catalog refreshes are driven by
-    // actual PROFILE events (profile_changed / HostMutationEntity.profile),
+    // actual profile events (HostMutationEntity.profile),
     // asserted in the next test.
     test(
       'equipment Connected WS event does NOT reload profile catalog',
@@ -159,7 +170,7 @@ void main() {
         await container.read(equipmentProfilesProvider.future);
         expect(loadCount, 1, reason: 'one initial build');
 
-        await applyRemoteSyncEvent(
+        applyHostLocalSyncEvent(
           container,
           const SkotiqEvent(
             timestamp: 1,
@@ -180,11 +191,10 @@ void main() {
       },
     );
 
-    // The replacement mechanism for catalog parity: a genuine PROFILE change
-    // (profile_changed) DOES invalidate equipmentProfilesProvider, so the slave
-    // re-pulls the host's profile list / active profile on real profile
-    // mutations without thrashing on device connects.
-    test('profile_changed WS event reloads profile catalog', () async {
+    // A genuine profile change on the host DOES invalidate
+    // equipmentProfilesProvider, so the client re-pulls the host's profile
+    // list and active profile without thrashing on device connects.
+    test('a host profile mutation reloads the profile catalog', () async {
       final backend = _MockNetworkBackend();
       when(
         () => backend.eventStream,
@@ -207,14 +217,11 @@ void main() {
       await container.read(equipmentProfilesProvider.future);
       expect(loadCount, 1, reason: 'one initial build');
 
-      await applyRemoteSyncEvent(
+      applyHostLocalSyncEvent(
         container,
-        const SkotiqEvent(
-          timestamp: 1,
-          severity: EventSeverity.info,
-          category: EventCategory.system,
-          eventType: 'profile_changed',
-          data: {},
+        buildHostMutationEvent(
+          entityType: HostMutationEntity.profile,
+          action: HostMutationAction.updated,
         ),
       );
 

@@ -9,11 +9,12 @@ library;
 
 /// The catalog kind of an [Annotation] marker. The wire token is the stable
 /// persisted string and the JSON key.
+import '../../utils/json_validation.dart';
+
 enum AnnotationKind {
   /// A catalogued star (named bright star).
   star,
 
-  /// A galaxy.
   galaxy,
 
   /// An emission / reflection / planetary nebula.
@@ -94,13 +95,13 @@ class Annotation {
   factory Annotation.fromJson(Map<String, dynamic> json) {
     return Annotation(
       label: json['label'] is String ? json['label'] as String : '',
-      x: _asDouble(json['x']),
-      y: _asDouble(json['y']),
+      x: lenientDouble(json['x']),
+      y: lenientDouble(json['y']),
       kind: json['kind'] is String
           ? AnnotationKind.fromWire(json['kind'] as String)
           : AnnotationKind.other,
-      sizePx: _asDouble(json['sizePx']),
-      paDeg: _asNullableDouble(json['paDeg']),
+      sizePx: lenientDouble(json['sizePx']),
+      paDeg: lenientNullableDouble(json['paDeg']),
     );
   }
 
@@ -158,8 +159,8 @@ class AnnotationLayer {
       }
     }
     return AnnotationLayer(
-      width: _asInt(json['width']),
-      height: _asInt(json['height']),
+      width: lenientInt(json['width']),
+      height: lenientInt(json['height']),
       items: items,
     );
   }
@@ -181,12 +182,6 @@ class AnnotationLayer {
   @override
   int get hashCode => Object.hash(width, height, Object.hashAll(items));
 }
-
-double _asDouble(Object? v) => v is num ? v.toDouble() : 0.0;
-
-double? _asNullableDouble(Object? v) => v is num ? v.toDouble() : null;
-
-int _asInt(Object? v) => v is num ? v.toInt() : 0;
 
 bool _listEquals<T>(List<T> a, List<T> b) {
   if (identical(a, b)) return true;

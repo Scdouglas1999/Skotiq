@@ -41,6 +41,26 @@ class PlateSolverDetection {
     this.catalogPath,
   });
 
+  /// The wire form the host serves at `/api/plate-solver/detect` and shares
+  /// with linked clients.
+  Map<String, dynamic> toJson() => {
+    'astapPath': astapPath,
+    'astrometryPath': astrometryPath,
+    'catalogName': catalogName,
+    'catalogMagnitudeLimit': catalogMagnitudeLimit,
+    'catalogPath': catalogPath,
+  };
+
+  factory PlateSolverDetection.fromJson(Map<String, dynamic> json) =>
+      PlateSolverDetection(
+        astapPath: json['astapPath'] as String?,
+        astrometryPath: json['astrometryPath'] as String?,
+        catalogName: json['catalogName'] as String?,
+        catalogMagnitudeLimit: (json['catalogMagnitudeLimit'] as num?)
+            ?.toDouble(),
+        catalogPath: json['catalogPath'] as String?,
+      );
+
   /// `true` when at least one usable solver is configured. ASTAP only counts
   /// when its star catalog is available; Astrometry.net is self-contained once
   /// `solve-field` is reachable.
@@ -164,7 +184,6 @@ class PlateSolverPreference {
   /// "look next to the executable and in well-known catalog locations".
   final String catalogPath;
 
-  /// Active solver choice.
   final PlateSolverChoice choice;
 
   const PlateSolverPreference({

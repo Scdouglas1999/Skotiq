@@ -3,7 +3,8 @@ import 'dart:io';
 import '../../models/import/canonical_sequence_node.dart';
 import '../../models/import/import_result.dart';
 import '../../models/sequence/sequence_models.dart';
-import '../../providers/sequence/sequence_validation.dart';
+import '../../models/sequence/validation/structural_rules.dart';
+import '../../models/sequence/validation/validation_issue.dart';
 import 'astrobin_importer.dart';
 import 'canonical_node_mapper.dart';
 import 'generic_csv_importer.dart';
@@ -153,7 +154,6 @@ class SequenceImporter {
     return GenericCsvImporter.preview(content);
   }
 
-  /// Import a file directly from disk.
   Future<ImportResult> importFromPath(
     String filePath, {
     required bool forceUnsupported,

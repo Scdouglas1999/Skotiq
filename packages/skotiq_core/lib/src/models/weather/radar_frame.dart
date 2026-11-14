@@ -3,7 +3,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'radar_frame.freezed.dart';
 part 'radar_frame.g.dart';
 
-/// Type of radar tile service
 enum RadarTileType {
   /// Standard XYZ slippy map tiles (used by RainViewer, OpenStreetMap, etc.)
   /// URL format: .../256/{z}/{x}/{y}.png

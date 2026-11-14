@@ -12,7 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_palette.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_palette_empty_state.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -31,8 +32,6 @@ List<Override> _overrides() {
   );
   return [
     currentSequenceProvider.overrideWith((_) => notifier),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
   ];
 }
 

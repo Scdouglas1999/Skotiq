@@ -13,6 +13,7 @@
 /// cry-wolf defect in reverse.
 library;
 
+import 'package:skotiq_astro/format.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -100,7 +101,6 @@ class DawnCalibrationSlot {
     return '${_capitalize(parts.first)}${parts.length > 1 ? '; ${parts.skip(1).join('; ')}' : ''}.';
   }
 
-  /// The slot as report JSON.
   Map<String, dynamic> toJson() => {
     'kind': kind,
     'path': path,
@@ -345,7 +345,6 @@ class DawnSourceStat {
   bool metadataMatches(DawnSourceStat other) =>
       bytes == other.bytes && modified.isAtSameMomentAs(other.modified);
 
-  /// The reading as report JSON.
   Map<String, dynamic> toJson() => {
     'bytes': bytes,
     'modified': modified.toUtc().toIso8601String(),
@@ -355,7 +354,6 @@ class DawnSourceStat {
 
 /// One master's line in the morning report.
 class DawnMasterReport {
-  /// The master itself.
   final DawnMaster master;
 
   /// The target's name, or null when the master carries no target row.
@@ -447,7 +445,6 @@ class DawnMasterReport {
     return failure ?? 'its pixels could not be read';
   }
 
-  /// The master as report JSON.
   Map<String, dynamic> toJson() => {
     'masterId': master.masterId,
     'name': master.name,
@@ -514,7 +511,6 @@ class DawnCompositeReport {
   /// The linear color composite written for delivery, or null.
   final String? linearCompositePath;
 
-  /// The steps the draft carries.
   final List<Map<String, dynamic>> draftSteps;
 
   /// The draft's account of its own composition.
@@ -594,7 +590,6 @@ class DawnReportPending {
         'drafting finished.',
   );
 
-  /// The pending block as report JSON.
   Map<String, dynamic> toJson() => {'blocks': blocks, 'note': note};
 }
 
@@ -608,7 +603,6 @@ class DawnNotificationDecision {
 
   const DawnNotificationDecision({required this.sent, required this.reason});
 
-  /// The decision as report JSON.
   Map<String, dynamic> toJson() => {'sent': sent, 'reason': reason};
 }
 
@@ -620,7 +614,6 @@ class DawnJobReport {
   /// `dawn` or `manual`.
   final String kind;
 
-  /// The session processed.
   final int sessionId;
 
   /// When the job started, UTC.
@@ -798,9 +791,13 @@ class DawnJobReport {
     final target = primaryTargetName;
     if (draftsRendered == 0) {
       return '${target ?? 'Your night'} — no draft was rendered; '
-          '${formatDawnIntegration(integrationSeconds)} integrated';
+          '${DurationFormat.seconds(integrationSeconds, style: DurationStyle.coarse, roundToMinute: true)} integrated';
     }
-    final time = formatDawnIntegration(draftedIntegrationSeconds);
+    final time = DurationFormat.seconds(
+      draftedIntegrationSeconds,
+      style: DurationStyle.coarse,
+      roundToMinute: true,
+    );
     final color = composites
         .where((c) => c.hasDraft)
         .map((c) => c.paletteName)
@@ -833,7 +830,7 @@ class DawnJobReport {
     final subject = undrafted == 1 ? '1 master has' : '$undrafted masters have';
     if (seconds <= 0) return '; $subject no draft';
     return '; $subject no draft '
-        '(${formatDawnIntegration(seconds)} more integrated)';
+        '(${DurationFormat.seconds(seconds, style: DurationStyle.coarse, roundToMinute: true)} more integrated)';
   }
 
   /// The notification's body: what was integrated, what was rejected, what the
@@ -954,29 +951,3 @@ class DawnJobReport {
 
 String _capitalized(String text) =>
     text.isEmpty ? text : '${text[0].toUpperCase()}${text.substring(1)}';
-
-/// Format integration seconds as `3h 12m`, `42m`, `24 s`, or `0m`.
-///
-/// Named for the dawn report rather than generically: the app already exports a
-/// `formatIntegration` of its own, and two same-named helpers imported into one
-/// library is an ambiguity the compiler reports at every call site.
-///
-/// A night under a minute states its SECONDS. Rounding everything to whole
-/// minutes printed `0m` for the 24 s the same report recorded as
-/// `integrationSeconds: 24.0` — the identical string the first branch reserves
-/// for a night that integrated nothing, so the operator's one dawn line could
-/// not tell a short night from an empty one.
-///
-/// The sub-minute branch rounds UP so a fraction of a second never collapses
-/// back onto the `0` the zero branch owns; it overstates by less than a second
-/// and never by a unit the headline shows.
-String formatDawnIntegration(double seconds) {
-  if (seconds <= 0) return '0m';
-  final wholeSeconds = seconds.ceil();
-  if (wholeSeconds < 60) return '$wholeSeconds s';
-  final totalMinutes = (seconds / 60).round();
-  final hours = totalMinutes ~/ 60;
-  final minutes = totalMinutes % 60;
-  if (hours <= 0) return '${minutes}m';
-  return '${hours}h ${minutes}m';
-}

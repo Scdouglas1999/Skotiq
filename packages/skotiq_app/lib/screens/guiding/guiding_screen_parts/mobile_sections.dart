@@ -221,9 +221,6 @@ mixin _GuidingMobileSections
     bool isConnected,
     Phd2State phd2State,
   ) {
-    final guiderId = ref.watch(guiderStateProvider).deviceId;
-    final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
-
     // The controls and the calibration stack at their own heights and the
     // tab scrolls. They used to share the pane 3 : 2 in fixed boxes, which
     // left the controls scrolling inside their box and the calibration's box
@@ -236,9 +233,7 @@ mixin _GuidingMobileSections
         children: [
           _buildControls(isConnected, phd2State),
           const SizedBox(height: SkotiqTokens.spaceLg),
-          isPhd2Guider
-              ? _buildCalibrationSection(colors, isConnected, phd2State)
-              : _buildNonPhd2GuiderInfo(colors),
+          _buildGuiderCalibration(colors, isConnected, phd2State),
         ],
       ),
     );
@@ -255,12 +250,12 @@ mixin _GuidingMobileSections
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SkotiqButton(
-              key: GuidingTutorialKeys.brainBtn,
+              key: TourTarget.guidingBrainButton.key,
               label: 'Open guider settings',
               icon: SkotiqIcons.settings,
               variant: ButtonVariant.secondary,
               size: ButtonSize.small,
-              onPressed: () => context.go('/equipment'),
+              onPressed: () => context.go(AppRoute.equipment.path),
             ),
             const SizedBox(height: SkotiqTokens.spaceMd),
             Expanded(child: _buildNonPhd2GuiderInfo(colors)),
@@ -281,7 +276,7 @@ mixin _GuidingMobileSections
             mainAxisSize: MainAxisSize.min,
             children: [
               SkotiqButton(
-                key: GuidingTutorialKeys.brainBtn,
+                key: TourTarget.guidingBrainButton.key,
                 label: _showBrainPanel
                     ? 'Hide brain settings'
                     : 'Show brain settings',

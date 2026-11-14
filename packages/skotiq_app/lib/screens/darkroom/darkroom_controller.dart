@@ -28,16 +28,20 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart' show XTypeGroup, openFile;
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
 import 'darkroom_previews.dart';
+import '../../router/darkroom_route.dart';
 
 part 'darkroom_controller_parts/_models.dart';
 part 'darkroom_controller_parts/_state.dart';
@@ -61,8 +65,7 @@ const String kDarkroomImportNextStep =
     'Export the recipe again from the Darkroom that wrote it, or choose a '
     'different .skrecipe file.';
 
-/// Drives one Darkroom scope.
-class DarkroomController extends StateNotifier<DarkroomState> {
+class DarkroomController extends StateNotifier<DarkroomViewState> {
   /// Collaborators are resolved once, here, rather than read from [ref] on each
   /// use: [dispose] issues the last write and the stop request for a render
   /// that is still inside the engine, and by then the container that owns
@@ -77,7 +80,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         _sidecars = ref.read(darkroomSidecarReaderProvider),
         _draftRevision =
             ref.read(darkroomDraftPreviewRevisionProvider.notifier),
-        super(const DarkroomState()) {
+        super(const DarkroomViewState()) {
     unawaited(_load());
   }
 
@@ -115,7 +118,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   /// Bumped once per requested validation, for the same reason.
   int _validateGeneration = 0;
 
-  /// True while a render is inside the engine.
   bool _renderInFlight = false;
 
   /// The id the in-flight render is cancellable under, null when none is
@@ -170,11 +172,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   List<Map<String, dynamic>> get catalogStars =>
       List.unmodifiable(_catalogStars);
 
-  // ---------------------------------------------------------------------
-  // Loading
-  // ---------------------------------------------------------------------
-
-  /// Reload everything this scope names.
   Future<void> refresh() => _load();
 
   Future<void> _load() async {
@@ -258,7 +255,8 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       unawaited(_loadSiblings(masterId));
     } catch (error) {
       if (!mounted) return;
-      _fail('The Darkroom could not read this master or its recipes: $error');
+      _fail(
+          'The Darkroom could not read this master or its recipes: ${userFacingError(error)}');
     }
   }
 
@@ -274,19 +272,19 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   /// cannot null a field out, so building the state whole is the only way to
   /// drop the previous recipe — and carrying it forward is what printed a
   /// deleted recipe's name in the header above the subtitle "No recipe yet",
-  /// left [DarkroomState.hasRecipe] true over a screen with no recipe on it,
-  /// and kept the deleted stack's steps in [DarkroomState.steps].
+  /// left [DarkroomViewState.hasRecipe] true over a screen with no recipe on it,
+  /// and kept the deleted stack's steps in [DarkroomViewState.steps].
   ///
   /// The operation catalogue survives because it describes this build's
   /// registry rather than any one recipe.
-  DarkroomState _noRecipe({String? loadError, DarkroomStartOffer? offer}) {
+  DarkroomViewState _noRecipe({String? loadError, DarkroomStartOffer? offer}) {
     _undoJournal.clear();
     _redoJournal.clear();
     _unrenderable.clear();
     _catalogStars = const [];
     _lastEditKey = null;
     _lastEditAt = null;
-    return DarkroomState(
+    return DarkroomViewState(
       loading: false,
       loadError: loadError,
       offer: offer,
@@ -393,7 +391,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         draftNotes: const [],
         draftNotesError:
             'The account of how this recipe was drafted could not be read, so '
-            'any operation the draft left out is unexplained here: $error',
+            'any operation the draft left out is unexplained here: ${userFacingError(error)}',
       );
     }
   }
@@ -473,7 +471,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       state = state.copyWith(
         siblings: const [],
         siblingsError:
-            'The other masters of this night could not be read: $error',
+            'The other masters of this night could not be read: ${userFacingError(error)}',
       );
     }
   }
@@ -520,16 +518,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         masterChannels: master.channels,
         masterCalibration: DawnMasterStats.parse(master.statsJson),
       );
-      final wcs = overlayFromMasterWcs(
-        crval1: master.wcsCrval1,
-        crval2: master.wcsCrval2,
-        crpix1: master.wcsCrpix1,
-        crpix2: master.wcsCrpix2,
-        cd11: master.wcsCd1_1,
-        cd12: master.wcsCd1_2,
-        cd21: master.wcsCd2_1,
-        cd22: master.wcsCd2_2,
-      );
+      final wcs = master.solvedWcs;
       final masterPath = master.masterFitsPath;
       final photometry = await _photometry.resolve(
         master: DawnMaster(
@@ -561,14 +550,10 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         photometryStarCount: 0,
         photometryNote:
             'The star catalog could not be read, so the color calibration '
-            'has nothing to regress against: $error',
+            'has nothing to regress against: ${userFacingError(error)}',
       );
     }
   }
-
-  // ---------------------------------------------------------------------
-  // Creating a recipe for a master that has none
-  // ---------------------------------------------------------------------
 
   /// Create an empty user recipe over the offered master: the master's own
   /// linear pixels, with nothing interpreted yet.
@@ -691,7 +676,8 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return;
       state = state.copyWith(
         offerBusy: false,
-        offerError: 'The automatic edit could not be created: $error',
+        offerError:
+            'The automatic edit could not be created: ${userFacingError(error)}',
       );
       return;
     }
@@ -758,7 +744,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         // the draft account beside it is what carries that one.
         createdBy: RecipeAuthor.user,
         draftNotes: draftNotes,
-        schemaVersion: kDarkroomRecipeSchemaVersion,
+        schemaVersion: recipeSchemaVersion,
       );
       if (!mounted) return;
       final created = await _recipes.getById(id);
@@ -789,14 +775,11 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return;
       state = state.copyWith(
         offerBusy: false,
-        offerError: 'The recipe could not be created: $error',
+        offerError:
+            'The recipe could not be created: ${userFacingError(error)}',
       );
     }
   }
-
-  // ---------------------------------------------------------------------
-  // Importing a recipe written outside the database
-  // ---------------------------------------------------------------------
 
   /// Clear the standing import refusal.
   ///
@@ -850,7 +833,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       state = state.copyWith(
         offerBusy: false,
         offerError: 'That file could not be read, so nothing was imported. '
-            '$kDarkroomImportNextStep The reader answered: $error',
+            '$kDarkroomImportNextStep The reader answered: ${userFacingError(error)}',
       );
       return;
     }
@@ -916,13 +899,12 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       final reply = await _darkroom.validate(
         // No row exists yet, so the envelope carries the id the engine uses
         // only to name the recipe back in its own messages.
-        recipeJson: jsonEncode({
-          'id': 'darkroom-import',
-          'schemaVersion': kDarkroomRecipeSchemaVersion,
-          'baseMasterRef': masterPath,
-          'createdBy': RecipeAuthor.user.wire,
-          'steps': [for (final step in steps) step.toJson()],
-        }),
+        recipeJson: encodeRecipeEnvelope(
+          id: 'darkroom-import',
+          baseMasterRef: masterPath,
+          author: RecipeAuthor.user,
+          steps: [for (final step in steps) step.toJson()],
+        ),
         context: const <String, dynamic>{},
       );
       return decodeDarkroomValidation(reply);
@@ -940,11 +922,10 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       // it unset rather than stopping an import the operator asked for — and
       // says so in the log, because a library read that did not work is a fact
       // about the database and not about this import.
-      developer.log(
+      Log.warning(
         'Darkroom: the target of master $masterId could not be read while '
         'importing a recipe, so the new row carries none: $error',
-        name: 'Darkroom',
-        level: 900,
+        source: 'Darkroom',
         stackTrace: stack,
       );
       return null;
@@ -960,6 +941,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       '.nsrecipe',
       '.fits',
       '.fit',
+      '.xisf',
       '.jpg',
       '.jpeg',
       '.png',
@@ -1016,10 +998,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     return lines.join('\n');
   }
 
-  // ---------------------------------------------------------------------
-  // Editing
-  // ---------------------------------------------------------------------
-
   /// Toggle whether the step at [index] renders. Nothing is destroyed: the step
   /// and its parameters survive the disable.
   void toggleStep(int index) {
@@ -1043,6 +1021,25 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     final next = List<DarkroomStep>.from(steps);
     next[index] = next[index].withParam(name, value);
     _applyEdit(next, coalesceKey: 'param:$index:$name');
+  }
+
+  /// Set several parameters of the step at [index] as one edit, for values
+  /// the operation reads together: one undo, one save, one render. A null
+  /// value removes its key, as in [setParam].
+  ///
+  /// Consecutive calls with one [coalesceKey] fold into a single undo step.
+  void setParams(
+    int index,
+    Map<String, Object?> changes, {
+    required String coalesceKey,
+  }) {
+    final steps = state.steps;
+    if (index < 0 || index >= steps.length) return;
+    final next = List<DarkroomStep>.from(steps);
+    for (final change in changes.entries) {
+      next[index] = next[index].withParam(change.key, change.value);
+    }
+    _applyEdit(next, coalesceKey: 'params:$index:$coalesceKey');
   }
 
   /// Take the step at [index] out of the recipe.
@@ -1069,7 +1066,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   ///
   /// Three things decide the outcome and none of them is decided here:
   ///
-  ///  * WHERE it goes — [DarkroomState.insertIndexFor], which mirrors the
+  ///  * WHERE it goes — [DarkroomViewState.insertIndexFor], which mirrors the
   ///    engine's stage rule so the proposed order is one the engine can accept;
   ///  * WHAT it starts with — [_openingParamsFor], which takes the operation's
   ///    own documented defaults, or the registry's measurement of this master
@@ -1082,7 +1079,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   /// restores the step list as it was, and the render that follows replays the
   /// stack WITH the new step.
   ///
-  /// Answers false when nothing was added; [DarkroomState.insertRefusal] then
+  /// Answers false when nothing was added; [DarkroomViewState.insertRefusal] then
   /// carries the reason.
   Future<bool> insertStep(DarkroomOpSpec op) async {
     if (state.recipeId == null || state.insertBusy) return false;
@@ -1127,7 +1124,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return false;
       _refuseInsert(
         'That step could not be checked with the engine, so it was not added: '
-        '$error',
+        '${userFacingError(error)}',
       );
       return false;
     }
@@ -1308,7 +1305,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return false;
       _refuseReorder(
         'That order could not be checked with the engine, so the move was not '
-        'made: $error',
+        'made: ${userFacingError(error)}',
       );
       return false;
     }
@@ -1519,10 +1516,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // Validation
-  // ---------------------------------------------------------------------
-
   /// Re-check the committed step list and adopt its per-step verdicts.
   ///
   /// The whole list is validated, disabled steps included: the per-step
@@ -1549,11 +1542,11 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     if (recipeId == null) return null;
     try {
       final reply = await _darkroom.validate(
-        recipeJson: encodeDarkroomRecipe(
-          recipeId: recipeId,
+        recipeJson: encodeRecipeEnvelope(
+          id: '$recipeId',
           baseMasterRef: state.baseMasterPath,
           author: state.author,
-          steps: steps,
+          steps: [for (final step in steps) step.toJson()],
         ),
         context: const <String, dynamic>{},
       );
@@ -1566,10 +1559,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       return null;
     }
   }
-
-  // ---------------------------------------------------------------------
-  // Rendering
-  // ---------------------------------------------------------------------
 
   /// Re-check and re-render the committed stack after the edit debounce.
   ///
@@ -1667,11 +1656,11 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       omittedFromRender: List.unmodifiable(omitted),
     );
 
-    final recipeJson = encodeDarkroomRecipe(
-      recipeId: recipeId,
+    final recipeJson = encodeRecipeEnvelope(
+      id: '$recipeId',
       baseMasterRef: masterPath,
       author: state.author,
-      steps: asked,
+      steps: [for (final step in asked) step.toJson()],
     );
 
     try {
@@ -1718,10 +1707,10 @@ class DarkroomController extends StateNotifier<DarkroomState> {
           ).then((_) {
             if (mounted) _draftRevision.state++;
           }).catchError((Object error) {
-            developer.log(
+            Log.debug(
               'The draft thumbnail for recipe $recipeId could not be saved: '
               '$error',
-              name: 'DarkroomController',
+              source: 'DarkroomController',
             );
           }),
         );
@@ -1751,7 +1740,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         error.message,
         state.baseMasterPath,
       );
-      final failure = _failureOf(error.message, asked, askedIdentities);
+      final failure = _failureOf(error.failedStep, asked, askedIdentities);
       state = state.copyWith(
         rendering: false,
         cancelRequested: false,
@@ -1773,37 +1762,32 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     }
   }
 
-  /// The step a render failure NAMES, or null when it names none this build can
-  /// join to one.
+  /// The step a render failure names, or null when it names none this build
+  /// can join to one.
   ///
-  /// The engine writes `step N failed: <opId>@<version>: <fault>`, where N
-  /// counts the recipe it was HANDED from 1 — [asked], which is the stack minus
-  /// any switched-off step this build cannot run. Both halves are checked: the
-  /// position has to exist in that list AND the operation at it has to be the
-  /// operation the message names. A message that fails either check attributes
-  /// nothing, because the alternative is badging a step the engine never ran.
+  /// The engine counts the recipe it was handed: [asked], which is the stack
+  /// minus any switched-off step this build cannot run. The position has to
+  /// exist in that list and the operation at it has to be the one the engine
+  /// names; otherwise nothing is attributed, because the alternative is
+  /// badging a step the engine never ran.
   ///
   /// [identities] is [asked]'s identity list, so the attribution survives an
   /// edit that moves the step before the failure reaches a card.
   static DarkroomRenderFailure? _failureOf(
-    String message,
+    DarkroomFailedStep? failed,
     List<DarkroomStep> asked,
     List<Object> identities,
   ) {
-    final match = RegExp(r'^step (\d+) failed: ([A-Za-z0-9_]+)@(\d+): (.+)$',
-            dotAll: true)
-        .firstMatch(message);
-    if (match == null) return null;
-    final ordinal = int.tryParse(match.group(1)!);
-    final version = int.tryParse(match.group(3)!);
-    if (ordinal == null || version == null) return null;
-    final at = ordinal - 1;
+    if (failed == null) return null;
+    final at = failed.index;
     if (at < 0 || at >= asked.length || at >= identities.length) return null;
     final step = asked[at];
-    if (step.opId != match.group(2) || step.opVersion != version) return null;
+    if (step.opId != failed.opId || step.opVersion != failed.opVersion) {
+      return null;
+    }
     return DarkroomRenderFailure(
       stepIdentity: identities[at],
-      reason: match.group(4)!,
+      reason: failed.reason,
     );
   }
 
@@ -1851,10 +1835,6 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // Persistence
-  // ---------------------------------------------------------------------
-
   void _scheduleSave() {
     _savePending = true;
     state = state.copyWith(savePending: true);
@@ -1887,7 +1867,8 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       if (!mounted) return;
       state = state.copyWith(
         savePending: false,
-        saveError: 'This edit could not be written to the recipe: $error',
+        saveError:
+            'This edit could not be written to the recipe: ${userFacingError(error)}',
       );
     }
   }
@@ -1904,10 +1885,9 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         _darkroom.cancel({'op': 'cancel', 'renderId': renderId}).then(
           (_) {},
           onError: (Object error, StackTrace stack) {
-            developer.log(
+            Log.warning(
               'Darkroom: the stop request for $renderId did not land: $error',
-              name: 'Darkroom',
-              level: 900,
+              source: 'Darkroom',
               stackTrace: stack,
             );
           },
@@ -1926,11 +1906,10 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         _recipes.updateSteps(recipeId, payload).then(
           (_) {},
           onError: (Object error, StackTrace stack) {
-            developer.log(
+            Log.error(
               'Darkroom: the last edit to recipe $recipeId was not stored: '
               '$error',
-              name: 'Darkroom',
-              level: 1000,
+              source: 'Darkroom',
               stackTrace: stack,
             );
           },
@@ -1955,5 +1934,5 @@ class DarkroomController extends StateNotifier<DarkroomState> {
 /// with the screen means every entry re-reads the row, which is the only way
 /// the editor and the database can be describing the same recipe.
 final darkroomControllerProvider = StateNotifierProvider.autoDispose
-    .family<DarkroomController, DarkroomState, DarkroomScope>(
+    .family<DarkroomController, DarkroomViewState, DarkroomScope>(
         (ref, scope) => DarkroomController(ref, scope));

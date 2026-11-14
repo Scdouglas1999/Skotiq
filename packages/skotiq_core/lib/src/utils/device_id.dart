@@ -73,7 +73,7 @@ const List<String> kKnownDeviceIdSingletons = <String>[
 ];
 
 /// The single canonical id PHD2 always connects under, regardless of how a
-/// profile recorded it. See `DeviceService.connectGuider`.
+/// profile recorded it. See `DeviceService.connect`.
 const String kPhd2CanonicalId = 'phd2_guider';
 
 /// The name every machine shows for the PHD2 guider.
@@ -87,7 +87,6 @@ class DeviceId {
   /// The exact raw id as supplied (untrimmed, original case preserved).
   final String raw;
 
-  /// The driver layer this id belongs to.
   final DeviceDriverKind kind;
 
   /// Lower-cased, trimmed segments after the driver prefix is stripped.
@@ -282,8 +281,11 @@ bool isPhd2DeviceId(String id) => isPhd2WireToken(id.trim().toLowerCase());
 /// `bridge/src/builtin_guider/config.rs`.
 const String kBuiltinGuiderIdPrefix = 'native:builtin_guider:';
 
+/// The device ID used by the built-in multi-star guider.
+const String builtinGuiderDeviceId = 'native:builtin_guider:multi_star';
+
 /// Display name the backend itself advertises for the built-in guider
-/// (`bridge/src/api/discovery.rs`, the Guider arm). Kept identical here so a
+/// (`bridge/src/discovery.rs`, the Guider arm). Kept identical here so a
 /// device id and a discovery record never produce two different names for the
 /// same guider.
 const String kBuiltinGuiderDisplayName = 'Built-in Multi-Star Guider';
@@ -291,7 +293,7 @@ const String kBuiltinGuiderDisplayName = 'Built-in Multi-Star Guider';
 /// Display names for the built-in simulators, keyed by the type token of their
 /// `sim_<type>_<index>` id.
 ///
-/// Verbatim from `bridge/src/api/discovery.rs` (`("sim_camera_1",
+/// Verbatim from `bridge/src/discovery.rs` (`("sim_camera_1",
 /// "Simulated Camera")` …). The backend carries these names; a surface that
 /// only has the id otherwise prints `sim_filterwheel_1` at the operator.
 const Map<String, String> kSimulatorDeviceDisplayNames = {
@@ -410,10 +412,8 @@ bool _fuzzyDeviceIdsMatch(String profileId, String connectedId) {
   // matcher must remain correct on its own.
   if (isPhd2WireToken(p) && isPhd2WireToken(c)) return true;
 
-  // Direct match
   if (p == c) return true;
 
-  // Normalize by removing all non-alphanumeric characters
   final normP = p.replaceAll(RegExp(r'[^a-z0-9]'), '');
   final normC = c.replaceAll(RegExp(r'[^a-z0-9]'), '');
   if (normP == normC) return true;
@@ -448,7 +448,6 @@ bool _fuzzyDeviceIdsMatch(String profileId, String connectedId) {
         .isNotEmpty) {
       return true;
     }
-    // Check if one model contains another
     for (final pm in profileNumberedModels) {
       for (final cm in connectedNumberedModels) {
         if (pm.contains(cm) || cm.contains(pm)) return true;
@@ -457,7 +456,6 @@ bool _fuzzyDeviceIdsMatch(String profileId, String connectedId) {
     return false;
   }
 
-  // Token-based matching
   final pTokens = p
       .split(RegExp(r'[_\-\s:]+'))
       .where((t) => t.length >= 2)

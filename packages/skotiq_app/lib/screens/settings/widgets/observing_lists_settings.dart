@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/authority_bound_dialog.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class ObservingListsSettings extends ConsumerWidget {
   const ObservingListsSettings({super.key});
@@ -198,23 +200,17 @@ class _ObservingListManagementCard extends ConsumerWidget {
                   onTap: isSaving
                       ? null
                       : () async {
-                          final authority = ref.read(backendProvider);
+                          final host = ref.backendScope();
                           final id = await ref
                               .read(observingListNotifierProvider.notifier)
                               .duplicateList(list.id);
-                          if (!context.mounted ||
-                              !identical(
-                                  ref.read(backendProvider), authority)) {
-                            return;
-                          }
+                          if (!context.mounted || host.isStale) return;
                           final state = ref.read(observingListNotifierProvider);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(id == null
-                                  ? (state.errorMessage ??
-                                      'Could not duplicate list')
-                                  : 'Duplicated "${list.name}"'),
-                            ),
+                          context.showInfoSnackBar(
+                            id == null
+                                ? (state.errorMessage ??
+                                    'Could not duplicate list')
+                                : 'Duplicated "${list.name}"',
                           );
                         },
                 ),
@@ -258,11 +254,14 @@ class _ObservingListEditorDialog extends ConsumerStatefulWidget {
 }
 
 class _ObservingListEditorDialogState
-    extends ConsumerState<_ObservingListEditorDialog> {
+    extends ConsumerState<_ObservingListEditorDialog>
+    with HostBoundDialogState<_ObservingListEditorDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
-  late final SkotiqBackend _authority;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. List editing canceled.';
+
   bool _saving = false;
   String? _nameError;
 
@@ -274,24 +273,10 @@ class _ObservingListEditorDialogState
     _nameController = TextEditingController(text: widget.list?.name ?? '');
     _descriptionController =
         TextEditingController(text: widget.list?.description ?? '');
-    _authority = ref.read(backendProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('The connected host changed. List editing canceled.'),
-          ),
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   @override
   void dispose() {
-    _backendSubscription?.close();
     _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -303,7 +288,7 @@ class _ObservingListEditorDialogState
       setState(() => _nameError = 'Enter a list name');
       return;
     }
-    if (!identical(ref.read(backendProvider), _authority)) return;
+    if (host.isStale) return;
 
     setState(() {
       _saving = true;
@@ -323,21 +308,15 @@ class _ObservingListEditorDialogState
             ) !=
             null;
 
-    if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+    if (!mounted || host.isStale) return;
     if (!success) {
       setState(() => _saving = false);
       final state = ref.read(observingListNotifierProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(state.errorMessage ?? 'Could not save the list'),
-        ),
-      );
+      context.showInfoSnackBar(state.errorMessage ?? 'Could not save the list');
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_isEditing ? 'List updated' : 'List created')),
-    );
+    context.showInfoSnackBar(_isEditing ? 'List updated' : 'List created');
     Navigator.of(context).pop();
   }
 
@@ -409,57 +388,31 @@ class _DeleteObservingListDialog extends ConsumerStatefulWidget {
 }
 
 class _DeleteObservingListDialogState
-    extends ConsumerState<_DeleteObservingListDialog> {
-  late final SkotiqBackend _authority;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+    extends ConsumerState<_DeleteObservingListDialog>
+    with HostBoundDialogState<_DeleteObservingListDialog> {
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. List deletion canceled.';
+
   bool _deleting = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _authority = ref.read(backendProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('The connected host changed. List deletion canceled.'),
-          ),
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
-  }
-
   Future<void> _delete() async {
-    if (!identical(ref.read(backendProvider), _authority)) return;
+    if (host.isStale) return;
     setState(() => _deleting = true);
     final success = await ref
         .read(observingListNotifierProvider.notifier)
         .deleteList(widget.list.id);
-    if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+    if (!mounted || host.isStale) return;
     if (!success) {
       setState(() => _deleting = false);
       final state = ref.read(observingListNotifierProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(state.errorMessage ?? 'Could not delete the list'),
-        ),
+      context.showInfoSnackBar(
+        state.errorMessage ?? 'Could not delete the list',
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Deleted "${widget.list.name}"')),
-    );
+    context.showInfoSnackBar('Deleted "${widget.list.name}"');
     Navigator.of(context).pop();
   }
 

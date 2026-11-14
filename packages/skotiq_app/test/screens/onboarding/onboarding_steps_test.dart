@@ -18,7 +18,10 @@ import 'package:skotiq_app/screens/onboarding/steps/optical_train_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/site_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/summary_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/welcome_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_app/services/site_detection.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -69,6 +72,11 @@ Future<void> _pumpStep(
   await tester.pump();
   await tester.pump();
 }
+
+/// The text box of a site field, found by its key rather than by its position
+/// among the step's boxes.
+Finder _siteInput(Key key) =>
+    find.descendant(of: find.byKey(key), matching: find.byType(TextField));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -273,7 +281,7 @@ void main() {
             onboardingApproximateLocationProvider.overrideWithValue(
               approximateLocation ?? () async => null,
             ),
-            onboardingSiteLocatorProvider.overrideWithValue(
+            siteLocatorProvider.overrideWithValue(
               locator ??
                   ({
                     required bool allowWifiScan,
@@ -323,8 +331,8 @@ void main() {
       expect(find.text('Latitude'), findsOneWidget);
       expect(find.text('Longitude'), findsOneWidget);
 
-      await tester.enterText(find.byType(TextField).at(0), '40.71');
-      await tester.enterText(find.byType(TextField).at(1), '-74.01');
+      await tester.enterText(_siteInput(onboardingSiteLatitudeKey), '40.71');
+      await tester.enterText(_siteInput(onboardingSiteLongitudeKey), '-74.01');
       await tester.pumpAndSettle();
 
       final settings = await container.read(appSettingsProvider.future);
@@ -346,12 +354,15 @@ void main() {
       // enterText replaces the whole field, so drive the digits one at a time
       // the way a keyboard does.
       for (final text in ['1', '10', '100']) {
-        await tester.enterText(find.byType(TextField).at(0), text);
+        await tester.enterText(_siteInput(onboardingSiteLatitudeKey), text);
         await tester.pump(const Duration(milliseconds: 60));
       }
       await tester.pumpAndSettle();
 
-      expect(find.text('Latitude must be between -90 and 90.'), findsOneWidget);
+      expect(
+        find.textContaining('Latitude must be between -90 and 90'),
+        findsOneWidget,
+      );
       final settings = await container.read(appSettingsProvider.future);
       expect(settings.latitude, 0.0,
           reason: 'no prefix of a rejected latitude may reach settings');
@@ -365,17 +376,17 @@ void main() {
       addTearDown(db.close);
       final container = await pumpSiteStep(tester, db);
 
-      await tester.enterText(find.byType(TextField).at(1), '400');
+      await tester.enterText(_siteInput(onboardingSiteLongitudeKey), '400');
       await tester.pumpAndSettle();
 
       expect(
         container.read(onboardingSiteEntryErrorProvider),
-        'Longitude must be between -180 and 180.',
+        startsWith('Longitude must be between -180 and 180'),
       );
 
       // Correcting it clears the block and persists.
-      await tester.enterText(find.byType(TextField).at(0), '40.71');
-      await tester.enterText(find.byType(TextField).at(1), '-74.01');
+      await tester.enterText(_siteInput(onboardingSiteLatitudeKey), '40.71');
+      await tester.enterText(_siteInput(onboardingSiteLongitudeKey), '-74.01');
       await tester.pumpAndSettle();
       expect(container.read(onboardingSiteEntryErrorProvider), isNull);
     });
@@ -388,7 +399,7 @@ void main() {
       addTearDown(db.close);
       final container = await pumpSiteStep(tester, db);
 
-      await tester.enterText(find.byType(TextField).at(0), '40.71');
+      await tester.enterText(_siteInput(onboardingSiteLatitudeKey), '40.71');
       await tester.pumpAndSettle();
 
       expect(
@@ -407,8 +418,8 @@ void main() {
       addTearDown(db.close);
       final container = await pumpSiteStep(tester, db);
 
-      await tester.enterText(find.byType(TextField).at(0), '45.5');
-      await tester.enterText(find.byType(TextField).at(1), '-73.6');
+      await tester.enterText(_siteInput(onboardingSiteLatitudeKey), '45.5');
+      await tester.enterText(_siteInput(onboardingSiteLongitudeKey), '-73.6');
       await tester.pumpAndSettle();
       expect((await container.read(appSettingsProvider.future)).latitude,
           closeTo(45.5, 0.001));
@@ -417,10 +428,13 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
       final reopened = await pumpSiteStep(tester, db);
-      await tester.enterText(find.byType(TextField).at(0), '999');
+      await tester.enterText(_siteInput(onboardingSiteLatitudeKey), '999');
       await tester.pumpAndSettle();
 
-      expect(find.text('Latitude must be between -90 and 90.'), findsOneWidget);
+      expect(
+        find.textContaining('Latitude must be between -90 and 90'),
+        findsOneWidget,
+      );
       final settings = await reopened.read(appSettingsProvider.future);
       expect(settings.latitude, closeTo(45.5, 0.001),
           reason: 'a typo must not destroy the site already on record');
@@ -433,14 +447,14 @@ void main() {
       addTearDown(db.close);
       final container = await pumpSiteStep(tester, db);
 
-      await tester.enterText(find.byType(TextField).at(0), '40.71');
-      await tester.enterText(find.byType(TextField).at(1), '-74.01');
+      await tester.enterText(_siteInput(onboardingSiteLatitudeKey), '40.71');
+      await tester.enterText(_siteInput(onboardingSiteLongitudeKey), '-74.01');
       await tester.pumpAndSettle();
       expect((await container.read(appSettingsProvider.future)).latitude,
           closeTo(40.71, 0.001));
 
-      await tester.enterText(find.byType(TextField).at(0), '');
-      await tester.enterText(find.byType(TextField).at(1), '');
+      await tester.enterText(_siteInput(onboardingSiteLatitudeKey), '');
+      await tester.enterText(_siteInput(onboardingSiteLongitudeKey), '');
       await tester.pumpAndSettle();
 
       final settings = await container.read(appSettingsProvider.future);

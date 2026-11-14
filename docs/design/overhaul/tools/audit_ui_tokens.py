@@ -15,7 +15,7 @@ EXCLUDED = (
     'packages/skotiq_ui/lib/src/theme/',
     'packages/skotiq_ui/lib/src/components/brand/',
     'packages/skotiq_app/lib/services/observation_report_service.dart',
-    'packages/skotiq_app/lib/services/finder_chart_service.dart',
+    'packages/skotiq_app/lib/screens/planetarium/finder_chart_service.dart',
 )
 RULES = {
     'local slider recipe': re.compile(r'\bSliderThemeData\('),

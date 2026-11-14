@@ -58,15 +58,12 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
     super.dispose();
   }
 
-  bool _isCurrentAuthority(SkotiqBackend authority) =>
-      identical(ref.read(backendProvider), authority);
-
   String _formatDuration() {
     final totalSecs = _summary.totalIntegrationSecs;
     if (totalSecs <= 0) return kReadoutUnknown;
     return DurationFormat.seconds(
       totalSecs,
-      style: DurationStyle.compact,
+      style: DurationStyle.coarse,
       rounding: DurationRounding.truncate,
     );
   }
@@ -149,15 +146,12 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
 
         const SizedBox(width: 8),
 
-        // Icon
         _buildSequenceIcon(),
 
         const SizedBox(width: 16),
 
-        // Info
         Expanded(child: info),
 
-        // Actions
         AnimatedOpacity(
           opacity: _isHovered ? 1.0 : 0.5,
           duration: const Duration(milliseconds: 150),
@@ -266,50 +260,42 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
 
   List<Widget> _buildActions() {
     return [
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: _expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
         tooltip: _expanded ? 'Hide preview' : 'Preview',
         onPressed: _togglePreview,
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.history,
         tooltip: 'View run history',
         onPressed: () => _openHistory(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.gitBranch,
         tooltip: 'Version history',
         onPressed: () => _openVersionHistory(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.tags,
         tooltip: 'Edit tags',
         onPressed: () => _editTags(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.folderOpen,
         tooltip: 'Load',
         onPressed: () => _loadSequence(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.copy,
         tooltip: 'Duplicate',
         onPressed: () => _duplicateSequence(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.upload,
         tooltip: 'Export',
         onPressed: () => _exportSequence(context),
       ),
-      _IconButton(
-        colors: widget.colors,
+      SkotiqIconButton(
         icon: LucideIcons.trash2,
         tooltip: 'Delete',
         color: widget.colors.error,
@@ -488,14 +474,14 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
     if (planned.frames > 0) {
       parts.add(
         '${countLabel(planned.frames, 'frame')} • '
-        '${_formatSecs(planned.integrationSecs)}'
+        '${DurationFormat.seconds(planned.integrationSecs, style: DurationStyle.coarse, roundToMinute: true)}'
         '${planned.hasUnboundedRepeat ? ' per pass' : ''}',
       );
     }
     if (planned.hasOpenEndedLoop) {
       parts.add(
         planned.openEndedBudgetSecs > 0
-            ? 'looping up to ${_formatSecs(planned.openEndedBudgetSecs)}'
+            ? 'looping up to ${DurationFormat.seconds(planned.openEndedBudgetSecs, style: DurationStyle.coarse, roundToMinute: true)}'
             : 'looping until the window closes',
       );
     }
@@ -551,7 +537,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
             Padding(
               padding: const EdgeInsets.only(left: 18, top: 2),
               child: Text(
-                '${entry.key}: ${_formatSecs(entry.value)}',
+                '${entry.key}: ${DurationFormat.seconds(entry.value, style: DurationStyle.coarse, roundToMinute: true)}',
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize11,
                   color: widget.colors.textSecondary,
@@ -562,31 +548,24 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
     );
   }
 
-  String _formatSecs(double secs) {
-    if (secs <= 0) return '0m';
-    final hours = (secs / 3600).floor();
-    final mins = ((secs % 3600) / 60).round();
-    if (hours > 0) return '${hours}h ${mins}m';
-    return '${mins}m';
-  }
-
   /// Load the full sequence from the repository, used by every tree-requiring
   /// action. Returns null and surfaces an error snackbar on failure.
   Future<Sequence?> _loadFullSequence(
     BuildContext context, {
-    required SkotiqBackend authority,
+    required AsyncScope<SkotiqBackend> host,
     required SequenceRepository repository,
   }) async {
     try {
       final sequence = await repository.loadSequence(_summary.id);
-      if (!_isCurrentAuthority(authority)) return null;
+      if (host.isStale) return null;
       if (sequence == null && context.mounted) {
         context.showErrorSnackBar('Sequence is no longer available');
       }
       return sequence;
     } catch (e) {
-      if (context.mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to load sequence: $e');
+      if (context.mounted && host.isCurrent) {
+        context.showErrorSnackBar(
+            'Failed to load sequence: ${userFacingError(e)}');
       }
       return null;
     }
@@ -601,7 +580,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
   }
 
   Future<void> _loadPreview() async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final repository = ref.read(sequenceRepositoryProvider);
     setState(() {
       _previewLoading = true;
@@ -609,7 +588,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
     });
     try {
       final sequence = await repository.loadSequence(_summary.id);
-      if (!mounted || !_isCurrentAuthority(authority)) return;
+      if (!mounted || host.isStale) return;
       setState(() {
         _previewSequence = sequence;
         _previewLoading = false;
@@ -618,7 +597,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
         }
       });
     } catch (e) {
-      if (!mounted || !_isCurrentAuthority(authority)) return;
+      if (!mounted || host.isStale) return;
       setState(() {
         _previewLoading = false;
         _previewError = e;
@@ -627,15 +606,16 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
   }
 
   Future<void> _toggleFavorite() async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final repository = ref.read(sequenceRepositoryProvider);
     try {
       await repository.toggleFavorite(_summary.id);
-      if (!_isCurrentAuthority(authority)) return;
+      if (host.isStale) return;
       ref.invalidate(savedSequenceSummariesProvider);
     } catch (e) {
-      if (mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to update favorite: $e');
+      if (mounted && host.isCurrent) {
+        context.showErrorSnackBar(
+            'Failed to update favorite: ${userFacingError(e)}');
       }
     }
   }
@@ -673,51 +653,20 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
       sequenceCardDateLabel(date, DateTime.now());
 
   Future<void> _loadSequence(BuildContext context) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final repository = ref.read(sequenceRepositoryProvider);
     final source = await _loadFullSequence(
       context,
-      authority: authority,
+      host: host,
       repository: repository,
     );
-    if (source == null || !context.mounted || !_isCurrentAuthority(authority)) {
+    if (source == null || !context.mounted || host.isStale) {
       return;
     }
 
-    // Create a copy with new IDs so we don't modify the saved one
-    final newNodes = <String, SequenceNode>{};
-    final idMapping = <String, String>{};
-
-    for (final entry in source.nodes.entries) {
-      idMapping[entry.key] = const Uuid().v4();
-    }
-
-    for (final entry in source.nodes.entries) {
-      final oldNode = entry.value;
-      final newId = idMapping[entry.key]!;
-      final newParentId =
-          oldNode.parentId != null ? idMapping[oldNode.parentId] : null;
-      final newChildIds =
-          oldNode.childIds.map((id) => idMapping[id] ?? id).toList();
-
-      newNodes[newId] = oldNode.copyWith(
-        id: newId,
-        parentId: newParentId,
-        childIds: newChildIds,
-      );
-    }
-
-    final newRootId =
-        source.rootNodeId != null ? idMapping[source.rootNodeId] : null;
-
-    final loadedSequence = Sequence.create(
-      name: source.name,
-      description: source.description,
-      nodes: newNodes,
-      rootNodeId: newRootId,
-      isTemplate: false,
-      databaseId: source.databaseId, // Keep reference to original
-    );
+    // The editor keeps the saved node ids: runs, captured frames and the
+    // pre-flight "changed since the last run" check all match nodes by id.
+    final loadedSequence = source.copyWith(isTemplate: false);
 
     final editor = ref.read(currentSequenceProvider.notifier);
     try {
@@ -751,11 +700,11 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
           ],
         ),
       );
-      if (discard != true || !_isCurrentAuthority(authority)) return;
+      if (discard != true || host.isStale) return;
       editor.loadSequence(loadedSequence, discardUnsaved: true);
     }
 
-    if (!_isCurrentAuthority(authority)) return;
+    if (host.isStale) return;
 
     ref.read(sequencerTabProvider.notifier).state = 0;
 
@@ -765,13 +714,13 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
   }
 
   Future<void> _duplicateSequence(BuildContext context) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final repository = ref.read(sequenceRepositoryProvider);
     try {
       final duplicated = await repository.duplicateSequence(
           _summary.id, '${_summary.name} (Copy)');
 
-      if (!_isCurrentAuthority(authority)) return;
+      if (host.isStale) return;
 
       if (duplicated?.databaseId != null) {
         notifySequenceCatalogChanged(
@@ -784,12 +733,12 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
         ref.invalidate(savedSequenceSummariesProvider);
       }
 
-      if (context.mounted && _isCurrentAuthority(authority)) {
+      if (context.mounted && host.isCurrent) {
         context.showSuccessSnackBar('Duplicated "${_summary.name}"');
       }
     } catch (e) {
-      if (context.mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to duplicate: $e');
+      if (context.mounted && host.isCurrent) {
+        context.showErrorSnackBar('Failed to duplicate: ${userFacingError(e)}');
       }
     }
   }
@@ -798,24 +747,20 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
   /// export path: on a blocking validation failure, surface the structured
   /// issue dialog with a "force export anyway" escape hatch.
   Future<void> _exportSequence(BuildContext context) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final repository = ref.read(sequenceRepositoryProvider);
     final sequence = await _loadFullSequence(
       context,
-      authority: authority,
+      host: host,
       repository: repository,
     );
-    if (sequence == null ||
-        !context.mounted ||
-        !_isCurrentAuthority(authority)) {
+    if (sequence == null || !context.mounted || host.isStale) {
       return;
     }
     final fileService = ref.read(sequenceFileServiceProvider);
     try {
       final exportedPath = await fileService.exportSequence(sequence);
-      if (exportedPath != null &&
-          context.mounted &&
-          _isCurrentAuthority(authority)) {
+      if (exportedPath != null && context.mounted && host.isCurrent) {
         // On a phone the file landed in the app sandbox, so a snackbar naming
         // it would be a file the user can never open — hand it to the share
         // sheet instead. Live before this: "Failed to export:
@@ -828,14 +773,14 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
         );
       }
     } on SequenceValidationFailedException catch (e) {
-      if (!context.mounted || !_isCurrentAuthority(authority)) return;
+      if (!context.mounted || host.isStale) return;
       final force = await showValidationIssueDialog(
         context,
         issues: e.issues,
         operationName: 'export sequence',
         forceLabel: 'Force export anyway',
       );
-      if (!force || !context.mounted || !_isCurrentAuthority(authority)) {
+      if (!force || !context.mounted || host.isStale) {
         return;
       }
       try {
@@ -843,9 +788,7 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
           sequence,
           forceExport: true,
         );
-        if (exportedPath != null &&
-            context.mounted &&
-            _isCurrentAuthority(authority)) {
+        if (exportedPath != null && context.mounted && host.isCurrent) {
           await revealExportedFile(
             context,
             exportedPath,
@@ -854,13 +797,14 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
           );
         }
       } catch (err) {
-        if (context.mounted && _isCurrentAuthority(authority)) {
-          context.showErrorSnackBar('Failed to export: $err');
+        if (context.mounted && host.isCurrent) {
+          context
+              .showErrorSnackBar('Failed to export: ${userFacingError(err)}');
         }
       }
     } catch (e) {
-      if (context.mounted && _isCurrentAuthority(authority)) {
-        context.showErrorSnackBar('Failed to export: $e');
+      if (context.mounted && host.isCurrent) {
+        context.showErrorSnackBar('Failed to export: ${userFacingError(e)}');
       }
     }
   }
@@ -878,15 +822,15 @@ class _SequenceCardState extends ConsumerState<_SequenceCard> {
 }
 
 /// "Today" and "Yesterday" are calendar days in local time, not 24-hour
-/// windows: a run that ended at 10:37 PM is "Yesterday" at 8 AM.
+/// windows: a run that ended at 22:37 is "Yesterday" at 08:00.
 @visibleForTesting
 String sequenceCardDateLabel(DateTime date, DateTime now) {
   final local = date.toLocal();
   final today = DateTime(now.year, now.month, now.day);
   final day = DateTime(local.year, local.month, local.day);
   final days = today.difference(day).inHours ~/ 24;
-  if (days <= 0) return 'Today ${DateFormat.jm().format(local)}';
-  if (days == 1) return 'Yesterday ${DateFormat.jm().format(local)}';
+  if (days <= 0) return 'Today ${ClockFormat.hm(local)}';
+  if (days == 1) return 'Yesterday ${ClockFormat.hm(local)}';
   if (days < 7) return '$days days ago';
-  return DateFormat.yMd().format(local);
+  return ClockFormat.monthDayYear(local);
 }

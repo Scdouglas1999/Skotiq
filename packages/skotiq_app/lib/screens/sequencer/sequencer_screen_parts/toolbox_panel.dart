@@ -122,14 +122,12 @@ class _ToolboxPanelState extends ConsumerState<_ToolboxPanel>
             ),
           ),
 
-          // Tab content
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
                 // Node Palette (without its own header since we have tabs)
                 _NodePaletteContent(colors: widget.colors),
-                // Snippet Palette
                 _SnippetPaletteContent(colors: widget.colors),
                 // Targets: the sequence's own target headers above the
                 // planetarium's saved-for-later wishlist, which is still
@@ -143,5 +141,3 @@ class _ToolboxPanelState extends ConsumerState<_ToolboxPanel>
     );
   }
 }
-
-/// Node palette content without header (used in toolbox tabs)

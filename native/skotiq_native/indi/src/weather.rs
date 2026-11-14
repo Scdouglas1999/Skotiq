@@ -25,6 +25,7 @@
 
 use crate::client::{current_time_ms, IndiClient};
 use crate::error::IndiResult;
+use crate::protocol::names::*;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -45,14 +46,12 @@ pub enum IndiWeatherStatus {
     Unknown,
 }
 
-/// INDI Weather device wrapper
 pub struct IndiWeather {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiWeather {
-    /// Create a new INDI weather device wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -60,39 +59,12 @@ impl IndiWeather {
         }
     }
 
-    /// Get the device name
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    // Connection
-
-    /// Connect to the weather device
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    /// Disconnect from the weather device
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    /// Check if connected
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
-    // Weather measurements
-
     /// Age of the last `WEATHER_PARAMETERS` update in milliseconds, if known.
     pub async fn parameters_age_ms(&self) -> Option<u64> {
         let client = self.client.read().await;
         let now = current_time_ms();
         client
-            .get_property_last_update_ms(&self.device_name, "WEATHER_PARAMETERS")
+            .get_property_last_update_ms(&self.device_name, WEATHER_PARAMETERS)
             .await
             .map(|ts| now.saturating_sub(ts))
     }
@@ -118,11 +90,7 @@ impl IndiWeather {
     pub async fn get_temperature(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(
-                &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_TEMPERATURE",
-            )
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_TEMPERATURE)
             .await
     }
 
@@ -130,7 +98,7 @@ impl IndiWeather {
     pub async fn get_humidity(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "WEATHER_PARAMETERS", "WEATHER_HUMIDITY")
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_HUMIDITY)
             .await
     }
 
@@ -138,7 +106,7 @@ impl IndiWeather {
     pub async fn get_pressure(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "WEATHER_PARAMETERS", "WEATHER_PRESSURE")
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_PRESSURE)
             .await
     }
 
@@ -146,11 +114,7 @@ impl IndiWeather {
     pub async fn get_wind_speed(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(
-                &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_WIND_SPEED",
-            )
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_WIND_SPEED)
             .await
     }
 
@@ -158,7 +122,7 @@ impl IndiWeather {
     pub async fn get_wind_gust(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "WEATHER_PARAMETERS", "WEATHER_WIND_GUST")
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_WIND_GUST)
             .await
     }
 
@@ -168,8 +132,8 @@ impl IndiWeather {
         client
             .get_number(
                 &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_WIND_DIRECTION",
+                WEATHER_PARAMETERS,
+                WEATHER_WIND_DIRECTION,
             )
             .await
     }
@@ -178,11 +142,7 @@ impl IndiWeather {
     pub async fn get_cloud_cover(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(
-                &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_CLOUD_COVER",
-            )
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_CLOUD_COVER)
             .await
     }
 
@@ -190,7 +150,7 @@ impl IndiWeather {
     pub async fn get_rain_rate(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "WEATHER_PARAMETERS", "WEATHER_RAIN_RATE")
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_RAIN_RATE)
             .await
     }
 
@@ -198,7 +158,7 @@ impl IndiWeather {
     pub async fn get_dew_point(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "WEATHER_PARAMETERS", "WEATHER_DEWPOINT")
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_DEWPOINT)
             .await
     }
 
@@ -206,11 +166,7 @@ impl IndiWeather {
     pub async fn get_sky_quality(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(
-                &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_SKY_QUALITY",
-            )
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_SKY_QUALITY)
             .await
     }
 
@@ -220,8 +176,8 @@ impl IndiWeather {
         client
             .get_number(
                 &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_SKY_TEMPERATURE",
+                WEATHER_PARAMETERS,
+                WEATHER_SKY_TEMPERATURE,
             )
             .await
     }
@@ -232,13 +188,11 @@ impl IndiWeather {
         client
             .get_number(
                 &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_SKY_BRIGHTNESS",
+                WEATHER_PARAMETERS,
+                WEATHER_SKY_BRIGHTNESS,
             )
             .await
     }
-
-    // Overall status
 
     /// Get overall weather status from WEATHER_STATUS light property
     ///
@@ -249,7 +203,7 @@ impl IndiWeather {
 
         // Check overall WEATHER_SAFE element first
         if let Some(state) = client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_SAFE")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_SAFE)
             .await
         {
             return match state {
@@ -262,11 +216,11 @@ impl IndiWeather {
 
         // Fall back to checking individual weather status elements
         let elements = [
-            "WEATHER_RAIN",
-            "WEATHER_WIND",
-            "WEATHER_CLOUDS",
-            "WEATHER_HUMIDITY",
-            "WEATHER_TEMPERATURE",
+            WEATHER_RAIN,
+            WEATHER_WIND,
+            WEATHER_CLOUDS,
+            WEATHER_HUMIDITY,
+            WEATHER_TEMPERATURE,
         ];
 
         let mut worst_state = 0i32;
@@ -274,7 +228,7 @@ impl IndiWeather {
 
         for element in &elements {
             if let Some(state) = client
-                .get_light_state(&self.device_name, "WEATHER_STATUS", element)
+                .get_light_state(&self.device_name, WEATHER_STATUS, element)
                 .await
             {
                 found_any = true;
@@ -306,113 +260,134 @@ impl IndiWeather {
         }
     }
 
-    // Alert states
-
-    /// Check if there's a rain alert
     pub async fn has_rain_alert(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_RAIN")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_RAIN)
             .await
             .map(|s| s == 3)
             // Why: see the module's `unwrap_or(false)` policy — parameter not published → no alert (observability only).
             .unwrap_or(false)
     }
 
-    /// Check if there's a wind alert
     pub async fn has_wind_alert(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_WIND")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_WIND)
             .await
             .map(|s| s == 3)
             // Why: see the module's `unwrap_or(false)` policy — parameter not published → no alert (observability only).
             .unwrap_or(false)
     }
 
-    /// Check if there's a cloud alert
     pub async fn has_cloud_alert(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_CLOUDS")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_CLOUDS)
             .await
             .map(|s| s == 3)
             // Why: see the module's `unwrap_or(false)` policy — parameter not published → no alert (observability only).
             .unwrap_or(false)
     }
 
-    /// Check if there's a humidity alert
     pub async fn has_humidity_alert(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_HUMIDITY")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_HUMIDITY)
             .await
             .map(|s| s == 3)
             // Why: see the module's `unwrap_or(false)` policy — parameter not published → no alert (observability only).
             .unwrap_or(false)
     }
-
-    // Sensor availability
 
     /// Check if WEATHER_STATUS property is available (device reports weather states)
     pub async fn has_weather_status(&self) -> bool {
         let client = self.client.read().await;
-        client
-            .has_property(&self.device_name, "WEATHER_STATUS")
-            .await
+        client.has_property(&self.device_name, WEATHER_STATUS).await
     }
 
     /// Check if WEATHER_PARAMETERS property is available (device reports readings)
     pub async fn has_weather_parameters(&self) -> bool {
         let client = self.client.read().await;
         client
-            .has_property(&self.device_name, "WEATHER_PARAMETERS")
+            .has_property(&self.device_name, WEATHER_PARAMETERS)
             .await
     }
 
-    /// Check if temperature sensor is available
     pub async fn has_temperature(&self) -> bool {
         self.get_temperature().await.is_some()
     }
 
-    /// Check if humidity sensor is available
     pub async fn has_humidity(&self) -> bool {
         self.get_humidity().await.is_some()
     }
 
-    /// Check if pressure sensor is available
     pub async fn has_pressure(&self) -> bool {
         self.get_pressure().await.is_some()
     }
 
-    /// Check if wind speed sensor is available
     pub async fn has_wind_speed(&self) -> bool {
         self.get_wind_speed().await.is_some()
     }
 
-    /// Check if cloud cover sensor is available
     pub async fn has_cloud_cover(&self) -> bool {
         self.get_cloud_cover().await.is_some()
     }
 
-    /// Check if rain rate sensor is available
     pub async fn has_rain_rate(&self) -> bool {
         self.get_rain_rate().await.is_some()
     }
 
-    /// Check if sky quality sensor is available
     pub async fn has_sky_quality(&self) -> bool {
         self.get_sky_quality().await.is_some()
     }
 
-    /// Check if sky temperature sensor is available
     pub async fn has_sky_temperature(&self) -> bool {
         self.get_sky_temperature().await.is_some()
     }
 
-    /// Check if sky brightness sensor is available
     pub async fn has_sky_brightness(&self) -> bool {
         self.get_sky_brightness().await.is_some()
+    }
+}
+
+indi_accessory!(IndiWeather);
+
+impl IndiWeather {
+    /// Every reading, refused when `WEATHER_PARAMETERS` is older than
+    /// `max_age`: a station that stopped updating must not pass for one
+    /// reporting calm weather. A sensor the station lacks is `None`.
+    pub async fn readings_within(
+        &self,
+        max_age: Duration,
+    ) -> IndiResult<skotiq_device::WeatherReadings> {
+        if self.has_weather_parameters().await && self.is_parameters_stale(max_age).await {
+            return Err(crate::IndiError::Unavailable(format!(
+                "INDI weather parameters for {} are stale or have never updated",
+                self.device_name
+            )));
+        }
+        Ok(skotiq_device::WeatherReadings {
+            temperature: self.get_temperature().await,
+            humidity: self.get_humidity().await,
+            pressure: self.get_pressure().await,
+            cloud_cover: self.get_cloud_cover().await,
+            dew_point: self.get_dew_point().await,
+            wind_speed: self.get_wind_speed().await,
+            wind_direction: self.get_wind_direction().await,
+            sky_quality: self.get_sky_quality().await,
+            sky_temperature: self.get_sky_temperature().await,
+            rain_rate: self.get_rain_rate().await,
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl skotiq_device::WeatherDriver for IndiWeather {
+    async fn readings(&self) -> Result<skotiq_device::WeatherReadings, skotiq_device::DriverError> {
+        Ok(self
+            .readings_within(Duration::from_millis(DEFAULT_WEATHER_STALE_MS))
+            .await?)
     }
 }
 

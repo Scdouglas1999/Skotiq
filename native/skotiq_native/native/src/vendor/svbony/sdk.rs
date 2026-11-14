@@ -50,13 +50,13 @@ pub(crate) type SvbGetROIFormat = unsafe extern "C" fn(
 ) -> c_int;
 pub(crate) type SvbSetOutputImageType =
     unsafe extern "C" fn(camera_id: c_int, img_type: c_int) -> c_int;
-pub(crate) type SvbGetOutputImageType =
-    unsafe extern "C" fn(camera_id: c_int, img_type: *mut c_int) -> c_int;
 pub(crate) type SvbStartVideoCapture = unsafe extern "C" fn(camera_id: c_int) -> c_int;
 pub(crate) type SvbStopVideoCapture = unsafe extern "C" fn(camera_id: c_int) -> c_int;
 pub(crate) type SvbGetVideoData =
     unsafe extern "C" fn(camera_id: c_int, buf: *mut u8, buf_size: c_long, wait_ms: c_int) -> c_int;
 pub(crate) type SvbGetSdkVersion = unsafe extern "C" fn() -> *const c_char;
+pub(crate) type SvbSetCameraMode = unsafe extern "C" fn(camera_id: c_int, mode: c_int) -> c_int;
+pub(crate) type SvbSendSoftTrigger = unsafe extern "C" fn(camera_id: c_int) -> c_int;
 
 /// Candidate paths for the SVBony camera SDK, in search order.
 pub(crate) fn svbony_candidate_paths() -> Vec<std::path::PathBuf> {
@@ -105,23 +105,24 @@ crate::load_vendor_sdk! {
         set_roi_format: b"SVBSetROIFormat\0" => SvbSetROIFormat,
         get_roi_format: b"SVBGetROIFormat\0" => SvbGetROIFormat,
         set_output_image_type: b"SVBSetOutputImageType\0" => SvbSetOutputImageType,
-        get_output_image_type: b"SVBGetOutputImageType\0" => SvbGetOutputImageType,
         start_video_capture: b"SVBStartVideoCapture\0" => SvbStartVideoCapture,
         stop_video_capture: b"SVBStopVideoCapture\0" => SvbStopVideoCapture,
         get_video_data: b"SVBGetVideoData\0" => SvbGetVideoData,
         get_sdk_version: b"SVBGetSDKVersion\0" => SvbGetSdkVersion,
+    },
+    optional_symbols: {
+        // Present in SDK 1.13.4 (the INDI copy); a build without them gets
+        // free-running video frames instead of one triggered frame.
+        set_camera_mode: b"SVBSetCameraMode\0" => SvbSetCameraMode,
+        send_soft_trigger: b"SVBSendSoftTrigger\0" => SvbSendSoftTrigger,
     }
 }
 
-pub(crate) fn svb_control_value_to_i32(value: i64, label: &str) -> Result<i32, NativeError> {
+pub(crate) fn svb_control_value_to_i32(value: i64, label: &str) -> Result<i32, DriverError> {
     i32::try_from(value).map_err(|_| {
-        NativeError::SdkError(format!(
+        DriverError::SdkError(format!(
             "SVBony SDK returned out-of-range {} value: {}",
             label, value
         ))
     })
-}
-
-pub(crate) fn get_sdk() -> Result<&'static SvbonySdk, NativeError> {
-    SvbonySdk::get_or_reason().map_err(|reason| NativeError::SdkError(reason.to_string()))
 }

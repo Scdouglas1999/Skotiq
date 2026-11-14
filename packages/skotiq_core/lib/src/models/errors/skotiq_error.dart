@@ -4,48 +4,40 @@
 /// providing structured error information across FFI and network boundaries.
 library;
 
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show LinkVersion, LinkVersionMismatch;
+import '../../errors/error_text_kind.dart';
+
 /// Backend error category classifications.
 ///
 /// These categories match the Rust `SkotiqError::error_category()` values.
 enum BackendErrorCategory {
-  /// Connection/discovery errors
   connection,
 
-  /// Hardware-level errors
   hardware,
 
-  /// Timeout errors
   timeout,
 
-  /// Input validation errors
   validation,
 
-  /// Unsupported operation errors
   unsupported,
 
-  /// Device busy errors
   busy,
 
-  /// Imaging/camera errors
   imaging,
 
-  /// File I/O errors
   io,
 
-  /// Sequence execution errors
   sequence,
 
   /// Driver-specific errors (ASCOM, Alpaca, INDI, native)
   driver,
 
-  /// System/internal errors
   system,
 
-  /// Unknown error category
   unknown,
 }
 
-/// Extension for parsing backend error category from strings
 extension BackendErrorCategoryParsing on BackendErrorCategory {
   static BackendErrorCategory fromString(String value) {
     return switch (value.toLowerCase()) {
@@ -89,7 +81,6 @@ class SkotiqError implements Exception {
   /// Whether reconnection to the device should be attempted
   final bool shouldReconnect;
 
-  /// Whether this was a timeout error
   final bool isTimeout;
 
   /// Device ID if error is device-related
@@ -133,7 +124,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'category': category.name,
     'message': message,
@@ -145,87 +135,44 @@ class SkotiqError implements Exception {
     'error_code': errorCode,
   };
 
-  /// Parse error from a string message (for backward compatibility)
-  ///
-  /// This attempts to extract structure from legacy string-based errors.
-  /// Prefer using [fromJson] when structured error data is available.
+  /// An error that carries no category of its own (a Dart exception, a plain
+  /// native or host message), classified from its text. The one reading of
+  /// error text: `DeviceError.fromException` and the FFI backend's fallback
+  /// both come here. Prefer [fromJson] when structured data is available.
   factory SkotiqError.fromString(String message) {
-    // Try to detect category from common patterns
-    final lowerMessage = message.toLowerCase();
-
-    BackendErrorCategory category = BackendErrorCategory.unknown;
-    bool isRecoverable = false;
-    bool shouldReconnect = false;
-    bool isTimeout = false;
-    String? deviceId;
-
-    // Detect timeout errors
-    if (lowerMessage.contains('timeout') ||
-        lowerMessage.contains('timed out')) {
-      category = BackendErrorCategory.timeout;
-      isTimeout = true;
-      isRecoverable = true;
-    }
-    // Detect connection errors
-    else if (lowerMessage.contains('not connected') ||
-        lowerMessage.contains('connection failed') ||
-        lowerMessage.contains('disconnected')) {
-      category = BackendErrorCategory.connection;
-      shouldReconnect = true;
-      isRecoverable = true;
-    }
-    // Detect hardware errors
-    else if (lowerMessage.contains('hardware') ||
-        lowerMessage.contains('communication error')) {
-      category = BackendErrorCategory.hardware;
-      isRecoverable = true;
-    }
-    // Detect busy errors
-    else if (lowerMessage.contains('busy')) {
-      category = BackendErrorCategory.busy;
-      isRecoverable = true;
-    }
-    // Detect validation errors
-    else if (lowerMessage.contains('invalid') ||
-        lowerMessage.contains('out of range')) {
-      category = BackendErrorCategory.validation;
-    }
-    // Detect unsupported operations
-    else if (lowerMessage.contains('not supported') ||
-        lowerMessage.contains('unsupported')) {
-      category = BackendErrorCategory.unsupported;
-    }
-    // Detect imaging errors
-    else if (lowerMessage.contains('exposure') ||
-        lowerMessage.contains('camera') ||
-        lowerMessage.contains('image')) {
-      category = BackendErrorCategory.imaging;
-    }
-    // Detect driver errors
-    else if (lowerMessage.contains('ascom') ||
-        lowerMessage.contains('alpaca') ||
-        lowerMessage.contains('indi')) {
-      category = BackendErrorCategory.driver;
-    }
-
-    // Try to extract device ID from common patterns (simplified regex)
-    final deviceRegex = RegExp(r'device:\s*(\S+)', caseSensitive: false);
-    final deviceMatch = deviceRegex.firstMatch(message);
-    if (deviceMatch != null) {
-      deviceId = deviceMatch.group(1);
-    }
-
+    final (category, recoverable, reconnect) = switch (classifyErrorText(
+      message,
+    )) {
+      ErrorTextKind.timeout => (BackendErrorCategory.timeout, true, false),
+      ErrorTextKind.connection => (BackendErrorCategory.connection, true, true),
+      ErrorTextKind.notFound => (BackendErrorCategory.connection, false, false),
+      ErrorTextKind.permission => (BackendErrorCategory.system, false, false),
+      ErrorTextKind.busy => (BackendErrorCategory.busy, true, false),
+      ErrorTextKind.hardware => (BackendErrorCategory.hardware, true, false),
+      ErrorTextKind.invalid => (BackendErrorCategory.validation, false, false),
+      ErrorTextKind.unsupported => (
+        BackendErrorCategory.unsupported,
+        false,
+        false,
+      ),
+      ErrorTextKind.imaging => (BackendErrorCategory.imaging, false, false),
+      ErrorTextKind.driver => (BackendErrorCategory.driver, false, false),
+      ErrorTextKind.unknown => (BackendErrorCategory.unknown, false, false),
+    };
+    final deviceMatch = RegExp(
+      r'device:\s*(\S+)',
+      caseSensitive: false,
+    ).firstMatch(message);
     return SkotiqError(
       category: category,
       message: message,
-      isRecoverable: isRecoverable,
-      shouldReconnect: shouldReconnect,
-      isTimeout: isTimeout,
-      deviceId: deviceId,
+      isRecoverable: recoverable,
+      shouldReconnect: reconnect,
+      isTimeout: category == BackendErrorCategory.timeout,
+      deviceId: deviceMatch?.group(1),
     );
   }
 
-  /// Create from a generic exception
   factory SkotiqError.fromException(
     Object exception, [
     StackTrace? stackTrace,
@@ -236,9 +183,6 @@ class SkotiqError implements Exception {
     return SkotiqError.fromString(exception.toString());
   }
 
-  // Convenience constructors
-
-  /// Create a device not found error
   factory SkotiqError.deviceNotFound(String deviceId) {
     return SkotiqError(
       category: BackendErrorCategory.connection,
@@ -248,7 +192,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a connection failed error
   factory SkotiqError.connectionFailed(String deviceId, String reason) {
     return SkotiqError(
       category: BackendErrorCategory.connection,
@@ -260,7 +203,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a device not connected error
   factory SkotiqError.notConnected(String deviceId) {
     return SkotiqError(
       category: BackendErrorCategory.connection,
@@ -271,7 +213,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a device disconnected error
   factory SkotiqError.deviceDisconnected(String deviceId, String reason) {
     return SkotiqError(
       category: BackendErrorCategory.connection,
@@ -283,7 +224,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a timeout error
   factory SkotiqError.timeout(
     String operation, {
     String? deviceId,
@@ -302,7 +242,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create an operation not supported error
   factory SkotiqError.notSupported(String deviceId, String operation) {
     return SkotiqError(
       category: BackendErrorCategory.unsupported,
@@ -312,7 +251,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a device busy error
   factory SkotiqError.deviceBusy(String deviceId, String currentOperation) {
     return SkotiqError(
       category: BackendErrorCategory.busy,
@@ -323,7 +261,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a hardware error
   factory SkotiqError.hardwareError(
     String deviceId,
     String message, {
@@ -339,7 +276,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create a cancelled operation error
   factory SkotiqError.cancelled() {
     return const SkotiqError(
       category: BackendErrorCategory.system,
@@ -348,7 +284,6 @@ class SkotiqError implements Exception {
     );
   }
 
-  /// Create an internal error
   factory SkotiqError.internal(String message) {
     return SkotiqError(
       category: BackendErrorCategory.system,
@@ -356,15 +291,10 @@ class SkotiqError implements Exception {
     );
   }
 
-  // Classification methods
-
-  /// Whether this is a hardware-level error
   bool get isHardwareError => category == BackendErrorCategory.hardware;
 
-  /// Whether this is an unsupported operation error
   bool get isNotSupported => category == BackendErrorCategory.unsupported;
 
-  /// Whether this is a validation/input error
   bool get isValidationError => category == BackendErrorCategory.validation;
 
   /// Whether this is a cancellation (not really an error)
@@ -409,4 +339,20 @@ class ServerIdentityMismatchError extends SkotiqError {
          isRecoverable: false,
          shouldReconnect: false,
        );
+}
+
+/// The host runs another Skotiq release than this client, so the client does
+/// not link ([LinkVersion]). Terminal until one side is updated: reconnecting
+/// cannot help.
+class HostVersionMismatchError extends SkotiqError {
+  HostVersionMismatchError(this.mismatch)
+    : super(
+        category: BackendErrorCategory.connection,
+        message: 'Host version mismatch: ${mismatch.message}',
+        userMessage: mismatch.message,
+        isRecoverable: false,
+        shouldReconnect: false,
+      );
+
+  final LinkVersionMismatch mismatch;
 }

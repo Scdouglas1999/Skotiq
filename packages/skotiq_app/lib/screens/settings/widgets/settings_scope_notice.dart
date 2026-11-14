@@ -1,55 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Where a Settings section's values live on a linked client.
-enum SettingsScope { imagingHost, thisDevice }
+import '../../../router/settings_sections.dart';
 
-/// Sections whose values belong to the device showing them: its look, what
-/// it draws over a frame, its own link to the host, its help and its own app
-/// version. Every other section reads and writes the imaging host's settings.
-/// A section listed here keeps only keys in `deviceLocalSettingKeys`.
-const Set<String> _thisDeviceSections = {
-  'appearance',
-  'annotations',
-  'connection',
-  'help',
-  'about',
-  'updates',
-  'replay-debug',
-};
-
-SettingsScope settingsScopeFor(String sectionKey) =>
-    _thisDeviceSections.contains(sectionKey)
-        ? SettingsScope.thisDevice
-        : SettingsScope.imagingHost;
-
-/// On a linked client, one line above a Settings section saying whose
-/// settings these are. Shows nothing on the machine that owns the rig.
+/// On a linked client, one line above a Settings section, or above one group
+/// of a section that keeps groups in both places, saying whose settings these
+/// are. Shows nothing on the machine that owns the rig.
 class SettingsScopeNotice extends ConsumerWidget {
-  const SettingsScopeNotice({super.key, required this.sectionKey});
+  const SettingsScopeNotice({
+    super.key,
+    required this.onHost,
+    this.padding = EdgeInsets.zero,
+  });
 
-  final String sectionKey;
+  /// The line above [section]; nothing for a section that labels each of its
+  /// groups.
+  static Widget forSection(SettingsSectionId section) {
+    const padding = EdgeInsets.fromLTRB(
+      SkotiqTokens.spaceLg,
+      SkotiqTokens.spaceMd,
+      SkotiqTokens.spaceLg,
+      0,
+    );
+    return switch (section.scope) {
+      SettingsScope.imagingHost =>
+        const SettingsScopeNotice(onHost: true, padding: padding),
+      SettingsScope.thisDevice =>
+        const SettingsScopeNotice(onHost: false, padding: padding),
+      SettingsScope.eachGroup => const SizedBox.shrink(),
+    };
+  }
+
+  /// Whether these settings are stored on the imaging host rather than on
+  /// this device.
+  final bool onHost;
+
+  /// Space around the line when it shows.
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final backend = ref.watch(backendProvider);
-    if (backend is! NetworkBackend) return const SizedBox.shrink();
+    final hostLink = ref.watch(linkedHostLinkProvider);
+    if (hostLink == null) return const SizedBox.shrink();
     final colors = SkotiqColors.of(context);
-    final onHost = settingsScopeFor(sectionKey) == SettingsScope.imagingHost;
     final text = onHost
-        ? 'Saved on the imaging host (${backend.serverHost}). A change here '
-            'changes the rig for everyone linked to it.'
-        : 'Saved on this computer only. The imaging host keeps its own.';
+        ? 'Saved on the imaging host (${hostLink.serverHost}). A change '
+            'here changes the rig for everyone linked to it.'
+        : 'Saved on this device only. The imaging host keeps its own.';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        SkotiqTokens.spaceLg,
-        SkotiqTokens.spaceMd,
-        SkotiqTokens.spaceLg,
-        0,
-      ),
+      padding: padding,
       child: Semantics(
         container: true,
         label: text,

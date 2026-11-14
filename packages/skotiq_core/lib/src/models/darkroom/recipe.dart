@@ -1,15 +1,40 @@
 /// The durable non-destructive recipe record — an ordered, parameterized
 /// operation stack replayed over a linear master light.
 ///
-/// A [DarkroomRecipe] maps 1:1 to a row of the raw-DDL `recipes` table (see
-/// `SkotiqDatabase._createDarkroomTables`) and is read/written through the
-/// plain [RecipesDao], mirroring `MosaicProjectsDao` / `CampaignsDao`.
+/// A [DarkroomRecipe] maps 1:1 to a row of the `recipes` table (see
+/// `database/schema/darkroom.drift`) and is read/written through [RecipesDao].
 ///
 /// Naming: `IntegrationSettings` is already called a "recipe" by the A/B
 /// compare panel and the preview-integrate path. That is a DATA-half settings
 /// bundle; this is the INTERPRETATION-half op stack, so the type carries the
 /// `Darkroom` prefix and the two never share a name.
 library;
+
+import 'dart:convert';
+
+/// Wire schema version of the recipe envelope this build writes. It matches
+/// the recipe engine's `RECIPE_SCHEMA_VERSION`; an envelope at any other
+/// version is refused by the engine rather than reinterpreted.
+const int recipeSchemaVersion = 1;
+
+/// The recipe envelope the Darkroom engine's entry points take: [steps] (each
+/// step's JSON) over the master at [baseMasterRef], named [id].
+///
+/// `recipes.steps_json` stores the step array alone and the schema version
+/// has its own column, so the envelope is built for every call rather than
+/// stored twice.
+String encodeRecipeEnvelope({
+  required String id,
+  required String baseMasterRef,
+  required RecipeAuthor author,
+  required List<Object?> steps,
+}) => jsonEncode({
+  'id': id,
+  'schemaVersion': recipeSchemaVersion,
+  'baseMasterRef': baseMasterRef,
+  'createdBy': author.wire,
+  'steps': steps,
+});
 
 /// Who authored a [DarkroomRecipe].
 ///
@@ -108,7 +133,6 @@ class DarkroomRecipe {
   /// owns the op vocabulary and its validation.
   final String stepsJson;
 
-  /// Who authored this recipe.
   final RecipeAuthor createdBy;
 
   /// The `recipes.id` this recipe branched from, or null for a root recipe.
@@ -148,7 +172,6 @@ class DarkroomRecipe {
     required this.updatedAt,
   });
 
-  /// True when this recipe branched from another.
   bool get isBranch => parentRecipeId != null;
 
   DarkroomRecipe copyWith({

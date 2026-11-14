@@ -3,11 +3,18 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
-import '../models/errors/server_error.dart';
+import 'linked_host.dart';
+import 'async_scope.dart';
+import '../errors/error_text.dart';
+import '../backend/remote_host.dart';
+import '../backend/skotiq_backend.dart';
 import '../services/live_stacking_service.dart';
 import '../services/logging_service.dart';
+import '../utils/poll_pace.dart';
 import 'backend_provider.dart';
+import '../models/backend/backend_types.dart';
+import 'live_stacking_service_provider.dart';
+import 'logging_service_provider.dart';
 
 /// Current state of the live stacking session.
 enum LiveStackingStatus {
@@ -132,7 +139,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       // appear under the new connection. A remote host keeps stacking when a
       // companion disconnects, but a local stack owns a process-wide native
       // singleton and must be released before the replacement host can use it.
-      final localService = authority is NetworkBackend ? null : _sessionService;
+      final localService = _sessionService;
       final starting = _startInFlight;
       _invalidateSession();
       state = LiveStackingState(config: state.config);
@@ -189,8 +196,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   /// Cancelling a timer cannot cancel an HTTP/FFI Future already in flight, so
   /// every completion also checks this generation and its backend authority.
   int _sessionGeneration = 0;
-  Object? _sessionAuthority;
-  NetworkBackend? _remoteSessionBackend;
+  SkotiqBackend? _sessionAuthority;
+  HostLiveStack? _remoteSessionBackend;
   LiveStackingService? _sessionService;
   bool _remotePollInFlight = false;
   Future<void>? _startInFlight;
@@ -201,7 +208,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     return mounted &&
         generation == _sessionGeneration &&
         identical(authority, _sessionAuthority) &&
-        identical(authority, _ref.read(backendProvider));
+        _ref.scopeOver<Object>(backendProvider, authority).isCurrent;
   }
 
   void _invalidateSession() {
@@ -241,7 +248,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     if (stopping != null) await stopping;
 
     final backend = _ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final remote = _ref.read(linkedHostLiveStackProvider);
+    if (remote == null) {
       state = state.copyWith(
         status: LiveStackingStatus.error,
         errorMessage: 'Remote live stacking requires a connected imaging host.',
@@ -256,7 +264,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     final effectiveConfig = config ?? state.config;
     final generation = ++_sessionGeneration;
     _sessionAuthority = backend;
-    _remoteSessionBackend = backend;
+    _remoteSessionBackend = remote;
     _sessionService = null;
     _hadRemoteResult = false;
     _consecutivePollFailures = 0;
@@ -265,7 +273,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       config: effectiveConfig,
     );
     try {
-      final stats = await backend.stackingStart(config: effectiveConfig);
+      final stats = await remote.stackingStart(config: effectiveConfig);
       if (!_isCurrentSession(generation, backend)) return;
       state = state.copyWith(stats: stats);
       _logger.info(
@@ -277,7 +285,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       if (!_isCurrentSession(generation, backend)) return;
       state = state.copyWith(
         status: LiveStackingStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: userFacingError(e),
       );
       _logger.error(
         'Failed to arm remote live stacking: $e',
@@ -286,28 +294,30 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
   }
 
-  void _startRemotePolling(int generation, NetworkBackend backend) {
+  void _startRemotePolling(int generation, SkotiqBackend backend) {
     if (!_isCurrentSession(generation, backend)) return;
     _remotePollTimer?.cancel();
     // 2.5s cadence: brisk enough that the preview tracks a typical sub-minute
     // EAA exposure within a frame or two, cheap enough not to flood the LAN
     // with full-frame u16 downloads. Each tick pulls the latest host result.
-    _remotePollTimer = Timer.periodic(
+    _remotePollTimer = pacedPeriodicTimer(
       const Duration(milliseconds: 2500),
-      (_) => _pollRemoteResult(generation, backend),
+      () => _pollRemoteResult(generation, backend),
     );
     unawaited(_pollRemoteResult(generation, backend));
   }
 
-  Future<void> _pollRemoteResult(int generation, NetworkBackend backend) async {
-    if (_remotePollInFlight ||
+  Future<void> _pollRemoteResult(int generation, SkotiqBackend backend) async {
+    final remote = _remoteSessionBackend;
+    if (remote == null ||
+        _remotePollInFlight ||
         !_isCurrentSession(generation, backend) ||
         state.status != LiveStackingStatus.running) {
       return;
     }
     _remotePollInFlight = true;
     try {
-      final result = await backend.stackingGetResult();
+      final result = await remote.stackingGetResult();
       if (!_isCurrentSession(generation, backend) ||
           state.status != LiveStackingStatus.running) {
         return;
@@ -354,19 +364,19 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
 
   /// Retry a failed remote preview poll without restarting the host stack.
   void retryRemotePolling() {
-    final backend = _remoteSessionBackend;
+    final remote = _remoteSessionBackend;
     final authority = _sessionAuthority;
-    if (backend == null ||
+    if (remote == null ||
         authority == null ||
         state.status != LiveStackingStatus.running ||
-        !identical(backend, authority) ||
-        !identical(authority, _ref.read(backendProvider))) {
+        !identical(remote, _ref.read(linkedHostLiveStackProvider)) ||
+        _ref.backendScopeOver(authority).isStale) {
       return;
     }
     _consecutivePollFailures = 0;
     state = state.copyWith(clearErrorMessage: true);
     final generation = _sessionGeneration;
-    _startRemotePolling(generation, backend);
+    _startRemotePolling(generation, authority);
   }
 
   /// Start a new live stacking session from a reference image file.
@@ -392,8 +402,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
     final generation = ++_sessionGeneration;
     _sessionAuthority = authority;
-    _remoteSessionBackend = authority is NetworkBackend ? authority : null;
-    final service = authority is NetworkBackend ? null : _service;
+    final remote = _ref.read(linkedHostLiveStackProvider);
+    _remoteSessionBackend = remote;
+    final service = remote != null ? null : _service;
     _sessionService = service;
     final effectiveConfig = config ?? state.config;
     state = LiveStackingState(
@@ -402,8 +413,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     );
 
     try {
-      final stats = authority is NetworkBackend
-          ? await authority.stackingStart(
+      final stats = remote != null
+          ? await remote.stackingStart(
               referencePath: referenceImagePath,
               config: effectiveConfig,
             )
@@ -428,8 +439,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       // itself. Without this the reference shows no preview until the second
       // frame lands, and the auto-feed broadcast would have no image to
       // publish for the very first accepted frame.
-      final result = authority is NetworkBackend
-          ? await authority.stackingGetResult()
+      final result = remote != null
+          ? await remote.stackingGetResult()
           : await service!.getCurrentResult();
       if (!_isCurrentSession(generation, authority)) return;
       state = state.copyWith(
@@ -447,13 +458,39 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       if (!_isCurrentSession(generation, authority)) return;
       state = state.copyWith(
         status: LiveStackingStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: userFacingError(e),
       );
       _logger.error(
         'Failed to start live stacking: $e',
         source: 'LiveStackingNotifier',
       );
     }
+  }
+
+  /// Start a new live stacking session aligned to [referencePath], then add
+  /// [framePaths] in order.
+  ///
+  /// Frames that are already on disk join the stack here; frames captured
+  /// afterwards arrive through [addFrameFromFile] as usual. A Stop or a host
+  /// change ends the catch-up after the frame in flight.
+  Future<void> startFromFrames(
+    String referencePath,
+    List<String> framePaths, {
+    LiveStackingConfig? config,
+  }) {
+    return _trackStart(() async {
+      await _startFromFile(referencePath, config: config);
+      final generation = _sessionGeneration;
+      final authority = _sessionAuthority;
+      for (final path in framePaths) {
+        if (authority == null ||
+            !_isCurrentSession(generation, authority) ||
+            state.status != LiveStackingStatus.running) {
+          return;
+        }
+        await addFrameFromFile(path);
+      }
+    });
   }
 
   /// Start a new live stacking session from raw pixel data.
@@ -524,12 +561,11 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       if (!_isCurrentSession(generation, authority)) return;
       state = state.copyWith(
         status: LiveStackingStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: userFacingError(e),
       );
     }
   }
 
-  /// Add a frame to the stack from a file.
   Future<void> addFrameFromFile(String imagePath) async {
     if (state.status != LiveStackingStatus.running) return;
     final generation = _sessionGeneration;
@@ -657,7 +693,6 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     state = state.copyWith(stats: stats);
   }
 
-  /// Update the stacking configuration.
   void updateConfig(LiveStackingConfig config) {
     state = state.copyWith(config: config);
   }
@@ -694,16 +729,18 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       // Rebuild from scratch (preserving config) so per-frame counters drop
       // back to zero alongside the cleared cumulative stats.
       state = LiveStackingState(status: state.status, config: state.config);
-      if (remote != null) _startRemotePolling(generation, remote);
+      if (remote != null) _startRemotePolling(generation, authority);
     } catch (e) {
       if (!_isCurrentSession(generation, authority)) return;
       _logger.error(
         'Failed to reset stacker: $e',
         source: 'LiveStackingNotifier',
       );
-      state = state.copyWith(errorMessage: 'Failed to reset stack: $e');
+      state = state.copyWith(
+        errorMessage: 'Failed to reset stack: ${userFacingError(e)}',
+      );
       final remote = _remoteSessionBackend;
-      if (remote != null) _startRemotePolling(generation, remote);
+      if (remote != null) _startRemotePolling(generation, authority);
     }
   }
 
@@ -748,7 +785,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       if (mounted &&
           generation == _sessionGeneration &&
           identical(authority, _sessionAuthority)) {
-        state = state.copyWith(errorMessage: 'Failed to stop stack: $e');
+        state = state.copyWith(
+          errorMessage: 'Failed to stop stack: ${userFacingError(e)}',
+        );
       }
       return;
     }
@@ -767,7 +806,6 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   }
 }
 
-/// Provider for the live stacking state.
 final liveStackingProvider =
     StateNotifierProvider<LiveStackingNotifier, LiveStackingState>((ref) {
       return LiveStackingNotifier(ref);

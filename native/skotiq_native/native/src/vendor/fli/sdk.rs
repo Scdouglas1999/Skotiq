@@ -65,7 +65,6 @@ pub(crate) type FLISetFilterPos = unsafe extern "C" fn(dev: FliDev, filter: c_lo
 pub(crate) type FLIGetFilterPos = unsafe extern "C" fn(dev: FliDev, filter: *mut c_long) -> c_long;
 pub(crate) type FLIGetFilterCount =
     unsafe extern "C" fn(dev: FliDev, filter: *mut c_long) -> c_long;
-pub(crate) type FLIStepMotor = unsafe extern "C" fn(dev: FliDev, steps: c_long) -> c_long;
 pub(crate) type FLIStepMotorAsync = unsafe extern "C" fn(dev: FliDev, steps: c_long) -> c_long;
 pub(crate) type FLIGetStepperPosition =
     unsafe extern "C" fn(dev: FliDev, position: *mut c_long) -> c_long;
@@ -75,32 +74,41 @@ pub(crate) type FLIGetFocuserExtent =
     unsafe extern "C" fn(dev: FliDev, extent: *mut c_long) -> c_long;
 pub(crate) type FLIReadTemperature =
     unsafe extern "C" fn(dev: FliDev, channel: c_long, temperature: *mut c_double) -> c_long;
-pub(crate) type FLIEndExposure = unsafe extern "C" fn(dev: FliDev) -> c_long;
+pub(crate) type FLIGetFilterName =
+    unsafe extern "C" fn(dev: FliDev, filter: c_long, name: *mut c_char, len: usize) -> c_long;
+
+/// Library file names for libfli, in search order.
+///
+/// FLI's Windows SDK ships the 64-bit library as `libfli64.dll` (NINA renames
+/// it to `libfli.dll`). The INDI packages for Debian, Ubuntu and Raspberry Pi
+/// OS install only the versioned `libfli.so.2` (`libfli.so` comes with the
+/// -dev package), and older ones `libfli.so.1`.
+fn fli_library_names() -> &'static [&'static str] {
+    if cfg!(target_os = "windows") {
+        &["libfli.dll", "libfli64.dll"]
+    } else if cfg!(target_os = "macos") {
+        &["libfli.dylib", "libfli.2.dylib"]
+    } else {
+        &["libfli.so", "libfli.so.2", "libfli.so.1"]
+    }
+}
 
 /// Candidate paths for libfli, in search order.
 pub(crate) fn fli_candidate_paths() -> Vec<std::path::PathBuf> {
-    let lib_name = if cfg!(target_os = "windows") {
-        "libfli.dll"
+    let names = fli_library_names();
+    let dirs: &[&str] = if cfg!(target_os = "linux") {
+        &["/usr/lib", "/usr/local/lib"]
     } else if cfg!(target_os = "macos") {
-        "libfli.dylib"
+        &["/usr/local/lib", "/opt/homebrew/lib"]
     } else {
-        "libfli.so"
+        &[]
     };
-    let system_paths = if cfg!(target_os = "linux") {
-        vec![
-            format!("/usr/lib/{lib_name}"),
-            format!("/usr/local/lib/{lib_name}"),
-        ]
-    } else if cfg!(target_os = "macos") {
-        vec![
-            format!("/usr/local/lib/{lib_name}"),
-            format!("/opt/homebrew/lib/{lib_name}"),
-        ]
-    } else {
-        Vec::new()
-    };
+    let system_paths = dirs
+        .iter()
+        .flat_map(|dir| names.iter().map(move |name| format!("{dir}/{name}")))
+        .collect::<Vec<_>>();
     let system_path_refs = system_paths.iter().map(String::as_str).collect::<Vec<_>>();
-    crate::vendor::sdk_loader::vendor_library_candidates(&[lib_name], &system_path_refs)
+    crate::vendor::sdk_loader::vendor_library_candidates(names, &system_path_refs)
 }
 
 crate::load_vendor_sdk! {
@@ -138,18 +146,13 @@ crate::load_vendor_sdk! {
         set_filter_pos: b"FLISetFilterPos\0" => FLISetFilterPos,
         get_filter_pos: b"FLIGetFilterPos\0" => FLIGetFilterPos,
         get_filter_count: b"FLIGetFilterCount\0" => FLIGetFilterCount,
-        step_motor: b"FLIStepMotor\0" => FLIStepMotor,
         step_motor_async: b"FLIStepMotorAsync\0" => FLIStepMotorAsync,
         get_stepper_position: b"FLIGetStepperPosition\0" => FLIGetStepperPosition,
         get_steps_remaining: b"FLIGetStepsRemaining\0" => FLIGetStepsRemaining,
         get_focuser_extent: b"FLIGetFocuserExtent\0" => FLIGetFocuserExtent,
         read_temperature: b"FLIReadTemperature\0" => FLIReadTemperature,
-        end_exposure: b"FLIEndExposure\0" => FLIEndExposure,
+        get_filter_name: b"FLIGetFilterName\0" => FLIGetFilterName,
     }
-}
-
-pub(crate) fn get_sdk() -> Result<&'static FliSdk, NativeError> {
-    FliSdk::get_or_reason().map_err(|reason| NativeError::SdkError(reason.to_string()))
 }
 
 /// What one libfli return code means for a call that asks a device to do
@@ -189,18 +192,40 @@ pub(crate) fn fli_capability_answer(result: c_long) -> FliCapabilityAnswer {
     }
 }
 
-pub(crate) fn check_fli_error(result: c_long, context: &str) -> Result<(), NativeError> {
+/// What a libfli failure code means, in words a user can act on. libfli
+/// returns negative errno values; the C runtimes agree on the small ones and
+/// differ on ETIMEDOUT (110 with glibc and macOS 60, 138 with MSVC).
+pub(crate) fn fli_error_text(code: c_long) -> String {
+    let meaning = match -code {
+        5 => Some("the device did not answer over USB"),
+        6 | 19 => Some("the device is not attached; check the USB cable and its power"),
+        13 | 16 => Some("the device is in use by another program"),
+        12 => Some("libfli ran out of memory"),
+        60 | 110 | 138 => Some("the device timed out"),
+        22 => Some("the device refused the request"),
+        _ => None,
+    };
+    match meaning {
+        Some(meaning) => format!("{meaning} (libfli code {code})"),
+        None => format!("libfli code {code}"),
+    }
+}
+
+pub(crate) fn check_fli_error(result: c_long, context: &str) -> Result<(), DriverError> {
     if result == 0 {
         Ok(())
     } else {
-        tracing::error!(
-            "FLI SDK error during '{}': error code {}. Check device connection and driver installation.",
-            context, result
-        );
-        Err(NativeError::SdkError(format!(
-            "FLI {}: error code {}. Ensure device is connected and libfli driver is installed.",
-            context, result
-        )))
+        let text = fli_error_text(result);
+        tracing::error!("FLI {} failed: {}", context, text);
+        let detail = format!("FLI {context} failed: {text}");
+        Err(match -result {
+            // Not attached: the caller reconnects it. The words are logged above;
+            // the bridge names the device in its not-connected message.
+            6 | 19 => DriverError::Disconnected,
+            60 | 110 | 138 => DriverError::Timeout(detail),
+            22 => DriverError::InvalidParameter(detail),
+            _ => DriverError::SdkError(detail),
+        })
     }
 }
 
@@ -209,7 +234,34 @@ pub(crate) fn close_fli_handle(sdk: &FliSdk, handle: &mut FliDev) {
         return;
     }
 
-    // SAFETY: caller holds fli_mutex and handle was returned by a successful FLIOpen.
+    // SAFETY: the caller passes the table from its SDK guard and handle was returned by a successful FLIOpen.
     unsafe { (sdk.close)(*handle) };
     *handle = FLI_INVALID_DEVICE;
+}
+
+#[cfg(test)]
+mod error_kind_tests {
+    use super::*;
+
+    /// A camera pulled off the bus is a lost device the run reconnects; a
+    /// timeout and a refused value keep their own kinds and libfli's meaning.
+    #[test]
+    fn libfli_codes_reach_callers_as_the_failure_they_name() {
+        assert!(matches!(
+            check_fli_error(-19, "expose"),
+            Err(DriverError::Disconnected)
+        ));
+        assert!(matches!(
+            check_fli_error(-110, "download"),
+            Err(DriverError::Timeout(text)) if text.contains("the device timed out")
+        ));
+        assert!(matches!(
+            check_fli_error(-22, "set gain"),
+            Err(DriverError::InvalidParameter(text)) if text.contains("refused the request")
+        ));
+        assert!(matches!(
+            check_fli_error(-5, "expose"),
+            Err(DriverError::SdkError(text)) if text.contains("did not answer over USB")
+        ));
+    }
 }

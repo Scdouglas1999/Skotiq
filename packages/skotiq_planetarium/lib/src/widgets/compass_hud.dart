@@ -10,10 +10,8 @@ class CompassHud extends StatelessWidget {
   /// Current altitude in degrees (0 = horizon, 90 = zenith)
   final double altitude;
 
-  /// Size of the compass widget
   final double size;
 
-  /// Whether to show the altitude arc
   final bool showAltitude;
 
   const CompassHud({
@@ -56,7 +54,6 @@ class _CompassHudPainter extends CustomPainter {
     final compassRadius = size.height / 2 - 4;
     final compassCenter = Offset(compassRadius + 4, size.height / 2);
 
-    // Background circle
     final bgPaint = Paint()
       ..color = ImageOverlayColors.shadow.withValues(alpha: 0.6)
       ..style = PaintingStyle.fill;
@@ -69,16 +66,13 @@ class _CompassHudPainter extends CustomPainter {
       ..strokeWidth = 1.5;
     canvas.drawCircle(compassCenter, compassRadius, ringPaint);
 
-    // Cardinal direction markers
     _drawCardinalMarkers(canvas, compassCenter, compassRadius);
 
     // Direction indicator (triangle pointing to current azimuth)
     _drawDirectionIndicator(canvas, compassCenter, compassRadius);
 
-    // Azimuth text
     _drawAzimuthText(canvas, compassCenter);
 
-    // Altitude arc (if enabled)
     if (showAltitude) {
       _drawAltitudeArc(canvas, size, compassCenter, compassRadius);
     }
@@ -198,7 +192,6 @@ class _CompassHudPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawRRect(bgRect, bgPaint);
 
-    // Border
     final borderPaint = Paint()
       ..color = ImageOverlayColors.foreground.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
@@ -214,7 +207,6 @@ class _CompassHudPainter extends CustomPainter {
     for (final alt in [0, 30, 60, 90]) {
       final y = arcTop + arcHeight - (alt / 90 * arcHeight);
 
-      // Tick
       canvas.drawLine(
         Offset(arcLeft, y),
         Offset(arcLeft + 4, y),
@@ -263,7 +255,6 @@ class _CompassHudPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawRect(fillRect, fillPaint);
 
-    // Altitude value
     final altText = '${altitude.round()}°';
     final altTextPainter = TextPainter(
       text: TextSpan(

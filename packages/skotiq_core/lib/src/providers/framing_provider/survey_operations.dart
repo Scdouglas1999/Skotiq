@@ -103,17 +103,20 @@ extension _FramingSurveyOperations on FramingNotifier {
         isLoadingImage: false,
         imageError: 'Survey image fetch timed out - retry?',
       );
-      developer.log(
+      Log.warning(
         'FramingProvider: ${e.message}',
-        name: 'FramingProvider',
-        level: 900,
+        source: 'FramingProvider',
         error: e,
       );
     } catch (e) {
       if (!_isCurrentSurveyRequest(token, target, source)) return;
       _currentState = _currentState.copyWith(
         isLoadingImage: false,
-        imageError: 'Error: ${e.toString()}',
+        // Every route has failed by now, so a connection failure means none
+        // of the survey servers answered, not just the host the last one hit.
+        imageError: e is SocketException
+            ? 'Survey image unavailable: could not reach the survey servers.'
+            : failureText('Survey image unavailable', e),
       );
     }
   }
@@ -245,10 +248,9 @@ extension _FramingSurveyOperations on FramingNotifier {
       );
       return true;
     } catch (e, stack) {
-      developer.log(
+      Log.warning(
         'FramingProvider: offline cache read failed; falling back to network: $e',
-        name: 'FramingProvider',
-        level: 900,
+        source: 'FramingProvider',
         error: e,
         stackTrace: stack,
       );
@@ -311,10 +313,9 @@ extension _FramingSurveyOperations on FramingNotifier {
       meta['fovHeightDeg'] = fovHeightDeg;
       await file.writeAsString(jsonEncode(meta), flush: true);
     } catch (e, stack) {
-      developer.log(
+      Log.warning(
         'FramingProvider: failed to record request FOV in cache metadata: $e',
-        name: 'FramingProvider',
-        level: 900,
+        source: 'FramingProvider',
         error: e,
         stackTrace: stack,
       );
@@ -448,22 +449,20 @@ extension _FramingSurveyOperations on FramingNotifier {
       }
       final fov = optical.fieldOfView;
       if (fov == null) {
-        developer.log(
+        Log.warning(
           'Cannot compute profile FOV: optical config lacks focal length or '
           'camera sensor specs (focalLength=${optical.focalLength}, '
           'sensorWidth=${optical.sensorWidth}, sensorHeight=${optical.sensorHeight}, '
           'pixelSize=${optical.pixelSize}).',
-          name: 'Framing',
-          level: 900,
+          source: 'Framing',
         );
         return null;
       }
       return fov;
     } catch (error, stack) {
-      developer.log(
+      Log.error(
         'Failed to compute framing FOV from active profile.',
-        name: 'Framing',
-        level: 1000,
+        source: 'Framing',
         error: error,
         stackTrace: stack,
       );

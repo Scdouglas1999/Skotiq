@@ -1,13 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
-import '../utils/device_type_parser.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for equipment status and capabilities endpoints
-class EquipmentHandlers {
+class EquipmentHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    EquipmentApi.cameraStatus: handleCameraStatus,
+    EquipmentApi.mountStatus: handleMountStatus,
+    EquipmentApi.focuserStatus: handleFocuserStatus,
+    EquipmentApi.filterWheelStatus: handleFilterWheelStatus,
+    EquipmentApi.rotatorStatus: handleRotatorStatus,
+    EquipmentApi.cameraCapabilities: handleCameraCapabilities,
+    EquipmentApi.mountCapabilities: handleMountCapabilities,
+    EquipmentApi.focuserCapabilities: handleFocuserCapabilities,
+    EquipmentApi.filterWheelCapabilities: handleFilterWheelCapabilities,
+    EquipmentApi.rotatorCapabilities: handleRotatorCapabilities,
+    EquipmentApi.deviceQuirks: handleDeviceQuirks,
+    EquipmentApi.getDeviceHealth: handleGetDeviceHealth,
+  };
+
   final ProviderContainer container;
   EquipmentHandlers(this.container, {DateTime Function()? now})
     : _now = now ?? DateTime.now;
@@ -45,10 +62,15 @@ class EquipmentHandlers {
     return json;
   }
 
-  LoggingService get _logger => container.read(loggingServiceProvider);
-
-  void _logInfo(String message) =>
-      _logger.info(message, source: 'EquipmentHandlers');
+  /// Drop every shared status read, so the next status request reads the
+  /// device again.
+  ///
+  /// Called after any command request and on every equipment event. A slave
+  /// reads a focuser's status, moves it, then reads it again to confirm the
+  /// move; inside [statusShareWindow] that second read was answered with the
+  /// first, from before the move, so the slave reported a stall and wrote the
+  /// old position over the host's `FocuserMoveCompleted` event.
+  void forgetSharedStatus() => _sharedStatus.clear();
 
   /// Reads the required `deviceId` query parameter, rejecting a missing or
   /// empty value with a structured 400 rather than letting an empty id reach
@@ -64,8 +86,6 @@ class EquipmentHandlers {
     }
     return deviceId;
   }
-
-  // Equipment status
 
   Future<Response> handleCameraStatus(Request request) async {
     final deviceId = _requireDeviceId(request);
@@ -122,8 +142,6 @@ class EquipmentHandlers {
     );
   }
 
-  // Equipment capabilities
-
   Future<Response> handleCameraCapabilities(Request request) async {
     final deviceId = _requireDeviceId(request);
     final backend = container.read(deviceBackendProvider);
@@ -134,6 +152,19 @@ class EquipmentHandlers {
       });
     }
     return jsonOk(caps.toJson());
+  }
+
+  /// GET /api/equipment/quirks?deviceId=… — the workarounds the host's
+  /// drivers apply to one of its connected devices.
+  Future<Response> handleDeviceQuirks(Request request) async {
+    final deviceId = _requireDeviceId(request);
+    final backend = container.read(backendProvider);
+    final quirks = backend is DeviceQuirksBackend
+        ? await (backend as DeviceQuirksBackend).deviceQuirks(deviceId)
+        : const <DeviceQuirk>[];
+    return jsonOk({
+      'quirks': [for (final quirk in quirks) quirk.toJson()],
+    });
   }
 
   Future<Response> handleMountCapabilities(Request request) async {
@@ -184,61 +215,12 @@ class EquipmentHandlers {
     return jsonOk(caps.toJson());
   }
 
-  // Device health monitoring
-
-  Future<Response> handleStartDeviceHeartbeat(Request request) async {
-    _logInfo('[API] POST /api/device/heartbeat/start');
-    final payload = await readJsonObject(request);
-    final deviceTypeStr = requireString(payload, 'device_type');
-    final deviceId = requireString(payload, 'device_id');
-    final intervalMs = requireInt(payload, 'interval_ms');
-
-    final deviceType = parseDeviceType(deviceTypeStr);
-    if (deviceType == null) {
-      throw BadRequestError(
-        field: 'device_type',
-        expected: 'one of: ${DeviceType.values.map((e) => e.name).join(', ')}',
-        message: 'Invalid device type: $deviceTypeStr',
-      );
-    }
-
-    final backend = container.read(deviceBackendProvider);
-    await backend.startDeviceHeartbeat(
-      deviceType: deviceType,
-      deviceId: deviceId,
-      intervalMs: intervalMs,
-    );
-    return jsonOk({'status': 'started'});
-  }
-
-  Future<Response> handleStopDeviceHeartbeat(Request request) async {
-    _logInfo('[API] POST /api/device/heartbeat/stop');
-    final payload = await readJsonObject(request);
-    final deviceId = requireString(payload, 'device_id');
-
-    final backend = container.read(deviceBackendProvider);
-    await backend.stopDeviceHeartbeat(deviceId);
-    return jsonOk({'status': 'stopped'});
-  }
-
   Future<Response> handleGetDeviceHealth(
     Request request,
     String deviceId,
   ) async {
-    late final String decodedDeviceId;
-    try {
-      decodedDeviceId = Uri.decodeComponent(deviceId);
-    } on FormatException {
-      throw BadRequestError(
-        field: 'deviceId',
-        expected: 'URL-encoded device identifier',
-        message: 'deviceId contains invalid percent encoding',
-      );
-    }
     final backend = container.read(deviceBackendProvider);
-    final (lastComm, isHealthy) = await backend.getDeviceHealth(
-      decodedDeviceId,
-    );
+    final (lastComm, isHealthy) = await backend.getDeviceHealth(deviceId);
     return jsonOk({'last_successful_comm': lastComm, 'is_healthy': isHealthy});
   }
 }

@@ -397,6 +397,46 @@ void main() {
       );
       expect(summary.targetName, isNull);
     });
+
+    test('a session with no target of its own is named for the one target its '
+        'lights were taken on', () async {
+      final targetId = await seedTarget(name: 'NGC 7380');
+      final sessionId = await seedSession();
+      for (var i = 0; i < 2; i++) {
+        await seedFrame(
+          sessionId: sessionId,
+          targetId: targetId,
+          filter: 'L',
+          capturedAt: DateTime.utc(2026, 1, 1, 22, i),
+          fileName: 'l$i.fits',
+        );
+      }
+
+      final summary = await selector.selectForSession(
+        sessionId: sessionId,
+        config: const StackAndShareConfig(),
+      );
+      expect(summary.targetName, 'NGC 7380');
+    });
+
+    test('lights on two targets leave the stack unnamed', () async {
+      final sessionId = await seedSession();
+      for (final (i, name) in [(0, 'M81'), (1, 'M82')]) {
+        await seedFrame(
+          sessionId: sessionId,
+          targetId: await seedTarget(name: name),
+          filter: 'L',
+          capturedAt: DateTime.utc(2026, 1, 1, 22, i),
+          fileName: '$name.fits',
+        );
+      }
+
+      final summary = await selector.selectForSession(
+        sessionId: sessionId,
+        config: const StackAndShareConfig(),
+      );
+      expect(summary.targetName, isNull);
+    });
   });
 
   group('selectForTarget', () {
@@ -452,7 +492,7 @@ void main() {
     test('derives the per-frame reason matching the gate order', () async {
       const config = StackAndShareConfig(minQualityScore: 50);
 
-      final rejected = CapturedImage(
+      final rejected = DbCapturedImage(
         id: 1,
         filePath: '/x',
         fileName: 'x',
@@ -473,7 +513,7 @@ void main() {
         StackExclusionReason.rejected,
       );
 
-      final lowQuality = CapturedImage(
+      final lowQuality = DbCapturedImage(
         id: 2,
         filePath: '/y',
         fileName: 'y',

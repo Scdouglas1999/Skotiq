@@ -9,10 +9,20 @@ import 'package:skotiq_core/src/models/equipment/equipment_models.dart'
     show DeviceConnectionState, ShutterStatus;
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 class _EnvironmentalBackend extends Mock
-    implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {}
+    implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {
+  @override
+  Set<DeviceType> get nativeReconnectedDeviceTypes => const {
+    DeviceType.mount,
+    DeviceType.guider,
+    DeviceType.dome,
+    DeviceType.weather,
+    DeviceType.coverCalibrator,
+  };
+}
 
 class _BackendNotifier extends BackendNotifier {
   _BackendNotifier(super.ref, SkotiqBackend backend) {
@@ -67,7 +77,9 @@ void main() {
         ),
       );
 
-      await container.read(deviceServiceProvider).connectWeather(deviceId);
+      await container
+          .read(deviceServiceProvider)
+          .connect(DeviceType.weather, deviceId);
 
       final state = container.read(weatherStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -94,7 +106,9 @@ void main() {
       ).thenAnswer((_) async {});
 
       await expectLater(
-        container.read(deviceServiceProvider).connectSafetyMonitor(deviceId),
+        container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.safetyMonitor, deviceId),
         throwsA(isA<StateError>()),
       );
 
@@ -126,7 +140,9 @@ void main() {
 
     fakeAsync((async) {
       unawaited(
-        container.read(deviceServiceProvider).connectSafetyMonitor(deviceId),
+        container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.safetyMonitor, deviceId),
       );
       async.elapse(const Duration(seconds: 1));
       expect(
@@ -154,6 +170,45 @@ void main() {
     });
   });
 
+  // A monitor whose driver lost its handle keeps failing every read until
+  // something connects it again, and its native heartbeat never reports the
+  // drop. It is reconnected like any other device.
+  test('a safety monitor whose reads keep failing is reconnected', () {
+    const deviceId = 'simulator:safety-1';
+    var dropped = false;
+    when(
+      () => backend.connectDevice(DeviceType.safetyMonitor, deviceId),
+    ).thenAnswer((_) async => dropped = false);
+    when(() => backend.getHardwareSafetyStatus(deviceId)).thenAnswer((_) async {
+      if (dropped) throw StateError('Simulator safety monitor not connected');
+      return true;
+    });
+
+    fakeAsync((async) {
+      unawaited(
+        container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.safetyMonitor, deviceId),
+      );
+      async.elapse(const Duration(seconds: 1));
+
+      dropped = true;
+      async.elapse(const Duration(seconds: 12));
+      expect(
+        container.read(safetyMonitorStateProvider).connectionState,
+        DeviceConnectionState.error,
+      );
+
+      async.elapse(const Duration(seconds: 20));
+      final state = container.read(safetyMonitorStateProvider);
+      expect(state.connectionState, DeviceConnectionState.connected);
+      expect(state.isSafe, isTrue);
+      verify(
+        () => backend.connectDevice(DeviceType.safetyMonitor, deviceId),
+      ).called(2);
+    });
+  });
+
   // A driver that accepts the status read and never answers would pin
   // `_environmentPollInFlight` for the rest of the process: every later tick
   // returns early, `setError` is never reached, and the safety card keeps
@@ -172,7 +227,9 @@ void main() {
 
     fakeAsync((async) {
       unawaited(
-        container.read(deviceServiceProvider).connectSafetyMonitor(deviceId),
+        container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.safetyMonitor, deviceId),
       );
       async.elapse(const Duration(seconds: 1));
       expect(
@@ -211,7 +268,9 @@ void main() {
         ),
       );
 
-      await container.read(deviceServiceProvider).connectDome(deviceId);
+      await container
+          .read(deviceServiceProvider)
+          .connect(DeviceType.dome, deviceId);
 
       final state = container.read(domeStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -231,7 +290,11 @@ void main() {
       );
 
       fakeAsync((async) {
-        unawaited(container.read(deviceServiceProvider).connectDome(deviceId));
+        unawaited(
+          container
+              .read(deviceServiceProvider)
+              .connect(DeviceType.dome, deviceId),
+        );
         async.elapse(const Duration(seconds: 1));
         expect(
           container.read(domeStateProvider).shutterStatus,
@@ -260,7 +323,11 @@ void main() {
       ).thenAnswer((_) async => const HardwareDomeStatus(azimuth: 12.0));
 
       fakeAsync((async) {
-        unawaited(container.read(deviceServiceProvider).connectDome(deviceId));
+        unawaited(
+          container
+              .read(deviceServiceProvider)
+              .connect(DeviceType.dome, deviceId),
+        );
         async.elapse(const Duration(seconds: 1));
 
         final state = container.read(domeStateProvider);
@@ -274,7 +341,9 @@ void main() {
         () => backend.getHardwareDomeStatus(deviceId),
       ).thenThrow(StateError('dome status unsupported'));
 
-      await container.read(deviceServiceProvider).connectDome(deviceId);
+      await container
+          .read(deviceServiceProvider)
+          .connect(DeviceType.dome, deviceId);
 
       final state = container.read(domeStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);

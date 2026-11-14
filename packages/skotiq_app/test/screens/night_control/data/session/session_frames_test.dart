@@ -8,8 +8,11 @@ import 'package:skotiq_app/screens/night_control/data/session/session_frames_pro
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 import 'session_test_support.dart';
 
@@ -55,15 +58,16 @@ void main() {
         [kSessionId, kNight.millisecondsSinceEpoch ~/ 1000]);
     await h.addFrame(minutes: 1, filter: 'L', accepted: true);
     await h.addFrame(minutes: 2, filter: 'L', accepted: false);
-    h.container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.failed;
-    h.container.read(sequenceTerminalRunResultProvider.notifier).state =
+    h.container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.failed);
+    h.container.read(runRecordProvider.notifier).publishTerminal(
         const SequenceTerminalRunResult(
             generation: 1,
             outcome: SequenceExecutionState.failed,
-            runStatus: 'failed',
+            runStatus: SequenceRunStatus.failed,
             runId: 51,
-            dbSessionId: kSessionId);
+            dbSessionId: kSessionId));
     expect(h.read(sessionStateProvider).dbSessionId, isNull);
     expect(h.read(nightSessionIdProvider), kSessionId);
     final rows = await h.settle(nightSessionLightRowsProvider);
@@ -75,16 +79,16 @@ void main() {
         180);
     final stats = SequenceRunStats()..framesCaptured = 2;
     stats.endTime = stats.startTime.add(const Duration(hours: 8));
-    h.container.read(completedImagingRunProvider.notifier).state =
-        CompletedImagingRun(h.read(sequenceTerminalRunResultProvider)!, stats);
-    h.container.read(sequenceTerminalRunResultProvider.notifier).state =
+    h.container.read(runRecordProvider.notifier).setCompletedImagingRun(
+        CompletedImagingRun(h.read(sequenceTerminalRunResultProvider)!, stats));
+    h.container.read(runRecordProvider.notifier).publishTerminal(
         const SequenceTerminalRunResult(
             generation: 2,
             outcome: SequenceExecutionState.completed,
-            runStatus: 'completed',
+            runStatus: SequenceRunStatus.completed,
             runId: 52,
             dbSessionId: 8,
-            isCalibration: true);
+            isCalibration: true));
     expect(h.read(nightSessionIdProvider), kSessionId);
     expect((await h.settle(nightSessionLightRowsProvider)).length, 2);
     expect(h.read(nightSessionStatsProvider).frameCount, 2);
@@ -95,7 +99,9 @@ void main() {
     final stats = SequenceRunStats();
     stats.endTime = stats.startTime.add(const Duration(hours: 8));
     final h = await sessionHarness(overrides: [
-      liveSequenceStatsProvider.overrideWith((ref) => stats),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(ref, RunRecord(stats: stats)),
+      ),
       nightSessionNowProvider
           .overrideWithValue(stats.startTime.add(const Duration(hours: 12))),
       nightCaptureFreeBytesProvider.overrideWithValue(null),
@@ -168,7 +174,7 @@ void main() {
     final stars = _metric(vm, 'nightSessionMetricStars');
     expect(stars.value, '1200');
     expect(stars.delta, '+50');
-    expect(stars.deltaTone, MetricTone.good);
+    expect(stars.deltaTone, MetricGridTone.good);
     final noise = _metric(vm, 'nightSessionMetricBgSigma');
     expect(noise.delta, '0.0');
   });
@@ -264,10 +270,10 @@ void main() {
       vm.metrics
           .firstWhere((m) => m.label.key == 'nightSessionStatRejected')
           .valueTone,
-      MetricTone.bad,
+      MetricGridTone.bad,
     );
     expect(value('nightSessionStatIntegration'), '12m');
-    expect(value('nightSessionStatDisk'), '639 GB');
+    expect(value('nightSessionStatDisk'), '639 GiB');
     // The run's own counters are the only source for these.
     expect(
       vm.metrics.map((m) => m.label.key),
@@ -285,7 +291,9 @@ void main() {
       ..ditherCount = 28;
     final h = await sessionHarness(
       overrides: <Override>[
-        liveSequenceStatsProvider.overrideWith((ref) => live),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(ref, RunRecord(stats: live)),
+        ),
         nightCaptureFreeBytesProvider.overrideWithValue(null),
       ],
     );
@@ -319,7 +327,9 @@ void main() {
       ..ditherCount = 2;
     final h = await sessionHarness(
       overrides: <Override>[
-        liveSequenceStatsProvider.overrideWith((ref) => live),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(ref, RunRecord(stats: live)),
+        ),
         nightCaptureFreeBytesProvider.overrideWithValue(null),
       ],
     );

@@ -14,7 +14,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/visual_timeline.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 /// 22:00, the anchor every simulation below is built at.
 final DateTime _t0 = DateTime(2026, 9, 13, 22, 0);
@@ -120,10 +122,11 @@ void main() {
       ]);
       addTearDown(container.dispose);
 
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
       container
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
+      container
+          .read(runRecordProvider.notifier)
           .updateProgress(currentNodeId: built.steps[1].id);
       container.listen(ledgerEtaProvider, (_, __) {});
 
@@ -163,10 +166,11 @@ void main() {
       ]);
       addTearDown(container.dispose);
 
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
       container
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
+      container
+          .read(runRecordProvider.notifier)
           .updateProgress(currentNodeId: built.steps[1].id);
       container.listen(ledgerEtaProvider, (_, __) {});
 
@@ -231,8 +235,9 @@ void main() {
     });
 
     test('survives the sequencer closing while a run is still going', () async {
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       final subscription =
           container.listen(ledgerActualStartsProvider, (_, __) {});
 
@@ -254,8 +259,9 @@ void main() {
 
     test('keeps a finished run\'s observed starts after the tree is gone',
         () async {
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       final subscription =
           container.listen(ledgerActualStartsProvider, (_, __) {});
 
@@ -264,8 +270,9 @@ void main() {
       await _settleDisposal();
 
       // The run finishes and the operator leaves the sequencer.
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.completed;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.completed);
       subscription.close();
       await _settleDisposal();
 
@@ -277,8 +284,9 @@ void main() {
     });
 
     test('a NEW run is what clears the record', () async {
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       final subscription =
           container.listen(ledgerActualStartsProvider, (_, __) {});
 

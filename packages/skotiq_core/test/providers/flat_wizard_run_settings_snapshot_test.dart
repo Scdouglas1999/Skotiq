@@ -9,7 +9,10 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../mocks/mock_database.dart';
 
@@ -32,7 +35,10 @@ class _SeededCameraNotifier extends CameraStateNotifier {
 
 class _SeededFilterWheelNotifier extends FilterWheelStateNotifier {
   _SeededFilterWheelNotifier(super.ref, List<String> names) {
-    state = FilterWheelState(filterNames: names);
+    state = FilterWheelState(
+      connectionState: DeviceConnectionState.connected,
+      filterNames: names,
+    );
   }
 }
 
@@ -135,14 +141,16 @@ class _AutoBackend extends Mock implements SkotiqBackend {
       _image(_onTargetAdu);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     savedHeaders.add(headerData);
     saveCount++;
     onSave?.call(saveCount);
+    return filePath;
   }
 }
 
@@ -208,7 +216,7 @@ void main() {
     required int frameCount,
   }) async {
     final notifier = container.read(flatWizardProvider.notifier);
-    await notifier.loadFiltersFromWheel();
+    await notifier.loadFilters();
     notifier.updateGlobalSettings(
       container
           .read(flatWizardProvider)
@@ -366,7 +374,7 @@ void main() {
               frameCountOverride: 2,
             ),
       );
-      await notifier.loadFiltersFromWheel();
+      await notifier.loadFilters();
       expect(
         container.read(flatWizardProvider).filterSettings[1].gainOverride,
         139,
@@ -380,7 +388,7 @@ void main() {
       }
       expect(await db.settingsDao.getSetting(key), contains('139'));
       final fresh = makeContainer(backend);
-      await fresh.read(flatWizardProvider.notifier).loadFiltersFromWheel();
+      await fresh.read(flatWizardProvider.notifier).loadFilters();
       final restored = fresh.read(flatWizardProvider).filterSettings[1];
       expect(
         (
@@ -397,7 +405,7 @@ void main() {
         1,
         restored.copyWith(gainOverride: null),
       );
-      await freshNotifier.loadFiltersFromWheel();
+      await freshNotifier.loadFilters();
       expect(
         fresh.read(flatWizardProvider).filterSettings[1].gainOverride,
         isNull,

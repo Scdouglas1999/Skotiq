@@ -1,7 +1,5 @@
 part of '../polar_alignment_provider.dart';
 
-// Polar alignment configuration provider (persisted)
-
 /// Provider for persisted polar alignment configuration
 final polarAlignmentConfigProvider =
     StateNotifierProvider<PolarAlignmentConfigNotifier, PolarAlignmentConfig>((
@@ -22,7 +20,6 @@ final polarAlignmentConfigSaveErrorProvider = StateProvider<String?>(
 /// Notifier that persists polar alignment configuration to database
 class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
   final Ref ref;
-  static const String _settingsKey = 'polar_alignment_config';
 
   /// Bumped on every user edit. The async initial load captures the revision
   /// before its `await` and only applies the loaded config if the revision is
@@ -39,33 +36,30 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
     try {
       final setting = await ref
           .read(settingsDaoProvider)
-          .getSetting(_settingsKey);
+          .read(StoreSettings.polarAlignment);
 
       // If the user edited while we were reading the DB, honour their edit and
       // discard the stale on-disk value rather than overwriting it.
       if (_revision != revisionAtStart) {
-        developer.log(
+        Log.debug(
           '[PolarAlignmentConfigNotifier] Skipping stale load — user edited during load',
-          name: 'PolarAlignmentConfigNotifier',
-          level: 700,
+          source: 'PolarAlignmentConfigNotifier',
         );
         return;
       }
 
-      if (setting != null && setting.isNotEmpty) {
+      if (setting != null) {
         final json = jsonDecode(setting) as Map<String, dynamic>;
         state = PolarAlignmentConfig.fromJson(json);
-        developer.log(
+        Log.info(
           '[PolarAlignmentConfigNotifier] Loaded config from DB',
-          name: 'PolarAlignmentConfigNotifier',
-          level: 800,
+          source: 'PolarAlignmentConfigNotifier',
         );
       }
     } catch (e) {
-      developer.log(
+      Log.error(
         '[PolarAlignmentConfigNotifier] Failed to load config: $e',
-        name: 'PolarAlignmentConfigNotifier',
-        level: 1000,
+        source: 'PolarAlignmentConfigNotifier',
         error: e,
       );
     }
@@ -80,13 +74,14 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
   Future<void> _saveConfig() async {
     try {
       final json = jsonEncode(state.toJson());
-      await ref.read(settingsDaoProvider).setSetting(_settingsKey, json);
+      await ref
+          .read(settingsDaoProvider)
+          .write(StoreSettings.polarAlignment, json);
       // Clear any previously-surfaced save error now that a save succeeded.
       ref.read(polarAlignmentConfigSaveErrorProvider.notifier).state = null;
-      developer.log(
+      Log.info(
         '[PolarAlignmentConfigNotifier] Saved config to DB',
-        name: 'PolarAlignmentConfigNotifier',
-        level: 800,
+        source: 'PolarAlignmentConfigNotifier',
       );
     } catch (e) {
       // Surface the failure so the UI can show the settings were NOT persisted,
@@ -94,10 +89,9 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
       // seeing an apparent success.
       ref.read(polarAlignmentConfigSaveErrorProvider.notifier).state =
           'Failed to save polar alignment settings: $e';
-      developer.log(
+      Log.error(
         '[PolarAlignmentConfigNotifier] Failed to save config: $e',
-        name: 'PolarAlignmentConfigNotifier',
-        level: 1000,
+        source: 'PolarAlignmentConfigNotifier',
         error: e,
       );
       rethrow;
@@ -116,7 +110,6 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
     }
   }
 
-  /// Update a single field
   Future<void> setExposureTime(double value) =>
       _edit(state.copyWith(exposureTime: value));
 
@@ -124,8 +117,6 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
       _edit(state.copyWith(stepSize: value));
 
   Future<void> setBinning(int value) => _edit(state.copyWith(binning: value));
-
-  Future<void> setIsNorth(bool value) => _edit(state.copyWith(isNorth: value));
 
   Future<void> setManualRotation(bool value) =>
       _edit(state.copyWith(manualRotation: value));
@@ -148,6 +139,5 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
 
   Future<void> setOffset(int? value) => _edit(state.copyWith(offset: value));
 
-  /// Reset to defaults
   Future<void> resetToDefaults() => _edit(const PolarAlignmentConfig());
 }

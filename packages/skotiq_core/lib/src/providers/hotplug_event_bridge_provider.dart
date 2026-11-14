@@ -1,4 +1,4 @@
-﻿// Hot-plug discovery event bridge.
+// Hot-plug discovery event bridge.
 //
 // The Rust hot-plug watcher in `native/skotiq_native/bridge/src/hotplug.rs`
 // polls the native (vendor SDK) and ASCOM (Windows only) device lists and
@@ -15,28 +15,27 @@
 // `unifiedDiscoveryProvider`) so the equipment screen refreshes inside
 // the configured ~3 s budget without any user-driven pull-to-refresh.
 //
-// The bridge is side-effecting and produces no state. To stay alive, the
-// surrounding app must `ref.watch(hotplugEventBridgeProvider)` somewhere
-// in its bootstrap (the desktop/mobile dashboard scaffolding does this
-// alongside the other event bridges).
+// The bridge is side-effecting and produces no state. It is an always-on
+// service, started at launch from the table in
+// `skotiq_app/startup/always_on_services.dart`.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/backend/event_types.dart' as core_events;
-import '../services/device_service.dart';
 import 'backend_provider.dart';
 import 'unified_discovery_provider.dart';
+import 'device_service_providers.dart';
+import 'logging_service_provider.dart';
+import '../services/logging_service.dart';
 
 /// Bridge that watches the backend event stream for hot-plug arrivals /
 /// removals and invalidates the per-class discovery providers so the next
 /// UI read re-runs the underlying scan.
 ///
-/// Producing no state, this provider is bound to its container lifetime;
-/// reading it once (via `ref.watch` from a long-lived widget) is enough to
-/// keep the subscription alive.
+/// Producing no state, this provider runs for as long as the always-on
+/// services listen to it.
 final hotplugEventBridgeProvider = Provider<void>((ref) {
   final backend = ref.watch(diagnosticsBackendProvider);
 
@@ -102,23 +101,29 @@ final hotplugEventBridgeProvider = Provider<void>((ref) {
         return;
       }
 
-      developer.log(
+      Log.info(
         '[HotplugEventBridge] ${event.eventType}: ${event.data['id']}',
-        name: 'HotplugEventBridge',
-        level: 800,
+        source: 'HotplugEventBridge',
       );
 
       // Debounce: (re)arm the flush timer. A burst of qualifying events in the
       // same window collapses to a single invalidation round when the timer
       // fires, rather than one round per event.
       flushTimer?.cancel();
-      flushTimer = Timer(coalesceWindow, flushInvalidations);
+      flushTimer = Timer(coalesceWindow, () {
+        flushInvalidations();
+        ref
+            .read(loggingServiceProvider)
+            .info(
+              'Device lists refreshed after a hotplug event',
+              source: 'HotplugEventBridge',
+            );
+      });
     },
     onError: (Object error) {
-      developer.log(
+      Log.error(
         '[HotplugEventBridge] Event stream error: $error',
-        name: 'HotplugEventBridge',
-        level: 1000,
+        source: 'HotplugEventBridge',
         error: error,
       );
     },

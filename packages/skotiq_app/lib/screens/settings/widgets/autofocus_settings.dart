@@ -1,17 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'settings_widgets.dart';
 part 'autofocus_settings/filter_settings_row.dart';
 part 'autofocus_settings/filter_settings_mobile_card.dart';
 
-part 'autofocus_settings/mobile_layout.dart';
 part 'autofocus_settings/filter_settings_builders.dart';
 
 /// What a failed autofocus does, stated where its one remaining setting
@@ -24,16 +24,8 @@ const String kAfFailureToleranceSubtitle =
     '0 = don\u2019t judge the frames';
 
 class AutofocusSettingsPage extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  /// When true, render without an own scroll view (embedded in a merged
-  /// section's single outer scroll) and without the page header.
-  final bool embedded;
-
   const AutofocusSettingsPage({
     super.key,
-    this.isMobile = false,
-    this.embedded = false,
   });
 
   @override
@@ -41,142 +33,350 @@ class AutofocusSettingsPage extends ConsumerStatefulWidget {
       _AutofocusSettingsState();
 }
 
-class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
-  // General AF controllers
-  final _initialOffsetStepsController = TextEditingController();
-  final _stepSizeController = TextEditingController();
-  final _exposureTimeController = TextEditingController();
-  final _numberOfAttemptsController = TextEditingController();
-  final _brightestNStarsController = TextEditingController();
-  final _outerCropRatioController = TextEditingController();
-  final _innerCropRatioController = TextEditingController();
-  final _binningController = TextEditingController();
-  final _rSquaredThresholdController = TextEditingController();
-  final _failureToleranceController = TextEditingController();
-  final _focuserSettleTimeController = TextEditingController();
-  final _exposuresPerPointController = TextEditingController();
-  final _backlashInController = TextEditingController();
-  final _backlashOutController = TextEditingController();
+typedef _AfField<T> = SettingField<AppSettingsState, T>;
 
-  late AppSettingsState _renderedSettings;
-  late Object _renderedAuthority;
+AppSettingsNotifier _afNotifier(WidgetRef ref) =>
+    ref.read(appSettingsProvider.notifier);
 
-  @override
-  void dispose() {
-    _initialOffsetStepsController.dispose();
-    _stepSizeController.dispose();
-    _exposureTimeController.dispose();
-    _numberOfAttemptsController.dispose();
-    _brightestNStarsController.dispose();
-    _outerCropRatioController.dispose();
-    _innerCropRatioController.dispose();
-    _binningController.dispose();
-    _rSquaredThresholdController.dispose();
-    _failureToleranceController.dispose();
-    _focuserSettleTimeController.dispose();
-    _exposuresPerPointController.dispose();
-    _backlashInController.dispose();
-    _backlashOutController.dispose();
-    super.dispose();
-  }
-
-  Widget _afNumberInput({
-    Key? key,
-    required TextEditingController controller,
-    required String suffix,
-    required double min,
-    required double max,
-    required int decimals,
-    required FutureOr<void> Function(double) onChanged,
-    double? width,
-    bool isMobile = false,
-  }) {
-    final settings = _renderedSettings;
-    final authoritativeValue = switch (controller) {
-      _ when identical(controller, _initialOffsetStepsController) =>
-        settings.afInitialOffsetSteps.toDouble(),
-      _ when identical(controller, _stepSizeController) =>
-        settings.afStepSize.toDouble(),
-      _ when identical(controller, _exposureTimeController) =>
-        settings.afExposureTime,
-      _ when identical(controller, _numberOfAttemptsController) =>
-        settings.afNumberOfAttempts.toDouble(),
-      _ when identical(controller, _brightestNStarsController) =>
-        settings.afUseBrightestNStars.toDouble(),
-      _ when identical(controller, _outerCropRatioController) =>
-        settings.afOuterCropRatio,
-      _ when identical(controller, _innerCropRatioController) =>
-        settings.afInnerCropRatio,
-      _ when identical(controller, _binningController) =>
-        settings.afBinning.toDouble(),
-      _ when identical(controller, _rSquaredThresholdController) =>
-        settings.afRSquaredThreshold,
-      _ when identical(controller, _failureToleranceController) =>
-        settings.afFailureHfrToleranceRatio,
-      _ when identical(controller, _focuserSettleTimeController) =>
-        settings.afFocuserSettleTimeMs.toDouble(),
-      _ when identical(controller, _exposuresPerPointController) =>
-        settings.afExposuresPerPoint.toDouble(),
-      _ when identical(controller, _backlashInController) =>
-        settings.afBacklashIn.toDouble(),
-      _ when identical(controller, _backlashOutController) =>
-        settings.afBacklashOut.toDouble(),
-      _ => throw StateError('Unknown autofocus settings controller'),
-    };
-    return SettingsNumberInput(
-      key: key,
-      controller: controller,
-      authoritativeValue: authoritativeValue,
-      authorityKey: _renderedAuthority,
-      suffix: suffix,
-      min: min,
-      max: max,
-      decimals: decimals,
-      onChanged: onChanged,
-      width: width,
-      isMobile: isMobile,
+_AfField<int> _afInt({
+  required String title,
+  required int Function(AppSettingsState s) read,
+  required FutureOr<void> Function(AppSettingsNotifier n, int v) write,
+  required int min,
+  required int max,
+  String unit = '',
+}) =>
+    _AfField<int>(
+      label: title,
+      read: read,
+      write: (ref, value) => write(_afNotifier(ref), value),
+      codec: IntCodec(min: min, max: max, unit: unit),
     );
-  }
 
+_AfField<double> _afNumber({
+  required String title,
+  required double Function(AppSettingsState s) read,
+  required FutureOr<void> Function(AppSettingsNotifier n, double v) write,
+  required double min,
+  required double max,
+  required int decimals,
+  String unit = '',
+}) =>
+    _AfField<double>(
+      label: title,
+      read: read,
+      write: (ref, value) => write(_afNotifier(ref), value),
+      codec: NumberCodec(min: min, max: max, decimals: decimals, unit: unit),
+    );
+
+_AfField<bool> _afToggle({
+  required String title,
+  required bool Function(AppSettingsState s) read,
+  required FutureOr<void> Function(AppSettingsNotifier n, bool v) write,
+}) =>
+    _AfField<bool>(
+      label: title,
+      read: read,
+      write: (ref, value) => write(_afNotifier(ref), value),
+    );
+
+_AfField<String> _afChoice({
+  required String title,
+  required String Function(AppSettingsState s) read,
+  required FutureOr<void> Function(AppSettingsNotifier n, String v) write,
+  required List<String> choices,
+}) =>
+    _AfField<String>(
+      label: title,
+      read: read,
+      write: (ref, value) => write(_afNotifier(ref), value),
+      choices: choices,
+      choiceLabel: (value) => value,
+    );
+
+/// One row of the Behavior group: the setting plus how the row presents it.
+/// The desktop two-column layout and the phone list are both built from
+/// [_afBehaviorRows], so a bound or a label exists once.
+class _AfRow<T> {
+  const _AfRow(
+    this.icon,
+    this.field, {
+    this.subtitle,
+    this.rightColumn = false,
+    this.width,
+  });
+
+  final IconData icon;
+  final _AfField<T> field;
+  final String? subtitle;
+
+  /// Which of the two desktop columns the row sits in.
+  final bool rightColumn;
+
+  final double? width;
+
+  Widget control(AppSettingsState settings) =>
+      SettingsField<AppSettingsState, T>(
+        field: field,
+        state: settings,
+        width: width,
+      );
+}
+
+/// The Behavior rows, in phone order. Desktop keeps this order within each
+/// column.
+final List<_AfRow<Object?>> _afBehaviorRows = [
+  _AfRow<bool>(
+    LucideIcons.filter,
+    _afToggle(
+      title: 'Use filter offsets',
+      read: (s) => s.useFilterFocusOffsets,
+      write: (n, v) => n.setUseFilterFocusOffsets(v),
+    ),
+    subtitle: 'Apply focus offsets when changing filters',
+  ),
+  _AfRow<int>(
+    LucideIcons.arrowUpDown,
+    _afInt(
+      title: 'Initial offset steps',
+      read: (s) => s.afInitialOffsetSteps,
+      write: (n, v) => n.setAfInitialOffsetSteps(v),
+      min: 1,
+      max: 20,
+    ),
+    subtitle: 'Steps out from center for V-curve',
+  ),
+  _AfRow<String>(
+    LucideIcons.activity,
+    _afChoice(
+      title: 'Autofocus method',
+      read: (s) => s.afMethod,
+      write: (n, v) => n.setAfMethod(v),
+      choices: const ['Star HFR'],
+    ),
+  ),
+  _AfRow<String>(
+    LucideIcons.trendingUp,
+    _afChoice(
+      title: 'Curve fitting strategy',
+      read: (s) => s.afCurveFitting,
+      write: (n, v) => n.setAfCurveFitting(v),
+      choices: AutofocusSettings.curveFittingOptions,
+    ),
+    width: 150,
+  ),
+  _AfRow<int>(
+    LucideIcons.moveVertical,
+    _afInt(
+      title: 'Step size',
+      read: (s) => s.afStepSize,
+      write: (n, v) => n.setAfStepSize(v),
+      min: 1,
+      max: 10000,
+    ),
+    subtitle: 'Focuser steps between measurement points',
+    rightColumn: true,
+  ),
+  _AfRow<double>(
+    LucideIcons.timer,
+    _afNumber(
+      title: 'Exposure time',
+      read: (s) => s.afExposureTime,
+      write: (n, v) => n.setAfExposureTime(v),
+      min: 0.1,
+      max: 300,
+      decimals: 1,
+      unit: 's',
+    ),
+    subtitle: 'Default AF frame exposure',
+    rightColumn: true,
+  ),
+  _AfRow<bool>(
+    LucideIcons.pause,
+    _afToggle(
+      title: 'Disable guiding during AF',
+      read: (s) => s.afDisableGuidingDuringAf,
+      write: (n, v) => n.setAfDisableGuidingDuringAf(v),
+    ),
+    subtitle: 'Stop autoguider while focusing',
+    rightColumn: true,
+  ),
+  _AfRow<int>(
+    LucideIcons.repeat,
+    _afInt(
+      title: 'Number of attempts',
+      read: (s) => s.afNumberOfAttempts,
+      write: (n, v) => n.setAfNumberOfAttempts(v),
+      min: 1,
+      max: 10,
+    ),
+    subtitle: 'Retry count on failure',
+  ),
+  _AfRow<int>(
+    LucideIcons.sparkles,
+    _afInt(
+      title: 'Use brightest n stars',
+      read: (s) => s.afUseBrightestNStars,
+      write: (n, v) => n.setAfUseBrightestNStars(v),
+      min: 0,
+      max: 500,
+    ),
+    subtitle: 'Default 10. 0 uses every detected star; faint ones skew the HFR',
+  ),
+  _AfRow<double>(
+    LucideIcons.maximize2,
+    _afNumber(
+      title: 'Outer crop ratio',
+      read: (s) => s.afOuterCropRatio,
+      write: (n, v) => n.setAfOuterCropRatio(v),
+      min: 0.01,
+      max: 1.0,
+      decimals: 2,
+    ),
+    subtitle: 'Must be greater than the inner crop ratio',
+  ),
+  _AfRow<double>(
+    LucideIcons.minimize2,
+    _afNumber(
+      title: 'Inner crop ratio',
+      read: (s) => s.afInnerCropRatio,
+      write: (n, v) => n.setAfInnerCropRatio(v),
+      min: 0.0,
+      max: 1.0,
+      decimals: 2,
+    ),
+    subtitle: 'Central exclusion; must be smaller than outer',
+    rightColumn: true,
+  ),
+  _AfRow<int>(
+    LucideIcons.grid,
+    _afInt(
+      title: 'Binning',
+      read: (s) => s.afBinning,
+      write: (n, v) => n.setAfBinning(v),
+      min: 1,
+      max: 4,
+    ),
+  ),
+  _AfRow<double>(
+    LucideIcons.checkCircle,
+    _afNumber(
+      title: 'R\u00B2 threshold',
+      read: (s) => s.afRSquaredThreshold,
+      write: (n, v) => n.setAfRSquaredThreshold(v),
+      min: 0.0,
+      max: 1.0,
+      decimals: 2,
+    ),
+    subtitle: 'Minimum acceptable curve fit quality',
+  ),
+  _AfRow<double>(
+    LucideIcons.alertTriangle,
+    _afNumber(
+      title: 'HFR tolerance on failure',
+      read: (s) => s.afFailureHfrToleranceRatio,
+      write: (n, v) => n.setAfFailureHfrToleranceRatio(v),
+      min: 0.0,
+      max: 10.0,
+      decimals: 2,
+      unit: '\u00D7',
+    ),
+    subtitle: kAfFailureToleranceSubtitle,
+  ),
+  _AfRow<int>(
+    LucideIcons.clock,
+    _afInt(
+      title: 'Focuser settle time',
+      read: (s) => s.afFocuserSettleTimeMs,
+      write: (n, v) => n.setAfFocuserSettleTimeMs(v),
+      min: 0,
+      max: 10000,
+      unit: 'ms',
+    ),
+    subtitle: 'Wait after focuser move',
+    rightColumn: true,
+  ),
+  _AfRow<int>(
+    LucideIcons.layers,
+    _afInt(
+      title: 'Exposures per point',
+      read: (s) => s.afExposuresPerPoint,
+      write: (n, v) => n.setAfExposuresPerPoint(v),
+      min: 1,
+      max: 20,
+    ),
+    subtitle: 'Frames to average per focus position',
+    rightColumn: true,
+  ),
+  _AfRow<String>(
+    LucideIcons.arrowLeftRight,
+    _afChoice(
+      title: 'Backlash compensation',
+      read: (s) => s.afBacklashCompMethod,
+      write: (n, v) => n.setAfBacklashCompMethod(v),
+      choices: const ['None', 'Overshoot', 'Absolute'],
+    ),
+    rightColumn: true,
+    width: 150,
+  ),
+  _AfRow<int>(
+    LucideIcons.arrowLeft,
+    _AfField<int>(
+      label: 'Backlash IN',
+      read: (s) => s.afBacklashIn,
+      write: (ref, v) => _afNotifier(ref).setAfBacklashIn(v),
+      codec: IntCodec.of(AppSettingDefs.afBacklashIn),
+    ),
+    rightColumn: true,
+  ),
+  _AfRow<int>(
+    LucideIcons.arrowRight,
+    _AfField<int>(
+      label: 'Backlash OUT',
+      read: (s) => s.afBacklashOut,
+      write: (ref, v) => _afNotifier(ref).setAfBacklashOut(v),
+      codec: IntCodec.of(AppSettingDefs.afBacklashOut),
+    ),
+    rightColumn: true,
+  ),
+];
+
+class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
     final filterWheelState = ref.watch(filterWheelStateProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-        scrollable: !widget.embedded,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
       data: (settings) {
-        _renderedSettings = settings;
-        _renderedAuthority = ref.watch(backendProvider);
         final notifier = ref.read(appSettingsProvider.notifier);
 
         return SettingsPage(
           title: 'Autofocus',
           description:
               'Configure autofocus behavior, curve fitting, and per-filter settings',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile || widget.embedded,
-          scrollable: !widget.embedded,
           children: [
             SettingsSection(
               // Not 'Autofocus': the merged page already bands this pane
               // AUTOFOCUS, and an eyebrow repeating it printed the word twice
               // in a row once section labels became uppercase.
               title: 'Behavior',
-              isMobile: widget.isMobile,
               children: [
-                if (!widget.isMobile)
-                  _buildDesktopTwoColumnLayout(settings, notifier)
+                if (!SettingsFormScope.narrowOf(context))
+                  _buildDesktopTwoColumnLayout(settings)
                 else
-                  ..._buildMobileLayout(settings, notifier),
+                  for (final row in _afBehaviorRows)
+                    SettingRow(
+                      icon: row.icon,
+                      title: row.field.label,
+                      subtitle: row.subtitle,
+                      trailing: row.control(settings),
+                    ),
               ],
             ),
             _buildFilterSettingsSection(settings, notifier, filterWheelState),
@@ -186,274 +386,36 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
     );
   }
 
-  Widget _buildDesktopTwoColumnLayout(
-      AppSettingsState settings, AppSettingsNotifier notifier) {
+  Widget _buildDesktopTwoColumnLayout(AppSettingsState settings) {
+    Widget column({required bool right}) {
+      final rows = [
+        for (final row in _afBehaviorRows)
+          if (row.rightColumn == right) row,
+      ];
+      return Expanded(
+        child: Column(
+          children: [
+            for (final row in rows)
+              _buildAfSettingRow(
+                icon: row.icon,
+                title: row.field.label,
+                subtitle: row.subtitle,
+                trailing: row.control(settings),
+                isLast: identical(row, rows.last),
+              ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left column
-          Expanded(
-            child: Column(
-              children: [
-                _buildAfSettingRow(
-                  icon: LucideIcons.filter,
-                  title: 'Use filter offsets',
-                  subtitle: 'Apply focus offsets when changing filters',
-                  trailing: SettingsSwitch(
-                    value: settings.useFilterFocusOffsets,
-                    onChanged: (value) =>
-                        notifier.setUseFilterFocusOffsets(value),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.arrowUpDown,
-                  title: 'Initial offset steps',
-                  subtitle: 'Steps out from center for V-curve',
-                  trailing: _afNumberInput(
-                    controller: _initialOffsetStepsController,
-                    suffix: '',
-                    min: 1,
-                    max: 20,
-                    decimals: 0,
-                    onChanged: (value) =>
-                        notifier.setAfInitialOffsetSteps(value.toInt()),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.activity,
-                  title: 'Autofocus method',
-                  trailing: SettingsDropdown(
-                    value: settings.afMethod,
-                    items: const ['Star HFR'],
-                    onChanged: (value) {
-                      return notifier.setAfMethod(value);
-                    },
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.trendingUp,
-                  title: 'Curve fitting strategy',
-                  trailing: SettingsDropdown(
-                    value: settings.afCurveFitting,
-                    items: AutofocusSettings.curveFittingOptions,
-                    onChanged: (value) {
-                      return notifier.setAfCurveFitting(value);
-                    },
-                    width: 150,
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.repeat,
-                  title: 'Number of attempts',
-                  subtitle: 'Retry count on failure',
-                  trailing: _afNumberInput(
-                    controller: _numberOfAttemptsController,
-                    suffix: '',
-                    min: 1,
-                    max: 10,
-                    decimals: 0,
-                    onChanged: (value) =>
-                        notifier.setAfNumberOfAttempts(value.toInt()),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.sparkles,
-                  title: 'Use brightest n stars',
-                  subtitle:
-                      'Default 10. 0 uses every detected star; faint ones skew the HFR',
-                  trailing: _afNumberInput(
-                    controller: _brightestNStarsController,
-                    suffix: '',
-                    min: 0,
-                    max: 500,
-                    decimals: 0,
-                    onChanged: (value) =>
-                        notifier.setAfUseBrightestNStars(value.toInt()),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.maximize2,
-                  title: 'Outer crop ratio',
-                  subtitle: 'Must be greater than the inner crop ratio',
-                  trailing: _afNumberInput(
-                    controller: _outerCropRatioController,
-                    suffix: '',
-                    min: 0.01,
-                    max: 1.0,
-                    decimals: 2,
-                    onChanged: (value) => notifier.setAfOuterCropRatio(value),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.grid,
-                  title: 'Binning',
-                  trailing: _afNumberInput(
-                    controller: _binningController,
-                    suffix: '',
-                    min: 1,
-                    max: 4,
-                    decimals: 0,
-                    onChanged: (value) => notifier.setAfBinning(value.toInt()),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.checkCircle,
-                  title: 'R\u00B2 threshold',
-                  subtitle: 'Minimum acceptable curve fit quality',
-                  trailing: _afNumberInput(
-                    controller: _rSquaredThresholdController,
-                    suffix: '',
-                    min: 0.0,
-                    max: 1.0,
-                    decimals: 2,
-                    onChanged: (value) =>
-                        notifier.setAfRSquaredThreshold(value),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.alertTriangle,
-                  title: 'HFR tolerance on failure',
-                  subtitle: kAfFailureToleranceSubtitle,
-                  trailing: _afNumberInput(
-                    controller: _failureToleranceController,
-                    suffix: '\u00D7',
-                    min: 0.0,
-                    max: 10.0,
-                    decimals: 2,
-                    onChanged: (value) =>
-                        notifier.setAfFailureHfrToleranceRatio(value),
-                  ),
-                  isLast: true,
-                ),
-              ],
-            ),
-          ),
+          column(right: false),
           const SizedBox(width: 24),
-          // Right column
-          Expanded(
-            child: Column(
-              children: [
-                _buildAfSettingRow(
-                  icon: LucideIcons.moveVertical,
-                  title: 'Step size',
-                  subtitle: 'Focuser steps between measurement points',
-                  trailing: _afNumberInput(
-                    controller: _stepSizeController,
-                    suffix: '',
-                    min: 1,
-                    max: 10000,
-                    decimals: 0,
-                    onChanged: (value) => notifier.setAfStepSize(value.toInt()),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.timer,
-                  title: 'Exposure time',
-                  subtitle: 'Default AF frame exposure',
-                  trailing: _afNumberInput(
-                    controller: _exposureTimeController,
-                    suffix: 's',
-                    min: 0.1,
-                    max: 300,
-                    decimals: 1,
-                    onChanged: (value) => notifier.setAfExposureTime(value),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.pause,
-                  title: 'Disable guiding during AF',
-                  subtitle: 'Stop autoguider while focusing',
-                  trailing: SettingsSwitch(
-                    value: settings.afDisableGuidingDuringAf,
-                    onChanged: (value) =>
-                        notifier.setAfDisableGuidingDuringAf(value),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.clock,
-                  title: 'Focuser settle time',
-                  subtitle: 'Wait after focuser move',
-                  trailing: _afNumberInput(
-                    controller: _focuserSettleTimeController,
-                    suffix: 'ms',
-                    min: 0,
-                    max: 10000,
-                    decimals: 0,
-                    onChanged: (value) =>
-                        notifier.setAfFocuserSettleTimeMs(value.toInt()),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.layers,
-                  title: 'Exposures per point',
-                  subtitle: 'Frames to average per focus position',
-                  trailing: _afNumberInput(
-                    controller: _exposuresPerPointController,
-                    suffix: '',
-                    min: 1,
-                    max: 20,
-                    decimals: 0,
-                    onChanged: (value) =>
-                        notifier.setAfExposuresPerPoint(value.toInt()),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.minimize2,
-                  title: 'Inner crop ratio',
-                  subtitle: 'Central exclusion; must be smaller than outer',
-                  trailing: _afNumberInput(
-                    controller: _innerCropRatioController,
-                    suffix: '',
-                    min: 0.0,
-                    max: 1.0,
-                    decimals: 2,
-                    onChanged: (value) => notifier.setAfInnerCropRatio(value),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.arrowLeftRight,
-                  title: 'Backlash compensation',
-                  trailing: SettingsDropdown(
-                    value: settings.afBacklashCompMethod,
-                    items: const ['None', 'Overshoot', 'Absolute'],
-                    onChanged: (value) {
-                      return notifier.setAfBacklashCompMethod(value);
-                    },
-                    width: 150,
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.arrowLeft,
-                  title: 'Backlash IN',
-                  trailing: _afNumberInput(
-                    controller: _backlashInController,
-                    suffix: '',
-                    min: 0,
-                    max: 10000,
-                    decimals: 0,
-                    onChanged: (value) =>
-                        notifier.setAfBacklashIn(value.toInt()),
-                  ),
-                ),
-                _buildAfSettingRow(
-                  icon: LucideIcons.arrowRight,
-                  title: 'Backlash OUT',
-                  trailing: _afNumberInput(
-                    controller: _backlashOutController,
-                    suffix: '',
-                    min: 0,
-                    max: 10000,
-                    decimals: 0,
-                    onChanged: (value) =>
-                        notifier.setAfBacklashOut(value.toInt()),
-                  ),
-                  isLast: true,
-                ),
-              ],
-            ),
-          ),
+          column(right: true),
         ],
       ),
     );

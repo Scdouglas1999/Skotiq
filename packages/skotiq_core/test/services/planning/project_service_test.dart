@@ -15,8 +15,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/planning/project.dart';
+import 'package:skotiq_core/src/models/planning/project_progress.dart';
 import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
 import 'package:skotiq_core/src/services/planning/project_service.dart';
+import 'package:skotiq_core/src/services/project_tracking_service.dart';
 import 'package:skotiq_core/src/services/scheduler/integration_goal_service.dart';
 
 void main() {
@@ -299,6 +301,89 @@ void main() {
             .firstWhere((t) => t.targetId == doneTarget)
             .percentComplete;
         expect(donePct, 1.0); // clamped to 1.0 on overshoot.
+      },
+    );
+
+    // Owner rule: a goal set in the old Analytics hours dialog is kept. With
+    // no per-filter goal it counts as one goal over every filter; the first
+    // per-filter goal replaces it.
+    test('a target with only the old hours goal keeps it until a filter goal '
+        'replaces it', () async {
+      final projectId = await service.createProject(name: 'Legacy');
+      final t = await insertTarget(name: 'M101');
+      await database.targetsDao.updateProgress(t, goalIntegrationSecs: 36000);
+      await service.addTarget(projectId: projectId, targetId: t);
+      await insertCaptures(targetId: t, filter: 'L', count: 3);
+      await insertCaptures(targetId: t, filter: 'R', count: 2);
+
+      final before = (await service.buildProgress(projectId)).targets.single;
+      expect(before.filters, isEmpty);
+      expect(before.allFiltersGoalSeconds, 36000);
+      expect(before.goalSeconds, 36000);
+      expect(before.accruedSeconds, 300);
+      expect(ProjectTargetProgress.fromJson(before.toJson()), before);
+
+      await goalService.upsert(
+        IntegrationGoal(
+          targetId: t,
+          filter: 'L',
+          exposureSeconds: 60,
+          frameCount: 10,
+          createdAt: DateTime.utc(2026, 11, 11),
+        ),
+      );
+      final after = (await service.buildProgress(projectId)).targets.single;
+      expect(after.allFiltersGoalSeconds, isNull);
+      expect(after.goalSeconds, 600);
+      expect(
+        (await database.targetsDao.getTargetById(t))!.goalIntegrationSecs,
+        0,
+      );
+    });
+
+    // Plan and Analytics agree on goal progress: time, counting the accepted
+    // seconds in the goal's filter at the exposure they were taken; frames are
+    // the secondary count. Eleven 4 s subs are 44 s of a 20 x 105 s goal, not
+    // 11 x 105 s.
+    test(
+      'goal progress is the accepted time, the same number Analytics shows',
+      () async {
+        final projectId = await service.createProject(name: 'Units');
+        final t = await insertTarget(name: 'Field One');
+        await service.addTarget(projectId: projectId, targetId: t);
+        await insertCaptures(
+          targetId: t,
+          filter: 'L',
+          count: 11,
+          exposureSeconds: 4,
+        );
+        await insertCaptures(targetId: t, filter: 'R', count: 3);
+        await goalService.upsert(
+          IntegrationGoal(
+            targetId: t,
+            filter: 'L',
+            exposureSeconds: 105,
+            frameCount: 20,
+            createdAt: DateTime.utc(2026, 11, 11),
+          ),
+        );
+
+        final plan = (await service.buildProgress(projectId)).targets.single;
+        expect(plan.filters.single.capturedFrames, 11);
+        expect(plan.accruedSeconds, 44);
+        expect(plan.goalSeconds, 2100);
+
+        final analytics = const ProjectTrackingService()
+            .summarize(
+              targets: await database.targetsDao.getAllTargets(),
+              sessions: const [],
+              frames: await database.imagesDao.getImagesForTarget(t),
+              goals: await goalService.listAll(),
+            )
+            .single;
+        expect(analytics.goal.doneSecs, plan.accruedSeconds);
+        expect(analytics.goalIntegrationSecs, plan.goalSeconds);
+        expect(analytics.completionFraction, plan.percentComplete);
       },
     );
 

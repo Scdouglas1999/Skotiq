@@ -14,7 +14,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Test-only LoggingService that skips native init (same pattern as
 /// backup_service_extended_test.dart).
@@ -281,7 +282,7 @@ void main() {
       final service = SyncService(
         backupService: BackupService(
           database: database,
-          sequenceRepository: SequenceRepository(database.sequencesDao),
+          sequenceRepository: LocalSequenceRepository(database.sequencesDao),
           logger: logger,
           appVersion: '5.0.0-test',
         ),
@@ -556,7 +557,7 @@ void main() {
       service = SyncService(
         backupService: BackupService(
           database: db,
-          sequenceRepository: SequenceRepository(db.sequencesDao),
+          sequenceRepository: LocalSequenceRepository(db.sequencesDao),
           logger: logger,
         ),
         settingsDao: dao,
@@ -795,7 +796,7 @@ void main() {
       return SyncService(
         backupService: BackupService(
           database: database,
-          sequenceRepository: SequenceRepository(database.sequencesDao),
+          sequenceRepository: LocalSequenceRepository(database.sequencesDao),
           logger: logger,
         ),
         settingsDao: SettingsDao(database),

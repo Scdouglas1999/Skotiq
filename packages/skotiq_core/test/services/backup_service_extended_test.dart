@@ -11,7 +11,9 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
 /// Test-only LoggingService that skips native init. The defaults inject
@@ -53,7 +55,7 @@ void main() {
 
     BackupService serviceFor(SkotiqDatabase db) => BackupService(
       database: db,
-      sequenceRepository: SequenceRepository(db.sequencesDao),
+      sequenceRepository: LocalSequenceRepository(db.sequencesDao),
       logger: logger,
     );
 
@@ -110,8 +112,8 @@ void main() {
           dstDb,
         ).restoreBackup(filePath: backupFile.path);
         expect(restore.success, isTrue, reason: restore.errorMessage);
-        expect(restore.categoryCounts['darkLibrary'], 2);
-        expect(restore.categoryCounts['notesJournal'], 2);
+        expect(restore.categoryCounts['dark_library'], 2);
+        expect(restore.categoryCounts['observation_logs'], 2);
 
         // Verify row content survived end-to-end.
         final darks = await dstDb.darkLibraryDao.getAllEntries();
@@ -206,7 +208,7 @@ void main() {
           dstDb,
         ).restoreBackup(filePath: backupFile.path);
         expect(restore.success, isTrue, reason: restore.errorMessage);
-        expect(restore.categoryCounts['weatherSettings'], 1);
+        expect(restore.categoryCounts['weather_settings'], 1);
 
         final restored = await dstDb.weatherSettingsDao.getOrCreateSettings();
         expect(restored.weatherSafetyEnabled, isTrue);
@@ -251,7 +253,7 @@ void main() {
     });
 
     test('modern sequence nodes survive a full backup and restore', () async {
-      final sourceRepository = SequenceRepository(srcDb.sequencesDao);
+      final sourceRepository = LocalSequenceRepository(srcDb.sequencesDao);
       await sourceRepository.saveSequence(
         Sequence.create(
           name: 'Recovery plan',
@@ -297,7 +299,7 @@ void main() {
       expect(restore.success, isTrue, reason: restore.errorMessage);
       expect(restore.categoryCounts['sequences'], 1);
 
-      final restoredRepository = SequenceRepository(dstDb.sequencesDao);
+      final restoredRepository = LocalSequenceRepository(dstDb.sequencesDao);
       final restored = (await restoredRepository.loadAllSequences()).single;
       final recovery = restored.nodes['recovery'] as RecoveryNode;
       expect(recovery.name, 'Watch transparency');
@@ -379,7 +381,7 @@ void main() {
     );
 
     test('backup format version is bumped', () {
-      expect(BackupService.backupVersion, '2.1');
+      expect(BackupService.backupVersion, '3.0');
     });
   });
 }

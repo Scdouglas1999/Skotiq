@@ -10,174 +10,83 @@ class CompactGuidingGraph extends StatelessWidget {
   final bool isGuiding;
   final bool isConnected;
 
+  /// The guide camera's scale; null plots guide-camera pixels.
+  final double? arcsecPerPixel;
+
   const CompactGuidingGraph({
     super.key,
     required this.colors,
     required this.data,
     required this.isGuiding,
     required this.isConnected,
+    this.arcsecPerPixel,
   });
+
+  /// The vertical range, in the unit the panel's readouts use (arcseconds
+  /// once the guider reports its scale, pixels before).
+  static const double range = 4;
+
+  /// How many of the newest samples the panel shows.
+  static const int window = 100;
 
   @override
   Widget build(BuildContext context) {
-    final hasData = data.isNotEmpty;
+    final recent =
+        data.length > window ? data.sublist(data.length - window) : data;
+    final newest = recent.isEmpty ? null : recent.last.time;
+    final unit = guideDistance(0, arcsecPerPixel).unit;
+    List<Offset> trace(double Function(GuideGraphPoint) error) => <Offset>[
+          for (final point in recent)
+            Offset(
+              -newest!.difference(point.time).inMilliseconds / 1000.0,
+              guideDistance(error(point), arcsecPerPixel)
+                  .value
+                  .clamp(-range, range),
+            ),
+        ];
 
     return Container(
       height: 120,
+      padding: const EdgeInsets.fromLTRB(6, 6, 8, 4),
       decoration: BoxDecoration(
         color: colors.surfaceAlt,
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
         border: Border.all(color: colors.border),
       ),
-      child: Stack(
-        children: [
-          // Draw the real graph when we have data
-          if (hasData)
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline9),
-                child: CustomPaint(
-                  painter: _CompactGuidingGraphPainter(
-                    data: data,
-                    colors: colors,
-                  ),
-                ),
-              ),
+      child: SkotiqChart(
+        semanticLabel: 'Guide error, last ${recent.length} steps, '
+            '±${range.round()}$unit full scale',
+        dense: true,
+        legend: true,
+        series: <ChartSeries>[
+          if (recent.isNotEmpty) ...<ChartSeries>[
+            ChartSeries(
+              points: trace((p) => p.ra),
+              label: 'RA',
+              color: SkotiqChartColors.seriesRed,
             ),
-          // Show empty state when no data
-          if (!hasData)
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isGuiding ? SkotiqIcons.activity : SkotiqIcons.crosshair,
-                    size: 24,
-                    color: isGuiding ? colors.success : colors.textMuted,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isGuiding
-                        ? 'Waiting for guide data...'
-                        : isConnected
-                            ? 'Ready to guide'
-                            : 'No guide data',
-                    style: SkotiqTypography.caption.copyWith(
-                        color: isGuiding ? colors.success : colors.textMuted),
-                  ),
-                ],
-              ),
+            ChartSeries(
+              points: trace((p) => p.dec),
+              label: 'Dec',
+              color: SkotiqChartColors.seriesBlue,
             ),
-          // Legend (always visible)
-          Positioned(
-            bottom: 8,
-            left: 8,
-            child: Row(
-              children: [
-                Container(
-                    width: 12,
-                    height: 2,
-                    color: SkotiqChartColors.forTheme(
-                        SkotiqChartColors.seriesRed, colors)),
-                const SizedBox(width: 4),
-                Text('RA',
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.textMuted)),
-                const SizedBox(width: 12),
-                Container(
-                    width: 12,
-                    height: 2,
-                    color: SkotiqChartColors.forTheme(
-                        SkotiqChartColors.seriesBlue, colors)),
-                const SizedBox(width: 4),
-                Text('Dec',
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.textMuted)),
-                const SizedBox(width: 12),
-                // The vertical range, in the unit the data is in.
-                Text('±4 px',
-                    style: SkotiqTypography.caption
-                        .copyWith(color: colors.textMuted)),
-              ],
-            ),
-          ),
+          ],
         ],
+        x: const ChartAxis(kind: ChartAxisKind.elapsed, max: 0, maxTicks: 4),
+        y: ChartAxis(
+          min: -range,
+          max: range,
+          ticks: const <double>[-range, 0, range],
+          unit: unit,
+        ),
+        rules: const <ChartRule>[ChartRule.y(0, dashed: false)],
+        emptyText: isGuiding
+            ? 'Waiting for guide data...'
+            : isConnected
+                ? 'Ready to guide'
+                : 'No guide data',
       ),
     );
-  }
-}
-
-/// CustomPainter that renders real RA/Dec guide error data.
-/// Matches the rendering approach from the guiding_tab.dart _GraphPainter
-/// but is simplified for the compact 120px overview panel.
-class _CompactGuidingGraphPainter extends CustomPainter {
-  final List<GuideGraphPoint> data;
-  final SkotiqColors colors;
-
-  _CompactGuidingGraphPainter({
-    required this.data,
-    required this.colors,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final centerY = size.height / 2;
-
-    // Draw center zero-line
-    final zeroPaint = Paint()
-      ..color = colors.textMuted.withValues(alpha: 0.3)
-      ..strokeWidth = 0.5;
-    canvas.drawLine(Offset(0, centerY), Offset(size.width, centerY), zeroPaint);
-
-    if (data.isEmpty) return;
-
-    final raPaint = Paint()
-      ..color = SkotiqChartColors.forTheme(SkotiqChartColors.seriesRed, colors)
-          .withValues(alpha: 0.8)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final decPaint = Paint()
-      ..color = SkotiqChartColors.forTheme(SkotiqChartColors.seriesBlue, colors)
-          .withValues(alpha: 0.8)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    // Scale: +/- 4 px. The points are guide-camera pixels (PHD2's raw
-    // distances); with no pixel scale exposed they cannot be arcseconds.
-    const range = 4.0;
-    final scaleY = size.height / (range * 2);
-    // Show last 100 points spread across the width
-    final stepX = size.width / 100;
-
-    final raPath = Path();
-    final decPath = Path();
-
-    for (int i = 0; i < data.length; i++) {
-      final point = data[i];
-      final x = size.width - ((data.length - 1 - i) * stepX);
-
-      if (x < 0) continue;
-
-      final raY = centerY - (point.ra.clamp(-range, range) * scaleY);
-      final decY = centerY - (point.dec.clamp(-range, range) * scaleY);
-
-      if (i == 0 || x < stepX) {
-        raPath.moveTo(x, raY);
-        decPath.moveTo(x, decY);
-      } else {
-        raPath.lineTo(x, raY);
-        decPath.lineTo(x, decY);
-      }
-    }
-
-    canvas.drawPath(raPath, raPaint);
-    canvas.drawPath(decPath, decPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _CompactGuidingGraphPainter oldDelegate) {
-    return oldDelegate.data != data;
   }
 }
 
@@ -221,7 +130,6 @@ class GuideStarList extends ConsumerWidget {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Column header.
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Row(

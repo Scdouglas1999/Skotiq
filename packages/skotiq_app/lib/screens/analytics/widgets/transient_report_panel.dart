@@ -1,10 +1,14 @@
+import '../analytics_exports.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
@@ -65,7 +69,6 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
     }
     final scienceSettings = scienceSettingsAsync.requireValue;
 
-    // Reviewed (confirmed) detections first, then newest.
     final sorted = [...widget.detections]..sort((a, b) {
         if (a.reviewed != b.reviewed) return a.reviewed ? -1 : 1;
         return b.detectedAt.compareTo(a.detectedAt);
@@ -517,7 +520,8 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
         context.showSuccessSnackBar('${_formatLabel(_format)} report copied');
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Report failed: $e');
+      if (mounted)
+        context.showErrorSnackBar('Report failed: ${userFacingError(e)}');
     }
   }
 
@@ -525,45 +529,15 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
     TransientDetectionRow d,
     ScienceSettings settings,
   ) async {
-    final backend = ref.read(backendProvider);
     try {
-      String? path;
-      if (backend is NetworkBackend) {
-        // Slave: ask the host to generate the report and save the bytes.
-        if (_format == TransientReportFormat.aavso) {
-          final bytes = await backend.exportFirstLightAavso(
-            d.id,
-            magZeroPoint: _magZeroPoint ?? 0.0,
-          );
-          path = await _reportService.writeReport(
-            content: String.fromCharCodes(bytes),
-            fileName: 'aavso_transient_${d.id}.txt',
-          );
-        } else {
-          final bytes = await backend.exportFirstLightMpc(d.id);
-          path = await _reportService.writeReport(
-            content: String.fromCharCodes(bytes),
-            fileName: 'mpc_ades_transient_${d.id}.psv',
-          );
-        }
-      } else {
-        // Local host: generate directly.
-        final submission = ref.read(transientSubmissionServiceProvider);
-        if (_format == TransientReportFormat.aavso) {
-          path = await submission.exportAavso(
-            detection: d,
-            observerCode: settings.aavsoObserverCode,
-            magZeroPoint: _magZeroPoint ?? 0.0,
-          );
-        } else {
-          path = await submission.exportMpcAdes(
-            detection: d,
-            observatoryCode: settings.mpcObservatoryCode,
-            observerName: settings.observerName,
-            astrometricCatalog: settings.mpcAstrometricCatalog,
-          );
-        }
-      }
+      final reports = ref.read(transientReportsProvider);
+      final path = _format == TransientReportFormat.aavso
+          ? await reports.exportAavso(
+              d,
+              settings,
+              magZeroPoint: _magZeroPoint ?? 0.0,
+            )
+          : await reports.exportMpcAdes(d, settings);
       if (mounted) {
         setState(() => _lastExportPath = path);
         await revealExportedFile(
@@ -573,7 +547,8 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
         );
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Export failed: $e');
+      if (mounted)
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
     }
   }
 
@@ -585,56 +560,21 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
     if (confirmed != true) return;
 
     setState(() => _submitting = true);
-    final backend = ref.read(backendProvider);
     try {
-      if (backend is NetworkBackend) {
-        // Slave: the host holds the credentials + api key.
-        final result = await backend.submitFirstLightToTns(d.id);
-        final success = result['success'] == true;
-        final atName = result['atName'] as String?;
-        final message = result['message']?.toString() ?? 'TNS submission done';
-        if (success) {
-          // Refresh the slave's feed so the persisted reviewed state / any
-          // host-side change reflects after the round-trip.
-          ref.invalidate(firstLightCandidatesProvider);
-        }
-        if (mounted) {
-          setState(() => _lastAtName = success ? atName : null);
-          if (success) {
-            context.showSuccessSnackBar(message);
-          } else {
-            context.showErrorSnackBar(message);
-          }
-        }
-      } else {
-        // Local host: read the secret key, then submit directly.
-        final apiKey =
-            await ref.read(secretsStoreProvider).read(SecretField.tnsApiKey);
-        final creds = TnsCredentials(
-          botId: settings.tnsBotId,
-          botName: settings.tnsBotName,
-          reportingGroupId: settings.tnsReportingGroupId,
-          dataSourceId: settings.tnsDataSourceId,
-          reporterName: settings.tnsReporterName.isNotEmpty
-              ? settings.tnsReporterName
-              : settings.observerName,
-          apiKey: apiKey,
-          useSandbox: settings.tnsUseSandbox,
-        );
-        final result = await ref
-            .read(transientSubmissionServiceProvider)
-            .submitToTns(detection: d, creds: creds);
-        if (mounted) {
-          setState(() => _lastAtName = result.success ? result.atName : null);
-          if (result.success) {
-            context.showSuccessSnackBar(result.message);
-          } else {
-            context.showErrorSnackBar(result.message);
-          }
+      final result =
+          await ref.read(transientReportsProvider).submitToTns(d, settings);
+      if (mounted) {
+        setState(() => _lastAtName = result.success ? result.atName : null);
+        if (result.success) {
+          context.showSuccessSnackBar(result.message);
+        } else {
+          context.showErrorSnackBar(result.message);
         }
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('TNS submission failed: $e');
+      if (mounted)
+        context
+            .showErrorSnackBar('TNS submission failed: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

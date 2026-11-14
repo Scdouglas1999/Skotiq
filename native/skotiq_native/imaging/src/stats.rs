@@ -15,10 +15,11 @@
 //!
 //! Sites with a specific invariant comment override the module-level reasoning.
 
+use crate::detection_plane::DetectionPlane;
+use crate::robust_stats::LevelCounts;
 use crate::ImageData;
 use rayon::prelude::*;
 
-/// Statistics for an image
 #[derive(Debug, Clone, Default)]
 pub struct ImageStats {
     pub min: f64,
@@ -29,84 +30,86 @@ pub struct ImageStats {
     pub mad: f64, // Median Absolute Deviation
 }
 
-/// Calculate statistics for a 16-bit image
-pub fn calculate_stats_u16(image: &ImageData) -> ImageStats {
-    if image.data.is_empty() {
+/// Statistics of an image's samples in 16-bit ADU. A 16-bit image is counted
+/// by level; any other type is measured on its samples as they are (finite
+/// ones only), so a float master keeps its fractions and what it holds below
+/// zero.
+pub fn calculate_stats(image: &ImageData) -> ImageStats {
+    if image.pixel_type == crate::PixelType::U16 {
+        return stats_from_levels(&LevelCounts::of_le_bytes(&image.data));
+    }
+    let mut samples = image.samples_f64();
+    samples.retain(|v| v.is_finite());
+    stats_from_samples(&mut samples)
+}
+
+fn stats_from_samples(samples: &mut [f64]) -> ImageStats {
+    if samples.is_empty() {
         return ImageStats::default();
     }
-
-    // Parallel conversion to u16
-    let mut pixels: Vec<u16> = image
-        .data
-        .par_chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-        .collect();
-
-    if pixels.is_empty() {
-        return ImageStats::default();
-    }
-
-    // Parallel calculation of min, max, sum
-    let (min, max, sum) = pixels
+    let count = samples.len() as f64;
+    let (min, max, sum) = samples
         .par_iter()
         .fold(
-            || (u16::MAX, u16::MIN, 0.0f64),
-            |(min, max, sum), &val| (min.min(val), max.max(val), sum + val as f64),
+            || (f64::INFINITY, f64::NEG_INFINITY, 0.0),
+            |(lo, hi, sum), &v| (lo.min(v), hi.max(v), sum + v),
         )
         .reduce(
-            || (u16::MAX, u16::MIN, 0.0f64),
-            |(min1, max1, sum1), (min2, max2, sum2)| (min1.min(min2), max1.max(max2), sum1 + sum2),
+            || (f64::INFINITY, f64::NEG_INFINITY, 0.0),
+            |a, b| (a.0.min(b.0), a.1.max(b.1), a.2 + b.2),
         );
-
-    let count = pixels.len() as f64;
     let mean = sum / count;
-
-    // Parallel variance calculation
-    let variance: f64 = pixels
+    let variance = samples
         .par_iter()
-        .map(|&p| {
-            let diff = p as f64 - mean;
-            diff * diff
-        })
+        .map(|&v| (v - mean) * (v - mean))
         .sum::<f64>()
         / count;
-    let std_dev = variance.sqrt();
-
-    // Parallel sort for median
-    pixels.par_sort_unstable();
-    let median = if pixels.len().is_multiple_of(2) {
-        let mid = pixels.len() / 2;
-        (pixels[mid - 1] as f64 + pixels[mid] as f64) / 2.0
-    } else {
-        pixels[pixels.len() / 2] as f64
-    };
-
-    // Parallel MAD calculation
-    let mut deviations: Vec<f64> = pixels
-        .par_iter()
-        .map(|&p| (p as f64 - median).abs())
-        .collect();
-
-    deviations.par_sort_unstable_by(|a, b| a.total_cmp(b));
-
-    let mad = if deviations.len().is_multiple_of(2) {
-        let mid = deviations.len() / 2;
-        (deviations[mid - 1] + deviations[mid]) / 2.0
-    } else {
-        deviations[deviations.len() / 2]
-    };
-
+    let median = crate::robust_stats::median_in_place(samples);
+    samples
+        .par_iter_mut()
+        .for_each(|v| *v = (*v - median).abs());
+    let mad = crate::robust_stats::median_in_place(samples);
     ImageStats {
-        min: min as f64,
-        max: max as f64,
+        min,
+        max,
         mean,
         median,
-        std_dev,
+        std_dev: variance.sqrt(),
         mad,
     }
 }
 
-/// Star detection result
+pub(crate) fn stats_from_levels(levels: &LevelCounts) -> ImageStats {
+    let Some((min, max)) = levels.range() else {
+        return ImageStats::default();
+    };
+
+    let count = levels.total() as f64;
+    let mean = levels.sum() as f64 / count;
+    let variance = levels
+        .present()
+        .map(|(level, n)| {
+            let diff = f64::from(level) - mean;
+            diff * diff * n as f64
+        })
+        .sum::<f64>()
+        / count;
+
+    let median = levels.mapped(f64::from).median();
+    let mad = levels
+        .mapped(|level| (f64::from(level) - median).abs())
+        .median();
+
+    ImageStats {
+        min: f64::from(min),
+        max: f64::from(max),
+        mean,
+        median,
+        std_dev: variance.sqrt(),
+        mad,
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DetectedStar {
     pub x: f64,
@@ -185,7 +188,6 @@ pub const DETECTION_MAX_ECCENTRICITY: f64 = 0.95;
 /// the detector measured so per-frame shape statistics stay honest.
 pub const SELECTION_MAX_ECCENTRICITY: f64 = 0.7;
 
-/// Star detection configuration
 #[derive(Debug, Clone)]
 pub struct StarDetectionConfig {
     /// Detection threshold, in sigmas of the noise of the matched-filtered
@@ -249,7 +251,7 @@ impl Default for StarDetectionConfig {
     }
 }
 
-/// Detect stars in a 16-bit image.
+/// Detect stars in an image whose samples are in 16-bit ADU.
 ///
 /// This is the **measurement** entry point: it returns every source that
 /// survives `config`'s detection filters, including trailed stars up to
@@ -265,7 +267,29 @@ impl Default for StarDetectionConfig {
 /// The method (background mesh, matched filter, prominence deblending,
 /// whole-footprint apertures) is described in the `star_detect` module.
 pub fn detect_stars(image: &ImageData, config: &StarDetectionConfig) -> Vec<DetectedStar> {
-    crate::star_detect::detect(image, config).stars
+    detect_in_image(image, config).stars
+}
+
+/// [`detect_stars`] on a plane the caller built: a float master, a channel
+/// maximum, a rescaled plane. See [`DetectionPlane`] for the scale it must be
+/// in.
+pub fn detect_stars_in_plane(
+    plane: DetectionPlane,
+    config: &StarDetectionConfig,
+) -> Vec<DetectedStar> {
+    crate::star_detect::detect(plane, config).stars
+}
+
+/// Detect on the image's own plane ([`DetectionPlane::from_image`]). An image
+/// with no such plane (two channels, a truncated buffer) has no stars.
+fn detect_in_image(
+    image: &ImageData,
+    config: &StarDetectionConfig,
+) -> crate::star_detect::Detection {
+    match DetectionPlane::from_image(image) {
+        Some(plane) => crate::star_detect::detect(plane, config),
+        None => crate::star_detect::Detection::empty(),
+    }
 }
 
 /// The eccentricity a star must beat to be *usable* under `config`.
@@ -433,13 +457,43 @@ pub fn calculate_median_hfr(image: &ImageData) -> Option<f64> {
     Some(hfrs[hfrs.len() / 2])
 }
 
-/// Calculate histogram for a 16-bit image
+/// Count an image's samples into `bins` equal bins over the 16-bit ADU scale.
+/// A sample outside the scale lands in the end bin on its side; one that is
+/// not finite is not counted.
 pub fn calculate_histogram(image: &ImageData, bins: usize) -> Vec<u32> {
     if bins == 0 {
         return Vec::new();
     }
 
     let bin_size = 65536 / bins;
+    if image.pixel_type != crate::PixelType::U16 {
+        let size = image.bytes_per_pixel();
+        let pixel_type = image.pixel_type;
+        let (low, gain) = image.adu_mapping().unwrap_or((0.0, 1.0));
+        return image
+            .data
+            .par_chunks_exact(size)
+            .fold(
+                || vec![0u32; bins],
+                |mut hist, bytes| {
+                    let adu = (crate::samples::sample_from_le(bytes, pixel_type) - low) * gain;
+                    if adu.is_finite() {
+                        let level = adu.round().clamp(0.0, 65535.0) as usize;
+                        hist[(level / bin_size).min(bins - 1)] += 1;
+                    }
+                    hist
+                },
+            )
+            .reduce(
+                || vec![0u32; bins],
+                |mut a, b| {
+                    for (a, b) in a.iter_mut().zip(b) {
+                        *a += b;
+                    }
+                    a
+                },
+            );
+    }
 
     // Parallel histogram calculation
     // Each thread calculates a local histogram, then they are reduced
@@ -470,7 +524,6 @@ pub fn calculate_histogram(image: &ImageData, bins: usize) -> Vec<u32> {
 pub fn calculate_display_histogram(image: &ImageData, logarithmic: bool) -> Vec<f32> {
     let histogram = calculate_histogram(image, 256);
 
-    // Parallel processing for display conversion
     if logarithmic {
         histogram
             .par_iter()
@@ -611,7 +664,6 @@ pub fn frame_eccentricity(stars: &[DetectedStar]) -> Option<f64> {
     Some(eccs[eccs.len() / 2])
 }
 
-/// Run full star detection with summary statistics
 pub fn detect_stars_with_stats(
     image: &ImageData,
     config: &StarDetectionConfig,
@@ -632,7 +684,7 @@ pub fn detect_stars_with_stats(
         stars: detected,
         background,
         noise,
-    } = crate::star_detect::detect(image, &measurement_config);
+    } = detect_in_image(image, &measurement_config);
     let detected_star_count = detected.len() as u32;
     tracing::info!(
         "[STAR_DETECT] Image {}x{}, background {:.1}, noise {:.1}, threshold {} sigma of the filtered frame",
@@ -662,7 +714,6 @@ pub fn detect_stars_with_stats(
         selection_ceiling
     );
 
-    // Calculate median statistics
     let (median_hfr, median_fwhm, median_snr) = if !stars.is_empty() {
         let count = (stars.len() / 2).clamp(1, 50);
 
@@ -702,17 +753,13 @@ pub fn detect_stars_with_stats(
 pub struct StarCropData {
     /// Cropped image pixels as 8-bit grayscale (normalized/stretched)
     pub pixels: Vec<u8>,
-    /// Width of the crop
     pub width: u32,
-    /// Height of the crop
     pub height: u32,
     /// Star X position in original image
     pub star_x: f64,
     /// Star Y position in original image
     pub star_y: f64,
-    /// Star's HFR value
     pub hfr: f64,
-    /// Star's SNR value
     pub snr: f64,
 }
 
@@ -720,7 +767,7 @@ pub struct StarCropData {
 ///
 /// Returns an 80x80 (or smaller near edges) crop centered on the star,
 /// with pixel values auto-stretched to 0-255 range for display.
-pub fn extract_star_crop(image: &ImageData, star: &DetectedStar, crop_size: u32) -> StarCropData {
+fn extract_star_crop(image: &ImageData, star: &DetectedStar, crop_size: u32) -> StarCropData {
     let width = image.width as i32;
     let height = image.height as i32;
     let half_size = crop_size as i32 / 2;
@@ -798,7 +845,6 @@ pub fn extract_top_star_crops(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    // Extract crops for top N
     sorted_stars
         .into_iter()
         .take(max_crops)
@@ -813,7 +859,7 @@ mod tests {
     #[test]
     fn calculate_stats_reports_expected_mad_for_even_sample() {
         let image = ImageData::from_u16(4, 1, 1, &[10, 10, 14, 22]);
-        let stats = calculate_stats_u16(&image);
+        let stats = calculate_stats(&image);
         assert_eq!(stats.median, 12.0);
         assert_eq!(stats.mad, 2.0);
     }
@@ -826,8 +872,9 @@ mod tests {
             channels: 1,
             pixel_type: crate::PixelType::U16,
             data: vec![0x34, 0x12, 0xFF],
+            range: crate::SampleRange::of(crate::PixelType::U16),
         };
-        let stats = calculate_stats_u16(&image);
+        let stats = calculate_stats(&image);
         assert_eq!(stats.min, 0x1234 as f64);
         assert_eq!(stats.max, 0x1234 as f64);
         assert_eq!(stats.mad, 0.0);

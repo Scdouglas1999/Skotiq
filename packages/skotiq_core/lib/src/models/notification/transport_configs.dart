@@ -98,8 +98,6 @@ abstract class NotificationTransportConfig {
   Map<String, dynamic> toJson();
 }
 
-// Email (smtp)
-
 class EmailTransportConfig extends Equatable
     implements NotificationTransportConfig {
   final String smtpHost;
@@ -182,8 +180,6 @@ class EmailTransportConfig extends Equatable
   ];
 }
 
-// Generic webhook
-
 class WebhookTransportConfig extends Equatable
     implements NotificationTransportConfig {
   final String url;
@@ -248,8 +244,6 @@ class WebhookTransportConfig extends Equatable
   List<Object?> get props => [url, headers, bodyTemplate];
 }
 
-// Pushover
-
 class PushoverTransportConfig extends Equatable
     implements NotificationTransportConfig {
   final String apiToken; // secret
@@ -300,8 +294,6 @@ class PushoverTransportConfig extends Equatable
   List<Object?> get props => [apiToken, userKey, device, priority];
 }
 
-// Telegram
-
 class TelegramTransportConfig extends Equatable
     implements NotificationTransportConfig {
   final String botToken; // secret
@@ -348,8 +340,6 @@ class TelegramTransportConfig extends Equatable
   @override
   List<Object?> get props => [botToken, chatId, disableNotification];
 }
-
-// Discord
 
 class DiscordTransportConfig extends Equatable
     implements NotificationTransportConfig {
@@ -400,8 +390,6 @@ class DiscordTransportConfig extends Equatable
   @override
   List<Object?> get props => [webhookUrl, username, avatarUrl];
 }
-
-// MQTT
 
 class MqttTransportConfig extends Equatable
     implements NotificationTransportConfig {

@@ -11,17 +11,16 @@ void main() {
     test('a Darkroom draft opens the recipe the dawn pass saved', () {
       expect(
         routeForNotificationPayload('darkroom_draft:412'),
-        '/darkroom?recipe=412',
+        '/darkroom?tab=edit&recipe=412',
       );
     });
 
-    test('a recipe id is percent-encoded into the query', () {
-      // The producer writes an integer row id today, but the payload is an
-      // opaque string on the wire: anything that reaches the query must be
-      // encoded or a stray `&` would silently truncate the link.
+    test('a recipe argument that is not a row id opens the Darkroom', () {
+      // The producer writes an integer row id, but the payload is an opaque
+      // string on the wire; anything else has no recipe to open.
       expect(
         routeForNotificationPayload('darkroom_draft:a b&c=d'),
-        '/darkroom?recipe=${Uri.encodeComponent('a b&c=d')}',
+        '/darkroom',
       );
     });
 
@@ -90,7 +89,7 @@ void main() {
         service.handleNotificationResponse(tap('darkroom_draft:7')),
         NotificationTapOutcome.routed,
       );
-      expect(seen, ['/darkroom?recipe=7']);
+      expect(seen, ['/darkroom?tab=edit&recipe=7']);
     });
 
     test('an unknown payload navigates nowhere and says so', () {
@@ -147,7 +146,7 @@ void main() {
         await service.handleLaunchNotification();
         await service.handleLaunchNotification();
 
-        expect(seen, ['/darkroom?recipe=31']);
+        expect(seen, ['/darkroom?tab=edit&recipe=31']);
         expect(reads, 1, reason: 'the once-only guard latches after the first');
       },
     );
@@ -178,7 +177,7 @@ void main() {
 
       // The retry a later rebuild makes still finds the launch tap.
       await service.handleLaunchNotification();
-      expect(seen, ['/darkroom?recipe=5']);
+      expect(seen, ['/darkroom?tab=edit&recipe=5']);
     });
   });
 }

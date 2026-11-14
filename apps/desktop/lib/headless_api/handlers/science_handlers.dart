@@ -3,20 +3,53 @@ import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/services/observation_report_service.dart';
-import 'package:skotiq_bridge/skotiq_bridge.dart' show apiReadFitsFile;
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show CatalogManager, HygStarData;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show CatalogManager, Star, airmassForTrueAltitude;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for remote science/analytics parity.
-class ScienceHandlers {
+class ScienceHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    ScienceApi.getSessionBundle: handleGetSessionBundle,
+    ScienceApi.postSessionBundle: handleGetSessionBundle,
+    ScienceApi.startSessionReprocess: handleStartSessionReprocess,
+    ScienceApi.getSessionReprocess: handleGetSessionReprocess,
+    ScienceApi.getSessionlessBundle: handleGetSessionlessBundle,
+    ScienceApi.getScienceSettings: handleGetScienceSettings,
+    ScienceApi.updateScienceSettings: handleUpdateScienceSettings,
+    ScienceApi.getSmartNightSettings: handleGetSmartNightSettings,
+    ScienceApi.updateSmartNightSettings: handleUpdateSmartNightSettings,
+    ScienceApi.getSessionConfig: handleGetSessionConfig,
+    ScienceApi.updateSessionConfig: handleUpdateSessionConfig,
+    ScienceApi.getPhotometricTransforms: handleGetPhotometricTransforms,
+    ScienceApi.matchPhotometricCalibrationStars:
+        handleMatchPhotometricCalibrationStars,
+    ScienceApi.computePhotometricTransform: handleComputePhotometricTransform,
+    ScienceApi.savePhotometricTransform: handleSavePhotometricTransform,
+    ScienceApi.generateLineRatios: handleGenerateLineRatios,
+    ScienceApi.exportAavso: handleExportAavso,
+    ScienceApi.generateObservationReport: handleGenerateObservationReport,
+    ScienceApi.scienceReport: handleScienceReport,
+    ScienceApi.defaultSession: handleDefaultSession,
+  };
+
   final ProviderContainer container;
 
-  ScienceHandlers(this.container);
+  final FrameHeaderReader _readHeader;
+
+  ScienceHandlers(
+    this.container, {
+    FrameHeaderReader readHeader = readFrameHeader,
+  }) : _readHeader = readHeader;
 
   LoggingService get _logger => container.read(loggingServiceProvider);
 
@@ -380,41 +413,17 @@ class ScienceHandlers {
   ) async {
     _logInfo('[API] POST /api/science/session/$sessionId/generate-line-ratios');
     final sid = _parsePathId(sessionId, 'sessionId');
-    final database = container.read(databaseProvider);
-    final images = await database.imagesDao.getImagesForSession(sid);
-
-    final ha = _findLatestByFilter(images, {
-      'ha',
-      'halpha',
-      'h-alpha',
-      'h alpha',
-    });
-    final oiii = _findLatestByFilter(images, {'oiii', 'o3'});
-    final sii = _findLatestByFilter(images, {'sii', 's2'});
-
-    if (ha == null || oiii == null || sii == null) {
-      return jsonBadRequest({
-        'error': 'Need latest H-alpha, OIII, and SII frames in this session.',
-      });
-    }
-
-    await container
+    final frames = await container
         .read(scienceProcessingServiceProvider)
-        .generateLineRatios(
-          sessionId: sid,
-          set: NarrowbandSet(
-            hAlphaPath: ha.filePath,
-            oiiiPath: oiii.filePath,
-            siiPath: sii.filePath,
-          ),
-          hAlphaImageId: ha.id,
-          oiiiImageId: oiii.id,
-          siiImageId: sii.id,
-        );
-
+        .generateSessionLineRatios(sid);
+    if (frames == null) return jsonOk({'status': 'missingFrames'});
     return jsonOk({
       'status': 'generated',
-      'files': [ha.fileName, oiii.fileName, sii.fileName],
+      'files': [
+        frames.hAlpha.fileName,
+        frames.oiii.fileName,
+        frames.sii.fileName,
+      ],
     });
   }
 
@@ -427,12 +436,7 @@ class ScienceHandlers {
     final filterBand = optionalString(payload, 'filterBand');
     final chartId = optionalString(payload, 'chartId');
 
-    final database = container.read(databaseProvider);
-    final service = AavsoExportService(
-      scienceDao: database.scienceDao,
-      settingsDao: database.settingsDao,
-      imagesDao: database.imagesDao,
-    );
+    final service = container.read(aavsoExportServiceProvider);
 
     // Why: AavsoExportError is a user-facing validation/domain error from
     // the export service (missing observer code, no measurements, etc.).
@@ -470,14 +474,9 @@ class ScienceHandlers {
     String sessionId,
   ) async {
     final sid = _parsePathId(sessionId, 'sessionId');
-    final database = container.read(databaseProvider);
-    final service = ObservationReportService(
-      sessionsDao: database.sessionsDao,
-      imagesDao: database.imagesDao,
-      scienceDao: database.scienceDao,
-    );
-
-    final filePath = await service.generateReport(sessionId: sid);
+    final filePath = await container
+        .read(observationReportServiceProvider)
+        .generateReport(sessionId: sid);
     final file = File(filePath);
     if (!await file.exists()) {
       return jsonNotFound({'error': 'Observation report file not found'});
@@ -490,6 +489,47 @@ class ScienceHandlers {
       contentType: 'application/pdf',
       contentLength: fileLength,
     );
+  }
+
+  /// The session the Science tab opens on, so a linked client opens on the
+  /// same night as the host.
+  Future<Response> handleDefaultSession(Request request) async {
+    final database = container.read(databaseProvider);
+    return jsonOk({
+      'sessionId': await scienceDefaultSessionId(
+        sessions: database.sessionsDao,
+        science: database.scienceDao,
+        images: database.imagesDao,
+      ),
+    });
+  }
+
+  /// The Science tab's report of a session, as Markdown; the period search
+  /// the client ran on screen comes in the body.
+  Future<Response> handleScienceReport(
+    Request request,
+    String sessionId,
+  ) async {
+    final sid = _parsePathId(sessionId, 'sessionId');
+    final payload = await readJsonObject(request);
+    final PeriodFinding? period;
+    try {
+      period = switch (payload['period']) {
+        null => null,
+        final Map<String, dynamic> json => PeriodFinding.fromJson(json),
+        _ => throw const FormatException('period must be an object'),
+      };
+    } on FormatException catch (e) {
+      throw BadRequestError(
+        field: 'period',
+        expected: 'a period finding',
+        message: e.message,
+      );
+    }
+    final markdown = await container
+        .read(scienceReportExporterProvider)
+        .buildMarkdown(sid, period: period);
+    return jsonOk({'markdown': markdown});
   }
 
   Future<Response> handleMatchPhotometricCalibrationStars(
@@ -548,6 +588,16 @@ class ScienceHandlers {
       });
     }
 
+    final header = await _readHeader(image.filePath);
+    final size = header.imageSize;
+    if (size == null) {
+      return jsonBadRequest({
+        'error': 'Frame dimensions are missing or invalid',
+      });
+    }
+    final distortion = await database.imagesDao.getStoredWcsDistortion(
+      image.id,
+    );
     final wcs = WcsSolution(
       raHours: image.solvedRa!,
       decDegrees: image.solvedDec!,
@@ -556,13 +606,43 @@ class ScienceHandlers {
       fieldWidthDegrees: 1.0,
       fieldHeightDegrees: 1.0,
       solverId: 'stored',
+      cd1_1: distortion?.cd1_1,
+      cd1_2: distortion?.cd1_2,
+      cd2_1: distortion?.cd2_1,
+      cd2_2: distortion?.cd2_2,
+      sip: decodeSolvedSip(distortion?.sip) ?? noSipTerms,
     );
 
+    final solvedWcs =
+        header.solvedWcs ??
+        SolvedWcs.ofSolution(
+          wcs,
+          imageWidth: size.width,
+          imageHeight: size.height,
+        );
+    if (!solvedWcs.isValid) {
+      return jsonBadRequest({'error': 'Frame WCS is not projectable'});
+    }
+    final exposure = image.exposureDuration;
+    if (!exposure.isFinite || exposure <= 0) {
+      return jsonBadRequest({
+        'error': 'Frame exposure duration is missing or invalid',
+      });
+    }
     final calibration = await scienceBackend.calibrateFramePhotometry(
       image.filePath,
       wcs,
       PhotometricCatalogSource.auto,
-      null,
+      ScienceFrameContext(
+        capturedImageId: image.id,
+        sessionId: image.sessionId,
+        capturedAt: image.capturedAt,
+        exposureSeconds: exposure,
+        filterName: image.filter,
+        airmass: airmass,
+        imageWidth: size.width,
+        imageHeight: size.height,
+      ),
     );
     if (calibration == null || !calibration.isCalibrated) {
       return jsonBadRequest({
@@ -571,7 +651,6 @@ class ScienceHandlers {
       });
     }
 
-    final zeroPoint = calibration.zeroPoint ?? 0.0;
     final catalogManager = CatalogManager.instance;
     if (!catalogManager.isInitialized) {
       return jsonBadRequest({
@@ -580,37 +659,28 @@ class ScienceHandlers {
             'require a loaded catalog; no synthetic matches are produced.',
       });
     }
-    final searchRadiusDeg =
-        math.sqrt(
-              wcs.fieldWidthDegrees * wcs.fieldWidthDegrees +
-                  wcs.fieldHeightDegrees * wcs.fieldHeightDegrees,
-            ) *
-            0.65 +
-        0.3;
+    final projection = GnomonicProjection(solvedWcs);
+    final center = projection.imageCentre;
     final catalogStars = await catalogManager.searchStarsNearby(
-      ra: wcs.raHours * 15.0,
-      dec: wcs.decDegrees,
-      radiusDegrees: searchRadiusDeg.clamp(0.25, 8.0),
+      ra: center.raDegrees,
+      dec: center.decDegrees,
+      radiusDegrees: solvedWcs.coneSearchRadiusDegrees,
       maxMagnitude: 14.0,
     );
 
-    final fits = await apiReadFitsFile(filePath: image.filePath);
-    final projectedCatalog = <({double x, double y, HygStarData star})>[];
+    final projectedCatalog = <({double x, double y, Star star})>[];
     for (final catalogStar in catalogStars) {
       if (catalogStar.magnitude == null || !catalogStar.magnitude!.isFinite) {
         continue;
       }
-      final projected = _skyToPixel(
-        wcs: wcs,
-        ra: catalogStar.ra,
-        dec: catalogStar.dec,
-        width: fits.width.toDouble(),
-        height: fits.height.toDouble(),
+      final projected = projection.worldToPixel(
+        raDegrees: catalogStar.coordinates.raDegrees,
+        decDegrees: catalogStar.coordinates.dec,
       );
       if (projected != null) {
         projectedCatalog.add((
-          x: projected.x,
-          y: projected.y,
+          x: projected.pixel.x,
+          y: projected.pixel.y,
           star: catalogStar,
         ));
       }
@@ -620,13 +690,6 @@ class ScienceHandlers {
     final matches = <CatalogStarMatch>[];
     for (final star in stars) {
       if (star.flux <= 0 || star.snr < 5.0) {
-        continue;
-      }
-
-      final instrumentalMagnitude =
-          -2.5 * math.log(star.flux.clamp(1e-30, double.infinity)) / math.ln10;
-      final catalogV = instrumentalMagnitude + zeroPoint;
-      if (!catalogV.isFinite || catalogV < 4 || catalogV > 20) {
         continue;
       }
 
@@ -654,6 +717,10 @@ class ScienceHandlers {
       }
       usedCatalogIndices.add(bestIndex);
       final matchedStar = projectedCatalog[bestIndex].star;
+      // The extinction fit needs an independent catalog magnitude, not the
+      // measured flux transformed by this frame's fitted zero point.
+      final catalogV = matchedStar.magnitude!;
+      if (catalogV < 4 || catalogV > 20) continue;
       double? realBv;
       if (matchedStar.colorIndex != null && matchedStar.colorIndex!.isFinite) {
         realBv = matchedStar.colorIndex!;
@@ -673,11 +740,11 @@ class ScienceHandlers {
         CatalogStarMatch(
           x: star.x,
           y: star.y,
-          raDegrees: matchedStar.ra,
-          decDegrees: matchedStar.dec,
+          raDegrees: matchedStar.coordinates.raDegrees,
+          decDegrees: matchedStar.coordinates.dec,
           catalogMagV: catalogV,
           catalogMagB: catalogB,
-          instrumentalFlux: star.flux,
+          instrumentalFlux: star.flux / exposure,
           snr: star.snr,
           airmass: airmass,
         ),
@@ -762,25 +829,6 @@ class ScienceHandlers {
     return jsonOk({'id': id});
   }
 
-  DbCapturedImage? _findLatestByFilter(
-    List<DbCapturedImage> images,
-    Set<String> names,
-  ) {
-    final filtered = images.where((image) {
-      final filter = (image.filter ?? '').toLowerCase().trim();
-      for (final name in names) {
-        if (filter == name) return true;
-        final pattern = RegExp(
-          '(?:^|[\\s_-])${RegExp.escape(name)}(?:[\\s_-]|\$)',
-        );
-        if (pattern.hasMatch(filter)) return true;
-      }
-      return false;
-    }).toList()..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
-
-    return filtered.isEmpty ? null : filtered.first;
-  }
-
   static double? _bvFromSpectralType(String spectralType) {
     if (spectralType.isEmpty) {
       return null;
@@ -818,51 +866,5 @@ class ScienceHandlers {
     }
 
     return baseBv + 0.06 * (subtype / 10.0);
-  }
-
-  ({double x, double y})? _skyToPixel({
-    required WcsSolution wcs,
-    required double ra,
-    required double dec,
-    required double width,
-    required double height,
-  }) {
-    final raRad = ra * math.pi / 180.0;
-    final decRad = dec * math.pi / 180.0;
-    final centerRa = (wcs.raHours * 15.0) * math.pi / 180.0;
-    final centerDec = wcs.decDegrees * math.pi / 180.0;
-    var deltaRa = raRad - centerRa;
-    while (deltaRa > math.pi) {
-      deltaRa -= 2 * math.pi;
-    }
-    while (deltaRa < -math.pi) {
-      deltaRa += 2 * math.pi;
-    }
-
-    final cosDec = math.cos(decRad);
-    final sinDec = math.sin(decRad);
-    final cosCenterDec = math.cos(centerDec);
-    final sinCenterDec = math.sin(centerDec);
-    final denominator =
-        sinCenterDec * sinDec + cosCenterDec * cosDec * math.cos(deltaRa);
-    if (denominator <= 0) {
-      return null;
-    }
-
-    final xi = cosDec * math.sin(deltaRa) / denominator;
-    final eta =
-        (cosCenterDec * sinDec - sinCenterDec * cosDec * math.cos(deltaRa)) /
-        denominator;
-    final xiDeg = xi * 180.0 / math.pi;
-    final etaDeg = eta * 180.0 / math.pi;
-    final rotation = wcs.rotationDegrees * math.pi / 180.0;
-    final xr = xiDeg * math.cos(rotation) - etaDeg * math.sin(rotation);
-    final yr = xiDeg * math.sin(rotation) + etaDeg * math.cos(rotation);
-    final x = xr * 3600.0 / wcs.pixelScaleArcsecPerPixel + width / 2.0;
-    final y = height / 2.0 - yr * 3600.0 / wcs.pixelScaleArcsecPerPixel;
-    if (!x.isFinite || !y.isFinite) {
-      return null;
-    }
-    return (x: x, y: y);
   }
 }

@@ -1,7 +1,5 @@
 part of '../design_reference_board.dart';
 
-// Components
-
 class _ComponentsSection extends StatelessWidget {
   const _ComponentsSection({required this.colors});
 
@@ -114,23 +112,11 @@ class _ComponentsSection extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: SkotiqTokens.spaceLg),
-          _SubLabel('Sub-tabs', colors: colors),
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          const Row(
-            children: [
-              SubTabButton(label: 'Capture', isSelected: true, onTap: _noop),
-              SubTabButton(label: 'Focus', isSelected: false, onTap: _noop),
-              SubTabButton(label: 'Guiding', isSelected: false, onTap: _noop),
-            ],
-          ),
         ],
       ),
     );
   }
 }
-
-// Status + feedback
 
 class _StatusAndFeedbackSection extends StatelessWidget {
   const _StatusAndFeedbackSection({required this.colors});

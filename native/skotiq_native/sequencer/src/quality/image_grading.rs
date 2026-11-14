@@ -26,7 +26,7 @@
 //!   slave). It never pauses, stops or parks the run (owner decision
 //!   2026-10-06); the frames are still graded and the rejects kept.
 //! * **A metric never taken grades Pass.** When a measurement is `None`
-//!   (detection did not run, `calculate_image_hfr` returned None) the frame
+//!   (detection did not run, `measure_light_frame` found no HFR) the frame
 //!   passes rather than rejecting: a missing measurement is not a known-bad
 //!   frame, and narrowband on a dim nebula legitimately defeats the detector.
 //! * **…but a measured zero is evidence.** `star_count: Some(0)` is not
@@ -140,12 +140,10 @@ impl ImageQualityCheck {
 pub enum FrameGrade {
     /// Frame passes all configured checks.
     Pass,
-    /// Frame fails at least one check; reason describes which.
-    /// The numeric fields are carried through so the dashboard panel can
-    /// show "rejected: HFR 5.21 px > 3.50 threshold" instead of just
-    /// "rejected".
+    /// Frame fails at least one check. The numeric fields are carried through
+    /// so the dashboard panel can show the measured values beside the reason.
     Reject {
-        reason: String,
+        reason: RejectReason,
         hfr: Option<f64>,
         eccentricity: Option<f64>,
         star_count: Option<u32>,
@@ -161,10 +159,149 @@ impl FrameGrade {
         matches!(self, FrameGrade::Reject { .. })
     }
 
-    pub fn reject_reason(&self) -> Option<&str> {
+    pub fn reject_reason(&self) -> Option<&RejectReason> {
         match self {
             FrameGrade::Pass => None,
-            FrameGrade::Reject { reason, .. } => Some(reason.as_str()),
+            FrameGrade::Reject { reason, .. } => Some(reason),
+        }
+    }
+}
+
+/// The check that rejected a frame, with the values it compared. Code that
+/// acts on a reject matches this; the operator's sentence is its `Display`.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "check", rename_all = "snake_case")]
+pub enum RejectReason {
+    /// The detector ran on a light frame and found no stars.
+    NoStars,
+    /// The image's autocorrelation shows the stars as trails.
+    Trailed {
+        length_px: f64,
+        width_px: f64,
+        axis_ratio: f64,
+    },
+    /// HFR above the absolute limit.
+    HfrAboveLimit { hfr: f64, limit: f64 },
+    /// HFR above the baseline by more than the allowed percent.
+    HfrAboveBaseline {
+        hfr: f64,
+        baseline: f64,
+        percent: f64,
+        limit: f64,
+    },
+    /// Stars elongated past the eccentricity limit.
+    Eccentricity { eccentricity: f64, limit: f64 },
+    /// Fewer stars than the configured floor.
+    StarCountBelowMinimum { count: u32, minimum: u32 },
+    /// Too small a fraction of the target and filter's baseline star count.
+    StarCountBelowBaseline {
+        count: u32,
+        baseline: f64,
+        drop_percent: f64,
+    },
+    /// The mount moved on its own or lost its position while the frame was
+    /// exposing.
+    MountMoved,
+    /// The mount stopped tracking while the frame was exposing.
+    TrackingStopped,
+    /// The mount was not tracking when the exposure ended.
+    NotTrackingAtEnd,
+}
+
+impl RejectReason {
+    /// The frame kept too few stars: a floor, its baseline, or none at all.
+    pub fn lost_stars(&self) -> bool {
+        matches!(
+            self,
+            RejectReason::NoStars
+                | RejectReason::StarCountBelowMinimum { .. }
+                | RejectReason::StarCountBelowBaseline { .. }
+        )
+    }
+
+    /// A star-count check rejected a frame that did have stars.
+    pub fn star_count_low(&self) -> bool {
+        matches!(
+            self,
+            RejectReason::StarCountBelowMinimum { .. }
+                | RejectReason::StarCountBelowBaseline { .. }
+        )
+    }
+
+    /// The frame's stars are not points: elongated or trailed.
+    pub fn stars_trailed(&self) -> bool {
+        matches!(
+            self,
+            RejectReason::Trailed { .. } | RejectReason::Eccentricity { .. }
+        )
+    }
+}
+
+impl std::fmt::Display for RejectReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            RejectReason::NoStars => f.write_str(
+                "no stars detected — frame quality is unmeasurable (clouds, trailing, \
+                 off-target slew, or an obstructed aperture)",
+            ),
+            RejectReason::Trailed {
+                length_px,
+                width_px,
+                axis_ratio,
+            } => write!(
+                f,
+                "stars trailed: {length_px:.0} px long and {width_px:.0} px wide \
+                 ({axis_ratio:.1}:1, limit {:.0}:1)",
+                skotiq_imaging::TRAIL_MIN_AXIS_RATIO
+            ),
+            RejectReason::HfrAboveLimit { hfr, limit } => {
+                write!(
+                    f,
+                    "HFR {hfr:.2} px exceeds absolute threshold {limit:.2} px"
+                )
+            }
+            RejectReason::HfrAboveBaseline {
+                hfr,
+                baseline,
+                percent,
+                limit,
+            } => write!(
+                f,
+                "HFR {hfr:.2} px exceeds baseline {baseline:.2} px + {percent:.0}% \
+                 (limit {limit:.2} px)"
+            ),
+            RejectReason::Eccentricity {
+                eccentricity,
+                limit,
+            } => write!(
+                f,
+                "eccentricity {eccentricity:.2} exceeds threshold {limit:.2}"
+            ),
+            RejectReason::StarCountBelowMinimum { count, minimum } => write!(
+                f,
+                "star count {count} below minimum {minimum} (possible obstruction or cloud, \
+                 or an off-target frame)"
+            ),
+            RejectReason::StarCountBelowBaseline {
+                count,
+                baseline,
+                drop_percent,
+            } => write!(
+                f,
+                "star count {count} is {:.0}% of this filter's baseline {baseline:.0} \
+                 (limit {:.0}%; possible obstruction or cloud, trailing, or an off-target frame)",
+                100.0 * f64::from(count) / baseline,
+                100.0 - drop_percent
+            ),
+            RejectReason::MountMoved => {
+                f.write_str("the mount moved on its own or lost its position during this exposure")
+            }
+            RejectReason::TrackingStopped => {
+                f.write_str("the mount stopped tracking during this exposure")
+            }
+            RejectReason::NotTrackingAtEnd => {
+                f.write_str("the mount was not tracking at the end of this exposure")
+            }
         }
     }
 }
@@ -190,11 +327,11 @@ pub struct FrameMetrics {
 ///
 /// Returns `Pass` when no check is active, when metrics were never measured
 /// (honest-ignorance rule), or when every active check passes. Returns
-/// `Reject` with a descriptive reason on the first failing check, and for a
+/// `Reject` naming the first failing check, and for a
 /// light frame whose star count was *measured* as zero.
 ///
 /// `hfr_baseline` is the rolling median of accepted-frame HFRs maintained
-/// by `ExecutionContext::hfr_baseline`. Pass `None` when the baseline
+/// by `GradingState::hfr_baseline`. Pass `None` when the baseline
 /// hasn't been established yet (first 5 frames of a target) — the
 /// baseline check is then skipped.
 pub fn grade_frame(
@@ -232,9 +369,7 @@ pub fn grade_frame_with_baselines(
     // can never reach this branch.
     if metrics.star_count == Some(0) {
         return FrameGrade::Reject {
-            reason: "no stars detected — frame quality is unmeasurable (clouds, \
-                     trailing, off-target slew, or an obstructed aperture)"
-                .to_string(),
+            reason: RejectReason::NoStars,
             hfr: metrics.hfr,
             eccentricity: metrics.eccentricity,
             star_count: Some(0),
@@ -248,13 +383,11 @@ pub fn grade_frame_with_baselines(
     if let (Some(_), Some(trail)) = (check.eccentricity_threshold, metrics.trail) {
         if trail.is_trailed() {
             return FrameGrade::Reject {
-                reason: format!(
-                    "stars trailed: {:.0} px long and {:.0} px wide ({:.1}:1, limit {:.0}:1)",
-                    trail.length_px,
-                    trail.width_px,
-                    trail.axis_ratio(),
-                    skotiq_imaging::TRAIL_MIN_AXIS_RATIO
-                ),
+                reason: RejectReason::Trailed {
+                    length_px: trail.length_px,
+                    width_px: trail.width_px,
+                    axis_ratio: trail.axis_ratio(),
+                },
                 hfr: metrics.hfr,
                 eccentricity: metrics.eccentricity,
                 star_count: metrics.star_count,
@@ -268,10 +401,10 @@ pub fn grade_frame_with_baselines(
     if let (Some(threshold), Some(hfr)) = (check.hfr_threshold, metrics.hfr) {
         if hfr > threshold {
             return FrameGrade::Reject {
-                reason: format!(
-                    "HFR {:.2} px exceeds absolute threshold {:.2} px",
-                    hfr, threshold
-                ),
+                reason: RejectReason::HfrAboveLimit {
+                    hfr,
+                    limit: threshold,
+                },
                 hfr: Some(hfr),
                 eccentricity: metrics.eccentricity,
                 star_count: metrics.star_count,
@@ -288,10 +421,12 @@ pub fn grade_frame_with_baselines(
             let limit = baseline * (1.0 + pct / 100.0);
             if hfr > limit {
                 return FrameGrade::Reject {
-                    reason: format!(
-                        "HFR {:.2} px exceeds baseline {:.2} px + {:.0}% (limit {:.2} px)",
-                        hfr, baseline, pct, limit
-                    ),
+                    reason: RejectReason::HfrAboveBaseline {
+                        hfr,
+                        baseline,
+                        percent: pct,
+                        limit,
+                    },
                     hfr: Some(hfr),
                     eccentricity: metrics.eccentricity,
                     star_count: metrics.star_count,
@@ -300,11 +435,13 @@ pub fn grade_frame_with_baselines(
         }
     }
 
-    // Eccentricity.
     if let (Some(threshold), Some(ecc)) = (check.eccentricity_threshold, metrics.eccentricity) {
         if ecc > threshold {
             return FrameGrade::Reject {
-                reason: format!("eccentricity {:.2} exceeds threshold {:.2}", ecc, threshold),
+                reason: RejectReason::Eccentricity {
+                    eccentricity: ecc,
+                    limit: threshold,
+                },
                 hfr: metrics.hfr,
                 eccentricity: Some(ecc),
                 star_count: metrics.star_count,
@@ -316,10 +453,10 @@ pub fn grade_frame_with_baselines(
     if let (Some(min), Some(count)) = (check.star_count_min, metrics.star_count) {
         if count < min {
             return FrameGrade::Reject {
-                reason: format!(
-                    "star count {} below minimum {} (possible obstruction or cloud, or an off-target frame)",
-                    count, min
-                ),
+                reason: RejectReason::StarCountBelowMinimum {
+                    count,
+                    minimum: min,
+                },
                 hfr: metrics.hfr,
                 eccentricity: metrics.eccentricity,
                 star_count: Some(count),
@@ -336,14 +473,11 @@ pub fn grade_frame_with_baselines(
         let limit = baseline * (1.0 - pct / 100.0);
         if baseline > 0.0 && f64::from(count) < limit {
             return FrameGrade::Reject {
-                reason: format!(
-                    "star count {} is {:.0}% of this filter's baseline {:.0} (limit {:.0}%; \
-                     possible obstruction or cloud, trailing, or an off-target frame)",
+                reason: RejectReason::StarCountBelowBaseline {
                     count,
-                    100.0 * f64::from(count) / baseline,
                     baseline,
-                    100.0 - pct
-                ),
+                    drop_percent: pct,
+                },
                 hfr: metrics.hfr,
                 eccentricity: metrics.eccentricity,
                 star_count: Some(count),
@@ -432,8 +566,17 @@ mod tests {
         };
         match grade_frame(&check, &metrics, None) {
             FrameGrade::Reject { reason, hfr, .. } => {
-                assert!(reason.contains("HFR 5.20"));
-                assert!(reason.contains("4.00"));
+                assert_eq!(
+                    reason,
+                    RejectReason::HfrAboveLimit {
+                        hfr: 5.2,
+                        limit: 4.0
+                    }
+                );
+                assert_eq!(
+                    reason.to_string(),
+                    "HFR 5.20 px exceeds absolute threshold 4.00 px"
+                );
                 assert_eq!(hfr, Some(5.2));
             }
             other => panic!("expected Reject, got {:?}", other),
@@ -518,7 +661,10 @@ mod tests {
                 eccentricity,
                 ..
             } => {
-                assert!(reason.contains("eccentricity"), "reason: {reason}");
+                assert!(
+                    matches!(reason, RejectReason::Eccentricity { .. }),
+                    "{reason:?}"
+                );
                 assert_eq!(eccentricity, Some(0.85));
             }
             other => panic!("expected Reject for trailed frame, got {:?}", other),
@@ -594,7 +740,7 @@ mod tests {
             FrameGrade::Reject {
                 reason, star_count, ..
             } => {
-                assert!(reason.contains("no stars detected"), "reason: {reason}");
+                assert_eq!(reason, RejectReason::NoStars);
                 assert_eq!(star_count, Some(0));
             }
             other => panic!(
@@ -635,7 +781,13 @@ mod tests {
         };
         match grade_frame(&check, &metrics, None) {
             FrameGrade::Reject { reason, .. } => {
-                assert!(reason.contains("star count 20"));
+                assert_eq!(
+                    reason,
+                    RejectReason::StarCountBelowMinimum {
+                        count: 20,
+                        minimum: 50
+                    }
+                );
             }
             other => panic!("expected Reject, got {:?}", other),
         }
@@ -670,8 +822,10 @@ mod tests {
         let grade = grade_frame(&check, &metrics, None);
         match grade {
             FrameGrade::Reject { reason, .. } => {
-                assert!(reason.contains("HFR"));
-                assert!(!reason.contains("star count"));
+                assert!(
+                    matches!(reason, RejectReason::HfrAboveLimit { .. }),
+                    "{reason:?}"
+                );
             }
             other => panic!("expected Reject, got {:?}", other),
         }
@@ -725,9 +879,8 @@ mod tests {
     // measured, so `grade_frame` was handed `None` and passed the frame.
     // These tests drive the same chain `run_exposure_loop` drives —
     // `detect_stars(StarDetectionConfig::default())` (verbatim what
-    // `UnifiedDeviceOps::measure_frame_eccentricity` and
-    // `detect_stars_in_image` use) → `frame_eccentricity` → `FrameMetrics`
-    // → `grade_frame` — starting from pixels.
+    // `UnifiedDeviceOps::measure_light_frame` uses) → `frame_eccentricity`
+    // → `FrameMetrics` → `grade_frame` — starting from pixels.
 
     /// A field of identically-smeared elliptical Gaussians on a flat
     /// background: what wind shake or a dropped guide correction does to
@@ -781,7 +934,10 @@ mod tests {
         };
         match grade_frame(&check, &metrics, None) {
             FrameGrade::Reject { reason, .. } => {
-                assert!(reason.contains("eccentricity"), "reason: {reason}");
+                assert!(
+                    matches!(reason, RejectReason::Eccentricity { .. }),
+                    "{reason:?}"
+                );
             }
             other => panic!(
                 "a trailed frame must be rejected; got {:?} from metrics {:?}",
@@ -852,8 +1008,16 @@ mod tests {
             FrameGrade::Reject {
                 reason, star_count, ..
             } => {
-                assert!(reason.starts_with("star count 351"), "reason: {reason}");
-                assert!(reason.contains("17%"), "reason: {reason}");
+                assert!(
+                    matches!(
+                        reason,
+                        RejectReason::StarCountBelowBaseline { count: 351, .. }
+                    ),
+                    "{reason:?}"
+                );
+                let sentence = reason.to_string();
+                assert!(sentence.starts_with("star count 351"), "{sentence}");
+                assert!(sentence.contains("17%"), "{sentence}");
                 assert_eq!(star_count, Some(351));
             }
             other => panic!("expected Reject, got {other:?}"),
@@ -946,7 +1110,8 @@ mod tests {
         };
         let grade = grade_frame(&check, &trailed, None);
         let reason = grade.reject_reason().expect("trailed frame rejected");
-        assert!(reason.starts_with("stars trailed"), "{reason}");
+        assert!(matches!(reason, RejectReason::Trailed { .. }), "{reason:?}");
+        assert!(reason.to_string().starts_with("stars trailed"), "{reason}");
 
         let round = FrameMetrics {
             trail: Some(skotiq_imaging::FrameTrail {

@@ -1,15 +1,11 @@
 // Verifies the opt-in "Remove untracked targets" cleanup predicate used by the
 // Analytics → Projects panel. A target is "untracked" — and therefore eligible
-// for deletion — ONLY when it has:
-//   * no integration goal      (goalIntegrationSecs <= 0)
-//   * is not a favorite        (isFavorite == false)
-//   * no captured subs         (capturedSubs == 0)
-//   * no integration time      (totalIntegrationSecs == 0)
-//   * no referencing session   (id NOT IN imaging_sessions.targetId)
+// for deletion — ONLY when it is not a favorite and nothing refers to it: no
+// integration goal (row or legacy column), no captured frame, no session row,
+// no project membership, no legacy capture tallies.
 //
-// Every other target — favorites, goal-tracked, captured, or session-referenced
-// — must survive the cleanup. countUntrackedTargets() must match the number
-// actually deleted.
+// Every other target must survive the cleanup. countUntrackedTargets() must
+// match the number actually deleted.
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -94,6 +90,51 @@ void main() {
     // Second run is a no-op now that nothing is untracked.
     expect(await targets.countUntrackedTargets(), 0);
     expect(await targets.deleteUntrackedTargets(), 0);
+  });
+
+  test('a target with frames, a goal or a project is kept', () async {
+    final phantom = await insertTarget(name: 'Phantom');
+    final imaged = await insertTarget(name: 'Imaged');
+    await db.imagesDao.createImage(
+      CapturedImagesCompanion.insert(
+        filePath: '/captures/imaged_0001.fits',
+        fileName: 'imaged_0001.fits',
+        exposureDuration: 4,
+        capturedAt: DateTime(2026, 11, 11, 8, 21),
+        targetId: Value(imaged),
+      ),
+    );
+    final goaled = await insertTarget(name: 'Goal set in Plan');
+    await db.planningDao.insertIntegrationGoal(
+      IntegrationGoalsCompanion.insert(
+        targetId: goaled,
+        filter: 'L',
+        exposureSeconds: 105,
+        frameCount: 20,
+        createdAt: 1794429813,
+      ),
+    );
+    final member = await insertTarget(name: 'Project member');
+    final project = await db.planningDao.insertProject(
+      ProjectsCompanion.insert(
+        name: 'Autumn galaxies',
+        createdAt: 1794429770,
+        updatedAt: 1794429770,
+      ),
+    );
+    await db.planningDao.addProjectTarget(
+      ProjectTargetsCompanion.insert(
+        projectId: project,
+        targetId: member,
+        addedAt: 1794429792,
+      ),
+    );
+
+    expect(await targets.countUntrackedTargets(), 1);
+    expect(await targets.deleteUntrackedTargets(), 1);
+    final remaining = (await targets.getAllTargets()).map((t) => t.id).toSet();
+    expect(remaining, {imaged, goaled, member});
+    expect(remaining, isNot(contains(phantom)));
   });
 
   test('count matches delete across mixed data', () async {

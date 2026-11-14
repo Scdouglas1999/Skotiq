@@ -91,7 +91,6 @@ class ExposureSettings extends Equatable {
   ];
 }
 
-/// Cooling settings
 class CoolingSettings extends Equatable {
   final double targetTemp;
   final bool enabled;
@@ -123,7 +122,6 @@ class CoolingSettings extends Equatable {
   List<Object?> get props => [targetTemp, enabled, warmupRate, cooldownRate];
 }
 
-/// Cooling status
 class CoolingStatus extends Equatable {
   final double currentTemp;
   final double targetTemp;
@@ -170,7 +168,6 @@ class FocusSettings extends Equatable {
   /// Manual focus step size
   final int stepSize;
 
-  /// Autofocus method
   final String method;
 
   /// Autofocus step size
@@ -220,50 +217,6 @@ class FocusSettings extends Equatable {
     stepsOut,
     exposuresPerPoint,
     exposureTime,
-  ];
-}
-
-/// Dither/Settle settings for guiding (persists across navigation)
-class DitherSettings extends Equatable {
-  /// Dither amount in pixels
-  final double ditherAmount;
-
-  /// Settle threshold in pixels
-  final double settlePixels;
-
-  /// Settle time in seconds
-  final double settleTime;
-
-  /// Whether to settle after dither
-  final bool settleAfterDither;
-
-  const DitherSettings({
-    this.ditherAmount = 5.0,
-    this.settlePixels = 1.0,
-    this.settleTime = 10.0,
-    this.settleAfterDither = true,
-  });
-
-  DitherSettings copyWith({
-    double? ditherAmount,
-    double? settlePixels,
-    double? settleTime,
-    bool? settleAfterDither,
-  }) {
-    return DitherSettings(
-      ditherAmount: ditherAmount ?? this.ditherAmount,
-      settlePixels: settlePixels ?? this.settlePixels,
-      settleTime: settleTime ?? this.settleTime,
-      settleAfterDither: settleAfterDither ?? this.settleAfterDither,
-    );
-  }
-
-  @override
-  List<Object?> get props => [
-    ditherAmount,
-    settlePixels,
-    settleTime,
-    settleAfterDither,
   ];
 }
 

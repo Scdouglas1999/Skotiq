@@ -1,4 +1,3 @@
-// Comet, solar, lunar, and remote-observatory node-tree factories.
 part of '../templates_tab.dart';
 
 Map<String, SequenceNode> _createCometNodes() {
@@ -57,7 +56,6 @@ Map<String, SequenceNode> _createCometNodes() {
       orderIndex: 4,
       childIds: const [innerLoopId, recenterAfterId],
     ),
-    // Inner loop: capture 10 frames between re-centering
     innerLoopId: LoopNode(
       id: innerLoopId,
       name: 'Frame Burst (10 frames)',
@@ -77,7 +75,6 @@ Map<String, SequenceNode> _createCometNodes() {
       parentId: innerLoopId,
       orderIndex: 0,
     ),
-    // Re-center on moving target after each burst
     recenterAfterId: CenterNode(
       id: recenterAfterId,
       name: 'Re-center on Moving Target',
@@ -268,10 +265,8 @@ Map<String, SequenceNode> _createLunarNodes() {
 Map<String, SequenceNode> _createRemoteObservatoryNodes() {
   const rootId = 'remote-root';
 
-  // Weather conditional
   const weatherCondId = 'remote-weather-cond';
 
-  // Main sequence nodes
   const mainSeqId = 'remote-main';
   const coolId = 'remote-cool';
   const slewId = 'remote-slew';
@@ -288,7 +283,6 @@ Map<String, SequenceNode> _createRemoteObservatoryNodes() {
   const warmId = 'remote-warm';
   const parkId = 'remote-park';
 
-  // Emergency fallback nodes
   const emergencyId = 'remote-emergency';
   const emergencyParkId = 'remote-emergency-park';
   const emergencyNotifyId = 'remote-emergency-notify';
@@ -300,7 +294,6 @@ Map<String, SequenceNode> _createRemoteObservatoryNodes() {
       childIds: const [weatherCondId, emergencyId],
     ),
 
-    // Weather safety conditional - only proceed if weather is safe
     weatherCondId: ConditionalNode(
       id: weatherCondId,
       name: 'Weather Safe Check',
@@ -310,7 +303,6 @@ Map<String, SequenceNode> _createRemoteObservatoryNodes() {
       childIds: const [mainSeqId],
     ),
 
-    // Main imaging sequence (executed when weather is safe)
     mainSeqId: InstructionSetNode(
       id: mainSeqId,
       name: 'Main Imaging Sequence',

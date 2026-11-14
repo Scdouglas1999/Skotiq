@@ -93,7 +93,6 @@ BinningMode _binningModeFromInt(int binning) {
   }
 }
 
-/// Available node types for the palette
 final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
   final defaults = ref.watch(sequencerDefaultsProvider);
   final profile = ref.watch(activeEquipmentProfileProvider);
@@ -112,7 +111,6 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
   // registers or unregisters at runtime.
   final pluginBlueprints = ref.watch(pluginNodeBlueprintsProvider);
 
-  // Use profile defaults as fallback when sequencer defaults are not set
   final effectiveGain = defaults.exposureGain ?? profile?.defaultGain;
   final effectiveOffset = defaults.exposureOffset ?? profile?.defaultOffset;
   final effectiveBinning = defaults.exposureBinning != BinningMode.one
@@ -203,7 +201,7 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
         ),
         // LiveStacking — EAA / outreach broadcast node.
         // Defaults pulled from settings so the palette-drop user gets a
-        // working private broadcast on the user's chosen port; flipping
+        // working private broadcast; flipping
         // to public is an explicit edit in the properties panel.
         NodePaletteItem(
           name: 'Live stacking',
@@ -211,7 +209,6 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
           description:
               'Broadcast a building live stack to a public/private URL',
           createNode: () => LiveStackingNode(
-            broadcastPort: defaults.livestackingDefaultPort,
             stackMethod: defaults.livestackingDefaultStackMethod,
             watermarkText: defaults.livestackingDefaultWatermark,
             // The palette default is *private* (no public access)

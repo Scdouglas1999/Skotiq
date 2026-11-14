@@ -16,7 +16,10 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../mocks/mock_database.dart';
 
@@ -92,7 +95,10 @@ class _SeededCameraNotifier extends CameraStateNotifier {
 
 class _SeededFilterWheelNotifier extends FilterWheelStateNotifier {
   _SeededFilterWheelNotifier(super.ref, List<String> names) {
-    state = FilterWheelState(filterNames: names);
+    state = FilterWheelState(
+      connectionState: DeviceConnectionState.connected,
+      filterNames: names,
+    );
   }
 }
 
@@ -172,12 +178,14 @@ class _CapAutoBackend extends Mock implements SkotiqBackend {
       _image(imageMean);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     headers.add(headerData);
+    return filePath;
   }
 }
 
@@ -257,12 +265,14 @@ class _GatedBackend extends Mock implements SkotiqBackend {
       _image(32768);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     saveCount++;
+    return filePath;
   }
 }
 
@@ -360,7 +370,7 @@ void main() {
     double? histogramTarget,
   }) async {
     final notifier = container.read(flatWizardProvider.notifier);
-    await notifier.loadFiltersFromWheel();
+    await notifier.loadFilters();
     var gs = container
         .read(flatWizardProvider)
         .globalSettings

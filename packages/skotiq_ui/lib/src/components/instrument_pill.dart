@@ -104,7 +104,6 @@ class InstrumentPill extends StatefulWidget {
   /// The bar's own height is 32; the pill sits inside it with 5 px of air.
   static const double height = 22.0;
 
-  /// The state dot.
   static const double dotSize = 7.0;
 
   /// 03-tokens §6 puts chip and instrument-pill glyphs at 13.

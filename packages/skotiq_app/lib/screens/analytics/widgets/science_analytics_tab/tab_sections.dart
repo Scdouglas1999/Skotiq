@@ -43,7 +43,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
       ref.read(scienceModeStateProvider.notifier).state =
           mode.copyWith(scienceHudVisible: true);
     }
-    GoRouter.maybeOf(context)?.go('/imaging');
+    GoRouter.maybeOf(context)?.go(AppRoute.imaging.path);
   }
 
   /// Which session the panels below are reporting on, and a way to change it.
@@ -62,7 +62,6 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
     final active = sessions
         .cast<ImagingSession?>()
         .firstWhere((s) => s?.id == activeSessionId, orElse: () => null);
-    final format = DateFormat('MMM d, yyyy HH:mm');
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -111,11 +110,9 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
                   // guide's "Analyse the period" rung done for a session that
                   // was never searched.
                   ref.read(periodAnalysisProvider.notifier).clear();
-                  setState(() {
-                    _selectedSessionId = id;
-                    // The frame picked in the old session means nothing here.
-                    _selectedFrameImageId = null;
-                  });
+                  ref.read(analyticsSessionPickProvider.notifier).state = id;
+                  // The frame picked in the old session means nothing here.
+                  setState(() => _selectedFrameImageId = null);
                 },
                 items: [
                   // Same entry, same wording as Diagnostics and Session: the
@@ -137,7 +134,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
                       value: session.id,
                       child: Text(
                         '${session.name ?? 'Session ${session.id}'}'
-                        '  ·  ${format.format(session.startTime)}'
+                        '  ·  ${ClockFormat.monthDayYearHm(session.startTime.toLocal())}'
                         // Every capture, not the frames kept: the row's
                         // `successful_exposures` ignores the auto-grader, and
                         // "7/8 frames kept" sat over "4/8" (rig, 2026-11-03).
@@ -157,10 +154,8 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
             TextButton(
               onPressed: () {
                 ref.read(periodAnalysisProvider.notifier).clear();
-                setState(() {
-                  _selectedSessionId = null;
-                  _selectedFrameImageId = null;
-                });
+                ref.read(analyticsSessionPickProvider.notifier).state = null;
+                setState(() => _selectedFrameImageId = null);
               },
               child: Text(
                 'Most recent',
@@ -406,7 +401,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
     ref.invalidate(sessionMovingObjectCandidatesProvider(sessionId));
     ref.invalidate(sessionLineRatioProductsProvider(sessionId));
     ref.invalidate(sessionFrameQualityMetricsProvider(sessionId));
-    ref.invalidate(sessionTileMetricsProvider(sessionId));
+    ref.invalidate(frameTileMetricsProvider);
     ref.invalidate(dbSessionImagesProvider(sessionId));
   }
 }

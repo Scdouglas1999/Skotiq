@@ -15,13 +15,15 @@ import 'package:skotiq_app/screens/sequencer/sequence_fold_model.dart';
 import 'package:skotiq_app/screens/sequencer/sequence_fold_state.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/batch_operations_toolbar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
-import 'package:skotiq_app/screens/sequencer/ledger_seconds.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree_shortcuts.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/visual_timeline.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequencer_density.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/tutorial_keys.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -107,7 +109,7 @@ Future<HarnessHandle> _pumpTree(
   Sequence sequence, {
   Size size = const Size(1200, 900),
   ThemeData? theme,
-  SequenceProgressNotifier? progressNotifier,
+  RunRecordNotifier? progressNotifier,
   PreSessionSimulationResult? simulation,
 }) async {
   final notifier = CurrentSequenceNotifier();
@@ -132,13 +134,11 @@ Future<HarnessHandle> _pumpTree(
     settle: false,
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
       // The minute clock is a real periodic stream; in the fake-async zone its
       // timer outlives every pump and fails teardown.
       ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),
       if (progressNotifier != null)
-        sequenceProgressProvider.overrideWith((_) => progressNotifier),
+        runRecordProvider.overrideWith((_) => progressNotifier),
       if (simulation != null)
         sequenceTimelineProvider.overrideWithValue(simulation),
       sequencerDensityProvider
@@ -292,7 +292,7 @@ void main() {
     final handle = await _pumpTree(tester, sequence);
 
     expect(find.text('Ha · OIII'), findsOneWidget);
-    expect(find.byKey(SequencerTutorialKeys.captureNode), findsOneWidget);
+    expect(find.byKey(TourTarget.sequencerCaptureNode.key), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     // Unfolding hands the anchor back to the first member's own row — still
@@ -301,7 +301,7 @@ void main() {
         .read(unfoldedGroupIdsProvider.notifier)
         .unfold(_groupIdUnder(sequence, root.id));
     await tester.pumpAndSettle();
-    expect(find.byKey(SequencerTutorialKeys.captureNode), findsOneWidget);
+    expect(find.byKey(TourTarget.sequencerCaptureNode.key), findsOneWidget);
     expect(find.text('Ha subs'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await _drainValidationDebounce(tester);
@@ -634,7 +634,7 @@ void main() {
     // spelled differently by design (spec §6 vs §2) — but the DIGITS come from
     // one formatter, because a row quoting `1.5 s` beside a cell saying `2s`
     // is reporting two different exposures.
-    final seconds = formatLedgerSeconds(300);
+    final seconds = QuantityFormat.trimmed(300);
     expect(find.text('$seconds s ×12 each'), findsOneWidget);
     expect(find.text('${seconds}s'), findsOneWidget);
     await _drainValidationDebounce(tester);
@@ -810,7 +810,7 @@ void main() {
   testWidgets('the 2 px bar shows the run\'s aggregate, not one member\'s',
       (tester) async {
     final built = _runInAlpha();
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     await _pumpTree(tester, built.sequence, progressNotifier: progress);
     final colors = SkotiqTheme.dark.extension<SkotiqColors>()!;
 
@@ -868,7 +868,7 @@ void main() {
       targetWindows: const {},
       issues: const [],
     );
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     await _pumpTree(
       tester,
       built.sequence,
@@ -880,14 +880,14 @@ void main() {
     // The run begins when its FIRST member does, not when the last one would.
     final etaCell = find.descendant(
       of: _rowShellOf(find.text('Ha · OIII · SII')).first,
-      matching: find.text(formatLedgerClock(t0)),
+      matching: find.text(ClockFormat.hm(t0.toLocal())),
     );
     expect(etaCell, findsOneWidget);
     expect(
       find.descendant(
         of: _rowShellOf(find.text('Ha · OIII · SII')).first,
-        matching:
-            find.text(formatLedgerClock(t0.add(const Duration(hours: 2)))),
+        matching: find
+            .text(ClockFormat.hm((t0.add(const Duration(hours: 2))).toLocal())),
       ),
       findsNothing,
     );

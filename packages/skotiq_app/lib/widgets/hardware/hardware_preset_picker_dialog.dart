@@ -3,16 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// See note in hardware_preset_editor_dialog.dart: the hardware-presets provider
-// and its service live outside the skotiq_core barrel (the C5 owner avoided
-// a `cameraPresetsProvider` name collision by keeping them package-private), so
-// import the source paths directly — the precedent set by the provider's own
-// test suite.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hardware_presets/hardware_presets_service.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'hardware_preset_editor_dialog.dart';
@@ -204,8 +197,6 @@ class _HardwarePresetPickerDialogState
         '${preset.sensorWidthPx}×${preset.sensorHeightPx}';
   }
 
-  // Mutations. each opens the editor or confirms deletion, surfacing errors.
-
   Future<void> _addCustom() async {
     if (_isTelescope) {
       final saved = await HardwarePresetEditorDialog.editTelescope(context);
@@ -298,9 +289,6 @@ class _HardwarePresetPickerDialogState
   }
 }
 
-/// A single selectable preset row: a tappable [SkotiqCard] with the display
-/// name, a monospace spec line, an optional "Built-in" badge, and edit/delete
-/// affordances.
 class _PresetRow extends StatelessWidget {
   final String title;
   final String spec;

@@ -27,10 +27,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_branch_controller.dart';
-import 'package:skotiq_app/screens/darkroom/darkroom_controller.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
 import 'package:skotiq_app/screens/darkroom/edit/darkroom_editor.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:go_router/go_router.dart';
@@ -38,6 +40,7 @@ import 'package:go_router/go_router.dart';
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
 
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {

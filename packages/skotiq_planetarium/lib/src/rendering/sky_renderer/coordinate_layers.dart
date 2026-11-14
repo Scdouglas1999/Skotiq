@@ -47,7 +47,6 @@ extension _SkyCanvasPainterCoordinateLayers on SkyCanvasPainter {
     Offset center,
     double scale,
   ) {
-    // Use cached paint object instead of creating new one
     final paint = _PaintCache.getGridPaint(config.gridColor);
 
     final fov = viewState.fieldOfView;
@@ -290,7 +289,6 @@ extension _SkyCanvasPainterCoordinateLayers on SkyCanvasPainter {
     );
     if (zenithPos == null || !_isInView(zenithPos, size)) return;
 
-    // Draw crosshair - use cached paint
     final paint = _PaintCache.getZenithCrossPaint(
       Colors.white.withValues(alpha: 0.4),
     );
@@ -321,7 +319,6 @@ extension _SkyCanvasPainterCoordinateLayers on SkyCanvasPainter {
   }
 
   void _drawAltAzGrid(Canvas canvas, Size size, Offset center, double scale) {
-    // Use cached paint instead of creating new one each frame
     final paint = _PaintCache.getAltAzPaint(
       config.gridColor.withValues(alpha: 0.3),
     );
@@ -335,7 +332,6 @@ extension _SkyCanvasPainterCoordinateLayers on SkyCanvasPainter {
       var firstPoint = true;
 
       for (var az = 0.0; az <= 360; az += 5) {
-        // Convert alt/az to RA/Dec
         final (ra, dec) = AstronomyCalculations.horizontalToEquatorial(
           altDeg: alt.toDouble(),
           azDeg: az,
@@ -372,7 +368,6 @@ extension _SkyCanvasPainterCoordinateLayers on SkyCanvasPainter {
   }
 
   void _drawEcliptic(Canvas canvas, Size size, Offset center, double scale) {
-    // Use cached paint instead of creating new one each frame
     final paint = _PaintCache.getEclipticPaint(config.eclipticColor);
 
     final path = Path();
@@ -553,7 +548,6 @@ extension _SkyCanvasPainterCoordinateLayers on SkyCanvasPainter {
       }
     }
 
-    // Use cached paint instead of creating new one each frame
     final paint = _PaintCache.getMeridianPaint(
       Colors.green.withValues(alpha: 0.4),
     );

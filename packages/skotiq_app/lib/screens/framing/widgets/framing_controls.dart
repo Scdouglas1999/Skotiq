@@ -6,11 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show MosaicPanel, MosaicStartCorner;
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import 'framing_panel_parts.dart';
+import '../../../router/app_routes.dart';
 
 part 'framing_controls_parts/_rotation_fields.dart';
 part 'framing_controls_parts/_fov_controls.dart';

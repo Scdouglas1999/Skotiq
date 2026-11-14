@@ -1,17 +1,17 @@
 import 'dart:math';
 
 import 'package:flutter/foundation.dart' show compute;
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../database/database.dart';
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
-import '../providers/settings_provider.dart' show HorizonProfile;
+import '../models/site/site_horizon_profile.dart' show SiteHorizonProfile;
 import 'logging_service.dart';
 
 /// Service for generating target suggestions for tonight's imaging session.
 ///
-/// Uses [TargetScoringService] from skotiq_planetarium to score targets
+/// Uses [TargetScoringService] from skotiq_astro to score targets
 /// based on altitude, moon distance, transit proximity, darkness, and airmass.
 /// Also factors in data collection progress to prioritize incomplete targets.
 ///
@@ -53,11 +53,11 @@ class TargetSuggestionService {
     required TargetSuggestionConfig config,
     required double latitude,
     required double longitude,
-    required List<Target> targets,
+    required List<DbTarget> targets,
     required List<ImagingSession> sessions,
     DateTime? observationTime,
     OpticalConfig? opticalConfig,
-    HorizonProfile? horizonProfile,
+    SiteHorizonProfile? horizonProfile,
   }) async {
     if (targets.isEmpty) return [];
     final elapsed = Stopwatch()..start();
@@ -91,11 +91,11 @@ typedef _SuggestionRequest = ({
   TargetSuggestionConfig config,
   double latitude,
   double longitude,
-  List<Target> targets,
+  List<DbTarget> targets,
   List<ImagingSession> sessions,
   DateTime observationTime,
   OpticalConfig? opticalConfig,
-  HorizonProfile? horizonProfile,
+  SiteHorizonProfile? horizonProfile,
 });
 
 typedef _SuggestionResult = ({
@@ -127,17 +127,14 @@ class _TonightSuggestionScorer {
     required TargetSuggestionConfig config,
     required double latitude,
     required double longitude,
-    required List<Target> targets,
+    required List<DbTarget> targets,
     required List<ImagingSession> sessions,
     required DateTime observationTime,
     OpticalConfig? opticalConfig,
-    HorizonProfile? horizonProfile,
+    SiteHorizonProfile? horizonProfile,
   }) {
     final now = observationTime;
 
-    // Determine the night window (astronomical dusk to dawn).
-    // If we're currently in a night (after midnight, before dawn), use that
-    // night's window. Otherwise use the upcoming night.
     final nightWindow = _calculateNightWindow(now, latitude, longitude);
 
     // Get moon position at the midpoint of the night (moon moves slowly)
@@ -201,7 +198,6 @@ class _TonightSuggestionScorer {
         continue;
       }
 
-      // Skip targets below minimum score
       if (score.totalScore < config.minScore) {
         continue;
       }
@@ -218,7 +214,6 @@ class _TonightSuggestionScorer {
         continue;
       }
 
-      // Filter by preferred object types if specified
       if (config.preferredObjectTypes.isNotEmpty) {
         final objectType = target.objectType?.toLowerCase() ?? '';
         final matches = config.preferredObjectTypes.any(
@@ -229,10 +224,8 @@ class _TonightSuggestionScorer {
         }
       }
 
-      // Calculate data progress
       final dataProgress = _calculateDataProgress(target.id, target, sessions);
 
-      // Compute framing fit score and adjusted total score
       double adjustedTotalScore = score.totalScore;
       double? framingFitScore;
       final tags = <String>[];
@@ -256,7 +249,6 @@ class _TonightSuggestionScorer {
         }
       }
 
-      // Generate human-readable reasoning
       final reasoning = _generateNightReasoning(
         score,
         dataProgress,
@@ -267,7 +259,6 @@ class _TonightSuggestionScorer {
         fovShortAxisArcmin: fovShortAxisArcmin,
       );
 
-      // Build score breakdown map
       final scoreBreakdown = <String, double>{
         'altitude': score.altitudeScore,
         'moonDistance': score.moonDistanceScore,
@@ -299,18 +290,15 @@ class _TonightSuggestionScorer {
       suggestions.add(suggestion);
     }
 
-    // Sort by configured mode
     _sortSuggestions(suggestions, config.sortMode, config.prioritizeIncomplete);
 
     return suggestions;
   }
 
-  /// Convert a database Target to a CelestialObject for scoring.
-  CelestialObject _targetToCelestialObject(Target target) {
+  CelestialObject _targetToCelestialObject(DbTarget target) {
     // Target.ra is in decimal hours, Target.dec is in decimal degrees
     final coordinate = CelestialCoordinate(ra: target.ra, dec: target.dec);
 
-    // Determine DSO type from object type string
     final dsoType = _parseDsoType(target.objectType);
 
     return DeepSkyObject(
@@ -325,7 +313,6 @@ class _TonightSuggestionScorer {
     );
   }
 
-  /// Parse object type string to DsoType enum.
   DsoType _parseDsoType(String? objectType) {
     if (objectType == null || objectType.isEmpty) {
       return DsoType.other;
@@ -358,10 +345,9 @@ class _TonightSuggestionScorer {
   /// Returns a value from 0.0 (no data) to 1.0 (complete).
   double _calculateDataProgress(
     int targetId,
-    Target target,
+    DbTarget target,
     List<ImagingSession> sessions,
   ) {
-    // Sum total integration time from all sessions for this target
     double totalIntegrationSecs = 0;
     for (final session in sessions) {
       if (session.targetId == targetId) {
@@ -372,7 +358,6 @@ class _TonightSuggestionScorer {
     // Also include any integration time already stored on the target itself
     totalIntegrationSecs += target.totalIntegrationSecs;
 
-    // Calculate expected total integration time
     final plannedSubs = target.totalPlannedSubs;
     if (plannedSubs <= 0) {
       // If no planned subs, we can't calculate progress
@@ -387,14 +372,12 @@ class _TonightSuggestionScorer {
     final expectedTotalSecs = plannedSubs * _typicalExposureSecs;
     final progress = totalIntegrationSecs / expectedTotalSecs;
 
-    // Clamp to 0-1 range
     return progress.clamp(0.0, 1.0);
   }
 
-  /// Determine the night window (astronomical dusk to dawn) for the given time.
-  ///
-  /// If the observer is currently in a night (after midnight, before dawn), returns
-  /// that night's window. Otherwise returns the upcoming night's window.
+  /// The night window (astronomical dusk to dawn) at [now]: the night in
+  /// progress, or once its dark has ended, the coming one
+  /// ([AstronomyCalculations.nightAt]).
   /// Falls back to nautical or civil twilight at high latitudes where
   /// astronomical darkness may not occur.
   _NightWindow _calculateNightWindow(
@@ -402,42 +385,17 @@ class _TonightSuggestionScorer {
     double latitude,
     double longitude,
   ) {
-    // Check if we're currently in "last night" (past midnight, before dawn).
-    // calculateTwilightTimes starts from noon, so passing yesterday's date
-    // gives us yesterday's evening dusk → this morning's dawn.
-    final prevDate = DateTime(now.year, now.month, now.day - 1);
-    final prevTwilight = AstronomyCalculations.calculateTwilightTimes(
-      date: prevDate,
+    final night = AstronomyCalculations.nightAt(
+      now: now,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
-
-    final prevNight = _extractNightBounds(prevTwilight);
-    if (prevNight != null &&
-        now.isAfter(prevNight.start) &&
-        now.isBefore(prevNight.end)) {
-      // We're in last night's darkness
+    final bounds = _extractNightBounds(night);
+    if (bounds != null) {
       return _NightWindow(
-        start: prevNight.start,
-        end: prevNight.end,
-        twilight: prevTwilight,
-      );
-    }
-
-    // Not in last night → use today's date for the upcoming/current evening
-    final todayDate = DateTime(now.year, now.month, now.day);
-    final todayTwilight = AstronomyCalculations.calculateTwilightTimes(
-      date: todayDate,
-      latitudeDeg: latitude,
-      longitudeDeg: longitude,
-    );
-
-    final todayNight = _extractNightBounds(todayTwilight);
-    if (todayNight != null) {
-      return _NightWindow(
-        start: todayNight.start,
-        end: todayNight.end,
-        twilight: todayTwilight,
+        start: bounds.start,
+        end: bounds.end,
+        twilight: night,
       );
     }
 
@@ -452,11 +410,7 @@ class _TonightSuggestionScorer {
       // If we're past 5 AM, shift to tonight
       defaultEnd = defaultEnd.add(const Duration(days: 1));
     }
-    return _NightWindow(
-      start: defaultStart,
-      end: defaultEnd,
-      twilight: todayTwilight,
-    );
+    return _NightWindow(start: defaultStart, end: defaultEnd, twilight: night);
   }
 
   /// Extract the best available night bounds from twilight times.
@@ -481,7 +435,6 @@ class _TonightSuggestionScorer {
     return null;
   }
 
-  /// Generate a human-readable reasoning string for the night-based suggestion.
   String _generateNightReasoning(
     TargetScore score,
     double dataProgress,
@@ -493,7 +446,6 @@ class _TonightSuggestionScorer {
   }) {
     final parts = <String>[];
 
-    // Peak altitude assessment
     final peakAlt =
         score.visibility.peakAltitude ?? score.visibility.currentAltitude;
     if (peakAlt >= 60) {
@@ -535,13 +487,11 @@ class _TonightSuggestionScorer {
       }
     }
 
-    // Build first sentence
     var reasoning = parts.join(', ');
     if (reasoning.isNotEmpty) {
       reasoning = '${reasoning[0].toUpperCase()}${reasoning.substring(1)}.';
     }
 
-    // Imaging window
     final hoursAbove = score.visibility.hoursAboveMinAlt;
     if (hoursAbove != null && hoursAbove > 0) {
       reasoning +=
@@ -559,7 +509,6 @@ class _TonightSuggestionScorer {
           'will fare much better than broadband tonight.';
     }
 
-    // Data progress
     if (dataProgress > 0) {
       final pct = (dataProgress * 100).toStringAsFixed(0);
       reasoning += ' $pct% of planned data collected.';
@@ -684,7 +633,6 @@ class _TonightSuggestionScorer {
     return 1 + (fillRatio / 0.05) * 19;
   }
 
-  /// Sort suggestions according to the configured mode.
   void _sortSuggestions(
     List<TargetSuggestion> suggestions,
     SuggestionSortMode sortMode,

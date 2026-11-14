@@ -3,18 +3,16 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        ProducingNodeThumbnail,
-        exposureNodeThumbnailsProvider,
-        FrameExclusionKind,
-        frameExclusionKindOf;
+import 'package:skotiq_core/database.dart' show ProducingNodeThumbnail;
+import 'package:skotiq_core/errors.dart' show userFacingError;
+import 'package:skotiq_core/providers.dart' show exposureNodeThumbnailsProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'thumbnail_strip_prefs.dart';
 import '../../../utils/filter_label.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Inline frame strip rendered beneath each
 /// ExposureNode in the sequence tree.
@@ -111,7 +109,7 @@ class _StripBody extends ConsumerWidget {
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
-                  'Failed to load frame thumbnails: $error',
+                  'Failed to load frame thumbnails: ${userFacingError(error)}',
                   style: TextStyle(
                       fontSize: SkotiqTypography.fontSize10,
                       color: colors.warning),

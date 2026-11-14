@@ -8,7 +8,7 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
     required String? filter,
     required IntegrationSettings settings,
     required IntegrateSessionResult result,
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     required List<String> calibrationWarnings,
   }) async {
     final name = _masterName(targetName: targetName, filter: filter);
@@ -81,7 +81,7 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
   /// picks and operator-facing warnings reach the outcome and the morning
   /// report — the one calibration answer, not a second unwarned one.
   Future<ResolvedCalibration> _resolveCalibration({
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     String? biasPath,
     required bool cosmeticCorrection,
   }) async {
@@ -89,7 +89,8 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
 
     final matchSet = await _calibrationLibrary.match(
       LightFrameContext(
-        gain: anchor.gain,
+        gain: anchor.comparableGain,
+        gainIsUnknownIso: anchor.hasUnknownIso,
         offset: anchor.offset,
         exposureSeconds: anchor.exposureDuration,
         temperature: anchor.sensorTemp,
@@ -123,11 +124,13 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
     );
   }
 
-  Map<String, List<CapturedImage>> _groupByFilter(List<CapturedImage> subs) {
-    final out = <String, List<CapturedImage>>{};
+  Map<String, List<DbCapturedImage>> _groupByFilter(
+    List<DbCapturedImage> subs,
+  ) {
+    final out = <String, List<DbCapturedImage>>{};
     for (final sub in subs) {
       final bucket = _filterBucket(sub.filter);
-      out.putIfAbsent(bucket, () => <CapturedImage>[]).add(sub);
+      out.putIfAbsent(bucket, () => <DbCapturedImage>[]).add(sub);
     }
     return out;
   }
@@ -143,8 +146,8 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
   /// Pick the alignment reference: highest qualityScore, tie-broken by lowest
   /// HFR then most-recent capture. Returns null (⇒ native "auto") when no sub
   /// carries a usable metric, letting the engine choose by composite quality.
-  String? _chooseReferencePath(List<CapturedImage> subs) {
-    CapturedImage? best;
+  String? _chooseReferencePath(List<DbCapturedImage> subs) {
+    DbCapturedImage? best;
     for (final s in subs) {
       if (best == null || _isBetterReference(s, best)) {
         best = s;
@@ -158,7 +161,7 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
     return best.filePath;
   }
 
-  bool _isBetterReference(CapturedImage candidate, CapturedImage current) {
+  bool _isBetterReference(DbCapturedImage candidate, DbCapturedImage current) {
     final cQ = candidate.qualityScore;
     final curQ = current.qualityScore;
     if (cQ != null || curQ != null) {

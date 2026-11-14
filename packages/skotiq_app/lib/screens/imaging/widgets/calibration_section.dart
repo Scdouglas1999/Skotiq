@@ -3,12 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/remote_directory_picker_dialog.dart';
 import 'panel_widgets.dart';
+import '../../../router/app_routes.dart';
 
 part 'calibration_section_parts/_status_blocks.dart';
 part 'calibration_section_parts/_build_controls.dart';
@@ -22,7 +28,7 @@ typedef DefectMapHostDarkPicker = Future<String?> Function(
 Future<List<String>> _pickLocalDarkFrames() async {
   const typeGroup = XTypeGroup(
     label: 'Dark frames',
-    extensions: ['fits', 'fit', 'fts', 'xisf'],
+    extensions: FrameFiles.all,
   );
   final files = await openFiles(acceptedTypeGroups: [typeGroup]);
   return files.map((file) => file.path).toList(growable: false);
@@ -113,7 +119,7 @@ class CalibrationSection extends ConsumerWidget {
                 label: 'Go to Equipment',
                 icon: SkotiqIcons.connected,
                 size: ButtonSize.small,
-                onPressed: () => context.go('/equipment'),
+                onPressed: () => context.go(AppRoute.equipment.path),
               ),
             ),
           ],
@@ -162,7 +168,7 @@ class CalibrationSection extends ConsumerWidget {
               icon: LucideIcons.sun,
               variant: ButtonVariant.outline,
               size: ButtonSize.small,
-              onPressed: () => context.push('/flat-wizard'),
+              onPressed: () => context.push(AppRoute.flatWizard.path),
             ),
           ),
         ],

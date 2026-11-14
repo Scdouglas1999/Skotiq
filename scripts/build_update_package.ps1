@@ -99,13 +99,10 @@ try {
         Write-Host "`nReusing pre-staged updater.exe" -ForegroundColor Yellow
     } else {
         Write-Host "`nBuilding updater.exe..." -ForegroundColor Yellow
-        Push-Location $rustDir
-        cargo build --release --package skotiq_updater
+        dart (Join-Path $PSScriptRoot "build.dart") updater
         if ($LASTEXITCODE -ne 0) {
-            Pop-Location
             throw "Updater build failed"
         }
-        Pop-Location
 
         # Copy updater.exe to the release directory
         $updaterSource = Join-Path $rustDir "target/release/updater.exe"

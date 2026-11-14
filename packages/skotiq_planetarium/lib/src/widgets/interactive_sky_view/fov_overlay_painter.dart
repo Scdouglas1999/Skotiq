@@ -433,7 +433,6 @@ class _FOVOverlayPainter extends CustomPainter {
       height: rectHeight,
     );
 
-    // Draw border
     final borderPaint = Paint()
       ..color = FieldOfViewColors.green
       ..strokeWidth = 2
@@ -497,7 +496,6 @@ class _FOVOverlayPainter extends CustomPainter {
     );
 
     if (showCrosshair) {
-      // Draw center crosshair
       final crosshairPaint = Paint()
         ..color = FieldOfViewColors.green.withValues(alpha: 0.5)
         ..strokeWidth = 1;

@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -6,17 +5,21 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The selector provider is not re-exported through the core barrel; the
-// Stack-and-Share entry point needs it directly to pre-compute the selection
-// summary the launcher dialog renders before a run starts. (Matches the
-// established precedent in screens/framing/widgets/framing_canvas.dart.)
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/stack_light_selector.dart'
-    show stackLightSelectorProvider, NoLightsToStackException;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
+import '../../../widgets/accessible_dropdown.dart';
+import '../../stack_result/recent_stacks_panel.dart';
 import '../../stack_result/stack_and_share_dialog.dart';
-import 'osc_stacking_controls.dart';
+import '../../../widgets/osc_stacking_controls.dart';
 import 'panel_widgets.dart';
+import 'session_stack_plan.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'stacking_panel/stack_and_share_entry.dart';
 part 'stacking_panel/status_widgets.dart';
@@ -28,7 +31,7 @@ typedef StackingReferencePicker = Future<XFile?> Function();
 Future<XFile?> _pickStackingReference() {
   const typeGroup = XTypeGroup(
     label: 'Image files',
-    extensions: ['fits', 'fit', 'fts', 'xisf', 'tif', 'tiff', 'png'],
+    extensions: [...FrameFiles.all, 'tif', 'tiff', 'png'],
   );
   return openFile(acceptedTypeGroups: [typeGroup]);
 }
@@ -95,9 +98,10 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
   /// True from the moment Stop is pressed on a stack that has frames in it
   /// until the save/discard decision is resolved.
   bool _isEndingStack = false;
-  int _startGeneration = 0;
-  int _stopGeneration = 0;
-  int _resetGeneration = 0;
+
+  /// Start, stop and reset sent to the host, each superseding its own
+  /// earlier press; a host change drops them all.
+  late final _operations = ref.backendScopes(alive: () => mounted);
 
   /// Whether the OSC config has already been seeded from the connected camera's
   /// capabilities. Guards the one-time camera-aware defaulting so a user who
@@ -159,43 +163,53 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     });
   }
 
-  Future<void> _startStacking() async {
-    if (_isStarting) return;
-    final generation = ++_startGeneration;
-    final authority = ref.read(backendProvider);
-    final isRemote = ref.read(isRemoteModeProvider);
-    setState(() => _isStarting = true);
+  /// Stacks tonight's frames: the sharpest is the reference, the rest join in
+  /// order, and every frame captured afterwards is added as it lands.
+  Future<void> _stackSessionFrames(SessionStackPlan plan) => _start(
+        (_) => ref.read(liveStackingProvider.notifier).startFromFrames(
+              plan.referencePath,
+              plan.framePaths,
+              config: ref.read(liveStackingProvider).config,
+            ),
+      );
 
-    // Remote (appliance) mode: there is no local reference file to pick — the
-    // host stacks the frames IT captures. Arm the host; the next captured frame
-    // becomes the reference and subsequent frames auto-feed.
-    try {
-      if (isRemote) {
-        await ref.read(liveStackingProvider.notifier).startRemote(
+  /// Starts from a reference sub the operator picks on disk.
+  Future<void> _stackFromChosenFile() => _start((stillCurrent) async {
+        // The selection belongs to the backend that opened the native dialog;
+        // reconnecting while it is open must never send that local path to
+        // the new host.
+        final file = await ref.read(stackingReferencePickerProvider)();
+        if (file == null || !stillCurrent()) return;
+        await ref.read(liveStackingProvider.notifier).startFromFile(
+              file.path,
               config: ref.read(liveStackingProvider).config,
             );
-        return;
-      }
+      });
 
-      // Local mode: let the user pick a reference image file. The selection
-      // belongs to the backend that opened the native dialog; reconnecting
-      // while it is open must never send that local path to the new host.
-      final file = await ref.read(stackingReferencePickerProvider)();
-      if (file == null || !_isCurrentStart(generation, authority)) return;
+  /// Arms the host's stacker: there is no local reference file on a linked
+  /// client, so the host's next captured frame becomes the reference and the
+  /// frames after it are fed automatically.
+  Future<void> _armHostStack() => _start(
+        (_) => ref.read(liveStackingProvider.notifier).startRemote(
+              config: ref.read(liveStackingProvider).config,
+            ),
+      );
 
-      await ref.read(liveStackingProvider.notifier).startFromFile(
-            file.path,
-            config: ref.read(liveStackingProvider).config,
-          );
+  Future<void> _start(
+    Future<void> Function(bool Function() stillCurrent) operation,
+  ) async {
+    if (_isStarting) return;
+    final start = _operations.beginLatest(#start);
+    setState(() => _isStarting = true);
+    try {
+      await operation(() => start.isCurrent);
     } catch (error) {
-      if (!mounted || !_isCurrentStart(generation, authority)) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not start live stacking: $error')),
+      if (!mounted || start.isStale) return;
+      context.showErrorSnackBar(
+        'Could not start live stacking: ${userFacingError(error)}',
       );
     } finally {
-      if (_isCurrentStart(generation, authority)) {
-        setState(() => _isStarting = false);
-      }
+      if (start.isCurrent) setState(() => _isStarting = false);
     }
   }
 
@@ -300,16 +314,12 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
       final saved = library.saved;
       if (!mounted) return true;
       final integration = saved.totalIntegrationSecs;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Stacked master (${saved.stackedFrameCount} frames'
-            '${integration != null && integration > 0 ? ', '
-                '${integration.toStringAsFixed(0)} s integration' : ''}) '
-            'saved to ${saved.filePath}'
-            '${library.masterId == null ? '' : ' and added to the Darkroom'}',
-          ),
-        ),
+      context.showInfoSnackBar(
+        'Stacked master (${saved.stackedFrameCount} frames'
+        '${integration != null && integration > 0 ? ', '
+            '${integration.toStringAsFixed(0)} s integration' : ''}) '
+        'saved to ${saved.filePath}'
+        '${library.masterId == null ? '' : ' and added to the Darkroom'}',
       );
       return true;
     } on LiveStackingMasterFormatUnsupported catch (error) {
@@ -341,67 +351,73 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
 
   Future<void> _releaseStack() async {
     if (_isStopping) return;
-    final generation = ++_stopGeneration;
-    final authority = ref.read(backendProvider);
+    final stop = _operations.beginLatest(#stop);
     setState(() => _isStopping = true);
     try {
       await ref.read(liveStackingProvider.notifier).stop();
     } catch (error) {
-      if (!mounted ||
-          !_isCurrentOperation(generation, _stopGeneration, authority)) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not stop live stacking: $error')),
+      if (!mounted || stop.isStale) return;
+      context.showErrorSnackBar(
+        'Could not stop live stacking: ${userFacingError(error)}',
       );
     } finally {
-      if (_isCurrentOperation(generation, _stopGeneration, authority)) {
-        setState(() => _isStopping = false);
-      }
+      if (stop.isCurrent) setState(() => _isStopping = false);
     }
   }
 
   Future<void> _resetStack() async {
     if (_isResetting) return;
-    final generation = ++_resetGeneration;
-    final authority = ref.read(backendProvider);
+    final reset = _operations.beginLatest(#reset);
     setState(() => _isResetting = true);
     try {
       await ref.read(liveStackingProvider.notifier).reset();
     } catch (error) {
-      if (!mounted ||
-          !_isCurrentOperation(generation, _resetGeneration, authority)) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not reset live stacking: $error')),
+      if (!mounted || reset.isStale) return;
+      context.showErrorSnackBar(
+        'Could not reset live stacking: ${userFacingError(error)}',
       );
     } finally {
-      if (_isCurrentOperation(generation, _resetGeneration, authority)) {
-        setState(() => _isResetting = false);
-      }
+      if (reset.isCurrent) setState(() => _isResetting = false);
     }
-  }
-
-  bool _isCurrentStart(int generation, SkotiqBackend authority) {
-    return _isCurrentOperation(generation, _startGeneration, authority);
-  }
-
-  bool _isCurrentOperation(
-    int generation,
-    int currentGeneration,
-    SkotiqBackend authority,
-  ) {
-    return mounted &&
-        generation == currentGeneration &&
-        identical(ref.read(backendProvider), authority);
   }
 
   /// True while the Stack-and-Share selection preview is being computed (between
   /// the button press and the launcher dialog opening). Guards against a second
   /// concurrent press while the DB query is in flight.
   bool _isOpeningStackAndShare = false;
-  int _stackAndShareGeneration = 0;
+
+  /// The Stack & Share preview being prepared; a host change or a new imaging
+  /// session drops it.
+  late final _stackAndShareOpenings = ref.backendScopes(alive: () => mounted);
+
+  /// The session the operator picked to stack when no run is imaging; null
+  /// for the newest one.
+  int? _pickedStackSessionId;
+
+  /// The sessions Stack & Share can pick from when no run is imaging: those
+  /// that took frames, newest first. A run's own session is the only choice
+  /// while it images, and a linked client cannot run Stack & Share at all.
+  List<ImagingSession> _pickableStackSessions() {
+    if (ref.read(isRemoteModeProvider)) return const [];
+    if (ref.read(sessionStateProvider).dbSessionId != null) return const [];
+    final sessions = ref.read(allSessionsProvider).valueOrNull ?? const [];
+    return [
+      for (final session in sessions)
+        if (session.totalExposures > 0) session,
+    ];
+  }
+
+  /// The session Stack & Share stacks now: the imaging run's, else the one
+  /// picked, else the newest that took frames.
+  int? _stackSessionId() {
+    final active = ref.read(sessionStateProvider).dbSessionId;
+    if (active != null) return active;
+    final pickable = _pickableStackSessions();
+    for (final session in pickable) {
+      if (session.id == _pickedStackSessionId) return session.id;
+    }
+    return pickable.isEmpty ? null : pickable.first.id;
+  }
 
   /// Entry point for the **Stack-and-Share Loop** (component C10).
   ///
@@ -417,17 +433,12 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
   Future<void> _openStackAndShare(int sessionId) async {
     if (_isOpeningStackAndShare) return;
     if (ref.read(isRemoteModeProvider)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Stack & Share must be run on the imaging host in this release.',
-          ),
-        ),
+      context.showInfoSnackBar(
+        'Stack & Share must be run on the imaging host in this release.',
       );
       return;
     }
-    final generation = ++_stackAndShareGeneration;
-    final authority = ref.read(backendProvider);
+    final opening = _stackAndShareOpenings.beginLatest();
     setState(() => _isOpeningStackAndShare = true);
 
     StackSelectionSummary? selection;
@@ -443,15 +454,12 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
       // "no lights" case its own actionable message.
       selectionError = e;
     } finally {
-      if (_isCurrentStackAndShare(generation, authority, sessionId)) {
+      if (_isCurrentStackAndShare(opening, sessionId)) {
         setState(() => _isOpeningStackAndShare = false);
       }
     }
 
-    if (!mounted ||
-        !_isCurrentStackAndShare(generation, authority, sessionId)) {
-      return;
-    }
+    if (!mounted || !_isCurrentStackAndShare(opening, sessionId)) return;
 
     if (selectionError is NoLightsToStackException) {
       await ErrorDialog.show(
@@ -483,14 +491,39 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
   }
 
   bool _isCurrentStackAndShare(
-    int generation,
-    SkotiqBackend authority,
+    AsyncScope<SkotiqBackend> opening,
     int sessionId,
-  ) {
-    return mounted &&
-        generation == _stackAndShareGeneration &&
-        identical(ref.read(backendProvider), authority) &&
-        ref.read(sessionStateProvider).dbSessionId == sessionId;
+  ) =>
+      opening.isCurrent && _stackSessionId() == sessionId;
+
+  String _startLabel(bool isRemoteMode, SessionStackPlan? plan) {
+    if (isRemoteMode) return _isStarting ? 'Starting...' : 'Start stacking';
+    if (plan == null) {
+      return _isStarting ? 'Starting...' : 'Start from a file…';
+    }
+    return _isStarting
+        ? 'Adding tonight\'s frames…'
+        : 'Stack tonight\'s frames';
+  }
+
+  static String _sessionStackLine(SessionStackPlan? plan) {
+    if (plan == null) {
+      return 'No light frames from tonight on this computer yet. Start from '
+          'a reference sub on disk, or take frames first.';
+    }
+    final count = plan.frameCount;
+    final filter = plan.filter;
+    final frames = [
+      '$count',
+      if (filter != null && filter.isNotEmpty) filter,
+      count == 1 ? 'frame' : 'frames',
+    ].join(' ');
+    final hfr = plan.referenceHfr;
+    final reference = hfr == null
+        ? 'The newest is the reference'
+        : 'The sharpest (HFR ${hfr.toStringAsFixed(2)}) is the reference';
+    return '$frames from tonight. $reference, and new frames join as they '
+        'land.';
   }
 
   @override
@@ -503,10 +536,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           _isEndingStack ||
           _isOpeningStackAndShare;
       if (!hadPendingOperation) return;
-      _startGeneration++;
-      _stopGeneration++;
-      _resetGeneration++;
-      _stackAndShareGeneration++;
+      _operations.cancelAll();
+      _stackAndShareOpenings.cancelAll();
       setState(() {
         _isStarting = false;
         _isStopping = false;
@@ -519,11 +550,12 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
       sessionStateProvider.select((state) => state.dbSessionId),
       (previous, next) {
         if (!_isOpeningStackAndShare || previous == next) return;
-        _stackAndShareGeneration++;
+        _stackAndShareOpenings.cancelAll();
         setState(() => _isOpeningStackAndShare = false);
       },
     );
     final isRemoteMode = ref.watch(isRemoteModeProvider);
+    final plan = ref.watch(sessionStackPlanProvider);
     final stackState = ref.watch(liveStackingProvider);
     final isRunning = stackState.status == LiveStackingStatus.running;
     final isError = stackState.status == LiveStackingStatus.error;
@@ -546,11 +578,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     // a descendant's build.
     _maybeSeedOscDefaultsFromCamera(config);
 
-    // Resolve the current imaging session from the same authoritative state the
-    // rest of the imaging screen uses. The Stack-and-Share entry point operates
-    // on this session; with no active/selected session the button is disabled.
-    final sessionState = ref.watch(sessionStateProvider);
-    final sessionId = sessionState.dbSessionId;
+    ref.watch(sessionStateProvider.select((state) => state.dbSessionId));
+    ref.watch(allSessionsProvider);
+    final stackSessionId = _stackSessionId();
 
     return SingleChildScrollView(
       padding: SkotiqTokens.paddingLg,
@@ -566,19 +596,21 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                   style: SkotiqTypography.sectionTitle
                       .copyWith(color: widget.colors.textPrimary)),
               _StackAndShareEntry(
-                sessionId: sessionId,
+                sessionId: stackSessionId,
+                pickable: _pickableStackSessions(),
                 liveStackingActive: isRunning,
                 isBusy: _isOpeningStackAndShare,
                 isRemoteMode: isRemoteMode,
-                onPressed: sessionId == null || isRemoteMode
+                onSessionPicked: (id) =>
+                    setState(() => _pickedStackSessionId = id),
+                onPressed: stackSessionId == null || isRemoteMode
                     ? null
-                    : () => _openStackAndShare(sessionId),
+                    : () => _openStackAndShare(stackSessionId),
               ),
             ],
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // Error banner
           if (stackState.errorMessage != null)
             _ErrorBanner(
               message: stackState.errorMessage!,
@@ -590,12 +622,10 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                   : null,
             ),
 
-          // Status and controls
           SkotiqPanel(
             head: PanelHead(label: 'Live stacking'),
             child: Column(
               children: [
-                // Status indicator
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -619,7 +649,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                         const SizedBox(width: 6),
                         Text(
                           isRunning
-                              ? 'Stacking'
+                              ? stats.filter == null
+                                  ? 'Stacking'
+                                  : 'Stacking ${stats.filter}'
                               : isError
                                   ? 'Error'
                                   : 'Idle',
@@ -635,39 +667,55 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
-                if (isRemoteMode)
+                if (isRemoteMode || !isRunning)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
-                      'Stacking runs on the imaging host. Press Start to arm it — '
-                      'the next captured frame becomes the reference and every '
-                      'frame after is stacked automatically, even while this '
-                      'device is asleep.',
+                      isRemoteMode
+                          ? 'Stacking runs on the imaging host. Press Start to '
+                              'arm it — the next captured frame becomes the '
+                              'reference and every frame after is stacked '
+                              'automatically, even while this device is asleep.'
+                          : _sessionStackLine(plan),
                       style: SkotiqTypography.caption
                           .copyWith(color: widget.colors.textMuted),
                     ),
                   ),
-
                 Wrap(
                   spacing: SkotiqTokens.spaceSm,
                   runSpacing: SkotiqTokens.spaceSm,
+                  // Idle offers the ways to start; a running stack offers the
+                  // ways to end or restart it.
                   children: [
-                    SkotiqButton(
-                      label: _isStarting ? 'Starting...' : 'Start stacking',
-                      icon: SkotiqIcons.layers,
-                      isLoading: _isStarting,
-                      onPressed:
-                          !isRunning && !_isStarting ? _startStacking : null,
-                    ),
-                    SkotiqButton(
-                      label: _isStopping ? 'Stopping...' : 'Stop',
-                      icon: SkotiqIcons.stop,
-                      variant: ButtonVariant.secondary,
-                      onPressed: isRunning && !_isStopping && !_isEndingStack
-                          ? _stopStacking
-                          : null,
-                    ),
+                    if (!isRunning)
+                      SkotiqButton(
+                        label: _startLabel(isRemoteMode, plan),
+                        icon: SkotiqIcons.layers,
+                        isLoading: _isStarting,
+                        onPressed: _isStarting
+                            ? null
+                            : isRemoteMode
+                                ? _armHostStack
+                                : plan != null
+                                    ? () => _stackSessionFrames(plan)
+                                    : _stackFromChosenFile,
+                      ),
+                    if (!isRemoteMode && plan != null && !isRunning)
+                      SkotiqButton(
+                        label: 'Choose a file…',
+                        icon: SkotiqIcons.folderOpen,
+                        variant: ButtonVariant.ghost,
+                        onPressed: _isStarting ? null : _stackFromChosenFile,
+                      ),
+                    if (isRunning)
+                      SkotiqButton(
+                        label: _isStopping ? 'Stopping...' : 'Stop',
+                        icon: SkotiqIcons.stop,
+                        variant: ButtonVariant.secondary,
+                        onPressed: !_isStopping && !_isEndingStack
+                            ? _stopStacking
+                            : null,
+                      ),
                     if (isRunning)
                       SkotiqButton(
                         label: _isResetting ? 'Resetting...' : 'Reset stack',
@@ -682,7 +730,18 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           ),
           const SizedBox(height: 20),
 
-          // Statistics
+          if (isRunning && stats.otherFilterNote != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
+              child: SkotiqBanner(
+                title: stats.otherFilterFrames == 1
+                    ? '1 frame left out'
+                    : '${stats.otherFilterFrames} frames left out',
+                message: stats.otherFilterNote!,
+                tone: BannerTone.info,
+              ),
+            ),
+
           SkotiqPanel(
             head: PanelHead(label: 'Statistics'),
             child: Column(
@@ -759,7 +818,6 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                   ),
                 ],
                 const SizedBox(height: 12),
-                // Alignment quality indicator
                 _AlignmentQualityBar(
                   stats: stats,
                   colors: widget.colors,
@@ -769,7 +827,6 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           ),
           const SizedBox(height: 20),
 
-          // Stacked preview
           if (widget.showPreview &&
               stackState.previewData != null &&
               stackState.previewWidth > 0 &&
@@ -789,7 +846,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           if (widget.showPreview && stackState.previewData != null)
             const SizedBox(height: 20),
 
-          // Sigma Clipping config
+          const RecentStacksPanel(),
+          const SizedBox(height: 20),
+
           SkotiqPanel(
             head: PanelHead(label: 'Sigma clipping'),
             child: Column(
@@ -843,7 +902,6 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           ),
           const SizedBox(height: 20),
 
-          // Star Matching config
           SkotiqPanel(
             head: PanelHead(label: 'Star matching'),
             child: Column(

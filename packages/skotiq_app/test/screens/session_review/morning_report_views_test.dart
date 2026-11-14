@@ -19,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/narrative_view.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
 import 'package:skotiq_app/screens/session_review/workbench_view.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
@@ -87,7 +87,7 @@ void main() {
     );
     expect(find.text('How deep is deep enough?'), findsOneWidget);
     expect(find.text('This project over time'), findsOneWidget);
-    expect(find.text('Calibrated & annotated'), findsOneWidget);
+    expect(find.text('Finish in the Darkroom'), findsOneWidget);
     // The Night Doctor finding cards surfaced.
     expect(find.text('Clouds cost 6 subs'), findsOneWidget);
     expect(find.text('Focus drifted as the night cooled'), findsOneWidget);
@@ -104,7 +104,8 @@ void main() {
     // Workbench section headers render.
     expect(find.text('Subs & culling'), findsOneWidget);
     expect(find.text('Master & overlays'), findsOneWidget);
-    expect(find.text('Narrowband mixer'), findsOneWidget);
+    expect(find.text('Finishing'), findsOneWidget);
+    expect(find.text('Narrowband mixer'), findsNothing);
     expect(find.text('A / B compare'), findsOneWidget);
     expect(find.text('Integration settings'), findsOneWidget);
   });

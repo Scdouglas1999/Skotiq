@@ -124,8 +124,8 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     }
   }
 
-  /// Every minute: re-send the last verdict and the safe period to the
-  /// sequencer, and refresh a forecast that has gone quiet. The sequencer
+  /// Every minute: re-send the last verdict to the sequencer, and refresh a
+  /// forecast that has gone quiet. The sequencer
   /// treats a verdict nobody refreshes as missing data, so the app keeps it
   /// fresh whether or not anything changed.
   void _startVerdictHeartbeat() {
@@ -144,16 +144,6 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     final last = _lastVerdict;
     if (last != null) {
       await _pushWeatherVerdict(last.unsafe, advisory: last.advisory);
-    }
-    final resumeAfter = _lastResumeAfterSecs;
-    if (resumeAfter != null && mounted) {
-      try {
-        await _ref
-            .read(backendProvider)
-            .sequencerSetWeatherResumeAfterSafeSecs(resumeAfter);
-      } catch (_) {
-        // No live executor; sent again next minute.
-      }
     }
     if (!mounted) return;
     final settings = _ref.read(weatherSettingsDataProvider).valueOrNull;
@@ -187,6 +177,7 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     unawaited(() async {
       ProviderSubscription<AsyncValue<WeatherAlert>>? subscription;
       try {
+        _ref.invalidate(cloudCoverForecastProvider);
         _ref.invalidate(cloudCoverPercentageProvider);
         _cloudCoverFetchedAt = _clock();
         subscription = _ref.listen<AsyncValue<WeatherAlert>>(
@@ -198,10 +189,9 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
             .read(evaluateWeatherConditionsProvider.future)
             .timeout(const Duration(seconds: 60));
       } catch (error) {
-        developer.log(
+        Log.info(
           'weather: forecast refresh failed: $error',
-          name: 'WeatherSafety',
-          level: 800,
+          source: 'WeatherSafety',
         );
       } finally {
         subscription?.close();
@@ -227,6 +217,7 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
           ? WeatherSafetyNotifier._cloudCoverTtl
           : WeatherSafetyNotifier._cloudCoverErrorRetryTtl;
       if (now.difference(fetchedAt) > ttl) {
+        _ref.invalidate(cloudCoverForecastProvider);
         _ref.invalidate(cloudCoverPercentageProvider);
         _cloudCoverFetchedAt = now;
       }
@@ -279,10 +270,9 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
       // still a diagnosable condition (analyzer not ready yet, radar fetch
       // in-flight, or backend disconnected), so record it at a low severity
       // instead of silently dropping it.
-      developer.log(
+      Log.debug(
         'weather: cloud-motion push failed: $e',
-        name: 'WeatherSafety',
-        level: 700,
+        source: 'WeatherSafety',
         error: e,
         stackTrace: stack,
       );
@@ -345,22 +335,11 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     // hour before sunrise on Null Island: 00:20 on a US east-coast night.
     if (!appSettings.hasObserverLocation) return false;
     final now = _clock();
-    // The next dawn, not the dawn after today's noon. Dawn comes after
-    // midnight, and from midnight on, "today's night" is the one that starts
-    // this evening, so asking only for it measured the lead time to TOMORROW's
-    // dawn and the park never fired. Yesterday's night comes first because its
-    // dawn, when still ahead, is the one about to happen.
-    for (final day in [now.subtract(const Duration(days: 1)), now]) {
-      final dawn = SkyCalculations.computeTwilight(
-        noonLocal: DateTime(day.year, day.month, day.day, 12),
-        latitudeDegrees: appSettings.latitude,
-        longitudeDegrees: appSettings.longitude,
-        kind: TwilightKind.astronomical,
-      ).morningStart?.toLocal();
-      if (dawn == null || now.isAfter(dawn)) continue;
-      return dawn.difference(now) <=
-          WeatherSafetyNotifier._parkBeforeDawnLeadTime;
-    }
-    return false;
+    final parkAt = dawnParkTime(
+      now: now,
+      latitude: appSettings.latitude,
+      longitude: appSettings.longitude,
+    );
+    return parkAt != null && !now.isBefore(parkAt);
   }
 }

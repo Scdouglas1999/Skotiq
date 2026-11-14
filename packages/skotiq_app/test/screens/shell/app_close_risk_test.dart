@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   bool hasRisk({
     bool sequence = false,
     bool session = false,
+    Phd2State guider = Phd2State.stopped,
     bool camera = false,
     bool mount = false,
     bool flats = false,
@@ -13,6 +15,7 @@ void main() {
     return appCloseHasActiveOperations(
       sequenceOwnsHardware: sequence,
       sessionBusy: session,
+      guider: guider,
       cameraBusy: camera,
       mountBusy: mount,
       flatWizardBusy: flats,
@@ -31,6 +34,26 @@ void main() {
     expect(hasRisk(mount: true), isTrue);
     expect(hasRisk(flats: true), isTrue);
     expect(hasRisk(autofocus: true), isTrue);
+  });
+
+  test('a guide session started from any screen requires confirmation', () {
+    for (final state in [
+      Phd2State.calibrating,
+      Phd2State.guiding,
+      Phd2State.settling,
+      Phd2State.paused,
+      Phd2State.lostLock,
+      Phd2State.unknown,
+    ]) {
+      expect(hasRisk(guider: state), isTrue, reason: state.name);
+    }
+    for (final state in [
+      Phd2State.stopped,
+      Phd2State.selected,
+      Phd2State.looping,
+    ]) {
+      expect(hasRisk(guider: state), isFalse, reason: state.name);
+    }
   });
 
   test('idle app never prompts regardless of preference availability', () {

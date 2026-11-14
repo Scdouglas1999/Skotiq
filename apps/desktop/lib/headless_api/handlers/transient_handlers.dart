@@ -1,12 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for transient astronomical event alerts
-class TransientHandlers {
+class TransientHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    TransientApi.getActiveTransients: handleGetActiveTransients,
+    TransientApi.getSettings: handleGetSettings,
+    TransientApi.updateSettings: handleUpdateSettings,
+    TransientApi.getQueued: handleGetQueued,
+    TransientApi.getStates: handleGetStates,
+    TransientApi.clearStates: handleClearStates,
+    TransientApi.queueTransient: handleQueueTransient,
+    TransientApi.dismissTransient: handleDismissTransient,
+    TransientApi.updateState: handleUpdateState,
+    TransientApi.refreshAlerts: handleRefreshAlerts,
+  };
+
   final ProviderContainer container;
 
   TransientHandlers(this.container);
@@ -50,8 +67,6 @@ class TransientHandlers {
       tnsUseSandbox: science.tnsUseSandbox,
     );
   }
-
-  // Get active transients
 
   /// This host's own First Light discoveries that are not dismissed, as
   /// alerts; the title-bar badge counts them ahead of the external feed.
@@ -112,8 +127,6 @@ class TransientHandlers {
     });
   }
 
-  // Get transient settings
-
   Future<Response> handleGetSettings(Request request) async {
     final settings = await _readSettings();
 
@@ -128,8 +141,6 @@ class TransientHandlers {
       },
     });
   }
-
-  // Update transient settings
 
   Future<Response> handleUpdateSettings(Request request) async {
     _logInfo('[API] POST /api/transients/settings');
@@ -194,8 +205,6 @@ class TransientHandlers {
     });
   }
 
-  // Queue transient for observation
-
   Future<Response> handleQueueTransient(Request request, String id) async {
     _logInfo('[API] POST /api/transients/$id/queue');
     final notifier = container.read(transientAlertStatesProvider.notifier);
@@ -208,8 +217,6 @@ class TransientHandlers {
       "queuedCount": _countState(states, TransientAlertState.queued),
     });
   }
-
-  // Dismiss transient
 
   Future<Response> handleDismissTransient(Request request, String id) async {
     _logInfo('[API] POST /api/transients/$id/dismiss');
@@ -273,8 +280,6 @@ class TransientHandlers {
     return jsonOk({"status": "cache_cleared"});
   }
 
-  // Get queued transients
-
   Future<Response> handleGetQueued(Request request) async {
     final settings = await _readSettings();
     final statesNotifier = container.read(
@@ -283,7 +288,6 @@ class TransientHandlers {
     await statesNotifier.loaded;
     final states = container.read(transientAlertStatesProvider);
 
-    // Fetch all alerts and filter to queued ones
     final alerts = await _fetchAlerts(settings);
     final queuedAlerts = alerts
         .where(
@@ -297,8 +301,6 @@ class TransientHandlers {
       "queued": queuedAlerts.map((a) => _alertToJson(a, states)).toList(),
     });
   }
-
-  // Helpers
 
   TransientSource? _parseSource(String value) {
     final normalized = value.trim().toLowerCase();

@@ -11,8 +11,6 @@ use std::time::Duration;
 /// How long a hold may outlast the moment its flip was due before it gives up
 /// and hands the run to the operator.
 const HOLD_OVERRUN: Duration = Duration::from_secs(15 * 60);
-/// Hour angle advances this many sidereal seconds per solar second.
-const SIDEREAL_RATE: f64 = 1.002_737_909;
 
 pub(super) struct TrackingLimitHold {
     target: (Option<f64>, Option<f64>),
@@ -28,7 +26,8 @@ pub(super) struct TrackingLimitHold {
 
 /// Seconds until a waiting hold's flip comes due at `hour_angle`.
 fn secs_until_window(config: &crate::MeridianFlipConfig, hour_angle: f64) -> f64 {
-    (tracking_limit_flip_threshold(config) - hour_angle).max(0.0) * 3600.0 / SIDEREAL_RATE
+    (tracking_limit_flip_threshold(config) - hour_angle).max(0.0) * 3600.0
+        / crate::meridian::SIDEREAL_PER_SOLAR
 }
 
 fn relative_to_meridian(hour_angle: f64) -> String {
@@ -45,7 +44,7 @@ impl Dispatcher {
         if self.run.is_cancelled() {
             return;
         }
-        let executor_state = *self.run.executor_state.read().await;
+        let executor_state = self.run.state.get();
         let config = {
             let manager = self.trigger_manager.read().await;
             manager.active_meridian_flip_config()
@@ -64,7 +63,7 @@ impl Dispatcher {
             hold.last_running = tokio::time::Instant::now();
             if state.run.early_flip_refused() && !hold.refusal_seen {
                 hold.refusal_seen = true;
-                if let (Some(config), Some(ha)) = (&config, state.current_hour_angle) {
+                if let (Some(config), Some(ha)) = (&config, state.target.current_hour_angle) {
                     hold.deadline = tokio::time::Instant::now()
                         + Duration::from_secs_f64(secs_until_window(config, ha))
                         + HOLD_OVERRUN;
@@ -72,11 +71,11 @@ impl Dispatcher {
             }
             self.run.hold_node_tree();
             let flipped = state.meridian.has_flipped();
-            let problem = if (state.target_ra, state.target_dec) != hold.target {
+            let problem = if (state.target.target_ra, state.target.target_dec) != hold.target {
                 Some("The target changed during tracking-limit recovery.")
-            } else if state.mount_parked == Some(true) {
+            } else if state.telemetry.mount_parked == Some(true) {
                 Some("The mount was parked during tracking-limit recovery.")
-            } else if state.mount_slewing == Some(true) && !flipped {
+            } else if state.telemetry.mount_slewing == Some(true) && !flipped {
                 Some("The mount started moving during tracking-limit recovery.")
             } else if config.is_none() && !flipped {
                 Some("Automatic meridian flipping was disabled during tracking-limit recovery.")
@@ -110,7 +109,7 @@ impl Dispatcher {
                 .to_string();
             tracing::warn!("[MERIDIAN] {}", message);
             self.run.warning(message.clone());
-            self.run.pause(Some(message)).await;
+            self.run.pause(Some(message));
             return;
         }
         let handed_off = state.run.hold() == Some(RunHold::TrackingLimit);
@@ -128,15 +127,15 @@ impl Dispatcher {
                     "Tracking-limit recovery requires an enabled meridian flip. Sequence paused."
                         .to_string();
                 self.run.warning(message.clone());
-                self.run.pause(Some(message)).await;
+                self.run.pause(Some(message));
             }
             return;
         };
-        let Some(hour_angle) = state.current_hour_angle.filter(|ha| ha.is_finite()) else {
+        let Some(hour_angle) = state.target.current_hour_angle.filter(|ha| ha.is_finite()) else {
             let message =
                 "Tracking-limit recovery lost the target hour angle. Sequence paused.".to_string();
             self.run.warning(message.clone());
-            self.run.pause(Some(message)).await;
+            self.run.pause(Some(message));
             return;
         };
         let flip_early = config.tracking_limit_policy == crate::TrackingLimitPolicy::FlipEarly;
@@ -155,7 +154,7 @@ impl Dispatcher {
             return;
         }
         self.tracking_limit_hold = Some(TrackingLimitHold {
-            target: (state.target_ra, state.target_dec),
+            target: (state.target.target_ra, state.target.target_dec),
             deadline: tokio::time::Instant::now()
                 + Duration::from_secs_f64(wait_secs)
                 + HOLD_OVERRUN,
@@ -174,15 +173,16 @@ impl Dispatcher {
         // restores the run's guiding after its slew and recenter.
         if state.guiding.is_enabled() {
             self.rig
-                .device_ops
+                .device_ops()
                 .guider_note_stop_reason(Some(crate::GuidingStopReason::TrackingLimitHold))
                 .await;
-            if let Err(error) = bounded_poll("guider_stop", self.rig.device_ops.guider_stop()).await
+            if let Err(error) =
+                bounded_poll("guider_stop", self.rig.device_ops().guider_stop()).await
             {
                 let message =
                     format!("Could not stop guiding for tracking-limit recovery: {error}");
                 self.run.warning(message.clone());
-                self.run.pause(Some(message)).await;
+                self.run.pause(Some(message));
                 return;
             }
             self.rig
@@ -209,7 +209,7 @@ impl Dispatcher {
             relative_to_meridian(hour_angle),
         );
         tracing::warn!("[MERIDIAN] {}", message);
-        self.run.progress.write().message = Some(message.clone());
+        self.run.state.set_message(message.clone());
         self.run.warning(message);
     }
 
@@ -223,7 +223,7 @@ impl Dispatcher {
             state.run.end_hold();
             let detected = state.tracking.limit_detected_at();
             state.tracking.restore(true, true, detected);
-            state.mount_is_tracking = Some(false);
+            state.telemetry.mount_is_tracking = Some(false);
         }
         let message = format!(
             "{problem} Sequence paused; the mount has not been flipped and tracking is off. \
@@ -231,16 +231,16 @@ impl Dispatcher {
         );
         tracing::warn!("[MERIDIAN] {}", message);
         self.run.warning(message.clone());
-        self.run.pause(Some(message)).await;
+        self.run.pause(Some(message));
     }
 
     /// The flip ran. Release frames only onto a mount that really tracks; a
     /// mount that does not is handed to tracking recovery, which keeps trying.
     async fn finish_tracking_limit_hold(&mut self) {
-        let tracking = match self.rig.context.mount_id.as_deref() {
+        let tracking = match self.rig.devices().mount_id.as_deref() {
             Some(id) => {
                 crate::tracking_check::confirm_mount_tracks(
-                    &self.rig.device_ops,
+                    self.rig.device_ops(),
                     id,
                     crate::tracking_check::TRACKING_CHECK_WINDOW,
                 )
@@ -257,7 +257,7 @@ impl Dispatcher {
                 state.run.end_hold();
                 state.set_mount_tracking_expected(true);
                 state.tracking.mark_lost();
-                state.mount_is_tracking = Some(false);
+                state.telemetry.mount_is_tracking = Some(false);
             }
             let message = format!(
                 "The meridian flip finished, but the mount is not tracking ({why}). Recovering \
@@ -265,19 +265,17 @@ impl Dispatcher {
             );
             tracing::warn!("[MERIDIAN] {}", message);
             self.run.warning(message.clone());
-            self.run.progress.write().message = Some(message);
+            self.run.state.set_message(message);
             if self
                 .recovery_tx
                 .try_send(crate::recovery::RecoveryCause::MountTrackingLost)
                 .is_err()
             {
-                self.run
-                    .pause(Some(
-                        "The mount is not tracking after the meridian flip and tracking recovery \
+                self.run.pause(Some(
+                    "The mount is not tracking after the meridian flip and tracking recovery \
                          could not start. Sequence paused."
-                            .to_string(),
-                    ))
-                    .await;
+                        .to_string(),
+                ));
             }
             return;
         }
@@ -286,18 +284,16 @@ impl Dispatcher {
             state.run.end_hold();
             state.reset_tracking_limit_detection();
             state.set_mount_tracking_expected(true);
-            state.mount_is_tracking = Some(true);
+            state.telemetry.mount_is_tracking = Some(true);
         }
         // A pause arriving during the device query must not be lifted.
-        if *self.run.executor_state.read().await == ExecutorState::Running
-            && !self.run.is_cancelled()
-        {
+        if self.run.state.get() == ExecutorState::Running && !self.run.is_cancelled() {
             self.run.is_paused.store(false, Ordering::Relaxed);
             let message =
                 "Tracking-limit recovery finished: the mount flipped and tracks again; imaging \
                  resumes."
                     .to_string();
-            self.run.progress.write().message = Some(message.clone());
+            self.run.state.set_message(message.clone());
             self.run.warning(message);
         }
     }
@@ -307,7 +303,8 @@ impl Dispatcher {
 mod tests {
     use super::super::policy::{select_dispatches, DispatchPolicy};
     use super::*;
-    use crate::device_ops::DeviceOps;
+    use crate::device_ops::MountOps;
+
     use crate::executor::scenario_sim_tests::{ScriptedDeviceOps, SimMount};
 
     struct Harness {
@@ -337,13 +334,13 @@ mod tests {
                 let lock = manager.state();
                 let mut s = lock.write().await;
                 s.set_target(180.0, 45.0); // Null solver/mount fixture coordinates
-                s.current_hour_angle = Some(-0.55);
-                s.current_altitude = Some(83.0);
-                s.weather_safe = true;
-                s.pier_side = Some(crate::PierSide::West);
-                s.mount_is_tracking = Some(false);
-                s.mount_slewing = Some(false);
-                s.mount_parked = Some(false);
+                s.target.current_hour_angle = Some(-0.55);
+                s.target.current_altitude = Some(83.0);
+                s.telemetry.weather_safe = true;
+                s.telemetry.pier_side = Some(crate::PierSide::West);
+                s.telemetry.mount_is_tracking = Some(false);
+                s.telemetry.mount_slewing = Some(false);
+                s.telemetry.mount_parked = Some(false);
                 s.tracking
                     .restore(true, true, Some(chrono::Utc::now().timestamp()));
                 s.set_guiding_enabled(true);
@@ -352,46 +349,24 @@ mod tests {
             let (events, _) = broadcast::channel(128);
             let (decisions, _) = broadcast::channel(128);
             let (requests, recovery) = mpsc::channel(4);
-            let (done, _) = watch::channel(false);
-            let (_, quiesced) = watch::channel(true);
-            let (heartbeat, _) = watch::channel(0);
-            let dispatcher = Dispatcher::new(TriggerMonitorArgs {
-                active_run_id_for_decisions: Arc::new(StdRwLock::new(None)),
-                cloud_motion_for_recovery: Arc::new(RwLock::new(CloudMotionSnapshot::default())),
-                custom_recovery_branches_for_triggers: Arc::new(HashMap::new()),
-                custom_recovery_context_for_triggers: ExecutionContext::new(
-                    "root".into(),
-                    ops.clone(),
-                ),
-                decision_tx_for_lifecycle: decisions,
-                device_ops_for_triggers: ops.clone(),
-                event_tx_clone2: events,
-                execution_quiesced_for_triggers: quiesced,
-                heartbeat_tx: heartbeat,
-                is_cancelled_clone: Arc::new(AtomicBool::new(false)),
-                is_paused_for_triggers: Arc::new(AtomicBool::new(false)),
-                meridian_flip_failed_for_triggers: Arc::new(AtomicBool::new(false)),
-                meridian_flip_failure_for_triggers: Arc::new(StdRwLock::new(None)),
-                park_and_abort_done_for_triggers: done,
-                park_and_abort_for_triggers: Arc::new(AtomicBool::new(false)),
-                progress_for_triggers: Arc::new(StdRwLock::new(SequenceProgress::default())),
-                recovery_request_tx: requests,
-                runtime_config: Arc::new(StdRwLock::new(RuntimeConfig::default())),
-                sequence_for_custom_recovery_triggers: None,
-                skip_to_next_target_for_triggers: Arc::new(AtomicBool::new(false)),
-                skip_to_node_for_recovery: Arc::new(StdRwLock::new(None)),
-                state_clone: Arc::new(RwLock::new(ExecutorState::Running)),
-                transparency_backup_for_recovery: Arc::new(RwLock::new(None)),
-                trigger_action_context: TriggerActionContext {
-                    mount_id: Some("mount".into()),
-                    camera_id: Some("camera".into()),
-                    ..Default::default()
-                },
-                trigger_action_in_flight_for_triggers: Arc::new(AtomicBool::new(false)),
-                trigger_manager: Arc::new(RwLock::new(manager)),
-                triggers_enabled: true,
-                finish_frames: watch::channel(false).1,
-            })
+            let mut run = Run::detached(
+                ops.clone(),
+                RunCell::starting_in(events, ExecutorState::Running),
+            );
+            run.decisions.tx = decisions;
+            run.triggers = Arc::new(RwLock::new(manager));
+            run.rig = RunRig {
+                mount_id: Some("mount".into()),
+                camera_id: Some("camera".into()),
+                ..Default::default()
+            };
+            run.teardown.node_tree_has_ended();
+            let dispatcher = Dispatcher::new(
+                &run,
+                run.build_context(std::time::Instant::now(), requests.clone())
+                    .await,
+                requests,
+            )
             .await;
             Self {
                 dispatcher,
@@ -402,7 +377,7 @@ mod tests {
 
         /// The operator presses Resume.
         async fn resume(&mut self) {
-            *self.dispatcher.run.executor_state.write().await = ExecutorState::Running;
+            self.dispatcher.run.state.force(ExecutorState::Running);
             self.dispatcher.run.is_paused.store(false, Ordering::SeqCst);
         }
 
@@ -431,7 +406,7 @@ mod tests {
         async fn tick(&mut self) {
             let d = &mut self.dispatcher;
             d.update_tracking_limit_hold(false).await;
-            let executor = *d.run.executor_state.read().await;
+            let executor = d.run.state.get();
             let hold = d.rig.trigger_state.read().await.run.hold();
             let mode = RunMode::new(executor, hold).unwrap();
             let dispatches = {
@@ -474,6 +449,7 @@ mod tests {
             .trigger_state
             .write()
             .await
+            .target
             .current_hour_angle = Some(0.2);
         h.tick().await;
         assert!(!h.ops.calls().iter().any(|c| c.starts_with("mount_slew:")));
@@ -482,6 +458,7 @@ mod tests {
             .trigger_state
             .write()
             .await
+            .target
             .current_hour_angle = Some(0.4);
         h.tick().await;
         h.tick().await; // release the node tree only after verified flip recovery
@@ -546,7 +523,7 @@ mod tests {
             assert!(!h.ops.calls().iter().any(|c| c.starts_with("mount_slew:")));
             {
                 let mut s = h.dispatcher.rig.trigger_state.write().await;
-                s.current_hour_angle = Some(0.4);
+                s.target.current_hour_angle = Some(0.4);
                 apply_mount_tracking_poll(&mut s, false);
             }
             if method == crate::MeridianTriggerMethod::OnTrackingLimitHit {
@@ -581,12 +558,13 @@ mod tests {
     async fn tracking_limit_recovery_respects_operator_pause_and_stop() {
         let mut h = Harness::new().await;
         h.tick().await;
-        h.dispatcher.run.pause(None).await;
+        h.dispatcher.run.pause(None);
         h.dispatcher
             .rig
             .trigger_state
             .write()
             .await
+            .target
             .current_hour_angle = Some(0.4);
         h.tick().await;
         assert!(!h.ops.calls().iter().any(|c| c.starts_with("mount_slew:")));
@@ -604,8 +582,8 @@ mod tests {
         h.tick().await;
         {
             let mut state = h.dispatcher.rig.trigger_state.write().await;
-            state.current_hour_angle = Some(0.4);
-            state.weather_safe = false;
+            state.target.current_hour_angle = Some(0.4);
+            state.telemetry.weather_safe = false;
         }
         h.tick().await;
         assert!(h.dispatcher.run.is_cancelled());
@@ -623,8 +601,8 @@ mod tests {
         h.tick().await;
         {
             let mut state = h.dispatcher.rig.trigger_state.write().await;
-            state.current_hour_angle = Some(0.4);
-            state.dawn_time = Some(chrono::Utc::now().timestamp() + 60);
+            state.target.current_hour_angle = Some(0.4);
+            state.telemetry.dawn_time = Some(chrono::Utc::now().timestamp() + 60);
         }
         h.tick().await;
         assert!(h.dispatcher.run.is_cancelled());
@@ -642,15 +620,12 @@ mod tests {
         h.tick().await;
         tokio::time::advance(Duration::from_secs(7200)).await;
         h.tick().await;
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Paused
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
         assert!(h
             .dispatcher
             .run
-            .progress
-            .read()
+            .state
+            .progress()
             .message
             .as_ref()
             .unwrap()
@@ -674,10 +649,7 @@ mod tests {
         h.tick().await;
         assert!(h.dispatcher.tracking_limit_hold.is_some());
         assert!(h.dispatcher.run.is_paused.load(Ordering::Relaxed));
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
         assert!(!h
             .ops
             .calls()
@@ -717,6 +689,7 @@ mod tests {
             .trigger_state
             .write()
             .await
+            .target
             .current_hour_angle = Some(0.4);
         h.tick().await;
         h.tick().await;
@@ -735,10 +708,10 @@ mod tests {
     fn tracking_limit_recovery_retains_loss_across_stopped_polls() {
         let mut state = crate::triggers::TriggerState::default();
         state.set_mount_tracking_expected(true);
-        state.mount_is_tracking = Some(true);
+        state.telemetry.mount_is_tracking = Some(true);
         assert!(apply_mount_tracking_poll(&mut state, false));
         state.tracking.record_loss(123);
-        state.mount_is_tracking = Some(false);
+        state.telemetry.mount_is_tracking = Some(false);
         assert!(!apply_mount_tracking_poll(&mut state, false));
         assert!(state.tracking.expected_and_lost());
         assert_eq!(state.tracking.limit_detected_at(), Some(123));
@@ -758,14 +731,11 @@ mod tests {
             .await
             .tracking
             .note_operator_stop();
-        let mut events = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
         h.tick().await;
         assert!(h.dispatcher.tracking_limit_hold.is_none());
         assert_eq!(h.slews(), 0);
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Paused
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
         let warnings = drain_warnings(&mut events);
         assert!(
             warnings
@@ -789,16 +759,16 @@ mod tests {
         let mut state = crate::triggers::TriggerState::default();
         let _motion = state.guiding.begin_motion();
         assert!(!apply_mount_tracking_poll(&mut state, true));
-        state.mount_is_tracking = Some(true);
+        state.telemetry.mount_is_tracking = Some(true);
         assert!(!state.tracking.is_expected());
         state.guiding.end_motion();
         // The move left tracking off: the run's own stop, not a loss.
         assert!(!apply_mount_tracking_poll(&mut state, false));
-        state.mount_is_tracking = Some(false);
+        state.telemetry.mount_is_tracking = Some(false);
         assert!(!state.tracking.is_lost());
         // Once seen tracking after the move, a stop is a loss again.
         assert!(!apply_mount_tracking_poll(&mut state, true));
-        state.mount_is_tracking = Some(true);
+        state.telemetry.mount_is_tracking = Some(true);
         assert!(apply_mount_tracking_poll(&mut state, false));
     }
 
@@ -812,15 +782,17 @@ mod tests {
             .trigger_state
             .write()
             .await
+            .settings
             .stop_on_quality_problems = true;
         h.ops.guider_start_fails.store(true, Ordering::SeqCst);
-        let mut events = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
         h.tick().await;
         h.dispatcher
             .rig
             .trigger_state
             .write()
             .await
+            .target
             .current_hour_angle = Some(0.4);
         h.tick().await;
         assert_eq!(h.slews(), 1);
@@ -833,10 +805,7 @@ mod tests {
             .await
             .meridian
             .has_flipped());
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Paused
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
         h.tick().await;
         assert!(h.dispatcher.tracking_limit_hold.is_some());
         assert!(h.dispatcher.run.is_paused.load(Ordering::Relaxed));
@@ -848,8 +817,8 @@ mod tests {
         assert!(h
             .dispatcher
             .run
-            .progress
-            .read()
+            .state
+            .progress()
             .message
             .as_deref()
             .unwrap_or("")
@@ -865,13 +834,12 @@ mod tests {
         h.tick().await;
         h.tick().await;
         assert_eq!(h.slews(), 1);
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Paused
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
     }
 
-    fn flip_outcomes(events: &mut broadcast::Receiver<ExecutorEvent>) -> Vec<(String, String)> {
+    fn flip_outcomes(
+        events: &mut broadcast::Receiver<ExecutorEvent>,
+    ) -> Vec<(crate::meridian_flip_executor::FlipOutcome, String)> {
         let mut outcomes = Vec::new();
         while let Ok(event) = events.try_recv() {
             if let ExecutorEvent::MeridianFlipOutcome {
@@ -896,21 +864,19 @@ mod tests {
     async fn a_failed_post_flip_guider_notifies_and_the_run_images_on() {
         let mut h = Harness::new().await;
         h.ops.guider_start_fails.store(true, Ordering::SeqCst);
-        let mut events = h.dispatcher.run.events.subscribe();
-        let mut outcomes = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
+        let mut outcomes = h.dispatcher.run.state.subscribe();
         h.tick().await;
         h.dispatcher
             .rig
             .trigger_state
             .write()
             .await
+            .target
             .current_hour_angle = Some(0.4);
         h.tick().await;
         assert_eq!(h.slews(), 1);
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
         h.tick().await;
         assert!(h.dispatcher.tracking_limit_hold.is_none());
         assert!(!h.dispatcher.run.is_paused.load(Ordering::Relaxed));
@@ -932,8 +898,14 @@ mod tests {
         assert_eq!(
             flip_outcomes(&mut outcomes),
             vec![
-                ("pier_changed".to_string(), "East".to_string()),
-                ("success".to_string(), "East".to_string()),
+                (
+                    crate::meridian_flip_executor::FlipOutcome::PierChanged,
+                    "East".to_string()
+                ),
+                (
+                    crate::meridian_flip_executor::FlipOutcome::Success,
+                    "East".to_string()
+                ),
             ]
         );
         let reasons: Vec<String> = h
@@ -947,7 +919,7 @@ mod tests {
             Some("guider_stop_reason:meridian_flip"),
             "{reasons:?}"
         );
-        assert!(!h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
+        assert!(!h.dispatcher.flip_failure.is_latched());
         assert_eq!(h.slews(), 1, "the mount does not flip again");
     }
 
@@ -964,14 +936,12 @@ mod tests {
             .trigger_state
             .write()
             .await
+            .target
             .current_hour_angle = Some(0.4);
         h.tick().await;
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Paused
-        );
-        assert!(h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
-        let first = h.dispatcher.flip_failure.failure.read().clone();
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Paused);
+        assert!(h.dispatcher.flip_failure.is_latched());
+        let first = h.dispatcher.flip_failure.message();
         assert!(
             first.as_deref().is_some_and(|f| f.contains("Pier side")),
             "{first:?}"
@@ -982,7 +952,7 @@ mod tests {
             .trigger_manager
             .write()
             .await
-            .get_trigger_mut("meridian_flip")
+            .standard_mut(crate::triggers::StandardTrigger::MeridianFlip)
             .unwrap()
             .reset_for_new_run();
         h.resume().await;
@@ -996,12 +966,9 @@ mod tests {
             .await
             .meridian
             .has_flipped());
-        assert!(!h.dispatcher.flip_failure.failed.load(Ordering::Acquire));
-        assert_eq!(*h.dispatcher.flip_failure.failure.read(), None);
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
-        );
+        assert!(!h.dispatcher.flip_failure.is_latched());
+        assert_eq!(h.dispatcher.flip_failure.message(), None);
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
     }
 
     #[tokio::test(start_paused = true)]
@@ -1009,7 +976,7 @@ mod tests {
         let mut h = Harness::new().await;
         h.tick().await;
         assert!(h.dispatcher.tracking_limit_hold.is_some());
-        h.dispatcher.run.pause(None).await;
+        h.dispatcher.run.pause(None);
         tokio::time::advance(Duration::from_secs(4 * 3600)).await;
         h.tick().await;
         h.dispatcher
@@ -1017,6 +984,7 @@ mod tests {
             .trigger_state
             .write()
             .await
+            .target
             .current_hour_angle = Some(0.4);
         h.resume().await;
         h.tick().await;
@@ -1030,17 +998,16 @@ mod tests {
             .await
             .meridian
             .has_flipped());
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
         assert!(!h.dispatcher.run.is_paused.load(Ordering::Relaxed));
     }
 
     fn drain_warnings(events: &mut broadcast::Receiver<ExecutorEvent>) -> Vec<String> {
         let mut warnings = Vec::new();
         while let Ok(event) = events.try_recv() {
-            if let ExecutorEvent::Warning { message } = event {
+            if let ExecutorEvent::Warning { message }
+            | ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warnings.push(message);
             }
         }
@@ -1065,7 +1032,7 @@ mod tests {
     async fn a_west_side_stop_before_transit_flips_early_and_confirms_tracking() {
         let mut h = Harness::new().await;
         nyx_stopped_before_transit(&mut h).await;
-        let mut events = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
         h.tick().await;
         // One tick: the stop is adopted and the flip runs at once, at HA -0.55.
         assert_eq!(h.slews(), 1, "{:?}", h.ops.calls());
@@ -1124,7 +1091,7 @@ mod tests {
         nyx_stopped_before_transit(&mut h).await;
         // The mount stays on the west side: the east side is out of reach.
         h.ops.flip_refused.store(true, Ordering::SeqCst);
-        let mut events = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
         h.tick().await;
         assert_eq!(h.slews(), 1);
         let warnings = drain_warnings(&mut events);
@@ -1149,13 +1116,11 @@ mod tests {
             .trigger_state
             .write()
             .await
+            .target
             .current_hour_angle = Some(0.0);
         h.tick().await;
         assert_eq!(h.slews(), 1);
-        assert_eq!(
-            *h.dispatcher.run.executor_state.read().await,
-            ExecutorState::Running
-        );
+        assert_eq!(h.dispatcher.run.state.get(), ExecutorState::Running);
         // The window opens and the ordinary flip runs, once the trigger's
         // cooldown (wall-clock, not the test clock) is over.
         h.ops.flip_refused.store(false, Ordering::SeqCst);
@@ -1163,7 +1128,7 @@ mod tests {
             .trigger_manager
             .write()
             .await
-            .get_trigger_mut("meridian_flip")
+            .standard_mut(crate::triggers::StandardTrigger::MeridianFlip)
             .unwrap()
             .reset_for_new_run();
         h.dispatcher
@@ -1171,6 +1136,7 @@ mod tests {
             .trigger_state
             .write()
             .await
+            .target
             .current_hour_angle = Some(0.4);
         h.tick().await;
         h.tick().await;
@@ -1184,7 +1150,7 @@ mod tests {
         let mut mount = nyx_stopped_before_transit(&mut h).await;
         mount.ignore_tracking_on = u32::MAX;
         h.ops.attach_sim_mount(mount);
-        let mut events = h.dispatcher.run.events.subscribe();
+        let mut events = h.dispatcher.run.state.subscribe();
         h.tick().await;
         h.tick().await;
         // Failed tracking verification must pause before the hold is released.
@@ -1195,8 +1161,8 @@ mod tests {
         assert!(h
             .dispatcher
             .run
-            .progress
-            .read()
+            .state
+            .progress()
             .message
             .as_deref()
             .unwrap_or("")

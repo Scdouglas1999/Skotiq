@@ -20,11 +20,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_controller.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
 import 'package:skotiq_app/screens/darkroom/edit/darkroom_editor.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
 
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {
@@ -1669,16 +1674,16 @@ void main() {
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 40));
     }
-    expect(find.byType(SkotiqToast), findsOneWidget);
+    expect(find.byType(SnackBar), findsOneWidget);
     final first = handle.container.read(darkroomControllerProvider(scope));
     expect(first.reorderRefusalAttempt, 1);
 
-    // Let the toast expire. The inline alert stays up — the reason is still
-    // readable — which is exactly why the silence was easy to miss.
-    for (var i = 0; i < 12; i++) {
+    // Let the snackbar expire. The inline alert stays up — the reason is
+    // still readable — which is exactly why the silence was easy to miss.
+    for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 600));
     }
-    expect(find.byType(SkotiqToast), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
     expect(find.textContaining('That move was refused', findRichText: true),
         findsOneWidget);
 
@@ -1692,7 +1697,7 @@ void main() {
     final second = handle.container.read(darkroomControllerProvider(scope));
     expect(second.reorderRefusal, first.reorderRefusal);
     expect(second.reorderRefusalAttempt, 2);
-    expect(find.byType(SkotiqToast), findsOneWidget);
+    expect(find.byType(SnackBar), findsOneWidget);
 
     // And the inline alert still clears on the next successful edit.
     darkroom.validateOk = true;
@@ -1720,15 +1725,24 @@ void main() {
     // Tall enough for both cards and the Recipe panel's own control.
     final handle = await pump(tester, scope, size: const Size(1280, 1400));
 
-    // The engine's own sentence, word for word: it names the step by its
-    // position in the recipe it was handed — counted from 1 — and the
-    // operation at that position.
+    // What the engine returns for a failing step: its position in the recipe
+    // it was handed, the operation at that position, and its sentence.
+    const sentence =
+        'step 2 failed: color_calibrate@1: unsupported channel layout: a '
+        '1-channel image, a color master with 3 channels; combine a '
+        'per-filter mono master first';
     darkroom.previewError = DarkroomSeamException(
       'renderPreview',
-      'step 2 failed: color_calibrate@1: unsupported channel layout: a '
-          '1-channel image, a color master with 3 channels; combine a '
-          'per-filter mono master first',
+      sentence,
       StateError('unsupported channels'),
+      failedStep: const DarkroomFailedStep(
+        index: 1,
+        opId: 'color_calibrate',
+        opVersion: 1,
+        reason: 'unsupported channel layout: a 1-channel image, a color master '
+            'with 3 channels; combine a per-filter mono master first',
+        message: sentence,
+      ),
     );
     await tester.tap(find.widgetWithText(SkotiqButton, 'Render again'));
     for (var i = 0; i < 12; i++) {
@@ -1774,6 +1788,13 @@ void main() {
       'renderPreview',
       'step 1 failed: color_calibrate@1: unsupported channel layout',
       StateError('mismatched op'),
+      failedStep: const DarkroomFailedStep(
+        index: 0,
+        opId: 'color_calibrate',
+        opVersion: 1,
+        reason: 'unsupported channel layout',
+        message: 'step 1 failed: color_calibrate@1: unsupported channel layout',
+      ),
     );
     await tester.tap(find.widgetWithText(SkotiqButton, 'Render again'));
     for (var i = 0; i < 12; i++) {

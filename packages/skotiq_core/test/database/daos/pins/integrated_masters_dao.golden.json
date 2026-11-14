@@ -1,0 +1,3315 @@
+{
+  "empty getAll": [],
+  "empty getById": null,
+  "empty getForTarget": [],
+  "empty accumulating": null,
+  "empty masterIdsForImages": [],
+  "empty getFoldedImageIds": {
+    "set": []
+  },
+  "empty getFramesForMaster": [],
+  "insert full": 1,
+  "insert accumulating no filter tie": 2,
+  "insert accumulating empty filter": 3,
+  "insert finalized default now": 4,
+  "insert accumulating L older": 5,
+  "after insert :: integrated_masters": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 L",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": "/m/L.fits",
+        "t": "text"
+      },
+      "preview_png_path": {
+        "v": "/m/L.png",
+        "t": "text"
+      },
+      "sidecar_path": {
+        "v": "/m/L.acc",
+        "t": "text"
+      },
+      "rejection_map_path": {
+        "v": "/m/L_rej.fits",
+        "t": "text"
+      },
+      "status": {
+        "v": "accumulating",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "runningWeightedMean",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 6248,
+        "t": "integer"
+      },
+      "height": {
+        "v": 4176,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 40,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 4800.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": "L",
+        "t": "text"
+      },
+      "settings_json": {
+        "v": "{\"k\":1}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{\"snr\":12.5}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867060,
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": "/m/L_rej.png",
+        "t": "text"
+      },
+      "coverage_map_path": {
+        "v": "/m/L_cov.fits",
+        "t": "text"
+      },
+      "coverage_map_preview_path": {
+        "v": "/m/L_cov.png",
+        "t": "text"
+      },
+      "color_calibrated_path": {
+        "v": null,
+        "t": "null"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": null,
+        "t": "null"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": null,
+        "t": "null"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 none",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": null,
+        "t": "null"
+      },
+      "preview_png_path": {
+        "v": null,
+        "t": "null"
+      },
+      "sidecar_path": {
+        "v": null,
+        "t": "null"
+      },
+      "rejection_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "status": {
+        "v": "accumulating",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "runningWeightedMean",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": null,
+        "t": "null"
+      },
+      "settings_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "color_calibrated_path": {
+        "v": null,
+        "t": "null"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": null,
+        "t": "null"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": null,
+        "t": "null"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 empty",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": null,
+        "t": "null"
+      },
+      "preview_png_path": {
+        "v": null,
+        "t": "null"
+      },
+      "sidecar_path": {
+        "v": null,
+        "t": "null"
+      },
+      "rejection_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "status": {
+        "v": "accumulating",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "runningWeightedMean",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": "",
+        "t": "text"
+      },
+      "settings_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740866700,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740866700,
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "color_calibrated_path": {
+        "v": null,
+        "t": "null"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": null,
+        "t": "null"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": null,
+        "t": "null"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Loose",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": null,
+        "t": "null"
+      },
+      "preview_png_path": {
+        "v": null,
+        "t": "null"
+      },
+      "sidecar_path": {
+        "v": null,
+        "t": "null"
+      },
+      "rejection_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "status": {
+        "v": "finalized",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "batch",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": null,
+        "t": "null"
+      },
+      "settings_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "color_calibrated_path": {
+        "v": null,
+        "t": "null"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": null,
+        "t": "null"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": null,
+        "t": "null"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 L old",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": null,
+        "t": "null"
+      },
+      "preview_png_path": {
+        "v": null,
+        "t": "null"
+      },
+      "sidecar_path": {
+        "v": null,
+        "t": "null"
+      },
+      "rejection_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "status": {
+        "v": "accumulating",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "runningWeightedMean",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": "L",
+        "t": "text"
+      },
+      "settings_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740866460,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740866460,
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "color_calibrated_path": {
+        "v": null,
+        "t": "null"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": null,
+        "t": "null"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": null,
+        "t": "null"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "getAll": [
+    {
+      "id": 4,
+      "targetId": null,
+      "name": "Loose",
+      "masterFitsPath": null,
+      "previewPngPath": null,
+      "sidecarPath": null,
+      "rejectionMapPath": null,
+      "rejectionMapPreviewPath": null,
+      "coverageMapPath": null,
+      "coverageMapPreviewPath": null,
+      "status": "IntegratedMasterStatus.finalized",
+      "accumulationMode": "AccumulationMode.batch",
+      "channels": 1,
+      "width": 0,
+      "height": 0,
+      "frameCount": 0,
+      "totalIntegrationSeconds": 0.0,
+      "filter": null,
+      "settingsJson": "{}",
+      "statsJson": "{}",
+      "createdAt": "<now utc>",
+      "updatedAt": "<now utc>",
+      "wcs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "backgroundExtractedPath": null,
+      "deconvolvedPath": null,
+      "starReducedPath": null,
+      "colorCalibratedPath": null
+    },
+    {
+      "id": 2,
+      "targetId": 1,
+      "name": "M31 none",
+      "masterFitsPath": null,
+      "previewPngPath": null,
+      "sidecarPath": null,
+      "rejectionMapPath": null,
+      "rejectionMapPreviewPath": null,
+      "coverageMapPath": null,
+      "coverageMapPreviewPath": null,
+      "status": "IntegratedMasterStatus.accumulating",
+      "accumulationMode": "AccumulationMode.runningWeightedMean",
+      "channels": 1,
+      "width": 0,
+      "height": 0,
+      "frameCount": 0,
+      "totalIntegrationSeconds": 0.0,
+      "filter": null,
+      "settingsJson": "{}",
+      "statsJson": "{}",
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:10:00.000Z",
+      "wcs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "backgroundExtractedPath": null,
+      "deconvolvedPath": null,
+      "starReducedPath": null,
+      "colorCalibratedPath": null
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "name": "M31 L",
+      "masterFitsPath": "/m/L.fits",
+      "previewPngPath": "/m/L.png",
+      "sidecarPath": "/m/L.acc",
+      "rejectionMapPath": "/m/L_rej.fits",
+      "rejectionMapPreviewPath": "/m/L_rej.png",
+      "coverageMapPath": "/m/L_cov.fits",
+      "coverageMapPreviewPath": "/m/L_cov.png",
+      "status": "IntegratedMasterStatus.accumulating",
+      "accumulationMode": "AccumulationMode.runningWeightedMean",
+      "channels": 1,
+      "width": 6248,
+      "height": 4176,
+      "frameCount": 40,
+      "totalIntegrationSeconds": 4800.0,
+      "filter": "L",
+      "settingsJson": "{\"k\":1}",
+      "statsJson": "{\"snr\":12.5}",
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:11:00.000Z",
+      "wcs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "backgroundExtractedPath": null,
+      "deconvolvedPath": null,
+      "starReducedPath": null,
+      "colorCalibratedPath": null
+    },
+    {
+      "id": 3,
+      "targetId": 1,
+      "name": "M31 empty",
+      "masterFitsPath": null,
+      "previewPngPath": null,
+      "sidecarPath": null,
+      "rejectionMapPath": null,
+      "rejectionMapPreviewPath": null,
+      "coverageMapPath": null,
+      "coverageMapPreviewPath": null,
+      "status": "IntegratedMasterStatus.accumulating",
+      "accumulationMode": "AccumulationMode.runningWeightedMean",
+      "channels": 1,
+      "width": 0,
+      "height": 0,
+      "frameCount": 0,
+      "totalIntegrationSeconds": 0.0,
+      "filter": "",
+      "settingsJson": "{}",
+      "statsJson": "{}",
+      "createdAt": "2025-03-01T22:05:00.000Z",
+      "updatedAt": "2025-03-01T22:05:00.000Z",
+      "wcs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "backgroundExtractedPath": null,
+      "deconvolvedPath": null,
+      "starReducedPath": null,
+      "colorCalibratedPath": null
+    },
+    {
+      "id": 5,
+      "targetId": 1,
+      "name": "M31 L old",
+      "masterFitsPath": null,
+      "previewPngPath": null,
+      "sidecarPath": null,
+      "rejectionMapPath": null,
+      "rejectionMapPreviewPath": null,
+      "coverageMapPath": null,
+      "coverageMapPreviewPath": null,
+      "status": "IntegratedMasterStatus.accumulating",
+      "accumulationMode": "AccumulationMode.runningWeightedMean",
+      "channels": 1,
+      "width": 0,
+      "height": 0,
+      "frameCount": 0,
+      "totalIntegrationSeconds": 0.0,
+      "filter": "L",
+      "settingsJson": "{}",
+      "statsJson": "{}",
+      "createdAt": "2025-03-01T22:01:00.000Z",
+      "updatedAt": "2025-03-01T22:01:00.000Z",
+      "wcs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "backgroundExtractedPath": null,
+      "deconvolvedPath": null,
+      "starReducedPath": null,
+      "colorCalibratedPath": null
+    }
+  ],
+  "getById 1": {
+    "id": 1,
+    "targetId": 1,
+    "name": "M31 L",
+    "masterFitsPath": "/m/L.fits",
+    "previewPngPath": "/m/L.png",
+    "sidecarPath": "/m/L.acc",
+    "rejectionMapPath": "/m/L_rej.fits",
+    "rejectionMapPreviewPath": "/m/L_rej.png",
+    "coverageMapPath": "/m/L_cov.fits",
+    "coverageMapPreviewPath": "/m/L_cov.png",
+    "status": "IntegratedMasterStatus.accumulating",
+    "accumulationMode": "AccumulationMode.runningWeightedMean",
+    "channels": 1,
+    "width": 6248,
+    "height": 4176,
+    "frameCount": 40,
+    "totalIntegrationSeconds": 4800.0,
+    "filter": "L",
+    "settingsJson": "{\"k\":1}",
+    "statsJson": "{\"snr\":12.5}",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:11:00.000Z",
+    "wcs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "backgroundExtractedPath": null,
+    "deconvolvedPath": null,
+    "starReducedPath": null,
+    "colorCalibratedPath": null
+  },
+  "getById missing": null,
+  "getForTarget t0": [
+    {
+      "id": 2,
+      "targetId": 1,
+      "name": "M31 none",
+      "masterFitsPath": null,
+      "previewPngPath": null,
+      "sidecarPath": null,
+      "rejectionMapPath": null,
+      "rejectionMapPreviewPath": null,
+      "coverageMapPath": null,
+      "coverageMapPreviewPath": null,
+      "status": "IntegratedMasterStatus.accumulating",
+      "accumulationMode": "AccumulationMode.runningWeightedMean",
+      "channels": 1,
+      "width": 0,
+      "height": 0,
+      "frameCount": 0,
+      "totalIntegrationSeconds": 0.0,
+      "filter": null,
+      "settingsJson": "{}",
+      "statsJson": "{}",
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:10:00.000Z",
+      "wcs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "backgroundExtractedPath": null,
+      "deconvolvedPath": null,
+      "starReducedPath": null,
+      "colorCalibratedPath": null
+    },
+    {
+      "id": 1,
+      "targetId": 1,
+      "name": "M31 L",
+      "masterFitsPath": "/m/L.fits",
+      "previewPngPath": "/m/L.png",
+      "sidecarPath": "/m/L.acc",
+      "rejectionMapPath": "/m/L_rej.fits",
+      "rejectionMapPreviewPath": "/m/L_rej.png",
+      "coverageMapPath": "/m/L_cov.fits",
+      "coverageMapPreviewPath": "/m/L_cov.png",
+      "status": "IntegratedMasterStatus.accumulating",
+      "accumulationMode": "AccumulationMode.runningWeightedMean",
+      "channels": 1,
+      "width": 6248,
+      "height": 4176,
+      "frameCount": 40,
+      "totalIntegrationSeconds": 4800.0,
+      "filter": "L",
+      "settingsJson": "{\"k\":1}",
+      "statsJson": "{\"snr\":12.5}",
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "updatedAt": "2025-03-01T22:11:00.000Z",
+      "wcs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "backgroundExtractedPath": null,
+      "deconvolvedPath": null,
+      "starReducedPath": null,
+      "colorCalibratedPath": null
+    },
+    {
+      "id": 3,
+      "targetId": 1,
+      "name": "M31 empty",
+      "masterFitsPath": null,
+      "previewPngPath": null,
+      "sidecarPath": null,
+      "rejectionMapPath": null,
+      "rejectionMapPreviewPath": null,
+      "coverageMapPath": null,
+      "coverageMapPreviewPath": null,
+      "status": "IntegratedMasterStatus.accumulating",
+      "accumulationMode": "AccumulationMode.runningWeightedMean",
+      "channels": 1,
+      "width": 0,
+      "height": 0,
+      "frameCount": 0,
+      "totalIntegrationSeconds": 0.0,
+      "filter": "",
+      "settingsJson": "{}",
+      "statsJson": "{}",
+      "createdAt": "2025-03-01T22:05:00.000Z",
+      "updatedAt": "2025-03-01T22:05:00.000Z",
+      "wcs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "backgroundExtractedPath": null,
+      "deconvolvedPath": null,
+      "starReducedPath": null,
+      "colorCalibratedPath": null
+    },
+    {
+      "id": 5,
+      "targetId": 1,
+      "name": "M31 L old",
+      "masterFitsPath": null,
+      "previewPngPath": null,
+      "sidecarPath": null,
+      "rejectionMapPath": null,
+      "rejectionMapPreviewPath": null,
+      "coverageMapPath": null,
+      "coverageMapPreviewPath": null,
+      "status": "IntegratedMasterStatus.accumulating",
+      "accumulationMode": "AccumulationMode.runningWeightedMean",
+      "channels": 1,
+      "width": 0,
+      "height": 0,
+      "frameCount": 0,
+      "totalIntegrationSeconds": 0.0,
+      "filter": "L",
+      "settingsJson": "{}",
+      "statsJson": "{}",
+      "createdAt": "2025-03-01T22:01:00.000Z",
+      "updatedAt": "2025-03-01T22:01:00.000Z",
+      "wcs": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "backgroundExtractedPath": null,
+      "deconvolvedPath": null,
+      "starReducedPath": null,
+      "colorCalibratedPath": null
+    }
+  ],
+  "getForTarget t1": [],
+  "accumulating filter=\"L\"": {
+    "id": 1,
+    "targetId": 1,
+    "name": "M31 L",
+    "masterFitsPath": "/m/L.fits",
+    "previewPngPath": "/m/L.png",
+    "sidecarPath": "/m/L.acc",
+    "rejectionMapPath": "/m/L_rej.fits",
+    "rejectionMapPreviewPath": "/m/L_rej.png",
+    "coverageMapPath": "/m/L_cov.fits",
+    "coverageMapPreviewPath": "/m/L_cov.png",
+    "status": "IntegratedMasterStatus.accumulating",
+    "accumulationMode": "AccumulationMode.runningWeightedMean",
+    "channels": 1,
+    "width": 6248,
+    "height": 4176,
+    "frameCount": 40,
+    "totalIntegrationSeconds": 4800.0,
+    "filter": "L",
+    "settingsJson": "{\"k\":1}",
+    "statsJson": "{\"snr\":12.5}",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:11:00.000Z",
+    "wcs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "backgroundExtractedPath": null,
+    "deconvolvedPath": null,
+    "starReducedPath": null,
+    "colorCalibratedPath": null
+  },
+  "accumulating filter=\" L \"": {
+    "id": 1,
+    "targetId": 1,
+    "name": "M31 L",
+    "masterFitsPath": "/m/L.fits",
+    "previewPngPath": "/m/L.png",
+    "sidecarPath": "/m/L.acc",
+    "rejectionMapPath": "/m/L_rej.fits",
+    "rejectionMapPreviewPath": "/m/L_rej.png",
+    "coverageMapPath": "/m/L_cov.fits",
+    "coverageMapPreviewPath": "/m/L_cov.png",
+    "status": "IntegratedMasterStatus.accumulating",
+    "accumulationMode": "AccumulationMode.runningWeightedMean",
+    "channels": 1,
+    "width": 6248,
+    "height": 4176,
+    "frameCount": 40,
+    "totalIntegrationSeconds": 4800.0,
+    "filter": "L",
+    "settingsJson": "{\"k\":1}",
+    "statsJson": "{\"snr\":12.5}",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:11:00.000Z",
+    "wcs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "backgroundExtractedPath": null,
+    "deconvolvedPath": null,
+    "starReducedPath": null,
+    "colorCalibratedPath": null
+  },
+  "accumulating filter=null": {
+    "id": 2,
+    "targetId": 1,
+    "name": "M31 none",
+    "masterFitsPath": null,
+    "previewPngPath": null,
+    "sidecarPath": null,
+    "rejectionMapPath": null,
+    "rejectionMapPreviewPath": null,
+    "coverageMapPath": null,
+    "coverageMapPreviewPath": null,
+    "status": "IntegratedMasterStatus.accumulating",
+    "accumulationMode": "AccumulationMode.runningWeightedMean",
+    "channels": 1,
+    "width": 0,
+    "height": 0,
+    "frameCount": 0,
+    "totalIntegrationSeconds": 0.0,
+    "filter": null,
+    "settingsJson": "{}",
+    "statsJson": "{}",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:10:00.000Z",
+    "wcs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "backgroundExtractedPath": null,
+    "deconvolvedPath": null,
+    "starReducedPath": null,
+    "colorCalibratedPath": null
+  },
+  "accumulating filter=\"\"": {
+    "id": 2,
+    "targetId": 1,
+    "name": "M31 none",
+    "masterFitsPath": null,
+    "previewPngPath": null,
+    "sidecarPath": null,
+    "rejectionMapPath": null,
+    "rejectionMapPreviewPath": null,
+    "coverageMapPath": null,
+    "coverageMapPreviewPath": null,
+    "status": "IntegratedMasterStatus.accumulating",
+    "accumulationMode": "AccumulationMode.runningWeightedMean",
+    "channels": 1,
+    "width": 0,
+    "height": 0,
+    "frameCount": 0,
+    "totalIntegrationSeconds": 0.0,
+    "filter": null,
+    "settingsJson": "{}",
+    "statsJson": "{}",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:10:00.000Z",
+    "wcs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "backgroundExtractedPath": null,
+    "deconvolvedPath": null,
+    "starReducedPath": null,
+    "colorCalibratedPath": null
+  },
+  "accumulating filter=\"  \"": {
+    "id": 2,
+    "targetId": 1,
+    "name": "M31 none",
+    "masterFitsPath": null,
+    "previewPngPath": null,
+    "sidecarPath": null,
+    "rejectionMapPath": null,
+    "rejectionMapPreviewPath": null,
+    "coverageMapPath": null,
+    "coverageMapPreviewPath": null,
+    "status": "IntegratedMasterStatus.accumulating",
+    "accumulationMode": "AccumulationMode.runningWeightedMean",
+    "channels": 1,
+    "width": 0,
+    "height": 0,
+    "frameCount": 0,
+    "totalIntegrationSeconds": 0.0,
+    "filter": null,
+    "settingsJson": "{}",
+    "statsJson": "{}",
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "updatedAt": "2025-03-01T22:10:00.000Z",
+    "wcs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "backgroundExtractedPath": null,
+    "deconvolvedPath": null,
+    "starReducedPath": null,
+    "colorCalibratedPath": null
+  },
+  "accumulating filter=\"l\"": null,
+  "accumulating filter=\"Ha\"": null,
+  "updateBookkeeping some": 1,
+  "updateBookkeeping all": 1,
+  "updateBookkeeping none": 1,
+  "updateBookkeeping missing": 0,
+  "updateSmartFields some": 1,
+  "updateSmartFields all": 1,
+  "updateSmartFields none": 1,
+  "updateWcs": 1,
+  "updateWcs missing": 0,
+  "updateFinishingPaths some": 1,
+  "updateFinishingPaths all": 1,
+  "updateFinishingPaths none": 1,
+  "after updates :: integrated_masters": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 L",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": "/m/L.fits",
+        "t": "text"
+      },
+      "preview_png_path": {
+        "v": "/m/L.png",
+        "t": "text"
+      },
+      "sidecar_path": {
+        "v": "/m/L.acc",
+        "t": "text"
+      },
+      "rejection_map_path": {
+        "v": "/m/L_rej.fits",
+        "t": "text"
+      },
+      "status": {
+        "v": "accumulating",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "runningWeightedMean",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 6248,
+        "t": "integer"
+      },
+      "height": {
+        "v": 4176,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 40,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 4800.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": "L",
+        "t": "text"
+      },
+      "settings_json": {
+        "v": "{\"k\":1}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{\"snr\":12.5}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": "/m/L_rej.png",
+        "t": "text"
+      },
+      "coverage_map_path": {
+        "v": "/m/L_cov.fits",
+        "t": "text"
+      },
+      "coverage_map_preview_path": {
+        "v": "/m/L_cov.png",
+        "t": "text"
+      },
+      "color_calibrated_path": {
+        "v": "/m/cc.fits",
+        "t": "text"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": 40.25,
+        "t": "real"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": 10.68,
+        "t": "real"
+      },
+      "wcs_crval2": {
+        "v": 41.27,
+        "t": "real"
+      },
+      "wcs_crpix1": {
+        "v": 3124.0,
+        "t": "real"
+      },
+      "wcs_crpix2": {
+        "v": 2088.0,
+        "t": "real"
+      },
+      "wcs_cd1_1": {
+        "v": -0.0002,
+        "t": "real"
+      },
+      "wcs_cd1_2": {
+        "v": 0.00001,
+        "t": "real"
+      },
+      "wcs_cd2_1": {
+        "v": -0.00001,
+        "t": "real"
+      },
+      "wcs_cd2_2": {
+        "v": -0.0002,
+        "t": "real"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": "/m/d.fits",
+        "t": "text"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 none",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": "/m/n.fits",
+        "t": "text"
+      },
+      "preview_png_path": {
+        "v": null,
+        "t": "null"
+      },
+      "sidecar_path": {
+        "v": null,
+        "t": "null"
+      },
+      "rejection_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "status": {
+        "v": "finalized",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "runningWeightedMean",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 3,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 360.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": null,
+        "t": "null"
+      },
+      "settings_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "color_calibrated_path": {
+        "v": "x",
+        "t": "text"
+      },
+      "annotated_preview_path": {
+        "v": "y",
+        "t": "text"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": 1.0,
+        "t": "real"
+      },
+      "target_integration_s": {
+        "v": 2.0,
+        "t": "real"
+      },
+      "improvement_curve_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": "bgx",
+        "t": "text"
+      },
+      "deconvolved_path": {
+        "v": "dec",
+        "t": "text"
+      },
+      "star_reduced_path": {
+        "v": "star",
+        "t": "text"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 empty",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": "a",
+        "t": "text"
+      },
+      "preview_png_path": {
+        "v": "b",
+        "t": "text"
+      },
+      "sidecar_path": {
+        "v": null,
+        "t": "null"
+      },
+      "rejection_map_path": {
+        "v": "c",
+        "t": "text"
+      },
+      "status": {
+        "v": "accumulating",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "runningWeightedMean",
+        "t": "text"
+      },
+      "channels": {
+        "v": 3,
+        "t": "integer"
+      },
+      "width": {
+        "v": 7,
+        "t": "integer"
+      },
+      "height": {
+        "v": 8,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 9,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 10.5,
+        "t": "real"
+      },
+      "filter": {
+        "v": "",
+        "t": "text"
+      },
+      "settings_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740866700,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": "d",
+        "t": "text"
+      },
+      "coverage_map_path": {
+        "v": "e",
+        "t": "text"
+      },
+      "coverage_map_preview_path": {
+        "v": "f",
+        "t": "text"
+      },
+      "color_calibrated_path": {
+        "v": null,
+        "t": "null"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": null,
+        "t": "null"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": null,
+        "t": "null"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Loose",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": null,
+        "t": "null"
+      },
+      "preview_png_path": {
+        "v": null,
+        "t": "null"
+      },
+      "sidecar_path": {
+        "v": null,
+        "t": "null"
+      },
+      "rejection_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "status": {
+        "v": "finalized",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "batch",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": null,
+        "t": "null"
+      },
+      "settings_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "color_calibrated_path": {
+        "v": null,
+        "t": "null"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": null,
+        "t": "null"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": null,
+        "t": "null"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 L old",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": null,
+        "t": "null"
+      },
+      "preview_png_path": {
+        "v": null,
+        "t": "null"
+      },
+      "sidecar_path": {
+        "v": null,
+        "t": "null"
+      },
+      "rejection_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "status": {
+        "v": "accumulating",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "runningWeightedMean",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": "L",
+        "t": "text"
+      },
+      "settings_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740866460,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "color_calibrated_path": {
+        "v": null,
+        "t": "null"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": null,
+        "t": "null"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": null,
+        "t": "null"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "recordFoldedFrame full": 1,
+  "recordFoldedFrame rejected": 2,
+  "recordFoldedFrame refold replaces": 3,
+  "recordFoldedFrame master 2": 4,
+  "recordFoldedFrame master 3": 5,
+  "recordFoldedFrame master 5": 6,
+  "recordFoldedFrame missing master": {
+    "threw": "SqliteException",
+    "message": "SqliteException(787): while executing statement, FOREIGN KEY constraint failed, constraint failed (code 787)"
+  },
+  "after folds :: integrated_master_frames": [
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "image_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "weight": {
+        "v": null,
+        "t": "null"
+      },
+      "alignment_residual_px": {
+        "v": null,
+        "t": "null"
+      },
+      "accepted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "rejection_reason": {
+        "v": "trail",
+        "t": "text"
+      },
+      "folded_at": {
+        "v": 1740867600,
+        "t": "integer"
+      },
+      "snr": {
+        "v": null,
+        "t": "null"
+      },
+      "fwhm": {
+        "v": null,
+        "t": "null"
+      },
+      "eccentricity": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "image_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "weight": {
+        "v": 0.5,
+        "t": "real"
+      },
+      "alignment_residual_px": {
+        "v": null,
+        "t": "null"
+      },
+      "accepted": {
+        "v": 1,
+        "t": "integer"
+      },
+      "rejection_reason": {
+        "v": null,
+        "t": "null"
+      },
+      "folded_at": {
+        "v": 1740867660,
+        "t": "integer"
+      },
+      "snr": {
+        "v": null,
+        "t": "null"
+      },
+      "fwhm": {
+        "v": null,
+        "t": "null"
+      },
+      "eccentricity": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "image_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "weight": {
+        "v": null,
+        "t": "null"
+      },
+      "alignment_residual_px": {
+        "v": null,
+        "t": "null"
+      },
+      "accepted": {
+        "v": 1,
+        "t": "integer"
+      },
+      "rejection_reason": {
+        "v": null,
+        "t": "null"
+      },
+      "folded_at": {
+        "v": 1740867720,
+        "t": "integer"
+      },
+      "snr": {
+        "v": null,
+        "t": "null"
+      },
+      "fwhm": {
+        "v": null,
+        "t": "null"
+      },
+      "eccentricity": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "image_id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "weight": {
+        "v": null,
+        "t": "null"
+      },
+      "alignment_residual_px": {
+        "v": null,
+        "t": "null"
+      },
+      "accepted": {
+        "v": 1,
+        "t": "integer"
+      },
+      "rejection_reason": {
+        "v": null,
+        "t": "null"
+      },
+      "folded_at": {
+        "v": 1740867720,
+        "t": "integer"
+      },
+      "snr": {
+        "v": null,
+        "t": "null"
+      },
+      "fwhm": {
+        "v": null,
+        "t": "null"
+      },
+      "eccentricity": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "image_id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "weight": {
+        "v": null,
+        "t": "null"
+      },
+      "alignment_residual_px": {
+        "v": null,
+        "t": "null"
+      },
+      "accepted": {
+        "v": 1,
+        "t": "integer"
+      },
+      "rejection_reason": {
+        "v": null,
+        "t": "null"
+      },
+      "folded_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "snr": {
+        "v": null,
+        "t": "null"
+      },
+      "fwhm": {
+        "v": null,
+        "t": "null"
+      },
+      "eccentricity": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "getFoldedImageIds 1": {
+    "set": [
+      1,
+      2
+    ]
+  },
+  "getFramesForMaster 1": [
+    {
+      "id": 3,
+      "masterId": 1,
+      "imageId": 1,
+      "weight": 0.5,
+      "alignmentResidualPx": null,
+      "accepted": true,
+      "rejectionReason": null,
+      "foldedAt": "2025-03-01T22:21:00.000Z"
+    },
+    {
+      "id": 2,
+      "masterId": 1,
+      "imageId": 2,
+      "weight": null,
+      "alignmentResidualPx": null,
+      "accepted": false,
+      "rejectionReason": "trail",
+      "foldedAt": "2025-03-01T22:20:00.000Z"
+    }
+  ],
+  "masterIdsForImages": [
+    2,
+    1,
+    3,
+    5
+  ],
+  "masterIdsForImages none match": [],
+  "masterIdsForImages over a chunk": [
+    1,
+    3
+  ],
+  "replaceMaster": null,
+  "replaceMaster null old path": null,
+  "after replace :: recipes": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/m/L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "autopilot",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868200,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/m/L.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "autopilot",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868200,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "base_master_path": {
+        "v": "/keep.fits",
+        "t": "text"
+      },
+      "name": {
+        "v": "",
+        "t": "text"
+      },
+      "steps_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_by": {
+        "v": "autopilot",
+        "t": "text"
+      },
+      "draft_notes_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "parent_recipe_id": {
+        "v": null,
+        "t": "null"
+      },
+      "divergence_index": {
+        "v": null,
+        "t": "null"
+      },
+      "schema_version": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740868200,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": 1740868200,
+        "t": "integer"
+      }
+    }
+  ],
+  "after replace :: integrated_masters": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 L",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": "/m/L.fits",
+        "t": "text"
+      },
+      "preview_png_path": {
+        "v": "/m/L.png",
+        "t": "text"
+      },
+      "sidecar_path": {
+        "v": "/m/L.acc",
+        "t": "text"
+      },
+      "rejection_map_path": {
+        "v": "/m/L_rej.fits",
+        "t": "text"
+      },
+      "status": {
+        "v": "accumulating",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "runningWeightedMean",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 6248,
+        "t": "integer"
+      },
+      "height": {
+        "v": 4176,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 40,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 4800.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": "L",
+        "t": "text"
+      },
+      "settings_json": {
+        "v": "{\"k\":1}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{\"snr\":12.5}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": "/m/L_rej.png",
+        "t": "text"
+      },
+      "coverage_map_path": {
+        "v": "/m/L_cov.fits",
+        "t": "text"
+      },
+      "coverage_map_preview_path": {
+        "v": "/m/L_cov.png",
+        "t": "text"
+      },
+      "color_calibrated_path": {
+        "v": "/m/cc.fits",
+        "t": "text"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": 40.25,
+        "t": "real"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": 10.68,
+        "t": "real"
+      },
+      "wcs_crval2": {
+        "v": 41.27,
+        "t": "real"
+      },
+      "wcs_crpix1": {
+        "v": 3124.0,
+        "t": "real"
+      },
+      "wcs_crpix2": {
+        "v": 2088.0,
+        "t": "real"
+      },
+      "wcs_cd1_1": {
+        "v": -0.0002,
+        "t": "real"
+      },
+      "wcs_cd1_2": {
+        "v": 0.00001,
+        "t": "real"
+      },
+      "wcs_cd2_1": {
+        "v": -0.00001,
+        "t": "real"
+      },
+      "wcs_cd2_2": {
+        "v": -0.0002,
+        "t": "real"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": "/m/d.fits",
+        "t": "text"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "name": {
+        "v": "Loose",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": null,
+        "t": "null"
+      },
+      "preview_png_path": {
+        "v": null,
+        "t": "null"
+      },
+      "sidecar_path": {
+        "v": null,
+        "t": "null"
+      },
+      "rejection_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "status": {
+        "v": "finalized",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "batch",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": null,
+        "t": "null"
+      },
+      "settings_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "color_calibrated_path": {
+        "v": null,
+        "t": "null"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": null,
+        "t": "null"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": null,
+        "t": "null"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "name": {
+        "v": "M31 L old",
+        "t": "text"
+      },
+      "master_fits_path": {
+        "v": null,
+        "t": "null"
+      },
+      "preview_png_path": {
+        "v": null,
+        "t": "null"
+      },
+      "sidecar_path": {
+        "v": null,
+        "t": "null"
+      },
+      "rejection_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "status": {
+        "v": "accumulating",
+        "t": "text"
+      },
+      "accumulation_mode": {
+        "v": "runningWeightedMean",
+        "t": "text"
+      },
+      "channels": {
+        "v": 1,
+        "t": "integer"
+      },
+      "width": {
+        "v": 0,
+        "t": "integer"
+      },
+      "height": {
+        "v": 0,
+        "t": "integer"
+      },
+      "frame_count": {
+        "v": 0,
+        "t": "integer"
+      },
+      "total_integration_seconds": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "filter": {
+        "v": "L",
+        "t": "text"
+      },
+      "settings_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "stats_json": {
+        "v": "{}",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740866460,
+        "t": "integer"
+      },
+      "updated_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "rejection_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_path": {
+        "v": null,
+        "t": "null"
+      },
+      "coverage_map_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "color_calibrated_path": {
+        "v": null,
+        "t": "null"
+      },
+      "annotated_preview_path": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "target_snr": {
+        "v": null,
+        "t": "null"
+      },
+      "target_integration_s": {
+        "v": null,
+        "t": "null"
+      },
+      "improvement_curve_json": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crval2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_crpix2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd1_2": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_1": {
+        "v": null,
+        "t": "null"
+      },
+      "wcs_cd2_2": {
+        "v": null,
+        "t": "null"
+      },
+      "background_extracted_path": {
+        "v": null,
+        "t": "null"
+      },
+      "deconvolved_path": {
+        "v": null,
+        "t": "null"
+      },
+      "star_reduced_path": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "after replace :: integrated_master_frames": [
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "image_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "weight": {
+        "v": null,
+        "t": "null"
+      },
+      "alignment_residual_px": {
+        "v": null,
+        "t": "null"
+      },
+      "accepted": {
+        "v": 0,
+        "t": "integer"
+      },
+      "rejection_reason": {
+        "v": "trail",
+        "t": "text"
+      },
+      "folded_at": {
+        "v": 1740867600,
+        "t": "integer"
+      },
+      "snr": {
+        "v": null,
+        "t": "null"
+      },
+      "fwhm": {
+        "v": null,
+        "t": "null"
+      },
+      "eccentricity": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "image_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "weight": {
+        "v": 0.5,
+        "t": "real"
+      },
+      "alignment_residual_px": {
+        "v": null,
+        "t": "null"
+      },
+      "accepted": {
+        "v": 1,
+        "t": "integer"
+      },
+      "rejection_reason": {
+        "v": null,
+        "t": "null"
+      },
+      "folded_at": {
+        "v": 1740867660,
+        "t": "integer"
+      },
+      "snr": {
+        "v": null,
+        "t": "null"
+      },
+      "fwhm": {
+        "v": null,
+        "t": "null"
+      },
+      "eccentricity": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "image_id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "weight": {
+        "v": null,
+        "t": "null"
+      },
+      "alignment_residual_px": {
+        "v": null,
+        "t": "null"
+      },
+      "accepted": {
+        "v": 1,
+        "t": "integer"
+      },
+      "rejection_reason": {
+        "v": null,
+        "t": "null"
+      },
+      "folded_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "snr": {
+        "v": null,
+        "t": "null"
+      },
+      "fwhm": {
+        "v": null,
+        "t": "null"
+      },
+      "eccentricity": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "deleteMaster 1": 1,
+  "deleteMaster missing": 0,
+  "after delete :: integrated_master_frames": [
+    {
+      "id": {
+        "v": 6,
+        "t": "integer"
+      },
+      "master_id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "image_id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "weight": {
+        "v": null,
+        "t": "null"
+      },
+      "alignment_residual_px": {
+        "v": null,
+        "t": "null"
+      },
+      "accepted": {
+        "v": 1,
+        "t": "integer"
+      },
+      "rejection_reason": {
+        "v": null,
+        "t": "null"
+      },
+      "folded_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "snr": {
+        "v": null,
+        "t": "null"
+      },
+      "fwhm": {
+        "v": null,
+        "t": "null"
+      },
+      "eccentricity": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ]
+}

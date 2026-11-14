@@ -14,37 +14,6 @@ NetworkBackend _backend(FakeNetworkClient fake) => NetworkBackend(
 
 void main() {
   group('NetworkBackend session/science wire contract', () {
-    test('an absent active session remains a valid null result', () async {
-      final fake = FakeNetworkClient()
-        ..setResponse('/api/sessions/active', body: '{"session":null}');
-      final backend = _backend(fake);
-      addTearDown(backend.dispose);
-
-      expect(await backend.getActiveSession(), isNull);
-    });
-
-    test('active-session server failures are not reported as no session', () {
-      final fake = FakeNetworkClient()
-        ..setResponse(
-          '/api/sessions/active',
-          status: 401,
-          body: '{"code":"unauthorized","message":"Pairing token expired"}',
-        );
-      final backend = _backend(fake);
-      addTearDown(backend.dispose);
-
-      expect(
-        backend.getActiveSession(),
-        throwsA(
-          isA<ServerError>().having(
-            (error) => error.code,
-            'code',
-            'unauthorized',
-          ),
-        ),
-      );
-    });
-
     test('404 is the only missing-session and missing-image result', () async {
       final fake = FakeNetworkClient()
         ..setResponse(

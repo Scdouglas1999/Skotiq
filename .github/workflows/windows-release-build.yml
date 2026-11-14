@@ -58,11 +58,10 @@ jobs:
       # only executes its first line (cargo) on the Windows shell, silently
       # skipping the flutter build + staging and producing no Release output.
       - name: Build Rust native bridge (release)
-        run: cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
+        run: dart scripts/build.dart bridge
 
       - name: Build Flutter Windows app (release)
-        working-directory: apps/desktop
-        run: flutter build windows --release
+        run: dart scripts/build.dart flutter windows
 
       - name: Stage native DLLs (bridge, libraw, MSVC runtime) into Release
         shell: pwsh

@@ -4,10 +4,9 @@
 //! for recovery after unexpected crashes or restarts.
 
 use crate::scheduling::BudgetRegistrySnapshot;
-use crate::triggers::TriggerState;
+use crate::triggers::{PersistedTriggerState, TriggerState};
 use crate::{
-    ExecutorState, MeridianTriggerMethod, NodeId, NodeStatus, PierSide, SafetyFailMode,
-    SequenceDefinition, SmartExposureCheckpoint,
+    ExecutorState, NodeId, NodeStatus, SafetyFailMode, SequenceDefinition, SmartExposureCheckpoint,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -43,192 +42,36 @@ pub struct WizardCheckpoint {
     pub timestamp: DateTime<Utc>,
 }
 
-/// Per-scheduler resume state.
-///
-/// Stored inside [`SessionCheckpoint::scheduler_states`] keyed by the
-/// scheduler node's id (sequences may contain more than one TargetScheduler).
-/// `current_target_id` is the last-picked target's child node id;
-/// `exposures_in_current_target` lets the in-target recompute cadence resume
-/// where it left off. Old checkpoints lacking this field deserialize to an
-/// empty map and resume with a fresh decision — backwards-compatible.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SchedulerCheckpoint {
-    /// Scheduler node id (matches `NodeDefinition::id` of the
-    /// `TargetScheduler` variant). Stored for cross-validation on resume.
-    pub scheduler_node_id: String,
-    /// Last picked target's child node id, or `None` if the last decision
-    /// produced no runnable target.
-    pub current_target_id: Option<String>,
-    /// Exposures completed inside the current target subtree since the last
-    /// decision; surfaces the `recompute_every_n_exposures` cadence on resume.
-    pub exposures_in_current_target: u32,
-    /// 1-based decision counter. Resumes from `decision_counter + 1` so the
-    /// Run Dashboard's row indices stay monotonic across resume.
-    pub decision_counter: u32,
-    /// When the checkpoint was written.
-    pub timestamp: DateTime<Utc>,
-}
-
-/// Serializable copy of trigger state needed to resume without repeating actions.
+/// What a checkpoint keeps of the trigger state: the persisted fields of its
+/// parts, plus the two run settings the executor holds beside it. One flat
+/// JSON object, every field tolerant of being absent from an older file.
+/// Older files also carry `triggers_enabled`; it is read and ignored, because
+/// nothing a checkpoint says may turn off dawn or weather parking.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TriggerStateSnapshot {
-    pub baseline_hfr: Option<f64>,
-    pub current_hfr: Option<f64>,
-    pub autofocus_invalidated: bool,
-    pub autofocus_invalidation_reason: Option<String>,
-    pub current_hour_angle: Option<f64>,
-    pub pier_side: Option<PierSide>,
-    pub mount_tracking_limit_time: Option<i64>,
-    pub has_flipped_this_target: bool,
-    pub current_target_name: Option<String>,
-    pub next_meridian_flip_time: Option<i64>,
-    pub guiding_enabled: bool,
-    pub guide_star_lost: bool,
-    pub current_humidity: Option<f64>,
-    pub current_altitude: Option<f64>,
-    pub weather_safe: bool,
-    pub baseline_temperature: Option<f64>,
-    pub current_temperature: Option<f64>,
-    pub baseline_focuser_position: Option<i32>,
-    pub filter_changed: bool,
-    pub current_filter: Option<String>,
-    pub dawn_time: Option<i64>,
-    pub observer_latitude: Option<f64>,
-    pub observer_longitude: Option<f64>,
-    pub completed_exposures: u32,
-    pub last_autofocus_frame: u32,
-    pub last_dither_frame: u32,
-    pub last_plate_solve_ra: Option<f64>,
-    pub last_plate_solve_dec: Option<f64>,
-    pub last_plate_solve_pixel_scale: Option<f64>,
-    pub target_ra: Option<f64>,
-    pub target_dec: Option<f64>,
-    pub mount_is_tracking: Option<bool>,
-    pub mount_tracking_expected: bool,
-    pub mount_tracking_lost: bool,
-    pub mount_slewing: Option<bool>,
-    pub mount_parked: Option<bool>,
-    pub mount_status_query_failed: bool,
-    pub tracking_limit_detected_at: Option<i64>,
-    pub meridian_trigger_method: Option<MeridianTriggerMethod>,
-    pub dome_shutter_status: Option<String>,
-    pub dome_shutter_open_expected: bool,
-    pub grid_dither_index: u32,
-    pub safety_fail_mode: SafetyFailMode,
-    pub triggers_enabled: bool,
-    pub filter_focus_offsets: HashMap<String, i32>,
-    /// Filter focus offset currently embodied in the focuser position so a
-    /// resumed sequence applies the next filter change as a delta rather than
-    /// re-stacking. `#[serde(default)]` keeps legacy checkpoints loadable.
+    #[serde(flatten)]
+    pub state: PersistedTriggerState,
     #[serde(default)]
-    pub last_applied_filter_offset: i32,
+    pub safety_fail_mode: SafetyFailMode,
+    #[serde(default)]
+    pub filter_focus_offsets: HashMap<String, i32>,
 }
 
 impl TriggerStateSnapshot {
     pub fn from_state(
         state: &TriggerState,
         safety_fail_mode: SafetyFailMode,
-        triggers_enabled: bool,
         filter_focus_offsets: HashMap<String, i32>,
     ) -> Self {
         Self {
-            baseline_hfr: state.baseline_hfr,
-            current_hfr: state.current_hfr,
-            autofocus_invalidated: state.autofocus_invalidated,
-            autofocus_invalidation_reason: state.autofocus_invalidation_reason.clone(),
-            current_hour_angle: state.current_hour_angle,
-            pier_side: state.pier_side,
-            mount_tracking_limit_time: state.mount_tracking_limit_time,
-            has_flipped_this_target: state.meridian.has_flipped(),
-            current_target_name: state.current_target_name.clone(),
-            next_meridian_flip_time: state.next_meridian_flip_time,
-            guiding_enabled: state.guiding.is_enabled(),
-            guide_star_lost: state.guiding.star_lost(),
-            current_humidity: state.current_humidity,
-            current_altitude: state.current_altitude,
-            weather_safe: state.weather_safe,
-            baseline_temperature: state.baseline_temperature,
-            current_temperature: state.current_temperature,
-            baseline_focuser_position: state.baseline_focuser_position,
-            filter_changed: state.filter_changed,
-            current_filter: state.current_filter.clone(),
-            dawn_time: state.dawn_time,
-            observer_latitude: state.observer_latitude,
-            observer_longitude: state.observer_longitude,
-            completed_exposures: state.completed_exposures,
-            last_autofocus_frame: state.last_autofocus_frame,
-            last_dither_frame: state.last_dither_frame,
-            last_plate_solve_ra: state.last_plate_solve_ra,
-            last_plate_solve_dec: state.last_plate_solve_dec,
-            last_plate_solve_pixel_scale: state.last_plate_solve_pixel_scale,
-            target_ra: state.target_ra,
-            target_dec: state.target_dec,
-            mount_is_tracking: state.mount_is_tracking,
-            mount_tracking_expected: state.tracking.is_expected(),
-            mount_tracking_lost: state.tracking.is_lost(),
-            mount_slewing: state.mount_slewing,
-            mount_parked: state.mount_parked,
-            mount_status_query_failed: state.mount_status_query_failed,
-            tracking_limit_detected_at: state.tracking.limit_detected_at(),
-            meridian_trigger_method: state.meridian_trigger_method,
-            dome_shutter_status: state.dome_shutter_status.clone(),
-            dome_shutter_open_expected: state.dome_shutter_open_expected,
-            grid_dither_index: state.grid_dither_index,
+            state: state.persisted(),
             safety_fail_mode,
-            triggers_enabled,
             filter_focus_offsets,
-            last_applied_filter_offset: state.last_applied_filter_offset,
         }
     }
 
     pub fn restore_into(&self, state: &mut TriggerState) {
-        state.restored_from_checkpoint = true;
-        state.baseline_hfr = self.baseline_hfr;
-        state.current_hfr = self.current_hfr;
-        state.autofocus_invalidated = self.autofocus_invalidated;
-        state.autofocus_invalidation_reason = self.autofocus_invalidation_reason.clone();
-        state.current_hour_angle = self.current_hour_angle;
-        state.pier_side = self.pier_side;
-        state.mount_tracking_limit_time = self.mount_tracking_limit_time;
-        state.meridian.restore_flipped(self.has_flipped_this_target);
-        state.current_target_name = self.current_target_name.clone();
-        state.next_meridian_flip_time = self.next_meridian_flip_time;
-        state
-            .guiding
-            .restore(self.guiding_enabled, self.guide_star_lost);
-        state.current_humidity = self.current_humidity;
-        state.current_altitude = self.current_altitude;
-        state.weather_safe = self.weather_safe;
-        state.baseline_temperature = self.baseline_temperature;
-        state.current_temperature = self.current_temperature;
-        state.baseline_focuser_position = self.baseline_focuser_position;
-        state.filter_changed = self.filter_changed;
-        state.current_filter = self.current_filter.clone();
-        state.dawn_time = self.dawn_time;
-        state.observer_latitude = self.observer_latitude;
-        state.observer_longitude = self.observer_longitude;
-        state.completed_exposures = self.completed_exposures;
-        state.last_autofocus_frame = self.last_autofocus_frame;
-        state.last_dither_frame = self.last_dither_frame;
-        state.last_plate_solve_ra = self.last_plate_solve_ra;
-        state.last_plate_solve_dec = self.last_plate_solve_dec;
-        state.last_plate_solve_pixel_scale = self.last_plate_solve_pixel_scale;
-        state.target_ra = self.target_ra;
-        state.target_dec = self.target_dec;
-        state.mount_is_tracking = self.mount_is_tracking;
-        state.tracking.restore(
-            self.mount_tracking_expected,
-            self.mount_tracking_lost,
-            self.tracking_limit_detected_at,
-        );
-        state.mount_slewing = self.mount_slewing;
-        state.mount_parked = self.mount_parked;
-        state.mount_status_query_failed = self.mount_status_query_failed;
-        state.meridian_trigger_method = self.meridian_trigger_method;
-        state.dome_shutter_status = self.dome_shutter_status.clone();
-        state.dome_shutter_open_expected = self.dome_shutter_open_expected;
-        state.grid_dither_index = self.grid_dither_index;
-        state.last_applied_filter_offset = self.last_applied_filter_offset;
+        state.restore(&self.state);
     }
 }
 
@@ -239,11 +82,8 @@ pub struct SessionCheckpoint {
     pub version: u32,
     /// When the checkpoint was created
     pub timestamp: DateTime<Utc>,
-    /// The sequence definition
     pub sequence: SequenceDefinition,
-    /// Status of each node
     pub node_statuses: HashMap<NodeId, NodeStatus>,
-    /// Last completed node ID
     pub last_completed_node: Option<NodeId>,
     /// Current node being executed (if any)
     pub current_node: Option<NodeId>,
@@ -260,9 +100,7 @@ pub struct SessionCheckpoint {
     /// Observer location
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
-    /// Total completed exposures
     pub completed_exposures: u32,
-    /// Total completed integration time
     pub completed_integration_secs: f64,
     /// Whether this checkpoint is from an active session
     pub is_active: bool,
@@ -275,12 +113,6 @@ pub struct SessionCheckpoint {
     /// from disk — `#[serde(default)]` produces an empty map).
     #[serde(default)]
     pub wizard_states: HashMap<String, WizardCheckpoint>,
-    /// per-`TargetScheduler` resume state keyed by the
-    /// scheduler node's id. `#[serde(default)]` keeps v1/v2/v3 checkpoints
-    /// loading: old data sees an empty map and resumes with a fresh
-    /// decision, which is the documented backwards-compat behaviour.
-    #[serde(default)]
-    pub scheduler_states: HashMap<String, SchedulerCheckpoint>,
     /// per-target integration budget accounting snapshot.
     /// `#[serde(default)]` keeps older checkpoints loading: missing
     /// field deserializes to an empty snapshot, which the registry
@@ -289,7 +121,7 @@ pub struct SessionCheckpoint {
     #[serde(default)]
     pub budget_states: BudgetRegistrySnapshot,
     /// per-`SmartExposure` resume state keyed by the
-    /// SmartExposure node's id. Mirrors the `scheduler_states` pattern.
+    /// SmartExposure node's id. Keyed like `wizard_states`.
     /// `#[serde(default)]` keeps every older checkpoint loading: missing
     /// field deserializes to an empty map and the next run starts each
     /// SmartExposure from a fresh state (plan index 0, no per-filter
@@ -311,6 +143,15 @@ pub struct SessionCheckpoint {
     /// iteration it reached instead of re-imaging every completed iteration.
     #[serde(default)]
     pub loop_iterations: HashMap<NodeId, u32>,
+    /// Frames a Take Exposures burst had taken when the run stopped part-way
+    /// through it, keyed by the node's id; a resumed run takes the rest.
+    #[serde(default)]
+    pub exposure_frames_taken: HashMap<NodeId, u32>,
+    /// Frames each Take Exposures step has taken over the whole plan, every
+    /// loop pass and every run this one continues, keyed by the node's id.
+    /// Empty in checkpoints written before it existed.
+    #[serde(default)]
+    pub exposure_frames_done: HashMap<NodeId, u32>,
     /// How the run ended, when it ended on its own terms: stopped by the
     /// operator, failed, or ended early by a trigger (dawn, weather). `None`
     /// while it runs, so a checkpoint still `None` after the app restarts
@@ -326,7 +167,6 @@ pub struct SessionCheckpoint {
 pub enum RunEnd {
     /// The operator stopped it.
     Stopped,
-    /// It failed.
     Failed,
     /// A trigger ended it early and put the rig away (dawn, unsafe weather).
     EndedEarly,
@@ -369,10 +209,6 @@ impl SessionCheckpoint {
             trigger_state: None,
             wizard_states: HashMap::new(),
             // empty by default; populated only when a
-            // TargetScheduler node writes a decision through
-            // `set_scheduler_state`.
-            scheduler_states: HashMap::new(),
-            // empty by default; populated only when a
             // TargetHeader's budget registry has produced state.
             budget_states: BudgetRegistrySnapshot::default(),
             // empty by default; populated only when a
@@ -382,6 +218,8 @@ impl SessionCheckpoint {
             // empty by default; populated from the live tree at
             // save_checkpoint time (loop nodes with current_iteration > 0).
             loop_iterations: HashMap::new(),
+            exposure_frames_taken: HashMap::new(),
+            exposure_frames_done: HashMap::new(),
         }
     }
 
@@ -401,27 +239,6 @@ impl SessionCheckpoint {
     /// successfully so a future run starts fresh).
     pub fn clear_wizard_state(&mut self, checkpoint_key: &str) {
         self.wizard_states.remove(checkpoint_key);
-        self.timestamp = Utc::now();
-    }
-
-    /// insert or replace a scheduler checkpoint slot.
-    /// Keyed by `state.scheduler_node_id` so a sequence may contain multiple
-    /// TargetScheduler nodes without collisions.
-    pub fn set_scheduler_state(&mut self, state: SchedulerCheckpoint) {
-        self.scheduler_states
-            .insert(state.scheduler_node_id.clone(), state);
-        self.timestamp = Utc::now();
-    }
-
-    /// look up a scheduler checkpoint slot by node id.
-    pub fn scheduler_state(&self, scheduler_node_id: &str) -> Option<&SchedulerCheckpoint> {
-        self.scheduler_states.get(scheduler_node_id)
-    }
-
-    /// clear a scheduler checkpoint slot (call when the
-    /// scheduler exhausts its child list so the next run starts fresh).
-    pub fn clear_scheduler_state(&mut self, scheduler_node_id: &str) {
-        self.scheduler_states.remove(scheduler_node_id);
         self.timestamp = Utc::now();
     }
 
@@ -446,24 +263,6 @@ impl SessionCheckpoint {
         self.timestamp = Utc::now();
     }
 
-    /// Update the checkpoint with current progress
-    pub fn update_progress(
-        &mut self,
-        node_statuses: HashMap<NodeId, NodeStatus>,
-        current_node: Option<NodeId>,
-        last_completed: Option<NodeId>,
-        completed_exposures: u32,
-        completed_integration_secs: f64,
-    ) {
-        self.timestamp = Utc::now();
-        self.node_statuses = node_statuses;
-        self.current_node = current_node;
-        self.last_completed_node = last_completed;
-        self.completed_exposures = completed_exposures;
-        self.completed_integration_secs = completed_integration_secs;
-    }
-
-    /// Set device IDs
     pub fn set_devices(
         &mut self,
         camera: Option<String>,
@@ -485,15 +284,8 @@ impl SessionCheckpoint {
         self.longitude = lon;
     }
 
-    /// Set save path
     pub fn set_save_path(&mut self, path: Option<PathBuf>) {
         self.save_path = path;
-    }
-
-    /// Mark checkpoint as active session
-    pub fn set_active(&mut self, active: bool) {
-        self.is_active = active;
-        self.timestamp = Utc::now();
     }
 
     /// Store trigger state in the checkpoint.
@@ -533,7 +325,6 @@ impl SessionCheckpoint {
     }
 }
 
-/// Manager for checkpoint persistence
 pub struct CheckpointManager {
     checkpoint_dir: PathBuf,
     info_cache: Mutex<Option<CachedCheckpointInfo>>,
@@ -550,7 +341,6 @@ impl CheckpointManager {
     const CHECKPOINT_FILENAME: &'static str = "skotiq_session.checkpoint";
     const CHECKPOINT_BACKUP: &'static str = "skotiq_session.checkpoint.bak";
 
-    /// Get the checkpoint directory path
     pub fn checkpoint_dir(&self) -> &Path {
         &self.checkpoint_dir
     }
@@ -731,6 +521,7 @@ impl CheckpointManager {
                 can_resume: checkpoint.can_resume(),
                 age_seconds: checkpoint.age_seconds(),
                 ended: checkpoint.ended,
+                frames_done_by_step: checkpoint.exposure_frames_done,
             })),
             None => Ok(None),
         }
@@ -855,137 +646,6 @@ impl CheckpointManager {
     pub fn get_checkpoint_info(&self) -> Result<Option<CheckpointInfo>, String> {
         self.cached_checkpoint_info()
     }
-
-    /// Save a single wizard checkpoint slot into the session checkpoint
-    /// on disk, leaving every other field untouched. Used by the
-    /// [`crate::wizard::WizardCheckpointSink`] adapter. If no session
-    /// checkpoint exists this is a no-op — a wizard running outside an
-    /// active session has nothing to persist its state into, and that's
-    /// fine.
-    pub fn save_wizard_state(&self, state: &WizardCheckpoint) {
-        let mut checkpoint = match self.load() {
-            Ok(Some(cp)) => cp,
-            // No session checkpoint to attach to — wizard is running
-            // standalone (no surrounding sequence). The next run will
-            // start fresh, which is the documented behavior.
-            Ok(None) => return,
-            Err(e) => {
-                tracing::warn!(
-                    "save_wizard_state: failed to load existing checkpoint: {}",
-                    e
-                );
-                return;
-            }
-        };
-        checkpoint.set_wizard_state(state.clone());
-        if let Err(e) = self.save(&checkpoint) {
-            tracing::warn!("save_wizard_state: failed to write checkpoint: {}", e);
-        }
-    }
-
-    /// Load a single wizard checkpoint slot. Returns None when no
-    /// session checkpoint exists or when no slot matches `key`.
-    pub fn load_wizard_state(&self, key: &str) -> Option<WizardCheckpoint> {
-        self.load()
-            .ok()
-            .flatten()
-            .and_then(|cp| cp.wizard_states.get(key).cloned())
-    }
-
-    /// Clear a single wizard checkpoint slot.
-    pub fn clear_wizard_state(&self, key: &str) {
-        let mut checkpoint = match self.load() {
-            Ok(Some(cp)) => cp,
-            _ => return,
-        };
-        checkpoint.clear_wizard_state(key);
-        if let Err(e) = self.save(&checkpoint) {
-            tracing::warn!("clear_wizard_state: failed to write checkpoint: {}", e);
-        }
-    }
-
-    /// save a single SmartExposure checkpoint slot into
-    /// the session checkpoint on disk, leaving every other field
-    /// untouched. Mirrors `save_wizard_state` / `save_scheduler_state` so
-    /// crashed runs resume mid-rotation on the right filter at the right
-    /// frame index.
-    ///
-    /// If no session checkpoint exists this is a no-op — a SmartExposure
-    /// running outside an active session (rare; tests / standalone tools)
-    /// has nothing to persist its state into, and the next run will
-    /// start from a fresh state, which is documented behaviour.
-    pub fn save_smart_exposure_state(&self, node_id: &str, state: &SmartExposureCheckpoint) {
-        let mut checkpoint = match self.load() {
-            Ok(Some(cp)) => cp,
-            Ok(None) => return,
-            Err(e) => {
-                tracing::warn!(
-                    "save_smart_exposure_state: failed to load existing checkpoint: {}",
-                    e
-                );
-                return;
-            }
-        };
-        checkpoint.set_smart_exposure_state(node_id, state.clone());
-        if let Err(e) = self.save(&checkpoint) {
-            tracing::warn!(
-                "save_smart_exposure_state: failed to write checkpoint: {}",
-                e
-            );
-        }
-    }
-
-    /// load a single SmartExposure checkpoint slot.
-    /// Returns None when no session checkpoint exists or when no slot
-    /// matches `node_id`.
-    pub fn load_smart_exposure_state(&self, node_id: &str) -> Option<SmartExposureCheckpoint> {
-        self.load()
-            .ok()
-            .flatten()
-            .and_then(|cp| cp.smart_exposure_states.get(node_id).cloned())
-    }
-
-    /// clear a single SmartExposure checkpoint slot.
-    /// Called when the SmartExposure node completes all plans so the next
-    /// run starts fresh.
-    pub fn clear_smart_exposure_state(&self, node_id: &str) {
-        let mut checkpoint = match self.load() {
-            Ok(Some(cp)) => cp,
-            _ => return,
-        };
-        checkpoint.clear_smart_exposure_state(node_id);
-        if let Err(e) = self.save(&checkpoint) {
-            tracing::warn!(
-                "clear_smart_exposure_state: failed to write checkpoint: {}",
-                e
-            );
-        }
-    }
-}
-
-/// Adapts a `CheckpointManager` to the wizard module's `WizardCheckpointSink`.
-/// Wizards running inside an active session use this to persist
-/// step-level resume state alongside the session-level checkpoint.
-pub struct SessionWizardCheckpointSink<'a> {
-    pub manager: &'a CheckpointManager,
-}
-
-impl<'a> SessionWizardCheckpointSink<'a> {
-    pub fn new(manager: &'a CheckpointManager) -> Self {
-        Self { manager }
-    }
-}
-
-impl<'a> crate::wizard::WizardCheckpointSink for SessionWizardCheckpointSink<'a> {
-    fn save(&self, checkpoint: &WizardCheckpoint) {
-        self.manager.save_wizard_state(checkpoint);
-    }
-    fn load(&self, checkpoint_key: &str) -> Option<WizardCheckpoint> {
-        self.manager.load_wizard_state(checkpoint_key)
-    }
-    fn clear(&self, checkpoint_key: &str) {
-        self.manager.clear_wizard_state(checkpoint_key);
-    }
 }
 
 /// [info] with its age measured now. The cache keeps the summary for as long
@@ -1009,11 +669,15 @@ pub struct CheckpointInfo {
     /// How the run ended; `None` when the app died under it (interrupted).
     #[serde(default)]
     pub ended: Option<RunEnd>,
+    /// Frames each Take Exposures step of the plan has taken, by node id.
+    #[serde(default)]
+    pub frames_done_by_step: HashMap<NodeId, u32>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::PierSide;
     use std::fs;
     use std::path::PathBuf;
 
@@ -1198,44 +862,40 @@ mod tests {
     #[test]
     fn test_trigger_state_snapshot_round_trip_preserves_every_field() {
         let mut original = TriggerState::new();
-        original.baseline_hfr = Some(2.5);
-        original.current_hfr = Some(2.7);
-        original.autofocus_invalidated = true;
-        original.autofocus_invalidation_reason = Some("filter changed".into());
-        original.current_hour_angle = Some(0.75);
-        original.pier_side = Some(PierSide::West);
-        original.mount_tracking_limit_time = Some(1_700_000_000);
+        original.latches.baseline_hfr = Some(2.5);
+        original.latches.current_hfr = Some(2.7);
+        original.latches.autofocus_invalidated = true;
+        original.latches.autofocus_invalidation_reason = Some("filter changed".into());
+        original.target.current_hour_angle = Some(0.75);
+        original.telemetry.pier_side = Some(PierSide::West);
+        original.telemetry.mount_tracking_limit_time = Some(1_700_000_000);
         original.meridian.mark_performed(None);
-        original.current_target_name = Some("M31".into());
+        original.target.current_target_name = Some("M31".into());
         original.guiding.restore(true, false);
-        original.current_humidity = Some(63.0);
-        original.current_altitude = Some(58.4);
-        original.weather_safe = true;
-        original.baseline_temperature = Some(-3.5);
-        original.current_temperature = Some(-2.0);
-        original.baseline_focuser_position = Some(28000);
-        original.filter_changed = true;
-        original.current_filter = Some("Ha".into());
-        original.dawn_time = Some(1_700_010_000);
-        original.observer_latitude = Some(45.5);
-        original.observer_longitude = Some(-122.6);
-        original.completed_exposures = 42;
-        original.last_autofocus_frame = 30;
-        original.last_dither_frame = 41;
+        original.telemetry.current_humidity = Some(63.0);
+        original.target.current_altitude = Some(58.4);
+        original.telemetry.weather_safe = true;
+        original.latches.baseline_temperature = Some(-3.5);
+        original.latches.current_temperature = Some(-2.0);
+        original.latches.baseline_focuser_position = Some(28000);
+        original.latches.filter_changed = true;
+        original.latches.current_filter = Some("Ha".into());
+        original.telemetry.dawn_time = Some(1_700_010_000);
+        original.settings.observer_latitude = Some(45.5);
+        original.settings.observer_longitude = Some(-122.6);
+        original.latches.completed_exposures = 42;
+        original.latches.last_autofocus_frame = 30;
+        original.latches.last_dither_frame = 41;
         original.tracking.set_limit_detected_at(Some(1_700_005_000));
-        original.grid_dither_index = 7;
-        original.last_applied_filter_offset = 42;
+        original.latches.grid_dither_index = 7;
+        original.latches.last_applied_filter_offset = 42;
 
         let mut offsets = HashMap::new();
         offsets.insert("Ha".to_string(), 42);
         offsets.insert("OIII".to_string(), -17);
 
-        let snapshot = TriggerStateSnapshot::from_state(
-            &original,
-            SafetyFailMode::WarnOnly,
-            true,
-            offsets.clone(),
-        );
+        let snapshot =
+            TriggerStateSnapshot::from_state(&original, SafetyFailMode::WarnOnly, offsets.clone());
 
         let json = serde_json::to_string(&snapshot).expect("snapshot must serialize");
         let restored_snapshot: TriggerStateSnapshot =
@@ -1245,60 +905,123 @@ mod tests {
             "TriggerStateSnapshot serde round-trip must preserve every field"
         );
         assert_eq!(restored_snapshot.safety_fail_mode, SafetyFailMode::WarnOnly);
-        assert!(restored_snapshot.triggers_enabled);
         assert_eq!(restored_snapshot.filter_focus_offsets, offsets);
 
         let mut restored = TriggerState::new();
         restored_snapshot.restore_into(&mut restored);
-        assert_eq!(restored.baseline_hfr, original.baseline_hfr);
-        assert_eq!(restored.current_hfr, original.current_hfr);
+        assert_eq!(restored.latches.baseline_hfr, original.latches.baseline_hfr);
+        assert_eq!(restored.latches.current_hfr, original.latches.current_hfr);
         assert_eq!(
-            restored.autofocus_invalidated,
-            original.autofocus_invalidated
+            restored.latches.autofocus_invalidated,
+            original.latches.autofocus_invalidated
         );
         assert_eq!(
-            restored.autofocus_invalidation_reason,
-            original.autofocus_invalidation_reason
+            restored.latches.autofocus_invalidation_reason,
+            original.latches.autofocus_invalidation_reason
         );
-        assert_eq!(restored.current_hour_angle, original.current_hour_angle);
-        assert_eq!(restored.pier_side, original.pier_side);
         assert_eq!(
-            restored.mount_tracking_limit_time,
-            original.mount_tracking_limit_time
+            restored.target.current_hour_angle,
+            original.target.current_hour_angle
+        );
+        assert_eq!(restored.telemetry.pier_side, original.telemetry.pier_side);
+        assert_eq!(
+            restored.telemetry.mount_tracking_limit_time,
+            original.telemetry.mount_tracking_limit_time
         );
         assert_eq!(
             restored.meridian.has_flipped(),
             original.meridian.has_flipped()
         );
-        assert_eq!(restored.current_target_name, original.current_target_name);
+        assert_eq!(
+            restored.target.current_target_name,
+            original.target.current_target_name
+        );
         assert_eq!(restored.guiding.is_enabled(), original.guiding.is_enabled());
         assert_eq!(restored.guiding.star_lost(), original.guiding.star_lost());
-        assert_eq!(restored.current_humidity, original.current_humidity);
-        assert_eq!(restored.current_altitude, original.current_altitude);
-        assert_eq!(restored.weather_safe, original.weather_safe);
-        assert_eq!(restored.baseline_temperature, original.baseline_temperature);
-        assert_eq!(restored.current_temperature, original.current_temperature);
         assert_eq!(
-            restored.baseline_focuser_position,
-            original.baseline_focuser_position
+            restored.telemetry.current_humidity,
+            original.telemetry.current_humidity
         );
-        assert_eq!(restored.filter_changed, original.filter_changed);
-        assert_eq!(restored.current_filter, original.current_filter);
         assert_eq!(
-            restored.last_applied_filter_offset,
-            original.last_applied_filter_offset
+            restored.target.current_altitude,
+            original.target.current_altitude
         );
-        assert_eq!(restored.dawn_time, original.dawn_time);
-        assert_eq!(restored.observer_latitude, original.observer_latitude);
-        assert_eq!(restored.observer_longitude, original.observer_longitude);
-        assert_eq!(restored.completed_exposures, original.completed_exposures);
-        assert_eq!(restored.last_autofocus_frame, original.last_autofocus_frame);
-        assert_eq!(restored.last_dither_frame, original.last_dither_frame);
+        assert_eq!(
+            restored.telemetry.weather_safe,
+            original.telemetry.weather_safe
+        );
+        assert_eq!(
+            restored.latches.baseline_temperature,
+            original.latches.baseline_temperature
+        );
+        assert_eq!(
+            restored.latches.current_temperature,
+            original.latches.current_temperature
+        );
+        assert_eq!(
+            restored.latches.baseline_focuser_position,
+            original.latches.baseline_focuser_position
+        );
+        assert_eq!(
+            restored.latches.filter_changed,
+            original.latches.filter_changed
+        );
+        assert_eq!(
+            restored.latches.current_filter,
+            original.latches.current_filter
+        );
+        assert_eq!(
+            restored.latches.last_applied_filter_offset,
+            original.latches.last_applied_filter_offset
+        );
+        assert_eq!(restored.telemetry.dawn_time, original.telemetry.dawn_time);
+        assert_eq!(
+            restored.settings.observer_latitude,
+            original.settings.observer_latitude
+        );
+        assert_eq!(
+            restored.settings.observer_longitude,
+            original.settings.observer_longitude
+        );
+        assert_eq!(
+            restored.latches.completed_exposures,
+            original.latches.completed_exposures
+        );
+        assert_eq!(
+            restored.latches.last_autofocus_frame,
+            original.latches.last_autofocus_frame
+        );
+        assert_eq!(
+            restored.latches.last_dither_frame,
+            original.latches.last_dither_frame
+        );
         assert_eq!(
             restored.tracking.limit_detected_at(),
             original.tracking.limit_detected_at()
         );
-        assert_eq!(restored.grid_dither_index, original.grid_dither_index);
+        assert_eq!(
+            restored.latches.grid_dither_index,
+            original.latches.grid_dither_index
+        );
+    }
+
+    #[test]
+    fn a_trigger_state_snapshot_tolerates_missing_and_unknown_fields() {
+        let snapshot: TriggerStateSnapshot = serde_json::from_str(
+            r#"{
+                "completed_exposures": 3,
+                "has_flipped_this_target": true,
+                "next_meridian_flip_time": 1700000000,
+                "a_field_from_a_newer_version": {"anything": [1, 2]}
+            }"#,
+        )
+        .expect("a sparse snapshot with unknown fields must load");
+        assert_eq!(snapshot.state.latches.completed_exposures, 3);
+        assert!(snapshot.state.meridian.has_flipped_this_target);
+        assert_eq!(snapshot.state.target.current_target_name, None);
+        assert!(!snapshot.state.telemetry.weather_safe);
+        assert_eq!(snapshot.safety_fail_mode, SafetyFailMode::FailClosed);
+        assert!(snapshot.filter_focus_offsets.is_empty());
     }
 
     #[test]
@@ -1308,19 +1031,15 @@ mod tests {
 
         let mut state = TriggerState::new();
         state.meridian.mark_performed(None);
-        state.current_target_name = Some("NGC7000".into());
-        state.completed_exposures = 17;
-        state.last_autofocus_frame = 10;
-        state.last_dither_frame = 16;
-        state.grid_dither_index = 4;
-        state.baseline_hfr = Some(2.1);
+        state.target.current_target_name = Some("NGC7000".into());
+        state.latches.completed_exposures = 17;
+        state.latches.last_autofocus_frame = 10;
+        state.latches.last_dither_frame = 16;
+        state.latches.grid_dither_index = 4;
+        state.latches.baseline_hfr = Some(2.1);
 
-        let snapshot = TriggerStateSnapshot::from_state(
-            &state,
-            SafetyFailMode::FailClosed,
-            true,
-            HashMap::new(),
-        );
+        let snapshot =
+            TriggerStateSnapshot::from_state(&state, SafetyFailMode::FailClosed, HashMap::new());
 
         let mut checkpoint =
             SessionCheckpoint::new(SequenceDefinition::new("Persist test".to_string()));
@@ -1338,16 +1057,20 @@ mod tests {
             .trigger_state
             .as_ref()
             .expect("trigger_state must round-trip via JSON");
-        assert!(restored_snapshot.has_flipped_this_target);
+        assert!(restored_snapshot.state.meridian.has_flipped_this_target);
         assert_eq!(
-            restored_snapshot.current_target_name.as_deref(),
+            restored_snapshot
+                .state
+                .target
+                .current_target_name
+                .as_deref(),
             Some("NGC7000")
         );
-        assert_eq!(restored_snapshot.completed_exposures, 17);
-        assert_eq!(restored_snapshot.last_autofocus_frame, 10);
-        assert_eq!(restored_snapshot.last_dither_frame, 16);
-        assert_eq!(restored_snapshot.grid_dither_index, 4);
-        assert_eq!(restored_snapshot.baseline_hfr, Some(2.1));
+        assert_eq!(restored_snapshot.state.latches.completed_exposures, 17);
+        assert_eq!(restored_snapshot.state.latches.last_autofocus_frame, 10);
+        assert_eq!(restored_snapshot.state.latches.last_dither_frame, 16);
+        assert_eq!(restored_snapshot.state.latches.grid_dither_index, 4);
+        assert_eq!(restored_snapshot.state.latches.baseline_hfr, Some(2.1));
         assert_eq!(loaded.version, CHECKPOINT_VERSION);
 
         let _ = fs::remove_dir_all(&dir);
@@ -1376,123 +1099,6 @@ mod tests {
             5
         );
         assert_eq!(loaded.wizard_state("mosaic").unwrap().completed_steps, 4);
-    }
-
-    #[test]
-    fn wizard_state_persists_through_manager_save_load() {
-        let dir = test_dir("wizard_state_persist");
-        let manager = CheckpointManager::new(&dir);
-
-        let mut checkpoint = SessionCheckpoint::new(SequenceDefinition::new("WS Test".to_string()));
-        checkpoint.is_active = true;
-        checkpoint.executor_state = ExecutorState::Running;
-        checkpoint.set_wizard_state(WizardCheckpoint {
-            checkpoint_key: "flat_wizard".to_string(),
-            completed_steps: 7,
-            timestamp: Utc::now(),
-        });
-
-        manager.save(&checkpoint).expect("save");
-
-        let loaded = manager.load().expect("load").expect("checkpoint exists");
-        let slot = loaded
-            .wizard_state("flat_wizard")
-            .expect("wizard_state slot");
-        assert_eq!(slot.completed_steps, 7);
-        assert_eq!(loaded.version, CHECKPOINT_VERSION);
-
-        // Sink adapter should also see the slot.
-        let sink = SessionWizardCheckpointSink::new(&manager);
-        let via_sink = crate::wizard::WizardCheckpointSink::load(&sink, "flat_wizard")
-            .expect("sink load slot");
-        assert_eq!(via_sink.completed_steps, 7);
-
-        // Clear via sink and confirm it's gone.
-        crate::wizard::WizardCheckpointSink::clear(&sink, "flat_wizard");
-        let after_clear = manager
-            .load()
-            .expect("load after clear")
-            .expect("checkpoint still present");
-        assert!(after_clear.wizard_state("flat_wizard").is_none());
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn scheduler_state_round_trips_through_session_checkpoint_serde() {
-        // scheduler_states map must round-trip + be keyed by
-        // scheduler node id (a sequence may contain multiple schedulers).
-        let mut checkpoint = SessionCheckpoint::new(SequenceDefinition::new("sch".to_string()));
-        checkpoint.set_scheduler_state(SchedulerCheckpoint {
-            scheduler_node_id: "sched_a".to_string(),
-            current_target_id: Some("m42".to_string()),
-            exposures_in_current_target: 3,
-            decision_counter: 1,
-            timestamp: Utc::now(),
-        });
-        checkpoint.set_scheduler_state(SchedulerCheckpoint {
-            scheduler_node_id: "sched_b".to_string(),
-            current_target_id: None,
-            exposures_in_current_target: 0,
-            decision_counter: 7,
-            timestamp: Utc::now(),
-        });
-        let json = serde_json::to_string(&checkpoint).expect("serialize");
-        let loaded: SessionCheckpoint = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(loaded.scheduler_states.len(), 2);
-        assert_eq!(
-            loaded
-                .scheduler_state("sched_a")
-                .unwrap()
-                .current_target_id
-                .as_deref(),
-            Some("m42")
-        );
-        assert_eq!(
-            loaded.scheduler_state("sched_b").unwrap().decision_counter,
-            7
-        );
-    }
-
-    #[test]
-    fn legacy_v3_checkpoint_without_scheduler_states_loads_with_empty_map() {
-        // backwards-compat — checkpoints written before the
-        // scheduler_states field existed must still load (serde(default)).
-        let dir = test_dir("legacy_v3_no_scheduler");
-        let manager = CheckpointManager::new(&dir);
-
-        let pre_scheduler_json = serde_json::json!({
-            "version": 3,
-            "timestamp": Utc::now(),
-            "sequence": SequenceDefinition::new("v3pre".to_string()),
-            "node_statuses": {},
-            "last_completed_node": null,
-            "current_node": null,
-            "executor_state": "Running",
-            "camera_id": null,
-            "mount_id": null,
-            "focuser_id": null,
-            "filterwheel_id": null,
-            "rotator_id": null,
-            "save_path": null,
-            "latitude": null,
-            "longitude": null,
-            "completed_exposures": 0,
-            "completed_integration_secs": 0.0,
-            "is_active": true,
-            "trigger_state": null,
-            "wizard_states": {},
-        });
-        let primary = manager.checkpoint_path();
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(&primary, pre_scheduler_json.to_string()).unwrap();
-
-        let loaded = manager
-            .load()
-            .expect("legacy v3 must load")
-            .expect("checkpoint exists");
-        assert!(loaded.scheduler_states.is_empty());
-        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -1617,61 +1223,6 @@ mod tests {
         assert_eq!(restored_b.per_filter_completed.get("Ha"), Some(&6));
         assert_eq!(restored_b.current_plan_index, 0);
         assert!((restored_b.completed_integration_secs - 1800.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn smart_exposure_save_load_clear_through_checkpoint_manager() {
-        // the manager helpers must preserve other fields
-        // when writing a smart-exposure slot, and must round-trip the
-        // value end-to-end through the on-disk checkpoint file.
-        let dir = test_dir("smart_exposure_save_load_clear");
-        let manager = CheckpointManager::new(&dir);
-
-        // Seed a full session checkpoint so other fields exist to be
-        // preserved.
-        let mut checkpoint = SessionCheckpoint::new(SequenceDefinition::new("SE".to_string()));
-        checkpoint.is_active = true;
-        checkpoint.executor_state = ExecutorState::Running;
-        checkpoint.completed_exposures = 12;
-        manager.save(&checkpoint).expect("seed save");
-
-        let mut state = SmartExposureCheckpoint::default();
-        state.per_filter_completed.insert("L".to_string(), 3);
-        state.per_filter_completed.insert("R".to_string(), 4);
-        state.current_plan_index = 1;
-        state.completed_integration_secs = 540.0;
-
-        manager.save_smart_exposure_state("se_node", &state);
-
-        // Load through the dedicated helper.
-        let loaded_state = manager
-            .load_smart_exposure_state("se_node")
-            .expect("smart-exposure slot present");
-        assert_eq!(loaded_state.per_filter_completed.get("L"), Some(&3));
-        assert_eq!(loaded_state.per_filter_completed.get("R"), Some(&4));
-        assert_eq!(loaded_state.current_plan_index, 1);
-        assert!((loaded_state.completed_integration_secs - 540.0).abs() < f64::EPSILON);
-
-        // Make sure the other session fields survived the partial write.
-        let full = manager
-            .load()
-            .expect("load full checkpoint")
-            .expect("checkpoint exists");
-        assert_eq!(full.completed_exposures, 12);
-        assert!(full.is_active);
-        assert_eq!(full.executor_state, ExecutorState::Running);
-
-        // Clearing removes only the smart-exposure slot, not the others.
-        manager.clear_smart_exposure_state("se_node");
-        assert!(manager.load_smart_exposure_state("se_node").is_none());
-        let after_clear = manager
-            .load()
-            .expect("load after clear")
-            .expect("checkpoint still present");
-        assert!(after_clear.smart_exposure_states.is_empty());
-        assert_eq!(after_clear.completed_exposures, 12);
-
-        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

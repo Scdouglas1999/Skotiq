@@ -1,27 +1,37 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 void main() {
-  group('ditherPixelScaleArcsecPerPixel', () {
+  group('image scale feeding the presets', () {
     test('small-angle formula: 206.265 * pixelSizeUm / focalLengthMm', () {
       // 3.76 µm at 530 mm -> ~1.4634"/px (ASI2600 on a typical refractor).
       expect(
-        ditherPixelScaleArcsecPerPixel(pixelSizeUm: 3.76, focalLengthMm: 530),
+        FOVCalculator.imageScaleOrNull(
+          pixelSizeMicrons: 3.76,
+          focalLengthMm: 530,
+        ),
         closeTo(206.265 * 3.76 / 530, 1e-9),
       );
     });
 
     test('returns null when either input is missing or non-positive', () {
       expect(
-        ditherPixelScaleArcsecPerPixel(pixelSizeUm: 0, focalLengthMm: 530),
+        FOVCalculator.imageScaleOrNull(pixelSizeMicrons: 0, focalLengthMm: 530),
         isNull,
       );
       expect(
-        ditherPixelScaleArcsecPerPixel(pixelSizeUm: 3.76, focalLengthMm: 0),
+        FOVCalculator.imageScaleOrNull(
+          pixelSizeMicrons: 3.76,
+          focalLengthMm: 0,
+        ),
         isNull,
       );
       expect(
-        ditherPixelScaleArcsecPerPixel(pixelSizeUm: null, focalLengthMm: 530),
+        FOVCalculator.imageScaleOrNull(
+          pixelSizeMicrons: null,
+          focalLengthMm: 530,
+        ),
         isNull,
       );
     });
@@ -90,8 +100,8 @@ void main() {
     test('extreme long focal length is clamped to the minimum pixels', () {
       // 2.4 µm at 4000 mm -> ~0.124"/px. Good-seeing 1.0" tolerance would be
       // ~8px raw, but it is clamped down so it stays usable.
-      final scale = ditherPixelScaleArcsecPerPixel(
-        pixelSizeUm: 2.4,
+      final scale = FOVCalculator.imageScaleOrNull(
+        pixelSizeMicrons: 2.4,
         focalLengthMm: 4000,
       );
       final v = deriveDitherSettleValues(

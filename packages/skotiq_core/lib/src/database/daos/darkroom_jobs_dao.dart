@@ -1,20 +1,13 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/darkroom/darkroom_job.dart';
-import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
 import '../sqlite_busy.dart';
 
-/// Data-access object for the v58 `darkroom_jobs` table — the durable dawn-job
-/// queue.
-///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createDarkroomTables]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [MosaicProjectsDao] and [CampaignsDao]. It is deliberately NOT a
-/// `@DriftAccessor`.
+part 'darkroom_jobs_dao.g.dart';
+
+/// Reads and writes for `darkroom_jobs`: the durable dawn-job queue.
 ///
 /// TYPED TRANSITIONS. Every state-changing method reads the row's current state
 /// first and refuses a move [DarkroomJobState.canTransitionTo] rejects, with a
@@ -23,11 +16,11 @@ import '../sqlite_busy.dart';
 /// that thinks it holds a job it does not must find out.
 ///
 /// CRASH RECOVERY is NOT here. Re-queueing rows left `running` by a dead
-/// process happens once, in `beforeOpen`
-/// (`SkotiqDatabase._recoverInterruptedDarkroomJobs`), because the rule
-/// that makes it sound — nothing can still be running at the moment the
-/// database opens — only holds at open. A second implementation reachable at
-/// other times would re-queue a job a live executor is holding.
+/// process happens once, at start-up (`recoverFromPreviousProcessExit`),
+/// because the rule that makes it sound — nothing can still be running when
+/// the process has only just opened the database — only holds then. A second
+/// implementation reachable at other times would re-queue a job a live
+/// executor is holding.
 ///
 /// LOCK CONTENTION. Every state-changing write runs under
 /// [retryWhileSqliteBusy], on top of the connection-wide
@@ -37,14 +30,10 @@ import '../sqlite_busy.dart';
 /// life, since the open-time recovery that would rescue it does not run again
 /// until the next launch. Contention that outlives both budgets is reported,
 /// not swallowed: the [SqliteException] propagates with its result code.
-class DarkroomJobsDao {
-  DarkroomJobsDao(this._db);
-
-  final SkotiqDatabase _db;
-
-  static const String _columns =
-      'id, session_id, kind, state, progress, note, error_text, attempts, '
-      'created_at, started_at, finished_at';
+@DriftAccessor(include: {'../schema/darkroom.drift'})
+class DarkroomJobsDao extends DatabaseAccessor<SkotiqDatabase>
+    with _$DarkroomJobsDaoMixin {
+  DarkroomJobsDao(super.db);
 
   /// Queue a job and return its id. The row starts
   /// [DarkroomJobState.queued] at zero progress with no attempts spent.
@@ -54,70 +43,54 @@ class DarkroomJobsDao {
     String? note,
     DateTime? createdAt,
   }) {
-    final at = _toEpochSeconds(createdAt ?? DateTime.now());
+    final at = toEpochSeconds(createdAt ?? DateTime.now());
     return retryWhileSqliteBusy(
-      () => _db.customInsert(
-        'INSERT INTO darkroom_jobs('
-        'session_id, kind, state, progress, note, attempts, created_at'
-        ') VALUES (?, ?, ?, 0.0, ?, 0, ?)',
-        variables: [
-          Variable<int>(sessionId),
-          Variable<String>(kind.wire),
-          Variable<String>(DarkroomJobState.queued.wire),
-          Variable<String>(note),
-          Variable<int>(at),
-        ],
+      () => into(darkroomJobs).insert(
+        DarkroomJobsCompanion.insert(
+          sessionId: Value(sessionId),
+          kind: Value(kind.wire),
+          state: Value(DarkroomJobState.queued.wire),
+          progress: const Value(0.0),
+          note: Value(note),
+          attempts: const Value(0),
+          createdAt: at,
+        ),
       ),
     );
   }
 
-  /// Fetch a job by id, or null when absent.
   Future<DarkroomJob?> getById(int id) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM darkroom_jobs WHERE id = ? LIMIT 1',
-          variables: [Variable<int>(id)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _map(rows.first);
+    final row = await (select(
+      darkroomJobs,
+    )..where((j) => j.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _map(row);
   }
 
   /// The oldest queued job, or null when the queue is empty. The order a
   /// serialized coordinator drains in.
   Future<DarkroomJob?> nextQueued() async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM darkroom_jobs WHERE state = ? '
-          'ORDER BY created_at ASC, id ASC LIMIT 1',
-          variables: [Variable<String>(DarkroomJobState.queued.wire)],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _map(rows.first);
+    final row = await (_inState(
+      DarkroomJobState.queued,
+    )..limit(1)).getSingleOrNull();
+    return row == null ? null : _map(row);
   }
 
   /// Every job in [state], oldest first.
   Future<List<DarkroomJob>> listByState(DarkroomJobState state) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM darkroom_jobs WHERE state = ? '
-          'ORDER BY created_at ASC, id ASC',
-          variables: [Variable<String>(state.wire)],
-        )
-        .get();
+    final rows = await _inState(state).get();
     return rows.map(_map).toList();
   }
 
   /// Every job for one imaging session, newest first.
   Future<List<DarkroomJob>> listForSession(int sessionId) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM darkroom_jobs WHERE session_id = ? '
-          'ORDER BY created_at DESC, id DESC',
-          variables: [Variable<int>(sessionId)],
-        )
-        .get();
+    final rows =
+        await (select(darkroomJobs)
+              ..where((j) => j.sessionId.equals(sessionId))
+              ..orderBy([
+                (j) => OrderingTerm.desc(j.createdAt),
+                (j) => OrderingTerm.desc(j.id),
+              ]))
+            .get();
     return rows.map(_map).toList();
   }
 
@@ -125,21 +98,20 @@ class DarkroomJobsDao {
   /// increments, `started_at` is stamped, and any error text from a previous
   /// attempt is cleared. Returns the job as it now stands.
   Future<DarkroomJob> markRunning(int id, {DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return retryWhileSqliteBusy(() async {
       // Inside the retry so a re-attempt re-reads the row: the transition is
       // re-checked against what is actually stored, and a busy `UPDATE`
       // incremented nothing, so `attempts` still counts starts, not tries.
       await _requireTransition(id, DarkroomJobState.running);
-      await _db.customUpdate(
-        'UPDATE darkroom_jobs SET state = ?, attempts = attempts + 1, '
-        'started_at = ?, error_text = NULL WHERE id = ?',
-        variables: [
-          Variable<String>(DarkroomJobState.running.wire),
-          Variable<int>(at),
-          Variable<int>(id),
-        ],
-        updateKind: UpdateKind.update,
+      await _write(
+        id,
+        DarkroomJobsCompanion.custom(
+          state: Variable(DarkroomJobState.running.wire),
+          attempts: darkroomJobs.attempts + const Constant(1),
+          startedAt: Variable(at),
+          errorText: const Constant(null),
+        ),
       );
       return _reread(id);
     });
@@ -167,15 +139,12 @@ class DarkroomJobsDao {
       if (current.state != DarkroomJobState.running) {
         throw DarkroomJobNotRunningException(id, current.state);
       }
-      await _db.customUpdate(
-        'UPDATE darkroom_jobs SET progress = ?, '
-        'note = COALESCE(?, note) WHERE id = ?',
-        variables: [
-          Variable<double>(progress),
-          Variable<String>(note),
-          Variable<int>(id),
-        ],
-        updateKind: UpdateKind.update,
+      await _write(
+        id,
+        DarkroomJobsCompanion(
+          progress: Value(progress),
+          note: Value.absentIfNull(note),
+        ),
       );
       return _reread(id);
     });
@@ -195,15 +164,13 @@ class DarkroomJobsDao {
   /// the row moved on — and is not an error.
   Future<bool> noteWhileQueued(int id, String note) {
     return retryWhileSqliteBusy(() async {
-      final changed = await _db.customUpdate(
-        'UPDATE darkroom_jobs SET note = ? WHERE id = ? AND state = ?',
-        variables: [
-          Variable<String>(note),
-          Variable<int>(id),
-          Variable<String>(DarkroomJobState.queued.wire),
-        ],
-        updateKind: UpdateKind.update,
-      );
+      final changed =
+          await (update(darkroomJobs)..where(
+                (j) =>
+                    j.id.equals(id) &
+                    j.state.equals(DarkroomJobState.queued.wire),
+              ))
+              .write(DarkroomJobsCompanion(note: Value(note)));
       return changed > 0;
     });
   }
@@ -211,19 +178,17 @@ class DarkroomJobsDao {
   /// Finish a running job: state becomes [DarkroomJobState.done], progress
   /// reaches 1.0, `finished_at` is stamped. Returns the job as it now stands.
   Future<DarkroomJob> markDone(int id, {String? note, DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return retryWhileSqliteBusy(() async {
       await _requireTransition(id, DarkroomJobState.done);
-      await _db.customUpdate(
-        'UPDATE darkroom_jobs SET state = ?, progress = 1.0, finished_at = ?, '
-        'note = COALESCE(?, note) WHERE id = ?',
-        variables: [
-          Variable<String>(DarkroomJobState.done.wire),
-          Variable<int>(at),
-          Variable<String>(note),
-          Variable<int>(id),
-        ],
-        updateKind: UpdateKind.update,
+      await _write(
+        id,
+        DarkroomJobsCompanion(
+          state: Value(DarkroomJobState.done.wire),
+          progress: const Value(1.0),
+          finishedAt: Value(at),
+          note: Value.absentIfNull(note),
+        ),
       );
       return _reread(id);
     });
@@ -233,19 +198,16 @@ class DarkroomJobsDao {
   /// the report can state how far the attempt got. Returns the job as it now
   /// stands.
   Future<DarkroomJob> markFailed(int id, String errorText, {DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return retryWhileSqliteBusy(() async {
       await _requireTransition(id, DarkroomJobState.failed);
-      await _db.customUpdate(
-        'UPDATE darkroom_jobs SET state = ?, finished_at = ?, error_text = ? '
-        'WHERE id = ?',
-        variables: [
-          Variable<String>(DarkroomJobState.failed.wire),
-          Variable<int>(at),
-          Variable<String>(errorText),
-          Variable<int>(id),
-        ],
-        updateKind: UpdateKind.update,
+      await _write(
+        id,
+        DarkroomJobsCompanion(
+          state: Value(DarkroomJobState.failed.wire),
+          finishedAt: Value(at),
+          errorText: Value(errorText),
+        ),
       );
       return _reread(id);
     });
@@ -254,19 +216,16 @@ class DarkroomJobsDao {
   /// Cancel a queued or running job, recording [reason] as its error text.
   /// Progress is left where it stopped. Returns the job as it now stands.
   Future<DarkroomJob> markCancelled(int id, {String? reason, DateTime? now}) {
-    final at = _toEpochSeconds(now ?? DateTime.now());
+    final at = toEpochSeconds(now ?? DateTime.now());
     return retryWhileSqliteBusy(() async {
       await _requireTransition(id, DarkroomJobState.cancelled);
-      await _db.customUpdate(
-        'UPDATE darkroom_jobs SET state = ?, finished_at = ?, '
-        'error_text = COALESCE(?, error_text) WHERE id = ?',
-        variables: [
-          Variable<String>(DarkroomJobState.cancelled.wire),
-          Variable<int>(at),
-          Variable<String>(reason),
-          Variable<int>(id),
-        ],
-        updateKind: UpdateKind.update,
+      await _write(
+        id,
+        DarkroomJobsCompanion(
+          state: Value(DarkroomJobState.cancelled.wire),
+          finishedAt: Value(at),
+          errorText: Value.absentIfNull(reason),
+        ),
       );
       return _reread(id);
     });
@@ -292,18 +251,27 @@ class DarkroomJobsDao {
       if (current.state != DarkroomJobState.running) {
         throw DarkroomJobNotRunningException(id, current.state);
       }
-      await _db.customUpdate(
-        'UPDATE darkroom_jobs SET state = ?, started_at = NULL, '
-        'attempts = MAX(attempts - 1, 0), note = COALESCE(?, note) '
-        'WHERE id = ? AND state = ?',
-        variables: [
-          Variable<String>(DarkroomJobState.queued.wire),
-          Variable<String>(note),
-          Variable<int>(id),
-          Variable<String>(DarkroomJobState.running.wire),
-        ],
-        updateKind: UpdateKind.update,
-      );
+      final attempts = darkroomJobs.attempts;
+      await (update(darkroomJobs)..where(
+            (j) =>
+                j.id.equals(id) & j.state.equals(DarkroomJobState.running.wire),
+          ))
+          .write(
+            DarkroomJobsCompanion.custom(
+              state: Variable(DarkroomJobState.queued.wire),
+              startedAt: const Constant(null),
+              attempts: CaseWhenExpression(
+                cases: [
+                  CaseWhen(
+                    attempts.isBiggerThanValue(0),
+                    then: attempts - const Constant(1),
+                  ),
+                ],
+                orElse: const Constant(0),
+              ),
+              note: note == null ? null : Variable(note),
+            ),
+          );
       return _reread(id);
     });
   }
@@ -312,11 +280,7 @@ class DarkroomJobsDao {
   /// number of rows changed.
   Future<int> deleteJob(int id) {
     return retryWhileSqliteBusy(
-      () => _db.customUpdate(
-        'DELETE FROM darkroom_jobs WHERE id = ?',
-        variables: [Variable<int>(id)],
-        updateKind: UpdateKind.delete,
-      ),
+      () => (delete(darkroomJobs)..where((j) => j.id.equals(id))).go(),
     );
   }
 
@@ -335,32 +299,36 @@ class DarkroomJobsDao {
     }
   }
 
-  DarkroomJob _map(QueryRow row) {
-    final startedAt = row.readNullable<int>('started_at');
-    final finishedAt = row.readNullable<int>('finished_at');
-    return DarkroomJob(
-      id: row.read<int>('id'),
-      sessionId: row.readNullable<int>('session_id'),
-      kind: DarkroomJobKind.fromWire(row.read<String>('kind')),
-      state: DarkroomJobState.fromWire(row.read<String>('state')),
-      progress: row.read<double>('progress'),
-      note: row.readNullable<String>('note'),
-      errorText: row.readNullable<String>('error_text'),
-      attempts: row.read<int>('attempts'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
-      startedAt: startedAt == null ? null : _fromEpochSeconds(startedAt),
-      finishedAt: finishedAt == null ? null : _fromEpochSeconds(finishedAt),
-    );
+  /// The jobs in [state], oldest first.
+  SimpleSelectStatement<DarkroomJobs, DarkroomJobRow> _inState(
+    DarkroomJobState state,
+  ) {
+    return select(darkroomJobs)
+      ..where((j) => j.state.equals(state.wire))
+      ..orderBy([
+        (j) => OrderingTerm.asc(j.createdAt),
+        (j) => OrderingTerm.asc(j.id),
+      ]);
   }
 
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
+  Future<int> _write(int id, Insertable<DarkroomJobRow> changes) =>
+      (update(darkroomJobs)..where((j) => j.id.equals(id))).write(changes);
 
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
+  DarkroomJob _map(DarkroomJobRow row) {
+    final startedAt = row.startedAt;
+    final finishedAt = row.finishedAt;
+    return DarkroomJob(
+      id: row.id,
+      sessionId: row.sessionId,
+      kind: DarkroomJobKind.fromWire(row.kind),
+      state: DarkroomJobState.fromWire(row.state),
+      progress: row.progress,
+      note: row.note,
+      errorText: row.errorText,
+      attempts: row.attempts,
+      createdAt: fromEpochSeconds(row.createdAt),
+      startedAt: startedAt == null ? null : fromEpochSeconds(startedAt),
+      finishedAt: finishedAt == null ? null : fromEpochSeconds(finishedAt),
+    );
+  }
 }
-
-/// Riverpod provider for [DarkroomJobsDao].
-final darkroomJobsDaoProvider = Provider<DarkroomJobsDao>((ref) {
-  return DarkroomJobsDao(ref.watch(databaseProvider));
-});

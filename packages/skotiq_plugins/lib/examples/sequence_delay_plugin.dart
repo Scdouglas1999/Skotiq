@@ -146,7 +146,6 @@ class ConditionalDelayNode implements PluginSequenceNode {
     final completer = Completer<bool>();
     StreamSubscription? abortSubscription;
 
-    // Set up abort listener if configured
     if (abortEventName != null) {
       abortSubscription = context.eventBus.on(abortEventName!).listen((data) {
         context.logger.info('Delay aborted by event: $abortEventName');
@@ -156,7 +155,6 @@ class ConditionalDelayNode implements PluginSequenceNode {
       });
     }
 
-    // Set up the main delay timer
     final timer = Timer(Duration(seconds: durationSeconds), () {
       context.logger.info('Conditional delay completed normally');
       if (!completer.isCompleted) {
@@ -164,7 +162,6 @@ class ConditionalDelayNode implements PluginSequenceNode {
       }
     });
 
-    // Emit progress events every 10 seconds
     final progressTimer = Timer.periodic(const Duration(seconds: 10), (t) {
       final elapsed = (t.tick * 10);
       final remaining = durationSeconds - elapsed;
@@ -270,7 +267,6 @@ class CooldownWaitNode implements PluginSequenceNode {
       }
     });
 
-    // Set up timeout
     final timeoutTimer = Timer(Duration(minutes: timeoutMinutes), () {
       if (!completer.isCompleted) {
         context.logger.warning(
@@ -371,7 +367,6 @@ class TwilightWaitNode implements PluginSequenceNode {
         return true;
       }
 
-      // Check every 10 seconds
       await Future<void>.delayed(const Duration(seconds: 10));
     }
 

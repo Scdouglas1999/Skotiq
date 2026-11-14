@@ -1,12 +1,5 @@
 part of '../sequence_tree.dart';
 
-// The canvas bar (widgets/sequence_toolbar.dart) took over the sequence
-// name, the validation counts, the Timeline / Map toggles, collapse-all
-// and the jump-to-step search in wave 3, so the row of header controls
-// that used to live here is gone with the header that hosted them. The
-// node-category legend went with the category colours it explained.
-// What remains is the per-node validation overlay the tree draws itself.
-
 /// Wraps a node widget with a validation badge overlay.
 /// Shows a small warning/error indicator in the top-right corner when the node
 /// has validation issues.

@@ -1,0 +1,557 @@
+{
+  "n-Autofocus": {
+    "children": [],
+    "enabled": true,
+    "id": "n-Autofocus",
+    "name": "Autofocus",
+    "node_type": {
+      "backlash_compensation": 0,
+      "backlash_out_compensation": 0,
+      "binning": "One",
+      "disable_guiding_during_af": false,
+      "exposure_duration": 4.0,
+      "exposures_per_point": 1,
+      "failure_hfr_tolerance_ratio": 1.6,
+      "filter": null,
+      "filter_settings": {},
+      "focuser_settle_time_ms": 500,
+      "inner_crop_ratio": 0.0,
+      "max_duration_secs": 600.0,
+      "measured_backlash_in": null,
+      "method": "Hyperbolic",
+      "number_of_attempts": 2,
+      "outer_crop_ratio": 1.0,
+      "r_squared_threshold": 0.7,
+      "step_size": 50,
+      "steps_out": 4,
+      "type": "Autofocus",
+      "use_brightest_n_stars": 10
+    }
+  },
+  "n-CalibratorOff": {
+    "children": [],
+    "enabled": true,
+    "id": "n-CalibratorOff",
+    "name": "Calibrator Off",
+    "node_type": {
+      "timeout_secs": 30,
+      "type": "CalibratorOff"
+    }
+  },
+  "n-CalibratorOn": {
+    "children": [],
+    "enabled": true,
+    "id": "n-CalibratorOn",
+    "name": "Calibrator On",
+    "node_type": {
+      "brightness": 128,
+      "timeout_secs": 30,
+      "type": "CalibratorOn"
+    }
+  },
+  "n-CenterTarget": {
+    "children": [],
+    "enabled": true,
+    "id": "n-CenterTarget",
+    "name": "Center Target",
+    "node_type": {
+      "accuracy_arcsec": 5.0,
+      "custom_dec": null,
+      "custom_ra": null,
+      "exposure_duration": 5.0,
+      "filter": null,
+      "max_attempts": 5,
+      "type": "CenterTarget",
+      "use_target_coords": true
+    }
+  },
+  "n-ChangeFilter": {
+    "children": [],
+    "enabled": true,
+    "id": "n-ChangeFilter",
+    "name": "Change Filter",
+    "node_type": {
+      "filter_index": null,
+      "filter_name": "L",
+      "type": "ChangeFilter"
+    }
+  },
+  "n-CloseCover": {
+    "children": [],
+    "enabled": true,
+    "id": "n-CloseCover",
+    "name": "Close Cover",
+    "node_type": {
+      "timeout_secs": 60,
+      "type": "CloseCover"
+    }
+  },
+  "n-CloseDome": {
+    "children": [],
+    "enabled": true,
+    "id": "n-CloseDome",
+    "name": "Close Dome",
+    "node_type": {
+      "shutter_only": false,
+      "type": "CloseDome"
+    }
+  },
+  "n-Conditional": {
+    "children": [],
+    "enabled": true,
+    "id": "n-Conditional",
+    "name": "Conditional",
+    "node_type": {
+      "condition": {
+        "type": "Always",
+        "value": null
+      },
+      "type": "Conditional"
+    }
+  },
+  "n-CoolCamera": {
+    "children": [],
+    "enabled": true,
+    "id": "n-CoolCamera",
+    "name": "Cool Camera",
+    "node_type": {
+      "duration_mins": 10.0,
+      "target_temp": -10.0,
+      "type": "CoolCamera"
+    }
+  },
+  "n-Delay": {
+    "children": [],
+    "enabled": true,
+    "id": "n-Delay",
+    "name": "Delay",
+    "node_type": {
+      "seconds": 5.0,
+      "type": "Delay"
+    }
+  },
+  "n-Dither": {
+    "children": [],
+    "enabled": true,
+    "id": "n-Dither",
+    "name": "Dither",
+    "node_type": {
+      "grid_size": 3,
+      "pattern": "Random",
+      "pixels": 5.0,
+      "ra_only": false,
+      "settle_pixels": 1.5,
+      "settle_time": 30.0,
+      "settle_timeout": 120.0,
+      "type": "Dither"
+    }
+  },
+  "n-HomeMount": {
+    "children": [],
+    "enabled": true,
+    "id": "n-HomeMount",
+    "name": "Home mount",
+    "node_type": {
+      "type": "HomeMount"
+    }
+  },
+  "n-InstructionSet": {
+    "children": [],
+    "enabled": true,
+    "id": "n-InstructionSet",
+    "name": "Instructions",
+    "node_type": {
+      "condition": "Count",
+      "condition_value": 1,
+      "iterations": 1,
+      "type": "Loop"
+    }
+  },
+  "n-LiveStacking": {
+    "children": [],
+    "enabled": true,
+    "id": "n-LiveStacking",
+    "name": "Live Stacking",
+    "node_type": {
+      "auth_token": null,
+      "broadcast_enabled": true,
+      "max_frames_to_stack": 0,
+      "mode": "broadcast_only",
+      "stack_method": "average",
+      "thumbnail_height": 720,
+      "thumbnail_width": 1280,
+      "type": "LiveStacking",
+      "watermark_text": null
+    }
+  },
+  "n-Loop": {
+    "children": [],
+    "enabled": true,
+    "id": "n-Loop",
+    "name": "Loop",
+    "node_type": {
+      "condition": "Count",
+      "condition_value": 1,
+      "iterations": 1,
+      "type": "Loop"
+    }
+  },
+  "n-MeridianFlip": {
+    "children": [],
+    "enabled": true,
+    "id": "n-MeridianFlip",
+    "name": "Meridian Flip",
+    "node_type": {
+      "auto_center": true,
+      "failure_action": "PauseAndAlert",
+      "guider_settle_pixels": 1.5,
+      "guider_settle_time": 10.0,
+      "guider_settle_timeout": 60.0,
+      "hour_angle_threshold": 0.5,
+      "max_retries": 3,
+      "minutes_before_limit": 10.0,
+      "minutes_past_meridian": 5.0,
+      "pause_before_meridian_minutes": 0.0,
+      "pause_guiding": true,
+      "refocus_after": false,
+      "resume_guiding": true,
+      "retry_delays_secs": [
+        30.0,
+        60.0,
+        120.0
+      ],
+      "settle_time": 10.0,
+      "tracking_limit_policy": "FlipEarly",
+      "tracking_limit_wait_minutes": 0.0,
+      "trigger_method": "MinutesPastMeridian",
+      "type": "MeridianFlip"
+    }
+  },
+  "n-MoveRotator": {
+    "children": [],
+    "enabled": true,
+    "id": "n-MoveRotator",
+    "name": "Move Rotator",
+    "node_type": {
+      "relative": false,
+      "target_angle": 0.0,
+      "type": "MoveRotator"
+    }
+  },
+  "n-Notification": {
+    "children": [],
+    "enabled": true,
+    "id": "n-Notification",
+    "name": "Send Notification",
+    "node_type": {
+      "level": "Info",
+      "message": "",
+      "title": "",
+      "type": "Notification"
+    }
+  },
+  "n-OpenCover": {
+    "children": [],
+    "enabled": true,
+    "id": "n-OpenCover",
+    "name": "Open Cover",
+    "node_type": {
+      "timeout_secs": 60,
+      "type": "OpenCover"
+    }
+  },
+  "n-OpenDome": {
+    "children": [],
+    "enabled": true,
+    "id": "n-OpenDome",
+    "name": "Open Dome",
+    "node_type": {
+      "shutter_only": false,
+      "type": "OpenDome"
+    }
+  },
+  "n-Parallel": {
+    "children": [],
+    "enabled": true,
+    "id": "n-Parallel",
+    "name": "Parallel",
+    "node_type": {
+      "required_successes": null,
+      "type": "Parallel"
+    }
+  },
+  "n-Park": {
+    "children": [],
+    "enabled": true,
+    "id": "n-Park",
+    "name": "Park Mount",
+    "node_type": {
+      "type": "Park"
+    }
+  },
+  "n-ParkDome": {
+    "children": [],
+    "enabled": true,
+    "id": "n-ParkDome",
+    "name": "Park Dome",
+    "node_type": {
+      "shutter_only": false,
+      "type": "ParkDome"
+    }
+  },
+  "n-PluginNode": {
+    "children": [],
+    "enabled": true,
+    "id": "n-PluginNode",
+    "name": "Plugin Node",
+    "node_type": {
+      "config_json": "{}",
+      "display_name": "Plugin Node",
+      "node_type_id": "flat-panel-sweep",
+      "plugin_id": "com.example.rig",
+      "timeout_secs": null,
+      "type": "PluginNode"
+    }
+  },
+  "n-PolarAlignment": {
+    "children": [],
+    "enabled": true,
+    "id": "n-PolarAlignment",
+    "name": "Polar Alignment",
+    "node_type": {
+      "auto_complete_threshold": 30.0,
+      "binning": 2,
+      "exposure_time": 2.0,
+      "gain": null,
+      "is_north": true,
+      "manual_rotation": false,
+      "offset": null,
+      "rotate_east": true,
+      "solve_timeout": 60.0,
+      "start_from_current": true,
+      "step_size": 20.0,
+      "type": "PolarAlignment"
+    }
+  },
+  "n-Recovery": {
+    "children": [],
+    "enabled": true,
+    "id": "n-Recovery",
+    "name": "Recovery",
+    "node_type": {
+      "max_retries": 3,
+      "recovery_action": {
+        "Retry": {
+          "max_attempts": 3
+        }
+      },
+      "trigger": null,
+      "type": "Recovery"
+    }
+  },
+  "n-RunScript": {
+    "children": [],
+    "enabled": true,
+    "id": "n-RunScript",
+    "name": "Run Script",
+    "node_type": {
+      "arguments": [],
+      "script_path": "",
+      "timeout_secs": null,
+      "type": "RunScript"
+    }
+  },
+  "n-SciencePhotometry": {
+    "children": [],
+    "enabled": true,
+    "id": "n-SciencePhotometry",
+    "name": "Science Photometry",
+    "node_type": {
+      "apply_differential": true,
+      "binning": "One",
+      "count": 60,
+      "exposure_secs": 60.0,
+      "filter": "Clear",
+      "gain": null,
+      "max_cadence_gap_secs": 2.0,
+      "offset": null,
+      "quality": {
+        "max_airmass": 2.5,
+        "max_fwhm_arcsec": 5.0,
+        "min_snr": 50.0,
+        "require_all_refs_visible": true
+      },
+      "reduce_live": true,
+      "reference_stars": [],
+      "target_designation": "",
+      "type": "SciencePhotometry"
+    }
+  },
+  "n-SlewToTarget": {
+    "children": [],
+    "enabled": true,
+    "id": "n-SlewToTarget",
+    "name": "Slew to Target",
+    "node_type": {
+      "custom_dec": null,
+      "custom_ra": null,
+      "type": "SlewToTarget",
+      "use_target_coords": true
+    }
+  },
+  "n-SmartExposure": {
+    "children": [],
+    "enabled": true,
+    "id": "n-SmartExposure",
+    "name": "Smart Exposure",
+    "node_type": {
+      "batch_size": 1,
+      "dither_on_filter_change": false,
+      "integration_budget_secs": 0.0,
+      "loop_until_stopped": false,
+      "plans": [],
+      "rotate_filters": true,
+      "type": "SmartExposure"
+    }
+  },
+  "n-StartGuiding": {
+    "children": [],
+    "enabled": true,
+    "id": "n-StartGuiding",
+    "name": "Start Guiding",
+    "node_type": {
+      "auto_select_star": true,
+      "settle_pixels": 1.5,
+      "settle_time": 10.0,
+      "settle_timeout": 60.0,
+      "type": "StartGuiding"
+    }
+  },
+  "n-StopGuiding": {
+    "children": [],
+    "enabled": true,
+    "id": "n-StopGuiding",
+    "name": "Stop Guiding",
+    "node_type": {
+      "type": "StopGuiding"
+    }
+  },
+  "n-TakeExposure": {
+    "children": [],
+    "enabled": true,
+    "id": "n-TakeExposure",
+    "name": "Take Exposures",
+    "node_type": {
+      "adaptive_exposure": null,
+      "binning": "One",
+      "count": 10,
+      "dither_every": 3,
+      "dither_pixels": 5.0,
+      "dither_ra_only": false,
+      "dither_settle_pixels": 1.5,
+      "dither_settle_time": 30.0,
+      "dither_settle_timeout": 120.0,
+      "duration_secs": 60.0,
+      "filter": null,
+      "filter_index": null,
+      "frame_type": "Light",
+      "gain": null,
+      "offset": null,
+      "save_to": "${target.name}_${filter}_${time.date}_${frame:04}",
+      "triggers": [],
+      "type": "TakeExposure"
+    }
+  },
+  "n-TargetHeader": {
+    "children": [],
+    "enabled": true,
+    "id": "n-TargetHeader",
+    "name": "Target",
+    "node_type": {
+      "brightness_tier_hint": null,
+      "dec_degrees": 41.27,
+      "end_before": null,
+      "end_when": null,
+      "integration_budget": null,
+      "max_altitude": null,
+      "min_altitude": null,
+      "mosaic_panel": null,
+      "priority": 0,
+      "ra_hours": 0.712,
+      "rotation": null,
+      "start_after": null,
+      "start_when": null,
+      "target_name": "M31",
+      "trigger_poll_interval_secs": 30,
+      "type": "TargetHeader"
+    }
+  },
+  "n-TargetScheduler": {
+    "children": [],
+    "enabled": true,
+    "id": "n-TargetScheduler",
+    "name": "Scheduler",
+    "node_type": {
+      "airmass_weight": 0.15,
+      "altitude_weight": 0.25,
+      "brightness_tier_preferences": {
+        "bright_min_score": 30.0,
+        "faint_min_score": 70.0,
+        "medium_min_score": 50.0
+      },
+      "darkness_weight": 0.15,
+      "finish_iteration_on_switch": true,
+      "horizon_profile": {
+        "samples": [
+          {
+            "alt": 30.0,
+            "az": 0.0
+          }
+        ]
+      },
+      "max_conditions_score_age_secs": 300,
+      "min_moon_separation_deg": null,
+      "min_score_to_run": 30.0,
+      "moon_distance_weight": 0.25,
+      "recompute_every_n_exposures": 5,
+      "swap_hysteresis_secs": 180.0,
+      "swap_on_conditions_below": null,
+      "transit_proximity_weight": 0.2,
+      "type": "TargetScheduler"
+    }
+  },
+  "n-Unpark": {
+    "children": [],
+    "enabled": true,
+    "id": "n-Unpark",
+    "name": "Unpark Mount",
+    "node_type": {
+      "type": "Unpark"
+    }
+  },
+  "n-WaitForTime": {
+    "children": [],
+    "enabled": true,
+    "id": "n-WaitForTime",
+    "name": "Wait for Time",
+    "node_type": {
+      "type": "WaitForTime",
+      "wait_for_twilight": null,
+      "wait_until": null
+    }
+  },
+  "n-WarmCamera": {
+    "children": [],
+    "enabled": true,
+    "id": "n-WarmCamera",
+    "name": "Warm Camera",
+    "node_type": {
+      "rate_per_min": 2.0,
+      "target_temp": 20.0,
+      "type": "WarmCamera"
+    }
+  },
+  "warnings": [
+    "Filter wheel profile not active; node will use filter name \"L\" literally without a wheel index. Connect a filter wheel + activate its profile to enable index-based filter selection."
+  ]
+}

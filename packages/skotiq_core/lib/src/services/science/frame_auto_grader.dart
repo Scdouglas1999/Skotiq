@@ -1,11 +1,12 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database.dart' as db;
 import '../../providers/database_provider.dart';
-import '../../services/imaging_records_repository.dart';
+import '../../services/local_imaging_records.dart';
 import '../../providers/science_provider.dart';
-import '../../services/logging_service.dart';
 import 'frame_grade_rules.dart';
+import '../../providers/logging_service_provider.dart';
 
 /// Applies [FrameGradeRules] to a single frame immediately after capture.
 ///
@@ -19,8 +20,8 @@ class FrameAutoGrader {
 
   /// Returns `true` when the frame was rejected, `false` when accepted or
   /// skipped, `null` when grading did not run (disabled / not a light).
-  Future<bool?> gradeCapturedFrame({required db.CapturedImage image}) async {
-    if (image.frameType.toLowerCase() != 'light') return null;
+  Future<bool?> gradeCapturedFrame({required db.DbCapturedImage image}) async {
+    if (!image.isLight) return null;
     if (!image.isAccepted) return false;
 
     final settings = await _ref.read(scienceSettingsProvider.future);
@@ -56,9 +57,7 @@ class FrameAutoGrader {
     );
     if (reason == null) return false;
 
-    await _ref
-        .read(imagingRecordsRepositoryProvider)
-        .rejectImage(image.id, reason);
+    await _ref.read(imagingRecordsProvider).rejectImage(image.id, reason);
     _ref
         .read(loggingServiceProvider)
         .info(
@@ -100,7 +99,3 @@ class FrameAutoGrader {
         : (sorted[mid - 1] + sorted[mid]) / 2.0;
   }
 }
-
-final frameAutoGraderProvider = Provider<FrameAutoGrader>((ref) {
-  return FrameAutoGrader(ref);
-});

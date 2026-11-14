@@ -10,35 +10,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../harness/provider_teardown.dart';
-
-/// Test-only TutorialNotifier that reports tutorials disabled so the
-/// `ContextualTourPrompt` short-circuits before scheduling its 500 ms
-/// `Future.delayed`. Without this override the test framework reports a
-/// pending timer at teardown because the prompt is still waiting to fade in.
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    // The disabled notifier never reads from the DAO; if any helper does,
-    // surface it loudly rather than swallow it.
-    throw UnimplementedError(
-      'NoopTutorialProgressDao.${invocation.memberName} called in test',
-    );
-  }
-}
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -59,35 +41,34 @@ List<Override> _commonOverrides() {
     allDbImagesProvider.overrideWith(
       (ref) => Stream<List<DbCapturedImage>>.value(const []),
     ),
-    tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
   ];
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('analyticsTabFromQuery', () {
+  group('AnalyticsTab.fromQuery', () {
     test('returns null for null input', () {
-      expect(analyticsTabFromQuery(null), isNull);
+      expect(AnalyticsTab.fromQuery(null), isNull);
     });
 
     test('returns null for an unrecognized value', () {
-      expect(analyticsTabFromQuery('made-up-tab'), isNull);
+      expect(AnalyticsTab.fromQuery('made-up-tab'), isNull);
     });
 
     test('maps canonical tab names', () {
-      expect(analyticsTabFromQuery('session'), AnalyticsTab.session);
-      expect(analyticsTabFromQuery('history'), AnalyticsTab.history);
-      expect(analyticsTabFromQuery('projects'), AnalyticsTab.projects);
-      expect(analyticsTabFromQuery('equipment'), AnalyticsTab.equipment);
-      expect(analyticsTabFromQuery('science'), AnalyticsTab.science);
-      expect(analyticsTabFromQuery('diagnostics'), AnalyticsTab.diagnostics);
+      expect(AnalyticsTab.fromQuery('session'), AnalyticsTab.session);
+      expect(AnalyticsTab.fromQuery('history'), AnalyticsTab.history);
+      expect(AnalyticsTab.fromQuery('projects'), AnalyticsTab.projects);
+      expect(AnalyticsTab.fromQuery('equipment'), AnalyticsTab.equipment);
+      expect(AnalyticsTab.fromQuery('science'), AnalyticsTab.science);
+      expect(AnalyticsTab.fromQuery('diagnostics'), AnalyticsTab.diagnostics);
     });
 
     test('accepts case-insensitive equipment aliases', () {
-      expect(analyticsTabFromQuery('Diagnostics'), AnalyticsTab.diagnostics);
-      expect(analyticsTabFromQuery('equipment-stats'), AnalyticsTab.equipment);
-      expect(analyticsTabFromQuery('equipmentstats'), AnalyticsTab.equipment);
+      expect(AnalyticsTab.fromQuery('Diagnostics'), AnalyticsTab.diagnostics);
+      expect(AnalyticsTab.fromQuery('equipment-stats'), AnalyticsTab.equipment);
+      expect(AnalyticsTab.fromQuery('equipmentstats'), AnalyticsTab.equipment);
     });
 
     test('Diagnostics is the right-most enum entry', () {
@@ -159,8 +140,9 @@ void main() {
         overrides: _commonOverrides(),
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: AnalyticsScreen(initialTabQuery: 'diagnostics'),
+          home: Scaffold(
+            body: AnalyticsScreen(
+                initialTab: AnalyticsTab.fromQuery('diagnostics')),
           ),
         ),
       ),
@@ -172,6 +154,58 @@ void main() {
       AnalyticsTab.diagnostics.index,
       reason: '?tab=diagnostics must select the right-most Diagnostics tab.',
     );
+  });
+
+  // "View all alerts" did nothing the second time: the operator had moved to
+  // another tab by hand, the location still named the link's tab, and going
+  // to the location the router is already at changes nothing.
+  testWidgets('a link to a tab works again after the tab was changed by hand',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1400, 900);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final router = GoRouter(
+      initialLocation: AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
+      routes: [
+        GoRoute(
+          path: AppRoute.analytics.path,
+          builder: (context, state) => Scaffold(
+            body: AnalyticsScreen(
+              initialTab:
+                  AnalyticsTab.fromQuery(state.uri.queryParameters['tab']),
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _commonOverrides(),
+        child: MaterialApp.router(
+          theme: SkotiqTheme.dark,
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.diagnostics.index);
+
+    await tester.tap(find.text('History').first);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.history.index);
+    expect(
+      router.routerDelegate.currentConfiguration.uri.toString(),
+      AppRoutes.analytics(tab: AnalyticsTab.history),
+    );
+
+    router.go(AppRoutes.analytics(tab: AnalyticsTab.diagnostics));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.diagnostics.index);
   });
 
   testWidgets('defaults to Session when no query param is supplied',

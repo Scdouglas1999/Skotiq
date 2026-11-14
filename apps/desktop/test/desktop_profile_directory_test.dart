@@ -12,7 +12,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_desktop/desktop_logging_init.dart';
 import 'package:path/path.dart' as p;
 

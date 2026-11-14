@@ -8,16 +8,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show AstronomyCalculations;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 
 import 'package:skotiq_app/utils/snackbar_helper.dart';
-import '../../../widgets/tutorial_keys/framing_keys.dart';
-import '../altitude_chart.dart';
+import '../../../tours/tour_target.dart';
+import '../../../widgets/altitude_chart.dart';
 import '../framing_search_provider.dart';
 import 'framing_controls.dart';
 import 'framing_panel_parts.dart';
+import '../../../router/app_routes.dart';
 
 part 'framing_sidebar/target_and_equipment.dart';
 part 'framing_sidebar/controls_and_status.dart';

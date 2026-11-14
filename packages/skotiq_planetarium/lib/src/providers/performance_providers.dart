@@ -84,7 +84,6 @@ class PerformanceMonitor extends ChangeNotifier {
     return _frameTimings.reduce((a, b) => a > b ? a : b);
   }
 
-  /// Get the number of samples currently collected.
   int get sampleCount => _frameTimings.length;
 
   /// True when the measured frame rate is below 30 FPS. False while no frame
@@ -101,7 +100,6 @@ class PerformanceMonitor extends ChangeNotifier {
     return fps != null && fps >= 55;
   }
 
-  /// Clear all collected frame timings.
   void reset() {
     _frameTimings.clear();
     _buildTimings.clear();
@@ -125,7 +123,6 @@ class PerformanceMonitor extends ChangeNotifier {
   }
 }
 
-/// Provider for the performance monitor singleton.
 final performanceMonitorProvider = ChangeNotifierProvider<PerformanceMonitor>((
   ref,
 ) {

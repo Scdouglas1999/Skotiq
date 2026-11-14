@@ -1,12 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/imaging_handlers.dart';
 import 'package:skotiq_desktop/headless_api/job_manager.dart';
+import 'package:skotiq_desktop/headless_api/request_context.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -69,6 +78,7 @@ void main() {
                 'catalogPath': '/opt/astap/catalogs',
                 'solverChoice': 'astap',
               }),
+              context: _grant(HeadlessTokenScope.admin),
             ),
           ),
         );
@@ -108,6 +118,110 @@ void main() {
 
       expect(response.statusCode, HttpStatus.badRequest);
       expect(backend.saved, isNull);
+    });
+
+    group('the programs the host runs', () {
+      late _RecordingPlateSolverBackend backend;
+      late ImagingHandlers localHandlers;
+
+      setUp(() {
+        backend = _RecordingPlateSolverBackend()
+          ..saved = const PlateSolverPreference(
+            astapPath: '/opt/astap/astap',
+            choice: PlateSolverChoice.astap,
+          );
+        final local = ProviderContainer(
+          overrides: [
+            backendProvider.overrideWith(
+              (ref) => _TestBackendNotifier(ref, backend),
+            ),
+          ],
+        );
+        addTearDown(local.dispose);
+        localHandlers = ImagingHandlers(local);
+      });
+
+      Future<Response> saveConfig(
+        HeadlessTokenScope scope, {
+        required String astapPath,
+        String catalogPath = '',
+        String solverChoice = 'astap',
+      }) => translateHandlerErrors(
+        localHandlers.handleSetPlateSolverConfig(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/plate-solver/config'),
+            body: jsonEncode({
+              'astapPath': astapPath,
+              'astrometryPath': '',
+              'catalogPath': catalogPath,
+              'solverChoice': solverChoice,
+            }),
+            context: _grant(scope),
+          ),
+        ),
+      );
+
+      Future<Response> verify(HeadlessTokenScope scope, String path) =>
+          translateHandlerErrors(
+            localHandlers.handleVerifyPlateSolver(
+              Request(
+                'POST',
+                Uri.parse('http://localhost/api/plate-solver/verify'),
+                body: jsonEncode({'executablePath': path}),
+                context: _grant(scope),
+              ),
+            ),
+          );
+
+      test('a link without admin access keeps the solver path but changes '
+          'the rest of the solver setup', () async {
+        var response = await saveConfig(
+          HeadlessTokenScope.control,
+          astapPath: '/tmp/not-astap',
+        );
+        expect(response.statusCode, HttpStatus.forbidden);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['code'], 'host_program_setting');
+        expect(body['settings'], ['astapPath']);
+        expect(backend.saved?.astapPath, '/opt/astap/astap');
+
+        response = await saveConfig(
+          HeadlessTokenScope.control,
+          astapPath: '/opt/astap/astap',
+          catalogPath: '/opt/astap/d50',
+          solverChoice: 'auto',
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        expect(backend.saved?.catalogPath, '/opt/astap/d50');
+        expect(backend.saved?.choice, PlateSolverChoice.auto);
+
+        response = await saveConfig(
+          HeadlessTokenScope.admin,
+          astapPath: '/usr/local/bin/astap',
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        expect(backend.saved?.astapPath, '/usr/local/bin/astap');
+      });
+
+      test('a link without admin access verifies only the solvers the host '
+          'is set to use', () async {
+        var response = await verify(HeadlessTokenScope.control, '/usr/bin/id');
+        expect(response.statusCode, HttpStatus.forbidden);
+        expect(backend.verified, isEmpty);
+
+        response = await verify(HeadlessTokenScope.control, '/opt/astap/astap');
+        expect(response.statusCode, HttpStatus.ok);
+        response = await verify(HeadlessTokenScope.control, '/detected/solve');
+        expect(response.statusCode, HttpStatus.ok);
+        response = await verify(HeadlessTokenScope.admin, '/usr/bin/id');
+        expect(response.statusCode, HttpStatus.ok);
+        expect(backend.verified, [
+          '/opt/astap/astap',
+          '/detected/solve',
+          '/usr/bin/id',
+        ]);
+      });
     });
 
     test(
@@ -278,7 +392,7 @@ void main() {
               'deviceId': 'camera-1',
               'filePath': filePath,
               'headerData': {
-                'frameType': 'FLAT',
+                'frameType': 'Flat',
                 'filter': 'L',
                 'exposureTime': 1.5,
                 'captureTimestamp': '2026-07-13T01:00:00Z',
@@ -291,7 +405,73 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       expect(backend.filePath, filePath);
       expect(backend.parentExistedAtSave, isTrue);
+      // A client that does not say the frame is kept gets no camera file.
+      expect(backend.keepCameraFile, isFalse);
+
+      final kept = await translateHandlerErrors(
+        localHandlers.handleSaveFitsFromLastCapture(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/imaging/save-fits-from-capture'),
+            body: jsonEncode({
+              'deviceId': 'camera-1',
+              'filePath': '${root.path}/2026-07-13/L/light-1.fits',
+              'headerData': {
+                'frameType': 'Light',
+                'exposureTime': 30.0,
+                'captureTimestamp': '2026-07-13T01:00:00Z',
+              },
+              'keepCameraFile': true,
+            }),
+          ),
+        ),
+      );
+      expect(kept.statusCode, HttpStatus.ok);
+      expect(backend.keepCameraFile, isTrue);
     });
+
+    test(
+      'a scratch frame is saved by name where the host keeps them',
+      () async {
+        final backend = _SaveFitsBackend();
+        final local = ProviderContainer(
+          overrides: [
+            backendProvider.overrideWith(
+              (ref) => _TestBackendNotifier(ref, backend),
+            ),
+            appSettingsProvider.overrideWith(() => _TestSettings()),
+          ],
+        );
+        addTearDown(local.dispose);
+        final localHandlers = ImagingHandlers(local);
+
+        final response = await translateHandlerErrors(
+          localHandlers.handleSaveFitsFromLastCapture(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/imaging/save-fits-from-capture'),
+              body: jsonEncode({
+                'deviceId': 'camera-1',
+                'scratchName': 'liveview_camera_1.fits',
+                'headerData': {
+                  'frameType': 'Light',
+                  'exposureTime': 2.0,
+                  'captureTimestamp': '2026-07-13T01:00:00Z',
+                },
+              }),
+            ),
+          ),
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(backend.scratchName, 'liveview_camera_1.fits');
+        expect(
+          (jsonDecode(await response.readAsString()) as Map)['path'],
+          '/host-scratch/liveview_camera_1.fits',
+        );
+        expect(backend.calls, 0, reason: 'no keeper is written');
+      },
+    );
 
     test(
       'a desktop host shows a remote client capture in its own image view',
@@ -408,7 +588,7 @@ void main() {
               'deviceId': 'camera-1',
               'filePath': filePath,
               'headerData': {
-                'frameType': 'FLAT',
+                'frameType': 'Flat',
                 'exposureTime': 1.5,
                 'captureTimestamp': '2026-07-13T01:00:00Z',
               },
@@ -422,6 +602,66 @@ void main() {
       expect(body['error'], 'path_not_allowed');
       expect(backend.calls, 0);
       expect(await outsideParent.exists(), isFalse);
+    });
+
+    // A solve that found nothing ended its job `succeeded` with
+    // `success: false` inside the result, so the job list, the phone's
+    // plate-solve failure notice and every client that trusts a job's state
+    // read a failed solve as done.
+    Future<Job> runPlateSolveJob(PlateSolveResult outcome) async {
+      final backend = _PendingPlateSolveBackend();
+      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(database.close);
+      final jobContainer = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          backendProvider.overrideWith(
+            (ref) => _TestBackendNotifier(ref, backend),
+          ),
+          appSettingsProvider.overrideWith(_TestSettings.new),
+        ],
+      );
+      addTearDown(jobContainer.dispose);
+      final jobs = JobManager(emitEvent: (_) {});
+      addTearDown(jobs.dispose);
+      final jobHandlers = ImagingHandlers(jobContainer, jobManager: jobs);
+
+      final response = await jobHandlers.handlePlateSolve(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/plate-solve'),
+          headers: {'content-type': 'application/json'},
+          body: jsonEncode({'imagePath': '/tmp/frame.fits'}),
+        ),
+      );
+      final body = jsonDecode(await response.readAsString()) as Map;
+      final jobId = body['jobId'] as String;
+      await _pumpUntil(() => backend.started);
+      backend.pending.complete(outcome);
+      await _pumpUntil(() => jobs.get(jobId)!.state.isTerminal);
+      return jobs.get(jobId)!;
+    }
+
+    test('a plate solve that finds no solution ends its job failed with the '
+        'solver reason', () async {
+      final job = await runPlateSolveJob(
+        _solve(success: false, error: 'Not enough stars detected'),
+      );
+
+      expect(job.state, JobState.failed);
+      expect(job.result, isNull);
+      expect(job.error!['code'], 'plate_solve_failed');
+      expect(job.error!['message'], contains('Not enough stars detected'));
+      final details = job.error!['details'] as Map;
+      expect(details['success'], isFalse);
+    });
+
+    test('a plate solve that solves ends its job succeeded', () async {
+      final job = await runPlateSolveJob(_solve(success: true));
+
+      expect(job.state, JobState.succeeded);
+      expect(job.result!['success'], isTrue);
+      expect(job.result!['ra'], 83.8);
     });
 
     test('canceled plate solve stays running until host work exits', () async {
@@ -460,6 +700,31 @@ void main() {
   });
 }
 
+PlateSolveResult _solve({required bool success, String? error}) =>
+    PlateSolveResult(
+      success: success,
+      ra: success ? 83.8 : 0,
+      dec: success ? -5.4 : 0,
+      rotation: 0,
+      pixelScale: success ? 1.2 : 0,
+      fieldWidth: 1,
+      fieldHeight: 1,
+      solveTimeSecs: 1,
+      error: error,
+      cd11: 0,
+      cd12: 0,
+      cd21: 0,
+      cd22: 0,
+      sipAOrder: 0,
+      sipBOrder: 0,
+      sipACoeffs: Float64List(0),
+      sipBCoeffs: Float64List(0),
+      sipApOrder: 0,
+      sipBpOrder: 0,
+      sipApCoeffs: Float64List(0),
+      sipBpCoeffs: Float64List(0),
+    );
+
 Future<void> _pumpUntil(bool Function() condition) async {
   // Deadline-based, not turn-counted: under a loaded full-suite run the
   // job's real async hops (path checks, isolate spawn) need wall-clock
@@ -471,12 +736,35 @@ Future<void> _pumpUntil(bool Function() condition) async {
   expect(condition(), isTrue);
 }
 
+Map<String, Object> _grant(HeadlessTokenScope scope) => {
+  authGrantContextKey: HeadlessAuthGrant.fromCoarse(scope),
+};
+
 class _RecordingPlateSolverBackend extends DisconnectedBackend {
   PlateSolverPreference? saved;
+  final List<String> verified = [];
 
   @override
   Future<void> setPlateSolverConfig(PlateSolverPreference pref) async {
     saved = pref;
+  }
+
+  @override
+  Future<PlateSolverPreference> getPlateSolverConfig() async =>
+      saved ?? const PlateSolverPreference(choice: PlateSolverChoice.auto);
+
+  @override
+  Future<PlateSolverDetection> detectPlateSolvers() async =>
+      const PlateSolverDetection(astrometryPath: '/detected/solve');
+
+  @override
+  Future<PlateSolverInfo> verifyPlateSolver(String executablePath) async {
+    verified.add(executablePath);
+    return PlateSolverInfo(
+      path: executablePath,
+      flavour: 'astap',
+      versionLine: 'ASTAP',
+    );
   }
 }
 
@@ -543,6 +831,7 @@ class _RawImageBackend extends DisconnectedBackend {
 class _SaveFitsBackend extends DisconnectedBackend {
   String? filePath;
   bool parentExistedAtSave = false;
+  bool? keepCameraFile;
   int calls = 0;
 
   @override
@@ -564,15 +853,30 @@ class _SaveFitsBackend extends DisconnectedBackend {
         timestamp: '2026-10-21T23:50:25.000Z',
       );
 
+  String? scratchName;
+
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveScratchFrameFromLastCapture({
+    required String deviceId,
+    required String name,
+    required FitsWriteHeader headerData,
+  }) async {
+    scratchName = name;
+    return '/host-scratch/$name';
+  }
+
+  @override
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     calls++;
     this.filePath = filePath;
+    this.keepCameraFile = keepCameraFile;
     parentExistedAtSave = File(filePath).parent.existsSync();
+    return filePath;
   }
 }
 

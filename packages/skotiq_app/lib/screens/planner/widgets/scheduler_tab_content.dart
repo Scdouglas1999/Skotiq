@@ -4,12 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../scheduler/widgets/integration_goals_editor.dart';
-import '../../scheduler/widgets/target_constraints_editor.dart';
-import '../../scheduler/widgets/target_score_row.dart';
+import '../editors/integration_goals_editor.dart';
+import '../editors/target_constraints_editor.dart';
+import 'target_score_row.dart';
+import '../../../router/app_routes.dart';
+import '../../../router/planner_route.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Dynamic scheduler body used by the Planner's Scheduler tab.
 part 'scheduler_tab_content/decision_panel.dart';
@@ -33,9 +40,11 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
   Future<void> _configSaveTail = Future<void>.value();
   bool _configSaveErrorVisible = false;
   bool _schedulerActionBusy = false;
-  int _schedulerActionGeneration = 0;
   int _remotePollTicks = 0;
-  Object? _configAuthority;
+
+  /// Scheduler actions and config saves sent to the host; a host change
+  /// drops what the old host answers.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
   SchedulerConfig? _confirmedConfig;
   SchedulerConfig? _requestedConfig;
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
@@ -49,9 +58,13 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       backendProvider,
       (previous, next) {
         if (previous == null || identical(previous, next)) return;
-        // Do not carry command state across a backend replacement.
-        _schedulerActionGeneration++;
+        // Do not carry command state or unsaved config across a backend
+        // replacement; the next build reads the new host's config.
+        _hostScopes.cancelAll();
         _configSaveErrorVisible = false;
+        _confirmedConfig = null;
+        _requestedConfig = null;
+        _configSaveTail = Future<void>.value();
         if (mounted && _schedulerActionBusy) {
           setState(() => _schedulerActionBusy = false);
         }
@@ -65,8 +78,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       _remotePollTicks++;
-      if (_remotePollTicks % 3 == 0 &&
-          ref.read(backendProvider) is NetworkBackend) {
+      if (_remotePollTicks % 3 == 0 && ref.read(isRemoteModeProvider)) {
         ref.invalidate(schedulerRemoteSnapshotProvider);
       }
       setState(() {});
@@ -90,7 +102,6 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _backendSubscription?.close();
-    _schedulerActionGeneration++;
     _countdownTimer?.cancel();
     super.dispose();
   }
@@ -120,14 +131,12 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
     bool allowWarnings = false,
   }) async {
     if (_schedulerActionBusy) return;
-    final backend = ref.read(backendProvider);
-    final generation = ++_schedulerActionGeneration;
+    final command = _hostScopes.beginLatest(#schedulerAction);
+    final scheduler = ref.read(schedulerControlProvider);
     setState(() => _schedulerActionBusy = true);
     try {
       if (action == 'start') {
-        final readiness = backend is NetworkBackend
-            ? (await ref.read(schedulerRemoteSnapshotProvider.future)).readiness
-            : ref.read(schedulerStartReadinessProvider);
+        final readiness = await scheduler.startReadiness();
         if (readiness.blocked ||
             (readiness.warnings.isNotEmpty && !allowWarnings)) {
           throw StateError(
@@ -137,59 +146,34 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
           );
         }
       }
-      if (backend is NetworkBackend) {
-        if (action == 'start' && allowWarnings) {
-          await backend.controlScheduler(action, confirmWarnings: true);
-        } else {
-          await backend.controlScheduler(action);
-        }
-      } else {
-        // Pause and Stop must remain available for an already-running engine
-        // even if an unrelated settings refresh is failing. Operations that
-        // evaluate/dispatch wait for the cold-start authority gate.
-        final engine = switch (action) {
-          'pause' || 'stop' => ref.read(schedulerEngineProvider),
-          _ => await ref.read(schedulerEngineReadyProvider.future),
-        };
-        switch (action) {
-          case 'start':
-            await engine.start();
-          case 'pause':
-            await engine.pause();
-          case 'resume':
-            await engine.resume();
-          case 'stop':
-            await engine.stop();
-          case 'evaluate':
-            await engine.evaluateNow(reason: 'manual force re-evaluation');
-        }
+      switch (action) {
+        case 'start':
+          await scheduler.start(confirmWarnings: allowWarnings);
+        case 'pause':
+          await scheduler.pause();
+        case 'resume':
+          await scheduler.resume();
+        case 'stop':
+          await scheduler.stop();
+        case 'evaluate':
+          await scheduler.evaluate(reason: 'manual force re-evaluation');
       }
-      if (_isCurrentSchedulerAction(backend, generation)) {
+      if (command.isCurrent) {
         ref.invalidate(schedulerRemoteSnapshotProvider);
         ref.invalidate(schedulerPreviewDecisionProvider);
       }
     } catch (error) {
       if (!mounted) return;
-      if (generation == _schedulerActionGeneration &&
-          identical(ref.read(backendProvider), backend)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Scheduler action failed: $error')),
+      if (command.isCurrent) {
+        context.showErrorSnackBar(
+          'Scheduler action failed: ${userFacingError(error)}',
         );
       }
     } finally {
-      if (_isCurrentSchedulerAction(backend, generation)) {
+      if (command.isCurrent) {
         setState(() => _schedulerActionBusy = false);
       }
     }
-  }
-
-  bool _isCurrentSchedulerAction(
-    SkotiqBackend backend,
-    int generation,
-  ) {
-    return mounted &&
-        generation == _schedulerActionGeneration &&
-        identical(ref.read(backendProvider), backend);
   }
 
   void _onWeightsChanged(SchedulerWeights weights) {
@@ -210,73 +194,35 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       _requestedConfig ?? _confirmedConfig ?? SchedulerConfig.defaults;
 
   void _applySchedulerConfig(SchedulerConfig config) {
-    final backend = ref.read(backendProvider);
-    final localStore = backend is NetworkBackend
-        ? null
-        : ref.read(schedulerConfigStoreProvider);
-    final localEngine =
-        backend is NetworkBackend ? null : ref.read(schedulerEngineProvider);
+    final host = _hostScopes.begin();
+    final scheduler = ref.read(schedulerControlProvider);
     setState(() => _requestedConfig = config);
-
-    // Local changes are reflected immediately while their durable writes are
-    // serialized. Remote changes remain optimistic in this widget until the
-    // host confirms the same full config.
-    if (backend is! NetworkBackend) {
-      ref.read(schedulerConfigUserDirtyProvider.notifier).state = true;
-      localEngine!.updateConfig(config);
-    }
+    // The widget shows the requested settings until the host confirms them;
+    // writes are saved one after another.
+    scheduler.preview(config);
 
     _configSaveTail = _configSaveTail.then((_) async {
       try {
-        SchedulerConfig confirmed;
-        if (backend is NetworkBackend) {
-          final response = await backend.updateSchedulerConfig(
-            config.toStorageJson().cast<String, dynamic>(),
-          );
-          confirmed = SchedulerRemoteSnapshot.fromJson(response).config;
-        } else {
-          await localStore!.save(config);
-          confirmed = config;
-          // The durable row is what siteMinimumAltitudeDegProvider serves to
-          // the sequence builder and the altitude charts, so a slider edit has
-          // to reach it now — otherwise moving "Min altitude" here would only
-          // take effect on the next launch and the rest of the app would keep
-          // gating on the superseded number. Safe for the engine: it takes this
-          // provider through ref.listen and skips the update while
-          // schedulerConfigUserDirtyProvider is set (which this edit set), so
-          // nothing is torn down and the live config is not overwritten.
-          ref.invalidate(schedulerPersistedConfigProvider);
-        }
-        if (!mounted || !identical(ref.read(backendProvider), backend)) return;
+        final confirmed = await scheduler.save(config);
+        if (!mounted || host.isStale) return;
         setState(() {
           _confirmedConfig = confirmed;
           if (_requestedConfig == config) _requestedConfig = null;
         });
-        if (backend is NetworkBackend) {
-          ref.invalidate(schedulerRemoteSnapshotProvider);
-        }
+        ref.invalidate(schedulerRemoteSnapshotProvider);
         _configSaveErrorVisible = false;
       } catch (error) {
-        if (mounted && identical(ref.read(backendProvider), backend)) {
+        if (mounted && host.isCurrent) {
           if (_requestedConfig == config) {
-            final rollback = _confirmedConfig ?? SchedulerConfig.defaults;
-            if (backend is! NetworkBackend) {
-              localEngine!.updateConfig(rollback);
-            }
+            scheduler.preview(_confirmedConfig ?? SchedulerConfig.defaults);
             setState(() => _requestedConfig = null);
           }
-          if (backend is NetworkBackend) {
-            ref.invalidate(schedulerRemoteSnapshotProvider);
-          }
+          ref.invalidate(schedulerRemoteSnapshotProvider);
         }
-        if (mounted &&
-            identical(ref.read(backendProvider), backend) &&
-            !_configSaveErrorVisible) {
+        if (mounted && host.isCurrent && !_configSaveErrorVisible) {
           _configSaveErrorVisible = true;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not save scheduler settings: $error'),
-            ),
+          context.showErrorSnackBar(
+            'Could not save scheduler settings: ${userFacingError(error)}',
           );
         }
       }
@@ -293,13 +239,12 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
 
   @override
   Widget build(BuildContext context) {
-    final backend = ref.watch(backendProvider);
     late final SchedulerStatus status;
     late final SchedulerDecision? decision;
     late final SchedulerConfig authoritativeConfig;
     late final SchedulerStartReadiness? remoteReadiness;
 
-    if (backend is NetworkBackend) {
+    if (ref.watch(isRemoteModeProvider)) {
       final remoteAsync = ref.watch(schedulerRemoteSnapshotProvider);
       final remote = remoteAsync.valueOrNull;
       if (remote == null) {
@@ -310,7 +255,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Could not load scheduler state: $error'),
+                Text(
+                    'Could not load scheduler state: ${userFacingError(error)}'),
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 SkotiqButton(
                   label: 'Retry',
@@ -339,7 +285,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Could not load scheduler configuration: $error'),
+                Text(
+                    'Could not load scheduler configuration: ${userFacingError(error)}'),
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 SkotiqButton(
                   label: 'Retry',
@@ -369,14 +316,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       ref.watch(schedulerAutoReevalProvider);
     }
 
-    if (!identical(_configAuthority, backend)) {
-      _configAuthority = backend;
-      _confirmedConfig = authoritativeConfig;
-      _requestedConfig = null;
-      _configSaveTail = Future<void>.value();
-    } else if (_requestedConfig == null) {
-      _confirmedConfig = authoritativeConfig;
-    }
+    if (_requestedConfig == null) _confirmedConfig = authoritativeConfig;
     final config = _requestedConfig ?? authoritativeConfig;
 
     return LayoutBuilder(

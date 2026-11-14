@@ -12,9 +12,11 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 const _reason = 'Open Cover: No cover calibrator (flat panel) connected';
 
@@ -40,7 +42,13 @@ bridge_event.SkotiqEvent _sequencerEvent(
 }
 
 bridge_event.SkotiqEvent _midRunError(int id, {String message = _reason}) =>
-    _sequencerEvent(id, bridge_event.SequencerEvent.error(message: message));
+    _sequencerEvent(
+      id,
+      bridge_event.SequencerEvent.error(
+        message: message,
+        kind: bridge_event.SequencerErrorKind.stepFailed,
+      ),
+    );
 
 bridge_event.SkotiqEvent _terminalFailure(int id, {String error = _reason}) =>
     _sequencerEvent(id, bridge_event.SequencerEvent.failed(error: error));
@@ -69,6 +77,8 @@ void main() {
     await db.close();
   });
 
+  late List<RunCriticalAlert> alerts;
+
   Future<ProviderContainer> wiredContainer() async {
     final container = ProviderContainer(
       overrides: [
@@ -85,7 +95,10 @@ void main() {
     );
     addTearDown(container.dispose);
     await container.read(appSettingsProvider.future);
-    container.read(runDashboardCriticalEventsBridgeProvider);
+    alerts = [];
+    final subscription =
+        container.read(runCriticalAlertsProvider).listen(alerts.add);
+    addTearDown(subscription.cancel);
     return container;
   }
 
@@ -108,11 +121,10 @@ void main() {
     expect(banner, hasLength(1), reason: 'one failed node, one banner row');
     expect(banner.single.message, _reason);
 
-    final toasts = container.read(uiNotificationProvider);
     expect(
-      toasts.where((t) => t.message == _reason),
+      alerts.where((a) => a.detail == _reason),
       hasLength(1),
-      reason: 'one failed node, one toast',
+      reason: 'one failed node, one alert',
     );
   });
 
@@ -155,7 +167,7 @@ void main() {
     expect(banner, hasLength(1));
     expect(banner.single.eventId, BigInt.from(4));
     expect(
-      container.read(uiNotificationProvider).where((t) => t.message == _reason),
+      alerts.where((a) => a.detail == _reason),
       hasLength(2),
       reason: 'the second run failing the same way is news again',
     );

@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/dialogs/profile_editor_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -33,6 +34,14 @@ bool _defaultSwitchOn(WidgetTester tester) => tester
       find.widgetWithText(SkotiqSwitchRow, 'Default profile'),
     )
     .value;
+
+/// The editor watches the device slots, whose providers hold database query
+/// streams; closing them schedules a zero-length timer that has to run before
+/// the test ends.
+Future<void> _closeEditor(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump(const Duration(milliseconds: 1));
+}
 
 void main() {
   testWidgets('the Default switch follows a startup change made elsewhere',
@@ -98,5 +107,7 @@ void main() {
 
     expect((await dao.getProfileById(1))!.isDefault, isFalse);
     expect((await dao.getProfileById(2))!.isDefault, isTrue);
+
+    await _closeEditor(tester);
   });
 }

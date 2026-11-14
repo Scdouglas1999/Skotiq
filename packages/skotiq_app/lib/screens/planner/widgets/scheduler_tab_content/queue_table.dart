@@ -17,7 +17,7 @@ class _QueueTable extends ConsumerWidget {
     int targetId,
     String targetName,
   ) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final goalsSvc = ref.read(integrationGoalServiceProvider);
     final constraintsSvc = ref.read(targetConstraintServiceProvider);
     final queueSvc = ref.read(schedulerQueueServiceProvider);
@@ -55,9 +55,8 @@ class _QueueTable extends ConsumerWidget {
         );
       },
     );
-    if (confirmed != true) return;
-    if (!context.mounted) return;
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (confirmed != true || !context.mounted) return;
+    if (host.isStale) {
       _showAuthorityChanged(context);
       return;
     }
@@ -67,16 +66,13 @@ class _QueueTable extends ConsumerWidget {
     await queueSvc.remove(targetId);
     await goalsSvc.deleteForTarget(targetId);
     await constraintsSvc.deleteForTarget(targetId);
-    if (!context.mounted || !identical(ref.read(backendProvider), authority)) {
-      return;
-    }
+    if (!context.mounted || host.isStale) return;
     ref.invalidate(allIntegrationGoalsProvider);
     ref.invalidate(integrationGoalProgressProvider(targetId));
     // Surface the change immediately even though the auto-reeval listeners
     // will also fire — `evaluateNow` waits, the listeners don't.
     await _reevaluate(
       ref,
-      authority: authority,
       reason: 'row removed from scheduler',
     );
   }
@@ -85,7 +81,7 @@ class _QueueTable extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final goalsSvc = ref.read(integrationGoalServiceProvider);
     final constraintsSvc = ref.read(targetConstraintServiceProvider);
     final queueSvc = ref.read(schedulerQueueServiceProvider);
@@ -123,49 +119,32 @@ class _QueueTable extends ConsumerWidget {
         );
       },
     );
-    if (confirmed != true) return;
-    if (!context.mounted) return;
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (confirmed != true || !context.mounted) return;
+    if (host.isStale) {
       _showAuthorityChanged(context);
       return;
     }
     await queueSvc.removeAll();
     await goalsSvc.deleteAll();
     await constraintsSvc.deleteAll();
-    if (!context.mounted || !identical(ref.read(backendProvider), authority)) {
-      return;
-    }
+    if (!context.mounted || host.isStale) return;
     ref.invalidate(allIntegrationGoalsProvider);
     await _reevaluate(
       ref,
-      authority: authority,
       reason: 'scheduler queue cleared',
     );
   }
 
   void _showAuthorityChanged(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'The imaging host changed. Scheduler cleanup was canceled.',
-        ),
-      ),
+    context.showInfoSnackBar(
+      'The imaging host changed. Scheduler cleanup was canceled.',
     );
   }
 
-  Future<void> _reevaluate(
-    WidgetRef ref, {
-    required String reason,
-    SkotiqBackend? authority,
-  }) async {
-    final backend = authority ?? ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      await backend.controlScheduler('evaluate');
-      ref.invalidate(schedulerRemoteSnapshotProvider);
-      ref.invalidate(schedulerPreviewDecisionProvider);
-      return;
-    }
-    await ref.read(schedulerEngineProvider).evaluateNow(reason: reason);
+  Future<void> _reevaluate(WidgetRef ref, {required String reason}) async {
+    await ref.read(schedulerControlProvider).evaluate(reason: reason);
+    ref.invalidate(schedulerRemoteSnapshotProvider);
+    ref.invalidate(schedulerPreviewDecisionProvider);
   }
 
   @override
@@ -200,7 +179,7 @@ class _QueueTable extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.only(right: SkotiqTokens.spaceSm),
                     child: Text(
-                      'Last evaluation ${_formatTime(decision!.evaluatedAt)}',
+                      'Last evaluation ${ClockFormat.hms(decision!.evaluatedAt.toLocal())}',
                       overflow: TextOverflow.ellipsis,
                       style: SkotiqTypography.caption
                           .copyWith(color: colors.textMuted),
@@ -236,7 +215,7 @@ class _QueueTable extends ConsumerWidget {
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
                 child: Text(
-                  'Failed to load integration goals: $e',
+                  'Failed to load integration goals: ${userFacingError(e)}',
                   style: SkotiqTypography.caption.copyWith(color: colors.error),
                 ),
               ),
@@ -277,14 +256,6 @@ class _QueueTable extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  String _formatTime(DateTime t) {
-    final local = t.toLocal();
-    final hh = local.hour.toString().padLeft(2, '0');
-    final mm = local.minute.toString().padLeft(2, '0');
-    final ss = local.second.toString().padLeft(2, '0');
-    return '$hh:$mm:$ss';
   }
 }
 

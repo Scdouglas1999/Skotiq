@@ -15,6 +15,10 @@ import '../imaging_service.dart';
 import '../logging_service.dart';
 import '../plate_solve_service.dart';
 import '../wcs/plate_solve_data_from_result.dart';
+import '../../providers/annotation_service_provider.dart';
+import '../../providers/imaging_service_providers.dart';
+import '../../providers/logging_service_provider.dart';
+import '../../providers/plate_solve_service_provider.dart';
 
 /// Builds catalog annotations for a captured frame given its plate solve.
 ///
@@ -78,7 +82,6 @@ enum FirstLightPhase {
 /// genuinely succeeded. Nothing here is faked to make the UI look further
 /// along than the real pipeline is.
 class FirstLightState {
-  /// Current stage of the flow.
   final FirstLightPhase phase;
 
   /// Exposure length used for the capture, in seconds. `null` until [run]
@@ -386,8 +389,6 @@ class FirstLightOrchestrator {
   }
 
   void _emit(FirstLightState state) => _onState(state);
-
-  // Stage implementations.
 
   void _requireCameraConnected() {
     final camera = _ref.read(cameraStateProvider);

@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/flat_wizard/widgets/flat_build_master_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' as db;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/database.dart' as db;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -54,8 +56,11 @@ void main() {
         tagsDao: CalibrationTagsDao(database),
       ),
       darkLibrary: DarkLibraryService(DarkLibraryDao(database)),
-      flatLibrary:
-          FlatLibraryService(dao: FlatLibraryDao(database), seam: seam),
+      flatLibrary: FlatLibraryService(
+        dao: FlatLibraryDao(database),
+        seam: seam,
+        readHeader: (_) async => FrameHeader(const {}),
+      ),
       buildMaster: (_) => throw UnimplementedError(),
       settings: database.settingsDao,
       fileExists: (_) async => true,

@@ -2,10 +2,15 @@ import 'dart:ffi';
 import 'dart:io';
 
 import 'package:ffi/ffi.dart';
+// bridge-boundary: desktop_logging_init
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as path;
+
+import 'startup_timeline.dart';
 
 /// Pre-Riverpod boot artifacts captured during early initialisation so they
 /// can be reused later by Riverpod-aware services without round-tripping
@@ -165,17 +170,19 @@ Future<AppVersionInfo> loadDesktopAppVersion() async {
 /// [resolveSkotiqDataDirectory].
 ///
 /// This step must run before any provider that touches the Rust runtime
-/// (every backend method goes through `bridge.NativeBridge`), so it lives
+/// (every local backend method calls into it), so it lives
 /// outside the Riverpod container.
 Future<DesktopBootPaths> initialiseDesktopLogging() async {
   final (dataRoot: dataRoot, logDirectory: logDir) =
       await prepareDesktopLogDirectory();
+  startupTimeline.mark('data directories');
 
   // Ensure libraw.dll and other deps next to skotiq_bridge.dll resolve when
   // the process working directory is not the Release folder (e.g. shortcuts).
   configureWindowsNativeDllSearchPath();
 
   await bridge.NativeBridge.init(logDirectory: logDir);
+  startupTimeline.mark('native bridge');
   if (!bridge.NativeBridge.isNativeAvailable) {
     // Name the CURRENT platform's library and layout, so the hint points at a
     // path that exists on the operator's machine.
@@ -206,8 +213,9 @@ Future<DesktopBootPaths> initialiseDesktopLogging() async {
 
   final profileDir = await resolveDesktopProfileDirectory();
   await Directory(profileDir).create(recursive: true);
-  await bridge.NativeBridge.apiInitProfileStorage(storagePath: profileDir);
-  await bridge.NativeBridge.apiInitSettingsStorage(storagePath: profileDir);
+  bridge.apiInitProfileStorage(storagePath: profileDir);
+  bridge.apiInitSettingsStorage(storagePath: profileDir);
+  startupTimeline.mark('native profile storage');
 
   return DesktopBootPaths(
     logDirectory: logDir,

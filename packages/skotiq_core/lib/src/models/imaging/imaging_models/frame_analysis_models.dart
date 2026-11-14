@@ -1,6 +1,5 @@
 part of '../imaging_models.dart';
 
-/// Frame type for imaging
 enum FrameType {
   light,
   dark,
@@ -8,6 +7,47 @@ enum FrameType {
   bias,
   darkFlat,
   snapshot;
+
+  /// The frame type as the executor takes it (`ExposureConfig.frame_type`)
+  /// and as a saved frame's `IMAGETYP` card spells it, whoever took the
+  /// frame. PascalCase because it lands in the card verbatim.
+  String get imageType => switch (this) {
+    FrameType.light => 'Light',
+    FrameType.dark => 'Dark',
+    FrameType.flat => 'Flat',
+    FrameType.bias => 'Bias',
+    FrameType.darkFlat => 'DarkFlat',
+    FrameType.snapshot => 'Snapshot',
+  };
+
+  /// The frame type as a captured-image record names it: the `frame_type`
+  /// column, the host's image rows and the executor's capture events.
+  String get record => switch (this) {
+    FrameType.light => 'light',
+    FrameType.dark => 'dark',
+    FrameType.flat => 'flat',
+    FrameType.bias => 'bias',
+    FrameType.darkFlat => 'darkflat',
+    FrameType.snapshot => 'snapshot',
+  };
+
+  /// The frame type [record] names ([FrameType.record]); null for a name no
+  /// record carries.
+  static FrameType? fromRecord(String record) {
+    for (final type in values) {
+      if (type.record == record) return type;
+    }
+    return null;
+  }
+
+  /// The frame type an `IMAGETYP` card or the executor's capture record names
+  /// ([FrameType.imageType]); null for any other name.
+  static FrameType? fromImageType(String imageType) {
+    for (final type in values) {
+      if (type.imageType == imageType) return type;
+    }
+    return null;
+  }
 
   String get displayName {
     switch (this) {
@@ -37,7 +77,6 @@ enum BayerPattern {
   String get displayName => name.toUpperCase();
 }
 
-/// Debayer algorithm
 enum DebayerAlgorithm {
   bilinear,
   vng,
@@ -55,7 +94,6 @@ enum DebayerAlgorithm {
   }
 }
 
-/// Image statistics
 class ImageStats extends Equatable {
   final double? hfr;
   final double? fwhm;
@@ -146,7 +184,6 @@ class ImageStats extends Equatable {
   ];
 }
 
-/// Detected star information
 class DetectedStar extends Equatable {
   final double x;
   final double y;
@@ -172,7 +209,6 @@ class DetectedStar extends Equatable {
   List<Object?> get props => [x, y, flux, hfr, fwhm, peak, background, snr];
 }
 
-/// Star detection result
 class StarDetectionResult extends Equatable {
   final List<DetectedStar> stars;
   final int starCount;

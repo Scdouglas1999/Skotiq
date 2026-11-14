@@ -1,13 +1,12 @@
-import 'dart:math' as math;
-
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/scheduler/scheduler_status.dart' show SchedulerConfig;
 import '../../../models/sequence/sequence_models.dart';
-import '../../../services/scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../equipment/mount_state_provider.dart';
 import '../../settings_provider.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 // Sky-readiness rules — will this run, started right now, actually see sky?
 //
@@ -32,10 +31,10 @@ const Duration _maxDarknessWait = Duration(hours: 3);
 /// if that happens within [_maxDarknessWait].
 int? _minutesUntilDark(DateTime now, double latitude, double longitude) {
   for (var minutes = 0; minutes <= _maxDarknessWait.inMinutes; minutes++) {
-    final (sunAltitude, _) = SkyCalculations.sunAltAz(
-      time: now.add(Duration(minutes: minutes)),
-      latitudeDegrees: latitude,
-      longitudeDegrees: longitude,
+    final (sunAltitude, _) = AstronomyCalculations.sunAltAz(
+      dt: now.add(Duration(minutes: minutes)),
+      latitudeDeg: latitude,
+      longitudeDeg: longitude,
     );
     if (sunAltitude <= _maxSunAltitudeDegrees) return minutes;
   }
@@ -44,9 +43,8 @@ int? _minutesUntilDark(DateTime now, double latitude, double longitude) {
 
 /// Enabled light-frame exposures reachable in this sequence.
 bool _capturesLightFrames(Sequence sequence) {
-  return sequence.nodes.values.any(
+  return sequence.enabledNodes.any(
     (node) =>
-        node.isEnabled &&
         node is ExposureNode &&
         node.frameType == FrameType.light &&
         node.count > 0 &&
@@ -59,8 +57,7 @@ bool _capturesLightFrames(Sequence sequence) {
 /// crossing trigger. Such a run is *meant* to begin in daylight and wait, so
 /// the daylight gate is not a categorical refusal for it.
 bool _waitsBeforeImaging(Sequence sequence) {
-  return sequence.nodes.values.any((node) {
-    if (!node.isEnabled) return false;
+  return sequence.enabledNodes.any((node) {
     if (node is WaitTimeNode) {
       return node.waitUntil != null || node.waitForTwilight != null;
     }
@@ -101,10 +98,10 @@ class DaylightGateRule implements RefAwareSequenceValidator {
     final site = ctx.ref.read(appObserverLocationProvider);
     if (site == null) return const [];
 
-    final (sunAltitude, _) = SkyCalculations.sunAltAz(
-      time: clock().toUtc(),
-      latitudeDegrees: site.latitude,
-      longitudeDegrees: site.longitude,
+    final (sunAltitude, _) = AstronomyCalculations.sunAltAz(
+      dt: clock().toUtc(),
+      latitudeDeg: site.latitude,
+      longitudeDeg: site.longitude,
     );
     if (sunAltitude <= _maxSunAltitudeDegrees) return const [];
 
@@ -214,33 +211,31 @@ class MountOffTargetRule implements RefAwareSequenceValidator {
     // operators legitimately put a Slew or Center above the target rather than
     // under it, and a false block on a run that does point the mount would be
     // worse than the miss this rule exists to catch.
-    final pointsTheMount = sequence.nodes.values.any(
+    final pointsTheMount = sequence.enabledNodes.any(
       (node) =>
-          node.isEnabled &&
-          (node is SlewNode || node is CenterNode || node is MeridianFlipNode),
+          node is SlewNode || node is CenterNode || node is MeridianFlipNode,
     );
     if (pointsTheMount) return const [];
 
     final issues = <ValidationIssue>[];
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! TargetHeaderNode) continue;
-      if (!node.isEnabled) continue;
       if (node.raHours == 0.0 && node.decDegrees == 0.0) continue;
 
       final capturesLight = sequence.descendantsOf(node.id).any((id) {
         final child = sequence.nodes[id];
         return child is ExposureNode &&
-            child.isEnabled &&
+            sequence.isNodeEnabled(child) &&
             child.frameType == FrameType.light &&
             child.count > 0;
       });
       if (!capturesLight) continue;
 
-      final separation = _angularSeparationDegrees(
-        ra1Hours: node.raHours,
-        dec1Degrees: node.decDegrees,
-        ra2Hours: mountRa,
-        dec2Degrees: mountDec,
+      final separation = AstronomyCalculations.angularSeparation(
+        ra1Deg: node.raHours * 15.0,
+        dec1Deg: node.decDegrees,
+        ra2Deg: mountRa * 15.0,
+        dec2Deg: mountDec,
       );
       if (separation <= toleranceDegrees) continue;
 
@@ -263,22 +258,4 @@ class MountOffTargetRule implements RefAwareSequenceValidator {
     }
     return issues;
   }
-}
-
-/// Great-circle separation between two equatorial positions, in degrees.
-double _angularSeparationDegrees({
-  required double ra1Hours,
-  required double dec1Degrees,
-  required double ra2Hours,
-  required double dec2Degrees,
-}) {
-  const degreesPerHour = 15.0;
-  final ra1 = ra1Hours * degreesPerHour * math.pi / 180.0;
-  final ra2 = ra2Hours * degreesPerHour * math.pi / 180.0;
-  final dec1 = dec1Degrees * math.pi / 180.0;
-  final dec2 = dec2Degrees * math.pi / 180.0;
-  final cosSeparation =
-      math.sin(dec1) * math.sin(dec2) +
-      math.cos(dec1) * math.cos(dec2) * math.cos(ra1 - ra2);
-  return math.acos(cosSeparation.clamp(-1.0, 1.0)) * 180.0 / math.pi;
 }

@@ -16,7 +16,7 @@ part of '../darkroom_editor.dart';
 /// carries the reason — never hidden, because an operator looking for an
 /// operation this build registers has to be able to see what is in the way.
 class _DarkroomAddStep extends StatelessWidget {
-  final DarkroomState state;
+  final DarkroomViewState state;
 
   /// Adds a step for the chosen operation. The controller asks the engine
   /// before anything commits, and states its refusal on the state.
@@ -100,7 +100,7 @@ class _DarkroomAddStep extends StatelessWidget {
 
 /// The registry's operations, with what each one does and where it would go.
 class _DarkroomAddStepDialog extends StatelessWidget {
-  final DarkroomState state;
+  final DarkroomViewState state;
   final DarkroomCatalog catalog;
 
   const _DarkroomAddStepDialog({required this.state, required this.catalog});

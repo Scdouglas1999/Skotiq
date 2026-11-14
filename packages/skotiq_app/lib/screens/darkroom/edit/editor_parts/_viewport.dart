@@ -20,7 +20,6 @@ final darkroomDisplayScaleProvider = StateProvider<double>((ref) => 1.0);
 /// screen pixel is a master pixel.
 const double kDarkroomMaxViewerScale = 32.0;
 
-/// Narrowest zoom the Darkroom viewport allows.
 const double kDarkroomMinViewerScale = 0.05;
 
 /// Step one press of the zoom buttons takes.
@@ -41,7 +40,7 @@ const double kDarkroomZoomStep = 1.25;
 /// compare panes pass: a pane's own strip names the SIDE and the branch, and
 /// the reader of a two-pane view needs to know which of the two a picture is.
 String darkroomPictureLabel(
-  DarkroomState state,
+  DarkroomViewState state,
   DarkroomPreviewImage preview, {
   String? name,
 }) {
@@ -176,7 +175,7 @@ const String kDarkroomOneToOneNeedsLevel =
 ///
 /// Only asked when there is no preview, and the order matches the canvas's own
 /// branches so the row and the picture never give two accounts of one state.
-String _darkroomNoRenderReason(DarkroomState state) {
+String _darkroomNoRenderReason(DarkroomViewState state) {
   if (state.rendering) {
     return 'the first render over this master is still running';
   }
@@ -382,7 +381,7 @@ class _DarkroomZoomControls extends StatelessWidget {
 
 /// The rendered image, and the controls that move the view over it.
 class _DarkroomViewport extends ConsumerStatefulWidget {
-  final DarkroomState state;
+  final DarkroomViewState state;
 
   /// Re-check and re-render the committed stack now.
   final Future<void> Function() onRerender;
@@ -521,7 +520,7 @@ class _DarkroomViewportState extends ConsumerState<_DarkroomViewport> {
   static const double _hudBottomInset = 64;
 
   /// The frame's own numbers, top-left, in the corner 05 §14 gives them.
-  Widget _frameStats(DarkroomState state) {
+  Widget _frameStats(DarkroomViewState state) {
     final preview = state.preview!;
     final scale = _zoom.masterScale(preview);
     return Glass(
@@ -553,7 +552,7 @@ class _DarkroomViewportState extends ConsumerState<_DarkroomViewport> {
   }
 
   /// What the engine did to the pixels for the screen, bottom-left.
-  Widget _encodingHud(DarkroomState state) {
+  Widget _encodingHud(DarkroomViewState state) {
     final preview = state.preview!;
     final encoding = preview.encoding;
     final screenTransfer = encoding.screenTransfer;
@@ -591,7 +590,7 @@ class _DarkroomViewportState extends ConsumerState<_DarkroomViewport> {
     );
   }
 
-  Widget _canvas(SkotiqColors colors, DarkroomState state) {
+  Widget _canvas(SkotiqColors colors, DarkroomViewState state) {
     final preview = state.preview;
     if (preview == null) {
       if (state.rendering) {
@@ -753,9 +752,6 @@ class _DarkroomTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A chip is a chip (05 §10): 22 px, solid `surfaceHover`, `radiusXs`, no
-    // border. It was a hand-rolled bordered box with its own padding and text
-    // size, which is the "second style of something" 02's fourth rule forbids.
     return Tooltip(message: tooltip, child: SkotiqChip(label: label));
   }
 }

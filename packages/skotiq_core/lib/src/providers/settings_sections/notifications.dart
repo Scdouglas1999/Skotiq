@@ -16,45 +16,28 @@
 //     and the `push_notification_provider`.
 part of '../settings_provider.dart';
 
-/// Setters for legacy notification toggles.
 extension NotificationSettingsSection on AppSettingsNotifier {
-  Future<void> setNotificationsEnabled(bool value) async {
-    await _saveSetting('notifications_enabled', value.toString());
-    _patchState((s) => s.copyWith(notificationsEnabled: value));
-  }
+  Future<void> setNotificationsEnabled(bool value) =>
+      _set(AppSettingDefs.notificationsEnabled, value);
 
-  Future<void> setDiscordWebhook(String value) async {
-    await _saveSetting('discord_webhook', value);
-    _patchState((s) => s.copyWith(discordWebhook: value));
-  }
+  Future<void> setDiscordWebhook(String value) =>
+      _set(AppSettingDefs.discordWebhook, value);
 
-  Future<void> setPushoverKey(String value) async {
-    await _saveSetting('pushover_key', value);
-    _patchState((s) => s.copyWith(pushoverKey: value));
-  }
+  Future<void> setPushoverKey(String value) =>
+      _set(AppSettingDefs.pushoverKey, value);
 
-  Future<void> setPushoverUser(String value) async {
-    await _saveSetting('pushover_user', value);
-    _patchState((s) => s.copyWith(pushoverUser: value));
-  }
+  Future<void> setPushoverUser(String value) =>
+      _set(AppSettingDefs.pushoverUser, value);
 
-  Future<void> setNotifyOnSequenceComplete(bool value) async {
-    await _saveSetting('notify_on_sequence_complete', value.toString());
-    _patchState((s) => s.copyWith(notifyOnSequenceComplete: value));
-  }
+  Future<void> setNotifyOnSequenceComplete(bool value) =>
+      _set(AppSettingDefs.notifyOnSequenceComplete, value);
 
-  Future<void> setNotifyOnError(bool value) async {
-    await _saveSetting('notify_on_error', value.toString());
-    _patchState((s) => s.copyWith(notifyOnError: value));
-  }
+  Future<void> setNotifyOnError(bool value) =>
+      _set(AppSettingDefs.notifyOnError, value);
 
-  Future<void> setNotifyOnMeridianFlip(bool value) async {
-    await _saveSetting('notify_on_meridian_flip', value.toString());
-    _patchState((s) => s.copyWith(notifyOnMeridianFlip: value));
-  }
+  Future<void> setNotifyOnMeridianFlip(bool value) =>
+      _set(AppSettingDefs.notifyOnMeridianFlip, value);
 
-  Future<void> setSoundEnabled(bool value) async {
-    await _saveSetting('sound_enabled', value.toString());
-    _patchState((s) => s.copyWith(soundEnabled: value));
-  }
+  Future<void> setSoundEnabled(bool value) =>
+      _set(AppSettingDefs.soundEnabled, value);
 }

@@ -1,8 +1,3 @@
-// The window's own chrome, drawn inside the single slate of glass: the drag
-// surface, the minimize / maximize / close controls, the main area's top
-// band, the sidebar's header (lockup + command field), and the invisible
-// resize edges an undecorated Linux window needs.
-import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
@@ -11,17 +6,18 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../../widgets/command_palette/command_palette.dart';
-import '../../../widgets/remote_connection_indicator.dart';
-import '../../../widgets/transient_alert_badge.dart';
-import '../../../widgets/tutorial_overlay.dart' show TutorialKeys;
+import '../command_palette/command_palette.dart';
+import '../../connection/remote_connection_indicator.dart';
+import 'transient_alert_badge.dart';
+import '../../../tours/tour_target.dart';
 import '../shell_chrome.dart';
 import 'shell_clock.dart';
 import 'shell_help_popover.dart';
 
-// Conditional import for window_manager (desktop only)
 import 'window_chrome_stub.dart'
     if (dart.library.io) 'window_chrome_desktop.dart' as window_impl;
+import '../../../router/app_routes.dart';
+import 'package:skotiq_core/services.dart';
 
 /// The host window's maximize and full-screen flags, as the shell last heard
 /// them. The resize edges and the app-drawn hairline gate on this: an
@@ -329,42 +325,38 @@ class ShellTopBand extends StatelessWidget {
             // Remote connection. Tap opens the details sheet, which carries
             // the "Reconnect now" button and the share action.
             const RemoteConnectionIndicator(compact: true),
-            // Transient alerts.
             Builder(
               builder: (context) => TransientAlertBadge(
                 showDropdown: true,
                 onTap: () {
                   try {
-                    context.go('/transients');
+                    context.go(AppRoutes.observingAlerts());
                   } catch (e) {
-                    developer.log(
+                    Log.warning(
                       '[ShellTopBand] Could not navigate to transients: $e',
-                      name: 'ShellTopBand',
-                      level: 900,
+                      source: 'ShellTopBand',
                       error: e,
                     );
                   }
                 },
               ),
             ),
-            // Help for this screen: the tour, the shortcuts, the manual.
             const ShellHelpButton(),
             // Settings — keyed for the onboarding overlay so the first-launch
             // tour can spotlight where Plate Solving lives.
             Builder(
               builder: (context) => SkotiqIconButton(
-                key: TutorialKeys.navSettings,
+                key: TourTarget.navSettings.key,
                 icon: LucideIcons.settings,
                 tooltip: l10n.text('settingsTitle'),
                 tooltipPosition: SkotiqTooltipPosition.bottom,
                 onPressed: () {
                   try {
-                    context.go('/settings');
+                    openSettings(context);
                   } catch (e, stack) {
-                    developer.log(
+                    Log.warning(
                       '[ShellTopBand] Could not navigate to settings: $e',
-                      name: 'ShellTopBand',
-                      level: 900,
+                      source: 'ShellTopBand',
                       error: e,
                       stackTrace: stack,
                     );

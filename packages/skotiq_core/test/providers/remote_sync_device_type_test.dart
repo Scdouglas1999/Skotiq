@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../harness/in_memory_database.dart';
 
@@ -37,29 +38,12 @@ void main() {
     test('equipment Disconnected clears the switch card', () async {
       markSwitchConnected();
 
-      await applyRemoteSyncEvent(
+      applyHostLocalSyncEvent(
         container,
         _equipmentEvent('Disconnected', const {
           'device_type': 'switch',
           'device_id': 'switch-1',
         }),
-      );
-
-      expect(
-        container.read(switchStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
-      );
-    });
-
-    test('device_disconnected sync payload clears the switch card', () async {
-      markSwitchConnected();
-
-      await applyRemoteSyncEvent(
-        container,
-        remoteSyncEvent(
-          eventType: RemoteSyncEventTypes.deviceDisconnected,
-          data: const {'device_type': 'switch_', 'device_id': 'switch-1'},
-        ),
       );
 
       expect(
@@ -91,7 +75,7 @@ void main() {
       ];
 
       for (final wireType in wireTypes) {
-        await applyRemoteSyncEvent(
+        applyHostLocalSyncEvent(
           container,
           _equipmentEvent('Connected', {
             'device_type': wireType,
@@ -99,7 +83,7 @@ void main() {
             'device_name': wireType,
           }),
         );
-        await applyRemoteSyncEvent(
+        applyHostLocalSyncEvent(
           container,
           _equipmentEvent('Disconnected', {
             'device_type': wireType,

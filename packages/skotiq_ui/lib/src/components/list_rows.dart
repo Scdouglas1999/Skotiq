@@ -24,7 +24,6 @@ class ListRow extends StatefulWidget {
     this.showDivider = true,
   });
 
-  /// The row's text.
   final String title;
 
   /// An optional 15px leading glyph in `textMuted`.
@@ -44,7 +43,6 @@ class ListRow extends StatefulWidget {
   /// false — a line under the final row is the bottom of nothing.
   final bool showDivider;
 
-  /// Vertical padding.
   static const double verticalPadding = SkotiqTokens.spaceSm;
 
   /// Gap between the icon, the title and the trailing slot.
@@ -146,7 +144,6 @@ class DeviceRow extends StatelessWidget {
     this.onTap,
   });
 
-  /// The device's name.
   final String name;
 
   /// Its live values, right-aligned.

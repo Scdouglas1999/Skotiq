@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/center/chart_axes.dart';
 import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../golden/surface_golden_harness.dart';
 import '../fixtures/night_fixtures.dart';
@@ -76,32 +77,86 @@ void main() {
 
   group('ticks', () {
     test('round values inside the range, at most the count asked for', () {
-      expect(nightAxisTicks(1.98, 3.05, 3), <double>[2.0, 2.5, 3.0]);
-      expect(nightAxisTicks(-0.95, 0.95, 3), <double>[-0.5, 0, 0.5]);
-      expect(nightAxisTicks(-1.12, 1.12, 3), <double>[-1, 0, 1]);
+      expect(ChartScale.ticksWithin(1.98, 3.05, 3).values,
+          <double>[2.0, 2.5, 3.0]);
+      expect(ChartScale.ticksWithin(-0.95, 0.95, 3).values,
+          <double>[-0.5, 0, 0.5]);
+      expect(ChartScale.ticksWithin(-1.12, 1.12, 3).values, <double>[-1, 0, 1]);
       // Only two fit: the ends stay, the middle goes.
-      expect(nightAxisTicks(-1.12, 1.12, 2), <double>[-1, 1]);
-      expect(nightAxisTicks(-10.2, 16, 2), <double>[-10, 10]);
+      expect(ChartScale.ticksWithin(-1.12, 1.12, 2).values, <double>[-1, 1]);
+      expect(ChartScale.ticksWithin(-10.2, 16, 2).values, <double>[-10, 10]);
     });
 
     test('decimals follow the step', () {
-      expect(nightAxisDecimals(10), 0);
-      expect(nightAxisDecimals(0.5), 1);
-      expect(nightAxisDecimals(0.25), 2);
+      expect(ChartScale.decimalsFor(10), 0);
+      expect(ChartScale.decimalsFor(0.5), 1);
+      expect(ChartScale.decimalsFor(0.25), 2);
     });
 
     test('clock ticks fit the span and the room', () {
       final from = DateTime(2026, 10, 19, 19, 48);
       final to = DateTime(2026, 10, 19, 23, 52);
-      expect(nightTimeTicks(from, to, 4).map((t) => t.hour), [20, 21, 22, 23]);
-      expect(nightTimeTicks(from, to, 2).map((t) => t.hour), [20, 22]);
-      final ten = nightTimeTicks(
+      expect(ChartScale.clockTicks(from, to, 4).map((t) => t.hour),
+          [20, 21, 22, 23]);
+      expect(ChartScale.clockTicks(from, to, 2).map((t) => t.hour), [20, 22]);
+      final ten = ChartScale.clockTicks(
         DateTime(2026, 10, 19, 23, 42),
         DateTime(2026, 10, 19, 23, 52),
         5,
       );
       expect(ten.map((t) => t.minute), [44, 46, 48, 50, 52]);
     });
+  });
+
+  testWidgets('clock labels are evenly spaced at every width', (tester) async {
+    // The planner's altitude well: an hour either side of a 02:57-13:45 dark.
+    final from = DateTime(2026, 11, 11, 1, 57);
+    final to = DateTime(2026, 11, 11, 14, 45);
+    final points = <(DateTime, double?)>[
+      for (var m = 0; m <= to.difference(from).inMinutes; m += 30)
+        (from.add(Duration(minutes: m)), 45),
+    ];
+    for (var width = 200.0; width <= 480; width += 10) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: width,
+              height: 110,
+              child: NightChartAxes(
+                from: from,
+                to: to,
+                leftTicks: const <double>[0, 30, 60, 90],
+                leftUnit: '°',
+                lines: <SeriesChartLine>[
+                  SeriesChartLine(
+                    points: points,
+                    tone: SeriesChartTone.primary,
+                    minY: 0,
+                    maxY: 90,
+                  ),
+                ],
+                semanticLabel: 'altitude',
+              ),
+            ),
+          ),
+        ),
+      );
+      final hours = <int>[
+        for (final text in find
+            .textContaining(RegExp(r'^\d\d:00$'))
+            .evaluate()
+            .map((e) => (e.widget as Text).data!))
+          int.parse(text.substring(0, 2)),
+      ];
+      expect(hours.length, greaterThanOrEqualTo(2), reason: 'at $width px');
+      final steps = <int>{
+        for (var i = 1; i < hours.length; i++) hours[i] - hours[i - 1],
+      };
+      expect(steps, hasLength(1), reason: 'at $width px: $hours');
+    }
   });
 
   for (final (bodyHeight, row) in const <(double, String)>[

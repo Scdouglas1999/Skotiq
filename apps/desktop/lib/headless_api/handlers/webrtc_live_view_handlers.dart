@@ -79,11 +79,14 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import 'live_view_stream_handlers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Default ICE servers used when the client does not supply any.
 /// Google's public STUN is fine for LAN + symmetric-NAT-free links;
@@ -118,7 +121,15 @@ typedef PeerConnectionFactory =
 /// Handlers for the `/api/webrtc/live-view/*` signalling surface plus
 /// the per-session [_WebRtcLiveViewSession] registry. One instance per
 /// server; sessions are short-lived (one peer connection each).
-class WebRtcLiveViewHandlers {
+class WebRtcLiveViewHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    WebRtcLiveViewApi.rsOffer: handleOffer,
+    WebRtcLiveViewApi.rsSessionid: handleIce,
+    WebRtcLiveViewApi.rs: handleIceEvents,
+    WebRtcLiveViewApi.rsDelete: handleDelete,
+  };
+
   final ProviderContainer container;
   final LiveViewStreamHub hub;
   final LoggingService _logger;
@@ -162,8 +173,6 @@ class WebRtcLiveViewHandlers {
       await _destroySession(id, reason: 'server_shutdown');
     }
   }
-
-  // Route handlers
 
   /// POST /api/webrtc/live-view/offer
   Future<Response> handleOffer(Request request) async {
@@ -450,8 +459,6 @@ class WebRtcLiveViewHandlers {
     await _destroySession(sessionId, reason: 'client_delete');
     return noContentResponse();
   }
-
-  // Session lifecycle
 
   Future<_WebRtcLiveViewSession> _createSession({
     required String sessionId,

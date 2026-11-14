@@ -1,18 +1,21 @@
+import 'async_scope.dart';
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
-import '../services/logging_service.dart';
+import '../utils/poll_pace.dart';
 import 'backend_provider.dart';
 import 'remote_sync_handler.dart';
+import '../models/backend/backend_types.dart';
+import 'logging_service_provider.dart';
+import '../models/backend/backend_connection_state.dart';
 
 const _logSource = 'RemoteSessionSync';
 
 /// Keeps companion UI state aligned with the imaging host when connected via
-/// [NetworkBackend]. Without hydration, mobile shows local SQLite profiles and
+/// linked host. Without hydration, mobile shows local SQLite profiles and
 /// disconnected device chips even though the desktop rig is live.
 final remoteSessionSyncProvider = Provider<void>((ref) {
   StreamSubscription<SkotiqEvent>? eventSub;
@@ -31,20 +34,21 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
     hydrationPending = false;
   }
 
-  late final void Function(NetworkBackend backend, {bool periodic})
+  late final void Function(SkotiqBackend backend, {bool periodic})
   requestHydration;
   // A periodic request never downgrades a pending full one: a reconnect that
   // lands while a poll is in flight must still refresh the current frame.
   var pendingIsPeriodic = true;
   requestHydration = (backend, {bool periodic = false}) {
-    if (!identical(ref.read(backendProvider), backend)) return;
+    if (ref.backendScopeOver(backend).isStale) return;
     // Terminal backend state (auth rejected, version/identity mismatch):
     // every request in the hydration fan-out can only fail — and for a
     // dead token each failure feeds the server's auth-failure limiter.
     // Stay quiet until an explicit reconnect moves the state out of
     // `error`. `==` rather than `isAuthTokenRejected` so this also covers
     // the other terminal modes.
-    if (backend.connectionState == BackendConnectionState.error) return;
+    final linkState = backend.remoteHost?.link.connectionState;
+    if (linkState == BackendConnectionState.error) return;
     if (hydrationInFlight) {
       if (!hydrationPending) pendingIsPeriodic = periodic;
       if (!periodic) pendingIsPeriodic = false;
@@ -71,7 +75,7 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
 
   ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
     teardown();
-    if (next is! NetworkBackend) {
+    if (next.remoteHost == null) {
       return;
     }
 
@@ -81,11 +85,11 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
       if (event.eventType == 'BackendReconnected') {
         requestHydration(next);
       } else {
-        unawaited(applyRemoteSyncEvent(ref, event, networkBackend: next));
+        applyHostEventOnClient(ref.container, next, event);
       }
     });
 
-    pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    pollTimer = pacedPeriodicTimer(const Duration(seconds: 30), () {
       requestHydration(next, periodic: true);
     });
   }, fireImmediately: true);
@@ -93,31 +97,24 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
 
 Future<void> _hydrate(
   Ref ref,
-  NetworkBackend backend, {
+  SkotiqBackend backend, {
   required bool refreshCurrentFrame,
 }) async {
   final logger = ref.read(loggingServiceProvider);
 
   try {
     await hydrateRemoteSessionState(
-      ref,
+      ref.container,
       backend,
       refreshCurrentFrame: refreshCurrentFrame,
     );
-    if (!identical(ref.read(backendProvider), backend)) return;
+    if (ref.backendScopeOver(backend).isStale) return;
     logger.info('Hydrated remote session from host', source: _logSource);
   } catch (e, stackTrace) {
     logger.error(
       'Remote session hydration failed: $e',
       source: _logSource,
       fields: {'stackTrace': '$stackTrace'},
-    );
-    developer.log(
-      'Remote session hydration failed: $e',
-      name: _logSource,
-      level: 1000,
-      error: e,
-      stackTrace: stackTrace,
     );
   }
 }

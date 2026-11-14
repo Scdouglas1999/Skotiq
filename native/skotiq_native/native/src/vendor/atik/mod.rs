@@ -1,18 +1,21 @@
 //! Atik Camera SDK Bindings
 //!
-//! Native driver for Atik cameras using their official Artemis SDK.
-//! Supports Atik Horizon, ACIS, APX, and older series cameras.
+//! Native driver for Atik cameras and EFW filter wheels using the Atik
+//! (Artemis) SDK. Supports the Horizon, ACIS, Apx and CCD series.
 
-use crate::camera::{
-    BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
-    ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+use crate::camera_core::{
+    image_dimension, unpack_samples, CameraCore, Frame, SampleLayout, SdkHandle,
 };
-use crate::sync::atik_mutex;
-use crate::traits::{NativeCamera, NativeDevice, NativeError, NativeFilterWheel};
-use crate::NativeVendor;
 use async_trait::async_trait;
+use skotiq_cfa::BayerPattern;
+use skotiq_device::camera::{
+    CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ReadoutMode,
+    SensorInfo, SubFrame, VendorFeatures,
+};
+use skotiq_device::Vendor;
+use skotiq_device::{CameraDriver, DeviceDriver, DriverError, FilterWheelDriver};
 use std::collections::HashMap;
-use std::ffi::{c_char, c_float, c_int, c_void, CStr};
+use std::ffi::{c_char, c_float, c_int, c_void};
 use std::sync::{Mutex, OnceLock};
 
 mod camera;
@@ -20,12 +23,14 @@ mod camera_ops;
 mod discovery;
 mod ffi;
 mod filter_wheel;
+mod gain;
 mod sdk;
 
 pub use camera::*;
 pub use discovery::*;
 use ffi::*;
 pub use filter_wheel::*;
+use gain::{GainControl, Options};
 use sdk::*;
 
 #[cfg(test)]
@@ -75,7 +80,6 @@ mod colour_classification_tests {
         let colour = atik_sensor_colour(ARTEMIS_COLOUR_NONE).expect("mono is determinate");
         assert_eq!(colour, AtikSensorColour::Mono);
         assert!(!colour.is_color());
-        assert_eq!(colour.bayer_pattern(), None);
     }
 
     #[test]
@@ -83,7 +87,7 @@ mod colour_classification_tests {
         let colour = atik_sensor_colour(ARTEMIS_COLOUR_RGGB).expect("RGGB is determinate");
         assert_eq!(colour, AtikSensorColour::Rggb);
         assert!(colour.is_color());
-        assert_eq!(colour.bayer_pattern(), Some(BayerPattern::Rggb));
+        assert_eq!(rggb_cell_at(0, 0), BayerPattern::Rggb);
     }
 
     /// A colour type a future SDK adds is as undetermined as UNKNOWN for this

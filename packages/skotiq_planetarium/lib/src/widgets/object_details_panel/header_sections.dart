@@ -60,7 +60,6 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
     );
   }
 
-  /// Build header with thumbnail for DSOs
   Widget _buildHeaderWithThumbnail(
     Color txtColor,
     Color accent,
@@ -71,7 +70,6 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Thumbnail
         _buildThumbnail(dso),
         const SizedBox(width: 12),
         // Name and details
@@ -191,18 +189,7 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
     if (object is Star) {
       return 'Star';
     } else if (object is DeepSkyObject) {
-      final dso = object as DeepSkyObject;
-      return switch (dso.type) {
-        DsoType.galaxy => 'Galaxy',
-        DsoType.nebula => 'Nebula',
-        DsoType.openCluster => 'Open Cluster',
-        DsoType.globularCluster => 'Globular Cluster',
-        DsoType.planetaryNebula => 'Planetary Nebula',
-        DsoType.supernova => 'Supernova Remnant',
-        DsoType.starCloud => 'Star Cloud',
-        DsoType.asterism => 'Asterism',
-        _ => 'Deep Sky Object',
-      };
+      return (object as DeepSkyObject).type.displayName;
     }
     return 'Celestial Object';
   }
@@ -229,19 +216,20 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
     return ids.toSet().toList(); // Remove duplicates
   }
 
-  // Thumbnail widget
-
   /// Build a survey thumbnail for DSOs with icon fallback on network/load errors.
   Widget _buildThumbnail(DeepSkyObject dso) {
-    final request = SurveyImageRequest(
-      raDeg: dso.coordinates.ra * 15.0,
-      decDeg: dso.coordinates.dec,
-      fovWidth: _thumbnailFovDeg(dso),
-      fovHeight: _thumbnailFovDeg(dso),
-      pixelWidth: 256,
-      pixelHeight: 256,
-      source: SurveySource.dss2Red,
-    );
+    final fov = _thumbnailFovDeg(dso).toStringAsFixed(6);
+    // CDS hips2fits cutout of the DSS2 red survey.
+    final thumbnailUrl =
+        Uri.https('alasky.cds.unistra.fr', '/hips-image-services/hips2fits', {
+          'ra': (dso.coordinates.ra * 15.0).toStringAsFixed(6),
+          'dec': dso.coordinates.dec.toStringAsFixed(6),
+          'fov': fov,
+          'width': '256',
+          'height': '256',
+          'format': 'jpg',
+          'hips': 'CDS/P/DSS2/red',
+        }).toString();
 
     return Container(
       width: 80,
@@ -254,7 +242,7 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
       child: ClipRRect(
         borderRadius: SkotiqTokens.borderRadiusLg,
         child: Image.network(
-          request.aladinUrl,
+          thumbnailUrl,
           fit: BoxFit.cover,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;

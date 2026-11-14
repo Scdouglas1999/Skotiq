@@ -2,7 +2,7 @@
 //!
 //! The executor cannot call Dart, so the `TargetScheduler` logic node needs a
 //! native scoring authority. This module ports the multi-factor scoring from
-//! `packages/skotiq_planetarium/lib/src/planning/target_scoring.dart` to
+//! `packages/skotiq_astro/lib/src/planning/target_scoring.dart` to
 //! Rust 1:1 (same weights, same break-points, same airmass formula). The
 //! Dart-side service continues to power the planetarium UI; the new Rust
 //! module is the runtime authority for in-sequence scheduling decisions.

@@ -21,7 +21,8 @@
 //! ASCOM properties are optional; failures are loudly logged before exposure
 //! continues at the camera's current values.
 
-use skotiq_native::camera::SubFrame;
+use skotiq_device::ascom::camera::{frame_geometry, CameraControls};
+use skotiq_device::{DriverError, SubFrame};
 
 /// The minimal camera setter/getter surface the ASCOM exposure-apply step
 /// needs. The real `AscomCamera` (Windows COM) implements this, as does the
@@ -53,16 +54,9 @@ pub trait ExposureApplyTarget {
 /// `start_exposure`. Fails closed on binning or geometry errors; gain/offset
 /// errors are logged and ignored because those ASCOM properties are optional.
 ///
-/// Steps, in order:
-/// 1. **Binning** — validated against the driver max, then `set_bin_x`/
-///    `set_bin_y`. Must precede geometry because `NumX`/`NumY` are in binned
-///    pixels.
-/// 2. **Frame geometry** — a subframe (validated against the *binned* sensor
-///    bounds) or a full frame reset to `sensor_size / bin`.
-/// 3. **Gain / offset** — attempted only when `Some`; `None` leaves the
-///    camera's current value untouched. A failed attempt logs the requested
-///    value and continues at the camera's current value.
-#[allow(clippy::too_many_arguments)]
+/// The frame comes from [`frame_geometry`] (binning first, then the whole
+/// frame in binned pixels); gain and offset are written in the camera's own
+/// mode ([`CameraControls`]) only when the node named them.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn apply_exposure_params<C: ExposureApplyTarget>(
     cam: &mut C,
@@ -71,71 +65,67 @@ pub fn apply_exposure_params<C: ExposureApplyTarget>(
     gain: Option<i32>,
     offset: Option<i32>,
     subframe: &Option<SubFrame>,
+    controls: &CameraControls,
 ) -> Result<(), String> {
-    // 1. Binning (validate against the driver max).
-    let max_bin_x = cam.max_bin_x().unwrap_or(1);
-    let max_bin_y = cam.max_bin_y().unwrap_or(1);
-    if bin_x < 1 || bin_y < 1 {
-        return Err(format!("Binning {}x{} must be >= 1", bin_x, bin_y));
-    }
-    if bin_x > max_bin_x || bin_y > max_bin_y {
-        return Err(format!(
-            "Binning {}x{} exceeds max {}x{}",
-            bin_x, bin_y, max_bin_x, max_bin_y
-        ));
-    }
+    let sensor = (
+        cam.camera_x_size()
+            .map_err(|e| format!("Failed to read CameraXSize: {e}"))?,
+        cam.camera_y_size()
+            .map_err(|e| format!("Failed to read CameraYSize: {e}"))?,
+    );
+    let max_bin = (
+        cam.max_bin_x()
+            .map_err(|e| format!("Failed to read MaxBinX: {e}"))?,
+        cam.max_bin_y()
+            .map_err(|e| format!("Failed to read MaxBinY: {e}"))?,
+    );
+    let frame = frame_geometry(sensor, max_bin, (bin_x, bin_y), subframe.as_ref())
+        .map_err(|e| e.to_string())?;
     cam.set_bin_x(bin_x)
         .and_then(|_| cam.set_bin_y(bin_y))
         .map_err(|e| format!("Failed to set binning: {}", e))?;
+    cam.set_start_x(frame.start_x)
+        .and_then(|_| cam.set_start_y(frame.start_y))
+        .and_then(|_| cam.set_num_x(frame.num_x))
+        .and_then(|_| cam.set_num_y(frame.num_y))
+        .map_err(|e| format!("Failed to set the frame: {}", e))?;
 
-    // 2. Frame geometry, in binned pixels. A subframe is validated against the
-    //    binned sensor size; None means full frame = sensor_size / bin.
-    let bx = bin_x.max(1);
-    let by = bin_y.max(1);
-    let max_x = cam.camera_x_size().unwrap_or(1) / bx;
-    let max_y = cam.camera_y_size().unwrap_or(1) / by;
-    match subframe {
-        Some(sf) => {
-            if sf.start_x as i32 + sf.width as i32 > max_x
-                || sf.start_y as i32 + sf.height as i32 > max_y
-            {
-                return Err("Subframe exceeds (binned) sensor bounds".to_string());
-            }
-            cam.set_start_x(sf.start_x as i32)
-                .and_then(|_| cam.set_start_y(sf.start_y as i32))
-                .and_then(|_| cam.set_num_x(sf.width as i32))
-                .and_then(|_| cam.set_num_y(sf.height as i32))
-                .map_err(|e| format!("Failed to set subframe: {}", e))?;
-        }
-        None => {
-            cam.set_start_x(0)
-                .and_then(|_| cam.set_start_y(0))
-                .and_then(|_| cam.set_num_x(max_x))
-                .and_then(|_| cam.set_num_y(max_y))
-                .map_err(|e| format!("Failed to reset to full frame: {}", e))?;
-        }
-    }
-
-    // 3. Gain / offset, only when the node specified them (None = leave the
-    //    camera's current value unchanged). ICameraV3 makes these properties
-    //    optional, so a driver may reject their setters even though it can
-    //    still expose normally.
     if let Some(gain) = gain {
-        if let Err(error) = cam.set_gain(gain) {
-            tracing::warn!(
+        match controls.gain.to_wire(gain, "Gain") {
+            Ok(wire) => {
+                if let Err(error) = cam.set_gain(wire) {
+                    tracing::warn!(
+                        requested_gain = gain,
+                        error = %error,
+                        "ASCOM camera could not apply the requested gain; exposure will continue at the camera's current gain"
+                    );
+                }
+            }
+            Err(DriverError::NotSupported) => {}
+            Err(error) => tracing::warn!(
                 requested_gain = gain,
                 error = %error,
-                "ASCOM camera could not apply the requested gain; exposure will continue at the camera's current gain"
-            );
+                "ASCOM camera cannot take the requested gain; exposure will continue at the camera's current gain"
+            ),
         }
     }
     if let Some(offset) = offset {
-        if let Err(error) = cam.set_offset(offset) {
-            tracing::warn!(
+        match controls.offset.to_wire(offset, "Offset") {
+            Ok(wire) => {
+                if let Err(error) = cam.set_offset(wire) {
+                    tracing::warn!(
+                        requested_offset = offset,
+                        error = %error,
+                        "ASCOM camera could not apply the requested offset; exposure will continue at the camera's current offset"
+                    );
+                }
+            }
+            Err(DriverError::NotSupported) => {}
+            Err(error) => tracing::warn!(
                 requested_offset = offset,
                 error = %error,
-                "ASCOM camera could not apply the requested offset; exposure will continue at the camera's current offset"
-            );
+                "ASCOM camera cannot take the requested offset; exposure will continue at the camera's current offset"
+            ),
         }
     }
     Ok(())
@@ -148,7 +138,8 @@ pub fn apply_exposure_params<C: ExposureApplyTarget>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skotiq_native::camera::SubFrame;
+    use skotiq_device::ascom::camera::CameraControl;
+    use skotiq_device::SubFrame;
 
     /// Records every setter/getter call (in order) and lets a test force any
     /// setter to fail, so we can assert (a) the correct calls happened, (b) in
@@ -191,9 +182,11 @@ mod tests {
 
     impl ExposureApplyTarget for SpyCamera {
         fn max_bin_x(&self) -> Result<i32, String> {
+            self.maybe_fail("max_bin_x")?;
             Ok(self.max_bin)
         }
         fn max_bin_y(&self) -> Result<i32, String> {
+            self.maybe_fail("max_bin_y")?;
             Ok(self.max_bin)
         }
         fn camera_x_size(&self) -> Result<i32, String> {
@@ -248,6 +241,47 @@ mod tests {
         }
     }
 
+    fn value_controls() -> CameraControls {
+        CameraControls {
+            gain: CameraControl::Value { range: None },
+            offset: CameraControl::Value { range: None },
+        }
+    }
+
+    #[test]
+    fn unreadable_binning_limits_prevent_all_exposure_writes() {
+        for member in ["max_bin_x", "max_bin_y"] {
+            let mut camera = SpyCamera::new();
+            camera.fail_on = Some(member);
+            let error =
+                apply_exposure_params(&mut camera, 1, 1, None, None, &None, &value_controls())
+                    .unwrap_err();
+            assert!(error.contains(member));
+            assert!(
+                camera.calls.is_empty(),
+                "no frame settings may be written: {:?}",
+                camera.calls
+            );
+        }
+    }
+
+    /// A gain list of ISO speeds: the node's ISO 800 is written as its index.
+    #[test]
+    fn an_iso_gain_is_written_as_its_index_in_the_gain_list() {
+        let mut cam = SpyCamera::new();
+        let controls = CameraControls {
+            gain: CameraControl::Named(vec!["ISO 100".into(), "ISO 400".into(), "ISO 800".into()]),
+            offset: CameraControl::Absent,
+        };
+        apply_exposure_params(&mut cam, 1, 1, Some(800), Some(10), &None, &controls)
+            .expect("apply should succeed");
+        assert_eq!(cam.set_gain, Some(2));
+        assert_eq!(
+            cam.set_offset, None,
+            "a camera without offset is not sent one"
+        );
+    }
+
     fn index_of(calls: &[String], name: &str) -> Option<usize> {
         calls.iter().position(|c| c == name)
     }
@@ -257,8 +291,16 @@ mod tests {
     #[test]
     fn applies_gain_offset_binning_before_geometry() {
         let mut cam = SpyCamera::new();
-        apply_exposure_params(&mut cam, 2, 2, Some(100), Some(50), &None)
-            .expect("apply should succeed");
+        apply_exposure_params(
+            &mut cam,
+            2,
+            2,
+            Some(100),
+            Some(50),
+            &None,
+            &value_controls(),
+        )
+        .expect("apply should succeed");
 
         assert_eq!(cam.set_bin_x, Some(2), "bin_x must be applied");
         assert_eq!(cam.set_bin_y, Some(2), "bin_y must be applied");
@@ -291,7 +333,8 @@ mod tests {
     #[test]
     fn none_gain_offset_leaves_camera_unchanged() {
         let mut cam = SpyCamera::new();
-        apply_exposure_params(&mut cam, 1, 1, None, None, &None).expect("apply should succeed");
+        apply_exposure_params(&mut cam, 1, 1, None, None, &None, &value_controls())
+            .expect("apply should succeed");
 
         assert!(
             index_of(&cam.calls, "set_gain").is_none(),
@@ -312,7 +355,8 @@ mod tests {
     #[test]
     fn bin_one_still_calls_binning_setters() {
         let mut cam = SpyCamera::new();
-        apply_exposure_params(&mut cam, 1, 1, None, None, &None).expect("apply should succeed");
+        apply_exposure_params(&mut cam, 1, 1, None, None, &None, &value_controls())
+            .expect("apply should succeed");
 
         assert_eq!(cam.set_bin_x, Some(1), "set_bin_x(1) must be called");
         assert_eq!(cam.set_bin_y, Some(1), "set_bin_y(1) must be called");
@@ -327,7 +371,15 @@ mod tests {
     fn gain_setter_failure_is_best_effort() {
         let mut cam = SpyCamera::new();
         cam.fail_on = Some("set_gain");
-        let result = apply_exposure_params(&mut cam, 2, 2, Some(100), Some(50), &None);
+        let result = apply_exposure_params(
+            &mut cam,
+            2,
+            2,
+            Some(100),
+            Some(50),
+            &None,
+            &value_controls(),
+        );
 
         assert!(
             result.is_ok(),
@@ -348,7 +400,15 @@ mod tests {
     fn offset_setter_failure_is_best_effort() {
         let mut cam = SpyCamera::new();
         cam.fail_on = Some("set_offset");
-        let result = apply_exposure_params(&mut cam, 2, 2, Some(100), Some(50), &None);
+        let result = apply_exposure_params(
+            &mut cam,
+            2,
+            2,
+            Some(100),
+            Some(50),
+            &None,
+            &value_controls(),
+        );
 
         assert!(
             result.is_ok(),
@@ -365,7 +425,15 @@ mod tests {
     fn binning_setter_failure_aborts_before_geometry() {
         let mut cam = SpyCamera::new();
         cam.fail_on = Some("set_bin_x");
-        let result = apply_exposure_params(&mut cam, 2, 2, Some(100), Some(50), &None);
+        let result = apply_exposure_params(
+            &mut cam,
+            2,
+            2,
+            Some(100),
+            Some(50),
+            &None,
+            &value_controls(),
+        );
 
         assert!(result.is_err(), "a set_bin_x failure must abort the apply");
         assert!(
@@ -380,7 +448,7 @@ mod tests {
     #[test]
     fn binning_over_max_is_rejected() {
         let mut cam = SpyCamera::new();
-        let result = apply_exposure_params(&mut cam, 8, 8, None, None, &None);
+        let result = apply_exposure_params(&mut cam, 8, 8, None, None, &None, &value_controls());
         assert!(
             result.is_err(),
             "8x8 binning over a 4x4 max must be rejected"
@@ -405,7 +473,7 @@ mod tests {
             width: 200,
             height: 150,
         };
-        apply_exposure_params(&mut cam, 2, 2, None, None, &Some(sf))
+        apply_exposure_params(&mut cam, 2, 2, None, None, &Some(sf), &value_controls())
             .expect("subframe within binned bounds should apply");
 
         assert_eq!(cam.set_num_x, Some(200));
@@ -423,7 +491,8 @@ mod tests {
             width: 200,
             height: 100,
         };
-        let result = apply_exposure_params(&mut cam, 2, 2, None, None, &Some(sf));
+        let result =
+            apply_exposure_params(&mut cam, 2, 2, None, None, &Some(sf), &value_controls());
         assert!(
             result.is_err(),
             "subframe past binned bounds must be rejected"

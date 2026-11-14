@@ -1,7 +1,76 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/providers/equipment/filter_wheel_state_provider.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+
+class _StubFilterWheel extends FilterWheelStateNotifier {
+  _StubFilterWheel(super.ref, FilterWheelState initial) {
+    state = initial;
+  }
+}
+
+List<String> _filters({
+  required FilterWheelState wheel,
+  List<String>? profileFilters,
+}) {
+  final container = ProviderContainer(
+    overrides: [
+      activeEquipmentProfileProvider.overrideWithValue(
+        profileFilters == null
+            ? null
+            : EquipmentProfileModel(name: 'Rig', filterNames: profileFilters),
+      ),
+      filterWheelStateProvider.overrideWith(
+        (ref) => _StubFilterWheel(ref, wheel),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container.read(effectiveFiltersProvider);
+}
 
 void main() {
+  group('effectiveFiltersProvider', () {
+    test('a connected wheel\'s slots win over the profile', () {
+      expect(
+        _filters(
+          wheel: const FilterWheelState(
+            connectionState: DeviceConnectionState.connected,
+            filterNames: ['L', 'R', 'G', 'B', 'Ha'],
+          ),
+          profileFilters: const ['L', 'R', 'G'],
+        ),
+        ['L', 'R', 'G', 'B', 'Ha'],
+      );
+    });
+
+    test('a connected wheel serves a rig whose profile names none', () {
+      expect(
+        _filters(
+          wheel: const FilterWheelState(
+            connectionState: DeviceConnectionState.connected,
+            filterNames: ['R', 'G', 'B'],
+          ),
+        ),
+        ['R', 'G', 'B'],
+      );
+    });
+
+    test('without a connected wheel the profile is the list', () {
+      expect(
+        _filters(
+          wheel: const FilterWheelState(filterNames: ['Stale']),
+          profileFilters: const ['Ha', 'OIII'],
+        ),
+        ['Ha', 'OIII'],
+      );
+    });
+
+    test('nothing to pick without a wheel or profile filters', () {
+      expect(_filters(wheel: const FilterWheelState()), isEmpty);
+    });
+  });
+
   group('resolveEffectiveFilterNames', () {
     test('prefers profile names when wheel reports generic slots', () {
       expect(

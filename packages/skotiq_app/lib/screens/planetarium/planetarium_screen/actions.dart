@@ -5,7 +5,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     if (_initialSyncDone) return;
     _initialSyncDone = true;
 
-    // Initial mount sync
     final mountState = ref.read(mountStateProvider);
     final mountNotifier = ref.read(mountPositionProvider.notifier);
     if (mountState.connectionState == DeviceConnectionState.connected) {
@@ -32,11 +31,10 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     // sync here — a second writer would race it.
   }
 
-  /// Honour an inbound `/planetarium?ra=<hours>&dec=<deg>&name=<n>` hand-off.
+  /// Honour an inbound [SkyTarget] hand-off on the Planetarium tab.
   ///
-  /// Mirrors [FramingView]'s `_applyQueryParamsTarget`. The route redirects onto
-  /// the Plan Tonight host, which forwards the query, so this reads it from
-  /// whichever router state is above us.
+  /// Mirrors [FramingView]'s `_applyQueryParamsTarget`. The query rides on the
+  /// Plan location, so this reads it from whichever router state is above us.
   ///
   /// Must be called from `didChangeDependencies`: reading `GoRouterState.of`
   /// there is what makes a later location change re-run this while the view
@@ -57,17 +55,18 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       return;
     }
 
-    final params = uri.queryParameters;
-    final signature = '${params['ra']}|${params['dec']}|${params['name']}';
+    final target = SkyTarget.fromQuery(uri.queryParameters);
+    if (target == null) return;
+    final signature = '${target.query}';
     if (signature == _appliedSkyTargetQuery) return;
-
-    final coordinate = parseSkyTargetQuery(params);
-    if (coordinate == null) return;
 
     _appliedSkyTargetQuery = signature;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      focusSkyOn(ref, coordinate);
+      focusSkyOn(
+        ref,
+        CelestialCoordinate(ra: target.raHours, dec: target.decDegrees),
+      );
     });
   }
 
@@ -76,25 +75,21 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
   /// object, not at the pixel the finger landed on.
   void _handleObjectTapped(CelestialObject? object,
       CelestialCoordinate coordinates, Offset screenPosition) {
-    // If in slew mode, handle slew instead of normal tap behavior
     if (_slewMode) {
       _handleSlewToCoordinates(coordinates, objectName: object?.name);
       return;
     }
 
-    // Update selected object provider
     if (object != null) {
       ref.read(selectedObjectProvider.notifier).selectObject(object);
     } else {
       ref.read(selectedObjectProvider.notifier).clearSelection();
     }
 
-    // Only show popup if an object was found
     if (object != null) {
       final renderBox =
           _skyViewKey.currentContext?.findRenderObject() as RenderBox?;
       if (renderBox != null) {
-        // Convert to global position for proper popup placement
         final globalPosition = renderBox.localToGlobal(screenPosition);
         _update(() {
           _showPopup = true;
@@ -143,7 +138,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       final planets = ref.read(planetPositionsProvider);
       final milkyWayPoints = ref.read(milkyWayPointsProvider);
 
-      // Determine object info from popup or selection
       String? objectName;
       String? objectType;
       double? objectMagnitude;
@@ -234,12 +228,8 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to export chart: $e'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: SkotiqColors.of(context).error,
-          ),
+        context.showErrorSnackBar(
+          'Failed to export chart: ${userFacingError(e)}',
         );
       }
     } finally {
@@ -255,7 +245,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     final obj = _popupObject!;
     final coords = obj.coordinates;
 
-    // Set the framing target
     ref.read(framingProvider.notifier).setTargetCoordinates(
           coords.ra,
           coords.dec,
@@ -266,12 +255,11 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     // above, so a failure here strands the user on the planetarium with the
     // framing target silently changed — log it rather than absorb it.
     try {
-      context.goNamed('framing');
+      context.go(AppRoutes.planner(tab: PlannerTab.framing));
     } catch (e, stack) {
-      developer.log(
+      Log.warning(
         '[Planetarium] Could not open ${obj.name} in Framing: $e',
-        name: 'Planetarium',
-        level: 900,
+        source: 'Planetarium',
         error: e,
         stackTrace: stack,
       );
@@ -374,7 +362,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
 
     _dismissPopup();
 
-    // Show centering dialog
     if (mounted) {
       await showCenteringDialog(
         context: context,
@@ -400,22 +387,17 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     }
 
     _dismissPopup();
+    if (!mounted) return;
 
-    // Show centering dialog and wait for completion
-    CenteringResult? centeringResult;
-    if (mounted) {
-      centeringResult = await showDialog<CenteringResult>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => CenteringDialog(
-          targetRa: coords.ra,
-          targetDec: coords.dec,
-          targetName: objectName,
-        ),
-      );
-    }
+    // The rotation follows the centering run as soon as it ends; the dialog
+    // stays open on its result.
+    final centeringResult = await showCenteringDialog(
+      context: context,
+      targetRa: coords.ra,
+      targetDec: coords.dec,
+      targetName: objectName,
+    );
 
-    // If centering failed or was cancelled, don't rotate
     if (centeringResult == null || !centeringResult.success) {
       if (mounted && centeringResult != null) {
         context.showWarningSnackBar('Centering failed - rotation skipped');
@@ -438,7 +420,7 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
         }
       } catch (e) {
         if (mounted) {
-          context.showErrorSnackBar('Rotation failed: $e');
+          context.showErrorSnackBar('Rotation failed: ${userFacingError(e)}');
         }
       }
     } else if (mounted) {
@@ -456,7 +438,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       return;
     }
 
-    // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -486,37 +467,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     if (confirmed != true) return;
 
     await mountService.slewTo(coords.ra, coords.dec);
-  }
-
-  void _toggleSlewMode() {
-    _update(() {
-      _slewMode = !_slewMode;
-    });
-    if (_slewMode) {
-      context.showInfoSnackBar('Slew mode enabled - tap on sky to slew mount');
-    }
-  }
-
-  Future<void> _handleStopSlew() async {
-    final mountState = ref.read(mountStateProvider);
-    if (mountState.connectionState != DeviceConnectionState.connected) {
-      if (mounted) {
-        context.showWarningSnackBar('Mount not connected');
-      }
-      return;
-    }
-
-    if (!mountState.isSlewing) {
-      if (mounted) {
-        context.showInfoSnackBar('Mount is not slewing');
-      }
-      return;
-    }
-
-    final result = await ref.read(mountCommandServiceProvider).abortSlew();
-    if (mounted) {
-      context.showCommandActionResult(result);
-    }
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {

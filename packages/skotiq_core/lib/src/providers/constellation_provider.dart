@@ -1,63 +1,30 @@
+import '../models/imaging/frame_type_record.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../database/database.dart' show CoImagingSessionRow;
 import '../database/daos/coimaging_sessions_dao.dart';
-import '../database/daos/constellation_contributions_dao.dart';
-import '../database/daos/integrated_masters_dao.dart';
-import '../database/daos/living_sky_retention_dao.dart';
-import '../database/daos/mosaic_panels_dao.dart';
-import '../database/daos/mosaic_projects_dao.dart';
-import '../database/daos/settings_dao.dart';
+import 'database_provider.dart';
 import '../models/scheduler/scheduler_status.dart' show SchedulerState;
 import '../services/coimaging/coimaging_session_service.dart';
 import '../services/constellation/constellation_models.dart';
+import '../services/constellation/hub_credentials.dart';
 import '../services/constellation/constellation_service.dart';
-import '../services/logging_service.dart';
 import '../services/mosaic/collaborative_mosaic_service.dart';
 import '../services/mosaic/mosaic_upload_consent.dart';
 import '../services/mosaic_project_service.dart';
-import 'database_provider.dart';
 import 'scheduler_provider.dart' show schedulerEngineProvider;
 import 'settings_provider.dart' show appSettingsProvider;
 import 'sky_atlas_provider.dart';
 import '../utils/skotiq_data_directory.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'logging_service_provider.dart';
+import 'mosaic_project_service_provider.dart';
 
 /// Riverpod surface for the Constellation community hub client.
 ///
 /// [followTheNightProvider] is read only by the Constellation screen's
 /// follow-the-night card; the planner and scheduler tabs do not consume it.
-
-/// Settings keys the hub credentials persist under (LAN-only, self-hosted).
-const String constellationHubUrlSettingKey = 'constellation.hub_url';
-const String constellationHubTokenSettingKey = 'constellation.hub_token';
-
-/// Settings key the hub-issued account id persists under. Recorded at
-/// registration so follow-the-night can tell whether the baton's `holder`
-/// account id is *this* user (drives the "Release" affordance on held cards).
-const String constellationAccountIdSettingKey = 'constellation.account_id';
-
-/// Resolve the persisted hub account id (the id the hub records the baton
-/// `holder` against), or null when the user has not registered yet.
-Future<String?> resolveConstellationAccountId(SettingsDao settings) async {
-  final id = await settings.getSetting(constellationAccountIdSettingKey);
-  return (id == null || id.isEmpty) ? null : id;
-}
-
-/// Resolve the configured hub credentials from settings, or null when the user
-/// has not signed in to any hub yet.
-Future<ConstellationCredentials?> resolveConstellationCredentials(
-  SettingsDao settings,
-) async {
-  final url = await settings.getSetting(constellationHubUrlSettingKey);
-  final token = await settings.getSetting(constellationHubTokenSettingKey);
-  if (url == null || url.isEmpty || token == null || token.isEmpty) {
-    return null;
-  }
-  final parsed = Uri.tryParse(url);
-  if (parsed == null || !parsed.hasScheme) return null;
-  return ConstellationCredentials(hubBaseUrl: parsed, bearerToken: token);
-}
 
 /// The Constellation orchestration service.
 final constellationServiceProvider = Provider<ConstellationService>((ref) {
@@ -78,10 +45,7 @@ final constellationServiceProvider = Provider<ConstellationService>((ref) {
           .read(imagesDaoProvider)
           .getImagesForTarget(targetId);
       return images
-          .where(
-            (i) =>
-                i.frameType == 'light' && i.isAccepted && i.filePath.isNotEmpty,
-          )
+          .where((i) => i.isLight && i.isAccepted && i.filePath.isNotEmpty)
           .map(
             (i) => RawSubframe(
               filePath: i.filePath,
@@ -324,11 +288,11 @@ class _CoImagingAutopilotBatonPolicy {
       final tRa = row.targetRaDeg;
       final tDec = row.targetDecDeg;
       if (tRa == null || tDec == null) continue;
-      final sep = CoImagingSessionService.angularSeparationDegrees(
-        coords.raDeg,
-        coords.decDeg,
-        tRa,
-        tDec,
+      final sep = AstronomyCalculations.angularSeparation(
+        ra1Deg: coords.raDeg,
+        dec1Deg: coords.decDeg,
+        ra2Deg: tRa,
+        dec2Deg: tDec,
       );
       if (sep <= CoImagingSessionService.membershipMatchToleranceDeg) {
         return true;
@@ -409,24 +373,6 @@ final shareableLocalTargetsProvider =
 /// retractable units. Empty on a slave (the local receipt table is the host's).
 final myContributionsProvider = FutureProvider<List<ContributionRecord>>((ref) {
   return ref.watch(constellationServiceProvider).myContributions();
-});
-
-/// Community tiles pulled and blended into "Your Sky" for one target.
-///
-/// Pulling is a side-effecting fetch (it writes the cached blobs to disk), so
-/// this provider performs the pull and returns the resulting [SwarmTile] index.
-///
-/// Pull with `finalized: false` — the additive `.skt` accumulator — the only
-/// form [ConstellationService.pullTarget] folds into the local atlas (via
-/// `mergeSwarmDelta`). A `finalized: true` FITS pull is a display-only blob
-/// with no consumer, so nothing would reach Your Sky.
-final swarmTilesProvider = FutureProvider.family<List<SwarmTile>, int>((
-  ref,
-  targetId,
-) {
-  return ref
-      .watch(constellationServiceProvider)
-      .pullTarget(targetId, finalized: false);
 });
 
 /// Follow-the-night suggestions: which shared targets are dark and available for

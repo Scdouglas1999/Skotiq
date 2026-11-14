@@ -19,7 +19,6 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
@@ -27,10 +26,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart' as db;
-import '../backend/network_backend.dart';
-import '../backend/skotiq_backend.dart';
-import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
+import '../backend/remote_host.dart';
+import 'logging_service.dart';
 part 'predictive_af_service/predictive_af_models.dart';
 part 'predictive_af_service/settings_controller.dart';
 part 'predictive_af_service/regression.dart';
@@ -115,8 +113,6 @@ class PredictiveAfService {
     _disposed = true;
     await _driftController.close();
   }
-
-  // ── Sample recording ──────────────────────────────────────────────────
 
   /// Append a sample from a freshly-completed autofocus run, capping the
   /// window to `maxTrainingSamples` (default 50). Re-fits the regression
@@ -239,8 +235,6 @@ class PredictiveAfService {
     return fetched!;
   }
 
-  // ── Prediction gate ───────────────────────────────────────────────────
-
   /// Should the caller skip the AF sweep and trust the learned model?
   /// Updates `last_used_at` as a side effect so the UI can show staleness.
   Future<PredictiveAfDecision> evaluateForFilter({
@@ -315,8 +309,6 @@ class PredictiveAfService {
     );
   }
 
-  // ── Drift tracking ────────────────────────────────────────────────────
-
   /// After a real AF run completes, call this with what the model predicted
   /// (BEFORE the AF) and the actual converged position. Updates the drift
   /// counters and, when the threshold is crossed, emits a [ShouldWarn]
@@ -387,10 +379,9 @@ class PredictiveAfService {
           'Your $filterName filter focus model has drifted by '
           '$newAccumulated steps over the last $newConsecutive runs. '
           'Consider re-training (clear samples and start fresh).';
-      developer.log(
+      Log.warning(
         'Predictive AF drift warning for $filterName: $msg',
-        name: 'PredictiveAfService',
-        level: 900,
+        source: 'PredictiveAfService',
       );
       final status = ShouldWarn(
         equipmentProfileId: equipmentProfileId,
@@ -413,8 +404,6 @@ class PredictiveAfService {
     _driftController.add(status);
     return status;
   }
-
-  // ── Queries ───────────────────────────────────────────────────────────
 
   Future<FilterFocusModel?> getModel({
     required int? equipmentProfileId,

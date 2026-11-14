@@ -99,7 +99,8 @@ void main() {
       expect(tester.takeException(), isNull);
       final frame = tester.getSize(find.byType(FrameStage));
       expect(frame.height, inInclusiveRange(240, 360));
-      expect(find.byType(PageView), findsOneWidget);
+      // A single column stacks the cards; the page itself scrolls.
+      expect(find.byType(PageView), findsNothing);
     });
   }
 

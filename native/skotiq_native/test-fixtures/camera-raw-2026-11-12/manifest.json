@@ -1,0 +1,594 @@
+{
+ "source": "https://raw.pixls.us (CC0). Files are not committed; set SKOTIQ_RAW_SAMPLES to a directory holding them under these names.",
+ "frames": [
+  {
+   "file": "canon_1000d.cr2",
+   "url": "https://raw.pixls.us/data/Canon/EOS%201000D/IMG_9406.CR2",
+   "file_sha256": "08b0843a7968315b68bd3c71a96c952ebf275d5b5eba4b6094ae8b103522584c",
+   "bytes": 10994015,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 3906,
+    "height": 2602,
+    "cfa": "RGGB",
+    "white_level": 3651,
+    "black_by_channel": [
+     255,
+     255,
+     255,
+     255
+    ],
+    "mosaic_sha256": "8d734ae9bbc2be610a9260a584e683461de4d26028edc10d450e81d510cb6dbd",
+    "iso": 200.0,
+    "exposure_s": 0.01,
+    "focal_mm": 35.0,
+    "lens": "EF-S18-55mm f/3.5-5.6 IS",
+    "date_time_original": "2015-09-27T11:17:39",
+    "offset_time_original": null,
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": 21.0,
+    "maker_note_offset": null,
+    "saturation_level": 3651,
+    "saturation_source": "white level (Canon SpecularWhiteLevel 15120 is 14-bit; 3780 at 12 bits, above white)"
+   }
+  },
+  {
+   "file": "canon_m50_craw.cr3",
+   "url": "https://raw.pixls.us/data/Canon/EOS%20M50/Canon_EOS_M50_CRAW_ISO_100_nocrop_nodual.CR3",
+   "file_sha256": "27a88fdae82516ba136e12c2cc9b934f25dbaaac24d64ab4e5517f8524463594",
+   "bytes": 14851567,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 6024,
+    "height": 4020,
+    "cfa": "RGGB",
+    "white_level": 16383,
+    "black_by_channel": [
+     510,
+     510,
+     511,
+     511
+    ],
+    "mosaic_sha256": "d1ac6abe46f80af0237eecc7cef2fe5927e601d6469016e9647c297dc52689ca",
+    "iso": 100.0,
+    "exposure_s": 0.2,
+    "focal_mm": 18.0,
+    "lens": "EF-M18-150mm f/3.5-6.3 IS STM",
+    "date_time_original": "2021-05-10T20:11:06",
+    "offset_time_original": "+00:00",
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": 35.0,
+    "maker_note_offset": null,
+    "saturation_level": 11892,
+    "saturation_source": "Canon SpecularWhiteLevel"
+   }
+  },
+  {
+   "file": "canon_m50_raw.cr3",
+   "url": "https://raw.pixls.us/data/Canon/EOS%20M50/Canon_EOS_M50_RAW_ISO_100_nocrop_nodual.CR3",
+   "file_sha256": "1ba9ad6b51b315b88820eb0fe5fd7f52bc136ba37b1a5ca76825ebfe25b18058",
+   "bytes": 28349772,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 6024,
+    "height": 4020,
+    "cfa": "RGGB",
+    "white_level": 16383,
+    "black_by_channel": [
+     510,
+     511,
+     510,
+     511
+    ],
+    "mosaic_sha256": "187d21917fdac5377b4ec31c1b91027b654dcb7c302dd18d9f1f92c588c2ac43",
+    "iso": 100.0,
+    "exposure_s": 0.25,
+    "focal_mm": 18.0,
+    "lens": "EF-M18-150mm f/3.5-6.3 IS STM",
+    "date_time_original": "2021-05-10T20:08:34",
+    "offset_time_original": "+00:00",
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": 32.0,
+    "maker_note_offset": null,
+    "saturation_level": 11892,
+    "saturation_source": "Canon SpecularWhiteLevel"
+   }
+  },
+  {
+   "file": "fuji_gfx50s_bayer.raf",
+   "url": "https://raw.pixls.us/data/Fujifilm/GFX%2050S/20170525_0036TEST.RAF",
+   "file_sha256": "bb7c832430549029ddfc61224b97cc40a5149ec363e11c566a57de65d9582ec9",
+   "bytes": 116445184,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 8280,
+    "height": 6208,
+    "cfa": "RGGB",
+    "white_level": 15872,
+    "black_by_channel": [
+     65,
+     65,
+     65,
+     65
+    ],
+    "mosaic_sha256": "1ec80c869f1956db80eed94c48da34c49f081eade14daf55648470ede77688e0",
+    "iso": 100.0,
+    "exposure_s": 0.004,
+    "focal_mm": 63.0,
+    "lens": "GF63mmF2.8 R WR",
+    "date_time_original": "2017-05-25T05:26:05",
+    "offset_time_original": null,
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 15872,
+    "saturation_source": "white level"
+   }
+  },
+  {
+   "file": "fuji_xt1_xtrans.raf",
+   "url": "https://raw.pixls.us/data/Fujifilm/X-T1/20171229_110916.RAF",
+   "file_sha256": "e994a1fd6e87e392432fe146a35b0b88584dc2bd50bee2c8c7e886ac2b59fcde",
+   "bytes": 33806336,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 4934,
+    "height": 3296,
+    "cfa": "RBGBRGGGRGGBGGBGGRBRGRBGGGBGGRGGRGGB",
+    "white_level": 16383,
+    "black_by_channel": [
+     1023,
+     1023,
+     1023,
+     1023
+    ],
+    "mosaic_sha256": "8c2fb51477262ba2694ef12cbeb6af4af79c7bc28b95fed4b2886e75ac9e76dc",
+    "iso": 200.0,
+    "exposure_s": 0.0013333333333333333,
+    "focal_mm": 23.0,
+    "lens": "XF23mmF1.4 R",
+    "date_time_original": "2017-12-29T11:09:16",
+    "offset_time_original": null,
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 16383,
+    "saturation_source": "white level"
+   }
+  },
+  {
+   "file": "fuji_xt3_xtrans.raf",
+   "url": "https://raw.pixls.us/data/Fujifilm/X-T3/AFXT2720.RAF",
+   "file_sha256": "24abd27b4a200f3170ea1579672944b807d0eb35bf21422a3937bb644f27f2eb",
+   "bytes": 56087360,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 6246,
+    "height": 4170,
+    "cfa": "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG",
+    "white_level": 16383,
+    "black_by_channel": [
+     1022,
+     1022,
+     1022,
+     1022
+    ],
+    "mosaic_sha256": "d6c2be5710358906bf40ac07c7b4bb60c7757b8183497e8e0985e92cbcc23a5e",
+    "iso": 160.0,
+    "exposure_s": 0.25,
+    "focal_mm": 35.0,
+    "lens": "XF35mmF2 R WR",
+    "date_time_original": "2018-09-25T16:54:03",
+    "offset_time_original": null,
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 16383,
+    "saturation_source": "white level"
+   }
+  },
+  {
+   "file": "nikon_d40_lossy12.nef",
+   "url": "https://raw.pixls.us/data/Nikon/D40/DSC_1842.NEF",
+   "file_sha256": "44e88bc77b7a531b22647bcd07b9393c4568062e8f0906d3bbdecb42fbe29e03",
+   "bytes": 5844273,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 3039,
+    "height": 2014,
+    "cfa": "BGGR",
+    "white_level": 4095,
+    "black_by_channel": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "mosaic_sha256": "b6b622f00ef4a2e30f05488e2e5b577e1f8bceb592882823bfc4dc10f031b067",
+    "iso": 200.0,
+    "exposure_s": 0.0125,
+    "focal_mm": 30.0,
+    "lens": null,
+    "date_time_original": "2019-12-25T11:50:21",
+    "offset_time_original": null,
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 4095,
+    "saturation_source": "white level (Nikon records none)"
+   }
+  },
+  {
+   "file": "nikon_d7000_lossless14.nef",
+   "url": "https://raw.pixls.us/data/Nikon/D7000/Lossless%20compressed%2014-bit%20D7000%20NIK_3874.NEF",
+   "file_sha256": "639945753240005d80488c0462c01e73a7ab82c96d3d1cdb6661f02e1b3c1319",
+   "bytes": 19040701,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 4948,
+    "height": 3280,
+    "cfa": "RGGB",
+    "white_level": 16383,
+    "black_by_channel": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "mosaic_sha256": "dac4d3b552a61b76e1e80ec28914c8877cfec1a4e6edb90a0f6352c9a327d1e7",
+    "iso": 100.0,
+    "exposure_s": 0.005,
+    "focal_mm": 50.0,
+    "lens": null,
+    "date_time_original": "2017-01-22T14:18:36",
+    "offset_time_original": null,
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": "-07:00",
+    "saturation_level": 16383,
+    "saturation_source": "white level (Nikon records none)"
+   }
+  },
+  {
+   "file": "nikon_d7000_lossy14.nef",
+   "url": "https://raw.pixls.us/data/Nikon/D7000/Compressed%2014-bit%20D7000%20NIK_3875.NEF",
+   "file_sha256": "b8953c3e0ff4e4ca7668f4ea8eef0532b04503162d53e31bfcd7946c05a2cbfe",
+   "bytes": 16290699,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 4948,
+    "height": 3280,
+    "cfa": "RGGB",
+    "white_level": 16383,
+    "black_by_channel": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "mosaic_sha256": "c3bfe4af3516a27c1e71d3dc29a5d1095db669b9910095348d596610520d9208",
+    "iso": 100.0,
+    "exposure_s": 0.005,
+    "focal_mm": 50.0,
+    "lens": null,
+    "date_time_original": "2017-01-22T14:19:05",
+    "offset_time_original": null,
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": "-07:00",
+    "saturation_level": 16383,
+    "saturation_source": "white level (Nikon records none)"
+   }
+  },
+  {
+   "file": "olympus_em10.orf",
+   "url": "https://raw.pixls.us/data/Olympus/E-M10/P3180165.ORF",
+   "file_sha256": "d7f6ac99ee1f824e81ec0e71599f0f87f9b2e2675f7ddfdb21202281b8bdc5e0",
+   "bytes": 15258356,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 4640,
+    "height": 3472,
+    "cfa": "RGGB",
+    "white_level": 4095,
+    "black_by_channel": [
+     254,
+     254,
+     254,
+     254
+    ],
+    "mosaic_sha256": "1b4e3774d9a8bde3b419aa086d8eb3de501413ba94c78b74dcaf9a9376a6dfd5",
+    "iso": 200.0,
+    "exposure_s": 0.0005,
+    "focal_mm": 58.0,
+    "lens": "OLYMPUS M.40-150mm F4.0-5.6 R",
+    "date_time_original": "2017-03-18T15:54:01",
+    "offset_time_original": null,
+    "exif_sensor_temperature": 32.0,
+    "exif_camera_temperature": 5.0,
+    "maker_note_offset": null,
+    "saturation_level": 4093,
+    "saturation_source": "Olympus SensorCalibration"
+   }
+  },
+  {
+   "file": "om1.orf",
+   "url": "https://raw.pixls.us/data/OM%20System/OM-1/OM_Systems_OM1_RAW_Image_20mpx_P1010025.ORF",
+   "file_sha256": "bf2eef6becc0851e48231617c3e2eac27a2cdb44c75b93035c561d837952c18b",
+   "bytes": 21820729,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 5220,
+    "height": 3912,
+    "cfa": "RGGB",
+    "white_level": 4095,
+    "black_by_channel": [
+     254,
+     254,
+     254,
+     254
+    ],
+    "mosaic_sha256": "e76d36fd88a7559d30f4e93147ed9f09b3a4573578e311b53f767bdaf4857c31",
+    "iso": 200.0,
+    "exposure_s": 0.003125,
+    "focal_mm": 14.0,
+    "lens": "OLYMPUS M.7-14mm F2.8",
+    "date_time_original": "2022-03-05T15:47:24",
+    "offset_time_original": "-05:00",
+    "exif_sensor_temperature": 26.0,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 4095,
+    "saturation_source": "Olympus SensorCalibration"
+   }
+  },
+  {
+   "file": "om1_hires50.orf",
+   "url": "https://raw.pixls.us/data/OM%20System/OM-1/OM_Systems_OM1_RAW_image_HiRes_50mpx_P1010026.ORF",
+   "file_sha256": "f0301e1b49a4ffbb366ec9800ebe9210f421fb25e75dcdf7d63e4b05bc063caf",
+   "bytes": 45377551,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 8170,
+    "height": 6132,
+    "cfa": "RGGB",
+    "white_level": 4095,
+    "black_by_channel": [
+     254,
+     254,
+     254,
+     254
+    ],
+    "mosaic_sha256": "42c0907f34a10ce5a928002ce6eadb1fba8e34d1845fdb58b5119378b9c82738",
+    "iso": 200.0,
+    "exposure_s": 0.003125,
+    "focal_mm": 14.0,
+    "lens": "OLYMPUS M.7-14mm F2.8",
+    "date_time_original": "2022-03-05T15:47:40",
+    "offset_time_original": "-05:00",
+    "exif_sensor_temperature": 27.0,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 4095,
+    "saturation_source": "Olympus SensorCalibration"
+   }
+  },
+  {
+   "file": "panasonic_g9.rw2",
+   "url": "https://raw.pixls.us/data/Panasonic/DC-G9/P1000475.RW2",
+   "file_sha256": "7c24fefb1f73ad45c42a0be0078e15b7e91deab1d623efceebfc3c4d0d06135c",
+   "bytes": 131372032,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 10402,
+    "height": 7794,
+    "cfa": "RGGB",
+    "white_level": 4095,
+    "black_by_channel": [
+     127,
+     128,
+     127,
+     128
+    ],
+    "mosaic_sha256": "2bfe375c31cc7a4c167d9b1997551cd75320850ecc12eb07d86b462f52fda57c",
+    "iso": 200.0,
+    "exposure_s": 0.01,
+    "focal_mm": 40.0,
+    "lens": null,
+    "date_time_original": "2018-05-17T11:50:52",
+    "offset_time_original": "+01:00",
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 4079,
+    "saturation_source": "Panasonic LinearityLimit 4095 less the 16 ADU LibRaw keeps below it"
+   }
+  },
+  {
+   "file": "panasonic_gh4.rw2",
+   "url": "https://raw.pixls.us/data/Panasonic/DMC-GH4/P1010607.RW2",
+   "file_sha256": "3764eb2f2399b1b035739dbdda55f5db78751a2c4ffab4ffcc07690fbe5b5e4b",
+   "bytes": 14388224,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 3472,
+    "height": 3472,
+    "cfa": "BGGR",
+    "white_level": 4095,
+    "black_by_channel": [
+     143,
+     143,
+     143,
+     143
+    ],
+    "mosaic_sha256": "e91f10b4c5da5f316ea1c90c01a91abcb66fafec381e46dcdc2cb9cb6a5b5f99",
+    "iso": 400.0,
+    "exposure_s": 0.01,
+    "focal_mm": 35.0,
+    "lens": null,
+    "date_time_original": "2018-05-10T08:41:30",
+    "offset_time_original": null,
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 4079,
+    "saturation_source": "Panasonic LinearityLimit 4095 less the 16 ADU LibRaw keeps below it"
+   }
+  },
+  {
+   "file": "pentax_k5.dng",
+   "url": "https://raw.pixls.us/data/Pentax/K-5/_MAR0543.DNG",
+   "file_sha256": "6f6419209340d07d597ccca66dc367d64cff3308ef2694c8f90c6259f3a5c431",
+   "bytes": 18952092,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 4950,
+    "height": 3284,
+    "cfa": "BGGR",
+    "white_level": 16316,
+    "black_by_channel": [
+     66,
+     66,
+     65,
+     65
+    ],
+    "mosaic_sha256": "f9c2223a71c6201bb58df29d0deab2d521d08b5d4c1c4df1cbf59f60a05ef620",
+    "iso": 160.0,
+    "exposure_s": 0.3,
+    "focal_mm": 90.0,
+    "lens": null,
+    "date_time_original": "2017-06-05T16:00:39",
+    "offset_time_original": null,
+    "exif_sensor_temperature": 32.4,
+    "exif_camera_temperature": 29.0,
+    "maker_note_offset": null,
+    "saturation_level": 16316,
+    "saturation_source": "Pentax WhiteLevel"
+   }
+  },
+  {
+   "file": "pentax_k5.pef",
+   "url": "https://raw.pixls.us/data/Pentax/K-5/_MAR0544.PEF",
+   "file_sha256": "1fefefbccd73ba05c71f49b724e1f52bb343e2ac4f52f3bc93d828f5ee02cf6c",
+   "bytes": 18852928,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 4950,
+    "height": 3284,
+    "cfa": "BGGR",
+    "white_level": 16383,
+    "black_by_channel": [
+     65,
+     65,
+     66,
+     66
+    ],
+    "mosaic_sha256": "42bb3e937270d275eee52efb50d11291fbdf3605be80a06408b041e4c67d7d4e",
+    "iso": 160.0,
+    "exposure_s": 0.3,
+    "focal_mm": 90.0,
+    "lens": null,
+    "date_time_original": "2017-06-05T16:01:00",
+    "offset_time_original": null,
+    "exif_sensor_temperature": 32.4,
+    "exif_camera_temperature": 29.0,
+    "maker_note_offset": null,
+    "saturation_level": 16316,
+    "saturation_source": "Pentax WhiteLevel"
+   }
+  },
+  {
+   "file": "sony_a7m4_lossless.arw",
+   "url": "https://raw.pixls.us/data/Sony/ILCE-7M4/ILCE-7M4_DSC06674_FullFrame-LossLess-Compressed-Large.ARW",
+   "file_sha256": "851b43c2116c4139104a5036f83ac3b6a148789b2142214dd7192c13972b25b6",
+   "bytes": 49184768,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 7028,
+    "height": 4688,
+    "cfa": "RGGB",
+    "white_level": 16383,
+    "black_by_channel": [
+     512,
+     512,
+     512,
+     512
+    ],
+    "mosaic_sha256": "c8552d9b7e997ba3cb374c4986125497cd9c098333e880bc4bdb0066d89a888e",
+    "iso": 250.0,
+    "exposure_s": 0.02,
+    "focal_mm": 50.0,
+    "lens": "FE 50mm F2.5 G",
+    "date_time_original": "2023-10-19T16:13:48",
+    "offset_time_original": "+02:00",
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 15360,
+    "saturation_source": "Sony SR2 WhiteLevel"
+   }
+  },
+  {
+   "file": "sony_a7m4_lossy.arw",
+   "url": "https://raw.pixls.us/data/Sony/ILCE-7M4/ILCE-7M4_DSC06677_FullFrame-Raw-Compressed.ARW",
+   "file_sha256": "73c79fd9fbd73dff89548b611aaedc3c5a7e3412ec190c23881ea8434ff2214c",
+   "bytes": 40665088,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 7028,
+    "height": 4688,
+    "cfa": "RGGB",
+    "white_level": 16383,
+    "black_by_channel": [
+     512,
+     512,
+     512,
+     512
+    ],
+    "mosaic_sha256": "88e6b29dda3115eb7155c9a54615b8b5443ebd6fe50cdad52a3022e1785b1830",
+    "iso": 250.0,
+    "exposure_s": 0.02,
+    "focal_mm": 50.0,
+    "lens": "FE 50mm F2.5 G",
+    "date_time_original": "2023-10-19T16:15:24",
+    "offset_time_original": "+02:00",
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 15360,
+    "saturation_source": "Sony SR2 WhiteLevel"
+   }
+  },
+  {
+   "file": "sony_a7m4_uncompressed.arw",
+   "url": "https://raw.pixls.us/data/Sony/ILCE-7M4/ILCE-7M4_DSC06673_FullFrame-Raw-Uncompressed.ARW",
+   "file_sha256": "626e1f3235e28f2c642814e0aefad404ea767c06943934db87d2b0072ba8e8b9",
+   "bytes": 73457664,
+   "independent": {
+    "decoder": "rawpy 0.28.0 (LibRaw 0.22.2), ExifTool 13.63",
+    "width": 7028,
+    "height": 4688,
+    "cfa": "RGGB",
+    "white_level": 16383,
+    "black_by_channel": [
+     512,
+     512,
+     512,
+     512
+    ],
+    "mosaic_sha256": "4b0349016c302169bf3145cf95b8e6afd9d272c89a7a191d710bae7e63461fa7",
+    "iso": 250.0,
+    "exposure_s": 0.02,
+    "focal_mm": 50.0,
+    "lens": "FE 50mm F2.5 G",
+    "date_time_original": "2023-10-19T16:12:37",
+    "offset_time_original": "+02:00",
+    "exif_sensor_temperature": null,
+    "exif_camera_temperature": null,
+    "maker_note_offset": null,
+    "saturation_level": 15360,
+    "saturation_source": "Sony SR2 WhiteLevel"
+   }
+  }
+ ]
+}

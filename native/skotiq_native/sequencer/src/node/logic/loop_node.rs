@@ -5,28 +5,8 @@ use crate::node::logic::sequential::execute_children_sequential;
 use crate::node::progress::ProgressUpdate;
 use crate::node::runtime::RuntimeNode;
 use crate::node::Node;
-use crate::scheduling::astronomy::object_alt_az;
 use crate::scheduling::HorizonProfile;
 use crate::{LoopCondition, LoopConfig, NodeStatus};
-
-/// Current `(altitude_deg, azimuth_deg)` of the active target from the
-/// execution context, or `None` when target coordinates or the observer
-/// location are unset.
-///
-/// `ExecutionContext::calculate_altitude` only returns altitude; the
-/// per-azimuth horizon mask needs azimuth too, so this consults
-/// [`object_alt_az`] (the same astronomy used by the scheduler) for both.
-/// `target_ra` is stored in **hours**, so it is converted to degrees (×15)
-/// for `object_alt_az`, which — like the Dart `objectAltAz` — expects RA in
-/// degrees.
-fn current_alt_az(context: &ExecutionContext) -> Option<(f64, f64)> {
-    let ra_hours = context.target_ra?;
-    let dec_deg = context.target_dec?;
-    let lat = context.latitude?;
-    let lon = context.longitude?;
-    let now = chrono::Utc::now();
-    Some(object_alt_az(ra_hours * 15.0, dec_deg, &now, lat, lon))
-}
 
 /// Effective altitude floor for an altitude loop condition.
 ///
@@ -125,7 +105,7 @@ pub async fn execute_loop(
                 if config.condition_value.is_none() && config.horizon_profile.is_none() {
                     false
                 } else {
-                    let Some((current_alt, current_az)) = current_alt_az(context) else {
+                    let Some((current_alt, current_az)) = context.target_alt_az() else {
                         tracing::error!(
                             "Loop condition AltitudeBelow requires target coordinates and observer location"
                         );
@@ -145,7 +125,7 @@ pub async fn execute_loop(
                 if config.condition_value.is_none() && config.horizon_profile.is_none() {
                     false
                 } else {
-                    let Some((current_alt, current_az)) = current_alt_az(context) else {
+                    let Some((current_alt, current_az)) = context.target_alt_az() else {
                         tracing::error!(
                             "Loop condition AltitudeAbove requires target coordinates and observer location"
                         );
@@ -186,6 +166,18 @@ pub async fn execute_loop(
             break;
         }
 
+        // The pass a resume continues keeps what its body had done when the
+        // run stopped; every other pass starts its body over.
+        let continues_stopped_pass = std::mem::take(&mut node.resumed);
+        if !continues_stopped_pass {
+            let mut body = Vec::new();
+            for child in &node.children {
+                collect_node_ids(child.as_ref(), &mut body);
+            }
+            context
+                .resume
+                .begin_pass(node.id(), node.current_iteration, body);
+        }
         node.current_iteration += 1;
         iterations_run_here += 1;
         tracing::info!("=== LOOP ITERATION {} STARTING ===", node.current_iteration);
@@ -210,18 +202,14 @@ pub async fn execute_loop(
         update.total_children = total_children;
         context.send_progress(update);
 
-        // Children retain Success/Failure from the previous iteration and
-        // would short-circuit on the next pass; resetting them per-iter is
-        // what makes a Loop actually re-execute its body.
-        tracing::info!(
-            "Resetting {} children for iteration {}",
-            node.children.len(),
-            node.current_iteration
-        );
-        for child in &mut node.children {
-            child.reset();
+        // Children keep their status from the previous pass and would
+        // short-circuit on this one; resetting them is what makes a Loop run
+        // its body again.
+        if !continues_stopped_pass {
+            for child in &mut node.children {
+                child.reset();
+            }
         }
-        tracing::info!("Children reset complete");
 
         tracing::info!(
             "Starting execute_children_sequential for iteration {}",
@@ -238,9 +226,19 @@ pub async fn execute_loop(
         if result == NodeStatus::Failure || result == NodeStatus::Cancelled {
             return result;
         }
+        context
+            .resume
+            .finish_pass(node.id(), node.current_iteration);
     }
 
     NodeStatus::Success
+}
+
+fn collect_node_ids(node: &dyn Node, out: &mut Vec<crate::NodeId>) {
+    out.push(node.id().clone());
+    for child in node.children() {
+        collect_node_ids(child.as_ref(), out);
+    }
 }
 
 #[cfg(test)]
@@ -254,8 +252,8 @@ mod tests {
         let mut ctx = ExecutionContext::new_for_test("root".to_string());
         ctx.target_ra = Some(ra_hours);
         ctx.target_dec = Some(dec_deg);
-        ctx.latitude = Some(lat);
-        ctx.longitude = Some(lon);
+        ctx.run.rig.latitude = Some(lat);
+        ctx.run.rig.longitude = Some(lon);
         ctx
     }
 
@@ -305,19 +303,19 @@ mod tests {
     #[test]
     fn current_alt_az_none_without_coords() {
         let ctx = ExecutionContext::new_for_test("root".to_string());
-        assert!(current_alt_az(&ctx).is_none());
+        assert!(ctx.target_alt_az().is_none());
 
         // Missing observer location alone is still None.
         let mut partial = ExecutionContext::new_for_test("root".to_string());
         partial.target_ra = Some(5.59);
         partial.target_dec = Some(-5.39);
-        assert!(current_alt_az(&partial).is_none());
+        assert!(partial.target_alt_az().is_none());
     }
 
     #[test]
     fn current_alt_az_returns_finite_pair_with_coords() {
         let ctx = ctx_with_target(5.59, -5.39, 40.7, -74.0);
-        let (alt, az) = current_alt_az(&ctx).expect("coords present");
+        let (alt, az) = ctx.target_alt_az().expect("coords present");
         assert!(alt.is_finite() && (-90.0..=90.0).contains(&alt));
         assert!(az.is_finite() && (0.0..360.0).contains(&az));
     }
@@ -329,7 +327,7 @@ mod tests {
         // no horizon profile is configured. They use the same sin(alt) formula;
         // any LST-source drift must stay sub-degree.
         let ctx = ctx_with_target(5.59, -5.39, 40.7, -74.0);
-        let (alt, _az) = current_alt_az(&ctx).unwrap();
+        let (alt, _az) = ctx.target_alt_az().unwrap();
         let ctx_alt = ctx.calculate_altitude().unwrap();
         assert!(
             (alt - ctx_alt).abs() < 0.1,

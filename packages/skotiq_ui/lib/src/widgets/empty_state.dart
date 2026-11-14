@@ -41,13 +41,10 @@ class EmptyState extends StatelessWidget {
   /// The glyph size in logical pixels.
   static const double iconSize = 28;
 
-  /// Gap between the icon and the title.
   static const double iconTitleGap = 6;
 
-  /// Gap between the title and the body.
   static const double titleBodyGap = SkotiqTokens.spaceXs;
 
-  /// Gap between the body and the button.
   static const double actionGap = 10;
 
   /// The widest an empty state gets, so its sentence never runs past two lines.

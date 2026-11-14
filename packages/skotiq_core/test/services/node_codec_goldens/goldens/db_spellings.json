@@ -1,0 +1,1542 @@
+{
+  "Autofocus": {
+    "class": "AutofocusNode",
+    "nodeType": "Autofocus",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "vCurve",
+      100,
+      7,
+      1,
+      3.0,
+      true,
+      600.0
+    ]
+  },
+  "CalibratorOff": {
+    "class": "CalibratorOffNode",
+    "nodeType": "CalibratorOff",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      30
+    ]
+  },
+  "CalibratorOn": {
+    "class": "CalibratorOnNode",
+    "nodeType": "CalibratorOn",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      128,
+      30
+    ]
+  },
+  "CenterTarget": {
+    "class": "CenterNode",
+    "nodeType": "CenterTarget",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      5.0,
+      5,
+      true,
+      null,
+      null,
+      5.0,
+      null
+    ]
+  },
+  "ChangeFilter": {
+    "class": "FilterChangeNode",
+    "nodeType": "ChangeFilter",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      null
+    ]
+  },
+  "CloseCover": {
+    "class": "CloseCoverNode",
+    "nodeType": "CloseCover",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      60
+    ]
+  },
+  "CloseDome": {
+    "class": "CloseDomeNode",
+    "nodeType": "CloseDome",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      false
+    ]
+  },
+  "Conditional": {
+    "class": "ConditionalNode",
+    "nodeType": "Conditional",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "always",
+      null,
+      null,
+      null
+    ]
+  },
+  "CoolCamera": {
+    "class": "CoolCameraNode",
+    "nodeType": "CoolCamera",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      -10.0,
+      null
+    ]
+  },
+  "Delay": {
+    "class": "DelayNode",
+    "nodeType": "Delay",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      5.0
+    ]
+  },
+  "Dither": {
+    "class": "DitherNode",
+    "nodeType": "Dither",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      5.0,
+      30.0,
+      1.5,
+      120.0,
+      false,
+      "random",
+      3
+    ]
+  },
+  "FlatWizard": "error StateError: Bad state: Unsupported sequence node type \"FlatWizard\" for node probe",
+  "HomeMount": {
+    "class": "HomeMountNode",
+    "nodeType": "HomeMount",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null
+    ]
+  },
+  "InstructionSet": {
+    "class": "InstructionSetNode",
+    "nodeType": "InstructionSet",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null
+    ]
+  },
+  "LiveStacking": {
+    "class": "LiveStackingNode",
+    "nodeType": "LiveStacking",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "broadcastOnly",
+      "average",
+      0,
+      true,
+      null,
+      null,
+      1280,
+      720
+    ]
+  },
+  "Loop": {
+    "class": "LoopNode",
+    "nodeType": "Loop",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "count",
+      1,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "MeridianFlip": {
+    "class": "MeridianFlipNode",
+    "nodeType": "MeridianFlip",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "minutesPastMeridian",
+      5.0,
+      10.0,
+      0.5,
+      true,
+      true,
+      false,
+      10.0,
+      true,
+      3,
+      "pauseAndAlert",
+      false
+    ]
+  },
+  "Mosaic": "error StateError: Bad state: Unsupported sequence node type \"Mosaic\" for node probe",
+  "MoveRotator": {
+    "class": "RotatorNode",
+    "nodeType": "MoveRotator",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      0.0,
+      false
+    ]
+  },
+  "Notification": {
+    "class": "NotificationNode",
+    "nodeType": "Notification",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      "",
+      "info",
+      null
+    ]
+  },
+  "OpenCover": {
+    "class": "OpenCoverNode",
+    "nodeType": "OpenCover",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      60
+    ]
+  },
+  "OpenDome": {
+    "class": "OpenDomeNode",
+    "nodeType": "OpenDome",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      false
+    ]
+  },
+  "Parallel": {
+    "class": "ParallelNode",
+    "nodeType": "Parallel",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      null
+    ]
+  },
+  "Park": {
+    "class": "ParkNode",
+    "nodeType": "Park",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null
+    ]
+  },
+  "ParkDome": {
+    "class": "ParkDomeNode",
+    "nodeType": "ParkDome",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      false
+    ]
+  },
+  "PluginNode": {
+    "class": "PluginInstructionNode",
+    "nodeType": "PluginNode",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      "",
+      "{}",
+      null,
+      "",
+      "puzzle"
+    ]
+  },
+  "PolarAlignment": {
+    "class": "PolarAlignmentNode",
+    "nodeType": "PolarAlignment",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      2.0,
+      2,
+      45.0,
+      20.0,
+      null,
+      null,
+      true,
+      true,
+      false
+    ]
+  },
+  "Recovery": {
+    "class": "RecoveryNode",
+    "nodeType": "Recovery",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "continueExecution",
+      3,
+      null,
+      null,
+      20.0,
+      3,
+      25,
+      10,
+      5,
+      0.5,
+      30.0,
+      10.0,
+      70.0,
+      300.0,
+      80.0,
+      60.0,
+      0.7,
+      60.0
+    ]
+  },
+  "RunScript": {
+    "class": "ScriptNode",
+    "nodeType": "RunScript",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      [],
+      null
+    ]
+  },
+  "SciencePhotometry": {
+    "class": "SciencePhotometryNode",
+    "nodeType": "SciencePhotometry",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      [],
+      2.0,
+      "Clear",
+      60.0,
+      60,
+      true,
+      true,
+      {
+        "max_airmass": 2.5,
+        "max_fwhm_arcsec": 5.0,
+        "min_snr": 50.0,
+        "require_all_refs_visible": true
+      },
+      null,
+      null,
+      "one"
+    ]
+  },
+  "SlewToTarget": {
+    "class": "SlewNode",
+    "nodeType": "SlewToTarget",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      true,
+      null,
+      null
+    ]
+  },
+  "SmartExposure": {
+    "class": "SmartExposureNode",
+    "nodeType": "SmartExposure",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      [],
+      true,
+      false,
+      0.0,
+      1,
+      false
+    ]
+  },
+  "StartGuiding": {
+    "class": "StartGuidingNode",
+    "nodeType": "StartGuiding",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      1.5,
+      10.0,
+      60.0,
+      true
+    ]
+  },
+  "StopGuiding": {
+    "class": "StopGuidingNode",
+    "nodeType": "StopGuiding",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null
+    ]
+  },
+  "TakeExposure": {
+    "class": "ExposureNode",
+    "nodeType": "TakeExposure",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      60.0,
+      10,
+      "light",
+      null,
+      null,
+      null,
+      null,
+      "one",
+      null,
+      [],
+      null
+    ]
+  },
+  "TargetHeader": {
+    "class": "TargetHeaderNode",
+    "nodeType": "TargetHeader",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      0.0,
+      0.0,
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      30,
+      null,
+      null
+    ]
+  },
+  "TargetScheduler": {
+    "class": "TargetSchedulerNode",
+    "nodeType": "TargetScheduler",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      0.25,
+      0.25,
+      0.2,
+      0.15,
+      0.15,
+      30.0,
+      0,
+      true,
+      null,
+      180.0,
+      {
+        "bright_min_score": 30.0,
+        "faint_min_score": 70.0,
+        "medium_min_score": 50.0
+      },
+      300,
+      null,
+      null
+    ]
+  },
+  "Unpark": {
+    "class": "UnparkNode",
+    "nodeType": "Unpark",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null
+    ]
+  },
+  "WaitForTime": {
+    "class": "WaitTimeNode",
+    "nodeType": "WaitForTime",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      null,
+      null
+    ]
+  },
+  "WarmCamera": {
+    "class": "WarmCameraNode",
+    "nodeType": "WarmCamera",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      2.0,
+      20.0
+    ]
+  },
+  "autofocus": {
+    "class": "AutofocusNode",
+    "nodeType": "Autofocus",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "vCurve",
+      100,
+      7,
+      1,
+      3.0,
+      true,
+      600.0
+    ]
+  },
+  "calibratorOff": {
+    "class": "CalibratorOffNode",
+    "nodeType": "CalibratorOff",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      30
+    ]
+  },
+  "calibratorOn": {
+    "class": "CalibratorOnNode",
+    "nodeType": "CalibratorOn",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      128,
+      30
+    ]
+  },
+  "calibrator_off": {
+    "class": "CalibratorOffNode",
+    "nodeType": "CalibratorOff",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      30
+    ]
+  },
+  "calibrator_on": {
+    "class": "CalibratorOnNode",
+    "nodeType": "CalibratorOn",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      128,
+      30
+    ]
+  },
+  "center": {
+    "class": "CenterNode",
+    "nodeType": "CenterTarget",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      5.0,
+      5,
+      true,
+      null,
+      null,
+      5.0,
+      null
+    ]
+  },
+  "closeCover": {
+    "class": "CloseCoverNode",
+    "nodeType": "CloseCover",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      60
+    ]
+  },
+  "closeDome": {
+    "class": "CloseDomeNode",
+    "nodeType": "CloseDome",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      false
+    ]
+  },
+  "close_cover": {
+    "class": "CloseCoverNode",
+    "nodeType": "CloseCover",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      60
+    ]
+  },
+  "conditional": {
+    "class": "ConditionalNode",
+    "nodeType": "Conditional",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "always",
+      null,
+      null,
+      null
+    ]
+  },
+  "coolCamera": {
+    "class": "CoolCameraNode",
+    "nodeType": "CoolCamera",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      -10.0,
+      null
+    ]
+  },
+  "delay": {
+    "class": "DelayNode",
+    "nodeType": "Delay",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      5.0
+    ]
+  },
+  "dither": {
+    "class": "DitherNode",
+    "nodeType": "Dither",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      5.0,
+      30.0,
+      1.5,
+      120.0,
+      false,
+      "random",
+      3
+    ]
+  },
+  "exposure": {
+    "class": "ExposureNode",
+    "nodeType": "TakeExposure",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      60.0,
+      10,
+      "light",
+      null,
+      null,
+      null,
+      null,
+      "one",
+      null,
+      [],
+      null
+    ]
+  },
+  "filterChange": {
+    "class": "FilterChangeNode",
+    "nodeType": "ChangeFilter",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      null
+    ]
+  },
+  "homemount": {
+    "class": "HomeMountNode",
+    "nodeType": "HomeMount",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null
+    ]
+  },
+  "instructionSet": {
+    "class": "InstructionSetNode",
+    "nodeType": "InstructionSet",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null
+    ]
+  },
+  "liveStacking": {
+    "class": "LiveStackingNode",
+    "nodeType": "LiveStacking",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "broadcastOnly",
+      "average",
+      0,
+      true,
+      null,
+      null,
+      1280,
+      720
+    ]
+  },
+  "live_stacking": {
+    "class": "LiveStackingNode",
+    "nodeType": "LiveStacking",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "broadcastOnly",
+      "average",
+      0,
+      true,
+      null,
+      null,
+      1280,
+      720
+    ]
+  },
+  "loop": {
+    "class": "LoopNode",
+    "nodeType": "Loop",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "count",
+      1,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "meridianFlip": {
+    "class": "MeridianFlipNode",
+    "nodeType": "MeridianFlip",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "minutesPastMeridian",
+      5.0,
+      10.0,
+      0.5,
+      true,
+      true,
+      false,
+      10.0,
+      true,
+      3,
+      "pauseAndAlert",
+      false
+    ]
+  },
+  "notification": {
+    "class": "NotificationNode",
+    "nodeType": "Notification",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      "",
+      "info",
+      null
+    ]
+  },
+  "openCover": {
+    "class": "OpenCoverNode",
+    "nodeType": "OpenCover",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      60
+    ]
+  },
+  "openDome": {
+    "class": "OpenDomeNode",
+    "nodeType": "OpenDome",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      false
+    ]
+  },
+  "open_cover": {
+    "class": "OpenCoverNode",
+    "nodeType": "OpenCover",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      60
+    ]
+  },
+  "parallel": {
+    "class": "ParallelNode",
+    "nodeType": "Parallel",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      null
+    ]
+  },
+  "park": {
+    "class": "ParkNode",
+    "nodeType": "Park",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null
+    ]
+  },
+  "parkDome": {
+    "class": "ParkDomeNode",
+    "nodeType": "ParkDome",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      false
+    ]
+  },
+  "pluginNode": {
+    "class": "PluginInstructionNode",
+    "nodeType": "PluginNode",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      "",
+      "{}",
+      null,
+      "",
+      "puzzle"
+    ]
+  },
+  "plugin_node": {
+    "class": "PluginInstructionNode",
+    "nodeType": "PluginNode",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      "",
+      "{}",
+      null,
+      "",
+      "puzzle"
+    ]
+  },
+  "polarAlignment": {
+    "class": "PolarAlignmentNode",
+    "nodeType": "PolarAlignment",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      2.0,
+      2,
+      45.0,
+      20.0,
+      null,
+      null,
+      true,
+      true,
+      false
+    ]
+  },
+  "recovery": {
+    "class": "RecoveryNode",
+    "nodeType": "Recovery",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "continueExecution",
+      3,
+      null,
+      null,
+      20.0,
+      3,
+      25,
+      10,
+      5,
+      0.5,
+      30.0,
+      10.0,
+      70.0,
+      300.0,
+      80.0,
+      60.0,
+      0.7,
+      60.0
+    ]
+  },
+  "rotator": {
+    "class": "RotatorNode",
+    "nodeType": "MoveRotator",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      0.0,
+      false
+    ]
+  },
+  "sciencePhotometry": {
+    "class": "SciencePhotometryNode",
+    "nodeType": "SciencePhotometry",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      [],
+      2.0,
+      "Clear",
+      60.0,
+      60,
+      true,
+      true,
+      {
+        "max_airmass": 2.5,
+        "max_fwhm_arcsec": 5.0,
+        "min_snr": 50.0,
+        "require_all_refs_visible": true
+      },
+      null,
+      null,
+      "one"
+    ]
+  },
+  "science_photometry": {
+    "class": "SciencePhotometryNode",
+    "nodeType": "SciencePhotometry",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      [],
+      2.0,
+      "Clear",
+      60.0,
+      60,
+      true,
+      true,
+      {
+        "max_airmass": 2.5,
+        "max_fwhm_arcsec": 5.0,
+        "min_snr": 50.0,
+        "require_all_refs_visible": true
+      },
+      null,
+      null,
+      "one"
+    ]
+  },
+  "script": {
+    "class": "ScriptNode",
+    "nodeType": "RunScript",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      [],
+      null
+    ]
+  },
+  "slew": {
+    "class": "SlewNode",
+    "nodeType": "SlewToTarget",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      true,
+      null,
+      null
+    ]
+  },
+  "smartExposure": {
+    "class": "SmartExposureNode",
+    "nodeType": "SmartExposure",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      [],
+      true,
+      false,
+      0.0,
+      1,
+      false
+    ]
+  },
+  "smart_exposure": {
+    "class": "SmartExposureNode",
+    "nodeType": "SmartExposure",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      [],
+      true,
+      false,
+      0.0,
+      1,
+      false
+    ]
+  },
+  "startGuiding": {
+    "class": "StartGuidingNode",
+    "nodeType": "StartGuiding",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      1.5,
+      10.0,
+      60.0,
+      true
+    ]
+  },
+  "stopGuiding": {
+    "class": "StopGuidingNode",
+    "nodeType": "StopGuiding",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null
+    ]
+  },
+  "takeexposure": "error StateError: Bad state: Unsupported sequence node type \"takeexposure\" for node probe",
+  "targetGroup": {
+    "class": "TargetHeaderNode",
+    "nodeType": "TargetHeader",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      "",
+      0.0,
+      0.0,
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      30,
+      null,
+      null
+    ]
+  },
+  "targetScheduler": {
+    "class": "TargetSchedulerNode",
+    "nodeType": "TargetScheduler",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      0.25,
+      0.25,
+      0.2,
+      0.15,
+      0.15,
+      30.0,
+      0,
+      true,
+      null,
+      180.0,
+      {
+        "bright_min_score": 30.0,
+        "faint_min_score": 70.0,
+        "medium_min_score": 50.0
+      },
+      300,
+      null,
+      null
+    ]
+  },
+  "target_scheduler": {
+    "class": "TargetSchedulerNode",
+    "nodeType": "TargetScheduler",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      0.25,
+      0.25,
+      0.2,
+      0.15,
+      0.15,
+      30.0,
+      0,
+      true,
+      null,
+      180.0,
+      {
+        "bright_min_score": 30.0,
+        "faint_min_score": 70.0,
+        "medium_min_score": 50.0
+      },
+      300,
+      null,
+      null
+    ]
+  },
+  "unpark": {
+    "class": "UnparkNode",
+    "nodeType": "Unpark",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null
+    ]
+  },
+  "waitTime": {
+    "class": "WaitTimeNode",
+    "nodeType": "WaitForTime",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      null,
+      null
+    ]
+  },
+  "warmCamera": {
+    "class": "WarmCameraNode",
+    "nodeType": "WarmCamera",
+    "props": [
+      "probe",
+      "Delay",
+      true,
+      [],
+      "root",
+      0,
+      null,
+      2.0,
+      20.0
+    ]
+  }
+}

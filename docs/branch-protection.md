@@ -60,8 +60,8 @@ annotation and never exits non-zero, so it should **not** be a required check.
 See the advisory tier in `docs/ci-gates.md`.
 
 The individual gate steps inside `analyze` and `launch-gate` (placeholder
-audit, fail-closed policy, behavioral audit, dependency hygiene, analyzer
-rollup) are documented gate-by-gate in `docs/ci-gates.md`. Failing any one of
+audit, fail-closed policy, behavioral audit, bridge boundary, dependency
+hygiene, analyzer rollup) are documented gate-by-gate in `docs/ci-gates.md`. Failing any one of
 them fails its job, which turns the corresponding required check red.
 
 CI also runs on `push` to `main`, `master`, and `develop`, and on a nightly

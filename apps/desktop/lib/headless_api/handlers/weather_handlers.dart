@@ -1,12 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for weather data and alerts
-class WeatherHandlers {
+class WeatherHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    WeatherApi.getRadarData: handleGetRadarData,
+    WeatherApi.getForecast: handleGetForecast,
+    WeatherApi.getAlerts: handleGetAlerts,
+    WeatherApi.getCloudCover: handleGetCloudCover,
+    WeatherApi.getSettings: handleGetSettings,
+    WeatherApi.updateSettings: handleUpdateSettings,
+    WeatherApi.checkSafeImaging: handleCheckSafeImaging,
+    WeatherApi.getCurrent: handleGetCurrent,
+    WeatherApi.clearCache: handleClearCache,
+  };
+
   final ProviderContainer container;
 
   WeatherHandlers(this.container);
@@ -26,8 +43,6 @@ class WeatherHandlers {
   /// response — only the log copy is coarsened.
   static String _coarseCoord(double? value) =>
       value == null ? 'null' : value.toStringAsFixed(1);
-
-  // Get radar data
 
   Future<Response> handleGetRadarData(Request request) async {
     final query = request.url.queryParameters;
@@ -66,8 +81,6 @@ class WeatherHandlers {
     }, statusCode: 502);
   }
 
-  // Get weather forecast
-
   Future<Response> handleGetForecast(Request request) async {
     final query = request.url.queryParameters;
     if ((query['lat'] ?? '').isEmpty || (query['lon'] ?? '').isEmpty) {
@@ -79,11 +92,11 @@ class WeatherHandlers {
       '[API] GET /api/weather/forecast?lat=${_coarseCoord(lat)}&lon=${_coarseCoord(lon)}',
     );
 
-    // Back the forecast with the same Open-Meteo hourly cloud feed the desktop
+    // Back the forecast with the same regional hourly cloud feed the desktop
     // planner uses (weekForecastCloudProvider, keyed only on the site so remote
     // and local share one cached fetch). It returns a RadarFetchResult whose
     // frames are hourly cloud-cover samples (opacity 0-1 == cloud cover 0-100%)
-    // spanning the past day plus the next several forecast days.
+    // spanning the provider's available forecast days.
     try {
       final result = await container.read(
         weekForecastCloudProvider(ForecastSite(lat, lon)).future,
@@ -102,8 +115,8 @@ class WeatherHandlers {
           .map(
             (f) => {
               'timestamp': f.timestamp.toUtc().millisecondsSinceEpoch,
-              'time': f.timestamp.toUtc().toIso8601String(),
-              // Open-Meteo cloud frames carry cloud cover as opacity in [0, 1].
+              'time': f.timestamp.toWireTime(),
+              // Numerical cloud frames carry cloud cover as opacity in [0, 1].
               'cloudCoverPercent': (f.opacity.clamp(0.0, 1.0) * 100.0),
             },
           )
@@ -131,8 +144,6 @@ class WeatherHandlers {
     }
   }
 
-  // Get active alerts
-
   Future<Response> handleGetAlerts(Request request) async {
     final alertService = container.read(weatherAlertServiceProvider);
     final currentAlert = alertService.currentAlert;
@@ -146,8 +157,6 @@ class WeatherHandlers {
     });
   }
 
-  // Get cloud cover prediction
-
   Future<Response> handleGetCloudCover(Request request) async {
     final query = request.url.queryParameters;
     if ((query['lat'] ?? '').isEmpty || (query['lon'] ?? '').isEmpty) {
@@ -159,47 +168,29 @@ class WeatherHandlers {
       '[API] GET /api/weather/cloud-cover?lat=${_coarseCoord(lat)}&lon=${_coarseCoord(lon)}',
     );
 
-    // Use the same Open-Meteo hourly cloud feed the desktop app uses
-    // (weekForecastCloudProvider), then read the sample nearest to "now" — the
-    // same nearest-hour lookup OpenMeteoCloudProvider.getCloudCoverAt performs.
-    // The cloudCoverPercentageProvider the UI watches is location-bound (it
-    // reads the configured observer location, not an arbitrary lat/lon), so we
-    // can't honor the request's lat/lon through it; this feed takes lat/lon
-    // directly and shares the same provider/cache as the planner.
+    // The current-weather service selects a valid sample for this site and
+    // instant. A nearest sample from the weekly forecast can be expired or
+    // belong to a future interval, so it cannot answer this endpoint.
     try {
-      final result = await container.read(
-        weekForecastCloudProvider(ForecastSite(lat, lon)).future,
-      );
+      final forecast = await container
+          .read(locationCloudForecastServiceProvider)
+          .fetchCurrentCloudForecast(latitude: lat, longitude: lon);
 
-      if (!result.isSuccess || result.frames.isEmpty) {
+      if (forecast == null || forecast.validAt == null) {
         return jsonResponse({
           "error": "cloud_cover_fetch_failed",
-          "message": result.errorMessage ?? 'No cloud cover data available',
+          "message": 'No current cloud cover data available',
         }, statusCode: 502);
-      }
-
-      // Nearest frame to the current instant (frame timestamps are UTC) — the
-      // same nearest-hour lookup OpenMeteoCloudProvider.getCloudCoverAt does.
-      final now = DateTime.now().toUtc();
-      RadarFrame nearest = result.frames.first;
-      Duration bestDistance = nearest.timestamp.toUtc().difference(now).abs();
-      for (final frame in result.frames) {
-        final d = frame.timestamp.toUtc().difference(now).abs();
-        if (d < bestDistance) {
-          bestDistance = d;
-          nearest = frame;
-        }
       }
 
       return jsonOk({
         "hasData": true,
         "latitude": lat,
         "longitude": lon,
-        "source": result.providerName ?? 'Open-Meteo',
-        // Open-Meteo cloud frames carry cloud cover as opacity in [0, 1].
-        "cloudCoverPercent": (nearest.opacity.clamp(0.0, 1.0) * 100.0),
-        "timestamp": nearest.timestamp.toUtc().millisecondsSinceEpoch,
-        "fetchedAt": result.fetchedAt.millisecondsSinceEpoch,
+        "source": forecast.source,
+        "cloudCoverPercent": forecast.percent,
+        "timestamp": forecast.validAt!.toUtc().millisecondsSinceEpoch,
+        "fetchedAt": DateTime.now().millisecondsSinceEpoch,
       });
     } catch (e, stackTrace) {
       // Genuine live network fetch can fail; surface a clean 502.
@@ -212,8 +203,6 @@ class WeatherHandlers {
       );
     }
   }
-
-  // Get weather settings
 
   /// The writable weather settings, by the names both the GET and the POST
   /// use. [handleUpdateSettings] refuses a body naming none of them.
@@ -269,8 +258,6 @@ class WeatherHandlers {
       },
     });
   }
-
-  // Update weather settings
 
   Future<Response> handleUpdateSettings(Request request) async {
     _logInfo('[API] POST /api/weather/settings');
@@ -358,8 +345,7 @@ class WeatherHandlers {
     // Reload the settings stream and await a fresh evaluation so the response
     // cannot claim the toggle succeeded while safety/status still exposes the
     // previous decision.
-    final backend = container.read(backendProvider);
-    if (backend is! DisconnectedBackend) {
+    if (!container.read(backendProvider).hasNoHost) {
       container.invalidate(weatherDecisionPolicyProvider);
       container.invalidate(weatherSettingsDataProvider);
       await container.read(weatherSettingsDataProvider.future);
@@ -410,8 +396,6 @@ class WeatherHandlers {
     });
   }
 
-  // Check safe imaging conditions
-
   Future<Response> handleCheckSafeImaging(Request request) async {
     final alertService = container.read(weatherAlertServiceProvider);
     final currentAlert = alertService.currentAlert;
@@ -422,7 +406,7 @@ class WeatherHandlers {
       "alertLevel": currentAlert?.level.name ?? safety.currentAlertLevel.name,
       "message": _safetyMessage(safety, currentAlert),
       "dataSource": safety.dataSource.name,
-      "lastEvaluation": safety.lastEvaluation?.toIso8601String(),
+      "lastEvaluation": safety.lastEvaluation?.toWireTime(),
     });
   }
 
@@ -461,12 +445,12 @@ class WeatherHandlers {
       'alertLevel': currentAlert?.level.name ?? safety.currentAlertLevel.name,
       'message': _safetyMessage(safety, currentAlert),
       'dataSource': safety.dataSource.name,
-      'lastEvaluation': safety.lastEvaluation?.toIso8601String(),
+      'lastEvaluation': safety.lastEvaluation?.toWireTime(),
       'currentAlert': currentAlert != null ? _alertToJson(currentAlert) : null,
       'hardwareConnected': hardwareConnected,
       'deviceId': weatherState.deviceId,
       'deviceName': weatherState.deviceName,
-      'lastUpdated': weatherState.lastUpdated?.toIso8601String(),
+      'lastUpdated': weatherState.lastUpdated?.toWireTime(),
       'temperature': temperature,
       'humidity': humidity,
       'cloudCover': cloudCover,
@@ -486,8 +470,6 @@ class WeatherHandlers {
     });
   }
 
-  // Clear weather cache
-
   Future<Response> handleClearCache(Request request) async {
     _logInfo('[API] POST /api/weather/clear-cache');
     final service = container.read(weatherRadarServiceProvider);
@@ -495,8 +477,6 @@ class WeatherHandlers {
 
     return jsonOk({"status": "cache_cleared"});
   }
-
-  // Helpers
 
   String _safetyMessage(WeatherSafetyState safety, WeatherAlert? currentAlert) {
     if (currentAlert != null) return currentAlert.message;

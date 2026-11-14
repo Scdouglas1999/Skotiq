@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/science_hud.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _ActiveSession extends SessionStateNotifier {
@@ -137,7 +139,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('Bad state: session config unavailable'),
+      find.textContaining('session config unavailable'),
       findsOneWidget,
     );
     final switches = tester.widgetList<SkotiqSwitch>(
@@ -190,7 +192,7 @@ void main() {
     );
     expect(
       find.textContaining(
-        'Could not save science session: Bad state: session config write failed',
+        'Could not save science session: session config write failed',
       ),
       findsOneWidget,
     );
@@ -224,7 +226,7 @@ void main() {
     );
     expect(
       find.textContaining(
-        'Could not save photometry setup: Bad state: selection write failed',
+        'Could not save photometry setup: selection write failed',
       ),
       findsOneWidget,
     );

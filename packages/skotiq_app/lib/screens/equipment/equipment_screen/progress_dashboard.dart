@@ -18,29 +18,25 @@ class _ConnectAllProgressStrip extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final state = ref.watch(deviceConnectionProgressProvider);
 
-    if (state.byDeviceType.isEmpty) {
+    final devices = state.byDevice;
+    if (devices.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    // Stable canonical ordering matching the connectAllFromProfile dispatch
-    // order so chips don't jitter between rebuilds.
-    const order = <String>[
-      'camera',
-      'mount',
-      'focuser',
-      'filter wheel',
-      'guider',
-      'rotator',
-      'dome',
-      'weather station',
-      'safety monitor',
-      'cover calibrator',
+    // Device-table order, so chips do not move between rebuilds. A guide
+    // camera is counted with its guider, so it has a chip of its own only
+    // when the profile names no guider.
+    final entries = <DeviceConnectProgress>[
+      for (final label in [
+        for (final slot in deviceSlots) ...[
+          if (slot.type == DeviceType.guider) guideCameraLabel,
+          slot.noun,
+        ],
+      ])
+        if (devices[label] case final event?) event,
     ];
 
-    final entries = <DeviceConnectProgress>[
-      for (final type in order)
-        if (state.byDeviceType.containsKey(type)) state.byDeviceType[type]!,
-    ];
+    final failed = state.failures;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
@@ -49,6 +45,15 @@ class _ConnectAllProgressStrip extends ConsumerWidget {
           label: 'Last connect sweep',
           icon: LucideIcons.plugZap,
           trailing: [
+            if (!state.isSweeping && failed.isNotEmpty)
+              SkotiqButton(
+                label: 'Retry failed',
+                icon: LucideIcons.refreshCw,
+                size: ButtonSize.small,
+                variant: ButtonVariant.secondary,
+                onPressed: () =>
+                    ref.read(deviceServiceProvider).retryFailedConnects(),
+              ),
             if (!state.isSweeping)
               SkotiqButton(
                 label: 'Clear',
@@ -80,6 +85,18 @@ class _ConnectAllProgressStrip extends ConsumerWidget {
                   _ConnectAllProgressChip(event: event, colors: colors),
               ],
             ),
+            // Why each failed device did not come up, in words, next to the
+            // chip that says it failed.
+            for (final event in failed)
+              Padding(
+                padding: const EdgeInsets.only(top: SkotiqTokens.spaceSm),
+                child: Text(
+                  '${event.deviceType[0].toUpperCase()}'
+                  '${event.deviceType.substring(1)}: '
+                  '${ConnectAllFailure.fromProgress(event).detail}',
+                  style: SkotiqTypography.bodySm.copyWith(color: colors.error),
+                ),
+              ),
           ],
         ),
       ),
@@ -95,7 +112,7 @@ class _ConnectAllProgressStrip extends ConsumerWidget {
   static String _stripHeadline(DeviceConnectionProgressState state) {
     if (state.isSweeping) return 'Connecting…';
     final scored =
-        '${state.connectedCount} of ${state.byDeviceType.length} succeeded';
+        '${state.connectedCount} of ${state.byDevice.length} succeeded';
     final at = state.finishedAt;
     if (at == null) return '${state.source}: $scored';
     final hh = at.hour.toString().padLeft(2, '0');
@@ -150,69 +167,24 @@ class _ConnectAllProgressChip extends StatelessWidget {
     }
   }
 
-  static IconData _iconForDeviceType(String deviceType) {
-    switch (deviceType) {
-      case 'camera':
-        return LucideIcons.camera;
-      case 'mount':
-        return LucideIcons.compass;
-      case 'focuser':
-        return LucideIcons.focus;
-      case 'filter wheel':
-        return LucideIcons.disc;
-      case 'guider':
-        return LucideIcons.crosshair;
-      case 'rotator':
-        return LucideIcons.rotateCw;
-      case 'dome':
-        return LucideIcons.home;
-      case 'weather station':
-        return LucideIcons.cloudSun;
-      case 'safety monitor':
-        return LucideIcons.shieldCheck;
-      case 'cover calibrator':
-        return LucideIcons.lamp;
-      default:
-        return LucideIcons.circle;
+  static IconData _iconForDeviceType(String label) {
+    if (label == guideCameraLabel) return DeviceType.camera.icon;
+    for (final slot in deviceSlots) {
+      if (slot.noun == label) return slot.type.icon;
     }
+    return LucideIcons.circle;
   }
 }
 
-// The page header's connection chip
-
-/// `[dot] N connected` in the page header — the ONE place this screen states
+/// `[dot] N connected` in the page header: the one place this screen states
 /// how many devices are up.
-/// How many devices are connected right now, across every slot.
-///
-/// Shared so the header chip and the header's "Disconnect all" agree by
-/// construction: an action that disconnects everything must appear exactly when
-/// the chip says there is something to disconnect, and two copies of this list
-/// would drift the first time a slot was added.
-int equipmentConnectedCount(WidgetRef ref) {
-  final connectionStates = <DeviceConnectionState>[
-    ref.watch(cameraStateProvider).connectionState,
-    ref.watch(mountStateProvider).connectionState,
-    ref.watch(focuserStateProvider).connectionState,
-    ref.watch(filterWheelStateProvider).connectionState,
-    ref.watch(guiderStateProvider).connectionState,
-    ref.watch(rotatorStateProvider).connectionState,
-    ref.watch(domeStateProvider).connectionState,
-    ref.watch(weatherStateProvider).connectionState,
-    ref.watch(safetyMonitorStateProvider).connectionState,
-    ref.watch(switchStateProvider).connectionState,
-    ref.watch(coverCalibratorStateProvider).connectionState,
-  ];
-  return connectionStates
-      .where((state) => state == DeviceConnectionState.connected)
-      .length;
-}
-
 class _ConnectionStatusSummary extends ConsumerWidget {
   const _ConnectionStatusSummary();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final connectedCount = equipmentConnectedCount(ref);
+    final rig = ref.watch(rigDevicesProvider);
+    final connectedCount = rig.connected;
 
     if (connectedCount == 0) {
       return const SkotiqChip(label: 'Nothing connected', dot: true);
@@ -222,7 +194,7 @@ class _ConnectionStatusSummary extends ConsumerWidget {
     // the header read a green "9 connected" while the persistent bottom status
     // bar read "My Equipment 4/4" — two numbers, one screen, no explanation, and
     // the five extra devices silently vanished on the next launch.
-    final sessionOnly = ref.watch(sessionOnlyConnectedSlotsProvider).length;
+    final sessionOnly = rig.sessionOnly.length;
 
     return Tooltip(
       message: sessionOnly > 0
@@ -243,8 +215,6 @@ class _ConnectionStatusSummary extends ConsumerWidget {
   }
 }
 
-// Device grid
-
 class _DeviceDashboard extends ConsumerWidget {
   final EquipmentProfileModel? profile;
 
@@ -262,6 +232,10 @@ class _DeviceDashboard extends ConsumerWidget {
   /// below the shell breakpoint.
   final Widget? header;
 
+  /// Rendered below the grid inside the same scroll view (narrow layout):
+  /// readiness and health, which come after the devices there.
+  final Widget? status;
+
   /// Chrome rendered BELOW the grid, inside the same scroll view. Used for the
   /// discovery drawer on viewports too short to seat it as a sibling (see
   /// [_EquipmentMainColumn._cardsAndDiscovery]).
@@ -272,6 +246,7 @@ class _DeviceDashboard extends ConsumerWidget {
     required this.onConnectAll,
     required this.onEditProfile,
     this.header,
+    this.status,
     this.footer,
   });
 
@@ -287,108 +262,38 @@ class _DeviceDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch device connection states
-    final cameraState = ref.watch(cameraStateProvider);
-    final mountState = ref.watch(mountStateProvider);
-    final focuserState = ref.watch(focuserStateProvider);
-    final filterWheelState = ref.watch(filterWheelStateProvider);
-    final guiderState = ref.watch(guiderStateProvider);
-    final rotatorState = ref.watch(rotatorStateProvider);
-    final domeState = ref.watch(domeStateProvider);
-    final weatherState = ref.watch(weatherStateProvider);
-    final safetyMonitorState = ref.watch(safetyMonitorStateProvider);
-    final coverCalibratorState = ref.watch(coverCalibratorStateProvider);
-    final switchState = ref.watch(switchStateProvider);
-
     // Which connected slots are NOT the profile's devices. Resolved here, where
     // the profile is already in scope, and handed to each card as a plain flag —
     // a single card must not depend on the profiles provider (on a remote backend
     // that starts a periodic host poll).
-    final sessionOnlySlots = ref.watch(sessionOnlyConnectedSlotsProvider);
-    bool adHoc(ProfileDeviceSlot slot) => sessionOnlySlots.contains(slot);
+    final sessionOnlySlots = ref.watch(rigDevicesProvider).sessionOnly;
+    bool adHoc(DeviceType slot) => sessionOnlySlots.contains(slot);
 
-    // Build list of connected device cards
-    final connectedCards = <Widget>[];
-
-    if (cameraState.connectionState == DeviceConnectionState.connected) {
-      connectedCards.add(ConnectedDeviceCard(
-        key: EquipmentTutorialKeys.cameraCard,
-        type: ConnectedDeviceType.camera,
-        sessionOnly: adHoc(ProfileDeviceSlot.camera),
-      ));
-    }
-
-    if (mountState.connectionState == DeviceConnectionState.connected) {
-      connectedCards.add(ConnectedDeviceCard(
-        key: EquipmentTutorialKeys.mountCard,
-        type: ConnectedDeviceType.mount,
-        sessionOnly: adHoc(ProfileDeviceSlot.mount),
-      ));
-    }
-
-    if (focuserState.connectionState == DeviceConnectionState.connected) {
-      connectedCards.add(ConnectedDeviceCard(
-        type: ConnectedDeviceType.focuser,
-        sessionOnly: adHoc(ProfileDeviceSlot.focuser),
-      ));
-    }
-
-    if (filterWheelState.connectionState == DeviceConnectionState.connected) {
-      connectedCards.add(ConnectedDeviceCard(
-        type: ConnectedDeviceType.filterWheel,
-        sessionOnly: adHoc(ProfileDeviceSlot.filterWheel),
-      ));
-    }
-
-    if (guiderState.connectionState == DeviceConnectionState.connected) {
-      connectedCards.add(ConnectedDeviceCard(
-        type: ConnectedDeviceType.guider,
-        sessionOnly: adHoc(ProfileDeviceSlot.guider),
-      ));
-    }
-
-    if (rotatorState.connectionState == DeviceConnectionState.connected) {
-      connectedCards.add(ConnectedDeviceCard(
-        type: ConnectedDeviceType.rotator,
-        sessionOnly: adHoc(ProfileDeviceSlot.rotator),
-      ));
-    }
-
-    if (domeState.connectionState == DeviceConnectionState.connected) {
-      connectedCards.add(ConnectedDeviceCard(
-        type: ConnectedDeviceType.dome,
-        sessionOnly: adHoc(ProfileDeviceSlot.dome),
-      ));
-    }
-
-    if (weatherState.connectionState == DeviceConnectionState.connected) {
-      connectedCards.add(ConnectedDeviceCard(
-        type: ConnectedDeviceType.weather,
-        sessionOnly: adHoc(ProfileDeviceSlot.weather),
-      ));
-    }
-
-    if (safetyMonitorState.connectionState == DeviceConnectionState.connected) {
-      connectedCards.add(ConnectedDeviceCard(
-        type: ConnectedDeviceType.safetyMonitor,
-        sessionOnly: adHoc(ProfileDeviceSlot.safetyMonitor),
-      ));
-    }
-
-    if (coverCalibratorState.connectionState ==
-        DeviceConnectionState.connected) {
-      connectedCards.add(ConnectedDeviceCard(
-        type: ConnectedDeviceType.coverCalibrator,
-        sessionOnly: adHoc(ProfileDeviceSlot.coverCalibrator),
-      ));
-    }
-
-    // Switch / power box has no ConnectedDeviceType, so render its per-channel
-    // control card directly (dew heaters, outlets). Works remotely via the
-    // switch-channel fix.
-    if (switchState.connectionState == DeviceConnectionState.connected) {
-      connectedCards.add(const SwitchControlCard());
-    }
+    final connectedCards = <Widget>[
+      for (final slot in deviceSlots)
+        // A device that is connecting or has dropped keeps its card, which
+        // says so; only an empty slot has none. The switch's card is its
+        // channel list (outlets, dew heaters), which needs it connected.
+        if (ref.watch(slot.state.select((s) => s.connectionState))
+            case final state
+            when state == DeviceConnectionState.connected ||
+                (state != DeviceConnectionState.disconnected &&
+                    slot.type != DeviceType.switch_))
+          slot.type == DeviceType.switch_
+              ? const SwitchControlCard()
+              : ConnectedDeviceCard(
+                  key: switch (slot.type) {
+                    DeviceType.camera => TourTarget.equipmentCameraCard.key,
+                    DeviceType.mount => TourTarget.equipmentMountCard.key,
+                    _ => null,
+                  },
+                  type: slot.type,
+                  sessionOnly: adHoc(slot.type),
+                  detail: slot.type == DeviceType.guider
+                      ? _guideCameraDetail(profile)
+                      : null,
+                ),
+    ];
 
     // No profile selected state.
     //
@@ -401,6 +306,7 @@ class _DeviceDashboard extends ConsumerWidget {
     if (profile == null && (!isRemoteMode || connectedCards.isEmpty)) {
       return _EquipmentEmptyState(
         header: header,
+        status: status,
         footer: _boundedFooter,
         child: EmptyState(
           icon: LucideIcons.layoutGrid,
@@ -421,19 +327,11 @@ class _DeviceDashboard extends ConsumerWidget {
     // the way forward.
     if (connectedCards.isEmpty) {
       final p = profile!;
-      final hasDevicesAssigned =
-          (p.cameraId != null && p.cameraId!.isNotEmpty) ||
-              (p.mountId != null && p.mountId!.isNotEmpty) ||
-              (p.focuserId != null && p.focuserId!.isNotEmpty) ||
-              (p.filterWheelId != null && p.filterWheelId!.isNotEmpty) ||
-              (p.guiderId != null && p.guiderId!.isNotEmpty) ||
-              (p.rotatorId != null && p.rotatorId!.isNotEmpty) ||
-              (p.domeId != null && p.domeId!.isNotEmpty) ||
-              (p.weatherId != null && p.weatherId!.isNotEmpty) ||
-              (p.coverCalibratorId != null && p.coverCalibratorId!.isNotEmpty);
+      final hasDevicesAssigned = p.hasAssignedDevices;
 
       return _EquipmentEmptyState(
         header: header,
+        status: status,
         footer: _boundedFooter,
         child: hasDevicesAssigned
             ? EmptyState(
@@ -481,11 +379,21 @@ class _DeviceDashboard extends ConsumerWidget {
               ],
             ),
           ),
+          if (status != null) status!,
           if (_boundedFooter != null) _boundedFooter!,
         ],
       ),
     );
   }
+}
+
+/// The built-in guider's guide camera, shown on the guider's card: it is
+/// connected and counted with the guider rather than as a device of its own.
+String? _guideCameraDetail(EquipmentProfileModel? profile) {
+  final id = profile?.guideCameraId;
+  if (id == null || id.isEmpty) return null;
+  final name = profile!.guideCameraName?.trim();
+  return 'Guide camera: ${name == null || name.isEmpty ? id : name}';
 }
 
 /// Lays the device panels out in a 3-column grid (2 then 1 as the column
@@ -656,9 +564,15 @@ class _EmptySlotPanel extends ConsumerWidget {
 class _EquipmentEmptyState extends StatelessWidget {
   final Widget child;
   final Widget? header;
+  final Widget? status;
   final Widget? footer;
 
-  const _EquipmentEmptyState({required this.child, this.header, this.footer});
+  const _EquipmentEmptyState({
+    required this.child,
+    this.header,
+    this.status,
+    this.footer,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -704,6 +618,7 @@ class _EquipmentEmptyState extends StatelessWidget {
                   child: Center(child: child),
                 ),
               ),
+              if (status != null) status!,
               if (footer != null) footer!,
             ],
           ),

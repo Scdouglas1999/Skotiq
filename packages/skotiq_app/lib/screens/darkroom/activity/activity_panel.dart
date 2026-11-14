@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A titled panel of the Activity tab: surface tone, hairline border, the
@@ -138,13 +138,6 @@ String nightLabel(DateTime time) {
       ? '${morning.day}'
       : '${months[morning.month - 1]} ${morning.day}';
   return '${months[evening.month - 1]} ${evening.day} to $end';
-}
-
-/// `05:42`, local time.
-String clockLabel(DateTime time) {
-  final local = time.toLocal();
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${two(local.hour)}:${two(local.minute)}';
 }
 
 /// `1 h 05 min`, `12 min` or `40 s`.

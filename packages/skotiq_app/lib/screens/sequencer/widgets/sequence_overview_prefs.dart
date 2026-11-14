@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show immutable, mapEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 import 'sequencer_density.dart';
 
@@ -34,7 +36,6 @@ class SequenceOverviewPrefs {
   static bool defaultVisibleIn(SequencerDensity density) =>
       density == SequencerDensity.ledger;
 
-  /// Whether the overview shows while the tree is drawing [density].
   bool visibleIn(SequencerDensity density) =>
       _chosen[density] ?? defaultVisibleIn(density);
 
@@ -70,13 +71,6 @@ class SequenceOverviewPrefs {
       );
 }
 
-/// Settings key holding the persisted [SequenceOverviewPrefs].
-///
-/// A JSON object rather than one row per density (the shape
-/// `sequencer_density_v1` uses) because the value is a map: densities come and
-/// go with the spec, and a key per mode would leave orphan rows behind.
-const _sequenceOverviewKey = 'sequence_overview_visible_v1';
-
 /// Persisted overview visibility, backed by the `settingsDaoProvider`
 /// persistence pattern. A read or write failure surfaces through the
 /// [AsyncValue] rather than being swallowed — a silent fallback hides bugs.
@@ -89,8 +83,9 @@ class SequenceOverviewPrefsNotifier
     extends AsyncNotifier<SequenceOverviewPrefs> {
   @override
   Future<SequenceOverviewPrefs> build() async {
-    final dao = ref.read(settingsDaoProvider);
-    final stored = await dao.getSetting(_sequenceOverviewKey);
+    final stored = await ref
+        .read(settingsDaoProvider)
+        .read(StoreSettings.sequenceOverview);
     if (stored == null || stored.trim().isEmpty) {
       return SequenceOverviewPrefs.defaults;
     }
@@ -106,8 +101,9 @@ class SequenceOverviewPrefsNotifier
   Future<void> setVisible(SequencerDensity density, bool visible) async {
     final updated = (state.value ?? SequenceOverviewPrefs.defaults)
         .withVisibility(density, visible);
-    final dao = ref.read(settingsDaoProvider);
-    await dao.setSetting(_sequenceOverviewKey, jsonEncode(updated.toJson()));
+    await ref
+        .read(settingsDaoProvider)
+        .write(StoreSettings.sequenceOverview, jsonEncode(updated.toJson()));
     state = AsyncData(updated);
   }
 }

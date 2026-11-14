@@ -23,8 +23,10 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/mosaic/mosaic_project_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/screens/discover/mosaic/mosaic_project_screen.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'surface_golden_harness.dart';

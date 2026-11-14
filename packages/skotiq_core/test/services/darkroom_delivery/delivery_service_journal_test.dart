@@ -798,7 +798,9 @@ void main() {
           clock: () => now,
         );
         await service.deliverJobArtifacts(await artifactSet());
-        await DeliveryTargetsDao(db).update(targetId, enabled: false);
+        await DeliveryTargetsDao(
+          db,
+        ).updateDestination(targetId, enabled: false);
 
         now = now.add(const Duration(hours: 3));
         final report = await service.sweepDueRetries();
@@ -837,7 +839,7 @@ void main() {
         clock: () => now,
       );
       await service.deliverJobArtifacts(await artifactSet());
-      await DeliveryTargetsDao(db).update(targetId, enabled: false);
+      await DeliveryTargetsDao(db).updateDestination(targetId, enabled: false);
 
       now = now.add(const Duration(hours: 1));
       final report = await service.sweepDueRetries();
@@ -933,7 +935,7 @@ void main() {
         clock: () => now,
       );
       await service.deliverJobArtifacts(await artifactSet());
-      await DeliveryTargetsDao(db).update(targetId, enabled: false);
+      await DeliveryTargetsDao(db).updateDestination(targetId, enabled: false);
 
       now = now.add(const Duration(hours: 6));
       expect(
@@ -944,7 +946,7 @@ void main() {
       expect(await service.earliestRetryDueAt(), isNull);
       expect(await service.hasDueRetries(), isFalse);
 
-      await DeliveryTargetsDao(db).update(targetId, enabled: true);
+      await DeliveryTargetsDao(db).updateDestination(targetId, enabled: true);
 
       expect(
         await service.hasDueRetries(),
@@ -1078,12 +1080,12 @@ void main() {
         ),
       );
       await service.deliverJobArtifacts(await artifactSet());
-      await DeliveryTargetsDao(db).update(targetId, enabled: false);
+      await DeliveryTargetsDao(db).updateDestination(targetId, enabled: false);
       await File(p.join(source.path, 'M31_Ha_master.fits')).delete();
 
       expect(await service.hasDueRetries(), isFalse);
 
-      await DeliveryTargetsDao(db).update(targetId, enabled: true);
+      await DeliveryTargetsDao(db).updateDestination(targetId, enabled: true);
 
       expect(
         await service.hasDueRetries(),

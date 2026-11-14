@@ -9,18 +9,19 @@
 //! Everything that touches a goal goes through the store's revision checks,
 //! so a job that outlives a goal edit commits nothing.
 
-use super::store::{Admission, GoalRecord, GoalStore};
-use crate::event::{
-    create_event_auto_id, DepthLockEvent, EventCategory, EventPayload, EventSeverity, SkotiqEvent,
-};
+use crate::depthlock_service::store::{Admission, GoalRecord, GoalStore};
+use crate::event::bus::{EventPayload, SkotiqEvent};
+use crate::event::correlation::create_event_auto_id;
+use crate::event::depthlock_events::DepthLockEvent;
+use crate::event::equipment::{EventCategory, EventSeverity};
 use skotiq_imaging::depthlock::input::{
-    self, fnv1a64, AcquisitionSettings, MasterKind, ReferenceGeometry,
+    fnv1a64, AcquisitionSettings, MasterKind, ReferenceGeometry,
 };
 use skotiq_imaging::depthlock::{
-    evaluate, sample_apertures, ApertureFrame, DepthReport, DepthState, ESTIMATOR_VERSION,
+    evaluate, input, sample_apertures, ApertureFrame, DepthReport, DepthState, ESTIMATOR_VERSION,
 };
 use skotiq_imaging::registration::{solve_registration, RegistrationConfig, TransformKind};
-use skotiq_imaging::{read_fits, ImageData, PixelType};
+use skotiq_imaging::{read_frame, ImageData, PixelType};
 use skotiq_sequencer::depth_goal::{
     DepthGoalBinding, DepthGoalCompletion, DepthGoalOps, DepthGoalVerdict,
 };
@@ -674,7 +675,7 @@ pub struct IngestedLight {
 impl IngestedLight {
     pub fn read(path: &str) -> Result<Self, String> {
         let (image, header) =
-            read_fits(Path::new(path)).map_err(|e| format!("Cannot read {path}: {e}"))?;
+            read_frame(Path::new(path)).map_err(|e| format!("Cannot read {path}: {e}"))?;
         let settings = input::light_settings(&header)?;
         if image.pixel_type != PixelType::U16 || image.channels != 1 {
             return Err("DepthLock lights must be unprocessed monochrome 16-bit frames".into());
@@ -690,7 +691,7 @@ impl IngestedLight {
 }
 
 fn read_reference(path: &str, geometry: &ReferenceGeometry) -> Result<ImageData, String> {
-    let (image, _) = read_fits(Path::new(path))
+    let (image, _) = read_frame(Path::new(path))
         .map_err(|e| format!("Cannot read the goal's reference frame {path}: {e}"))?;
     if image.pixel_type != PixelType::U16 || image.channels != 1 {
         return Err("The goal's reference frame must be a monochrome 16-bit light".into());
@@ -710,7 +711,7 @@ fn read_master(
     acquisition: &AcquisitionSettings,
     reference: &ReferenceGeometry,
 ) -> Result<(ImageData, u64), String> {
-    let (image, header) = read_fits(Path::new(path)).map_err(|e| {
+    let (image, header) = read_frame(Path::new(path)).map_err(|e| {
         format!(
             "Cannot read the goal's master {}: {e}",
             match kind {

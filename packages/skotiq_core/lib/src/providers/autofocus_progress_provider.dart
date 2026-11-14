@@ -6,10 +6,10 @@ import '../backend/skotiq_backend.dart';
 import '../models/autofocus_progress.dart';
 import 'backend_provider.dart';
 import 'operation_progress_provider.dart';
+import '../models/backend/backend_types.dart';
 
 /// State for the non-blocking autofocus progress overlay
 class AutofocusOverlayState {
-  /// Whether an autofocus run is currently active
   final bool isRunning;
 
   /// Current point index (1-based)
@@ -21,22 +21,18 @@ class AutofocusOverlayState {
   /// All V-curve data points collected so far
   final List<VCurvePoint> vcurvePoints;
 
-  /// Current HFR measurement
   final double currentHfr;
 
   /// Best HFR seen so far in this run
   final double bestHfr;
 
-  /// Current star count
   final int starCount;
 
-  /// Status message
   final String status;
 
   /// Final autofocus result (null while running)
   final AutofocusResult? result;
 
-  /// Whether the overlay is minimized
   final bool isMinimized;
 
   /// Whether the overlay should be visible at all
@@ -175,19 +171,17 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
       onAutofocusStarted();
     }
 
-    // Compute best HFR from all V-curve points
-    final newBestHfr = progressData.vcurvePoints.isEmpty
-        ? 0.0
-        : progressData.vcurvePoints
-              .map((p) => p.hfr)
-              .reduce((a, b) => a < b ? a : b);
+    // Best HFR from the points the fit uses: a point left out for reading
+    // falsely low must not become the "best" figure.
+    final newBestHfr = progressData.minHfr;
 
     final phase =
         'Measuring point ${progressData.point}/${progressData.totalPoints}';
 
+    // Visibility is set when the run starts and left alone after that, so a
+    // panel the operator hid stays hidden for the rest of the sweep.
     state = state.copyWith(
       isRunning: true,
-      isVisible: true,
       currentPoint: progressData.point,
       totalPoints: progressData.totalPoints,
       vcurvePoints: progressData.vcurvePoints,
@@ -302,7 +296,6 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
     );
   }
 
-  /// Called when autofocus fails
   void onAutofocusFailed(String error) {
     // A failed run carries an error the operator has to read, so it stays up
     // until dismissed by hand.
@@ -336,9 +329,14 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
     );
   }
 
-  /// Toggle minimized state
   void toggleMinimized() {
     state = state.copyWith(isMinimized: !state.isMinimized);
+  }
+
+  /// Hide the floating panel while a run goes on. The run, its Tonight badge
+  /// and the Focus tab carry on; the next run shows the panel again.
+  void hide() {
+    state = state.copyWith(isVisible: false);
   }
 
   /// Close/dismiss the overlay
@@ -374,7 +372,6 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
   }
 }
 
-/// Provider for the autofocus progress overlay state
 final autofocusOverlayProvider =
     StateNotifierProvider<AutofocusOverlayNotifier, AutofocusOverlayState>((
       ref,

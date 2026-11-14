@@ -1,11 +1,9 @@
-// Multi-target, planetary, unattended, and mosaic node-tree factories.
 part of '../templates_tab.dart';
 
 Map<String, SequenceNode> _createMultiTargetNodes() {
   const rootId = 'multi-root';
   const coolId = 'multi-cool';
 
-  // Target 1 nodes
   const target1CondId = 'multi-t1-cond';
   const target1SeqId = 'multi-t1-seq';
   const slew1Id = 'multi-t1-slew';
@@ -17,7 +15,6 @@ Map<String, SequenceNode> _createMultiTargetNodes() {
   const dither1Id = 'multi-t1-dither';
   const guide1StopId = 'multi-t1-guidestop';
 
-  // Target 2 nodes
   const target2CondId = 'multi-t2-cond';
   const target2SeqId = 'multi-t2-seq';
   const slew2Id = 'multi-t2-slew';
@@ -40,8 +37,6 @@ Map<String, SequenceNode> _createMultiTargetNodes() {
     ),
     coolId: CoolCameraNode(
         id: coolId, targetTemp: -10, parentId: rootId, orderIndex: 0),
-
-    // Target 1 with altitude conditional
     target1CondId: ConditionalNode(
       id: target1CondId,
       name: 'Target 1 Above 30 deg',
@@ -122,8 +117,6 @@ Map<String, SequenceNode> _createMultiTargetNodes() {
         name: 'Stop Guiding',
         parentId: target1SeqId,
         orderIndex: 5),
-
-    // Target 2 with altitude conditional
     target2CondId: ConditionalNode(
       id: target2CondId,
       name: 'Target 2 Above 30 deg',
@@ -204,7 +197,6 @@ Map<String, SequenceNode> _createMultiTargetNodes() {
         name: 'Stop Guiding',
         parentId: target2SeqId,
         orderIndex: 5),
-
     warmId: WarmCameraNode(
         id: warmId, ratePerMin: 5, parentId: rootId, orderIndex: 3),
     parkId: ParkNode(

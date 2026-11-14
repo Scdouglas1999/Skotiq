@@ -4,12 +4,9 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/database/database.dart';
-import 'package:skotiq_core/src/backend/disconnected_backend.dart';
-import 'package:skotiq_core/src/providers/backend_provider.dart';
-import 'package:skotiq_core/src/providers/database_provider.dart';
-import 'package:skotiq_core/src/providers/settings_provider.dart';
-import 'package:skotiq_core/src/providers/weather_safety_provider.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api/handlers/safety_monitor_handlers.dart';
 import 'package:shelf/shelf.dart';
 
@@ -164,7 +161,7 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['status'], 'acknowledged');
-      expect(body['snoozeUntil'], isA<String>());
+      expect(body['snoozeUntil'], endsWith('Z'));
     });
 
     test('cancel acknowledgement clears the host snooze', () async {
@@ -202,10 +199,7 @@ void main() {
 
 class _NoopSafetyBackend extends DisconnectedBackend {
   @override
-  Future<void> sequencerSetSafetyFailMode(String mode) async {}
-
-  @override
-  Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {}
+  Future<void> sequencerApplyRunConfig(String runConfigJson) async {}
 }
 
 class _TestBackendNotifier extends BackendNotifier {

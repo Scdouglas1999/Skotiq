@@ -1,85 +1,59 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import '../models/replay_decision.dart';
 import '../services/replay_debug_service.dart';
-import 'backend_provider.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
+import 'async_scope.dart';
+import 'host_role.dart';
 import 'database_provider.dart';
+import '../database/daos/settings_dao.dart';
+import '../services/logging_service.dart';
 
 /// Replay Debug — Riverpod surface for the structured decision
 /// log feeding the retrospective Replay screen.
 ///
-/// Every read/write provider here branches on the ACTIVE backend
-/// authority:
-///   * Local (FfiBackend / Disconnected) reads through [ReplayDebugService]
-///     and [SettingsDao] against the local database.
-///   * Remote ([NetworkBackend]) reads the HOST's decision log + settings
-///     over REST — the remote client's own local database is empty and must
-///     never be used as the source of truth (or mutated).
+/// Every read/write provider here goes to whichever machine is the imaging
+/// host:
+///   * This process reads through [ReplayDebugService] and [SettingsDao]
+///     against its own database.
+///   * A linked client reads the host's decision log and settings through
+///     `remoteHost.replayDebug`; its own database is empty and must never be
+///     used as the source of truth (or mutated).
 ///
 /// The live event-handling path (sequencer event → DB row) lives in
 /// `SequenceExecutor._handleSequencerEvent` and only runs on the host, so
 /// the write side of that path stays local-only.
 
-/// Replay Debug — settings keys persisted in `app_settings`.
-const String replayDebugEnabledKey = 'replay_debug.enabled';
-const String replayDebugRetentionDaysKey = 'replay_debug.retention_days';
+/// Days a decision is kept when the operator has not chosen.
+final int replayDebugDefaultRetentionDays =
+    StoreSettings.replayDebugRetentionDays.fallback;
 
-/// Default retention window when the setting is unset on first install.
-const int replayDebugDefaultRetentionDays = 90;
-
-/// Strict decoder for the persisted `replay_debug.enabled` value.
+/// Whether decisions are logged, as [stored] holds it.
 ///
-/// An unset value (no row) is the legitimate default (`true`). A stored
-/// value must be exactly `true`/`false` (case-insensitive, surrounding
-/// whitespace tolerated); anything else is corruption and throws
-/// [FormatException] so the read surfaces as an AsyncError instead of
-/// coercing an unreadable value to `true`.
-bool parseReplayEnabledSetting(String? stored) {
-  if (stored == null) return true;
-  switch (stored.trim().toLowerCase()) {
-    case 'true':
-      return true;
-    case 'false':
-      return false;
-    default:
-      throw FormatException(
-        'replay_debug.enabled is corrupt: "$stored" (expected true/false)',
-      );
-  }
-}
+/// No row, or an empty one, is the default (on). Text that is neither `true`
+/// nor `false` is corruption and throws [FormatException], so the read
+/// surfaces as an error instead of reading as on.
+bool parseReplayEnabledSetting(String? stored) =>
+    StoreSettings.replayDebugEnabled.decodeStrict(stored);
 
-/// Strict decoder for the persisted `replay_debug.retention_days` value.
+/// Days a decision is kept, as [stored] holds it.
 ///
-/// An unset value is the legitimate default (90). A stored value must parse
-/// to an integer inside `1..3650`; anything else (non-numeric or out of
-/// band) is corruption and throws [FormatException] rather than silently
-/// coercing to the default.
+/// No row, or an empty one, is the default. Text that is not a whole number,
+/// or a number of days no build stores, is corruption and throws
+/// [FormatException] rather than reading as the default.
 int parseReplayRetentionSetting(String? stored) {
-  if (stored == null) return replayDebugDefaultRetentionDays;
-  final parsed = int.tryParse(stored.trim());
-  if (parsed == null) {
+  const setting = StoreSettings.replayDebugRetentionDays;
+  final days = setting.decodeStrict(stored);
+  if (days != setting.clean(days)) {
     throw FormatException(
-      'replay_debug.retention_days is corrupt: "$stored" (expected an integer)',
+      '${setting.key} out of range '
+      '${setting.inputMin}..${setting.inputMax}: $days',
     );
   }
-  if (parsed < 1 || parsed > 3650) {
-    throw FormatException(
-      'replay_debug.retention_days out of range 1..3650: $parsed',
-    );
-  }
-  return parsed;
-}
-
-/// Clamp a requested retention value into the persisted band. The minimum is
-/// 1 day — retention can't be disabled entirely or the table grows unbounded;
-/// the upper clamp (3650 = ~10 years) is the "keep everything" ceiling.
-int _clampRetentionDays(int days) {
-  if (days < 1) return 1;
-  if (days > 3650) return 3650;
   return days;
 }
 
@@ -91,11 +65,10 @@ int _clampRetentionDays(int days) {
 /// setting reports a value the operator never confirmed, with nothing in the
 /// log tying it to the update reported as not applied.
 void _logFailedReplayRollback(String what, Object error) {
-  developer.log(
+  Log.warning(
     'Failed to roll back $what after an aborted update; the persisted value '
     'may no longer match the result reported to the caller: $error',
-    name: 'ReplayDebug',
-    level: 900,
+    source: 'ReplayDebug',
   );
 }
 
@@ -113,133 +86,203 @@ final replayDebugServiceProvider = Provider<ReplayDebugService>((ref) {
   return service;
 });
 
-/// Polling cadence for the remote decision timeline. Bounded so a currently
-/// running host sequence still streams fresh decisions to a remote client
-/// without hammering the host.
+/// How often a linked client reads a run's decisions from its host, so a
+/// run under way keeps arriving.
 const Duration _remoteDecisionPollInterval = Duration(seconds: 4);
 
-/// Live chronological decision list for a sequence run id.
-///
-/// Local: a reactive stream from [ReplayDebugService.watchByRun] that emits a
-/// fresh snapshot on every persist/delete.
-///
-/// Remote: bounded polling of the host endpoint with cancellation tied to
-/// this (auto-dispose) provider's lifecycle. A failed poll is surfaced as a
-/// stream error — never downgraded to an empty list — so the timeline shows
-/// a real failure instead of a false "No decisions recorded".
-final decisionsForRunProvider = StreamProvider.autoDispose
-    .family<List<ReplayDecision>, int>((ref, runId) {
-      final backend = ref.watch(backendProvider);
-      if (backend is! NetworkBackend) {
-        final service = ref.watch(replayDebugServiceProvider);
-        return service.watchByRun(runId);
-      }
+/// Puts back the value a settings write replaced.
+typedef UndoReplaySetting = Future<void> Function();
 
-      final controller = StreamController<List<ReplayDecision>>();
-      Timer? timer;
-      var inFlight = false;
+/// The decision log of whichever machine is the imaging host, and the two
+/// settings that govern it. A read that fails is an error, never an empty
+/// list, a zero or a default.
+abstract interface class ReplayDecisionLog {
+  /// A run's decisions, oldest first, as they are written.
+  Stream<List<ReplayDecision>> watchByRun(int runId);
 
-      Future<void> tick() async {
-        if (controller.isClosed || inFlight) return;
-        inFlight = true;
-        try {
-          final decisions = await backend.replayListDecisions(runId);
-          if (!controller.isClosed) controller.add(decisions);
-        } catch (error, stack) {
-          // Surface network / parse failures; do NOT replace a prior state
-          // with false-empty data.
-          if (!controller.isClosed) controller.addError(error, stack);
-        } finally {
-          inFlight = false;
-        }
-      }
+  Future<int> countByRun(int runId);
 
-      controller.onListen = () {
-        tick();
-        timer = Timer.periodic(_remoteDecisionPollInterval, (_) => tick());
-      };
-      ref.onDispose(() {
-        timer?.cancel();
-        if (!controller.isClosed) controller.close();
-      });
-      return controller.stream;
-    });
+  Future<int> countAll();
 
-/// Authoritative one-shot count of decisions for a run (the History-row
-/// badge). Local reads the service; remote reads the host count endpoint.
-/// Surfaces failures rather than a false zero — the history tab renders the
-/// badge only on a real data value.
-final decisionCountForRunProvider = FutureProvider.family<int, int>((
-  ref,
-  runId,
-) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return backend.replayCountDecisions(runId);
-  }
-  final service = ref.watch(replayDebugServiceProvider);
-  return service.countByRun(runId);
-});
+  /// Deletes every decision and returns how many went.
+  Future<int> deleteAll();
 
-/// Remote-only fetch of the host's replay settings, deduped so
-/// [replayDebugEnabledProvider] and [replayDebugRetentionDaysProvider] share
-/// a single round-trip and stay consistent. Throws off the host when talking
-/// to a local backend (callers must branch on authority first).
-final _replayHostSettingsProvider = FutureProvider<ReplayDebugSettings>((
-  ref,
-) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) {
-    throw StateError(
-      'Replay host settings are only available while connected to a host.',
-    );
-  }
-  return backend.replayGetSettings();
-});
+  Future<bool> enabled();
 
-/// Replay Debug — runtime decision-logging toggle.
-///
-/// Local: strict parse of the `replay_debug.enabled` app-setting (unset →
-/// default `true`; a corrupt value throws → AsyncError). Remote: the host's
-/// authoritative value. Corruption/host failure surfaces as an error, never
-/// a silent `true`.
-final replayDebugEnabledProvider = FutureProvider<bool>((ref) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final settings = await ref.watch(_replayHostSettingsProvider.future);
-    return settings.enabled;
-  }
-  final dao = ref.watch(settingsDaoProvider);
-  return parseReplayEnabledSetting(await dao.getSetting(replayDebugEnabledKey));
-});
+  Future<int> retentionDays();
 
-/// Replay Debug — retention window in days. Local strict parse
-/// (unset → 90; corrupt/out-of-range throws → AsyncError); remote reads the
-/// host's authoritative value.
-final replayDebugRetentionDaysProvider = FutureProvider<int>((ref) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final settings = await ref.watch(_replayHostSettingsProvider.future);
-    return settings.retentionDays;
-  }
-  final dao = ref.watch(settingsDaoProvider);
-  return parseReplayRetentionSetting(
-    await dao.getSetting(replayDebugRetentionDaysKey),
+  Future<UndoReplaySetting> setEnabled(bool value);
+
+  Future<UndoReplaySetting> setRetentionDays(int days);
+
+  /// Forgets what was read of the settings, so the next read asks again.
+  void refreshSettings();
+}
+
+final replayDecisionLogProvider = hostRoleProvider<ReplayDecisionLog>(
+  here: (ref) => _LocalReplayDecisionLog(
+    ref.watch(replayDebugServiceProvider),
+    ref.watch(settingsDaoProvider),
+  ),
+  linked: (ref, host) => _HostReplayDecisionLog(host.replayDebug),
+);
+
+final class _LocalReplayDecisionLog implements ReplayDecisionLog {
+  _LocalReplayDecisionLog(this._service, this._settings);
+
+  final ReplayDebugService _service;
+  final SettingsDao _settings;
+
+  @override
+  Stream<List<ReplayDecision>> watchByRun(int runId) =>
+      _service.watchByRun(runId);
+
+  @override
+  Future<int> countByRun(int runId) => _service.countByRun(runId);
+
+  @override
+  Future<int> countAll() => _service.countAll();
+
+  @override
+  Future<int> deleteAll() => _service.deleteAll();
+
+  @override
+  Future<bool> enabled() async => parseReplayEnabledSetting(
+    await _settings.getSetting(StoreSettings.replayDebugEnabled.key),
   );
-});
 
-/// Replay Debug — write-side controller for the enabled toggle,
-/// retention, and "clear all". Every mutation is serialized (so a rapid
-/// enable→retention→clear burst can't interleave a persist with a runtime
-/// push or a rollback), captures the active DAO/backend authority up front,
-/// and re-verifies identity after each await before invalidating reads.
+  @override
+  Future<int> retentionDays() async => parseReplayRetentionSetting(
+    await _settings.getSetting(StoreSettings.replayDebugRetentionDays.key),
+  );
+
+  /// The run configuration follows the stored flag (`RunConfigSync` listens
+  /// to [replayDebugEnabledProvider]).
+  @override
+  Future<UndoReplaySetting> setEnabled(bool value) =>
+      _write(StoreSettings.replayDebugEnabled, value);
+
+  @override
+  Future<UndoReplaySetting> setRetentionDays(int days) =>
+      _write(StoreSettings.replayDebugRetentionDays, days);
+
+  Future<UndoReplaySetting> _write<T>(Setting<T> setting, T value) async {
+    final previous = await _settings.readRows([setting]);
+    await _settings.write(setting, value);
+    return () => _settings.restore(setting, previous);
+  }
+
+  @override
+  void refreshSettings() {}
+}
+
+/// The host stores both settings and sends the flag to its own executor.
+final class _HostReplayDecisionLog implements ReplayDecisionLog {
+  _HostReplayDecisionLog(this._host);
+
+  final HostReplayDebug _host;
+
+  /// One read serves both settings.
+  Future<ReplayDebugSettings>? _settings;
+
+  Future<ReplayDebugSettings> _readSettings() =>
+      _settings ??= _host.replayGetSettings();
+
+  @override
+  Stream<List<ReplayDecision>> watchByRun(int runId) {
+    final controller = StreamController<List<ReplayDecision>>();
+    Timer? timer;
+    var inFlight = false;
+
+    Future<void> tick() async {
+      if (controller.isClosed || inFlight) return;
+      inFlight = true;
+      try {
+        final decisions = await _host.replayListDecisions(runId);
+        if (!controller.isClosed) controller.add(decisions);
+      } catch (error, stack) {
+        if (!controller.isClosed) controller.addError(error, stack);
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    controller.onListen = () {
+      tick();
+      timer = Timer.periodic(_remoteDecisionPollInterval, (_) => tick());
+    };
+    controller.onCancel = () {
+      timer?.cancel();
+      return controller.close();
+    };
+    return controller.stream;
+  }
+
+  @override
+  Future<int> countByRun(int runId) => _host.replayCountDecisions(runId);
+
+  @override
+  Future<int> countAll() => _host.replayCountAllDecisions();
+
+  @override
+  Future<int> deleteAll() => _host.replayClearHistory();
+
+  @override
+  Future<bool> enabled() async => (await _readSettings()).enabled;
+
+  @override
+  Future<int> retentionDays() async => (await _readSettings()).retentionDays;
+
+  @override
+  Future<UndoReplaySetting> setEnabled(bool value) async {
+    await _host.replaySetEnabled(value);
+    _settings = null;
+    return () async {};
+  }
+
+  @override
+  Future<UndoReplaySetting> setRetentionDays(int days) async {
+    await _host.replaySetRetentionDays(days);
+    _settings = null;
+    return () async {};
+  }
+
+  @override
+  void refreshSettings() => _settings = null;
+}
+
+final decisionsForRunProvider = StreamProvider.autoDispose
+    .family<List<ReplayDecision>, int>(
+      (ref, runId) => ref.watch(replayDecisionLogProvider).watchByRun(runId),
+    );
+
+/// The count on a History row, shown only once it is known.
+final decisionCountForRunProvider = FutureProvider.family<int, int>(
+  (ref, runId) => ref.watch(replayDecisionLogProvider).countByRun(runId),
+);
+
+/// Whether the host logs its decisions. Unset is on; a stored value that
+/// cannot be read is an error.
+final replayDebugEnabledProvider = FutureProvider<bool>(
+  (ref) => ref.watch(replayDecisionLogProvider).enabled(),
+);
+
+/// How many days the host keeps decisions. Unset is 90; a stored value that
+/// cannot be read or is out of range is an error.
+final replayDebugRetentionDaysProvider = FutureProvider<int>(
+  (ref) => ref.watch(replayDecisionLogProvider).retentionDays(),
+);
+
+/// Changes the decision-log settings and clears the log. One change runs at
+/// a time, and a change that finishes after the host was replaced is undone
+/// where it was written and reported as failed.
 class ReplayDebugSettingsController {
-  ReplayDebugSettingsController(this._ref);
+  ReplayDebugSettingsController(this._ref)
+    : _scopes = AsyncScopes(_ref.read, replayDecisionLogProvider);
 
   final Ref _ref;
+  final AsyncScopes<ReplayDecisionLog> _scopes;
 
-  /// Serialization chain. Each mutation waits for the previous one to settle
-  /// (success or failure) before it runs.
   Future<void> _mutex = Future<void>.value();
 
   Future<T> _serialize<T>(Future<T> Function() task) {
@@ -248,219 +291,77 @@ class ReplayDebugSettingsController {
     return result;
   }
 
-  /// Enable/disable decision logging.
-  ///
-  /// Remote: a single host endpoint persists the host setting AND mirrors the
-  /// flag into the host executor (with host-side rollback). The remote
-  /// client's local database is never touched.
-  ///
-  /// Local: transactional from the user's perspective — persist the setting,
-  /// then push the flag to the executor; if the executor push fails, roll the
-  /// persisted value back so the DB and runtime never silently disagree.
-  Future<void> setEnabled(bool value) => _serialize(() async {
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      await backend.replaySetEnabled(value);
-      if (!identical(_ref.read(backendProvider), backend)) {
-        throw StateError(
-          'Replay settings host changed while applying the update.',
-        );
-      }
-      _ref.invalidate(_replayHostSettingsProvider);
-      _ref.invalidate(replayDebugEnabledProvider);
-      return;
-    }
+  Future<void> setEnabled(bool value) => _serialize(
+    () => _change(
+      'the decision-logging flag',
+      (log) => log.setEnabled(value),
+      replayDebugEnabledProvider,
+    ),
+  );
 
-    // Refuse if the current value is unavailable (still loading, or corrupt):
-    // we need it as the rollback target and as an authority that the read
-    // side is coherent.
-    final currentAsync = _ref.read(replayDebugEnabledProvider);
-    if (!currentAsync.hasValue) {
-      throw StateError(
-        'Cannot change replay logging: current value is unavailable '
-        '(${currentAsync.hasError ? currentAsync.error : 'still loading'}).',
-      );
-    }
-    final previous = currentAsync.requireValue;
-    final dao = _ref.read(settingsDaoProvider);
-    final previousRaw = await dao.getSetting(replayDebugEnabledKey);
-    if (!identical(_ref.read(settingsDaoProvider), dao) ||
-        !identical(_ref.read(backendProvider), backend)) {
-      throw StateError('Replay settings authority changed before the update.');
-    }
-
-    // 1) Persist the new value.
-    await dao.setSetting(replayDebugEnabledKey, value.toString());
-
-    // Authority may have swapped while awaiting the write. If the DAO or the
-    // backend changed, do not push runtime to a now-different executor.
-    if (!identical(_ref.read(settingsDaoProvider), dao) ||
-        !identical(_ref.read(backendProvider), backend)) {
-      try {
-        if (previousRaw == null) {
-          await dao.deleteSetting(replayDebugEnabledKey);
-        } else {
-          await dao.setSetting(replayDebugEnabledKey, previousRaw);
-        }
-      } catch (e) {
-        _logFailedReplayRollback('the decision-logging flag', e);
-      }
-      _ref.invalidate(replayDebugEnabledProvider);
-      throw StateError('Replay settings authority changed during the update.');
-    }
-
-    // 2) Mirror into the executor; roll the persist back on failure.
-    try {
-      await backend.sequencerSetDecisionLoggingEnabled(value);
-    } catch (error, stack) {
-      try {
-        if (previousRaw == null) {
-          await dao.deleteSetting(replayDebugEnabledKey);
-        } else {
-          await dao.setSetting(replayDebugEnabledKey, previousRaw);
-        }
-      } catch (e) {
-        _logFailedReplayRollback(
-          'the decision-logging flag after the executor rejected it',
-          e,
-        );
-      }
-      _ref.invalidate(replayDebugEnabledProvider);
-      Error.throwWithStackTrace(error, stack);
-    }
-    if (!identical(_ref.read(settingsDaoProvider), dao) ||
-        !identical(_ref.read(backendProvider), backend)) {
-      try {
-        await backend.sequencerSetDecisionLoggingEnabled(previous);
-        if (previousRaw == null) {
-          await dao.deleteSetting(replayDebugEnabledKey);
-        } else {
-          await dao.setSetting(replayDebugEnabledKey, previousRaw);
-        }
-      } catch (e) {
-        _logFailedReplayRollback(
-          'the decision-logging flag and its executor mirror',
-          e,
-        );
-      }
-      _ref.invalidate(replayDebugEnabledProvider);
-      throw StateError('Replay settings authority changed during the update.');
-    }
-    _ref.invalidate(replayDebugEnabledProvider);
-  });
-
-  /// Persist the retention window (clamped to `1..3650`) against the active
-  /// authority. If that authority swaps while the database write is pending,
-  /// the old raw value is restored before the operation reports failure.
+  /// Stores the retention window, kept within `1..3650`.
   Future<void> setRetentionDays(int days) => _serialize(() async {
-    final clamped = _clampRetentionDays(days);
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      await backend.replaySetRetentionDays(clamped);
-      if (!identical(_ref.read(backendProvider), backend)) {
-        throw StateError(
-          'Replay settings host changed while applying the update.',
-        );
-      }
-      _ref.invalidate(_replayHostSettingsProvider);
-      _ref.invalidate(replayDebugRetentionDaysProvider);
-      return;
-    }
-
-    final currentAsync = _ref.read(replayDebugRetentionDaysProvider);
-    if (!currentAsync.hasValue) {
+    final current = _ref.read(replayDebugRetentionDaysProvider);
+    if (!current.hasValue) {
       throw StateError(
         'Cannot change retention: current value is unavailable '
-        '(${currentAsync.hasError ? currentAsync.error : 'still loading'}).',
+        '(${current.hasError ? current.error : 'still loading'}).',
       );
     }
-    final dao = _ref.read(settingsDaoProvider);
-    final previousRaw = await dao.getSetting(replayDebugRetentionDaysKey);
-    if (!identical(_ref.read(settingsDaoProvider), dao) ||
-        !identical(_ref.read(backendProvider), backend)) {
-      throw StateError('Replay settings authority changed before the update.');
-    }
-    await dao.setSetting(replayDebugRetentionDaysKey, clamped.toString());
-    if (!identical(_ref.read(settingsDaoProvider), dao) ||
-        !identical(_ref.read(backendProvider), backend)) {
-      try {
-        if (previousRaw == null) {
-          await dao.deleteSetting(replayDebugRetentionDaysKey);
-        } else {
-          await dao.setSetting(replayDebugRetentionDaysKey, previousRaw);
-        }
-      } catch (e) {
-        _logFailedReplayRollback('the decision-log retention window', e);
-      }
-      _ref.invalidate(replayDebugRetentionDaysProvider);
-      throw StateError('Replay settings authority changed during the update.');
-    }
-    _ref.invalidate(replayDebugRetentionDaysProvider);
+    final clamped = StoreSettings.replayDebugRetentionDays.clean(days);
+    await _change(
+      'the decision-log retention window',
+      (log) => log.setRetentionDays(clamped),
+      replayDebugRetentionDaysProvider,
+    );
   });
 
-  /// How many decision rows the active authority currently holds.
-  ///
-  /// Returns null when the number cannot be established (an older host without
-  /// the unfiltered count endpoint, or a read failure). Callers must then say
-  /// they do not know rather than implying zero.
+  Future<void> _change(
+    String what,
+    Future<UndoReplaySetting> Function(ReplayDecisionLog log) write,
+    ProviderOrFamily shown,
+  ) async {
+    final scope = _scopes.begin();
+    final undo = await write(scope.value);
+    if (scope.isStale) {
+      try {
+        await undo();
+      } catch (e) {
+        _logFailedReplayRollback(what, e);
+      }
+    }
+    _ref.invalidate(shown);
+    scope.ensureCurrent('changing $what');
+  }
+
+  /// How many decisions the host holds, or null when that cannot be read (an
+  /// older host, a failed read). A caller then says it does not know.
   Future<int?> countAllHistory() => _serialize(() async {
-    final backend = _ref.read(backendProvider);
+    final scope = _scopes.begin();
     try {
-      if (backend is NetworkBackend) {
-        final count = await backend.replayCountAllDecisions();
-        if (!identical(_ref.read(backendProvider), backend)) return null;
-        return count;
-      }
-      final service = _ref.read(replayDebugServiceProvider);
-      final count = await service.countAll();
-      if (!identical(_ref.read(backendProvider), backend) ||
-          !identical(_ref.read(replayDebugServiceProvider), service)) {
-        return null;
-      }
-      return count;
+      return await scope.guard((log) async => log.countAll(), ifStale: null);
     } catch (error) {
-      developer.log(
+      Log.warning(
         'Could not count replay history: $error',
-        name: 'ReplayDebug',
-        level: 900,
+        source: 'ReplayDebug',
       );
       return null;
     }
   });
 
-  /// Delete every persisted decision row on the active authority. Returns the
-  /// number of rows removed. Remote clears the host log; local clears the
-  /// host's own database.
+  /// Deletes every decision on the host and returns how many went.
   Future<int> clearAllHistory() => _serialize(() async {
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      final removed = await backend.replayClearHistory();
-      if (!identical(_ref.read(backendProvider), backend)) {
-        throw StateError('Replay history host changed while clearing history.');
-      }
-      _ref.invalidate(decisionsForRunProvider);
-      _ref.invalidate(decisionCountForRunProvider);
-      return removed;
-    }
-    final service = _ref.read(replayDebugServiceProvider);
-    final removed = await service.deleteAll();
-    if (!identical(_ref.read(backendProvider), backend) ||
-        !identical(_ref.read(replayDebugServiceProvider), service)) {
-      throw StateError(
-        'Replay history authority changed while clearing history.',
-      );
-    }
+    final scope = _scopes.begin();
+    final removed = await scope.value.deleteAll();
+    scope.ensureCurrent('clearing the decision log');
+    _ref.invalidate(decisionsForRunProvider);
+    _ref.invalidate(decisionCountForRunProvider);
     return removed;
   });
 
-  /// Re-fetch the settings for the active authority. Used by the settings
-  /// page's error-state Retry so a corrupt-local or failed-host read can be
-  /// retried without the caller having to know which providers to poke (the
-  /// host-settings fetch is private to this file).
+  /// Reads both settings again, for Retry after a failed read.
   void invalidateSettings() {
-    if (_ref.read(backendProvider) is NetworkBackend) {
-      _ref.invalidate(_replayHostSettingsProvider);
-    }
+    _ref.read(replayDecisionLogProvider).refreshSettings();
     _ref.invalidate(replayDebugEnabledProvider);
     _ref.invalidate(replayDebugRetentionDaysProvider);
   }

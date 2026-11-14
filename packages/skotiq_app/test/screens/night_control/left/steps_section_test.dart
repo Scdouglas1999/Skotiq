@@ -9,7 +9,7 @@ import 'package:skotiq_app/screens/night_control/left/night_left_column.dart';
 import 'package:skotiq_app/screens/night_control/left/steps_section.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/night_control_layout.dart';
-import 'package:skotiq_core/skotiq_core.dart' show selectedNodeIdProvider;
+import 'package:skotiq_core/providers.dart' show selectedNodeIdProvider;
 
 import '../fixtures/night_fixtures.dart';
 import 'night_widget_test_support.dart';
@@ -102,6 +102,28 @@ void main() {
       find.textContaining('the mount did move to the other side of the pier'),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a stopped step and a skipped step read as what they are', (
+    tester,
+  ) async {
+    final harness = NightHarness(
+      board: NightFixtures.running(),
+      steps: const <PlanStepVm>[
+        PlanStepVm(
+            nodeId: 'a', label: 'L 40 × 3 s', status: PlanStepStatus.stopped),
+        PlanStepVm(
+            nodeId: 'b', label: 'R 1 × 2 s', status: PlanStepStatus.skipped),
+      ],
+    );
+    await harness.pump(
+      tester,
+      const SizedBox(width: 272, child: NightStepsSection()),
+      size: const Size(272, 758),
+    );
+    expect(find.bySemanticsLabel('L 40 × 3 s, stopped'), findsOneWidget);
+    expect(find.bySemanticsLabel('R 1 × 2 s, skipped'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -209,6 +231,26 @@ void main() {
       tester.getSemantics(row).flagsCollection.isEnabled,
       Tristate.isTrue,
     );
+    handle.dispose();
+  });
+
+  testWidgets('while the run is paused the running step reads as paused',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    final harness = NightHarness(
+      board: NightFixtures.running(),
+      header: headerFor(NightRunPhase.pausedByUser),
+    );
+    await harness.pump(
+      tester,
+      const SizedBox(width: 272, child: NightStepsSection()),
+      size: const Size(272, 758),
+    );
+    expect(
+      find.bySemanticsLabel('Ha 60 × 180 s, dither 3, paused, 44/60'),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel(RegExp('running now')), findsNothing);
     handle.dispose();
   });
 }

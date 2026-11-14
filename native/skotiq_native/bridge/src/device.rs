@@ -40,6 +40,34 @@ impl DeviceType {
     }
 }
 
+macro_rules! same_kinds {
+    ($($kind:ident),*) => {
+        impl From<skotiq_device::DeviceKind> for DeviceType {
+            fn from(kind: skotiq_device::DeviceKind) -> Self {
+                match kind { $(skotiq_device::DeviceKind::$kind => DeviceType::$kind,)* }
+            }
+        }
+        impl From<DeviceType> for skotiq_device::DeviceKind {
+            fn from(kind: DeviceType) -> Self {
+                match kind { $(DeviceType::$kind => skotiq_device::DeviceKind::$kind,)* }
+            }
+        }
+    };
+}
+same_kinds!(
+    Camera,
+    Mount,
+    Focuser,
+    FilterWheel,
+    Guider,
+    Dome,
+    Rotator,
+    Weather,
+    SafetyMonitor,
+    Switch,
+    CoverCalibrator
+);
+
 /// Connection state of a device
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConnectionState {
@@ -116,7 +144,9 @@ pub struct CameraStatus {
     pub sensor_temp: Option<f64>,
     pub cooler_power: Option<f64>,
     pub target_temp: Option<f64>,
-    pub cooler_on: bool,
+    /// `None` when the camera does not say and this connection has not set
+    /// it; see `skotiq_device::CameraStatus::cooler_on`.
+    pub cooler_on: Option<bool>,
     pub gain: i32,
     pub offset: i32,
     pub bin_x: i32,
@@ -126,6 +156,10 @@ pub struct CameraStatus {
     pub pixel_size_x: f64,
     pub pixel_size_y: f64,
     pub max_adu: u32,
+    /// Where the sensor stops responding linearly, when the camera records it
+    /// below `max_adu` (`skotiq_device::SensorInfo::saturation_adu`). Only
+    /// saturation checks use it.
+    pub saturation_adu: Option<u32>,
     pub can_cool: bool,
     pub can_set_gain: bool,
     pub can_set_offset: bool,
@@ -150,83 +184,6 @@ pub enum FrameType {
     Flat,
     Bias,
     DarkFlat,
-}
-
-impl FrameType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            FrameType::Light => "Light",
-            FrameType::Dark => "Dark",
-            FrameType::Flat => "Flat",
-            FrameType::Bias => "Bias",
-            FrameType::DarkFlat => "Dark Flat",
-        }
-    }
-}
-
-/// Image file format for saving
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum ImageFileFormat {
-    #[default]
-    Fits,
-    Xisf,
-    Tiff,
-    Png,
-    Jpeg,
-}
-
-impl ImageFileFormat {
-    /// Get the file extension for this format
-    pub fn extension(&self) -> &'static str {
-        match self {
-            ImageFileFormat::Fits => "fits",
-            ImageFileFormat::Xisf => "xisf",
-            ImageFileFormat::Tiff => "tiff",
-            ImageFileFormat::Png => "png",
-            ImageFileFormat::Jpeg => "jpg",
-        }
-    }
-
-    /// Parse from string (case-insensitive)
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "fits" => Some(ImageFileFormat::Fits),
-            "xisf" => Some(ImageFileFormat::Xisf),
-            "tiff" | "tif" => Some(ImageFileFormat::Tiff),
-            "png" => Some(ImageFileFormat::Png),
-            "jpeg" | "jpg" => Some(ImageFileFormat::Jpeg),
-            _ => None,
-        }
-    }
-}
-
-/// Parameters for a camera exposure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExposureParams {
-    pub duration_secs: f64,
-    pub frame_type: FrameType,
-    pub bin_x: i32,
-    pub bin_y: i32,
-    pub gain: Option<i32>,
-    pub offset: Option<i32>,
-    pub subframe: Option<SubFrame>,
-    // Added for imaging session support
-    pub naming_pattern: Option<String>,
-    pub target_name: Option<String>,
-    pub filter: Option<String>,
-    pub save_path: Option<String>,
-    /// File format for saving (defaults to FITS)
-    #[serde(default)]
-    pub file_format: ImageFileFormat,
-}
-
-/// Subframe region for partial readout
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubFrame {
-    pub start_x: u32,
-    pub start_y: u32,
-    pub width: u32,
-    pub height: u32,
 }
 
 /// Per-field availability for `MountStatus` so the UI can distinguish
@@ -344,13 +301,6 @@ pub enum TrackingRate {
     Custom,
 }
 
-/// Coordinates for slewing
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Coordinates {
-    pub ra: f64,  // Right Ascension in hours (0-24)
-    pub dec: f64, // Declination in degrees (-90 to +90)
-}
-
 /// Current status of a focuser
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FocuserStatus {
@@ -374,14 +324,6 @@ pub struct FilterWheelStatus {
     pub filter_names: Vec<String>,
 }
 
-/// Filter information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FilterInfo {
-    pub position: i32,
-    pub name: String,
-    pub focus_offset: Option<i32>,
-}
-
 /// Current status of a rotator
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RotatorStatus {
@@ -391,23 +333,6 @@ pub struct RotatorStatus {
     pub mechanical_position: f64,
     pub is_moving: bool,
     pub can_reverse: bool,
-}
-
-/// Weather data from a weather station
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WeatherData {
-    pub connected: bool,
-    pub temperature: Option<f64>,    // Celsius
-    pub humidity: Option<f64>,       // Percent
-    pub pressure: Option<f64>,       // hPa
-    pub dew_point: Option<f64>,      // Celsius
-    pub wind_speed: Option<f64>,     // m/s
-    pub wind_direction: Option<f64>, // Degrees
-    pub cloud_cover: Option<f64>,    // Percent
-    pub sky_brightness: Option<f64>, // Lux
-    pub sky_quality: Option<f64>,    // mag/arcsec²
-    pub rain_rate: Option<f64>,      // mm/hr
-    pub is_safe: bool,
 }
 
 /// Weather conditions from observing conditions device (raw sensor readings)
@@ -502,7 +427,7 @@ impl CoverState {
     }
 
     /// Convert to ASCOM/Alpaca integer value
-    pub fn to_i32(&self) -> i32 {
+    pub fn to_i32(self) -> i32 {
         match self {
             CoverState::NotPresent => 0,
             CoverState::Closed => 1,
@@ -546,7 +471,7 @@ impl CalibratorState {
     }
 
     /// Convert to ASCOM/Alpaca integer value
-    pub fn to_i32(&self) -> i32 {
+    pub fn to_i32(self) -> i32 {
         match self {
             CalibratorState::NotPresent => 0,
             CalibratorState::Off => 1,
@@ -554,171 +479,6 @@ impl CalibratorState {
             CalibratorState::Ready => 3,
             CalibratorState::Unknown => 4,
             CalibratorState::Error => 5,
-        }
-    }
-}
-
-/// API version information for a connected device
-///
-/// This tracks the interface version and driver information for
-/// version-aware API calls. Different protocols report versions differently:
-/// - Alpaca: InterfaceVersion property (1, 2, 3, etc.)
-/// - ASCOM: InterfaceVersion from COM (1, 2, 3, etc.)
-/// - INDI: Protocol version from server greeting ("1.7", "1.8", etc.)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeviceApiVersion {
-    /// The raw device ID this version info applies to
-    pub device_id: String,
-
-    /// The driver type (Alpaca, ASCOM, INDI, Native)
-    pub driver_type: DriverType,
-
-    /// Interface version number (e.g., 1, 2, 3 for ASCOM/Alpaca)
-    /// For INDI, this is the major version number
-    pub interface_version: Option<u32>,
-
-    /// Protocol version string (e.g., "1.7" for INDI, "v1" for Alpaca)
-    pub protocol_version: Option<String>,
-
-    /// Driver version string as reported by the device
-    pub driver_version: Option<String>,
-
-    /// Driver info/description as reported by the device
-    pub driver_info: Option<String>,
-
-    /// List of supported actions (for ASCOM/Alpaca devices)
-    pub supported_actions: Vec<String>,
-
-    /// When the version info was last queried (epoch milliseconds)
-    pub queried_at: i64,
-}
-
-impl DeviceApiVersion {
-    /// Create a new DeviceApiVersion with minimal information
-    pub fn new(device_id: String, driver_type: DriverType) -> Self {
-        Self {
-            device_id,
-            driver_type,
-            interface_version: None,
-            protocol_version: None,
-            driver_version: None,
-            driver_info: None,
-            supported_actions: Vec::new(),
-            queried_at: chrono::Utc::now().timestamp_millis(),
-        }
-    }
-
-    /// Create from Alpaca device info
-    pub fn from_alpaca(
-        device_id: String,
-        interface_version: i32,
-        driver_version: Option<String>,
-        driver_info: Option<String>,
-        supported_actions: Vec<String>,
-    ) -> Self {
-        Self {
-            device_id,
-            driver_type: DriverType::Alpaca,
-            // Why: ASCOM/Alpaca interface versions are
-            // small single-digit integers (currently {1, 2, 3, 4}); the
-            // ASCOM spec defines them as i32 but they are physically u32
-            // values. Saturating try_from rejects an impossible-but-defined
-            // negative.
-            interface_version: Some(u32::try_from(interface_version).unwrap_or(0)),
-            protocol_version: Some("v1".to_string()), // Alpaca uses v1 API
-            driver_version,
-            driver_info,
-            supported_actions,
-            queried_at: chrono::Utc::now().timestamp_millis(),
-        }
-    }
-
-    /// Create from ASCOM device info
-    pub fn from_ascom(
-        device_id: String,
-        interface_version: i32,
-        driver_version: Option<String>,
-        driver_info: Option<String>,
-        supported_actions: Vec<String>,
-    ) -> Self {
-        Self {
-            device_id,
-            driver_type: DriverType::Ascom,
-            // Why: see Alpaca counterpart above —
-            // interface version is single-digit positive i32 by spec.
-            interface_version: Some(u32::try_from(interface_version).unwrap_or(0)),
-            protocol_version: None, // ASCOM doesn't have a protocol version
-            driver_version,
-            driver_info,
-            supported_actions,
-            queried_at: chrono::Utc::now().timestamp_millis(),
-        }
-    }
-
-    /// Create from INDI device info
-    pub fn from_indi(device_id: String, protocol_version: Option<String>) -> Self {
-        // Parse protocol version to extract major version number
-        let interface_version = protocol_version.as_ref().and_then(|v| {
-            v.split('.')
-                .next()
-                .and_then(|major| major.parse::<u32>().ok())
-        });
-
-        Self {
-            device_id,
-            driver_type: DriverType::Indi,
-            interface_version,
-            protocol_version,
-            driver_version: None, // INDI doesn't provide driver version separately
-            driver_info: None,
-            supported_actions: Vec::new(), // INDI doesn't have supported actions concept
-            queried_at: chrono::Utc::now().timestamp_millis(),
-        }
-    }
-
-    /// Check if a specific interface version is supported
-    ///
-    /// Returns true if the device reports an interface version >= the required version.
-    /// Returns false if no interface version is known.
-    pub fn supports_version(&self, required_version: u32) -> bool {
-        match self.interface_version {
-            Some(version) => version >= required_version,
-            None => false,
-        }
-    }
-
-    /// Check if a specific action is supported
-    ///
-    /// For ASCOM/Alpaca devices, checks the supported_actions list.
-    /// Returns true only when the action is explicitly listed.
-    pub fn supports_action(&self, action: &str) -> bool {
-        if self.supported_actions.is_empty() {
-            false
-        } else {
-            self.supported_actions
-                .iter()
-                .any(|a| a.eq_ignore_ascii_case(action))
-        }
-    }
-
-    /// Check if this version info is still fresh (less than 5 minutes old)
-    pub fn is_fresh(&self) -> bool {
-        let now = chrono::Utc::now().timestamp_millis();
-        now - self.queried_at < 300_000 // 5 minutes
-    }
-}
-
-impl Default for DeviceApiVersion {
-    fn default() -> Self {
-        Self {
-            device_id: String::new(),
-            driver_type: DriverType::Simulator,
-            interface_version: None,
-            protocol_version: None,
-            driver_version: None,
-            driver_info: None,
-            supported_actions: Vec::new(),
-            queried_at: 0,
         }
     }
 }

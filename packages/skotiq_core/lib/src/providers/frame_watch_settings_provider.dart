@@ -5,179 +5,34 @@
 // settings (how far off a frame may be before the run recenters, whether
 // obstruction detection runs) and the obstruction points it reported, which
 // are kept per site and merged into the horizon every planner uses.
-import 'dart:convert';
-import 'dart:math' as math;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/logging_service.dart';
+import '../models/site/learned_obstruction.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
+import '../database/daos/settings_dao.dart';
+import 'logging_service_provider.dart';
 
-/// Settings keys in `app_settings`.
-const String frameWatchRecenterEnabledKey = 'frame_watch_recenter_enabled';
-const String frameWatchDriftLimitArcsecKey = 'frame_watch_drift_limit_arcsec';
-const String frameWatchObstructionDetectionKey =
-    'frame_watch_obstruction_detection';
-const String learnedHorizonPointsKey = 'learned_horizon_points_json';
-
-/// How far the solved center may drift from the target before the run
-/// recenters, in arcseconds.
-const double frameWatchDriftLimitDefaultArcsec = 30;
+/// Bounds of how far the solved center may drift from the target before the
+/// run recenters, in arcseconds.
 const double frameWatchDriftLimitMinArcsec = 10;
 const double frameWatchDriftLimitMaxArcsec = 600;
-
-/// A learned point blocks the sky within this many degrees of azimuth on
-/// either side of it.
-const double learnedObstructionHalfWidthDeg = 6;
-
-/// A learned point blocks the sky up to this many degrees above it.
-const double learnedObstructionMarginDeg = 1;
-
-/// A point belongs to a site when its latitude and longitude are each within
-/// this many degrees of the site's.
-const double learnedObstructionSiteToleranceDeg = 0.05;
-
-/// One obstruction the run met: where on the sky it began, at which site,
-/// when, and on which target.
-class LearnedObstructionPoint {
-  const LearnedObstructionPoint({
-    required this.azimuthDeg,
-    required this.altitudeDeg,
-    required this.recordedAt,
-    this.latitude,
-    this.longitude,
-    this.targetName,
-  });
-
-  final double azimuthDeg;
-  final double altitudeDeg;
-  final double? latitude;
-  final double? longitude;
-  final DateTime recordedAt;
-  final String? targetName;
-
-  /// Whether the point was recorded at the site at [latitude], [longitude].
-  /// A point recorded with no site belongs to none.
-  bool belongsToSite(double latitude, double longitude) {
-    final lat = this.latitude;
-    final lon = this.longitude;
-    if (lat == null || lon == null) return false;
-    var dLon = (lon - longitude).abs() % 360;
-    if (dLon > 180) dLon = 360 - dLon;
-    return (lat - latitude).abs() <= learnedObstructionSiteToleranceDeg &&
-        dLon <= learnedObstructionSiteToleranceDeg;
-  }
-
-  /// Whether this point's azimuth band covers [azimuthDeg].
-  bool covers(double azimuthDeg) =>
-      azimuthDistanceDeg(this.azimuthDeg, azimuthDeg) <=
-      learnedObstructionHalfWidthDeg;
-
-  /// The highest blocked altitude.
-  double get blockedUpToDeg => altitudeDeg + learnedObstructionMarginDeg;
-
-  Map<String, Object?> toJson() => {
-    'az': azimuthDeg,
-    'alt': altitudeDeg,
-    'lat': latitude,
-    'lon': longitude,
-    'at': recordedAt.toUtc().toIso8601String(),
-    'target': targetName,
-  };
-
-  static LearnedObstructionPoint? fromJson(Object? raw) {
-    if (raw is! Map) return null;
-    final az = raw['az'];
-    final alt = raw['alt'];
-    if (az is! num || alt is! num) return null;
-    final lat = raw['lat'];
-    final lon = raw['lon'];
-    final at = raw['at'];
-    final target = raw['target'];
-    return LearnedObstructionPoint(
-      azimuthDeg: _wrap360(az.toDouble()),
-      altitudeDeg: alt.toDouble(),
-      latitude: lat is num ? lat.toDouble() : null,
-      longitude: lon is num ? lon.toDouble() : null,
-      recordedAt: (at is String ? DateTime.tryParse(at) : null) ?? DateTime(0),
-      targetName: target is String && target.isNotEmpty ? target : null,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      other is LearnedObstructionPoint &&
-      other.azimuthDeg == azimuthDeg &&
-      other.altitudeDeg == altitudeDeg &&
-      other.latitude == latitude &&
-      other.longitude == longitude &&
-      other.recordedAt == recordedAt &&
-      other.targetName == targetName;
-
-  @override
-  int get hashCode => Object.hash(
-    azimuthDeg,
-    altitudeDeg,
-    latitude,
-    longitude,
-    recordedAt,
-    targetName,
-  );
-}
-
-/// Smallest angle between two azimuths, 0 to 180 degrees.
-double azimuthDistanceDeg(double a, double b) {
-  final d = (_wrap360(a) - _wrap360(b)).abs();
-  return d > 180 ? 360 - d : d;
-}
-
-double _wrap360(double az) {
-  final v = az % 360.0;
-  return v < 0 ? v + 360.0 : v;
-}
-
-/// The altitude the learned [points] block at [azimuthDeg], or null when none
-/// covers it.
-double? learnedObstructionAltitudeAt(
-  Iterable<LearnedObstructionPoint> points,
-  double azimuthDeg,
-) {
-  double? blocked;
-  for (final p in points) {
-    if (!p.covers(azimuthDeg)) continue;
-    blocked = blocked == null
-        ? p.blockedUpToDeg
-        : math.max(blocked, p.blockedUpToDeg);
-  }
-  return blocked;
-}
-
-List<LearnedObstructionPoint> decodeLearnedObstructionPoints(String? json) {
-  if (json == null || json.trim().isEmpty) return const [];
-  try {
-    final decoded = jsonDecode(json);
-    if (decoded is! List) return const [];
-    return List.unmodifiable(
-      decoded
-          .map(LearnedObstructionPoint.fromJson)
-          .whereType<LearnedObstructionPoint>(),
-    );
-  } on FormatException {
-    return const [];
-  }
-}
-
-String encodeLearnedObstructionPoints(List<LearnedObstructionPoint> points) =>
-    jsonEncode(points.map((p) => p.toJson()).toList());
 
 /// The frame watch's settings and the learned obstructions of every site.
 class FrameWatchSettings {
   const FrameWatchSettings({
-    this.recenterEnabled = true,
-    this.driftLimitArcsec = frameWatchDriftLimitDefaultArcsec,
-    this.obstructionDetection = true,
+    required this.recenterEnabled,
+    required this.driftLimitArcsec,
+    required this.obstructionDetection,
     this.learnedPoints = const [],
   });
+
+  /// The settings as declared, before anything is stored.
+  static final FrameWatchSettings initial = FrameWatchSettings(
+    recenterEnabled: StoreSettings.frameWatchRecenter.fallback,
+    driftLimitArcsec: StoreSettings.frameWatchDriftLimit.fallback,
+    obstructionDetection: StoreSettings.frameWatchObstructionDetection.fallback,
+  );
 
   final bool recenterEnabled;
   final double driftLimitArcsec;
@@ -226,7 +81,7 @@ class FrameWatchSettings {
 
 double clampFrameWatchDriftLimitArcsec(double value) => value.isFinite
     ? value.clamp(frameWatchDriftLimitMinArcsec, frameWatchDriftLimitMaxArcsec)
-    : frameWatchDriftLimitDefaultArcsec;
+    : StoreSettings.frameWatchDriftLimit.fallback;
 
 final frameWatchSettingsProvider =
     AsyncNotifierProvider<FrameWatchSettingsNotifier, FrameWatchSettings>(
@@ -237,20 +92,17 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
   @override
   Future<FrameWatchSettings> build() async {
     final dao = ref.watch(settingsDaoProvider);
-    final enabled = await dao.getSetting(frameWatchRecenterEnabledKey);
-    final storedDrift = await dao.getSetting(frameWatchDriftLimitArcsecKey);
-    final drift = storedDrift == null ? null : double.tryParse(storedDrift);
-    final detection = await dao.getSetting(frameWatchObstructionDetectionKey);
-    final points = decodeLearnedObstructionPoints(
-      await dao.getSetting(learnedHorizonPointsKey),
-    );
     return FrameWatchSettings(
-      recenterEnabled: enabled != 'false',
-      driftLimitArcsec: drift == null
-          ? frameWatchDriftLimitDefaultArcsec
-          : clampFrameWatchDriftLimitArcsec(drift),
-      obstructionDetection: detection == null ? true : detection != 'false',
-      learnedPoints: points,
+      recenterEnabled: await dao.read(StoreSettings.frameWatchRecenter),
+      driftLimitArcsec: clampFrameWatchDriftLimitArcsec(
+        await dao.read(StoreSettings.frameWatchDriftLimit),
+      ),
+      obstructionDetection: await dao.read(
+        StoreSettings.frameWatchObstructionDetection,
+      ),
+      learnedPoints: decodeLearnedObstructionPoints(
+        await dao.read(StoreSettings.learnedHorizonPoints),
+      ),
     );
   }
 
@@ -261,7 +113,7 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
     final current = await _current();
     await ref
         .read(settingsDaoProvider)
-        .setSetting(frameWatchRecenterEnabledKey, enabled.toString());
+        .write(StoreSettings.frameWatchRecenter, enabled);
     state = AsyncData(
       (state.valueOrNull ?? current).copyWith(recenterEnabled: enabled),
     );
@@ -272,7 +124,7 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
     final clamped = clampFrameWatchDriftLimitArcsec(arcsec);
     await ref
         .read(settingsDaoProvider)
-        .setSetting(frameWatchDriftLimitArcsecKey, clamped.toString());
+        .write(StoreSettings.frameWatchDriftLimit, clamped);
     state = AsyncData(
       (state.valueOrNull ?? current).copyWith(driftLimitArcsec: clamped),
     );
@@ -282,7 +134,7 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
     final current = await _current();
     await ref
         .read(settingsDaoProvider)
-        .setSetting(frameWatchObstructionDetectionKey, enabled.toString());
+        .write(StoreSettings.frameWatchObstructionDetection, enabled);
     state = AsyncData(current.copyWith(obstructionDetection: enabled));
   }
 
@@ -330,8 +182,8 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
     try {
       await ref
           .read(settingsDaoProvider)
-          .setSetting(
-            learnedHorizonPointsKey,
+          .write(
+            StoreSettings.learnedHorizonPoints,
             encodeLearnedObstructionPoints(points),
           );
     } catch (e) {

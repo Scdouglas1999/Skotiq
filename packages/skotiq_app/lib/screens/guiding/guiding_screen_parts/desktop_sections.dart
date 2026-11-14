@@ -59,8 +59,6 @@ mixin _GuidingDesktopSections
     );
   }
 
-  // ---------------------------------------------------------------- left ---
-
   Widget _buildLeftColumn(
     SkotiqColors colors,
     bool isConnected,
@@ -108,7 +106,7 @@ mixin _GuidingDesktopSections
           aspectRatio: 1,
           child: starImage.when(
             data: (image) => GuideStarView(
-              key: GuidingTutorialKeys.starView,
+              key: TourTarget.guidingStarView.key,
               pixels: image.pixels,
               width: image.width,
               height: image.height,
@@ -120,11 +118,11 @@ mixin _GuidingDesktopSections
               statusMessage: 'No star selected',
             ),
             loading: () => GuideStarView(
-              key: GuidingTutorialKeys.starView,
+              key: TourTarget.guidingStarView.key,
               statusMessage: _starViewIdleMessage(),
             ),
             error: (_, __) => GuideStarView(
-              key: GuidingTutorialKeys.starView,
+              key: TourTarget.guidingStarView.key,
               statusMessage: 'Guide star image unavailable',
             ),
           ),
@@ -140,6 +138,8 @@ mixin _GuidingDesktopSections
   ) {
     final errorHistory = ref.watch(targetDisplayHistoryProvider);
     final currentError = errorHistory.isNotEmpty ? errorHistory.last : null;
+    final scale = ref.watch(guideScaleProvider);
+    double shown(double px) => guideDistance(px, scale).value;
 
     return SkotiqPanel(
       head: const PanelHead(
@@ -151,12 +151,12 @@ mixin _GuidingDesktopSections
         child: AspectRatio(
           aspectRatio: 1,
           child: GuideTargetDisplay(
-            key: GuidingTutorialKeys.targetDisplay,
+            key: TourTarget.guidingTargetDisplay.key,
             errorHistory: errorHistory
                 .map(
                   (e) => GuideErrorPoint(
-                    raError: _errorForDisplay(e.raError, stats.pixelScale),
-                    decError: _errorForDisplay(e.decError, stats.pixelScale),
+                    raError: shown(e.raError),
+                    decError: shown(e.decError),
                     timestamp: e.timestamp,
                   ),
                 )
@@ -165,12 +165,10 @@ mixin _GuidingDesktopSections
             // bullseye while the guider was stopped with nothing measured,
             // which reads as perfect guiding rather than as no reading.
             showCurrentError: currentError != null,
-            currentRaError:
-                _errorForDisplay(currentError?.raError ?? 0, stats.pixelScale),
-            currentDecError:
-                _errorForDisplay(currentError?.decError ?? 0, stats.pixelScale),
+            currentRaError: shown(currentError?.raError ?? 0),
+            currentDecError: shown(currentError?.decError ?? 0),
             scaleArcsec: _yScale.arcsec / 2,
-            unitSuffix: _errorUnit(stats.pixelScale),
+            unitSuffix: guideDistance(0, scale).unit,
             numRings: 3,
           ),
         ),
@@ -215,8 +213,6 @@ mixin _GuidingDesktopSections
     );
   }
 
-  // -------------------------------------------------------------- centre ---
-
   /// The guide graph panel. [GuideGraphAdvanced] carries the options row
   /// (RA / Dec / Tot and the Time and Scale selectors) and its own inset plot
   /// surface, so the panel adds the label and the frame and nothing else — a
@@ -251,40 +247,36 @@ mixin _GuidingDesktopSections
   }) {
     final graphData = ref.watch(guideGraphProvider);
     final hasRmsSamples = stats.frameCount > 0;
+    final scale = ref.watch(guideScaleProvider);
+    double shown(double px) => guideDistance(px, scale).value;
 
     final Widget graph = GuideGraphAdvanced(
-      key: GuidingTutorialKeys.graph,
+      key: TourTarget.guidingGraph.key,
       data: graphData
           .map(
             (p) => GuideDataPoint(
               timestamp: p.time,
-              raError: _errorForDisplay(p.ra, stats.pixelScale),
-              decError: _errorForDisplay(p.dec, stats.pixelScale),
+              raError: shown(p.ra),
+              decError: shown(p.dec),
             ),
           )
           .toList(),
-      valueUnit: _errorUnit(stats.pixelScale),
+      valueUnit: guideDistance(0, scale).unit,
       timeScale: _timeScale,
       yScale: _yScale,
       // Values are converted here (and nulled out when nothing has been
       // measured) so the graph's own stats row cannot label raw pixels as
       // arcseconds or print a fabricated 0.00.
-      rmsRa: hasRmsSamples
-          ? _rmsReadout(stats.rmsRa, stats.pixelScale).value
-          : null,
-      rmsDec: hasRmsSamples
-          ? _rmsReadout(stats.rmsDec, stats.pixelScale).value
-          : null,
-      rmsTotal: hasRmsSamples
-          ? _rmsReadout(stats.rmsTotal, stats.pixelScale).value
-          : null,
-      rmsUnit: _rmsReadout(0, stats.pixelScale).unit,
+      rmsRa: hasRmsSamples ? shown(stats.rmsRa) : null,
+      rmsDec: hasRmsSamples ? shown(stats.rmsDec) : null,
+      rmsTotal: hasRmsSamples ? shown(stats.rmsTotal) : null,
+      rmsUnit: guideDistance(0, scale).unit,
       onTimeScaleChanged: (scale) => setState(() => _timeScale = scale),
       onYScaleChanged: (scale) => setState(() => _yScale = scale),
     );
 
     return SkotiqPanel(
-      key: GuidingTutorialKeys.rmsDisplay,
+      key: TourTarget.guidingRmsDisplay.key,
       padding: showHead
           ? SkotiqTokens.paddingLg
           : (compact ? SkotiqTokens.paddingXs : SkotiqTokens.paddingMd),
@@ -298,8 +290,6 @@ mixin _GuidingDesktopSections
     );
   }
 
-  // --------------------------------------------------------- side panel ---
-
   Widget _buildSidePanelContent(
     SkotiqColors colors,
     bool isConnected,
@@ -309,7 +299,7 @@ mixin _GuidingDesktopSections
     final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
 
     final brainButton = SkotiqButton(
-      key: GuidingTutorialKeys.brainBtn,
+      key: TourTarget.guidingBrainButton.key,
       label: isPhd2Guider
           ? (_showBrainPanel ? 'Hide brain settings' : 'Brain settings')
           : 'Guider settings',
@@ -318,7 +308,7 @@ mixin _GuidingDesktopSections
       size: ButtonSize.small,
       onPressed: isPhd2Guider
           ? () => setState(() => _showBrainPanel = !_showBrainPanel)
-          : () => context.go('/equipment'),
+          : () => context.go(AppRoute.equipment.path),
     );
 
     // The controls, calibration and the Brain toggle are one column that
@@ -333,9 +323,7 @@ mixin _GuidingDesktopSections
         children: [
           _buildControls(isConnected, phd2State),
           const SizedBox(height: SidePanel.sectionGap),
-          isPhd2Guider
-              ? _buildCalibrationSection(colors, isConnected, phd2State)
-              : _buildNonPhd2GuiderInfo(colors),
+          _buildGuiderCalibration(colors, isConnected, phd2State),
           const SizedBox(height: SidePanel.sectionGap),
           brainButton,
         ],
@@ -361,65 +349,53 @@ mixin _GuidingDesktopSections
   }
 
   Widget _buildControls(bool isConnected, Phd2State phd2State) {
-    final guiderId = ref.watch(guiderStateProvider).deviceId;
-    final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
-    final settingsAsync = ref.watch(appSettingsProvider);
-    final canPersistGuidingSettings = settingsAsync.hasValue &&
-        !settingsAsync.isLoading &&
-        !settingsAsync.hasError;
     final controller = ref.read(phd2ControllerProvider);
 
     return GuideControlsPanel(
-      key: GuidingTutorialKeys.controls,
+      key: TourTarget.guidingControls.key,
       state: _mapPhd2State(phd2State),
       isConnected: isConnected,
-      onStartGuiding: () => controller.startGuiding(
-        settlePixels: _settlePixels,
-        settleTime: _settleTime,
-        settleTimeout: _settleTimeout,
-      ),
+      onStartGuiding: controller.startGuiding,
       onStopGuiding: () => ref.read(phd2ControllerProvider).stopGuiding(),
-      onPauseGuiding: isPhd2Guider
-          ? () => ref.read(phd2ControllerProvider).pauseGuiding()
-          : null,
-      onResumeGuiding: isPhd2Guider
-          ? () => ref.read(phd2ControllerProvider).resumeGuiding()
-          : null,
-      pauseUnavailableReason: isPhd2Guider ? null : kBuiltinGuiderNoPauseReason,
+      onPauseGuiding: () => ref.read(phd2ControllerProvider).pauseGuiding(),
+      onResumeGuiding: () => ref.read(phd2ControllerProvider).resumeGuiding(),
       onLoop: () => ref.read(phd2ControllerProvider).loop(),
       onFindStar: _autoSelectStar,
       onDeselectStar: _deselectStar,
-      ditherAmount: _ditherAmount,
-      ditherRaOnly: _ditherRaOnly,
-      onDitherAmountChanged:
-          canPersistGuidingSettings ? _setDitherAmount : null,
-      onDitherRaOnlyChanged:
-          canPersistGuidingSettings ? _setDitherRaOnly : null,
-      onDither: () => ref.read(phd2ControllerProvider).dither(
-            amount: _ditherAmount,
-            raOnly: _ditherRaOnly,
-            settlePixels: _settlePixels,
-            settleTime: _settleTime,
-            settleTimeout: _settleTimeout,
-          ),
-      settlePixels: _settlePixels,
-      settleTime: _settleTime,
-      settleTimeout: _settleTimeout,
-      onSettlePixelsChanged:
-          canPersistGuidingSettings ? _setSettlePixels : null,
-      onSettleTimeChanged: canPersistGuidingSettings ? _setSettleTime : null,
-      onSettleTimeoutChanged:
-          canPersistGuidingSettings ? _setSettleTimeout : null,
+      onDither: () => ref.read(phd2ControllerProvider).dither(),
+      settleSettings: const GuideSettleSettings(),
     );
   }
 
-  /// Calibration as a side-panel section (06 §Guiding). The uncalibrated state
-  /// is ONE [SkotiqBanner], not a bordered hero with its own icon disc.
-  Widget _buildCalibrationSection(
+  /// The calibration of PHD2 or the built-in guider; another guider exposes
+  /// none.
+  Widget _buildGuiderCalibration(
     SkotiqColors colors,
     bool isConnected,
     Phd2State phd2State,
   ) {
+    final guiderId = ref.watch(guiderStateProvider).deviceId;
+    final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
+    if (!isPhd2Guider && !ref.watch(isBuiltinGuiderProvider)) {
+      return _buildNonPhd2GuiderInfo(colors);
+    }
+    return _buildCalibrationSection(
+      colors,
+      isConnected,
+      phd2State,
+      isPhd2Guider: isPhd2Guider,
+    );
+  }
+
+  /// Calibration as a side-panel section (06 §Guiding). The uncalibrated state
+  /// is ONE [SkotiqBanner], not a bordered hero with its own icon disc. Only
+  /// PHD2 takes Clear and Flip; the built-in guider calibrates itself.
+  Widget _buildCalibrationSection(
+    SkotiqColors colors,
+    bool isConnected,
+    Phd2State phd2State, {
+    required bool isPhd2Guider,
+  }) {
     final calibration = ref.watch(calibrationStateProvider);
     final isCalibrating = phd2State == Phd2State.calibrating;
     final isCalibrated = calibration.isCalibrated;
@@ -486,33 +462,45 @@ mixin _GuidingDesktopSections
                     ),
                   ],
                 ),
-                const SizedBox(height: SkotiqTokens.spaceMd),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SkotiqButton(
-                        label: 'Clear',
-                        icon: SkotiqIcons.delete,
-                        variant: ButtonVariant.secondary,
-                        size: ButtonSize.small,
-                        onPressed: isConnected ? _clearCalibration : null,
+                if (isPhd2Guider) ...[
+                  const SizedBox(height: SkotiqTokens.spaceMd),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SkotiqButton(
+                          label: 'Clear',
+                          icon: SkotiqIcons.delete,
+                          variant: ButtonVariant.secondary,
+                          size: ButtonSize.small,
+                          onPressed: isConnected ? _clearCalibration : null,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    Expanded(
-                      child: SkotiqButton(
-                        label: 'Flip',
-                        icon: LucideIcons.flipHorizontal,
-                        variant: ButtonVariant.secondary,
-                        size: ButtonSize.small,
-                        onPressed: isConnected ? _flipCalibration : null,
+                      const SizedBox(width: SkotiqTokens.spaceSm),
+                      Expanded(
+                        child: SkotiqButton(
+                          label: 'Flip',
+                          icon: LucideIcons.flipHorizontal,
+                          variant: ButtonVariant.secondary,
+                          size: ButtonSize.small,
+                          onPressed: isConnected ? _flipCalibration : null,
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: SkotiqTokens.spaceSm),
+                  Text(
+                    'Flip the calibration after a meridian flip.',
+                    style: SkotiqTypography.caption.copyWith(
+                      color: colors.textMuted,
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ],
+              if (!isPhd2Guider) ...[
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Text(
-                  'Flip the calibration after a meridian flip.',
+                  'Skotiq calibrates this guider each time guiding starts. '
+                  'Pulse and multi-star settings live under Equipment.',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textMuted,
                   ),
@@ -543,7 +531,7 @@ mixin _GuidingDesktopSections
           icon: SkotiqIcons.settings,
           size: ButtonSize.small,
           variant: ButtonVariant.secondary,
-          onPressed: () => context.go('/equipment'),
+          onPressed: () => context.go(AppRoute.equipment.path),
         ),
       ),
     );
@@ -613,7 +601,7 @@ mixin _GuidingDesktopSections
           // Surface the real error so the user can act on it instead of
           // staring at a generic "failed" message (silent fallbacks hide
           // bugs). Common cause: PHD2 connected but no equipment profile.
-          body: _brainErrorMessage(e),
+          body: userFacingError(e),
           action: SkotiqButton(
             label: 'Retry',
             icon: SkotiqIcons.refresh,

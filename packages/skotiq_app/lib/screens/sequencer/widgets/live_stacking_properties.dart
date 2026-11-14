@@ -1,17 +1,12 @@
-// Properties editor for the LiveStacking node.
-//
-// Renders the configurable knobs (mode, stack method, broadcast port,
-// path, auth token, watermark template, thumbnail size, frame cap)
-// as a vertically-scrolling property sheet that matches the look of
-// SmartExposureProperties / ExposureProperties.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/sequence/variable_picker.dart';
-import '../../accessible_dropdown.dart';
+import 'variable_picker.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 class LiveStackingProperties extends ConsumerStatefulWidget {
   final SkotiqColors colors;
@@ -30,8 +25,6 @@ class LiveStackingProperties extends ConsumerStatefulWidget {
 
 class _LiveStackingPropertiesState
     extends ConsumerState<LiveStackingProperties> {
-  late TextEditingController _broadcastPathCtl;
-  late TextEditingController _broadcastPortCtl;
   late TextEditingController _authTokenCtl;
   late TextEditingController _watermarkCtl;
   late TextEditingController _maxFramesCtl;
@@ -41,9 +34,6 @@ class _LiveStackingPropertiesState
   @override
   void initState() {
     super.initState();
-    _broadcastPathCtl = TextEditingController(text: widget.node.broadcastPath);
-    _broadcastPortCtl =
-        TextEditingController(text: widget.node.broadcastPort.toString());
     _authTokenCtl = TextEditingController(text: widget.node.authToken ?? '');
     _watermarkCtl =
         TextEditingController(text: widget.node.watermarkText ?? '');
@@ -57,8 +47,6 @@ class _LiveStackingPropertiesState
 
   @override
   void dispose() {
-    _broadcastPathCtl.dispose();
-    _broadcastPortCtl.dispose();
     _authTokenCtl.dispose();
     _watermarkCtl.dispose();
     _maxFramesCtl.dispose();
@@ -77,19 +65,6 @@ class _LiveStackingPropertiesState
       },
       child: field,
     );
-  }
-
-  void _commitPort() {
-    final p = int.tryParse(_broadcastPortCtl.text);
-    if (p == null || p < 1 || p > 65535) return;
-    _update((n) => n.copyWith(broadcastPort: p));
-  }
-
-  void _commitPath() {
-    final trimmed = _broadcastPathCtl.text.trim().isEmpty
-        ? '/broadcast'
-        : _broadcastPathCtl.text.trim();
-    _update((n) => n.copyWith(broadcastPath: trimmed));
   }
 
   void _commitAuthToken() {
@@ -158,8 +133,6 @@ class _LiveStackingPropertiesState
       stackMethod: n.stackMethod,
       maxFramesToStack: n.maxFramesToStack,
       broadcastEnabled: n.broadcastEnabled,
-      broadcastPort: n.broadcastPort,
-      broadcastPath: n.broadcastPath,
       authToken: clearAuthToken ? null : n.authToken,
       watermarkText: clearWatermark ? null : n.watermarkText,
       thumbnailWidth: n.thumbnailWidth,
@@ -218,51 +191,16 @@ class _LiveStackingPropertiesState
           ),
         ),
         const SizedBox(height: 16),
-        _sectionLabel(theme, 'Broadcast endpoint'),
+        _sectionLabel(theme, 'Broadcast'),
         SwitchListTile(
           value: node.broadcastEnabled,
           onChanged: (v) => _update((n) => n.copyWith(broadcastEnabled: v)),
           title: const Text('Broadcast enabled'),
           subtitle: const Text(
-            'When off, the stack still builds but the public URL '
-            'returns 404.',
+            'Served at /broadcast on the Skotiq web server. When off, the '
+            'stack still builds but the page returns 404.',
           ),
           contentPadding: EdgeInsets.zero,
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: _commitOnBlur(
-                TextField(
-                  controller: _broadcastPortCtl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Port',
-                    helperText: 'Default 8081',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _commitPort(),
-                ),
-                _commitPort,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: _commitOnBlur(
-                TextField(
-                  controller: _broadcastPathCtl,
-                  decoration: const InputDecoration(
-                    labelText: 'Path',
-                    helperText: 'URL prefix (e.g. /broadcast)',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _commitPath(),
-                ),
-                _commitPath,
-              ),
-            ),
-          ],
         ),
         const SizedBox(height: 16),
         _sectionLabel(theme, 'Access control'),

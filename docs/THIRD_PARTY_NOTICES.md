@@ -1,11 +1,11 @@
-# Third-Party Notices — Skotiq 5.0.0
+# Third-Party Notices — Skotiq
 
-This notice describes the components redistributed in the official 5.0.0
+This notice describes the components redistributed in the release
 artifacts produced by `.github/workflows/release.yml`:
 
-- `skotiq-5.0.0-windows-x64.zip`
-- `skotiq-5.0.0-linux-x64.tar.gz`
-- `skotiq-5.0.0-android-universal.apk`
+- `skotiq-<version>-windows-x64.zip`
+- `skotiq-<version>-linux-x64.tar.gz`
+- `skotiq-<version>-android-universal.apk`
 
 Skotiq's own code and assets are governed by `SKOTIQ-LICENSE.txt`
 (the Skotiq Source-Available License, version 1.2). Third-party components
@@ -20,7 +20,8 @@ notice bundle for resolved Dart, Flutter, plugin, font, and icon dependencies.
 | Component | How it is shipped | License / notice |
 | --- | --- | --- |
 | Skotiq native bridge | `skotiq_bridge.dll` on Windows; `libskotiq_bridge.so` on Linux | Skotiq Source-Available License for first-party code; statically linked Rust crates retain their licenses below. |
-| LibRaw | Dynamically linked `libraw.dll` / `libraw.so` next to the bridge | LibRaw is dual-licensed LGPL-2.1-or-later or CDDL-1.0. Skotiq uses the LGPL option. The full LGPL-2.1 text is in `LICENSES/LGPL-2.1.txt`; dynamic linking preserves replacement/relinking. Source: <https://www.libraw.org/download>. |
+| LibRaw | Dynamically linked `libraw.dll` / `libraw.so` next to the bridge | LibRaw is dual-licensed LGPL-2.1-or-later or CDDL-1.0. Skotiq uses the LGPL option. The full LGPL-2.1 text is in `LICENSES/LGPL-2.1.txt`; dynamic linking preserves replacement/relinking. Linux archives also include the build-distribution copyright notice in `LICENSES/libraw-copyright.txt`. Source: <https://www.libraw.org/download>. |
+| libjpeg-turbo | The JPEG shared library required by bundled LibRaw (`libjpeg.so.8` on the Ubuntu release builder) | The exact build-distribution copyright and license notice is included in `LICENSES/libjpeg-turbo-copyright.txt`. This software is based in part on the work of the Independent JPEG Group. Source: <https://libjpeg-turbo.org/>. |
 | SQLite | Hermetic `libsqlite3.so` native asset from `package:sqlite3` (Linux/desktop archive) | Public domain. See <https://www.sqlite.org/copyright.html>. |
 | Microsoft Visual C++ runtime | Redistributable runtime DLLs staged by the Windows toolchain | Redistributed under the Microsoft Visual Studio license. |
 | WebRTC native libraries | Included by `flutter_webrtc` where required | BSD-style WebRTC/Chromium notices are included in Flutter's generated notice bundle. |
@@ -61,12 +62,13 @@ the font OFL-1.1 texts are tracked beside the fonts under
 
 ## Bundled astronomical catalog data
 
-The desktop bundle includes transformed OpenNGC and HYG catalog packs. Both
-datasets are licensed CC BY-SA 4.0. The bundled
-`assets/planetarium/catalogs/README.md` provides the required attribution,
-source links, transformation description, and license link. The transformed
-catalog packs themselves are offered under CC BY-SA 4.0; that data license
-does not replace the license for Skotiq's program code.
+The desktop and mobile apps include the OpenNGC database (`NGC.csv`,
+unmodified), licensed CC BY-SA 4.0. The bundled
+`packages/skotiq_core/assets/catalogs/NOTICE.txt` provides the required
+attribution, source link and license link, and the app shows it under
+Settings > About > Open-source licenses. That data license does not replace
+the license for Skotiq's program code. The HYG star database (also CC BY-SA
+4.0) is not bundled; the app downloads it when the user asks.
 
 No JPL ephemeris kernel is bundled or redistributed. Sun and moon positions
 are computed from the Astronomical Almanac low-precision series in
@@ -74,7 +76,7 @@ are computed from the Astronomical Almanac low-precision series in
 
 ## Vendor device SDKs are not redistributed
 
-The official 5.0.0 workflow does **not** contain the gitignored `SDKs/`
+The release workflow does **not** contain the gitignored `SDKs/`
 directory and does not copy vendor camera or mount SDK binaries into any
 artifact. Native vendor paths work only when the user has installed a
 compatible vendor library or driver. ZWO, QHY, Player One, SVBony, Atik, FLI,
@@ -86,7 +88,7 @@ confirmed and their required notices are included.
 
 ASTAP, astrometry.net, PHD2, INDI servers/drivers, ASCOM Platform, Alpaca
 servers, and device drivers are user-installed external programs. Skotiq
-invokes or communicates with them but does not include them in the 5.0.0
+invokes or communicates with them but does not include them in the release
 artifacts.
 
 ## Reproducing the audit

@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/darkroom/calibration/calibration_library_panel.dart';
 import 'package:skotiq_app/screens/settings/settings_catalog.dart';
 import 'package:skotiq_app/screens/settings/widgets/calibration_redirect.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -30,22 +32,23 @@ void main() {
         'calibration-library',
       ]) {
         expect(
-          calibrationSettingsRedirect(Uri.parse('/settings?section=$section')),
+          AppRoute.settings.redirect(Uri.parse('/settings?section=$section')),
           '/darkroom?tab=calibration',
           reason: section,
         );
       }
       expect(
-        calibrationSettingsRedirect(Uri.parse('/settings?section=imaging')),
+        AppRoute.settings.redirect(Uri.parse('/settings?section=imaging')),
         isNull,
       );
-      expect(calibrationSettingsRedirect(Uri.parse('/settings')), isNull);
+      expect(AppRoute.settings.redirect(Uri.parse('/settings')), isNull);
     });
 
     test('the merged keys resolve to the one Calibration entry', () {
-      expect(resolveSectionKey('dark-library'), 'calibration');
-      expect(resolveSectionKey('calibration-library'), 'calibration');
-      expect(resolveSectionKey('calibration'), 'calibration');
+      expect(SettingsSectionId.resolve('dark-library')?.key, 'calibration');
+      expect(
+          SettingsSectionId.resolve('calibration-library')?.key, 'calibration');
+      expect(SettingsSectionId.resolve('calibration')?.key, 'calibration');
     });
 
     testWidgets('opening the Settings entry goes to the Calibration tab', (

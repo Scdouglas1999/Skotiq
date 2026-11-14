@@ -19,7 +19,8 @@
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 final _t0 = DateTime(2026, 8, 14, 2, 41);
 const _runId = 15;
@@ -37,11 +38,9 @@ class _RecordingTransport extends NotificationTransport {
   bool get isConfigured => true;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final title = message.title;
+    final body = message.body;
     sent.add((title: title, body: body));
     return NotificationResult.ok();
   }
@@ -82,6 +81,7 @@ SkotiqEvent get _operatorDecision => _sequencer(
     'summary': 'Operator: stop',
     'details_json': '{"action":"stop"}',
     'sequence_run_id': _runId,
+    'stop': {'by': 'operator'},
   },
 );
 
@@ -92,6 +92,7 @@ SkotiqEvent _autopilotDecision({int runId = _runId}) => _sequencer(
     'summary': 'Autopilot: stop',
     'details_json': '{"origin":"scheduler","action":"stop"}',
     'sequence_run_id': runId,
+    'stop': {'by': 'autopilot'},
   },
 );
 
@@ -102,6 +103,7 @@ SkotiqEvent _systemDecision(String origin) => _sequencer(
     'summary': 'System: stop',
     'details_json': '{"origin":"$origin","action":"stop"}',
     'sequence_run_id': _runId,
+    'stop': {'by': 'system', 'origin': origin},
   },
 );
 
@@ -384,6 +386,7 @@ void main() {
             'category': 'manual_intervention',
             'summary': 'Operator: stop',
             'details_json': '{"action":"stop"}',
+            'stop': {'by': 'operator'},
           },
         ),
       );
@@ -412,6 +415,7 @@ void main() {
             'summary': 'Autofocus failed — continuing with last-good focus',
             'details_json': '{"trigger":"interval"}',
             'sequence_run_id': _runId,
+            'notice': 'autofocus_continued',
           },
         ),
       ],

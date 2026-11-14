@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
@@ -6,6 +5,7 @@ import '../radar_colormaps.dart';
 import '../radar_provider.dart';
 import '../radar_tile_decoder.dart';
 import '../../../models/weather/weather_models.dart';
+import '../../logging_service.dart';
 
 /// GOES satellite infrared imagery provider for cloud cover visualization.
 ///
@@ -24,7 +24,6 @@ import '../../../models/weather/weather_models.dart';
 /// - Coverage: CONUS (lat 14-57, lon -153 to -53)
 /// - Works 24/7 (infrared doesn't require sunlight)
 class GoesSatelliteProvider extends RadarProvider {
-  /// HTTP client for fetching metadata.
   final http.Client _client;
 
   /// Base URL for the IEM GOES CONUS IR WMS service.
@@ -54,7 +53,6 @@ class GoesSatelliteProvider extends RadarProvider {
   /// Pure image decoding/resampling helper (no I/O).
   final RadarTileDecoder _decoder;
 
-  /// Creates a new GOES satellite provider.
   GoesSatelliteProvider({http.Client? client})
     : _client = client ?? http.Client(),
       _decoder = const RadarTileDecoder();
@@ -81,7 +79,6 @@ class GoesSatelliteProvider extends RadarProvider {
     required double longitude,
     double radiusKm = 100.0,
   }) async {
-    // Verify coverage
     if (!coversLocation(latitude, longitude)) {
       return RadarFetchResult.error(
         'Location ($latitude, $longitude) is outside GOES satellite coverage area',
@@ -94,7 +91,7 @@ class GoesSatelliteProvider extends RadarProvider {
       // automatically returns the most recent imagery
       final now = DateTime.now().toUtc();
 
-      // Round to nearest 5 minutes for consistency
+      // Down to the 5-minute mark: a frame from the future does not exist yet.
       final roundedMinutes = (now.minute ~/ 5) * 5;
       final timestamp = DateTime.utc(
         now.year,
@@ -109,11 +106,10 @@ class GoesSatelliteProvider extends RadarProvider {
 
       final frame = await _decodeFrame(timestamp, fov);
 
-      developer.log(
+      Log.info(
         'Built satellite frame for $timestamp, layer: $_layerName '
         '(${frame.isNoData ? "no-data" : "with spatial data"})',
-        name: 'GoesSatellite',
-        level: 800,
+        source: 'GoesSatellite',
       );
 
       return RadarFetchResult.success([frame]);
@@ -130,10 +126,8 @@ class GoesSatelliteProvider extends RadarProvider {
 
   @override
   String buildTileUrl(RadarFrame frame, int z, int x, int y) {
-    // Calculate Web Mercator bounding box for this tile
     final bbox = _tileToBBox(x, y, z);
 
-    // Build WMS GetMap URL
     final params = {
       'service': 'WMS',
       'version': '1.1.1',
@@ -166,7 +160,8 @@ class GoesSatelliteProvider extends RadarProvider {
 
   /// Fetches and decodes the GOES IR WMS image for one timestamp into a
   /// [RadarFrame] with a real per-cell cloud-intensity grid over the FOV.
-  /// Returns a no-data frame when the image cannot be fetched or decoded.
+  /// Returns a no-data frame when the server answers without a usable image;
+  /// throws when it cannot be reached.
   Future<RadarFrame> _decodeFrame(DateTime timestamp, _FovBounds fov) async {
     final url = _getMapUrl(fov);
     const wmsOptions = {'transparent': 'true'};
@@ -177,18 +172,18 @@ class GoesSatelliteProvider extends RadarProvider {
       if (response.statusCode == 200) {
         image = _decoder.decodePng(response.bodyBytes);
       } else {
-        developer.log(
+        Log.warning(
           'GOES GetMap status ${response.statusCode}',
-          name: 'GoesSatellite',
-          level: 900,
+          source: 'GoesSatellite',
         );
       }
+    } on http.ClientException {
+      // GOES has no index request, so this image is the only network call. If
+      // it cannot be reached the fetch failed; a no-data frame stamped "now"
+      // would read as a fresh satellite update.
+      rethrow;
     } catch (e) {
-      developer.log(
-        'GOES GetMap fetch failed: $e',
-        name: 'GoesSatellite',
-        level: 900,
-      );
+      Log.warning('GOES GetMap fetch failed: $e', source: 'GoesSatellite');
     }
 
     if (image == null) {

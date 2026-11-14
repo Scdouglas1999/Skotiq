@@ -1,12 +1,10 @@
 /// The morning notification: the one message a dawn job sends.
 ///
-/// It goes out through [NotificationService.notify], which is the seam that
-/// fans a message out to the unified [NotificationRouter] (and from there to
-/// the phone through `SystemPushTransport`, the documented sole producer of
-/// mobile pushes) as well as the legacy Discord/Pushover webhooks. Enqueuing a
-/// push directly here would bypass the router, which is how the existing
-/// "master ready" push became unroutable and unmutable; this path does not
-/// repeat that.
+/// It goes out through [NotificationService.notify], which hands the message
+/// to the [NotificationRouter] (and from there to the phone through
+/// `SystemPushTransport`, the sole producer of mobile pushes). Enqueuing a
+/// push directly here would bypass the router and make the message unroutable
+/// and unmutable.
 ///
 /// **The gate is reported, never worked around.** `notificationsEnabled` and
 /// `notifyOnSequenceComplete` are live delivery gates on
@@ -23,7 +21,7 @@
 library;
 
 import '../../models/notification/notification_categories.dart';
-import '../../providers/settings_provider.dart';
+import '../../settings/app_settings_state.g.dart';
 import '../notification_service.dart';
 import 'dawn_job_report.dart';
 
@@ -113,7 +111,7 @@ class NotificationServiceDawnNotifier implements DawnMorningNotifier {
     // problems, so a morning where the routing row was off, the phone was not
     // paired, or the debounce swallowed it must not read as one where the
     // operator was told.
-    final dispatch = await _notifications.notifyDetailed(
+    final dispatch = await _notifications.notify(
       event: NotificationEvent.sequenceComplete,
       title: report.headline,
       message: report.body,

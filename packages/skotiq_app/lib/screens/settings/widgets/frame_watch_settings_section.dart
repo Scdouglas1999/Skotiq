@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../utils/snackbar_helper.dart';
 import 'settings_widgets.dart';
@@ -12,11 +13,9 @@ import 'settings_widgets.dart';
 class FrameWatchSettingsSection extends ConsumerStatefulWidget {
   const FrameWatchSettingsSection({
     super.key,
-    this.isMobile = false,
     this.showObstructionDetection = true,
   });
 
-  final bool isMobile;
   final bool showObstructionDetection;
 
   @override
@@ -26,32 +25,24 @@ class FrameWatchSettingsSection extends ConsumerStatefulWidget {
 
 class _FrameWatchSettingsSectionState
     extends ConsumerState<FrameWatchSettingsSection> {
-  final TextEditingController _driftController = TextEditingController();
-
-  @override
-  void dispose() {
-    _driftController.dispose();
-    super.dispose();
-  }
-
   Future<void> _save(Future<void> Function() write) async {
     try {
       await write();
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Could not save: $e');
+      if (mounted)
+        context.showErrorSnackBar('Could not save: ${userFacingError(e)}');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(frameWatchSettingsProvider).valueOrNull ??
-        const FrameWatchSettings();
+        FrameWatchSettings.initial;
     final notifier = ref.read(frameWatchSettingsProvider.notifier);
     return SettingsSection(
       title: widget.showObstructionDetection
           ? 'Frame watch'
           : 'Recenter after drift',
-      isMobile: widget.isMobile,
       children: [
         SettingRow(
           icon: LucideIcons.crosshair,
@@ -77,7 +68,6 @@ class _FrameWatchSettingsSectionState
               'are marked Off target while automatic recentering is enabled.',
           trailing: SettingsNumberInput(
             key: const ValueKey('frame-watch-drift-limit'),
-            controller: _driftController,
             authoritativeValue: settings.driftLimitArcsec,
             authorityKey: ref.watch(backendProvider),
             suffix: 'arcsec',
@@ -86,7 +76,6 @@ class _FrameWatchSettingsSectionState
             decimals: 0,
             onChanged: (value) =>
                 _save(() => notifier.setDriftLimitArcsec(value)),
-            isMobile: widget.isMobile,
           ),
           isLast: !widget.showObstructionDetection,
         ),

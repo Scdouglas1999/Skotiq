@@ -15,13 +15,11 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$WeatherAlert {
 
-/// Alert severity level
  AlertLevel get level;/// Human-readable alert text
  String get message;/// When clouds expected (null if clear/watch)
  DateTime? get eta;/// Cloud density percentage (0-100)
  double get cloudDensityPercent;/// Distance to threatening clouds in kilometers
- double get distanceKm;/// When this alert was generated
- DateTime get generatedAt;
+ double get distanceKm; DateTime get generatedAt;
 /// Create a copy of WeatherAlert
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -223,7 +221,6 @@ class _WeatherAlert implements WeatherAlert {
   const _WeatherAlert({required this.level, required this.message, this.eta, required this.cloudDensityPercent, required this.distanceKm, required this.generatedAt});
   factory _WeatherAlert.fromJson(Map<String, dynamic> json) => _$WeatherAlertFromJson(json);
 
-/// Alert severity level
 @override final  AlertLevel level;
 /// Human-readable alert text
 @override final  String message;
@@ -233,7 +230,6 @@ class _WeatherAlert implements WeatherAlert {
 @override final  double cloudDensityPercent;
 /// Distance to threatening clouds in kilometers
 @override final  double distanceKm;
-/// When this alert was generated
 @override final  DateTime generatedAt;
 
 /// Create a copy of WeatherAlert

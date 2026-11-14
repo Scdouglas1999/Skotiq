@@ -1,4 +1,3 @@
-// Top-of-screen chrome: the planner header (title + icon) and the controls bar that arranges search, filter chips, and sort.
 part of '../planner_screen.dart';
 
 /// The two facts the page header carries about tonight: the moon's
@@ -23,8 +22,8 @@ class _PlanNightChips extends ConsumerWidget {
     }
 
     final now = DateTime.now();
-    final twilight = AstronomyCalculations.calculateTwilightTimes(
-      date: now,
+    final twilight = AstronomyCalculations.nightAt(
+      now: now,
       latitudeDeg: location!.latitude,
       longitudeDeg: location.longitude,
     );
@@ -53,7 +52,10 @@ class _PlanNightChips extends ConsumerWidget {
               ? l10n.text('plannerChipDarkNone')
               : l10n.text(
                   'plannerChipDark',
-                  params: {'start': _hhmm(dusk), 'end': _hhmm(dawn)},
+                  params: {
+                    'start': ClockFormat.hm(dusk),
+                    'end': ClockFormat.hm(dawn)
+                  },
                 ),
         ),
       ],
@@ -73,7 +75,7 @@ class _PlanNightChips extends ConsumerWidget {
     }
     final timed = l10n.text(
       'plannerChipMoonAt',
-      params: {'value': value, 'time': _hhmm(at)},
+      params: {'value': value, 'time': ClockFormat.hm(at)},
     );
     if (roomForTime) return SkotiqChip(icon: LucideIcons.moon, label: timed);
     return SkotiqTooltip(
@@ -81,14 +83,7 @@ class _PlanNightChips extends ConsumerWidget {
       child: SkotiqChip(icon: LucideIcons.moon, label: plain),
     );
   }
-
-  /// 24-hour clock, zero-padded. `DateFormat.Hm()` would follow the device
-  /// locale into a 12-hour clock; every other time on this screen is 24-hour.
-  static String _hhmm(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:'
-      '${t.minute.toString().padLeft(2, '0')}';
 }
-
-// Controls bar (search, filters, sort)
 
 /// The search field's width on the desktop filter row (06 §Plan: "300 px
 /// search field").

@@ -18,12 +18,13 @@ async fn pause_stops_the_burst_before_the_next_frame_starts() {
     std::fs::create_dir_all(&dir).expect("temp dir");
 
     let mut ec = crate::node::context::ExecutionContext::new_for_test("pause-node".to_string());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".to_string());
-    ec.save_path = Some(dir.clone());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.save_path = Some(dir.clone());
     ec.is_paused = paused.clone();
     let ctx = ec.to_instruction_context("pause-node").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -31,7 +32,7 @@ async fn pause_stops_the_burst_before_the_next_frame_starts() {
     let config = ExposureConfig {
         count: 3,
         duration_secs: 0.0,
-        frame_type: "dark".to_string(),
+        frame_type: crate::FrameType::Dark,
         ..ExposureConfig::default()
     };
 
@@ -59,7 +60,8 @@ async fn pause_stops_the_burst_before_the_next_frame_starts() {
     paused.store(false, Ordering::SeqCst);
     let result = tokio::time::timeout(Duration::from_secs(10), burst)
         .await
-        .expect("resume must let the burst finish");
+        .expect("resume must let the burst finish")
+        .result;
 
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success);
@@ -104,7 +106,7 @@ async fn dropped_exposure_instruction_aborts_camera() {
 async fn requested_filter_without_wheel_fails_before_capture() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.filterwheel_id = None;
+    ctx.run.rig.filterwheel_id = None;
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 1,
@@ -151,8 +153,9 @@ async fn the_capture_loop_does_not_move_the_wheel_under_a_trigger_claim() {
     let mut ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
     // The owner's 8-position ZWO EFW, which the Smart Exposure node and the
     // autofocus trigger were both driving.
-    ctx.filterwheel_id = Some("efw-1".to_string());
+    ctx.run.rig.filterwheel_id = Some("efw-1".to_string());
     let trigger_state = ctx
+        .run
         .trigger_state
         .clone()
         .expect("expose_ctx wires a trigger state");
@@ -162,7 +165,8 @@ async fn the_capture_loop_does_not_move_the_wheel_under_a_trigger_claim() {
     let af_token = trigger_state
         .write()
         .await
-        .try_claim_imaging_train("autofocus", 600.0)
+        .imaging_train
+        .try_claim("autofocus", 600.0)
         .expect("an idle imaging train must be claimable");
 
     let config = ExposureConfig {
@@ -188,7 +192,7 @@ async fn the_capture_loop_does_not_move_the_wheel_under_a_trigger_claim() {
     );
 
     // Hand it back; the burst proceeds and takes the wheel.
-    trigger_state.write().await.release_imaging_train(af_token);
+    trigger_state.write().await.imaging_train.release(af_token);
     let _ = burst.await.expect("the burst task must not panic");
     assert_eq!(
         *ops.filter_moves.lock().unwrap(),
@@ -207,16 +211,18 @@ async fn a_trigger_action_cannot_take_the_train_mid_frame() {
     let mut state = crate::triggers::TriggerState::new();
     // A 180 s light, as on the owner's rig.
     let frame_token = state
-        .try_claim_imaging_train("the next exposure", 180.0)
+        .imaging_train
+        .try_claim("the next exposure", 180.0)
         .expect("an idle imaging train must be claimable");
 
     // The drift-recenter trigger wants a 5 s plate-solve frame.
     assert!(
-        state.try_claim_imaging_train("recenter", 5.0).is_none(),
+        state.imaging_train.try_claim("recenter", 5.0).is_none(),
         "a recenter must not start a 5 s exposure on a camera mid-180 s frame"
     );
     let hold = state
-        .imaging_train_hold()
+        .imaging_train
+        .hold()
         .expect("the capture loop still holds it");
     assert_eq!(hold.holder, "the next exposure");
     assert!(
@@ -226,9 +232,9 @@ async fn a_trigger_action_cannot_take_the_train_mid_frame() {
         hold.expected_remaining_secs
     );
 
-    state.release_imaging_train(frame_token);
+    state.imaging_train.release(frame_token);
     assert!(
-        state.try_claim_imaging_train("recenter", 5.0).is_some(),
+        state.imaging_train.try_claim("recenter", 5.0).is_some(),
         "and the recenter runs the moment the frame is downloaded"
     );
 }
@@ -245,7 +251,7 @@ mod dither_cadence {
         let config = ExposureConfig {
             duration_secs: 0.01,
             count,
-            frame_type: frame_type.to_string(),
+            frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             dither_every: Some(dither_every),
             ..ExposureConfig::default()
         };
@@ -283,7 +289,7 @@ mod light_frame_grading {
         frame_type: &str,
         metrics: (f64, usize, f64),
         check: crate::quality::ImageQualityCheck,
-    ) -> Result<(), (String, Option<f64>, Option<u32>)> {
+    ) -> Result<(), (crate::quality::RejectReason, Option<f64>, Option<u32>)> {
         let scratch = scratch_dir("light-grading");
         let ops = Arc::new(
             ScriptedDomeRotatorOps::new()
@@ -293,11 +299,11 @@ mod light_frame_grading {
         let mut ctx = saving_expose_ctx(ops.clone(), scratch.0.clone(), event_tx).await;
         let mut ts = crate::triggers::TriggerState::new();
         ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
-        ctx.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+        ctx.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
         let config = ExposureConfig {
             duration_secs: 0.01,
             count: 1,
-            frame_type: frame_type.to_string(),
+            frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             quality_check: Some(check),
             ..ExposureConfig::default()
         };
@@ -345,7 +351,10 @@ mod light_frame_grading {
         .await
         .expect_err("a 5 px frame against a 3 px limit must be rejected");
         assert_eq!(hfr, Some(5.0));
-        assert!(reason.contains("HFR"), "{reason}");
+        assert!(
+            matches!(reason, crate::quality::RejectReason::HfrAboveLimit { .. }),
+            "{reason:?}"
+        );
     }
 
     #[tokio::test]
@@ -369,7 +378,49 @@ mod light_frame_grading {
         )
         .await
         .expect_err("0.8 eccentricity against a 0.5 limit must be rejected");
-        assert!(reason.contains("eccentricity"), "{reason}");
+        assert!(
+            matches!(reason, crate::quality::RejectReason::Eccentricity { .. }),
+            "{reason:?}"
+        );
+    }
+
+    /// The burst counts its own rejected frames, which the node credits the
+    /// target's budget by.
+    #[tokio::test]
+    async fn a_burst_reports_the_frames_of_it_the_grader_rejected() {
+        let scratch = scratch_dir("burst-rejects");
+        let ops = Arc::new(ScriptedDomeRotatorOps::new().with_scripted_frame_metrics(5.0, 60, 0.1));
+        let (event_tx, _events) = tokio::sync::broadcast::channel(64);
+        let mut ctx = saving_expose_ctx(ops, scratch.0.clone(), event_tx).await;
+        let mut ts = crate::triggers::TriggerState::new();
+        ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
+        ctx.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+        ctx.run.grading.frames_rejected.store(7, Ordering::Relaxed);
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count: 3,
+            frame_type: crate::FrameType::Light,
+            quality_check: Some(check(|c| c.hfr_threshold = Some(3.0))),
+            ..ExposureConfig::default()
+        };
+
+        let burst = execute_exposure_with_renderer(
+            &config,
+            &ctx,
+            None,
+            &BurstControl::default(),
+            |_, _, _| {},
+        )
+        .await;
+
+        assert_eq!(
+            burst.result.status,
+            NodeStatus::Success,
+            "{:?}",
+            burst.result.message
+        );
+        assert_eq!(burst.frames_rejected, 3);
+        assert_eq!(ctx.run.grading.frames_rejected.load(Ordering::Relaxed), 10);
     }
 
     #[tokio::test]
@@ -405,14 +456,14 @@ mod light_frame_grading {
                 );
                 let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
                 let mut ctx = saving_expose_ctx(ops, scratch, event_tx).await;
-                ctx.star_count_baselines = baselines;
+                ctx.run.grading.star_count_baselines = baselines;
                 let mut ts = crate::triggers::TriggerState::new();
                 ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
-                ctx.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+                ctx.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
                 let config = ExposureConfig {
                     duration_secs: 0.01,
                     count,
-                    frame_type: "Light".to_string(),
+                    frame_type: crate::FrameType::Light,
                     quality_check: Some(grading),
                     ..ExposureConfig::default()
                 };
@@ -439,7 +490,7 @@ mod light_frame_grading {
         let rejects = run(400, 1, baselines.clone()).await;
         assert_eq!(rejects.len(), 1, "{rejects:?}");
         assert!(
-            rejects[0].starts_with("star count 400 is 20%"),
+            rejects[0].to_string().starts_with("star count 400 is 20%"),
             "{rejects:?}"
         );
         assert!(run(1500, 1, baselines).await.is_empty());
@@ -465,27 +516,27 @@ mod in_burst_dither_failure {
             ScriptedDomeRotatorOps::new().with_dither_failing("Settle timed out after 60s"),
         );
         let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
-        if let Some(state) = &ctx.trigger_state {
-            state.write().await.stop_on_quality_problems = stop_on_quality_problems;
+        if let Some(state) = &ctx.run.trigger_state {
+            state.write().await.settings.stop_on_quality_problems = stop_on_quality_problems;
         }
         let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
         let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
-        let ctx = InstructionContext {
-            event_tx: Some(event_tx),
-            decision_tx: Some(decision_tx),
-            ..ctx
-        };
+        let mut ctx = ctx;
+        ctx.run.event_tx = Some(event_tx);
+        ctx.run.decision_tx = Some(decision_tx);
         let config = ExposureConfig {
             duration_secs: 0.01,
             count: 4,
-            frame_type: "Light".to_string(),
+            frame_type: crate::FrameType::Light,
             dither_every: Some(1),
             ..ExposureConfig::default()
         };
         let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
         let mut warnings = Vec::new();
         while let Ok(event) = events.try_recv() {
-            if let crate::executor::ExecutorEvent::Warning { message } = event {
+            if let crate::executor::ExecutorEvent::Warning { message }
+            | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warnings.push(message);
             }
         }
@@ -542,18 +593,16 @@ mod in_burst_dither_failure {
 async fn a_burst_while_imaging_unguided_skips_its_dithers() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_dither_failing("Not guiding"));
     let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
-    if let Some(state) = &ctx.trigger_state {
+    if let Some(state) = &ctx.run.trigger_state {
         state.write().await.guiding.set_unguided(true);
     }
     let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
-    let ctx = InstructionContext {
-        decision_tx: Some(decision_tx),
-        ..ctx
-    };
+    let mut ctx = ctx;
+    ctx.run.decision_tx = Some(decision_tx);
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 4,
-        frame_type: "Light".to_string(),
+        frame_type: crate::FrameType::Light,
         dither_every: Some(1),
         ..ExposureConfig::default()
     };
@@ -573,18 +622,187 @@ async fn a_burst_while_imaging_unguided_skips_its_dithers() {
     );
 }
 
+/// A frame that ends with guiding stopped for a mount move (restarted before
+/// the next frame) leaves a guider that cannot dither. The Dither node skips
+/// it; a burst's dither-every asked the stopped guider, which failed and told
+/// the operator about a guiding problem that was the run's own move.
+#[tokio::test]
+async fn a_burst_skips_its_dither_while_the_run_holds_the_guider_stopped() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_dither_failing("Not guiding"));
+    let mut ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+    let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
+    ctx.run.decision_tx = Some(decision_tx);
+    let state = ctx.run.trigger_state.clone().expect("trigger state");
+    let config = ExposureConfig {
+        duration_secs: 0.01,
+        count: 2,
+        frame_type: crate::FrameType::Light,
+        dither_every: Some(1),
+        ..ExposureConfig::default()
+    };
+
+    let result = execute_exposure(&config, &ctx, |frame, _, _| {
+        if frame == 1 {
+            state
+                .try_write()
+                .expect("nothing holds the trigger state between frames")
+                .guiding
+                .set_resume_pending(true);
+        }
+    })
+    .await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 2);
+    assert!(
+        ops.dithers_after_frame.lock().unwrap().is_empty(),
+        "{:?}",
+        ops.dithers_after_frame.lock().unwrap()
+    );
+    assert!(
+        decision_rx.try_recv().is_err(),
+        "no guiding problem to report"
+    );
+}
+
+/// While a burst's dither settles the guider reports why it is not guiding,
+/// as it does for a Dither node, so the settle never reads as lost guiding.
+#[tokio::test]
+async fn a_burst_dither_tells_the_guider_it_is_settling_after_a_dither() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+    let config = ExposureConfig {
+        duration_secs: 0.01,
+        count: 2,
+        frame_type: crate::FrameType::Light,
+        dither_every: Some(1),
+        ..ExposureConfig::default()
+    };
+
+    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(*ops.dithers_after_frame.lock().unwrap(), vec![1]);
+    assert_eq!(
+        *ops.guider_stop_reasons.lock().unwrap(),
+        vec![Some(crate::GuidingStopReason::DitherSettle), None]
+    );
+}
+
+/// What counts as a dither is an open owner question, so each caller keeps
+/// its own rule (see `DitherCounts`): a settle that runs out while the guider
+/// holds the star counts for a Dither node and not for a burst.
+mod settle_ran_out_with_the_star_held {
+    use super::*;
+
+    fn held_star_ops() -> Arc<ScriptedDomeRotatorOps> {
+        Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_guiding(true)
+                .with_guider_rms(0.62)
+                .with_dither_failing(crate::device_ops::DeviceError::Timeout(
+                    "Dither did not settle: PHD2 settle failed (status 1): timed-out waiting \
+                     for guider to settle"
+                        .to_string(),
+                )),
+        )
+    }
+
+    struct Seen {
+        dithers_counted: usize,
+        decisions: usize,
+    }
+
+    async fn ctx_with_feeds(
+        ops: Arc<ScriptedDomeRotatorOps>,
+    ) -> (
+        InstructionContext,
+        tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
+        tokio::sync::broadcast::Receiver<crate::decision::DecisionEvent>,
+    ) {
+        let mut ctx = expose_ctx(ops, None, live_sun_alt() + 5.0).await;
+        let (event_tx, events) = tokio::sync::broadcast::channel(64);
+        let (decision_tx, decisions) = tokio::sync::broadcast::channel(64);
+        ctx.run.event_tx = Some(event_tx);
+        ctx.run.decision_tx = Some(decision_tx);
+        (ctx, events, decisions)
+    }
+
+    fn seen(
+        events: &mut tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
+        decisions: &mut tokio::sync::broadcast::Receiver<crate::decision::DecisionEvent>,
+    ) -> Seen {
+        let mut dithers_counted = 0;
+        while let Ok(event) = events.try_recv() {
+            if matches!(
+                event,
+                crate::executor::ExecutorEvent::DitherPerformed { .. }
+            ) {
+                dithers_counted += 1;
+            }
+        }
+        let mut count = 0;
+        while decisions.try_recv().is_ok() {
+            count += 1;
+        }
+        Seen {
+            dithers_counted,
+            decisions: count,
+        }
+    }
+
+    #[tokio::test]
+    async fn a_dither_node_counts_it() {
+        let (ctx, mut events, mut decisions) = ctx_with_feeds(held_star_ops()).await;
+        let config = crate::DitherConfig {
+            settle_pixels: 0.5,
+            ..crate::DitherConfig::default()
+        };
+
+        let result = execute_dither(&config, &ctx, None).await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        let seen = seen(&mut events, &mut decisions);
+        assert_eq!(seen.dithers_counted, 1);
+        assert_eq!(seen.decisions, 0);
+    }
+
+    #[tokio::test]
+    async fn a_burst_does_not_count_it_and_tells_the_operator() {
+        let ops = held_star_ops();
+        let (ctx, mut events, mut decisions) = ctx_with_feeds(ops.clone()).await;
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count: 2,
+            frame_type: crate::FrameType::Light,
+            dither_every: Some(1),
+            dither_settle_pixels: 0.5,
+            ..ExposureConfig::default()
+        };
+
+        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(*ops.dithers_after_frame.lock().unwrap(), vec![1]);
+        let seen = seen(&mut events, &mut decisions);
+        assert_eq!(seen.dithers_counted, 0);
+        assert_eq!(seen.decisions, 1, "one quality-problem notice");
+    }
+}
+
 #[tokio::test(start_paused = true)]
 async fn tracking_hold_blocks_pending_guide_restart_before_exposure() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("held-light".into());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".into());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".into());
     ec.is_paused.store(true, Ordering::SeqCst);
     let mut state = crate::triggers::TriggerState::new();
     state.guiding.set_resume_pending(true);
-    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let ctx = ec.to_instruction_context("held-light").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -616,16 +834,17 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     let dir = std::env::temp_dir().join(format!("sk-untracked-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut ec = crate::node::context::ExecutionContext::new_for_test("untracked".into());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".into());
-    ec.save_path = Some(dir.clone());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".into());
+    ec.run.rig.save_path = Some(dir.clone());
     let mut state = crate::triggers::TriggerState::new();
     state
         .run
         .begin_hold(crate::triggers::RunHold::TrackingLimit);
-    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let ctx = ec.to_instruction_context("untracked").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -636,18 +855,22 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     };
     let (events, mut rx) = tokio::sync::broadcast::channel(64);
     let mut ctx = ctx;
-    ctx.event_tx = Some(events);
-    let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}).await;
+    ctx.run.event_tx = Some(events);
+    let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {})
+        .await
+        .result;
     let rejected_files = std::fs::read_dir(dir.join("Reject"))
         .map(|entries| entries.count())
         .unwrap_or(0);
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
-    assert_eq!(ec.frames_rejected.load(Ordering::SeqCst), 1);
+    assert_eq!(ec.run.grading.frames_rejected.load(Ordering::SeqCst), 1);
     assert_eq!(rejected_files, 1);
     let mut warned = false;
     while let Ok(event) = rx.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warned |= message.contains("stopped tracking during this exposure");
         }
     }
@@ -666,18 +889,19 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
         let dir = std::env::temp_dir().join(format!("sk-midframe-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).expect("temp dir");
         let mut ec = crate::node::context::ExecutionContext::new_for_test("midframe".into());
-        ec.device_ops = ops.clone();
-        ec.camera_id = Some("camera-1".into());
-        ec.mount_id = Some("mount-1".into());
-        ec.save_path = Some(dir.clone());
+        ec.run.device_ops = ops.clone();
+        ec.run.rig.camera_id = Some("camera-1".into());
+        ec.run.rig.mount_id = Some("mount-1".into());
+        ec.run.rig.save_path = Some(dir.clone());
         let mut state = crate::triggers::TriggerState::new();
         state.tracking.set_expected(true);
         let state = Arc::new(tokio::sync::RwLock::new(state));
-        ec.trigger_state = Some(state.clone());
+        ec.run.trigger_state = Some(state.clone());
         let (events, mut rx) = tokio::sync::broadcast::channel(64);
         let mut ctx = ec.to_instruction_context("midframe").await;
-        ctx.event_tx = Some(events);
+        ctx.run.event_tx = Some(events);
         let control = BurstControl {
+            frames_taken: 0,
             pause: ec.pause_gate(),
             status: None,
         };
@@ -705,8 +929,9 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
                 }
             })
         };
-        let result =
-            execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}).await;
+        let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {})
+            .await
+            .result;
         stopper.await.expect("stopper");
         let rejected_files = std::fs::read_dir(dir.join("Reject"))
             .map(|entries| entries.count())
@@ -715,7 +940,7 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
 
         assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
         assert_eq!(
-            ec.frames_rejected.load(Ordering::SeqCst),
+            ec.run.grading.frames_rejected.load(Ordering::SeqCst),
             1,
             "monitor saw it: {monitor_saw_it}"
         );
@@ -727,7 +952,9 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
         };
         let mut warned = false;
         while let Ok(event) = rx.try_recv() {
-            if let crate::executor::ExecutorEvent::Warning { message } = event {
+            if let crate::executor::ExecutorEvent::Warning { message }
+            | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warned |= message.contains(expected_reason);
             }
         }
@@ -743,16 +970,17 @@ async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
     let dir = std::env::temp_dir().join(format!("sk-guide-wait-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut ec = crate::node::context::ExecutionContext::new_for_test("guide-wait".into());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".into());
-    ec.save_path = Some(dir.clone());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".into());
+    ec.run.rig.save_path = Some(dir.clone());
     let mut state = crate::triggers::TriggerState::new();
     state.guiding.set_resume_pending(true);
-    state.mount_is_tracking = Some(false);
+    state.telemetry.mount_is_tracking = Some(false);
     let state = Arc::new(tokio::sync::RwLock::new(state));
-    ec.trigger_state = Some(state.clone());
+    ec.run.trigger_state = Some(state.clone());
     let ctx = ec.to_instruction_context("guide-wait").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -774,10 +1002,11 @@ async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);
     assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 0);
 
-    state.write().await.mount_is_tracking = Some(true);
+    state.write().await.telemetry.mount_is_tracking = Some(true);
     let result = tokio::time::timeout(Duration::from_secs(600), burst)
         .await
-        .expect("the frame runs once the mount tracks");
+        .expect("the frame runs once the mount tracks")
+        .result;
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
@@ -793,16 +1022,17 @@ async fn an_unguided_run_retries_guiding_before_a_light_frame() {
     let dir = std::env::temp_dir().join(format!("sk-unguided-retry-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut ec = crate::node::context::ExecutionContext::new_for_test("unguided-retry".into());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".into());
-    ec.mount_id = Some("mount-1".into());
-    ec.save_path = Some(dir.clone());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".into());
+    ec.run.rig.mount_id = Some("mount-1".into());
+    ec.run.rig.save_path = Some(dir.clone());
     let mut state = crate::triggers::TriggerState::new();
     state.guiding.give_up_guiding();
     let state = Arc::new(tokio::sync::RwLock::new(state));
-    ec.trigger_state = Some(state.clone());
+    ec.run.trigger_state = Some(state.clone());
     let ctx = ec.to_instruction_context("unguided-retry").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -817,7 +1047,8 @@ async fn an_unguided_run_retries_guiding_before_a_light_frame() {
         execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}),
     )
     .await
-    .expect("the frame runs");
+    .expect("the frame runs")
+    .result;
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
@@ -834,15 +1065,16 @@ async fn a_pending_guide_restart_waits_when_the_mount_itself_reads_not_tracking(
     let dir = std::env::temp_dir().join(format!("sk-guide-wait-dev-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut ec = crate::node::context::ExecutionContext::new_for_test("guide-wait-dev".into());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".into());
-    ec.mount_id = Some("mount-1".into());
-    ec.save_path = Some(dir.clone());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".into());
+    ec.run.rig.mount_id = Some("mount-1".into());
+    ec.run.rig.save_path = Some(dir.clone());
     let mut state = crate::triggers::TriggerState::new();
     state.guiding.set_resume_pending(true);
-    ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let ctx = ec.to_instruction_context("guide-wait-dev").await;
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -866,9 +1098,77 @@ async fn a_pending_guide_restart_waits_when_the_mount_itself_reads_not_tracking(
     // Past the wait the frame is taken without restarting guiding.
     let result = tokio::time::timeout(Duration::from_secs(600), burst)
         .await
-        .expect("the frame runs after the wait");
+        .expect("the frame runs after the wait")
+        .result;
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);
     assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 1);
+}
+
+// Temperature compensation between frames. The capture-telemetry rig's
+// focuser reads 4.25 °C at position 31 705.
+
+/// A light-frame context whose run compensates at the owner's -12.5 steps/°C
+/// and has measured from 5.25 °C at 31 705, so the 4.25 °C now owes 12.5
+/// steps outward.
+async fn compensating_ctx(ops: Arc<ScriptedDomeRotatorOps>) -> InstructionContext {
+    let mut ctx = expose_ctx(ops, None, live_sun_alt() + 5.0).await;
+    ctx.run.rig.focuser_id = Some("focuser-1".to_string());
+    let mut compensation = crate::temperature_compensation::FocusCompensation::new(
+        crate::temperature_compensation::FocusCompensationSettings {
+            steps_per_degree: -12.5,
+            min_steps: 5,
+        },
+    );
+    let _ = compensation.step(5.25, 31_705);
+    ctx.run
+        .trigger_state
+        .as_ref()
+        .unwrap()
+        .write()
+        .await
+        .latches
+        .focus_compensation = Some(compensation);
+    ctx
+}
+
+#[tokio::test]
+async fn a_light_frame_starts_on_focus_corrected_for_the_temperature() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_capture_telemetry());
+    let ctx = compensating_ctx(ops.clone()).await;
+
+    let result = execute_exposure(&one_light(), &ctx, |_, _, _| {}).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(*ops.focuser_moves.lock().unwrap(), vec![31_718]);
+}
+
+/// Darks, flats and bias frames do not depend on focus.
+#[tokio::test]
+async fn a_calibration_frame_does_not_move_the_focuser() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_capture_telemetry());
+    let ctx = compensating_ctx(ops.clone()).await;
+    let dark = ExposureConfig {
+        frame_type: crate::FrameType::Dark,
+        ..one_light()
+    };
+
+    let result = execute_exposure(&dark, &ctx, |_, _, _| {}).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert!(ops.focuser_moves.lock().unwrap().is_empty());
+}
+
+/// Compensation is off unless the operator turned it on.
+#[tokio::test]
+async fn a_run_without_compensation_leaves_the_focuser_alone() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_capture_telemetry());
+    let mut ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+    ctx.run.rig.focuser_id = Some("focuser-1".to_string());
+
+    let result = execute_exposure(&one_light(), &ctx, |_, _, _| {}).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert!(ops.focuser_moves.lock().unwrap().is_empty());
 }

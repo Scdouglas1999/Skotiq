@@ -11,12 +11,16 @@
 /// pure presentation concern; the core only carries the structured event data.
 library;
 
+import '../../router/app_routes.dart';
+import '../../router/analytics_route.dart';
+import '../../router/settings_sections.dart';
+
 /// Optional navigation hint for an explainer's action button. A detail sheet
 /// uses [route] with GoRouter's `context.push` and labels the button [label].
 /// `null` for an event type means "no actionable destination" — the sheet
 /// omits the button rather than inventing a target.
 class NarratorAction {
-  /// GoRouter location, e.g. `/analytics?tab=diagnostics`.
+  /// GoRouter location, built with [AppRoutes].
   final String route;
 
   /// Button label, e.g. "Open Diagnostics".
@@ -29,7 +33,6 @@ class NarratorAction {
 /// detectors in the v1 catalog. Lookups for an unknown event type return
 /// `null`, and the detail sheet simply hides the explainer block.
 const Map<String, String> narratorExplainers = <String, String>{
-  // Discovery
   'discovery.moving_object':
       "Something in your field moved between frames against the fixed stars — "
           "usually an asteroid, a comet, or a satellite caught mid-pass. The rate "
@@ -47,8 +50,6 @@ const Map<String, String> narratorExplainers = <String, String>{
           "cycle, and the statistics say it's very unlikely to be chance. That "
           "period is a physical clock — an orbit, a rotation, or a pulsation. "
           "It's the kind of result that makes a night's worth of subs worth it.",
-
-  // First light (difference imaging)
   'first_light.transient':
       "A clean, round point of light is sitting in your difference image where "
           "your deep template of this field was empty — and it matches nothing in "
@@ -68,8 +69,6 @@ const Map<String, String> narratorExplainers = <String, String>{
           "star. That's almost always a minor planet or a satellite caught "
           "mid-pass. A short follow-up set, timed and measured, can turn a "
           "passing streak into a real astrometric position.",
-
-  // Milestone
   'milestone.limiting_mag':
       "This is how faint your rig is actually reaching tonight, measured from "
           "real stars rather than a spec sheet. Deeper limiting magnitude means "
@@ -92,8 +91,6 @@ const Map<String, String> narratorExplainers = <String, String>{
           "signal-to-noise: more hours means smoother backgrounds and fainter "
           "detail surviving the stretch. Steady progress is how deep images get "
           "made.",
-
-  // Conditions
   'conditions.transparency_trend':
       "The sky's clarity has been trending in one direction long enough to be "
           "a real change, not a passing wisp. Improving transparency lets more "
@@ -118,8 +115,6 @@ const Map<String, String> narratorExplainers = <String, String>{
           "kind of clean, dark window that doesn't come every night. This is when "
           "your narrowest filters and faintest objects pay off the most. If "
           "you've been saving a hard target, now is the moment.",
-
-  // Equipment
   'equipment.tilt':
       "Stars toward one side of the frame are consistently softer than the "
           "rest, which points to the sensor sitting slightly out of plane with "
@@ -145,8 +140,6 @@ const Map<String, String> narratorExplainers = <String, String>{
           "flips are left out, so this is a real change. Loose guiding bloats "
           "stars and can trip your frame grader into rejecting subs; the guide "
           "graph usually shows whether it is balance, wind, or seeing.",
-
-  // Quality / pipeline
   'quality.clipping':
       "Several frames in a row are clipping — pixels pinned at the bright or "
           "dark rail where real data should be. Clipped highlights burn out star "
@@ -174,69 +167,69 @@ const Map<String, String> narratorExplainers = <String, String>{
 /// Optional action destinations per event type. Only event types with a
 /// genuinely reachable, useful destination get an entry; everything else has
 /// no button (the detail sheet omits it rather than hack a target).
-const Map<String, NarratorAction> narratorActions = <String, NarratorAction>{
+final Map<String, NarratorAction> narratorActions = <String, NarratorAction>{
   // Discovery → the photometric / period evidence lives on the science tab.
   'discovery.moving_object': NarratorAction(
-    route: '/transients',
+    route: AppRoutes.observingAlerts(),
     label: 'Observing alerts',
   ),
   'discovery.lightcurve_event': NarratorAction(
-    route: '/analytics?tab=science',
+    route: AppRoutes.analytics(tab: AnalyticsTab.science),
     label: 'Open science analytics',
   ),
   'discovery.period_found': NarratorAction(
-    route: '/analytics?tab=science',
+    route: AppRoutes.analytics(tab: AnalyticsTab.science),
     label: 'Open science analytics',
   ),
 
   // First Light → the difference-imaging discoveries land on the transients /
   // observing-alerts surface, where they can be confirmed or triaged.
   'first_light.transient': NarratorAction(
-    route: '/transients',
+    route: AppRoutes.observingAlerts(),
     label: 'Observing alerts',
   ),
   'first_light.brightening': NarratorAction(
-    route: '/transients',
+    route: AppRoutes.observingAlerts(),
     label: 'Observing alerts',
   ),
   'first_light.mover': NarratorAction(
-    route: '/transients',
+    route: AppRoutes.observingAlerts(),
     label: 'Observing alerts',
   ),
 
   // Milestone → calibration / limiting-mag detail is on the science tab.
   'milestone.limiting_mag': NarratorAction(
-    route: '/analytics?tab=science',
+    route: AppRoutes.analytics(tab: AnalyticsTab.science),
     label: 'Open science analytics',
   ),
   'milestone.calibration_locked': NarratorAction(
-    route: '/analytics?tab=science',
+    route: AppRoutes.analytics(tab: AnalyticsTab.science),
     label: 'Open science analytics',
   ),
 
   // Equipment → the per-corner / diagnostics maps.
   'equipment.tilt': NarratorAction(
-    route: '/analytics?tab=diagnostics',
+    route: AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
     label: 'Open diagnostics',
   ),
   'equipment.gradient': NarratorAction(
-    route: '/analytics?tab=diagnostics',
+    route: AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
     label: 'Open diagnostics',
   ),
 
   // Quality → the grader thresholds that drive accept/reject.
   'quality.reject_burst': NarratorAction(
-    route: '/settings?section=image-grading',
+    route: AppRoutes.settings(SettingsSectionId.imageGrading),
     label: 'Grader settings',
   ),
   'quality.clipping': NarratorAction(
-    route: '/settings?section=image-grading',
+    route: AppRoutes.settings(SettingsSectionId.imageGrading),
     label: 'Grader settings',
   ),
 
   // Pipeline failures → diagnostics.
   'quality.pipeline_failure': NarratorAction(
-    route: '/analytics?tab=diagnostics',
+    route: AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
     label: 'Open diagnostics',
   ),
 };

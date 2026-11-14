@@ -1,15 +1,22 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/gated_action.dart';
-import 'mount_unpark_dialog.dart';
+import '../../../services/mount_command_service.dart';
 import 'sequence_diff_dialog.dart';
 import 'session_handoff_dialog.dart';
 import 'visual_timeline.dart';
+import '../../../utils/darkroom_navigation.dart';
 part 'preflight_validation_dialog/simulation_widgets.dart';
 part 'preflight_validation_dialog/action_widgets.dart';
 part 'preflight_validation_dialog/issue_section.dart';
@@ -19,12 +26,12 @@ part 'preflight_validation_dialog/section_builders.dart';
 // PRE-FLIGHT VALIDATION DIALOG
 //
 // UI shell for the canonical sequence validator. The validation engine
-// lives in `skotiq_core/.../sequence/sequence_validation.dart` — this
+// lives in `skotiq_core/.../providers/sequence/sequence_validation.dart`, its
+// issue types in `skotiq_core/.../models/sequence/validation/` — this
 // file only renders the result. It consumes that engine's ValidationIssue /
 // ValidationSeverity / ValidationResult types directly, so there is one source
 // of truth for sequence validation across the app.
 
-/// Pre-flight validation dialog
 class PreFlightValidationDialog extends ConsumerStatefulWidget {
   final VoidCallback? onStartSequence;
 
@@ -65,6 +72,13 @@ class _PreFlightValidationDialogState
   /// popping immediately and then awaiting off-screen — so the operator gets
   /// a visible state between pressing Start and the next dialog appearing.
   bool _preparing = false;
+
+  /// The start is taking the mount off its park.
+  bool _unparking = false;
+
+  /// Why the last Start stopped short (a failed unpark); shown above the
+  /// results until the next press.
+  String? _startError;
 
   /// Diff vs the most recent COMPLETED run of this sequence. `null`
   /// either means we haven't computed it yet, or there
@@ -121,6 +135,14 @@ class _PreFlightValidationDialogState
     }
   }
 
+  /// Rename the plan's filters to the names the wheel (or the profile) uses
+  /// for the same filters, then check again.
+  void _matchFilterNames(Map<String, String> renames) {
+    ref.read(currentSequenceProvider.notifier).renameFilterNames(renames);
+    setState(() => _isValidating = true);
+    _runValidation();
+  }
+
   void _retryValidation() {
     ref.invalidate(appSettingsProvider);
     setState(() {
@@ -143,25 +165,18 @@ class _PreFlightValidationDialogState
 
     try {
       final twilight = ref.read(preSessionTwilightTimesProvider);
-      // Same overhead model the Builder's estimate chip and the timeline use.
-      // Left on the estimator's own defaults, this panel printed a different
-      // duration for the sequence the Builder had just estimated one row away.
-      final simulation = PreSessionSimulator(
-        estimator: SequenceTimeEstimator(
-          overhead: ref.read(sequencerOverheadConfigProvider),
-        ),
-      ).simulate(
-        sequence,
-        start: widget.simulationStart ?? DateTime.now(),
-        latitude: settings.latitude,
-        longitude: settings.longitude,
-        minAltitude: settings.effectiveHorizonDeg,
-        darkWindowStart: twilight?.astronomicalDusk,
-        darkWindowEnd: twilight?.astronomicalDawn,
-      );
+      final simulation = ref.read(planTimerProvider).simulate(
+            sequence,
+            start: widget.simulationStart ?? DateTime.now(),
+            darkWindowStart: twilight?.astronomicalDusk,
+            darkWindowEnd: twilight?.astronomicalDawn,
+            framesDone: ref.read(restoredCheckpointProvider) == null
+                ? const {}
+                : ref.read(framesDoneBeforeRunProvider),
+          );
       return (simulation, null);
     } catch (e) {
-      return (null, 'Simulation failed: $e');
+      return (null, 'Simulation failed: ${userFacingError(e)}');
     }
   }
 
@@ -191,7 +206,7 @@ class _PreFlightValidationDialogState
       // good".
       SequenceRun? lastCompleted;
       for (final r in runs) {
-        if (r.status == 'completed') {
+        if (r.runStatus == SequenceRunStatus.completed) {
           lastCompleted = r;
           break;
         }
@@ -211,6 +226,7 @@ class _PreFlightValidationDialogState
       final result = diffService.diff(
         previous: persisted,
         current: sequence,
+        sensitivity: ref.read(cameraSensitivityProvider),
       );
       if (result.isEmpty) return;
       if (!mounted) return;
@@ -221,35 +237,37 @@ class _PreFlightValidationDialogState
     }
   }
 
-  /// Handle starting the sequence, checking for mount parking first.
+  /// Whether Start takes the mount off its park first: it is connected and
+  /// parked, and something in this run needs the sky. A calibration block
+  /// does not (the executor takes darks, biases and flats without a slew),
+  /// and an armed start unparks when it fires, not hours early. The dialog
+  /// lists it, so pressing Start is the consent and no second gate follows.
+  bool _startUnparks(MountState mount, Sequence? sequence) =>
+      !widget.armOnly &&
+      mount.connectionState == DeviceConnectionState.connected &&
+      mount.isParked &&
+      (sequence == null || sequenceNeedsMountOffPark(sequence));
+
+  /// Start: the multi-night carry-over decision, then the unpark the dialog
+  /// listed, then the run. The dialog stays open, saying what it is doing,
+  /// until the run is asked to start; a failed unpark keeps it open with the
+  /// reason and starts nothing.
   ///
-  /// Before kicking off the mount-unpark flow we surface the
-  /// multi-night carry-over dialog when (a) at least one target has
-  /// recent unfinished integration and (b) the
-  /// `sessionHandoffAutoPrompt` setting is on. The decision is recorded
-  /// in [sessionHandoffDecisionProvider]; the executor reads that value
-  /// at sequence start so the IntegrationBudget tracker can either
-  /// reuse or ignore the prior-session frames.
+  /// The carry-over decision is recorded in [sessionHandoffDecisionProvider];
+  /// the executor reads it at sequence start so the IntegrationBudget tracker
+  /// can either reuse or ignore the prior-session frames.
   Future<void> _handleStartSequence() async {
-    // Check if a mount is connected and parked
-    final mountState = ref.read(mountStateProvider);
-    final isMountConnected =
-        mountState.connectionState == DeviceConnectionState.connected;
-    final isMountParked = mountState.isParked;
-    // Read synchronously, before any await: this is the tree the operator
-    // pressed Start on, and it decides whether the run needs the mount at all.
-    final sequence = ref.read(currentSequenceProvider);
+    // Read before any await: this is the tree and the mount the operator
+    // pressed Start on.
+    final unpark = _startUnparks(
+      ref.read(mountStateProvider),
+      ref.read(currentSequenceProvider),
+    );
 
-    // Capture a navigator that outlives this dialog so the follow-on handoff /
-    // unpark dialogs can be shown AFTER we pop the preflight dialog without
-    // relying on this State's (soon-to-be-defunct) context.
-    final navigator = Navigator.of(context);
-
-    // Do the async prep (multi-night carry-over lookup) while the dialog is
-    // still on screen, showing a "Preparing…" body — rather than popping
-    // first and awaiting invisibly. This gives the operator a visible state
-    // between pressing Start and the next dialog appearing.
-    setState(() => _preparing = true);
+    setState(() {
+      _preparing = true;
+      _startError = null;
+    });
     late final bool autoPrompt;
     try {
       autoPrompt = await ref.read(sessionHandoffAutoPromptProvider.future);
@@ -275,59 +293,44 @@ class _PreFlightValidationDialogState
         if (!startWithoutHistory || !mounted) return;
       }
       if (!mounted) return;
-      if (_preparing) {
-        setState(() => _preparing = false);
-      }
-    } else {
-      setState(() => _preparing = false);
     }
 
-    // Prep finished — close the preflight dialog just before showing the next
-    // dialog so the user never sees a dead-but-open preflight while awaiting.
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
-
-    // Surface the carry-over handoff dialog when there is something to carry.
     if (carry.isNotEmpty) {
-      if (!navigator.mounted) return;
       final sequenceId = ref.read(currentSequenceProvider)?.databaseId;
       final decisions = await SessionHandoffDialog.show(
-        context: navigator.context,
+        context: context,
         sequenceId: sequenceId,
         carryOvers: carry,
       );
-      // null = user cancelled the handoff dialog entirely — abort the
-      // sequence start in case they intended to back out.
-      if (decisions == null) return;
-    }
-
-    // A parked mount only has to come off its park if something in this run
-    // actually needs the sky. A calibration block does not: the executor takes
-    // darks, biases and flats without ever issuing a slew, so the dialog's
-    // promise that "the sequence will automatically unpark the mount and
-    // continue" described an unpark the run had no use for — and then
-    // performed it, leaving the mount off its park for a run of three darks.
-    final needsSky = sequence == null || sequenceNeedsMountOffPark(sequence);
-
-    // If mount is connected and parked, show the unpark dialog. An armed
-    // start unparks when it fires, not hours early.
-    if (isMountConnected && isMountParked && needsSky && !widget.armOnly) {
-      if (!navigator.mounted) return;
-      final result = await showMountUnparkDialog(navigator.context);
-
-      // Only start the sequence if the user chose to unpark
-      if (result == MountUnparkResult.unparkAndContinue) {
-        _authorizeStartWithoutHistory(startWithoutHistory);
-        widget.onStartSequence?.call();
+      if (!mounted) return;
+      // null = the operator backed out of the handoff: start nothing.
+      if (decisions == null) {
+        setState(() => _preparing = false);
+        return;
       }
-      // If cancelled, do nothing (sequence won't start)
-    } else {
-      // Mount not parked, not connected, or parked with nothing in the run
-      // that needs it moved — start, and leave the park exactly as it is.
-      _authorizeStartWithoutHistory(startWithoutHistory);
-      widget.onStartSequence?.call();
     }
+
+    if (unpark && ref.read(mountStateProvider).isParked) {
+      setState(() {
+        _preparing = true;
+        _unparking = true;
+      });
+      final result = await ref.read(mountCommandServiceProvider).unpark();
+      if (!mounted) return;
+      if (!result.isSuccess) {
+        setState(() {
+          _preparing = false;
+          _unparking = false;
+          _startError = result.message ??
+              'The mount did not unpark, so the run was not started.';
+        });
+        return;
+      }
+    }
+
+    Navigator.of(context).pop();
+    _authorizeStartWithoutHistory(startWithoutHistory);
+    widget.onStartSequence?.call();
   }
 
   void _authorizeStartWithoutHistory(bool authorized) {
@@ -428,7 +431,7 @@ class _PreFlightValidationDialogState
             padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
             decoration: SkotiqDecorations.well(colors),
             child: Text(
-              error.toString(),
+              userFacingError(error),
               style: SkotiqTypography.monoXs.copyWith(color: colors.textMuted),
             ),
           ),
@@ -465,8 +468,4 @@ class _PreFlightValidationDialogState
                   : _buildResults(colors),
     );
   }
-
-  String _formatClock(DateTime time) =>
-      '${time.hour.toString().padLeft(2, '0')}:'
-      '${time.minute.toString().padLeft(2, '0')}';
 }

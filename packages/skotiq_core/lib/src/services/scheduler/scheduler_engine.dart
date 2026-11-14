@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_astro/skotiq_astro.dart'
     show
         AstronomyCalculations,
         WeightedFactor,
@@ -10,20 +9,29 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart'
         WeightedScoreMode;
 import 'package:uuid/uuid.dart';
 
+import '../../models/equipment/filter_names.dart';
 import '../../models/scheduler/integration_goal.dart';
 import '../../models/scheduler/scheduler_decision.dart';
 import '../../models/scheduler/scheduler_status.dart';
 import '../../models/scheduler/target_constraint.dart';
 import '../../models/sequence/sequence_models.dart';
+import '../../models/site/altitude_floor.dart';
+import '../../models/site/site_horizon_profile.dart';
 import 'horizon_profile.dart';
 import 'rejection_labels.dart';
 import 'scheduler_log.dart';
-import 'sky_calculations.dart';
+import '../logging_service.dart';
 
 part 'scheduler_engine/contracts.dart';
-part 'scheduler_engine/astronomy_helpers.dart';
 part 'scheduler_engine/evaluation.dart';
 part 'scheduler_engine/scoring.dart';
+
+/// Whether a rig with [wheel] can take [goal]: an unfiltered goal needs no
+/// filter, any other needs a slot the filter-name rule matches ("Ha" is the
+/// wheel's "Ha 7nm", as the run will find it).
+bool _wheelTakes(IntegrationGoal goal, List<String> wheel) =>
+    goal.filter.trim().isEmpty ||
+    matchingFilterIndex(goal.filter, wheel) != null;
 
 /// The dynamic RoboTarget-class scheduler.
 ///
@@ -315,25 +323,23 @@ class SchedulerEngine {
   /// "autopilot" for both and suppresses the armed-autopilot warning.
   String? get dispatchedRunId => _dispatchedRunId;
 
-  /// Write one diagnostic to BOTH destinations.
-  ///
-  /// `dart:developer` keeps the line visible under a debugger; [_logSink] is
-  /// what makes it survive into the in-app Logs viewer, `/api/logs`, and the
-  /// exported diagnostic dump in a shipping build. Every scheduler diagnostic
-  /// goes through here — a bare `developer.log` in this engine is a line nobody
-  /// can read after the fact.
+  /// Write one diagnostic to [_logSink], or to the process log without one.
   void _log(SchedulerLogLevel level, String message, {Object? error}) {
-    developer.log(
-      message,
-      name: kSchedulerLogSource,
-      level: switch (level) {
-        SchedulerLogLevel.trace => 500,
-        SchedulerLogLevel.info => 800,
-        SchedulerLogLevel.warning => 900,
+    final sink = _logSink;
+    if (sink != null) {
+      sink(level, error == null ? message : '$message: $error');
+      return;
+    }
+    Log.write(
+      switch (level) {
+        SchedulerLogLevel.trace => LogLevel.debug,
+        SchedulerLogLevel.info => LogLevel.info,
+        SchedulerLogLevel.warning => LogLevel.warning,
       },
+      message,
+      source: kSchedulerLogSource,
       error: error,
     );
-    _logSink?.call(level, error == null ? message : '$message: $error');
   }
 
   /// Reconcile the engine's belief with the executor before an evaluation acts
@@ -542,9 +548,6 @@ class SchedulerEngine {
   TargetScore scoreCandidate(SchedulerCandidate c, DateTime now) =>
       _scoreCandidate(c, now);
 
-  double _localSiderealTime(DateTime time) =>
-      SkyCalculations.localSiderealTimeHours(time, _site.longitudeDegrees);
-
   /// Normalise a filter name for an emitted node: the unfiltered sentinel (an
   /// empty or whitespace name) must reach the executor as null.
   static String? _nodeFilter(String? name) =>
@@ -572,11 +575,7 @@ class SchedulerEngine {
               // here would admit the candidate and then silently discard the
               // operator's exposure and frame count, falling back to a
               // defensive default frame.
-              (p) =>
-                  p.goal.filter.isEmpty ||
-                  c.availableFilters
-                      .map((f) => f.toLowerCase())
-                      .contains(p.goal.filter.toLowerCase()),
+              (p) => _wheelTakes(p.goal, c.availableFilters),
             )
             .toList()
           ..sort((a, b) {

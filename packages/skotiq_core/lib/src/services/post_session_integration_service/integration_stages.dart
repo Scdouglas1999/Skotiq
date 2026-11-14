@@ -79,7 +79,7 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
   /// injected, when the solve fails / no solver is installed (the closure
   /// returns null), or when the master has no FITS on disk. On success the row's
   /// WCS columns fill in, lighting up the catalog annotation overlay AND colour
-  /// calibration (both reconstruct a `WcsOverlay` from these columns), and the
+  /// calibration (both read these columns), and the
   /// solved [MasterWcsSolution] is returned so the colour-calibration finishing
   /// pass can reuse it without a database round-trip.
   Future<MasterWcsSolution?> _solveAndStoreWcs({
@@ -118,21 +118,6 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
       return null;
     }
   }
-
-  /// The master's [WcsOverlay] from its solved CD matrix, parity included
-  /// ([WcsOverlay.fromCd]). The colour calibrator needs it to project
-  /// detections onto the sky.
-  static WcsOverlay _overlayFromSolution(MasterWcsSolution wcs) =>
-      WcsOverlay.fromCd(
-        crpix1: wcs.crpix1,
-        crpix2: wcs.crpix2,
-        crval1: wcs.crval1,
-        crval2: wcs.crval2,
-        cd1_1: wcs.cd1_1,
-        cd1_2: wcs.cd1_2,
-        cd2_1: wcs.cd2_1,
-        cd2_2: wcs.cd2_2,
-      );
 
   /// Run the gated optional finishing passes on the master in place, each
   /// fail-soft (log + continue): background extraction, colour calibration
@@ -184,7 +169,21 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
       // master's solved WCS to project detections onto the sky. Both must be
       // present; otherwise we skip gracefully rather than fabricating matches.
       final calibrator = _colorCalibrator;
-      if (calibrator == null || wcs == null) {
+      final solved = wcs == null
+          ? null
+          : SolvedWcs.tryFromFits(
+              crval1: wcs.crval1,
+              crval2: wcs.crval2,
+              crpix1: wcs.crpix1,
+              crpix2: wcs.crpix2,
+              cd1_1: wcs.cd1_1,
+              cd1_2: wcs.cd1_2,
+              cd2_1: wcs.cd2_1,
+              cd2_2: wcs.cd2_2,
+              imageWidth: result.width,
+              imageHeight: result.height,
+            );
+      if (calibrator == null || solved == null) {
         _logSoftFailure(
           'colorCalibrate',
           StateError(
@@ -199,7 +198,7 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
           final written = await calibrator(
             masterFits: masterFits,
             outputFits: outPath,
-            wcs: _overlayFromSolution(wcs),
+            wcs: solved,
             channels: result.channels,
           );
           // null ⇒ skipped (too few catalog matches / no catalog): leave the
@@ -419,12 +418,11 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
   }
 
   void _logSoftFailure(String step, Object error, StackTrace stackTrace) {
-    developer.log(
+    Log.warning(
       'post-session optional step "$step" failed (continuing)',
-      name: 'PostSessionIntegrationService',
+      source: 'PostSessionIntegrationService',
       error: error,
       stackTrace: stackTrace,
-      level: 900, // WARNING
     );
   }
 }

@@ -5,11 +5,12 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 RunFinalization _finalization(
   RunLifecycle lifecycle, {
-  String runStatus = 'completed',
+  SequenceRunStatus runStatus = SequenceRunStatus.completed,
   bool nativeStopRequired = false,
   String? stopOrigin,
 }) => RunFinalization(
@@ -144,7 +145,11 @@ void main() {
     lifecycle.settle(f, endOrigin: 'scheduler');
     expect(
       lifecycle.phase,
-      isA<RunSettled>().having((p) => p.runStatus, 'status', 'completed'),
+      isA<RunSettled>().having(
+        (p) => p.runStatus,
+        'status',
+        SequenceRunStatus.completed,
+      ),
     );
     expect(lifecycle.lastRunEndOrigin, 'scheduler');
     // The drive's completion after it settled the run changes nothing.

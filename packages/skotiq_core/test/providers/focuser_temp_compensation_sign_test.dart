@@ -14,9 +14,11 @@ import 'package:mockito/mockito.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/equipment/focuser_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/focuser_temp_compensation_provider.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_progress.dart';
+import 'package:skotiq_core/src/providers/sequence/run_record.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/device_service.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 /// Hand-written fake (no codegen): captures focuser move targets and reports
 /// no autofocus in flight. Extending [Mock] means the real (heavy)
@@ -61,7 +63,7 @@ Future<ProviderContainer> _buildContainer({
     ],
   );
   await container.read(appSettingsProvider.future);
-  container.read(sequenceExecutionStateProvider.notifier).state = sequenceState;
+  container.read(runRecordProvider.notifier).setLifecycle(sequenceState);
   return container;
 }
 
@@ -175,7 +177,7 @@ void main() {
     });
 
     test(
-      'baseline advances to the applied move so deltas do not double-count',
+      'the reference holds across moves, so deltas do not double-count',
       () async {
         final device = _CapturingDeviceService();
         final container = await _buildContainer(
@@ -194,8 +196,10 @@ void main() {
 
         focuser.updateTemperature(13.0); // → 5024
         await Future<void>.delayed(Duration.zero);
-        // Next step computed against the NEW baseline (13.0 / 5024), not 15.0.
-        focuser.updateTemperature(12.0); // delta = (12-13)*-12 = +12 → 5036
+        focuser.updatePosition(5024); // the focuser reports its arrival
+        // Still measured from 15.0 / 5000: (12-15)*-12 = +36 → 5036, a
+        // further 12 steps from where the focuser is.
+        focuser.updateTemperature(12.0);
         await Future<void>.delayed(Duration.zero);
 
         expect(device.moves, <int>[5024, 5036]);
@@ -258,8 +262,9 @@ void main() {
 
         // Sequence ends; the next temperature tick captures the baseline and
         // then compensates on the subsequent tick.
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.completed;
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.completed);
         focuser.updateTemperature(15.0); // baseline (5000 / 15.0)
         await Future<void>.delayed(Duration.zero);
         focuser.updateTemperature(13.0); // delta = +24 → 5024

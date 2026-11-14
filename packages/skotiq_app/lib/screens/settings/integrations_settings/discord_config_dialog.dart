@@ -142,11 +142,7 @@ class _DiscordConfigDialogState extends State<_DiscordConfigDialog> {
     setState(() => _testing = false);
 
     if (success) {
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'Discord test message sent.',
-        severity: SkotiqAlertSeverity.success,
-      );
+      context.showSuccessSnackBar('Discord test message sent.');
     } else {
       await ErrorDialog.show(
         context,

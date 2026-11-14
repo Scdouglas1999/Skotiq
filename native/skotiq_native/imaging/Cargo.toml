@@ -8,15 +8,13 @@ publish.workspace = true
 build = "build.rs"
 
 [dependencies]
-tokio.workspace = true
+skotiq_cfa = { path = "../cfa" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-anyhow.workspace = true
 tracing.workspace = true
 image.workspace = true
 chrono.workspace = true
-async-trait.workspace = true
 quick-xml.workspace = true
 
 # Rayon for data parallelism
@@ -25,19 +23,24 @@ rayon = "1.10"
 # Bytemuck for safe byte casting
 bytemuck = { version = "1.14", features = ["derive"] }
 
-# Memory-mapped file access for large files
-memmap2 = "0.9"
-
 # Deflate for compressed sky-atlas tile sidecars (already in the tree via png/zip)
 flate2 = "1.1"
 
-# Note: LibRaw support via custom FFI bindings (see raw.rs)
-# Using pre-compiled libraw.dll to avoid Windows compilation issues
-
-# Note: fitsio requires cfitsio C library to be installed
-# We'll use a pure Rust implementation for now
-# Uncomment when cfitsio is available:
-# fitsio = "0.21"
+# XISF data block codecs and checksums (XISF 1.0 sections 10.5 and 10.6).
+# LZ4 and Zstandard are the reference C libraries (BSD), bound by MIT/BSD
+# crates; the hashes are RustCrypto (MIT OR Apache-2.0) on the digest 0.10
+# line sha2 already uses in this workspace.
+base64.workspace = true
+lz4 = "1.28"
+zstd = "0.13"
+sha1 = "0.10"
+sha2 = "0.10"
+sha3 = "0.10"
 
 [build-dependencies]
 cc = "1.1"
+
+[dev-dependencies]
+tempfile = "3"
+# Hashes the decoded mosaic in tests/camera_raw.rs to compare with an independent decoder.
+sha2 = "0.10"

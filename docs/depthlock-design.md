@@ -64,8 +64,9 @@ accumulates across nights as long as the provenance digest matches.
 ## Measurement definition (estimator version 1)
 
 Supported regime: monochrome, linear, matched-acquisition lights calibrated
-with Skotiq master frames, registered to a reference with an undistorted
-TAN solution, over a local, approximately constant sky background.
+with Skotiq master frames, registered to a reference with a TAN solution
+(SIP terms are left out; see `input::reference_wcs`), over a local,
+approximately constant sky background.
 
 **Regions.** The signal and background rectangles are tangent-plane
 rectangles anchored in ICRS degrees with sides in arcseconds and a rotation
@@ -253,10 +254,11 @@ Native suites (`cargo test -p skotiq_imaging -p skotiq_sequencer
   hit per frame tolerated, the same cells missing in > 10 % of frames
   failing coverage; a frame with an unmeasurable background excluded and
   counted.
-- `imaging/tests/depthlock_input.rs` (11): registration→WCS composition
+- `imaging/tests/depthlock_input.rs` (13): registration→WCS composition
   against the reference for dither, flip, mirror, reframe and 0.4 % scale
-  drift (< 1e-9°); loose or wrong fits refused; CD and CDELT/CROTA headers,
-  SIP and unstated frames refused; both master encodings agreeing; saturated
+  drift (< 1e-9°); loose or wrong fits refused; CD and CDELT/CROTA headers
+  and an app-solved TAN-SIP sub read as their linear part, other
+  projections and unstated frames refused; both master encodings agreeing; saturated
   and dead pixels NaN; mask disks; Skotiq session identity and stable
   pixel digests; acquisition parsing and compatibility reasons; Skotiq
   master headers accepted and each mismatch named.
@@ -315,8 +317,8 @@ Smart Exposure binding).
 - Whether a master flat was pedestal-corrected is not recorded in
   Skotiq's master headers; an uncorrected flat is a smooth multiplicative
   error the systematic floor must cover.
-- OSC data, dark scaling, SIP/distorted solutions and multi-rig pooling are
-  out of scope for this release. Regions are selected on a plate-solved sub,
+- OSC data, dark scaling and multi-rig pooling are out of scope for this
+  release; a SIP solution anchors a goal by its linear part. Regions are selected on a plate-solved sub,
   a FITS file with a TAN header, or the live stack — whose pixel geometry is
   its reference sub's, so the goal's reference is that sub, never the
   stacked (float, unregistrable) image.

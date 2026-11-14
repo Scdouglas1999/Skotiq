@@ -1,6 +1,6 @@
-use super::*;
+use flutter_rust_bridge::frb;
+use serde::{Deserialize, Serialize};
 
-/// Guiding-specific events
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GuidingEvent {

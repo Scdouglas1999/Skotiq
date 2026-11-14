@@ -4,14 +4,11 @@
 // above its lane's median is drawn in the warning tone, so the rule follows
 // the lane's own numbers whatever the star detector reports.
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'pass_view_charts.dart';
 import 'pass_view_parts.dart';
-
-final DateFormat _hm = DateFormat('HH:mm');
 
 /// Whether [v] sits more than 3 robust sigmas above the median of [values].
 /// Needs five values; a lane with fewer flags nothing.
@@ -187,7 +184,9 @@ class PassLedger extends StatelessWidget {
               color: m ? colors.textSecondary : colors.textMuted),
           'Taken' => cell(
               c,
-              f.capturedAt == null ? '' : _hm.format(f.capturedAt!),
+              f.capturedAt == null
+                  ? ''
+                  : ClockFormat.hm(f.capturedAt!.toLocal()),
               color: colors.textMuted,
             ),
           'Stars' => cell(c, v(f.stars, 0)),
@@ -213,7 +212,7 @@ class PassLedger extends StatelessWidget {
               child: weighed && m && f.accepted && f.weight != null
                   ? _WeightBar(
                       weight: f.weight!,
-                      color: passFilterColor(lane.lane, colors),
+                      color: FilterColors.forName(lane.lane, colors: colors),
                     )
                   : (rejected
                       ? Text(

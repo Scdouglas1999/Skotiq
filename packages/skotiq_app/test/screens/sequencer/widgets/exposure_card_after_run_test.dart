@@ -24,7 +24,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequencer_density.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -65,7 +66,7 @@ Future<void> _pumpTree(
 /// Drive the node through a complete four-frame run: running, frame 4 of 4
 /// captured through filter R.
 void _runAllFrames(ProviderContainer container, String nodeId) {
-  final progress = container.read(sequenceProgressProvider.notifier);
+  final progress = container.read(runRecordProvider.notifier);
   progress.updateNodeStatus(nodeId, NodeStatus.running);
   progress.updateProgress(currentFilter: 'R');
   progress.updateNodeStructuredProgress(
@@ -99,7 +100,7 @@ void main() {
 
       // The success path: the run's per-node entries disappear while the card
       // is still on screen inside its 20s persistence window.
-      container.read(sequenceProgressProvider.notifier).reset();
+      container.read(runRecordProvider.notifier).resetProgress();
       await tester.pump();
 
       expect(
@@ -149,7 +150,7 @@ void main() {
 
       final node = _exposure();
       await _pumpTree(tester, container, node);
-      final progress = container.read(sequenceProgressProvider.notifier);
+      final progress = container.read(runRecordProvider.notifier);
       progress.updateNodeStatus(node.id, NodeStatus.running);
       progress.updateNodeStructuredProgress(
         node.id,

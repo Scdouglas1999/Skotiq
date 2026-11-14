@@ -48,7 +48,6 @@ class _SnippetCategorySectionState extends State<_SnippetCategorySection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Category header
         InkWell(
           onTap: () => setState(() => _isExpanded = !_isExpanded),
           child: Padding(
@@ -110,8 +109,6 @@ class _SnippetCategorySectionState extends State<_SnippetCategorySection> {
             ),
           ),
         ),
-
-        // Snippet items
         AnimatedCrossFade(
           firstChild: Padding(
             padding: EdgeInsets.only(

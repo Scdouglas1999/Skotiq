@@ -15,11 +15,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 // `TargetScore` exists in both packages — alias the planetarium import so
 // the preview row can refer to the planetarium variant explicitly without
 // shadowing the core scheduling decision type.
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
+import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'node_property_widgets.dart';
@@ -336,7 +337,6 @@ class _WeightSliderState extends State<_WeightSlider> {
                 });
               },
               onChangeEnd: (v) {
-                // Final commit on release; cancel any pending debounce.
                 _commitDebounce?.cancel();
                 widget.onChanged(v);
                 setState(() => _dragValue = null);

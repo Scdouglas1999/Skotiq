@@ -8,6 +8,16 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'sequencer.freezed.dart';
 
+/// What a `MeridianFlipOutcome` event reports. Mirrors
+/// `skotiq_sequencer::meridian_flip_executor::FlipOutcome`.
+enum FlipOutcome {
+  /// The mount reached its new pier side; the verdict still follows.
+  pierChanged,
+  success,
+  failed,
+  aborted,
+}
+
 /// Per-frame capture truth carried across FRB on the frame events. Mirrors
 /// `skotiq_sequencer::scheduling::FrameCaptureMetadata` field for field,
 /// living in the bridge crate for the same reason [`SchedulerScoreEntry`] does.
@@ -20,6 +30,9 @@ part 'sequencer.freezed.dart';
 /// temperature, pointing, focuser position and rotator angle.
 class FrameCaptureMetadata {
   final int? gain;
+
+  /// `gain` is an ISO speed (a DSLR or mirrorless frame).
+  final bool gainIsIso;
   final int? offset;
   final double? sensorTempC;
   final double? coolerPowerPercent;
@@ -47,6 +60,7 @@ class FrameCaptureMetadata {
 
   const FrameCaptureMetadata({
     this.gain,
+    required this.gainIsIso,
     this.offset,
     this.sensorTempC,
     this.coolerPowerPercent,
@@ -68,6 +82,7 @@ class FrameCaptureMetadata {
   @override
   int get hashCode =>
       gain.hashCode ^
+      gainIsIso.hashCode ^
       offset.hashCode ^
       sensorTempC.hashCode ^
       coolerPowerPercent.hashCode ^
@@ -91,6 +106,7 @@ class FrameCaptureMetadata {
       other is FrameCaptureMetadata &&
           runtimeType == other.runtimeType &&
           gain == other.gain &&
+          gainIsIso == other.gainIsIso &&
           offset == other.offset &&
           sensorTempC == other.sensorTempC &&
           coolerPowerPercent == other.coolerPowerPercent &&
@@ -157,6 +173,32 @@ class SchedulerScoreEntry {
           reason == other.reason;
 }
 
+/// What a [`SequencerEvent::Error`] means for the run it came from. The
+/// sequencer decides this where the problem happens, because only it knows
+/// whether the run goes on.
+enum SequencerErrorKind {
+  /// A note about a run that is going normally.
+  advisory,
+
+  /// One step had a problem and the run carried on.
+  stepProblem,
+
+  /// The run is paused for the operator, and this is why.
+  runHeld,
+
+  /// A step failed. The run ends with `Failed` unless recovery saves it,
+  /// and `Failed` is what says the run failed.
+  stepFailed,
+
+  /// An operation started by hand (an autofocus, a polar alignment)
+  /// reported it. No run is involved.
+  standalone,
+
+  /// The run was cancelled and `Stopped` follows. The message is a fixed
+  /// notice; who stopped the run is on the stop decision rows.
+  cancelled,
+}
+
 @freezed
 sealed class SequencerEvent with _$SequencerEvent {
   const SequencerEvent._();
@@ -219,8 +261,17 @@ sealed class SequencerEvent with _$SequencerEvent {
     required int total,
     required double durationSecs,
   }) = SequencerEvent_ExposureCompleted;
-  const factory SequencerEvent.error({required String message}) =
-      SequencerEvent_Error;
+
+  /// Something went wrong, or is worth knowing, short of the run's end.
+  /// `kind` says what it means for the run; nothing downstream should work
+  /// that out from the severity or the text.
+  const factory SequencerEvent.error({
+    required String message,
+    required SequencerErrorKind kind,
+
+    /// Set on the warning line of a happening its decision row announces.
+    SequencerNotice? notice,
+  }) = SequencerEvent_Error;
 
   /// A meridian flip finished. Mirrors
   /// `ExecutorEvent::MeridianFlipOutcome`.
@@ -230,8 +281,7 @@ sealed class SequencerEvent with _$SequencerEvent {
   /// run-stats layer, which counts the flip and surfaces a failed post-flip
   /// recenter rather than sniffing either out of a log string.
   const factory SequencerEvent.meridianFlipOutcome({
-    /// `"success"`, `"failed"`, or `"aborted"`.
-    required String outcome,
+    required FlipOutcome outcome,
 
     /// Target the flip was performed for.
     required String targetName,
@@ -262,9 +312,7 @@ sealed class SequencerEvent with _$SequencerEvent {
 
     /// Human-readable trigger name
     required String triggerName,
-
-    /// Action taken (e.g., "Autofocus", "Dither", "PauseSequence")
-    required String action,
+    required SequencerTriggerAction action,
   }) = SequencerEvent_TriggerFired;
 
   /// Progress update for long-running instructions (cooling, autofocus, slewing)
@@ -716,5 +764,87 @@ sealed class SequencerEvent with _$SequencerEvent {
     /// `sequence_runs.id` this decision belongs to, if the executor
     /// has been stamped with one.
     PlatformInt64? sequenceRunId,
+
+    /// Set on the row of a happening the operator is told about once.
+    SequencerNotice? notice,
+
+    /// Set on the rows that record a run's stop.
+    SequencerStop? stop,
   }) = SequencerEvent_DecisionLogged;
+}
+
+@freezed
+sealed class SequencerNotice with _$SequencerNotice {
+  const SequencerNotice._();
+
+  const factory SequencerNotice.autofocusContinued() =
+      SequencerNotice_AutofocusContinued;
+  const factory SequencerNotice.rejectStreak({
+    required int consecutiveRejects,
+
+    /// Why the latest frame of the streak was rejected.
+    required String reason,
+  }) = SequencerNotice_RejectStreak;
+  const factory SequencerNotice.problemNoticed({
+    /// What noticed the problem.
+    required String source,
+
+    /// What it found.
+    required String problem,
+  }) = SequencerNotice_ProblemNoticed;
+}
+
+@freezed
+sealed class SequencerStop with _$SequencerStop {
+  const SequencerStop._();
+
+  /// The run's cancellation. Every way a run is stopped writes this row, so
+  /// it says only that the run ended, not who ended it.
+  const factory SequencerStop.cancelled() = SequencerStop_Cancelled;
+
+  /// A person pressed Stop.
+  const factory SequencerStop.operator_() = SequencerStop_Operator;
+
+  /// The autopilot stopped the run on an unattended re-plan.
+  const factory SequencerStop.autopilot() = SequencerStop_Autopilot;
+
+  /// A part of the system stopped the run.
+  const factory SequencerStop.system({
+    /// The caller the stop was given ("rollback", "disk-watchdog").
+    required String origin,
+  }) = SequencerStop_System;
+
+  /// A trigger parked the mount and ended the run.
+  const factory SequencerStop.trigger({
+    required String triggerId,
+    required String triggerName,
+  }) = SequencerStop_Trigger;
+}
+
+/// What a fired trigger did. Mirrors `skotiq_sequencer::TriggerFiredAction`.
+enum SequencerTriggerAction {
+  continue_,
+  pause,
+  autofocus,
+  nextTarget,
+  retry,
+
+  /// Parked the mount and ended the run.
+  parkAndAbort,
+  customBranch,
+  meridianFlip,
+  dither,
+  recenter,
+  pauseAndWaitForClear,
+  slewToGapAndContinue,
+  switchTargetOrFilter,
+
+  /// Told the operator and kept imaging.
+  notify,
+
+  /// Ended the run without parking.
+  abort,
+
+  /// Skipped a target whose end condition was already met.
+  skipTarget,
 }

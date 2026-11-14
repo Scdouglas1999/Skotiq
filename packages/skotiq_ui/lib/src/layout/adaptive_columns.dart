@@ -47,7 +47,6 @@ class AdaptiveColumns extends StatelessWidget {
   /// The cells, in reading order.
   final List<AdaptiveCell> cells;
 
-  /// Horizontal gap between columns.
   final double spacing;
 
   /// Vertical gap between rows, including the gap between stacked cells.

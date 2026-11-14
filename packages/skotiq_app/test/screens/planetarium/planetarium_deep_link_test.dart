@@ -1,4 +1,5 @@
-// `/planetarium?ra=&dec=&name=` end to end, through the real screen.
+// The sky target hand-off (`AppRoutes.skyAt`) end to end, through the real
+// screen.
 //
 // The receiving half of this hand-off existed but had no sender, and the route
 // discarded the query anyway. The subtle failure mode the wiring has to avoid
@@ -10,14 +11,14 @@
 // on its first build.
 //
 // The companion data-level tests (link → redirect → parse) live in
-// show_in_sky_test.dart.
+// test/router/app_routes_test.dart.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/planetarium/planetarium_screen.dart';
-import 'package:skotiq_app/screens/planetarium/show_in_sky.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -42,8 +43,9 @@ Future<(ProviderContainer, GoRouter)> _pumpPlanetarium(
   final router = GoRouter(
     initialLocation: initialLocation,
     routes: [
+      // The Planetarium tab's host, carrying the same query.
       GoRoute(
-        path: '/planetarium',
+        path: AppRoute.planner.path,
         builder: (context, state) => const PlanetariumScreen(),
       ),
     ],
@@ -85,11 +87,11 @@ void main() {
   testWidgets('cold start lands on the handed-off target', (tester) async {
     final (container, router) = await _pumpPlanetarium(
       tester,
-      initialLocation: planetariumTargetLocation(
+      initialLocation: AppRoutes.skyAt(const SkyTarget(
         raHours: 13.5,
         decDegrees: 47.2,
         name: 'M51',
-      ),
+      )),
     );
 
     final view = container.read(skyViewStateProvider);
@@ -105,7 +107,7 @@ void main() {
     // second navigation never re-runs initState. This is the case an
     // event-based hand-off would drop.
     final (container, router) =
-        await _pumpPlanetarium(tester, initialLocation: '/planetarium');
+        await _pumpPlanetarium(tester, initialLocation: AppRoute.planner.path);
     // The untouched default pose is the zenith, not RA 0h / Dec 0.
     final homeRa = container.read(skyViewHomeCenterProvider)!.$1;
     expect(
@@ -113,11 +115,11 @@ void main() {
       closeTo(homeRa, 0.02),
     );
 
-    router.go(planetariumTargetLocation(
+    router.go(AppRoutes.skyAt(const SkyTarget(
       raHours: 5.59,
       decDegrees: -5.39,
       name: 'M42',
-    ));
+    )));
     await tester.pump();
     await tester.pump();
 
@@ -133,7 +135,7 @@ void main() {
     final (container, router) = await _pumpPlanetarium(
       tester,
       initialLocation:
-          planetariumTargetLocation(raHours: 13.5, decDegrees: 47.2),
+          AppRoutes.skyAt(const SkyTarget(raHours: 13.5, decDegrees: 47.2)),
     );
     expect(container.read(skyViewStateProvider).centerRA, closeTo(13.5, 1e-6));
 

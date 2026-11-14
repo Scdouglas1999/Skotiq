@@ -1,0 +1,19 @@
+{
+  "purpose": "A value as one segment of a frame's save path. Shared by the app's naming pattern (ImagingService._sanitizePathComponent, read by packages/skotiq_core/test/services/imaging_service_naming_tokens_test.dart) and a run's save template (path_segment in native/skotiq_native/sequencer/src/node/instructions/expose.rs), so manual and sequence frames name the same target the same way.",
+  "cases": [
+    {"value": "M31", "segment": "M31"},
+    {"value": "M 31", "segment": "M 31"},
+    {"value": "M31/Ha", "segment": "M31_Ha"},
+    {"value": "C:\\frames", "segment": "C__frames"},
+    {"value": "a<b>c:d\"e|f?g*h", "segment": "a_b_c_d_e_f_g_h"},
+    {"value": "..", "segment": "_"},
+    {"value": "../etc", "segment": "etc"},
+    {"value": "  .hidden. ", "segment": "hidden"},
+    {"value": "_lead", "segment": "lead"},
+    {"value": "trail. .", "segment": "trail"},
+    {"value": "", "segment": "_"},
+    {"value": "tab\there", "segment": "tab_here"},
+    {"value": "Ha 7nm", "segment": "Ha 7nm"},
+    {"value": "120.0", "segment": "120.0"}
+  ]
+}

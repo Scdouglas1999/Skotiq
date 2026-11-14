@@ -1,34 +1,31 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
+import '../backend/roles/host_data/calibration_library.dart';
 import '../database/database.dart';
 import '../database/daos/flat_library_dao.dart';
 import '../database/daos/integrated_masters_dao.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/calibration/calibration_library_models.dart';
-import '../providers/dark_library_provider.dart';
-import '../providers/database_provider.dart';
-import 'calibration/fits_header_reader.dart';
-import 'calibration_library_service.dart';
+import 'frame_header.dart';
 import 'calibration_master_builder.dart';
 import 'dark_library_service.dart';
 import 'disk_space_service.dart';
 import 'darkroom_build_plan.dart';
 import 'darkroom_registration_preview.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import '../models/imaging/frame_gain.dart';
 export 'darkroom_build_plan.dart';
 export 'darkroom_registration_preview.dart';
 
 /// Native operations share the existing JSON request boundary.
 typedef DarkroomBuildOperation =
     Future<Map<String, dynamic>> Function(Map<String, dynamic> request);
-
-/// Reads a light's primary FITS header.
-typedef DarkroomHeaderReader =
-    Future<Map<String, String>> Function(String path);
 
 /// Free bytes on the volume holding a directory.
 typedef DarkroomFreeSpace = Future<int> Function(String directory);
@@ -107,14 +104,10 @@ String describeIntegration(num seconds) => seconds < 3600
     ? '${(seconds / 60).round()} min'
     : '${(seconds / 3600).toStringAsFixed(1)} h';
 
-/// The evening date of the observing night [time] belongs to. A night runs
-/// from local noon to local noon, so frames after midnight stay with the
-/// evening they started.
+/// The observing night [time] belongs to as a `YYYY-MM-DD` key: the evening
+/// date [observingNightOf] names.
 String observingNight(DateTime time) {
-  final local = time.toLocal();
-  final evening = local.hour < 12
-      ? DateTime(local.year, local.month, local.day - 1)
-      : DateTime(local.year, local.month, local.day);
+  final evening = observingNightOf(time);
   String two(int v) => v.toString().padLeft(2, '0');
   return '${evening.year}-${two(evening.month)}-${two(evening.day)}';
 }
@@ -131,7 +124,7 @@ class DarkroomBuildGroup {
   });
   final String label;
   final String filter;
-  final List<CapturedImage> frames;
+  final List<DbCapturedImage> frames;
   final Map<String, dynamic> calibration;
   final List<String> warnings;
 
@@ -251,16 +244,14 @@ class DarkroomBuildService {
     required this.operation,
     required this.library,
     required this.masters,
-    DarkroomHeaderReader? readHeader,
+    FrameHeaderReader readHeader = readFrameHeader,
     CalibrationMasterBuild? buildMaster,
     DarkroomBuildOperation? buildFlat,
     this.darkLibrary,
     this.flatLibrary,
     this.processingSettings,
     DarkroomFreeSpace? freeSpace,
-  }) : _readHeader =
-           readHeader ??
-           ((path) => const FitsHeaderReader().readPrimaryHeader(path)),
+  }) : _readHeader = readHeader,
        _freeSpace =
            freeSpace ??
            ((directory) async =>
@@ -269,12 +260,12 @@ class DarkroomBuildService {
        _buildFlat = buildFlat ?? _nativeBuildFlat;
 
   final DarkroomBuildOperation operation;
-  final CalibrationLibraryService library;
+  final CalibrationLibrary library;
   final IntegratedMastersDao masters;
   final Future<DarkroomProcessingOptions> Function()? processingSettings;
   final DarkLibraryService? darkLibrary;
   final FlatLibraryDao? flatLibrary;
-  final DarkroomHeaderReader _readHeader;
+  final FrameHeaderReader _readHeader;
   final DarkroomFreeSpace _freeSpace;
   final CalibrationMasterBuild _buildMaster;
   final DarkroomBuildOperation _buildFlat;
@@ -295,32 +286,28 @@ class DarkroomBuildService {
   /// settings, and match calibration masters from the local library. A filter's
   /// flat is applied to every group of that filter that has no flat of its own.
   Future<List<DarkroomBuildGroup>> prepare(
-    List<CapturedImage> frames, {
+    List<DbCapturedImage> frames, {
     bool shareFlats = true,
     Map<String, String> selectedFlats = const {},
   }) async {
-    final lights = frames
-        .where((f) => f.isAccepted && f.frameType.toLowerCase() == 'light')
-        .toList();
-    final headers = <int, Map<String, String>>{};
+    final lights = frames.where((f) => f.isAccepted && f.isLight).toList();
+    final headers = <int, FrameHeader>{};
     for (final f in lights) {
       headers[f.id] = await _readHeader(f.filePath);
     }
-    String camera(CapturedImage f) =>
-        FitsHeaderReader.stringValue(headers[f.id]!, 'INSTRUME') ??
-        'unknown camera';
-    String optics(CapturedImage f) =>
-        FitsHeaderReader.stringValue(headers[f.id]!, 'TELESCOP') ??
-        'unknown optics';
+    String camera(DbCapturedImage f) =>
+        headers[f.id]!.string('INSTRUME') ?? 'unknown camera';
+    String optics(DbCapturedImage f) =>
+        headers[f.id]!.string('TELESCOP') ?? 'unknown optics';
     final cameras = lights.map(camera).toSet().length;
-    final setups = <String, List<CapturedImage>>{};
+    final setups = <String, List<DbCapturedImage>>{};
     for (final f in lights) {
       final h = headers[f.id]!;
       final key = [
         observingNight(f.capturedAt),
         camera(f),
         optics(f),
-        '${h['NAXIS1']}x${h['NAXIS2']}',
+        '${h.string('NAXIS1')}x${h.string('NAXIS2')}',
         _filterOf(f),
         f.exposureDuration,
         f.gain,
@@ -344,16 +331,18 @@ class DarkroomBuildService {
           'Night of $night',
           _filterOf(f),
           '${_seconds(f.exposureDuration)} s',
-          if (f.gain != null) 'gain ${f.gain}',
+          if (f.gainText != null) f.gainText!,
           if (f.offset != null) 'offset ${f.offset}',
           if (f.binX != 1 || f.binY != 1) 'bin ${f.binX}x${f.binY}',
-          if (temperature != null) '${temperature.round()} C',
+          if (temperature != null) formatCelsius(temperature, decimals: 0),
           if (cameras > 1) camera(f),
         ].join(' · ');
         final matches = await library.match(
           LightFrameContext(
-            cameraId: FitsHeaderReader.stringValue(headers[f.id]!, 'INSTRUME'),
-            gain: f.gain,
+            cameraId: headers[f.id]!.string('INSTRUME'),
+            readoutMode: headers[f.id]!.string('READOUTM'),
+            gain: f.comparableGain,
+            gainIsUnknownIso: f.hasUnknownIso,
             offset: f.offset,
             exposureSeconds: f.exposureDuration,
             temperature: temperature,
@@ -412,7 +401,7 @@ class DarkroomBuildService {
     return result;
   }
 
-  static String _filterOf(CapturedImage f) =>
+  static String _filterOf(DbCapturedImage f) =>
       f.filter?.trim().isNotEmpty == true ? f.filter!.trim() : 'NoFilter';
 
   static String _seconds(double v) =>
@@ -421,14 +410,14 @@ class DarkroomBuildService {
   /// Split frames where consecutive sensor temperatures differ by more than
   /// [darkroomTemperatureGapC]. Frames without a temperature join the
   /// largest cluster.
-  static List<List<CapturedImage>> _temperatureClusters(
-    List<CapturedImage> frames,
+  static List<List<DbCapturedImage>> _temperatureClusters(
+    List<DbCapturedImage> frames,
   ) {
     final known = frames.where((f) => f.sensorTemp != null).toList()
       ..sort((a, b) => a.sensorTemp!.compareTo(b.sensorTemp!));
     final unknown = frames.where((f) => f.sensorTemp == null).toList();
     if (known.isEmpty) return [frames];
-    final clusters = <List<CapturedImage>>[
+    final clusters = <List<DbCapturedImage>>[
       [known.first],
     ];
     for (final f in known.skip(1)) {
@@ -557,23 +546,17 @@ class DarkroomBuildService {
       // with lights by filter, gain, offset and binning.
       final header = sample == null
           ? await _readHeader(paths.first)
-          : const <String, String>{};
-      int? headerInt(String key) =>
-          FitsHeaderReader.doubleValue(header, key)?.round();
+          : FrameHeader(const {});
       await flatLibrary?.addEntry(
         filePath: output,
-        filter:
-            forGroup?.filter ?? FitsHeaderReader.stringValue(header, 'FILTER'),
+        filter: forGroup?.filter ?? header.string('FILTER'),
         temperature:
             sample?.sensorTemp ??
-            FitsHeaderReader.firstDouble(header, const [
-              'CCD-TEMP',
-              'SET-TEMP',
-            ]),
-        gain: sample?.gain ?? headerInt('GAIN') ?? 0,
-        offset: sample?.offset ?? headerInt('OFFSET') ?? 0,
-        binX: sample?.binX ?? headerInt('XBINNING') ?? 1,
-        binY: sample?.binY ?? headerInt('YBINNING') ?? 1,
+            header.firstNumber(const ['CCD-TEMP', 'SET-TEMP']),
+        gain: sample?.gain ?? header.integer('GAIN'),
+        offset: sample?.offset ?? header.integer('OFFSET'),
+        binX: sample?.binX ?? header.integer('XBINNING') ?? 1,
+        binY: sample?.binY ?? header.integer('YBINNING') ?? 1,
         width: (built['width'] as num?)?.toInt(),
         height: (built['height'] as num?)?.toInt(),
         masterFrameCount:
@@ -1337,7 +1320,7 @@ class DarkroomBuildService {
 
   /// Preflight an unattended build without registering or integrating lights.
   Future<void> requireCompleteCalibration(
-    List<CapturedImage> frames, {
+    List<DbCapturedImage> frames, {
     Map<String, String> selectedFlats = const {},
   }) async {
     await _requireCalibration(
@@ -1368,7 +1351,7 @@ class DarkroomBuildService {
   /// explicitly permits incomplete calibration. Selected flats stay pinned.
   Future<DarkroomUnattendedOutcome> buildUnattended({
     required String target,
-    required List<CapturedImage> frames,
+    required List<DbCapturedImage> frames,
     required Directory directory,
     double minRetainedArea = defaultMinRetainedArea,
     void Function(DarkroomBuildStep)? onStep,
@@ -1521,18 +1504,17 @@ class DarkroomBuildService {
   }) async {
     if (lightsPerFilter.isEmpty) return;
     final header = await _readHeader(referencePath);
-    final width = FitsHeaderReader.intValue(header, 'NAXIS1');
-    final height = FitsHeaderReader.intValue(header, 'NAXIS2');
-    if (width == null || height == null) {
+    final size = header.imageSize;
+    if (size == null) {
       throw StateError(
         'The reference light $referencePath has no image size in its header, '
         'so the space the build needs cannot be worked out.',
       );
     }
-    final channels = FitsHeaderReader.intValue(header, 'NAXIS3') ?? 1;
+    final channels = header.channels;
     final subBytes =
-        width *
-        height *
+        size.width *
+        size.height *
         (channels + (processing.drizzleScale > 0 ? 1 : 0)) *
         4 *
         processing.outputScale *
@@ -1557,19 +1539,15 @@ class DarkroomBuildService {
     if (free >= needed) return;
     final spoolDetail = largest == 0
         ? ''
-        : ' (${lightsPerFilter[largestFilter]} subs of ${_mb(subBytes)} each)';
+        : ' (${lightsPerFilter[largestFilter]} subs of ${ByteFormat.size(subBytes)} each)';
     throw StateError(
       'Not enough free disk space to build masters in ${directory.path}: '
-      'This build needs ${_gb(needed)} for registered subs and outputs'
+      'This build needs ${ByteFormat.size(needed)} for registered subs and outputs'
       '$spoolDetail and '
-      '${_gb(free)} is free. Free up space on that drive or choose an '
+      '${ByteFormat.size(free)} is free. Free up space on that drive or choose an '
       'output folder on a larger one.',
     );
   }
-
-  static String _gb(int bytes) =>
-      '${(bytes / (1 << 30)).toStringAsFixed(1)} GB';
-  static String _mb(int bytes) => '${(bytes / (1 << 20)).round()} MB';
 
   static Future<void> _write(File file, Map<String, dynamic> data) async {
     final temporary = File('${file.path}.tmp');
@@ -1580,21 +1558,3 @@ class DarkroomBuildService {
     await temporary.rename(file.path);
   }
 }
-
-final darkroomBuildServiceProvider = Provider(
-  (ref) => DarkroomBuildService(
-    operation: (request) async => Map<String, dynamic>.from(
-      jsonDecode(
-            await bridge.apiMasterAccumulate(argsJson: jsonEncode(request)),
-          )
-          as Map,
-    ),
-    processingSettings: () =>
-        DarkroomProcessingOptions.load(ref.read(settingsDaoProvider)),
-    library: ref.watch(calibrationLibraryServiceProvider),
-    masters: ref.watch(integratedMastersDaoProvider),
-    buildMaster: ref.watch(calibrationMasterBuildProvider),
-    darkLibrary: ref.watch(darkLibraryServiceProvider),
-    flatLibrary: ref.watch(flatLibraryDaoProvider),
-  ),
-);

@@ -1,8 +1,6 @@
+# Which files count as production code is defined once, in audit-scope.yaml
+# (runtime.include). This file adds the analyzer-only excludes and thresholds.
 production:
-  include:
-    - apps/*/lib/**
-    - packages/*/lib/**
-    - native/skotiq_native/**/src/**
   exclude:
     - '**/.dart_tool/**'
     - '**/.git/**'

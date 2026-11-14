@@ -8,7 +8,7 @@ import 'settings_provider.dart' show appSettingsProvider;
 // QR/pairing validator and the NetworkBackend timeout tuning so the three
 // never drift.
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show TailnetDetector;
+    show TailnetDetector, kDefaultHeadlessPort;
 
 /// Holds runtime state for the embedded web server.
 ///
@@ -64,8 +64,8 @@ class WebServerState {
 
   const WebServerState({
     this.isRunning = false,
-    this.configuredPort = 8080,
-    this.actualPort = 8080,
+    this.configuredPort = kDefaultHeadlessPort,
+    this.actualPort = kDefaultHeadlessPort,
     this.localIp = '',
     this.activeViewers = 0,
     this.connectedClients = 0,
@@ -235,6 +235,7 @@ class WebServerStateNotifier extends StateNotifier<WebServerState> {
   Future<void> _resolveLocalIp() async {
     try {
       final interfaces = await NetworkInterface.list(includeLoopback: false);
+      if (!mounted) return;
 
       String? lanIp;
       String? tailscaleV4;
@@ -273,6 +274,7 @@ class WebServerStateNotifier extends StateNotifier<WebServerState> {
         tailscaleReachable: tailscaleReachable,
       );
     } catch (_) {
+      if (!mounted) return;
       // Network interface enumeration is best-effort. Fail closed on the
       // tailnet signal so a transient enumeration error never leaves a stale
       // "reachable over Tailscale" claim standing.

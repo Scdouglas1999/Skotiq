@@ -32,7 +32,7 @@ fn one_attempt_center(filter: Option<&str>) -> CenterConfig {
 
 async fn center_ctx(ops: Arc<ScriptedDomeRotatorOps>) -> InstructionContext {
     let mut ctx = ctx_with_ops(ops).await;
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
     ctx
 }
 
@@ -94,7 +94,7 @@ async fn center_on_a_light_filter_leaves_the_wheel_alone() {
 async fn center_with_no_wheel_invents_no_filter() {
     let ops = wheel_ops(&RIG_WHEEL, 7);
     let mut ctx = center_ctx(ops.clone()).await;
-    ctx.filterwheel_id = None;
+    ctx.run.rig.filterwheel_id = None;
 
     execute_center(&one_attempt_center(None), &ctx, None).await;
 
@@ -163,7 +163,7 @@ async fn autofocus_on_the_dark_slot_moves_off_it_and_does_not_restore_it() {
     let mut ctx = ctx_with_ops(ops.clone()).await;
     ctx.target_light_filters = vec![planned("R", Some(1))];
     // No camera: the sweep itself fails at once, after the filter is set.
-    ctx.camera_id = None;
+    ctx.run.rig.camera_id = None;
 
     let guard = try_admit_autofocus_run().expect("test autofocus must admit");
     execute_autofocus_admitted(&AutofocusConfig::default(), &ctx, None, guard).await;
@@ -189,7 +189,7 @@ fn exposure_node(id: &str, frame_type: &str, filter: &str, index: Option<i32>) -
         id: id.to_string(),
         name: id.to_string(),
         node_type: NodeType::TakeExposure(ExposureConfig {
-            frame_type: frame_type.to_string(),
+            frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
             filter: Some(filter.to_string()),
             filter_index: index,
             ..ExposureConfig::default()

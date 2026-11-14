@@ -108,7 +108,6 @@ enum ReadinessItemId {
 /// fix — so the UI can use `fixRoute != null` to decide whether to render an
 /// action button.
 class ReadinessItem {
-  /// Stable identifier for this check.
   final ReadinessItemId id;
 
   /// Short human title (e.g. `Observing location`).
@@ -118,7 +117,6 @@ class ReadinessItem {
   /// ready, what to do about it.
   final String detail;
 
-  /// Current severity of this check.
   final ReadinessLevel level;
 
   /// go_router path to the screen that resolves this item, or null when there

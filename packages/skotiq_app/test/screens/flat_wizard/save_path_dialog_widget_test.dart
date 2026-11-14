@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_app/screens/flat_wizard/widgets/save_path_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -49,14 +51,12 @@ void main() {
       tester,
       const SavePathDialog(),
       extraOverrides: [
-        flatWizardSavePathPickerProvider.overrideWithValue(({
-          required context,
-          required isRemote,
-          required currentPath,
-        }) {
-          pickerCalls++;
-          return picked.future;
-        }),
+        hostFoldersProvider.overrideWithValue(FakeHostFolders(
+          onPick: ({required initialPath}) {
+            pickerCalls++;
+            return picked.future;
+          },
+        )),
       ],
     );
 
@@ -88,13 +88,9 @@ void main() {
         backendProvider.overrideWith(
           (ref) => _SwappableBackendNotifier(ref, DisconnectedBackend()),
         ),
-        flatWizardSavePathPickerProvider.overrideWithValue(({
-          required context,
-          required isRemote,
-          required currentPath,
-        }) {
-          return picked.future;
-        }),
+        hostFoldersProvider.overrideWithValue(FakeHostFolders(
+          onPick: ({required initialPath}) => picked.future,
+        )),
       ],
     );
 

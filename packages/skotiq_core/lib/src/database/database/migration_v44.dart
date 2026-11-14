@@ -11,9 +11,7 @@ extension _SkotiqDatabaseMigrationV44 on SkotiqDatabase {
   ///     (`wcs_crval1`, `wcs_crval2`), reference pixel (`wcs_crpix1`,
   ///     `wcs_crpix2`), and the CD matrix (`wcs_cd1_1`, `wcs_cd1_2`,
   ///     `wcs_cd2_1`, `wcs_cd2_2`). The master's own solved WCS is what the
-  ///     catalog-annotation overlay and colour calibration read (both need a
-  ///     `WcsOverlay`); the `WcsOverlay` reader derives cdelt/crota from the
-  ///     CD matrix.
+  ///     catalog-annotation overlay and colour calibration read.
   ///   * the **finishing output paths** written by the gated post-steps:
   ///     `background_extracted_path` (`<master>_bgx.fits`),
   ///     `deconvolved_path` (`<master>_decon.fits`), and `star_reduced_path`
@@ -32,7 +30,7 @@ extension _SkotiqDatabaseMigrationV44 on SkotiqDatabase {
   Future<void> _upgradeSchemaV44(Migrator m, int from) async {
     if (from < 44) {
       await _ensureIntegratedMastersV44Columns();
-      await _createNarrowbandCompositesTable();
+      await _createNarrowbandCompositesTable(m);
     }
   }
 }

@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/planetarium/widgets/star_catalog_fallback_banner.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show HygStarCatalog;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -24,7 +26,6 @@ Widget _host({required bool onFallback, SkotiqBackend? backend}) {
       if (backend != null)
         backendProvider.overrideWith((ref) => _BackendNotifier(ref, backend)),
       starCatalogFallbackProvider.overrideWithValue(onFallback),
-      fallbackStarCountProvider.overrideWithValue(79),
     ],
     child: MaterialApp(
       theme: ThemeData(extensions: const [SkotiqColors.dark]),
@@ -41,7 +42,11 @@ void main() {
     await tester.pump();
 
     expect(find.text('Star catalog not installed'), findsOneWidget);
-    expect(find.textContaining('79-star built-in list'), findsOneWidget);
+    expect(
+        find.textContaining(
+          '${HygStarCatalog.fallbackStarCount}-star built-in list',
+        ),
+        findsOneWidget);
     expect(find.text('Install'), findsOneWidget);
   });
 
@@ -63,7 +68,11 @@ void main() {
       find.textContaining('not from the imaging host (192.168.1.100)'),
       findsOneWidget,
     );
-    expect(find.textContaining('79-star built-in list'), findsOneWidget);
+    expect(
+        find.textContaining(
+          '${HygStarCatalog.fallbackStarCount}-star built-in list',
+        ),
+        findsOneWidget);
     expect(find.text('Install here'), findsOneWidget);
   });
 

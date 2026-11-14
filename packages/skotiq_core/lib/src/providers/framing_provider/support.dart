@@ -1,9 +1,6 @@
 part of '../framing_provider.dart';
 
-// Computed FOV provider
-
-/// Equipment status for framing
-enum EquipmentStatus {
+enum FramingEquipmentStatus {
   /// No equipment profile configured
   noProfile,
 
@@ -17,9 +14,8 @@ enum EquipmentStatus {
   ready,
 }
 
-/// Result of checking equipment for framing
 class FramingEquipmentResult {
-  final EquipmentStatus status;
+  final FramingEquipmentStatus status;
   final FramingEquipment? equipment;
   final String? profileName;
   final String? message;
@@ -31,17 +27,17 @@ class FramingEquipmentResult {
     this.message,
   });
 
-  bool get isReady => status == EquipmentStatus.ready && equipment != null;
+  bool get isReady =>
+      status == FramingEquipmentStatus.ready && equipment != null;
 }
 
 /// Provides calculated FOV from current equipment profile or custom settings
 final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
   final framingState = ref.watch(framingProvider);
 
-  // If using custom equipment, return it directly
   if (framingState.useCustomEquipment && framingState.customEquipment != null) {
     return FramingEquipmentResult(
-      status: EquipmentStatus.ready,
+      status: FramingEquipmentStatus.ready,
       equipment: framingState.customEquipment,
       profileName: 'Custom Equipment',
     );
@@ -50,19 +46,17 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
   // Get from active profile (host-authoritative when paired).
   final profile = ref.watch(activeEquipmentProfileProvider);
 
-  // Check if profile exists
   if (profile == null) {
     return const FramingEquipmentResult(
-      status: EquipmentStatus.noProfile,
+      status: FramingEquipmentStatus.noProfile,
       message:
           'No equipment profile selected. Create and activate a profile in Settings → Equipment to enable framing.',
     );
   }
 
-  // Check if focal length is configured
   if (profile.focalLength <= 0) {
     return FramingEquipmentResult(
-      status: EquipmentStatus.noFocalLength,
+      status: FramingEquipmentStatus.noFocalLength,
       profileName: profile.name,
       message:
           'Optical specs not configured. Set the focal length in your equipment profile "${profile.name}" to enable FOV preview.',
@@ -118,7 +112,6 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
         pixelsY = status.sensorHeight;
         pixelSizeMicrons = status.pixelSizeX;
 
-        // Calculate sensor physical size from pixel count and pixel size
         sensorWidthMm = (pixelsX * pixelSizeMicrons) / 1000;
         sensorHeightMm = (pixelsY * status.pixelSizeY) / 1000;
 
@@ -141,10 +134,9 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
             ),
           );
         } catch (error, stack) {
-          developer.log(
+          Log.warning(
             'Could not remember sensor geometry for ${profile.cameraId}.',
-            name: 'Framing',
-            level: 900,
+            source: 'Framing',
             error: error,
             stackTrace: stack,
           );
@@ -154,7 +146,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
             'Camera is connected but did not report valid sensor dimensions.';
       }
     } catch (e) {
-      cameraMessage = 'Could not query camera specs: $e';
+      cameraMessage = 'Could not query camera specs: ${userFacingError(e)}';
     }
   } else if (profile.cameraId == null) {
     cameraMessage =
@@ -194,7 +186,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
       pixelsX == null ||
       pixelsY == null) {
     return FramingEquipmentResult(
-      status: EquipmentStatus.noCameraSpecs,
+      status: FramingEquipmentStatus.noCameraSpecs,
       profileName: profile.name,
       message:
           cameraMessage ??
@@ -203,7 +195,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
   }
 
   return FramingEquipmentResult(
-    status: EquipmentStatus.ready,
+    status: FramingEquipmentStatus.ready,
     profileName: profile.name,
     equipment: FramingEquipment(
       cameraName: cameraName,
@@ -273,19 +265,10 @@ String _extractDeviceName(String deviceId) {
   return deviceId;
 }
 
-// Coordinate conversion utilities
-
 class CoordinateUtils {
   /// Parse RA from string (supports HH:MM:SS, HHhMMmSSs, decimal hours/degrees)
   static double? parseRA(String input) => CoordinateParser.parseRa(input);
 
   /// Parse Dec from string (supports ±DD:MM:SS, ±DD°MM'SS", decimal)
   static double? parseDec(String input) => CoordinateParser.parseDec(input);
-
-  /// Format RA (decimal hours) as `HHh MMm SS.Ss`.
-  static String formatRA(double raHours) => CoordinateFormat.ra(raHours);
-
-  /// Format Dec as `±DD° MM' SS.S"`
-  static String formatDec(double decDegrees) =>
-      CoordinateFormat.dec(decDegrees);
 }

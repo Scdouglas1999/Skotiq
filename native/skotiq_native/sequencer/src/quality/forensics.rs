@@ -1,8 +1,8 @@
 //! Frame-Failure Forensics: structured "why did this frame fail?"
 //! classification.
 //!
-//! Image Grading decides Pass/Reject for a frame but only emits a
-//! one-line `reason` ("HFR 5.21 px exceeds absolute threshold 3.50 px"). The
+//! Image Grading decides Pass/Reject for a frame and names the check that
+//! failed ("HFR 5.21 px exceeds absolute threshold 3.50 px"). The
 //! user is left wondering whether that 5.21 px HFR is a one-off cloud
 //! passage, a slow seeing degradation, a guiding failure, focus walking off,
 //! or simply a satellite trail clipping the corner.
@@ -30,6 +30,8 @@
 //! bullets the UI surfaces.
 
 use serde::{Deserialize, Serialize};
+
+use super::RejectReason;
 
 /// Eight categories the classifier emits. Wire-stable string labels are
 /// produced by [`LikelyCause::label`] so the Dart side can match against
@@ -105,6 +107,10 @@ pub struct RecentFrameSample {
 /// 5-10 frames) without consuming significant memory.
 pub const FORENSIC_HISTORY_LEN: usize = 10;
 
+/// At or below this many detected stars a frame is treated as near-empty:
+/// the field's stars were removed, not added to.
+const NEAR_EMPTY_STAR_COUNT: u32 = 3;
+
 /// Snapshot of environmental telemetry at the moment a frame was captured.
 /// Threaded into [`analyze_rejection`] so the classifier can correlate the
 /// reject with conditions.
@@ -134,10 +140,9 @@ pub struct ForensicInputs<'a> {
     /// Recent frame samples, oldest first. The classifier looks at the
     /// last 5-10 of these for trend / cluster detection.
     pub recent_frames: &'a [RecentFrameSample],
-    /// Grader's reason string (e.g. "HFR 5.21 px exceeds absolute
-    /// threshold 3.50 px"). Used as a tie-breaker hint when the
-    /// classifier ends up at `Unknown`.
-    pub grader_reason: &'a str,
+    /// The check that rejected the frame. Star-count rejects add weight to
+    /// the cloud and hot-pixel readings.
+    pub reason: RejectReason,
 }
 
 /// Forensic verdict — picked cause + supporting human-readable bullets.
@@ -248,7 +253,7 @@ pub fn analyze_rejection(inputs: &ForensicInputs<'_>) -> ForensicVerdict {
         }
         // Star-count floor + cluster is the strongest cloud signal short
         // of a sky-brightness telemetry stream.
-        let star_floor_hint = inputs.grader_reason.contains("star count") && nearby_rejects >= 2;
+        let star_floor_hint = inputs.reason.star_count_low() && nearby_rejects >= 2;
         if star_floor_hint {
             score += 1;
             evidence.push(format!(
@@ -357,11 +362,46 @@ pub fn analyze_rejection(inputs: &ForensicInputs<'_>) -> ForensicVerdict {
         }
     }
 
-    // 6) Single-frame isolated reject — distinguish satellite trail
+    // 6) A frame with almost no stars. Satellites, aircraft, hot pixels and
+    //    cosmic rays add detections; none of them removes a field's stars.
+    //    What does is cloud or something in front of the optics (a tree, a
+    //    dew-covered corrector, a cap). On the rig 2026-11-08 the first frame
+    //    of a clouded night, 2 stars where there are hundreds, was called a
+    //    hot pixel because it had no neighbours to compare with.
+    let near_empty = match inputs.star_count {
+        Some(count) => count <= NEAR_EMPTY_STAR_COUNT,
+        None => inputs.reason == RejectReason::NoStars,
+    };
+    if near_empty {
+        evidence.push(match inputs.star_count {
+            Some(count) => format!("Only {count} stars detected"),
+            None => "No stars detected".to_string(),
+        });
+        evidence.push(
+            "Too few stars for a satellite or hot pixel; cloud or something blocking the \
+             optics removes them"
+                .to_string(),
+        );
+        if nearby_rejects >= 2 {
+            evidence.push(format!(
+                "{} other frames in same window also rejected",
+                nearby_rejects
+            ));
+        }
+        return ForensicVerdict {
+            likely_cause: Some(LikelyCause::CloudPassage),
+            evidence,
+        };
+    }
+
+    // 7) Single-frame isolated reject — distinguish satellite trail
     //    (HFR or eccentricity elevated, no neighbours bad) from a hot
     //    pixel / cosmic event (no HFR elevation, no neighbours bad).
+    //    Isolated means good frames around it; a run's first frames have
+    //    nothing to compare with.
     let nearby_bad = recent.iter().rev().take(3).filter(|s| !s.accepted).count();
-    if nearby_bad == 0 {
+    let has_good_neighbours = recent.iter().rev().take(3).any(|s| s.accepted);
+    if nearby_bad == 0 && has_good_neighbours {
         // Look at the rejected frame's own metrics to decide the flavour.
         let hfr_elevated = match (inputs.hfr, inputs.hfr_baseline) {
             (Some(hfr), Some(baseline)) if baseline > 0.0 => hfr >= baseline * 1.5,
@@ -385,7 +425,7 @@ pub fn analyze_rejection(inputs: &ForensicInputs<'_>) -> ForensicVerdict {
         // Star-count below floor with no HFR elevation is the classical
         // hot-pixel / cosmic signature (the detector got fooled by
         // localised bright spots and missed the field stars).
-        if inputs.grader_reason.contains("star count") && !hfr_elevated && !ecc_elevated {
+        if inputs.reason.star_count_low() && !hfr_elevated && !ecc_elevated {
             evidence
                 .push("Isolated rejection — star count low without HFR/ecc elevation".to_string());
             if let Some(c) = inputs.star_count {
@@ -398,7 +438,7 @@ pub fn analyze_rejection(inputs: &ForensicInputs<'_>) -> ForensicVerdict {
         }
     }
 
-    // 7) Unknown — emit raw metrics so the user still has *something* to
+    // 8) Unknown — emit raw metrics so the user still has *something* to
     //    look at instead of a blank panel.
     if let Some(h) = inputs.hfr {
         evidence.push(format!("HFR {:.2} px", h));
@@ -573,19 +613,6 @@ mod tests {
         s
     }
 
-    #[allow(dead_code)]
-    fn empty_inputs<'a>(recent: &'a [RecentFrameSample]) -> ForensicInputs<'a> {
-        ForensicInputs {
-            hfr: None,
-            eccentricity: None,
-            star_count: None,
-            hfr_baseline: None,
-            environment: EnvironmentSnapshot::default(),
-            recent_frames: recent,
-            grader_reason: "",
-        }
-    }
-
     // Cloud passage — the "production-finished" scenario from the brief:
     // 9 rejects between 02:30 and 02:42, sky brightness drop of 0.7 mag
     // in 30s, cloud cover spike from 12% to 78%, 8 other frames in the
@@ -623,7 +650,10 @@ mod tests {
                 ..Default::default()
             },
             recent_frames: &history,
-            grader_reason: "star count 15 below minimum 80 (likely cloud / off-target)",
+            reason: RejectReason::StarCountBelowMinimum {
+                count: 15,
+                minimum: 80,
+            },
         };
 
         let verdict = analyze_rejection(&inputs);
@@ -663,7 +693,10 @@ mod tests {
                 ..Default::default()
             },
             recent_frames: &recent,
-            grader_reason: "HFR 3.00 px exceeds absolute threshold 2.50 px",
+            reason: RejectReason::HfrAboveLimit {
+                hfr: 3.0,
+                limit: 2.5,
+            },
         };
         let verdict = analyze_rejection(&inputs);
         assert_eq!(verdict.likely_cause, Some(LikelyCause::GuidingFailure));
@@ -692,7 +725,12 @@ mod tests {
             hfr_baseline: Some(2.0),
             environment: EnvironmentSnapshot::default(),
             recent_frames: &recent,
-            grader_reason: "HFR 2.80 px exceeds baseline 2.00 px + 25% (limit 2.50 px)",
+            reason: RejectReason::HfrAboveBaseline {
+                hfr: 2.8,
+                baseline: 2.0,
+                percent: 25.0,
+                limit: 2.5,
+            },
         };
         let verdict = analyze_rejection(&inputs);
         assert_eq!(verdict.likely_cause, Some(LikelyCause::FocusDrift));
@@ -718,7 +756,10 @@ mod tests {
             hfr_baseline: Some(2.0),
             environment: EnvironmentSnapshot::default(),
             recent_frames: &recent,
-            grader_reason: "HFR 4.20 px exceeds absolute threshold 3.50 px",
+            reason: RejectReason::HfrAboveLimit {
+                hfr: 4.2,
+                limit: 3.5,
+            },
         };
         let verdict = analyze_rejection(&inputs);
         assert_eq!(verdict.likely_cause, Some(LikelyCause::SeeingSpike));
@@ -751,7 +792,10 @@ mod tests {
                 ..Default::default()
             },
             recent_frames: &recent,
-            grader_reason: "HFR 5.00 px exceeds absolute threshold 3.50 px",
+            reason: RejectReason::HfrAboveLimit {
+                hfr: 5.0,
+                limit: 3.5,
+            },
         };
         let verdict = analyze_rejection(&inputs);
         assert_eq!(verdict.likely_cause, Some(LikelyCause::WindGust));
@@ -770,7 +814,10 @@ mod tests {
             hfr_baseline: Some(2.0),
             environment: EnvironmentSnapshot::default(),
             recent_frames: &recent,
-            grader_reason: "eccentricity 0.75 exceeds threshold 0.60",
+            reason: RejectReason::Eccentricity {
+                eccentricity: 0.75,
+                limit: 0.6,
+            },
         };
         let verdict = analyze_rejection(&inputs);
         assert_eq!(verdict.likely_cause, Some(LikelyCause::SatellitePass));
@@ -793,10 +840,53 @@ mod tests {
             hfr_baseline: Some(2.0),
             environment: EnvironmentSnapshot::default(),
             recent_frames: &recent,
-            grader_reason: "star count 8 below minimum 30 (likely cloud / off-target)",
+            reason: RejectReason::StarCountBelowMinimum {
+                count: 8,
+                minimum: 30,
+            },
         };
         let verdict = analyze_rejection(&inputs);
         assert_eq!(verdict.likely_cause, Some(LikelyCause::HotPixelOrCosmic));
+    }
+
+    /// The rig's first frame of 2026-11-08: a clouded sky, 2 stars where
+    /// there are hundreds, and no earlier frames. It was called a hot pixel.
+    #[test]
+    fn a_first_frame_with_almost_no_stars_is_cloud_or_obstruction() {
+        let inputs = ForensicInputs {
+            hfr: None,
+            eccentricity: None,
+            star_count: Some(2),
+            hfr_baseline: None,
+            environment: EnvironmentSnapshot::default(),
+            recent_frames: &[],
+            reason: RejectReason::StarCountBelowMinimum {
+                count: 2,
+                minimum: 10,
+            },
+        };
+        let verdict = analyze_rejection(&inputs);
+        assert_eq!(verdict.likely_cause, Some(LikelyCause::CloudPassage));
+        assert!(verdict.evidence.iter().any(|e| e.contains("Only 2 stars")));
+    }
+
+    #[test]
+    fn a_frame_with_no_stars_is_cloud_or_obstruction_even_among_good_frames() {
+        let now = 1_700_000_000.0;
+        let recent: Vec<RecentFrameSample> = (0..4)
+            .map(|i| with_hfr(sample(now - 240.0 + i as f64 * 60.0, true), 2.0))
+            .collect();
+        let inputs = ForensicInputs {
+            hfr: None,
+            eccentricity: None,
+            star_count: None,
+            hfr_baseline: Some(2.0),
+            environment: EnvironmentSnapshot::default(),
+            recent_frames: &recent,
+            reason: RejectReason::NoStars,
+        };
+        let verdict = analyze_rejection(&inputs);
+        assert_eq!(verdict.likely_cause, Some(LikelyCause::CloudPassage));
     }
 
     #[test]
@@ -808,7 +898,10 @@ mod tests {
             hfr_baseline: Some(2.0),
             environment: EnvironmentSnapshot::default(),
             recent_frames: &[],
-            grader_reason: "HFR 2.60 px exceeds absolute threshold 2.50 px",
+            reason: RejectReason::HfrAboveLimit {
+                hfr: 2.6,
+                limit: 2.5,
+            },
         };
         let verdict = analyze_rejection(&inputs);
         assert_eq!(verdict.likely_cause, Some(LikelyCause::Unknown));
@@ -825,7 +918,10 @@ mod tests {
             hfr_baseline: None,
             environment: EnvironmentSnapshot::default(),
             recent_frames: &[],
-            grader_reason: "",
+            reason: RejectReason::HfrAboveLimit {
+                hfr: 3.0,
+                limit: 2.5,
+            },
         };
         let verdict = analyze_rejection(&inputs);
         assert_eq!(verdict.likely_cause, Some(LikelyCause::Unknown));
@@ -884,7 +980,10 @@ mod tests {
                 ..Default::default()
             },
             recent_frames: &recent,
-            grader_reason: "eccentricity 0.65 exceeds threshold 0.60",
+            reason: RejectReason::Eccentricity {
+                eccentricity: 0.65,
+                limit: 0.6,
+            },
         };
         let verdict = analyze_rejection(&inputs);
         assert_ne!(verdict.likely_cause, Some(LikelyCause::CloudPassage));

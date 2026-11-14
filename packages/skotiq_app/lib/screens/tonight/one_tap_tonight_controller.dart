@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// The phase the one-tap chain is in, surfaced to the UI so the single
 /// primary action can narrate progress ("Framing…", "Planning…", "Starting…")
@@ -27,7 +31,6 @@ enum OneTapPhase {
   failed,
 }
 
-/// Immutable snapshot of the one-tap chain for the screen to render.
 @immutable
 class OneTapTonightState {
   final OneTapPhase phase;
@@ -54,6 +57,14 @@ class OneTapTonightState {
       phase == OneTapPhase.planning ||
       phase == OneTapPhase.starting;
 
+  /// Whether the chain can still be abandoned without touching the rig:
+  /// nothing has been handed to the sequencer yet. Once it is starting, the
+  /// run's own Stop is the control.
+  bool get canCancel =>
+      phase == OneTapPhase.picking ||
+      phase == OneTapPhase.framing ||
+      phase == OneTapPhase.planning;
+
   OneTapTonightState copyWith({
     OneTapPhase? phase,
     TargetSuggestion? target,
@@ -69,6 +80,12 @@ class OneTapTonightState {
     );
   }
 }
+
+/// Why the night cannot run as planned on this rig, in words for the
+/// operator, or null when nothing stands in the way. Checked before anything
+/// is picked or planned, so a missing prerequisite is said up front instead of
+/// after a minute of planning.
+typedef OneTapPreflight = Future<String?> Function();
 
 /// Resolves tonight's single opinionated target.
 typedef OneTapTargetPicker = Future<TargetSuggestion?> Function();
@@ -118,21 +135,37 @@ class NoTonightTargetException implements Exception {
 /// produces an ordinary editable sequence and starts it the same way the
 /// Smart Night launcher does, so "Advanced" stays one tap away.
 class OneTapTonightController extends ValueNotifier<OneTapTonightState> {
+  final OneTapPreflight _preflight;
   final OneTapTargetPicker _pick;
   final OneTapFramer _frame;
   final OneTapPlanner _plan;
   final OneTapRunner _run;
 
+  /// How long planning may take before the chain gives up. A local plan is
+  /// built in seconds; on a linked computer it waits on the host, and a host
+  /// that stopped answering must not leave the button spinning.
+  final Duration _planTimeout;
+
   OneTapTonightController({
+    OneTapPreflight? preflight,
     required OneTapTargetPicker pick,
     required OneTapFramer frame,
     required OneTapPlanner plan,
     required OneTapRunner run,
-  })  : _pick = pick,
+    Duration planTimeout = const Duration(seconds: 60),
+  })  : _preflight = preflight ?? _nothingInTheWay,
+        _pick = pick,
         _frame = frame,
         _plan = plan,
         _run = run,
+        _planTimeout = planTimeout,
         super(const OneTapTonightState());
+
+  static Future<String?> _nothingInTheWay() async => null;
+
+  /// Counts the chains started; a chain whose number is no longer current
+  /// was canceled and publishes nothing more.
+  int _chain = 0;
 
   /// Set once [dispose] runs. The chain's awaits (pick / plan / run) can each
   /// outlive the screen — if the operator navigates away mid-run this notifier
@@ -140,7 +173,6 @@ class OneTapTonightController extends ValueNotifier<OneTapTonightState> {
   /// would then throw "used after being disposed". Every publish consults this.
   bool _disposed = false;
 
-  /// Current chain snapshot (alias for [value], reads nicer at call sites).
   OneTapTonightState get state => value;
 
   /// Publish [next] unless the notifier was disposed mid-chain. Writing [value]
@@ -155,9 +187,18 @@ class OneTapTonightController extends ValueNotifier<OneTapTonightState> {
   /// second tap after a failure starts over from [OneTapPhase.picking].
   Future<void> go() async {
     if (state.isBusy) return;
+    final chain = ++_chain;
+    bool current() => chain == _chain;
     _publish(const OneTapTonightState(phase: OneTapPhase.picking));
     try {
+      final blocked = await _preflight();
+      if (!current()) return;
+      if (blocked != null) {
+        _fail(blocked);
+        return;
+      }
       final target = await _pick();
+      if (!current()) return;
       if (target == null) {
         throw const NoTonightTargetException();
       }
@@ -166,21 +207,39 @@ class OneTapTonightController extends ValueNotifier<OneTapTonightState> {
       _frame(target);
 
       _publish(state.copyWith(phase: OneTapPhase.planning));
-      final plan = await _plan(target);
+      final plan = await _plan(target).timeout(_planTimeout);
+      if (!current()) return;
       _publish(state.copyWith(phase: OneTapPhase.starting, plan: plan));
 
       await _run(plan);
       _publish(state.copyWith(phase: OneTapPhase.running));
     } on NoTonightTargetException catch (e) {
-      _publish(state.copyWith(phase: OneTapPhase.failed, error: e.message));
+      if (current()) _fail(e.message);
     } on SmartNightBuildException catch (e) {
-      _publish(state.copyWith(phase: OneTapPhase.failed, error: e.message));
+      if (current()) _fail(e.message);
+    } on TimeoutException {
+      if (current()) {
+        _fail(
+          'Planning the night did not finish within '
+          '${_planTimeout.inSeconds} s, so Skotiq stopped waiting. If this '
+          'computer drives a rig over the network, check that the host is '
+          'reachable, then try again.',
+        );
+      }
     } catch (e) {
-      _publish(state.copyWith(
-        phase: OneTapPhase.failed,
-        error: 'Could not start tonight: $e',
-      ));
+      if (current()) _fail('Could not start tonight: ${userFacingError(e)}');
     }
+  }
+
+  void _fail(String message) =>
+      _publish(state.copyWith(phase: OneTapPhase.failed, error: message));
+
+  /// Abandon the chain before anything reaches the sequencer and re-arm GO.
+  /// Work already asked of the planner finishes on its own and is discarded.
+  void cancel() {
+    if (!state.canCancel) return;
+    _chain++;
+    _publish(const OneTapTonightState());
   }
 
   /// Clear a failed run so the GO button re-arms in [OneTapPhase.idle].

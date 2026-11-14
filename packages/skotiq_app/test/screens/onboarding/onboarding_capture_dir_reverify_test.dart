@@ -14,10 +14,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/onboarding/steps/capture_dir_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../harness/fake_host_folders.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -76,12 +80,13 @@ void main() {
         onboardingDraftProvider.overrideWith(
           (ref) => _SeededOnboardingNotifier(ref, '/data/captures'),
         ),
-        onboardingCaptureDirectoryValidatorProvider.overrideWithValue(
+        hostFoldersProvider
+            .overrideWithValue(FakeHostFolders(onCheck: folderCheckFrom(
           (path) async {
             probed.add(path);
             return null;
           },
-        ),
+        ))),
       ],
     );
     addTearDown(container.dispose);
@@ -106,9 +111,10 @@ void main() {
         onboardingDraftProvider.overrideWith(
           (ref) => _SeededOnboardingNotifier(ref, '/mnt/unplugged'),
         ),
-        onboardingCaptureDirectoryValidatorProvider.overrideWithValue(
+        hostFoldersProvider.overrideWithValue(FakeHostFolders(
+            onCheck: folderCheckFrom(
           (path) async => 'That folder does not exist.',
-        ),
+        ))),
       ],
     );
     addTearDown(container.dispose);
@@ -132,9 +138,10 @@ void main() {
         onboardingDraftProvider.overrideWith(
           (ref) => _SeededOnboardingNotifier(ref, '/data/captures'),
         ),
-        onboardingCaptureDirectoryValidatorProvider.overrideWithValue(
+        hostFoldersProvider.overrideWithValue(FakeHostFolders(
+            onCheck: folderCheckFrom(
           (path) => gate.future,
-        ),
+        ))),
       ],
     );
     addTearDown(container.dispose);
@@ -209,9 +216,10 @@ void main() {
         ),
         // The local probe must never be consulted for a host path — if the step
         // fell through to it, this would fail the test loudly.
-        onboardingCaptureDirectoryValidatorProvider.overrideWithValue(
-          (path) async => throw StateError('local probe ran for a host path'),
-        ),
+        localFoldersProvider.overrideWithValue(FakeHostFolders(
+          onCheck: (path) =>
+              throw StateError('local probe ran for a host path'),
+        )),
       ],
     );
     addTearDown(container.dispose);

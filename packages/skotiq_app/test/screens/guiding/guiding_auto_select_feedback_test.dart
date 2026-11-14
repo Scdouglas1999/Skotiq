@@ -10,24 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
-import 'package:skotiq_app/widgets/phd2/guide_controls_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/screens/guiding/widgets/guide_controls_panel.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
 
 import '../../harness/harness.dart';
-
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError(
-        'NoopTutorialProgressDao.${invocation.memberName} called in test',
-      );
-}
 
 class _BuiltinGuiderConnected extends GuiderStateNotifier {
   _BuiltinGuiderConnected(super.ref) {
@@ -81,7 +69,6 @@ Future<void> _pumpGuiding(
     size: const Size(1280, 900),
     settle: false,
     extraOverrides: [
-      tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
       guiderStateProvider.overrideWith(_BuiltinGuiderConnected.new),
       ...extra,
     ],

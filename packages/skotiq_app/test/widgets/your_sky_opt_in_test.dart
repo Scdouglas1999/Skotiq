@@ -6,10 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/first_light/first_light_view.dart';
-import 'package:skotiq_app/screens/your_sky/your_sky_screen.dart';
-import 'package:skotiq_app/widgets/your_sky_off_notice.dart';
+import 'package:skotiq_app/screens/discover/your_sky/your_sky_screen.dart';
+import 'package:skotiq_app/startup/your_sky_off_notice.dart';
 import 'package:skotiq_app/widgets/your_sky_opt_in.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/mock_database.dart' show mockDatabase;
@@ -88,7 +91,8 @@ void main() {
   ) async {
     final science = await pump(tester, const YourSkyView());
     expect(find.text('Your sky is off'), findsOneWidget);
-    expect(find.textContaining('2 to 3 GB on a typical night'), findsOneWidget);
+    expect(
+        find.textContaining('2 to 3 GiB on a typical night'), findsOneWidget);
 
     await tester.tap(find.text('Turn on Your sky'));
     await tester.pumpAndSettle();
@@ -96,7 +100,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.textContaining('stops growing at 25 GB'),
+        matching: find.textContaining('stops growing at 25 GiB'),
       ),
       findsOneWidget,
     );
@@ -169,7 +173,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(
-        find.textContaining('holds 7.8 GB and has been kept'), findsOneWidget);
+        find.textContaining('holds 7.3 GiB and has been kept'), findsOneWidget);
 
     await tester.tap(find.text('Delete…'));
     await tester.pumpAndSettle();
@@ -190,7 +194,7 @@ void main() {
   });
 
   test('the cost text names the size limit', () {
-    expect(yourSkyCostText(limitGb: 40), contains('40 GB'));
+    expect(yourSkyCostText(limitGb: 40), contains('40 GiB'));
     expect(yourSkyCostText(limitGb: 0), contains('no size limit'));
   });
 }

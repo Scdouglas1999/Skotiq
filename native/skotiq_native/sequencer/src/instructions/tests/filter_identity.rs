@@ -152,7 +152,7 @@ async fn flat_wizard_burst_records_the_filter_the_wheel_is_parked_on() {
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 1,
-        frame_type: "Flat".to_string(),
+        frame_type: crate::FrameType::Flat,
         filter: None,
         filter_index: None,
         ..ExposureConfig::default()
@@ -250,7 +250,7 @@ async fn direct_burst_never_pairs_its_filter_name_with_a_stale_slot() {
     let config = ExposureConfig {
         duration_secs: 0.01,
         count: 1,
-        frame_type: "Flat".to_string(),
+        frame_type: crate::FrameType::Flat,
         filter: Some("R".to_string()),
         filter_index: None,
         ..ExposureConfig::default()
@@ -365,7 +365,7 @@ async fn burst_without_a_wheel_leaves_the_filter_unknown() {
     let scratch = scratch_dir("no-wheel");
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = expose_node_execution_ctx(ops.clone(), scratch.0.clone()).await;
-    ec.filterwheel_id = None;
+    ec.run.rig.filterwheel_id = None;
 
     let status = run_expose_node(one_dark_no_filter(), &mut ec).await;
     assert_eq!(status, NodeStatus::Success, "burst should complete");

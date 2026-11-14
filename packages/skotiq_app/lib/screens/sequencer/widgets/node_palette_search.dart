@@ -8,7 +8,7 @@
 // Both palette surfaces (the toolbox pane inside `sequencer_screen.dart` and
 // the standalone `NodePalette`) share this ranking so they cannot drift apart.
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Relevance of [item] against an already-lower-cased [query].
 ///

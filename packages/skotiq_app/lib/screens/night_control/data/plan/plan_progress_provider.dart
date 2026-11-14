@@ -10,9 +10,10 @@
 // plan's exposure steps, loops included.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import '../../../../services/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import '../session/session_frames_provider.dart';
 import 'night_plan_inputs.dart';
@@ -41,24 +42,17 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   }
 
   for (final entry in tree.entries) {
-    switch (entry.node) {
-      case final ExposureNode node when node.frameType == FrameType.light:
-        plan(node.filter, node.count, entry.multiplier, entry.openEnded);
-      // A Smart Exposure plans one row per filter. "Loop until stopped"
-      // ignores the counts and runs until the target's window closes.
-      case final SmartExposureNode node:
-        for (final filterPlan in node.plans) {
-          plan(
-            filterPlan.filterName,
-            filterPlan.count,
-            entry.multiplier,
-            entry.openEnded || node.loopUntilStopped,
-          );
-        }
-      case final SciencePhotometryNode node:
-        plan(node.filter, node.count, entry.multiplier, entry.openEnded);
-      default:
-        break;
+    final node = entry.node;
+    if (node is ExposureNode && node.frameType != FrameType.light) continue;
+    for (final run in node.kind.captures(node)) {
+      plan(run.filter, run.count, entry.multiplier, entry.openEnded);
+    }
+    // Looping until stopped, a Smart Exposure has no count and shoots each of
+    // its filters until the target's window closes.
+    if (node.capturesUntilStopped) {
+      for (final filter in node.kind.filtersOf(node)) {
+        plan(filter, 0, entry.multiplier, true);
+      }
     }
   }
 
@@ -73,10 +67,10 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     // A linked client counts the run's session rows: the frame list below is
     // what this app saw arrive, and a client that joined after the run
     // started saw none of the frames before it.
-    final sessionRows = terminal?.isCalibration == true ||
-        ref.watch(backendProvider) is NetworkBackend;
+    final sessionRows =
+        terminal?.isCalibration == true || ref.watch(isRemoteModeProvider);
     final frames = sessionRows
-        ? ref.watch(nightSessionLightRowsProvider).map(capturedImageFromDbRow)
+        ? ref.watch(nightRunLightRowsProvider).map(capturedImageFromDbRow)
         : ref.watch(recentSessionFramesProvider);
     // This launch's frame list runs across runs; only this run's count.
     final startedAt = sessionRows ? null : ref.watch(runStartedAtProvider);
@@ -89,11 +83,30 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     }
   }
 
+  // A run continued from its checkpoint, ready or under way, already has the
+  // frames its steps took before it.
+  if (phase.isRunLive ||
+      phase == NightRunPhase.finished ||
+      ref.watch(restoredCheckpointProvider) != null) {
+    final before = ref.watch(framesDoneBeforeRunProvider);
+    for (final entry in tree.entries) {
+      final node = entry.node;
+      if (node is! ExposureNode || node.frameType != FrameType.light) continue;
+      final frames = before[node.id];
+      if (frames == null) continue;
+      done.update(
+        _filterKey(node.filter),
+        (count) => count + frames,
+        ifAbsent: () => frames,
+      );
+    }
+  }
+
   Duration secs(double s) => Duration(milliseconds: (s * 1000).round());
 
   final acceptedSecs = <String, double>{};
   if (phase.isRunLive || phase == NightRunPhase.finished) {
-    for (final row in ref.watch(nightSessionLightRowsProvider)) {
+    for (final row in ref.watch(nightRunLightRowsProvider)) {
       if (!row.isAccepted) continue;
       acceptedSecs.update(
         _filterKey(row.filter),
@@ -126,25 +139,34 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
 
   final timing = ref.watch(nightPlanTimingProvider);
   final clock = ref.watch(clockProvider);
+  // No fixed length: a loop runs until a condition, or a block runs until it
+  // is stopped and there is no site to bound it by its target's window.
+  final planOpenEnded = tree.openEnded || timing?.openEnded == true;
   DateTime? eta;
   if (phase.isRunLive) {
-    final remaining = ref.watch(
-      sequenceProgressProvider.select((p) => p.estimatedRemainingSecs),
-    );
+    // The executor's remaining time is frames left times the average frame,
+    // and a block looping until its window closes has no frames left to
+    // count; the plan's estimate bounds it by the window instead.
+    final remaining = tree.loopsUntilWindowEnds
+        ? null
+        : ref.watch(
+            sequenceProgressProvider.select((p) => p.estimatedRemainingSecs),
+          );
     if (remaining != null) {
       eta = ref.watch(nightNowProvider).add(secs(remaining));
-    } else if (!tree.openEnded) {
+    } else if (!planOpenEnded) {
       // The plan's estimate runs from the start; a run behind it ends later.
       eta = timing?.end.add(ref.watch(nightPlanLagProvider));
     }
-  } else if (phase != NightRunPhase.finished && !tree.openEnded) {
+  } else if (phase != NightRunPhase.finished && !planOpenEnded) {
     eta = timing?.end;
   }
 
   return NightPlanVm(
     rows: rows,
     integrated: integrated,
-    planned: tree.openEnded ? null : timing?.total,
+    openEnded: planOpenEnded,
+    planned: planOpenEnded ? null : timing?.total,
     eta: eta == null ? null : clock.toNightClock(eta),
   );
 });

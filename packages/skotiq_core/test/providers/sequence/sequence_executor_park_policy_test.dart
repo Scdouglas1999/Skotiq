@@ -10,30 +10,36 @@
 // changed mid-run is pushed again.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 import '../../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
-/// Records every park-policy push; everything else answers with a completed
-/// `Future<void>` so the launch push runs end to end.
+/// Records the park and quality policy of every run config sent; everything
+/// else answers with a completed `Future<void>` so the launch runs end to end.
 class _RecordingBackend extends MockBackend {
-  final List<Map<Symbol, dynamic>> parkPolicyPushes = [];
+  final List<Map<String, dynamic>> parkPolicyPushes = [];
   final List<bool> qualityPolicyPushes = [];
 
   @override
   dynamic noSuchMethod(Invocation invocation) {
-    if (invocation.memberName == #sequencerSetParkPolicy) {
-      parkPolicyPushes.add(invocation.namedArguments);
-      return Future<void>.value();
-    }
-    if (invocation.memberName == #sequencerSetStopOnQualityProblems) {
-      qualityPolicyPushes.add(invocation.positionalArguments.single as bool);
+    if (invocation.memberName == #sequencerApplyRunConfig) {
+      final config =
+          jsonDecode(invocation.positionalArguments.single as String)
+              as Map<String, dynamic>;
+      parkPolicyPushes.add(config['park_policy'] as Map<String, dynamic>);
+      qualityPolicyPushes.add(config['stop_on_quality_problems'] as bool);
       return Future<void>.value();
     }
     final result = super.noSuchMethod(invocation);
@@ -171,9 +177,9 @@ void main() {
     await db.close();
   });
 
-  Map<Symbol, dynamic> policy(bool weather, bool dawn) => {
-    #parkOnUnsafeWeather: weather,
-    #parkBeforeDawn: dawn,
+  Map<String, dynamic> policy(bool weather, bool dawn) => {
+    'park_on_unsafe_weather': weather,
+    'park_before_dawn': dawn,
   };
 
   test('start tells the executor that parking is switched off', () async {
@@ -266,7 +272,8 @@ void main() {
 
       await executor.start();
 
-      expect(backend.qualityPolicyPushes, [false]);
+      expect(backend.qualityPolicyPushes, isNotEmpty);
+      expect(backend.qualityPolicyPushes.toSet(), {false});
       await executor.stop();
     });
 
@@ -280,13 +287,14 @@ void main() {
       final executor = c.read(sequenceExecutorProvider);
 
       await executor.start();
-      expect(backend.qualityPolicyPushes, [true]);
+      expect(backend.qualityPolicyPushes.last, isTrue);
+      backend.qualityPolicyPushes.clear();
 
       (c.read(appSettingsProvider.notifier) as _FixedSettingsNotifier).replace(
         const AppSettingsState(),
       );
       await Future<void>.delayed(Duration.zero);
-      expect(backend.qualityPolicyPushes, [true, false]);
+      expect(backend.qualityPolicyPushes, [false]);
       await executor.stop();
     });
   });

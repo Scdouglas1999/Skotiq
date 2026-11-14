@@ -14,12 +14,16 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/calibration_handlers.dart';
-import 'package:skotiq_desktop/headless_api/route_metadata.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+
+import '../support/route_policy.dart';
 
 class _MockDefectMapService extends Mock implements DefectMapService {}
 
@@ -276,16 +280,13 @@ void main() {
             Uri.parse(
               'http://localhost/api/calibration/darks/upload?meta=${Uri.encodeQueryComponent(meta)}',
             ),
-            headers: {
-              'content-length': (backupUploadMaxRequestBodyBytes + 1)
-                  .toString(),
-            },
+            headers: {'content-length': (ApiBodyLimit.archive + 1).toString()},
           ),
         ),
       );
       expect(response.statusCode, HttpStatus.requestEntityTooLarge);
       final responseBody = jsonDecode(await response.readAsString()) as Map;
-      expect(responseBody['maxBytes'], backupUploadMaxRequestBodyBytes);
+      expect(responseBody['maxBytes'], ApiBodyLimit.archive);
     });
 
     // DELETE /api/calibration/darks/{id}
@@ -602,6 +603,57 @@ void main() {
         expect(rows.single.offset, 15);
         expect(rows.single.exposureTime, 90);
         expect(rows.single.temperature, closeTo(-9.9, 1e-9));
+      },
+    );
+
+    test(
+      'create-master answers 422 with the reason when the frames cannot make one master',
+      () async {
+        final refusing = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            defectMapServiceProvider.overrideWithValue(defectMapService),
+            calibrationMasterBuildProvider.overrideWithValue(
+              (request) async => throw const CalibrationMasterRefused(
+                'b.fits was read out in mode High Gain Mode but a.fits in mode '
+                'Photographic DSO',
+              ),
+            ),
+          ],
+        );
+        addTearDown(refusing.dispose);
+        final a = await writeDarkFile('a.fits');
+        final b = await writeDarkFile('b.fits');
+        final response = await translateHandlerErrors(
+          CalibrationHandlers(
+            refusing,
+            dataDirectoryOverride: () async => calibrationDir,
+          ).handleCreateMasterDark(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/calibration/darks/create-master'),
+              body: jsonEncode({
+                'exposureTime': 1,
+                'binX': 1,
+                'binY': 1,
+                'frameType': 'dark',
+                'outputPath': '${tempDir.path}/master.fits',
+                'framePaths': [a.path, b.path],
+              }),
+            ),
+          ),
+        );
+
+        final text = await response.readAsString();
+        expect(
+          response.statusCode,
+          HttpStatus.unprocessableEntity,
+          reason: text,
+        );
+        final body = jsonDecode(text) as Map;
+        expect(body['code'], 'master_refused');
+        expect(body['message'], contains('read out in mode High Gain Mode'));
+        expect(await db.darkLibraryDao.getAllEntries(), isEmpty);
       },
     );
 
@@ -1239,7 +1291,7 @@ void main() {
     test('Upload body limit matches backup upload', () {
       expect(
         requestBodyLimitForPath('/api/calibration/darks/upload'),
-        backupUploadMaxRequestBodyBytes,
+        ApiBodyLimit.archive,
       );
     });
   });

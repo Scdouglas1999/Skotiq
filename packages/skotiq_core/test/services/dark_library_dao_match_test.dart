@@ -1,10 +1,12 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
-  group('DarkLibraryDao.findBestMatch — tolerance unification', () {
+  group('DarkLibraryService.findMatchingDark', () {
     late SkotiqDatabase database;
     late DarkLibraryDao dao;
 
@@ -38,7 +40,7 @@ void main() {
           ),
         );
 
-        final match = await dao.findBestMatch(
+        final match = await DarkLibraryService(dao).findMatchingDark(
           exposureTime: 60.0,
           gain: 100,
           offset: 10,
@@ -73,7 +75,7 @@ void main() {
         ),
       );
 
-      final match = await dao.findBestMatch(
+      final match = await DarkLibraryService(dao).findMatchingDark(
         exposureTime: 60.0,
         gain: 100,
         offset: 10,
@@ -102,7 +104,7 @@ void main() {
           ),
         );
 
-        final match = await dao.findBestMatch(
+        final match = await DarkLibraryService(dao).findMatchingDark(
           exposureTime: 60.0,
           gain: 100,
           offset: 10,
@@ -131,7 +133,7 @@ void main() {
           ),
         );
 
-        final match = await dao.findBestMatch(
+        final match = await DarkLibraryService(dao).findMatchingDark(
           exposureTime: 60.0,
           gain: 100,
           offset: 10,
@@ -148,32 +150,48 @@ void main() {
       },
     );
 
+    test('a dark within the temperature tolerance beats a nearer-in-time one '
+        'outside it, and the nearest is used when none is within', () async {
+      Future<void> add(String path, double temperature) => dao.addEntry(
+        DarkLibraryCompanion.insert(
+          filePath: path,
+          exposureTime: 60.0,
+          frameType: const Value('dark'),
+          gain: const Value(100),
+          offset: const Value(10),
+          temperature: Value(temperature),
+        ),
+      );
+      await add('/tmp/dark_warm.fits', -8.5);
+      final service = DarkLibraryService(dao);
+      Future<DarkLibraryEntry?> match() => service.findMatchingDark(
+        exposureTime: 60.0,
+        gain: 100,
+        offset: 10,
+        temperature: -10,
+      );
+
+      expect((await match())?.filePath, '/tmp/dark_warm.fits');
+
+      await add('/tmp/dark_close.fits', -9.6);
+      expect((await match())?.filePath, '/tmp/dark_close.fits');
+    });
+
     test(
-      'temperature outside default ±1.0°C tolerance disqualifies the match',
+      'a dark of another exposure is not returned for unscaled use',
       () async {
         await dao.addEntry(
           DarkLibraryCompanion.insert(
-            filePath: '/tmp/dark_warm.fits',
-            exposureTime: 60.0,
+            filePath: '/tmp/dark_120.fits',
+            exposureTime: 120.0,
             frameType: const Value('dark'),
             gain: const Value(100),
             offset: const Value(10),
-            binX: const Value(1),
-            binY: const Value(1),
-            // 1.5°C warmer than the request → outside ±1.0°C
-            temperature: const Value(-8.5),
           ),
         );
-
-        final match = await dao.findBestMatch(
-          exposureTime: 60.0,
-          gain: 100,
-          offset: 10,
-          binX: 1,
-          binY: 1,
-          temperature: -10,
-        );
-
+        final match = await DarkLibraryService(
+          dao,
+        ).findMatchingDark(exposureTime: 60.0, gain: 100, offset: 10);
         expect(match, isNull);
       },
     );
@@ -236,6 +254,7 @@ void main() {
             exposureTime: 60.0,
             frameType: const Value('dark'),
             gain: const Value(100),
+            offset: const Value(0),
             binX: const Value(1),
             binY: const Value(1),
           ),
@@ -246,6 +265,7 @@ void main() {
             exposureTime: 60.0,
             frameType: const Value('dark'),
             gain: const Value(100),
+            offset: const Value(0),
             binX: const Value(1),
             binY: const Value(1),
             masterDarkPath: const Value('/tmp/master_60.fits'),
@@ -257,6 +277,7 @@ void main() {
             exposureTime: 60.4,
             frameType: const Value('dark'),
             gain: const Value(100),
+            offset: const Value(0),
             binX: const Value(1),
             binY: const Value(1),
           ),

@@ -4,6 +4,8 @@ repository: https://github.com/Scdouglas1999/Skotiq
 packages:
   - apps/*
   - packages/*
+  # Shipped in the desktop and mobile apps (remote access through a relay).
+  - tools/skotiq_relay
 
 command:
   version:
@@ -56,6 +58,22 @@ scripts:
     run: dart run tools/production/placeholder_audit.dart --fail-on-new-highrisk --compare-highrisk-baseline docs/production-readiness/highrisk-baseline.txt
     description: Scan placeholder/stub markers and fail on new high-risk markers
 
+  audit:behavioral:
+    run: dart run tools/production/behavioral_audit.dart --register docs/production-readiness/behavioral-audit-register.md --fail-on-unregistered --fail-on-open
+    description: Fail on silent-fallback shapes in runtime code that have no reviewed, closed verdict in the behavioral register
+
+  audit:behavioral:sync:
+    run: dart run tools/production/behavioral_audit.dart --register docs/production-readiness/behavioral-audit-register.md --sync --fail-on-unregistered --fail-on-open
+    description: After moving, renaming or deleting code - refresh the behavioral sites file (path hints, rows for deleted code, verdicts carried to renamed declarations), then run the gate
+
+  audit:placeholders:sync:
+    run: dart run tools/production/placeholder_audit.dart --fail-on-new-highrisk --compare-highrisk-baseline docs/production-readiness/highrisk-baseline.txt --sync-baseline
+    description: After moving, renaming or deleting code - refresh the high-risk baseline, then run the gate
+
+  audit:gates:self-test:
+    run: dart run tools/production/behavioral_audit_self_test.dart && dart run tools/production/placeholder_audit_self_test.dart && dart run tools/production/fail_closed_check_self_test.dart
+    description: Self-test the behavioral, placeholder and fail-closed gates against temporary fixtures (moved, shifted, deleted and new code)
+
   audit:design-tokens:
     run: dart run tools/production/design_tokens_audit.dart
     description: Track design-system token adoption in app screens (hardcoded radii, inline TextStyle fontSize, raw Colors.*). Informational by default; pass --max-*=N or --strict to enforce.
@@ -76,58 +94,6 @@ scripts:
     run: dart run tools/production/stale_comment_audit_self_test.dart
     description: Self-test the stale-comment auditor against synthetic contradicted and still-true fixtures
 
-  audit:public-release-gate:
-    run: dart run tools/production/public_release_gate.dart
-    description: Combine release evidence artifacts into one conservative ship/no-ship gate
-
-  audit:public-release-gate:self-test:
-    run: dart run tools/production/public_release_gate_self_test.dart
-    description: Self-test public release gate readiness and stale split-plan detection against temporary fixtures
-
-  audit:public-release-blocker-inputs:
-    run: dart run tools/production/public_release_blocker_inputs.dart
-    description: List the exact missing input and evidence required to clear current public release blockers
-
-  audit:public-release-blocker-inputs:self-test:
-    run: dart run tools/production/public_release_blocker_inputs_self_test.dart
-    description: Self-test public release blocker input mappings against temporary blocked and ready fixtures
-
-  audit:public-release-external-evidence:
-    run: dart run tools/production/public_release_external_evidence.dart
-    description: Validate manual or external evidence files required for public release blockers
-
-  audit:public-release-external-evidence:self-test:
-    run: dart run tools/production/public_release_external_evidence_self_test.dart
-    description: Self-test the public release external evidence verifier against temporary fixtures
-
-  audit:public-release-completion:
-    run: dart run tools/production/public_release_completion_audit.dart
-    description: Map goal.txt P0 public release requirements to concrete evidence and remaining blockers
-
-  audit:public-release-completion:self-test:
-    run: dart run tools/production/public_release_completion_audit_self_test.dart
-    description: Self-test the public release completion auditor against temporary blocked and achieved fixtures
-
-  audit:public-release-owner-checklist:
-    run: dart run tools/production/public_release_owner_checklist.dart
-    description: Generate release-owner checklist from structured public release completion audit fields
-
-  audit:public-release-owner-checklist:self-test:
-    run: dart run tools/production/public_release_owner_checklist_self_test.dart
-    description: Self-test generated release-owner checklist rendering against temporary completion audit fixtures
-
-  audit:public-release-checklist:
-    run: dart run tools/production/public_release_checklist_audit.dart
-    description: Audit the public release checklist item status and evidence-note coverage
-
-  audit:public-release-checklist:self-test:
-    run: dart run tools/production/public_release_checklist_audit_self_test.dart
-    description: Self-test public release checklist counting, evidence-note detection, and fail-on-unchecked behavior
-
-  audit:public-release-self-tests:
-    run: dart run tools/production/public_release_self_tests.dart
-    description: Run all public release verifier self-tests against temporary fixtures
-
   audit:fail-closed:
     run: dart run tools/production/fail_closed_check.dart
     description: Enforce fail-closed backend policy checks
@@ -138,7 +104,7 @@ scripts:
 
   audit:version-consistency:
     run: dart run tools/production/version_consistency_audit.dart
-    description: Fail when version.yaml, the desktop pubspec, and the mobile pubspec disagree on version/build, or when the OTA package builder stops sourcing its version from version.yaml
+    description: Fail when version.yaml, the desktop pubspec, the mobile pubspec, and installer.iss disagree on version/build, or when the OTA package builder stops sourcing its version from version.yaml
   audit:version-consistency:self-test:
     run: dart run tools/production/version_consistency_audit_self_test.dart
     description: Self-test the version consistency gate against aligned and mismatched temporary fixtures
@@ -196,6 +162,14 @@ scripts:
     run: dart run tools/production/bridge_boundary_audit_self_test.dart
     description: Self-test bridge boundary audit exemptions, violation detection, whitelist handling, and symbol extraction against temporary fixtures
 
+  audit:architecture:
+    run: dart run tools/production/architecture_rules_audit.dart
+    description: Enforce package/crate dependency direction, no backend class checks outside the backend files, no cross-package src/ imports, no new per-node-type dispatch outside the node table, no provider imports from skotiq_core's backend, database, models and services layers, and no snackbar shown outside the app's feedback helper; each failure names where the change goes instead
+
+  audit:architecture:self-test:
+    run: dart run tools/production/architecture_rules_audit_self_test.dart
+    description: Self-test the architecture rules audit against a temporary workspace that breaks each rule once
+
   audit:hardware-availability:
     run: dart run tools/production/hardware_availability_probe.dart
     description: Launch the packaged desktop headless app and record discovered hardware classes for release smoke planning
@@ -231,30 +205,6 @@ scripts:
   audit:migration-regression:self-test:
     run: dart run tools/production/migration_regression_audit_self_test.dart
     description: Self-test migration regression audit pass/fail behavior against temporary fixtures
-
-  audit:release-staging:
-    run: dart run tools/production/release_staging_audit.dart
-    description: Classify dirty worktree entries into review buckets for clean release branch staging
-
-  audit:release-pr-plan:
-    run: dart run tools/production/release_pr_split_plan.dart
-    description: Convert the release staging audit into an explicit proposed PR split plan
-
-  audit:release-pr-owner-matrix:
-    run: dart run tools/production/release_pr_owner_matrix.dart
-    description: Convert release PR split buckets into owner decision groups and draft PR descriptions
-
-  audit:release-pr-staged-branch:
-    run: dart run tools/production/release_pr_staged_branch_validator.dart
-    description: Validate staged index or release branch diff against the owner bucket decision matrix
-
-  audit:release-pr-owner-matrix:self-test:
-    run: dart run tools/production/release_pr_owner_matrix_self_test.dart
-    description: Self-test release PR owner matrix generation and staged branch validation against temporary fixtures
-
-  audit:release-staging-pr-plan:self-test:
-    run: dart run tools/production/release_staging_pr_plan_self_test.dart
-    description: Self-test release staging classification and PR split pathspec coverage against a temporary dirty git fixture
 
   audit:docs-links:
     run: dart run tools/production/docs_link_audit.dart
@@ -318,6 +268,12 @@ scripts:
     run: dart run melos exec --concurrency=1 --flutter -- flutter test --exclude-tags golden
     description: Run tests in all packages (golden pixel-diff tests excluded)
 
+  test:dart:
+    # `test` runs `flutter test` in Flutter packages only; pure Dart packages
+    # (skotiq_astro) run under `dart test`.
+    run: dart run melos exec --concurrency=1 --no-flutter --dir-exists=test -- dart test
+    description: Run tests in the pure Dart packages
+
   test:golden:
     # Opt-in: run ONLY the host-specific golden / perceptual pixel-diff tests.
     # Run this on the host the committed baselines were captured on, or after
@@ -333,8 +289,7 @@ scripts:
   build:desktop:windows:
     run: |
       set -euo pipefail
-      cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
-      dart run melos exec --scope="skotiq_desktop" -- flutter build windows --release
+      dart scripts/build.dart desktop windows
       powershell -ExecutionPolicy Bypass -File scripts/stage_windows_release.ps1 -Profile Release
     description: Build Windows desktop app (Rust + Flutter + stage native DLLs)
 
@@ -345,15 +300,14 @@ scripts:
   build:desktop:macos:
     run: |
       set -euo pipefail
-      cargo build --locked --release --target x86_64-apple-darwin --manifest-path native/skotiq_native/bridge/Cargo.toml || cargo build --locked --release --target aarch64-apple-darwin --manifest-path native/skotiq_native/bridge/Cargo.toml
-      dart run melos exec --scope="skotiq_desktop" -- flutter build macos
+      dart scripts/build.dart bridge --target x86_64-apple-darwin || dart scripts/build.dart bridge --target aarch64-apple-darwin
+      dart scripts/build.dart flutter macos
     description: Build macOS desktop app
 
   build:desktop:linux:
     run: |
       set -eu
-      cargo build --locked --release --manifest-path native/skotiq_native/bridge/Cargo.toml
-      dart run melos exec --scope="skotiq_desktop" -- flutter build linux
+      dart scripts/build.dart desktop linux
     description: Build Linux desktop app
 
   build:mobile:android:

@@ -39,9 +39,7 @@ use serde_json::Value;
 
 use crate::recipe::{DarkroomOp, OpContext, OpError, OpImage, OpStage, Params};
 
-/// Registry id.
 const OP_ID: &str = "curves";
-/// Registry version.
 const OP_VERSION: u32 = 1;
 
 /// Rec. 709 luminance weight of the red channel.
@@ -182,7 +180,7 @@ impl DarkroomOp for CurvesV1 {
                 op_id: OP_ID,
                 op_version: OP_VERSION,
                 channels,
-                expected: "a mono master with 1 channel or a colour master with 3",
+                expected: "a mono master with 1 channel or a color master with 3",
             });
         }
         ctx.check_cancel()?;

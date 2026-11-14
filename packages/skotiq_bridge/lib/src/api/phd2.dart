@@ -7,73 +7,21 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `await_settle`, `find_fresh_star`, `finish_pending_settle`, `guide_exposure`, `guider_stop_for_run`, `known_pixel_scale`, `note_operator_stop`, `phd2_client`, `phd2_stop_guiding`, `reported_stop_reason`, `resolve_guider_backend`, `settle_done_event`, `stop_capture_and_wait`, `stop_capture_completely`, `wait_for_looping_frame`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `GuiderBackend`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_active_guider_id_for_ops`, `get_phd2_storage`, `guiding_stop_reason`, `select_fresh_guide_star`, `set_guiding_stop_reason`
-
-/// Check if PHD2 is running
-bool apiIsPhd2Running() => RustLib.instance.api.crateApiPhd2ApiIsPhd2Running();
-
-/// Connect to PHD2
+/// Connect to PHD2's event server (default 127.0.0.1:4400).
 Future<void> apiPhd2Connect({String? host, int? port}) =>
     RustLib.instance.api.crateApiPhd2ApiPhd2Connect(host: host, port: port);
 
-/// Disconnect from PHD2
 Future<void> apiPhd2Disconnect() =>
     RustLib.instance.api.crateApiPhd2ApiPhd2Disconnect();
 
-/// Start guiding in PHD2 and wait for it to settle.
-///
-/// A settle that runs out while PHD2 is still guiding leaves it guiding and
-/// returns Ok: the star is held, only not yet inside the settle bound, and
-/// every caller judges the guiding RMS itself. Stopping it there left the
-/// rest of the night unguided. Any other failure is an error, and a PHD2
-/// that is not guiding is stopped so it does not keep looking for a star.
-Future<void> apiPhd2StartGuiding({
-  required double settlePixels,
-  required double settleTime,
-  required double settleTimeout,
-}) => RustLib.instance.api.crateApiPhd2ApiPhd2StartGuiding(
-  settlePixels: settlePixels,
-  settleTime: settleTime,
-  settleTimeout: settleTimeout,
-);
+/// Start the PHD2 program installed on this machine.
+Future<void> apiLaunchPhd2() =>
+    RustLib.instance.api.crateApiPhd2ApiLaunchPhd2();
 
-/// Stop guiding in PHD2 and wait until its capture has ended, so the mount
-/// is not moved under a guide pulse and the next start is not refused. A
-/// settle another call is waiting on ends at once.
-Future<void> apiPhd2StopGuiding() =>
-    RustLib.instance.api.crateApiPhd2ApiPhd2StopGuiding();
-
-/// Dither in PHD2
-Future<void> apiPhd2Dither({
-  required double amount,
-  required int raOnly,
-  required double settlePixels,
-  required double settleTime,
-  required double settleTimeout,
-}) => RustLib.instance.api.crateApiPhd2ApiPhd2Dither(
-  amount: amount,
-  raOnly: raOnly,
-  settlePixels: settlePixels,
-  settleTime: settleTime,
-  settleTimeout: settleTimeout,
-);
-
-/// Get PHD2 status
-Future<Phd2Status> apiPhd2GetStatus() =>
-    RustLib.instance.api.crateApiPhd2ApiPhd2GetStatus();
-
-/// Get PHD2 star image with metadata
-Future<Phd2StarImage> apiPhd2GetStarImage({required int size}) =>
-    RustLib.instance.api.crateApiPhd2ApiPhd2GetStarImage(size: size);
-
-/// Get PHD2 algorithm parameter names for an axis
+/// The names of PHD2's guide algorithm parameters for `axis` ("ra" or "dec").
 Future<List<String>> apiPhd2GetAlgoParamNames({required String axis}) =>
     RustLib.instance.api.crateApiPhd2ApiPhd2GetAlgoParamNames(axis: axis);
 
-/// Get PHD2 algorithm parameter value
 Future<double> apiPhd2GetAlgoParam({
   required String axis,
   required String name,
@@ -82,7 +30,6 @@ Future<double> apiPhd2GetAlgoParam({
   name: name,
 );
 
-/// Set PHD2 algorithm parameter value
 Future<void> apiPhd2SetAlgoParam({
   required String axis,
   required String name,
@@ -93,413 +40,21 @@ Future<void> apiPhd2SetAlgoParam({
   value: value,
 );
 
-/// Get all PHD2 algorithm parameters for an axis
-Future<List<Phd2AlgoParam>> apiPhd2GetAllAlgoParams({required String axis}) =>
-    RustLib.instance.api.crateApiPhd2ApiPhd2GetAllAlgoParams(axis: axis);
-
-/// Pause or resume PHD2 guiding
-Future<void> apiPhd2SetPaused({required bool paused}) =>
-    RustLib.instance.api.crateApiPhd2ApiPhd2SetPaused(paused: paused);
-
-/// Clear PHD2 calibration
+/// Clear PHD2's stored calibration (`which`: "mount", "ao" or "both").
 Future<void> apiPhd2ClearCalibration({required String which}) =>
     RustLib.instance.api.crateApiPhd2ApiPhd2ClearCalibration(which: which);
 
-/// Flip PHD2 calibration (after meridian flip)
+/// Flip PHD2's calibration after a meridian flip.
 Future<void> apiPhd2FlipCalibration() =>
     RustLib.instance.api.crateApiPhd2ApiPhd2FlipCalibration();
 
-/// Get PHD2 calibration data
-/// Returns calibration info including whether calibrated and calibration parameters
-Future<Phd2CalibrationData> apiPhd2GetCalibrationData() =>
-    RustLib.instance.api.crateApiPhd2ApiPhd2GetCalibrationData();
-
-/// Find a guide star automatically
-Future<(double, double)> apiPhd2FindStar() =>
-    RustLib.instance.api.crateApiPhd2ApiPhd2FindStar();
-
-/// Set guide star lock position
-Future<void> apiPhd2SetLockPosition({
-  required double x,
-  required double y,
-  required bool exact,
-}) => RustLib.instance.api.crateApiPhd2ApiPhd2SetLockPosition(
-  x: x,
-  y: y,
-  exact: exact,
-);
-
-/// Get current guide star lock position
-Future<(double, double)> apiPhd2GetLockPosition() =>
-    RustLib.instance.api.crateApiPhd2ApiPhd2GetLockPosition();
-
-/// Start looping exposures (without guiding)
-Future<void> apiPhd2Loop() => RustLib.instance.api.crateApiPhd2ApiPhd2Loop();
-
-/// Deselect the current guide star
-Future<void> apiPhd2DeselectStar() =>
-    RustLib.instance.api.crateApiPhd2ApiPhd2DeselectStar();
-
-/// Get PHD2 guide exposure time (ms)
+/// PHD2's guide exposure in milliseconds.
 Future<int> apiPhd2GetExposure() =>
     RustLib.instance.api.crateApiPhd2ApiPhd2GetExposure();
 
-/// Set PHD2 guide exposure time (ms)
 Future<void> apiPhd2SetExposure({required int exposureMs}) =>
     RustLib.instance.api.crateApiPhd2ApiPhd2SetExposure(exposureMs: exposureMs);
 
-/// Get current PHD2 profile name
+/// The name of the equipment profile PHD2 has selected.
 Future<String> apiPhd2GetProfile() =>
     RustLib.instance.api.crateApiPhd2ApiPhd2GetProfile();
-
-/// Launch PHD2 application
-Future<void> apiLaunchPhd2() =>
-    RustLib.instance.api.crateApiPhd2ApiLaunchPhd2();
-
-Future<void> apiGuiderStartGuiding({
-  required String deviceId,
-  required double settlePixels,
-  required double settleTime,
-  required double settleTimeout,
-}) => RustLib.instance.api.crateApiPhd2ApiGuiderStartGuiding(
-  deviceId: deviceId,
-  settlePixels: settlePixels,
-  settleTime: settleTime,
-  settleTimeout: settleTimeout,
-);
-
-Future<void> apiGuiderStop({required String deviceId}) =>
-    RustLib.instance.api.crateApiPhd2ApiGuiderStop(deviceId: deviceId);
-
-Future<void> apiGuiderDither({
-  required String deviceId,
-  required double amount,
-  required int raOnly,
-  required double settlePixels,
-  required double settleTime,
-  required double settleTimeout,
-}) => RustLib.instance.api.crateApiPhd2ApiGuiderDither(
-  deviceId: deviceId,
-  amount: amount,
-  raOnly: raOnly,
-  settlePixels: settlePixels,
-  settleTime: settleTime,
-  settleTimeout: settleTimeout,
-);
-
-Future<void> apiGuiderLoop({required String deviceId}) =>
-    RustLib.instance.api.crateApiPhd2ApiGuiderLoop(deviceId: deviceId);
-
-Future<(double, double)> apiGuiderFindStar({required String deviceId}) =>
-    RustLib.instance.api.crateApiPhd2ApiGuiderFindStar(deviceId: deviceId);
-
-Future<void> apiGuiderSetLockPosition({
-  required String deviceId,
-  required double x,
-  required double y,
-  required bool exact,
-}) => RustLib.instance.api.crateApiPhd2ApiGuiderSetLockPosition(
-  deviceId: deviceId,
-  x: x,
-  y: y,
-  exact: exact,
-);
-
-Future<(double, double)> apiGuiderGetLockPosition({required String deviceId}) =>
-    RustLib.instance.api.crateApiPhd2ApiGuiderGetLockPosition(
-      deviceId: deviceId,
-    );
-
-Future<void> apiGuiderDeselectStar({required String deviceId}) =>
-    RustLib.instance.api.crateApiPhd2ApiGuiderDeselectStar(deviceId: deviceId);
-
-Future<Phd2StarImage> apiGuiderGetStarImage({
-  required String deviceId,
-  required int size,
-}) => RustLib.instance.api.crateApiPhd2ApiGuiderGetStarImage(
-  deviceId: deviceId,
-  size: size,
-);
-
-Future<Phd2Status> apiGuiderGetStatus({required String deviceId}) =>
-    RustLib.instance.api.crateApiPhd2ApiGuiderGetStatus(deviceId: deviceId);
-
-/// Unified accessor for calibration data across all guider backends.
-/// Used by the sequencer to validate calibration quality post-StartGuiding (P3-7).
-Future<Phd2CalibrationData> apiGuiderGetCalibration({
-  required String deviceId,
-}) => RustLib.instance.api.crateApiPhd2ApiGuiderGetCalibration(
-  deviceId: deviceId,
-);
-
-/// Get the current built-in guider configuration.
-/// Returns a flat struct with all configurable parameters.
-Future<BuiltinGuiderConfig> apiBuiltinGuiderGetConfig() =>
-    RustLib.instance.api.crateApiPhd2ApiBuiltinGuiderGetConfig();
-
-/// Per-star tracked-star snapshot for the built-in multi-star guider, as a JSON
-/// string (`{"count":N,"stars":[...]}`).
-///
-/// This is the bridged entry point for the `#[frb(ignore)]`
-/// `builtin_guider::get_tracked_stars_json` DTO: the built-in guider tracks up
-/// to `GUIDE_MAX_TRACKED_STARS` reference stars, and the PHD2-shaped aggregate
-/// `Phd2Status` carries only rms/snr/star_mass, so the per-star list reaches the
-/// Dart guider UI through this call. The host FFI backend calls it from
-/// `phd2GetStatus()` and decodes the JSON into `Phd2Status.trackedStars`.
-///
-/// Returns `{"count":0,"stars":[]}` when the built-in guider is not the active
-/// guider or is not tracking (e.g. PHD2/external guiders), so it is always safe
-/// to call on the status path.
-Future<String> apiBuiltinGuiderGetTrackedStarsJson() =>
-    RustLib.instance.api.crateApiPhd2ApiBuiltinGuiderGetTrackedStarsJson();
-
-/// Set the built-in guider configuration.
-/// Can be called while guiding is active; changes apply to subsequent frames.
-Future<void> apiBuiltinGuiderSetConfig({
-  required double exposureSecs,
-  required int gain,
-  required int offset,
-  required int binning,
-  required int calibrationMs,
-  required BigInt settleSleepMs,
-  required double minPulseMs,
-  required double maxPulseMs,
-}) => RustLib.instance.api.crateApiPhd2ApiBuiltinGuiderSetConfig(
-  exposureSecs: exposureSecs,
-  gain: gain,
-  offset: offset,
-  binning: binning,
-  calibrationMs: calibrationMs,
-  settleSleepMs: settleSleepMs,
-  minPulseMs: minPulseMs,
-  maxPulseMs: maxPulseMs,
-);
-
-/// FRB-friendly struct for the built-in guider configuration.
-class BuiltinGuiderConfig {
-  final double exposureSecs;
-  final int gain;
-  final int offset;
-  final int binning;
-  final int calibrationMs;
-  final BigInt settleSleepMs;
-  final double minPulseMs;
-  final double maxPulseMs;
-
-  const BuiltinGuiderConfig({
-    required this.exposureSecs,
-    required this.gain,
-    required this.offset,
-    required this.binning,
-    required this.calibrationMs,
-    required this.settleSleepMs,
-    required this.minPulseMs,
-    required this.maxPulseMs,
-  });
-
-  @override
-  int get hashCode =>
-      exposureSecs.hashCode ^
-      gain.hashCode ^
-      offset.hashCode ^
-      binning.hashCode ^
-      calibrationMs.hashCode ^
-      settleSleepMs.hashCode ^
-      minPulseMs.hashCode ^
-      maxPulseMs.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is BuiltinGuiderConfig &&
-          runtimeType == other.runtimeType &&
-          exposureSecs == other.exposureSecs &&
-          gain == other.gain &&
-          offset == other.offset &&
-          binning == other.binning &&
-          calibrationMs == other.calibrationMs &&
-          settleSleepMs == other.settleSleepMs &&
-          minPulseMs == other.minPulseMs &&
-          maxPulseMs == other.maxPulseMs;
-}
-
-/// PHD2 Brain algorithm parameter
-class Phd2AlgoParam {
-  /// Parameter name
-  final String name;
-
-  /// Parameter value
-  final double value;
-
-  const Phd2AlgoParam({required this.name, required this.value});
-
-  @override
-  int get hashCode => name.hashCode ^ value.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Phd2AlgoParam &&
-          runtimeType == other.runtimeType &&
-          name == other.name &&
-          value == other.value;
-}
-
-/// PHD2 calibration data
-class Phd2CalibrationData {
-  /// Whether the mount is calibrated
-  final bool isCalibrated;
-
-  /// RA axis rotation angle (degrees)
-  final double? raAngle;
-
-  /// Dec axis rotation angle (degrees)
-  final double? decAngle;
-
-  /// RA guide rate (pixels/second)
-  final double? raRate;
-
-  /// Dec guide rate (pixels/second)
-  final double? decRate;
-
-  const Phd2CalibrationData({
-    required this.isCalibrated,
-    this.raAngle,
-    this.decAngle,
-    this.raRate,
-    this.decRate,
-  });
-
-  @override
-  int get hashCode =>
-      isCalibrated.hashCode ^
-      raAngle.hashCode ^
-      decAngle.hashCode ^
-      raRate.hashCode ^
-      decRate.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Phd2CalibrationData &&
-          runtimeType == other.runtimeType &&
-          isCalibrated == other.isCalibrated &&
-          raAngle == other.raAngle &&
-          decAngle == other.decAngle &&
-          raRate == other.raRate &&
-          decRate == other.decRate;
-}
-
-/// PHD2 star image data
-class Phd2StarImage {
-  /// Frame number
-  final int frame;
-
-  /// Image width in pixels
-  final int width;
-
-  /// Image height in pixels
-  final int height;
-
-  /// Star centroid X position
-  final double starX;
-
-  /// Star centroid Y position
-  final double starY;
-
-  /// Raw pixel data (16-bit grayscale as bytes)
-  final Uint8List pixels;
-
-  const Phd2StarImage({
-    required this.frame,
-    required this.width,
-    required this.height,
-    required this.starX,
-    required this.starY,
-    required this.pixels,
-  });
-
-  @override
-  int get hashCode =>
-      frame.hashCode ^
-      width.hashCode ^
-      height.hashCode ^
-      starX.hashCode ^
-      starY.hashCode ^
-      pixels.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Phd2StarImage &&
-          runtimeType == other.runtimeType &&
-          frame == other.frame &&
-          width == other.width &&
-          height == other.height &&
-          starX == other.starX &&
-          starY == other.starY &&
-          pixels == other.pixels;
-}
-
-/// PHD2 connection state
-class Phd2Status {
-  final bool connected;
-  final String state;
-  final double rmsRa;
-  final double rmsDec;
-  final double rmsTotal;
-  final double snr;
-  final double starMass;
-
-  /// Guide camera pixel scale in arcseconds per pixel, as PHD2 reports it
-  /// from its profile (guide camera pixel size and focal length). `None`
-  /// when PHD2 has no scale to give: no profile values entered, or the
-  /// RPC failed. Never a placeholder 0.
-  final double? pixelScale;
-
-  /// Why the guider is stopped or held, as the snake_case name of a
-  /// `GuidingStopReason` (`autofocus`, `meridian_flip`,
-  /// `tracking_limit_hold`, `mount_move`, `pre_meridian_hold`,
-  /// `sequence_step`, `dither_settle`, `run_stopped`, `operator`). `None`
-  /// while guiding runs or when nothing recorded a reason.
-  final String? stopReason;
-
-  const Phd2Status({
-    required this.connected,
-    required this.state,
-    required this.rmsRa,
-    required this.rmsDec,
-    required this.rmsTotal,
-    required this.snr,
-    required this.starMass,
-    this.pixelScale,
-    this.stopReason,
-  });
-
-  @override
-  int get hashCode =>
-      connected.hashCode ^
-      state.hashCode ^
-      rmsRa.hashCode ^
-      rmsDec.hashCode ^
-      rmsTotal.hashCode ^
-      snr.hashCode ^
-      starMass.hashCode ^
-      pixelScale.hashCode ^
-      stopReason.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Phd2Status &&
-          runtimeType == other.runtimeType &&
-          connected == other.connected &&
-          state == other.state &&
-          rmsRa == other.rmsRa &&
-          rmsDec == other.rmsDec &&
-          rmsTotal == other.rmsTotal &&
-          snr == other.snr &&
-          starMass == other.starMass &&
-          pixelScale == other.pixelScale &&
-          stopReason == other.stopReason;
-}

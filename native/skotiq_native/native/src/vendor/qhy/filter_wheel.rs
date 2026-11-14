@@ -1,46 +1,38 @@
-//! QHY CFW filter wheel implementation and discovery.
+//! QHY CFW filter wheel on a camera's 4-pin CFW port, and its discovery.
+//!
+//! The wheel is driven through the camera's SDK handle: `SetQHYCCDParam(
+//! CONTROL_CFWPORT, c)` sends the one-character order `c` ('0'..'9', 'A'..'F')
+//! and `GetQHYCCDParam(CONTROL_CFWPORT)` returns the first character of the
+//! wheel's status reply (the SDK maps both onto SendOrder2QHYCCDCFW and
+//! GetQHYCCDCFWStatus, which INDI calls). The camera and the wheel share one
+//! open handle, see [`session`].
 
 use super::*;
 
-pub(crate) const QHYCCD_ERROR_VALUE: f64 = u32::MAX as f64;
-pub(crate) const DEFAULT_QHY_CFW_SLOTS: i32 = 5;
 pub(crate) const MAX_QHY_CFW_SLOTS: i32 = 16;
 pub(crate) const QHY_CFW_MOVE_TIMEOUT: Duration = Duration::from_secs(25);
 pub(crate) const QHY_CFW_POLL_INTERVAL: Duration = Duration::from_millis(500);
 
-pub(crate) fn parse_cfw_slot_count(count: f64) -> Result<i32, NativeError> {
-    if !count.is_finite()
-        // Rejects both the SDK's u32::MAX error sentinel and a nonsensical
-        // sub-one wheel; a real CFW always reports at least one slot.
-        || !(1.0..QHYCCD_ERROR_VALUE).contains(&count)
-        || count > f64::from(MAX_QHY_CFW_SLOTS)
-        || count.fract() != 0.0
-    {
-        return Err(NativeError::SdkError(format!(
-            "GetQHYCCDParam(CONTROL_CFWSLOTSNUM) returned invalid slot count {}",
-            count
-        )));
-    }
-
-    Ok(count as i32)
+/// A slot count from `CONTROL_CFWSLOTSNUM`. Above 16 (INDI sees 255) means the
+/// port answers but no wheel is attached.
+pub(crate) fn parse_cfw_slot_count(count: f64) -> Option<i32> {
+    (count.is_finite()
+        && count.fract() == 0.0
+        && (1.0..=f64::from(MAX_QHY_CFW_SLOTS)).contains(&count))
+    .then_some(count as i32)
 }
 
-pub(crate) fn parse_cfw_position(position: f64) -> Result<i32, NativeError> {
-    if !position.is_finite() || position >= QHYCCD_ERROR_VALUE || position.fract() != 0.0 {
-        return Err(NativeError::SdkError(format!(
-            "GetQHYCCDParam(CONTROL_CFWPORT) returned invalid position {}",
-            position
-        )));
+/// A wheel status character as a 0-based slot, or `None` for anything else
+/// (the wheel is still turning, or the SDK answered with its error value).
+pub(crate) fn parse_cfw_position(status: f64) -> Option<i32> {
+    if !status.is_finite() || status.fract() != 0.0 || !(0.0..=255.0).contains(&status) {
+        return None;
     }
-
-    match position as u8 {
-        b'0'..=b'9' => Ok(i32::from(position as u8 - b'0')),
-        b'A'..=b'F' => Ok(i32::from(position as u8 - b'A') + 10),
-        b'a'..=b'f' => Ok(i32::from(position as u8 - b'a') + 10),
-        _ => Err(NativeError::SdkError(format!(
-            "GetQHYCCDParam(CONTROL_CFWPORT) returned invalid position {}",
-            position
-        ))),
+    match status as u8 {
+        c @ b'0'..=b'9' => Some(i32::from(c - b'0')),
+        c @ b'A'..=b'F' => Some(i32::from(c - b'A') + 10),
+        c @ b'a'..=b'f' => Some(i32::from(c - b'a') + 10),
+        _ => None,
     }
 }
 
@@ -53,20 +45,47 @@ pub(crate) fn encode_cfw_position(position: i32) -> f64 {
     f64::from(value)
 }
 
-/// QHY CFW discovery info
+/// The wheel's slot count, when one is attached to the camera behind `handle`.
+///
+/// INDI asks `IsQHYCCDCFWPlugged` up to three times 200 ms apart ("sometimes
+/// the filter is not picked up") and reads the slot count a second time after
+/// 500 ms when the first is out of range. Blocks for those pauses.
+pub(crate) fn attached_wheel(sdk: &QhySdk, handle: QhyCamHandle) -> Option<i32> {
+    let mut plugged = false;
+    for attempt in 0..3 {
+        if attempt > 0 {
+            std::thread::sleep(Duration::from_millis(200));
+        }
+        // SAFETY: `handle` is open and the caller holds the SDK lock.
+        if unsafe { (sdk.is_qhyccd_cfw_plugged)(handle) } == QHYCCD_SUCCESS {
+            plugged = true;
+            break;
+        }
+    }
+    if !plugged {
+        return None;
+    }
+    let read_slots = || {
+        // SAFETY: as above.
+        unsafe { (sdk.get_qhyccd_param)(handle, QhyControl::CONTROL_CFWSLOTSNUM as c_int) }
+    };
+    if let Some(slots) = parse_cfw_slot_count(read_slots()) {
+        return Some(slots);
+    }
+    std::thread::sleep(Duration::from_millis(500));
+    parse_cfw_slot_count(read_slots())
+}
+
 pub struct QhyFilterWheelInfo {
     /// Camera ID that the filter wheel is attached to
     pub camera_id: String,
-    /// Display name
     pub name: String,
-    /// Number of filter slots
     pub slot_count: i32,
     /// QHY SDK version reported by the loaded native library, when available
     pub sdk_version: Option<String>,
 }
 
 /// QHY Filter Wheel implementation
-/// Note: QHY CFW is controlled through the camera handle
 #[derive(Debug)]
 pub struct QhyFilterWheel {
     pub(crate) camera_id: String,
@@ -79,16 +98,13 @@ pub struct QhyFilterWheel {
     pub(crate) target_position: Option<i32>,
 }
 
-// SAFETY: QhyFilterWheel contains a raw `QhyCamHandle` (`Option<*mut c_void>`). Every FFI call
-// against the handle takes `qhy_mutex()` first (CFW is controlled through the camera SDK and
-// shares the same global mutex), so the handle is never accessed concurrently.
+// SAFETY: the raw `QhyCamHandle` is only passed to the SDK while its lock
+// guard is held; the wheel shares the camera SDK's lock.
 unsafe impl Send for QhyFilterWheel {}
-// SAFETY: Same justification — shared references never invoke the SDK without taking
-// qhy_mutex() first.
+// SAFETY: as for `Send`.
 unsafe impl Sync for QhyFilterWheel {}
 
 impl QhyFilterWheel {
-    /// Create a new QHY filter wheel instance
     pub fn new(camera_id: String) -> Self {
         let (model_name, _) = QhyCameraInfo::parse_id(&camera_id);
         let name = format!("{} CFW", model_name);
@@ -105,64 +121,58 @@ impl QhyFilterWheel {
         }
     }
 
-    /// Check if CFW is available (must be called after connecting to camera)
-    pub(crate) fn check_cfw_available(&self) -> Result<bool, NativeError> {
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
-
-        // SAFETY: caller (connect / move_to_position / get_position) holds qhy_mutex(); handle
-        // was validated via Option::ok_or; IsQHYCCDCFWPlugged takes only the handle.
-        let result = unsafe { (sdk.is_qhyccd_cfw_plugged)(handle) };
-        Ok(result == 0) // QHYCCD_SUCCESS = 0
+    /// The slot under the light path, or `None` while the wheel turns.
+    pub(crate) fn read_position(&self, sdk: &QhySdk) -> Result<Option<i32>, DriverError> {
+        let handle = self.handle.ok_or(DriverError::NotConnected)?;
+        // SAFETY: `handle` is open in the camera's session and the SDK lock is held.
+        let status =
+            unsafe { (sdk.get_qhyccd_param)(handle, QhyControl::CONTROL_CFWPORT as c_int) };
+        Ok(parse_cfw_position(status).filter(|slot| *slot < self.slot_count))
     }
 
-    /// Get number of filter slots
-    pub(crate) fn get_slot_count(&self) -> Result<i32, NativeError> {
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
-
-        // SAFETY: caller (connect()) holds qhy_mutex(); handle validated above;
-        // CONTROL_CFWSLOTSNUM discriminant fits in c_int; GetQHYCCDParam returns c_double.
-        let count =
-            unsafe { (sdk.get_qhyccd_param)(handle, QhyControl::CONTROL_CFWSLOTSNUM as c_int) };
-
-        parse_cfw_slot_count(count)
+    /// Wait until the wheel reports a slot (it turns after power-on and after
+    /// every order), or `QHY_CFW_MOVE_TIMEOUT`.
+    async fn settled_position(&self, wanted: Option<i32>) -> Result<i32, DriverError> {
+        let started = Instant::now();
+        loop {
+            let position = {
+                let sdk = QhySdk::lock().await?;
+                self.read_position(&sdk)?
+            };
+            match (position, wanted) {
+                (Some(slot), None) => return Ok(slot),
+                (Some(slot), Some(target)) if slot == target => return Ok(slot),
+                _ => {}
+            }
+            let elapsed = started.elapsed();
+            if elapsed >= QHY_CFW_MOVE_TIMEOUT {
+                let at = position.map_or_else(
+                    || "still turning".to_string(),
+                    |p| format!("at slot {}", p + 1),
+                );
+                let goal = wanted.map_or_else(
+                    || "come to rest".to_string(),
+                    |t| format!("reach slot {}", t + 1),
+                );
+                return Err(DriverError::Timeout(format!(
+                    "The QHY filter wheel did not {goal} within {} s ({at}). Check the wheel's cable \
+                     to the camera and that nothing blocks it.",
+                    QHY_CFW_MOVE_TIMEOUT.as_secs()
+                )));
+            }
+            tokio::time::sleep(QHY_CFW_POLL_INTERVAL.min(QHY_CFW_MOVE_TIMEOUT - elapsed)).await;
+        }
     }
 
-    /// Get current position (0-indexed)
-    pub(crate) fn get_current_position(&self) -> Result<i32, NativeError> {
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
-
-        // QHY returns position as ASCII value (48 = '0', 49 = '1', etc.)
-        // SAFETY: caller (get_position()) holds qhy_mutex(); handle validated above;
-        // CONTROL_CFWPORT discriminant fits in c_int.
-        let pos = unsafe { (sdk.get_qhyccd_param)(handle, QhyControl::CONTROL_CFWPORT as c_int) };
-
-        parse_cfw_position(pos)
-    }
-
-    /// Set position (0-indexed)
-    pub(crate) fn set_current_position(&self, position: i32) -> Result<(), NativeError> {
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let handle = self.handle.ok_or(NativeError::NotConnected)?;
-
-        // QHY uses ASCII encoding ('0'..'9', then 'A'..'F').
-        let ascii_position = encode_cfw_position(position);
-
-        // SAFETY: caller (move_to_position()) holds qhy_mutex(); handle validated above;
-        // CONTROL_CFWPORT discriminant fits in c_int; ascii_position is pass-by-value c_double.
-        // The `position` argument was bounds-checked in the caller against self.slot_count.
-        let result = unsafe {
-            (sdk.set_qhyccd_param)(handle, QhyControl::CONTROL_CFWPORT as c_int, ascii_position)
-        };
-
-        check_qhy_error(result, "SetCFWPosition")
+    fn release(&mut self, sdk: &QhySdk) {
+        if self.handle.take().is_some() {
+            session::leave(sdk, &self.camera_id);
+        }
     }
 }
 
 #[async_trait]
-impl NativeDevice for QhyFilterWheel {
+impl DeviceDriver for QhyFilterWheel {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -171,395 +181,218 @@ impl NativeDevice for QhyFilterWheel {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Qhy
+    fn vendor(&self) -> Vendor {
+        Vendor::Qhy
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
-
         QhySdk::ensure_initialized()?;
-        let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-
-        // Acquire mutex for SDK operations
-        let _lock = qhy_mutex().lock().await;
-
-        // Open the camera to access CFW
-        let camera_id_cstr = CString::new(self.camera_id.clone())
-            .map_err(|_| NativeError::InvalidParameter("Invalid camera ID".into()))?;
-
-        // SAFETY: qhy_mutex held above; camera_id_cstr is a valid NUL-terminated CString that
-        // outlives the call. OpenQHYCCD returns a handle we null-check immediately below.
-        let handle = unsafe { (sdk.open_qhyccd)(camera_id_cstr.as_ptr()) };
-        if handle.is_null() {
-            return Err(NativeError::SdkError(
-                "Failed to open QHY camera for CFW".into(),
-            ));
-        }
-
-        self.handle = Some(handle);
-
-        // Set stream mode and init (required for CFW access)
-        // SAFETY: qhy_mutex held; `handle` is the non-null pointer returned by OpenQHYCCD above;
-        // mode=0 (single frame) is a documented constant per qhyccd.h; CloseQHYCCD pairs with
-        // OpenQHYCCD on the error path inside the block.
-        unsafe {
-            (sdk.set_qhyccd_stream_mode)(handle, 0); // Single frame mode
-            let init_result = (sdk.init_qhyccd)(handle);
-            if init_result != 0 {
-                (sdk.close_qhyccd)(handle);
-                self.handle = None;
-                return Err(NativeError::SdkError(
-                    "Failed to initialize QHY camera for CFW".into(),
-                ));
-            }
-        }
-
-        // Check if CFW is available (mutex already held)
-        if !self.check_cfw_available()? {
-            // SAFETY: qhy_mutex held; handle was successfully opened and initialized above.
-            // CloseQHYCCD pairs with OpenQHYCCD on this CFW-not-available error path.
-            unsafe { (sdk.close_qhyccd)(handle) };
-            self.handle = None;
-            return Err(NativeError::DeviceNotFound(
-                "No CFW detected on this QHY camera".into(),
-            ));
-        }
-
-        // Get slot count (mutex already held)
-        self.slot_count = match self.get_slot_count() {
-            Ok(count) => count,
-            Err(error) => {
-                tracing::warn!(
-                    "Failed to detect QHY CFW slot count: {}; using {} slots",
-                    error,
-                    DEFAULT_QHY_CFW_SLOTS
-                );
-                DEFAULT_QHY_CFW_SLOTS
-            }
-        }
-        .clamp(1, MAX_QHY_CFW_SLOTS);
-
-        let current_position = match self.get_current_position() {
-            Ok(position) if position < self.slot_count => position,
-            Ok(position) => {
-                // SAFETY: qhy_mutex held; handle was successfully opened and initialized above.
-                unsafe { (sdk.close_qhyccd)(handle) };
-                self.handle = None;
-                return Err(NativeError::SdkError(format!(
-                    "QHY CFW reported position {} outside its {} slots",
-                    position, self.slot_count
+        {
+            let sdk = QhySdk::lock().await?;
+            let (handle, _) = session::join(&sdk, &self.camera_id)?;
+            self.handle = Some(handle);
+            let handle = crate::camera_core::SdkHandle(handle);
+            let (sdk, slots) = tokio::task::spawn_blocking(move || {
+                let handle = handle;
+                let slots = attached_wheel(&sdk, handle.0);
+                (sdk, slots)
+            })
+            .await
+            .map_err(|e| DriverError::SdkError(format!("QHY CFW probe stopped: {e}")))?;
+            let Some(slots) = slots else {
+                self.release(&sdk);
+                return Err(DriverError::DeviceNotFound(format!(
+                    "No filter wheel answers on the CFW port of QHY camera {}. Check the \
+                     wheel's cable to the camera and the wheel's power.",
+                    self.camera_id
                 )));
-            }
+            };
+            self.slot_count = slots;
+        }
+        let position = match self.settled_position(None).await {
+            Ok(position) => position,
             Err(error) => {
-                // SAFETY: qhy_mutex held; handle was successfully opened and initialized above.
-                unsafe { (sdk.close_qhyccd)(handle) };
-                self.handle = None;
+                let sdk = QhySdk::lock().await?;
+                self.release(&sdk);
                 return Err(error);
             }
         };
-
-        // Initialize filter names with defaults
         self.filter_names = (0..self.slot_count)
             .map(|i| format!("Filter {}", i + 1))
             .collect();
-        self.target_position = Some(current_position);
-
+        self.target_position = Some(position);
         self.connected = true;
-        tracing::info!("Connected to QHY CFW with {} slots", self.slot_count);
-
+        tracing::info!(
+            "Connected to the QHY CFW on {} with {} slots, at slot {}",
+            self.camera_id,
+            self.slot_count,
+            position + 1
+        );
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
-
-        // Acquire mutex first to avoid Send issues with raw pointer
-        let _lock = qhy_mutex().lock().await;
-        if let Some(handle) = self.handle.take() {
-            if let Some(sdk) = QhySdk::get() {
-                // SAFETY: qhy_mutex held above; handle was successfully opened during connect()
-                // and stored in self.handle (None case skipped via if-let). CloseQHYCCD pairs
-                // with OpenQHYCCD.
-                unsafe { (sdk.close_qhyccd)(handle) };
-            }
+        let lock = QhySdk::slot().lock_before_load().await;
+        if let Ok(sdk) = lock.table() {
+            self.release(sdk);
         }
-
+        self.handle = None;
         self.connected = false;
         self.target_position = None;
-        tracing::info!("Disconnected from QHY CFW");
-
+        tracing::info!("Disconnected from the QHY CFW on {}", self.camera_id);
         Ok(())
     }
 }
 
 #[async_trait]
-impl NativeFilterWheel for QhyFilterWheel {
-    fn get_filter_count(&self) -> i32 {
+impl FilterWheelDriver for QhyFilterWheel {
+    async fn get_filter_count(&self) -> i32 {
         self.slot_count
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    /// The slot, or -1 while the wheel turns (the ASCOM convention).
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
-        let _lock = qhy_mutex().lock().await;
-        self.get_current_position()
+        let sdk = QhySdk::lock().await?;
+        Ok(self.read_position(&sdk)?.unwrap_or(-1))
     }
 
-    async fn move_to_position(&mut self, position: i32) -> Result<(), NativeError> {
+    async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
-
         if position < 0 || position >= self.slot_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Position {} out of range (0-{})",
                 position,
                 self.slot_count - 1
             )));
         }
-
         tracing::info!("Moving QHY CFW to position {}", position);
         {
-            let _lock = qhy_mutex().lock().await;
-            self.set_current_position(position)?;
+            let sdk = QhySdk::lock().await?;
+            let handle = self.handle.ok_or(DriverError::NotConnected)?;
+            // SAFETY: `handle` is open in the camera's session and the SDK lock is held.
+            let result = unsafe {
+                (sdk.set_qhyccd_param)(
+                    handle,
+                    QhyControl::CONTROL_CFWPORT as c_int,
+                    encode_cfw_position(position),
+                )
+            };
+            check_qhy_error(
+                result,
+                &format!("send its filter wheel to slot {}", position + 1),
+            )?;
         }
         self.target_position = Some(position);
-
-        let started = Instant::now();
-        loop {
-            let current_position = {
-                let _lock = qhy_mutex().lock().await;
-                self.get_current_position()?
-            };
-            if current_position == position {
-                return Ok(());
-            }
-
-            let elapsed = started.elapsed();
-            if elapsed >= QHY_CFW_MOVE_TIMEOUT {
-                return Err(NativeError::Timeout(format!(
-                    "QHY CFW did not reach position {} within {:?} (current position: {})",
-                    position, QHY_CFW_MOVE_TIMEOUT, current_position
-                )));
-            }
-
-            tokio::time::sleep(QHY_CFW_POLL_INTERVAL.min(QHY_CFW_MOVE_TIMEOUT - elapsed)).await;
-        }
+        self.settled_position(Some(position)).await?;
+        Ok(())
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
-
-        let target_position = self.target_position.ok_or_else(|| {
-            NativeError::SdkError("QHY CFW target position is unknown".to_string())
-        })?;
-        let _lock = qhy_mutex().lock().await;
-        Ok(self.get_current_position()? != target_position)
+        let sdk = QhySdk::lock().await?;
+        let position = self.read_position(&sdk)?;
+        Ok(position.is_none() || position != self.target_position)
     }
 
-    async fn get_filter_names(&self) -> Result<Vec<String>, NativeError> {
+    async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
         Ok(self.filter_names.clone())
     }
 
-    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), NativeError> {
+    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), DriverError> {
         if position < 0 || position >= self.slot_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Position {} out of range (0-{})",
                 position,
                 self.slot_count - 1
             )));
         }
-        // Why: bounds checked `0 <= position < self.slot_count` above; position is i32,
-        // self.filter_names is a Vec sized to slot_count, so `as usize` is widening with
-        // verified non-negative value.
+        // Bounds checked above; filter_names holds slot_count entries.
         self.filter_names[position as usize] = name;
         Ok(())
     }
 }
 
-/// Internal function to perform the actual CFW discovery.
-pub(crate) fn discover_filter_wheels_internal(
-    sdk: &QhySdk,
-) -> Result<Vec<QhyFilterWheelInfo>, NativeError> {
+/// The cameras with a wheel on their CFW port. A camera that a driver holds
+/// is asked through its open handle; any other is opened for the question and
+/// closed again.
+pub(crate) fn discover_filter_wheels_internal(sdk: &QhySdk) -> Vec<QhyFilterWheelInfo> {
     let sdk_version = sdk_version_from_sdk(sdk);
-
-    // Scan for cameras
-    // SAFETY: caller (discover_filter_wheels) holds qhy_mutex(); ScanQHYCCD takes no args.
-    let num_cameras = unsafe { (sdk.scan_qhyccd)() };
-
     let mut filter_wheels = Vec::new();
-
-    for i in 0..num_cameras {
-        let mut id_buf = [0 as c_char; 256];
-        // SAFETY: caller holds qhy_mutex(); `i` is in `0..num_cameras`; id_buf is a 256-byte
-        // stack array.
-        let result = unsafe { (sdk.get_qhyccd_id)(i, id_buf.as_mut_ptr()) };
-
-        if result != 0 {
-            continue;
-        }
-
-        // SAFETY: id_buf is 256 bytes; GetQHYCCDId guaranteed NUL-termination on success.
-        let camera_id = unsafe { CStr::from_ptr(id_buf.as_ptr()) }
-            .to_string_lossy()
-            .to_string();
-
-        // Open camera temporarily to check for CFW
-        let camera_id_cstr = match CString::new(camera_id.clone()) {
-            Ok(s) => s,
-            Err(_) => continue,
+    for camera_id in session::scan(sdk) {
+        let (handle, opened_here) = match session::current(&camera_id) {
+            Some(handle) => (handle, false),
+            None => match session::open_listed(sdk, &camera_id) {
+                Ok(handle) => (handle, true),
+                Err(error) => {
+                    tracing::debug!("QHY CFW discovery skipped {camera_id}: {error}");
+                    continue;
+                }
+            },
         };
-
-        // SAFETY: caller holds qhy_mutex(); camera_id_cstr is a valid NUL-terminated CString
-        // that outlives the call; null-checked immediately below.
-        let handle = unsafe { (sdk.open_qhyccd)(camera_id_cstr.as_ptr()) };
-        if handle.is_null() {
+        let slots = attached_wheel(sdk, handle);
+        if opened_here {
+            // SAFETY: opened above for this question; no driver holds it.
+            unsafe { (sdk.close_qhyccd)(handle) };
+        }
+        let Some(slot_count) = slots else {
             continue;
-        }
-
-        // Initialize camera to check CFW
-        // SAFETY: caller holds qhy_mutex(); `handle` is the non-null pointer returned by
-        // OpenQHYCCD above; mode=0 is single-frame per qhyccd.h; CloseQHYCCD pairs with
-        // OpenQHYCCD on the init-failed path within this block.
-        unsafe {
-            (sdk.set_qhyccd_stream_mode)(handle, 0);
-            if (sdk.init_qhyccd)(handle) != 0 {
-                (sdk.close_qhyccd)(handle);
-                continue;
-            }
-        }
-
-        // Check if CFW is plugged in
-        // SAFETY: caller holds qhy_mutex(); handle was opened and initialized above.
-        let cfw_result = unsafe { (sdk.is_qhyccd_cfw_plugged)(handle) };
-
-        if cfw_result == 0 {
-            // CFW is available
-            // SAFETY: caller holds qhy_mutex(); handle was opened and initialized above;
-            // CONTROL_CFWSLOTSNUM discriminant fits in c_int.
-            let raw_slot_count =
-                unsafe { (sdk.get_qhyccd_param)(handle, QhyControl::CONTROL_CFWSLOTSNUM as c_int) };
-            let slot_count = parse_cfw_slot_count(raw_slot_count).unwrap_or_else(|error| {
-                tracing::warn!(
-                    "Failed to detect QHY CFW slot count for {}: {}; using {} slots",
-                    camera_id,
-                    error,
-                    DEFAULT_QHY_CFW_SLOTS
-                );
-                DEFAULT_QHY_CFW_SLOTS
-            });
-
-            let (model_name, _) = QhyCameraInfo::parse_id(&camera_id);
-
-            filter_wheels.push(QhyFilterWheelInfo {
-                camera_id: camera_id.clone(),
-                name: format!("{} CFW", model_name),
-                slot_count,
-                sdk_version: sdk_version.clone(),
-            });
-
-            tracing::info!(
-                "Found QHY CFW on camera {} with {} slots",
-                camera_id,
-                slot_count
-            );
-        }
-
-        // Close camera
-        // SAFETY: caller holds qhy_mutex(); handle was opened above. CloseQHYCCD pairs with
-        // OpenQHYCCD to release the SDK-owned handle at the end of the per-camera probe.
-        unsafe { (sdk.close_qhyccd)(handle) };
+        };
+        let (model_name, _) = QhyCameraInfo::parse_id(&camera_id);
+        tracing::info!("Found QHY CFW on camera {camera_id} with {slot_count} slots");
+        filter_wheels.push(QhyFilterWheelInfo {
+            camera_id,
+            name: format!("{} CFW", model_name),
+            slot_count,
+            sdk_version: sdk_version.clone(),
+        });
     }
-
-    Ok(filter_wheels)
+    filter_wheels
 }
 
-/// Discover QHY filter wheels (CFW attached to cameras) with safety measures.
-///
-/// Uses the same safety measures as `discover_devices()`:
-/// - Enable/disable check
-/// - Panic protection via catch_unwind
-/// - Timeout from quirks database
-/// - Mutex serialization
-pub async fn discover_filter_wheels() -> Result<Vec<QhyFilterWheelInfo>, NativeError> {
+/// Discover QHY filter wheels (CFW attached to cameras), with the safety
+/// measures of [`discover_devices`]. The search runs on a blocking thread
+/// that owns the SDK lock until the SDK returns, even after a timeout: it may
+/// use the handle of a camera a driver holds.
+pub async fn discover_filter_wheels() -> Result<Vec<QhyFilterWheelInfo>, DriverError> {
     let config = get_discovery_config();
-
-    // Check if discovery is enabled
     if !config.enabled {
         tracing::debug!("QHY discovery is disabled, returning empty filter wheel list");
         return Ok(Vec::new());
     }
-
-    // Ensure SDK is initialized
     QhySdk::ensure_initialized()?;
-
-    // Verify SDK is available before proceeding
-    if QhySdk::get().is_none() {
-        return Ok(Vec::new());
-    }
-
-    // Acquire mutex for SDK discovery operations
-    let _lock = qhy_mutex().lock().await;
-
-    // Create the timeout duration from config
-    let timeout_duration = Duration::from_millis(config.timeout_ms);
-
-    // Perform discovery with timeout
-    let catch_panics = config.catch_panics;
-    let discovery_future = async move {
-        if catch_panics {
-            // Wrap SDK calls in catch_unwind for crash protection
-            // We get the SDK inside the blocking task to avoid Send issues with raw pointers
-            tokio::task::spawn_blocking(move || {
-                // Get SDK inside the blocking task - this is safe because SDK is 'static
-                let sdk = match QhySdk::get() {
-                    Some(s) => s,
-                    None => return Err(NativeError::SdkNotLoaded),
-                };
-                catch_unwind(AssertUnwindSafe(|| discover_filter_wheels_internal(sdk))).map_err(
-                    |panic_info| {
-                        let panic_msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
-                            s.to_string()
-                        } else if let Some(s) = panic_info.downcast_ref::<String>() {
-                            s.clone()
-                        } else {
-                            "Unknown panic".to_string()
-                        };
-                        tracing::error!("QHY SDK panicked during CFW discovery: {}", panic_msg);
-                        NativeError::SdkError(format!(
-                            "QHY SDK crashed during CFW discovery: {}",
-                            panic_msg
-                        ))
-                    },
-                )?
-            })
-            .await
-            .map_err(|e| NativeError::SdkError(format!("QHY CFW discovery task failed: {:?}", e)))?
-        } else {
-            // No panic protection, just call directly (SDK is 'static, so we can get it again)
-            let sdk = QhySdk::get().ok_or(NativeError::SdkNotLoaded)?;
-            discover_filter_wheels_internal(sdk)
-        }
-    };
-
-    // Apply timeout
-    match tokio::time::timeout(timeout_duration, discovery_future).await {
-        Ok(result) => result,
+    let sdk = QhySdk::lock().await?;
+    let search = tokio::task::spawn_blocking(move || {
+        catch_unwind(AssertUnwindSafe(|| discover_filter_wheels_internal(&sdk)))
+    });
+    match tokio::time::timeout(Duration::from_millis(config.timeout_ms), search).await {
+        Ok(Ok(Ok(wheels))) => Ok(wheels),
+        Ok(Ok(Err(panic))) => Err(DriverError::SdkError(format!(
+            "QHY CFW discovery failed: {}",
+            panic_text(&panic)
+        ))),
+        Ok(Err(e)) => Err(DriverError::SdkError(format!(
+            "QHY CFW discovery task failed: {e}"
+        ))),
         Err(_) => {
             tracing::error!("QHY CFW discovery timed out after {}ms", config.timeout_ms);
-            Err(NativeError::Timeout(format!(
+            Err(DriverError::Timeout(format!(
                 "QHY CFW discovery timed out after {}ms",
                 config.timeout_ms
             )))

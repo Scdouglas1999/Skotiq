@@ -1,15 +1,12 @@
 part of '../device_handlers.dart';
 
 extension FilterWheelDeviceHandlers on DeviceHandlers {
-  // Filter wheel control
-
   Future<Response> handleFilterWheelSetPosition(Request request) async {
     _logInfo('[API] POST /api/filter-wheel/position');
     final payload = await readJsonObject(request);
     final deviceId = requireString(payload, 'deviceId');
     final position = requireInt(payload, 'position', min: 0);
 
-    final backend = container.read(deviceBackendProvider);
     // Why: only the lower bound was checked, so an out-of-range slot reached the
     // driver and came back as a 500. Observed on a real ZWO EFW (8 slots):
     //   POST {"position": 99} -> 500 {"error":"internal_error","message":
@@ -39,7 +36,14 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
       deviceId: deviceId,
     );
 
-    await backend.filterWheelSetPosition(deviceId, position);
+    // The host's slot wheel moves through DeviceService, as from the host
+    // UI, so the per-filter focus offset applies whoever asked.
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(
+        container,
+      ).filterWheelSetPosition(deviceId, position),
+    );
 
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
@@ -57,8 +61,8 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
       );
     }
 
-    // Call the names-only FFI directly. The stable NativeBridge facade's
-    // filterWheelGetNames currently enriches through full filter-wheel status,
+    // Call the names-only FFI directly. The backend's filterWheelGetNames
+    // reads the full filter-wheel status,
     // which makes an unrelated ASCOM Position failure discard valid Names.
     final names = await bridge_error.apiFilterwheelGetNames(deviceId: deviceId);
 
@@ -71,8 +75,10 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final names = requireList<String>(payload, 'names');
 
-    final backend = container.read(deviceBackendProvider);
-    await backend.filterWheelSetNames(deviceId, names);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).filterWheelSetNames(deviceId, names),
+    );
 
     return jsonOk({'status': 'ok'});
   }
@@ -123,7 +129,6 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final name = requireString(payload, 'name');
 
-    final backend = container.read(deviceBackendProvider);
     // Why: an unknown filter name raised a bare Dart `ArgumentError` deeper in
     // the stack, which the top-level guard rendered as a 500. Observed on a real
     // ZWO EFW:
@@ -135,7 +140,7 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
     // second round trip.
     final status = await _tryFilterWheelStatus(deviceId);
     final names = status?.filterNames ?? const <String>[];
-    if (names.isNotEmpty && !names.contains(name)) {
+    if (names.isNotEmpty && matchingFilterIndex(name, names) == null) {
       throw BadRequestError(
         field: 'name',
         expected: 'one of: ${names.join(', ')}',
@@ -145,7 +150,11 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
       );
     }
 
-    await backend.filterWheelSetByName(deviceId, name);
+    // Through the same path as a move by slot, focus offset included.
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).filterWheelSetByName(deviceId, name),
+    );
 
     return jsonOk({'status': 'ok'});
   }

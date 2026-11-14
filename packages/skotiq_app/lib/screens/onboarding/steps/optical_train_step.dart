@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// Outside the core barrel by design (name collision with
-// `cameraPresetsProvider`); imported by source path, as the preset picker does.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/help/field_help_label.dart';
 import '../../../widgets/hardware/hardware_preset_picker_dialog.dart';
+import 'blocked_next.dart';
 
 /// True when the optics on record still describe the telescope [draft] names.
 ///
@@ -115,54 +115,56 @@ class _OnboardingOpticalTrainStepState
   }
 
   void _commit(_OpticalField editedField) {
+    setState(() => _checkField(editedField));
     final fl = double.tryParse(_focalLengthController.text.trim());
     final ap = double.tryParse(_apertureController.text.trim());
     final px = double.tryParse(_pixelSizeController.text.trim());
     final rd = double.tryParse(_reducerController.text.trim());
-
-    setState(() {
-      switch (editedField) {
-        case _OpticalField.focalLength:
-          _focalLengthError = _boundError(
-            fl,
-            min: OpticalTrainLimits.minFocalLengthMm,
-            max: OpticalTrainLimits.maxFocalLengthMm,
-            unit: 'mm',
-            missing: 'Enter a positive focal length in mm.',
-          );
-        case _OpticalField.aperture:
-          _apertureError = _boundError(
-            ap,
-            min: OpticalTrainLimits.minApertureMm,
-            max: OpticalTrainLimits.maxApertureMm,
-            unit: 'mm',
-            missing: 'Enter a positive aperture in mm.',
-          );
-        case _OpticalField.pixelSize:
-          _pixelSizeError = _boundError(
-            px,
-            min: OpticalTrainLimits.minPixelSizeMicrons,
-            max: OpticalTrainLimits.maxPixelSizeMicrons,
-            unit: 'microns',
-            missing: 'Enter a positive pixel size in microns.',
-          );
-        case _OpticalField.reducer:
-          _reducerError = _boundError(
-            rd,
-            min: OpticalTrainLimits.minReducerFactor,
-            max: OpticalTrainLimits.maxReducerFactor,
-            unit: '',
-            missing: 'Reducer must be > 0 (use 1.0 for no reducer).',
-          );
-      }
-    });
-
     ref.read(onboardingDraftProvider.notifier).setOpticalTrain(
           focalLengthMm: fl,
           apertureMm: ap,
           pixelSizeMicrons: px,
           reducerFactor: rd,
         );
+  }
+
+  /// Put the inline error (or none) on [field] for what it holds now.
+  void _checkField(_OpticalField field) {
+    double? read(TextEditingController c) => double.tryParse(c.text.trim());
+    switch (field) {
+      case _OpticalField.focalLength:
+        _focalLengthError = _boundError(
+          read(_focalLengthController),
+          min: OpticalTrainLimits.minFocalLengthMm,
+          max: OpticalTrainLimits.maxFocalLengthMm,
+          unit: 'mm',
+          missing: 'Enter a positive focal length in mm.',
+        );
+      case _OpticalField.aperture:
+        _apertureError = _boundError(
+          read(_apertureController),
+          min: OpticalTrainLimits.minApertureMm,
+          max: OpticalTrainLimits.maxApertureMm,
+          unit: 'mm',
+          missing: 'Enter a positive aperture in mm.',
+        );
+      case _OpticalField.pixelSize:
+        _pixelSizeError = _boundError(
+          read(_pixelSizeController),
+          min: OpticalTrainLimits.minPixelSizeMicrons,
+          max: OpticalTrainLimits.maxPixelSizeMicrons,
+          unit: 'microns',
+          missing: 'Enter a positive pixel size in microns.',
+        );
+      case _OpticalField.reducer:
+        _reducerError = _boundError(
+          read(_reducerController),
+          min: OpticalTrainLimits.minReducerFactor,
+          max: OpticalTrainLimits.maxReducerFactor,
+          unit: '',
+          missing: 'Reducer must be > 0 (use 1.0 for no reducer).',
+        );
+    }
   }
 
   /// Inline error for one field, or null when the value is plausible.
@@ -230,6 +232,15 @@ class _OnboardingOpticalTrainStepState
   Widget build(BuildContext context) {
     final draft = ref.watch(onboardingDraftProvider);
     final colors = SkotiqColors.of(context);
+    // Next was refused: mark every field that is why, where the user is
+    // looking, not only in the band under the card.
+    ref.listen<int>(onboardingBlockedNextProvider, (_, __) {
+      setState(() {
+        for (final field in _OpticalField.values) {
+          _checkField(field);
+        }
+      });
+    });
 
     final imageScale = draft.imageScaleArcsecPerPixel;
     final effectiveFocal = draft.effectiveFocalLengthMm;
@@ -297,7 +308,7 @@ class _OnboardingOpticalTrainStepState
                 child: SkotiqButton(
                   // lucide_icons 0.257.0 ships no `telescope` glyph; `aperture`
                   // is this codebase's established optics/telescope icon
-                  // (equipment_profiles_screen, framing optical config panel).
+                  // (profile editor, framing optical config panel).
                   icon: SkotiqIcons.aperture,
                   label: 'Choose from telescope library',
                   variant: ButtonVariant.secondary,
@@ -444,6 +455,11 @@ class _OnboardingOpticalTrainStepState
                       unit: '"/px',
                       label: 'Image scale',
                     ),
+                    if (_fieldOfView(draft) case final fov?)
+                      Readout(
+                        value: _derived(fov, [focalOk, reducerOk, pixelOk]),
+                        label: 'Field of view',
+                      ),
                   ],
                 ),
               ],
@@ -463,6 +479,27 @@ class _OnboardingOpticalTrainStepState
   /// the reason.
   String? _derived(String? value, List<bool?> inputs) =>
       inputs.contains(false) ? null : value;
+
+  /// The sensor's field of view, `1.73° × 1.16°`, when the camera library
+  /// knows the sensor the user has: the preset chosen on the camera-defaults
+  /// step, or the one the driver's camera name matches. Null when the sensor
+  /// size is unknown, or when the pixel size on screen is not that sensor's.
+  String? _fieldOfView(OnboardingDraft draft) {
+    final scale = draft.imageScaleArcsecPerPixel;
+    if (scale == null) return null;
+    final presets = ref.read(hardwarePresetsServiceProvider);
+    final presetId = draft.cameraPresetId;
+    final sensor = presetId == null
+        ? presets.matchCameraByName(draft.cameraName)
+        : presets.allCameras().where((p) => p.id == presetId).firstOrNull;
+    if (sensor == null ||
+        (sensor.pixelSizeMicrons - (draft.pixelSizeMicrons ?? 0)).abs() >
+            0.001) {
+      return null;
+    }
+    String side(int pixels) => AngleFormat.adaptive(pixels * scale / 3600);
+    return '${side(sensor.sensorWidthPx)} × ${side(sensor.sensorHeightPx)}';
+  }
 
   /// True when the optics on screen still describe the telescope the badge
   /// names.

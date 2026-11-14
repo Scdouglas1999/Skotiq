@@ -6,7 +6,9 @@
 # AI/Agent Tools
 # =============================================================================
 .agent/
-.claude/
+# Agent settings stay local; the project skills in .claude/skills/ are checked in.
+.claude/*
+!.claude/skills/
 .cursor/
 .aider*
 .continue/
@@ -64,9 +66,11 @@ __pycache__/
 # bare directory ignore) so the negations below can take effect.
 /docs/production-readiness/*
 !/docs/production-readiness/analyzer-policy.yaml
+!/docs/production-readiness/audit-scope.yaml
 !/docs/production-readiness/critical-warning-codes.txt
 !/docs/production-readiness/highrisk-baseline.txt
 !/docs/production-readiness/behavioral-audit-register.md
+!/docs/production-readiness/behavioral-audit-register.sites.tsv
 !/docs/production-readiness/fail_closed_rules.yaml
 /docs/science_mockups/
 # Internal audit / planning / release-inventory docs (kept locally, not public)
@@ -75,7 +79,7 @@ __pycache__/
 /docs/driver-agnostic-audit-followup.md
 /docs/consolidation-implementation-plan.md
 /docs/consolidation-workflow.md
-/docs/releases/v2.6.0-inventory.md
+/docs/release/v2.6.0-inventory.md
 /docs/frb_warnings_*.txt
 
 # Build-output DLLs that get re-emitted by cargo + the packaging script.

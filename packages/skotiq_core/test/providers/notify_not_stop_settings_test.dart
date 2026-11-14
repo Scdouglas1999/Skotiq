@@ -18,9 +18,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
+import 'package:skotiq_core/src/models/sequence/autofocus_run.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_executor/sequence_serializer.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -147,7 +149,7 @@ void main() {
         .read(serializer)
         .autofocusRuntimeConfig(
           const AutofocusSettings(),
-          maxDurationSecs: 600,
+          AutofocusRun.fromSettings(const AutofocusSettings()),
         );
 
     expect(config.containsKey('failure_action'), isFalse);

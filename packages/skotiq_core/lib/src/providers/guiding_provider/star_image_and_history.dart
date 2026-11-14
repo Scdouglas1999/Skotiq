@@ -1,7 +1,5 @@
 part of '../guiding_provider.dart';
 
-// PHD2 star image provider - polls star image for guide star view
-
 /// Provider for star image polling configuration
 final starImageSizeProvider = StateProvider<int>((ref) => 50);
 
@@ -69,7 +67,6 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
     _pollTimer = Timer.periodic(Duration(milliseconds: interval), (_) {
       unawaited(_fetchStarImage(generation));
     });
-    // Fetch immediately
     unawaited(_fetchStarImage(generation));
   }
 
@@ -92,20 +89,17 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
 
     _pollInFlight = true;
     try {
-      final image = await backend.guiderGetStarImage(
-        deviceId: guiderId,
-        size: size,
-      );
+      final image = await backend.guiderGetStarImage(size: size);
       if (mounted &&
           generation == _pollGeneration &&
-          identical(backend, ref.read(backendProvider)) &&
+          ref.backendScopeOver(backend).isCurrent &&
           ref.read(guiderStateProvider).deviceId == guiderId) {
         state = AsyncValue.data(image);
       }
     } catch (e) {
       if (mounted &&
           generation == _pollGeneration &&
-          identical(backend, ref.read(backendProvider)) &&
+          ref.backendScopeOver(backend).isCurrent &&
           ref.read(guiderStateProvider).deviceId == guiderId) {
         state = AsyncValue.error(e, StackTrace.current);
       }
@@ -126,12 +120,9 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
   }
 }
 
-// Target display history provider - tracks error history for target display
-
 /// Maximum number of error points to keep
 const int maxTargetHistoryPoints = 50;
 
-/// Provider for target display error history
 final targetDisplayHistoryProvider =
     StateNotifierProvider<TargetDisplayHistoryNotifier, List<GuideErrorPoint>>((
       ref,

@@ -3,33 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Where calibration lives: the Darkroom's Calibration tab holds the
-/// library of darks, bias and flats and the settings for calibrating frames
-/// while imaging.
-const String calibrationTabLocation = '/darkroom?tab=calibration';
-
-/// Settings section keys that used to hold calibration pages. Each now
-/// redirects to [calibrationTabLocation].
-const Set<String> calibrationSettingsSectionKeys = {
-  'calibration',
-  'dark-library',
-  'calibration-library',
-};
-
-/// Where a `/settings` link should go instead: the Calibration tab for any
-/// of the old calibration sections, null for every other section.
-String? calibrationSettingsRedirect(Uri uri) =>
-    calibrationSettingsSectionKeys.contains(uri.queryParameters['section'])
-        ? calibrationTabLocation
-        : null;
+import '../../../utils/darkroom_navigation.dart';
 
 /// The Settings Calibration entry: opening it goes to the Darkroom's
 /// Calibration tab. The pointer stays visible in case navigation is not
 /// available, so the entry is never a dead end.
 class CalibrationSettingsRedirect extends StatefulWidget {
-  const CalibrationSettingsRedirect({super.key, this.isMobile = false});
-
-  final bool isMobile;
+  const CalibrationSettingsRedirect({super.key});
 
   @override
   State<CalibrationSettingsRedirect> createState() =>
@@ -43,7 +23,8 @@ class _CalibrationSettingsRedirectState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      GoRouter.maybeOf(context)?.go(calibrationTabLocation);
+      GoRouter.maybeOf(context)
+          ?.go(darkroomTabLocation(DarkroomTab.calibration));
     });
   }
 
@@ -75,7 +56,8 @@ class _CalibrationSettingsRedirectState
             SkotiqButton(
               label: 'Open Calibration',
               icon: LucideIcons.arrowRight,
-              onPressed: () => context.go(calibrationTabLocation),
+              onPressed: () =>
+                  context.go(darkroomTabLocation(DarkroomTab.calibration)),
             ),
           ],
         ),

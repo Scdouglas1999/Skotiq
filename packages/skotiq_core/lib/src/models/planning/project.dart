@@ -8,10 +8,9 @@ import 'package:equatable/equatable.dart';
 /// target's per-filter integration goals up into a single project-level
 /// accrued-vs-remaining view (see `CampaignProgress`).
 ///
-/// This is a plain immutable, hand-written model backed by a raw-SQL table
-/// (mirrors the convention used by `IntegrationGoal` and the rest of the
-/// scheduler stack — these scheduler tables are created via raw DDL and are not
-/// part of Drift's reactive graph).
+/// This is a plain immutable, hand-written model, like `IntegrationGoal` and
+/// the rest of the scheduler stack; `ProjectService` maps it from the
+/// `projects` row.
 class Project extends Equatable {
   /// Database row id; null for a transient instance not yet persisted.
   final int? id;

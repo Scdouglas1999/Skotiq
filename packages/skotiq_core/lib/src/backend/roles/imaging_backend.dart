@@ -7,6 +7,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
 import '../../models/autofocus_progress.dart' show StarCrop;
 import '../../models/backend/backend_types.dart';
 import '../../models/imaging/imaging_models.dart' show CapturedImage;
+import '../../models/imaging/fits_keyword_write.dart';
 import '../../models/plate_solver.dart'
     show PlateSolverDetection, PlateSolverInfo, PlateSolverPreference;
 
@@ -29,18 +30,35 @@ import '../../models/plate_solver.dart'
 ///   * Sequencer image grading / quality config — see [SequencerBackend].
 ///   * Profile / settings — see [ProfileSettingsBackend].
 abstract class ImagingBackend {
-  // FITS Save
+  /// Set cards in the metadata of a frame file on this host, FITS or XISF,
+  /// keeping its pixels and everything else it holds.
+  Future<void> updateFrameCards(String filePath, List<FitsKeywordWrite> cards);
 
-  /// Save FITS file directly from the last captured image stored server-side.
-  /// This eliminates raw pixel data transfer across FFI/network boundaries.
-  /// More efficient than saveFitsFile for normal capture workflows.
-  Future<void> saveFitsFromLastCapture({
+  /// Save the camera's last frame on the host, where its pixels already are:
+  /// as the archive file at [filePath] (FITS or XISF, the host's capture file
+  /// format), and, for a frame the operator keeps ([keepCameraFile]; never a
+  /// live-view, loop or other scratch frame), the camera's own file beside it
+  /// as the host's camera-file setting says. The host reads the rig for the
+  /// header when it writes the file; [headerData] carries what a device
+  /// cannot say. Returns the path the frame is recorded by: [filePath] when an
+  /// archive file is written, else the camera's file.
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   });
 
-  // Plate solving
+  /// Save the camera's last frame on the host as a scratch file: a frame that
+  /// is shown, solved and annotated but kept in no capture folder. The host
+  /// decides where its scratch files go; [name] is a file name with no folder,
+  /// and a name used again (one per camera for live view) replaces its file.
+  /// Returns the path written.
+  Future<String> saveScratchFrameFromLastCapture({
+    required String deviceId,
+    required String name,
+    required FitsWriteHeader headerData,
+  });
 
   /// Solve an image file. [ra] is a solver hint in degrees; [dec] and
   /// [fovDegrees] are also degrees. [timeoutSeconds] bounds the external
@@ -77,8 +95,6 @@ abstract class ImagingBackend {
   /// Persist plate-solver UX configuration. Invalidates the solver-
   /// availability cache so subsequent solves re-probe with the new paths.
   Future<void> setPlateSolverConfig(PlateSolverPreference pref);
-
-  // Image processing
 
   /// Get star crops from the last captured image for autofocus UI
   Future<List<StarCrop>> getStarCropsFromLastImage(
@@ -141,8 +157,6 @@ abstract class ImagingBackend {
     required String outputPng,
   });
 
-  // Polar alignment
-
   /// Start three-point polar alignment
   ///
   /// This captures 3 images at different mount rotations to calculate
@@ -162,7 +176,6 @@ abstract class ImagingBackend {
     double? autoCompleteThreshold,
   });
 
-  /// Stop the polar alignment process
   Future<void> stopPolarAlignment();
 
   /// Start all-sky (Sharpcap-style) polar alignment.
@@ -194,8 +207,6 @@ abstract class ImagingBackend {
     int? gain,
     int? offset,
   });
-
-  // Image Download (for Mobile)
 
   /// Get list of images for a session
   /// Returns image metadata without full image data

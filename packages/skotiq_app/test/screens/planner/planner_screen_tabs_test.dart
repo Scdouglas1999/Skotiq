@@ -16,16 +16,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
 import 'package:skotiq_app/screens/planner/widgets/projects_tab_content.dart';
 import 'package:skotiq_app/screens/planner/widgets/scheduler_tab_content.dart';
 import 'package:skotiq_app/screens/planner/widgets/progress_tab_content.dart';
 import 'package:skotiq_app/screens/planner/widgets/week_forecast_strip.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../scheduler/scheduler_test_doubles.dart';
+import 'scheduler_test_doubles.dart';
 
 /// Stub AppSettingsNotifier with a real lat/lon so the planner's location
 /// guard short-circuits without hitting the DB (the new forecast tab uses the
@@ -76,15 +82,16 @@ List<Override> _allTabOverrides() {
   ];
 }
 
-Widget _harness({PlannerTab? initialTab, String? initialTabQuery}) {
+/// [linkWord] is the `?tab=` word a link carries, read the way the router
+/// reads it.
+Widget _harness({PlannerTab? initialTab, String? linkWord}) {
   return ProviderScope(
     overrides: [..._allTabOverrides()],
     child: MaterialApp(
       theme: SkotiqTheme.dark,
       home: Scaffold(
         body: PlannerScreen(
-          initialTab: initialTab,
-          initialTabQuery: initialTabQuery,
+          initialTab: initialTab ?? PlannerTab.fromQuery(linkWord),
         ),
       ),
     ),
@@ -152,50 +159,50 @@ Future<void> _tapTab(WidgetTester tester, String label) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('plannerTabFromQuery — consolidated Projects + Schedule wiring', () {
+  group('PlannerTab.fromQuery — consolidated Projects + Schedule wiring', () {
     test('maps Projects + the folded Progress aliases', () {
       // Projects now absorbs the former standalone Progress tab, so its legacy
       // deep-links resolve onto Projects (the all-targets scope).
-      expect(plannerTabFromQuery('projects'), PlannerTab.projects);
-      expect(plannerTabFromQuery('project'), PlannerTab.projects);
-      expect(plannerTabFromQuery('campaign'), PlannerTab.projects);
-      expect(plannerTabFromQuery('campaigns'), PlannerTab.projects);
-      expect(plannerTabFromQuery('progress'), PlannerTab.projects);
-      expect(plannerTabFromQuery('history'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('projects'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('project'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('campaign'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('campaigns'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('progress'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('history'), PlannerTab.projects);
     });
 
     test('maps Schedule + the folded Target Queue / This Week aliases', () {
       // Schedule unifies the former Target Queue scheduler and This Week
       // forecast, so all of their legacy deep-links resolve onto Schedule.
-      expect(plannerTabFromQuery('schedule'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('scheduler'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('queue'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('target-queue'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('week'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('forecast'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('thisweek'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('this-week'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('schedule'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('queue'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('target-queue'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('week'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('forecast'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('thisweek'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('this-week'), PlannerTab.schedule);
     });
 
     test('is case-insensitive for the consolidated tabs', () {
-      expect(plannerTabFromQuery('Projects'), PlannerTab.projects);
-      expect(plannerTabFromQuery('CAMPAIGNS'), PlannerTab.projects);
-      expect(plannerTabFromQuery('Week'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('This-Week'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('Projects'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('CAMPAIGNS'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('Week'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('This-Week'), PlannerTab.schedule);
     });
 
     test('still maps the pre-existing tabs (no regression)', () {
-      expect(plannerTabFromQuery('recommendation'), PlannerTab.recommendation);
-      expect(plannerTabFromQuery('framing'), PlannerTab.framing);
-      expect(plannerTabFromQuery('planetarium'), PlannerTab.planetarium);
+      expect(PlannerTab.fromQuery('recommendation'), PlannerTab.recommendation);
+      expect(PlannerTab.fromQuery('framing'), PlannerTab.framing);
+      expect(PlannerTab.fromQuery('planetarium'), PlannerTab.planetarium);
     });
 
     test('returns null for junk and for null', () {
-      expect(plannerTabFromQuery(null), isNull);
-      expect(plannerTabFromQuery(''), isNull);
-      expect(plannerTabFromQuery('weeky'), isNull);
-      expect(plannerTabFromQuery('project-x'), isNull);
-      expect(plannerTabFromQuery('not-a-tab'), isNull);
+      expect(PlannerTab.fromQuery(null), isNull);
+      expect(PlannerTab.fromQuery(''), isNull);
+      expect(PlannerTab.fromQuery('weeky'), isNull);
+      expect(PlannerTab.fromQuery('project-x'), isNull);
+      expect(PlannerTab.fromQuery('not-a-tab'), isNull);
     });
 
     test('enum declares the intended planning-to-execution order', () {
@@ -297,10 +304,52 @@ void main() {
       );
     });
 
+    // Read from code and seen on Analytics: after the tab was changed by
+    // hand the location still named the link's tab, so the same link again
+    // went nowhere.
+    testWidgets('a link to a tab works again after the tab was changed by hand',
+        (tester) async {
+      sizeDesktop(tester);
+      final router = GoRouter(
+        initialLocation: AppRoutes.planner(tab: PlannerTab.projects),
+        routes: [
+          GoRoute(
+            path: AppRoute.planner.path,
+            builder: (context, state) => Scaffold(
+              body: PlannerScreen(
+                initialTab:
+                    PlannerTab.fromQuery(state.uri.queryParameters['tab']),
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [..._allTabOverrides()],
+          child: MaterialApp.router(
+            theme: SkotiqTheme.dark,
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+      _expectSelected(tester, 'Projects');
+
+      await tester.tap(find.text('Schedule').first);
+      await tester.pump(const Duration(milliseconds: 200));
+      _expectSelected(tester, 'Schedule');
+
+      router.go(AppRoutes.planner(tab: PlannerTab.projects));
+      await tester.pump(const Duration(milliseconds: 200));
+      _expectSelected(tester, 'Projects');
+    });
+
     testWidgets('?tab=projects selects the Projects tab on initial render',
         (tester) async {
       sizeDesktop(tester);
-      await tester.pumpWidget(_harness(initialTabQuery: 'projects'));
+      await tester.pumpWidget(_harness(linkWord: 'projects'));
       await tester.pump(const Duration(milliseconds: 200));
 
       _expectSelected(tester, 'Projects');
@@ -309,7 +358,7 @@ void main() {
     testWidgets('?tab=campaigns alias selects the Projects tab',
         (tester) async {
       sizeDesktop(tester);
-      await tester.pumpWidget(_harness(initialTabQuery: 'campaigns'));
+      await tester.pumpWidget(_harness(linkWord: 'campaigns'));
       await tester.pump(const Duration(milliseconds: 200));
 
       _expectSelected(tester, 'Projects');
@@ -318,7 +367,7 @@ void main() {
     testWidgets('?tab=week (folded) selects the Schedule tab on initial render',
         (tester) async {
       sizeDesktop(tester);
-      await tester.pumpWidget(_harness(initialTabQuery: 'week'));
+      await tester.pumpWidget(_harness(linkWord: 'week'));
       await tester.pump(const Duration(milliseconds: 200));
 
       _expectSelected(tester, 'Schedule');
@@ -326,7 +375,7 @@ void main() {
 
     testWidgets('?tab=forecast alias selects the Schedule tab', (tester) async {
       sizeDesktop(tester);
-      await tester.pumpWidget(_harness(initialTabQuery: 'forecast'));
+      await tester.pumpWidget(_harness(linkWord: 'forecast'));
       await tester.pump(const Duration(milliseconds: 200));
 
       _expectSelected(tester, 'Schedule');
@@ -335,7 +384,7 @@ void main() {
     testWidgets('junk ?tab= falls back to the default Recommendation tab',
         (tester) async {
       sizeDesktop(tester);
-      await tester.pumpWidget(_harness(initialTabQuery: 'not-a-tab'));
+      await tester.pumpWidget(_harness(linkWord: 'not-a-tab'));
       await tester.pump(const Duration(milliseconds: 200));
 
       _expectSelected(tester, 'Tonight');

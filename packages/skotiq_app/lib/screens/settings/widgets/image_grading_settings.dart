@@ -12,10 +12,12 @@
 // these thresholds drive the per-frame Pass/Reject decision and the
 // reject-folder side-channel.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'frame_watch_settings_section.dart';
@@ -77,11 +79,8 @@ String _withNote(String base, String? note) =>
     note == null ? base : '$base $note';
 
 class ImageGradingSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
   const ImageGradingSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -90,78 +89,17 @@ class ImageGradingSettings extends ConsumerStatefulWidget {
 }
 
 class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
-  final _hfrController = TextEditingController();
-  final _baselineController = TextEditingController();
-  final _eccentricityController = TextEditingController();
-  final _starCountController = TextEditingController();
-  final _maxRejectsController = TextEditingController();
-  final _rejectFolderController = TextEditingController();
-  final _lastSyncedValues = <TextEditingController, String>{};
-
-  @override
-  void dispose() {
-    _hfrController.dispose();
-    _baselineController.dispose();
-    _eccentricityController.dispose();
-    _starCountController.dispose();
-    _maxRejectsController.dispose();
-    _rejectFolderController.dispose();
-    super.dispose();
-  }
-
-  void _syncController(TextEditingController controller, String value) {
-    // Only overwrite when the committed setting changed. Rebuilds caused by an
-    // unrelated toggle must not erase text the operator is still editing.
-    if (_lastSyncedValues[controller] == value) return;
-    controller.value = TextEditingValue(
-      text: value,
-      selection: TextSelection.collapsed(offset: value.length),
-    );
-    _lastSyncedValues[controller] = value;
-  }
-
-  void _syncControllers(AppSettingsState settings) {
-    _syncController(
-      _hfrController,
-      settings.imageGradingHfrThresholdPx?.toStringAsFixed(2) ?? '',
-    );
-    _syncController(
-      _baselineController,
-      settings.imageGradingHfrBaselinePercent?.toStringAsFixed(0) ?? '',
-    );
-    _syncController(
-      _eccentricityController,
-      settings.imageGradingEccentricityThreshold?.toStringAsFixed(2) ?? '',
-    );
-    _syncController(
-      _starCountController,
-      settings.imageGradingStarCountMin?.toString() ?? '',
-    );
-    _syncController(
-      _maxRejectsController,
-      settings.imageGradingMaxConsecutiveRejects.toString(),
-    );
-    _syncController(
-      _rejectFolderController,
-      settings.imageGradingRejectFolderPath ?? '',
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
       data: (settings) {
-        _syncControllers(settings);
         final notifier = ref.read(appSettingsProvider.notifier);
         final enabled = settings.enableImageGrading;
 
@@ -169,8 +107,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
           title: 'Image grading',
           description:
               'Auto-reject blurry / trailed / clouded frames at capture time',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             SettingsSection(
               title: 'Master toggle',
@@ -200,21 +136,23 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                     'Reject if the median HFR exceeds this many pixels. The right value depends on your pixel scale and seeing: a sharp frame at 0.8 arcsec/px measures about 2.5 px. The baseline check below adapts to your own frames. Leave blank to disable.',
                     _hfrInertNote(settings.imageGradingHfrThresholdPx),
                   ),
-                  trailing: _OptionalNumberInput(
-                    fieldKey: const ValueKey('image-grading-hfr-threshold'),
-                    controller: _hfrController,
-                    suffix: 'px',
+                  trailing: _gradingField<double?>(
+                    inputKey: const ValueKey('image-grading-hfr-threshold'),
                     // Clamped to what the detector can report: below the floor
                     // every frame is a reject, past the ceiling the gate is
                     // dead. See _hfrFloorPx / _hfrCeilingPx.
-                    min: _hfrFloorPx,
-                    max: _hfrCeilingPx,
-                    decimals: 2,
+                    codec: const OptionalCodec(
+                      NumberCodec(
+                        min: _hfrFloorPx,
+                        max: _hfrCeilingPx,
+                        decimals: 2,
+                        unit: 'px',
+                        fixedDecimals: true,
+                      ),
+                    ),
+                    value: settings.imageGradingHfrThresholdPx,
                     enabled: enabled,
-                    onCommit: (value) async {
-                      await notifier.setImageGradingHfrThreshold(value);
-                    },
-                    isMobile: widget.isMobile,
+                    onChanged: notifier.setImageGradingHfrThreshold,
                   ),
                 ),
                 SettingRow(
@@ -222,19 +160,21 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   title: 'HFR baseline percent',
                   subtitle:
                       'Reject if HFR is more than this percent above the baseline, the median of the first 5 accepted frames of the run.',
-                  trailing: _OptionalNumberInput(
-                    fieldKey:
+                  trailing: _gradingField<double?>(
+                    inputKey:
                         const ValueKey('image-grading-hfr-baseline-percent'),
-                    controller: _baselineController,
-                    suffix: '%',
-                    min: 1.0,
-                    max: 500.0,
-                    decimals: 0,
+                    codec: const OptionalCodec(
+                      NumberCodec(
+                        min: 1.0,
+                        max: 500.0,
+                        decimals: 0,
+                        unit: '%',
+                        fixedDecimals: true,
+                      ),
+                    ),
+                    value: settings.imageGradingHfrBaselinePercent,
                     enabled: enabled,
-                    onCommit: (value) async {
-                      await notifier.setImageGradingHfrBaselinePercent(value);
-                    },
-                    isMobile: widget.isMobile,
+                    onChanged: notifier.setImageGradingHfrBaselinePercent,
                   ),
                   isLast: true,
                 ),
@@ -252,20 +192,21 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                       settings.imageGradingEccentricityThreshold,
                     ),
                   ),
-                  trailing: _OptionalNumberInput(
-                    fieldKey:
+                  trailing: _gradingField<double?>(
+                    inputKey:
                         const ValueKey('image-grading-eccentricity-threshold'),
-                    controller: _eccentricityController,
-                    suffix: '',
-                    min: 0.0,
-                    max: _eccentricityMaxInput,
-                    decimals: 2,
+                    codec: const OptionalCodec(
+                      NumberCodec(
+                        min: 0.0,
+                        max: _eccentricityMaxInput,
+                        decimals: 2,
+                        unit: '',
+                        fixedDecimals: true,
+                      ),
+                    ),
+                    value: settings.imageGradingEccentricityThreshold,
                     enabled: enabled,
-                    onCommit: (value) async {
-                      await notifier
-                          .setImageGradingEccentricityThreshold(value);
-                    },
-                    isMobile: widget.isMobile,
+                    onChanged: notifier.setImageGradingEccentricityThreshold,
                   ),
                 ),
                 SettingRow(
@@ -273,18 +214,15 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   title: 'Star count min',
                   subtitle:
                       'Reject if fewer stars than this are detected, or fewer than half the stars of the first 3 accepted frames of the same target and filter. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable both.',
-                  trailing: _OptionalIntInput(
-                    fieldKey:
+                  trailing: _gradingField<int?>(
+                    inputKey:
                         const ValueKey('image-grading-star-count-minimum'),
-                    controller: _starCountController,
-                    suffix: 'stars',
-                    min: 1,
-                    max: 100000,
+                    codec: const OptionalCodec(
+                      IntCodec(min: 1, max: 100000, unit: 'stars'),
+                    ),
+                    value: settings.imageGradingStarCountMin,
                     enabled: enabled,
-                    onCommit: (value) async {
-                      await notifier.setImageGradingStarCountMin(value);
-                    },
-                    isMobile: widget.isMobile,
+                    onChanged: notifier.setImageGradingStarCountMin,
                   ),
                   isLast: true,
                 ),
@@ -298,26 +236,18 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   title: 'Notify after consecutive rejects',
                   subtitle:
                       'Send one notification when this many frames in a row are rejected: something is probably wrong (drifted focus, clouds, dome misalignment). The run keeps going and every frame is kept; rejects go to the Reject folder.',
-                  trailing: _OptionalIntInput(
-                    fieldKey: const ValueKey('image-grading-max-rejects'),
-                    controller: _maxRejectsController,
-                    suffix: 'frames',
-                    min: 1,
-                    max: 100,
+                  trailing: _gradingField<int>(
+                    inputKey: const ValueKey('image-grading-max-rejects'),
+                    codec: const IntCodec(min: 1, max: 100, unit: 'frames'),
+                    value: settings.imageGradingMaxConsecutiveRejects,
                     enabled: enabled,
-                    allowClear: false,
-                    onCommit: (value) async {
-                      if (value == null) return;
-                      await notifier
-                          .setImageGradingMaxConsecutiveRejects(value);
-                    },
-                    isMobile: widget.isMobile,
+                    onChanged: notifier.setImageGradingMaxConsecutiveRejects,
                   ),
                   isLast: true,
                 ),
               ],
             ),
-            FrameWatchSettingsSection(isMobile: widget.isMobile),
+            const FrameWatchSettingsSection(),
             SettingsSection(
               title: 'Reject folder',
               children: [
@@ -327,14 +257,14 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   subtitle:
                       'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.',
                   trailing: SettingsTextInput(
-                    controller: _rejectFolderController,
+                    authoritativeValue:
+                        settings.imageGradingRejectFolderPath ?? '',
                     hint: '<save_path>/<target>/Reject/',
                     onChanged: (value) async {
                       // SettingsTextInput commits on Enter or blur and the
                       // setter trims empty input to null.
                       await notifier.setImageGradingRejectFolderPath(value);
                     },
-                    isMobile: widget.isMobile,
                   ),
                   isLast: true,
                 ),
@@ -347,253 +277,63 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
   }
 }
 
-/// A number input that supports an "empty = null" state for the
-/// optional thresholds. Clearing the field commits `null` to the setting
-/// (disabling that specific check while keeping the master toggle on).
-class _OptionalNumberInput extends StatelessWidget {
-  final Key fieldKey;
-  final TextEditingController controller;
-  final String suffix;
-  final double min;
-  final double max;
-  final int decimals;
-  final bool enabled;
-  final Future<void> Function(double?) onCommit;
-  final bool isMobile;
-
-  const _OptionalNumberInput({
-    required this.fieldKey,
-    required this.controller,
-    required this.suffix,
-    required this.min,
-    required this.max,
-    required this.decimals,
-    required this.enabled,
-    required this.onCommit,
-    this.isMobile = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _OptionalNumericInput<double>(
-      fieldKey: fieldKey,
-      controller: controller,
-      suffix: suffix,
-      enabled: enabled,
-      allowClear: true,
-      keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
-      tryParse: double.tryParse,
-      normalize: (value) => value.clamp(min, max),
-      format: (value) => value.toStringAsFixed(decimals),
-      onCommit: onCommit,
-      isMobile: isMobile,
-    );
-  }
-}
-
-/// Integer-only variant of `_OptionalNumberInput` for star
-/// count + max consecutive rejects.
-class _OptionalIntInput extends StatelessWidget {
-  final Key fieldKey;
-  final TextEditingController controller;
-  final String suffix;
-  final int min;
-  final int max;
-  final bool enabled;
-  final bool allowClear;
-  final Future<void> Function(int?) onCommit;
-  final bool isMobile;
-
-  const _OptionalIntInput({
-    required this.fieldKey,
-    required this.controller,
-    required this.suffix,
-    required this.min,
-    required this.max,
-    required this.enabled,
-    required this.onCommit,
-    this.allowClear = true,
-    this.isMobile = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _OptionalNumericInput<int>(
-      fieldKey: fieldKey,
-      controller: controller,
-      suffix: suffix,
-      enabled: enabled,
-      allowClear: allowClear,
-      keyboardType: TextInputType.number,
-      tryParse: int.tryParse,
-      normalize: (value) => value.clamp(min, max),
-      format: (value) => value.toString(),
-      onCommit: onCommit,
-      isMobile: isMobile,
-    );
-  }
-}
-
-class _OptionalNumericInput<T extends num> extends StatefulWidget {
-  final Key fieldKey;
-  final TextEditingController controller;
-  final String suffix;
-  final bool enabled;
-  final bool allowClear;
-  final TextInputType keyboardType;
-  final T? Function(String) tryParse;
-  final T Function(T) normalize;
-  final String Function(T) format;
-  final Future<void> Function(T?) onCommit;
-  final bool isMobile;
-
-  const _OptionalNumericInput({
-    required this.fieldKey,
-    required this.controller,
-    required this.suffix,
-    required this.enabled,
-    required this.allowClear,
-    required this.keyboardType,
-    required this.tryParse,
-    required this.normalize,
-    required this.format,
-    required this.onCommit,
-    required this.isMobile,
-  });
-
-  @override
-  State<_OptionalNumericInput<T>> createState() =>
-      _OptionalNumericInputState<T>();
-}
-
-class _OptionalNumericInputState<T extends num>
-    extends State<_OptionalNumericInput<T>> {
-  final _focusNode = FocusNode();
-  late String _committedText;
-  bool _saving = false;
-  bool _submittedSinceLastEdit = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _committedText = widget.controller.text;
-    _focusNode.addListener(_onFocusChanged);
-  }
-
-  void _onFocusChanged() {
-    if (_focusNode.hasFocus) return;
-    if (_submittedSinceLastEdit) {
-      _submittedSinceLastEdit = false;
-      return;
-    }
-    _commit();
-  }
-
-  void _setText(String text) {
-    widget.controller.value = TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
-    );
-  }
-
-  Future<void> _commit() async {
-    if (_saving) return;
-    final raw = widget.controller.text.trim();
-    T? value;
-    late String canonical;
-    if (raw.isEmpty) {
-      if (!widget.allowClear) {
-        _setText(_committedText);
-        setState(() => _error = 'A value is required.');
-        return;
-      }
-      canonical = '';
-    } else {
-      final parsed = widget.tryParse(raw);
-      if (parsed == null) {
-        _setText(_committedText);
-        setState(() => _error = 'Enter a valid number.');
-        return;
-      }
-      value = widget.normalize(parsed);
-      canonical = widget.format(value);
-    }
-
-    _setText(canonical);
-    if (canonical == _committedText) {
-      if (_error != null) setState(() => _error = null);
-      return;
-    }
-
-    final previous = _committedText;
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await widget.onCommit(value);
-      if (!mounted) return;
-      _committedText = canonical;
-    } catch (_) {
-      if (!mounted) return;
-      _setText(previous);
-      setState(() => _error = 'Could not save. Previous value restored.');
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_onFocusChanged);
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    final effectiveWidth = widget.isMobile ? 120.0 : 140.0;
-    final interactive = widget.enabled && !_saving;
-    return Opacity(
-      opacity: interactive ? 1.0 : 0.5,
-      child: IgnorePointer(
-        ignoring: !interactive,
-        child: SizedBox(
-          width: effectiveWidth,
-          child: TextField(
-            key: widget.fieldKey,
-            controller: widget.controller,
-            focusNode: _focusNode,
-            keyboardType: widget.keyboardType,
-            style: SkotiqTypography.caption.copyWith(
-              color: colors.textPrimary,
-            ),
-            decoration: InputDecoration(
-              hintText: widget.allowClear ? '—' : '',
-              suffixText: widget.suffix.isEmpty ? null : widget.suffix,
-              errorText: _error,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
+/// A threshold field in this page's outlined style. An optional codec makes
+/// an empty field mean "check disabled".
+Widget _gradingField<T>({
+  required Key inputKey,
+  required SettingCodec<T> codec,
+  required T value,
+  required bool enabled,
+  required FutureOr<void> Function(T value) onChanged,
+}) {
+  return SettingsValueField<T>(
+    inputKey: inputKey,
+    codec: codec,
+    value: value,
+    enabled: enabled,
+    onChanged: onChanged,
+    hint: codec is OptionalCodec ? '\u2014' : '',
+    builder: (context, parts) {
+      final colors = SkotiqColors.of(context);
+      final radius = BorderRadius.circular(SkotiqTokens.radiusMd);
+      return Opacity(
+        opacity: parts.enabled ? 1.0 : 0.5,
+        child: IgnorePointer(
+          ignoring: !parts.enabled,
+          child: SettingsControlBox(
+            width: 140,
+            narrowWidth: 120,
+            child: TextField(
+              key: parts.inputKey,
+              controller: parts.controller,
+              focusNode: parts.focusNode,
+              keyboardType: parts.keyboardType,
+              inputFormatters: parts.inputFormatters,
+              style: SkotiqTypography.caption.copyWith(
+                color: colors.textPrimary,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
+              decoration: InputDecoration(
+                hintText: parts.hint,
+                suffixText: parts.unit.isEmpty ? null : parts.unit,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                border: OutlineInputBorder(borderRadius: radius),
+                enabledBorder: parts.hasProblem
+                    ? OutlineInputBorder(
+                        borderRadius: radius,
+                        borderSide: BorderSide(color: colors.error),
+                      )
+                    : null,
               ),
+              onChanged: parts.onChanged,
+              onSubmitted: parts.onSubmitted,
             ),
-            onChanged: (_) {
-              _submittedSinceLastEdit = false;
-              if (_error != null) setState(() => _error = null);
-            },
-            onSubmitted: (_) {
-              _submittedSinceLastEdit = true;
-              _commit();
-            },
           ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
 }

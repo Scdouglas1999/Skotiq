@@ -4,10 +4,9 @@ Future<CheckpointInfo?> _safeCheckpointInfo(SkotiqBackend backend) async {
   try {
     return await backend.getCheckpointInfo();
   } catch (error, stackTrace) {
-    developer.log(
+    Log.warning(
       'QuickStartService: checkpoint availability check failed: $error',
-      name: 'QuickStartService',
-      level: 900,
+      source: 'QuickStartService',
       error: error,
       stackTrace: stackTrace,
     );
@@ -19,7 +18,9 @@ bool _isRecentCompletedSession(db.ImagingSession session, DateTime now) {
   final age = now.difference(session.startTime);
   final hasProgress =
       session.successfulExposures > 0 || session.totalIntegrationSecs > 0;
-  return session.status == 'completed' && age.inDays <= 7 && hasProgress;
+  return session.sessionStatus == SessionStatus.completed &&
+      age.inDays <= 7 &&
+      hasProgress;
 }
 
 /// Builds Quick Start contexts from the same host-aware streams used by the
@@ -27,7 +28,7 @@ bool _isRecentCompletedSession(db.ImagingSession session, DateTime now) {
 /// empty local session/target/sequence tables.
 Future<List<QuickStartContext>> _remoteQuickStartContexts(
   Ref ref,
-  NetworkBackend backend, {
+  SkotiqBackend backend, {
   required int limit,
 }) async {
   final sessionsFuture = ref.watch(allSessionsProvider.future);
@@ -44,7 +45,9 @@ Future<List<QuickStartContext>> _remoteQuickStartContexts(
   final checkpoint = await checkpointFuture;
 
   final candidates = <db.ImagingSession>[];
-  candidates.addAll(sessions.where((session) => session.status == 'active'));
+  candidates.addAll(
+    sessions.where((session) => session.sessionStatus == SessionStatus.active),
+  );
   final now = DateTime.now();
   for (final session in sessions) {
     if (candidates.length >= limit) break;
@@ -77,10 +80,9 @@ Future<List<QuickStartContext>> _remoteQuickStartContexts(
       try {
         snapshot = EquipmentSnapshot.fromJsonString(snapshotJson);
       } catch (error, stackTrace) {
-        developer.log(
+        Log.warning(
           'QuickStartService: failed to parse host equipment snapshot: $error',
-          name: 'QuickStartService',
-          level: 900,
+          source: 'QuickStartService',
           error: error,
           stackTrace: stackTrace,
         );
@@ -103,13 +105,13 @@ Future<List<QuickStartContext>> _remoteQuickStartContexts(
       lastSessionDate: session.endTime ?? session.startTime,
       equipmentSnapshot: snapshot,
       totalIntegrationHours: session.totalIntegrationSecs / 3600.0,
+      stoppedByOperator: isOperatorStoppedSessionStatus(session.status),
     );
     contexts.add(context.withCheckpointInfo(checkpoint));
   }
   return contexts;
 }
 
-/// Provider for the QuickStartService
 final quickStartServiceProvider = Provider<QuickStartService>((ref) {
   return QuickStartService(
     sessionsDao: ref.watch(sessionsDaoProvider),
@@ -119,7 +121,7 @@ final quickStartServiceProvider = Provider<QuickStartService>((ref) {
     checkpointsDao: ref.watch(sequenceCheckpointsDaoProvider),
     resolveProfileName: (profileId) async {
       final backend = ref.read(backendProvider);
-      if (backend is NetworkBackend) {
+      if (ref.read(isRemoteModeProvider)) {
         final profiles = await backend.getProfiles();
         for (final profile in profiles) {
           if (int.tryParse(profile.id) == profileId) {
@@ -151,7 +153,7 @@ final quickStartContextProvider = FutureProvider<QuickStartContext?>((
   ref,
 ) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  if (ref.watch(isRemoteModeProvider)) {
     final contexts = await _remoteQuickStartContexts(ref, backend, limit: 1);
     return contexts.isEmpty ? null : contexts.first;
   }
@@ -162,10 +164,9 @@ final quickStartContextProvider = FutureProvider<QuickStartContext?>((
   return context.withCheckpointInfo(checkpoint);
 });
 
-/// Provider for checking if quick start is available
 final quickStartAvailableProvider = FutureProvider<bool>((ref) async {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  if (ref.watch(isRemoteModeProvider)) {
     return (await _remoteQuickStartContexts(ref, backend, limit: 1)).isNotEmpty;
   }
   final service = ref.watch(quickStartServiceProvider);
@@ -176,7 +177,7 @@ final quickStartAvailableProvider = FutureProvider<bool>((ref) async {
 final quickStartContextsProvider =
     FutureProvider.family<List<QuickStartContext>, int>((ref, limit) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      if (ref.watch(isRemoteModeProvider)) {
         return _remoteQuickStartContexts(ref, backend, limit: limit);
       }
       final service = ref.watch(quickStartServiceProvider);

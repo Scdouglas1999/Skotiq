@@ -1,0 +1,507 @@
+// ignore_for_file: unused_local_variable
+
+import 'dart:async';
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/providers.dart' show sequenceExecutionStateProvider;
+import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_updater/skotiq_updater.dart';
+
+import '../../services/app_update.dart';
+import 'update_dialogs.dart';
+import 'package:skotiq_core/services.dart';
+
+/// Widget that manages the update UI flow.
+///
+/// This widget should be placed inside MaterialApp's builder. It uses
+/// a Stack-based approach to show update banners (no Overlay required).
+///
+/// The builder sits above the app's Navigator, so the dialogs (update
+/// available, download progress, ready to install) need [navigatorKey] to
+/// reach it. Without one they cannot open: every call threw "Navigator
+/// operation requested with a context that does not include a Navigator",
+/// and the offer the whole prompt gate exists to time was never seen.
+class UpdateManagerWidget extends ConsumerStatefulWidget {
+  final Widget child;
+
+  /// The app's root Navigator, used when this widget is mounted above it.
+  final GlobalKey<NavigatorState>? navigatorKey;
+
+  const UpdateManagerWidget({
+    super.key,
+    required this.child,
+    this.navigatorKey,
+  });
+
+  @override
+  ConsumerState<UpdateManagerWidget> createState() =>
+      _UpdateManagerWidgetState();
+}
+
+class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
+  bool _hasShownUpdateDialog = false;
+  bool _showingBanner = false;
+  String _bannerVersion = '';
+  String? _errorMessage;
+  int _bannerGeneration = 0;
+  StreamSubscription<String>? _lanPushFailures;
+  static const _disabledUpdatesLog =
+      '[UpdateManager] No update source configured, skipping update checks';
+
+  /// Reads `sourceConfigured` rather than the server URL: a build reading
+  /// GitHub Releases has no server URL, and testing the URL here was what
+  /// kept the whole update flow switched off in every shipped build.
+  bool _isUpdateConfigured() => ref.read(updateProvider).sourceConfigured;
+
+  @override
+  void initState() {
+    super.initState();
+    // An update staged by an earlier run, downloaded or pushed.
+    Future.delayed(const Duration(seconds: 1), _checkForStagedUpdate);
+
+    // Check for updates on startup after a short delay
+    Future.delayed(const Duration(seconds: 3), _checkForUpdates);
+
+    _lanPushFailures =
+        ref.read(updateProvider.notifier).lanPushFailures.listen((error) {
+      if (!mounted) return;
+      Log.error(
+        'LAN push error: $error',
+        source: 'UpdateManager',
+      );
+      _showErrorBanner('LAN push error: $error');
+    });
+  }
+
+  Future<void> _checkForStagedUpdate() async {
+    if (!mounted) return;
+
+    Log.debug(
+      'Checking for staged updates...',
+      source: 'UpdateManager',
+    );
+    final updateNotifier = ref.read(updateProvider.notifier);
+    await updateNotifier.checkStagedUpdate();
+
+    final notice = updateNotifier.takePendingNotice();
+    if (notice != null) {
+      _showErrorBanner(notice.message);
+    }
+
+    final state = ref.read(updateProvider);
+    if (state.status == UpdateStatus.staged) {
+      Log.info(
+        'Found staged update: ${state.availableUpdate?.version}',
+        source: 'UpdateManager',
+      );
+      _showReadyBanner(state.availableUpdate?.version ?? 'Unknown');
+    } else {
+      Log.debug(
+        'No staged update found',
+        source: 'UpdateManager',
+      );
+    }
+  }
+
+  void _showReadyBanner(String version, {bool autoDismiss = true}) {
+    if (!mounted) return;
+    final generation = ++_bannerGeneration;
+
+    Log.debug(
+      'Showing banner for version: $version',
+      source: 'UpdateManager',
+    );
+    setState(() {
+      _showingBanner = true;
+      _bannerVersion = version;
+      _errorMessage = null;
+    });
+
+    if (autoDismiss) {
+      Future.delayed(const Duration(seconds: 60), () {
+        if (mounted && _showingBanner && generation == _bannerGeneration) {
+          setState(() => _showingBanner = false);
+        }
+      });
+    }
+  }
+
+  void _hideBanner() {
+    if (mounted) {
+      _bannerGeneration++;
+      setState(() {
+        _showingBanner = false;
+        _errorMessage = null;
+      });
+    }
+  }
+
+  void _showErrorBanner(String error) {
+    if (!mounted) return;
+    final generation = ++_bannerGeneration;
+    setState(() {
+      _showingBanner = true;
+      _errorMessage = error;
+    });
+
+    // Auto-dismiss after 10 seconds
+    Future.delayed(const Duration(seconds: 10), () {
+      if (mounted && generation == _bannerGeneration) {
+        _hideBanner();
+      }
+    });
+  }
+
+  Future<void> _checkForUpdates() async {
+    if (!mounted) return;
+    if (!_isUpdateConfigured()) {
+      Log.debug(
+        _disabledUpdatesLog,
+        source: 'UpdateManager',
+      );
+      return;
+    }
+
+    // Throttled: startup happens every launch, and a rig can be restarted
+    // many times in one session while wiring equipment. The button in
+    // Settings still runs an unthrottled check.
+    final updateNotifier = ref.read(updateProvider.notifier);
+    await updateNotifier.checkForUpdatesIfDue();
+  }
+
+  /// A context below the app's Navigator, or null when there is none yet.
+  BuildContext? _dialogContext() {
+    if (Navigator.maybeOf(context) != null) return context;
+    final key = widget.navigatorKey;
+    return key?.currentState?.overlay?.context ?? key?.currentContext;
+  }
+
+  void _showUpdateAvailableDialog(UpdateState state) {
+    if (_hasShownUpdateDialog) return;
+
+    final notifier = ref.read(updateProvider.notifier);
+
+    // Was this version already answered — skipped, or waved off within the
+    // reminder window? Found updates stay in state either way, so Settings
+    // still shows it; this only decides whether to interrupt.
+    if (!notifier.shouldPrompt()) {
+      Log.debug(
+        'Update ${state.availableUpdate?.version} is available but was '
+        'already skipped or deferred; not prompting.',
+        source: 'UpdateManager',
+      );
+      return;
+    }
+
+    // Never talk over a running rig. Unlike the apply gate this does not
+    // require a parked mount — it only refuses to interrupt an exposure, a
+    // slew, or a sequence in flight. The dialog is re-offered on the next
+    // check once the rig is idle.
+    final heldBack = updatePromptHeldBackReason(ref.read);
+    if (heldBack != null) {
+      Log.debug(
+        'Holding back the update prompt: $heldBack.',
+        source: 'UpdateManager',
+      );
+      return;
+    }
+
+    final dialogContext = _dialogContext();
+    if (dialogContext == null) {
+      Log.warning(
+        'No Navigator to show the update offer on; it stays in Settings.',
+        source: 'UpdateManager',
+      );
+      return;
+    }
+
+    _hasShownUpdateDialog = true;
+
+    final manifest = state.availableUpdate!;
+    UpdateAvailableDialog.show(
+      dialogContext,
+      currentVersion: state.currentVersion,
+      newVersion: manifest.version,
+      // Prefer the notes the source carried (the GitHub release body) over
+      // the terse line baked into the signed manifest.
+      releaseNotes: state.releaseNotes ?? manifest.releaseNotes,
+      downloadSizeBytes: manifest.compressedSize,
+      requiresManualUpgrade: state.requiresManualUpgrade,
+      onUpdate: () {
+        ref.read(updateProvider.notifier).downloadUpdate();
+      },
+      onSkip: () {
+        ref.read(updateProvider.notifier).skipUpdate();
+      },
+      onLater: () {
+        // "Not now" is remembered across restarts, so dismissing on the way
+        // out to the scope does not mean being asked again at the next
+        // launch. A newer release still asks straight away.
+        unawaited(ref.read(updateProvider.notifier).deferUpdate());
+        // Reset so a manual re-check can reopen the dialog this session.
+        _hasShownUpdateDialog = false;
+      },
+    );
+  }
+
+  void _showDownloadProgressDialog(UpdateState state) {
+    final hostContext = _dialogContext();
+    if (hostContext == null) return;
+    var dialogClosed = false;
+    showDialog(
+      context: hostContext,
+      barrierDismissible: false,
+      builder: (dialogContext) => Consumer(
+        builder: (context, ref, _) {
+          final currentState = ref.watch(updateProvider);
+          if (currentState.status == UpdateStatus.staged) {
+            // Download complete, close this dialog and show ready dialog
+            if (!dialogClosed) {
+              dialogClosed = true;
+              Future.microtask(() {
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+                if (mounted) _showUpdateReadyDialog(currentState);
+              });
+            }
+            return const SizedBox.shrink();
+          }
+
+          // Terminal non-download states leave nothing to show; close the
+          // dialog so a failed/cancelled download is not trapped behind it.
+          if (currentState.status == UpdateStatus.error ||
+              currentState.status == UpdateStatus.available ||
+              currentState.status == UpdateStatus.upToDate ||
+              currentState.status == UpdateStatus.idle) {
+            if (!dialogClosed) {
+              dialogClosed = true;
+              Future.microtask(() {
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+              });
+            }
+            return const SizedBox.shrink();
+          }
+
+          return UpdateDownloadDialog(
+            version: currentState.availableUpdate?.version ?? '',
+            progress: currentState.downloadProgress,
+            downloadedBytes: currentState.downloadedBytes,
+            totalBytes: currentState.totalBytes,
+            status: 'Downloading...',
+            onCancel: () {
+              ref.read(updateProvider.notifier).cancelDownload();
+              Navigator.of(context).pop();
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  void _showUpdateReadyDialog(UpdateState state) {
+    final isSessionActive = isSequenceActiveForUpdate(
+      ref.read(sequenceExecutionStateProvider),
+    );
+
+    final dialogContext = _dialogContext();
+    if (dialogContext == null) {
+      _showReadyBanner(
+        state.availableUpdate?.version ?? '',
+        autoDismiss: false,
+      );
+      return;
+    }
+
+    UpdateReadyDialog.show(
+      dialogContext,
+      version: state.availableUpdate?.version ?? '',
+      isSessionActive: isSessionActive,
+      // Android installs through the OS, which does not restart the app for
+      // us; the dialog must not promise that it will.
+      installsViaSystemInstaller: !kIsWeb && Platform.isAndroid,
+      onRestartNow: () {
+        ref.read(updateProvider.notifier).applyUpdate();
+      },
+      onRestartLater: () {
+        // Keep a persistent apply banner so the staged update stays reachable.
+        _showReadyBanner(
+          state.availableUpdate?.version ?? '',
+          autoDismiss: false,
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lanPushFailures?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // An update found mid-run is held back rather than dropped. Watch the
+    // hold so the offer arrives the moment the rig goes idle, instead of
+    // waiting for the next scheduled check up to twelve hours later — quite
+    // possibly while nobody is at the screen.
+    ref.listen<String?>(updatePromptHoldProvider, (previous, next) {
+      if (previous == null || next != null) return;
+      final state = ref.read(updateProvider);
+      if (state.status != UpdateStatus.available) return;
+      // Deferred to a post-frame callback: this fires during a provider
+      // rebuild, and showing a dialog inside one throws.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showUpdateAvailableDialog(ref.read(updateProvider));
+      });
+    });
+
+    ref.listen<UpdateState>(updateProvider, (previous, next) {
+      // An update pushed over the LAN while another was already staged does
+      // not change the status, only what is staged.
+      final restaged = previous?.status == UpdateStatus.staged &&
+          next.status == UpdateStatus.staged &&
+          previous?.stagingPath != next.stagingPath;
+      if (previous?.status != next.status || restaged) {
+        switch (next.status) {
+          case UpdateStatus.available:
+            _showUpdateAvailableDialog(next);
+            break;
+          case UpdateStatus.downloading:
+            if (previous?.status != UpdateStatus.downloading) {
+              _showDownloadProgressDialog(next);
+            }
+            break;
+          case UpdateStatus.staged:
+            // Back to staged with a message: the install was refused for a
+            // reason the operator has to act on (Android's install
+            // permission), and the update is still ready once they have.
+            if (next.errorMessage != null) {
+              _showErrorBanner(next.errorMessage!);
+              break;
+            }
+            // The banner already offers it.
+            if (_showingBanner) {
+              Log.debug(
+                'Banner already showing, skipping dialog',
+                source: 'UpdateManager',
+              );
+              break;
+            }
+            // A download, verification included, ends in the download
+            // dialog.
+            if (previous?.status == UpdateStatus.downloading ||
+                previous?.status == UpdateStatus.verifying) {
+              // Will be handled by download dialog
+            } else {
+              // A LAN push: a banner, because dialogs do not work in the
+              // MaterialApp.builder context.
+              _showReadyBanner(
+                next.availableUpdate?.version ?? 'Unknown',
+              );
+            }
+            break;
+          case UpdateStatus.error:
+            // A check that could not reach its source (offline at a dark
+            // site, a rate limit) is reported in Settings > About. Only a
+            // download or install the operator started is worth a toast.
+            if (previous?.status == UpdateStatus.checking) break;
+            if (next.errorMessage != null) {
+              Log.error(
+                'Error: ${next.errorMessage}',
+                source: 'UpdateManager',
+              );
+              // Show error in banner instead of snackbar (more reliable in builder context)
+              _showErrorBanner(next.errorMessage!);
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    });
+
+    // Use Stack to show banner without needing Overlay
+    return Stack(
+      children: [
+        widget.child,
+        // Show error banner
+        if (_errorMessage != null)
+          Positioned(
+            top: 80,
+            right: 16,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 350),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: context.skotiqColors.error,
+                  borderRadius: SkotiqTokens.borderRadiusLg,
+                  boxShadow: [
+                    BoxShadow(
+                      color: ImageOverlayColors.shadow.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      color: Theme.of(context).colorScheme.onError,
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        _errorMessage!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: Theme.of(context).colorScheme.onError,
+                      ),
+                      onPressed: _hideBanner,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        // Show update banner
+        if (_showingBanner && _errorMessage == null)
+          Positioned(
+            top: 80,
+            right: 16,
+            width: 320, // Fixed width to avoid unbounded constraints
+            child: Material(
+              color: Colors.transparent,
+              child: UpdateReadyBanner(
+                version: _bannerVersion,
+                onRestart: () {
+                  _hideBanner();
+                  ref.read(updateProvider.notifier).applyUpdate();
+                },
+                onDismiss: _hideBanner,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}

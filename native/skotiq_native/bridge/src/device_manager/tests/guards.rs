@@ -1,14 +1,5 @@
 use super::*;
-
-#[tokio::test]
-async fn test_mount_can_park_requires_registered_device() {
-    let manager = build_device_manager();
-    let err = manager
-        .mount_can_park("missing-mount")
-        .await
-        .expect_err("missing mount should error");
-    assert!(err.to_string().contains("Device not found"));
-}
+use crate::device_manager::policy::policy;
 
 #[test]
 fn operation_guard_marks_and_clears_active_operations() {
@@ -93,15 +84,9 @@ fn usb_contention_suppresses_only_aux_device_types() {
     // The focuser/filter-wheel/rotator share the camera's USB path and are
     // suppressed during a download window. The camera (which is driving the
     // contention) and the mount (own link, tracking-critical) are not.
-    assert!(DeviceManager::device_type_suppressed_by_usb_contention(
-        &DeviceType::Focuser
-    ));
-    assert!(DeviceManager::device_type_suppressed_by_usb_contention(
-        &DeviceType::FilterWheel
-    ));
-    assert!(DeviceManager::device_type_suppressed_by_usb_contention(
-        &DeviceType::Rotator
-    ));
+    assert!(policy(DeviceType::Focuser).yields_to_camera_usb);
+    assert!(policy(DeviceType::FilterWheel).yields_to_camera_usb);
+    assert!(policy(DeviceType::Rotator).yields_to_camera_usb);
 
     for not_suppressed in [
         DeviceType::Camera,
@@ -114,7 +99,7 @@ fn usb_contention_suppresses_only_aux_device_types() {
         DeviceType::CoverCalibrator,
     ] {
         assert!(
-            !DeviceManager::device_type_suppressed_by_usb_contention(&not_suppressed),
+            !policy(not_suppressed).yields_to_camera_usb,
             "{:?} must NOT be suppressed by USB contention",
             not_suppressed
         );
@@ -138,7 +123,7 @@ fn escalate_to_disconnect_is_a_per_device_type_property() {
         DeviceType::CoverCalibrator,
     ] {
         assert!(
-            HeartbeatConfig::for_device_type(&escalating).escalate_to_disconnect,
+            policy(escalating).heartbeat.escalate_to_disconnect,
             "{:?} must escalate a heartbeat loss to disconnect",
             escalating
         );
@@ -146,15 +131,9 @@ fn escalate_to_disconnect_is_a_per_device_type_property() {
 
     // SafetyMonitor heartbeat is only a liveness hint; the independent
     // IsSafe signal owns enclosure safety decisions.
-    assert!(!HeartbeatConfig::for_safety_monitor().escalate_to_disconnect);
-}
-
-#[tokio::test]
-async fn test_mount_stop_requires_registered_device() {
-    let manager = build_device_manager();
-    let err = manager
-        .mount_stop("missing-mount")
-        .await
-        .expect_err("missing mount should error");
-    assert!(err.to_string().contains("Device not found"));
+    assert!(
+        !policy(DeviceType::SafetyMonitor)
+            .heartbeat
+            .escalate_to_disconnect
+    );
 }

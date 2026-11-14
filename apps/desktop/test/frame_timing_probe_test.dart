@@ -1,17 +1,24 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/painting.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/frame_timing_probe.dart';
 
-/// [FrameTiming] wants the full vsync phase vector; only the build and raster
-/// spans are read back, so the rest are pinned at a fixed origin.
-FrameTiming _frame({required int buildMicros, required int rasterMicros}) {
+/// Synthetic engine phases with an optional queue delay before the build.
+FrameTiming _frame({
+  required int buildMicros,
+  required int rasterMicros,
+  int queueMicros = 0,
+}) {
   const start = 1000000;
-  final buildEnd = start + buildMicros;
+  final buildStart = start + queueMicros;
+  final buildEnd = buildStart + buildMicros;
   final rasterEnd = buildEnd + rasterMicros;
   return FrameTiming(
     vsyncStart: start,
-    buildStart: start,
+    buildStart: buildStart,
     buildFinish: buildEnd,
     rasterStart: buildEnd,
     rasterFinish: rasterEnd,
@@ -84,6 +91,82 @@ void main() {
       expect(line, contains('buildP95Ms=4.0'));
       expect(line, contains('rasterP95Ms=7.0'));
     });
+
+    test('late reports divide frame count by actual elapsed time', () {
+      final line = frameTimingLine(
+        List.generate(300, (_) => _frame(buildMicros: 100, rasterMicros: 200)),
+        const Duration(seconds: 5),
+        elapsedWindow: const Duration(seconds: 10),
+      );
+      expect(line, contains('window=10.0s frames=300 fps=30.0'));
+      expect(line, contains('nominalWindow=5.0s'));
+    });
+
+    test('p99 and maximum preserve rare long frames separately', () {
+      final line = frameTimingLine([
+        for (var i = 0; i < 98; i++)
+          _frame(buildMicros: 1000, rasterMicros: 2000),
+        _frame(buildMicros: 20000, rasterMicros: 30000),
+        _frame(buildMicros: 100000, rasterMicros: 200000),
+      ], const Duration(seconds: 5));
+      expect(line, contains('buildP95Ms=1.0 rasterP95Ms=2.0'));
+      expect(line, contains('buildP99Ms=20.0 rasterP99Ms=30.0'));
+      expect(line, contains('buildMaxMs=100.0 rasterMaxMs=200.0'));
+    });
+
+    test('display and target budgets count strictly over-budget stages', () {
+      final line = frameTimingLine(
+        [
+          _frame(buildMicros: 4000, rasterMicros: 4001),
+          _frame(buildMicros: 4001, rasterMicros: 4000),
+          _frame(buildMicros: 17000, rasterMicros: 17000),
+        ],
+        const Duration(seconds: 1),
+        displayRefreshHz: 60,
+        targetRefreshHz: 250,
+      );
+      expect(line, contains('displayHz=60.000'));
+      expect(line, contains('targetHz=250.000'));
+      expect(line, contains('buildOverDisplayBudget=1'));
+      expect(line, contains('rasterOverDisplayBudget=1'));
+      expect(line, contains('buildOverTargetBudget=2'));
+      expect(line, contains('rasterOverTargetBudget=2'));
+    });
+
+    test('240 Hz count uses the unrounded 4.1667 millisecond budget', () {
+      final line = frameTimingLine(
+        [_frame(buildMicros: 4166, rasterMicros: 4167)],
+        const Duration(seconds: 1),
+        displayRefreshHz: 240,
+      );
+      expect(line, contains('buildOverDisplayBudget=0'));
+      expect(line, contains('rasterOverDisplayBudget=1'));
+    });
+
+    test('pipeline latency is distinct from per-stage budget overruns', () {
+      final line = frameTimingLine(
+        [_frame(buildMicros: 2000, rasterMicros: 2000, queueMicros: 3000)],
+        const Duration(seconds: 1),
+        displayRefreshHz: 240,
+      );
+      expect(line, contains('latencyP95Ms=7.0'));
+      expect(line, contains('buildOverDisplayBudget=0'));
+      expect(line, contains('rasterOverDisplayBudget=0'));
+      expect(line.toLowerCase(), isNot(contains('dropped')));
+    });
+
+    test('unknown or invalid refresh rates do not invent a budget', () {
+      for (final rate in [null, 0.0, -1.0, double.nan, double.infinity]) {
+        final line = frameTimingLine(
+          [_frame(buildMicros: 1000, rasterMicros: 2000)],
+          const Duration(seconds: 1),
+          displayRefreshHz: rate,
+          targetRefreshHz: rate,
+        );
+        expect(line, isNot(contains('Budget')));
+        expect(line, isNot(contains('Hz=')));
+      }
+    });
   });
 
   group('startFrameTimingProbe', () {
@@ -94,6 +177,7 @@ void main() {
         window: const Duration(seconds: 1),
         emit: lines.add,
         enabled: false,
+        rawTimingsPath: '/this/path/must/not/be/opened/frame-timing.jsonl',
       );
 
       // Long enough for thirty windows to have fired. An unarmed probe must
@@ -103,7 +187,7 @@ void main() {
       await tester.pump(const Duration(seconds: 30));
 
       expect(lines, isEmpty);
-      stop();
+      await stop();
     });
 
     testWidgets('armed, it reports the window it observed', (tester) async {
@@ -122,17 +206,95 @@ void main() {
       // line carries the cache too — that is the pairing the thumbnail work
       // needs: "nothing painted, and here is what the cache was holding".
       expect(lines, hasLength(1));
-      expect(
-        lines.single,
-        startsWith('[frame-timing] window=5.0s frames=0 fps=0.0 blockedMs='),
-      );
+      expect(lines.single, startsWith('[frame-timing] window='));
+      expect(lines.single, contains('frames=0 fps=0.0 nominalWindow=5.0s'));
+      expect(lines.single, contains('blockedMs='));
       expect(lines.single, contains('imgCacheMB='));
       expect(lines.single, contains('imgCacheImages='));
       expect(lines.single, contains('imgCacheLive='));
       // Inside the body, not addTearDown: the binding checks for pending
       // timers before tear-downs run.
-      stop();
+      await stop();
     });
+
+    testWidgets('raw batches append and cleanup flushes the final batch', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        final directory = await Directory.systemTemp.createTemp('frame-probe-');
+        final output = File('${directory.path}/timings.jsonl');
+        await output.writeAsString('{"prior":true}\n');
+        final stop = startFrameTimingProbe(
+          enabled: true,
+          rawTimingsPath: output.path,
+        );
+        try {
+          tester.binding.platformDispatcher.onReportTimings!([
+            _frame(buildMicros: 1000, rasterMicros: 2000, queueMicros: 500),
+          ]);
+          await stop();
+          final lines = await output.readAsLines();
+          expect(lines, hasLength(2));
+          expect(jsonDecode(lines.first), {'prior': true});
+          final batch = jsonDecode(lines.last) as Map<String, dynamic>;
+          expect(batch['type'], 'frame-timing-batch');
+          expect(DateTime.parse(batch['wallUtc'] as String).isUtc, isTrue);
+          expect(batch['elapsedUs'], isNonNegative);
+          final frame = (batch['frames'] as List).single as Map;
+          expect(frame['vsyncStartUs'], 1000000);
+          expect(frame['rasterFinishUs'], 1003500);
+          expect(frame['buildUs'], 1000);
+          expect(frame['rasterUs'], 2000);
+          expect(frame['totalSpanUs'], 3500);
+        } finally {
+          await stop();
+          await directory.delete(recursive: true);
+        }
+      });
+    });
+
+    testWidgets('raw output failure reports once and leaves probe stoppable', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        final directory = await Directory.systemTemp.createTemp('frame-probe-');
+        final lines = <String>[];
+        final stop = startFrameTimingProbe(
+          enabled: true,
+          emit: lines.add,
+          rawTimingsPath: directory.path,
+        );
+        try {
+          tester.binding.platformDispatcher.onReportTimings!([
+            _frame(buildMicros: 1000, rasterMicros: 2000),
+          ]);
+          await stop();
+          expect(
+            lines.where((line) => line.contains('rawOutputError=')),
+            hasLength(1),
+          );
+        } finally {
+          await stop();
+          await directory.delete();
+        }
+      });
+    });
+  });
+
+  test('raw batch keeps receive clocks separate from engine timestamps', () {
+    final batch = frameTimingBatch(
+      [_frame(buildMicros: 1000, rasterMicros: 2000)],
+      wallUtc: DateTime.parse('2026-11-13T20:00:00-05:00'),
+      elapsed: const Duration(seconds: 9),
+      displayRefreshHz: 60,
+      targetRefreshHz: 240,
+    );
+    expect(batch['wallUtc'], '2026-11-14T01:00:00.000Z');
+    expect(batch['elapsedUs'], 9000000);
+    expect(batch['displayHz'], 60);
+    expect(batch['targetHz'], 240);
+    final frames = batch['frames'] as List;
+    expect((frames.single as Map)['vsyncStartUs'], 1000000);
   });
 
   group('ImageCacheReading', () {
@@ -235,7 +397,7 @@ void main() {
       final blocked = RegExp(r'blockedMs=([0-9.]+)').firstMatch(lines.single);
       expect(blocked, isNotNull);
       expect(double.parse(blocked!.group(1)!), isNonNegative);
-      stop();
+      await stop();
     });
   });
 

@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// One naming for [SafetyFailMode] shared by every settings page that shows it.
 ///
@@ -37,16 +37,10 @@ extension SafetyFailModeLabels on SafetyFailMode {
               'shown.',
       };
 
-  static SafetyFailMode fromLabel(String value) => switch (value) {
-        'Fail Open (Continue)' => SafetyFailMode.failOpen,
-        'Warn Only' => SafetyFailMode.warnOnly,
-        _ => SafetyFailMode.failClosed,
-      };
-
-  /// Dropdown options, in the order both pages present them.
-  static const List<String> labels = [
-    'Fail Closed (Park)',
-    'Fail Open (Continue)',
-    'Warn Only',
+  /// The modes, in the order both pages present them.
+  static const List<SafetyFailMode> choices = [
+    SafetyFailMode.failClosed,
+    SafetyFailMode.failOpen,
+    SafetyFailMode.warnOnly,
   ];
 }

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/services/science/frame_zero_point_fit.dart';
 
 /// A field like M67 in a 60 s G frame: zero point 21.57 against V, 0.08 mag

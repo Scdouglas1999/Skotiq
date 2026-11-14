@@ -19,7 +19,10 @@ import 'package:skotiq_app/screens/session_review/session_review_controller.dart
 import 'package:skotiq_app/screens/session_review/session_review_screen.dart';
 import 'package:skotiq_app/screens/session_review/widgets/master_library_panel.dart';
 import 'package:skotiq_app/utils/darkroom_navigation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
@@ -399,8 +402,9 @@ void main() {
 
   group('the Darkroom locations', () {
     test('a recipe and a master are distinct query scopes', () {
-      expect(darkroomRecipeLocation(412), '/darkroom?recipe=412');
-      expect(darkroomMasterLocation(7), '/darkroom?master=7');
+      expect(
+          darkroomEditLocation(recipeId: 412), '/darkroom?tab=edit&recipe=412');
+      expect(darkroomEditLocation(masterId: 7), '/darkroom?tab=edit&master=7');
     });
   });
 }

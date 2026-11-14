@@ -1,677 +1,522 @@
-//! `NativeCamera` implementation for `AtikCamera`.
+//! `CameraDriver` implementation for `AtikCamera`.
 
 use super::*;
 
-#[async_trait]
-impl NativeCamera for AtikCamera {
-    fn capabilities(&self) -> CameraCapabilities {
-        self.capabilities.clone()
-    }
+/// How long an exposure waits for the camera to report idle. After an abort
+/// a CCD may still be clearing its sensor (SDK guide, CAMERA_FLUSHING); NINA
+/// waits for idle without a limit and INDI for 100 s.
+const IDLE_WAIT: std::time::Duration = std::time::Duration::from_secs(60);
+const IDLE_POLL: std::time::Duration = std::time::Duration::from_millis(100);
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
+impl AtikCamera {
+    pub(crate) fn cooler_power(&self, sdk: &AtikSdk) -> Result<f64, DriverError> {
+        if !self.facts.has_cooling {
+            return Err(DriverError::NotSupported);
         }
-
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-
-        // Get temperature
-        let sensor_temp = {
-            let mut temp: c_int = 0;
-            // Sensor 1 is the CCD temperature
-            // SAFETY: atik_mutex held; self.connected was true (checked above); handle is valid;
-            // `temp` is a valid stack pointer. Sensor index 1 is documented as CCD temperature.
-            if unsafe { (sdk.temperature_sensor_info)(handle, 1, &mut temp) } == 0 {
-                Some(temp as f64 / 100.0)
-            } else {
-                None
-            }
-        };
-
-        // Get cooler info
-        let (cooler_power, target_temp) = if self.capabilities.can_cool {
-            let mut flags: c_int = 0;
-            let mut level: c_int = 0;
-            let mut minlvl: c_int = 0;
-            let mut maxlvl: c_int = 0;
-            let mut setpoint: c_int = 0;
-            // SAFETY: atik_mutex held; handle is valid (connected=true); all five out-pointers
-            // are valid stack pointers to c_int.
-            if unsafe {
-                (sdk.cooling_info)(
-                    handle,
-                    &mut flags,
-                    &mut level,
-                    &mut minlvl,
-                    &mut maxlvl,
-                    &mut setpoint,
-                )
-            } == 0
-            {
-                let power = if maxlvl > 0 {
-                    Some((level as f64 / maxlvl as f64) * 100.0)
-                } else {
-                    None
-                };
-                let target = Some(setpoint as f64 / 100.0);
-                (power, target)
-            } else {
-                (None, None)
-            }
-        } else {
-            (None, None)
-        };
-
-        // Get exposure remaining
-        let exposure_remaining = if self.state == CameraState::Exposing {
-            // SAFETY: atik_mutex held; handle is valid (connected=true); ArtemisExposureTimeRemaining
-            // takes only the handle and returns a c_float by value.
-            let remaining = unsafe { (sdk.exposure_time_remaining)(handle) };
-            Some(remaining as f64)
-        } else {
-            None
-        };
-
-        Ok(CameraStatus {
-            state: self.state,
-            sensor_temp,
-            cooler_power,
-            target_temp,
-            cooler_on: self.cooler_on,
-            gain: self.current_gain,
-            offset: self.current_offset,
-            bin_x: self.current_bin_x,
-            bin_y: self.current_bin_y,
-            exposure_remaining,
+        let cooling = cooling_info(sdk, self.handle())
+            .ok_or_else(|| DriverError::SdkError("could not read the Atik cooler".to_string()))?;
+        cooling.power_percent().ok_or_else(|| {
+            DriverError::SdkError(
+                "the Atik camera did not report a valid cooler power range".into(),
+            )
         })
     }
 
-    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
+    /// Fails when the SDK has lost the camera (unplugged, powered off).
+    fn require_present(&self, sdk: &AtikSdk) -> Result<(), DriverError> {
+        // SAFETY: the handle is open while `core.connected`; the lock is held.
+        if unsafe { (sdk.is_connected)(self.handle()) } == 0 {
+            return Err(DriverError::Disconnected);
         }
-
-        // Set gain if provided
-        if let Some(gain) = params.gain {
-            self.set_gain(gain).await?;
-        }
-
-        // Set offset if provided
-        if let Some(offset) = params.offset {
-            self.set_offset(offset).await?;
-        }
-
-        // Set binning
-        self.set_binning(params.bin_x, params.bin_y).await?;
-
-        // Set subframe
-        self.set_subframe(params.subframe.clone()).await?;
-
-        // Now get SDK and handle after all awaits are complete
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-
-        let dark_mode = if params.frame_type.opens_shutter() {
-            0
-        } else {
-            1
-        };
-        // Dark, bias, and dark-flat frames must keep a mechanical shutter closed.
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
-        // ArtemisSetDarkMode takes pass-by-value c_int with no out-pointers.
-        let result = unsafe { (sdk.set_dark_mode)(handle, dark_mode) };
-        check_artemis_error(result, "set dark mode")?;
-
-        // Start exposure
-        // SAFETY: atik_mutex held; handle is valid (connected=true); duration is pass-by-value
-        // c_float — the SDK validates the duration internally and returns an ArtemisError on
-        // out-of-range values.
-        let result = unsafe { (sdk.start_exposure)(handle, params.duration_secs as c_float) };
-        if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            return Err(ArtemisError::from_i32(result).to_native_error("start exposure"));
-        }
-
-        self.exposure_duration = params.duration_secs;
-        self.state = CameraState::Exposing;
-
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
+    fn sdk_state(&self, sdk: &AtikSdk) -> Option<c_int> {
+        let state = sdk.camera_state?;
+        // SAFETY: the handle is open and the lock is held.
+        Some(unsafe { state(self.handle()) })
+    }
+
+    /// Whether a new exposure may start now. A camera in its error state is
+    /// stopped so it can return to idle (INDI stops and restarts it).
+    pub(crate) fn ready_to_expose(&self, sdk: &AtikSdk) -> Result<bool, DriverError> {
+        self.require_present(sdk)?;
+        match self.sdk_state(sdk) {
+            None | Some(CAMERA_IDLE) => Ok(true),
+            Some(CAMERA_ERROR) => {
+                // SAFETY: the handle is open and the lock is held.
+                let _ = unsafe { (sdk.abort_exposure)(self.handle()) };
+                Ok(false)
+            }
+            Some(_) => Ok(false),
+        }
+    }
+
+    /// Applies the exposure's settings and starts it. The caller holds the
+    /// SDK lock and has seen the camera idle.
+    pub(crate) fn begin_exposure(
+        &mut self,
+        sdk: &AtikSdk,
+        params: &ExposureParams,
+    ) -> Result<(), DriverError> {
+        if !params.duration_secs.is_finite() || params.duration_secs < 0.0 {
+            return Err(DriverError::InvalidParameter(format!(
+                "Atik exposure of {} s",
+                params.duration_secs
+            )));
+        }
+        for (value, is_offset) in [(params.gain, false), (params.offset, true)] {
+            let Some(value) = value else { continue };
+            if self.facts.gain.takes(is_offset) {
+                self.apply_gain(sdk, value, is_offset)?;
+            } else {
+                tracing::debug!(
+                    "Atik camera '{}' has no {} setting; the requested {} is not applied",
+                    self.core.name,
+                    if is_offset { "offset" } else { "gain" },
+                    value
+                );
+            }
+        }
+        self.apply_binning(sdk, params.bin_x, params.bin_y)?;
+        self.apply_subframe(sdk, params.subframe.clone())?;
+
+        // Only a camera with a mechanical shutter has a dark mode; the others
+        // answer ARTEMIS_INVALID_FUNCTION and take darks with the lens capped.
+        if self.facts.has_shutter {
+            let dark = !params.frame_type.opens_shutter();
+            // SAFETY: the handle is open and the lock is held.
+            let result = unsafe { (sdk.set_dark_mode)(self.handle(), dark) };
+            check_artemis_error(result, "keep the shutter closed for a dark frame")?;
         }
 
-        let sdk = get_sdk()?;
+        // SAFETY: the handle is open and the lock is held; the duration is passed by value.
+        let result =
+            unsafe { (sdk.start_exposure)(self.handle(), params.duration_secs as c_float) };
+        check_artemis_error(result, "start the exposure")?;
 
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
-        // ArtemisAbortExposure takes only the handle.
-        let result = unsafe { (sdk.abort_exposure)(handle) };
-        if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            return Err(ArtemisError::from_i32(result).to_native_error("abort exposure"));
-        }
-
-        self.state = CameraState::Idle;
+        self.core.begin_exposure(params.duration_secs);
         Ok(())
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
-        // ArtemisImageReady takes only the handle and returns a c_int flag.
-        let ready = unsafe { (sdk.image_ready)(handle) };
-        Ok(ready != 0)
-    }
-
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-
-        self.state = CameraState::Downloading;
-
-        // Get image info
-        let mut x: c_int = 0;
-        let mut y: c_int = 0;
-        let mut w: c_int = 0;
-        let mut h: c_int = 0;
-        let mut binx: c_int = 0;
-        let mut biny: c_int = 0;
-
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
-        // all six out-pointers are valid stack pointers to c_int.
-        let result = unsafe {
-            (sdk.get_image_data)(handle, &mut x, &mut y, &mut w, &mut h, &mut binx, &mut biny)
-        };
-        if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            self.state = CameraState::Error;
-            return Err(ArtemisError::from_i32(result).to_native_error("get image data"));
-        }
-
-        // Get image buffer
-        // SAFETY: atik_mutex held; handle is valid (connected=true); ArtemisImageBuffer returns
-        // a pointer to the SDK-owned image buffer (we null-check immediately below).
-        let buffer_ptr = unsafe { (sdk.image_buffer)(handle) };
-        if buffer_ptr.is_null() {
-            tracing::error!(
-                "Atik ArtemisImageBuffer() returned NULL for camera '{}'. Image: {}x{}, bin: {}x{}",
-                self.name,
-                w,
-                h,
-                binx,
-                biny
+    fn apply_gain(
+        &mut self,
+        sdk: &AtikSdk,
+        value: i32,
+        is_offset: bool,
+    ) -> Result<(), DriverError> {
+        let current = (self.core.gain, self.core.offset);
+        let (gain, offset) = gain::set(
+            sdk,
+            self.handle(),
+            self.facts.gain,
+            current,
+            value,
+            is_offset,
+        )?;
+        let applied = if is_offset { offset } else { gain };
+        if applied != value {
+            tracing::warn!(
+                "Atik camera '{}' took {} {} when asked for {}",
+                self.core.name,
+                if is_offset { "offset" } else { "gain" },
+                applied,
+                value
             );
-            self.state = CameraState::Error;
-            return Err(NativeError::SdkError(format!(
-                "Image buffer is NULL on Atik camera '{}'. Image download failed after successful exposure.",
-                self.name
+        }
+        // The other value is read back: switching to the custom setting can move it.
+        if is_offset {
+            self.core.gain = gain;
+            self.core.command_offset(offset);
+        } else {
+            self.core.command_gain(gain);
+            self.core.offset = offset;
+        }
+        Ok(())
+    }
+
+    fn apply_binning(&mut self, sdk: &AtikSdk, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
+        let caps = &self.core.capabilities;
+        if !(1..=caps.max_bin_x).contains(&bin_x) || !(1..=caps.max_bin_y).contains(&bin_y) {
+            return Err(DriverError::InvalidParameter(format!(
+                "Binning {}x{} is outside 1x1 to {}x{}",
+                bin_x, bin_y, caps.max_bin_x, caps.max_bin_y
+            )));
+        }
+        // SAFETY: the handle is open and the lock is held; plain arguments.
+        let result = unsafe { (sdk.bin)(self.handle(), bin_x, bin_y) };
+        check_artemis_error(result, &format!("bin {bin_x}x{bin_y}"))?;
+        self.core.bin_x = bin_x;
+        self.core.bin_y = bin_y;
+        Ok(())
+    }
+
+    /// `subframe` is in binned pixels, as every Skotiq caller gives it;
+    /// ArtemisSubframe takes unbinned sensor pixels at any binning.
+    fn apply_subframe(
+        &mut self,
+        sdk: &AtikSdk,
+        subframe: Option<SubFrame>,
+    ) -> Result<(), DriverError> {
+        let sensor = &self.core.sensor_info;
+        let (bin_x, bin_y) = (self.core.bin_x as u32, self.core.bin_y as u32);
+        let (x, y, w, h) = match &subframe {
+            Some(sf) => (
+                sf.start_x.checked_mul(bin_x),
+                sf.start_y.checked_mul(bin_y),
+                sf.width.checked_mul(bin_x),
+                sf.height.checked_mul(bin_y),
+            ),
+            None => (Some(0), Some(0), Some(sensor.width), Some(sensor.height)),
+        };
+        let fits = |start: Option<u32>, size: Option<u32>, limit: u32| {
+            let (start, size) = (start?, size?);
+            (size > 0 && start.checked_add(size)? <= limit).then_some((start, size))
+        };
+        let (Some((x, w)), Some((y, h))) = (fits(x, w, sensor.width), fits(y, h, sensor.height))
+        else {
+            return Err(DriverError::InvalidParameter(format!(
+                "Atik subframe {:?} at bin {}x{} does not fit the {}x{} sensor",
+                subframe, bin_x, bin_y, sensor.width, sensor.height
+            )));
+        };
+        let to_c = |v: u32| c_int::try_from(v).expect("bounded by the sensor size, a c_int");
+        // SAFETY: the handle is open and the lock is held; plain arguments.
+        let result = unsafe { (sdk.subframe)(self.handle(), to_c(x), to_c(y), to_c(w), to_c(h)) };
+        check_artemis_error(result, &format!("set the subframe {x},{y} {w}x{h}"))?;
+
+        self.core.subframe = subframe;
+        self.frame_bayer = self
+            .facts
+            .cfa_offset
+            .map(|(dx, dy)| rggb_cell_at(dx + i64::from(x), dy + i64::from(y)));
+        Ok(())
+    }
+
+    pub(crate) fn exposure_done(&self, sdk: &AtikSdk) -> Result<bool, DriverError> {
+        self.require_present(sdk)?;
+        // SAFETY: the handle is open and the lock is held.
+        if unsafe { (sdk.image_ready)(self.handle()) } != 0 {
+            return Ok(true);
+        }
+        if self.sdk_state(sdk) == Some(CAMERA_ERROR) {
+            return Err(DriverError::SdkError(format!(
+                "Atik camera '{}' reported an error during the exposure",
+                self.core.name
+            )));
+        }
+        Ok(false)
+    }
+
+    pub(crate) fn take_frame(&mut self, sdk: &AtikSdk) -> Result<ImageData, DriverError> {
+        let handle = self.handle();
+        if let Some(failed) = sdk.image_failed {
+            // SAFETY: the handle is open and the lock is held.
+            if unsafe { failed(handle) } != 0 {
+                self.core.state = CameraState::Error;
+                return Err(DriverError::SdkError(format!(
+                    "Atik camera '{}' reported that the image download failed",
+                    self.core.name
+                )));
+            }
+        }
+        self.core.state = CameraState::Downloading;
+
+        let (mut x, mut y, mut w, mut h, mut bin_x, mut bin_y) = (0, 0, 0, 0, 0, 0);
+        // SAFETY: all six out-pointers are valid.
+        let result = unsafe {
+            (sdk.get_image_data)(
+                handle, &mut x, &mut y, &mut w, &mut h, &mut bin_x, &mut bin_y,
+            )
+        };
+        if let Err(error) = check_artemis_error(result, "read the image size") {
+            self.core.state = CameraState::Error;
+            return Err(error);
+        }
+        let width = image_dimension("Atik", "width", usize::try_from(w).unwrap_or(0))?;
+        let height = image_dimension("Atik", "height", usize::try_from(h).unwrap_or(0))?;
+        if width == 0 || height == 0 {
+            self.core.state = CameraState::Error;
+            return Err(DriverError::SdkError(format!(
+                "Atik camera '{}' reported a {}x{} image",
+                self.core.name, w, h
             )));
         }
 
-        // Copy image data (16-bit, little-endian on the wire).
-        // Why: `w` / `h` are c_int (i32). A negative value here means ArtemisGetImageData
-        // returned success but populated junk dimensions — fail fast instead of casting a
-        // negative i32 to a giant usize (which would later trip pool allocation).
-        let w_usize = usize::try_from(w).map_err(|_| {
-            NativeError::SdkError(format!("Atik returned non-positive image width: {}", w))
-        })?;
-        let h_usize = usize::try_from(h).map_err(|_| {
-            NativeError::SdkError(format!("Atik returned non-positive image height: {}", h))
-        })?;
-        let pixel_count = w_usize
-            .checked_mul(h_usize)
-            .ok_or_else(|| NativeError::SdkError("Atik image dimensions overflow usize".into()))?;
-        let byte_count = pixel_count
-            .checked_mul(2)
-            .ok_or_else(|| NativeError::SdkError("Atik image dimensions overflow usize".into()))?;
-        // Why: ArtemisImageBuffer() returns *mut c_void with pixel_count * 2 valid bytes,
-        // but Artemis does not guarantee u16 alignment of that pointer. Reading through
-        // *const u16 would be UB on archs that trap unaligned loads (and is technically UB
-        // even on x86). We take the buffer as bytes and decode each pixel via from_le_bytes,
-        // which is well-defined regardless of source alignment and pins the SDK's documented
-        // little-endian framing.
-        // SAFETY: buffer_ptr is non-null (verified above), atik_mutex held so the SDK won't
-        // mutate the buffer concurrently, and byte_count = w*h*2 matches the SDK's documented
-        // buffer size for ArtemisImageBuffer (pixel_count * sizeof(u16) bytes). We read as
-        // bytes to avoid alignment UB — see the Why comment above. The slice's lifetime is
-        // scoped to this block and the buffer remains owned by the SDK after we copy.
-        let byte_slice = unsafe { std::slice::from_raw_parts(buffer_ptr as *const u8, byte_count) };
-        let data: Vec<u16> = byte_slice
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|b| u16::from_le_bytes([b[0], b[1]]))
-            .collect();
+        // SAFETY: the handle is open and the lock is held; null-checked below.
+        let buffer = unsafe { (sdk.image_buffer)(handle) };
+        if buffer.is_null() {
+            self.core.state = CameraState::Error;
+            return Err(DriverError::SdkError(format!(
+                "Atik camera '{}' finished the exposure but has no image",
+                self.core.name
+            )));
+        }
+        let byte_count = width as usize * height as usize * 2;
+        // SAFETY: the SDK's buffer holds width * height 16-bit samples (the
+        // camera is never in 8-bit mode) and stays put while the lock is held;
+        // it is read as bytes, so its alignment does not matter.
+        let bytes = unsafe { std::slice::from_raw_parts(buffer as *const u8, byte_count) };
+        let data = unpack_samples(bytes, SampleLayout::U16Little);
 
-        // Get temperature for metadata
-        let temperature = {
-            let mut temp: c_int = 0;
-            // SAFETY: atik_mutex held; handle is valid (connected=true); `temp` is a valid stack
-            // pointer; sensor index 1 is the documented CCD temperature sensor.
-            if unsafe { (sdk.temperature_sensor_info)(handle, 1, &mut temp) } == 0 {
-                Some(temp as f64 / 100.0)
-            } else {
-                None
-            }
-        };
-
-        let metadata = ImageMetadata {
-            exposure_time: self.exposure_duration,
-            gain: self.current_gain,
-            offset: self.current_offset,
-            bin_x: binx,
-            bin_y: biny,
+        let temperature = sensor_temperature(sdk, handle);
+        self.core.state = CameraState::Idle;
+        Ok(Frame {
+            bin_x,
+            bin_y,
             temperature,
-            timestamp: chrono::Utc::now(),
-            subframe: self.subframe.clone(),
-            readout_mode: None,
-            vendor_data: VendorFeatures::default(),
-        };
+            ..self.core.frame(
+                width,
+                height,
+                data,
+                self.core.sensor_info.bit_depth,
+                self.frame_bayer.map(Into::into),
+            )
+        }
+        .into_image())
+    }
 
-        self.state = CameraState::Idle;
-
-        // Why: w/h were validated non-negative via the TryFrom::<i32> -> usize above; that
-        // checks i32 < 0 which is the only path producing a wrap. usize -> u32 needs a second
-        // check because on 64-bit hosts usize is wider than u32; we surface overflow rather
-        // than truncating an absurd dimension. Real Atik sensors top out under 16k pixels.
-        let width_u32 = u32::try_from(w_usize).map_err(|_| {
-            NativeError::SdkError(format!("Atik image width does not fit in u32: {}", w_usize))
-        })?;
-        let height_u32 = u32::try_from(h_usize).map_err(|_| {
-            NativeError::SdkError(format!(
-                "Atik image height does not fit in u32: {}",
-                h_usize
-            ))
-        })?;
-        Ok(ImageData {
-            width: width_u32,
-            height: height_u32,
-            data,
-            bits_per_pixel: self.sensor_info.bit_depth,
-            bayer_pattern: self.sensor_info.bayer_pattern,
-            metadata,
+    pub(crate) fn status(&self, sdk: &AtikSdk) -> Result<CameraStatus, DriverError> {
+        self.require_present(sdk)?;
+        let handle = self.handle();
+        let cooling = self
+            .facts
+            .has_cooling
+            .then(|| cooling_info(sdk, handle))
+            .flatten();
+        let exposure_remaining = (self.core.state == CameraState::Exposing).then(|| {
+            // SAFETY: the handle is open and the lock is held.
+            f64::from(unsafe { (sdk.exposure_time_remaining)(handle) })
+        });
+        Ok(CameraStatus {
+            state: self.core.state,
+            sensor_temp: sensor_temperature(sdk, handle),
+            cooler_power: cooling.and_then(|c| c.power_percent()),
+            target_temp: cooling.map(|c| c.setpoint_c()),
+            cooler_on: if self.facts.has_cooling {
+                cooling.map_or(self.core.cooler().enabled, |c| Some(c.is_cooling()))
+            } else {
+                Some(false)
+            },
+            gain: self.core.gain,
+            offset: self.core.offset,
+            bin_x: self.core.bin_x,
+            bin_y: self.core.bin_y,
+            exposure_remaining,
         })
+    }
+}
+
+/// Sensor 1 is the sensor temperature, in hundredths of a degree (INDI and
+/// NINA read it the same way).
+fn sensor_temperature(sdk: &AtikSdk, handle: ArtemisHandle) -> Option<f64> {
+    let mut temp: c_int = 0;
+    // SAFETY: `temp` is a valid out-pointer; the handle is open and the lock is held.
+    (unsafe { (sdk.temperature_sensor_info)(handle, 1, &mut temp) } == ArtemisError::Ok as c_int)
+        .then(|| f64::from(temp) / 100.0)
+}
+
+#[async_trait]
+impl CameraDriver for AtikCamera {
+    fn capabilities(&self) -> CameraCapabilities {
+        self.core.capabilities.clone()
+    }
+
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
+        self.core.require_connected()?;
+        let sdk = self.sdk().await?;
+        self.status(&sdk)
+    }
+
+    async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
+        self.core.require_connected()?;
+        let deadline = std::time::Instant::now() + IDLE_WAIT;
+        loop {
+            {
+                let sdk = self.sdk().await?;
+                if self.ready_to_expose(&sdk)? {
+                    return self.begin_exposure(&sdk, &params);
+                }
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(DriverError::Timeout(format!(
+                    "Atik camera '{}' was still busy {} s after the last exposure",
+                    self.core.name,
+                    IDLE_WAIT.as_secs()
+                )));
+            }
+            tokio::time::sleep(IDLE_POLL).await;
+        }
+    }
+
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
+        self.core.require_connected()?;
+        let sdk = self.sdk().await?;
+        // SAFETY: the handle is open and the lock is held.
+        let result = unsafe { (sdk.abort_exposure)(self.handle()) };
+        check_artemis_error(result, "abort the exposure")?;
+        self.core.state = CameraState::Idle;
+        Ok(())
+    }
+
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
+        self.core.require_connected()?;
+        let sdk = self.sdk().await?;
+        self.exposure_done(&sdk)
+    }
+
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
+        self.core.require_connected()?;
+        let sdk = self.sdk().await?;
+        self.take_frame(&sdk)
     }
 
     async fn set_cooler(
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-        if !self.capabilities.can_cool {
-            return Err(NativeError::NotSupported);
+    ) -> Result<(), DriverError> {
+        self.core.require_connected()?;
+        if !self.core.capabilities.can_cool {
+            return Err(DriverError::NotSupported);
         }
 
         // ArtemisSetCooling *is* the enable on this SDK, so cooling needs a
-        // setpoint; when the caller names none we reuse the one this driver
-        // already holds rather than inventing a temperature. Switching off
-        // goes through ArtemisCoolerWarmUp and needs no setpoint at all.
+        // setpoint; when the caller names none, the one this connection last
+        // set, never an invented temperature. Switching off goes through
+        // ArtemisCoolerWarmUp and needs no setpoint at all.
         let setpoint_c = if enabled {
-            Some(target_temp.unwrap_or(self.target_temp))
+            Some(target_temp.or(self.core.cooler().target_c).ok_or_else(|| {
+                DriverError::InvalidParameter(format!(
+                    "Atik camera '{}' needs a target temperature to cool",
+                    self.core.name
+                ))
+            })?)
         } else {
             None
         };
 
         if let Some(target) = setpoint_c {
-            let quirk_lookup_id = format!("native:atik:{}", self.name);
-            if let Some((min_temp, max_temp)) = crate::quirks::get_cooler_range(&quirk_lookup_id) {
+            if let Some((min_temp, max_temp)) =
+                crate::quirks::get_cooler_range(&Vendor::Atik, &self.core.name)
+            {
                 if target < min_temp || target > max_temp {
-                    return Err(NativeError::InvalidParameter(format!(
+                    return Err(DriverError::InvalidParameter(format!(
                         "Atik cooler target {target}C is outside the supported range {min_temp}C..={max_temp}C for {}",
-                        self.name
+                        self.core.name
                     )));
                 }
             }
         }
 
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-
+        let sdk = self.sdk().await?;
+        let handle = self.handle();
         if let Some(target) = setpoint_c {
-            // Temperature in hundredths of degrees
-            let setpoint = (target * 100.0) as c_int;
-            // SAFETY: atik_mutex held; self.connected and can_cool checked at entry; handle is
-            // valid; setpoint is pass-by-value c_int (hundredths of degrees per AtikCameras.h).
-            let result = unsafe { (sdk.set_cooling)(handle, setpoint) };
-            if ArtemisError::from_i32(result) != ArtemisError::Ok {
-                return Err(ArtemisError::from_i32(result).to_native_error("set cooling"));
-            }
+            // SAFETY: the handle is open and the lock is held; hundredths of a degree.
+            let result = unsafe { (sdk.set_cooling)(handle, (target * 100.0).round() as c_int) };
+            check_artemis_error(result, &format!("cool to {target} C"))?;
         } else {
-            // SAFETY: atik_mutex held; handle is valid (connected=true); ArtemisCoolerWarmUp
-            // takes only the handle.
+            // SAFETY: the handle is open and the lock is held.
             let result = unsafe { (sdk.cooler_warm_up)(handle) };
-            if ArtemisError::from_i32(result) != ArtemisError::Ok {
-                return Err(ArtemisError::from_i32(result).to_native_error("warm up cooler"));
-            }
+            check_artemis_error(result, "warm up the cooler")?;
         }
 
-        self.cooler_on = enabled;
-        if let Some(target) = setpoint_c {
-            self.target_temp = target;
-        }
+        self.core.update_cooler(|cooler| {
+            cooler.enabled = Some(enabled);
+            if let Some(target) = setpoint_c {
+                cooler.target_c = Some(target);
+            }
+        });
         Ok(())
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
+        self.core.require_connected()?;
+        let sdk = self.sdk().await?;
         let mut temp: c_int = 0;
-
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
-        // sensor index 1 is the documented CCD temperature sensor; `temp` is a valid stack pointer.
-        let result = unsafe { (sdk.temperature_sensor_info)(handle, 1, &mut temp) };
-        if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            return Err(ArtemisError::from_i32(result).to_native_error("get temperature"));
-        }
-
-        Ok(temp as f64 / 100.0)
+        // SAFETY: `temp` is a valid out-pointer; the handle is open and the lock is held.
+        let result = unsafe { (sdk.temperature_sensor_info)(self.handle(), 1, &mut temp) };
+        check_artemis_error(result, "read the sensor temperature")?;
+        Ok(f64::from(temp) / 100.0)
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-        if !self.capabilities.can_cool {
-            return Err(NativeError::NotSupported);
-        }
-
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        let mut flags: c_int = 0;
-        let mut level: c_int = 0;
-        let mut minlvl: c_int = 0;
-        let mut maxlvl: c_int = 0;
-        let mut setpoint: c_int = 0;
-
-        // SAFETY: atik_mutex held; self.connected and can_cool both checked at entry; handle is
-        // valid; all five out-pointers are valid stack pointers to c_int.
-        let result = unsafe {
-            (sdk.cooling_info)(
-                handle,
-                &mut flags,
-                &mut level,
-                &mut minlvl,
-                &mut maxlvl,
-                &mut setpoint,
-            )
-        };
-        if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            return Err(ArtemisError::from_i32(result).to_native_error("get cooler power"));
-        }
-
-        if maxlvl > 0 {
-            Ok((level as f64 / maxlvl as f64) * 100.0)
-        } else {
-            Ok(0.0)
-        }
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
+        self.core.require_connected()?;
+        let sdk = self.sdk().await?;
+        self.cooler_power(&sdk)
     }
 
-    async fn set_gain(&mut self, gain: i32) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
+    async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
+        self.core.require_connected()?;
+        if !self.facts.gain.takes(false) {
+            return Err(DriverError::NotSupported);
         }
-
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
-        // preview=0 is a valid mode constant; gain/offset are pass-by-value c_int.
-        let result =
-            unsafe { (sdk.set_gain)(handle, 0, gain as c_int, self.current_offset as c_int) };
-        if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            return Err(ArtemisError::from_i32(result).to_native_error("set gain"));
-        }
-
-        self.current_gain = gain;
-        Ok(())
+        let sdk = self.sdk().await?;
+        self.apply_gain(&sdk, gain, false)
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
-        Ok(self.current_gain)
+    async fn get_gain(&self) -> Result<i32, DriverError> {
+        Ok(self.core.gain)
     }
 
-    async fn set_offset(&mut self, offset: i32) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
+    async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
+        self.core.require_connected()?;
+        if !self.facts.gain.takes(true) {
+            return Err(DriverError::NotSupported);
         }
-
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
-        // preview=0 is a valid mode constant; gain/offset are pass-by-value c_int. Atik SDK
-        // sets gain and offset together via ArtemisSetGain.
-        let result =
-            unsafe { (sdk.set_gain)(handle, 0, self.current_gain as c_int, offset as c_int) };
-        if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            return Err(ArtemisError::from_i32(result).to_native_error("set offset"));
-        }
-
-        self.current_offset = offset;
-        Ok(())
+        let sdk = self.sdk().await?;
+        self.apply_gain(&sdk, offset, true)
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
-        Ok(self.current_offset)
+    async fn get_offset(&self) -> Result<i32, DriverError> {
+        Ok(self.core.offset)
     }
 
-    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-
-        if bin_x > self.capabilities.max_bin_x || bin_y > self.capabilities.max_bin_y {
-            return Err(NativeError::InvalidParameter(format!(
-                "Binning {}x{} exceeds max {}x{}",
-                bin_x, bin_y, self.capabilities.max_bin_x, self.capabilities.max_bin_y
-            )));
-        }
-
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
-        // bin_x/bin_y bounds were checked against capabilities.max_bin_{x,y} above.
-        let result = unsafe { (sdk.bin)(handle, bin_x as c_int, bin_y as c_int) };
-        if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            return Err(ArtemisError::from_i32(result).to_native_error("set binning"));
-        }
-
-        self.current_bin_x = bin_x;
-        self.current_bin_y = bin_y;
-        Ok(())
+    async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
+        self.core.require_connected()?;
+        let sdk = self.sdk().await?;
+        self.apply_binning(&sdk, bin_x, bin_y)
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
-        Ok((self.current_bin_x, self.current_bin_y))
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
+        Ok((self.core.bin_x, self.core.bin_y))
     }
 
-    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-
-        let sdk = get_sdk()?;
-
-        // Acquire global SDK mutex for thread safety
-        let _lock = atik_mutex().lock().await;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-
-        // Why: SubFrame fields are u32 (sensor coordinates) and we need c_int (i32) for the
-        // Atik SDK. A u32 > i32::MAX would mean the caller asked for a subframe larger than
-        // 2 GPixels in one dimension; reject it instead of wrapping into a negative c_int.
-        // current_bin_{x,y} are i32 validated at set_binning() >= 1.
-        let (x, y, w, h) = match &subframe {
-            Some(sf) => (
-                c_int::try_from(sf.start_x).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
-                        "Atik subframe start_x exceeds i32: {}",
-                        sf.start_x
-                    ))
-                })?,
-                c_int::try_from(sf.start_y).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
-                        "Atik subframe start_y exceeds i32: {}",
-                        sf.start_y
-                    ))
-                })?,
-                c_int::try_from(sf.width).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
-                        "Atik subframe width exceeds i32: {}",
-                        sf.width
-                    ))
-                })?,
-                c_int::try_from(sf.height).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
-                        "Atik subframe height exceeds i32: {}",
-                        sf.height
-                    ))
-                })?,
-            ),
-            None => {
-                // Why: bin >= 1 per set_binning() guard; sensor_info.width/height are u32. We
-                // try_into u32 first (current_bin_x is i32, so a corrupt negative bin would
-                // wrap), then convert the binned dim back to c_int.
-                let bin_x_u32 = u32::try_from(self.current_bin_x).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
-                        "Atik current_bin_x not representable as u32: {}",
-                        self.current_bin_x
-                    ))
-                })?;
-                let bin_y_u32 = u32::try_from(self.current_bin_y).map_err(|_| {
-                    NativeError::InvalidParameter(format!(
-                        "Atik current_bin_y not representable as u32: {}",
-                        self.current_bin_y
-                    ))
-                })?;
-                let binned_w = self.sensor_info.width / bin_x_u32.max(1);
-                let binned_h = self.sensor_info.height / bin_y_u32.max(1);
-                let w_ci = c_int::try_from(binned_w).map_err(|_| {
-                    NativeError::SdkError(format!(
-                        "Atik binned width does not fit in c_int: {}",
-                        binned_w
-                    ))
-                })?;
-                let h_ci = c_int::try_from(binned_h).map_err(|_| {
-                    NativeError::SdkError(format!(
-                        "Atik binned height does not fit in c_int: {}",
-                        binned_h
-                    ))
-                })?;
-                (0, 0, w_ci, h_ci)
-            }
-        };
-
-        // SAFETY: atik_mutex held; self.connected was true (checked at entry); handle is valid;
-        // x/y/w/h are computed from the user-provided subframe or from sensor_info / current
-        // binning above — both branches produce in-sensor coordinates the SDK can clip.
-        let result = unsafe { (sdk.subframe)(handle, x, y, w, h) };
-        if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            return Err(ArtemisError::from_i32(result).to_native_error("set subframe"));
-        }
-
-        self.subframe = subframe;
-        Ok(())
+    async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
+        self.core.require_connected()?;
+        let sdk = self.sdk().await?;
+        self.apply_subframe(&sdk, subframe)
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
-        self.sensor_info.clone()
+        self.core.sensor_info.clone()
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
-        Ok(vec![ReadoutMode {
-            name: "Normal".to_string(),
-            description: "Standard readout mode".to_string(),
-            index: 0,
-            gain_min: None,
-            gain_max: None,
-            offset_min: None,
-            offset_max: None,
-        }])
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
+        Ok(Vec::new())
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), NativeError> {
-        Ok(())
+    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         Ok(VendorFeatures::default())
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-
-        // The Atik SDK publishes no gain bounds, and a fixed-gain CCD has none to
-        // publish; report the absence rather than a range the hardware never stated.
-        Err(NativeError::NotSupported)
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
+        self.core.require_connected()?;
+        self.facts
+            .gain
+            .gain_range()
+            .ok_or(DriverError::NotSupported)
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
-        if !self.connected {
-            return Err(NativeError::NotConnected);
-        }
-
-        // Same as gain: the SDK reports no offset bounds.
-        Err(NativeError::NotSupported)
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
+        self.core.require_connected()?;
+        self.facts
+            .gain
+            .offset_range()
+            .ok_or(DriverError::NotSupported)
     }
 }

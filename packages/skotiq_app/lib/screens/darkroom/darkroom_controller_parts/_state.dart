@@ -28,7 +28,7 @@ class DarkroomSiblingDraft {
   final RecipeAuthor? author;
 
   /// True when the operation registry composed that recipe's steps — the same
-  /// fact [DarkroomState.composedByRegistry] states for the open one, so a chip
+  /// fact [DarkroomViewState.composedByRegistry] states for the open one, so a chip
   /// and the panel it leads to cannot disagree about who drafted a stack.
   final bool composedByRegistry;
 
@@ -91,7 +91,7 @@ class DarkroomRenderFailure {
 /// so a widget that captured an earlier state keeps describing the frame it was
 /// built for.
 @immutable
-class DarkroomState {
+class DarkroomViewState {
   /// True until the first load settles.
   final bool loading;
 
@@ -182,7 +182,6 @@ class DarkroomState {
   /// The engine's verdict on the recipe as a whole, null when it validates.
   final String? recipeError;
 
-  /// True while a render is in flight.
   final bool rendering;
 
   /// True once cancellation has been asked for and before the render answers.
@@ -266,13 +265,10 @@ class DarkroomState {
   /// Number of catalogue stars lent to `color_calibrate`.
   final int photometryStarCount;
 
-  /// True when an earlier step list can be restored.
   final bool canUndo;
 
-  /// True when an undone step list can be re-applied.
   final bool canRedo;
 
-  /// True while an edit is waiting to be written to the recipe row.
   final bool savePending;
 
   /// Why the last write to the recipe row failed. Null when the row is current.
@@ -310,7 +306,7 @@ class DarkroomState {
   /// when nothing was imported into this editor session.
   final String? importNote;
 
-  const DarkroomState({
+  const DarkroomViewState({
     this.loading = true,
     this.loadError,
     this.offer,
@@ -519,7 +515,7 @@ class DarkroomState {
     return attributed ? null : error;
   }
 
-  DarkroomState copyWith({
+  DarkroomViewState copyWith({
     bool? loading,
     String? loadError,
     bool clearLoadError = false,
@@ -578,7 +574,7 @@ class DarkroomState {
     String? importNote,
     bool clearImportNote = false,
   }) {
-    return DarkroomState(
+    return DarkroomViewState(
       loading: loading ?? this.loading,
       loadError: clearLoadError ? null : (loadError ?? this.loadError),
       offer: clearOffer ? null : (offer ?? this.offer),

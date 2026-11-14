@@ -4,7 +4,7 @@
 // and does not:
 //
 //  * the action cluster was a horizontally scrolling Row, so at phone width the
-//    first three icons — "Review & integrate", "Refine in Darkroom" and
+//    first three icons — "Session review", "Refine in Darkroom" and
 //    "Session Report" — were clipped away while the accessibility tree went on
 //    advertising all seven, and a tap where one used to be landed on nothing;
 //  * the Darkroom refusal was posted to the page's ScaffoldMessenger while the
@@ -17,7 +17,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockImagesDao extends Mock implements ImagesDao {}
@@ -72,20 +75,6 @@ class _PinnedBackend extends BackendNotifier {
   }
 }
 
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError(
-        'NoopTutorialProgressDao.${invocation.memberName} called in test',
-      );
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -136,7 +125,6 @@ void main() {
           dbSessionImagesProvider(5).overrideWith(
             (ref) => Stream<List<DbCapturedImage>>.value(const []),
           ),
-          tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -225,7 +213,7 @@ void main() {
     expect(announced, contains('Session actions'));
     expect(announced, contains('Close'));
     expect(announced, isNot(contains('Refine in Darkroom')));
-    expect(announced, isNot(contains('Review & integrate')));
+    expect(announced, isNot(contains('Session review')));
     expect(announced, isNot(contains('Session report')));
 
     // And every one of them is reachable once the menu is open.
@@ -236,7 +224,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     for (final label in const [
-      'Review & integrate',
+      'Session review',
       'Refine in Darkroom',
       'Session report',
       'Export to JSON',

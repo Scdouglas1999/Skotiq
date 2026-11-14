@@ -1,4 +1,3 @@
-// Save-picker, share and stretch-engine seams plus their providers.
 part of '../stack_result_screen.dart';
 
 /// Signature of the save-file picker used by the Stack Result viewer to choose
@@ -53,11 +52,9 @@ Future<void> _defaultShare(String filePath, {required String text}) async {
   await Share.shareXFiles([XFile(filePath)], text: text);
 }
 
-/// Override point for the save-file picker (tests stub this).
 final stackResultSavePickerProvider =
     Provider<StackResultSavePicker>((ref) => _defaultSavePicker);
 
-/// Override point for the OS share-sheet call (tests stub this).
 final stackResultShareProvider =
     Provider<StackResultShare>((ref) => _defaultShare);
 

@@ -1,20 +1,37 @@
+import '../models/imaging/session_status.dart';
+import '../models/imaging/frame_type_record.dart';
+import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend.dart';
 import '../database/database.dart' as db;
 import '../models/imaging/imaging_models.dart';
+import '../models/imaging/naming_pattern.dart';
 import '../models/imaging/auto_stretch_settings.dart';
+import '../models/backend/device_capabilities.dart';
+import '../models/equipment/equipment_models.dart';
 import 'backend_provider.dart';
+import 'host_role.dart';
+import 'capability_provider.dart' show cameraSensitivityProvider;
+import 'equipment/camera_state_provider.dart';
 import 'database_provider.dart';
+import '../services/darkroom_build_service.dart' show observingNight;
+import 'host_settings/host_settings_providers.dart'
+    show settingsRowChangesProvider;
 import 'profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import 'session_provider.dart';
 import 'settings_provider.dart';
 import 'runtime_mirror/channels/session_frames_channel.dart'
     show hostSessionFrameIdsProvider;
 import 'sequence/last_ended_run.dart' show lastEndedRunProvider;
+import 'package:skotiq_astro/skotiq_astro.dart';
+import '../database/daos/settings_dao.dart';
+import '../settings/app_settings_state.g.dart';
+import '../settings/capture_format.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
+import '../services/logging_service.dart';
 
-/// Current exposure settings
 final exposureSettingsProvider = StateProvider<ExposureSettings>((ref) {
   return const ExposureSettings(
     // A snapshot is an operator probe, not a deep-sky integration. Keep the
@@ -46,33 +63,74 @@ String _exposureProfileKey(EquipmentProfileModel profile) =>
 /// write or overwrite a newer manual edit.
 void updateManualExposureSettings(Ref ref, ExposureSettings settings) {
   final profile = ref.read(activeEquipmentProfileProvider);
+  final previous = ref.read(exposureSettingsProvider);
   ref.read(exposureSettingsUserDirtyProvider.notifier).state = true;
   ref.read(_manualExposureRevisionProvider.notifier).state++;
   ref.read(exposureSettingsProvider.notifier).state = settings;
   if (profile == null) return;
 
-  final key =
-      'imaging_capture_settings_profile_${_exposureProfileKey(profile)}';
-  final json = jsonEncode(_exposureSettingsToJson(settings));
+  final key = exposureSettingsKeyFor(profile);
+  // Store only the fields this edit changed, laid over the row as it is now.
+  // The host and every linked client edit the same row, so writing the whole
+  // object from this screen's copy reverted whatever another screen had just
+  // changed (gain set on one side, exposure on the other: one was lost).
+  final full = _exposureSettingsToJson(settings);
+  final before = _exposureSettingsToJson(previous);
+  final changed = <String, Object?>{
+    for (final entry in full.entries)
+      if (before[entry.key] != entry.value) entry.key: entry.value,
+  };
+  if (changed.isEmpty) return;
   Future<void> save() async {
     try {
-      await ref.read(settingsDaoProvider).setSetting(key, json);
+      await ref
+          .read(settingsDaoProvider)
+          .mergeJsonObjectSetting(key, changed, base: full);
     } catch (error, stack) {
-      developer.log(
+      Log.error(
         'Failed to save manual capture settings: $error',
-        name: 'ImagingSettings',
-        level: 1000,
+        source: 'ImagingSettings',
         error: error,
         stackTrace: stack,
       );
     }
   }
 
-  final previous = ref.read(_exposureWriteTailProvider);
-  final recovered = previous.then<void>((_) {}, onError: (_, __) {});
+  final tail = ref.read(_exposureWriteTailProvider);
+  final recovered = tail.then<void>((_) {}, onError: (_, __) {});
   final next = recovered.then<void>((_) => save());
   ref.read(_exposureWriteTailProvider.notifier).state = next;
+  ref.read(_exposureWritesInFlightProvider.notifier).state++;
+  unawaited(
+    next.whenComplete(() {
+      final int left;
+      try {
+        left = --ref.read(_exposureWritesInFlightProvider.notifier).state;
+      } on StateError {
+        // The container was disposed while the write ran; nothing to update.
+        return;
+      }
+      // The stored row now holds this edit merged with any field another
+      // screen changed meanwhile; a change announced while this write was in
+      // flight was not applied, so take the row as stored.
+      if (left == 0) {
+        unawaited(_reloadExposureSettings(ref, profile, key, () => false));
+      }
+    }),
+  );
 }
+
+/// Manual capture-settings writes not yet stored. While one is pending, a
+/// changed row is not re-read: it could only bring back an older value.
+final _exposureWritesInFlightProvider = StateProvider<int>((ref) => 0);
+
+/// The row holding [profile]'s manual capture settings.
+Setting<String?> _exposureSettingsRow(EquipmentProfileModel profile) =>
+    StoreSettings.captureSettings.row(_exposureProfileKey(profile));
+
+/// The `app_settings` key holding [profile]'s manual capture settings.
+String exposureSettingsKeyFor(EquipmentProfileModel profile) =>
+    _exposureSettingsRow(profile).key;
 
 /// Façade for callers that own a provider container/ref.
 final manualExposureSettingsUpdaterProvider =
@@ -88,6 +146,25 @@ class ManualExposureSettingsUpdater {
   void update(ExposureSettings settings) =>
       updateManualExposureSettings(_ref, settings);
 }
+
+/// The connected imaging camera's id, the gain it reports and its
+/// sensitivity; the id is null while no camera is connected.
+final _connectedCameraIsoProvider =
+    Provider<(String?, int?, ExposureSensitivity)>((ref) {
+      final (connected, deviceId, gain) = ref.watch(
+        cameraStateProvider.select(
+          (s) => (
+            s.connectionState == DeviceConnectionState.connected,
+            s.deviceId,
+            s.gain,
+          ),
+        ),
+      );
+      if (!connected || deviceId == null || deviceId.isEmpty) {
+        return (null, null, const GainSensitivity());
+      }
+      return (deviceId, gain, ref.watch(cameraSensitivityProvider));
+    });
 
 /// Call this provider from the imaging screen's initState/build to ensure
 /// snapshot controls are initialized from the active equipment profile.
@@ -105,6 +182,33 @@ final syncExposureFromProfileProvider = Provider<void>((ref) {
   var loadInFlight = false;
   ref.onDispose(() => disposed = true);
 
+  // A DSLR or mirrorless body is set to an ISO of its own (its dial, its
+  // menu, the last program that drove it). Once per connection, after the
+  // profile's snapshot is loaded, the snapshot takes the ISO the body
+  // reports, so the ISO picker shows what the body is at and the next frame
+  // does not silently change it.
+  String? adoptedFor;
+  void adoptBodyIso() {
+    if (disposed || loadedProfileKey == null) return;
+    final (deviceId, reported, sensitivity) = ref.read(
+      _connectedCameraIsoProvider,
+    );
+    if (deviceId == null) {
+      adoptedFor = null;
+      return;
+    }
+    if (adoptedFor == deviceId ||
+        reported == null ||
+        sensitivity is! IsoSensitivity ||
+        !sensitivity.speeds.contains(reported)) {
+      return;
+    }
+    adoptedFor = deviceId;
+    final current = ref.read(exposureSettingsProvider);
+    if (current.gain == reported) return;
+    updateManualExposureSettings(ref, current.copyWith(gain: reported));
+  }
+
   Future<void>.microtask(() {
     final profileKey = profile.id?.toString() ?? profile.name;
     if (disposed || loadInFlight || loadedProfileKey == profileKey) return;
@@ -113,11 +217,10 @@ final syncExposureFromProfileProvider = Provider<void>((ref) {
     final revisionAtStart = ref.read(_manualExposureRevisionProvider);
     () async {
       final dao = ref.read(settingsDaoProvider);
-      final key = 'imaging_capture_settings_profile_$profileKey';
       ExposureSettings? saved;
       try {
-        final value = await dao.getSetting(key);
-        if (value != null && value.isNotEmpty) {
+        final value = await dao.read(_exposureSettingsRow(profile));
+        if (value != null) {
           saved = _exposureSettingsFromJson(jsonDecode(value));
         }
       } catch (_) {
@@ -133,26 +236,82 @@ final syncExposureFromProfileProvider = Provider<void>((ref) {
       loadInFlight = false;
       // A manual edit completed while the DAO was reading. Its value is
       // newer than the stored snapshot and must win the race.
-      if (ref.read(_manualExposureRevisionProvider) != revisionAtStart) {
-        return;
+      if (ref.read(_manualExposureRevisionProvider) == revisionAtStart &&
+          !disposed) {
+        ref.read(exposureSettingsProvider.notifier).state =
+            saved ??
+            ExposureSettings(
+              exposureTime: 2,
+              gain: profile.defaultGain ?? 100,
+              offset: profile.defaultOffset ?? 50,
+              binningX: profile.defaultBinX,
+              binningY: profile.defaultBinY,
+              frameType: FrameType.light,
+            );
       }
-      if (disposed) return;
-      if (saved != null) {
-        ref.read(exposureSettingsProvider.notifier).state = saved;
-        return;
-      }
-
-      ref.read(exposureSettingsProvider.notifier).state = ExposureSettings(
-        exposureTime: 2,
-        gain: profile.defaultGain ?? 100,
-        offset: profile.defaultOffset ?? 50,
-        binningX: profile.defaultBinX,
-        binningY: profile.defaultBinY,
-        frameType: FrameType.light,
-      );
+      adoptBodyIso();
     }();
   });
+
+  ref.listen<(String?, int?, ExposureSensitivity)>(
+    _connectedCameraIsoProvider,
+    (_, __) => adoptBodyIso(),
+  );
+
+  // Follow the row when it changes under this screen: on the host when a
+  // linked client or a script writes it, on a client when the host's screen or
+  // another client does. Without this each side showed its own values until
+  // the profile changed, and the next edit wrote them back over the other's.
+  final key = exposureSettingsKeyFor(profile);
+  final changes = ref.read(settingsRowChangesProvider).stream.listen((keys) {
+    if (!keys.contains(key)) return;
+    unawaited(_reloadExposureSettings(ref, profile, key, () => disposed));
+  });
+  ref.onDispose(changes.cancel);
 });
+
+Future<void> _reloadExposureSettings(
+  Ref ref,
+  EquipmentProfileModel profile,
+  String key,
+  bool Function() disposed,
+) async {
+  try {
+    if (ref.read(_exposureWritesInFlightProvider) > 0) return;
+    final revisionAtStart = ref.read(_manualExposureRevisionProvider);
+    ExposureSettings? stored;
+    try {
+      final value = await ref
+          .read(settingsDaoProvider)
+          .read(_exposureSettingsRow(profile));
+      if (value != null) {
+        stored = _exposureSettingsFromJson(jsonDecode(value));
+      }
+    } on Object catch (error) {
+      Log.warning(
+        'Could not re-read the capture settings after a change: $error',
+        source: 'ImagingSettings',
+      );
+      return;
+    }
+    if (disposed() || stored == null) return;
+    final current = ref.read(activeEquipmentProfileProvider);
+    if (current == null ||
+        _exposureProfileKey(current) != _exposureProfileKey(profile)) {
+      return;
+    }
+    // An edit made on this screen while the row was being read is newer.
+    if (ref.read(_manualExposureRevisionProvider) != revisionAtStart ||
+        ref.read(_exposureWritesInFlightProvider) > 0) {
+      return;
+    }
+    if (ref.read(exposureSettingsProvider) != stored) {
+      ref.read(exposureSettingsProvider.notifier).state = stored;
+    }
+  } on StateError {
+    // The container was disposed while the row was being read.
+  }
+}
 
 Map<String, dynamic> _exposureSettingsToJson(ExposureSettings settings) => {
   'exposureTime': settings.exposureTime,
@@ -196,7 +355,6 @@ ExposureSettings? _exposureSettingsFromJson(dynamic value) {
   );
 }
 
-/// Last captured image stats
 final lastImageStatsProvider = StateProvider<ImageStats?>((ref) => null);
 
 /// Auto-stretch settings with method selection and advanced parameters.
@@ -229,12 +387,10 @@ class AutoStretchSettingsNotifier extends StateNotifier<AutoStretchSettings> {
     final revisionAtStart = _requestRevision;
 
     try {
-      final dao = _ref.read(settingsDaoProvider);
-      final json = await dao.getAutoStretchSettings();
-      if (json != null &&
-          json.isNotEmpty &&
-          revisionAtStart == _requestRevision &&
-          mounted) {
+      final json = await _ref
+          .read(settingsDaoProvider)
+          .read(StoreSettings.autoStretch);
+      if (json != null && revisionAtStart == _requestRevision && mounted) {
         final decoded = jsonDecode(json) as Map<String, dynamic>;
         final loaded = AutoStretchSettings.fromJson(decoded);
         _confirmedSettings = loaded;
@@ -242,10 +398,9 @@ class AutoStretchSettingsNotifier extends StateNotifier<AutoStretchSettings> {
         state = loaded;
       }
     } catch (e) {
-      developer.log(
+      Log.error(
         'Failed to load auto-stretch settings: $e',
-        name: 'AutoStretch',
-        level: 1000,
+        source: 'AutoStretch',
       );
     }
   }
@@ -280,24 +435,21 @@ class AutoStretchSettingsNotifier extends StateNotifier<AutoStretchSettings> {
   /// Persist a captured settings snapshot to the database.
   Future<void> _persistSettings(AutoStretchSettings settings) async {
     try {
-      final dao = _ref.read(settingsDaoProvider);
-      final json = jsonEncode(settings.toJson());
-      await dao.setAutoStretchSettings(json);
+      await _ref
+          .read(settingsDaoProvider)
+          .write(StoreSettings.autoStretch, jsonEncode(settings.toJson()));
     } catch (e) {
-      developer.log(
+      Log.error(
         'Failed to save auto-stretch settings: $e',
-        name: 'AutoStretch',
-        level: 1000,
+        source: 'AutoStretch',
       );
       rethrow;
     }
   }
 
-  /// Reset to default settings.
   Future<void> reset() => update(AutoStretchSettings.defaults());
 }
 
-/// Cooling settings
 final coolingSettingsProvider = StateProvider<CoolingSettings>((ref) {
   return const CoolingSettings();
 });
@@ -307,69 +459,111 @@ final coolingStatusProvider = StateProvider<CoolingStatus>((ref) {
   return const CoolingStatus();
 });
 
-/// Focus/Autofocus settings (persists across navigation).
+/// Focus/Autofocus panel settings.
 ///
-/// Initial values are loaded once from the persisted AppSettings autofocus
-/// fields. After initialization, user edits are held in memory and are NOT
-/// reset when unrelated app settings are saved.
+/// The autofocus fields (step size, steps out, exposure, exposures per point,
+/// method) are the persisted autofocus settings: an edit on the panel is saved
+/// to them, and a change saved anywhere else (Settings, the host's screen, a
+/// linked client) shows on the panel. The manual nudge step size is this
+/// screen's own and is kept in memory.
 final focusSettingsProvider =
     StateNotifierProvider<FocusSettingsNotifier, FocusSettings>((ref) {
       return FocusSettingsNotifier(ref);
     });
 
-/// StateNotifier for focus settings that reads from AppSettings only once.
-///
-/// Prevents the bug where every AppSettings save would reset user edits
-/// because `ref.watch(appSettingsProvider)` triggered a full rebuild.
+/// Holds the focus panel's values; see [focusSettingsProvider].
 class FocusSettingsNotifier extends StateNotifier<FocusSettings> {
   final Ref _ref;
-  bool _initialized = false;
-  bool _userEdited = false;
+
+  /// Panel edits still being saved. While one is, the persisted values can
+  /// only be older than the panel's, so they are not taken.
+  int _pendingWrites = 0;
+
+  /// Whether the manual step size has been seeded or edited. It starts from
+  /// the autofocus step size once, then is this screen's own.
+  bool _manualStepSet = false;
 
   FocusSettingsNotifier(this._ref) : super(const FocusSettings()) {
+    _ref.listen<AsyncValue<AppSettingsState>>(appSettingsProvider, (_, next) {
+      final settings = next.valueOrNull;
+      if (settings != null) _adopt(settings);
+    });
     _loadFromAppSettings();
   }
 
   Future<void> _loadFromAppSettings() async {
-    if (_initialized) return;
-    _initialized = true;
-
     try {
-      // App settings normally load asynchronously from Drift or the remote
-      // host. Reading valueOrNull once during construction races that load and
-      // permanently leaves autofocus at generic defaults. Await the real
-      // snapshot, but never let its late arrival overwrite panel edits made in
-      // the meantime.
       final settings = await _ref.read(appSettingsProvider.future);
-      if (!mounted || _userEdited) return;
-      state = FocusSettings(
-        stepSize: settings.afStepSize,
-        method: settings.afMethod,
-        afStepSize: settings.afStepSize,
-        stepsOut: settings.afInitialOffsetSteps,
-        exposuresPerPoint: settings.afExposuresPerPoint,
-        exposureTime: settings.afExposureTime,
-      );
+      if (!mounted) return;
+      _adopt(settings);
     } catch (e) {
-      developer.log(
+      Log.error(
         'Failed to initialize focus settings from app settings: $e',
-        name: 'FocusSettings',
-        level: 1000,
+        source: 'FocusSettings',
       );
     }
   }
 
-  /// Update focus settings (user edits at runtime).
+  /// Take the persisted autofocus values.
+  void _adopt(AppSettingsState settings) {
+    if (!mounted || _pendingWrites > 0) return;
+    final seedStep = !_manualStepSet;
+    _manualStepSet = true;
+    final next = state.copyWith(
+      stepSize: seedStep ? settings.afStepSize : null,
+      method: settings.afMethod,
+      afStepSize: settings.afStepSize,
+      stepsOut: settings.afInitialOffsetSteps,
+      exposuresPerPoint: settings.afExposuresPerPoint,
+      exposureTime: settings.afExposureTime,
+    );
+    if (next != state) state = next;
+  }
+
+  /// Apply an edit from the panel and save the autofocus fields it changed.
   void update(FocusSettings newSettings) {
-    _userEdited = true;
+    final before = state;
     state = newSettings;
+    if (newSettings.stepSize != before.stepSize) _manualStepSet = true;
+    _pendingWrites++;
+    unawaited(
+      _persist(before, newSettings).whenComplete(() {
+        _pendingWrites--;
+        final settings = _ref.read(appSettingsProvider).valueOrNull;
+        if (_pendingWrites == 0 && settings != null) _adopt(settings);
+      }),
+    );
+  }
+
+  Future<void> _persist(FocusSettings before, FocusSettings next) async {
+    try {
+      // Saving needs the loaded settings; an edit made before they arrive is
+      // saved once they do.
+      await _ref.read(appSettingsProvider.future);
+      final notifier = _ref.read(appSettingsProvider.notifier);
+      if (next.afStepSize != before.afStepSize) {
+        await notifier.setAfStepSize(next.afStepSize);
+      }
+      if (next.stepsOut != before.stepsOut) {
+        await notifier.setAfInitialOffsetSteps(next.stepsOut);
+      }
+      if (next.exposureTime != before.exposureTime) {
+        await notifier.setAfExposureTime(next.exposureTime);
+      }
+      if (next.exposuresPerPoint != before.exposuresPerPoint) {
+        await notifier.setAfExposuresPerPoint(next.exposuresPerPoint);
+      }
+      if (next.method != before.method) {
+        await notifier.setAfMethod(next.method);
+      }
+    } catch (error) {
+      Log.error(
+        'Could not save the autofocus panel setting: $error',
+        source: 'FocusSettings',
+      );
+    }
   }
 }
-
-/// Dither settings for guiding (persists across navigation)
-final ditherSettingsProvider = StateProvider<DitherSettings>((ref) {
-  return const DitherSettings();
-});
 
 /// Slew coordinates for mount tab (persists across navigation)
 final slewCoordinatesProvider = StateProvider<SlewCoordinates>((ref) {
@@ -398,10 +592,9 @@ final namingPatternProvider = Provider<NamingPattern>((ref) {
     return const NamingPattern();
   }
 
-  // Captures are currently persisted through the native FITS writer. This
-  // defensive coercion also protects callers while a legacy/remote settings
-  // snapshot is being migrated by appSettingsProvider.
-  const format = ImageFileFormat.fits;
+  final format = ImageFileFormatSettingsX.fromSettings(
+    normalizeCaptureImageFormat(settings.format),
+  );
   final baseDir = settings.outputPath.isEmpty ? '.' : settings.outputPath;
 
   return NamingPattern(
@@ -411,22 +604,47 @@ final namingPatternProvider = Provider<NamingPattern>((ref) {
   );
 });
 
-/// Last star detection result
-final starDetectionResultProvider = StateProvider<StarDetectionResult?>(
-  (ref) => null,
-);
-
-/// Session captured images
 final sessionImagesProvider =
     StateNotifierProvider<SessionImagesNotifier, List<CapturedImage>>((ref) {
       return SessionImagesNotifier();
     });
 
+/// The session frames list: every kept frame of the observing night (local
+/// noon to noon, the night Darkroom groups by), oldest first.
+///
+/// It lived only in memory, so a crash, an update or a restart mid-night
+/// emptied it, and the restored run's frames started a new list: the host and
+/// every linked client then showed a night that began at the restart.
+/// [seedNight] rebuilds it from the database at startup; a frame already in
+/// the list is never added twice, and the first frame of the next night
+/// starts a new list.
 class SessionImagesNotifier extends StateNotifier<List<CapturedImage>> {
   SessionImagesNotifier() : super([]);
 
   void addImage(CapturedImage image) {
+    if (state.any((existing) => existing.id == image.id)) return;
+    final night = observingNight(image.capturedAt);
+    if (state.isNotEmpty && observingNight(state.last.capturedAt) != night) {
+      state = [image];
+      return;
+    }
     state = [...state, image];
+  }
+
+  /// Merge the night's frames read from the database into the list.
+  ///
+  /// [frames] are the kept frames of the night containing [now]; anything in
+  /// the list from another night is dropped.
+  void seedNight(List<CapturedImage> frames, {required DateTime now}) {
+    final night = observingNight(now);
+    final byId = <String, CapturedImage>{
+      for (final image in frames)
+        if (observingNight(image.capturedAt) == night) image.id: image,
+      for (final image in state)
+        if (observingNight(image.capturedAt) == night) image.id: image,
+    };
+    state = byId.values.toList()
+      ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
   }
 
   void removeImage(String id) {
@@ -448,86 +666,89 @@ class SessionImagesNotifier extends StateNotifier<List<CapturedImage>> {
   }
 }
 
-/// Recent frames for the active session, remote-aware.
+/// Seeds [sessionImagesProvider] with the observing night's kept frames from
+/// the database, on the process that owns it. Watch it for the whole app.
 ///
-/// On the host this is exactly the in-memory [sessionImagesProvider] list (the
-/// local capture loop populates it). On a slave (NetworkBackend) the master is
-/// the node actually imaging, so those frames never reach the local in-memory
-/// list — instead this branches onto the already remote-aware
-/// [allDbImagesProvider] (which polls the host's `/api/images`), filters to the
-/// active session's `dbSessionId`, and maps each Drift row back onto the
-/// in-memory [CapturedImage] shape the cockpit/strip widgets render. Ordering
-/// matches [sessionImagesProvider]: oldest-first (capture order), so the
-/// consumers' "take the tail, reverse to newest-first" logic is unchanged.
-///
-/// The session id itself is also remote-aware. `dbSessionId` is only ever set
-/// locally by [SessionStateNotifier.startSession] / `recoverSession`, so a
-/// phone or tablet that merely *watches* a host-started run never has one. When
-/// the local id is absent this falls back to the host's own active session,
-/// using the same `status == 'active'` invariant
-/// `SessionsDao.getActiveSessions` relies on.
-///
-/// A host that shares its own list (see `SessionFramesChannel`) settles all
-/// of that: the client shows the host's frames, in the host's order, so the
-/// two count the same frames whenever the client connected.
-final recentSessionFramesProvider = Provider<List<CapturedImage>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) {
-    return ref.watch(sessionImagesProvider);
-  }
-
-  final hostIds = ref.watch(hostSessionFrameIdsProvider);
-  if (hostIds != null) {
-    if (hostIds.isEmpty) return const <CapturedImage>[];
-    final rows = ref.watch(allDbImagesProvider).valueOrNull;
-    if (rows == null) return const <CapturedImage>[];
-    final byId = {for (final row in rows) row.id: row};
-    return [
-      for (final id in hostIds)
-        if (byId[id] case final db.CapturedImage row)
-          capturedImageFromDbRow(row),
-    ];
-  }
-
-  var sessionId = ref.watch(
-    sessionStateProvider.select((state) => state.dbSessionId),
-  );
-  if (sessionId == null) {
-    // `allSessionsProvider` is already sorted newest-first on both the local
-    // and the remote path, so the first active row is the current session. A
-    // genuinely idle host yields null and the strip stays empty — which is then
-    // the truth, not a false negative.
-    final sessions = ref.watch(allSessionsProvider).valueOrNull;
-    if (sessions != null) {
-      for (final session in sessions) {
-        if (session.status == 'active') {
-          sessionId = session.id;
-          break;
-        }
-      }
-      // A run that ended this session closed its session on the host; its
-      // frames are still tonight's until the next run starts.
-      if (sessionId == null &&
-          sessions.isNotEmpty &&
-          ref.watch(lastEndedRunProvider) != null) {
-        sessionId = sessions.first.id;
-      }
-    }
-  }
-  if (sessionId == null) {
-    return const <CapturedImage>[];
-  }
-
-  final rows = ref.watch(allDbImagesProvider).valueOrNull;
-  if (rows == null) {
-    return const <CapturedImage>[];
-  }
-
-  final sessionRows =
-      rows.where((row) => row.sessionId == sessionId).toList(growable: false)
-        ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-  return sessionRows.map(capturedImageFromDbRow).toList(growable: false);
+/// "Kept" is what the run's frame recorder and the capture pipeline add to
+/// the list as frames land: rows still accepted (a grader's reject or a
+/// frame-watch exclusion clears `is_accepted`).
+final sessionNightSeedProvider = FutureProvider<void>((ref) async {
+  if (ref.watch(isRemoteModeProvider)) return;
+  final now = DateTime.now();
+  final window = observingNightWindow(now);
+  final rows = await ref
+      .read(imagesDaoProvider)
+      .getImagesCapturedBetween(window.start, window.end);
+  ref.read(sessionImagesProvider.notifier).seedNight([
+    for (final row in rows)
+      if (row.isAccepted) capturedImageFromDbRow(row),
+  ], now: now);
 });
+
+/// The session a linked client's host is recording into, for a client that
+/// only watches: its own session state names a session only when it started
+/// or recovered one itself. Null on the host, whose session state is the
+/// whole answer, and when the host is idle.
+///
+/// The host's sessions arrive newest first, so the first active one is the
+/// current one. A run that ended here closed its session on the host; its
+/// frames stay tonight's until the next run starts.
+final watchedHostSessionIdProvider = hostRoleProvider<int?>(
+  here: (ref) => null,
+  linked: (ref, host) {
+    final sessions = ref.watch(allSessionsProvider).valueOrNull;
+    if (sessions == null) return null;
+    for (final session in sessions) {
+      if (session.sessionStatus == SessionStatus.active) return session.id;
+    }
+    if (sessions.isNotEmpty && ref.watch(lastEndedRunProvider) != null) {
+      return sessions.first.id;
+    }
+    return null;
+  },
+);
+
+/// The frames of the session in progress, oldest first.
+///
+/// The host keeps them in memory as its capture loop takes them
+/// ([sessionImagesProvider]). A linked client takes the list of frame ids its
+/// host shares (`SessionFramesChannel`), so both count the same frames
+/// whenever the client connected; for a host that shares none it shows the
+/// rows of the session the host is recording into.
+final recentSessionFramesProvider = hostRoleProvider<List<CapturedImage>>(
+  here: (ref) => ref.watch(sessionImagesProvider),
+  linked: (ref, host) {
+    final hostIds = ref.watch(hostSessionFrameIdsProvider);
+    if (hostIds != null) {
+      if (hostIds.isEmpty) return const <CapturedImage>[];
+      final rows = ref.watch(allDbImagesProvider).valueOrNull;
+      if (rows == null) return const <CapturedImage>[];
+      final byId = {for (final row in rows) row.id: row};
+      return [
+        for (final id in hostIds)
+          if (byId[id] case final db.DbCapturedImage row)
+            capturedImageFromDbRow(row),
+      ];
+    }
+
+    final sessionId =
+        ref.watch(sessionStateProvider.select((state) => state.dbSessionId)) ??
+        ref.watch(watchedHostSessionIdProvider);
+    if (sessionId == null) {
+      return const <CapturedImage>[];
+    }
+
+    final rows = ref.watch(allDbImagesProvider).valueOrNull;
+    if (rows == null) {
+      return const <CapturedImage>[];
+    }
+
+    final sessionRows =
+        rows.where((row) => row.sessionId == sessionId).toList(growable: false)
+          ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+    return sessionRows.map(capturedImageFromDbRow).toList(growable: false);
+  },
+);
 
 /// Map a persisted `captured_images` row onto the in-memory [CapturedImage]
 /// shape the cockpit/strip widgets render.
@@ -536,7 +757,7 @@ final recentSessionFramesProvider = Provider<List<CapturedImage>>((ref) {
 /// mapping to push freshly persisted sequence frames into
 /// [sessionImagesProvider]; duplicating it there would let the two views of a
 /// frame drift apart.
-CapturedImage capturedImageFromDbRow(db.CapturedImage row) {
+CapturedImage capturedImageFromDbRow(db.DbCapturedImage row) {
   return CapturedImage(
     id: row.id.toString(),
     filePath: row.filePath,
@@ -548,7 +769,7 @@ CapturedImage capturedImageFromDbRow(db.CapturedImage row) {
       binningX: row.binX,
       binningY: row.binY,
       filter: row.filter,
-      frameType: _frameTypeFromDbString(row.frameType),
+      frameType: row.recordedFrameType ?? FrameType.light,
     ),
     stats: row.hfr != null || row.starCount != null
         ? ImageStats(
@@ -562,42 +783,9 @@ CapturedImage capturedImageFromDbRow(db.CapturedImage row) {
   );
 }
 
-FrameType _frameTypeFromDbString(String str) {
-  switch (str.toLowerCase()) {
-    case 'dark':
-      return FrameType.dark;
-    case 'flat':
-      return FrameType.flat;
-    case 'bias':
-      return FrameType.bias;
-    case 'darkflat':
-      return FrameType.darkFlat;
-    case 'snapshot':
-      return FrameType.snapshot;
-    default:
-      return FrameType.light;
-  }
-}
+ImageFileFormat _imageFormatFromDbString(String str) =>
+    ImageFileFormat.fromRecord(str) ?? ImageFileFormat.fits;
 
-ImageFileFormat _imageFormatFromDbString(String str) {
-  switch (str.toLowerCase()) {
-    case 'xisf':
-      return ImageFileFormat.xisf;
-    case 'tiff':
-      return ImageFileFormat.tiff;
-    case 'png':
-      return ImageFileFormat.png;
-    case 'jpeg':
-    case 'jpg':
-      return ImageFileFormat.jpeg;
-    default:
-      return ImageFileFormat.fits;
-  }
-}
-
-// Temperature history tracking
-
-/// A point in the temperature history
 class TemperaturePoint {
   final double temperature;
   final double? targetTemp;
@@ -702,7 +890,6 @@ class TemperatureHistoryNotifier extends StateNotifier<List<TemperaturePoint>> {
     state = [];
   }
 
-  /// Get the minimum and maximum temperature in the history
   (double, double) get tempRange {
     if (state.isEmpty) return (-30.0, 30.0);
 

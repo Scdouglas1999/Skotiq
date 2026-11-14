@@ -37,7 +37,6 @@ class ConsentService {
     'cc-by-nc',
   };
 
-  /// Whether [license] is a known, shareable license wire name.
   static bool isShareable(String? license) =>
       license != null && shareableLicenses.contains(license.trim());
 

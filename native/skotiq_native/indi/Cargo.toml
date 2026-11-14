@@ -7,16 +7,19 @@ authors.workspace = true
 publish.workspace = true
 
 [dependencies]
-tokio.workspace = true
+skotiq_device = { path = "../device" }
+skotiq_imaging = { path = "../imaging" }
 async-trait.workspace = true
-serde.workspace = true
+tokio.workspace = true
 thiserror.workspace = true
-anyhow.workspace = true
 tracing.workspace = true
+chrono.workspace = true
 
 # XML parsing for INDI protocol
 quick-xml = { version = "0.31", features = ["async-tokio"] }
 base64.workspace = true
+# Frames a server sends zlib-compressed (`.fits.z`, `.bin.z`).
+flate2 = "1.1"
 
 # mDNS discovery
 mdns-sd = "0.11"

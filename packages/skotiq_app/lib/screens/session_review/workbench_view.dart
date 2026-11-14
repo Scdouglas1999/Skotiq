@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide ConnectionState;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 
@@ -16,9 +18,8 @@ import 'widgets/build_in_darkroom_button.dart';
 import 'widgets/darkroom_pass_banner.dart';
 import 'widgets/integration_settings_panel.dart';
 import 'widgets/master_library_panel.dart';
-import 'widgets/master_overlay_view.dart';
-import 'widgets/master_preview_view.dart';
-import 'widgets/narrowband_mixer_panel.dart' as nb;
+import '../../widgets/master_preview/master_overlay_view.dart';
+import '../../widgets/master_preview/master_preview_view.dart';
 import 'widgets/session_interruption_banner.dart';
 import 'widgets/sub_cull_rail.dart';
 
@@ -58,8 +59,9 @@ int reconcileFieldQualityIndex({
 /// dense, control-heavy console for the operator who wants to drive every knob.
 ///
 /// Layout: the cull rail (sub table + blink + lasso) on the
-/// left; the master with every overlay toggle, the per-sub field-quality maps,
-/// the narrowband mixer, an A/B re-integrate compare, and the full
+/// left; the master with every overlay toggle, deconvolution and the way into
+/// the Darkroom, the master library, the per-sub field-quality maps, an
+/// earlier narrowband composite, the A/B compare, and the full
 /// integration-settings form on the right.
 ///
 /// Same provider as `NarrativeView` — two renderings of one model. Every panel
@@ -182,8 +184,6 @@ class _LeftColumn extends StatelessWidget {
       children: [
         const SectionTitle(icon: SkotiqIcons.image, title: 'Subs & culling'),
         const SizedBox(height: SkotiqTokens.spaceSm),
-        // SubCullRail extends the existing sub gallery: blink + bulk-reject
-        // plus multi-select / lasso cull and a curve-linked "drop to keepN".
         SizedBox(
           height: 520,
           child: SubCullRail(
@@ -199,8 +199,9 @@ class _LeftColumn extends StatelessWidget {
   }
 }
 
-/// Right column: the master + overlays, the per-sub field-quality maps, the
-/// narrowband mixer, the A/B compare, and the integration-settings form.
+/// Right column: the master + overlays, finishing, the master library, the
+/// per-sub field-quality maps, an earlier narrowband composite, the A/B
+/// compare, and the integration-settings form.
 class _RightColumn extends ConsumerWidget {
   final SessionReviewState state;
   final SessionReviewController controller;
@@ -213,30 +214,13 @@ class _RightColumn extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
-    final outcome = state.lastOutcome;
     final master = state.reviewedMaster;
-    // Prefer the freshest run's preview; otherwise the persisted master's.
-    final previewPath = outcome?.result.previewPath ?? master?.previewPngPath;
-
-    // A run that dropped subs still returns a master, so nothing else on this
-    // column looks wrong — the card just reads a smaller frame count. The
-    // toast is transient; this banner is what is still on screen when the user
-    // looks at the master and wonders why it is thin.
-    final shortfall = SessionReviewController.integrationShortfall(outcome);
+    final previewPath = master?.previewPngPath;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (shortfall != null) ...[
-          SkotiqBanner(
-            tone: BannerTone.warning,
-            title: 'Subs were dropped from this master',
-            message: shortfall,
-          ),
-          const SizedBox(height: SkotiqTokens.spaceMd),
-        ],
-        // ── Master with every overlay toggle. ────────────────────────────
         const SectionTitle(
             icon: SkotiqIcons.layers, title: 'Master & overlays'),
         const SizedBox(height: SkotiqTokens.spaceSm),
@@ -248,10 +232,8 @@ class _RightColumn extends ConsumerWidget {
               child: MasterOverlayView(
                 previewPngPath: previewPath,
                 annotations: state.annotationLayer,
-                rejectionMapPngPath: outcome?.result.rejectionMapPreviewPath ??
-                    state.reviewedMaster?.rejectionMapPreviewPath,
-                coverageMapPngPath: outcome?.result.coverageMapPreviewPath ??
-                    state.coverageMapPath,
+                rejectionMapPngPath: master?.rejectionMapPreviewPath,
+                coverageMapPngPath: state.coverageMapPath,
                 showAnnotations: true,
                 showRejection: false,
                 showCoverage: false,
@@ -269,8 +251,8 @@ class _RightColumn extends ConsumerWidget {
                 const SizedBox(width: SkotiqTokens.spaceSm),
                 Expanded(
                   child: Text(
-                    'Integrate to produce a master, then toggle the rejection '
-                    'and annotation overlays here.',
+                    'Build masters in the Darkroom, then toggle the '
+                    'rejection and annotation overlays here.',
                     style: SkotiqTypography.bodySm
                         .copyWith(color: colors.textSecondary),
                   ),
@@ -280,11 +262,9 @@ class _RightColumn extends ConsumerWidget {
           ),
         const SizedBox(height: SkotiqTokens.spaceMd),
 
-        // ── Finishing actions (non-destructive post-steps on the master). ─
         _FinishingActions(state: state, controller: controller),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // ── Multi-night master library (accumulate / finalize). ──────────
         MasterLibraryPanel(
           masters: state.masters,
           acceptedSubCount: state.acceptedCount,
@@ -333,43 +313,16 @@ class _RightColumn extends ConsumerWidget {
         _FieldQualityCard(subs: state.acceptedLights),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // ── Narrowband channel mixer. ────────────────────────────────────
-        const SectionTitle(
-            icon: SkotiqIcons.sliders, title: 'Narrowband mixer'),
-        const SizedBox(height: SkotiqTokens.spaceSm),
-        nb.NarrowbandMixerPanel(
-          // Bridge the controller's canonical channel refs (which carry the
-          // on-disk FITS path the combine consumes) to the mixer's display
-          // refs. The combine re-resolves the FITS internally, so onApply only
-          // needs to hand back the palette + weight matrix.
-          channels: [
-            for (final c in controller.narrowbandChannels())
-              nb.NarrowbandChannelRef(
-                masterId: c.masterId,
-                filter: c.label,
-                label: c.label,
-              ),
-          ],
-          // Await the combine and surface the persisted composite path rather
-          // than discarding it: a failed combine sets `state.error`, a successful
-          // one pushes the `narrowband_composites` row onto state, which the
-          // `_NarrowbandCompositeCard` below renders.
-          busy: state.combiningNarrowband,
-          onApply: (palette, weights) async {
-            await controller.runNarrowband(palette, weights);
-          },
-        ),
-        const SizedBox(height: SkotiqTokens.spaceSm),
-        _NarrowbandCompositeCard(composite: state.narrowbandComposite),
-        const SizedBox(height: SkotiqTokens.spaceLg),
+        if (state.narrowbandComposite case final composite?) ...[
+          _NarrowbandCompositeCard(composite: composite),
+          const SizedBox(height: SkotiqTokens.spaceLg),
+        ],
 
-        // ── A/B compare two integration recipes. ─────────────────────────
         const SectionTitle(icon: SkotiqIcons.layers, title: 'A / B compare'),
         const SizedBox(height: SkotiqTokens.spaceSm),
         AbComparePanel(controller: controller),
         const SizedBox(height: SkotiqTokens.spaceLg),
 
-        // ── Integration settings + actions. ──────────────────────────────
         const SectionTitle(
             icon: SkotiqIcons.sliders, title: 'Integration settings'),
         const SizedBox(height: SkotiqTokens.spaceSm),
@@ -406,13 +359,9 @@ void _showMasterPreview(BuildContext context, IntegratedMaster master) {
   );
 }
 
-/// The non-destructive finishing-action row: "Background extract", "Deconvolve",
-/// and "Reduce stars" buttons that run the matching post-step on the current
-/// reviewed master's finished FITS (never re-integrating). Each writes its
-/// `_bgx`/`_decon`/`_starred` FITS + a sibling preview PNG, persists the path,
-/// and the result then surfaces as a toggleable "after" layer in the
-/// `MasterOverlayView` hero above. Disabled (with a calm hint) until a finished
-/// master exists or while any finishing pass is in flight.
+/// Finishing the reviewed master: deconvolution, which the Darkroom has no
+/// step for, writes `<master>_decon.fits` and shows as an "after" layer on the
+/// hero; everything else opens the master in the Darkroom.
 class _FinishingActions extends StatelessWidget {
   final SessionReviewState state;
   final SessionReviewController controller;
@@ -425,7 +374,6 @@ class _FinishingActions extends StatelessWidget {
     final master = state.reviewedMaster;
     final hasMaster = master?.masterFitsPath != null &&
         master!.masterFitsPath!.trim().isNotEmpty;
-    final busy = state.busy;
 
     return SkotiqPanel(
       padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
@@ -439,7 +387,7 @@ class _FinishingActions extends StatelessWidget {
               const SizedBox(width: SkotiqTokens.spaceSm),
               Expanded(
                 child: Text(
-                  'Finishing (non-destructive previews)',
+                  'Finishing',
                   style: SkotiqTypography.sectionTitle
                       .copyWith(color: colors.textPrimary),
                 ),
@@ -449,38 +397,35 @@ class _FinishingActions extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceSm),
           if (!hasMaster)
             Text(
-              'Integrate a master first — finishing runs on the finished FITS.',
+              'Build masters in the Darkroom first. Finishing runs on the '
+              'finished FITS.',
               style:
                   SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             )
-          else
+          else ...[
+            Text(
+              'Gradient removal, color calibration, star reduction and '
+              'channel combination are recipe steps in the Darkroom.',
+              style:
+                  SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceSm),
             Wrap(
               spacing: SkotiqTokens.spaceSm,
               runSpacing: SkotiqTokens.spaceSm,
               children: [
-                SkotiqButton(
-                  label: 'Background extract',
-                  icon: SkotiqIcons.grid,
-                  variant: ButtonVariant.secondary,
-                  isLoading: state.extractingBackground,
-                  onPressed: busy ? null : controller.runBackgroundExtraction,
-                ),
+                EditMasterInDarkroomButton(master: master),
                 SkotiqButton(
                   label: 'Deconvolve',
                   icon: SkotiqIcons.sparkle,
                   variant: ButtonVariant.secondary,
+                  size: ButtonSize.small,
                   isLoading: state.deconvolving,
-                  onPressed: busy ? null : controller.runDeconvolve,
-                ),
-                SkotiqButton(
-                  label: 'Reduce stars',
-                  icon: SkotiqIcons.star,
-                  variant: ButtonVariant.secondary,
-                  isLoading: state.reducingStars,
-                  onPressed: busy ? null : controller.runStarReduction,
+                  onPressed: state.busy ? null : controller.runDeconvolve,
                 ),
               ],
             ),
+          ],
         ],
       ),
     );
@@ -661,26 +606,18 @@ class _FieldQualityCardState extends ConsumerState<_FieldQualityCard> {
   }
 }
 
-/// The applied narrowband composite result card.
-///
-/// Surfaces the persisted `narrowband_composites` row after a palette is
-/// applied, so the SHO/HOO output is a durable row rather than an orphan FITS
-/// on disk. It shows the palette, the component master ids the composite was
-/// combined from, the output
-/// dimensions, and the on-disk path. When a stretched preview PNG sits alongside
-/// the composite FITS (same path, `.png` extension) it is rendered through the
-/// shared [MasterOverlayView] hero exactly like an integrated master; otherwise a
-/// calm "composite written" panel reports the artifact. Renders nothing until a
-/// composite exists.
+/// A narrowband composite an earlier build combined in Session Review: its
+/// palette, the masters it came from, its size and where the file is. New
+/// composites are combined in the Darkroom. When a stretched preview PNG sits
+/// beside the FITS it is shown through the same hero as a master.
 class _NarrowbandCompositeCard extends StatelessWidget {
-  final NarrowbandComposite? composite;
+  final NarrowbandComposite composite;
 
   const _NarrowbandCompositeCard({required this.composite});
 
-  /// The conventional sibling preview PNG for a composite FITS at [fitsPath]:
-  /// the same path with a `.png` extension. The native combine writes only the
-  /// composite FITS today, so this is usually absent — but when a preview is
-  /// produced alongside it the hero lights up for free.
+  /// The sibling preview PNG for a composite FITS at [fitsPath]: the same path
+  /// with a `.png` extension. The native combine wrote only the FITS, so this
+  /// is usually absent.
   String _siblingPreviewPath(String fitsPath) {
     final dir = p.dirname(fitsPath);
     final stem = p.basenameWithoutExtension(fitsPath);
@@ -698,7 +635,6 @@ class _NarrowbandCompositeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = composite;
-    if (c == null) return const SizedBox.shrink();
     final colors = SkotiqColors.of(context);
     final previewPath = _siblingPreviewPath(c.outputPath);
     final hasPreview = _exists(previewPath);
@@ -768,7 +704,7 @@ class _NarrowbandCompositeCard extends StatelessWidget {
                   const SizedBox(width: SkotiqTokens.spaceSm),
                   Expanded(
                     child: Text(
-                      'Composite written to\n${c.outputPath}',
+                      'Written to\n${c.outputPath}',
                       style: SkotiqTypography.bodySm
                           .copyWith(color: colors.textSecondary),
                     ),

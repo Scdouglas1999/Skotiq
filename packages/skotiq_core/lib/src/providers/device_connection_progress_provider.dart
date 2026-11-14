@@ -20,6 +20,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/backend/device_types.dart' show guideCameraLabel;
 import '../services/device_exceptions.dart';
 
 /// Snapshot of the currently-active "Connect All" sweep.
@@ -60,10 +61,41 @@ class DeviceConnectionProgressState {
     byDeviceType: <String, DeviceConnectProgress>{},
   );
 
+  /// The outcome per device, counted the way the equipment screen counts
+  /// devices: the built-in guider's guide camera is part of the guider, so
+  /// it has no entry of its own and a guide camera that did not come up is
+  /// the guider's outcome.
+  Map<String, DeviceConnectProgress> get byDevice {
+    final guideCamera = byDeviceType[guideCameraLabel];
+    final guider = byDeviceType['guider'];
+    if (guideCamera == null || guider == null) return byDeviceType;
+    final devices = Map.of(byDeviceType)..remove(guideCameraLabel);
+    if (guideCamera.status != DeviceConnectProgressStatus.connected) {
+      devices['guider'] = DeviceConnectProgress(
+        deviceType: guider.deviceType,
+        deviceId: guider.deviceId,
+        status: guideCamera.status,
+        error: guideCamera.error,
+        errorMessage: guideCamera.errorMessage == null
+            ? null
+            : 'Its guide camera did not connect: '
+                  '${guideCamera.errorMessage}',
+      );
+    }
+    return devices;
+  }
+
   /// How many devices in this sweep ended up connected.
-  int get connectedCount => byDeviceType.values
+  int get connectedCount => byDevice.values
       .where((e) => e.status == DeviceConnectProgressStatus.connected)
       .length;
+
+  /// The devices that did not connect, one entry per device as in
+  /// [byDevice].
+  List<DeviceConnectProgress> get failures => [
+    for (final event in byDevice.values)
+      if (event.status == DeviceConnectProgressStatus.failed) event,
+  ];
 
   DeviceConnectionProgressState copyWith({
     bool? isSweeping,

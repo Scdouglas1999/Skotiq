@@ -8,12 +8,13 @@
 // differ only when Settings picks a time zone other than the host's.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 // The typed bridge events, behind the prefix the run dashboard uses: their
 // names collide with the wire event model the barrel keeps canonical.
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
-import '../../actions/armed_start_provider.dart';
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 
@@ -53,10 +54,6 @@ extension NightClockTimes on Clock {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Manual-action state
-// ---------------------------------------------------------------------------
-
 /// The manual-action controller's state, for "Paused for autofocus".
 final nightPlanActionStateSeamProvider = Provider<ManualActionState>(
   (ref) => ref.watch(nightActionStateProvider),
@@ -72,10 +69,6 @@ final nightPlanArmedStartSeamProvider = Provider<DateTime?>((ref) {
   if (armedAt == null) return null;
   return ref.watch(clockProvider).toNightClock(armedAt);
 });
-
-// ---------------------------------------------------------------------------
-// The plan, flattened
-// ---------------------------------------------------------------------------
 
 /// One enabled node of the plan, in execution order.
 class NightPlanEntry {
@@ -125,14 +118,18 @@ class NightPlanTree {
   /// Target headers in the order the run reaches them.
   final List<TargetHeaderNode> targets;
 
-  /// Something a run can do: a target or an exposure. The same test the old
-  /// Tonight hero used before it offered Start.
-  bool get launchable =>
-      sequence.targetHeaders.isNotEmpty || sequence.totalExposures > 0;
+  /// Something a run can do ([Sequence.launchable]).
+  bool get launchable => sequence.launchable;
 
   /// Some loop runs until a time or a condition, so the plan has no fixed
   /// length.
   bool get openEnded => entries.any((e) => e.openEnded);
+
+  /// A Smart Exposure loops until its target's window closes. Its length is
+  /// the window's, which a frame count cannot give: the executor's
+  /// per-frame remaining time counts the plans' per-filter counts.
+  bool get loopsUntilWindowEnds =>
+      entries.any((e) => e.node.capturesUntilStopped);
 
   int stepIndexOf(String nodeId) =>
       steps.indexWhere((entry) => entry.node.id == nodeId);
@@ -210,10 +207,6 @@ final nightPlanTreeProvider = Provider<NightPlanTree?>((ref) {
   return buildNightPlanTree(sequence);
 });
 
-// ---------------------------------------------------------------------------
-// The estimate
-// ---------------------------------------------------------------------------
-
 /// One run of [SequenceTimeEstimator] over the loaded plan. Instants, not
 /// operator-clock times. Everything here is an estimate.
 class NightPlanTiming {
@@ -235,6 +228,11 @@ class NightPlanTiming {
 
   /// The whole plan, loops included.
   final Duration total;
+
+  /// A step runs until it is stopped and nothing bounds it (no site to solve
+  /// its target's window from), so [total] and [end] are not the plan's
+  /// length.
+  bool get openEnded => timings.any((timing) => timing.openEnded);
 
   final Map<String, NodeTiming> _firstByNode;
 
@@ -272,28 +270,10 @@ final nightPlanTimingProvider = Provider<NightPlanTiming?>((ref) {
     anchor = ref.watch(nightNowProvider);
   }
 
-  final site = ref.watch(appObserverLocationProvider);
-  final estimator = SequenceTimeEstimator(
-    overhead: ref.watch(sequencerOverheadConfigProvider),
-  );
-  final timings = estimator.estimateSequenceTiming(
-    tree.sequence,
-    anchor,
-    latitude: site?.latitude,
-    longitude: site?.longitude,
-  );
-  final total = estimator.estimateTotalDuration(
-    tree.sequence,
-    anchor,
-    latitude: site?.latitude,
-    longitude: site?.longitude,
-  );
-  return NightPlanTiming(anchor: anchor, timings: timings, total: total);
+  final plan = ref.watch(planTimerProvider).time(tree.sequence, anchor);
+  return NightPlanTiming(
+      anchor: anchor, timings: plan.timings, total: plan.total);
 });
-
-// ---------------------------------------------------------------------------
-// Recorded node times
-// ---------------------------------------------------------------------------
 
 /// When this session's nodes started and finished, from the in-memory event
 /// history. Instants. Empty after an app restart, and limited to the events
@@ -360,10 +340,6 @@ final nightNodeEventTimesProvider = Provider<NightNodeEventTimes>((ref) {
   );
 });
 
-// ---------------------------------------------------------------------------
-// Frame counts
-// ---------------------------------------------------------------------------
-
 /// Frames an exposure node has captured in its current pass, and planned.
 ///
 /// Same precedence as the Sequencer's progress panel: the per-node tally,
@@ -398,10 +374,9 @@ final nightNodeEventTimesProvider = Provider<NightNodeEventTimes>((ref) {
   return null;
 }
 
-/// How many frames a step plans per pass: an exposure's count, or null.
-int? nightPlannedFrames(SequenceNode node) => switch (node) {
-      ExposureNode() => node.count,
-      SciencePhotometryNode() => node.count,
-      SmartExposureNode() => node.plans.fold<int>(0, (s, p) => s + p.count),
-      _ => null,
-    };
+/// The frames [node] takes per pass, or null when it has no count of its own:
+/// it captures nothing, or it loops until stopped.
+int? nightPlannedFrames(SequenceNode node) {
+  final frames = node.framesPerPass;
+  return frames > 0 ? frames : null;
+}

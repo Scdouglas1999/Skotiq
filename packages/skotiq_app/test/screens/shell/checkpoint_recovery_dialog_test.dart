@@ -23,18 +23,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        BackendErrorCategory,
-        CheckpointInfo,
-        NetworkBackend,
-        SequencerBackend,
-        SkotiqError;
+import 'package:skotiq_core/backend.dart' show NetworkBackend;
+import 'package:skotiq_core/models.dart'
+    show BackendErrorCategory, CheckpointInfo, SkotiqError;
+import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockHost extends Mock implements NetworkBackend {}
-
-class _MockLocal extends Mock implements SequencerBackend {}
 
 final _info = CheckpointInfo(
   sequenceName: 'Veil Nebula',
@@ -249,20 +244,18 @@ void main() {
   group('describeCheckpointFailure', () {
     test('strips the Dart wrapper from a plain Exception', () {
       expect(
-        describeCheckpointFailure(Exception('checkpoint is corrupt')),
+        userFacingError(Exception('checkpoint is corrupt')),
         'checkpoint is corrupt',
       );
     });
 
     test('prefers the operator-facing message of a SkotiqError', () {
       expect(
-        describeCheckpointFailure(
-          const SkotiqError(
-            category: BackendErrorCategory.connection,
-            message: 'ipc channel closed while resuming',
-            userMessage: 'The imaging host stopped responding.',
-          ),
-        ),
+        userFacingError(const SkotiqError(
+          category: BackendErrorCategory.connection,
+          message: 'ipc channel closed while resuming',
+          userMessage: 'The imaging host stopped responding.',
+        )),
         'The imaging host stopped responding.',
       );
     });
@@ -363,12 +356,42 @@ void main() {
           ageSeconds: 60,
           ended: ended,
         );
-    expect(offersCheckpointRecovery(info()), isTrue);
-    expect(offersCheckpointRecovery(info(ended: 'stopped')), isFalse);
-    expect(offersCheckpointRecovery(info(ended: 'failed')), isFalse);
-    expect(offersCheckpointRecovery(info(ended: 'ended_early')), isFalse);
-    expect(offersCheckpointRecovery(info(canResume: false)), isFalse);
-    expect(offersCheckpointRecovery(null), isFalse);
+    final now = DateTime.utc(2026, 11, 1, 18);
+    bool offers(CheckpointInfo? i) => offersCheckpointRecovery(i, now: now);
+    expect(offers(info()), isTrue);
+    expect(offers(info(ended: 'stopped')), isFalse);
+    expect(offers(info(ended: 'failed')), isFalse);
+    expect(offers(info(ended: 'ended_early')), isFalse);
+    expect(offers(info(canResume: false)), isFalse);
+    expect(offers(null), isFalse);
+  });
+
+  test('a stale or empty checkpoint is not offered', () {
+    // A linked client showed "Recover Sequence? (0 frames)", and the rig a
+    // run from days before.
+    CheckpointInfo info({int frames = 5, required DateTime saved}) =>
+        CheckpointInfo(
+          sequenceName: 'Rig test NGC 7331',
+          timestamp: saved,
+          completedExposures: frames,
+          completedIntegrationSecs: frames * 60.0,
+          canResume: true,
+          ageSeconds: 0,
+        );
+    final now = DateTime.utc(2026, 11, 8, 21);
+    final lastNight = DateTime.utc(2026, 11, 8, 6);
+    expect(offersCheckpointRecovery(info(saved: lastNight), now: now), isTrue);
+    expect(
+      offersCheckpointRecovery(info(frames: 0, saved: lastNight), now: now),
+      isFalse,
+    );
+    expect(
+      offersCheckpointRecovery(
+        info(saved: now.subtract(const Duration(days: 8))),
+        now: now,
+      ),
+      isFalse,
+    );
   });
 
   test('the age comes from the save time, not from an age the host cached', () {
@@ -397,6 +420,6 @@ void main() {
 
     expect(await hostRunHoldsCheckpoint(running), isTrue);
     expect(await hostRunHoldsCheckpoint(idle), isFalse);
-    expect(await hostRunHoldsCheckpoint(_MockLocal()), isFalse);
+    expect(await hostRunHoldsCheckpoint(null), isFalse);
   });
 }

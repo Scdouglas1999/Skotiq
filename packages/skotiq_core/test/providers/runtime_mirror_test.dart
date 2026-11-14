@@ -5,9 +5,12 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/services/capture_preview_loader.dart'
-    show capturePreviewPublisherProvider;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+
+import '../harness/in_memory_database.dart';
 
 class _MockFfiBackend extends Mock implements FfiBackend {}
 
@@ -52,6 +55,7 @@ PlateSolveResult _solve({double ra = 83.82, double dec = -5.39}) =>
   ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
   final container = ProviderContainer(
     overrides: [
+      inMemoryDatabaseOverride(),
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),
@@ -77,6 +81,7 @@ _MockNetworkBackend _clientBackend() {
 
 ProviderContainer _client(_MockNetworkBackend backend) => ProviderContainer(
   overrides: [
+    inMemoryDatabaseOverride(),
     backendProvider.overrideWith((ref) => _FixedBackendNotifier(ref, backend)),
   ],
 );
@@ -111,10 +116,10 @@ void main() {
       final client = _client(backend);
       addTearDown(client.dispose);
 
-      await applyRemoteSyncEvent(
+      applyHostEventOnClient(
         client,
+        backend,
         _overWire(updates.single.toEvent()),
-        networkBackend: backend,
       );
 
       final mirrored = client.read(plateSolveStateProvider).lastResult;
@@ -282,7 +287,8 @@ void main() {
         'not', () async {
       final backend = _clientBackend();
       when(
-        () => backend.cameraGetLastImage(any()),
+        () =>
+            backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
       ).thenAnswer((_) async => null);
       final client = _client(backend);
       addTearDown(client.dispose);
@@ -306,7 +312,12 @@ void main() {
       );
       await pumpEventQueue();
 
-      verify(() => backend.cameraGetLastImage('sim_camera_1')).called(1);
+      verify(
+        () => backend.cameraGetLastImage(
+          'sim_camera_1',
+          maxWidth: any(named: 'maxWidth'),
+        ),
+      ).called(1);
     });
   });
 
@@ -441,17 +452,14 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 2100));
       final backend = _clientBackend();
       when(
-        () => backend.cameraGetLastImage(any()),
+        () =>
+            backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
       ).thenAnswer((_) async => null);
       final client = _client(backend);
       addTearDown(client.dispose);
       prepareClient?.call(client);
       for (final update in _updates(host.sent, channel)) {
-        await applyRemoteSyncEvent(
-          client,
-          _overWire(update.toEvent()),
-          networkBackend: backend,
-        );
+        applyHostEventOnClient(client, backend, _overWire(update.toEvent()));
       }
       return client;
     }
@@ -520,7 +528,7 @@ void main() {
     test('a client watching the host run gets its step statuses and session '
         'counters', () async {
       final client = await roundTrip((host) {
-        host.read(sequenceProgressProvider.notifier)
+        host.read(runRecordProvider.notifier)
           ..updateNodeStatus('unpark', NodeStatus.success)
           ..updateNodeStatus('exp-l', NodeStatus.running)
           ..updateNodeProgress('exp-l', 50, 'Frame 1 of 2');
@@ -544,24 +552,87 @@ void main() {
       expect(session.dbSessionId, 12);
     });
 
-    test('a client that started the run keeps its own step statuses', () async {
-      final client = await roundTrip(
-        (host) => host
-            .read(sequenceProgressProvider.notifier)
-            .updateNodeStatus('unpark', NodeStatus.failure),
-        'sequenceRun',
-        prepareClient: (client) {
-          client.read(currentRunIdProvider.notifier).state = 7;
-          client
-              .read(sequenceProgressProvider.notifier)
-              .updateNodeStatus('unpark', NodeStatus.success);
-        },
-      );
+    test("a client's run progress is the host's, phase and step detail "
+        'included', () async {
+      final client = await roundTrip((host) {
+        host.read(runRecordProvider.notifier)
+          ..setLifecycle(SequenceExecutionState.paused)
+          ..updateProgress(currentNodeId: 'exp-l', currentNodeName: 'L')
+          ..updateNodeStatus('exp-l', NodeStatus.running)
+          ..updateNodeStructuredProgress(
+            'exp-l',
+            50,
+            const ExposureInstructionProgressDetail(
+              frame: 2,
+              total: 3,
+              durationSecs: 20,
+            ),
+          );
+      }, 'sequenceRun');
+
+      final progress = client.read(sequenceProgressProvider);
       expect(
-        client.read(sequenceProgressProvider).nodeStatuses['unpark'],
-        NodeStatus.success,
+        client.read(sequenceExecutionStateProvider),
+        SequenceExecutionState.paused,
+      );
+      expect(progress.currentNodeName, 'L');
+      expect(
+        progress.nodeProgressStructuredDetail['exp-l'],
+        const ExposureInstructionProgressDetail(
+          frame: 2,
+          total: 3,
+          durationSecs: 20,
+        ),
       );
     });
+
+    test(
+      "the host's run events do not write the client's run progress",
+      () async {
+        final backend = _clientBackend();
+        final client = await roundTrip((host) {
+          host.read(runRecordProvider.notifier)
+            ..setLifecycle(SequenceExecutionState.running)
+            ..updateProgress(currentNodeId: 'exp-r', currentNodeName: 'R');
+        }, 'sequenceRun');
+        // The next step starts on the host. Its event names the step's type;
+        // the channel names the step, a moment later.
+        applyHostEventOnClient(
+          client,
+          backend,
+          _overWire(
+            const SkotiqEvent(
+              timestamp: 1,
+              severity: EventSeverity.info,
+              category: EventCategory.sequencer,
+              eventType: 'NodeStarted',
+              data: const {'node_id': 'exp-g', 'node_type': 'TakeExposure'},
+            ),
+          ),
+        );
+        applyHostEventOnClient(
+          client,
+          backend,
+          _overWire(
+            const SkotiqEvent(
+              timestamp: 2,
+              severity: EventSeverity.info,
+              category: EventCategory.sequencer,
+              eventType: 'Paused',
+              data: const {},
+            ),
+          ),
+        );
+        final progress = client.read(sequenceProgressProvider);
+        expect(progress.currentNodeName, 'R');
+        expect(progress.currentNodeId, 'exp-r');
+        expect(
+          client.read(sequenceExecutionStateProvider),
+          SequenceExecutionState.running,
+        );
+        verifyNever(() => backend.sequencerGetStatus());
+      },
+    );
 
     test('a flip on the host shows on the client', () async {
       final client = await roundTrip((host) {
@@ -648,7 +719,10 @@ void main() {
         client.read(currentImageProvider)?.filePath,
         r'C:\data\L_001.fits',
       );
-      verifyNever(() => backend.cameraGetLastImage(any()));
+      verifyNever(
+        () =>
+            backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
+      );
     });
   });
 
@@ -671,7 +745,7 @@ void main() {
           data: {
             'trigger_id': 't1',
             'trigger_name': 'Meridian Flip',
-            'action': 'flip',
+            'action': 'MeridianFlip',
           },
         ),
       ],
@@ -695,6 +769,7 @@ void main() {
     var solves = 0;
     final client = ProviderContainer(
       overrides: [
+        inMemoryDatabaseOverride(),
         backendProvider.overrideWith(
           (ref) => _FixedBackendNotifier(ref, backend),
         ),

@@ -7,8 +7,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_desktop/headless_api/handlers/guiding_handlers.dart';
+import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -88,7 +94,7 @@ void main() {
             Request(
               'POST',
               Uri.parse('http://localhost/api/guider/set-lock-position'),
-              body: jsonEncode({'deviceId': 'guider-1', 'x': 10}),
+              body: jsonEncode({'x': 10}),
             ),
           ),
         );
@@ -104,8 +110,8 @@ void main() {
       'disconnected backend returns connected false without HTTP error',
       () async {
         final response = await translateHandlerErrors(
-          handlers.handlePhd2GetStatus(
-            Request('GET', Uri.parse('http://localhost/api/phd2/status')),
+          handlers.handleGuiderGetStatus(
+            Request('GET', Uri.parse('http://localhost/api/guider/status')),
           ),
         );
 
@@ -123,7 +129,7 @@ void main() {
         when(
           () => backend.eventStream,
         ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-        when(() => backend.phd2GetStatus()).thenAnswer(
+        when(() => backend.guiderGetStatus()).thenAnswer(
           (_) async => Phd2Status(
             state: 'Guiding',
             connected: true,
@@ -139,8 +145,8 @@ void main() {
         );
         addTearDown(hostContainer.dispose);
         final response = await GuidingHandlers(hostContainer)
-            .handlePhd2GetStatus(
-              Request('GET', Uri.parse('http://localhost/api/phd2/status')),
+            .handleGuiderGetStatus(
+              Request('GET', Uri.parse('http://localhost/api/guider/status')),
             );
         final body = jsonDecode(await response.readAsString()) as Map;
         expect(body.containsKey('pixelScale'), isTrue);
@@ -158,7 +164,7 @@ void main() {
       when(
         () => backend.eventStream,
       ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-      when(() => backend.phd2GetStatus()).thenAnswer(
+      when(() => backend.guiderGetStatus()).thenAnswer(
         (_) async => const Phd2Status(
           state: 'Stopped',
           connected: true,
@@ -173,12 +179,161 @@ void main() {
         ],
       );
       addTearDown(hostContainer.dispose);
-      final response = await GuidingHandlers(hostContainer).handlePhd2GetStatus(
-        Request('GET', Uri.parse('http://localhost/api/phd2/status')),
-      );
+      final response = await GuidingHandlers(hostContainer)
+          .handleGuiderGetStatus(
+            Request('GET', Uri.parse('http://localhost/api/guider/status')),
+          );
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['stopReason'], 'autofocus');
       expect(body['stopReasonText'], 'Guiding paused for autofocus');
+    });
+
+    // The built-in guider's scale, stars and calibration reach a linked
+    // client through the one guider route, which names the guider answering.
+    test('guider status and calibration answer for the host guider', () async {
+      final backend = _MockBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(() => backend.guiderGetStatus()).thenAnswer(
+        (_) async => const Phd2Status(
+          deviceId: builtinGuiderDeviceId,
+          state: 'Guiding',
+          connected: true,
+          pixelScale: 3.22,
+          trackedStars: [GuideStar(id: 0, x: 10, y: 12, snr: 18, isLock: true)],
+        ),
+      );
+      when(() => backend.guiderGetCalibration()).thenAnswer(
+        (_) async => const Phd2CalibrationData(
+          isCalibrated: true,
+          rotationAngle: 10.2,
+          raRate: 16.0,
+          decRate: 12.0,
+        ),
+      );
+      final hostContainer = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(hostContainer.dispose);
+      final handlers = GuidingHandlers(hostContainer);
+
+      final status =
+          jsonDecode(
+                await (await handlers.handleGuiderGetStatus(
+                  Request(
+                    'GET',
+                    Uri.parse('http://localhost/api/guider/status'),
+                  ),
+                )).readAsString(),
+              )
+              as Map;
+      final decoded = Phd2Status.fromJson(status.cast<String, dynamic>());
+      expect(decoded.deviceId, builtinGuiderDeviceId);
+      expect(decoded.pixelScale, 3.22);
+      expect(decoded.trackedStars.single.isLock, isTrue);
+
+      final calibration =
+          jsonDecode(
+                await (await handlers.handleGuiderGetCalibration(
+                  Request(
+                    'GET',
+                    Uri.parse('http://localhost/api/guider/calibration'),
+                  ),
+                )).readAsString(),
+              )
+              as Map;
+      expect(calibration['isCalibrated'], isTrue);
+      expect(calibration['raAngle'], 10.2);
+      expect(calibration['raRate'], 16.0);
+    });
+
+    test(
+      'dithering a paused guider is a conflict with a plain sentence',
+      () async {
+        final backend = _MockBackend();
+        when(
+          () => backend.eventStream,
+        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+        when(
+          () => backend.guiderDither(
+            amount: any(named: 'amount'),
+            raOnly: any(named: 'raOnly'),
+            settlePixels: any(named: 'settlePixels'),
+            settleTime: any(named: 'settleTime'),
+            settleTimeout: any(named: 'settleTimeout'),
+          ),
+        ).thenThrow(
+          const bridge.SkotiqError.invalidState(
+            'Guiding is paused. Resume guiding before dithering.',
+          ),
+        );
+        final hostContainer = ProviderContainer(
+          overrides: [
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+          ],
+        );
+        addTearDown(hostContainer.dispose);
+
+        final handlers = GuidingHandlers(hostContainer);
+        final response =
+            await errorTranslationMiddleware(
+              logError: (_, {fields}) {},
+              requestIdFor: (_) => 'test-request-id',
+            )(handlers.handleGuiderDither)(
+              Request(
+                'POST',
+                Uri.parse('http://localhost/api/guider/dither'),
+                body: jsonEncode({'amount': 3.0}),
+              ),
+            );
+
+        expect(response.statusCode, HttpStatus.conflict);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['error'], 'device_error');
+        expect(
+          body['message'],
+          'Guiding is paused. Resume guiding before dithering.',
+        );
+      },
+    );
+
+    test('pause and resume reach the host guider', () async {
+      final backend = _MockBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(() => backend.guiderSetPaused(any())).thenAnswer((_) async {});
+      final hostContainer = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(hostContainer.dispose);
+      final handlers = GuidingHandlers(hostContainer);
+
+      for (final paused in [true, false]) {
+        final response = await handlers.handleGuiderSetPaused(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/guider/pause'),
+            body: jsonEncode({'paused': paused}),
+          ),
+        );
+        expect(response.statusCode, HttpStatus.ok);
+      }
+      verifyInOrder([
+        () => backend.guiderSetPaused(true),
+        () => backend.guiderSetPaused(false),
+      ]);
     });
 
     test('connect forwards the requested host and port to the host', () async {
@@ -192,8 +347,9 @@ void main() {
           port: any(named: 'port'),
         ),
       ).thenAnswer((_) async {});
-      when(() => backend.phd2GetStatus()).thenAnswer(
+      when(() => backend.guiderGetStatus()).thenAnswer(
         (_) async => const Phd2Status(
+          deviceId: kPhd2CanonicalId,
           state: 'Stopped',
           connected: true,
           rmsRa: 0,
@@ -231,10 +387,10 @@ void main() {
       'start rejects impossible settle bounds before backend work',
       () async {
         final response = await translateHandlerErrors(
-          handlers.handlePhd2StartGuiding(
+          handlers.handleGuiderStartGuiding(
             Request(
               'POST',
-              Uri.parse('http://localhost/api/phd2/start-guiding'),
+              Uri.parse('http://localhost/api/guider/start-guiding'),
               body: jsonEncode({'settlePixels': 0}),
             ),
           ),
@@ -254,15 +410,12 @@ void main() {
       final startGate = Completer<void>();
       when(
         () => backend.guiderStartGuiding(
-          deviceId: any(named: 'deviceId'),
           settlePixels: any(named: 'settlePixels'),
           settleTime: any(named: 'settleTime'),
           settleTimeout: any(named: 'settleTimeout'),
         ),
       ).thenAnswer((_) => startGate.future);
-      when(
-        () => backend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
-      ).thenAnswer((_) async {});
+      when(() => backend.guiderStopGuiding()).thenAnswer((_) async {});
       final hostContainer = ProviderContainer(
         overrides: [
           backendProvider.overrideWith(
@@ -276,27 +429,24 @@ void main() {
         Request(
           'POST',
           Uri.parse('http://localhost/api/guider/start-guiding'),
-          body: jsonEncode({'deviceId': kPhd2CanonicalId}),
+          body: jsonEncode(<String, Object?>{}),
         ),
       );
+      await Future<void>.delayed(Duration.zero);
       final stop = hostHandlers.handleGuiderStopGuiding(
         Request(
           'POST',
           Uri.parse('http://localhost/api/guider/stop-guiding'),
-          body: jsonEncode({'deviceId': kPhd2CanonicalId}),
+          body: jsonEncode(<String, Object?>{}),
         ),
       );
 
       await Future<void>.delayed(Duration.zero);
-      verify(
-        () => backend.guiderStopGuiding(deviceId: kPhd2CanonicalId),
-      ).called(1);
+      verify(() => backend.guiderStopGuiding()).called(1);
       startGate.complete();
       await start;
       await stop;
-      verify(
-        () => backend.guiderStopGuiding(deviceId: kPhd2CanonicalId),
-      ).called(1);
+      verify(() => backend.guiderStopGuiding()).called(1);
     });
   });
 
@@ -413,40 +563,9 @@ void main() {
       expect(backend.probePort, isNull);
     });
 
-    Future<Response> phd2StarImage(String qs) => translateHandlerErrors(
-      handlers.handlePhd2GetStarImage(
-        Request('GET', Uri.parse('http://localhost/api/phd2/star-image$qs')),
-      ),
-    );
-
-    test('phd2 star-image: absent size forwards default 50', () async {
-      expect((await phd2StarImage('')).statusCode, HttpStatus.ok);
-      expect(backend.phd2StarImageSize, 50);
-    });
-
-    test('phd2 star-image: valid + max-boundary sizes forward', () async {
-      expect((await phd2StarImage('?size=128')).statusCode, HttpStatus.ok);
-      expect(backend.phd2StarImageSize, 128);
-      expect((await phd2StarImage('?size=2048')).statusCode, HttpStatus.ok);
-      expect(backend.phd2StarImageSize, 2048);
-    });
-
-    for (final bad in ['abc', '0', '-5', '2049', '50.5', 'NaN']) {
-      test('phd2 star-image: rejects size "$bad" (400, no probe)', () async {
-        final r = await phd2StarImage('?size=$bad');
-        expect(r.statusCode, HttpStatus.badRequest);
-        expect(backend.phd2StarImageSize, isNull);
-      });
-    }
-
     Future<Response> guiderStarImage(String qs) => translateHandlerErrors(
       handlers.handleGuiderGetStarImage(
-        Request(
-          'GET',
-          Uri.parse(
-            'http://localhost/api/guider/star-image?deviceId=guider-1$qs',
-          ),
-        ),
+        Request('GET', Uri.parse('http://localhost/api/guider/star-image$qs')),
       ),
     );
 
@@ -455,21 +574,23 @@ void main() {
       expect(backend.guiderStarImageSize, 50);
     });
 
-    test('guider star-image: valid size forwards verbatim', () async {
-      expect((await guiderStarImage('&size=200')).statusCode, HttpStatus.ok);
+    test('guider star-image: valid + max-boundary sizes forward', () async {
+      expect((await guiderStarImage('?size=200')).statusCode, HttpStatus.ok);
       expect(backend.guiderStarImageSize, 200);
+      expect((await guiderStarImage('?size=2048')).statusCode, HttpStatus.ok);
+      expect(backend.guiderStarImageSize, 2048);
     });
 
-    for (final bad in ['abc', '0', '-1', '2049']) {
+    for (final bad in ['abc', '0', '-1', '2049', '50.5', 'NaN']) {
       test('guider star-image: rejects size "$bad" (400, no probe)', () async {
-        final r = await guiderStarImage('&size=$bad');
+        final r = await guiderStarImage('?size=$bad');
         expect(r.statusCode, HttpStatus.badRequest);
         expect(backend.guiderStarImageSize, isNull);
       });
     }
   });
 
-  group('GuidingHandlers normal empty PHD2 state', () {
+  group('GuidingHandlers normal empty guider state', () {
     late ProviderContainer container;
     late GuidingHandlers handlers;
 
@@ -489,49 +610,32 @@ void main() {
 
     test('missing lock position is a structured conflict', () async {
       final response = await translateHandlerErrors(
-        handlers.handlePhd2GetLockPosition(
-          Request('GET', Uri.parse('http://localhost/api/phd2/lock-position')),
+        handlers.handleGuiderGetLockPosition(
+          Request(
+            'GET',
+            Uri.parse('http://localhost/api/guider/lock-position'),
+          ),
         ),
       );
 
       expect(response.statusCode, HttpStatus.conflict);
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['code'], 'no_lock_position');
-      expect(body['error'], 'PHD2 has no guide-star lock position.');
+      expect(body['error'], 'The guider has no guide-star lock position.');
     });
 
     test('missing selected star image is a structured conflict', () async {
       final response = await translateHandlerErrors(
-        handlers.handlePhd2GetStarImage(
-          Request('GET', Uri.parse('http://localhost/api/phd2/star-image')),
+        handlers.handleGuiderGetStarImage(
+          Request('GET', Uri.parse('http://localhost/api/guider/star-image')),
         ),
       );
 
       expect(response.statusCode, HttpStatus.conflict);
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['code'], 'no_star_selected');
-      expect(body['error'], 'PHD2 has no guide star selected.');
+      expect(body['error'], 'The guider has no guide star selected.');
     });
-
-    test(
-      'guider star-image with no selected star is the same conflict',
-      () async {
-        final response = await translateHandlerErrors(
-          handlers.handleGuiderGetStarImage(
-            Request(
-              'GET',
-              Uri.parse(
-                'http://localhost/api/guider/star-image?deviceId=phd2_guider',
-              ),
-            ),
-          ),
-        );
-
-        expect(response.statusCode, HttpStatus.conflict);
-        final body = jsonDecode(await response.readAsString()) as Map;
-        expect(body['code'], 'no_star_selected');
-      },
-    );
   });
 }
 
@@ -543,7 +647,6 @@ class _CapturingGuidingBackend extends DisconnectedBackend {
   int? isRunningPort;
   String? probeHost;
   int? probePort;
-  int? phd2StarImageSize;
   int? guiderStarImageSize;
 
   @override
@@ -571,16 +674,7 @@ class _CapturingGuidingBackend extends DisconnectedBackend {
   }
 
   @override
-  Future<Phd2StarImage> phd2GetStarImage({int size = 50}) async {
-    phd2StarImageSize = size;
-    return _emptyStarImage(size);
-  }
-
-  @override
-  Future<Phd2StarImage> guiderGetStarImage({
-    required String deviceId,
-    int size = 50,
-  }) async {
+  Future<Phd2StarImage> guiderGetStarImage({int size = 50}) async {
     guiderStarImageSize = size;
     return _emptyStarImage(size);
   }
@@ -597,24 +691,14 @@ class _CapturingGuidingBackend extends DisconnectedBackend {
 
 class _NoPHD2SelectionBackend extends DisconnectedBackend {
   @override
-  Future<(double, double)> phd2GetLockPosition() {
+  Future<(double, double)> guiderGetLockPosition() {
     throw const bridge.SkotiqError.operationFailed(
       'Failed to get lock position: get_lock_position: expected array, got null',
     );
   }
 
   @override
-  Future<Phd2StarImage> phd2GetStarImage({int size = 50}) {
-    throw const bridge.SkotiqError.operationFailed(
-      'Failed to get star image: PHD2 error: no star selected',
-    );
-  }
-
-  @override
-  Future<Phd2StarImage> guiderGetStarImage({
-    required String deviceId,
-    int size = 50,
-  }) {
+  Future<Phd2StarImage> guiderGetStarImage({int size = 50}) {
     throw const bridge.SkotiqError.operationFailed(
       'Failed to get star image: PHD2 error: no star selected',
     );

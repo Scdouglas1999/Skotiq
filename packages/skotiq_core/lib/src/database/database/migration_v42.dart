@@ -26,7 +26,7 @@ extension _SkotiqDatabaseMigrationV42 on SkotiqDatabase {
   /// `onCreate`, so a fresh database gets the table and columns too.
   Future<void> _upgradeSchemaV42(Migrator m, int from) async {
     if (from < 42) {
-      await _createNightReportsTable();
+      await _createNightReportsTable(m);
       await _ensureIntegratedMastersV42Columns();
     }
   }

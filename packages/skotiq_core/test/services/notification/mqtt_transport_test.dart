@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/notification/notification_categories.dart';
 import 'package:skotiq_core/src/models/notification/transport_configs.dart';
 import 'package:skotiq_core/src/services/notification/transports/mqtt_transport.dart';
+import 'package:skotiq_core/src/services/notification/transports/notification_transport.dart';
 
 Future<({ServerSocket server, StreamSubscription<Socket> subscription})>
 _brokerThatImmediatelySends(List<int> bytes) async {
@@ -44,9 +45,11 @@ void main() {
     );
 
     final result = await transport.send(
-      category: NotificationCategory.custom,
-      title: 'Test',
-      body: 'Immediate broker response',
+      NotificationMessage(
+        category: NotificationCategory.custom,
+        title: 'Test',
+        body: 'Immediate broker response',
+      ),
     );
 
     expect(result.success, isTrue);
@@ -69,9 +72,11 @@ void main() {
     );
 
     final result = await transport.send(
-      category: NotificationCategory.custom,
-      title: 'Test',
-      body: 'Wrong PUBACK',
+      NotificationMessage(
+        category: NotificationCategory.custom,
+        title: 'Test',
+        body: 'Wrong PUBACK',
+      ),
     );
 
     expect(result.success, isFalse);
@@ -97,9 +102,11 @@ void main() {
     );
 
     final result = await transport.send(
-      category: NotificationCategory.custom,
-      title: 'Test',
-      body: 'Malformed broker response',
+      NotificationMessage(
+        category: NotificationCategory.custom,
+        title: 'Test',
+        body: 'Malformed broker response',
+      ),
     );
 
     expect(result.success, isFalse);

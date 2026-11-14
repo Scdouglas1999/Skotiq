@@ -1,21 +1,24 @@
+import '../analytics_exports.dart';
 import 'dart:io';
 
 import 'package:csv/csv.dart';
 import 'package:file_selector/file_selector.dart' show XTypeGroup;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:path/path.dart' as path;
 
-import '../../../services/observation_report_service.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'mpc_export_panel.dart';
 import 'transient_report_panel.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'science_export_hub/export_controls.dart';
 
@@ -37,19 +40,12 @@ enum ScienceExportDataset {
   transientReport,
 }
 
-/// Where the science-export save dialog OPENS — not where files are written
-/// behind the operator's back.
-///
-/// The suggestion follows the active database directory, while the operator
-/// still chooses the destination. A provider keeps path resolution testable.
-final scienceExportDirectoryProvider = FutureProvider<Directory>((ref) async {
-  final databaseFile = await resolveDefaultDatabaseFile();
-  final exportDir = Directory(path.join(databaseFile.parent.path, 'exports'));
-  if (!await exportDir.exists()) {
-    await exportDir.create(recursive: true);
-  }
-  return exportDir;
-});
+/// Where the science-export save dialog opens: the exports folder every other
+/// export uses ([resolveSkotiqExportsDirectory]). The operator still chooses
+/// the destination.
+final scienceExportDirectoryProvider = FutureProvider<Directory>(
+  (ref) => resolveSkotiqExportsDirectory(),
+);
 
 /// Chooses the destination for a science export. Returns null when the operator
 /// cancels the dialog.
@@ -104,19 +100,6 @@ final scienceExportFileWriterProvider = Provider<ScienceExportFileWriter>(
 /// DST inside one observing season.
 String _utcStamp(DateTime dt) => dt.toUtc().toIso8601String();
 
-/// Julian Date for [dt], the time system AAVSO/AID submissions and every period
-/// analysis actually work in. Emitted alongside the ISO stamp so a downstream
-/// script never has to redo the conversion (and never has to guess the zone).
-///
-/// Kept separate from `SkyCalculations.julianDate` on purpose. That one is
-/// Meeus' calendar decomposition; this is the exact epoch conversion
-/// (`ms since 1970 / 86 400 000 + 2440587.5`), which carries the submission's
-/// millisecond timestamp with no calendar arithmetic in between. They agree to
-/// ~1e-10 d but not bit-for-bit, and these values go out in published
-/// photometry files.
-double _julianDate(DateTime dt) =>
-    dt.toUtc().millisecondsSinceEpoch / 86400000.0 + 2440587.5;
-
 /// Dialog listing all exportable science data types with CSV export and filters.
 class ScienceExportHub extends ConsumerStatefulWidget {
   /// When set, the dialog scrolls to and visually highlights the matching
@@ -145,7 +128,11 @@ class ScienceExportHub extends ConsumerStatefulWidget {
   ConsumerState<ScienceExportHub> createState() => _ScienceExportHubState();
 }
 
-class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
+class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
+    with HostBoundDialogState<ScienceExportHub> {
+  @override
+  String? get hostChangedMessage => null;
+
   static const _allDataFilter = 'All Sessions & Standalone';
   static const _standaloneFilter = 'Standalone Captures';
 
@@ -160,8 +147,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
   /// capped preview window (remote mode only). Drives the truncation note on the
   /// export result so a row count is never presented as "everything".
   bool _standaloneWindowed = false;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _authorityGeneration = 0;
 
   // Keys per dataset row so we can scroll a deep-linked row into view and
   // pulse a highlight ring around it on first frame.
@@ -172,20 +157,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (identical(previous, next) || !mounted) return;
-        _authorityGeneration++;
-        setState(() {
-          _isExporting = false;
-          _lastExportResult = null;
-          _selectedSessionId = null;
-          _standaloneOnly = false;
-        });
-        closeAuthorityBoundDialog(context);
-      },
-    );
     final initial = widget.initialDataset;
     if (initial != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -204,17 +175,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
   }
 
   @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
-  }
-
-  bool _isCurrentAuthority(SkotiqBackend backend, int generation) =>
-      mounted &&
-      generation == _authorityGeneration &&
-      identical(ref.read(backendProvider), backend);
-
-  @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final sessionsAsync = ref.watch(allSessionsProvider);
@@ -222,7 +182,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
     final sessionsReady = sessionsAsync.hasValue &&
         !sessionsAsync.isLoading &&
         !sessionsAsync.hasError;
-    final dateFormat = DateFormat('yyyy-MM-dd');
 
     // First Light transient detections: prefer the caller's snapshot, else the
     // global newest-first feed.
@@ -266,7 +225,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -293,8 +251,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
                 ],
               ),
             ),
-
-            // Filters
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
@@ -317,7 +273,7 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
                         sessionsAsync,
                         sessions,
                       );
-                      final dates = _buildDateFilters(colors, dateFormat);
+                      final dates = _buildDateFilters(colors);
                       if (constraints.maxWidth < 560) {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -343,8 +299,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
                 ],
               ),
             ),
-
-            // Data type list
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -480,7 +434,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
                       onExport: () => _openMpcPanel(mpcCandidates),
                     ),
                     const SizedBox(height: 8),
-                    // First Light transient discovery report (AAVSO / MPC / TNS).
                     _ExportTypeCard(
                       key: _rowKeys[ScienceExportDataset.transientReport],
                       colors: colors,
@@ -513,7 +466,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
                     const SizedBox(height: 16),
                     Divider(color: colors.border),
                     const SizedBox(height: 12),
-                    // Generate Report button
                     SizedBox(
                       width: double.infinity,
                       child: SkotiqButton(
@@ -536,8 +488,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub> {
                 ),
               ),
             ),
-
-            // Status bar
             if (_lastExportResult != null)
               Container(
                 width: double.infinity,

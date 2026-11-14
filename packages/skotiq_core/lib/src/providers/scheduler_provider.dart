@@ -1,13 +1,13 @@
+import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
-import '../database/daos/settings_dao.dart';
 import '../database/database.dart' as ndb;
 import '../models/scheduler/integration_goal.dart';
+import '../models/site/altitude_floor.dart';
+import '../models/site/site_horizon_profile.dart';
 import '../models/scheduler/scheduler_decision.dart';
 import '../models/scheduler/scheduler_status.dart';
 import '../models/scheduler/target_constraint.dart';
@@ -17,22 +17,17 @@ import '../models/scheduler/scheduler_readiness.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/sequence/active_plan_owner.dart';
 import '../models/sequence/sequence_models.dart';
-import '../services/planning/project_service.dart'
-    show
-        projectTargetsProjectIndexSql,
-        projectTargetsSchemaSql,
-        projectsSchemaSql;
-import '../services/logging_service.dart' show loggingServiceProvider;
 import '../services/safe_rig_service.dart';
 import '../services/disk_space_guard.dart' show kSafetyMarginBytes;
 import '../services/scheduler/horizon_profile.dart';
+import '../services/scheduler/horizon_profile_store.dart';
 import '../services/scheduler/integration_goal_service.dart';
 import '../services/scheduler/scheduler_engine.dart';
 import '../services/scheduler/scheduler_log.dart' show schedulerLogSinkFor;
-import '../services/scheduler/scheduler_queue_service.dart'
-    show schedulerQueueServiceProvider;
 import '../services/scheduler/target_constraint_service.dart';
 import '../services/smart_night_models.dart' show smartNightPlanningFilters;
+import '../backend/remote_host.dart';
+import '../database/daos/settings_dao.dart';
 import 'backend_provider.dart';
 import 'clock_provider.dart';
 import 'database_provider.dart';
@@ -51,20 +46,27 @@ import 'planning_provider.dart'
     show activeProjectIdProvider, projectListProvider;
 import 'profiles_provider.dart';
 import 'sequence_provider.dart';
-// Hide settings_provider's legacy 8-compass-point HorizonProfile so the
-// scheduler's samples-based HorizonProfile from services/scheduler/
-// horizon_profile.dart resolves unambiguously below.
-import 'settings_provider.dart' hide HorizonProfile;
+import 'settings_provider.dart';
 // Pull in SkotiqEvent + EventPayload tagged-union subtypes (freezed
 // generates EventPayload_Guiding / EventPayload_Equipment as part-of-library
 // classes, so a plain import surfaces them here).
 import 'package:skotiq_bridge/skotiq_bridge.dart';
+import 'host_role.dart';
+import 'linked_host.dart';
 import '../services/end_of_night_calibration/eon_trigger.dart'
-    show EonEndReason, endOfNightCalibrationCoordinatorProvider;
+    show EonEndReason;
+import '../settings/app_settings_state.g.dart';
+import '../settings/store_settings.dart';
+import 'end_of_night_calibration/eon_trigger_provider.dart';
+import 'logging_service_provider.dart';
+import 'scheduler/integration_goal_service_provider.dart';
+import 'scheduler/scheduler_queue_service_provider.dart';
+import 'scheduler/target_constraint_service_provider.dart';
 
 part 'scheduler/scheduler_engine_providers.dart';
 part 'scheduler/scheduler_candidate_loader.dart';
 part 'scheduler/scheduler_config.dart';
+part 'scheduler/scheduler_control.dart';
 part 'scheduler/scheduler_readiness.dart';
 part 'scheduler/scheduler_remote_and_goals.dart';
 
@@ -220,9 +222,9 @@ final schedulerPreviewDecisionProvider =
       // provider is invalidated by the on-connect hydrate and by scheduler
       // events (hydrateRemoteSessionState / _applySequencerEvent), so the banner
       // tracks the host live rather than computing a wrong local answer.
-      final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        return backend.getSchedulerPreview();
+      final remote = ref.watch(linkedHostPlanningProvider);
+      if (remote != null) {
+        return remote.getSchedulerPreview();
       }
       final engine = await ref.watch(schedulerEngineReadyProvider.future);
       final clock = ref.watch(clockProvider);

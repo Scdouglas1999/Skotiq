@@ -6,6 +6,10 @@ import 'imaging_sessions.dart';
 
 @DataClassName('ScienceSessionConfigRow')
 @TableIndex(name: 'idx_science_session_config_session', columns: {#sessionId})
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX idx_science_session_config_session_unique '
+  'ON science_session_config (session_id) WHERE session_id IS NOT NULL',
+)
 class ScienceSessionConfig extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get sessionId => integer().nullable().references(

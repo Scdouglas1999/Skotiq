@@ -22,7 +22,7 @@ import '../constellation/constellation_client.dart';
 import '../constellation/constellation_models.dart';
 import '../constellation/constellation_service.dart';
 import '../logging_service.dart';
-import '../scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../constellation/constellation_hub_key.dart';
 part 'coimaging_session_service/coimaging_types.dart';
 part 'coimaging_session_service/baton_scheduler.dart';
@@ -91,8 +91,6 @@ class CoImagingSessionService {
     ConstellationCredentials c,
   ) =>
       ConstellationClient(hubBaseUrl: c.hubBaseUrl, bearerToken: c.bearerToken);
-
-  // Create / join / leave
 
   /// Open a live co-imaging session on a target and persist this rig's owner
   /// membership (anchor framing offset + membership token) durably.
@@ -234,8 +232,6 @@ class CoImagingSessionService {
     }
   }
 
-  // Combined accounting
-
   /// Report this rig's contribution (frames + integration it just folded into the
   /// shared-target tile) to the session's COMBINED accounting, presenting the
   /// stored membership token. Advances the local cumulative tally and returns the
@@ -336,8 +332,6 @@ class CoImagingSessionService {
     );
   }
 
-  // Framing-offset pointing
-
   /// The (raDeg, decDeg) pointing DELTA this rig should add to the session
   /// target's centre so its optical centre sits at `centre + offset`, making
   /// the hub's framing slot a real coverage tile that rejects walking /
@@ -424,7 +418,12 @@ class CoImagingSessionService {
           final tRa = r.targetRaDeg;
           final tDec = r.targetDecDeg;
           if (tRa == null || tDec == null) return false;
-          return angularSeparationDegrees(raDeg, decDeg, tRa, tDec) <=
+          return AstronomyCalculations.angularSeparation(
+                ra1Deg: raDeg,
+                dec1Deg: decDeg,
+                ra2Deg: tRa,
+                dec2Deg: tDec,
+              ) <=
               toleranceDeg;
         })
         .toList(growable: false);
@@ -459,26 +458,6 @@ class CoImagingSessionService {
     }
     return null;
   }
-
-  /// Great-circle angular separation (degrees) between two sky points. Pure +
-  /// static so the membership matcher and unit tests share one implementation.
-  static double angularSeparationDegrees(
-    double ra1Deg,
-    double dec1Deg,
-    double ra2Deg,
-    double dec2Deg,
-  ) {
-    const d2r = math.pi / 180.0;
-    final dec1 = dec1Deg * d2r;
-    final dec2 = dec2Deg * d2r;
-    final dRa = (ra1Deg - ra2Deg) * d2r;
-    final cosSep =
-        math.sin(dec1) * math.sin(dec2) +
-        math.cos(dec1) * math.cos(dec2) * math.cos(dRa);
-    return math.acos(cosSep.clamp(-1.0, 1.0)) / d2r;
-  }
-
-  // Capture-loop auto-contribute
 
   /// Drive one completed sub all the way through the co-imaging pipeline, in the
   /// order that keeps accounting honest:
@@ -590,9 +569,6 @@ class CoImagingSessionService {
     return accounting;
   }
 
-  // Longitude baton
-
-  /// Current baton holder for the session.
   Future<CoImagingBatonState> batonState(String sessionId) async {
     final client = await _requireClient();
     try {
@@ -682,8 +658,6 @@ class CoImagingSessionService {
     );
   }
 
-  // Browse / live preview
-
   /// Browse active sessions on the configured hub.
   Future<List<CoImagingSession>> listSessions() async {
     final client = await _requireClient();
@@ -742,18 +716,9 @@ class CoImagingSessionService {
     }
   }
 
-  /// Geometric altitude (degrees) of a sky position from an observer site at a
-  /// UTC instant. Standard hour-angle altitude formula (same maths the planner's
-  /// `TargetsDao` observability filter uses), kept pure + static here so the
-  /// longitude-baton automation can drive it without a DAO and so it is unit
-  /// testable for simulated longitudes.
-  ///
-  /// It deliberately does NOT call [SkyCalculations.altitudeDegrees], which is
-  /// otherwise the shared copy of this formula. This one converts through a
-  /// `const d2r = pi/180` and un-converts by dividing by it; the shared helper
-  /// multiplies by `180/pi`. Those are not the same double — they disagree in
-  /// the last bit for roughly a quarter of all inputs — and this function's
-  /// longitude-baton tests are pinned to the numbers it returns today.
+  /// Geometric altitude (degrees) of a J2000 sky position from an observer
+  /// site at a UTC instant. Static so the longitude-baton automation can drive
+  /// it without a DAO, for simulated longitudes too.
   static double observerAltitudeDegrees({
     required double latitudeDeg,
     required double longitudeDeg,
@@ -761,29 +726,13 @@ class CoImagingSessionService {
     required double decDeg,
     required DateTime atUtc,
   }) {
-    final lstDeg = _localSiderealTimeDegrees(atUtc.toUtc(), longitudeDeg);
-    var haDeg = (lstDeg - raDeg) % 360.0;
-    if (haDeg < -180.0) haDeg += 360.0;
-    if (haDeg > 180.0) haDeg -= 360.0;
-    const d2r = math.pi / 180.0;
-    final latRad = latitudeDeg * d2r;
-    final decRad = decDeg * d2r;
-    final haRad = haDeg * d2r;
-    final sinAlt =
-        math.sin(decRad) * math.sin(latRad) +
-        math.cos(decRad) * math.cos(latRad) * math.cos(haRad);
-    return math.asin(sinAlt.clamp(-1.0, 1.0)) / d2r;
+    final (altitude, _) = AstronomyCalculations.objectAltAz(
+      raDeg: raDeg,
+      decDeg: decDeg,
+      dt: atUtc,
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
+    );
+    return altitude;
   }
-
-  /// Unlike `TargetsDao`, this wraps GMST once, *after* the site longitude is
-  /// added. The two orders differ by ~1e-9° (GMST is ~3.4e6° for a modern
-  /// date), so the composition stays here and only the polynomial is shared.
-  static double _localSiderealTimeDegrees(DateTime atUtc, double longitudeDeg) {
-    final gmst = SkyCalculations.gmstDegreesRaw(_julianDate(atUtc));
-    final lst = (gmst + longitudeDeg) % 360.0;
-    return lst < 0 ? lst + 360.0 : lst;
-  }
-
-  static double _julianDate(DateTime atUtc) =>
-      SkyCalculations.julianDate(atUtc);
 }

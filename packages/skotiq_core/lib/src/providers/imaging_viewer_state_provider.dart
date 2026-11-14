@@ -18,7 +18,6 @@ class ImagingViewerState {
   /// Pan offset accumulated while dragging the preview.
   final Offset panOffset;
 
-  /// Crosshair overlay visibility.
   final bool showCrosshair;
 
   /// Reticle / grid overlay visibility.

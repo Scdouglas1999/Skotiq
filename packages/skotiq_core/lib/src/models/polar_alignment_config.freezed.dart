@@ -370,8 +370,7 @@ mixin _$PolarAlignmentError {
  double get currentRa;/// Current Dec position (degrees)
  double get currentDec;/// Target RA for perfect alignment (degrees)
  double get targetRa;/// Target Dec for perfect alignment (degrees)
- double get targetDec;/// When this measurement was taken
- DateTime get timestamp;
+ double get targetDec; DateTime get timestamp;
 /// Create a copy of PolarAlignmentError
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -589,7 +588,6 @@ class _PolarAlignmentError extends PolarAlignmentError {
 @override final  double targetRa;
 /// Target Dec for perfect alignment (degrees)
 @override final  double targetDec;
-/// When this measurement was taken
 @override final  DateTime timestamp;
 
 /// Create a copy of PolarAlignmentError
@@ -663,20 +661,14 @@ as DateTime,
 /// @nodoc
 mixin _$PolarAlignmentState {
 
-/// Current phase of alignment
  PolarAlignPhase get phase;/// Current measurement point (1-3 during measuring, 0 during adjusting)
- int get currentPoint;/// Status message to display to user
- String get statusMessage;/// Current error measurements (null if not yet calculated)
+ int get currentPoint; String get statusMessage;/// Current error measurements (null if not yet calculated)
  PolarAlignmentError? get currentError;/// Initial error when adjustment phase started (for progress tracking)
  PolarAlignmentError? get initialError;/// Most recent captured image (JPEG bytes for display)
-@NullableUint8ListConverter() Uint8List? get imageData;/// Image width
- int? get imageWidth;/// Image height
- int? get imageHeight;/// Solved RA from last image (degrees)
+@NullableUint8ListConverter() Uint8List? get imageData; int? get imageWidth; int? get imageHeight;/// Solved RA from last image (degrees)
  double? get solvedRa;/// Solved Dec from last image (degrees)
  double? get solvedDec;/// Error message if phase is error
- String? get errorMessage;/// Configuration used for this alignment run
- PolarAlignmentConfig? get config;/// When alignment started
- DateTime? get startedAt;
+ String? get errorMessage; PolarAlignmentConfig? get config; DateTime? get startedAt;
 /// Create a copy of PolarAlignmentState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -921,11 +913,9 @@ class _PolarAlignmentState extends PolarAlignmentState {
   const _PolarAlignmentState({this.phase = PolarAlignPhase.idle, this.currentPoint = 0, this.statusMessage = 'Ready to start polar alignment', this.currentError, this.initialError, @NullableUint8ListConverter() this.imageData, this.imageWidth, this.imageHeight, this.solvedRa, this.solvedDec, this.errorMessage, this.config, this.startedAt}): super._();
   factory _PolarAlignmentState.fromJson(Map<String, dynamic> json) => _$PolarAlignmentStateFromJson(json);
 
-/// Current phase of alignment
 @override@JsonKey() final  PolarAlignPhase phase;
 /// Current measurement point (1-3 during measuring, 0 during adjusting)
 @override@JsonKey() final  int currentPoint;
-/// Status message to display to user
 @override@JsonKey() final  String statusMessage;
 /// Current error measurements (null if not yet calculated)
 @override final  PolarAlignmentError? currentError;
@@ -933,9 +923,7 @@ class _PolarAlignmentState extends PolarAlignmentState {
 @override final  PolarAlignmentError? initialError;
 /// Most recent captured image (JPEG bytes for display)
 @override@NullableUint8ListConverter() final  Uint8List? imageData;
-/// Image width
 @override final  int? imageWidth;
-/// Image height
 @override final  int? imageHeight;
 /// Solved RA from last image (degrees)
 @override final  double? solvedRa;
@@ -943,9 +931,7 @@ class _PolarAlignmentState extends PolarAlignmentState {
 @override final  double? solvedDec;
 /// Error message if phase is error
 @override final  String? errorMessage;
-/// Configuration used for this alignment run
 @override final  PolarAlignmentConfig? config;
-/// When alignment started
 @override final  DateTime? startedAt;
 
 /// Create a copy of PolarAlignmentState
@@ -1062,10 +1048,7 @@ mixin _$PolarAlignmentResult {
 
 /// Initial error at start of adjustment phase
  PolarAlignmentError get initialError;/// Final error when alignment completed or stopped
- PolarAlignmentError get finalError;/// When alignment started
- DateTime get startedAt;/// When alignment completed
- DateTime get completedAt;/// Configuration used for this alignment
- PolarAlignmentConfig get config;/// Whether alignment was auto-completed (reached threshold)
+ PolarAlignmentError get finalError; DateTime get startedAt; DateTime get completedAt; PolarAlignmentConfig get config;/// Whether alignment was auto-completed (reached threshold)
  bool get autoCompleted;/// Equipment profile ID used (for history tracking)
  int? get equipmentProfileId;
 /// Create a copy of PolarAlignmentResult
@@ -1301,11 +1284,8 @@ class _PolarAlignmentResult extends PolarAlignmentResult {
 @override final  PolarAlignmentError initialError;
 /// Final error when alignment completed or stopped
 @override final  PolarAlignmentError finalError;
-/// When alignment started
 @override final  DateTime startedAt;
-/// When alignment completed
 @override final  DateTime completedAt;
-/// Configuration used for this alignment
 @override final  PolarAlignmentConfig config;
 /// Whether alignment was auto-completed (reached threshold)
 @override@JsonKey() final  bool autoCompleted;

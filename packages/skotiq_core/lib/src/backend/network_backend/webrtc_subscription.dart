@@ -66,12 +66,12 @@ class _WebRtcLiveViewSubscription {
     });
     await pc.setLocalDescription(offer);
 
-    // POST the offer to the server.
-    final offerUri = backend._apiUri('webrtc/live-view/offer');
-    final headers = backend._addAuthHeaders(
-      {},
-      endpoint: 'webrtc/live-view/offer',
+    final offerPath = backend._endpointPath(
+      WebRtcLiveViewApi.rsOffer,
+      ApiMethod.post,
     );
+    final offerUri = backend._apiUri(offerPath);
+    final headers = backend._addAuthHeaders({}, endpoint: offerPath);
     headers[HttpHeaders.contentTypeHeader] = 'application/json';
     final body = <String, Object?>{
       'deviceId': deviceId,
@@ -85,11 +85,11 @@ class _WebRtcLiveViewSubscription {
     );
     if (response.statusCode != 200) {
       await pc.close();
-      throw backend._parseErrorResponse(
+      throw backend._errorFromResponse(
         response.statusCode,
         response.body,
         'POST',
-        'webrtc/live-view/offer',
+        offerPath,
       );
     }
     final decoded = jsonDecode(response.body);
@@ -151,11 +151,10 @@ class _WebRtcLiveViewSubscription {
     if (channel.label != kLiveViewClientDataChannelLabel) {
       // Unexpected channel — log and ignore. The server only ever
       // opens `live-view-frames` for this session type.
-      developer.log(
+      Log.warning(
         '[NetworkBackend] webrtc: unexpected data channel label '
         '"${channel.label}" on session $sessionId',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
       return;
     }
@@ -174,11 +173,10 @@ class _WebRtcLiveViewSubscription {
       final meta = _pendingMeta;
       _pendingMeta = null;
       if (meta == null) {
-        developer.log(
+        Log.warning(
           '[NetworkBackend] webrtc: binary frame with no preceding '
           'meta envelope on session $sessionId; dropping',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
         return;
       }
@@ -214,22 +212,23 @@ class _WebRtcLiveViewSubscription {
       }
       // ready/pong: nothing to surface.
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] webrtc: text frame decode failed on session '
         '$sessionId: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
     }
   }
 
   Future<void> _onLocalIceCandidate(RTCIceCandidate candidate) async {
     if (_disposed) return;
-    final uri = backend._apiUri('webrtc/live-view/ice/$sessionId');
-    final headers = backend._addAuthHeaders(
-      {},
-      endpoint: 'webrtc/live-view/ice',
+    final path = backend._endpointPath(
+      WebRtcLiveViewApi.rsSessionid,
+      ApiMethod.post,
+      {'sessionId': sessionId},
     );
+    final uri = backend._apiUri(path);
+    final headers = backend._addAuthHeaders({}, endpoint: path);
     headers[HttpHeaders.contentTypeHeader] = 'application/json';
     final body = jsonEncode({
       'candidate': {
@@ -245,18 +244,16 @@ class _WebRtcLiveViewSubscription {
         body: body,
       );
       if (response.statusCode >= 400) {
-        developer.log(
+        Log.warning(
           '[NetworkBackend] webrtc: POST ICE candidate failed '
           'status=${response.statusCode} body=${response.body}',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
       }
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] webrtc: POST ICE candidate threw: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
     }
   }
@@ -264,10 +261,12 @@ class _WebRtcLiveViewSubscription {
   Future<void> _consumeServerIce() async {
     if (_disposed) return;
     try {
-      final uri = backend._apiUri('webrtc/live-view/ice/$sessionId/events');
-      final request = await _sseClient.getUrl(uri);
+      final path = backend._endpointPath(WebRtcLiveViewApi.rs, ApiMethod.get, {
+        'sessionId': sessionId,
+      });
+      final request = await _sseClient.getUrl(backend._apiUri(path));
       backend
-          ._addAuthHeaders({}, endpoint: 'webrtc/live-view/ice/events')
+          ._addAuthHeaders({}, endpoint: path)
           .forEach((k, v) => request.headers.add(k, v));
       request.headers.set('accept', 'text/event-stream');
       final response = await request.close();
@@ -318,11 +317,10 @@ class _WebRtcLiveViewSubscription {
         },
         onError: (Object e, _) {
           if (!_disposed) {
-            developer.log(
+            Log.warning(
               '[NetworkBackend] webrtc: ICE SSE stream error on session '
               '$sessionId: $e',
-              name: 'NetworkBackend',
-              level: 900,
+              source: 'NetworkBackend',
             );
           }
           if (!completer.isCompleted) completer.complete();
@@ -332,11 +330,10 @@ class _WebRtcLiveViewSubscription {
       await completer.future;
     } catch (e) {
       if (_disposed) return;
-      developer.log(
+      Log.warning(
         '[NetworkBackend] webrtc: ICE SSE failed for session '
         '$sessionId: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
     }
   }
@@ -361,11 +358,10 @@ class _WebRtcLiveViewSubscription {
           ),
         );
       } catch (e) {
-        developer.log(
+        Log.warning(
           '[NetworkBackend] webrtc: failed to apply server ICE '
           'candidate on session $sessionId: $e',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
       }
     } else if (event == 'complete') {
@@ -452,11 +448,13 @@ class _WebRtcLiveViewSubscription {
     // Best-effort DELETE so the server reaps the session immediately
     // rather than waiting for the 30 s startup timer.
     try {
-      final uri = backend._apiUri('webrtc/live-view/$sessionId');
-      final headers = backend._addAuthHeaders(
-        {},
-        endpoint: 'webrtc/live-view/delete',
+      final path = backend._endpointPath(
+        WebRtcLiveViewApi.rsDelete,
+        ApiMethod.delete,
+        {'sessionId': sessionId},
       );
+      final uri = backend._apiUri(path);
+      final headers = backend._addAuthHeaders({}, endpoint: path);
       await backend._http.delete(uri, headers: headers);
     } catch (_) {
       // Server might already be unreachable; the startup timer will
@@ -471,7 +469,3 @@ class _WebRtcLiveViewSubscription {
 /// here as a separate const so changing one without the other is a
 /// visible diff in code review.
 const String kLiveViewClientDataChannelLabel = 'live-view-frames';
-
-/// Client-side mirror of the headless server's Job model. Tolerates
-/// missing/extra fields so a server that gains additional metadata does
-/// not break older clients.

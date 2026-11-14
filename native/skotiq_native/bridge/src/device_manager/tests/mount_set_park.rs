@@ -2,11 +2,12 @@
 //! parks on it, a moving mount is refused, and a mount whose protocol has no
 //! set-park command answers unsupported.
 
-use super::mount_home::{
+use super::*;
+use crate::device::DriverType;
+use crate::device_manager::tests::mount_home::{
     connect_sim_mount_away_from_home, disconnect_sim_mount, register_mount, wait_until_idle,
     with_site_latitude,
 };
-use super::*;
 use crate::dispatch::error::DeviceOpError;
 
 /// Set park stores where the mount is pointing; a later park goes there, not
@@ -55,7 +56,7 @@ async fn simulated_set_park_moves_the_park_position_but_not_home() {
     })
     .await;
 
-    crate::api::devices::simulation::clear_sim_park_position();
+    crate::simulator::mount::clear_sim_park_position();
     disconnect_sim_mount().await;
 }
 
@@ -82,7 +83,7 @@ async fn set_park_is_refused_while_the_mount_moves() {
     })
     .await;
 
-    crate::api::devices::simulation::clear_sim_park_position();
+    crate::simulator::mount::clear_sim_park_position();
     disconnect_sim_mount().await;
 }
 
@@ -92,8 +93,8 @@ async fn a_mount_without_set_park_is_unsupported() {
     let manager = build_device_manager();
     let device_id = "native:meade:TEST_PORT_SETPARK";
     register_mount(&manager, device_id, DriverType::Native).await;
-    manager.native_mounts.write().await.insert(
-        device_id.to_string(),
+    manager.hold_vendor_mount(
+        device_id,
         Box::new(skotiq_native::vendor::lx200::Lx200Mount::new_meade(
             "TEST_PORT_SETPARK".to_string(),
         )),

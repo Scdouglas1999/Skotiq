@@ -3,11 +3,9 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:file_selector/file_selector.dart' as file_selector;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/sequence/template_snippet.dart';
-import '../providers/settings_provider.dart';
 import '../utils/export_target.dart';
 
 /// File extension Skotiq writes for shared / exported snippet bundles.
@@ -282,8 +280,6 @@ class SnippetFileService {
     return _bodyToSnippet(migrated);
   }
 
-  // Internals
-
   /// Build the "body" — everything that goes into the checksum — for
   /// [snippet]. Excludes the checksum field itself so encoding and
   /// verification operate on identical input.
@@ -487,20 +483,3 @@ class SnippetFileService {
     );
   }
 }
-
-/// Provider for the snippet file service.
-///
-/// Resolves the default directory from `Settings → File Paths →
-/// Sequences` so snippet exports/imports land beside sequence files by
-/// default. Falls back to the OS-picked default when settings are
-/// unavailable (e.g. in unit tests with no database).
-final snippetFileServiceProvider = Provider<SnippetFileService>((ref) {
-  String defaultDir = '';
-  try {
-    final settings = ref.read(appSettingsProvider).valueOrNull;
-    defaultDir = settings?.sequencesPath ?? '';
-  } catch (_) {
-    defaultDir = '';
-  }
-  return SnippetFileService(defaultDirectory: defaultDir);
-});

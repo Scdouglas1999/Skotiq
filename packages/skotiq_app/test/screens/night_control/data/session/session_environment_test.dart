@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_provider.dart';
@@ -9,11 +10,16 @@ import 'package:skotiq_app/screens/night_control/data/session/session_events_pro
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    hide EquipmentStatus, TwilightTimes;
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_app/utils/guide_distance.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import 'session_test_support.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 SkotiqEvent _guideStep(DateTime at, Map<String, dynamic> data) => SkotiqEvent(
       timestamp: at.millisecondsSinceEpoch,
@@ -45,7 +51,7 @@ List<Override> _readyRig({
             deviceName: 'ZWO ASI1600MM Pro',
             temperature: -7.4,
             targetTemp: -10,
-            isCooling: true,
+            coolerOn: true,
           ),
         ),
       ),
@@ -70,12 +76,20 @@ List<Override> _readyRig({
         ),
       ),
       phd2StateProvider.overrideWith((ref) => phd2),
-      assignedProfileDeviceSlotsProvider.overrideWithValue(
-        const <ProfileDeviceSlot>[
-          ProfileDeviceSlot.camera,
-          ProfileDeviceSlot.mount,
-          ProfileDeviceSlot.guider,
-        ],
+      rigDevicesProvider.overrideWithValue(
+        RigDevices([
+          for (final type in const [
+            DeviceType.camera,
+            DeviceType.mount,
+            DeviceType.guider,
+          ])
+            RigDevice(
+              type: type,
+              assigned: true,
+              connected: false,
+              sessionOnly: false,
+            ),
+        ]),
       ),
       appSettingsProvider.overrideWith(() => FixedSettings(settings)),
       nightSolverStatusProvider.overrideWithValue(
@@ -205,8 +219,8 @@ void main() {
         )
         ..emitEvent(
           _guideStep(t0.add(const Duration(seconds: 4)), <String, dynamic>{
-            'raPx': -0.3,
-            'decPx': 0.4,
+            'RADistanceRaw': -0.3,
+            'DECDistanceRaw': 0.4,
           }),
         );
       await Future<void>.delayed(Duration.zero);
@@ -274,7 +288,7 @@ void main() {
     });
 
     test('a zero or missing scale is unknown: pixels', () {
-      expect(nightGuideDistance(0.5, null), '0.50 px');
+      expect(guideDistanceText(0.5, null), '0.50 px');
       final h = ProviderContainer(overrides: [
         guiderStateProvider.overrideWith(
           (ref) => FixedGuider(
@@ -284,7 +298,7 @@ void main() {
         ),
       ]);
       addTearDown(h.dispose);
-      expect(h.read(nightGuideScaleProvider), isNull);
+      expect(h.read(guideScaleProvider), isNull);
     });
 
     test('dither marks land on the guiding chart', () async {
@@ -341,7 +355,6 @@ void main() {
       final guider = _item(items, ChecklistItemId.guider);
       expect(guider.state, ChecklistItemState.attention);
       expect(guider.detail!.key, 'nightSessionCheckGuiderIdle');
-      expect(guider.detail!.params['name'], 'PHD2');
       expect(guider.actionLabel!.key, 'nightSessionActionLoop');
       // Loop happens in place, not on another screen.
       expect(guider.route, isNull);
@@ -363,6 +376,33 @@ void main() {
       expect(weather.detail!.key, 'nightSessionCheckWeatherNone');
       expect(weather.actionLabel!.key, 'nightSessionActionAdd');
       expect(weather.route, '/settings?section=weather-safety');
+    });
+
+    // The mount is polled every 2 s and its coordinates move between polls.
+    // Neither Overview block shows them, and each recompute costs a frame.
+    test('a mount position poll leaves the checklist and equipment rows alone',
+        () async {
+      final h = await sessionHarness(overrides: _readyRig());
+      await _checklist(h);
+      h.read(nightEquipmentProvider);
+      var told = 0;
+      h.container.listen(nightBeforeYouStartProvider, (_, __) => told++);
+      h.container.listen(nightEquipmentProvider, (_, __) => told++);
+
+      final mount = h.container.read(mountStateProvider.notifier);
+      for (var i = 0; i < 5; i++) {
+        mount.updatePosition(5.0 + i / 1000, 41.2, null, null);
+        await Future<void>.delayed(Duration.zero);
+        h.read(nightBeforeYouStartProvider);
+        h.read(nightEquipmentProvider);
+      }
+      expect(told, 0);
+
+      mount.setTracking(true);
+      await Future<void>.delayed(Duration.zero);
+      h.read(nightBeforeYouStartProvider);
+      h.read(nightEquipmentProvider);
+      expect(told, 2, reason: 'tracking is shown on both, so it tells both');
     });
 
     test('the board order, and the rest of the rig is ready', () async {
@@ -390,7 +430,7 @@ void main() {
       );
       expect(
         _item(items, ChecklistItemId.disk).detail!.params['free'],
-        '639 GB',
+        '639 GiB',
       );
     });
 
@@ -403,18 +443,17 @@ void main() {
         latitude: 42.36,
         longitude: -71.06,
       )!;
-      final dawnUtc = SkyCalculations.computeTwilight(
-        noonLocal: DateTime(2026, 10, 19, 12),
-        latitudeDegrees: 42.36,
-        longitudeDegrees: -71.06,
-        kind: TwilightKind.astronomical,
-      ).morningStart!;
+      final dawnUtc = AstronomyCalculations.twilightTimesNear(
+        instant: DateTime(2026, 10, 19, 12),
+        latitudeDeg: 42.36,
+        longitudeDeg: -71.06,
+      ).astronomicalDawn!;
       expect(expected, dawnUtc.subtract(const Duration(minutes: 30)));
       expect(dawn.state, ChecklistItemState.ok);
       expect(dawn.detail!.key, 'nightSessionCheckDawnPark');
       expect(
         dawn.detail!.params['time'],
-        nightClockTime(const SystemClock(), expected),
+        ClockFormat.hm((const SystemClock()).fromUtc(expected.toUtc())),
       );
     });
 
@@ -502,6 +541,171 @@ void main() {
       expect(
         mount.details.map((d) => d.key),
         <String>['nightSessionMountNotTracking', 'nightSessionPierWest'],
+      );
+    });
+  });
+
+  // A parked mount read "needs a look" before every run, although the run
+  // unparks it.
+  group('a parked mount before a run', () {
+    Override parked() => mountStateProvider.overrideWith(
+          (ref) => FixedMount(
+            ref,
+            const MountState(
+              connectionState: DeviceConnectionState.connected,
+              deviceName: 'EQ6-R',
+              isParked: true,
+            ),
+          ),
+        );
+
+    Override plan(SequenceNode step) => nightPlanTreeProvider.overrideWithValue(
+          buildNightPlanTree(
+            Sequence.create(
+              name: 'Run',
+              rootNodeId: 'root',
+              nodes: {
+                'root': InstructionSetNode(
+                  id: 'root',
+                  name: 'Run',
+                  childIds: const ['step', 'light'],
+                ),
+                'step': step,
+                'light': ExposureNode(
+                  id: 'light',
+                  parentId: 'root',
+                  orderIndex: 1,
+                ),
+              },
+            ),
+          ),
+        );
+
+    Future<ChecklistItemVm> mountRow(List<Override> more) async {
+      final h = await sessionHarness(
+        overrides: [..._readyRig(), parked(), ...more],
+      );
+      return _item(await _checklist(h), ChecklistItemId.mount);
+    }
+
+    test('no plan loaded: parked is where it rests', () async {
+      final row = await mountRow([
+        nightPlanTreeProvider.overrideWithValue(null),
+      ]);
+      expect(row.state, ChecklistItemState.ok);
+      expect(row.detail!.key, 'nightSessionCheckMountParked');
+    });
+
+    test('a plan with an Unpark step: fine, the run unparks it', () async {
+      final row = await mountRow([
+        plan(UnparkNode(id: 'step', parentId: 'root', orderIndex: 0)),
+      ]);
+      expect(row.state, ChecklistItemState.ok);
+      expect(row.detail!.key, 'nightSessionCheckMountParkedUnparks');
+    });
+
+    test('a plan that slews: fine, a slew unparks first', () async {
+      final row = await mountRow([
+        plan(SlewNode(id: 'step', parentId: 'root', orderIndex: 0)),
+      ]);
+      expect(row.state, ChecklistItemState.ok);
+      expect(row.detail!.key, 'nightSessionCheckMountParkedUnparks');
+    });
+
+    test('a plan that never moves the mount: it would stay parked', () async {
+      final row = await mountRow([
+        plan(
+          DelayNode(id: 'step', parentId: 'root', orderIndex: 0),
+        ),
+      ]);
+      expect(row.state, ChecklistItemState.attention);
+      expect(row.detail!.key, 'nightSessionCheckMountParkedStays');
+    });
+
+    test('a disabled Unpark step does not count', () async {
+      final row = await mountRow([
+        plan(
+          UnparkNode(
+            id: 'step',
+            parentId: 'root',
+            orderIndex: 0,
+            isEnabled: false,
+          ),
+        ),
+      ]);
+      expect(row.state, ChecklistItemState.attention);
+    });
+  });
+
+  // The rig, Nov 8 2026: the mount's reads all failed and the row kept
+  // saying "tracking · pier E · alt 2.5°" as if current.
+  group('stale and failed devices', () {
+    test(
+        'a connected mount whose reads fail leads with how old its values '
+        'are', () async {
+      final h = await sessionHarness(overrides: [
+        ..._readyRig(),
+        mountStateProvider.overrideWith(
+          (ref) => FixedMount(
+            ref,
+            const MountState(
+              connectionState: DeviceConnectionState.connected,
+              deviceId: 'ascom:NYX',
+              deviceName: 'NYX-101',
+              sideOfPier: 'East',
+              isTracking: true,
+              isParked: false,
+            ),
+          ),
+        ),
+      ]);
+      final reads = h.container.read(deviceReadHealthProvider.notifier);
+      reads.recordSuccess(DeviceType.mount, 'ascom:NYX');
+      for (var i = 0; i < 2; i++) {
+        reads.recordFailure(
+          DeviceType.mount,
+          'ascom:NYX',
+          Exception('Failed to get RA: 0x80040401'),
+        );
+      }
+      final mount = h
+          .read(nightEquipmentProvider)
+          .firstWhere((r) => r.kind == EquipmentKind.mount);
+      expect(mount.status, EquipmentStatus.attention);
+      expect(mount.details.first.key, 'nightSessionStale');
+      expect(mount.details.first.params['reason'], contains('0x80040401'));
+      expect(
+        mount.details.skip(1).map((d) => d.key),
+        <String>['nightSessionMountTracking', 'nightSessionPierEast'],
+        reason: 'the last values stay, behind the stale note',
+      );
+    });
+
+    test('a camera in error says why', () async {
+      final h = await sessionHarness(overrides: [
+        ..._readyRig(),
+        cameraStateProvider.overrideWith(
+          (ref) => FixedCamera(
+            ref,
+            CameraStateSnapshot(
+              connectionState: DeviceConnectionState.error,
+              deviceName: 'ZWO ASI1600MM-Cool',
+              lastError: DeviceError(
+                type: DeviceErrorType.connectionFailed,
+                message: 'native:zwo:1 is now ZWO ASI178MM',
+                timestamp: DateTime.utc(2026, 11, 8),
+              ),
+            ),
+          ),
+        ),
+      ]);
+      final camera = h
+          .read(nightEquipmentProvider)
+          .firstWhere((r) => r.kind == EquipmentKind.camera);
+      expect(camera.status, EquipmentStatus.fault);
+      expect(
+        camera.details.map((d) => d.literal),
+        contains('native:zwo:1 is now ZWO ASI178MM'),
       );
     });
   });
@@ -604,6 +808,7 @@ void main() {
                 sk_events.EquipmentEvent.connected(
                   deviceType: 'Rotator',
                   deviceId: 'sim_rotator_1',
+                  deviceName: 'Simulated Rotator',
                 ),
               ),
             ),
@@ -612,6 +817,51 @@ void main() {
       final line = h.read(nightLogProvider).single.message.literal!;
       expect(line, contains('Simulated Rotator'));
       expect(line, isNot(contains('sim_rotator_1')));
+    });
+
+    // The log read "Property changed · Filter Wheel · FilterNames" after
+    // every connect.
+    test('a device property change is not a line of the log', () async {
+      final h = await sessionHarness();
+      final keep = h.container.listen(nightLogProvider, (_, __) {});
+      addTearDown(keep.close);
+      sk_events.SkotiqEvent equipment(int id, sk_events.EquipmentEvent event) =>
+          sk_events.SkotiqEvent(
+            eventId: BigInt.from(id),
+            timestamp: kNight.millisecondsSinceEpoch + id,
+            severity: sk_events.EventSeverity.info,
+            category: sk_events.EventCategory.equipment,
+            payload: sk_events.EventPayload.equipment(event),
+          );
+      final history = h.container.read(eventHistoryProvider.notifier);
+      history.addEvent(
+        equipment(
+          1,
+          const sk_events.EquipmentEvent.connected(
+            deviceType: 'Filter Wheel',
+            deviceId: 'sim_filterwheel_1',
+            deviceName: 'Simulated Filter Wheel',
+          ),
+        ),
+      );
+      history.addEvent(
+        equipment(
+          2,
+          const sk_events.EquipmentEvent.propertyChanged(
+            deviceType: 'Filter Wheel',
+            deviceId: 'sim_filterwheel_1',
+            property: 'FilterNames',
+            value: 'L,R,G,B',
+          ),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(h.read(nightLogFeedEventsProvider), hasLength(1));
+      final lines = [
+        for (final entry in h.read(nightLogProvider)) entry.message.literal!,
+      ];
+      expect(lines, hasLength(1));
+      expect(lines.single, startsWith('Connected'));
     });
 
     test('past the cap the oldest lines go, the newest stay', () async {
@@ -633,12 +883,12 @@ void main() {
 
       expect(log, hasLength(2));
       expect(log.first.message.key, 'nightSessionLogFrameRejected');
-      expect(log.first.tone, MetricTone.bad);
+      expect(log.first.tone, MetricGridTone.bad);
       expect(log.first.message.params['n'], '2');
       expect(log.last.message.params, <String, String>{
         'n': '1',
         'filter': ' Ha',
-        'hfr': ' · HFR 2.10',
+        'hfr': ' · HFR 2.10 px',
         'reason': '',
       });
     });

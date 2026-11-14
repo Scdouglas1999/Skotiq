@@ -2,10 +2,22 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
-import '../screens/imaging/widgets/imaging_capture_bar.dart'
-    show loopSavesFramesProvider;
+import '../utils/persisted_bool.dart';
+
+/// Whether Loop keeps the frames it captures.
+///
+/// Loop is a live-view mode, so saving defaults off. A choice to save is
+/// remembered across restarts: forgetting it lost the next night's frames
+/// without a word.
+final loopSavesFramesProvider =
+    StateNotifierProvider<PersistedBoolNotifier, bool>(
+  (ref) => PersistedBoolNotifier('imaging.loopSavesFrames'),
+);
 
 /// What the manual Snapshot and Loop controls are doing.
 @immutable
@@ -22,7 +34,6 @@ class ManualCaptureState {
   /// A single frame is being exposed, downloaded or saved.
   final bool isSnapshot;
 
-  /// A loop is running.
   final bool isLooping;
 
   /// Stop was requested and the current exposure is being aborted.
@@ -72,35 +83,73 @@ class ManualCaptureState {
       snapshotPreviewReady, loopFrames, lastError);
 }
 
-/// Snapshot and Loop outside the Imaging screen.
+/// Snapshot and Loop for Tonight and the Imaging screen.
 ///
-/// The same capture flow as `imaging_screen_actions.dart` (`_takeSnapshot`,
-/// `_toggleLoop`), held in a provider so Tonight can drive it without the
-/// Imaging screen's widget state. The Imaging screen still runs its own copy.
+/// The Loop always runs on the imaging host. On the host this controller
+/// runs it and publishes its progress in [manualLoopStatusProvider], which
+/// the `manualLoop` runtime channel carries to linked clients. On a client,
+/// [loop] and [stop] are commands to the host and the loop fields of the
+/// state follow the host's. Every window therefore shows the same loop,
+/// with Stop, whichever window started it. A snapshot runs where it was
+/// pressed.
 final manualCaptureControllerProvider =
     NotifierProvider<ManualCaptureController, ManualCaptureState>(
   ManualCaptureController.new,
 );
 
 class ManualCaptureController extends Notifier<ManualCaptureState> {
-  /// Strips a leading `SomeException(category): ` prefix so a failure reads
-  /// as English. Matched on `toString()` because `SkotiqException` is not
-  /// exported from the `skotiq_core` barrel.
-  static final RegExp _exceptionPrefix =
-      RegExp(r'^[A-Za-z_][A-Za-z0-9_]*(?:\([^)]*\))?:\s*');
-
-  static String cleanError(Object error) {
-    final raw = error.toString().trim();
-    final stripped = raw.replaceFirst(_exceptionPrefix, '').trim();
-    return stripped.isEmpty ? raw : stripped;
-  }
-
   /// The service that owns the capture in flight, so Stop aborts that one
   /// even after a backend switch rebuilt [imagingServiceProvider].
   ImagingService? _activeService;
 
+  /// Set while a loop this client asked the host for is starting, so the
+  /// host's first "not looping" is not read as its end.
+  Completer<void>? _remoteLoopEnded;
+  bool _remoteLoopSeen = false;
+
+  bool get _remote => ref.read(isRemoteModeProvider);
+
   @override
-  ManualCaptureState build() => const ManualCaptureState();
+  ManualCaptureState build() {
+    // Host: the loop fields of this state are what the clients are told.
+    listenSelf((_, next) {
+      if (_remote) return;
+      final status = ref.read(manualLoopStatusProvider.notifier);
+      final published = status.state.copyWith(
+        looping: next.isLooping,
+        stopping: next.isLooping && next.isStopping,
+        frames: next.loopFrames,
+      );
+      if (status.state != published) status.state = published;
+    });
+    // Client: the loop is the host's.
+    ref.listen<ManualLoopStatus>(manualLoopStatusProvider, (previous, next) {
+      if (!_remote) return;
+      state = state.copyWith(
+        isLooping: next.looping,
+        isStopping: next.looping
+            ? next.stopping
+            : (state.isSnapshot ? state.isStopping : false),
+        loopFrames: next.frames,
+      );
+      if (next.looping) _remoteLoopSeen = true;
+      final ended = _remoteLoopEnded;
+      if (ended != null && _remoteLoopSeen && !next.looping) {
+        _remoteLoopEnded = null;
+        if (!ended.isCompleted) ended.complete();
+      }
+    });
+    // A client that opens after the host's loop started shows it, with Stop.
+    if (_remote) {
+      final host = ref.read(manualLoopStatusProvider);
+      return ManualCaptureState(
+        isLooping: host.looping,
+        isStopping: host.looping && host.stopping,
+        loopFrames: host.frames,
+      );
+    }
+    return const ManualCaptureState();
+  }
 
   /// One frame with the manual exposure settings.
   ///
@@ -159,7 +208,7 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
       }
       return result;
     } catch (e) {
-      state = state.copyWith(lastError: cleanError(e));
+      state = state.copyWith(lastError: userFacingError(e));
       rethrow;
     } finally {
       previewSubscription.close();
@@ -178,27 +227,39 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
   /// Frames are saved only when the Imaging screen's "Save loop frames"
   /// toggle is on, read once at the start so a loop never changes
   /// destination halfway through. [onError] receives each capture failure.
-  Future<void> loop({void Function(String error)? onError}) async {
+  ///
+  /// [settings], [saveFrames] and [targetName] default to this window's
+  /// capture bar; a client's request to the host passes its own.
+  Future<void> loop({
+    void Function(String error)? onError,
+    ExposureSettings? settings,
+    bool? saveFrames,
+    String? targetName,
+  }) async {
     if (state.isBusy) return;
+    if (_remote) return _loopOnHost(onError: onError);
     state = state.copyWith(
       isLooping: true,
       isStopping: false,
       loopFrames: 0,
       clearError: true,
     );
+    ref.read(manualLoopStatusProvider.notifier).state =
+        const ManualLoopStatus(looping: true);
     final sessionNotifier = ref.read(sessionStateProvider.notifier);
     sessionNotifier.setCapturing(true);
 
-    final settings = ref.read(exposureSettingsProvider);
+    final ExposureSettings loopSettings =
+        settings ?? ref.read(exposureSettingsProvider);
     final imagingService = ref.read(imagingServiceProvider);
     _activeService = imagingService;
-    final saveFrames = ref.read(loopSavesFramesProvider);
+    final bool keepFrames = saveFrames ?? ref.read(loopSavesFramesProvider);
 
     try {
       await imagingService.startLoopCapture(
-        settings: settings,
-        targetName: ref.read(sessionStateProvider).targetName,
-        saveFrames: saveFrames,
+        settings: loopSettings,
+        targetName: targetName ?? ref.read(sessionStateProvider).targetName,
+        saveFrames: keepFrames,
         onImageCaptured: (image) {
           if (!identical(_activeService, imagingService)) return;
           ref.read(currentImageProvider.notifier).state = image;
@@ -206,17 +267,22 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
           state = state.copyWith(loopFrames: state.loopFrames + 1);
           // Frame count and integration time describe what the session
           // kept; a discarded live-view frame adds nothing.
-          if (saveFrames) {
+          if (keepFrames) {
             sessionNotifier.recordExposureComplete(
-              exposureTime: settings.exposureTime,
+              exposureTime: loopSettings.exposureTime,
               hfr: image.stats.hfr,
             );
           }
           _feedToLiveStacker(image);
         },
         onError: (error) {
-          final cleaned = cleanError(error);
+          final cleaned = userFacingError(error);
           state = state.copyWith(lastError: cleaned);
+          final status = ref.read(manualLoopStatusProvider.notifier);
+          status.state = status.state.copyWith(
+            lastError: cleaned,
+            errorCount: status.state.errorCount + 1,
+          );
           onError?.call(cleaned);
         },
       );
@@ -229,11 +295,66 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
 
   /// Aborts the snapshot or loop this controller started. Does nothing for
   /// an exposure it does not own (a sequence frame, centering, first light).
+  ///
+  /// On a client, Stop during the host's loop asks the host to stop it,
+  /// whichever window started it.
   void stop() {
+    final hostNight = ref.read(linkedHostNightProvider);
+    if (hostNight != null && state.isLooping) {
+      unawaited(
+        hostNight.stopHostManualLoop().catchError((Object e) {
+          state = state.copyWith(lastError: userFacingError(e));
+        }),
+      );
+      return;
+    }
     final service = _activeService;
     if (service == null || !state.isBusy) return;
     state = state.copyWith(isStopping: true);
     service.cancelExposure();
+  }
+
+  /// A client's Loop: the host runs it. Completes when the host's loop ends,
+  /// or at once when the host refused or never started it.
+  Future<void> _loopOnHost({void Function(String error)? onError}) async {
+    final hostNight = ref.read(linkedHostNightProvider);
+    if (hostNight == null) return;
+    final ended = _remoteLoopEnded = Completer<void>();
+    _remoteLoopSeen = ref.read(manualLoopStatusProvider).looping;
+    final errors = ref.listen<ManualLoopStatus>(manualLoopStatusProvider, (
+      previous,
+      next,
+    ) {
+      final error = next.lastError;
+      if (error != null && next.errorCount != previous?.errorCount) {
+        onError?.call(error);
+      }
+    });
+    try {
+      await hostNight.startHostManualLoop(
+        manualLoopRequestJson(
+          settings: ref.read(exposureSettingsProvider),
+          saveFrames: ref.read(loopSavesFramesProvider),
+          targetName: ref.read(sessionStateProvider).targetName,
+        ),
+      );
+      // The host answers before its first status reaches this window; a
+      // status that never says "looping" means the loop ended before it was
+      // seen, which the timeout covers.
+      await ended.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () async {
+          if (_remoteLoopSeen) return ended.future;
+        },
+      );
+    } catch (e) {
+      final cleaned = userFacingError(e);
+      state = state.copyWith(lastError: cleaned);
+      onError?.call(cleaned);
+    } finally {
+      errors.close();
+      if (identical(_remoteLoopEnded, ended)) _remoteLoopEnded = null;
+    }
   }
 
   /// Feeds a frame to the live stacker when stacking runs. A remote host

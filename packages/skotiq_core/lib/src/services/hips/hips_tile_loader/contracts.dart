@@ -96,7 +96,6 @@ class HipsTileFailure {
   /// The tile (or Allsky pseudo-id) that failed.
   final HipsTileId id;
 
-  /// The surfaced fetch exception.
   final HipsFetchException error;
 
   const HipsTileFailure(this.id, this.error);
@@ -218,11 +217,10 @@ class _DevLogErrorSink implements HipsTileLoaderErrorSink {
 
   @override
   void onTileError(HipsTileFailure failure) {
-    developer.log(
+    Log.warning(
       'HiPS tile fetch failed: ${failure.error.message} '
       '(url=${failure.error.requestUrl})',
-      name: 'HipsTileLoader',
-      level: 900, // WARNING
+      source: 'HipsTileLoader',
       error: failure.error,
     );
   }
@@ -254,7 +252,6 @@ abstract class HipsLoaderClock {
 /// Public so the C7 [hipsLoaderClockProvider] can resolve it as the production
 /// default while tests override that provider with a manually-advanced clock.
 class HipsRealLoaderClock implements HipsLoaderClock {
-  /// Creates the production timer-backed clock.
   const HipsRealLoaderClock();
 
   @override

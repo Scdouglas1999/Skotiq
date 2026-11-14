@@ -12,7 +12,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 
 import '../headless_api/handler_test_helpers.dart';
@@ -48,7 +48,7 @@ void main() {
   Future<WebSocket> connect() async {
     final socket = await WebSocket.connect(
       'ws://127.0.0.1:${server.actualPort}'
-      '/events?token=admin-token&apiVersion=2.6.0',
+      '/events?token=admin-token',
     );
     // The server greets every socket with collaboration_state; waiting for it
     // proves the upgrade completed rather than racing the registry write.
@@ -66,7 +66,7 @@ void main() {
 
     final socket = await WebSocket.connect(
       'ws://127.0.0.1:${server.actualPort}'
-      '/events?token=admin-token&apiVersion=2.6.0',
+      '/events?token=admin-token',
     );
     addTearDown(() async => socket.close());
 

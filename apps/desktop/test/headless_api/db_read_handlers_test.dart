@@ -11,11 +11,14 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/db_read_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -528,7 +531,11 @@ void main() {
           sequenceId: null,
           sequenceName: 'NGC 7000 imaging',
         );
-        await db.sequenceRunsDao.finishRun(runId, 'completed', '{}');
+        await db.sequenceRunsDao.finishRun(
+          runId,
+          SequenceRunStatus.completed,
+          '{}',
+        );
 
         final response = await translateHandlerErrors(
           handlers.handleGetSequenceRunById(
@@ -657,7 +664,11 @@ void main() {
             sequenceId: null,
             sequenceName: 'Empty run',
           );
-          await db.sequenceRunsDao.finishRun(runId, 'completed', '{}');
+          await db.sequenceRunsDao.finishRun(
+            runId,
+            SequenceRunStatus.completed,
+            '{}',
+          );
 
           final response = await translateHandlerErrors(
             handlers.handleGetSequenceRunEvents(
@@ -706,7 +717,11 @@ void main() {
           sequenceId: null,
           sequenceName: 'No-frame run',
         );
-        await db.sequenceRunsDao.finishRun(runId, 'aborted', '{}');
+        await db.sequenceRunsDao.finishRun(
+          runId,
+          SequenceRunStatus.aborted,
+          '{}',
+        );
 
         final response = await translateHandlerErrors(
           handlers.handleGetSequenceRunFrames(
@@ -739,7 +754,7 @@ void main() {
           capturedAt: DateTime.utc(2026, 5, 25, 23, 0),
           targetId: null,
           sessionId: null,
-          frameType: 'light',
+          frameType: FrameType.light,
           filter: 'L',
           gain: 100,
           offset: 10,

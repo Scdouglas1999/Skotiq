@@ -1,30 +1,87 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
+import '../errors/error_text.dart';
 import '../models/plate_solver.dart';
-import '../services/logging_service.dart';
 import '../services/plate_solve_service.dart';
 import 'backend_provider.dart';
 import 'settings_provider.dart';
+import 'logging_service_provider.dart';
+import 'plate_solve_service_provider.dart';
+
+/// The imaging host's plate solvers: what it found on its disk and what its
+/// operator chose. Either is null until it has been read.
+typedef PlateSolverSetup = ({
+  PlateSolverDetection? detection,
+  PlateSolverPreference? preference,
+});
+
+/// The host's solvers as a linked client was last told them by the host
+/// (the plate-solver channel, or the host's answer to this client's own
+/// rescan or save); null on the host itself and on a client the host has
+/// not told yet.
+final hostPlateSolverSetupProvider = StateProvider<PlateSolverSetup?>((ref) {
+  ref.watch(backendProvider);
+  return null;
+});
+
+/// [value] as the host told it; loading until the host has.
+Future<T> _toldByHost<T>(T? value) =>
+    value != null ? Future.value(value) : Completer<T>().future;
 
 /// Detection snapshot for the Plate Solving settings page. Re-runs the
 /// filesystem probe + ASTAP catalog scan via `PlateSolveService.detect()`
 /// whenever invalidated (after the user picks a new path or hits "Re-scan").
+/// A linked client shows what the host told it.
 final plateSolverDetectionProvider =
-    FutureProvider.autoDispose<PlateSolverDetection>((ref) async {
+    FutureProvider.autoDispose<PlateSolverDetection>((ref) {
       ref.watch(backendProvider);
-      final service = ref.watch(plateSolveServiceProvider);
-      return service.detect();
+      if (ref.watch(isRemoteModeProvider)) {
+        return _toldByHost(
+          ref.watch(
+            hostPlateSolverSetupProvider.select((setup) => setup?.detection),
+          ),
+        );
+      }
+      return ref.watch(plateSolveServiceProvider).detect();
     });
 
 /// Persisted plate-solver UX configuration. Backed by Rust storage
-/// (`platesolver.json`), exposed through `apiPlatesolveGetConfig`.
+/// (`platesolver.json`), exposed through `apiPlatesolveGetConfig`. A linked
+/// client shows what the host told it.
 final plateSolverPreferenceProvider =
-    FutureProvider.autoDispose<PlateSolverPreference>((ref) async {
+    FutureProvider.autoDispose<PlateSolverPreference>((ref) {
       ref.watch(backendProvider);
-      final service = ref.watch(plateSolveServiceProvider);
-      return service.getConfig();
+      if (ref.watch(isRemoteModeProvider)) {
+        return _toldByHost(
+          ref.watch(
+            hostPlateSolverSetupProvider.select((setup) => setup?.preference),
+          ),
+        );
+      }
+      return ref.watch(plateSolveServiceProvider).getConfig();
     });
+
+/// The solvers as this process has them, which the host shares with its
+/// linked clients.
+final plateSolverSetupShownProvider = Provider.autoDispose<PlateSolverSetup>(
+  (ref) => (
+    detection: ref.watch(plateSolverDetectionProvider).valueOrNull,
+    preference: ref.watch(plateSolverPreferenceProvider).valueOrNull,
+  ),
+);
+
+/// Whether the solver the operator selected can solve right now: false when
+/// it is missing, null while detection or the preference is still loading or
+/// could not be read (a solver still being looked for is not a missing one).
+final plateSolverReadyProvider = Provider.autoDispose<bool?>((ref) {
+  final detection = ref.watch(plateSolverDetectionProvider).valueOrNull;
+  final preference = ref.watch(plateSolverPreferenceProvider).valueOrNull;
+  if (detection == null || preference == null) return null;
+  return detection.supports(preference.choice);
+});
 
 /// State + controller for the Plate Solving settings page.
 ///
@@ -121,10 +178,19 @@ class PlateSolverSettingsNotifier
     final generation = _authorityGeneration;
     state = state.copyWith(rescanning: true);
     try {
-      ref.invalidate(plateSolverDetectionProvider);
-      // The `await` here ensures any test driver can observe the new detect
-      // result before returning. Production callers can fire-and-forget.
-      await ref.read(plateSolverDetectionProvider.future);
+      if (ref.read(isRemoteModeProvider)) {
+        // The host detects again and tells every linked client; this one
+        // shows the host's answer at once.
+        final detection = await _service.detect();
+        if (!_isCurrent(generation)) return false;
+        final told = ref.read(hostPlateSolverSetupProvider.notifier);
+        told.state = (detection: detection, preference: told.state?.preference);
+      } else {
+        ref.invalidate(plateSolverDetectionProvider);
+        // The `await` here ensures any test driver can observe the new detect
+        // result before returning. Production callers can fire-and-forget.
+        await ref.read(plateSolverDetectionProvider.future);
+      }
       if (!_isCurrent(generation)) return false;
       state = state.copyWith(rescanning: false);
       return true;
@@ -175,6 +241,12 @@ class PlateSolverSettingsNotifier
             );
       }
       if (!_isCurrent(generation)) return false;
+      // A linked host tells its clients the saved preference and what it
+      // finds with it; until then this client shows what it saved.
+      if (ref.read(isRemoteModeProvider)) {
+        final told = ref.read(hostPlateSolverSetupProvider.notifier);
+        told.state = (detection: told.state?.detection, preference: next);
+      }
       ref.invalidate(plateSolverPreferenceProvider);
       ref.invalidate(plateSolverDetectionProvider);
       state = state.copyWith(savingPreference: false);
@@ -198,7 +270,10 @@ class PlateSolverSettingsNotifier
       state = state.copyWith(verifying: false, astapVerifyInfo: info);
     } catch (e) {
       if (!_isCurrent(generation)) return;
-      state = state.copyWith(verifying: false, astapVerifyError: e.toString());
+      state = state.copyWith(
+        verifying: false,
+        astapVerifyError: userFacingError(e),
+      );
     }
   }
 
@@ -215,7 +290,7 @@ class PlateSolverSettingsNotifier
       if (!_isCurrent(generation)) return;
       state = state.copyWith(
         verifying: false,
-        astrometryVerifyError: e.toString(),
+        astrometryVerifyError: userFacingError(e),
       );
     }
   }

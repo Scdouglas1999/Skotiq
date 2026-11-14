@@ -6,7 +6,7 @@
 //   - tonightSuggestionsProvider: return a deterministic in-memory list.
 //
 // The screen is mounted inside a GoRouter so `context.go(...)` reaches a real
-// router, and the /framing route is a stub that records the navigated URL.
+// router, and the /planner route records a navigation to its Framing tab.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,8 +14,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../harness/provider_teardown.dart';
@@ -227,18 +229,12 @@ Future<void> _pumpPlanner(
     routes: [
       GoRoute(
         path: '/planner',
-        builder: (context, state) => const PlannerScreen(),
-      ),
-      GoRoute(
-        // The planner uses `context.goNamed('framing')` (added with the
-        // stash@{1} UI), so the test router must register the route under
-        // that name — otherwise go_router throws
-        // "unknown route name: framing".
-        name: 'framing',
-        path: '/framing',
         builder: (context, state) {
-          onFramingNavigated(state.uri.toString());
-          return const Scaffold(body: Text('FRAMING STUB'));
+          final tab = PlannerTab.fromQuery(state.uri.queryParameters['tab']);
+          if (tab == PlannerTab.framing) {
+            onFramingNavigated(state.uri.toString());
+          }
+          return PlannerScreen(initialTab: tab);
         },
       ),
       GoRoute(
@@ -378,11 +374,10 @@ void main() {
 
   testWidgets('Send to Framing navigates and seeds the framing target',
       (tester) async {
-    // Post-stash@{1}, the planner no longer encodes the target in URL
-    // query params. It does `ref.read(framingProvider.notifier)
-    // .setTargetSuggestion(target)` and then `context.goNamed('framing')`.
-    // The test therefore asserts BOTH: navigation reaches /framing AND
-    // the framing provider was seeded with the right target.
+    // The planner seeds the framing provider with the suggestion and then
+    // opens its own Framing tab. The test asserts BOTH: navigation reaches
+    // the Framing tab AND the framing provider was seeded with the right
+    // target.
     String? capturedUrl;
     await _pumpPlanner(
       tester,
@@ -399,11 +394,15 @@ void main() {
     await tester.ensureVisible(sendButton);
     await tester.pump();
     await tester.tap(sendButton);
-    await tester.pumpAndSettle();
+    // The Framing tab's sky keeps animating once it is on show, so the frame
+    // never settles.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(capturedUrl, isNotNull);
     final uri = Uri.parse(capturedUrl!);
-    expect(uri.path, '/framing');
+    expect(uri.path, '/planner');
+    expect(uri.queryParameters['tab'], 'framing');
 
     final container = ProviderScope.containerOf(
       tester.element(find.byType(MaterialApp)),

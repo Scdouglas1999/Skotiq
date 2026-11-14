@@ -1,12 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
-import 'dart:math' as math;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_bridge/skotiq_bridge.dart' show PlateSolveResult;
-
+import '../backend/roles/host_data/calibration_library.dart';
 import '../database/daos/integrated_masters_dao.dart';
 import '../database/database.dart';
 import '../models/imaging/integrated_master.dart';
@@ -15,11 +11,11 @@ import '../models/imaging/integration_settings.dart';
 import '../models/calibration/calibration_library_models.dart';
 import 'calibration_library_service.dart';
 import 'darkroom_pass/pass_log.dart';
-import 'darkroom_pass/pass_providers.dart' show passReporterProvider;
 import 'color_calibration_service.dart';
-import 'plate_solve_service.dart';
 import 'post_session_seam.dart';
-import 'wcs_overlay.dart';
+import 'wcs/gnomonic_projection.dart';
+import '../models/imaging/frame_gain.dart';
+import 'logging_service.dart';
 part 'post_session_integration_service/integration_models.dart';
 part 'post_session_integration_service/path_helpers.dart';
 part 'post_session_integration_service/integration_stages.dart';
@@ -50,7 +46,7 @@ part 'post_session_integration_service/integration_helpers.dart';
 class PostSessionIntegrationService {
   PostSessionIntegrationService({
     required IntegratedMastersDao mastersDao,
-    required CalibrationLibraryService calibrationLibrary,
+    required CalibrationLibrary calibrationLibrary,
     required PostSessionSeam seam,
     MasterPlateSolver? plateSolver,
     MasterColorCalibrator? colorCalibrator,
@@ -72,7 +68,7 @@ class PostSessionIntegrationService {
   /// The single matcher for un-pinned masters: its transparent scoring drives
   /// the auto-pick and its warnings are propagated into the outcome, so what
   /// the operator reads about a calibration decision is what actually happened.
-  final CalibrationLibraryService _calibrationLibrary;
+  final CalibrationLibrary _calibrationLibrary;
 
   /// Optional fail-soft plate-solver for the finished master FITS, injected at
   /// the provider boundary (where the `PlateSolveService` Riverpod `_ref`
@@ -104,7 +100,7 @@ class PostSessionIntegrationService {
   /// Returns one [PostSessionIntegrationOutcome] per non-empty filter group.
   /// Throws [ArgumentError] when [subs] is empty.
   Future<List<PostSessionIntegrationOutcome>> integrate({
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     required IntegrationSettings settings,
     required String Function(String filterBucket) outputFitsPathBuilder,
     int? targetId,
@@ -190,7 +186,7 @@ class PostSessionIntegrationService {
   /// One filter group of [integrate]: integrate, persist, then the
   /// best-effort extras, reporting the lane to the pass view.
   Future<PostSessionIntegrationOutcome> _integrateLane({
-    required MapEntry<String, List<CapturedImage>> entry,
+    required MapEntry<String, List<DbCapturedImage>> entry,
     required IntegrationSettings settings,
     required String Function(String filterBucket) outputFitsPathBuilder,
     required int? targetId,
@@ -336,7 +332,7 @@ class PostSessionIntegrationService {
   ///
   /// Returns null when [subs] is empty.
   Future<IntegrateSessionResult?> previewIntegrate({
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     required IntegrationSettings settings,
     bool generatePreview = true,
   }) async {
@@ -391,93 +387,3 @@ class PostSessionIntegrationService {
     return _seam.integrateSession(args);
   }
 }
-
-/// Provider for the [PostSessionIntegrationService].
-///
-/// The [MasterPlateSolver] closure is wired here (the provider boundary, where
-/// the `PlateSolveService` Riverpod handle lives): it plate-solves the finished
-/// master FITS via `solveWithFallback` and converts the `PlateSolveResult` to
-/// the eight CD-matrix WCS scalars using the same sign convention as the native
-/// source of truth (`WcsInfo::from_plate_solve`, `imaging/src/fits.rs:1094`):
-/// `cd1_1 = -scale·cosθ`, `cd1_2 = cd2_1 = scale·sinθ`, `cd2_2 = scale·cosθ`,
-/// with `scale` in deg/px and `θ` the field rotation. The reference pixel is the
-/// image centre. Fail-soft: a non-success solve (no solver installed, solve
-/// failure) yields null, so WCS persistence is skipped without aborting the
-/// master persist.
-final postSessionIntegrationServiceProvider = Provider<PostSessionIntegrationService>((
-  ref,
-) {
-  return PostSessionIntegrationService(
-    passReporter: ref.watch(passReporterProvider),
-    mastersDao: ref.watch(integratedMastersDaoProvider),
-    seam: ref.watch(postSessionSeamProvider),
-    // Calibration Library Manager: routes un-pinned master selection through
-    // the transparent scored matcher so its warnings reach the outcome /
-    // morning report.
-    calibrationLibrary: ref.watch(calibrationLibraryServiceProvider),
-    // Catalog colour calibration of the finished master, wired at the provider
-    // boundary (where the `ColorCalibrationService` + its on-disk HYG catalog
-    // live). The closure delegates to `ColorCalibrationService.calibrate`, which
-    // detects + photometers stars, cross-matches catalogue B–V via the supplied
-    // WCS, solves the per-channel white balance, and writes the rebalanced
-    // master. Returns null on the fail-soft *skipped* result (too few matches /
-    // no catalog) so the gate persists nothing rather than a phantom path.
-    colorCalibrator:
-        ({
-          required String masterFits,
-          required String outputFits,
-          required WcsOverlay wcs,
-          required int channels,
-        }) async {
-          final service = ref.read(colorCalibrationServiceProvider);
-          final result = await service.calibrate(
-            masterFits: masterFits,
-            outputFits: outputFits,
-            wcs: wcs,
-            channels: channels,
-          );
-          if (ColorCalibrationService.wasSkipped(result)) return null;
-          return result.outputPath;
-        },
-    plateSolver:
-        ({
-          required String imagePath,
-          required int imageWidth,
-          required int imageHeight,
-          double? hintRaHours,
-          double? hintDecDegrees,
-        }) async {
-          final solveService = ref.read(plateSolveServiceProvider);
-          final PlateSolveResult solve;
-          try {
-            solve = await solveService.solveWithFallback(
-              imagePath: imagePath,
-              hintRaHours: hintRaHours,
-              hintDecDegrees: hintDecDegrees,
-            );
-          } on SolverNotAvailableError {
-            // No configured solver — stay un-annotated, never throw out of the
-            // optional WCS step.
-            return null;
-          }
-          if (!solve.success) return null;
-
-          // Convert (ra°, dec°, pixelScale arcsec/px, rotation°) to the CD matrix.
-          final scaleDeg = solve.pixelScale / 3600.0;
-          final rotRad = solve.rotation * math.pi / 180.0;
-          final cosRot = math.cos(rotRad);
-          final sinRot = math.sin(rotRad);
-          return MasterWcsSolution(
-            crval1: solve.ra,
-            crval2: solve.dec,
-            crpix1: imageWidth / 2.0,
-            crpix2: imageHeight / 2.0,
-            cd1_1:
-                -scaleDeg * cosRot, // Negative for RA increasing to the left.
-            cd1_2: scaleDeg * sinRot,
-            cd2_1: scaleDeg * sinRot,
-            cd2_2: scaleDeg * cosRot,
-          );
-        },
-  );
-});

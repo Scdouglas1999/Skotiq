@@ -2,7 +2,8 @@ import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'calibration_panel.dart';
@@ -66,9 +67,11 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
       _error = null;
     });
     try {
+      final scope = ref.backendScope();
       final result =
-          await ref.read(calibrationLibraryServiceProvider).match(lightContext);
+          await ref.read(calibrationLibraryProvider).match(lightContext);
       if (!mounted) return;
+      scope.ensureCurrent('the calibration library was matching');
       setState(() => _result = result);
     } catch (e) {
       if (!mounted) return;
@@ -102,7 +105,11 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
       return value;
     }
 
-    final gain = wholeNumber(_gain, 'Gain', minimum: 0);
+    final gain = wholeNumber(
+      _gain,
+      ref.read(cameraSensitivityProvider).label,
+      minimum: 0,
+    );
     final offset = wholeNumber(_offset, 'Offset', minimum: 0);
     final binX = wholeNumber(_binX, 'Bin X', minimum: 1, maximum: 16);
     final binY = wholeNumber(_binY, 'Bin Y', minimum: 1, maximum: 16);
@@ -166,7 +173,6 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
   Future<void> _accept(CalibrationMasterRecord remote) async {
     await widget.onAccept(remote);
     if (!mounted) return;
-    // Re-run the preview so the now-local master (or refusal) is reflected.
     await _run();
   }
 
@@ -179,11 +185,11 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
   /// Start from the settings of the newest light frame on this computer, so
   /// the check answers "what would my last night get" without typing.
   Future<void> _prefillFromLatestLight() async {
-    if (ref.read(backendProvider) is NetworkBackend) return;
+    if (ref.read(isRemoteModeProvider)) return;
     try {
       final db = ref.read(databaseProvider);
       final latest = await (db.select(db.capturedImages)
-            ..where((t) => t.frameType.equals('light'))
+            ..where((t) => t.frameTypeIs(FrameType.light))
             ..orderBy([(t) => OrderingTerm.desc(t.capturedAt)])
             ..limit(1))
           .getSingleOrNull();
@@ -221,7 +227,7 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
             runSpacing: SkotiqTokens.spaceSm,
             children: [
               _field(_exposure, 'Exposure s', 92),
-              _field(_gain, 'Gain', 72),
+              _field(_gain, ref.watch(cameraSensitivityProvider).label, 72),
               _field(_offset, 'Offset', 72),
               _field(_temp, 'Temp °C', 72),
               _field(_filter, 'Filter', 80),

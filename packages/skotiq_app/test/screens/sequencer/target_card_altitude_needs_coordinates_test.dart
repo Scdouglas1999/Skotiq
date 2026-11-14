@@ -10,9 +10,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/framing/altitude_chart.dart';
+import 'package:skotiq_app/widgets/altitude_chart.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/target_header_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';

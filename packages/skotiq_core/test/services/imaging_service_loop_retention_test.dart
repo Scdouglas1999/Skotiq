@@ -19,10 +19,14 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart';
-import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/science/science_processing_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/providers/capture_preview_loader_provider.dart';
+import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
+import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
 
 class _NoOpScienceProcessingService extends ScienceProcessingService {
   _NoOpScienceProcessingService(super.ref);
@@ -85,6 +89,8 @@ void main() {
   late StreamController<SkotiqEvent> events;
   late Directory outputDir;
   late List<String> writtenPaths;
+  // Whether each save asked for the camera's raw file to be kept.
+  late List<bool> keptCameraFiles;
 
   setUpAll(() {
     registerMocktailFallbackValues();
@@ -100,6 +106,7 @@ void main() {
   setUp(() {
     outputDir = Directory.systemTemp.createTempSync('sk_loop_retention');
     writtenPaths = <String>[];
+    keptCameraFiles = <bool>[];
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => events.stream);
@@ -141,12 +148,31 @@ void main() {
         deviceId: any(named: 'deviceId'),
         filePath: any(named: 'filePath'),
         headerData: any(named: 'headerData'),
+        keepCameraFile: any(named: 'keepCameraFile'),
       ),
     ).thenAnswer((invocation) async {
       final path = invocation.namedArguments[#filePath] as String;
       writtenPaths.add(path);
+      keptCameraFiles.add(invocation.namedArguments[#keepCameraFile] as bool);
       // The real Rust save leaves a file behind; the DB insert path stats it.
       File(path).writeAsBytesSync(const <int>[0]);
+      return invocation.namedArguments[#filePath] as String;
+    });
+    when(
+      () => backend.saveScratchFrameFromLastCapture(
+        deviceId: any(named: 'deviceId'),
+        name: any(named: 'name'),
+        headerData: any(named: 'headerData'),
+      ),
+    ).thenAnswer((invocation) async {
+      final path =
+          '${Directory.systemTemp.path}/skotiq_captures/${invocation.namedArguments[#name]}';
+      writtenPaths.add(path);
+      keptCameraFiles.add(false);
+      File(path)
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(const <int>[0]);
+      return path;
     });
   });
 
@@ -217,6 +243,7 @@ void main() {
       expect(writtenPaths.toSet(), hasLength(1));
       expect(p.basename(writtenPaths.first), startsWith('liveview_'));
       expect(outputDir.listSync(recursive: true), isEmpty);
+      expect(keptCameraFiles, everyElement(isFalse));
     },
   );
 
@@ -268,6 +295,8 @@ void main() {
       reason: 'an explicit opt-in must keep behaving like Snapshot',
     );
     expect(writtenPaths.toSet(), hasLength(2));
+    // Saved or not, loop frames are framing aids: no camera raw file.
+    expect(keptCameraFiles, [false, false]);
   });
 
   test('a single Snapshot still goes to the image folder', () async {
@@ -286,5 +315,25 @@ void main() {
 
     expect(writtenPaths, hasLength(1));
     expect(p.isWithin(outputDir.path, writtenPaths.single), isTrue);
+    // A Snapshot the operator keeps follows the camera-file setting.
+    expect(keptCameraFiles, [true]);
+  });
+
+  test('a plate-solve or focus frame never keeps the camera file', () async {
+    final container = buildContainer();
+    await settleSettings(container);
+
+    await container
+        .read(imagingServiceProvider)
+        .captureUtilityFrame(
+          settings: const ExposureSettings(
+            exposureTime: 1,
+            gain: 100,
+            offset: 10,
+          ),
+          purpose: FramePurpose.plateSolve,
+        );
+
+    expect(keptCameraFiles, [false]);
   });
 }

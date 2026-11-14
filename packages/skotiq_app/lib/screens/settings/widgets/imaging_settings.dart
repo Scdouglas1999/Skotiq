@@ -1,30 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'imaging_naming_pattern.dart';
 import 'settings_widgets.dart';
 
 class ImagingSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const ImagingSettings({super.key, this.isMobile = false});
+  const ImagingSettings({super.key});
 
   @override
   ConsumerState<ImagingSettings> createState() => _ImagingSettingsState();
 }
 
 class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
-  final _patternController = TextEditingController();
   String? _patternError;
-
-  @override
-  void dispose() {
-    _patternController.dispose();
-    super.dispose();
-  }
 
   /// Refuse to persist a pattern the capture pipeline would reject.
   ///
@@ -33,10 +25,12 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
   /// Without this the bad pattern was stored happily and only surfaced as a
   /// failed exposure — losing the frame that discovered it.
   Future<void> _commitPattern(String value) async {
-    final check = checkNamingPattern(value);
+    final check = NamingPattern.check(value);
     if (!check.isValid) {
       if (mounted) setState(() => _patternError = check.error);
-      throw ArgumentError.value(value, 'fileNamingPattern', check.error);
+      throw SettingWriteHandled(
+        ArgumentError.value(value, 'fileNamingPattern', check.error),
+      );
     }
     if (mounted) setState(() => _patternError = null);
     await ref.read(appSettingsProvider.notifier).setFileNamingPattern(value);
@@ -49,9 +43,9 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
   /// A pattern persisted before this validation existed (or written by a
   /// remote host) is reported the same way, rather than sitting silently in
   /// the field until the first exposure of the night fails.
-  Widget _patternFeedback(String savedPattern) {
+  Widget _patternFeedback(String savedPattern, String extension) {
     final colors = SkotiqColors.of(context);
-    final saved = checkNamingPattern(savedPattern);
+    final saved = NamingPattern.check(savedPattern, extension: extension);
     final error = _patternError ?? saved.error;
     if (error != null) {
       return Padding(
@@ -88,16 +82,70 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
     );
   }
 
+  /// The archive format and, for XISF, how it is compressed and checked.
+  List<Widget> _formatRows(AppSettingsState settings) {
+    final notifier = ref.read(appSettingsProvider.notifier);
+    final format = normalizeCaptureImageFormat(settings.imageFormat);
+    final isXisf = format == kCaptureImageFormatXisf;
+    return [
+      SettingRow(
+        icon: LucideIcons.file,
+        title: 'Archive format',
+        subtitle: isXisf
+            ? 'Lossless $kCaptureBitDepth XISF, the format PixInsight works in; '
+                'keywords and sky position land where PixInsight reads them'
+            : 'Lossless $kCaptureBitDepth FITS, which every astronomy program '
+                'opens',
+        trailing: SettingsDropdown(
+          key: const Key('imaging.archiveFormat'),
+          value: format,
+          items: kSupportedCaptureImageFormats,
+          onChanged: notifier.setImageFormat,
+          width: 140,
+          narrowWidth: 120,
+        ),
+      ),
+      if (isXisf) ...[
+        SettingRow(
+          icon: LucideIcons.archive,
+          title: 'XISF compression',
+          subtitle:
+              'Smaller files at no cost to the pixels. Byte shuffling helps '
+              '16-bit frames compress further',
+          trailing: SettingsDropdown(
+            key: const Key('imaging.xisfCompression'),
+            value: normalizeXisfCompression(settings.xisfCompression),
+            items: kXisfCompressionLabels.keys.toList(),
+            itemLabels: kXisfCompressionLabels.values.toList(),
+            onChanged: notifier.setXisfCompression,
+            width: 280,
+            narrowWidth: 200,
+          ),
+          stackWhenNarrow: true,
+        ),
+        SettingRow(
+          icon: LucideIcons.shieldCheck,
+          title: 'XISF checksums',
+          subtitle:
+              'Store a SHA-1 checksum with each frame so damage on disk is '
+              'caught when the frame is opened',
+          trailing: SettingsSwitch(
+            key: const Key('imaging.xisfChecksums'),
+            value: settings.xisfChecksums,
+            onChanged: notifier.setXisfChecksums,
+          ),
+        ),
+      ],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -107,42 +155,59 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
         return SettingsPage(
           title: 'Imaging',
           description: 'Default capture settings',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             SettingsSection(
               title: 'File format',
-              isMobile: widget.isMobile,
               children: [
+                ..._formatRows(settings),
                 SettingRow(
-                  icon: LucideIcons.file,
-                  title: 'Archive format',
-                  subtitle:
-                      'Captured images are saved as lossless 16-bit FITS files',
-                  trailing: Text(
-                    '$kCaptureImageFormat · $kCaptureBitDepth',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                  icon: LucideIcons.camera,
+                  title: 'Camera raw files',
+                  subtitle: 'For DSLR and mirrorless cameras. The raw file is '
+                      'kept exactly as the camera made it; the archive file '
+                      '(the format above) also records the telescope, mount '
+                      'and site. Loop frames you choose to save are always '
+                      'saved as the archive file only, even with "Camera raw '
+                      'only".',
+                  trailing: SettingsDropdown(
+                    value: settings.cameraFileSaving,
+                    items: [
+                      for (final saving in CameraFileSaving.values)
+                        saving.settingValue,
+                    ],
+                    itemLabels: [
+                      for (final saving in CameraFileSaving.values)
+                        saving.label,
+                    ],
+                    onChanged: (value) => ref
+                        .read(appSettingsProvider.notifier)
+                        .setCameraFileSaving(value),
+                    width: 210,
+                    narrowWidth: 180,
                   ),
-                  isMobile: widget.isMobile,
+                  stackWhenNarrow: true,
                 ),
                 SettingRow(
                   icon: LucideIcons.fileText,
                   title: 'File naming pattern',
-                  subtitle:
-                      r'Variables: $TARGET, $FILTER, $DATE, $SEQ, $EXPOSURE',
+                  subtitle: 'Folders and file name, separated by /. '
+                      'Variables: ${NamingToken.values.map((t) => t.text).join(', ')}',
                   trailing: SettingsTextInput(
-                    controller: _patternController,
                     authoritativeValue: settings.fileNamingPattern,
                     authorityKey: authority,
-                    width: widget.isMobile ? 160 : 220,
+                    width: 360,
+                    narrowWidth: 240,
                     onChanged: _commitPattern,
-                    isMobile: widget.isMobile,
                   ),
                   isLast: true,
-                  isMobile: widget.isMobile,
-                  stackOnMobile: widget.isMobile,
+                  stackWhenNarrow: true,
                 ),
-                _patternFeedback(settings.fileNamingPattern),
+                _patternFeedback(
+                  settings.fileNamingPattern,
+                  ImageFileFormatSettingsX.fromSettings(
+                    normalizeCaptureImageFormat(settings.imageFormat),
+                  ).extension,
+                ),
               ],
             ),
           ],

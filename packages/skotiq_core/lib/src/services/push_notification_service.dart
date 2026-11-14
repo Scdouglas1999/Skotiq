@@ -2,7 +2,9 @@ import 'dart:async';
 
 import '../models/backend/event_types.dart';
 
-/// Priority level for push notifications sent to mobile devices
+/// Priority of a phone push. A wire value: paired phones and the cloud push
+/// relay read it by name, so it is assigned per category in
+/// `NotificationPresentation` and never derived from a severity.
 enum PushNotificationPriority {
   /// Low priority - informational events
   low,
@@ -61,13 +63,22 @@ class PushNotification {
   };
 }
 
-/// Configuration for which events should generate push notifications.
+/// The per-event switches of [PushNotificationConfig].
+enum PushToggle {
+  sequenceCompleted,
+  sequenceFailed,
+  meridianFlip,
+  weatherUnsafe,
+  guidingLost,
+  exposureFailed,
+  autofocusFailed,
+  equipmentDisconnected,
+}
+
+/// Which events reach paired phones.
 ///
-/// This is the SINGLE config store for the mobile-push (systemPush) feed.
-/// The per-event toggles are consulted by [SystemPushTransport] (the one
-/// systemPush producer after the architecture-unification collapse) — see
-/// [allowsCategory]. `enabled` is the master gate that suppresses every
-/// phone push regardless of per-event toggles.
+/// `enabled` is the master gate that suppresses every phone push; the
+/// per-event switches are read by `SystemPushTransport` through [allows].
 class PushNotificationConfig {
   final bool enabled;
   final bool notifySequenceCompleted;
@@ -90,6 +101,17 @@ class PushNotificationConfig {
     this.notifyAutofocusFailed = true,
     this.notifyEquipmentDisconnected = false,
   });
+
+  bool allows(PushToggle toggle) => switch (toggle) {
+    PushToggle.sequenceCompleted => notifySequenceCompleted,
+    PushToggle.sequenceFailed => notifySequenceFailed,
+    PushToggle.meridianFlip => notifyMeridianFlip,
+    PushToggle.weatherUnsafe => notifyWeatherUnsafe,
+    PushToggle.guidingLost => notifyGuidingLost,
+    PushToggle.exposureFailed => notifyExposureFailed,
+    PushToggle.autofocusFailed => notifyAutofocusFailed,
+    PushToggle.equipmentDisconnected => notifyEquipmentDisconnected,
+  };
 
   PushNotificationConfig copyWith({
     bool? enabled,
@@ -145,8 +167,11 @@ class PushNotificationService {
   /// Stream of push notifications to broadcast to mobile clients
   Stream<PushNotification> get notifications => _notificationController.stream;
 
-  /// Current configuration
   PushNotificationConfig get config => _config;
+
+  /// Whether anything is subscribed to [notifications]. The remote access
+  /// server is the subscriber; with it off, a push goes nowhere.
+  bool get hasListener => _notificationController.hasListener;
 
   /// Update configuration. No subscription is started/stopped any more — the
   /// router is the sole producer — so this simply swaps the gating config the
@@ -157,33 +182,11 @@ class PushNotificationService {
 
   /// Broadcast a single push to paired phones.
   ///
-  /// Called only by [SystemPushTransport]. The master `enabled` gate is
-  /// enforced here so that disabling push entirely swallows every phone push
-  /// regardless of which path enqueued it.
+  /// Called only by `SystemPushTransport`. The master `enabled` gate is
+  /// enforced here so that disabling push swallows every phone push.
   void enqueue(PushNotification notification) {
     if (!_config.enabled) return;
     _notificationController.add(notification);
-  }
-
-  /// Convenience used by the Run Dashboard critical-events bridge's legacy
-  /// path and by callers that already have rendered copy. Builds a
-  /// critical-priority push and broadcasts it (subject to the master gate).
-  void enqueueCriticalNotification({
-    required String title,
-    required String body,
-    required String eventType,
-    required EventCategory category,
-  }) {
-    enqueue(
-      PushNotification(
-        title: title,
-        body: body,
-        priority: PushNotificationPriority.critical,
-        eventType: eventType,
-        category: category,
-        timestamp: DateTime.now(),
-      ),
-    );
   }
 
   /// Emit a test push notification. Broadcasting onto the stream is the only
@@ -210,7 +213,6 @@ class PushNotificationService {
     );
   }
 
-  /// Dispose of resources
   void dispose() {
     _notificationController.close();
   }

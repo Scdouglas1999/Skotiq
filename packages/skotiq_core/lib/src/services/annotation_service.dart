@@ -2,58 +2,34 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import '../backend/remote_host.dart';
+import '../backend/skotiq_backend.dart';
+import '../models/annotation_data.dart';
+import '../models/annotation_settings.dart';
+import '../models/imaging/imaging_models.dart';
+import '../providers/annotation_settings_provider.dart';
+import '../providers/backend_provider.dart';
+import '../providers/equipment/mount_state_provider.dart';
+import '../providers/imaging_provider.dart';
+import 'catalog_lookup/exoplanet_provider.dart';
+import 'catalog_lookup/gaia_provider.dart';
+import 'catalog_lookup/simbad_provider.dart';
+import 'imaging_service.dart';
+import 'logging_service.dart';
+import 'plate_solve_service.dart';
+import 'wcs/plate_solve_data_from_result.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import '../providers/logging_service_provider.dart';
+import '../providers/plate_solve_service_provider.dart';
 
 part 'annotation_pipeline.dart';
 part 'annotation_snr_tracker.dart';
 part 'click_identify_service.dart';
 
-/// Calculate angular distance between two points on a sphere (in degrees)
-/// Uses the Haversine formula for better numerical stability
-double _angularDistance(double ra1, double dec1, double ra2, double dec2) {
-  // Convert to radians
-  final ra1Rad = ra1 * math.pi / 180.0;
-  final dec1Rad = dec1 * math.pi / 180.0;
-  final ra2Rad = ra2 * math.pi / 180.0;
-  final dec2Rad = dec2 * math.pi / 180.0;
-
-  // Haversine formula
-  final dRa = ra2Rad - ra1Rad;
-  final dDec = dec2Rad - dec1Rad;
-
-  final a =
-      math.sin(dDec / 2) * math.sin(dDec / 2) +
-      math.cos(dec1Rad) *
-          math.cos(dec2Rad) *
-          math.sin(dRa / 2) *
-          math.sin(dRa / 2);
-
-  final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-
-  // Return distance in degrees
-  return c * 180.0 / math.pi;
-}
-
-final annotationServiceProvider = Provider<AnnotationService>((ref) {
-  final service = AnnotationService(ref, attachListeners: false);
-  ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
-    service.handleBackendChanged(previous, next);
-  });
-  ref.listen<CapturedImageData?>(currentImageProvider, (previous, next) {
-    service.handleCurrentImageChanged(previous, next);
-  });
-  ref.listen<ImageStats?>(lastImageStatsProvider, (previous, next) {
-    service.handleImageStatsChanged(previous, next);
-  });
-  return service;
-});
-
 final currentAnnotationProvider = StateProvider<ImageAnnotation?>(
   (ref) => null,
 );
 
-/// Status of the annotation processing pipeline
 enum AnnotationStatus {
   idle,
   checkingCatalogs,
@@ -65,7 +41,6 @@ enum AnnotationStatus {
   plateSolveFailed,
 }
 
-/// Current annotation processing state with status and message
 class AnnotationState {
   final AnnotationStatus status;
   final String? message;
@@ -129,14 +104,12 @@ class AnnotationState {
       status == AnnotationStatus.searchingCatalogs;
 }
 
-/// Provider for current annotation processing state
 final annotationStateProvider = StateProvider<AnnotationState>(
   (ref) => const AnnotationState.idle(),
 );
 
 /// State for the SNR-based re-annotate suggestion banner
 class ReAnnotateSuggestion {
-  /// Whether to show the re-annotate banner
   final bool shouldShow;
 
   /// Percentage improvement in SNR since last annotation
@@ -170,7 +143,6 @@ class _SnrAnnotationConstants {
   /// Minimum SNR improvement ratio before re-annotating (20% improvement)
   static const double snrImprovementThreshold = 1.2;
 
-  /// Minimum time between re-annotations (5 seconds)
   static const Duration reAnnotationDebounce = Duration(seconds: 5);
 
   /// Minimum SNR to even attempt annotation
@@ -188,7 +160,7 @@ class AnnotationService {
   final CatalogManager _catalogManager;
   AnnotationCatalog? _annotationCatalog;
   String? _annotationCatalogPath;
-  String? _dsoCatalogPath;
+  OpenNgcDsoCatalog? _ngcLoader;
 
   /// Test-only override for the annotation catalog. When set,
   /// [_loadAnnotationCatalog] returns this instead of constructing one from the
@@ -197,7 +169,6 @@ class AnnotationService {
   @visibleForTesting
   AnnotationCatalog? debugAnnotationCatalogOverride;
 
-  // External providers
   final _simbadProvider = SimbadProvider();
   final _exoplanetProvider = ExoplanetProvider();
   final _gaiaProvider = GaiaProvider();
@@ -206,7 +177,6 @@ class AnnotationService {
   String? _lastProcessedImagePath;
   int _annotationRunGeneration = 0;
 
-  // SNR-based progressive annotation state
   double? _lastAnnotationSnr;
   double? _peakAnnotationSnr;
   DateTime? _lastAnnotationTime;
@@ -255,14 +225,12 @@ class AnnotationService {
       _ref.read(annotationStateProvider.notifier).state =
           const AnnotationState.plateSolving();
 
-      // Delegate to pipeline extension (annotation_pipeline.dart)
       processNewImage(next);
     }
   }
 
   void handleImageStatsChanged(ImageStats? previous, ImageStats? next) {
     if (next?.snr != null && _lastPlateSolve != null) {
-      // Delegate to SNR tracker extension (annotation_snr_tracker.dart)
       checkSnrForReAnnotation(next!.snr!);
     }
   }
@@ -302,60 +270,57 @@ class AnnotationService {
       return override;
     }
 
-    final annotationStatus = await _catalogManager.getAnnotationCatalogStatus();
-    if (!annotationStatus.isInstalled ||
-        annotationStatus.installedPath == null) {
-      return null;
-    }
+    final annotationStatus = await _catalogManager.status(
+      SkyCatalog.annotation,
+    );
+    final annotationPath = annotationStatus.installedPath;
+    if (annotationPath == null) return null;
 
-    final dsoStatus = await _catalogManager.getDsoCatalogStatus();
-    final annotationPath = annotationStatus.installedPath!;
-    final dsoPath = dsoStatus.installedPath;
+    final dsoStatus = await _catalogManager.status(SkyCatalog.dso);
+    final ngcLoader = dsoStatus.isInstalled ? _catalogManager.dsos : null;
 
     if (_annotationCatalog != null &&
         _annotationCatalogPath == annotationPath &&
-        _dsoCatalogPath == dsoPath) {
+        identical(_ngcLoader, ngcLoader)) {
       return _annotationCatalog;
     }
 
     final gladeLoader = GladePlusCatalogLoader(annotationPath);
-    final ngcLoader = dsoPath != null ? OpenNgcCatalogLoader(dsoPath) : null;
 
     _annotationCatalog = AnnotationCatalog(
       ngcLoader: ngcLoader,
       gladeLoader: gladeLoader,
     );
     _annotationCatalogPath = annotationPath;
-    _dsoCatalogPath = dsoPath;
+    _ngcLoader = ngcLoader;
 
     return _annotationCatalog;
   }
 
-  ObjectType _mapAnnotationObjectType(AnnotationObjectType type) {
-    switch (type) {
-      case AnnotationObjectType.galaxy:
-        return ObjectType.galaxy;
-      case AnnotationObjectType.nebula:
-      case AnnotationObjectType.emissionNebula:
-      case AnnotationObjectType.reflectionNebula:
-      case AnnotationObjectType.darkNebula:
-      case AnnotationObjectType.hiiRegion:
-        return ObjectType.nebula;
-      case AnnotationObjectType.planetaryNebula:
-        return ObjectType.planetaryNebula;
-      case AnnotationObjectType.openCluster:
-      case AnnotationObjectType.globularCluster:
-      case AnnotationObjectType.starCluster:
-        return ObjectType.starCluster;
-      case AnnotationObjectType.doubleStar:
-        return ObjectType.doubleStar;
-      case AnnotationObjectType.asterism:
-        return ObjectType.asterism;
-      case AnnotationObjectType.supernovaRemnant:
-      case AnnotationObjectType.other:
-        return ObjectType.unknown;
-    }
-  }
+  /// The overlay group a catalog object type is drawn and filtered as.
+  ObjectType _objectTypeFor(DsoType type) => switch (type) {
+    DsoType.galaxy ||
+    DsoType.galaxyPair ||
+    DsoType.galaxyTriplet ||
+    DsoType.galaxyGroup => ObjectType.galaxy,
+    DsoType.nebula ||
+    DsoType.emissionNebula ||
+    DsoType.reflectionNebula ||
+    DsoType.darkNebula ||
+    DsoType.hiiRegion => ObjectType.nebula,
+    DsoType.planetaryNebula => ObjectType.planetaryNebula,
+    DsoType.openCluster ||
+    DsoType.globularCluster ||
+    DsoType.clusterWithNebulosity => ObjectType.starCluster,
+    DsoType.doubleStar => ObjectType.doubleStar,
+    DsoType.association => ObjectType.asterism,
+    DsoType.supernova ||
+    DsoType.star ||
+    DsoType.nova ||
+    DsoType.starCloud ||
+    DsoType.asterism ||
+    DsoType.other => ObjectType.unknown,
+  };
 
   ObjectData _mergeObjectData(ObjectData? base, ObjectData new_) {
     if (base == null) return new_;
@@ -376,7 +341,6 @@ class AnnotationService {
       morphology: base.morphology ?? new_.morphology,
       simbadId: base.simbadId ?? new_.simbadId,
       wikipediaUrl: base.wikipediaUrl ?? new_.wikipediaUrl,
-      // Merge maps
       catalogIds: {...?base.catalogIds, ...?new_.catalogIds},
       dataSource: '${base.dataSource}, ${new_.dataSource}',
     );
@@ -408,7 +372,6 @@ class AnnotationService {
     return ObjectType.unknown;
   }
 
-  /// Parse spectral type from string to SpectralClass enum
   SpectralClass? _parseSpectralType(String? spectralType) {
     if (spectralType == null || spectralType.isEmpty) return null;
 
@@ -495,17 +458,14 @@ class AnnotationService {
       return 'Solver did not produce a solution file \u2014 check ASTAP logs for details';
     }
 
-    // Failed to run the executable
     if (lower.contains('failed to run')) {
       return 'Could not launch plate solver \u2014 verify the solver path in Settings';
     }
 
-    // Backend/connection errors
     if (lower.contains('backend') && lower.contains('failed')) {
       return 'Backend plate solve failed \u2014 check connection and try again';
     }
 
-    // Fall back to the raw error, trimmed
     final trimmed = raw.length > 120 ? '${raw.substring(0, 120)}...' : raw;
     return trimmed;
   }
@@ -554,7 +514,6 @@ class AnnotationService {
       }
     }
 
-    // Fall back to the name itself (normalized)
     return name.replaceAll(RegExp(r'\s+'), '_');
   }
 
@@ -612,7 +571,6 @@ class AnnotationService {
       source: 'Annotation',
     );
 
-    // Reset progressive annotation state so we start fresh
     _lastProcessedImagePath = null;
     _lastAnnotationSnr = null;
     _peakAnnotationSnr = null;
@@ -621,120 +579,12 @@ class AnnotationService {
     _currentSnrMagnitudeLimit = _SnrAnnotationConstants.baseMagnitude;
     _revealedObjectIds.clear();
 
-    // Dismiss the re-annotate suggestion banner
     _ref.read(reAnnotateSuggestionProvider.notifier).state =
         const ReAnnotateSuggestion.none();
 
     // Clear current annotation while processing
     _ref.read(currentAnnotationProvider.notifier).state = null;
 
-    // Re-run the full pipeline (delegated to annotation_pipeline.dart)
     await processNewImage(image);
-  }
-
-  /// Export current annotation objects as CSV.
-  /// Returns the CSV string content.
-  String exportAnnotationsCsv() {
-    final annotation = _ref.read(currentAnnotationProvider);
-    if (annotation == null || annotation.objects.isEmpty) {
-      throw StateError('No annotation data to export');
-    }
-
-    final buffer = StringBuffer();
-    buffer.writeln(
-      'Name,Common Name,Type,RA (deg),Dec (deg),RA (HMS),Dec (DMS),Magnitude,Size (arcmin)',
-    );
-
-    for (final obj in annotation.objects) {
-      if (!obj.visible) continue;
-
-      final raHours = obj.ra / 15.0;
-      final raH = raHours.floor();
-      final raM = ((raHours - raH) * 60).floor();
-      final raS = (((raHours - raH) * 60 - raM) * 60);
-      final raHms =
-          '${raH.toString().padLeft(2, '0')}h${raM.toString().padLeft(2, '0')}m${raS.toStringAsFixed(1)}s';
-
-      final decSign = obj.dec >= 0 ? '+' : '-';
-      final absDec = obj.dec.abs();
-      final decD = absDec.floor();
-      final decM = ((absDec - decD) * 60).floor();
-      final decS = (((absDec - decD) * 60 - decM) * 60);
-      final decDms =
-          "$decSign${decD.toString().padLeft(2, '0')}d${decM.toString().padLeft(2, '0')}m${decS.toStringAsFixed(1)}s";
-
-      final name = _csvEscape(obj.name);
-      final commonName = _csvEscape(obj.commonName ?? '');
-      final typeName = _csvEscape(obj.type.name);
-      final mag = obj.magnitude?.toStringAsFixed(2) ?? '';
-      final size = obj.size?.toStringAsFixed(2) ?? '';
-
-      buffer.writeln(
-        '$name,$commonName,$typeName,${obj.ra.toStringAsFixed(6)},${obj.dec.toStringAsFixed(6)},$raHms,$decDms,$mag,$size',
-      );
-    }
-
-    return buffer.toString();
-  }
-
-  /// Export current annotation objects as DS9 region file format.
-  /// Returns the .reg file string content.
-  String exportAnnotationsDs9Region() {
-    final annotation = _ref.read(currentAnnotationProvider);
-    if (annotation == null || annotation.objects.isEmpty) {
-      throw StateError('No annotation data to export');
-    }
-
-    final buffer = StringBuffer();
-    buffer.writeln('# Region file format: DS9 version 4.1');
-    buffer.writeln(
-      'global color=green dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1',
-    );
-    buffer.writeln('fk5');
-
-    for (final obj in annotation.objects) {
-      if (!obj.visible) continue;
-
-      // Default radius: use object size if available, otherwise 30 arcseconds
-      final radiusArcsec = (obj.size != null && obj.size! > 0)
-          ? obj.size! *
-                60.0 /
-                2.0 // size is in arcminutes, need radius in arcsec
-          : 30.0;
-
-      final color = _ds9ColorForType(obj.type);
-      final label = obj.commonName ?? obj.name;
-
-      buffer.writeln(
-        'circle(${obj.ra.toStringAsFixed(6)},${obj.dec.toStringAsFixed(6)},${radiusArcsec.toStringAsFixed(1)}") # color=$color text={$label}',
-      );
-    }
-
-    return buffer.toString();
-  }
-
-  String _ds9ColorForType(ObjectType type) {
-    switch (type) {
-      case ObjectType.galaxy:
-        return 'yellow';
-      case ObjectType.nebula:
-        return 'magenta';
-      case ObjectType.planetaryNebula:
-        return 'cyan';
-      case ObjectType.starCluster:
-        return 'green';
-      case ObjectType.star:
-      case ObjectType.doubleStar:
-        return 'white';
-      default:
-        return 'red';
-    }
-  }
-
-  String _csvEscape(String value) {
-    if (value.contains(',') || value.contains('"') || value.contains('\n')) {
-      return '"${value.replaceAll('"', '""')}"';
-    }
-    return value;
   }
 }

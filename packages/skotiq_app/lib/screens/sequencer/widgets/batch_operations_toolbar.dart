@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Toolbar shown when multi-select mode is active.
 /// Provides batch operations: Copy, Paste, Delete, Enable, Disable.
@@ -33,7 +35,6 @@ class BatchOperationsToolbar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          // Selection count
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: SkotiqDecorations.statusChip(
@@ -56,7 +57,6 @@ class BatchOperationsToolbar extends ConsumerWidget {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  // Copy
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.copy,
@@ -65,20 +65,13 @@ class BatchOperationsToolbar extends ConsumerWidget {
                       ref
                           .read(multiSelectedNodeIdsProvider.notifier)
                           .copySelected();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              '$count node${count == 1 ? '' : 's'} copied'),
-                          duration: const Duration(seconds: 2),
-                          backgroundColor: colors.info,
-                        ),
+                      context.showInfoSnackBar(
+                        '$count node${count == 1 ? '' : 's'} copied',
+                        duration: const Duration(seconds: 2),
                       );
                     },
                   ),
-
                   const SizedBox(width: 4),
-
-                  // Paste
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.clipboardPaste,
@@ -100,12 +93,9 @@ class BatchOperationsToolbar extends ConsumerWidget {
                           }
                         : null,
                   ),
-
                   const SizedBox(width: 8),
                   Container(width: 1, height: 20, color: colors.border),
                   const SizedBox(width: 8),
-
-                  // Enable
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.eye,
@@ -124,10 +114,7 @@ class BatchOperationsToolbar extends ConsumerWidget {
                           }
                         : null,
                   ),
-
                   const SizedBox(width: 4),
-
-                  // Disable
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.eyeOff,
@@ -146,12 +133,9 @@ class BatchOperationsToolbar extends ConsumerWidget {
                           }
                         : null,
                   ),
-
                   const SizedBox(width: 8),
                   Container(width: 1, height: 20, color: colors.border),
                   const SizedBox(width: 8),
-
-                  // Delete
                   _ToolbarButton(
                     colors: colors,
                     icon: LucideIcons.trash2,
@@ -171,7 +155,6 @@ class BatchOperationsToolbar extends ConsumerWidget {
 
           const SizedBox(width: 8),
 
-          // Clear selection
           _ToolbarButton(
             colors: colors,
             icon: LucideIcons.x,
@@ -193,13 +176,7 @@ class BatchOperationsToolbar extends ConsumerWidget {
     String message,
   ) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-        backgroundColor: colors.info,
-      ),
-    );
+    context.showInfoSnackBar(message, duration: const Duration(seconds: 2));
   }
 
   void _confirmDelete(
@@ -262,12 +239,9 @@ class BatchOperationsToolbar extends ConsumerWidget {
                     .deleteSelected();
               } catch (error) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to delete nodes: $error'),
-                      backgroundColor: colors.error,
-                      duration: const Duration(seconds: 4),
-                    ),
+                  context.showErrorSnackBar(
+                    'Failed to delete nodes: ${userFacingError(error)}',
+                    duration: const Duration(seconds: 4),
                   );
                 }
               }

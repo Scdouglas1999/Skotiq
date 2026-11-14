@@ -20,8 +20,11 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/polar_alignment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/providers/settings_provider.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 class _SwappableBackendNotifier extends BackendNotifier {
   _SwappableBackendNotifier(super.ref, SkotiqBackend initial) : super() {
@@ -32,6 +35,15 @@ class _SwappableBackendNotifier extends BackendNotifier {
 }
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
+
+class _SiteSettings extends AppSettingsNotifier {
+  _SiteSettings(this.latitude);
+  final double latitude;
+
+  @override
+  Future<AppSettingsState> build() async =>
+      AppSettingsState(latitude: latitude, longitude: 150);
+}
 
 Future<void> _pump([int times = 6]) async {
   for (var i = 0; i < times; i++) {
@@ -119,9 +131,14 @@ void main() {
     } catch (_) {}
   });
 
-  ProviderContainer buildContainer({SkotiqBackend? initial}) {
+  ProviderContainer buildContainer({
+    SkotiqBackend? initial,
+    double? siteLatitude,
+  }) {
     final container = ProviderContainer(
       overrides: [
+        if (siteLatitude != null)
+          appSettingsProvider.overrideWith(() => _SiteSettings(siteLatitude)),
         backendProvider.overrideWith(
           (ref) => _SwappableBackendNotifier(ref, initial ?? backend),
         ),
@@ -811,4 +828,26 @@ void main() {
       expect(container.read(polarAlignmentConfigSaveErrorProvider), isNotNull);
     });
   });
+
+  test(
+    'the run aligns on the pole of the site, not a stale saved toggle',
+    () async {
+      bool? sentNorth;
+      _whenStartTppa(backend, (invocation) async {
+        sentNorth = invocation.namedArguments[#isNorth] as bool;
+      });
+      final container = buildContainer(siteLatitude: -33.9);
+      await container.read(appSettingsProvider.future);
+
+      await container
+          .read(polarAlignmentStateProvider.notifier)
+          .startAlignment(const PolarAlignmentConfig(isNorth: true));
+
+      expect(sentNorth, isFalse);
+      expect(
+        container.read(polarAlignmentStateProvider).config?.isNorth,
+        false,
+      );
+    },
+  );
 }

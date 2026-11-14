@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _ControllableSettingsDao extends SettingsDao {
   _ControllableSettingsDao(super.db);
@@ -12,9 +14,9 @@ class _ControllableSettingsDao extends SettingsDao {
   bool failWrites = false;
 
   @override
-  Future<void> setAutoStretchSettings(String jsonSettings) async {
+  Future<void> setSetting(String key, String value) async {
     if (failWrites) throw StateError('write failed');
-    await super.setAutoStretchSettings(jsonSettings);
+    await super.setSetting(key, value);
   }
 }
 
@@ -24,7 +26,9 @@ class _DelayedReadSettingsDao extends SettingsDao {
   final readResult = Completer<String?>();
 
   @override
-  Future<String?> getAutoStretchSettings() => readResult.future;
+  Future<String?> getSetting(String key) => key == 'auto_stretch_settings'
+      ? readResult.future
+      : super.getSetting(key);
 }
 
 void main() {
@@ -106,7 +110,9 @@ void main() {
       await Future.wait([notifier.update(first), notifier.update(last)]);
 
       expect(container.read(autoStretchSettingsProvider), last);
-      final stored = await database.settingsDao.getAutoStretchSettings();
+      final stored = await database.settingsDao.getSetting(
+        'auto_stretch_settings',
+      );
       expect(AutoStretchSettings.fromJson(jsonDecode(stored!)), last);
     },
   );

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/element_refresh_card.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -18,6 +19,7 @@ class _FakeService extends ElementRefreshService {
     this.configError,
     ElementRefreshConfig? config,
     this.saveThrows = false,
+    this.refreshFailure,
   })  : config = config ?? const ElementRefreshConfig(),
         super(cacheDirectory: Directory.systemTemp.path);
 
@@ -25,6 +27,7 @@ class _FakeService extends ElementRefreshService {
   Object? configError;
   ElementRefreshConfig config;
   bool saveThrows;
+  ElementRefreshFailure? refreshFailure;
   int loadConfigCalls = 0;
   int saveCalls = 0;
   final Completer<ElementRefreshConfig> _never = Completer();
@@ -44,8 +47,10 @@ class _FakeService extends ElementRefreshService {
   bool isStale(RefreshedElements cached, ElementRefreshConfig cfg) => false;
 
   @override
-  Future<RefreshedElements> refresh({ElementRefreshConfig? config}) async =>
-      const RefreshedElements();
+  Future<RefreshedElements> refresh({ElementRefreshConfig? config}) async {
+    if (refreshFailure case final failure?) throw failure;
+    return const RefreshedElements();
+  }
 
   @override
   Future<void> saveConfig(ElementRefreshConfig cfg) async {
@@ -98,6 +103,35 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.textContaining('Elements refreshed'), findsOneWidget);
+  });
+
+  testWidgets('a failed refresh reads as plain words for each source',
+      (tester) async {
+    await pumpCard(
+      tester,
+      _FakeService(
+        refreshFailure: ElementRefreshFailure(
+          asteroids: SocketException(
+            'Connection failed',
+            osError: const OSError('Network is unreachable', 101),
+            address: InternetAddress('192.0.2.7'),
+            port: 443,
+          ),
+          comets: const HttpException('HTTP 503'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Refresh now'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    const reason =
+        'Asteroids: Could not reach 192.0.2.7:443 (Network is unreachable) '
+        '• Comets: HTTP 503';
+    expect(find.text('Last refresh failed: $reason'), findsOneWidget);
+    expect(find.text('Element refresh failed: $reason'), findsOneWidget);
+    expect(find.textContaining('Exception'), findsNothing);
   });
 
   testWidgets('config loading shows a spinner and no schedule control',

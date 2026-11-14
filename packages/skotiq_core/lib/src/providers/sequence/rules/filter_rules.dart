@@ -1,32 +1,31 @@
+import '../../../models/equipment/filter_names.dart';
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../equipment_provider.dart';
 import '../../profiles_provider.dart';
+import '../filter_name_matching.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
-/// Every filter name a node in [sequence] asks for, paired with its node.
-///
-/// Both node types that name a filter are covered: an [ExposureNode]'s
-/// `filter` and a [FilterChangeNode]'s `filterName`. Disabled nodes and empty
-/// names are skipped.
-Iterable<({SequenceNode node, String label, String filter})> _filterUses(
+/// Every filter name an enabled step of [sequence] asks for, paired with its
+/// step.
+Iterable<({SequenceNode node, String filter})> _filterUses(
   Sequence sequence,
 ) sync* {
-  for (final node in sequence.nodes.values) {
-    if (!node.isEnabled) continue;
-    if (node is ExposureNode) {
-      final filter = node.filter;
-      if (filter == null || filter.isEmpty) continue;
-      yield (node: node, label: 'Exposure "${node.name}"', filter: filter);
-    } else if (node is FilterChangeNode) {
-      if (node.filterName.isEmpty) continue;
-      yield (
-        node: node,
-        label: 'Filter change "${node.name}"',
-        filter: node.filterName,
-      );
+  for (final node in sequence.enabledNodes) {
+    for (final filter in node.kind.filtersOf(node)) {
+      yield (node: node, filter: filter);
     }
   }
+}
+
+/// The hint for a filter [available] does not list by that name: the one it
+/// does list for the same filter, when there is one.
+String _filterHint(String filter, List<String> available, String otherwise) {
+  final match = matchingFilterName(filter, available);
+  if (match == null) return otherwise;
+  return '"$match" is the same filter. Use "Match filter names" to rename '
+      'every "$filter" in the plan to "$match".';
 }
 
 /// Warns when a node references a filter by name that the connected filter
@@ -73,11 +72,15 @@ class FilterInWheelRule implements RefAwareSequenceValidator {
           category: ValidationCategory.equipment,
           title: 'Filter Not in Wheel',
           description:
-              '${use.label} uses filter "${use.filter}" which is not '
+              '"${use.node.name}" uses filter "${use.filter}", which is not '
               'in the connected filter wheel. Available: $availableLabel.',
           affectedNodeId: use.node.id,
-          resolutionHint:
-              'Change the filter name or check the filter wheel configuration.',
+          code: kFilterNameMismatchCode,
+          resolutionHint: _filterHint(
+            use.filter,
+            fwState.filterNames,
+            'Change the filter name or check the filter wheel configuration.',
+          ),
         ),
       );
     }
@@ -126,13 +129,17 @@ class FilterInProfileRule implements RefAwareSequenceValidator {
             category: ValidationCategory.equipment,
             title: 'Filter Not in Profile',
             description:
-                '${use.label} uses filter "${use.filter}", which the active '
-                'equipment profile does not list. Profile filters: '
+                '"${use.node.name}" uses filter "${use.filter}", which the '
+                'active equipment profile does not list. Profile filters: '
                 '$declaredLabel.',
             affectedNodeId: use.node.id,
-            resolutionHint:
-                'Fix the filter name, or add it to the equipment profile if '
-                'the wheel really carries it.',
+            code: kFilterNameMismatchCode,
+            resolutionHint: _filterHint(
+              use.filter,
+              profileFilters,
+              'Fix the filter name, or add it to the equipment profile if '
+              'the wheel really carries it.',
+            ),
           ),
     ];
   }

@@ -1,6 +1,6 @@
 //! CenterTarget instruction node.
 
-use crate::instructions::{center_did_not_converge, execute_center, ImagingTrainClaimGuard};
+use crate::instructions::{execute_center, CenterProgress, ImagingTrainClaimGuard};
 use crate::node::context::ExecutionContext;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
@@ -16,10 +16,6 @@ pub struct CenterInstruction;
 
 #[async_trait]
 impl InstructionNode for CenterInstruction {
-    fn type_name(&self) -> &'static str {
-        "Center"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -34,19 +30,38 @@ impl InstructionNode for CenterInstruction {
         let ctx = context.to_instruction_context(node_id).await;
         let progress_cb = context.progress_callback.as_ref();
         let max_attempts = config.max_attempts;
+        // The attempt's solve stays the distance to report while its
+        // correction slew runs; the next attempt's frame has none yet.
+        let separation = parking_lot::Mutex::new(None);
 
-        let progress_fn = |progress: f64, detail_str: String| {
+        let progress_fn = |percent: f64, progress: &CenterProgress| {
+            match progress {
+                CenterProgress::Capturing { .. } => *separation.lock() = None,
+                _ => {
+                    if let Some(measured) = progress.separation_arcsec() {
+                        *separation.lock() = Some(measured);
+                    }
+                }
+            }
             if let Some(cb) = progress_cb {
-                let attempt = extract_attempt(&detail_str).unwrap_or(0);
-                let separation = extract_separation(&detail_str);
                 cb(ProgressUpdate::instruction_progress(
                     node_id.to_string(),
                     "Center",
-                    progress,
+                    percent,
                     ProgressDetail::Center {
-                        attempt,
+                        // Zero tells the app the step is starting or
+                        // finishing rather than taking an attempt's frame.
+                        attempt: progress.attempt().unwrap_or(0),
                         max_attempts,
-                        last_separation_arcsec: separation,
+                        last_separation_arcsec: *separation.lock(),
+                        solved_ra_hours: match progress {
+                            CenterProgress::Solved { ra_hours, .. } => Some(*ra_hours),
+                            _ => None,
+                        },
+                        solved_dec_degrees: match progress {
+                            CenterProgress::Solved { dec_degrees, .. } => Some(*dec_degrees),
+                            _ => None,
+                        },
                     },
                 ));
             }
@@ -64,66 +79,11 @@ impl InstructionNode for CenterInstruction {
         let claim = match ImagingTrainClaimGuard::acquire(&ctx, "centering", expected_secs).await {
             Ok(claim) => claim,
             Err(cancelled) => {
-                return cancelled.log_and_get_status_with_context("Center Target", &ctx);
+                return cancelled.settle("Center Target", &ctx).await;
             }
         };
         let result = execute_center(config, &ctx, Some(&progress_fn)).await;
         claim.release(&ctx).await;
-        // A centering loop that never solved or never converged is the
-        // solver's judgment of the sky (cloud, a sparse field), and the mount
-        // is already pointed at the target by the loop's slews. By default the
-        // operator is told and the run goes on from there (owner decision
-        // 2026-10-06: only a risk to the hardware stops a run by itself).
-        // Skipped, which the target's container steps past; Failure would end
-        // the target and, through it, the night.
-        if center_did_not_converge(&result) && !ctx.stops_on_quality_problems().await {
-            let target = ctx.target_name.as_deref().unwrap_or("the target");
-            let problem = format!(
-                "{} on {target}. The mount stays where the last correction put it.",
-                result
-                    .message
-                    .as_deref()
-                    .unwrap_or("Centering did not converge")
-            );
-            ctx.notify_quality_problem_continuing("Center", &problem);
-            return NodeStatus::Skipped;
-        }
-        result.log_and_get_status_with_context("Center Target", &ctx)
-    }
-}
-
-/// Best-effort parse of "attempt N/M" from the instruction's legacy detail.
-fn extract_attempt(detail: &str) -> Option<u32> {
-    let lower = detail.to_lowercase();
-    let idx = lower.find("attempt ")?;
-    let rest = &detail[idx + "attempt ".len()..];
-    let slash = rest.find('/')?;
-    rest[..slash].trim().parse::<u32>().ok()
-}
-
-/// Best-effort parse of an arcsecond separation if surfaced.
-fn extract_separation(detail: &str) -> Option<f64> {
-    let lower = detail.to_lowercase();
-    let idx = lower.find("sep")?;
-    let rest = &detail[idx..];
-    let mut chars = rest.chars().peekable();
-    while let Some(&c) = chars.peek() {
-        if c.is_ascii_digit() || c == '-' || c == '.' {
-            break;
-        }
-        chars.next();
-    }
-    let mut token = String::new();
-    for c in chars {
-        if c.is_ascii_digit() || c == '.' || c == '-' {
-            token.push(c);
-        } else {
-            break;
-        }
-    }
-    if token.is_empty() {
-        None
-    } else {
-        token.parse::<f64>().ok()
+        result.settle("Center Target", &ctx).await
     }
 }

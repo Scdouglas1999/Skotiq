@@ -1,3 +1,4 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
@@ -6,6 +7,7 @@ import '../../database/database.dart' as db;
 import '../../models/scheduler/integration_goal.dart';
 import '../../models/scheduler/target_progress.dart';
 import 'integration_goal_service.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 typedef _Clock = DateTime Function();
 
@@ -14,9 +16,8 @@ typedef _Clock = DateTime Function();
 /// Joins three sources:
 ///   * `integration_goals` (filter + per-frame exposure + desired frame
 ///     count) via [IntegrationGoalService].
-///   * `captured_images` (accepted light frames) via raw SQL — counts and
-///     `MAX(captured_at)` per target+filter, with no DAO layer in between
-///     so the bulk path stays linear-time.
+///   * `captured_images` (accepted light frames): counts per filter, which
+///     a goal counts by [goalFrameCount], and `MAX(captured_at)`.
 ///   * Wall-clock `now` (injectable for tests) to compute the rolling
 ///     "frames per night" pace.
 ///
@@ -46,7 +47,7 @@ class TargetProgressService {
   Future<TargetProgress> forTarget({
     required int targetId,
     required String targetName,
-    List<db.CapturedImage>? capturedImages,
+    List<db.DbCapturedImage>? capturedImages,
   }) async {
     final goals = await _goalService.listForTarget(targetId);
     final aggregates = capturedImages != null
@@ -68,7 +69,7 @@ class TargetProgressService {
   /// the per-target queries run sequentially against the same connection.
   Future<Map<int, TargetProgress>> forTargets(
     List<({int id, String name})> targets, {
-    List<db.CapturedImage>? capturedImages,
+    List<db.DbCapturedImage>? capturedImages,
   }) async {
     final out = <int, TargetProgress>{};
     for (final t in targets) {
@@ -95,8 +96,7 @@ class TargetProgressService {
     var totalCapturedSeconds = 0.0;
 
     for (final g in goals) {
-      final captured =
-          aggregates.framesByFilterLower[g.filter.toLowerCase()] ?? 0;
+      final captured = goalFrameCount(g.filter, aggregates.framesByFilter);
       perFilter.add(
         FilterProgress(
           filter: g.filter,
@@ -153,27 +153,25 @@ class TargetProgressService {
 
   /// Build capture aggregates from an in-memory image list (host catalog).
   _CaptureAggregates _captureAggregatesFromImageList(
-    List<db.CapturedImage> images,
+    List<db.DbCapturedImage> images,
   ) {
     final now = _now();
-    final windowStart = _nightStart(
+    final windowStart = observingNightWindow(
       now,
-    ).subtract(const Duration(days: TargetProgress.etaWindowNights));
+    ).start.subtract(const Duration(days: TargetProgress.etaWindowNights));
 
-    final framesByFilterLower = <String, int>{};
+    final framesByFilter = <String, int>{};
     var totalCapturedAny = 0;
     DateTime? lastImagedAt;
     final distinctNights = <DateTime>{};
     var windowFrameCount = 0;
 
     for (final frame in images) {
-      if (frame.frameType.toLowerCase() != 'light') continue;
+      if (!frame.isLight) continue;
       if (!frame.isAccepted) continue;
 
-      final filter = frame.filter;
-      if (filter == null || filter.isEmpty) continue;
-      final key = filter.toLowerCase();
-      framesByFilterLower[key] = (framesByFilterLower[key] ?? 0) + 1;
+      final filter = frame.filter ?? '';
+      framesByFilter[filter] = (framesByFilter[filter] ?? 0) + 1;
       totalCapturedAny += 1;
 
       final capturedAt = frame.capturedAt;
@@ -183,12 +181,12 @@ class TargetProgressService {
 
       if (!capturedAt.isBefore(windowStart)) {
         windowFrameCount += 1;
-        distinctNights.add(_nightStart(capturedAt));
+        distinctNights.add(observingNightOf(capturedAt));
       }
     }
 
     return _CaptureAggregates(
-      framesByFilterLower: framesByFilterLower,
+      framesByFilter: framesByFilter,
       totalCapturedAny: totalCapturedAny,
       lastImagedAt: lastImagedAt,
       windowFrameCount: windowFrameCount,
@@ -200,40 +198,25 @@ class TargetProgressService {
   /// rolling-window stats needed for the ETA.
   Future<_CaptureAggregates> _captureAggregatesForTarget(int targetId) async {
     final now = _now();
-    final windowStart = _nightStart(
+    final windowStart = observingNightWindow(
       now,
-    ).subtract(const Duration(days: TargetProgress.etaWindowNights));
+    ).start.subtract(const Duration(days: TargetProgress.etaWindowNights));
     // Drift stores DateTimeColumn as Unix seconds (see e.g.
     // IntegrationGoalService which divides millis by 1000), so the
     // captured_at comparison and re-hydration both use seconds.
     final windowStartSec = windowStart.toUtc().millisecondsSinceEpoch ~/ 1000;
 
-    // Per-filter accepted-light counts.
-    final perFilterRows = await _db
-        .customSelect(
-          "SELECT LOWER(filter) AS filter_lower, COUNT(*) AS c "
-          "FROM captured_images "
-          "WHERE target_id = ? AND frame_type = 'light' AND is_accepted = 1 "
-          "AND filter IS NOT NULL "
-          "GROUP BY LOWER(filter)",
-          variables: [Variable.withInt(targetId)],
-        )
-        .get();
-    final framesByFilterLower = <String, int>{};
-    var totalCapturedAny = 0;
-    for (final row in perFilterRows) {
-      final f = row.read<String>('filter_lower');
-      final c = row.read<int>('c');
-      framesByFilterLower[f] = c;
-      totalCapturedAny += c;
-    }
+    final framesByFilter = await _db.planningDao.acceptedLightFramesByFilter(
+      targetId,
+    );
+    final totalCapturedAny = framesByFilter.values.fold(0, (a, b) => a + b);
 
     // Most recent accepted light frame for the target. Stored as Unix
     // seconds by drift's DateTimeColumn (default mapping).
     final lastRow = await _db
         .customSelect(
-          "SELECT MAX(captured_at) AS last_sec FROM captured_images "
-          "WHERE target_id = ? AND frame_type = 'light' AND is_accepted = 1",
+          'SELECT MAX(captured_at) AS last_sec FROM captured_images '
+          'WHERE target_id = ? AND $lightFrameSql AND is_accepted = 1',
           variables: [Variable.withInt(targetId)],
         )
         .getSingleOrNull();
@@ -253,9 +236,9 @@ class TargetProgressService {
     // not know the local-offset rule we want).
     final windowRows = await _db
         .customSelect(
-          "SELECT captured_at AS ts FROM captured_images "
-          "WHERE target_id = ? AND frame_type = 'light' AND is_accepted = 1 "
-          "AND captured_at >= ?",
+          'SELECT captured_at AS ts FROM captured_images '
+          'WHERE target_id = ? AND $lightFrameSql AND is_accepted = 1 '
+          'AND captured_at >= ?',
           variables: [
             Variable.withInt(targetId),
             Variable.withInt(windowStartSec),
@@ -270,46 +253,30 @@ class TargetProgressService {
         ts * 1000,
         isUtc: true,
       ).toLocal();
-      distinctNights.add(_nightStart(dt));
+      distinctNights.add(observingNightOf(dt));
     }
 
     return _CaptureAggregates(
-      framesByFilterLower: framesByFilterLower,
+      framesByFilter: framesByFilter,
       totalCapturedAny: totalCapturedAny,
       lastImagedAt: lastImagedAt,
       windowFrameCount: windowRows.length,
       windowDistinctNights: distinctNights.length,
     );
   }
-
-  /// Returns the local-time instant of "noon" preceding [t]. A frame
-  /// captured at 03:00 belongs to the night that started at noon the day
-  /// before; a frame captured at 14:00 belongs to the night that started
-  /// at noon the same day.
-  ///
-  /// We deliberately keep the result in the local timezone of [t] (no
-  /// .toUtc()) so the bucketing matches the observer's wall clock.
-  DateTime _nightStart(DateTime t) {
-    final local = t.isUtc ? t.toLocal() : t;
-    final noonToday = DateTime(local.year, local.month, local.day, 12);
-    if (local.isBefore(noonToday)) {
-      final yesterday = noonToday.subtract(const Duration(days: 1));
-      return yesterday;
-    }
-    return noonToday;
-  }
 }
 
 /// Internal carrier for the three queries that feed [TargetProgress].
 class _CaptureAggregates {
-  final Map<String, int> framesByFilterLower;
+  /// Accepted light frames by filter as filed, `''` for none.
+  final Map<String, int> framesByFilter;
   final int totalCapturedAny;
   final DateTime? lastImagedAt;
   final int windowFrameCount;
   final int windowDistinctNights;
 
   const _CaptureAggregates({
-    required this.framesByFilterLower,
+    required this.framesByFilter,
     required this.totalCapturedAny,
     required this.lastImagedAt,
     required this.windowFrameCount,

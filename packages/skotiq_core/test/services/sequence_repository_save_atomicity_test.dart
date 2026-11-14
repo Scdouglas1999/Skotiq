@@ -11,7 +11,9 @@
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   late SkotiqDatabase db;
@@ -21,7 +23,7 @@ void main() {
   setUp(() async {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     dao = SequencesDao(db);
-    repository = SequenceRepository(dao);
+    repository = LocalSequenceRepository(dao);
   });
 
   tearDown(() async {

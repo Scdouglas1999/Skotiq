@@ -3,14 +3,14 @@
 //! Native driver for FLI cameras, focusers, and filter wheels using libfli.
 //! This is an open-source library with cross-platform support.
 
-use crate::camera::{
-    CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ImageMetadata,
-    ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
-};
-use crate::sync::fli_mutex;
-use crate::traits::{NativeCamera, NativeDevice, NativeError, NativeFilterWheel, NativeFocuser};
-use crate::NativeVendor;
+use crate::camera_core::CameraCore;
 use async_trait::async_trait;
+use skotiq_device::camera::{
+    CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ReadoutMode,
+    SensorInfo, SubFrame, VendorFeatures,
+};
+use skotiq_device::Vendor;
+use skotiq_device::{CameraDriver, DeviceDriver, DriverError, FilterWheelDriver, FocuserDriver};
 use std::ffi::{c_char, c_double, c_long, CStr, CString};
 
 mod camera;
@@ -19,6 +19,7 @@ mod discovery;
 mod ffi;
 mod filter_wheel;
 mod focuser;
+mod readout;
 mod sdk;
 
 pub use camera::*;
@@ -26,6 +27,7 @@ pub use discovery::*;
 use ffi::*;
 pub use filter_wheel::*;
 pub use focuser::*;
+use readout::*;
 use sdk::*;
 
 #[cfg(test)]
@@ -76,11 +78,11 @@ mod camera_tests {
 
         assert!(matches!(
             camera.set_gain(10).await,
-            Err(NativeError::NotSupported)
+            Err(DriverError::NotSupported)
         ));
         assert!(matches!(
             camera.set_offset(20).await,
-            Err(NativeError::NotSupported)
+            Err(DriverError::NotSupported)
         ));
     }
 }

@@ -2,6 +2,10 @@ part of '../sequence_time_estimator.dart';
 
 extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
   /// Process a single node and its children, returning the time after completion.
+  ///
+  /// [windowEnd] is when the enclosing target's window closes (its end
+  /// condition, or the dawn park): nothing under the target starts after it,
+  /// and a Smart Exposure stops at it.
   DateTime _processNode({
     required SequenceNode node,
     required Sequence sequence,
@@ -10,29 +14,46 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     required String? currentTargetHeaderId,
     required String? loopIterationNote,
     required _LocationContext? locationContext,
+    DateTime? windowEnd,
   }) {
     if (!node.isEnabled) {
       return currentTime;
     }
 
     if (node is TargetHeaderNode) {
-      final startAfter = _effectiveStartAfter(node);
-      if (startAfter != null && currentTime.isBefore(startAfter)) {
-        currentTime = startAfter;
-      }
+      final span = _targetSpan(node, currentTime, locationContext);
+      // The runtime skips the target: its end condition already holds, its
+      // start never comes, or the run ends first. It takes no time.
+      if (span == null) return currentTime;
+      currentTime = span.start;
+      windowEnd = _minDate(span.end, windowEnd);
     }
 
-    // Update target header ID if this is a target header node
     final targetId = node is TargetHeaderNode ? node.id : currentTargetHeaderId;
 
-    // Calculate duration for this node
-    final nodeDuration = _estimateNodeDuration(
+    var nodeDuration = _estimateNodeDuration(
       node,
       currentTime,
       locationContext,
     );
+    var openEnded = false;
+    if (node is SmartExposureNode && node.plans.isNotEmpty) {
+      // A Smart Exposure checks its target's window between frames, so it
+      // stops when the window closes. "Loop until stopped" without a budget
+      // runs exactly until then; with no window to stop it the estimate has
+      // one rotation and says it is open-ended.
+      final left = windowEnd?.difference(currentTime);
+      if (node.loopUntilStopped && node.integrationBudgetSecs <= 0) {
+        if (left != null) {
+          nodeDuration = left.isNegative ? Duration.zero : left;
+        } else {
+          openEnded = true;
+        }
+      } else if (left != null && nodeDuration > left) {
+        nodeDuration = left.isNegative ? Duration.zero : left;
+      }
+    }
 
-    // Add timing entry if this node has a meaningful duration
     if (nodeDuration.inSeconds > 0) {
       final endTime = currentTime.add(nodeDuration);
       final warnings = <String>[];
@@ -52,6 +73,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
           duration: nodeDuration,
           warnings: warnings.isNotEmpty ? warnings : null,
           targetHeaderId: targetId,
+          openEnded: openEnded,
         ),
       );
 
@@ -73,6 +95,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
         final loopNote = _getLoopIterationNote(node);
         final loopStartTime = currentTime;
         for (final child in children) {
+          if (_windowClosed(windowEnd, currentTime)) break;
           currentTime = _processNode(
             node: child,
             sequence: sequence,
@@ -81,6 +104,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
             currentTargetHeaderId: targetId,
             loopIterationNote: loopNote,
             locationContext: locationContext,
+            windowEnd: windowEnd,
           );
         }
         if (node.conditionType == LoopConditionType.count) {
@@ -93,8 +117,14 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
             currentTime = currentTime.add(singlePass * (iterations - 1));
           }
         }
+        // The target's window ends a loop inside it at the next boundary.
+        if (windowEnd != null && currentTime.isAfter(windowEnd)) {
+          currentTime = windowEnd;
+        }
       } else {
         for (final child in children) {
+          // Past the window the target skips the rest of its children.
+          if (_windowClosed(windowEnd, currentTime)) break;
           currentTime = _processNode(
             node: child,
             sequence: sequence,
@@ -103,6 +133,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
             currentTargetHeaderId: targetId,
             loopIterationNote: loopIterationNote,
             locationContext: locationContext,
+            windowEnd: windowEnd,
           );
         }
       }
@@ -110,6 +141,9 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
 
     return currentTime;
   }
+
+  bool _windowClosed(DateTime? windowEnd, DateTime at) =>
+      windowEnd != null && !at.isBefore(windowEnd);
 
   /// Get a note describing loop iteration limitations.
   String _getLoopIterationNote(LoopNode node) {
@@ -127,7 +161,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       case LoopConditionType.untilTime:
         final until = node.repeatUntil;
         if (until != null) {
-          return 'Loop until ${_formatTime(until)} - showing single iteration';
+          return 'Loop until ${ClockFormat.hm(until)} - showing single iteration';
         }
         return 'Time-based loop - showing single iteration estimate';
       case LoopConditionType.untilAltitude:
@@ -152,11 +186,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     }
   }
 
-  /// Format time for display.
-  String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-  }
-
   /// Format [time] for display next to [reference], adding the calendar date
   /// whenever the two fall on different days. A bare "03:41" printed beside a
   /// node scheduled at "12:47" reads as a time that already passed even when
@@ -166,10 +195,10 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
         time.year == reference.year &&
         time.month == reference.month &&
         time.day == reference.day;
-    if (sameDay) return _formatTime(time);
+    if (sameDay) return ClockFormat.hm(time);
     final month = time.month.toString().padLeft(2, '0');
     final day = time.day.toString().padLeft(2, '0');
-    return '${_formatTime(time)} on $month-$day';
+    return '${ClockFormat.hm(time)} on $month-$day';
   }
 
   /// Calculate when the specified twilight type will occur.
@@ -219,7 +248,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     return targetTime;
   }
 
-  /// Estimate the duration of a single node based on its type.
   Duration _estimateNodeDuration(
     SequenceNode node,
     DateTime currentTime,
@@ -229,61 +257,18 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     // subtype will fail to compile here rather than silently fall through to
     // a zero-duration default and mis-estimate sequence timing.
     return switch (node) {
-      ExposureNode() => Duration(
-        milliseconds:
-            ((node.count * node.durationSecs +
-                        node.count * overhead.downloadOverheadPerExposureSecs) *
-                    1000)
-                .round(),
-      ),
+      ExposureNode() => exposureFramesDuration(node, node.count),
       // SmartExposure. Sum of (count * duration) across
       // all plans + per-frame download overhead + one filter-change penalty
       // per plan + dither-cost for each dither point. When an integration
       // budget is set and is lower than the natural duration, we clamp to
       // the budget so the Run Dashboard's "estimated total" shrinks to
       // match expected behaviour.
-      SmartExposureNode() => () {
-        if (node.plans.isEmpty) return Duration.zero;
-        // Per-plan integration time + per-frame download overhead.
-        double secs = 0.0;
-        for (final p in node.plans) {
-          secs += p.count * p.durationSecs;
-          secs += p.count * overhead.downloadOverheadPerExposureSecs;
-          // Dither cost: one settle cycle per ditherEvery frames (treat
-          // 0 / null as "no dither"). Same heuristic as ExposureNode but
-          // applied per-plan.
-          final every = p.ditherEvery ?? 0;
-          if (every > 0) {
-            final ditherCount = (p.count / every).floor();
-            secs += ditherCount * overhead.ditherSecs;
-          }
-        }
-        // One filter change per plan (skipped only if two consecutive
-        // plans share the same filter — the estimator can't tell which
-        // ones will overlap with the live current-filter state, so we
-        // assume worst case). Mirrors the FilterChangeNode case below.
-        secs += node.plans.length * overhead.filterChangeSecs;
-        // Clamp to the integration budget when one is set. The budget
-        // measures *integration* not wall-clock — we approximate by
-        // capping the integration component only.
-        if (node.integrationBudgetSecs > 0 &&
-            node.totalIntegrationSecs > node.integrationBudgetSecs) {
-          final overshoot =
-              node.totalIntegrationSecs - node.integrationBudgetSecs;
-          secs -= overshoot;
-        }
-        return Duration(milliseconds: (secs * 1000).round());
-      }(),
-      AutofocusNode() => Duration(
-        // The Rust executor's AutofocusConfig has no exposures-per-point
-        // field — the serializer never sends `node.exposuresPerPoint`, and
-        // the runtime captures exactly one exposure per focus point. Estimate
-        // against that authoritative per-point count of 1 so the timeline
-        // matches what actually runs, rather than referencing an unsent
-        // field that would over-estimate whenever the user set it > 1.
-        milliseconds: (((node.stepsOut * 2 + 1) * node.exposureDuration) * 1000)
-            .round(),
-      ),
+      SmartExposureNode() => _smartExposureDuration(node),
+      AutofocusNode() => AutofocusRun.ofNode(
+        autofocus,
+        node,
+      ).duration(downloadSecs: overhead.downloadOverheadPerExposureSecs),
       DitherNode() => Duration(
         milliseconds:
             (((node.settleTime > 0 ? node.settleTime : overhead.ditherSecs)) *
@@ -399,6 +384,64 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
             ? Duration(seconds: node.timeoutSecs!)
             : Duration.zero,
     };
+  }
+
+  /// A Smart Exposure's own length, before any target window cuts it.
+  ///
+  /// Per frame: the exposure, the download, and a dither on each dither
+  /// point; one filter change per plan. With counts, every plan runs to its
+  /// count and a positive integration budget caps the integration part.
+  /// "Loop until stopped" ignores the counts and rotates one frame per plan:
+  /// a budget fixes how many rotations, and without one the length is the
+  /// target window's, which [_processNode] applies; alone the node is one
+  /// rotation.
+  Duration _smartExposureDuration(SmartExposureNode node) {
+    if (node.plans.isEmpty) return Duration.zero;
+    final download = overhead.downloadOverheadPerExposureSecs;
+
+    if (node.loopUntilStopped) {
+      var rotationSecs = 0.0;
+      var rotationIntegration = 0.0;
+      for (final p in node.plans) {
+        final every = p.ditherEvery ?? 0;
+        rotationSecs += p.durationSecs + download;
+        // One frame per visit: a cadence of N dithers every N-th visit.
+        if (every > 0) rotationSecs += overhead.ditherSecs / every;
+        rotationIntegration += p.durationSecs;
+      }
+      if (node.plans.length > 1) {
+        rotationSecs += node.plans.length * overhead.filterChangeSecs;
+      }
+      var rotations = 1.0;
+      final budget = node.integrationBudgetSecs;
+      if (budget > 0 && rotationIntegration > 0) {
+        rotations = budget / rotationIntegration;
+      }
+      return Duration(milliseconds: (rotationSecs * rotations * 1000).round());
+    }
+
+    double secs = 0.0;
+    for (final p in node.plans) {
+      secs += p.count * p.durationSecs;
+      secs += p.count * download;
+      // Dither cost: one settle cycle per ditherEvery frames (0 / null is
+      // no dither).
+      final every = p.ditherEvery ?? 0;
+      if (every > 0) {
+        final ditherCount = (p.count / every).floor();
+        secs += ditherCount * overhead.ditherSecs;
+      }
+    }
+    // One filter change per plan (the estimator cannot tell which ones the
+    // live filter makes free, so it assumes the worst case).
+    secs += node.plans.length * overhead.filterChangeSecs;
+    // The budget measures integration, not wall-clock, so only the
+    // integration part is capped.
+    if (node.integrationBudgetSecs > 0 &&
+        node.totalIntegrationSecs > node.integrationBudgetSecs) {
+      secs -= node.totalIntegrationSecs - node.integrationBudgetSecs;
+    }
+    return Duration(milliseconds: (secs * 1000).round());
   }
 
   /// Helper for [_estimateNodeDuration] that resolves a [WaitTimeNode] to a

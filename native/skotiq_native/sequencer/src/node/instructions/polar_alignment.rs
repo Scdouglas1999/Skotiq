@@ -11,10 +11,6 @@ pub struct PolarAlignmentInstruction;
 
 #[async_trait]
 impl InstructionNode for PolarAlignmentInstruction {
-    fn type_name(&self) -> &'static str {
-        "Polar Alignment"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -52,6 +48,7 @@ impl InstructionNode for PolarAlignmentInstruction {
             },
         )
         .await
-        .log_and_get_status_with_context("Polar Alignment", &ctx)
+        .settle("Polar Alignment", &ctx)
+        .await
     }
 }

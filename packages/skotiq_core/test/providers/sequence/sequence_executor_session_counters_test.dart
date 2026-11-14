@@ -15,10 +15,15 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
+import '../../harness/sequencer_wire.dart';
 import '../../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -58,20 +63,13 @@ Sequence _sequence() {
 }
 
 bridge_event.SkotiqEvent _frameEvent({required bool accepted, double? hfr}) {
-  return bridge_event.SkotiqEvent(
-    timestamp: DateTime.now().millisecondsSinceEpoch,
-    severity: bridge_event.EventSeverity.info,
-    category: bridge_event.EventCategory.sequencer,
-    eventType: accepted ? 'FrameAccepted' : 'FrameRejected',
-    data: {
-      'node_id': _exposureNodeId,
-      'hfr': hfr,
-      if (accepted)
-        'save_path': '/captures/d5/frame.fits'
-      else
-        'reject_path': '/captures/d5/reject.fits',
-      if (!accepted) 'reason': 'hfr',
-    },
+  return frameVerdictEvent(
+    accepted: accepted,
+    nodeId: _exposureNodeId,
+    hfr: hfr,
+    path: accepted ? '/captures/d5/frame.fits' : '/captures/d5/reject.fits',
+    reason: 'hfr',
+    capture: testCapture(exposureSecs: _exposureSecs),
   );
 }
 
@@ -147,7 +145,7 @@ void main() {
 
       // Finalize so the aggregate is flushed onto the row (this is the same
       // call the executor's run finalization makes).
-      await sessionNotifier.endSession(status: 'completed');
+      await sessionNotifier.endSession();
       await settle();
 
       final row = await db.sessionsDao.getSessionById(sessionId!);

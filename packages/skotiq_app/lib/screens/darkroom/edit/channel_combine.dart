@@ -6,9 +6,10 @@
 /// `channel_combine@1`. The recipe renders over the reference master and reads
 /// the others as sources, so nothing is written to disk until an export.
 ///
-/// This is the general form of the session review's narrowband mixer: the same
-/// masters, any palette the filters allow, and the result opens in the editor
-/// like any other recipe, with every later step adjustable.
+/// Narrowband masters can also be combined as a custom mix: the recipe then
+/// stores each master's weight in red, green and blue, and the editor's
+/// Channel combine step is where they are set. Either way the result opens in
+/// the editor like any other recipe, with every later step adjustable.
 library;
 
 import 'dart:convert';
@@ -16,13 +17,16 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../darkroom_controller.dart';
 import 'darkroom_image_library.dart';
 
-/// A palette the plan offered.
 class DarkroomCombinePalette {
   /// The wire token the registry takes back (`lrgb`, `sho`, ...).
   final String id;
@@ -205,7 +209,7 @@ class DarkroomChannelCombiner {
       stepsJson: jsonEncode([for (final step in plan.steps) step.toJson()]),
       createdBy: RecipeAuthor.user,
       draftNotes: plan.notes,
-      schemaVersion: kDarkroomRecipeSchemaVersion,
+      schemaVersion: recipeSchemaVersion,
     );
   }
 }
@@ -349,7 +353,8 @@ class _DarkroomChannelCombineDialogState
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'The combined recipe could not be written: $error';
+        _error =
+            'The combined recipe could not be written: ${userFacingError(error)}';
       });
     }
   }
@@ -576,6 +581,11 @@ class _DarkroomChannelCombineDialogState
             '${plan.worstOffsetPx!.toStringAsFixed(2)} px.',
       for (final e in plan.excluded)
         'Left out ${e.filter ?? p.basename(e.path)}: ${e.reason}',
+      if (plan.combined && plan.palette?.id == 'custom')
+        'The weights start from the usual palette for these filters. Set '
+            'each master\'s share of red, green and blue on the Channel '
+            'combine step in the editor, where the picture follows each '
+            'change.',
       if (plan.combined)
         'The draft has ${plan.steps.length} step'
             '${plan.steps.length == 1 ? '' : 's'}.',

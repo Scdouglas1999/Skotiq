@@ -3,16 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/mount_command_service.dart';
-import '../screens/imaging/centering_dialog.dart';
-import '../utils/authority_bound_dialog.dart';
+import 'centering_dialog.dart';
 import '../utils/confirm_dialog.dart';
 import '../utils/snackbar_helper.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
-/// The slew mode selection for the dropdown.
 enum SlewMode {
   /// Basic slew to coordinates.
   slew,
@@ -45,13 +48,10 @@ class SlewDropdownButton extends ConsumerStatefulWidget {
   /// If null, the "Slew, Center & Rotate" option is hidden.
   final double? targetRotation;
 
-  /// Whether the button is enabled.
   final bool isEnabled;
 
-  /// Button variant for styling.
   final ButtonVariant variant;
 
-  /// Optional icon to display.
   final IconData? icon;
 
   /// Mode executed by the main button.
@@ -114,8 +114,11 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
         mountState.connectionState == DeviceConnectionState.connected;
     final enabled = widget.isEnabled && isMountConnected && !_operationInFlight;
 
-    // Determine if slew+center+rotate option should be shown
     final showRotateOption = hasRotator && widget.targetRotation != null;
+    // Centering solves frames; without a solver the button offers what it
+    // can do (a plain slew) and the centering entries say why they are off.
+    final solverMissing = ref.watch(plateSolverReadyProvider) == false;
+    final mainMode = solverMissing ? SlewMode.slew : widget.defaultMode;
 
     final slew = ref.watch(mountSlewProgressProvider);
     final visibleLabel = _operationInFlight
@@ -123,7 +126,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
             ? 'Working...'
             : 'Slewing · ${formatSlewDistance(slew.remainingDegrees)}'
         : widget.label ??
-            switch (widget.defaultMode) {
+            switch (mainMode) {
               SlewMode.slew => 'Slew',
               SlewMode.slewAndCenter => 'Slew & Center',
               SlewMode.slewCenterRotate => 'Slew, Center & Rotate',
@@ -140,8 +143,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
             label: visibleLabel,
             icon: widget.icon ?? LucideIcons.move,
             variant: widget.variant,
-            onPressed:
-                enabled ? () => _handleSlewMode(widget.defaultMode) : null,
+            onPressed: enabled ? () => _handleSlewMode(mainMode) : null,
           ),
         ),
         const SizedBox(width: 4),
@@ -173,40 +175,20 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
                   ],
                 ),
               ),
-              PopupMenuItem<SlewMode>(
-                value: SlewMode.slewAndCenter,
-                child: Row(
-                  children: [
-                    Icon(
-                      LucideIcons.target,
-                      size: 16,
-                      color: colors.textPrimary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Slew & Center',
-                      style: TextStyle(color: colors.textPrimary),
-                    ),
-                  ],
-                ),
+              _centeringItem(
+                colors,
+                mode: SlewMode.slewAndCenter,
+                icon: LucideIcons.target,
+                label: 'Slew & Center',
+                solverMissing: solverMissing,
               ),
               if (showRotateOption)
-                PopupMenuItem<SlewMode>(
-                  value: SlewMode.slewCenterRotate,
-                  child: Row(
-                    children: [
-                      Icon(
-                        LucideIcons.rotateCw,
-                        size: 16,
-                        color: colors.textPrimary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Slew, Center & Rotate',
-                        style: TextStyle(color: colors.textPrimary),
-                      ),
-                    ],
-                  ),
+                _centeringItem(
+                  colors,
+                  mode: SlewMode.slewCenterRotate,
+                  icon: LucideIcons.rotateCw,
+                  label: 'Slew, Center & Rotate',
+                  solverMissing: solverMissing,
                 ),
             ],
             // Keep the alternatives menu large enough for touch input.
@@ -224,6 +206,42 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
           ),
         ),
       ],
+    );
+  }
+
+  PopupMenuItem<SlewMode> _centeringItem(
+    SkotiqColors colors, {
+    required SlewMode mode,
+    required IconData icon,
+    required String label,
+    required bool solverMissing,
+  }) {
+    final ink = solverMissing ? colors.textMuted : colors.textPrimary;
+    return PopupMenuItem<SlewMode>(
+      value: mode,
+      enabled: !solverMissing,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: ink),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: TextStyle(color: ink)),
+                if (solverMissing)
+                  Text(
+                    'Needs a plate solver',
+                    style: SkotiqTypography.caption.copyWith(
+                      color: colors.textMuted,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -269,10 +287,23 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     context.showCommandActionResult(result);
   }
 
-  Future<void> _handleSlewAndCenter(int revision, SkotiqBackend backend) async {
-    if (!await _preflightCentering(revision, backend)) return;
+  Future<void> _handleSlewAndCenter(int revision, SkotiqBackend backend) =>
+      _slewAndCenter(revision, backend);
 
-    // First slew to approximate position
+  /// Slews, then opens the centering dialog on the target. Completes with
+  /// the first centering run's result once that run ends, or null when the
+  /// slew failed or the dialog closed without a run.
+  ///
+  /// The dialog stays open on its result until the user closes it. The
+  /// button is busy for the run, not for the dialog: after an abort or a
+  /// failure it has to offer the slew again, not sit on "Working..." behind
+  /// a finished result.
+  Future<CenteringResult?> _slewAndCenter(
+    int revision,
+    SkotiqBackend backend,
+  ) async {
+    if (!await _preflightCentering(revision, backend)) return null;
+
     final mountService = ref.read(mountCommandServiceProvider);
     final slewResult = await mountService.slewTo(
       widget.ra,
@@ -283,73 +314,29 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     if (!mounted ||
         !_isCurrentOperation(revision, backend) ||
         !identical(ref.read(mountCommandServiceProvider), mountService)) {
-      return;
+      return null;
     }
 
     if (!slewResult.isSuccess) {
       context.showCommandActionResult(slewResult);
-      return;
+      return null;
     }
 
-    // The centering dialog runs the plate-solve loop and then stays open on
-    // its result until the user closes it. The button is busy for the RUN, not
-    // for the dialog: after an abort or a failure it has to offer the slew
-    // again, not sit on "Working..." behind a finished result.
-    if (!mounted) return;
-    final runEnded = Completer<void>();
-    final dialogClosed = showCenteringDialog(
+    return showCenteringDialog(
       context: context,
       targetRa: widget.ra,
       targetDec: widget.dec,
       targetName: widget.targetName ?? 'Target',
-      onRunEnded: () {
-        if (!runEnded.isCompleted) runEnded.complete();
-      },
     );
-    await Future.any<void>([runEnded.future, dialogClosed]);
   }
 
   Future<void> _handleSlewCenterRotate(
     int revision,
     SkotiqBackend backend,
   ) async {
-    if (!await _preflightCentering(revision, backend)) return;
-
-    // First do slew and center
-    final mountService = ref.read(mountCommandServiceProvider);
-    final slewResult = await mountService.slewTo(
-      widget.ra,
-      widget.dec,
-      showFeedback: false,
-    );
-
-    if (!mounted ||
-        !_isCurrentOperation(revision, backend) ||
-        !identical(ref.read(mountCommandServiceProvider), mountService)) {
-      return;
-    }
-
-    if (!slewResult.isSuccess) {
-      context.showCommandActionResult(slewResult);
-      return;
-    }
-
-    // Show centering dialog and wait for completion
-    CenteringResult? centeringResult;
-    if (!mounted) return;
-    centeringResult = await showDialog<CenteringResult>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _CenteringDialogWithResult(
-        targetRa: widget.ra,
-        targetDec: widget.dec,
-        targetName: widget.targetName ?? 'Target',
-      ),
-    );
-
+    final centeringResult = await _slewAndCenter(revision, backend);
     if (!mounted || !_isCurrentOperation(revision, backend)) return;
 
-    // If centering failed or was cancelled, don't rotate
     if (centeringResult == null || !centeringResult.success) {
       if (centeringResult != null) {
         final reason =
@@ -361,7 +348,6 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return;
     }
 
-    // Now rotate to target angle
     if (widget.targetRotation != null) {
       try {
         final rotatorState = ref.read(rotatorStateProvider);
@@ -384,7 +370,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
         }
       } catch (e) {
         if (mounted && _isCurrentOperation(revision, backend)) {
-          context.showErrorSnackBar('Rotation failed: $e');
+          context.showErrorSnackBar('Rotation failed: ${userFacingError(e)}');
         }
       }
     }
@@ -417,18 +403,17 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
 
     // Same alt/az model the scheduler uses to decide what is worth imaging, so
     // the slew gate and the planner never disagree about where a target is.
-    final (altitudeDeg, azimuthDeg) =
-        ref.read(schedulerServiceProvider).calculateAltAz(
-              raHours: widget.ra,
-              decDegrees: widget.dec,
-              time: DateTime.now().toUtc(),
-              latitudeDegrees: site.latitude,
-              longitudeDegrees: site.longitude,
-            );
+    final (altitudeDeg, azimuthDeg) = AstronomyCalculations.objectAltAz(
+      raDeg: widget.ra * 15.0,
+      decDeg: widget.dec,
+      dt: DateTime.now().toUtc(),
+      latitudeDeg: site.latitude,
+      longitudeDeg: site.longitude,
+    );
 
-    // Settings → Location → effective horizon. 0° (the mathematical horizon)
-    // is the default and the floor: a site cannot opt out of the ground.
-    final floorDeg = ref.read(effectiveHorizonDegProvider);
+    // The site's altitude floor toward the target; a site cannot opt out of
+    // the ground.
+    final floorDeg = ref.read(altitudeFloorProvider).atAzimuth(azimuthDeg);
     if (altitudeDeg >= 0 && altitudeDeg >= floorDeg) return true;
     if (!mounted) return false;
 
@@ -453,9 +438,10 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       context: context,
       title: 'Target is below your horizon limit',
       message: '$target is only ${altitudeDeg.toStringAsFixed(1)}° above the '
-          'horizon ($where), under the ${floorDeg.toStringAsFixed(0)}° '
-          'effective horizon set in Settings → Location. It may be behind '
-          'trees or a roof, and it will be looking through a lot of air.',
+          'horizon ($where), under the site\'s ${floorDeg.toStringAsFixed(0)}° '
+          '${ref.read(altitudeFloorProvider).followsHorizon ? 'horizon there (Settings → Location)' : 'minimum altitude'}. '
+          'It may be behind trees or a roof, and it will be looking through '
+          'a lot of air.',
       confirmLabel: 'Slew anyway',
     );
   }
@@ -491,7 +477,8 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return false;
     } catch (e) {
       if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showErrorSnackBar('Could not check the plate solver: $e');
+        context.showErrorSnackBar(
+            'Could not check the plate solver: ${userFacingError(e)}');
       }
       return false;
     }
@@ -500,245 +487,5 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
   bool _isCurrentOperation(int revision, SkotiqBackend backend) =>
       mounted &&
       revision == _operationRevision &&
-      identical(ref.read(backendProvider), backend);
-}
-
-/// Internal version of CenteringDialog that returns the result
-class _CenteringDialogWithResult extends ConsumerStatefulWidget {
-  final double targetRa;
-  final double targetDec;
-  final String targetName;
-
-  const _CenteringDialogWithResult({
-    required this.targetRa,
-    required this.targetDec,
-    required this.targetName,
-  });
-
-  @override
-  ConsumerState<_CenteringDialogWithResult> createState() =>
-      _CenteringDialogWithResultState();
-}
-
-class _CenteringDialogWithResultState
-    extends ConsumerState<_CenteringDialogWithResult> {
-  bool _isCentering = false;
-  bool _cancelInFlight = false;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-
-  Future<AppSettingsState> _resolvedAppSettings() =>
-      ref.read(appSettingsProvider.future);
-
-  CenteringConfig _centeringConfig(AppSettingsState settings) {
-    final profile = ref.read(activeEquipmentProfileProvider);
-    final exposureTime = profile?.defaultCenteringExposure ?? 5.0;
-    return CenteringConfig(
-      maxIterations: 5,
-      toleranceArcsec: 30.0,
-      exposureTime: exposureTime > 0 ? exposureTime : 5.0,
-      binning: profile?.defaultBinX ?? 2,
-      gain: profile?.defaultGain,
-      offset: profile?.defaultOffset,
-      // Settings → Plate Solving → "Sync mount when centering". Without the
-      // sync each correction re-issues the slew that produced the mis-pointed
-      // frame, so the offset never changes and the run ends on max iterations.
-      syncMount: settings.centeringSyncMount,
-    );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(backendProvider, (
-      previous,
-      next,
-    ) {
-      if (previous == null || identical(previous, next) || !mounted) return;
-      closeAuthorityBoundDialog(context);
-    });
-    // Auto-start centering
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startCentering();
-    });
-  }
-
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
-  }
-
-  Future<void> _startCentering() async {
-    setState(() {
-      _isCentering = true;
-    });
-
-    final centeringService = ref.read(centeringServiceProvider);
-    late final AppSettingsState appSettings;
-    try {
-      appSettings = await _resolvedAppSettings();
-    } catch (error) {
-      if (mounted) {
-        setState(() => _isCentering = false);
-        Navigator.of(context).pop(
-          CenteringResult.failure(
-            errorMessage: 'Unable to load plate-solving settings: $error',
-            iterations: 0,
-            iterationHistory: const [],
-          ),
-        );
-      }
-      return;
-    }
-    if (!mounted) return;
-
-    final solverConfig = PlateSolverConfig(
-      type: PlateSolverType.astap,
-      executablePath: appSettings.astapPath,
-      timeoutSeconds: appSettings.plateSolveTimeout,
-      searchRadius: appSettings.plateSolveSearchRadius,
-    );
-
-    try {
-      final result = await centeringService.centerOnTarget(
-        targetRa: widget.targetRa,
-        targetDec: widget.targetDec,
-        solverConfig: solverConfig,
-        config: _centeringConfig(appSettings),
-        onStatusUpdate: (status) {
-          ref.read(centeringStatusProvider.notifier).state = status;
-        },
-      );
-
-      if (mounted) {
-        setState(() {
-          _isCentering = false;
-        });
-
-        // Return result when done
-        Navigator.of(context).pop(result);
-      }
-    } on SolverNotAvailableError catch (e) {
-      if (mounted) {
-        final failureResult = CenteringResult.failure(
-          errorMessage: e.message,
-          iterations: 0,
-          iterationHistory: const [],
-        );
-        setState(() => _isCentering = false);
-        Navigator.of(context).pop(failureResult);
-      }
-    } catch (e) {
-      if (mounted) {
-        final failureResult = CenteringResult.failure(
-          errorMessage: 'Centering error: $e',
-          iterations: 0,
-          iterationHistory: [],
-        );
-        setState(() {
-          _isCentering = false;
-        });
-        Navigator.of(context).pop(failureResult);
-      }
-    }
-  }
-
-  Future<void> _cancelCentering() async {
-    setState(() => _cancelInFlight = true);
-    try {
-      await ref.read(centeringServiceProvider).stop();
-    } catch (e) {
-      if (mounted) {
-        context.showErrorSnackBar('Cancel failed: $e');
-      }
-    }
-    if (mounted) {
-      Navigator.of(context).pop(null);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final centeringStatus = ref.watch(centeringStatusProvider);
-    final colors = SkotiqColors.of(context);
-
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: AdaptiveDialogConstraints.hybrid(
-          context,
-          designMaxWidth: 400,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Icon(LucideIcons.target, color: colors.primary, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Centering Target',
-                          style: TextStyle(
-                            fontSize: SkotiqTypography.fontSize18,
-                            fontWeight: FontWeight.bold,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          widget.targetName,
-                          style: TextStyle(
-                            fontSize: SkotiqTypography.fontSize12,
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              if (_isCentering) ...[
-                const SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
-                const SizedBox(height: 16),
-                Text(
-                  centeringStatus.message ?? 'Centering...',
-                  style: TextStyle(color: colors.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Iteration ${centeringStatus.currentIteration}/${centeringStatus.maxIterations}',
-                  style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize12,
-                      color: colors.textMuted),
-                ),
-                if (centeringStatus.currentOffsetArcmin != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Offset: ${centeringStatus.currentOffsetArcmin!.toStringAsFixed(2)} arcmin',
-                    style: TextStyle(
-                        fontSize: SkotiqTypography.fontSize12,
-                        color: colors.textSecondary),
-                  ),
-                ],
-              ],
-              const SizedBox(height: 16),
-              if (_isCentering)
-                SkotiqButton(
-                  onPressed: _cancelInFlight ? null : _cancelCentering,
-                  label: 'Cancel',
-                  variant: ButtonVariant.ghost,
-                  size: ButtonSize.small,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+      ref.backendScopeOver(backend).isCurrent;
 }

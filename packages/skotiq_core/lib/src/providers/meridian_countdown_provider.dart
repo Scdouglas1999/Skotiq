@@ -7,13 +7,10 @@ import '../models/meridian_flip_settings.dart';
 import '../models/sequence/sequence_models.dart' show SequenceExecutionState;
 import 'equipment_provider.dart' show mountStateProvider;
 import 'meridian_flip_provider.dart'
-    show
-        computeHourAngleHours,
-        computeLocalSiderealTimeHours,
-        effectiveMeridianFlipSettingsProvider,
-        isMeridianFlipEnabledProvider;
+    show effectiveMeridianFlipSettingsProvider, isMeridianFlipEnabledProvider;
 import 'sequence_provider.dart' show sequenceExecutionStateProvider;
 import 'settings_provider.dart' show appSettingsProvider;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Derived, banner-facing model of "how long until the next meridian flip".
 ///
@@ -75,6 +72,12 @@ class MeridianCountdownState extends Equatable {
   /// hint at flip direction. `null` when unknown.
   final String? sideOfPier;
 
+  /// The target is past the meridian and the mount already points at it from
+  /// the post-flip side (pier East, looking West): no flip is pending. A run
+  /// that homes through the meridian and slews back lands here without
+  /// flipping, and the countdown used to read "past due" all night.
+  final bool onPostFlipSide;
+
   const MeridianCountdownState({
     required this.isArmed,
     required this.timeToFlip,
@@ -84,6 +87,7 @@ class MeridianCountdownState extends Equatable {
     required this.method,
     required this.hourAngleHours,
     required this.sideOfPier,
+    this.onPostFlipSide = false,
   });
 
   /// Whether the mount is already past the configured threshold and a flip is
@@ -100,8 +104,18 @@ class MeridianCountdownState extends Equatable {
     method,
     hourAngleHours,
     sideOfPier,
+    onPostFlipSide,
   ];
 }
+
+/// Whether [sideOfPier], as a mount state reports it, is pier East: the
+/// mount on the east side of the pier looking West, where a meridian flip
+/// lands. Unknown reads false.
+bool isPostFlipPierSide(String? sideOfPier) =>
+    switch (sideOfPier?.trim().toLowerCase()) {
+      'east' || 'pierside_east' || 'piereast' => true,
+      _ => false,
+    };
 
 /// Refresh cadence for the countdown stream.
 ///
@@ -178,11 +192,28 @@ MeridianCountdownState computeMeridianCountdown({
   // The minutes-before-limit and on-tracking-limit-hit decisions depend on
   // mount-advertised tracking-limit state that only the Rust trigger evaluator
   // (triggers.rs) carries. Compute HA for display but emit no numeric countdown.
-  final lst = computeLocalSiderealTimeHours(
+  final lst = AstronomyCalculations.localSiderealTime(
     (nowUtc ?? DateTime.now().toUtc()),
     lon,
   );
-  final ha = computeHourAngleHours(mount.ra!, lst);
+  final ha = AstronomyCalculations.hourAngleHours(mount.ra!, lst);
+
+  // Pier East past the meridian is the post-flip side, the runtime's
+  // `on_pre_flip_side` rule: the flip trigger will not fire there, so no
+  // countdown runs. Unknown pier proves nothing and falls through.
+  if (ha > 0 && isPostFlipPierSide(sideOfPier)) {
+    return MeridianCountdownState(
+      isArmed: false,
+      timeToFlip: null,
+      isAutomaticWatchdog: true,
+      isSequencerOwned: sequencerActive,
+      disabledReason: 'The mount is already on the post-flip side',
+      method: method,
+      hourAngleHours: ha,
+      sideOfPier: sideOfPier,
+      onPostFlipSide: true,
+    );
+  }
 
   if (method == MeridianTriggerMethod.minutesBeforeLimit ||
       method == MeridianTriggerMethod.onTrackingLimitHit) {

@@ -1,7 +1,6 @@
 import 'dart:async';
 import '../../utils/snackbar_helper.dart';
-import 'dart:developer' as developer;
-import 'dart:io' show Directory, File, Platform;
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey, SystemNavigator;
@@ -9,29 +8,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../localization/skotiq_localizations.dart';
-import '../../utils/startup_surface_coordinator.dart';
-import '../../widgets/command_palette/command_palette.dart';
-import '../../widgets/onboarding_tour_replay_launcher.dart';
-import '../../widgets/tutorial_overlay.dart';
-import '../../widgets/mobile_sequence_overlay.dart';
-import '../../widgets/running_sequence_mini_bar.dart';
-import '../night_control/night_control_screen.dart' show isTonightLocation;
-import '../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
-import '../../widgets/notification_toast_overlay.dart';
-import '../../widgets/autofocus_progress_overlay.dart';
-import '../../widgets/connection_stale_banner.dart';
-import '../../widgets/disconnected_backend_banner.dart';
-import '../../widgets/ios_background_banner.dart';
-import '../../widgets/android_notifications_banner.dart';
-import '../../widgets/weather/weather_alert_banner.dart';
-import '../../widgets/startup_splash_gate.dart';
+import '../../router/app_routes.dart';
+import '../../utils/startup_surface_queue.dart';
+import 'command_palette/command_palette.dart';
+import '../../tours/tour_overlay.dart';
+import '../../tours/tour_target.dart';
+import 'widgets/mobile_sequence_overlay.dart';
+import 'widgets/running_sequence_mini_bar.dart';
+import 'widgets/notification_toast_overlay.dart';
+import 'widgets/autofocus_progress_overlay.dart';
+import '../polar_alignment/polar_alignment_run_overlay.dart';
+import '../connection/connection_stale_banner.dart';
+import '../connection/disconnected_backend_banner.dart';
+import '../connection/remote_connection_indicator.dart';
+import 'widgets/ios_background_banner.dart';
+import 'widgets/android_notifications_banner.dart';
+import '../weather/widgets/weather_alert_banner.dart';
+import 'widgets/startup_splash_gate.dart';
 import 'widgets/window_chrome.dart';
 import 'widgets/side_navigation.dart';
 import 'shell_chrome.dart';
 import 'shell_navigation.dart';
+import 'phone_bar_status.dart';
 import 'widgets/skotiq_bottom_navigation.dart';
 
 // Conditional import for window_manager (desktop only)
@@ -60,7 +66,7 @@ part 'app_shell_parts/_mobile_settings_bar.dart';
 String topRouteLocation(GoRouter router) {
   return router
           .routerDelegate.currentConfiguration.lastOrNull?.matchedLocation ??
-      '/dashboard';
+      AppRoute.tonight.path;
 }
 
 class AppShell extends ConsumerStatefulWidget {
@@ -75,32 +81,24 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool _fallbackSideNavExpanded = true;
   Future<AppStartupCheckpointOutcome>? _checkpointCheck;
+  late final StartupSurfaceQueue _startupQueue;
 
   @override
   void initState() {
     super.initState();
-    // Initialize window manager if on desktop
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       window_impl.initWindowManager(
         this,
         onCloseRequested: _onCloseRequested,
       );
     }
-    // Decide checkpoint recovery before showing any other startup modal.
+    _startupQueue = ref.read(startupSurfaceQueueProvider)
+      ..expect(StartupSurface.checkpointRecovery);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_runStartupChecks());
+      unawaited(_checkCheckpointIfNeeded());
     });
   }
 
-  Future<void> _runStartupChecks() {
-    return runAppStartupChecks(
-      checkCheckpoint: _checkCheckpointIfNeeded,
-      // Catalog setup is checklist step 4 on Tonight; no launch-time modal.
-      checkCatalogs: () async {},
-    );
-  }
-
-  /// Handle window close request - show confirmation if needed
   Future<bool> _onCloseRequested() async {
     final sessionState = ref.read(sessionStateProvider);
     final sequenceState = ref.read(sequenceExecutionStateProvider);
@@ -110,10 +108,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     final autofocusState = ref.read(autofocusOverlayProvider);
     final hasActiveOperations = appCloseHasActiveOperations(
       sequenceOwnsHardware: sequenceState.ownsHardware,
-      sessionBusy: sessionState.isCapturing ||
-          sessionState.isAutofocusing ||
-          sessionState.isDithering ||
-          sessionState.isGuiding,
+      sessionBusy: sessionState.isCapturing || sessionState.isAutofocusing,
+      guider: ref.read(phd2StateProvider),
       cameraBusy: cameraState.isExposing ||
           cameraState.isCooling ||
           cameraState.isWarming ||
@@ -136,7 +132,6 @@ class _AppShellState extends ConsumerState<AppShell> {
       return _flushEditsBeforeClose();
     }
 
-    // Show confirmation dialog
     final shouldClose = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -194,7 +189,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           content: Text(
             'Skotiq is staying open so your edits are not lost. '
             'Check the database or remote-host connection, then try closing '
-            'again.\n\n$error',
+            'again.\n\n${userFacingError(error)}',
             style: TextStyle(color: colors.textSecondary),
           ),
           actions: [
@@ -213,38 +208,40 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   void dispose() {
-    // Dispose window manager if on desktop
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       window_impl.disposeWindowManager(this);
     }
+    _startupQueue.pass(StartupSurface.checkpointRecovery);
     super.dispose();
   }
 
   Future<AppStartupCheckpointOutcome> _checkCheckpointIfNeeded() {
-    return _checkpointCheck ??= _performCheckpointCheck().then((outcome) async {
-      if (outcome == AppStartupCheckpointOutcome.noRecovery) {
-        await _restoreEditorDraft();
-      }
+    return _checkpointCheck ??= _performCheckpointCheck().whenComplete(() {
+      _startupQueue.pass(StartupSurface.checkpointRecovery);
+    }).then((outcome) async {
+      // After the checkpoint prompt: a run it restored has loaded its own
+      // plan, and the open plan only fills an empty editor.
+      await _restoreOpenPlan();
       return outcome;
     });
   }
 
-  /// Put back the plan the Builder held, unsaved, when Skotiq last stopped
-  /// (a crash or a killed process), and say so.
-  Future<void> _restoreEditorDraft() async {
+  /// Put back the plan that was open in the editor when Skotiq last stopped,
+  /// and say so when it carries edits that were never saved.
+  Future<void> _restoreOpenPlan() async {
     if (!mounted) return;
     // The container outlives this shell; the restore can finish after it.
     final container = ProviderScope.containerOf(context, listen: false);
     try {
-      final restored = await restoreEditorDraft(container.read);
-      if (restored == null || !mounted) return;
+      final restored = await restoreOpenPlan(container.read);
+      if (restored == null || !restored.unsaved || !mounted) return;
       context.showInfoSnackBar(
-        'Restored "${restored.name}", the plan you were editing when Skotiq '
-        'last closed. It is not saved yet.',
+        'Restored "${restored.sequence.name}", the plan you were editing '
+        'when Skotiq last closed. It is not saved yet.',
       );
     } catch (e) {
       container.read(loggingServiceProvider).warning(
-            'Could not restore the unsaved plan: $e',
+            'Could not restore the open plan: $e',
             source: 'AppShell',
           );
     }
@@ -253,38 +250,12 @@ class _AppShellState extends ConsumerState<AppShell> {
   Future<AppStartupCheckpointOutcome> _performCheckpointCheck() async {
     try {
       final backend = ref.read(sequencerBackendProvider);
+      final hostControl = ref.read(linkedHostControlProvider);
+      final hostLink = ref.read(linkedHostLinkProvider);
 
-      // Initialize the checkpoint directory on desktop so checkpoints are
-      // actually persisted this session. The desktop GUI never set it, so no
-      // checkpoint was ever written and a mid-night crash was unrecoverable
-      // (no resume banner, all sequence state lost). Only when this process IS
-      // the backend: a remote host owns its own storage layout, and pushing
-      // this machine's support directory at it would point the rig's crash
-      // recovery at a path that does not exist there.
-      //
-      // The directory is derived from the OPEN DATABASE, not from the shared
-      // application-support folder — see [resolveGuiCheckpointDirectory] for
-      // why that distinction is the difference between "your interrupted run"
-      // and someone else's.
-      final isLocalBackend = backend is! NetworkBackend;
-      if (isLocalBackend &&
-          (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-        try {
-          final checkpointDir = await resolveGuiCheckpointDirectory();
-          // Configure first, adopt second: nothing reads the directory until
-          // hasCheckpoint() below, and a slow or failing adoption must not be
-          // able to leave tonight's run with no checkpoint directory at all.
-          await backend.sequencerSetCheckpointDir(checkpointDir.path);
-          await adoptLegacyGuiCheckpoint(targetDir: checkpointDir);
-        } catch (e) {
-          ref.read(loggingServiceProvider).warning(
-              '[AppShell] Failed to initialize checkpoint directory: $e',
-              source: 'AppShell',
-              fields: {'error': e.toString()});
-        }
-      }
-
-      if (await hostRunHoldsCheckpoint(backend)) {
+      // The host's start-up set where its checkpoints are before this
+      // window showed.
+      if (await hostRunHoldsCheckpoint(hostControl)) {
         return AppStartupCheckpointOutcome.noRecovery;
       }
 
@@ -301,21 +272,53 @@ class _AppShellState extends ConsumerState<AppShell> {
 
       if (!mounted) return AppStartupCheckpointOutcome.failed;
 
-      return ref.read(startupSurfaceCoordinatorProvider).run(
-            () => runAppCheckpointRecovery(
+      return _startupQueue.turn(
+        StartupSurface.checkpointRecovery,
+        () => _answeringCheckpointPrompt(() => runAppCheckpointRecovery(
               choose: (lastFailure) async {
                 if (!mounted) return null;
-                return showDialog<AppCheckpointRecoveryChoice>(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (dialogContext) => buildCheckpointRecoveryDialog(
-                    context: dialogContext,
-                    info: info,
-                    failure: lastFailure,
-                    remoteHost:
-                        backend is NetworkBackend ? backend.serverHost : null,
-                  ),
+                // A linked client asks again when the prompt's turn comes:
+                // the host may have started a run while other startup
+                // prompts were up, and its checkpoint is then that run's.
+                if (await hostRunHoldsCheckpoint(hostControl)) {
+                  return AppCheckpointRecoveryChoice.later;
+                }
+                if (!mounted) return null;
+                final remoteHost = hostLink?.serverHost;
+                BuildContext? dialogContext;
+                // The prompt describes the checkpoint at the moment it
+                // opened. Once a run starts (on a linked client: on the host)
+                // the checkpoint is that run's, so the prompt closes itself
+                // and leaves it alone: Discard would delete the live run's
+                // resume point.
+                final hostRun = ref.listenManual<SequenceExecutionState>(
+                  sequenceExecutionStateProvider,
+                  (_, next) {
+                    final open = dialogContext;
+                    if (!next.canStart && open != null && open.mounted) {
+                      Navigator.of(open).pop(
+                        AppCheckpointRecoveryChoice.later,
+                      );
+                    }
+                  },
                 );
+                try {
+                  return await showDialog<AppCheckpointRecoveryChoice>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (routeContext) {
+                      dialogContext = routeContext;
+                      return buildCheckpointRecoveryDialog(
+                        context: routeContext,
+                        info: info,
+                        failure: lastFailure,
+                        remoteHost: remoteHost,
+                      );
+                    },
+                  );
+                } finally {
+                  hostRun.close();
+                }
               },
               checkpointStillResumable: () async {
                 final current = await backend.getCheckpointInfo();
@@ -326,8 +329,8 @@ class _AppShellState extends ConsumerState<AppShell> {
               resume: () =>
                   ref.read(sequenceExecutorProvider).restoreFromCheckpoint(),
               discard: backend.discardCheckpoint,
-            ),
-          );
+            )),
+      );
     } catch (e) {
       ref.read(loggingServiceProvider).error(
           '[AppShell] Error checking checkpoint: $e',
@@ -337,11 +340,25 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  /// Runs the checkpoint prompt and tells the start-up queue when the
+  /// operator settled the interrupted run in it, so Quick Start does not ask
+  /// about the same run again.
+  Future<AppStartupCheckpointOutcome> _answeringCheckpointPrompt(
+    Future<AppStartupCheckpointOutcome> Function() prompt,
+  ) async {
+    final outcome = await prompt();
+    if (outcome == AppStartupCheckpointOutcome.resumed ||
+        outcome == AppStartupCheckpointOutcome.discarded) {
+      _startupQueue.answered(StartupSurface.checkpointRecovery);
+    }
+    return outcome;
+  }
+
   String _getCurrentLocation(BuildContext context) {
     try {
       return topRouteLocation(GoRouter.of(context));
     } catch (_) {
-      return '/dashboard';
+      return AppRoute.tonight.path;
     }
   }
 
@@ -350,36 +367,27 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     // Update current screen provider for smart notifications
     // Use Future.microtask to avoid modification during build
-    final screen = locationToAppScreen(location);
+    final screen = AppRoute.of(location)?.screen ?? AppScreen.unknown;
     Future.microtask(() {
       if (mounted) {
         ref.read(currentScreenProvider.notifier).state = screen;
       }
     });
 
-    // -1 = nothing highlighted, which is the correct answer for every route no
-    // rail destination hosts: Settings (+ its plate-solving child), Polar
-    // Alignment, Tonight, the Flat Wizard, the mosaic / session-review /
-    // stack-result viewers and /diagnostics/dump. Defaulting to 0 lights
-    // Dashboard on all of them, so the rail claims the operator is on a screen
-    // they are not. Sub-routes resolve to their HOST (/imaging/preview/:id
-    // lights Imaging).
-    return ShellNavigation.primaryIndexForLocation(location);
+    return ShellNavigation.railIndexFor(location);
   }
 
   void _onTabSelected(int index, BuildContext context) {
-    final route = ShellNavigation.primaryRouteForIndex(index);
-    if (route == null) return;
+    final route = ShellNavigation.rail[index].path;
     try {
       context.go(route);
     } catch (e, stack) {
       // A tab that does not move is indistinguishable from a tab that moved
       // and rendered the same thing, so the failure is logged rather than
       // absorbed: without this the only symptom is an unresponsive tab.
-      developer.log(
+      Log.warning(
         '[AppShell] Tab $index could not navigate to $route: $e',
-        name: 'AppShell',
-        level: 900,
+        source: 'AppShell',
         error: e,
         stackTrace: stack,
       );
@@ -404,35 +412,17 @@ class _AppShellState extends ConsumerState<AppShell> {
     final startupReady = !ref.watch(
       appSettingsProvider.select((s) => s.isLoading),
     );
+    // A linked client's settings come from its host, so the splash waits for
+    // the host; say so once the draw is over.
+    final linkedHost = ref.watch(remoteLaunchTargetProvider);
+    final connectingToHost = linkedHost != null &&
+        ref.watch(remoteLaunchStatusProvider
+            .select((s) => s.phase == RemoteLaunchPhase.connecting));
     final currentLocation = _getCurrentLocation(context);
+    final currentRoute = AppRoute.of(currentLocation);
+    final shownByScreen = currentRoute?.showsItself ?? const {};
     final currentIndex = _getCurrentIndex(context);
 
-    // Activate the error notification bridge so backend errors show as toast notifications
-    ref.watch(errorNotificationBridgeProvider);
-    // Why: keep the meridian-flip disconnect guard alive
-    // for the shell's lifetime so a mount disconnect during an in-flight flip
-    // resets `flipExecutionStateProvider` to `aborted` and unsticks the UI.
-    ref.watch(meridianFlipDisconnectGuardProvider);
-    // Why: the standalone meridian monitor must be kept
-    // alive while the shell is mounted so the Sequencer Settings ->
-    // "Standalone monitoring" toggle actually does something — when enabled,
-    // it polls mount HA against the configured trigger and alerts the
-    // operator when the meridian is crossed outside of a sequence run.
-    ref.watch(meridianFlipStandaloneMonitorProvider);
-    // Scheduler lifetime: keep auto-reevaluation listeners mounted
-    // with the shell, not only while Plan Tonight -> Target Queue is visible.
-    // Otherwise target/goals/constraint edits made elsewhere can stop waking
-    // the scheduler once the operator navigates away from that tab.
-    ref.watch(schedulerAutoReevalProvider);
-    // Keep the longitude-baton scheduler mounted for the shell's lifetime so a
-    // co-imaging session hands the night east on the rise/set even while the
-    // operator is on another tab. Lazy otherwise, so this
-    // read is what makes it tick in the GUI (the headless host eager-reads it in
-    // main_headless). No-op until a session is joined and a site is configured.
-    ref.watch(coImagingBatonSchedulerProvider);
-    // The end of a run has to be seen whichever screen is open, so Tonight
-    // can still show it as the finished night when the operator returns.
-    ref.listen(lastEndedRunProvider, (_, __) {});
     final isSideNavExpanded =
         sidebarCollapsed != null ? !sidebarCollapsed : _fallbackSideNavExpanded;
 
@@ -448,263 +438,226 @@ class _AppShellState extends ConsumerState<AppShell> {
         // chrome and restore it unchanged when the IME closes.
         final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
-        // The first-launch tour is replay-only: OnboardingTourReplayLauncher
-        // watches firstLaunchTourStatusProvider and overlays OnboardingOverlay on
-        // top of the whole shell when the user re-runs it from Settings → Help.
-        // Mounted at the shell level so the spotlight cutouts can target the
-        // live side-navigation TutorialKeys.
         // The splash wraps the shell's content rather than the Navigator so
         // routes pushed during startup — checkpoint recovery, onboarding,
         // update prompts — paint above it and stay interactive.
         final Widget shell = SkotiqSplashGate(
           ready: startupReady,
-          child: OnboardingTourReplayLauncher(
-            child: TutorialOverlay(
-              // Ctrl/Cmd+K anywhere in the shell. BOTH activators are bound
-              // rather than one chosen from the platform: a Mac with an external
-              // PC keyboard sends Control, and an operator who has learned one of
-              // the two should not have the app decide which one their keyboard
-              // is allowed to send.
-              child: CallbackShortcuts(
-                bindings: {
-                  const SingleActivator(LogicalKeyboardKey.keyK, control: true):
-                      () => showCommandPalette(context),
-                  const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
-                      () => showCommandPalette(context),
-                },
-                child: Scaffold(
-                  backgroundColor: colors.background,
-                  // Focus order is the reading order of the glass: the sidebar
-                  // first (the app's own controls), then the page it governs,
-                  // then the window controls — the part that belongs to the
-                  // window, not to the app.
-                  body: FocusTraversalGroup(
-                    policy: OrderedTraversalPolicy(),
-                    child: Stack(
-                      children: [
-                        Column(
-                          children: [
-                            // Mobile gear strip. Settings left the bottom bar
-                            // in the six-tab consolidation, so this thin
-                            // app-bar action keeps it one tap away on phones.
-                            if (useBottomNav && !keyboardVisible)
-                              SafeArea(
-                                bottom: false,
-                                child: _MobileSettingsBar(
-                                  onOpenSettings: () => context.go('/settings'),
-                                ),
-                              ),
-
-                            // Main content
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  // The sidebar (desktop only) — a
-                                  // full-height pane of the slate: chrome
-                                  // header, destinations, Rig card.
-                                  if (!useBottomNav)
-                                    FocusTraversalOrder(
-                                      order: const NumericFocusOrder(0),
-                                      child: SideNavigation(
-                                        key: TutorialKeys.sideNavigation,
-                                        // Positional, so it tracks the rail
-                                        // order in ShellNavigation
-                                        // .primaryDestinations (04 §3.2):
-                                        // Tonight, Imaging, Sequencer,
-                                        // Guiding | Plan, Equipment, Flat wizard, Weather
-                                        // | Darkroom, Analytics.
-                                        tutorialKeys: [
-                                          TutorialKeys.navDashboard,
-                                          TutorialKeys.navImaging,
-                                          TutorialKeys.navSequencer,
-                                          TutorialKeys.navGuiding,
-                                          TutorialKeys.navPlanner,
-                                          TutorialKeys.navEquipment,
-                                          null,
-                                          null,
-                                          null,
-                                          TutorialKeys.navAnalytics,
-                                        ],
-                                        currentIndex: currentIndex,
-                                        onTabSelected: (index) =>
-                                            _onTabSelected(index, context),
-                                        isExpanded: isSideNavExpanded,
-                                        onToggleExpanded: () {
-                                          final currentSettings = ref
-                                              .read(appSettingsProvider)
-                                              .valueOrNull;
-                                          if (currentSettings != null) {
-                                            ref
-                                                .read(
-                                                  appSettingsProvider.notifier,
-                                                )
-                                                .setSidebarCollapsed(
-                                                  !currentSettings
-                                                      .sidebarCollapsed,
-                                                );
-                                          } else {
-                                            setState(() {
-                                              _fallbackSideNavExpanded =
-                                                  !_fallbackSideNavExpanded;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-
-                                  // The page's pane: the top band, the
-                                  // banners, the routed content.
-                                  Expanded(
-                                    child: FocusTraversalOrder(
-                                      order: const NumericFocusOrder(1),
-                                      child: Column(
-                                        children: [
-                                          // The window's top edge: clock and
-                                          // LST, the global actions, then the
-                                          // window controls. Its empty space
-                                          // drags the window.
-                                          if (!useBottomNav)
-                                            const ShellTopBand(),
-
-                                          // Desktop keeps the full recovery
-                                          // banner; mobile uses the compact
-                                          // connection indicator.
-                                          if (!useBottomNav)
-                                            const DisconnectedBackendBanner(),
-
-                                          // iOS background-monitoring
-                                          // advisory.
-                                          const IosBackgroundBanner(),
-
-                                          // Android POST_NOTIFICATIONS
-                                          // advisory.
-                                          const AndroidNotificationsBanner(),
-
-                                          // Stale-connection advisory.
-                                          const ConnectionStaleBanner(),
-
-                                          // Weather Alert Banner
-                                          const WeatherAlertBanner(),
-
-                                          Expanded(
-                                            child: ColoredBox(
-                                              color: colors.background,
-                                              child: Stack(
-                                                children: [
-                                                  // Both chromes own the top
-                                                  // inset above this content:
-                                                  // desktop via the top band,
-                                                  // mobile via the gear
-                                                  // strip, so the content
-                                                  // never re-insets the
-                                                  // notch/status-bar edge
-                                                  // itself.
-                                                  SafeArea(
-                                                    top: false,
-                                                    bottom: false,
-                                                    child:
-                                                        _ContentSemanticsBoundary(
-                                                      child: HostLinkStaleScope(
-                                                        child: widget.child,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  // Mobile sequence overlay
-                                                  // (only on mobile and the
-                                                  // sequencer screen). Gated
-                                                  // on the shared route
-                                                  // constant instead of a
-                                                  // literal string so the
-                                                  // router and this check
-                                                  // stay in sync.
-                                                  if (useBottomNav &&
-                                                      currentLocation
-                                                              .split('?')
-                                                              .first ==
-                                                          kSequencerRoutePath)
-                                                    const MobileSequenceOverlay(),
-                                                  // Autofocus progress
-                                                  // overlay. Tonight shows
-                                                  // the run in its Focus
-                                                  // tab and on the frame.
-                                                  if (!isTonightLocation(
-                                                    currentLocation,
-                                                  ))
-                                                    const AutofocusProgressOverlay(),
-                                                  // Toast notifications -
-                                                  // always on top
-                                                  const NotificationToastOverlay(),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-
-                                          // App-wide running-sequence
-                                          // mini-player. Persistent across
-                                          // every route so pause/stop/skip
-                                          // stay reachable after the operator
-                                          // navigates away from the sequencer
-                                          // mid-run; it self-hides on the
-                                          // sequencer route (full controls
-                                          // live there) and whenever no
-                                          // sequence is active. On desktop it
-                                          // sits at the bottom of the main
-                                          // pane — the sidebar runs the full
-                                          // window height, so nothing spans
-                                          // the window's foot any more.
-                                          if (!keyboardVisible)
-                                            RunningSequenceMiniBar(
-                                              currentLocation: currentLocation,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
+          statusText: connectingToHost
+              ? 'Connecting to the imaging host at ${linkedHost.label}…'
+              : null,
+          child: TourOverlay(
+            // Ctrl/Cmd+K anywhere in the shell. BOTH activators are bound
+            // rather than one chosen from the platform: a Mac with an external
+            // PC keyboard sends Control, and an operator who has learned one of
+            // the two should not have the app decide which one their keyboard
+            // is allowed to send.
+            child: CallbackShortcuts(
+              bindings: {
+                const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+                    () => showCommandPalette(context),
+                const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+                    () => showCommandPalette(context),
+              },
+              child: Scaffold(
+                backgroundColor: colors.background,
+                // Focus order is the reading order of the glass: the sidebar
+                // first (the app's own controls), then the page it governs,
+                // then the window controls — the part that belongs to the
+                // window, not to the app.
+                body: FocusTraversalGroup(
+                  policy: OrderedTraversalPolicy(),
+                  child: Stack(
+                    children: [
+                      Column(
+                        children: [
+                          // Mobile gear strip. Settings left the bottom bar
+                          // in the six-tab consolidation, so this thin
+                          // app-bar action keeps it one tap away on phones.
+                          if (useBottomNav && !keyboardVisible)
+                            SafeArea(
+                              bottom: false,
+                              child: _MobileSettingsBar(
+                                onOpenSettings: () => openSettings(context),
                               ),
                             ),
 
-                            // Bottom chrome. On phone the bottom nav
-                            // auto-hides when idle so it reclaims the short
-                            // cover-screen height.
-                            //
-                            // The narrow shell carries NO status bar. The nav
-                            // does NOT hide: below 768px the nav IS the
-                            // navigation, and an affordance that takes it
-                            // away is one an operator can only lose by.
-                            if (useBottomNav && !keyboardVisible)
-                              SkotiqBottomNavigation(
-                                currentRoute: currentLocation,
-                                onRouteSelected: (route) {
-                                  try {
-                                    context.go(route);
-                                  } catch (e, stack) {
-                                    developer.log(
-                                      '[AppShell] Bottom nav could not '
-                                      'navigate to $route: $e',
-                                      name: 'AppShell',
-                                      level: 900,
-                                      error: e,
-                                      stackTrace: stack,
-                                    );
-                                  }
-                                },
-                              ),
-                          ],
-                        ),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                // The sidebar (desktop only) — a
+                                // full-height pane of the slate: chrome
+                                // header, destinations, Rig card.
+                                if (!useBottomNav)
+                                  FocusTraversalOrder(
+                                    order: const NumericFocusOrder(0),
+                                    child: SideNavigation(
+                                      currentIndex: currentIndex,
+                                      onTabSelected: (index) =>
+                                          _onTabSelected(index, context),
+                                      isExpanded: isSideNavExpanded,
+                                      onToggleExpanded: () {
+                                        final currentSettings = ref
+                                            .read(appSettingsProvider)
+                                            .valueOrNull;
+                                        if (currentSettings != null) {
+                                          ref
+                                              .read(
+                                                appSettingsProvider.notifier,
+                                              )
+                                              .setSidebarCollapsed(
+                                                !currentSettings
+                                                    .sidebarCollapsed,
+                                              );
+                                        } else {
+                                          setState(() {
+                                            _fallbackSideNavExpanded =
+                                                !_fallbackSideNavExpanded;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
 
-                        // The window's own 1 px edge, drawn by the app on
-                        // Linux where nothing else draws one — about 9% of
-                        // the theme's ink, so red night gets a red-tinted
-                        // edge rather than a white one. Gated on the chrome
-                        // state: a maximized or full-screen window has no
-                        // free edge to outline.
-                        if (!kIsWebLike &&
-                            Platform.isLinux &&
-                            ShellChrome.isDesktopWindow)
-                          const Positioned.fill(child: WindowEdgeHairline()),
-                      ],
-                    ),
+                                // The page's pane: the top band, the
+                                // banners, the routed content.
+                                Expanded(
+                                  child: FocusTraversalOrder(
+                                    order: const NumericFocusOrder(1),
+                                    child: Column(
+                                      children: [
+                                        // The window's top edge: clock and
+                                        // LST, the global actions, then the
+                                        // window controls. Its empty space
+                                        // drags the window.
+                                        if (!useBottomNav) const ShellTopBand(),
+
+                                        // Desktop keeps the full recovery
+                                        // banner; mobile uses the compact
+                                        // connection indicator.
+                                        if (!useBottomNav)
+                                          const DisconnectedBackendBanner(),
+
+                                        const IosBackgroundBanner(),
+
+                                        const AndroidNotificationsBanner(),
+
+                                        const ConnectionStaleBanner(),
+
+                                        const WeatherAlertBanner(),
+
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: colors.background,
+                                            child: Stack(
+                                              children: [
+                                                // Both chromes own the top
+                                                // inset above this content:
+                                                // desktop via the top band,
+                                                // mobile via the gear
+                                                // strip, so the content
+                                                // never re-insets the
+                                                // notch/status-bar edge
+                                                // itself.
+                                                SafeArea(
+                                                  top: false,
+                                                  bottom: false,
+                                                  child:
+                                                      _ContentSemanticsBoundary(
+                                                    child: HostLinkStaleScope(
+                                                      child: widget.child,
+                                                    ),
+                                                  ),
+                                                ),
+                                                // The phone sequencer's
+                                                // run controls.
+                                                if (useBottomNav &&
+                                                    currentRoute ==
+                                                        AppRoute.sequencer)
+                                                  const MobileSequenceOverlay(),
+                                                if (!shownByScreen.contains(
+                                                  ShellOverlay.autofocus,
+                                                ))
+                                                  const AutofocusProgressOverlay(),
+                                                // A live polar alignment,
+                                                // however it started.
+                                                if (!shownByScreen.contains(
+                                                  ShellOverlay
+                                                      .polarAlignmentRun,
+                                                ))
+                                                  const PolarAlignmentRunOverlay(),
+                                                // Toast notifications -
+                                                // always on top
+                                                const NotificationToastOverlay(),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+
+                                        // App-wide running-sequence
+                                        // mini-player. Persistent across
+                                        // every route so pause/stop/skip
+                                        // stay reachable after the operator
+                                        // navigates away from the sequencer
+                                        // mid-run; it self-hides on the
+                                        // sequencer route (full controls
+                                        // live there) and whenever no
+                                        // sequence is active. On desktop it
+                                        // sits at the bottom of the main
+                                        // pane — the sidebar runs the full
+                                        // window height, so nothing spans
+                                        // the window's foot any more.
+                                        if (!keyboardVisible)
+                                          RunningSequenceMiniBar(
+                                            currentLocation: currentLocation,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Bottom chrome. On phone the bottom nav
+                          // auto-hides when idle so it reclaims the short
+                          // cover-screen height.
+                          //
+                          // The narrow shell carries NO status bar. The nav
+                          // does NOT hide: below 768px the nav IS the
+                          // navigation, and an affordance that takes it
+                          // away is one an operator can only lose by.
+                          if (useBottomNav && !keyboardVisible)
+                            SkotiqBottomNavigation(
+                              currentRoute: currentLocation,
+                              onRouteSelected: (route) {
+                                try {
+                                  context.go(route.path);
+                                } catch (e, stack) {
+                                  Log.warning(
+                                    '[AppShell] Bottom nav could not '
+                                    'navigate to $route: $e',
+                                    source: 'AppShell',
+                                    error: e,
+                                    stackTrace: stack,
+                                  );
+                                }
+                              },
+                            ),
+                        ],
+                      ),
+
+                      // The window's own 1 px edge, drawn by the app on
+                      // Linux where nothing else draws one — about 9% of
+                      // the theme's ink, so red night gets a red-tinted
+                      // edge rather than a white one. Gated on the chrome
+                      // state: a maximized or full-screen window has no
+                      // free edge to outline.
+                      if (!kIsWebLike &&
+                          Platform.isLinux &&
+                          ShellChrome.isDesktopWindow)
+                        const Positioned.fill(child: WindowEdgeHairline()),
+                    ],
                   ),
                 ),
               ),
@@ -736,8 +689,8 @@ class _AppShellState extends ConsumerState<AppShell> {
               router.pop();
               return;
             }
-            if (!_getCurrentLocation(context).startsWith('/dashboard')) {
-              context.go('/dashboard');
+            if (!AppRoute.tonight.contains(_getCurrentLocation(context))) {
+              context.go(AppRoute.tonight.path);
               return;
             }
             SystemNavigator.pop();

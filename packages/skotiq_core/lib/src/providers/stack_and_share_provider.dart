@@ -4,13 +4,17 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
-import '../backend/network_backend.dart';
-import '../database/daos/stacked_results_dao.dart';
+import 'linked_host.dart';
+import '../errors/error_text.dart';
+import 'database_provider.dart';
 import '../models/imaging/stack_and_share_models.dart';
 import '../services/logging_service.dart';
 import '../services/stack_and_share_service.dart';
-import '../services/stack_share_export_service.dart';
 import 'backend_provider.dart';
+import 'logging_service_provider.dart';
+import 'stack_and_share_service_provider.dart';
+import 'stack_share_export_service_provider.dart';
+import '../models/backend/remote_stacked_result.dart';
 
 /// UI-facing state for the **Stack-and-Share Loop** orchestrator (component C7).
 ///
@@ -90,7 +94,6 @@ class StackAndShareState {
   bool get isComplete =>
       progress.phase == StackAndSharePhase.complete && result != null;
 
-  /// Whether the most recent run ended in failure.
   bool get hasError => progress.phase == StackAndSharePhase.error;
 
   StackAndShareState copyWith({
@@ -167,7 +170,7 @@ class StackAndShareNotifier extends StateNotifier<StackAndShareState> {
     int sessionId, {
     StackAndShareConfig? config,
   }) async {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(isRemoteModeProvider)) {
       state = const StackAndShareState(
         progress: StackAndShareProgress(phase: StackAndSharePhase.error),
         errorMessage:
@@ -222,6 +225,7 @@ class StackAndShareNotifier extends StateNotifier<StackAndShareState> {
         resultChannels: raw?.channels ?? 1,
         resultRgba: rgba?.rgba,
       );
+      _ref.invalidate(recentStackedResultsProvider);
     } catch (e, st) {
       if (!mounted) return;
       // Ensure the terminal error phase is reflected even if the failure
@@ -230,7 +234,7 @@ class StackAndShareNotifier extends StateNotifier<StackAndShareState> {
         progress: state.progress.phase == StackAndSharePhase.error
             ? state.progress
             : state.progress.copyWith(phase: StackAndSharePhase.error),
-        errorMessage: e.toString(),
+        errorMessage: userFacingError(e),
       );
       _logger.error(
         'Stack-and-Share run failed for session $sessionId: $e',
@@ -270,8 +274,8 @@ final stackAndShareProvider =
 /// blank stack.
 final stackResultViewerProvider =
     FutureProvider.family<StackAndShareResult, int>((ref, id) async {
-      final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final host = ref.watch(linkedHostLiveStackProvider);
+      if (host != null) {
         return (await ref.watch(remoteStackResultProvider(id).future)).result;
       }
       final dao = ref.watch(stackedResultsDaoProvider);
@@ -282,19 +286,52 @@ final stackResultViewerProvider =
       return result;
     });
 
-/// The most recent stacked results across all sessions, newest first, for any
-/// history / gallery surface. Caps at the DAO's default limit.
-final recentStackedResultsProvider = FutureProvider<List<StackAndShareResult>>((
-  ref,
-) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final remote = await backend.stackingGetSavedResults();
-    return [for (final record in remote) record.result];
+/// The most recent stacked results across all sessions, newest first: this
+/// machine's on a rig, the host's on a linked client. Caps at the DAO's default
+/// limit. Re-read whenever the history is shown again and after every
+/// Stack & Share run, so a new stack appears without a restart.
+final recentStackedResultsProvider =
+    FutureProvider.autoDispose<List<StackAndShareResult>>((ref) async {
+      final host = ref.watch(linkedHostLiveStackProvider);
+      if (host != null) {
+        final remote = await host.stackingGetSavedResults();
+        return [for (final record in remote) record.result];
+      }
+      final dao = ref.watch(stackedResultsDaoProvider);
+      return dao.getRecentResults();
+    });
+
+/// Path of a stacked result's saved preview, for a thumbnail in the history.
+///
+/// Null when there is nothing on disk, and always null on a linked client: the
+/// host serves only the full-size preview, and fetching one per history row
+/// would move tens of megabytes to draw a few small squares.
+final stackResultThumbnailPathProvider = FutureProvider.autoDispose
+    .family<String?, int>((ref, id) async {
+      if (ref.watch(isRemoteModeProvider)) return null;
+      final result = await ref.watch(stackResultViewerProvider(id).future);
+      final file = await _localPreviewFile(ref, result);
+      if (file == null || !await file.exists()) return null;
+      return file.path;
+    });
+
+/// The file a local result's preview is read from: the application-owned
+/// viewer preview when it exists, else the image the run exported. Null when
+/// the run recorded no image at all.
+Future<File?> _localPreviewFile(Ref ref, StackAndShareResult result) async {
+  final recordedPath = result.exportedImagePath;
+  if (recordedPath == null || recordedPath.trim().isEmpty) return null;
+  final resultId = result.id;
+  if (resultId != null) {
+    final canonical = File(
+      await ref
+          .read(stackShareExportServiceProvider)
+          .viewerPreviewPath(resultId),
+    );
+    if (await canonical.exists()) return canonical;
   }
-  final dao = ref.watch(stackedResultsDaoProvider);
-  return dao.getRecentResults();
-});
+  return File(recordedPath);
+}
 
 /// Strict remote metadata record, shared by the result and preview providers so
 /// a screen load performs only one metadata request. Watching [backendProvider]
@@ -302,11 +339,11 @@ final recentStackedResultsProvider = FutureProvider<List<StackAndShareResult>>((
 /// the old future rather than letting its response populate the new session.
 final remoteStackResultProvider =
     FutureProvider.family<RemoteStackedResult, int>((ref, id) async {
-      final backend = ref.watch(backendProvider);
-      if (backend is! NetworkBackend) {
+      final host = ref.watch(linkedHostLiveStackProvider);
+      if (host == null) {
         throw StateError('Remote stack metadata requires a network backend.');
       }
-      return backend.stackingGetSavedResult(id);
+      return host.stackingGetSavedResult(id);
     });
 
 /// Loads and strictly decodes the durable display preview for a saved result.
@@ -317,31 +354,19 @@ final remoteStackResultProvider =
 /// a stale or mismatched artifact cannot be displayed under the wrong stats.
 final stackResultPreviewProvider = FutureProvider.autoDispose
     .family<Uint8List?, int>((ref, id) async {
-      final backend = ref.watch(backendProvider);
+      final host = ref.watch(linkedHostLiveStackProvider);
       final result = await ref.watch(stackResultViewerProvider(id).future);
 
       late final Uint8List encoded;
       late final String source;
-      if (backend is NetworkBackend) {
+      if (host != null) {
         final remote = await ref.watch(remoteStackResultProvider(id).future);
         if (!remote.previewAvailable) return null;
-        encoded = await backend.stackingGetSavedResultPreview(id);
+        encoded = await host.stackingGetSavedResultPreview(id);
         source = 'remote stacked-result preview $id';
       } else {
-        final recordedPath = result.exportedImagePath;
-        if (recordedPath == null || recordedPath.trim().isEmpty) return null;
-        final resultId = result.id;
-        final canonicalPath = resultId == null
-            ? null
-            : await ref
-                  .read(stackShareExportServiceProvider)
-                  .viewerPreviewPath(resultId);
-        final canonicalFile = canonicalPath == null
-            ? null
-            : File(canonicalPath);
-        final file = canonicalFile != null && await canonicalFile.exists()
-            ? canonicalFile
-            : File(recordedPath);
+        final file = await _localPreviewFile(ref, result);
+        if (file == null) return null;
         if (!await file.exists()) {
           throw StateError('The saved stacked-result preview is missing.');
         }

@@ -4,8 +4,11 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/bridge_event_mapper.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show skotiqRelease;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _NetworkBackendNotifier extends BackendNotifier {
   _NetworkBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -38,18 +41,18 @@ void main() {
                 'severity': 'critical',
                 'category': 'sequencer',
                 'eventType': 'RecoveryStarted',
-                'data': recoveryFieldsFromTyped(
-                  startedAtIso: now.toIso8601String(),
-                  causeKind: 'WeatherUnsafe',
-                  causeCustomLabel: null,
-                  lastAttemptAtIso: now.toIso8601String(),
-                  attemptCount: 2,
-                  maxAttempts: 5,
-                  retryIntervalSecs: 300.0,
-                  maxDurationSecs: 1800.0,
-                  phase: 'Attempting',
-                  lastError: 'cloud cover',
-                ),
+                'data': {
+                  'started_at_iso': now.toIso8601String(),
+                  'cause_kind': 'WeatherUnsafe',
+                  'cause_custom_label': null,
+                  'last_attempt_at_iso': now.toIso8601String(),
+                  'attempt_count': 2,
+                  'max_attempts': 5,
+                  'retry_interval_secs': 300.0,
+                  'max_duration_secs': 1800.0,
+                  'phase': 'Attempting',
+                  'last_error': 'cloud cover',
+                },
               }),
             );
           });
@@ -116,7 +119,7 @@ void main() {
 
 Future<HttpServer> _startServer(
   void Function(WebSocket socket) onConnect, {
-  Map<String, dynamic> infoBody = const {'version': '2.5.0'},
+  Map<String, dynamic> infoBody = const {'version': skotiqRelease},
 }) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
 

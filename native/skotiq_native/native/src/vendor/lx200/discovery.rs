@@ -11,278 +11,145 @@ pub struct Lx200MountInfo {
     pub baud_rate: u32,
 }
 
-pub async fn discover_mounts() -> Result<Vec<Lx200MountInfo>, NativeError> {
-    crate::vendor::run_serial_scan("LX200", scan_serial_ports).await
+pub async fn discover_mounts() -> Result<Vec<Lx200MountInfo>, DriverError> {
+    serial_link::run_serial_scan("LX200", scan_serial_ports).await
 }
 
-pub(crate) fn scan_serial_ports() -> Result<Vec<Lx200MountInfo>, NativeError> {
-    let mut mounts = Vec::new();
+pub(crate) fn scan_serial_ports() -> Result<Vec<Lx200MountInfo>, DriverError> {
+    serial_link::scan_ports(&SCAN_PLAN, identify_mount)
+}
 
-    let ports = serialport::available_ports()
-        .map_err(|e| NativeError::SdkError(format!("Failed to enumerate ports: {}", e)))?;
+/// The same scan over ports a test supplies.
+#[cfg(all(test, target_os = "linux"))]
+pub(crate) fn scan_port_list(ports: Vec<serialport::SerialPortInfo>) -> Vec<Lx200MountInfo> {
+    serial_link::scan_port_list(&SCAN_PLAN, ports, identify_mount)
+}
 
+const ONSTEP_STATUS_PROBE: Probe<'static> = probe(commands::ONSTEP_GET_STATUS, 32);
+const PRODUCT_NAME_PROBE: Probe<'static> = probe(commands::GET_PRODUCT_NAME, 64);
+const RA_PROBE: Probe<'static> = probe(commands::GET_RA, 32);
+
+/// Three questions, most specific first: the OnStep status (Pegasus NYX and
+/// other OnStep mounts), the product name, and last a bare RA read for
+/// compatible mounts that answer neither.
+fn identify_mount(port: &mut ProbedPort<'_>) -> Option<Lx200MountInfo> {
+    // OnStep answers `:GU#` with a short string of status flags ending in `#`.
+    let is_onstep = match port.ask(&ONSTEP_STATUS_PROBE) {
+        Some(response) => {
+            let trimmed = response.trim();
+            tracing::debug!(
+                "OnStep detection response from {} at {} baud: {:?}",
+                port.name,
+                port.baud_rate,
+                trimmed
+            );
+            trimmed.ends_with('#') && trimmed.len() >= 2 && trimmed.len() <= 30
+        }
+        None => false,
+    };
+
+    if is_onstep {
+        let name = port
+            .ask(&PRODUCT_NAME_PROBE)
+            .map(|response| reply_text(&response))
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| "OnStep Mount".to_string());
+
+        let display_name =
+            if name.to_lowercase().contains("pegasus") || name.to_lowercase().contains("nyx") {
+                format!("Pegasus {} ({})", name, port.name)
+            } else if name.to_lowercase().contains("onstep") {
+                format!("{} ({})", name, port.name)
+            } else {
+                format!("OnStep: {} ({})", name, port.name)
+            };
+        let firmware_version = read_firmware_version(port);
+
+        tracing::info!(
+            "Found OnStep mount on {} at {} baud: {}",
+            port.name,
+            port.baud_rate,
+            display_name
+        );
+        return Some(Lx200MountInfo {
+            port: port.name.to_string(),
+            name: display_name,
+            mount_type: Lx200MountType::OnStep,
+            firmware_version,
+            baud_rate: port.baud_rate,
+        });
+    }
+
+    if let Some(response) = port.ask(&PRODUCT_NAME_PROBE) {
+        let name = reply_text(&response);
+        let lower = name.to_lowercase();
+
+        // Meade's own handsets answer `Autostar` (ETX, LX90 and LXD mounts)
+        // or an `LX` model name.
+        let mount_type =
+            if lower.contains("meade") || lower.contains("lx") || lower.contains("autostar") {
+                Some(Lx200MountType::Meade)
+            } else if lower.contains("gemini") || lower.contains("losmandy") {
+                Some(Lx200MountType::Losmandy)
+            } else if lower.contains("10micron") {
+                Some(Lx200MountType::TenMicron)
+            } else if !name.is_empty() && name != "\0" && name.chars().any(|c| c.is_alphanumeric())
+            {
+                Some(Lx200MountType::Generic)
+            } else {
+                None
+            };
+
+        if let Some(mount_type) = mount_type {
+            let display_name = format!("{} ({})", name, port.name);
+            let firmware_version = read_firmware_version(port);
+            tracing::info!(
+                "Found LX200 mount on {} at {} baud: {}",
+                port.name,
+                port.baud_rate,
+                display_name
+            );
+            return Some(Lx200MountInfo {
+                port: port.name.to_string(),
+                name: display_name,
+                mount_type,
+                firmware_version,
+                baud_rate: port.baud_rate,
+            });
+        }
+    }
+
+    let response = port.ask(&RA_PROBE)?;
+    if !(response.contains(':') && response.ends_with('#')) {
+        return None;
+    }
     tracing::info!(
-        "LX200 discovery: found {} serial ports to scan",
-        ports.len()
+        "Found generic LX200 mount on {} at {} baud",
+        port.name,
+        port.baud_rate
     );
-
-    for port_info in ports {
-        let port_name = port_info.port_name.clone();
-
-        // Log port info for debugging
-        let port_type = match &port_info.port_type {
-            serialport::SerialPortType::UsbPort(usb) => {
-                format!(
-                    "USB (VID:{:04X} PID:{:04X} {})",
-                    usb.vid,
-                    usb.pid,
-                    usb.product.as_deref().unwrap_or("unknown")
-                )
-            }
-            serialport::SerialPortType::PciPort => "PCI".to_string(),
-            serialport::SerialPortType::BluetoothPort => "Bluetooth".to_string(),
-            serialport::SerialPortType::Unknown => "Unknown".to_string(),
-        };
-        tracing::debug!("Checking port {} ({})", port_name, port_type);
-
-        // Try multiple baud rates - modern mounts like Pegasus NYX use 115200
-        let mut found_mount = false;
-        for &baud_rate in DISCOVERY_BAUD_RATES {
-            if found_mount {
-                break;
-            }
-
-            tracing::debug!("Trying {} at {} baud", port_name, baud_rate);
-
-            let result = serialport::new(&port_name, baud_rate)
-                .timeout(Duration::from_millis(500))
-                .open();
-
-            match result {
-                Err(e) => {
-                    // Common on Windows: port is busy/locked by another app (e.g., ASCOM driver)
-                    let msg = e.to_string();
-                    let is_access_denied = msg.contains("Access is denied")
-                        || msg.contains("access is denied")
-                        || msg.contains("Permission denied")
-                        || msg.contains("permission denied");
-
-                    if is_access_denied {
-                        tracing::debug!(
-                            "Port {} is locked by another application (possibly ASCOM driver) - skipping LX200 scan",
-                            port_name
-                        );
-                    } else {
-                        tracing::debug!(
-                            "Could not open port {} at {} baud for LX200 detection: {}",
-                            port_name,
-                            baud_rate,
-                            msg
-                        );
-                    }
-                    // If we can't open at any baud rate, skip to next port
-                    break;
-                }
-                Ok(mut port) => {
-                    // First, try OnStep status command to detect OnStep-based mounts (Pegasus NYX, etc.)
-                    // OnStep responds to :GU# with a status string like "nNpPHT..." or similar flags
-                    let is_onstep = if port
-                        .write_all(commands::ONSTEP_GET_STATUS.as_bytes())
-                        .is_ok()
-                    {
-                        let _ = port.flush();
-                        let mut buf = [0u8; 32];
-                        std::thread::sleep(Duration::from_millis(200));
-
-                        if let Ok(n) = port.read(&mut buf) {
-                            let response = String::from_utf8_lossy(&buf[..n]);
-                            let trimmed = response.trim();
-                            tracing::debug!(
-                                "OnStep detection response from {} at {} baud: {:?}",
-                                port_name,
-                                baud_rate,
-                                trimmed
-                            );
-                            // OnStep status ends with # and has some content
-                            // Be more permissive - just check it ends with # and has reasonable length
-                            trimmed.ends_with('#') && trimmed.len() >= 2 && trimmed.len() <= 30
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    };
-
-                    if is_onstep {
-                        // Get product name for display
-                        let name = if port
-                            .write_all(commands::GET_PRODUCT_NAME.as_bytes())
-                            .is_ok()
-                        {
-                            let _ = port.flush();
-                            let mut buf = [0u8; 64];
-                            std::thread::sleep(Duration::from_millis(200));
-
-                            if let Ok(n) = port.read(&mut buf) {
-                                let response = String::from_utf8_lossy(&buf[..n]);
-                                response.trim_end_matches('#').to_string()
-                            } else {
-                                "OnStep Mount".to_string()
-                            }
-                        } else {
-                            "OnStep Mount".to_string()
-                        };
-
-                        // Check if it's a Pegasus NYX specifically
-                        let display_name = if name.to_lowercase().contains("pegasus")
-                            || name.to_lowercase().contains("nyx")
-                        {
-                            format!("Pegasus {} ({})", name, port_name)
-                        } else if name.to_lowercase().contains("onstep") {
-                            format!("{} ({})", name, port_name)
-                        } else {
-                            format!("OnStep: {} ({})", name, port_name)
-                        };
-                        let firmware_number =
-                            optional_discovery_response(&mut *port, commands::GET_FIRMWARE_NUMBER);
-                        let firmware_date =
-                            optional_discovery_response(&mut *port, commands::GET_FIRMWARE_DATE);
-                        let firmware_time =
-                            optional_discovery_response(&mut *port, commands::GET_FIRMWARE_TIME);
-                        let firmware_version = format_firmware_version(
-                            firmware_number.as_deref(),
-                            firmware_date.as_deref(),
-                            firmware_time.as_deref(),
-                        );
-
-                        mounts.push(Lx200MountInfo {
-                            port: port_name.clone(),
-                            name: display_name.clone(),
-                            mount_type: Lx200MountType::OnStep,
-                            firmware_version,
-                            baud_rate,
-                        });
-                        tracing::info!(
-                            "Found OnStep mount on {} at {} baud: {}",
-                            port_name,
-                            baud_rate,
-                            display_name
-                        );
-                        found_mount = true;
-                        continue;
-                    }
-
-                    // Try standard LX200 detection
-                    if port
-                        .write_all(commands::GET_PRODUCT_NAME.as_bytes())
-                        .is_ok()
-                    {
-                        let _ = port.flush();
-
-                        let mut buf = [0u8; 64];
-                        std::thread::sleep(Duration::from_millis(200));
-
-                        if let Ok(n) = port.read(&mut buf) {
-                            let response = String::from_utf8_lossy(&buf[..n]);
-                            let name = response.trim_end_matches('#').to_string();
-
-                            let mount_type = if name.to_lowercase().contains("meade")
-                                || name.to_lowercase().contains("lx")
-                            {
-                                Some(Lx200MountType::Meade)
-                            } else if name.to_lowercase().contains("gemini")
-                                || name.to_lowercase().contains("losmandy")
-                            {
-                                Some(Lx200MountType::Losmandy)
-                            } else if name.to_lowercase().contains("10micron") {
-                                Some(Lx200MountType::TenMicron)
-                            } else if !name.is_empty()
-                                && name != "\0"
-                                && name.chars().any(|c| c.is_alphanumeric())
-                            {
-                                Some(Lx200MountType::Generic)
-                            } else {
-                                None
-                            };
-
-                            if let Some(mount_type) = mount_type {
-                                let display_name = format!("{} ({})", name, port_name);
-                                let firmware_number = optional_discovery_response(
-                                    &mut *port,
-                                    commands::GET_FIRMWARE_NUMBER,
-                                );
-                                let firmware_date = optional_discovery_response(
-                                    &mut *port,
-                                    commands::GET_FIRMWARE_DATE,
-                                );
-                                let firmware_time = optional_discovery_response(
-                                    &mut *port,
-                                    commands::GET_FIRMWARE_TIME,
-                                );
-                                let firmware_version = format_firmware_version(
-                                    firmware_number.as_deref(),
-                                    firmware_date.as_deref(),
-                                    firmware_time.as_deref(),
-                                );
-                                mounts.push(Lx200MountInfo {
-                                    port: port_name.clone(),
-                                    name: display_name.clone(),
-                                    mount_type,
-                                    firmware_version,
-                                    baud_rate,
-                                });
-                                tracing::info!(
-                                    "Found LX200 mount on {} at {} baud: {}",
-                                    port_name,
-                                    baud_rate,
-                                    display_name
-                                );
-                                found_mount = true;
-                                continue;
-                            }
-                        }
-                    }
-
-                    // Fallback: try GET_RA for basic LX200 detection
-                    if port.write_all(commands::GET_RA.as_bytes()).is_ok() {
-                        let _ = port.flush();
-
-                        let mut buf = [0u8; 32];
-                        std::thread::sleep(Duration::from_millis(200));
-
-                        if let Ok(n) = port.read(&mut buf) {
-                            let response = String::from_utf8_lossy(&buf[..n]);
-                            if response.contains(':') && response.ends_with('#') {
-                                let display_name = format!("LX200 Compatible ({})", port_name);
-                                mounts.push(Lx200MountInfo {
-                                    port: port_name.clone(),
-                                    name: display_name.clone(),
-                                    mount_type: Lx200MountType::Generic,
-                                    firmware_version: None,
-                                    baud_rate,
-                                });
-                                tracing::info!(
-                                    "Found generic LX200 mount on {} at {} baud",
-                                    port_name,
-                                    baud_rate
-                                );
-                                found_mount = true;
-                            }
-                        }
-                    }
-
-                    // Explicit drop + sleep for Windows to fully release the COM port handle
-                    drop(port);
-                    std::thread::sleep(Duration::from_millis(50));
-                } // end Ok(mut port) =>
-            } // end match
-        } // end for baud_rate
-    } // end for port_info
-
-    tracing::debug!("LX200 discovery complete: found {} mounts", mounts.len());
-    Ok(mounts)
+    Some(Lx200MountInfo {
+        port: port.name.to_string(),
+        name: format!("LX200 Compatible ({})", port.name),
+        mount_type: Lx200MountType::Generic,
+        firmware_version: None,
+        baud_rate: port.baud_rate,
+    })
 }
 
-pub fn is_available() -> bool {
-    true
+/// A probe reply without its `#` and the line end some firmware sends after
+/// it (the NYX-101 follows every reply with CRLF).
+fn reply_text(response: &str) -> String {
+    response
+        .trim_matches(|c: char| c.is_whitespace() || c == '\0')
+        .trim_end_matches('#')
+        .trim()
+        .to_string()
+}
+
+fn read_firmware_version(port: &mut ProbedPort<'_>) -> Option<String> {
+    let number = optional_discovery_response(port, commands::GET_FIRMWARE_NUMBER);
+    let date = optional_discovery_response(port, commands::GET_FIRMWARE_DATE);
+    let time = optional_discovery_response(port, commands::GET_FIRMWARE_TIME);
+    format_firmware_version(number.as_deref(), date.as_deref(), time.as_deref())
 }

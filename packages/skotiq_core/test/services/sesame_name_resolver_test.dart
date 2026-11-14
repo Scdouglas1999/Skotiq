@@ -4,7 +4,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Sesame's answer for "M42", captured from the live service 2026-10-21.
 const _m42Xml = '''<?xml version="1.0" encoding="UTF-8"?>
@@ -84,6 +85,29 @@ void main() {
       final r = await resolver.resolve('M42');
       expect(r!.mainId, 'M 42');
       expect(asked.toString(), '${SesameNameResolver.endpoint}?M42');
+    });
+
+    // ux walk-2 F12: the planner showed "TargetNameLookupUnavailable: could
+    // not reach SIMBAD (ClientException with SocketException: ... uri=...)".
+    test('an unreachable SIMBAD is one plain sentence', () async {
+      final closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = closed.port;
+      await closed.close();
+      final down = SesameNameResolver(
+        client: MockClient(
+          (_) => http.get(Uri.parse('http://127.0.0.1:$port/')),
+        ),
+      );
+
+      final error = await down
+          .resolve('M42')
+          .then<Object?>((_) => null, onError: (Object e) => e);
+
+      expect(error, isA<TargetNameLookupUnavailable>());
+      expect(
+        userFacingError(error),
+        'Could not reach SIMBAD (Connection refused).',
+      );
     });
 
     test(

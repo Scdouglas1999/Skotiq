@@ -29,12 +29,23 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
+import 'package:skotiq_core/providers.dart';
 
-class BroadcastHandlers {
+class BroadcastHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    BroadcastApi.info: handleInfo,
+    BroadcastApi.liveStack: handleLiveStack,
+    BroadcastApi.sse: handleSse,
+    BroadcastApi.page: handleBroadcastPage,
+  };
+
   final ProviderContainer container;
 
   BroadcastHandlers({required this.container});
@@ -222,8 +233,6 @@ class BroadcastHandlers {
       },
     );
   }
-
-  // Internal helpers
 
   Map<String, String> _jsonHeaders() => {
     'content-type': 'application/json; charset=utf-8',

@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../backend/roles/host_data/science_products.dart';
 import '../../models/science/science_models.dart' as science;
 import '../database.dart';
 import '../tables/science.dart';
@@ -22,9 +23,11 @@ part 'science_dao.g.dart';
   ],
 )
 class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$ScienceDaoMixin {
+    with _$ScienceDaoMixin
+    implements ScienceProducts {
   ScienceDao(super.db);
 
+  @override
   Future<void> upsertSessionConfig(science.ScienceSessionConfig config) async {
     if (config.sessionId == null) {
       return;
@@ -60,6 +63,27 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
       }
     });
   }
+
+  @override
+  Stream<science.ScienceSessionConfig?> watchSessionScienceConfig(
+    int sessionId,
+  ) => watchSessionConfig(sessionId).map(
+    (row) => row == null
+        ? null
+        : science.ScienceSessionConfig(
+            sessionId: row.sessionId,
+            photometryEnabled: row.photometryEnabled,
+            calibrationEnabled: row.calibrationEnabled,
+            transparencyEnabled: row.transparencyEnabled,
+            psfMapEnabled: row.psfMapEnabled,
+            residualsEnabled: row.residualsEnabled,
+            movingObjectsEnabled: row.movingObjectsEnabled,
+            narrowbandEnabled: row.narrowbandEnabled,
+            psfGridRows: row.psfGridRows,
+            psfGridCols: row.psfGridCols,
+            transparencyAlertThreshold: row.transparencyAlertThreshold,
+          ),
+  );
 
   Stream<ScienceSessionConfigRow?> watchSessionConfig(int sessionId) {
     return (select(
@@ -108,6 +132,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
+  @override
   Stream<List<PhotometryMeasurementRow>> watchPhotometryForSession(
     int sessionId,
   ) {
@@ -164,6 +189,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   /// long as this run". Joining through `captured_images.target_id` keeps the
   /// campaign together even though photometry rows themselves only know their
   /// session.
+  @override
   Stream<List<PhotometryMeasurementRow>> watchPhotometryForTarget({
     required int targetId,
     required String objectId,
@@ -193,27 +219,37 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   /// science product (frame quality, photometric calibration, PSF tiles or
   /// photometry), keyed by the frame's own session.
   Future<Set<int>> getCapturedImageIdsWithScience(int sessionId) async {
-    final rows = await customSelect(
-      'SELECT ci.id AS id FROM captured_images ci '
-      'WHERE ci.session_id = ? AND ('
-      'EXISTS (SELECT 1 FROM science_frame_quality_metrics m '
-      'WHERE m.captured_image_id = ci.id) OR '
-      'EXISTS (SELECT 1 FROM frame_photometric_calibration c '
-      'WHERE c.captured_image_id = ci.id) OR '
-      'EXISTS (SELECT 1 FROM psf_field_tiles t '
-      'WHERE t.captured_image_id = ci.id) OR '
-      'EXISTS (SELECT 1 FROM photometry_measurements p '
-      'WHERE p.captured_image_id = ci.id))',
-      variables: [Variable.withInt(sessionId)],
-      readsFrom: {
-        attachedDatabase.capturedImages,
-        scienceFrameQualityMetrics,
-        framePhotometricCalibration,
-        psfFieldTiles,
-        photometryMeasurements,
-      },
-    ).get();
-    return rows.map((row) => row.read<int>('id')).toSet();
+    final frames = attachedDatabase.capturedImages;
+    Expression<bool> hasRow<T extends HasResultSet, R>(
+      ResultSetImplementation<T, R> product,
+      GeneratedColumn<int> imageId,
+    ) => existsQuery(
+      selectOnly(product)
+        ..addColumns([const Constant(1)])
+        ..where(imageId.equalsExp(frames.id)),
+    );
+
+    final rows =
+        await (selectOnly(frames)
+              ..addColumns([frames.id])
+              ..where(
+                frames.sessionId.equals(sessionId) &
+                    (hasRow(
+                          scienceFrameQualityMetrics,
+                          scienceFrameQualityMetrics.capturedImageId,
+                        ) |
+                        hasRow(
+                          framePhotometricCalibration,
+                          framePhotometricCalibration.capturedImageId,
+                        ) |
+                        hasRow(psfFieldTiles, psfFieldTiles.capturedImageId) |
+                        hasRow(
+                          photometryMeasurements,
+                          photometryMeasurements.capturedImageId,
+                        )),
+              ))
+            .get();
+    return rows.map((row) => row.read(frames.id)!).toSet();
   }
 
   Future<void> insertFrameCalibration(
@@ -234,6 +270,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
+  @override
   Stream<List<FramePhotometricCalibrationRow>> watchCalibrationsForSession(
     int sessionId,
   ) {
@@ -313,6 +350,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     )..where((tbl) => tbl.capturedImageId.equals(capturedImageId))).go();
   }
 
+  @override
   Stream<List<TransparencySampleRow>> watchTransparencyForSession(
     int sessionId,
   ) {
@@ -346,6 +384,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
+  @override
   Stream<List<PsfFieldTileRow>> watchPsfTilesForSession(int sessionId) {
     return (select(psfFieldTiles)
           ..where((tbl) => tbl.sessionId.equals(sessionId))
@@ -360,6 +399,10 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   /// Replaced spatial maps have new autoincrement row IDs. A count/max-ID
   /// fingerprint per image detects additions, replacements and deletions
   /// without materializing hundreds of thousands of pixel-map rows.
+  ///
+  /// SQL text on purpose: the Science views ask this on every refresh, one
+  /// row per frame with spatial maps, and drift's typed results map rows
+  /// 2-5x slower than this (measured on the per-frame queries in ImagesDao).
   Future<Map<String, String>> spatialMapVersions(
     int sessionId,
     String product,
@@ -440,6 +483,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
+  @override
   Stream<List<ScienceFrameQualityMetricsRow>>
   watchFrameQualityMetricsForSession(int sessionId) {
     return (select(scienceFrameQualityMetrics)
@@ -516,16 +560,88 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  Stream<List<ScienceTileMetricRow>> watchTileMetricsForSession(int sessionId) {
-    return (select(scienceTileMetrics)
-          ..where((tbl) => tbl.sessionId.equals(sessionId))
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.timestamp),
-            (tbl) => OrderingTerm.asc(tbl.tileRow),
-            (tbl) => OrderingTerm.asc(tbl.tileCol),
-          ]))
-        .watch();
+  @override
+  Stream<List<ScienceTileMetricRow>> watchFrameTileMetrics(
+    int sessionId, {
+    int? capturedImageId,
+  }) {
+    final t = scienceTileMetrics;
+    final inSession = t.sessionId.equals(sessionId);
+    final frame = coalesce<int>([
+      if (capturedImageId != null)
+        _tileFrame(inSession, t.capturedImageId.equals(capturedImageId)),
+      ..._lastMeasuredTileFrame(inSession),
+    ]);
+    return selectExpressions([frame]).watchSingle().asyncMap((row) {
+      final frameId = row.read(frame);
+      return _tileRows(
+        inSession &
+            (frameId == null
+                ? const Constant(true)
+                : t.capturedImageId.equals(frameId)),
+      );
+    });
   }
+
+  /// The image id of the first tile row of [scope] that matches [where].
+  Expression<int> _tileFrame(
+    Expression<bool> scope,
+    Expression<bool> where, [
+    List<OrderingTerm> order = const [],
+  ]) {
+    final t = scienceTileMetrics;
+    return subqueryExpression<int>(
+      selectOnly(t)
+        ..addColumns([t.capturedImageId])
+        ..where(scope & where)
+        ..orderBy(order)
+        ..limit(1),
+    );
+  }
+
+  /// The newest tile row time in [scope].
+  Expression<DateTime> _newestTile(Expression<bool> scope) {
+    final t = scienceTileMetrics;
+    return subqueryExpression<DateTime>(
+      selectOnly(t)
+        ..addColumns([t.timestamp.max()])
+        ..where(scope),
+    );
+  }
+
+  /// The frame [scope] measured last, as `selectFrameScienceRows` picks it:
+  /// the first of these that is not null.
+  List<Expression<int>> _lastMeasuredTileFrame(Expression<bool> scope) {
+    final t = scienceTileMetrics;
+    final tileOrder = [
+      OrderingTerm.asc(t.tileRow),
+      OrderingTerm.asc(t.tileCol),
+    ];
+    return [
+      // The newest row, found on the session index alone.
+      _tileFrame(
+        scope,
+        t.capturedImageId.isNotNull() &
+            t.timestamp.equalsExp(_newestTile(scope)),
+        tileOrder,
+      ),
+      // Only reached when the newest rows belong to no frame.
+      _tileFrame(scope, t.capturedImageId.isNotNull(), [
+        OrderingTerm.desc(t.timestamp),
+        ...tileOrder,
+      ]),
+    ];
+  }
+
+  Future<List<ScienceTileMetricRow>> _tileRows(Expression<bool> where) =>
+      (select(scienceTileMetrics)
+            ..where((_) => where)
+            ..orderBy([
+              (tbl) => OrderingTerm.desc(tbl.timestamp),
+              (tbl) => OrderingTerm.asc(tbl.tileRow),
+              (tbl) => OrderingTerm.asc(tbl.tileCol),
+            ]))
+          .get();
 
   Future<List<ScienceTileMetricRow>> getTileMetricsForSession(
     int sessionId, {
@@ -547,24 +663,6 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  Stream<List<ScienceTileMetricRow>> watchTileMetricsForSessionLayer(
-    int sessionId,
-    String layerType,
-  ) {
-    return (select(scienceTileMetrics)
-          ..where(
-            (tbl) =>
-                tbl.sessionId.equals(sessionId) &
-                tbl.layerType.equals(layerType),
-          )
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.timestamp),
-            (tbl) => OrderingTerm.asc(tbl.tileRow),
-            (tbl) => OrderingTerm.asc(tbl.tileCol),
-          ]))
-        .watch();
-  }
-
   Future<void> replaceResidualVectorsForImage(
     int capturedImageId,
     List<AstrometryResidualVectorsCompanion> vectors,
@@ -582,6 +680,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
+  @override
   Stream<List<AstrometryResidualVectorRow>> watchResidualsForSession(
     int sessionId,
   ) {
@@ -635,6 +734,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
+  @override
   Stream<List<MovingObjectCandidateRow>> watchMovingObjectsForSession(
     int sessionId,
   ) {
@@ -677,6 +777,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     return into(lineRatioProducts).insert(product);
   }
 
+  @override
   Stream<List<LineRatioProductRow>> watchLineRatiosForSession(int sessionId) {
     return (select(lineRatioProducts)
           ..where((tbl) => tbl.sessionId.equals(sessionId))
@@ -693,6 +794,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
 
   // Standalone (sessionless) queries — for snapshots taken outside sequences
 
+  @override
   Stream<List<FramePhotometricCalibrationRow>>
   watchSessionlessCalibrationsRecent({int limit = 50}) {
     return (select(framePhotometricCalibration)
@@ -702,6 +804,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
+  @override
   Stream<List<TransparencySampleRow>> watchSessionlessTransparencyRecent({
     int limit = 50,
   }) {
@@ -712,6 +815,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
+  @override
   Stream<List<PsfFieldTileRow>> watchSessionlessPsfTilesRecent({
     int limit = 500,
   }) {
@@ -726,6 +830,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
+  @override
   Stream<List<ScienceFrameQualityMetricsRow>>
   watchSessionlessFrameQualityMetricsRecent({int limit = 50}) {
     return (select(scienceFrameQualityMetrics)
@@ -735,20 +840,29 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  Stream<List<ScienceTileMetricRow>> watchSessionlessTileMetricsRecent({
-    int limit = 500,
-  }) {
-    return (select(scienceTileMetrics)
-          ..where((tbl) => tbl.sessionId.isNull())
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.timestamp),
-            (tbl) => OrderingTerm.asc(tbl.tileRow),
-            (tbl) => OrderingTerm.asc(tbl.tileCol),
-          ])
-          ..limit(limit))
-        .watch();
+  // With no frame to go by, the last measurement: sessionless rows pile up
+  // over every night, and the live lane stamps one frame's rows with its time.
+  @override
+  Stream<List<ScienceTileMetricRow>> watchSessionlessTileMetricsRecent() {
+    final t = scienceTileMetrics;
+    final sessionless = t.sessionId.isNull();
+    final frame = coalesce<int>(_lastMeasuredTileFrame(sessionless));
+    final newest = _newestTile(sessionless);
+    return selectExpressions([frame, newest]).watchSingle().asyncMap((row) {
+      final frameId = row.read(frame);
+      final measuredAt = row.read(newest);
+      return _tileRows(
+        sessionless &
+            (frameId != null
+                ? t.capturedImageId.equals(frameId)
+                : measuredAt == null
+                ? const Constant(false)
+                : t.timestamp.equals(measuredAt)),
+      );
+    });
   }
 
+  @override
   Stream<List<AstrometryResidualVectorRow>> watchSessionlessResidualsRecent({
     int limit = 200,
   }) {
@@ -759,6 +873,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
+  @override
   Stream<List<MovingObjectCandidateRow>> watchSessionlessMovingObjectsRecent({
     int limit = 50,
   }) {
@@ -769,6 +884,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
+  @override
   Stream<List<PhotometryMeasurementRow>> watchSessionlessPhotometryRecent({
     int limit = 200,
   }) {
@@ -779,6 +895,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
+  @override
   Stream<List<LineRatioProductRow>> watchSessionlessLineRatiosRecent({
     int limit = 10,
   }) {
@@ -799,6 +916,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   // Exports read these instead: same filter and ordering, no limit.
 
   /// Every session-less photometry measurement, newest first.
+  @override
   Future<List<PhotometryMeasurementRow>> getAllSessionlessPhotometry() {
     return (select(photometryMeasurements)
           ..where((tbl) => tbl.sessionId.isNull())
@@ -807,6 +925,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Every session-less frame-quality metric row, newest first.
+  @override
   Future<List<ScienceFrameQualityMetricsRow>>
   getAllSessionlessFrameQualityMetrics() {
     return (select(scienceFrameQualityMetrics)
@@ -816,6 +935,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Every session-less transparency sample, newest first.
+  @override
   Future<List<TransparencySampleRow>> getAllSessionlessTransparency() {
     return (select(transparencySamples)
           ..where((tbl) => tbl.sessionId.isNull())
@@ -824,6 +944,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Every session-less PSF field tile, newest frame first then tile order.
+  @override
   Future<List<PsfFieldTileRow>> getAllSessionlessPsfTiles() {
     return (select(psfFieldTiles)
           ..where((tbl) => tbl.sessionId.isNull())
@@ -836,6 +957,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Every session-less astrometric residual vector, newest first.
+  @override
   Future<List<AstrometryResidualVectorRow>> getAllSessionlessResiduals() {
     return (select(astrometryResidualVectors)
           ..where((tbl) => tbl.sessionId.isNull())
@@ -844,6 +966,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Every session-less photometric-calibration row, newest first.
+  @override
   Future<List<FramePhotometricCalibrationRow>> getAllSessionlessCalibrations() {
     return (select(framePhotometricCalibration)
           ..where((tbl) => tbl.sessionId.isNull())
@@ -852,6 +975,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Every session-less moving-object candidate, most confident first.
+  @override
   Future<List<MovingObjectCandidateRow>> getAllSessionlessMovingObjects() {
     return (select(movingObjectCandidates)
           ..where((tbl) => tbl.sessionId.isNull())
@@ -869,8 +993,6 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     final result = await query.getSingle();
     return (result.read(countExp) ?? 0) > 0;
   }
-
-  // Photometric transform coefficients
 
   Future<int> insertPhotometricTransform(
     PhotometricTransformsCompanion transform,
@@ -914,6 +1036,7 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
     return query.getSingleOrNull();
   }
 
+  @override
   Stream<List<PhotometricTransformRow>> watchTransformsForProfile(
     int? equipmentProfileId,
   ) {

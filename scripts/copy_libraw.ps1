@@ -14,12 +14,12 @@ function Test-IsDebugBuild($path) {
     return $false
 }
 
-# Use the known 64-bit Release version from the runner directory
-$sourceFile = "$PSScriptRoot\..\apps\desktop\windows\runner\Release\libraw.dll"
+# Use the tracked 64-bit Release version
+$sourceFile = "$PSScriptRoot\..\lib\libraw\libraw.dll"
 
 # Alternative source locations in priority order (all should be Release builds)
 $alternativeSources = @(
-    "$PSScriptRoot\..\lib\libraw\libraw.dll",
+    "$PSScriptRoot\..\apps\desktop\windows\runner\Release\libraw.dll",
     "$PSScriptRoot\..\libraw.dll"
 )
 
@@ -60,9 +60,6 @@ if (Test-IsDebugBuild $sourceFile) {
 Write-Host "Source libraw.dll verified as RELEASE build" -ForegroundColor Green
 
 $targets = @(
-    # Tracked lib directory (primary source for builds)
-    "..\lib\libraw\libraw.dll",
-
     # Root fallback (for other scripts that might reference it)
     "..\libraw.dll",
     "..\apps\desktop\libraw.dll",

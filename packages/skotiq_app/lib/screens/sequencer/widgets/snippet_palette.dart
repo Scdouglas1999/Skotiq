@@ -4,14 +4,19 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../utils/exported_file_reveal.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
+import 'node_appearance.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'snippet_palette/rendering.dart';
 part 'snippet_palette/actions.dart';
@@ -74,42 +79,8 @@ class _SnippetPaletteState extends ConsumerState<SnippetPalette> {
     }
   }
 
-  IconData _getIcon(String iconName) {
-    switch (iconName) {
-      case 'focus':
-        return LucideIcons.focus;
-      case 'palette':
-        return LucideIcons.palette;
-      case 'move':
-        return LucideIcons.move;
-      case 'shield':
-        return LucideIcons.shield;
-      case 'rotate-cw':
-        return LucideIcons.rotateCw;
-      case 'filter':
-        return LucideIcons.filter;
-      case 'camera':
-        return LucideIcons.camera;
-      case 'target':
-        return LucideIcons.target;
-      case 'clock':
-        return LucideIcons.clock;
-      case 'settings':
-        return LucideIcons.settings;
-      case 'star':
-        return LucideIcons.star;
-      case 'zap':
-        return LucideIcons.zap;
-      case 'layers':
-        return LucideIcons.layers;
-      case 'repeat':
-        return LucideIcons.repeat;
-      case 'grid':
-        return LucideIcons.grid;
-      default:
-        return LucideIcons.puzzle;
-    }
-  }
+  IconData _getIcon(String iconName) =>
+      nodeIcon(iconName, fallback: LucideIcons.puzzle);
 
   String _getCategoryDisplayName(SnippetCategory category) {
     switch (category) {
@@ -166,8 +137,6 @@ class _SnippetPaletteState extends ConsumerState<SnippetPalette> {
   Widget build(BuildContext context) {
     final snippetsByCategory = ref.watch(snippetsByCategoryProvider);
 
-    // Filter snippets based on search query. Lower-case the query once up
-    // front rather than per-snippet, and reuse it across name + description.
     final filteredByCategory = <SnippetCategory, List<TemplateSnippet>>{};
     final q = _searchQuery.toLowerCase();
     for (final entry in snippetsByCategory.entries) {
@@ -185,7 +154,6 @@ class _SnippetPaletteState extends ConsumerState<SnippetPalette> {
       }
     }
 
-    // Order categories in a logical sequence
     final orderedCategories = [
       SnippetCategory.autofocus,
       SnippetCategory.dithering,

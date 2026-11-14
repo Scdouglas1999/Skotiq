@@ -56,7 +56,6 @@ struct Scene {
     image: OpImage,
     /// Every planted star, with the colour index it was planted at.
     catalog: Arc<dyn PhotometryCatalog>,
-    /// Number of planted stars.
     planted: usize,
 }
 
@@ -351,7 +350,7 @@ fn a_mono_master_is_refused_rather_than_returned_unchanged() {
             op_id: "color_calibrate",
             op_version: 1,
             channels: 1,
-            expected: "a colour master with 3 channels; combine a per-filter mono master first",
+            expected: "a color master with 3 channels; combine a per-filter mono master first",
         }
     );
     assert_eq!(
@@ -362,7 +361,7 @@ fn a_mono_master_is_refused_rather_than_returned_unchanged() {
             op_id: "color_calibrate",
             op_version: 1,
             channels: 1,
-            expected: "a colour master with 3 channels; combine a per-filter mono master first",
+            expected: "a color master with 3 channels; combine a per-filter mono master first",
         }
     );
 }
@@ -886,7 +885,7 @@ fn a_carried_balance_is_still_refused_on_a_mono_master() {
             op_id: "color_calibrate",
             op_version: 1,
             channels: 1,
-            expected: "a colour master with 3 channels; combine a per-filter mono master first",
+            expected: "a color master with 3 channels; combine a per-filter mono master first",
         }
     );
 }
@@ -901,7 +900,7 @@ fn average_star_scene(
     paint: impl Fn(usize, usize, usize) -> f64,
 ) -> OpImage {
     let (w, h) = (512usize, 512usize);
-    let mut rng = crate::color_composite::test_scene::Lcg::new(23);
+    let mut rng = crate::recipe::composite::test_scene::Lcg::new(23);
     let mut data = vec![0.0_f32; w * h * 3];
     let mut stars = Vec::new();
     let mut n = 0;

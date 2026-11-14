@@ -25,6 +25,11 @@ import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/science/science_processing_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/providers/capture_preview_loader_provider.dart';
+import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
+import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
 
 class _NoOpScienceProcessingService extends ScienceProcessingService {
   _NoOpScienceProcessingService(super.ref);
@@ -145,10 +150,26 @@ void main() {
         deviceId: any(named: 'deviceId'),
         filePath: any(named: 'filePath'),
         headerData: any(named: 'headerData'),
+        keepCameraFile: any(named: 'keepCameraFile'),
       ),
     ).thenAnswer((invocation) async {
       final path = invocation.namedArguments[#filePath] as String;
       File(path).writeAsBytesSync(const <int>[0]);
+      return invocation.namedArguments[#filePath] as String;
+    });
+    when(
+      () => backend.saveScratchFrameFromLastCapture(
+        deviceId: any(named: 'deviceId'),
+        name: any(named: 'name'),
+        headerData: any(named: 'headerData'),
+      ),
+    ).thenAnswer((invocation) async {
+      final path =
+          '${Directory.systemTemp.path}/skotiq_captures/${invocation.namedArguments[#name]}';
+      File(path)
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(const <int>[0]);
+      return path;
     });
   });
 

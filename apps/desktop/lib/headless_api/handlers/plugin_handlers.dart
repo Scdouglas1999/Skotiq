@@ -9,18 +9,26 @@
 // visible as non-runnable rows and can be deleted for cleanup.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// Plugin enablement is app-composition wiring and is intentionally not in the
-// public core barrel.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-class PluginHandlers {
+class PluginHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    PluginApi.listPlugins: handleListPlugins,
+    PluginApi.uploadPlugin: handleUploadPlugin,
+    PluginApi.enablePlugin: handleEnablePlugin,
+    PluginApi.disablePlugin: handleDisablePlugin,
+    PluginApi.uninstallPlugin: handleUninstallPlugin,
+  };
+
   final ProviderContainer container;
 
   PluginHandlers(this.container);
@@ -34,62 +42,63 @@ class PluginHandlers {
 
   PluginHost get _host => container.read(pluginHostProvider);
 
-  Map<String, dynamic> _runtimeManifest(PluginInfo plugin) => {
-    'id': plugin.id,
-    'name': plugin.name,
-    'version': plugin.version,
-    'author': plugin.author,
-    'description': plugin.description,
-    'enabled': plugin.enabled,
-    // These fields describe uploaded-archive verification. A bundled plugin
-    // has no standalone archive, so false means "not applicable", not
-    // untrusted. `source` and `runtimeLoaded` remove that ambiguity for new
-    // clients while preserving the old wire shape.
-    'signed': false,
-    'signatureValid': false,
-    'sha256': null,
-    'sizeBytes': null,
-    'installedAt': plugin.loadedAt.toUtc().toIso8601String(),
-    'installedFilename': null,
-    'loadError': plugin.error,
-    'source': 'bundled',
-    'runtimeLoaded': true,
-    'canEnable': plugin.canEnable,
-  };
+  RemotePluginManifest _runtimeManifest(PluginInfo plugin) =>
+      RemotePluginManifest(
+        id: plugin.id,
+        name: plugin.name,
+        version: plugin.version,
+        author: plugin.author,
+        description: plugin.description,
+        enabled: plugin.enabled,
+        signed: false,
+        signatureValid: false,
+        installedAt: plugin.loadedAt.toUtc(),
+        loadError: plugin.error,
+        source: 'bundled',
+        runtimeLoaded: true,
+        canEnable: plugin.canEnable,
+      );
 
-  Map<String, dynamic> _archivedManifest(InstalledPluginManifest plugin) => {
-    ...plugin.toJson(),
-    // Older builds could persist uploads but never had an executable loader.
-    // Never echo their persisted "enabled" preference as a runtime claim.
-    'enabled': false,
-    'source': 'uploadedArchive',
-    'runtimeLoaded': false,
-    'canEnable': false,
-    'loadError':
-        plugin.loadError ??
-        'This archive is stored for cleanup only. This Skotiq build '
-            'cannot load Dart plugins at runtime.',
-  };
+  RemotePluginManifest _archivedManifest(InstalledPluginManifest plugin) =>
+      RemotePluginManifest(
+        id: plugin.id,
+        name: plugin.name,
+        version: plugin.version,
+        author: plugin.author,
+        description: plugin.description,
+        // Older builds could persist uploads but never had an executable
+        // loader. Never echo their persisted "enabled" preference as a
+        // runtime claim.
+        enabled: false,
+        signed: plugin.signed,
+        signatureValid: plugin.signatureValid,
+        sha256: plugin.sha256,
+        sizeBytes: plugin.sizeBytes,
+        installedAt: plugin.installedAt,
+        installedFilename: plugin.installedFilename,
+        loadError:
+            plugin.loadError ??
+            'This archive is stored for cleanup only. This Skotiq build '
+                'cannot load Dart plugins at runtime.',
+        source: 'uploadedArchive',
+        runtimeLoaded: false,
+        canEnable: false,
+      );
 
   /// GET /api/plugins
   Future<Response> handleListPlugins(Request request) async {
     final runtimePlugins = _host.pluginInfo;
     final runtimeIds = runtimePlugins.map((plugin) => plugin.id).toSet();
     final archivedPlugins = await _service.listPlugins();
-    final items =
-        <Map<String, dynamic>>[
-          for (final plugin in runtimePlugins) _runtimeManifest(plugin),
-          // If an obsolete archive collides with a bundled id, the live host row
-          // is authoritative. DELETE still removes that archive by id.
-          for (final plugin in archivedPlugins)
-            if (!runtimeIds.contains(plugin.id)) _archivedManifest(plugin),
-        ]..sort(
-          (a, b) => (a['name'] as String).toLowerCase().compareTo(
-            (b['name'] as String).toLowerCase(),
-          ),
-        );
+    final items = <RemotePluginManifest>[
+      for (final plugin in runtimePlugins) _runtimeManifest(plugin),
+      // If an obsolete archive collides with a bundled id, the live host row
+      // is authoritative. DELETE still removes that archive by id.
+      for (final plugin in archivedPlugins)
+        if (!runtimeIds.contains(plugin.id)) _archivedManifest(plugin),
+    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return jsonOk({
-      'items': items,
+      'items': [for (final item in items) item.toJson()],
       'total': items.length,
       'capabilities': {
         'runtimeUpload': false,
@@ -157,7 +166,7 @@ class PluginHandlers {
       final plugin = host.pluginInfo.firstWhere((item) => item.id == pluginId);
       return jsonOk({
         'status': enabled ? 'enabled' : 'disabled',
-        'manifest': _runtimeManifest(plugin),
+        'manifest': _runtimeManifest(plugin).toJson(),
       });
     } catch (error) {
       return jsonConflict({

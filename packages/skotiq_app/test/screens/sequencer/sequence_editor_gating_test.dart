@@ -9,8 +9,6 @@
 //       semantics (the shortcut binding reads canEditSequenceProvider).
 //   (c) Save dialog shows structured validation issue list →
 //       `showValidationIssueDialog` rendering.
-//   (d) Run Dashboard renders warningMessages →
-//       `RunDashboardSessionWarningsPanel` smoke test.
 //   (e) Snippet deserialization exception is caught and shown →
 //       `withSequenceMutation` catches and shows a dialog.
 //
@@ -25,9 +23,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/session_warnings_panel.dart';
-import 'package:skotiq_app/utils/sequence_mutator_helper.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/screens/sequencer/sequence_mutator_helper.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -47,7 +45,9 @@ void main() {
       ]) {
         final c = ProviderContainer(overrides: [
           inMemoryDatabaseOverride(),
-          sequenceExecutionStateProvider.overrideWith((ref) => state),
+          runRecordProvider.overrideWith(
+            (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state)),
+          ),
         ]);
         addTearDown(c.dispose);
         expect(c.read(canEditSequenceProvider), isFalse,
@@ -63,7 +63,9 @@ void main() {
       ]) {
         final c = ProviderContainer(overrides: [
           inMemoryDatabaseOverride(),
-          sequenceExecutionStateProvider.overrideWith((ref) => state),
+          runRecordProvider.overrideWith(
+            (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state)),
+          ),
         ]);
         addTearDown(c.dispose);
         expect(c.read(canEditSequenceProvider), isTrue,
@@ -84,8 +86,10 @@ void main() {
         ProviderScope(
           overrides: [
             inMemoryDatabaseOverride(),
-            sequenceExecutionStateProvider
-                .overrideWith((ref) => SequenceExecutionState.idle),
+            runRecordProvider.overrideWith(
+              (ref) => RunRecordNotifier(
+                  ref, RunRecord(lifecycle: SequenceExecutionState.idle)),
+            ),
           ],
           child: MaterialApp(
             theme: SkotiqTheme.dark,
@@ -131,8 +135,10 @@ void main() {
         ProviderScope(
           overrides: [
             inMemoryDatabaseOverride(),
-            sequenceExecutionStateProvider
-                .overrideWith((ref) => SequenceExecutionState.idle),
+            runRecordProvider.overrideWith(
+              (ref) => RunRecordNotifier(
+                  ref, RunRecord(lifecycle: SequenceExecutionState.idle)),
+            ),
           ],
           child: MaterialApp(
             theme: SkotiqTheme.dark,
@@ -275,70 +281,6 @@ void main() {
     });
   });
 
-  group('RunDashboardSessionWarningsPanel', () {
-    testWidgets('hidden when warningMessages is empty', (tester) async {
-      // Empty state — the panel must not consume layout space.
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            inMemoryDatabaseOverride(),
-            liveSequenceStatsProvider.overrideWith((ref) => null),
-          ],
-          child: MaterialApp(
-            theme: SkotiqTheme.dark,
-            home: const Scaffold(
-              body: RunDashboardSessionWarningsPanel(),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('SESSION WARNINGS'), findsNothing);
-    });
-
-    testWidgets('renders the warningMessages list when expanded',
-        (tester) async {
-      // Seed live stats with two warning messages, expand the header,
-      // and verify each message renders verbatim. This exercises the
-      // previously-dead-data path: recordWarning() ->
-      // warningMessages -> dashboard panel.
-      final stats = SequenceRunStats()
-        ..recordWarning('Filter "Halpha" could not be matched 14 times')
-        ..recordWarning('Autofocus skipped: dome was closing');
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            inMemoryDatabaseOverride(),
-            liveSequenceStatsProvider.overrideWith((ref) => stats),
-          ],
-          child: MaterialApp(
-            theme: SkotiqTheme.dark,
-            home: const Scaffold(
-              body: RunDashboardSessionWarningsPanel(),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Collapsed header is visible with the warning count.
-      expect(find.text('SESSION WARNINGS'), findsOneWidget);
-      expect(find.text('2'), findsOneWidget);
-
-      // Expand the header.
-      await tester.tap(find.text('SESSION WARNINGS'));
-      await tester.pumpAndSettle();
-
-      // Both messages now visible.
-      expect(
-        find.text('Filter "Halpha" could not be matched 14 times'),
-        findsOneWidget,
-      );
-      expect(find.text('Autofocus skipped: dome was closing'), findsOneWidget);
-    });
-  });
-
   group('Ctrl+Z gating (smoke)', () {
     // The sequencer screen's CallbackShortcuts callback for Ctrl+Z is:
     //   if (currentTab != 0) return;
@@ -355,8 +297,10 @@ void main() {
     test('canEditSequenceProvider is false while running', () {
       final c = ProviderContainer(overrides: [
         inMemoryDatabaseOverride(),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.running),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(
+              ref, RunRecord(lifecycle: SequenceExecutionState.running)),
+        ),
       ]);
       addTearDown(c.dispose);
       expect(c.read(canEditSequenceProvider), isFalse);

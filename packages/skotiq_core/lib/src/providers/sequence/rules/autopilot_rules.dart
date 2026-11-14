@@ -1,11 +1,11 @@
-import 'dart:developer' as developer;
-
 import '../../../models/scheduler/scheduler_status.dart';
 import '../../../models/sequence/active_plan_owner.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../scheduler_provider.dart' show schedulerStatusProvider;
 import '../sequence_editor.dart' show activePlanOwnerProvider;
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
+import '../../../services/logging_service.dart';
 
 /// Pre-flight rule: Unattended Autopilot is armed while a run is started by
 /// hand.
@@ -39,12 +39,11 @@ class AutopilotArmedRule implements RefAwareSequenceValidator {
     // live log says WHICH answer this rule got — "suppressed" in a log for a
     // plan the operator built is the fingerprint of that failure.
     if (ref.read(activePlanOwnerProvider) == ActivePlanOwner.autopilot) {
-      developer.log(
+      Log.debug(
         'AutopilotArmedRule: suppressed for "${sequence.name}" — the editor '
         'slot is owned by the autopilot, so this plan IS the scheduler\'s own '
         'dispatch',
-        name: 'AutopilotArmedRule',
-        level: 500, // FINE / trace
+        source: 'AutopilotArmedRule',
       );
       return const [];
     }

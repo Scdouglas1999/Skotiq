@@ -11,21 +11,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/darkroom_navigation.dart' show darkroomTabLocation;
-import 'darkroom_controller.dart';
-import 'darkroom_route.dart';
+import '../../router/darkroom_route.dart';
 import 'activity/activity_tab.dart';
 import 'calibration/calibration_tab.dart';
 import 'edit/edit_tab.dart';
 import 'targets/darkroom_status_chip.dart';
 import 'targets/targets_tab.dart';
+import '../../router/app_routes.dart';
+import '../../router/analytics_route.dart';
 
 part 'darkroom_screen_parts/_landing.dart';
 
-/// The Darkroom screen.
 class DarkroomScreen extends ConsumerStatefulWidget {
   /// What the Edit tab or the pass view is scoped to; empty when no master,
   /// recipe or pass is named.
@@ -140,6 +140,6 @@ class _DarkroomScreenState extends ConsumerState<DarkroomScreen> {
       router.pop();
       return;
     }
-    context.go('/analytics?tab=history');
+    context.go(AppRoutes.analytics(tab: AnalyticsTab.history));
   }
 }

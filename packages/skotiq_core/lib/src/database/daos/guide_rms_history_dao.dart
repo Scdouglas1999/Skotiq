@@ -10,8 +10,7 @@ part 'guide_rms_history_dao.g.dart';
 /// Append-only log of per-session guiding RMS samples used by the Smart
 /// Night exposure planner. The planner computes a weighted average of the
 /// last N rows for the current mount, so [recentForMount] is the hot
-/// query — backed by `idx_guide_rms_mount_recent` (created in
-/// `database.dart::_createCustomIndexes`) for O(log n) lookup.
+/// query — backed by `idx_guide_rms_mount_recent` for O(log n) lookup.
 @DriftAccessor(tables: [GuideRmsHistory])
 class GuideRmsHistoryDao extends DatabaseAccessor<SkotiqDatabase>
     with _$GuideRmsHistoryDaoMixin {

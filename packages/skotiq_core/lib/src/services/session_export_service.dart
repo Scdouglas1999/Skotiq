@@ -1,7 +1,9 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:path/path.dart' as path;
+import 'package:skotiq_astro/format.dart';
 import '../utils/fwhm_conversion.dart';
 import '../database/daos/sessions_dao.dart';
 import '../database/daos/images_dao.dart';
@@ -29,11 +31,11 @@ class SessionFrameGrading {
   const SessionFrameGrading({required this.lights, required this.accepted});
 
   /// The verdict over [images], counting light frames only.
-  factory SessionFrameGrading.of(List<CapturedImage> images) {
+  factory SessionFrameGrading.of(List<DbCapturedImage> images) {
     var lights = 0;
     var accepted = 0;
     for (final image in images) {
-      if (image.frameType != 'light') continue;
+      if (!image.isLight) continue;
       lights++;
       if (image.isAccepted) accepted++;
     }
@@ -48,7 +50,6 @@ class SessionFrameGrading {
   double? get keptPercent => lights == 0 ? null : accepted / lights * 100.0;
 }
 
-/// Service for exporting session data to various formats
 class SessionExportService {
   final SessionsDao _sessionsDao;
   final ImagesDao _imagesDao;
@@ -56,20 +57,19 @@ class SessionExportService {
   final DateTime Function() _now;
 
   /// [nowProvider] supplies the timestamp stamped onto export filenames and
-  /// inside diagnostic dumps. Defaults to [DateTime.now] for backwards
-  /// compatibility; the desktop wiring overrides it with the user's
-  /// chosen [Clock] so exports labelled in the operator's timezone match
-  /// the rest of the session records
+  /// inside diagnostic dumps: the user's chosen clock, so exports labelled in
+  /// the operator's timezone match the rest of the session records. Built
+  /// once by `sessionExportServiceProvider`.
   SessionExportService({
     required SessionsDao sessionsDao,
     required ImagesDao imagesDao,
+    required DateTime Function() nowProvider,
     Future<Directory> Function()? documentsDirectoryProvider,
-    DateTime Function()? nowProvider,
   }) : _sessionsDao = sessionsDao,
        _imagesDao = imagesDao,
        _documentsDirectoryProvider =
            documentsDirectoryProvider ?? resolveSkotiqDocumentsDirectory,
-       _now = nowProvider ?? DateTime.now;
+       _now = nowProvider;
 
   /// Export session images to CSV format
   ///
@@ -106,7 +106,6 @@ class SessionExportService {
       ],
     ];
 
-    // Add image data rows
     for (final image in images) {
       // Prefer the MEASURED fwhm column when the pipeline recorded one;
       // only derive from HFR when it did not.
@@ -132,10 +131,8 @@ class SessionExportService {
       ]);
     }
 
-    // Convert to CSV
     final csv = const ListToCsvConverter().convert(rows);
 
-    // Save to file
     final directory = await _getExportDirectory();
     final sessionName = session.name ?? 'session_$sessionId';
     final timestamp = _now()
@@ -165,7 +162,6 @@ class SessionExportService {
     final measuredFwhm = await _imagesDao.getFwhmForSession(sessionId);
     final grading = SessionFrameGrading.of(images);
 
-    // Build JSON structure
     final data = {
       'session': {
         'id': session.id,
@@ -260,10 +256,8 @@ class SessionExportService {
       'exportVersion': '1.0',
     };
 
-    // Convert to JSON
     final jsonString = const JsonEncoder.withIndent('  ').convert(data);
 
-    // Save to file
     final directory = await _getExportDirectory();
     final sessionName = session.name ?? 'session_$sessionId';
     final timestamp = _now()
@@ -282,8 +276,8 @@ class SessionExportService {
   /// Non-null values of [pick] across [images] — the population a report
   /// aggregate is computed over.
   static List<double> _values(
-    List<CapturedImage> images,
-    double? Function(CapturedImage image) pick,
+    List<DbCapturedImage> images,
+    double? Function(DbCapturedImage image) pick,
   ) {
     final out = <double>[];
     for (final image in images) {
@@ -316,17 +310,8 @@ class SessionExportService {
       ? ''
       : '<div class="muted" style="font-size:11px;margin-top:4px">$note</div>';
 
-  /// Get or create the export directory
-  Future<Directory> _getExportDirectory() async {
-    final docsDir = await _documentsDirectoryProvider();
-    final exportDir = Directory(path.join(docsDir.path, 'Skotiq', 'exports'));
-
-    if (!await exportDir.exists()) {
-      await exportDir.create(recursive: true);
-    }
-
-    return exportDir;
-  }
+  Future<Directory> _getExportDirectory() =>
+      resolveSkotiqExportsDirectory(documents: _documentsDirectoryProvider);
 
   /// Export session summary (lightweight text format)
   ///
@@ -403,7 +388,7 @@ class SessionExportService {
 
       if (session.avgTemperature != null) {
         buffer.writeln(
-          'Avg Temperature: ${session.avgTemperature!.toStringAsFixed(1)} °C',
+          'Avg Temperature: ${formatCelsius(session.avgTemperature!)}',
         );
       }
 
@@ -430,8 +415,7 @@ class SessionExportService {
     buffer.writeln('Rejected: ${images.length - acceptedImages.length}');
     buffer.writeln();
 
-    // Group by filter
-    final filterGroups = <String, List<CapturedImage>>{};
+    final filterGroups = <String, List<DbCapturedImage>>{};
     for (final image in acceptedImages) {
       final filter = image.filter ?? 'No Filter';
       filterGroups.putIfAbsent(filter, () => []).add(image);
@@ -479,10 +463,10 @@ class SessionExportService {
     final grading = SessionFrameGrading.of(images);
     final keptPercent = grading.keptPercent;
 
-    final filterGroups = <String, List<CapturedImage>>{};
+    final filterGroups = <String, List<DbCapturedImage>>{};
     for (final image in acceptedImages) {
       final filter = image.filter ?? 'No Filter';
-      filterGroups.putIfAbsent(filter, () => <CapturedImage>[]).add(image);
+      filterGroups.putIfAbsent(filter, () => <DbCapturedImage>[]).add(image);
     }
 
     final filterRows = filterGroups.entries.map((entry) {

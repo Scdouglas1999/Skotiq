@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// Player One camera discovery info
 pub struct PlayerOneCameraInfo {
     pub camera_id: i32,
     pub name: String,
@@ -14,65 +13,35 @@ pub struct PlayerOneCameraInfo {
     pub sdk_version: Option<String>,
 }
 
-/// Check if Player One SDK is available
 pub fn is_sdk_available() -> bool {
-    PoaSdk::get().is_some()
+    PoaSdk::is_available()
 }
 
-/// Discover Player One cameras
-pub async fn discover_devices() -> Result<Vec<PlayerOneCameraInfo>, NativeError> {
-    let sdk = match PoaSdk::get() {
-        Some(sdk) => sdk,
-        None => return Ok(Vec::new()), // SDK not available, return empty
+pub async fn discover_devices() -> Result<Vec<PlayerOneCameraInfo>, DriverError> {
+    // An unavailable SDK means no cameras; otherwise hold the lock for the scan.
+    let sdk = match PoaSdk::lock().await {
+        Ok(sdk) => sdk,
+        Err(_) => return Ok(Vec::new()),
     };
+    let sdk_version = camera_sdk_version_from_sdk(&sdk);
 
-    // Acquire mutex for SDK discovery operations
-    let _lock = player_one_mutex().lock().await;
-    let sdk_version = camera_sdk_version_from_sdk(sdk);
-
-    // SAFETY: player_one_mutex held above (single-threaded SDK access); POAGetCameraCount takes no arguments.
+    // SAFETY: POAGetCameraCount takes no arguments.
     let num_cameras = unsafe { (sdk.get_camera_count)() };
 
     let mut cameras = Vec::new();
     for i in 0..num_cameras {
         // SAFETY: POACameraProperties is `#[repr(C)]` and contains only POD fields — zero-initialization is well-defined before the SDK overwrites it.
         let mut info: POACameraProperties = unsafe { std::mem::zeroed() };
-        // SAFETY: player_one_mutex held; `i` is in the range [0, num_cameras) returned by POAGetCameraCount; `&mut info` is a valid stack out-pointer.
+        // SAFETY: `i` is in the range [0, num_cameras) returned by POAGetCameraCount; `&mut info` is a valid stack out-pointer.
         let result = unsafe { (sdk.get_camera_properties)(i, &mut info) };
 
         if result == 0 {
-            // SAFETY: result == 0 (POA_OK) means SDK populated `info`; camera_model_name is a 256-byte `[c_char; 256]` and POA SDK guarantees NUL-termination within the buffer per PlayerOneCamera.h.
-            let name = unsafe {
-                CStr::from_ptr(info.camera_model_name.as_ptr())
-                    .to_string_lossy()
-                    .to_string()
-            };
-
-            // Extract serial number
-            // SAFETY: SDK populated `info` on success; `sn` is a 64-byte `[c_char; 64]` field with NUL-termination guarantee from POA SDK.
-            let serial_number = unsafe {
-                let sn = CStr::from_ptr(info.sn.as_ptr())
-                    .to_string_lossy()
-                    .to_string();
-                if sn.is_empty() {
-                    None
-                } else {
-                    Some(sn)
-                }
-            };
-
-            // Extract user custom ID (if set by user)
-            // SAFETY: SDK populated `info` on success; `user_custom_id` is a 16-byte `[c_char; 16]` field with NUL-termination guarantee from POA SDK.
-            let user_custom_id = unsafe {
-                let custom_id = CStr::from_ptr(info.user_custom_id.as_ptr())
-                    .to_string_lossy()
-                    .to_string();
-                if custom_id.is_empty() {
-                    None
-                } else {
-                    Some(custom_id)
-                }
-            };
+            // Fixed-size fields; userCustomID holds up to 16 bytes with no room for a NUL.
+            let text = |field: &[c_char]| safe_cstr_to_string(field.as_ptr(), field.len());
+            let present = |value: String| (!value.trim().is_empty()).then_some(value);
+            let name = text(&info.camera_model_name);
+            let serial_number = present(text(&info.sn));
+            let user_custom_id = present(text(&info.user_custom_id));
 
             cameras.push(PlayerOneCameraInfo {
                 camera_id: info.camera_id,

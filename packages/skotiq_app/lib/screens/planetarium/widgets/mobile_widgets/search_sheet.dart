@@ -55,7 +55,6 @@ class _MobileSearchSheetState extends ConsumerState<MobileSearchSheet> {
 
     return Column(
       children: [
-        // Search input
         Padding(
           padding: const EdgeInsets.all(16),
           child: TextField(
@@ -99,8 +98,6 @@ class _MobileSearchSheetState extends ConsumerState<MobileSearchSheet> {
             onChanged: _onSearchChanged,
           ),
         ),
-
-        // Results
         Expanded(
           child: _buildResults(searchState),
         ),
@@ -110,7 +107,6 @@ class _MobileSearchSheetState extends ConsumerState<MobileSearchSheet> {
 
   Widget _buildResults(ObjectSearchState searchState) {
     if (_searchController.text.isEmpty) {
-      // Show quick picks when no search
       return _buildQuickPicks();
     }
 
@@ -245,7 +241,6 @@ class _MobileSearchSheetState extends ConsumerState<MobileSearchSheet> {
   }
 }
 
-/// Mobile search result tile
 class MobileSearchResultTile extends StatelessWidget {
   final CelestialObject object;
   final SkotiqColors colors;

@@ -1,9 +1,10 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/darkroom/delivery.dart';
-import '../../providers/database_provider.dart';
 import '../database.dart';
+import '../epoch_seconds.dart';
+
+part 'delivery_journal_dao.g.dart';
 
 /// An outcome was recorded for a (destination, job, file) that has no journal
 /// row — nothing ever recorded an attempt for it.
@@ -24,15 +25,8 @@ class DeliveryJournalMissingException implements Exception {
       'file $filePath';
 }
 
-/// Data-access object for the v58 `delivery_journal` table — what was sent
-/// where, how big it was, and how it ended.
-///
-/// The table is managed with raw DDL (see
-/// [SkotiqDatabase._createDarkroomTables]) rather than a drift `Table`
-/// class, so this DAO is a plain class that reads/writes through the database's
-/// `customSelect`/`customInsert`/`customStatement` APIs — mirroring
-/// [MosaicProjectsDao] and [CampaignsDao]. It is deliberately NOT a
-/// `@DriftAccessor`.
+/// Reads and writes for `delivery_journal`: what was sent where, how big it
+/// was, and how it ended.
 ///
 /// UPSERT ON RETRY. `(target_id, job_id, file_path)` is the row identity, so a
 /// file retried overnight keeps ONE row carrying its running `attempts` count
@@ -41,14 +35,10 @@ class DeliveryJournalMissingException implements Exception {
 /// writers cannot lose a count between a read and a write. `last_error` is kept
 /// after a later success, so the report can say a delivery recovered rather
 /// than pretending it went cleanly the first time.
-class DeliveryJournalDao {
-  DeliveryJournalDao(this._db);
-
-  final SkotiqDatabase _db;
-
-  static const String _columns =
-      'id, target_id, job_id, file_path, bytes, checksum, state, attempts, '
-      'last_error, created_at, updated_at, delivered_at';
+@DriftAccessor(include: {'../schema/darkroom.drift'})
+class DeliveryJournalDao extends DatabaseAccessor<SkotiqDatabase>
+    with _$DeliveryJournalDaoMixin {
+  DeliveryJournalDao(super.db);
 
   /// Record that a delivery attempt is starting for one file on one
   /// destination, and return the entry as it now stands.
@@ -90,28 +80,26 @@ class DeliveryJournalDao {
         'a file size cannot be negative',
       );
     }
-    final at = _toEpochSeconds(now ?? DateTime.now());
-    await _db.customStatement(
-      'INSERT INTO delivery_journal('
-      'target_id, job_id, file_path, bytes, state, attempts, '
-      'created_at, updated_at'
-      ') VALUES (?, ?, ?, COALESCE(?, 0), ?, 1, ?, ?) '
-      'ON CONFLICT(target_id, job_id, file_path) DO UPDATE SET '
-      'attempts = attempts + 1, '
-      'bytes = CASE WHEN excluded.bytes > 0 THEN excluded.bytes ELSE bytes END, '
-      'state = excluded.state, '
-      'updated_at = excluded.updated_at '
-      'WHERE delivery_journal.state <> ?',
-      [
-        targetId,
-        jobId,
-        filePath,
-        bytes,
-        DeliveryAttemptState.retrying.wire,
-        at,
-        at,
-        DeliveryAttemptState.delivered.wire,
-      ],
+    final at = toEpochSeconds(now ?? DateTime.now());
+    await into(deliveryJournal).insert(
+      DeliveryJournalCompanion.insert(
+        targetId: targetId,
+        jobId: jobId,
+        filePath: filePath,
+        bytes: Value(bytes ?? 0),
+        state: Value(DeliveryAttemptState.retrying.wire),
+        attempts: const Value(1),
+        createdAt: at,
+        updatedAt: at,
+      ),
+      onConflict: _unlessDelivered(
+        (old, excluded) => DeliveryJournalCompanion.custom(
+          attempts: old.attempts + const Constant(1),
+          bytes: _knownSize(old, excluded),
+          state: excluded.state,
+          updatedAt: excluded.updatedAt,
+        ),
+      ),
     );
     return _require(targetId, jobId, filePath);
   }
@@ -151,29 +139,27 @@ class DeliveryJournalDao {
         'a file size cannot be negative',
       );
     }
-    final at = _toEpochSeconds(now ?? DateTime.now());
-    await _db.customStatement(
-      'INSERT INTO delivery_journal('
-      'target_id, job_id, file_path, bytes, state, attempts, last_error, '
-      'created_at, updated_at'
-      ') VALUES (?, ?, ?, COALESCE(?, 0), ?, 0, ?, ?, ?) '
-      'ON CONFLICT(target_id, job_id, file_path) DO UPDATE SET '
-      'state = excluded.state, '
-      'last_error = excluded.last_error, '
-      'bytes = CASE WHEN excluded.bytes > 0 THEN excluded.bytes ELSE bytes END, '
-      'updated_at = excluded.updated_at '
-      'WHERE delivery_journal.state <> ?',
-      [
-        targetId,
-        jobId,
-        filePath,
-        bytes,
-        DeliveryAttemptState.retrying.wire,
-        reason,
-        at,
-        at,
-        DeliveryAttemptState.delivered.wire,
-      ],
+    final at = toEpochSeconds(now ?? DateTime.now());
+    await into(deliveryJournal).insert(
+      DeliveryJournalCompanion.insert(
+        targetId: targetId,
+        jobId: jobId,
+        filePath: filePath,
+        bytes: Value(bytes ?? 0),
+        state: Value(DeliveryAttemptState.retrying.wire),
+        attempts: const Value(0),
+        lastError: Value(reason),
+        createdAt: at,
+        updatedAt: at,
+      ),
+      onConflict: _unlessDelivered(
+        (old, excluded) => DeliveryJournalCompanion.custom(
+          state: excluded.state,
+          lastError: excluded.lastError,
+          bytes: _knownSize(old, excluded),
+          updatedAt: excluded.updatedAt,
+        ),
+      ),
     );
     return _require(targetId, jobId, filePath);
   }
@@ -189,23 +175,17 @@ class DeliveryJournalDao {
     DateTime? now,
   }) async {
     await _require(targetId, jobId, filePath);
-    final at = _toEpochSeconds(now ?? DateTime.now());
-    await _db.customUpdate(
-      'UPDATE delivery_journal SET state = ?, checksum = COALESCE(?, checksum), '
-      'bytes = COALESCE(NULLIF(?, 0), bytes), '
-      'delivered_at = ?, updated_at = ? '
-      'WHERE target_id = ? AND job_id = ? AND file_path = ?',
-      variables: [
-        Variable<String>(DeliveryAttemptState.delivered.wire),
-        Variable<String>(checksum),
-        Variable<int>(bytes),
-        Variable<int>(at),
-        Variable<int>(at),
-        Variable<int>(targetId),
-        Variable<int>(jobId),
-        Variable<String>(filePath),
-      ],
-      updateKind: UpdateKind.update,
+    final at = toEpochSeconds(now ?? DateTime.now());
+    await (update(
+      deliveryJournal,
+    )..where((e) => _isEntry(e, targetId, jobId, filePath))).write(
+      DeliveryJournalCompanion(
+        state: Value(DeliveryAttemptState.delivered.wire),
+        checksum: Value.absentIfNull(checksum),
+        bytes: Value.absentIfNull(bytes == 0 ? null : bytes),
+        deliveredAt: Value(at),
+        updatedAt: Value(at),
+      ),
     );
     return _require(targetId, jobId, filePath);
   }
@@ -270,19 +250,16 @@ class DeliveryJournalDao {
     DateTime? now,
   }) async {
     await _require(targetId, jobId, filePath);
-    final at = _toEpochSeconds(now ?? DateTime.now());
-    await _db.customUpdate(
-      'UPDATE delivery_journal SET state = ?, attempts = 0, '
-      'delivered_at = NULL, updated_at = ? '
-      'WHERE target_id = ? AND job_id = ? AND file_path = ?',
-      variables: [
-        Variable<String>(DeliveryAttemptState.retrying.wire),
-        Variable<int>(at),
-        Variable<int>(targetId),
-        Variable<int>(jobId),
-        Variable<String>(filePath),
-      ],
-      updateKind: UpdateKind.update,
+    final at = toEpochSeconds(now ?? DateTime.now());
+    await (update(
+      deliveryJournal,
+    )..where((e) => _isEntry(e, targetId, jobId, filePath))).write(
+      DeliveryJournalCompanion(
+        state: Value(DeliveryAttemptState.retrying.wire),
+        attempts: const Value(0),
+        deliveredAt: const Value(null),
+        updatedAt: Value(at),
+      ),
     );
     return _require(targetId, jobId, filePath);
   }
@@ -294,57 +271,32 @@ class DeliveryJournalDao {
     required int jobId,
     required String filePath,
   }) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM delivery_journal '
-          'WHERE target_id = ? AND job_id = ? AND file_path = ? LIMIT 1',
-          variables: [
-            Variable<int>(targetId),
-            Variable<int>(jobId),
-            Variable<String>(filePath),
-          ],
-        )
-        .get();
-    if (rows.isEmpty) return null;
-    return _map(rows.first);
+    final row =
+        await (select(deliveryJournal)
+              ..where((e) => _isEntry(e, targetId, jobId, filePath))
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _map(row);
   }
 
   /// Every entry for one job, oldest first — what the morning report reads.
-  Future<List<DeliveryJournalEntry>> listForJob(int jobId) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM delivery_journal WHERE job_id = ? '
-          'ORDER BY created_at ASC, id ASC',
-          variables: [Variable<int>(jobId)],
-        )
-        .get();
-    return rows.map(_map).toList();
-  }
+  Future<List<DeliveryJournalEntry>> listForJob(int jobId) => _list(
+    (e) => e.jobId.equals(jobId),
+    [(e) => OrderingTerm.asc(e.createdAt), (e) => OrderingTerm.asc(e.id)],
+  );
 
   /// Every entry for one destination, newest first.
-  Future<List<DeliveryJournalEntry>> listForTarget(int targetId) async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM delivery_journal WHERE target_id = ? '
-          'ORDER BY updated_at DESC, id DESC',
-          variables: [Variable<int>(targetId)],
-        )
-        .get();
-    return rows.map(_map).toList();
-  }
+  Future<List<DeliveryJournalEntry>> listForTarget(int targetId) => _list(
+    (e) => e.targetId.equals(targetId),
+    [(e) => OrderingTerm.desc(e.updatedAt), (e) => OrderingTerm.desc(e.id)],
+  );
 
   /// Every file still owed a delivery, oldest update first — the overnight
   /// retry sweep's work list.
-  Future<List<DeliveryJournalEntry>> listPendingRetry() async {
-    final rows = await _db
-        .customSelect(
-          'SELECT $_columns FROM delivery_journal WHERE state = ? '
-          'ORDER BY updated_at ASC, id ASC',
-          variables: [Variable<String>(DeliveryAttemptState.retrying.wire)],
-        )
-        .get();
-    return rows.map(_map).toList();
-  }
+  Future<List<DeliveryJournalEntry>> listPendingRetry() => _list(
+    (e) => e.state.equals(DeliveryAttemptState.retrying.wire),
+    [(e) => OrderingTerm.asc(e.updatedAt), (e) => OrderingTerm.asc(e.id)],
+  );
 
   /// The shared write behind [markRetrying] and [markFailed].
   ///
@@ -369,21 +321,19 @@ class DeliveryJournalDao {
     DateTime? now,
   }) async {
     await _require(targetId, jobId, filePath);
-    final at = _toEpochSeconds(now ?? DateTime.now());
-    await _db.customUpdate(
-      'UPDATE delivery_journal SET state = ?, last_error = ?, updated_at = ? '
-      'WHERE target_id = ? AND job_id = ? AND file_path = ? AND state <> ?',
-      variables: [
-        Variable<String>(state.wire),
-        Variable<String>(error),
-        Variable<int>(at),
-        Variable<int>(targetId),
-        Variable<int>(jobId),
-        Variable<String>(filePath),
-        Variable<String>(DeliveryAttemptState.delivered.wire),
-      ],
-      updateKind: UpdateKind.update,
-    );
+    final at = toEpochSeconds(now ?? DateTime.now());
+    await (update(deliveryJournal)..where(
+          (e) =>
+              _isEntry(e, targetId, jobId, filePath) &
+              e.state.equals(DeliveryAttemptState.delivered.wire).not(),
+        ))
+        .write(
+          DeliveryJournalCompanion(
+            state: Value(state.wire),
+            lastError: Value(error),
+            updatedAt: Value(at),
+          ),
+        );
     return _require(targetId, jobId, filePath);
   }
 
@@ -403,32 +353,77 @@ class DeliveryJournalDao {
     return entry;
   }
 
-  DeliveryJournalEntry _map(QueryRow row) {
-    final deliveredAt = row.readNullable<int>('delivered_at');
-    return DeliveryJournalEntry(
-      id: row.read<int>('id'),
-      targetId: row.read<int>('target_id'),
-      jobId: row.read<int>('job_id'),
-      filePath: row.read<String>('file_path'),
-      bytes: row.read<int>('bytes'),
-      checksum: row.readNullable<String>('checksum'),
-      state: DeliveryAttemptState.fromWire(row.read<String>('state')),
-      attempts: row.read<int>('attempts'),
-      lastError: row.readNullable<String>('last_error'),
-      createdAt: _fromEpochSeconds(row.read<int>('created_at')),
-      updatedAt: _fromEpochSeconds(row.read<int>('updated_at')),
-      deliveredAt: deliveredAt == null ? null : _fromEpochSeconds(deliveredAt),
+  /// The upsert on the `(target_id, job_id, file_path)` identity that leaves a
+  /// `delivered` row exactly as it is.
+  DoUpdate<DeliveryJournal, DeliveryJournalRow> _unlessDelivered(
+    Insertable<DeliveryJournalRow> Function(
+      DeliveryJournal old,
+      DeliveryJournal excluded,
+    )
+    update,
+  ) {
+    return DoUpdate.withExcluded(
+      update,
+      target: [
+        deliveryJournal.targetId,
+        deliveryJournal.jobId,
+        deliveryJournal.filePath,
+      ],
+      where: (old, excluded) =>
+          old.state.equals(DeliveryAttemptState.delivered.wire).not(),
     );
   }
 
-  static int _toEpochSeconds(DateTime when) =>
-      when.toUtc().millisecondsSinceEpoch ~/ 1000;
+  /// The attempt's size when it states one, else the size already recorded.
+  static Expression<int> _knownSize(
+    DeliveryJournal old,
+    DeliveryJournal excluded,
+  ) {
+    return CaseWhenExpression(
+      cases: [
+        CaseWhen(excluded.bytes.isBiggerThanValue(0), then: excluded.bytes),
+      ],
+      orElse: old.bytes,
+    );
+  }
 
-  static DateTime _fromEpochSeconds(int seconds) =>
-      DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
+  static Expression<bool> _isEntry(
+    DeliveryJournal e,
+    int targetId,
+    int jobId,
+    String filePath,
+  ) =>
+      e.targetId.equals(targetId) &
+      e.jobId.equals(jobId) &
+      e.filePath.equals(filePath);
+
+  Future<List<DeliveryJournalEntry>> _list(
+    Expression<bool> Function(DeliveryJournal e) filter,
+    List<OrderingTerm Function(DeliveryJournal e)> order,
+  ) async {
+    final rows =
+        await (select(deliveryJournal)
+              ..where(filter)
+              ..orderBy(order))
+            .get();
+    return rows.map(_map).toList();
+  }
+
+  DeliveryJournalEntry _map(DeliveryJournalRow row) {
+    final deliveredAt = row.deliveredAt;
+    return DeliveryJournalEntry(
+      id: row.id,
+      targetId: row.targetId,
+      jobId: row.jobId,
+      filePath: row.filePath,
+      bytes: row.bytes,
+      checksum: row.checksum,
+      state: DeliveryAttemptState.fromWire(row.state),
+      attempts: row.attempts,
+      lastError: row.lastError,
+      createdAt: fromEpochSeconds(row.createdAt),
+      updatedAt: fromEpochSeconds(row.updatedAt),
+      deliveredAt: deliveredAt == null ? null : fromEpochSeconds(deliveredAt),
+    );
+  }
 }
-
-/// Riverpod provider for [DeliveryJournalDao].
-final deliveryJournalDaoProvider = Provider<DeliveryJournalDao>((ref) {
-  return DeliveryJournalDao(ref.watch(databaseProvider));
-});

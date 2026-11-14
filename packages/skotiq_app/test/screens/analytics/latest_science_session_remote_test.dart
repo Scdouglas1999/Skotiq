@@ -6,9 +6,10 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart'
-    show latestScienceSessionProvider;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
 
@@ -59,21 +60,25 @@ void main() {
           ),
         );
 
-    expect(await host.read(latestScienceSessionProvider.future), imaging);
+    expect(await host.read(scienceDefaultSessionProvider.future), imaging);
 
+    // The client asks the host the same question and gets the host's answer.
     final backend = _MockNetworkBackend();
     when(() => backend.eventStream)
         .thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-    final hostRows = await db.imagesDao.getAllImages();
+    when(backend.scienceDefaultSession).thenAnswer(
+      (_) => host.read(scienceDefaultSessionProvider.future),
+    );
     final client = ProviderContainer(
       overrides: [
         backendProvider
             .overrideWith((ref) => TestBackendNotifier(ref, backend)),
-        allDbImagesProvider.overrideWith((ref) => Stream.value(hostRows)),
+        allSessionsProvider
+            .overrideWith((ref) => Stream.value(const <ImagingSession>[])),
       ],
     );
     addTearDown(client.dispose);
 
-    expect(await client.read(latestScienceSessionProvider.future), imaging);
+    expect(await client.read(scienceDefaultSessionProvider.future), imaging);
   });
 }

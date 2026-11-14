@@ -10,9 +10,12 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
-import '../../../models/command_action_result.dart';
+import '../../../services/command_action_result.dart';
 import '../data/session/camera_exposure_provider.dart';
 
 /// Query the host before touching equipment, including when the exposure
@@ -64,7 +67,6 @@ class RunHoldAborted implements Exception {
 }
 
 enum RunHoldAbortReason {
-  /// The pause command failed.
   pauseFailed,
 
   /// The run left the paused state (resumed, stopped or failed elsewhere)
@@ -196,7 +198,7 @@ class RunPauseGuard {
     } catch (e) {
       return RunReleaseResult(
         RunReleaseOutcome.resumeFailed,
-        error: e.toString(),
+        error: userFacingError(e),
       );
     }
   }
@@ -260,7 +262,8 @@ class RunPauseGuard {
               if (!done.isCompleted) {
                 done.completeError(RunHoldAborted(
                   RunHoldAbortReason.pauseFailed,
-                  detail: 'Cannot confirm camera is idle: $error',
+                  detail:
+                      'Cannot confirm camera is idle: ${userFacingError(error)}',
                 ));
               }
             }

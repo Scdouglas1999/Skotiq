@@ -1,47 +1,35 @@
 use super::*;
+use crate::device_ops::{GuiderOps, MountOps};
 use crate::SequenceDefinition;
 
+mod carry_over_tests;
 mod center_contention_tests;
+mod checkpoint_writer_tests;
 mod depth_goal_tests;
+mod dome_shutter_tests;
 mod recovery_tests;
+mod resume_tests;
 mod runtime_tests;
 
-/// A failed dither that does not reset the interval leaves the trigger
-/// permanently due for a condition that cannot change mid-run: an unguided
-/// 12-frame dark run logs 12 identical "Trigger-initiated dither failed: No
-/// active guider configured" WARNs, one per exposure.
-#[test]
-fn dither_without_a_guider_is_a_skip_not_a_failure() {
-    assert_eq!(
-        classify_dither_result(
-            NodeStatus::Failure,
-            Some("Dither failed: No active guider configured"),
-        ),
-        DitherTriggerOutcome::SkippedNoGuider,
-    );
-}
-
-#[test]
-fn a_real_dither_failure_still_fails() {
-    for message in [
-        "Dither failed: guide star lost",
-        "Dither failed: settle timed out after 120s",
-        "PHD2 connection refused",
-    ] {
-        assert_eq!(
-            classify_dither_result(NodeStatus::Failure, Some(message)),
-            DitherTriggerOutcome::Failed,
-            "{message} should keep warning and stay due for retry",
-        );
-    }
-}
-
-#[test]
-fn a_failure_with_no_message_still_fails() {
-    assert_eq!(
-        classify_dither_result(NodeStatus::Failure, None),
-        DitherTriggerOutcome::Failed,
-    );
+/// The record a trigger-fired autofocus writes through
+/// `record_autofocus_failed_continuing`.
+fn trigger_continuation(
+    reason: &str,
+    position_before: Option<i32>,
+    position_after: Option<i32>,
+    origin_restored: Option<bool>,
+) -> ContinuedHappening {
+    autofocus_failure_continuation(
+        "Autofocus trigger 'Autofocus Interval'",
+        serde_json::json!({
+            "trigger_id": "autofocus_interval",
+            "trigger_name": "Autofocus Interval",
+        }),
+        reason,
+        position_before,
+        position_after,
+        origin_restored,
+    )
 }
 
 /// Owner decision (2026-08-14): a trigger-fired autofocus that misses its
@@ -49,9 +37,7 @@ fn a_failure_with_no_message_still_fails() {
 /// focus and the replay log says so, naming both positions.
 #[test]
 fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
-    let continuation = autofocus_trigger_continuation(
-        "autofocus_interval",
-        "Autofocus Interval",
+    let continuation = trigger_continuation(
         "curve fit R² 0.31 below minimum 0.80",
         Some(21_400),
         Some(21_400),
@@ -65,6 +51,10 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
     assert_eq!(
         continuation.decision.summary,
         "Autofocus failed — continuing with last-good focus"
+    );
+    assert_eq!(
+        continuation.decision.notice,
+        Some(crate::decision::RunNotice::AutofocusContinued)
     );
     assert_eq!(
         continuation.decision.details["focuser_position_before"],
@@ -83,6 +73,14 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
         "the operator must be told the run carried on: {}",
         continuation.operator_message
     );
+    let (_, line) = continuation.split();
+    assert!(matches!(
+        line.into_event(),
+        ExecutorEvent::NoticedWarning {
+            notice: crate::decision::RunNotice::AutofocusContinued,
+            ..
+        }
+    ));
 }
 
 /// A failed RETURN move is a different night: the motor is parked somewhere
@@ -90,14 +88,8 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
 /// continues, but the notice must not claim the focuser came home.
 #[test]
 fn a_failed_position_restore_is_called_out_not_smoothed_over() {
-    let continuation = autofocus_trigger_continuation(
-        "autofocus_interval",
-        "Autofocus Interval",
-        "focuser timed out",
-        Some(21_400),
-        Some(19_950),
-        Some(false),
-    );
+    let continuation =
+        trigger_continuation("focuser timed out", Some(21_400), Some(19_950), Some(false));
 
     assert!(
         continuation
@@ -118,9 +110,7 @@ fn a_failed_position_restore_is_called_out_not_smoothed_over() {
 /// restore would warn about focus on a run whose focuser never moved.
 #[test]
 fn an_autofocus_that_never_moved_the_focuser_does_not_warn_about_restore() {
-    let continuation = autofocus_trigger_continuation(
-        "autofocus_interval",
-        "Autofocus Interval",
+    let continuation = trigger_continuation(
         "Autofocus is already running on this equipment host",
         Some(21_400),
         Some(21_400),
@@ -137,14 +127,6 @@ fn an_autofocus_that_never_moved_the_focuser_does_not_warn_about_restore() {
     assert_eq!(
         continuation.decision.details["pre_autofocus_position_restored"],
         serde_json::Value::Null
-    );
-}
-
-#[test]
-fn a_successful_dither_is_performed() {
-    assert_eq!(
-        classify_dither_result(NodeStatus::Success, None),
-        DitherTriggerOutcome::Performed,
     );
 }
 
@@ -187,7 +169,7 @@ fn single_exposure_sequence(save_to: Option<String>) -> SequenceDefinition {
         node_type: crate::NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
             duration_secs: 0.01,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             save_to,
             ..Default::default()
         }),
@@ -232,7 +214,7 @@ fn nested_leaf_chain_sequence() -> SequenceDefinition {
         node_type: crate::NodeType::TakeExposure(crate::ExposureConfig {
             count: 3,
             duration_secs: 0.01,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..Default::default()
         }),
         enabled: true,
@@ -376,6 +358,100 @@ fn instructions_parented_under_a_leaf_are_reported_as_unreachable() {
     );
 }
 
+/// A plan with a switched-off Center step, and another Center (plus a stranded
+/// slew under a leaf) inside a switched-off group. With no plate solver
+/// installed, Start refused it ("centers on a target but no plate solver") and
+/// only deleting the step let it run.
+fn plan_with_switched_off_centering() -> SequenceDefinition {
+    let node = |id: &str, node_type: crate::NodeType, enabled: bool, children: &[&str]| {
+        crate::NodeDefinition {
+            id: id.to_string(),
+            name: id.to_string(),
+            node_type,
+            enabled,
+            children: children.iter().map(|c| c.to_string()).collect(),
+        }
+    };
+    let mut sequence = SequenceDefinition::new("Switched off".to_string());
+    sequence.root_node_id = Some("root".to_string());
+    sequence.nodes = vec![
+        node(
+            "root",
+            crate::NodeType::Loop(crate::LoopConfig::default()),
+            true,
+            &["center", "group", "dark"],
+        ),
+        node(
+            "center",
+            crate::NodeType::CenterTarget(crate::CenterConfig::default()),
+            false,
+            &[],
+        ),
+        node(
+            "group",
+            crate::NodeType::Loop(crate::LoopConfig::default()),
+            false,
+            &["group-center", "group-unpark"],
+        ),
+        node(
+            "group-center",
+            crate::NodeType::CenterTarget(crate::CenterConfig::default()),
+            true,
+            &[],
+        ),
+        node("group-unpark", crate::NodeType::Unpark, true, &["stranded"]),
+        node(
+            "stranded",
+            crate::NodeType::SlewToTarget(crate::SlewConfig::default()),
+            true,
+            &[],
+        ),
+        node(
+            "dark",
+            crate::NodeType::TakeExposure(crate::ExposureConfig {
+                frame_type: crate::FrameType::Dark,
+                save_to: Some("/abs/darks".to_string()),
+                ..Default::default()
+            }),
+            true,
+            &[],
+        ),
+    ];
+    sequence
+}
+
+#[test]
+fn switched_off_steps_block_and_check_nothing_at_start() {
+    let mut executor = SequenceExecutor::new();
+    executor
+        .load_sequence(plan_with_switched_off_centering())
+        .expect("sequence loads");
+    let root = &**executor.root_node.as_ref().expect("root");
+
+    assert!(
+        !tree_contains_centering(root),
+        "a switched-off Center step needs no plate solver"
+    );
+    let mut required = std::collections::BTreeMap::new();
+    collect_required_devices(root, &mut required);
+    assert_eq!(
+        required.keys().copied().collect::<Vec<_>>(),
+        vec![RequiredDevice::Camera],
+        "only the enabled dark needs hardware"
+    );
+    let mut names = Vec::new();
+    unreachable_instructions(root, &mut names);
+    assert!(
+        names.is_empty(),
+        "nothing switched off is reported: {names:?}"
+    );
+    assert!(!tree_needs_base_save_path(root));
+
+    let plan = plan_with_switched_off_centering();
+    let ids: Vec<&str> = plan.enabled_nodes().iter().map(|n| n.id.as_str()).collect();
+    assert_eq!(ids, vec!["root", "dark"]);
+}
+
 /// A run that walked one instruction of four must not report Completed: the
 /// Session Report would show a green Completed badge, 0 frames and
 /// `errorMessages: []` against a header chip reading "3 frames".
@@ -488,6 +564,94 @@ async fn a_failed_run_reports_the_reason_the_instruction_gave() {
         reason.contains("timeout_secs must be greater than zero"),
         "the terminal event must carry the instruction's real reason, not a \
          placeholder; got: {reason}"
+    );
+}
+
+/// A run that fails inside its target still puts the rig away with the plan's
+/// shutdown steps. Those steps succeeding is cleanup, not the run carrying on,
+/// so the reason stays the fault that ended it. On a GUI host the operator
+/// read "Sequence failed / Sequence failed" for a FITS save failure because
+/// the Park step completed after it.
+#[tokio::test]
+async fn the_shutdown_steps_succeeding_after_a_failure_keep_its_reason() {
+    let mut sequence = SequenceDefinition::new("Fails then parks".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "root".to_string(),
+        name: "Night".to_string(),
+        node_type: crate::NodeType::Loop(crate::LoopConfig {
+            iterations: Some(1),
+            condition: crate::LoopCondition::Count,
+            condition_value: None,
+            horizon_profile: None,
+        }),
+        enabled: true,
+        children: vec!["script".to_string(), "notify".to_string()],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "script".to_string(),
+        name: "Run Script".to_string(),
+        node_type: crate::NodeType::RunScript(crate::ScriptConfig {
+            script_path: "/nonexistent/skotiq-test-script".to_string(),
+            timeout_secs: Some(0),
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "notify".to_string(),
+        name: "Tell the operator".to_string(),
+        node_type: crate::NodeType::Notification(crate::NotificationConfig {
+            title: "Night over".to_string(),
+            message: "Rig put away".to_string(),
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("root".to_string());
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
+    executor.load_sequence(sequence).expect("sequence loads");
+    let mut events = executor.subscribe();
+
+    executor.start().await.expect("run starts");
+    for _ in 0..200 {
+        if matches!(
+            executor.get_state().await,
+            ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
+        ) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    executor.stop().await.ok();
+
+    let mut shutdown_step_ran = false;
+    let mut failure_reason = None;
+    while let Ok(event) = events.try_recv() {
+        match event {
+            ExecutorEvent::NodeCompleted { id, status } if id == "notify" => {
+                shutdown_step_ran = status == NodeStatus::Success;
+            }
+            ExecutorEvent::SequenceFailed { error } => failure_reason = Some(error),
+            _ => {}
+        }
+    }
+    assert!(
+        shutdown_step_ran,
+        "the plan's shutdown step runs after the failure (the premise of this test)"
+    );
+    let reason = failure_reason.expect("a failed run must publish a terminal failure reason");
+    assert!(
+        reason.contains("timeout_secs must be greater than zero"),
+        "the shutdown step's success must not erase the fault that ended the run; got: {reason}"
+    );
+    assert_eq!(
+        executor.get_progress().message.as_deref(),
+        Some(reason.as_str()),
+        "the run's own status message carries the same reason"
     );
 }
 
@@ -1315,7 +1479,7 @@ fn custom_branch_recovery_node_registers_trigger_spec() {
     assert_eq!(specs[0].custom_branch_node_id.as_deref(), Some("recovery"));
 }
 
-use crate::device_ops::{DeviceOps, DeviceResult, GuidingStatus};
+use crate::device_ops::{DeviceResult, GuidingStatus};
 
 /// DeviceOps that simulates a guider which is NOT guiding until
 /// `guider_start` is called, after which `guider_get_status` reports
@@ -1374,36 +1538,12 @@ impl ReacquireGuiderOps {
 }
 
 #[async_trait::async_trait]
-impl DeviceOps for ReacquireGuiderOps {
+impl MountOps for ReacquireGuiderOps {
     async fn mount_set_tracking(&self, id: &str, enabled: bool) -> DeviceResult<()> {
         *self.last_tracking_set.lock().unwrap() = Some(enabled);
         if self.tracking_set_should_fail && enabled {
-            return Err(format!("simulated tracking-enable failure for {}", id));
+            return Err(format!("simulated tracking-enable failure for {}", id).into());
         }
-        Ok(())
-    }
-
-    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
-        // Guiding only once a (successful) re-acquire has been issued.
-        let guiding = self.started.load(Ordering::Relaxed) && self.relock_after_start;
-        Ok(GuidingStatus {
-            is_guiding: guiding,
-            rms_ra: 0.5,
-            rms_dec: 0.4,
-            rms_total: 0.64,
-        })
-    }
-
-    async fn guider_start(
-        &self,
-        _settle_pixels: f64,
-        _settle_time: f64,
-        _settle_timeout: f64,
-    ) -> DeviceResult<()> {
-        if self.start_should_fail {
-            return Err("simulated guider_start failure".to_string());
-        }
-        self.started.store(true, Ordering::Relaxed);
         Ok(())
     }
 
@@ -1447,67 +1587,32 @@ impl DeviceOps for ReacquireGuiderOps {
         }
         self.inner.mount_is_tracking(id).await
     }
-    async fn camera_start_exposure(
+}
+
+#[async_trait::async_trait]
+impl GuiderOps for ReacquireGuiderOps {
+    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
+        // Guiding only once a (successful) re-acquire has been issued.
+        let guiding = self.started.load(Ordering::Relaxed) && self.relock_after_start;
+        Ok(GuidingStatus {
+            is_guiding: guiding,
+            rms_ra: 0.5,
+            rms_dec: 0.4,
+            rms_total: 0.64,
+        })
+    }
+
+    async fn guider_start(
         &self,
-        id: &str,
-        d: f64,
-        g: Option<i32>,
-        o: Option<i32>,
-        bx: i32,
-        by: i32,
-    ) -> DeviceResult<crate::device_ops::ImageData> {
-        self.inner.camera_start_exposure(id, d, g, o, bx, by).await
-    }
-    async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
-        self.inner.camera_abort_exposure(id).await
-    }
-    async fn camera_set_cooler(&self, id: &str, e: bool, t: f64) -> DeviceResult<()> {
-        self.inner.camera_set_cooler(id, e, t).await
-    }
-    async fn camera_get_temperature(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.camera_get_temperature(id).await
-    }
-    async fn camera_get_cooler_power(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.camera_get_cooler_power(id).await
-    }
-    async fn focuser_move_to(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.focuser_move_to(id, p).await
-    }
-    async fn focuser_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.focuser_get_position(id).await
-    }
-    async fn focuser_is_moving(&self, id: &str) -> DeviceResult<bool> {
-        self.inner.focuser_is_moving(id).await
-    }
-    async fn focuser_get_temperature(&self, id: &str) -> DeviceResult<Option<f64>> {
-        self.inner.focuser_get_temperature(id).await
-    }
-    async fn focuser_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.focuser_halt(id).await
-    }
-    async fn filterwheel_set_position(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.filterwheel_set_position(id, p).await
-    }
-    async fn filterwheel_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_get_position(id).await
-    }
-    async fn filterwheel_get_names(&self, id: &str) -> DeviceResult<Vec<String>> {
-        self.inner.filterwheel_get_names(id).await
-    }
-    async fn filterwheel_set_filter_by_name(&self, id: &str, n: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_set_filter_by_name(id, n).await
-    }
-    async fn rotator_move_to(&self, id: &str, a: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(id, a).await
-    }
-    async fn rotator_move_relative(&self, id: &str, d: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(id, d).await
-    }
-    async fn rotator_get_angle(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(id).await
-    }
-    async fn rotator_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(id).await
+        _settle_pixels: f64,
+        _settle_time: f64,
+        _settle_timeout: f64,
+    ) -> DeviceResult<()> {
+        if self.start_should_fail {
+            return Err("simulated guider_start failure".into());
+        }
+        self.started.store(true, Ordering::Relaxed);
+        Ok(())
     }
     async fn guider_dither(
         &self,
@@ -1522,99 +1627,9 @@ impl DeviceOps for ReacquireGuiderOps {
     async fn guider_stop(&self) -> DeviceResult<()> {
         self.inner.guider_stop().await
     }
-    async fn plate_solve(
-        &self,
-        d: &crate::device_ops::ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
-        self.inner.plate_solve(d, ra, dec, s).await
-    }
-    async fn save_fits(
-        &self,
-        d: &crate::device_ops::ImageData,
-        f: &str,
-        fctx: &crate::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.inner.save_fits(d, f, fctx).await
-    }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        x: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.inner.send_notification(l, t, m, x).await
-    }
-    fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {
-        self.inner.calculate_altitude(r, d, la, lo)
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.inner.get_observer_location()
-    }
-    async fn polar_align_update(
-        &self,
-        r: &crate::polar_align::PolarAlignResult,
-    ) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
-    }
-    async fn dome_open(&self, id: &str) -> DeviceResult<()> {
-        self.inner.dome_open(id).await
-    }
-    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
-        self.inner.dome_close(id).await
-    }
-    async fn dome_park(&self, id: &str) -> DeviceResult<()> {
-        self.inner.dome_park(id).await
-    }
-    async fn dome_get_shutter_status(&self, id: &str) -> DeviceResult<String> {
-        self.inner.dome_get_shutter_status(id).await
-    }
-    async fn safety_is_safe(&self, id: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(id).await
-    }
-    async fn calculate_image_hfr(
-        &self,
-        d: &crate::device_ops::ImageData,
-    ) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(d).await
-    }
-    async fn detect_stars_in_image(
-        &self,
-        d: &crate::device_ops::ImageData,
-    ) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(d).await
-    }
-    async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_open_cover(id).await
-    }
-    async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_close_cover(id).await
-    }
-    async fn cover_calibrator_halt_cover(&self, id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_halt_cover(id).await
-    }
-    async fn cover_calibrator_calibrator_on(&self, id: &str, b: i32) -> DeviceResult<()> {
-        self.inner.cover_calibrator_calibrator_on(id, b).await
-    }
-    async fn cover_calibrator_calibrator_off(&self, id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_calibrator_off(id).await
-    }
-    async fn cover_calibrator_get_cover_state(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_cover_state(id).await
-    }
-    async fn cover_calibrator_get_calibrator_state(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_calibrator_state(id).await
-    }
-    async fn cover_calibrator_get_brightness(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_brightness(id).await
-    }
-    async fn cover_calibrator_get_max_brightness(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_max_brightness(id).await
-    }
 }
+
+crate::forward_device_ops!(ReacquireGuiderOps => inner: CameraOps, FocuserOps, FilterWheelOps, RotatorOps, DomeOps, CoverCalibratorOps, SafetyOps, PlateSolveOps, FrameStoreOps, OperatorNotifyOps, ConnectionOps, SiteOps);
 
 /// The terminal message a finished run publishes is the run's own verdict.
 ///
@@ -1867,25 +1882,59 @@ async fn a_run_failed_by_its_meridian_flip_names_the_flip() {
 /// ended at the old site's dawn (live check, 2026-11-02).
 #[tokio::test]
 async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
     executor
         .update_trigger_state(|ts| {
             ts.set_observer_location(Some(37.97), Some(23.72));
-            ts.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
+            ts.telemetry.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
         })
         .await;
     let (tx, rx) = tokio::sync::mpsc::channel(1);
     drop(rx);
-    executor.command_tx = Some(tx);
+    executor.commands.set(Some(tx));
 
-    executor.update_location(Some(39.97), Some(-75.36)).await;
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(39.97);
+            config.longitude = Some(-75.36);
+        })
+        .await
+        .unwrap();
 
     let manager = executor.trigger_manager.read().await;
     let state = manager.state();
     let state = state.read().await;
-    assert_eq!(state.observer_latitude, Some(39.97));
+    assert_eq!(state.settings.observer_latitude, Some(39.97));
     assert_eq!(
-        state.dawn_time, None,
+        state.telemetry.dawn_time, None,
         "the old site's dawn must not survive"
     );
+}
+
+/// The motion guard's recovery frame finds the run's camera through the
+/// handle; reading it from the executor waited behind a start or a stop that
+/// had the executor taken.
+#[tokio::test]
+async fn the_handle_reads_the_assigned_devices_while_the_executor_is_taken() {
+    let executor = SequenceExecutor::new();
+    let handle = executor.handle();
+    let executor = Arc::new(RwLock::new(executor));
+    executor.write().await.set_devices(
+        Some("camera-1".to_string()),
+        Some("mount-1".to_string()),
+        None,
+        None,
+        None,
+    );
+    executor
+        .write()
+        .await
+        .set_cover_calibrator(Some("panel-1".to_string()));
+
+    let _taken = executor.write().await;
+    let devices = handle.devices();
+    assert_eq!(devices.camera_id.as_deref(), Some("camera-1"));
+    assert_eq!(devices.mount_id.as_deref(), Some("mount-1"));
+    assert_eq!(devices.cover_calibrator_id.as_deref(), Some("panel-1"));
 }

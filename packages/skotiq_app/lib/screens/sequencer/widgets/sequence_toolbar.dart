@@ -1,23 +1,30 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../models/command_action_result.dart';
+import '../../../services/command_action_result.dart';
+import '../../../services/mount_command_service.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../../settings/widgets/frame_watch_settings_section.dart';
-import '../../../utils/sequence_mutator_helper.dart';
+import '../sequence_mutator_helper.dart';
 import '../../../utils/snackbar_helper.dart';
-import 'run_dashboard/run_dashboard_providers.dart';
+import '../../../services/run_dashboard_providers.dart';
 import 'flat_wizard_dialog.dart';
 import 'mosaic_wizard_dialog.dart';
 import 'quick_start_wizard_dialog.dart';
+import 'save_sequence.dart';
 import 'sequence_issues_dialog.dart';
 import 'sequence_overview_prefs.dart';
 import 'sequencer_density.dart';
@@ -29,6 +36,7 @@ import 'trigger_configuration_dialog.dart';
 import 'visual_timeline.dart';
 import '../sequence_counts.dart';
 import '../import_sequence_dialog.dart';
+import '../../../router/app_routes.dart';
 
 part 'sequence_toolbar/actions_and_estimate.dart';
 
@@ -49,7 +57,6 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
   /// The canvas bar's height (06 §Sequencer).
   static const double _canvasBarHeight = 44.0;
 
-  /// The leading document glyph beside the sequence name.
   static const double _canvasBarGlyph = 15.0;
 
   /// The narrowest canvas that can still afford labelled Timeline / Map
@@ -238,12 +245,24 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               sequence?.nodes.values.whereType<ExposureNode>().toList() ??
                   const <ExposureNode>[];
 
+          // Triggers this build cannot read stay on each node as they are.
+          bool unknown(Map<String, dynamic> stored) =>
+              ExposureTriggerConfig.fromNativeJson(stored) == null;
+
           List<ExposureTriggerConfig> currentExposureTriggers() {
             if (exposureNodes.isEmpty) return const [];
             return exposureNodes.first.triggers
                 .map(ExposureTriggerConfig.fromNativeJson)
+                .whereType<ExposureTriggerConfig>()
                 .toList(growable: false);
           }
+
+          // The dialog edits one list for every exposure node; say so when
+          // the nodes do not hold the same one.
+          final triggersDiffer = exposureNodes.length > 1 &&
+              exposureNodes.skip(1).any((node) =>
+                  jsonEncode(node.triggers) !=
+                  jsonEncode(exposureNodes.first.triggers));
 
           Future<void> openExposureTriggers() async {
             if (exposureNodes.isEmpty) {
@@ -263,8 +282,13 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                 appliesTo: exposureNodes.length == 1
                     ? 'Applies to the exposure node '
                         '"${exposureNodes.single.name}".'
-                    : 'Applies to all ${exposureNodes.length} exposure nodes '
-                        'in this sequence.',
+                    : triggersDiffer
+                        ? 'Applies to all ${exposureNodes.length} exposure '
+                            'nodes in this sequence. They hold different '
+                            'triggers now; these are the first node\'s, and '
+                            'saving gives every node this list.'
+                        : 'Applies to all ${exposureNodes.length} exposure '
+                            'nodes in this sequence.',
               ),
             );
             if (result == null) return;
@@ -274,22 +298,25 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             final current = ref.read(currentSequenceProvider);
             if (current == null) return;
             final notifier = ref.read(currentSequenceProvider.notifier);
-            for (final node in current.nodes.values.whereType<ExposureNode>()) {
-              notifier.updateNode(node.copyWith(triggers: nativeTriggers));
-            }
-            // The trigger update is in-memory only — `updateNode` mutates
-            // the editor state but doesn't write to disk. The toolbar's own
-            // file action EXPORTS a .skeq through a picker; it does not
-            // persist into the library, so pointing the user at it would be
-            // a lie. Auto-save (when on) picks this up on its next tick;
-            // otherwise "Save Current" in the Sequences tab is what persists.
+            // One edit, so one Undo restores every node.
+            notifier.withUndoGroup(() {
+              for (final node
+                  in current.nodes.values.whereType<ExposureNode>()) {
+                notifier.updateNode(node.copyWith(triggers: [
+                  ...nativeTriggers,
+                  ...node.triggers.where(unknown),
+                ]));
+              }
+            });
+            // `updateNode` changes the open plan only; the library row is
+            // written by Save (or auto-save, when on).
             if (context.mounted) {
               // Name the count so "applied" is checkable against what the
               // user expected, not a bare claim of success.
               context.showInfoSnackBar(
                 'Exposure triggers applied to '
-                '${countLabel(exposureNodes.length, 'exposure node')} — '
-                'use "Save Current" in the Sequences tab to persist.',
+                '${countLabel(exposureNodes.length, 'exposure node')}. '
+                'Save (Ctrl+S) to keep them.',
               );
             }
           }
@@ -339,12 +366,12 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
           }
 
           Future<void> openSequenceFile() async {
-            final authority = ref.read(backendProvider);
+            final hostScope = ref.backendScope();
             final editorSnapshot = ref.read(currentSequenceProvider);
 
             bool requireCurrentContext() {
               if (!context.mounted) return false;
-              if (identical(ref.read(backendProvider), authority)) return true;
+              if (hostScope.isCurrent) return true;
               context.showWarningSnackBar(
                 'The imaging host changed while the file dialog was open. '
                 'Open the sequence again for the current host.',
@@ -449,12 +476,13 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               }
             } catch (e) {
               if (requireCurrentContext() && context.mounted) {
-                context.showErrorSnackBar('Failed to load sequence: $e');
+                context.showErrorSnackBar(
+                    'Failed to load sequence: ${userFacingError(e)}');
               }
             }
           }
 
-          Future<void> saveSequenceFile() async {
+          Future<void> exportSequenceFile() async {
             final current = ref.read(currentSequenceProvider);
             if (current == null) {
               if (context.mounted) {
@@ -506,14 +534,14 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               } catch (err) {
                 if (context.mounted) {
                   context.showErrorSnackBar(
-                    'Failed to export sequence file: $err',
+                    'Failed to export sequence file: ${userFacingError(err)}',
                   );
                 }
               }
             } catch (e) {
               if (context.mounted) {
                 context.showErrorSnackBar(
-                  'Failed to export sequence file: $e',
+                  'Failed to export sequence file: ${userFacingError(e)}',
                 );
               }
             }
@@ -547,20 +575,18 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             }
             logger.info(
               'Slewing to ${target.targetName} '
-              '(RA ${CoordinateParser.formatRaHms(target.raHours)}, '
-              'Dec ${CoordinateParser.formatDecDms(target.decDegrees)}) '
+              '(RA ${CoordinateFormat.raReadout(target.raHours)}, '
+              'Dec ${CoordinateFormat.decReadout(target.decDegrees)}) '
               'from the sequencer toolbar.',
               source: 'Sequencer',
             );
             if (context.mounted) {
               context.showInfoSnackBar('Slewing to ${target.targetName}…');
             }
-            try {
-              final deviceService = ref.read(deviceServiceProvider);
-              await deviceService.slewMountToCoordinates(
-                target.raHours,
-                target.decDegrees,
-              );
+            final result = await ref
+                .read(mountCommandServiceProvider)
+                .slewTo(target.raHours, target.decDegrees, showFeedback: false);
+            if (result.isSuccess) {
               logger.info(
                 'Slew to ${target.targetName} commanded.',
                 source: 'Sequencer',
@@ -568,14 +594,12 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               if (context.mounted) {
                 context.showInfoSnackBar('Mount is on ${target.targetName}.');
               }
-            } catch (e) {
+            } else {
               logger.error(
-                'Slew to ${target.targetName} failed: $e',
+                'Slew to ${target.targetName} failed: ${result.message}',
                 source: 'Sequencer',
               );
-              if (context.mounted) {
-                context.showErrorSnackBar('Failed to slew: $e');
-              }
+              if (context.mounted) context.showCommandActionResult(result);
             }
           }
 
@@ -635,11 +659,20 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                       )
                   : null,
             ),
+            _ToolbarAction(
+              icon: LucideIcons.fileOutput,
+              label: sequence == null
+                  ? 'Export sequence file (create or open a sequence first)'
+                  : 'Export sequence file…',
+              onPressed: sequence != null && !_fileActionRunning
+                  ? () => _runFileAction(exportSequenceFile)
+                  : null,
+            ),
             const _ToolbarAction.divider(),
             _ToolbarAction(
               icon: LucideIcons.compass,
               label: 'Polar alignment',
-              onPressed: () => context.push('/polar-alignment'),
+              onPressed: () => context.push(AppRoute.polarAlignment.path),
             ),
             _ToolbarAction(
               icon: LucideIcons.crosshair,
@@ -793,6 +826,12 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               _labelledToggleGroupWidth +
               (showDensity ? _densityControlWidth : 0);
 
+          final saveLabel = sequence == null
+              ? 'Save (create or open a sequence first)'
+              : 'Save to the library (Ctrl+S)';
+          final save =
+              sequence == null ? null : () => saveOpenSequence(context, ref);
+
           final isNarrowRow = constraints.maxWidth <
               math.max(_narrowBarWidth, _barWidthFor(barToolbarWidth));
 
@@ -926,6 +965,14 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
           }
 
           if (isNarrowRow) {
+            actions.insert(
+              0,
+              _ToolbarAction(
+                icon: LucideIcons.save,
+                label: saveLabel,
+                onPressed: save,
+              ),
+            );
             return Row(
               children: [
                 Expanded(
@@ -1005,18 +1052,9 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                   <Widget>[
                     SkotiqIconButton(
                       icon: LucideIcons.save,
-                      // This writes a .skeq FILE through the OS chooser;
-                      // saving into the app's library is the Saved tab's
-                      // "Save current". Two actions both called "Save" was a
-                      // real ambiguity — the name says which one this is.
-                      tooltip: sequence == null
-                          ? 'Export sequence file (create or open a sequence '
-                              'first)'
-                          : 'Export sequence file…',
+                      tooltip: saveLabel,
                       size: IconButtonSize.sm,
-                      onPressed: sequence != null && !_fileActionRunning
-                          ? () => _runFileAction(saveSequenceFile)
-                          : null,
+                      onPressed: save,
                     ),
                     _ToolbarOverflowMenu(colors: colors, actions: actions),
                   ],
@@ -1069,12 +1107,18 @@ class _CanvasBarName extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // The mockup's muted "· unsaved changes" is NOT rendered: the
-          // editor's dirty flag lives on the notifier
-          // (`SequenceEditor.isDirty`) and nothing publishes it as a provider,
-          // so the label could only be read at build time and would keep
-          // claiming unsaved work after a save. A label that lies is worse
-          // than no label. See reports/observatory/w3-sequencer/notes.md.
+          if (ref.watch(sequenceHasUnsavedChangesProvider))
+            Padding(
+              padding: const EdgeInsets.only(left: SkotiqTokens.spaceSm),
+              child: Text(
+                '· unsaved changes',
+                style: SkotiqTypography.caption.copyWith(
+                  color: colors.textMuted,
+                ),
+                maxLines: 1,
+                softWrap: false,
+              ),
+            ),
         ],
       ),
     );
@@ -1151,16 +1195,18 @@ class _CanvasBarMeta extends ConsumerWidget {
     final current = sequence;
     if (current == null) return const SizedBox.shrink();
 
-    final estimator = SequenceTimeEstimator(
-      overhead: ref.watch(sequencerOverheadConfigProvider),
-    );
+    final rootId = current.rootNodeId;
+    final openEnd =
+        rootId == null ? null : ref.watch(nodeRollupOpenEndProvider(rootId));
     final totalSecs =
-        estimator.estimateTotalDuration(current, DateTime.now()).inSeconds;
+        ref.watch(currentPlanTimingProvider)?.total.inSeconds ?? 0;
     final summary = <String>[
       countLabel(current.targetHeaders.length, 'target'),
       countLabel(visibleInstructionCount(current), 'node'),
-      if (totalSecs > 0)
-        '~${DurationFormat.seconds(totalSecs.toDouble(), style: DurationStyle.compact, rounding: DurationRounding.truncate)}',
+      if (openEnd != null)
+        formatNodeRollup(Duration.zero, openEnd)
+      else if (totalSecs > 0)
+        '~${DurationFormat.seconds(totalSecs.toDouble(), style: DurationStyle.coarse, rounding: DurationRounding.truncate)}',
     ].join(' · ');
 
     // The summary is the one chip here that is informational rather than

@@ -9,18 +9,19 @@
 // CONFLICT STANCE shown to the user: sync is bundle-based, no merging —
 // restoring a remote bundle replaces local configuration.
 
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 part 'cloud_sync_settings_parts/_remote_sync.dart';
 
@@ -118,7 +119,8 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      context.showErrorSnackBar('Failed to load sync settings: $e');
+      context.showErrorSnackBar(
+          'Failed to load sync settings: ${userFacingError(e)}');
     }
   }
 
@@ -214,7 +216,8 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
       return true;
     } catch (e) {
       if (!mounted || !identical(service, _service)) return false;
-      context.showErrorSnackBar('Failed to save sync settings: $e');
+      context.showErrorSnackBar(
+          'Failed to save sync settings: ${userFacingError(e)}');
       return false;
     } finally {
       if (manageBusy && mounted && identical(service, _service)) {
@@ -276,8 +279,8 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
       }
     } catch (e) {
       if (!mounted || !identical(service, _service)) return;
-      setState(() => _lastError = '$e');
-      context.showErrorSnackBar('Push failed: $e');
+      setState(() => _lastError = userFacingError(e));
+      context.showErrorSnackBar('Push failed: ${userFacingError(e)}');
     } finally {
       if (mounted && identical(service, _service)) {
         setState(() => _pushing = false);
@@ -336,7 +339,7 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
       }
     } catch (e) {
       if (!mounted || !identical(service, _service)) return;
-      context.showErrorSnackBar('Restore failed: $e');
+      context.showErrorSnackBar('Restore failed: ${userFacingError(e)}');
     } finally {
       if (mounted && identical(service, _service)) {
         setState(() => _browsing = false);
@@ -484,7 +487,7 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
                     if (_lastPushAt != null)
                       Text(
                         'Last push: '
-                        '${DateFormat('MMM d, yyyy HH:mm').format(_lastPushAt!.toLocal())}',
+                        '${ClockFormat.monthDayYearHm(_lastPushAt!.toLocal())}',
                         style: SkotiqTypography.caption.copyWith(
                           color: colors.textSecondary,
                         ),

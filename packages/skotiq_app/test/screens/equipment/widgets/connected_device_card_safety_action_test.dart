@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/widgets/connected_device_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../harness/harness.dart';
 
@@ -26,7 +27,7 @@ void main() {
     var cancelCalls = 0;
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.safetyMonitor),
+      const ConnectedDeviceCard(type: DeviceType.safetyMonitor),
       extraOverrides: [
         safetyMonitorStateProvider.overrideWith(
           _UnsafeSafetyMonitorNotifier.new,

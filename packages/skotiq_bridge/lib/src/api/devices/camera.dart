@@ -9,29 +9,6 @@ import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Start camera exposure
-/// This delegates to api_camera_start_exposure which handles the full exposure
-/// workflow including waiting for completion, image processing, and storage.
-Future<void> startExposure({
-  required String deviceId,
-  required double durationSecs,
-  required int gain,
-  required int offset,
-  required int binX,
-  required int binY,
-}) => RustLib.instance.api.crateApiDevicesCameraStartExposure(
-  deviceId: deviceId,
-  durationSecs: durationSecs,
-  gain: gain,
-  offset: offset,
-  binX: binX,
-  binY: binY,
-);
-
-/// Abort/cancel camera exposure
-Future<void> cancelExposure({required String deviceId}) => RustLib.instance.api
-    .crateApiDevicesCameraCancelExposure(deviceId: deviceId);
-
 /// Get camera status
 Future<CameraStatus> getCameraStatus({required String deviceId}) => RustLib
     .instance
@@ -49,6 +26,20 @@ Future<void> setCameraCooler({
   targetTemp: targetTemp,
 );
 
+/// Set camera gain
+Future<void> setCameraGain({required String deviceId, required int gain}) =>
+    RustLib.instance.api.crateApiDevicesCameraSetCameraGain(
+      deviceId: deviceId,
+      gain: gain,
+    );
+
+/// Set camera offset
+Future<void> setCameraOffset({required String deviceId, required int offset}) =>
+    RustLib.instance.api.crateApiDevicesCameraSetCameraOffset(
+      deviceId: deviceId,
+      offset: offset,
+    );
+
 /// Set camera readout mode by index
 ///
 /// mode_index: 0 = default/high quality, 1 = fast readout, etc.
@@ -59,17 +50,6 @@ Future<void> apiCameraSetReadoutMode({
 }) => RustLib.instance.api.crateApiDevicesCameraApiCameraSetReadoutMode(
   deviceId: deviceId,
   modeIndex: modeIndex,
-);
-
-/// Set camera binning
-Future<void> apiSetCameraBinning({
-  required String deviceId,
-  required int binX,
-  required int binY,
-}) => RustLib.instance.api.crateApiDevicesCameraApiSetCameraBinning(
-  deviceId: deviceId,
-  binX: binX,
-  binY: binY,
 );
 
 /// Capture a live-view / preview JPEG frame when the driver supports it.

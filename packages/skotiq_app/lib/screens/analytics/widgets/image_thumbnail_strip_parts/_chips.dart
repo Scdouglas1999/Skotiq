@@ -136,3 +136,37 @@ class _DetailRow extends StatelessWidget {
     );
   }
 }
+
+/// A badge over the top edge of a rail tile: the frame's verdict or its HFR.
+///
+/// Toned text on the panel surface rather than light text on a toned fill:
+/// red night maps every status tone to red, which left white-on-red fills
+/// unreadable.
+class _TileBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _TileBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: colors.surface.withValues(alpha: 0.9),
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: SkotiqTypography.caption.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}

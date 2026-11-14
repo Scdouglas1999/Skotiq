@@ -2,22 +2,6 @@
 part of '../guiding_screen.dart';
 
 mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
-  /// PHD2 reports guide residuals in pixels (RADistanceRaw/AvgDist). When a
-  /// pixel scale (arcsec/px) is known we present arcseconds; otherwise we show
-  /// the raw pixel value labelled "px" rather than mislabelling it as arcsec.
-  ({double value, String unit}) _rmsReadout(double raw, double pixelScale) {
-    if (pixelScale > 0) return (value: raw * pixelScale, unit: '"');
-    return (value: raw, unit: ' px');
-  }
-
-  /// Pull a human-readable message out of whatever the brain-params fetch
-  /// threw. `StateError` (our explicit empty-dump guard) carries a clean
-  /// sentence; everything else falls back to its string form.
-  String _brainErrorMessage(Object error) {
-    if (error is StateError) return error.message;
-    return error.toString();
-  }
-
   Color _getSnrColor(double snr, SkotiqColors colors) {
     // A real star measurement is strictly positive. Zero means "no star has
     // been measured", which is not an alarm — painting it error-red made an
@@ -27,16 +11,6 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     if (snr >= 5) return colors.warning;
     return colors.error;
   }
-
-  /// Per-frame guide error, converted for display the same way the RMS
-  /// readouts are. The guider reports residuals in guide-camera pixels while
-  /// the graph and bullseye axes are arcseconds, so at a typical 2-4"/px guide
-  /// scale the raw pixels understate the real error several-fold.
-  double _errorForDisplay(double px, double pixelScale) =>
-      pixelScale > 0 ? px * pixelScale : px;
-
-  /// Unit suffix matching [_errorForDisplay].
-  String _errorUnit(double pixelScale) => pixelScale > 0 ? '"' : ' px';
 
   /// Copy for the guide-star preview while [starImageProvider] holds no image.
   ///
@@ -195,12 +169,12 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   }
 
   Future<void> _disconnectActiveGuider() async {
-    final backend = ref.read(backendProvider);
+    final hostScope = ref.backendScope();
     final guiderId = ref.read(guiderStateProvider).deviceId;
     try {
-      await ref.read(deviceServiceProvider).disconnectGuider();
+      await ref.read(deviceServiceProvider).disconnect(DeviceType.guider);
       if (!mounted) return;
-      if (!identical(backend, ref.read(backendProvider))) {
+      if (hostScope.isStale) {
         _showActionError(
           'The imaging host changed while disconnecting the guider. '
           'Check Equipment before continuing.',
@@ -266,14 +240,11 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   /// unhandled Future (calibration ops issue real PHD2 RPCs that can fail).
   void _showActionError(String message) {
     if (!mounted) return;
-    final colors = SkotiqColors.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: colors.error),
-    );
+    context.showErrorSnackBar(message);
   }
 
   Future<void> _clearCalibration() async {
-    final backend = ref.read(backendProvider);
+    final hostScope = ref.backendScope();
     final confirmed = await ConfirmDialog.show(
       context: context,
       title: 'Clear calibration?',
@@ -283,7 +254,7 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
-    if (!identical(backend, ref.read(backendProvider))) {
+    if (hostScope.isStale) {
       _showActionError(
         'The connected imaging host changed. Calibration was not cleared.',
       );
@@ -302,175 +273,5 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     } catch (e) {
       _showActionError('Failed to flip calibration: $e');
     }
-  }
-
-  // Settle / dither persistence — canonical AppSettings authority (defect 5)
-  //
-  // The screen owns no independent settle/dither store: it seeds its live cache
-  // from the persisted settings once, then writes every edit straight back
-  // through the AppSettings notifier so values persist across navigation AND
-  // full reconstruction, and remote companions share the same canonical sync.
-
-  /// Seed the settle/dither controls from the persisted authority exactly once
-  /// per screen instance. Values are clamped to the control ranges so a
-  /// corrupt/out-of-range stored value can never push a slider off its track.
-  void _hydrateGuidingSettings(AppSettingsState settings) {
-    if (_guidingSettingsHydrated) return;
-    _guidingSettingsHydrated = true;
-    _settlePixels = settings.settleThreshold.clamp(0.5, 5.0).toDouble();
-    _settleTimeout = settings.settleTimeout.toDouble().clamp(30.0, 180.0);
-    _settleTime = settings.settleTime.toDouble().clamp(5.0, 60.0);
-    _ditherAmount = _ditherScaleToPixels(settings.ditherScale).clamp(1.0, 20.0);
-    _ditherRaOnly = settings.ditherRaOnly;
-  }
-
-  void _setSettlePixels(double value) {
-    final clamped = value.clamp(0.5, 5.0).toDouble();
-    final rollback = _settlePixels;
-    setState(() => _settlePixels = clamped);
-    unawaited(_persistSettlePixels(clamped, rollback));
-  }
-
-  Future<void> _persistSettlePixels(double value, double rollback) async {
-    final clamped = value.clamp(0.5, 5.0).toDouble();
-    final current = ref.read(appSettingsProvider).valueOrNull?.settleThreshold;
-    if (current != null && (current - clamped).abs() < 0.0001) return;
-    try {
-      await ref.read(appSettingsProvider.notifier).setSettleThreshold(clamped);
-    } catch (error) {
-      if (!mounted) return;
-      if ((_settlePixels - clamped).abs() < 0.0001) {
-        final authoritative =
-            ref.read(appSettingsProvider).valueOrNull?.settleThreshold;
-        setState(
-            () => _settlePixels = (authoritative ?? rollback).clamp(0.5, 5.0));
-      }
-      _showActionError('Could not save the settle threshold: $error');
-    }
-  }
-
-  void _setSettleTimeout(double value) {
-    final clamped = value.clamp(30.0, 180.0).toDouble();
-    final rollback = _settleTimeout;
-    setState(() => _settleTimeout = clamped);
-    unawaited(_persistSettleTimeout(clamped, rollback));
-  }
-
-  Future<void> _persistSettleTimeout(double value, double rollback) async {
-    final clamped = value.clamp(30.0, 180.0).round();
-    final current = ref.read(appSettingsProvider).valueOrNull?.settleTimeout;
-    if (current == clamped) return;
-    try {
-      await ref.read(appSettingsProvider.notifier).setSettleTimeout(clamped);
-    } catch (error) {
-      if (!mounted) return;
-      if ((_settleTimeout - clamped).abs() < 0.0001) {
-        final authoritative =
-            ref.read(appSettingsProvider).valueOrNull?.settleTimeout;
-        setState(
-          () => _settleTimeout =
-              (authoritative?.toDouble() ?? rollback).clamp(30.0, 180.0),
-        );
-      }
-      _showActionError('Could not save the settle timeout: $error');
-    }
-  }
-
-  void _setSettleTime(double value) {
-    final clamped = value.clamp(5.0, 60.0).toDouble();
-    final rollback = _settleTime;
-    setState(() => _settleTime = clamped);
-    unawaited(_persistSettleTime(clamped, rollback));
-  }
-
-  Future<void> _persistSettleTime(double value, double rollback) async {
-    final clamped = value.clamp(5.0, 60.0).round();
-    final current = ref.read(appSettingsProvider).valueOrNull?.settleTime;
-    if (current == clamped) return;
-    try {
-      await ref.read(appSettingsProvider.notifier).setSettleTime(clamped);
-    } catch (error) {
-      if (!mounted) return;
-      if ((_settleTime - clamped).abs() < 0.0001) {
-        final authoritative =
-            ref.read(appSettingsProvider).valueOrNull?.settleTime;
-        setState(
-          () => _settleTime =
-              (authoritative?.toDouble() ?? rollback).clamp(5.0, 60.0),
-        );
-      }
-      _showActionError('Could not save the settle time: $error');
-    }
-  }
-
-  void _setDitherRaOnly(bool value) {
-    final rollback = _ditherRaOnly;
-    setState(() => _ditherRaOnly = value);
-    unawaited(_persistDitherRaOnly(value, rollback));
-  }
-
-  Future<void> _persistDitherRaOnly(bool value, bool rollback) async {
-    final current = ref.read(appSettingsProvider).valueOrNull?.ditherRaOnly;
-    if (current == value) return;
-    try {
-      await ref.read(appSettingsProvider.notifier).setDitherRaOnly(value);
-    } catch (error) {
-      if (!mounted) return;
-      if (_ditherRaOnly == value) {
-        final authoritative =
-            ref.read(appSettingsProvider).valueOrNull?.ditherRaOnly;
-        setState(() => _ditherRaOnly = authoritative ?? rollback);
-      }
-      _showActionError('Could not save the dither RA-only setting: $error');
-    }
-  }
-
-  void _setDitherAmount(double pixels) {
-    final clamped = pixels.clamp(1.0, 20.0).toDouble();
-    final rollback = _ditherAmount;
-    setState(() => _ditherAmount = clamped);
-    unawaited(_persistDitherScale(clamped, rollback));
-  }
-
-  Future<void> _persistDitherScale(double pixels, double rollback) async {
-    final scale = _pixelsToDitherScale(pixels);
-    final current = ref.read(appSettingsProvider).valueOrNull?.ditherScale;
-    if (current == scale) return;
-    try {
-      await ref.read(appSettingsProvider.notifier).setDitherScale(scale);
-    } catch (error) {
-      if (!mounted) return;
-      if ((_ditherAmount - pixels).abs() < 0.0001) {
-        final authoritative =
-            ref.read(appSettingsProvider).valueOrNull?.ditherScale;
-        setState(
-          () => _ditherAmount = authoritative == null
-              ? rollback
-              : _ditherScaleToPixels(authoritative),
-        );
-      }
-      _showActionError('Could not save the dither amount: $error');
-    }
-  }
-
-  /// Canonical AppSettings stores dither strength as a coarse Small/Medium/Large
-  /// bucket; the slider works in pixels. These two helpers are the single,
-  /// documented bridge between the two representations.
-  static double _ditherScaleToPixels(String scale) {
-    switch (scale) {
-      case 'Small':
-        return 2.0;
-      case 'Large':
-        return 10.0;
-      case 'Medium':
-      default:
-        return 5.0;
-    }
-  }
-
-  static String _pixelsToDitherScale(double pixels) {
-    if (pixels < 3.5) return 'Small';
-    if (pixels < 7.5) return 'Medium';
-    return 'Large';
   }
 }

@@ -4,30 +4,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/equipment/equipment_models.dart';
 import '../../models/sequence/sequence_models.dart';
-import '../../services/device_service.dart';
-import '../../services/logging_service.dart';
+import '../autofocus_progress_provider.dart';
 import '../sequence/sequence_progress.dart';
 import '../settings_provider.dart';
+import 'focus_compensation_rule.dart';
 import 'focuser_state_provider.dart';
 import 'focuser_temperature_poller.dart';
+import '../../settings/app_settings_state.g.dart';
+import '../device_service_providers.dart';
+import '../logging_service_provider.dart';
 
 /// Applies the operator's temperature coefficient (steps per °C, set in
 /// Equipment → Settings → Focuser) continuously while the focuser is
 /// connected and no sequence is running.
 ///
-/// Sign convention MUST match the executor-authoritative Rust
-/// `execute_temperature_compensation` in
-/// `native/skotiq_native/sequencer/src/temperature_compensation.rs`,
-/// which computes
-/// `new_position = current_position + (temp_now - baseline) * coefficient`.
-/// This provider uses that identical formula
-/// (`target = baseline_position + delta`); a sign flip here makes the two
-/// compensators drive the focuser in opposite directions.
+/// During a run the executor compensates instead, before each light frame,
+/// with these same settings (the plan carries them, see
+/// `SequenceSerializer`), and from its own reference. This provider stands
+/// down whenever the sequencer is executing (running / paused / stopping /
+/// recovering): two controllers would move the focuser off the same drift,
+/// and only the executor knows when no frame is exposing.
 ///
-/// The Rust `temperature_compensation` instruction is the in-sequence
-/// authority, so this provider stands down whenever the sequencer is
-/// executing (running / paused / stopping / recovering). Otherwise two
-/// controllers would issue focuser moves off the same drift.
+/// What a reading calls for is [FocusCompensationRule], the mirror of the
+/// executor's rule; this class only decides when a reading may be acted on
+/// and makes the move.
 final focuserTempCompensationProvider = Provider<FocuserTempCompensator>((ref) {
   // Compensation follows the focuser's temperature, which only the poller
   // keeps current on the machine that owns the rig.
@@ -37,8 +37,37 @@ final focuserTempCompensationProvider = Provider<FocuserTempCompensator>((ref) {
   return compensator;
 });
 
-/// Internal observable for tests: holds the most recent baseline so unit
-/// tests can verify the controller advanced after a move.
+/// The rule's state while the app compensates out of a run, shared with the
+/// filter change that applies a focus offset (see
+/// `DeviceService._applyFilterFocusOffset`).
+final idleFocusCompensationProvider = Provider<IdleFocusCompensation>(
+  (_) => IdleFocusCompensation(),
+);
+
+class IdleFocusCompensation {
+  final FocusCompensationRule rule = FocusCompensationRule();
+
+  /// A filter's focus offset is moving the focuser. Readings taken meanwhile
+  /// are part of that move and are not judged.
+  bool get offsetMoveInFlight => _offsetMoveInFlight;
+  bool _offsetMoveInFlight = false;
+
+  void beginOffsetMove() {
+    _offsetMoveInFlight = true;
+  }
+
+  /// The offset move ended having moved the focuser [appliedSteps] (0 when
+  /// it failed). An applied offset is not a new focus to hold: the reference
+  /// moves with it and the correction owed so far is kept.
+  void endOffsetMove({required int appliedSteps}) {
+    if (appliedSteps != 0) rule.shiftedBy(appliedSteps);
+    _offsetMoveInFlight = false;
+  }
+}
+
+/// The reference compensation measures from, for display: the temperature
+/// and position when it started, or when something else last moved the
+/// focuser.
 final focuserTempCompensationBaselineProvider =
     StateProvider<FocuserTempCompensationBaseline?>((_) => null);
 
@@ -86,13 +115,46 @@ class FocuserTempCompensator {
     // captures a fresh reference instead of acting on stale data.
     final settings = next.valueOrNull;
     if (settings == null || !settings.tempCompensation) {
-      _ref.read(focuserTempCompensationBaselineProvider.notifier).state = null;
+      _clearBaseline();
     }
   }
 
-  /// Whether the sequencer is actively executing. While it is, the Rust
-  /// `temperature_compensation` instruction owns focuser drift correction;
-  /// this continuous provider must not also issue moves (double-compensation).
+  IdleFocusCompensation get _idle => _ref.read(idleFocusCompensationProvider);
+  FocusCompensationRule get _rule => _idle.rule;
+
+  void _clearBaseline() {
+    _rule.forgetReference();
+    _publishReference();
+  }
+
+  /// Show the rule's reference where the focus panel reads it.
+  void _publishReference() {
+    final reference = _rule.reference;
+    final shown = _ref.read(focuserTempCompensationBaselineProvider);
+    if (reference == null) {
+      if (shown != null) {
+        _ref.read(focuserTempCompensationBaselineProvider.notifier).state =
+            null;
+      }
+      return;
+    }
+    if (shown != null &&
+        shown.temperature == reference.temperature &&
+        shown.position == reference.position) {
+      return;
+    }
+    _ref
+        .read(focuserTempCompensationBaselineProvider.notifier)
+        .state = FocuserTempCompensationBaseline(
+      temperature: reference.temperature,
+      position: reference.position,
+      capturedAt: reference.takenAt,
+    );
+  }
+
+  /// Whether the sequencer is actively executing. While it is, the executor
+  /// owns focuser drift correction; this continuous provider must not also
+  /// issue moves (double-compensation).
   bool get _sequenceActive {
     switch (_ref.read(sequenceExecutionStateProvider)) {
       case SequenceExecutionState.running:
@@ -105,8 +167,8 @@ class FocuserTempCompensator {
       case SequenceExecutionState.failed:
         return false;
       // A failed native stop means the hardware was NOT confirmed stopped, so
-      // the Rust temperature-compensation instruction may still own the
-      // focuser — treat it as active. A pending persistence cleanup
+      // the executor may still be compensating — treat it as active. A
+      // pending persistence cleanup
       // (cleanupFailed) or in-flight finalization both mean the hardware IS
       // stopped, so Dart-side compensation may resume.
       case SequenceExecutionState.stopFailed:
@@ -123,20 +185,25 @@ class FocuserTempCompensator {
       return;
     }
     if (_sequenceActive) {
-      // The Rust temperature_compensation instruction is authoritative while
-      // a sequence runs. Skip Dart-side compensation to avoid two controllers
-      // fighting over the focuser. We deliberately keep the baseline so that
-      // when the sequence ends, the next temperature tick resumes from the
-      // correct reference rather than re-capturing mid-drift.
+      // The executor compensates while a sequence runs. The reference is
+      // kept: if the run moved the focuser, the first reading after it reads
+      // as a move this compensator did not make and becomes the new
+      // reference.
       return;
     }
     if (next.connectionState != DeviceConnectionState.connected) {
-      _ref.read(focuserTempCompensationBaselineProvider.notifier).state = null;
+      _clearBaseline();
       return;
     }
     if (_moveInFlight ||
         next.isMoving ||
-        _ref.read(deviceServiceProvider).isAutofocusRunning) {
+        _idle.offsetMoveInFlight ||
+        _ref.read(deviceServiceProvider).isAutofocusRunning ||
+        // A sweep started elsewhere (the REST API, a linked client) does not
+        // go through this window's device service; its progress events do
+        // reach the panel. Moving the focuser mid-sweep puts a point's frame
+        // at the wrong position.
+        _ref.read(autofocusOverlayProvider).isRunning) {
       // Re-evaluate when the focuser reports idle; moving is not a fault.
       return;
     }
@@ -146,57 +213,44 @@ class FocuserTempCompensator {
       return;
     }
 
-    final baselineHolder = _ref.read(
-      focuserTempCompensationBaselineProvider.notifier,
+    final step = _rule.step(
+      stepsPerDegree: settings.tempCoefficient,
+      minSteps: settings.tempCompensationMinSteps,
+      temperature: temperature,
+      position: position,
     );
-    final baseline = baselineHolder.state;
-    if (baseline == null) {
-      baselineHolder.state = FocuserTempCompensationBaseline(
-        temperature: temperature,
-        position: position,
-        capturedAt: DateTime.now(),
-      );
-      return;
+    _publishReference();
+    switch (step) {
+      case TakeReference(movedFrom: final movedFrom):
+        if (movedFrom != null) {
+          // Something else moved the focuser: an autofocus or a jog. That is
+          // the new focus to hold, not drift to undo.
+          _ref
+              .read(loggingServiceProvider)
+              .info(
+                'Temp compensation took a new reference at $position '
+                '(${temperature.toStringAsFixed(2)}C): the focuser was moved '
+                'from $movedFrom',
+                source: 'FocuserTempCompensator',
+              );
+        }
+      case Hold():
+        break;
+      case Refuse(target: final target):
+        // Refuse impossible commands rather than silently clamping.
+        _ref
+            .read(loggingServiceProvider)
+            .warning(
+              'Temp compensation computed negative target position '
+              '($target); skipping move.',
+              source: 'FocuserTempCompensator',
+            );
+      case Move(target: final target):
+        unawaited(_applyMove(target, temperature));
     }
-
-    final coefficient = settings.tempCoefficient;
-    if (coefficient == 0) {
-      // Why: a zero coefficient is a valid "track temperature but do not
-      // act" state. The user gets the temperature display without any
-      // movement.
-      return;
-    }
-
-    final deltaTemp = temperature - baseline.temperature;
-    final deltaStepsDouble = deltaTemp * coefficient;
-    final deltaSteps = deltaStepsDouble.round();
-    if (deltaSteps.abs() < 1) {
-      return;
-    }
-    // Sign convention matches the Rust executor exactly:
-    // `new = baseline + (temp_now - baseline_temp) * coefficient`. With the
-    // default negative coefficient, a temperature drop yields a positive
-    // delta and moves the focuser outward. Do NOT flip this sign — the Rust
-    // `temperature_compensation` instruction adds the same delta, and any
-    // disagreement makes the two compensators drive the focuser in opposite
-    // directions.
-    final targetPosition = baseline.position + deltaSteps;
-    if (targetPosition < 0) {
-      // Refuse impossible commands rather than silently clamping.
-      _ref
-          .read(loggingServiceProvider)
-          .warning(
-            'Temp compensation computed negative target position '
-            '($targetPosition); skipping move.',
-            source: 'FocuserTempCompensator',
-          );
-      return;
-    }
-
-    unawaited(_applyMove(targetPosition, temperature));
   }
 
-  Future<void> _applyMove(int targetPosition, double newBaselineTemp) async {
+  Future<void> _applyMove(int targetPosition, double temperature) async {
     _moveInFlight = true;
     final logger = _ref.read(loggingServiceProvider);
     try {
@@ -209,22 +263,16 @@ class FocuserTempCompensator {
         return;
       }
       await deviceService.moveFocuserTo(targetPosition);
+      _rule.movedTo(targetPosition);
       logger.info(
         'Temp compensation moved focuser to $targetPosition '
-        '(new baseline temp ${newBaselineTemp.toStringAsFixed(2)}C)',
+        '(${temperature.toStringAsFixed(2)}C)',
         source: 'FocuserTempCompensator',
-      );
-      _ref
-          .read(focuserTempCompensationBaselineProvider.notifier)
-          .state = FocuserTempCompensationBaseline(
-        temperature: newBaselineTemp,
-        position: targetPosition,
-        capturedAt: DateTime.now(),
       );
     } catch (e, st) {
       // Fail loud — silent fallbacks here would hide a focuser issue from
       // the operator. Errors propagate via the logging service and the
-      // baseline is left untouched so the next temperature update can
+      // reference is left untouched so the next temperature update can
       // retry.
       logger.error(
         'Temp compensation move failed: $e',

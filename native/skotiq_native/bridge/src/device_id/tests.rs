@@ -1,4 +1,151 @@
 use super::*;
+use crate::device_id::cache::parse_device_id_cached;
+
+/// Readers of a parse that only these tests need; the app reads `connection_info`.
+impl ParsedDeviceId {
+    /// Get Alpaca connection info if this is an Alpaca device
+    fn alpaca_info(&self) -> Option<(&str, &str, u16, &str, u32)> {
+        match &self.connection_info {
+            ConnectionInfo::Alpaca {
+                protocol,
+                host,
+                port,
+                device_type,
+                device_num,
+                ..
+            } => Some((protocol, host, *port, device_type, *device_num)),
+            _ => None,
+        }
+    }
+
+    /// Get the Alpaca base URL if this is an Alpaca device
+    fn alpaca_base_url(&self) -> Option<&str> {
+        match &self.connection_info {
+            ConnectionInfo::Alpaca { base_url, .. } => Some(base_url),
+            _ => None,
+        }
+    }
+
+    /// Get the raw device ID string
+    fn raw(&self) -> &str {
+        &self.raw_id
+    }
+
+    /// Get the ASCOM ProgID if this is an ASCOM device
+    fn ascom_prog_id(&self) -> Option<&str> {
+        match &self.connection_info {
+            ConnectionInfo::Ascom { prog_id } => Some(prog_id),
+            _ => None,
+        }
+    }
+
+    /// Get INDI connection info if this is an INDI device
+    fn indi_info(&self) -> Option<(&str, u16, &str)> {
+        match &self.connection_info {
+            ConnectionInfo::Indi {
+                host,
+                port,
+                device_name,
+            } => Some((host, *port, device_name)),
+            _ => None,
+        }
+    }
+
+    /// Get native vendor and device ID if this is a native device.
+    ///
+    /// Returns `(vendor, device_id, device_index)`. For 4-part subtype
+    /// or Touptek-brand IDs, prefer the dedicated accessors below — the
+    /// `device_id` returned here is the trailing payload only (the
+    /// brand / subtype segment is already stripped).
+    fn native_info(&self) -> Option<(&str, &str, Option<i32>)> {
+        match &self.connection_info {
+            ConnectionInfo::Native {
+                vendor,
+                device_id,
+                device_index,
+                ..
+            } => Some((vendor, device_id, *device_index)),
+            _ => None,
+        }
+    }
+
+    /// Get the native vendor token, lower-cased and validated against
+    /// the vendor catalog. `None` for non-native IDs.
+    fn native_vendor(&self) -> Option<&str> {
+        match &self.connection_info {
+            ConnectionInfo::Native { vendor, .. } => Some(vendor.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Get the Touptek brand and discovery index for IDs of the form
+    /// `native:touptek:{brand}:{idx}`. Returns `None` for non-Touptek
+    /// IDs and for malformed Touptek IDs whose index is non-numeric
+    /// (the parser already rejects the latter, but the accessor is
+    /// defensive against future encoding changes).
+    fn touptek_info(&self) -> Option<(&str, usize)> {
+        match &self.connection_info {
+            ConnectionInfo::Native {
+                vendor,
+                device_id,
+                vendor_brand: Some(brand),
+                ..
+            } if vendor == "touptek" => device_id
+                .parse::<usize>()
+                .ok()
+                .map(|idx| (brand.as_str(), idx)),
+            _ => None,
+        }
+    }
+
+    /// Get the ZWO accessory subtype (`eaf` or `efw`) and trailing
+    /// payload for 4-part ZWO IDs of the form `native:zwo:eaf:{n}`.
+    /// Returns `None` for the composite form `native:zwo_eaf:{n}` —
+    /// callers must check `native_vendor()` separately for that
+    /// encoding.
+    fn zwo_subtype(&self) -> Option<(&str, &str)> {
+        match &self.connection_info {
+            ConnectionInfo::Native {
+                vendor,
+                device_id,
+                device_subtype: Some(sub),
+                ..
+            } if vendor == "zwo" => Some((sub.as_str(), device_id.as_str())),
+            _ => None,
+        }
+    }
+
+    /// Get the QHY CFW subtype payload for 4-part QHY IDs
+    /// (`native:qhy:cfw:{camera_id}`). Returns `None` for the composite
+    /// form `native:qhy_cfw:{camera_id}`.
+    fn qhy_subtype(&self) -> Option<(&str, &str)> {
+        match &self.connection_info {
+            ConnectionInfo::Native {
+                vendor,
+                device_id,
+                device_subtype: Some(sub),
+                ..
+            } if vendor == "qhy" => Some((sub.as_str(), device_id.as_str())),
+            _ => None,
+        }
+    }
+
+    /// Get the FLI accessory subtype (`focuser` or `fw`) and trailing
+    /// payload for 4-part FLI IDs (`native:fli:focuser:{path}`).
+    /// Returns `None` for the composite form
+    /// (`native:fli_focuser:{path}`).
+    fn fli_subtype(&self) -> Option<(&str, &str)> {
+        match &self.connection_info {
+            ConnectionInfo::Native {
+                vendor,
+                device_id,
+                device_subtype: Some(sub),
+                ..
+            } if vendor == "fli" => Some((sub.as_str(), device_id.as_str())),
+            _ => None,
+        }
+    }
+}
 
 #[test]
 fn test_parse_ascom() {
@@ -130,7 +277,7 @@ fn test_invalid_alpaca_bad_port() {
 //
 // Every observed `format!("native:...")` site in `discovery.rs` and
 // the per-vendor modules is exercised here. If a vendor agent adds a
-// new prefix without updating `SUPPORTED_NATIVE_VENDORS`, one of
+// new prefix without a row in `skotiq_native::catalog::FAMILIES`, one of
 // these tests fails and the bug is caught at `cargo test` time
 // instead of at user-machine "Unknown vendor" startup.
 
@@ -336,6 +483,8 @@ fn native_fujifilm_serial_id() {
     assert_eq!(vendor, "fujifilm");
     assert_eq!(dev, "7CB12345");
     assert_eq!(idx, None);
+    // The body's lens, as a focuser, carries the same serial.
+    assert_native_roundtrip("native:fujifilm_lens:7CB12345", "fujifilm_lens");
 }
 
 #[test]
@@ -430,10 +579,10 @@ fn native_subtype_empty_payload_is_rejected() {
 fn native_supported_vendors_constant_is_exhaustive() {
     // Smoke-test that every token in the registry parses for at
     // least one minimal payload. Catches typos / dead entries in
-    // SUPPORTED_NATIVE_VENDORS.
-    for vendor in skotiq_native::SUPPORTED_NATIVE_VENDORS {
+    // the vendor catalog.
+    for vendor in &skotiq_native::catalog::id_tokens() {
         // Touptek requires a brand segment; supply one.
-        let raw = if *vendor == "touptek" {
+        let raw = if vendor == "touptek" {
             "native:touptek:ogma:0".to_string()
         } else {
             format!("native:{}:0", vendor)
@@ -443,11 +592,8 @@ fn native_supported_vendors_constant_is_exhaustive() {
     }
 }
 
-// Cache tests
-
 #[test]
 fn test_cached_parse_returns_same_result() {
-    let _guard = CACHE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     // First call should be a cache miss
     let parsed1 = parse_device_id_cached("ascom:ASCOM.Telescope.Simulator").unwrap();
 
@@ -456,93 +602,6 @@ fn test_cached_parse_returns_same_result() {
 
     assert_eq!(parsed1.raw_id, parsed2.raw_id);
     assert_eq!(parsed1.driver_type, parsed2.driver_type);
-}
-
-// These three tests mutate and assert on the process-global DEVICE_ID_CACHE.
-// Rust runs tests concurrently in one process, so without serialization a
-// clear_device_id_cache() from one test can land between another test's
-// parse and its size/metrics assertion.
-static CACHE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-#[test]
-fn test_cache_metrics() {
-    let _guard = CACHE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    // Reset metrics for a clean test
-    reset_device_id_cache_metrics();
-
-    // Clear cache to ensure cache miss
-    clear_device_id_cache();
-
-    // First call should be a miss
-    let _ = parse_device_id_cached("indi:testhost:7624:TestDevice").unwrap();
-
-    // Get stats - should have 1 miss
-    let stats = get_device_id_cache_stats();
-    assert!(
-        stats.misses >= 1,
-        "Expected at least 1 miss, got {}",
-        stats.misses
-    );
-
-    // Second call should be a hit
-    let _ = parse_device_id_cached("indi:testhost:7624:TestDevice").unwrap();
-
-    let stats2 = get_device_id_cache_stats();
-    assert!(
-        stats2.hits >= 1,
-        "Expected at least 1 hit, got {}",
-        stats2.hits
-    );
-}
-
-#[test]
-fn test_cache_invalidation() {
-    let _guard = CACHE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let device_id = "alpaca:http://192.168.1.50:11111:focuser:0";
-
-    // Parse and cache
-    let _ = parse_device_id_cached(device_id).unwrap();
-    let stats_before = get_device_id_cache_stats();
-    let _initial_size = stats_before.size;
-
-    // Invalidate
-    invalidate_device_id_cache(device_id);
-
-    // After invalidation, parsing again should work
-    // (the cache entry was removed, will be re-added on parse)
-    let _ = parse_device_id_cached(device_id).unwrap();
-
-    // Size should be similar (entry was removed then re-added)
-    let stats_after = get_device_id_cache_stats();
-    assert!(
-        stats_after.size >= 1,
-        "Cache should have at least one entry"
-    );
-}
-
-#[test]
-fn test_cache_clear() {
-    let _guard = CACHE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    // Parse a few device IDs
-    let _ = parse_device_id_cached("native:zwo:1").unwrap();
-    let _ = parse_device_id_cached("native:qhy:2").unwrap();
-
-    // Clear the cache
-    clear_device_id_cache();
-
-    // Cache should be empty
-    let stats = get_device_id_cache_stats();
-    assert_eq!(stats.size, 0, "Cache should be empty after clear");
-}
-
-#[test]
-fn test_cache_stats_display() {
-    let stats = get_device_id_cache_stats();
-    let display = format!("{}", stats);
-    assert!(display.contains("DeviceIdCache"));
-    assert!(display.contains("size"));
-    assert!(display.contains("hits"));
-    assert!(display.contains("hit_rate"));
 }
 
 #[test]

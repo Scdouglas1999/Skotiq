@@ -4,17 +4,27 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import '../../../mixins/device_connection_mixin.dart';
+import '../device_connection_mixin.dart';
+import '../../../utils/device_type_ui.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/troubleshooter/connection_troubleshooter_dialog.dart';
 import '../dialogs/fujifilm_disclaimer_dialog.dart';
+import '../profile_actions.dart';
+import '../utils/profile_mutation_epoch.dart';
 
 part 'discovery_panel/device_row_item.dart';
 
-/// Action for assigning a device to a profile
 class AssignAction {
+  /// [profileId] of the menu entry that makes a new profile for the device.
+  static const int newProfile = -1;
+
   final int profileId;
   final DeviceType deviceType;
 
@@ -39,7 +49,6 @@ final discoveryScanRequestProvider = StateProvider<int>((ref) => 0);
 /// A collapsible panel at the bottom of the equipment screen for discovering devices.
 /// Shows available backends, discovered devices grouped by type, and connection controls.
 class DiscoveryPanel extends ConsumerStatefulWidget {
-  /// Optional callback when a device is assigned to a profile
   final ValueChanged<(DeviceInfo, int)>? onAssignDevice;
 
   const DiscoveryPanel({super.key, this.onAssignDevice});
@@ -98,7 +107,9 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
   // because the two actions have different latencies and we don't want
   // the "Rescanning..." spinner blocking the much longer "Scan All".
   bool _isRescanning = false;
-  int _operationGeneration = 0;
+
+  /// The scan or rescan in progress; a host change drops it.
+  late final _operations = ref.backendScopes(alive: () => mounted);
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
   late AnimationController _expandController;
   late Animation<double> _expandAnimation;
@@ -114,7 +125,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       backendProvider,
       (previous, next) {
         if (identical(previous, next)) return;
-        _operationGeneration++;
+        _operations.cancelAll();
         if (mounted && (_isScanning || _isRescanning)) {
           setState(() {
             _isScanning = false;
@@ -131,7 +142,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     // it read "0 found · Never scanned" beside a host that had found its
     // devices. It asks the host once, quietly, when the list is first shown.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || ref.read(backendProvider) is! NetworkBackend) return;
+      if (!mounted || !ref.read(isRemoteModeProvider)) return;
       if (ref.read(lastScanTimeProvider) != null ||
           ref.read(unifiedDiscoveryProvider).lastDiscoveryCompletedAt != null) {
         return;
@@ -169,7 +180,6 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _operationGeneration++;
     _backendSubscription?.close();
     _expandController.dispose();
     _lastScanTimer?.cancel();
@@ -189,25 +199,24 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
 
   Future<void> _scanForDevices() async {
     if (_isScanning || _isRescanning) return;
-    final authority = ref.read(backendProvider);
-    final generation = ++_operationGeneration;
+    final scan = _operations.beginLatest();
     setState(() => _isScanning = true);
     try {
       // discoverAll clears stale grouped results before scanning.
       await ref.read(unifiedDiscoveryProvider.notifier).discoverAll();
-      if (_isCurrentOperation(generation, authority, scanning: true)) {
+      if (_isCurrentOperation(scan, scanning: true)) {
         final completedAt =
             ref.read(unifiedDiscoveryProvider).lastDiscoveryCompletedAt;
         ref.read(lastScanTimeProvider.notifier).state =
             completedAt ?? DateTime.now();
       }
     } catch (e) {
-      if (mounted &&
-          _isCurrentOperation(generation, authority, scanning: true)) {
-        context.showErrorSnackBar('Equipment scan failed: $e');
+      if (mounted && _isCurrentOperation(scan, scanning: true)) {
+        context
+            .showErrorSnackBar('Equipment scan failed: ${userFacingError(e)}');
       }
     } finally {
-      if (_isCurrentOperation(generation, authority, scanning: true)) {
+      if (_isCurrentOperation(scan, scanning: true)) {
         setState(() => _isScanning = false);
       }
     }
@@ -234,63 +243,39 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
   /// resolves to the FfiBackend and drives the local hot-plug pass unchanged.
   Future<void> _rescanEquipment() async {
     if (_isRescanning || _isScanning) return;
-    final authority = ref.read(backendProvider);
-    final backend = ref.read(deviceBackendProvider);
-    final generation = ++_operationGeneration;
+    final rescan = _operations.beginLatest();
     setState(() => _isRescanning = true);
     final messenger = ScaffoldMessenger.maybeOf(context);
     try {
-      await backend.rescanDevices();
-      if (mounted &&
-          _isCurrentOperation(generation, authority, rescanning: true) &&
-          identical(ref.read(deviceBackendProvider), backend)) {
+      await rescan.value.rescanDevices();
+      if (mounted && _isCurrentOperation(rescan, rescanning: true)) {
         context.showSuccessSnackBar('Equipment rescan complete');
       }
     } catch (e) {
       // A failed rescan must say so: silence here is indistinguishable from a
       // scan that ran and found nothing.
-      if (_isCurrentOperation(generation, authority, rescanning: true)) {
-        messenger?.showSnackBar(
-          SnackBar(content: Text('Rescan failed: $e')),
-        );
+      if (_isCurrentOperation(rescan, rescanning: true)) {
+        messenger?.showErrorSnackBar('Rescan failed: ${userFacingError(e)}');
       }
     } finally {
-      if (_isCurrentOperation(generation, authority, rescanning: true)) {
+      if (_isCurrentOperation(rescan, rescanning: true)) {
         setState(() => _isRescanning = false);
       }
     }
   }
 
   bool _isCurrentOperation(
-    int generation,
-    SkotiqBackend authority, {
+    AsyncScope<SkotiqBackend> operation, {
     bool scanning = false,
     bool rescanning = false,
   }) =>
-      mounted &&
-      generation == _operationGeneration &&
-      identical(ref.read(backendProvider), authority) &&
+      operation.isCurrent &&
       (!scanning || _isScanning) &&
       (!rescanning || _isRescanning);
 
-  String _formatLastScanTime(DateTime? lastScan) {
-    if (lastScan == null) return 'Never scanned';
-
-    final now = DateTime.now();
-    final difference = now.difference(lastScan);
-
-    if (difference.inSeconds < 60) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      final mins = difference.inMinutes;
-      return '$mins min${mins == 1 ? '' : 's'} ago';
-    } else if (difference.inHours < 24) {
-      final hours = difference.inHours;
-      return '$hours hour${hours == 1 ? '' : 's'} ago';
-    } else {
-      return 'Over a day ago';
-    }
-  }
+  String _formatLastScanTime(DateTime? lastScan) => lastScan == null
+      ? 'Never scanned'
+      : RelativeTime.ago(lastScan, style: RelativeTimeStyle.words);
 
   @override
   Widget build(BuildContext context) {
@@ -582,7 +567,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       deviceName: device.displayName,
       deviceType: device.type,
       driverType: DiscoveryPanel.resolveDriverType(device),
-      connectFn: (id) => _dispatchConnect(deviceService, device.type, id),
+      connectFn: (id) => deviceService.connect(device.type, id),
       onConnected: () async {
         if (mounted) {
           _announce('Connected to ${device.displayName}');
@@ -603,87 +588,19 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     context.showSuccessSnackBar(message);
   }
 
-  /// Per-device-type connect dispatch shared by the discovery connect path.
-  /// Throws for unsupported types so the mixin surfaces the failure through the
-  /// troubleshooter rather than silently no-op'ing (errors-are-a-feature).
-  Future<void> _dispatchConnect(
-    DeviceService deviceService,
-    DeviceType type,
-    String deviceId,
-  ) {
-    switch (type) {
-      case DeviceType.camera:
-        return deviceService.connectCamera(deviceId);
-      case DeviceType.mount:
-        return deviceService.connectMount(deviceId);
-      case DeviceType.focuser:
-        return deviceService.connectFocuser(deviceId);
-      case DeviceType.filterWheel:
-        return deviceService.connectFilterWheel(deviceId);
-      case DeviceType.guider:
-        return deviceService.connectGuider(deviceId);
-      case DeviceType.rotator:
-        return deviceService.connectRotator(deviceId);
-      case DeviceType.dome:
-        return deviceService.connectDome(deviceId);
-      case DeviceType.weather:
-        return deviceService.connectWeather(deviceId);
-      case DeviceType.safetyMonitor:
-        return deviceService.connectSafetyMonitor(deviceId);
-      case DeviceType.coverCalibrator:
-        return deviceService.connectCoverCalibrator(deviceId);
-      case DeviceType.switch_:
-        return deviceService.connectSwitch(deviceId);
-    }
-  }
-
   Future<void> _disconnectDevice(UnifiedDevice device) async {
     final deviceService = ref.read(deviceServiceProvider);
     final deviceType = device.type;
 
     try {
-      switch (deviceType) {
-        case DeviceType.camera:
-          await deviceService.disconnectCamera();
-          break;
-        case DeviceType.mount:
-          await deviceService.disconnectMount();
-          break;
-        case DeviceType.focuser:
-          await deviceService.disconnectFocuser();
-          break;
-        case DeviceType.filterWheel:
-          await deviceService.disconnectFilterWheel();
-          break;
-        case DeviceType.guider:
-          await deviceService.disconnectGuider();
-          break;
-        case DeviceType.rotator:
-          await deviceService.disconnectRotator();
-          break;
-        case DeviceType.dome:
-          await deviceService.disconnectDome();
-          break;
-        case DeviceType.weather:
-          await deviceService.disconnectWeather();
-          break;
-        case DeviceType.safetyMonitor:
-          await deviceService.disconnectSafetyMonitor();
-          break;
-        case DeviceType.coverCalibrator:
-          await deviceService.disconnectCoverCalibrator();
-          break;
-        case DeviceType.switch_:
-          await deviceService.disconnectSwitch();
-          break;
-      }
+      await deviceService.disconnect(deviceType);
       if (mounted) {
         _announce('Disconnected ${device.displayName}');
       }
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-            'Failed to disconnect ${device.displayName}: $e');
+            'Failed to disconnect ${device.displayName}: ${userFacingError(e)}');
       }
     }
   }

@@ -1,19 +1,50 @@
-import 'dart:math' as math;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'centering_request.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for planetarium endpoints supporting remote client rendering.
 ///
 /// The planetarium renders locally on mobile/tablet clients but needs data from
 /// the server for mount position, FOV configuration, catalog searches, and
 /// target interactions (slew, sync, center).
-class PlanetariumHandlers {
+class PlanetariumHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    PlanetariumApi.getMountPosition: handleGetMountPosition,
+    PlanetariumApi.getFovConfig: handleGetFovConfig,
+    PlanetariumApi.slewTo: handleSlewTo,
+    PlanetariumApi.centerOn: handleCenterOn,
+    PlanetariumApi.syncTo: handleSyncTo,
+    PlanetariumApi.catalogSearch: handleCatalogSearch,
+    PlanetariumApi.catalogRegion: handleCatalogRegion,
+    PlanetariumApi.getCatalogObject: handleGetCatalogObject,
+    PlanetariumApi.getSubscribeInfo: handleGetSubscribeInfo,
+    PlanetariumApi.getLocation: handleGetLocation,
+    PlanetariumApi.getObservingLists: handleGetObservingLists,
+    PlanetariumApi.getObservingListItems: handleGetObservingListItems,
+    PlanetariumApi.getListedCatalogIds: handleGetListedCatalogIds,
+    PlanetariumApi.getListsContaining: handleGetListsContaining,
+    PlanetariumApi.createObservingList: handleCreateObservingList,
+    PlanetariumApi.updateObservingList: handleUpdateObservingList,
+    PlanetariumApi.deleteObservingList: handleDeleteObservingList,
+    PlanetariumApi.duplicateObservingList: handleDuplicateObservingList,
+    PlanetariumApi.addObservingListItem: handleAddObservingListItem,
+    PlanetariumApi.removeObservingListItem: handleRemoveObservingListItem,
+    PlanetariumApi.updateObservingListItemNotes:
+        handleUpdateObservingListItemNotes,
+  };
+
   final ProviderContainer container;
 
   PlanetariumHandlers(this.container);
@@ -23,14 +54,11 @@ class PlanetariumHandlers {
   void _logInfo(String message) =>
       _logger.info(message, source: 'PlanetariumHandlers');
 
-  // Mount Position (for FOV overlay on remote planetarium)
-
   /// GET /api/planetarium/mount-position
   /// Returns current mount RA/Dec/rotation for FOV display on client planetarium.
   Future<Response> handleGetMountPosition(Request request) async {
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -91,8 +119,6 @@ class PlanetariumHandlers {
     });
   }
 
-  // FOV Configuration (camera/optical setup for FOV calculation)
-
   /// GET /api/planetarium/fov-config
   /// Returns camera sensor size, pixel size, focal length, reducer for FOV calculation.
   Future<Response> handleGetFovConfig(Request request) async {
@@ -102,10 +128,8 @@ class PlanetariumHandlers {
     // 20-line handler.
     final backend = container.read(backendProvider);
 
-    // Get active equipment profile
     final profile = await backend.getActiveProfile();
 
-    // Get connected camera for sensor info
     final connectedDevices = await backend.getConnectedDevices();
     final camera = connectedDevices
         .where((d) => d.deviceType == DeviceType.camera)
@@ -116,7 +140,6 @@ class PlanetariumHandlers {
       cameraCapabilities = await backend.getCameraCapabilities(camera.id);
     }
 
-    // Calculate FOV if we have enough data
     double? fovWidthDegrees;
     double? fovHeightDegrees;
     double? imageScaleArcsecPerPixel;
@@ -136,17 +159,17 @@ class PlanetariumHandlers {
           1000.0;
 
       if (sensorWidthMm > 0 && sensorHeightMm > 0) {
-        // FOV = 2 * atan(sensor_size / (2 * focal_length)) * (180/pi)
-        fovWidthDegrees =
-            2 * (180 / math.pi) * math.atan(sensorWidthMm / (2 * focalLength));
-        fovHeightDegrees =
-            2 * (180 / math.pi) * math.atan(sensorHeightMm / (2 * focalLength));
+        (fovWidthDegrees, fovHeightDegrees) = FOVCalculator.calculateFOV(
+          sensorWidthMm: sensorWidthMm,
+          sensorHeightMm: sensorHeightMm,
+          focalLengthMm: focalLength,
+        );
       }
 
-      if (pixelSize != null && pixelSize > 0) {
-        // Image scale = (pixel_size_microns / focal_length_mm) * 206.265
-        imageScaleArcsecPerPixel = (pixelSize / focalLength) * 206.265;
-      }
+      imageScaleArcsecPerPixel = FOVCalculator.imageScaleOrNull(
+        pixelSizeMicrons: pixelSize,
+        focalLengthMm: focalLength,
+      );
     }
 
     return jsonOk({
@@ -174,8 +197,6 @@ class PlanetariumHandlers {
     });
   }
 
-  // Target interactions
-
   /// POST /api/planetarium/slew-to
   /// Slew mount to RA/Dec coordinates.
   Future<Response> handleSlewTo(Request request) async {
@@ -190,7 +211,6 @@ class PlanetariumHandlers {
 
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -212,62 +232,14 @@ class PlanetariumHandlers {
     final payload = await readJsonObject(request);
     final ra = requireDouble(payload, 'ra', min: 0, max: 24);
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
-    final maxIterations =
-        optionalInt(payload, 'maxIterations', min: 1, max: 20) ?? 5;
-    final toleranceArcsec =
-        optionalDouble(payload, 'toleranceArcsec', min: 0.1, max: 3600) ?? 30.0;
-    final exposureTime =
-        optionalDouble(payload, 'exposureTime', min: 0.01, max: 600) ?? 3.0;
-    final binning = optionalInt(payload, 'binning', min: 1, max: 16) ?? 2;
-    final gain = optionalInt(payload, 'gain', min: 0);
-    final offset = optionalInt(payload, 'offset', min: 0);
-    // Default from Settings -> Plate Solving -> "Sync mount when centering".
-    // Without the sync every correction re-issues the slew that produced the
-    // mis-pointed frame, so centering cannot converge.
-    final storedSyncMount = await container
-        .read(databaseProvider)
-        .settingsDao
-        .getSetting('centering_sync_mount');
-    final syncMount =
-        optionalBool(payload, 'syncMount') ?? storedSyncMount != 'false';
-
+    final centering = await centeringForRequest(container, payload);
     final centeringService = container.read(centeringServiceProvider);
 
-    // Create centering config
-    final config = CenteringConfig(
-      maxIterations: maxIterations,
-      toleranceArcsec: toleranceArcsec,
-      exposureTime: exposureTime,
-      binning: binning,
-      gain: gain,
-      offset: offset,
-      syncMount: syncMount,
-    );
-
-    // Get plate solver config from settings
-    final database = container.read(databaseProvider);
-    final solverName =
-        await database.settingsDao.getSetting('plate_solve_solver') ?? 'ASTAP';
-    final solverPath =
-        await database.settingsDao.getSetting('plate_solve_path') ?? '';
-    final timeoutStr =
-        await database.settingsDao.getSetting('plate_solve_timeout') ?? '60';
-    final solverType = PlateSolverType.values.firstWhere(
-      (t) => t.name.toLowerCase() == solverName.toLowerCase(),
-      orElse: () => PlateSolverType.astap,
-    );
-    final solverConfig = PlateSolverConfig(
-      type: solverType,
-      executablePath: solverPath,
-      timeoutSeconds: int.tryParse(timeoutStr) ?? 60,
-    );
-
-    // Run centering
     final result = await centeringService.centerOnTarget(
       targetRa: ra,
       targetDec: dec,
-      solverConfig: solverConfig,
-      config: config,
+      solverConfig: centering.solver,
+      config: centering.config,
     );
 
     return jsonOk({
@@ -306,7 +278,6 @@ class PlanetariumHandlers {
 
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -321,8 +292,6 @@ class PlanetariumHandlers {
     return jsonOk({'status': 'synced', 'ra': ra, 'dec': dec});
   }
 
-  // Catalog data
-
   /// GET /api/planetarium/catalog/search?query=M31
   /// Search objects by name across star and DSO catalogs.
   Future<Response> handleCatalogSearch(Request request) async {
@@ -334,10 +303,8 @@ class PlanetariumHandlers {
       return jsonOk({'results': []});
     }
 
-    // Use CatalogManager for searching
     final results = await CatalogManager.instance.search(query);
 
-    // Convert to response format
     final responseResults = results
         .take(limit)
         .map(
@@ -401,7 +368,6 @@ class PlanetariumHandlers {
 
     final results = <Map<String, dynamic>>[];
 
-    // Search DSOs in region
     if (typeFilter == null || typeFilter == 'dso') {
       final dsos = await CatalogManager.instance.searchDsoNearby(
         ra: ra,
@@ -412,12 +378,12 @@ class PlanetariumHandlers {
 
       for (final dso in dsos) {
         results.add({
-          'name': dso.displayName,
-          'catalogId': dso.name,
-          'ra': dso.ra,
-          'raHours': dso.ra / 15.0, // canonical hours field; see B14
-          'dec': dso.dec,
-          'type': dso.typeDescription,
+          'name': dso.name,
+          'catalogId': dso.id,
+          'ra': dso.coordinates.raDegrees,
+          'raHours': dso.coordinates.ra, // canonical hours field; see B14
+          'dec': dso.coordinates.dec,
+          'type': dso.type.displayName,
           'magnitude': dso.magnitude,
           'constellation': dso.constellation,
           'size': dso.sizeString,
@@ -426,7 +392,6 @@ class PlanetariumHandlers {
       }
     }
 
-    // Search stars in region
     if (typeFilter == null || typeFilter == 'star') {
       final stars = await CatalogManager.instance.searchStarsNearby(
         ra: ra,
@@ -437,11 +402,11 @@ class PlanetariumHandlers {
 
       for (final star in stars) {
         results.add({
-          'name': star.name,
-          'catalogId': star.catalogId,
-          'ra': star.ra,
-          'raHours': star.ra / 15.0, // canonical hours field; see B14
-          'dec': star.dec,
+          'name': star.label,
+          'catalogId': star.id,
+          'ra': star.coordinates.raDegrees,
+          'raHours': star.coordinates.ra, // canonical hours field; see B14
+          'dec': star.coordinates.dec,
           'type': 'Star',
           'magnitude': star.magnitude,
           'constellation': star.constellation,
@@ -474,10 +439,8 @@ class PlanetariumHandlers {
     Request request,
     String objectId,
   ) async {
-    // Search for the object by ID
     final results = await CatalogManager.instance.search(objectId);
 
-    // Find exact match
     final exactMatch = results
         .where(
           (r) =>
@@ -490,11 +453,9 @@ class PlanetariumHandlers {
       return jsonNotFound({'error': 'Object not found: $objectId'});
     }
 
-    // Get observer location for visibility calculation
     final backend = container.read(profileSettingsBackendProvider);
     final location = await backend.getLocation();
 
-    // Calculate visibility if we have location
     Map<String, dynamic>? visibility;
     if (location != null) {
       final now = DateTime.now();
@@ -515,7 +476,7 @@ class PlanetariumHandlers {
         'isAboveHorizon': alt > 0,
         'observerLatitude': location.latitude,
         'observerLongitude': location.longitude,
-        'calculatedAt': now.toIso8601String(),
+        'calculatedAt': now.toWireTime(),
       };
     }
 
@@ -525,8 +486,8 @@ class PlanetariumHandlers {
       'ra': exactMatch.ra,
       'raHours': exactMatch.ra / 15.0, // canonical hours field; see B14
       'dec': exactMatch.dec,
-      'raFormatted': CoordinateFormat.ra(exactMatch.ra / 15.0),
-      'decFormatted': CoordinateFormat.dec(exactMatch.dec),
+      'raFormatted': CoordinateFormat.raReadoutFromDegrees(exactMatch.ra),
+      'decFormatted': CoordinateFormat.decReadout(exactMatch.dec),
       'type': exactMatch.type,
       'magnitude': exactMatch.magnitude,
       'constellation': exactMatch.constellation,
@@ -534,8 +495,6 @@ class PlanetariumHandlers {
       'visibility': visibility,
     });
   }
-
-  // WebSocket subscription info
 
   /// GET /api/planetarium/subscribe-info
   /// Returns WebSocket URL and event types for real-time mount updates.
@@ -572,8 +531,6 @@ class PlanetariumHandlers {
       'pongFormat': {'type': 'pong'},
     });
   }
-
-  // Observer location
 
   /// GET /api/planetarium/location
   /// Get current observer location for astronomical calculations.

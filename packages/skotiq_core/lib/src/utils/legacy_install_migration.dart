@@ -34,12 +34,12 @@
 //     profile saved). Rows are user data; rewriting strings in SQLite here
 //     would risk corrupting real installs.
 
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
 import 'skotiq_data_directory.dart' show skotiqDataDirEnv;
+import '../services/logging_service.dart';
 
 // --- Pre-rename literals ----------------------------------------------------
 // These strings describe where the OLD product stored things. They must not
@@ -143,9 +143,7 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
   final env = environment ?? Platform.environment;
   final os = operatingSystem ?? Platform.operatingSystem;
   final emit =
-      log ??
-      (String m) =>
-          developer.log(m, name: 'skotiq.legacy_migration', level: 900);
+      log ?? (String m) => Log.warning(m, source: 'skotiq.legacy_migration');
 
   // Run a step, folding any failure into a warning. First-launch migration
   // is strictly best-effort — a failed move must never stop the app booting
@@ -318,8 +316,6 @@ Future<LegacyInstallMigrationReport> migrateLegacyInstall({
   return report;
 }
 
-// --- Legacy root discovery ---------------------------------------------------
-
 /// Candidate application-support roots the old product used, in priority
 /// order, for [os]. Derived from [env] so tests control the answers.
 List<String> _legacyDataRootCandidates(String os, Map<String, String> env) {
@@ -479,8 +475,6 @@ Future<void> _migrateApplianceEnv(
   }
 }
 
-// --- Move / merge machinery --------------------------------------------------
-
 /// True when [dir] exists and contains no entries.
 Future<bool> _isEmptyDir(Directory dir) async {
   if (!await dir.exists()) return false;
@@ -614,8 +608,6 @@ Future<(int, int)> _treeStats(Directory dir) async {
   return (files, bytes);
 }
 
-// --- Inner-name renames ------------------------------------------------------
-
 /// Rename entries under [root] that carry the old product name. Depth-first,
 /// children before parents, so a `nightshade.db` inside a `Nightshade/`
 /// directory becomes `skotiq.db` inside `Skotiq/` in one pass.
@@ -637,8 +629,10 @@ Future<void> _renameLegacyEntries(
 ) async {
   if (!await dir.exists()) return;
   // Collect first: renaming while a lazy list() stream is open can skip
-  // entries on some platforms.
-  final entries = await dir.list(followLinks: false).toList();
+  // entries on some platforms. Listed synchronously: this walk runs on every
+  // start before the window exists, and awaiting each directory's listing
+  // cost about 140 ms there for a data root of 150 entries, against 20 ms.
+  final entries = dir.listSync(followLinks: false);
   for (final entity in entries) {
     if (entity is Directory) {
       // A subtree we cannot read (e.g. the old appliance's service-owned
@@ -671,12 +665,12 @@ Future<void> _renameLegacyEntries(
   }
 }
 
-// --- Secure-storage namespace ------------------------------------------------
-
 /// Re-key secrets stored under the old product's namespace onto
-/// [newNamespace]. Idempotent: a re-run finds no old keys. Never throws —
-/// individual failures are logged and the old key is left so the value is
-/// not lost.
+/// [newNamespace]. Idempotent: a re-run finds no old keys. Never throws. The
+/// first failure ends the run with one warning: a store that refuses one key
+/// (no Secret Service running, a locked keyring) refuses them all, and every
+/// key not yet moved stays where it is, so nothing is lost and the next start
+/// tries again.
 ///
 /// [store] is the same triple of operations `flutter_secure_storage`
 /// performs. [fields] enumerates the logical keys to carry (the caller owns
@@ -703,12 +697,13 @@ Future<int> migrateLegacySecretsNamespace(
       await delete(oldKey);
       moved++;
     } catch (e) {
-      developer.log(
-        'legacy secrets re-key $field failed: $e',
-        name: 'skotiq.legacy_migration',
-        level: 1000,
+      Log.warning(
+        'Secrets saved by the old app name were not moved to the new one, '
+        'because the secret store could not be used ($field): $e',
+        source: 'skotiq.legacy_migration',
         error: e,
       );
+      break;
     }
   }
   return moved;

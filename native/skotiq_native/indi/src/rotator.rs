@@ -3,20 +3,18 @@
 //! Provides high-level rotator control via INDI protocol.
 
 use crate::client::IndiClient;
-use crate::error::IndiResult;
-use crate::protocol::standard_properties::*;
+use crate::error::{IndiError, IndiResult};
+use crate::protocol::names::*;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-/// INDI Rotator device wrapper
 pub struct IndiRotator {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiRotator {
-    /// Create a new INDI rotator wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -24,43 +22,18 @@ impl IndiRotator {
         }
     }
 
-    /// Get the device name
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    /// Connect to the rotator
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    /// Disconnect from the rotator
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    /// Check if connected
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
-    /// Move to angle
     pub async fn move_to(&self, angle: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE", angle)
+            .set_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE, angle)
             .await
     }
 
-    /// Move to angle with timeout
     pub async fn move_to_with_timeout(
         &self,
         angle: f64,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -69,44 +42,42 @@ impl IndiRotator {
             Duration::from_secs(client.timeout_config().rotator_move_timeout_secs)
         };
 
-        // Start the move
         {
             let mut client = self.client.write().await;
             client
-                .set_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE", angle)
+                .set_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE, angle)
                 .await?;
         }
 
-        // Wait for move to complete
         let client = self.client.read().await;
         client
-            .wait_for_property_not_busy(&self.device_name, "ABS_ROTATOR_ANGLE", timeout_duration)
+            .wait_for_property_not_busy(&self.device_name, ABS_ROTATOR_ANGLE, timeout_duration)
             .await
-            .map_err(|e| format!("Rotator move to angle {:.1} degrees failed: {}", angle, e))
+            .map_err(|e| IndiError::Failed {
+                what: format!("Rotator move to angle {:.1} degrees", angle),
+                cause: Box::new(e),
+            })
     }
 
-    /// Get current angle
-    pub async fn get_angle(&self) -> Result<f64, String> {
+    pub async fn get_angle(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE")
+            .get_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE)
             .await
-            .ok_or_else(|| "Angle not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Angle not available".to_string()))
     }
 
-    /// Abort motion
     pub async fn abort_motion(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, "ROTATOR_ABORT_MOTION", "ABORT", true)
+            .set_switch(&self.device_name, ROTATOR_ABORT_MOTION, ABORT, true)
             .await
     }
 
-    /// Check if rotator is currently moving
     pub async fn is_moving(&self) -> bool {
         let client = self.client.read().await;
         client
-            .is_property_busy(&self.device_name, "ABS_ROTATOR_ANGLE")
+            .is_property_busy(&self.device_name, ABS_ROTATOR_ANGLE)
             .await
     }
 
@@ -114,17 +85,17 @@ impl IndiRotator {
     pub async fn sync(&self, angle: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_number(&self.device_name, SYNC_ROTATOR_ANGLE, "ANGLE", angle)
+            .set_number(&self.device_name, SYNC_ROTATOR_ANGLE, ANGLE, angle)
             .await
     }
 
     /// Mechanical / encoder angle when the driver publishes it.
-    pub async fn get_mechanical_position(&self) -> Result<f64, String> {
+    pub async fn get_mechanical_position(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         for (property, element) in [
-            (ROTATOR_RAW_ANGLE, "ANGLE"),
-            ("ROTATOR_POSITION", "POSITION"),
-            ("MECHANICAL_POSITION", "POSITION"),
+            (ROTATOR_RAW_ANGLE, ANGLE),
+            (ROTATOR_POSITION, POSITION),
+            (MECHANICAL_POSITION, POSITION),
         ] {
             if let Some(angle) = client
                 .get_number(&self.device_name, property, element)
@@ -133,21 +104,72 @@ impl IndiRotator {
                 return Ok(angle);
             }
         }
-        Err("Mechanical position not available".to_string())
+        Err(IndiError::Unavailable(
+            "Mechanical position not available".to_string(),
+        ))
     }
 
-    /// Reverse direction
     pub async fn set_reverse(&self, reverse: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         if reverse {
             client
-                .set_switch(&self.device_name, "ROTATOR_REVERSE", "INDI_ENABLED", true)
+                .set_switch(&self.device_name, ROTATOR_REVERSE, INDI_ENABLED, true)
                 .await
         } else {
             client
-                .set_switch(&self.device_name, "ROTATOR_REVERSE", "INDI_DISABLED", true)
+                .set_switch(&self.device_name, ROTATOR_REVERSE, INDI_DISABLED, true)
                 .await
         }
+    }
+}
+
+indi_accessory!(IndiRotator);
+
+#[async_trait::async_trait]
+impl skotiq_device::RotatorDriver for IndiRotator {
+    async fn move_absolute(&self, position_deg: f64) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE, position_deg)
+            .await?)
+    }
+
+    /// A rotator that has not published its angle answers as not connected.
+    async fn position(&self) -> Result<f64, skotiq_device::DriverError> {
+        let client = self.client.read().await;
+        client
+            .get_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE)
+            .await
+            .ok_or(skotiq_device::DriverError::NotConnected)
+    }
+
+    async fn is_moving(&self) -> Result<bool, skotiq_device::DriverError> {
+        let client = self.client.read().await;
+        Ok(client
+            .is_property_busy(&self.device_name, ABS_ROTATOR_ANGLE)
+            .await)
+    }
+
+    async fn halt(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, ROTATOR_ABORT_MOTION, ABORT, true)
+            .await?)
+    }
+
+    async fn sync(&self, position_deg: f64) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_number(&self.device_name, SYNC_ROTATOR_ANGLE, ANGLE, position_deg)
+            .await?)
+    }
+
+    async fn set_reverse(&self, reverse: bool) -> Result<(), skotiq_device::DriverError> {
+        let element = if reverse { INDI_ENABLED } else { INDI_DISABLED };
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, ROTATOR_REVERSE, element, true)
+            .await?)
     }
 }
 
@@ -176,7 +198,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention the angle or that we're not connected
-            assert!(e.contains("90") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("90")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 
@@ -194,7 +219,6 @@ mod tests {
         )));
         let _rotator = IndiRotator::new(client.clone(), "TestRotator");
 
-        // Verify the timeout config is accessible
         let timeout_secs = {
             let c = client.read().await;
             c.timeout_config().rotator_move_timeout_secs

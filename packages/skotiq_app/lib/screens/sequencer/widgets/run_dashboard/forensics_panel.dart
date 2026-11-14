@@ -18,7 +18,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'frame_detail_dialog.dart';
@@ -63,7 +67,8 @@ class RunDashboardForensicsPanel extends ConsumerWidget {
 
     return backfillAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (e, st) => _ErrorBanner(message: e.toString(), colors: colors),
+      error: (e, st) =>
+          _ErrorBanner(message: userFacingError(e), colors: colors),
       data: (backfilled) {
         // Merge live event (if any) on top of the backfilled list,
         // de-duplicating by id.
@@ -136,7 +141,6 @@ class _ForensicsPanelBody extends StatelessWidget {
             ],
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
-          // Cause distribution row: tiny stacked bar with counts.
           _CauseDistributionBar(summary: summary, colors: colors),
           const SizedBox(height: SkotiqTokens.spaceMd),
           // Up to 8 most recent rejections — older rejects are
@@ -270,7 +274,7 @@ class _ForensicsRow extends StatelessWidget {
                       ),
                       const Spacer(),
                       Text(
-                        _formatTime(record.createdAt),
+                        ClockFormat.hms(record.createdAt.toLocal()),
                         style: SkotiqTypography.withTabular(
                           SkotiqTypography.labelQuiet.copyWith(
                             color: colors.textMuted,
@@ -297,13 +301,6 @@ class _ForensicsRow extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatTime(DateTime dt) {
-    final local = dt.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}:'
-        '${local.second.toString().padLeft(2, '0')}';
   }
 }
 

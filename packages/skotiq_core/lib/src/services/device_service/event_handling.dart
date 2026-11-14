@@ -78,14 +78,19 @@ extension _DeviceServiceEventHandling on DeviceService {
         }
       }
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'getConnectedDevices lookup failed for $deviceId: $e',
           source: 'DeviceService',
         ),
-        'resolve-device-name',
       );
     }
+    // The model the profile slot expects at this id: after the bus enumerated
+    // in another order the cached discovery below still names the device
+    // that used to be here, and the host refuses any device but this model.
+    final expected = _expectedSlotName(type, deviceId);
+    if (expected != null) return expected;
     // Before connect completes the backend's connected list is empty, so fall
     // back to the friendly model name captured during startup discovery (e.g.
     // "ZWO ASI1600MM-Cool"). This is the same source the rest of the UI uses,
@@ -96,6 +101,13 @@ extension _DeviceServiceEventHandling on DeviceService {
       return discoveryName;
     }
     return _friendlyNameFromId(deviceId);
+  }
+
+  /// The model the active profile's [type] slot expects at [deviceId], or
+  /// null (see [_expectedModelFor]).
+  String? _expectedSlotName(DeviceType type, String deviceId) {
+    final slot = type.slot;
+    return slot.checksModel ? _expectedModelFor(slot.noun, deviceId) : null;
   }
 
   /// The friendly model name for [deviceId] from the last device-discovery
@@ -113,12 +125,12 @@ extension _DeviceServiceEventHandling on DeviceService {
         }
       }
     } on Object catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'discovery name lookup failed for $deviceId: $e',
           source: 'DeviceService',
         ),
-        'discovery-device-name',
       );
     }
     return null;
@@ -166,46 +178,42 @@ extension _DeviceServiceEventHandling on DeviceService {
         );
         break;
 
-      // Legacy camera temperature event (keep for backward compatibility)
-      case 'CameraTemperatureChanged':
-        final temp = (data['temperature'] as num).toDouble();
-        final power = (data['coolerPower'] as num).toDouble();
-        _ref.read(cameraStateProvider.notifier).updateTemperature(temp, power);
+      case 'CameraSettingsChanged':
+        applyCameraSettings(_ref.container, data);
         break;
 
-      // Legacy mount position event (keep for backward compatibility)
-      case 'MountPositionChanged':
-        final ra = (data['ra'] as num).toDouble();
-        final dec = (data['dec'] as num).toDouble();
-        final alt = (data['altitude'] as num?)?.toDouble() ?? 0.0;
-        final az = (data['azimuth'] as num?)?.toDouble() ?? 0.0;
-        _ref.read(mountStateProvider.notifier).updatePosition(ra, dec, alt, az);
+      case 'PropertyChanged':
+        // Gain, offset, binning, slot names and the other settings the native
+        // DeviceManager publishes whoever changed them.
+        applyDevicePropertyChange(_ref.container, data);
+        break;
 
-        if (data['isSlewing'] != null) {
-          _ref
-              .read(mountStateProvider.notifier)
-              .setSlewing(data['isSlewing'] as bool);
-        }
-        if (data['isTracking'] != null) {
-          _ref
-              .read(mountStateProvider.notifier)
-              .setTracking(data['isTracking'] as bool);
-        }
-        if (data['isParked'] != null) {
-          _ref
-              .read(mountStateProvider.notifier)
-              .setParked(data['isParked'] as bool);
-        }
+      // The camera's own temperature reading, published natively from the
+      // status reads (CameraTemperatureChanged), and the cooler, focuser,
+      // filter wheel and rotator events: one applier shared with the slave's
+      // mirror, which ignores events for a device not in the slot.
+      case 'CameraTemperatureChanged':
+      case 'FilterChanging':
+      case 'FilterChanged':
+      case 'RotatorMoveStarted':
+      case 'RotatorMoveCompleted':
+      case 'CameraCoolingStarted':
+      case 'CameraCoolingReached':
+      case 'CameraWarmingStarted':
+      case 'CameraWarmingCompleted':
+        applyDeviceStateEvent(_ref.container, event.eventType, data);
         break;
 
       // Mount Slew Events
       case 'MountSlewStarted':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(true);
         break;
 
       // Sent once the mount has arrived. It carries the commanded target, not
       // a reading, so the position stays whatever the mount last reported.
       case 'MountSlewCompleted':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(false);
         // Smart notification - only show if not on imaging/planetarium screens
         _ref
@@ -223,23 +231,26 @@ extension _DeviceServiceEventHandling on DeviceService {
 
       // Mount Tracking Events
       case 'MountTrackingStarted':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setTracking(true);
         break;
 
       case 'MountTrackingStopped':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setTracking(false);
         break;
 
       // Mount Park Events
       case 'MountParkStarted':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(true);
         break;
 
       case 'MountParkCompleted':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(false);
         _ref.read(mountStateProvider.notifier).setParked(true);
         _ref.read(mountStateProvider.notifier).setTracking(false);
-        // Smart notification
         _ref
             .read(smartNotificationServiceProvider)
             .showSuccessIfNotOnScreens(
@@ -250,8 +261,8 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       case 'MountUnparked':
+        if (!_isSlotMount(data)) break;
         _ref.read(mountStateProvider.notifier).setParked(false);
-        // Smart notification
         _ref
             .read(smartNotificationServiceProvider)
             .showSuccessIfNotOnScreens(
@@ -261,106 +272,18 @@ extension _DeviceServiceEventHandling on DeviceService {
             );
         break;
 
-      // Legacy focuser position event (keep for backward compatibility)
-      case 'FocuserPositionChanged':
-        final pos = data['position'] as int;
-        _ref.read(focuserStateProvider.notifier).updatePosition(pos);
-        if (data['isMoving'] != null) {
-          _ref
-              .read(focuserStateProvider.notifier)
-              .setMoving(data['isMoving'] as bool);
-        }
-        if (data['temperature'] != null) {
-          _ref
-              .read(focuserStateProvider.notifier)
-              .updateTemperature((data['temperature'] as num).toDouble());
-        }
-        break;
-
       // Focuser Events
       case 'FocuserMoveStarted':
-        _ref.read(focuserStateProvider.notifier).setMoving(true);
-        _watchFocuserMoveSettle();
+        if (applyDeviceStateEvent(_ref.container, event.eventType, data)) {
+          _watchFocuserMoveSettle();
+        }
         break;
 
       case 'FocuserMoveCompleted':
-        final position = data['position'] as int?;
-        _focuserMoveSettleWatch?.cancel();
-        _focuserMoveSettleWatch = null;
-        _ref.read(focuserStateProvider.notifier).setMoving(false);
-        if (position != null) {
-          _ref.read(focuserStateProvider.notifier).updatePosition(position);
+        if (applyDeviceStateEvent(_ref.container, event.eventType, data)) {
+          _focuserMoveSettleWatch?.cancel();
+          _focuserMoveSettleWatch = null;
         }
-        break;
-
-      case 'FocuserTemperatureChanged':
-        final temperature = (data['temperature'] as num?)?.toDouble();
-        if (temperature != null) {
-          _ref
-              .read(focuserStateProvider.notifier)
-              .updateTemperature(temperature);
-        }
-        break;
-
-      // Legacy filter wheel position event (keep for backward compatibility)
-      case 'FilterWheelPositionChanged':
-        final pos = data['position'] as int;
-        _ref.read(filterWheelStateProvider.notifier).updatePosition(pos);
-        if (data['isMoving'] != null) {
-          _ref
-              .read(filterWheelStateProvider.notifier)
-              .setMoving(data['isMoving'] as bool);
-        }
-        break;
-
-      // Filter Wheel Events
-      case 'FilterChanging':
-        _ref.read(filterWheelStateProvider.notifier).setMoving(true);
-        break;
-
-      case 'FilterChanged':
-        final position = data['position'] as int?;
-        _ref.read(filterWheelStateProvider.notifier).setMoving(false);
-        if (position != null) {
-          _ref.read(filterWheelStateProvider.notifier).updatePosition(position);
-        }
-        break;
-
-      // Rotator Events
-      case 'RotatorMoveStarted':
-        _ref.read(rotatorStateProvider.notifier).setMoving(true);
-        break;
-
-      case 'RotatorMoveCompleted':
-        final angle = (data['angle'] as num?)?.toDouble();
-        _ref.read(rotatorStateProvider.notifier).setMoving(false);
-        if (angle != null) {
-          _ref.read(rotatorStateProvider.notifier).updatePosition(angle);
-        }
-        break;
-
-      // Camera Cooling Events
-      case 'CameraCoolingStarted':
-        final targetTemp = (data['target_temp'] as num?)?.toDouble();
-        _ref.read(cameraStateProvider.notifier).setCooling(true);
-        if (targetTemp != null) {
-          _ref.read(cameraStateProvider.notifier).setTargetTemp(targetTemp);
-        }
-        break;
-
-      case 'CameraCoolingReached':
-        final temp = (data['temperature'] as num?)?.toDouble();
-        if (temp != null) {
-          _ref.read(cameraStateProvider.notifier).updateTemperature(temp, 0.0);
-        }
-        break;
-
-      case 'CameraWarmingStarted':
-        _ref.read(cameraStateProvider.notifier).setCooling(false);
-        break;
-
-      case 'CameraWarmingCompleted':
-        // Warming finished - no additional action needed
         break;
 
       // Heartbeat-health routing.
@@ -424,6 +347,19 @@ extension _DeviceServiceEventHandling on DeviceService {
         );
         break;
 
+      // A device came onto the bus. A profile device whose automatic
+      // reconnects ran out (a hub that took minutes to come back) gets
+      // another attempt now, which also finds it if it came back at another
+      // position.
+      case 'DeviceDiscovered':
+        final arrivedType = deviceTypeFromWireName(
+          (data['device_class'] as String?) ?? '',
+        );
+        if (arrivedType != null) {
+          _reconnectCoordinator.onDeviceArrived(arrivedType);
+        }
+        break;
+
       case 'HeartbeatStopped':
         // Heartbeat monitoring intentionally stopped (e.g. user
         // disconnected the device through the UI). Clear the entry so
@@ -439,17 +375,32 @@ extension _DeviceServiceEventHandling on DeviceService {
     }
   }
 
-  // Heartbeat event routing + start/stop helpers live in
-  // [DeviceHeartbeatRouter] (`_heartbeat`). DeviceService just hands
-  // event payloads to it from `_handleEquipmentEvent` and calls
-  // `_heartbeat.start` / `_heartbeat.stop` from connect/disconnect
-  // flows; see `device_heartbeat_router.dart`.
-
   /// Whether a `deviceType`/`deviceId` event is about the profile's guide
   /// camera, which has no slot of its own and must not take the camera's.
-  bool _isGuideCameraEvent(String? deviceType, String? deviceId) =>
-      deviceTypeFromWireName(deviceType ?? '') == DeviceType.camera &&
-      isProfileGuideCamera(_ref.read(activeEquipmentProfileProvider), deviceId);
+  /// Whether a mount event is about the mount in the app's slot. An event
+  /// without an id (a host older than the id on mount events) is.
+  bool _isSlotMount(Map<String, dynamic> data) {
+    final id = data['device_id'];
+    if (id is! String || id.isEmpty) return true;
+    return readDeviceSlot(_ref.container, DeviceType.mount).deviceId == id;
+  }
+
+  bool _isGuideCameraEvent(String? deviceType, String? deviceId) {
+    if (deviceTypeFromWireName(deviceType ?? '') != DeviceType.camera ||
+        deviceId == null) {
+      return false;
+    }
+    // The cameras' ids were just moved (the bus enumerated them in another
+    // order) and the profile may not show it yet: the main camera can be at
+    // the guide camera's old id.
+    if (_slotExpectation('camera')?.deviceId == deviceId) return false;
+    final guide = _slotExpectation('guide camera')?.deviceId;
+    if (guide == deviceId) return true;
+    return isProfileGuideCamera(
+      _ref.read(activeEquipmentProfileProvider),
+      deviceId,
+    );
+  }
 
   /// Handle device connection event from the native EventBus.
   void _applyDeviceConnected(String deviceType, String deviceId) {
@@ -459,15 +410,36 @@ extension _DeviceServiceEventHandling on DeviceService {
     // Prefer the startup-discovery model name (e.g. "ZWO ASI1600MM-Cool");
     // when discovery hasn't seen the device, fall back to the id-pattern
     // formatter rather than the bare id.
-    final resolvedName =
-        _discoveryNameFromId(deviceId) ?? _friendlyNameFromId(deviceId);
     // Unknown wire types leave every notifier untouched, exactly as the
     // eleven-case switch this replaced did (it had no default branch).
     final type = deviceTypeFromWireName(deviceType);
+    final resolvedName =
+        (type == null ? null : _expectedSlotName(type, deviceId)) ??
+        _discoveryNameFromId(deviceId) ??
+        _friendlyNameFromId(deviceId);
+    final meaning = _attempts.onConnected(deviceId);
+    if (meaning == ConnectedMeaning.stale) {
+      // The connect this event belongs to has failed and the device is being
+      // let go of; the slot keeps showing why.
+      logSafely(
+        _ref,
+        (logger) => logger.info(
+          'Ignoring Connected for $deviceType ($deviceId): its connect '
+          'failed and the device is being released',
+          source: 'DeviceService',
+        ),
+      );
+      return;
+    }
     if (type != null) {
-      readDeviceConnectionNotifier(_ref, type)
+      readDeviceConnectionNotifier(_ref.container, type)
         ..setConnecting(deviceId, resolvedName)
         ..setConnected();
+      // A new connection starts with no stale readings.
+      _ref.read(deviceReadHealthProvider.notifier).clear(type);
+      if (meaning == ConnectedMeaning.late) {
+        unawaited(_finishLateConnect(type, deviceId, resolvedName));
+      }
     }
 
     // Reset the reconnect lifecycle for every device type, then drive
@@ -482,6 +454,9 @@ extension _DeviceServiceEventHandling on DeviceService {
 
   void _applyDeviceConnecting(String deviceType, String deviceId) {
     if (_isGuideCameraEvent(deviceType, deviceId)) return;
+    // This service's own connect has already set the slot, and may since
+    // have failed.
+    if (_attempts.isOwn(deviceId)) return;
     // See _applyDeviceConnected: prefer the discovery model name over the raw
     // id so the "Connecting…" label and card show the friendly name.
     final resolvedName =
@@ -489,7 +464,7 @@ extension _DeviceServiceEventHandling on DeviceService {
     final type = deviceTypeFromWireName(deviceType);
     if (type != null) {
       readDeviceConnectionNotifier(
-        _ref,
+        _ref.container,
         type,
       ).setConnecting(deviceId, resolvedName);
     }
@@ -513,16 +488,20 @@ extension _DeviceServiceEventHandling on DeviceService {
   /// ordering is unaffected.
   bool _disconnectEventOwnsSlot(DeviceType type, String eventDeviceId) {
     final tracked = _slotDeviceIdFor(type);
-    if (tracked == null || tracked.isEmpty || tracked == eventDeviceId) {
-      return true;
+    if (tracked == null || tracked.isEmpty) {
+      // A slot that holds no device but shows why a connect failed keeps
+      // saying so; only a new connect or the user clears it.
+      return readDeviceSlot(_ref.container, type).connectionState !=
+          DeviceConnectionState.error;
     }
-    _safeLog(
+    if (tracked == eventDeviceId) return true;
+    logSafely(
+      _ref,
       (logger) => logger.warning(
         'Ignoring stale ${type.name} Disconnected for $eventDeviceId; '
         'currently-tracked ${type.name} is $tracked',
         source: 'DeviceService',
       ),
-      'disconnect-slot-guard-${type.name}',
     );
     return false;
   }
@@ -537,23 +516,33 @@ extension _DeviceServiceEventHandling on DeviceService {
     // per-device-type teardown below.
     _heartbeat.clearDevice(deviceId);
 
-    // The disconnect is the forensic record of a lost device, so it goes
-    // through _safeLog: a logger that cannot be reached demotes the line to
-    // stderr instead of dropping it.
-    _safeLog(
+    // The app let go of a device whose connect did not come up. The connect
+    // already left the slot showing why; nothing was lost.
+    if (_attempts.onDisconnected(deviceId)) {
+      logSafely(
+        _ref,
+        (logger) => logger.info(
+          'Released $deviceType ($deviceId) after a connect that did not '
+          'come up',
+          source: 'DeviceService',
+        ),
+      );
+      return;
+    }
+
+    logSafely(
+      _ref,
       (logger) => logger.warning(
         'Device disconnected: $deviceType ($deviceId) at '
         '${DateTime.now().toIso8601String()}',
         source: 'DeviceService',
       ),
-      'device-disconnected-$deviceType',
     );
 
     // The guide camera is the guider's: losing it is a guiding problem, which
     // the guider reports. It is not the imaging camera and has no slot.
     if (_isGuideCameraEvent(deviceType, deviceId)) return;
 
-    // Check if this is a critical device and sequence is running
     final isCriticalDevice =
         deviceType.toLowerCase() == 'camera' ||
         deviceType.toLowerCase() == 'mount';
@@ -576,13 +565,13 @@ extension _DeviceServiceEventHandling on DeviceService {
       if (trackedCameraId != null && trackedCameraId == deviceId) {
         _temperaturePoller.stop();
       } else if (trackedCameraId != null) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'Ignoring stale camera Disconnected for $deviceId; '
             'currently-tracked camera is $trackedCameraId',
             source: 'DeviceService',
           ),
-          'camera-disconnect-guard',
         );
       }
     } else if (type == DeviceType.filterWheel) {
@@ -605,7 +594,7 @@ extension _DeviceServiceEventHandling on DeviceService {
         default:
           break;
       }
-      readDeviceConnectionNotifier(_ref, type).setDisconnected();
+      readDeviceConnectionNotifier(_ref.container, type).setDisconnected();
     }
     unawaited(_attemptReconnect(type, deviceId));
   }
@@ -643,33 +632,49 @@ extension _DeviceServiceEventHandling on DeviceService {
     final fullMessage = composedMessage.toString();
 
     // 1. Log loudly with full context.
-    _safeLog(
+    logSafely(
+      _ref,
       (logger) => logger.error(
         'Driver error: type=${deviceType ?? "unknown"} '
         'id=${deviceId ?? "unknown"} code=${errorCode ?? "none"} :: '
         '$fullMessage',
         source: 'DeviceService',
       ),
-      'device-error-log',
     );
+
+    // The failure of this service's own connect. The connect call leaves the
+    // slot showing it and hands it to whoever asked for the connect, so it
+    // is told there, once.
+    if (deviceId != null && _attempts.isOwn(deviceId)) return;
 
     // 2. Update the matching device-type state notifier so equipment
     //    cards display the error in their subtitle.
-    final exception = Exception(
-      fullMessage,
-    ); // setError expects Object — wrap once.
     final type = deviceTypeFromWireName(deviceType ?? '');
+    final isGuideCamera = _isGuideCameraEvent(deviceType, deviceId);
+    // An error while the slot is connecting this device is a connect that
+    // somebody else started (the native reconnect, the host, another client)
+    // and that did not succeed; say that rather than only the driver's words.
+    var toldMessage = fullMessage;
     if (type == null) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'Error event for unknown device type "$deviceType"; '
           'no state notifier updated. Message: $fullMessage',
           source: 'DeviceService',
         ),
-        'device-error-unknown-type',
       );
-    } else if (!_isGuideCameraEvent(deviceType, deviceId)) {
-      readDeviceConnectionNotifier(_ref, type).setError(exception);
+    } else if (!isGuideCamera) {
+      final before = readDeviceSlot(_ref.container, type);
+      if (before.connectionState == DeviceConnectionState.connecting &&
+          before.deviceId == deviceId) {
+        final verb = before.lastError == null ? 'connect' : 'reconnect';
+        toldMessage = 'The ${type.noun} did not $verb: $fullMessage';
+      }
+      readDeviceConnectionNotifier(
+        _ref.container,
+        type,
+      ).setError(Exception(fullMessage));
     }
 
     // Rate-limit the user-facing surface so a flapping device cannot flood it.
@@ -678,7 +683,7 @@ extension _DeviceServiceEventHandling on DeviceService {
     // structured-history entry within the dedup window. The logger record from
     // step 1 still captures every occurrence for diagnostics, so nothing is lost.
     final now = DateTime.now();
-    final dedupKey = '${deviceId ?? deviceType ?? '?'}::$fullMessage';
+    final dedupKey = '${deviceId ?? deviceType ?? '?'}::$toldMessage';
     final lastShown = _recentDeviceErrorToasts[dedupKey];
     if (lastShown != null &&
         now.difference(lastShown) < _deviceErrorToastWindow) {
@@ -708,20 +713,20 @@ extension _DeviceServiceEventHandling on DeviceService {
       // still want the entry recorded, so default to "Device".
       errSvc.logDeviceError(
         operation: 'driver_error',
-        message: fullMessage,
+        message: toldMessage,
         deviceType: deviceType ?? 'Device',
         deviceId: deviceId,
         severity: mappedSeverity,
         context: errorCode == null ? null : {'error_code': errorCode},
       );
     } on Object catch (errSvcErr) {
-      _safeLog(
+      logSafely(
+        _ref,
         (logger) => logger.warning(
           'errorService emission for driver error failed: $errSvcErr '
           '(original: $fullMessage)',
           source: 'DeviceService',
         ),
-        'device-error-errorservice',
       );
       // Fallback: try uiNotificationProvider directly so the user
       // still sees the message even if errorService is unavailable.
@@ -729,18 +734,18 @@ extension _DeviceServiceEventHandling on DeviceService {
         _ref
             .read(uiNotificationProvider.notifier)
             .showError(
-              fullMessage,
+              toldMessage,
               title: '${deviceType ?? "Device"} Error',
               duration: const Duration(seconds: 12),
             );
       } on Object catch (uiErr) {
-        _safeLog(
+        logSafely(
+          _ref,
           (logger) => logger.warning(
             'UI notification fallback also failed: $uiErr '
             '(original: $fullMessage)',
             source: 'DeviceService',
           ),
-          'device-error-ui-fallback',
         );
       }
     }

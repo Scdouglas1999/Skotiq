@@ -23,9 +23,11 @@
 use async_trait::async_trait;
 use skotiq_sequencer::quality::ImageQualityCheck;
 use skotiq_sequencer::{
-    AutofocusConfig, DeviceOps, DeviceResult, ExecutorEvent, ExecutorState, GuidingStatus,
-    ImageData, NodeDefinition, NodeType, NullDeviceOps, PlateSolveResult, SequenceDefinition,
-    SequenceExecutor,
+    AutofocusConfig, DeviceResult, ExecutorEvent, ExecutorState, ExposureRequest, GuidingStatus,
+    ImageData, NodeDefinition, NodeType, NullDeviceOps, SequenceDefinition, SequenceExecutor,
+};
+use skotiq_sequencer::{
+    CameraOps, CoverCalibratorOps, DomeOps, FocuserOps, FrameStoreOps, GuiderOps, MountOps,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -50,6 +52,8 @@ struct ReplayRig {
     lock_after: Option<Duration>,
     focuser_read_ms: std::sync::atomic::AtomicU64,
     lights: Vec<ImageData>,
+    /// Served once, as the first light, before [`Self::lights`].
+    first_light: Option<ImageData>,
     lights_taken: AtomicUsize,
     focused: ImageData,
 }
@@ -70,9 +74,26 @@ impl ReplayRig {
             .iter()
             .map(|name| fixture(name))
             .collect(),
+            first_light: None,
             lights_taken: AtomicUsize::new(0),
             focused: fixture("focused_L_0005.fits"),
         }
+    }
+
+    /// Lights that are in focus and round. Since frame watch (8b88f7262) an
+    /// autofocus that falls due on trailed stars waits for a clean frame, so a
+    /// test about what follows the sweep needs lights the sweep may run on.
+    fn with_clean_lights(mut self) -> Self {
+        self.lights = vec![fixture("focused_L_0006.fits")];
+        self
+    }
+
+    /// One clean light before the night's trailed ones: the autofocus that
+    /// falls due after it sweeps (it would wait out trailed stars), and every
+    /// light after the sweep is the night's own rejected frame.
+    fn with_clean_first_light(mut self) -> Self {
+        self.first_light = Some(fixture("focused_L_0006.fits"));
+        self
     }
 
     fn is_guiding(&self) -> bool {
@@ -112,7 +133,9 @@ fn fixture(name: &str) -> ImageData {
         filter: None,
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
+        readout_mode: None,
     }
 }
 
@@ -126,57 +149,10 @@ fn shape(d: &ImageData) -> Option<skotiq_imaging::FrameShape> {
 }
 
 #[async_trait]
-impl DeviceOps for ReplayRig {
-    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
-        let guiding = self.is_guiding();
-        self.record(format!("guider_get_status->{guiding}"));
-        Ok(GuidingStatus {
-            is_guiding: guiding,
-            rms_ra: 0.5,
-            rms_dec: 0.4,
-            rms_total: 0.64,
-        })
-    }
-    async fn guider_start(&self, _sp: f64, _st: f64, _sto: f64) -> DeviceResult<()> {
-        self.record("guider_start");
-        *self.guider.lock().unwrap() = Guider::Resuming(std::time::Instant::now());
-        Ok(())
-    }
-    async fn guider_stop(&self) -> DeviceResult<()> {
-        self.record("guider_stop");
-        *self.guider.lock().unwrap() = Guider::Stopped;
-        Ok(())
-    }
+impl MountOps for ReplayRig {
     async fn mount_park(&self, id: &str) -> DeviceResult<()> {
         self.record(format!("mount_park:{id}"));
         Ok(())
-    }
-    async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
-        self.record(format!("cover_close:{id}"));
-        Ok(())
-    }
-    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
-        self.record(format!("dome_close:{id}"));
-        Ok(())
-    }
-    async fn camera_start_exposure(
-        &self,
-        id: &str,
-        d: f64,
-        _g: Option<i32>,
-        _o: Option<i32>,
-        _bx: i32,
-        _by: i32,
-    ) -> DeviceResult<ImageData> {
-        self.record(format!("camera_start_exposure:{id}:{d}"));
-        // Lights get the night's real 180 s frames in the order they were
-        // taken; the autofocus sweep gets the in-focus 2 s frame.
-        if d >= 1.0 {
-            let n = self.lights_taken.fetch_add(1, Ordering::SeqCst);
-            Ok(self.lights[n % self.lights.len()].clone())
-        } else {
-            Ok(self.focused.clone())
-        }
     }
     async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
         self.inner.mount_slew_to_coordinates(id, ra, dec).await
@@ -214,6 +190,30 @@ impl DeviceOps for ReplayRig {
     async fn mount_set_tracking(&self, id: &str, enabled: bool) -> DeviceResult<()> {
         self.inner.mount_set_tracking(id, enabled).await
     }
+}
+
+#[async_trait]
+impl CameraOps for ReplayRig {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            camera_id: id,
+            duration_secs: d,
+            ..
+        } = request;
+        self.record(format!("camera_start_exposure:{id}:{d}"));
+        // Lights get the night's real 180 s frames in the order they were
+        // taken; the autofocus sweep gets the in-focus 2 s frame.
+        if d >= 1.0 {
+            let n = self.lights_taken.fetch_add(1, Ordering::SeqCst);
+            match (&self.first_light, n) {
+                (Some(first), 0) => Ok(first.clone()),
+                (Some(_), n) => Ok(self.lights[(n - 1) % self.lights.len()].clone()),
+                (None, n) => Ok(self.lights[n % self.lights.len()].clone()),
+            }
+        } else {
+            Ok(self.focused.clone())
+        }
+    }
     async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
         self.inner.camera_abort_exposure(id).await
     }
@@ -226,6 +226,10 @@ impl DeviceOps for ReplayRig {
     async fn camera_get_cooler_power(&self, id: &str) -> DeviceResult<f64> {
         self.inner.camera_get_cooler_power(id).await
     }
+}
+
+#[async_trait]
+impl FocuserOps for ReplayRig {
     async fn focuser_move_to(&self, id: &str, p: i32) -> DeviceResult<()> {
         self.inner.focuser_move_to(id, p).await
     }
@@ -245,29 +249,29 @@ impl DeviceOps for ReplayRig {
     async fn focuser_halt(&self, id: &str) -> DeviceResult<()> {
         self.inner.focuser_halt(id).await
     }
-    async fn filterwheel_set_position(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.filterwheel_set_position(id, p).await
+}
+
+#[async_trait]
+impl GuiderOps for ReplayRig {
+    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
+        let guiding = self.is_guiding();
+        self.record(format!("guider_get_status->{guiding}"));
+        Ok(GuidingStatus {
+            is_guiding: guiding,
+            rms_ra: 0.5,
+            rms_dec: 0.4,
+            rms_total: 0.64,
+        })
     }
-    async fn filterwheel_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_get_position(id).await
+    async fn guider_start(&self, _sp: f64, _st: f64, _sto: f64) -> DeviceResult<()> {
+        self.record("guider_start");
+        *self.guider.lock().unwrap() = Guider::Resuming(std::time::Instant::now());
+        Ok(())
     }
-    async fn filterwheel_get_names(&self, id: &str) -> DeviceResult<Vec<String>> {
-        self.inner.filterwheel_get_names(id).await
-    }
-    async fn filterwheel_set_filter_by_name(&self, id: &str, n: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_set_filter_by_name(id, n).await
-    }
-    async fn rotator_move_to(&self, id: &str, a: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(id, a).await
-    }
-    async fn rotator_move_relative(&self, id: &str, d: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(id, d).await
-    }
-    async fn rotator_get_angle(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(id).await
-    }
-    async fn rotator_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(id).await
+    async fn guider_stop(&self) -> DeviceResult<()> {
+        self.record("guider_stop");
+        *self.guider.lock().unwrap() = Guider::Stopped;
+        Ok(())
     }
     async fn guider_dither(
         &self,
@@ -279,40 +283,13 @@ impl DeviceOps for ReplayRig {
     ) -> DeviceResult<()> {
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
-    async fn plate_solve(
-        &self,
-        d: &ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<PlateSolveResult> {
-        self.inner.plate_solve(d, ra, dec, s).await
-    }
-    async fn save_fits(
-        &self,
-        d: &ImageData,
-        f: &str,
-        ctx: &skotiq_sequencer::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.inner.save_fits(d, f, ctx).await
-    }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        x: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.inner.send_notification(l, t, m, x).await
-    }
-    fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {
-        self.inner.calculate_altitude(r, d, la, lo)
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.inner.get_observer_location()
-    }
-    async fn polar_align_update(&self, r: &skotiq_sequencer::PolarAlignResult) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
+}
+
+#[async_trait]
+impl DomeOps for ReplayRig {
+    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
+        self.record(format!("dome_close:{id}"));
+        Ok(())
     }
     async fn dome_open(&self, id: &str) -> DeviceResult<()> {
         self.inner.dome_open(id).await
@@ -323,21 +300,13 @@ impl DeviceOps for ReplayRig {
     async fn dome_get_shutter_status(&self, id: &str) -> DeviceResult<String> {
         self.inner.dome_get_shutter_status(id).await
     }
-    async fn safety_is_safe(&self, id: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(id).await
-    }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        Ok(shape(d).map(|s| s.hfr))
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        let stars = skotiq_imaging::detect_stars(
-            &imaging(d),
-            &skotiq_imaging::StarDetectionConfig::default(),
-        );
-        Ok(stars.iter().map(|s| (s.x, s.y, s.hfr)).collect())
-    }
-    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        Ok(shape(d).map(|s| s.eccentricity))
+}
+
+#[async_trait]
+impl CoverCalibratorOps for ReplayRig {
+    async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
+        self.record(format!("cover_close:{id}"));
+        Ok(())
     }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.inner.cover_calibrator_open_cover(id).await
@@ -364,6 +333,39 @@ impl DeviceOps for ReplayRig {
         self.inner.cover_calibrator_get_max_brightness(id).await
     }
 }
+
+#[async_trait]
+impl FrameStoreOps for ReplayRig {
+    async fn save_fits(
+        &self,
+        d: &ImageData,
+        f: &str,
+        ctx: &skotiq_sequencer::scheduling::FrameContext,
+    ) -> DeviceResult<()> {
+        self.inner.save_fits(d, f, ctx).await
+    }
+    async fn measure_light_frame(
+        &self,
+        d: &ImageData,
+    ) -> DeviceResult<skotiq_sequencer::LightFrameMeasurement> {
+        let stars = skotiq_imaging::detect_stars(
+            &imaging(d),
+            &skotiq_imaging::StarDetectionConfig::default(),
+        );
+        let shape = shape(d);
+        Ok(skotiq_sequencer::LightFrameMeasurement {
+            hfr: shape.map(|s| s.hfr),
+            star_count: Some(stars.len() as u32),
+            star_shape: shape.map(|s| skotiq_sequencer::FrameStarShape {
+                eccentricity: s.eccentricity,
+                elongation: None,
+            }),
+            trail: None,
+        })
+    }
+}
+
+skotiq_sequencer::forward_device_ops!(ReplayRig => inner: FilterWheelOps, RotatorOps, SafetyOps, PlateSolveOps, OperatorNotifyOps, ConnectionOps, SiteOps);
 /// The grading the rig ran under: `default_quality_check: enabled=true,
 /// hfr=Some(3.5), hfr_baseline=Some(50.0), ecc=Some(0.7), stars=Some(10),
 /// max_rejects=3`.
@@ -404,21 +406,27 @@ async fn replay(
         None,
     );
     executor
-        .update_autofocus_config(AutofocusConfig {
-            disable_guiding_during_af: true,
-            number_of_attempts: 1,
-            steps_out: 2,
-            exposure_duration: 0.01,
-            focuser_settle_time_ms: 0,
-            // The rig ran with "failure action=PauseAndAlert". There is no
-            // failure action any more: a failed autofocus always notifies and
-            // carries on (owner decision 2026-10-06).
-            ..AutofocusConfig::default()
+        .handle()
+        .update_run_config(|config| {
+            config.autofocus = Some(AutofocusConfig {
+                disable_guiding_during_af: true,
+                number_of_attempts: 1,
+                steps_out: 2,
+                exposure_duration: 0.01,
+                focuser_settle_time_ms: 0,
+                // The rig ran with "failure action=PauseAndAlert". There is no
+                // failure action any more: a failed autofocus always notifies and
+                // carries on (owner decision 2026-10-06).
+                ..AutofocusConfig::default()
+            })
         })
-        .await;
+        .await
+        .unwrap();
     executor
-        .update_default_quality_check(Some(rig_quality_check()))
-        .await;
+        .handle()
+        .update_run_config(|config| config.default_quality_check = Some(rig_quality_check()))
+        .await
+        .unwrap();
     let mut sequence = SequenceDefinition::new("NGC7380".to_string());
     sequence.nodes.push(NodeDefinition {
         id: "lights".to_string(),
@@ -427,7 +435,7 @@ async fn replay(
         node_type: NodeType::TakeExposure(skotiq_sequencer::ExposureConfig {
             count: 50,
             duration_secs: 1.0,
-            frame_type: "light".to_string(),
+            frame_type: skotiq_sequencer::FrameType::Light,
             ..Default::default()
         }),
         enabled: true,
@@ -445,9 +453,12 @@ async fn replay(
             loop {
                 match events.recv().await {
                     Ok(ExecutorEvent::Error { message })
-                    | Ok(ExecutorEvent::Warning { message }) => {
-                        messages.lock().unwrap().push(message)
-                    }
+                    | Ok(ExecutorEvent::RunHeld { message })
+                    | Ok(ExecutorEvent::StepProblem { message })
+                    | Ok(
+                        ExecutorEvent::Warning { message }
+                        | ExecutorEvent::NoticedWarning { message, .. },
+                    ) => messages.lock().unwrap().push(message),
                     Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
                     Err(_) => break,
                 }
@@ -465,12 +476,13 @@ async fn replay(
     // baseline reset to current value"), which is what let it carry on
     // imaging on the last-good focus. Here that reference is the first
     // light's own measured HFR. (Invalidation clears it, so it goes first.)
-    let first_light_hfr = shape(&rig.lights[0]).expect("measurable").hfr;
+    let first_light = rig.first_light.as_ref().unwrap_or(&rig.lights[0]);
+    let first_light_hfr = shape(first_light).expect("measurable").hfr;
     executor
         .update_trigger_state(move |ts| {
             ts.invalidate_autofocus("replay: filter changed");
-            ts.baseline_hfr = Some(first_light_hfr);
-            ts.current_hfr = Some(first_light_hfr);
+            ts.latches.baseline_hfr = Some(first_light_hfr);
+            ts.latches.current_hfr = Some(first_light_hfr);
         })
         .await;
 
@@ -532,7 +544,10 @@ fn lights_after_sweep(calls: &[String]) -> usize {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_guider_that_never_resumes_stops_the_lights_and_parks_nothing() {
     let _serial = SERIAL.lock().await;
-    let rig = Arc::new(ReplayRig::new(None));
+    // The night's own lights are trailed, and an autofocus now waits for a
+    // clean frame instead of sweeping on trailed stars. This test is about the
+    // guider after the sweep, so its lights are clean and the sweep runs.
+    let rig = Arc::new(ReplayRig::new(None).with_clean_lights());
     let Outcome {
         state,
         calls,
@@ -574,7 +589,7 @@ fn is_streak_notice(message: &str) -> bool {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_real_night_notifies_and_keeps_imaging() {
     let _serial = SERIAL.lock().await;
-    let rig = Arc::new(ReplayRig::new(Some(Duration::from_secs(9))));
+    let rig = Arc::new(ReplayRig::new(Some(Duration::from_secs(9))).with_clean_first_light());
     let Outcome {
         state,
         calls,

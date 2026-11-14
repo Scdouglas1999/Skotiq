@@ -39,7 +39,10 @@ class CameraStatus {
   final double? sensorTemp;
   final double? coolerPower;
   final double? targetTemp;
-  final bool coolerOn;
+
+  /// `None` when the camera does not say and this connection has not set
+  /// it; see `skotiq_device::CameraStatus::cooler_on`.
+  final bool? coolerOn;
   final int gain;
   final int offset;
   final int binX;
@@ -49,6 +52,11 @@ class CameraStatus {
   final double pixelSizeX;
   final double pixelSizeY;
   final int maxAdu;
+
+  /// Where the sensor stops responding linearly, when the camera records it
+  /// below `max_adu` (`skotiq_device::SensorInfo::saturation_adu`). Only
+  /// saturation checks use it.
+  final int? saturationAdu;
   final bool canCool;
   final bool canSetGain;
   final bool canSetOffset;
@@ -59,7 +67,7 @@ class CameraStatus {
     this.sensorTemp,
     this.coolerPower,
     this.targetTemp,
-    required this.coolerOn,
+    this.coolerOn,
     required this.gain,
     required this.offset,
     required this.binX,
@@ -69,6 +77,7 @@ class CameraStatus {
     required this.pixelSizeX,
     required this.pixelSizeY,
     required this.maxAdu,
+    this.saturationAdu,
     required this.canCool,
     required this.canSetGain,
     required this.canSetOffset,
@@ -91,6 +100,7 @@ class CameraStatus {
       pixelSizeX.hashCode ^
       pixelSizeY.hashCode ^
       maxAdu.hashCode ^
+      saturationAdu.hashCode ^
       canCool.hashCode ^
       canSetGain.hashCode ^
       canSetOffset.hashCode;
@@ -115,6 +125,7 @@ class CameraStatus {
           pixelSizeX == other.pixelSizeX &&
           pixelSizeY == other.pixelSizeY &&
           maxAdu == other.maxAdu &&
+          saturationAdu == other.saturationAdu &&
           canCool == other.canCool &&
           canSetGain == other.canSetGain &&
           canSetOffset == other.canSetOffset;
@@ -175,76 +186,6 @@ enum CoverState {
 
   /// Error condition
   error,
-}
-
-/// API version information for a connected device
-///
-/// This tracks the interface version and driver information for
-/// version-aware API calls. Different protocols report versions differently:
-/// - Alpaca: InterfaceVersion property (1, 2, 3, etc.)
-/// - ASCOM: InterfaceVersion from COM (1, 2, 3, etc.)
-/// - INDI: Protocol version from server greeting ("1.7", "1.8", etc.)
-class DeviceApiVersion {
-  /// The raw device ID this version info applies to
-  final String deviceId;
-
-  /// The driver type (Alpaca, ASCOM, INDI, Native)
-  final DriverType driverType;
-
-  /// Interface version number (e.g., 1, 2, 3 for ASCOM/Alpaca)
-  /// For INDI, this is the major version number
-  final int? interfaceVersion;
-
-  /// Protocol version string (e.g., "1.7" for INDI, "v1" for Alpaca)
-  final String? protocolVersion;
-
-  /// Driver version string as reported by the device
-  final String? driverVersion;
-
-  /// Driver info/description as reported by the device
-  final String? driverInfo;
-
-  /// List of supported actions (for ASCOM/Alpaca devices)
-  final List<String> supportedActions;
-
-  /// When the version info was last queried (epoch milliseconds)
-  final PlatformInt64 queriedAt;
-
-  const DeviceApiVersion({
-    required this.deviceId,
-    required this.driverType,
-    this.interfaceVersion,
-    this.protocolVersion,
-    this.driverVersion,
-    this.driverInfo,
-    required this.supportedActions,
-    required this.queriedAt,
-  });
-
-  @override
-  int get hashCode =>
-      deviceId.hashCode ^
-      driverType.hashCode ^
-      interfaceVersion.hashCode ^
-      protocolVersion.hashCode ^
-      driverVersion.hashCode ^
-      driverInfo.hashCode ^
-      supportedActions.hashCode ^
-      queriedAt.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DeviceApiVersion &&
-          runtimeType == other.runtimeType &&
-          deviceId == other.deviceId &&
-          driverType == other.driverType &&
-          interfaceVersion == other.interfaceVersion &&
-          protocolVersion == other.protocolVersion &&
-          driverVersion == other.driverVersion &&
-          driverInfo == other.driverInfo &&
-          supportedActions == other.supportedActions &&
-          queriedAt == other.queriedAt;
 }
 
 /// Information about a discovered device

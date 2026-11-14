@@ -1,34 +1,17 @@
 part of '../imaging_service.dart';
 
 extension _ImagingServiceFilePaths on ImagingService {
-  /// Generate file path for captured image.
-  ///
-  /// The user's [NamingPattern.pattern] is interpreted as a `/`-separated
-  /// path *including the filename*: every segment before the final `/` is a
-  /// subdirectory, and the final segment is the filename stem (the extension
-  /// is appended from [NamingPattern.format]). The default pattern
-  /// `$TARGET/$FRAMETYPE/$TARGET_$FILTER_$EXPTIME_$FRAMENUM` therefore yields
-  /// e.g. `M31/Light/M31_L_120.0_0001.fits` under the configured base
-  /// directory. This matches the convention implemented by the Rust
-  /// `FilenameGenerator` in `native/skotiq_native/imaging/src/naming.rs`.
-  ///
-  /// All `$VARIABLE` tokens are validated against [_patternVariables]; an
-  /// unknown token raises an [Exception] rather than leaving `$BANANA` in the
-  /// filename, where a typo in the operator's pattern would go unnoticed.
-  ///
-  /// Date/time substitutions (`$DATE`, `$TIME`, `$DATETIME`) use **UTC** so
-  /// the path matches the FITS `DATE-OBS` keyword written by the Rust
-  /// `FitsHeader::captureTimestamp` path (which also uses UTC). A 19:00 PST
-  /// frame is grouped under the UTC date 03:00 the next morning — i.e. the
-  /// folder name matches the timestamp embedded in the file.
+  /// Where a manual frame goes: the Settings [NamingPattern] under
+  /// [basePath], never a name already taken. Date and time tokens are UTC,
+  /// as the frame's `DATE-OBS` card is, so a frame's folder matches the
+  /// timestamp in it.
   Future<String> _generateImageFilePath({
-    required AppSettingsState appSettings,
+    required String basePath,
     required ExposureSettings exposureSettings,
     String? targetName,
     required int frameNumber,
     required DateTime timestamp,
   }) async {
-    final basePath = appSettings.imageOutputPath;
     if (basePath.isEmpty) {
       throw const ValidationException(
         message: 'Image output path not configured',
@@ -36,18 +19,17 @@ extension _ImagingServiceFilePaths on ImagingService {
       );
     }
 
-    // Get naming pattern from imaging provider
     final namingPattern = _ref.read(namingPatternProvider);
 
-    final substitutions = _buildPatternSubstitutions(
+    final values = _manualNamingValues(
       exposureSettings: exposureSettings,
       targetName: targetName,
       frameNumber: frameNumber,
       timestamp: timestamp,
     );
 
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final hostRecords = _hostRecords;
+    if (hostRecords != null) {
       // The host writes the keeper and creates its folder, so the path is
       // built in the host's style and only the host can say what is taken.
       final hostPaths = hostPathContext(basePath);
@@ -55,10 +37,10 @@ extension _ImagingServiceFilePaths on ImagingService {
         pattern: namingPattern.pattern,
         basePath: basePath,
         extension: namingPattern.format.extension,
-        substitutions: substitutions,
+        values: values,
         pathContext: hostPaths,
       );
-      final taken = await _hostTakenKeeperPaths(backend, hostPaths);
+      final taken = await _hostTakenKeeperPaths(hostRecords, hostPaths);
       final unique = await ImagingService.uniqueFilePath(
         fullPath,
         hostPaths,
@@ -72,10 +54,9 @@ extension _ImagingServiceFilePaths on ImagingService {
       pattern: namingPattern.pattern,
       basePath: basePath,
       extension: namingPattern.format.extension,
-      substitutions: substitutions,
+      values: values,
     );
 
-    // Create directory if needed
     final directory = Directory(path.dirname(fullPath));
     if (!await directory.exists()) {
       await directory.create(recursive: true);
@@ -102,7 +83,7 @@ extension _ImagingServiceFilePaths on ImagingService {
   /// endpoint overwrites an existing file and offers no way to test for one,
   /// so its image records are the only listing a client can read.
   Future<Set<String>> _hostTakenKeeperPaths(
-    NetworkBackend backend,
+    HostImagingRecords backend,
     path.Context hostPaths,
   ) async {
     final taken = <String>{..._hostReservedKeeperPaths};
@@ -145,19 +126,16 @@ extension _ImagingServiceFilePaths on ImagingService {
   /// time, where the operator gets the real message, and a folder that cannot
   /// be probed simply falls back to the in-memory counter.
   Future<int> _nextKeeperFrameNumber({
+    required String? basePath,
     required ExposureSettings exposureSettings,
     String? targetName,
   }) async {
     final fallback = _frameNumber + 1;
     try {
-      final basePath = _ref
-          .read(appSettingsProvider)
-          .valueOrNull
-          ?.imageOutputPath;
       if (basePath == null || basePath.isEmpty) return fallback;
 
       final backend = _ref.read(backendProvider);
-      final hostPaths = backend is NetworkBackend
+      final hostPaths = _ref.read(isRemoteModeProvider)
           ? hostPathContext(basePath)
           : null;
       final namingPattern = _ref.read(namingPatternProvider);
@@ -170,7 +148,7 @@ extension _ImagingServiceFilePaths on ImagingService {
         pattern: namingPattern.pattern,
         basePath: basePath,
         extension: namingPattern.format.extension,
-        substitutions: _buildPatternSubstitutions(
+        values: _manualNamingValues(
           exposureSettings: exposureSettings,
           targetName: targetName,
           frameNumber: frameNumber,

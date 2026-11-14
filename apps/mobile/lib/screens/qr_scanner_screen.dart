@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:skotiq_app/utils/snackbar_helper.dart';
 
 /// Screen for scanning QR codes to connect to Skotiq servers.
 ///
@@ -93,7 +95,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         setState(() {
           _cameraError =
               'Camera unavailable. Allow camera permission for Skotiq '
-              'and try again.\n\n($e)';
+              'and try again.\n\n(${userFacingError(e)})';
         });
       }
     } finally {
@@ -120,9 +122,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       await action(controller);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$failurePrefix: $error')));
+        context.showErrorSnackBar('$failurePrefix: ${userFacingError(error)}');
       }
     } finally {
       if (mounted) setState(() => _cameraActionPending = false);
@@ -164,22 +164,18 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         if (!mounted) return;
         _confirming = false;
         _hasScanned = false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Rejected QR code: ${e.message}'),
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Rejected QR code: ${e.message}',
+          duration: const Duration(seconds: 4),
         );
         return;
       } catch (error) {
         if (!mounted) return;
         _confirming = false;
         _hasScanned = false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not read this QR code: $error'),
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Could not read this QR code: $error',
+          duration: const Duration(seconds: 4),
         );
         return;
       }

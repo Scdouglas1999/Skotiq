@@ -3,6 +3,91 @@
 use super::*;
 
 impl IndiClient {
+    /// One heartbeat for `device` on this shared server connection.
+    ///
+    /// The server connection is checked first and recovered when it is stale
+    /// or its reader stopped. A device the server reads as disconnected is sent
+    /// CONNECT, and the answer is whether it reads connected now: `Ok(false)`
+    /// usually means CONNECT went out and the driver has not answered yet.
+    /// `Err` means the server connection could not be recovered.
+    pub async fn check_device(&mut self, device: &str) -> IndiResult<bool> {
+        let server = format!("{}:{}", self.host, self.port);
+        self.recover_for_check(&server).await?;
+        if !self.is_connected().await {
+            tracing::debug!(
+                "INDI {} heartbeat for {}: server not connected",
+                server,
+                device
+            );
+            return Ok(false);
+        }
+        if self.is_device_connected(device).await {
+            return Ok(true);
+        }
+        tracing::warn!(
+            "INDI {} heartbeat found device '{}' disconnected; reissuing CONNECT",
+            server,
+            device
+        );
+        self.connect_device(device).await.map_err(|e| {
+            IndiError::Unavailable(format!(
+                "INDI {} server is connected but device '{}' reconnect failed: {}",
+                server, device, e
+            ))
+        })?;
+        Ok(self.is_device_connected(device).await)
+    }
+
+    async fn recover_for_check(&mut self, server: &str) -> IndiResult<()> {
+        if self.is_connected().await {
+            if let Err(keepalive_error) = self.check_keepalive().await {
+                tracing::warn!(
+                    "INDI {} keepalive failed; tearing down stale connection before reconnect: {}",
+                    server,
+                    keepalive_error
+                );
+                if let Err(disconnect_error) = self.disconnect().await {
+                    tracing::warn!(
+                        "INDI {} disconnect during keepalive recovery failed: {}",
+                        server,
+                        disconnect_error
+                    );
+                }
+                self.reconnect_with_backoff()
+                    .await
+                    .map_err(|reconnect_error| {
+                        IndiError::Unavailable(format!(
+                            "INDI {} keepalive failed ({}) and reconnect failed: {}",
+                            server, keepalive_error, reconnect_error
+                        ))
+                    })?;
+            }
+            return Ok(());
+        }
+
+        if self.can_reconnect().await {
+            tracing::warn!(
+                "INDI {} reader is disconnected; attempting reader recovery",
+                server
+            );
+            return self.recover_reader().await.map_err(|recovery_error| {
+                IndiError::Unavailable(format!(
+                    "INDI {} server not connected and reader recovery failed: {}",
+                    server, recovery_error
+                ))
+            });
+        }
+
+        Err(IndiError::Unavailable(format!(
+            "INDI {} server not connected and no reconnect is currently allowed \
+             (reader_status={:?}, consecutive_failures={}, reconnecting={})",
+            server,
+            self.reader_status().await,
+            self.reader_consecutive_failures(),
+            self.is_reconnecting()
+        )))
+    }
+
     /// Send keepalive to detect dead connections (atomic operation)
     ///
     /// This method is safe to call concurrently due to atomic guards.
@@ -11,7 +96,6 @@ impl IndiClient {
         self.last_keepalive_ms
             .store(current_time_ms(), Ordering::SeqCst);
 
-        // Use configured protocol version
         let version = &self.protocol_config.preferred_version;
         self.send_command(&format!("<getProperties version=\"{}\"/>", version))
             .await
@@ -27,7 +111,6 @@ impl IndiClient {
     /// Returns Ok(()) if keepalive was sent or not needed
     /// Returns Err if keepalive response timeout was detected (connection may be dead)
     pub async fn check_keepalive(&mut self) -> IndiResult<()> {
-        // Skip keepalive if not connected
         if !self.connected.load(Ordering::SeqCst) {
             return Ok(());
         }
@@ -39,28 +122,15 @@ impl IndiClient {
             return Ok(());
         }
 
-        // Use compare_exchange to atomically acquire the keepalive lock
-        // This prevents overlapping keepalive checks if previous check didn't complete
-        if self
-            .keepalive_in_progress
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_err()
-        {
-            // Another keepalive is already in progress, skip this one
+        let Some(_in_progress) = KeepaliveInProgress::acquire(&self.keepalive_in_progress) else {
             tracing::debug!("Skipping keepalive: another keepalive check is in progress");
             return Ok(());
-        }
+        };
 
-        // Ensure we release the lock when done (using a scope guard pattern)
-        let result = self.do_keepalive_check().await;
-
-        // Release the keepalive lock
-        self.keepalive_in_progress.store(false, Ordering::SeqCst);
-
-        result
+        self.do_keepalive_check().await
     }
 
-    /// Internal keepalive check logic (called while holding keepalive_in_progress lock)
+    /// Internal keepalive check logic (called while holding the keepalive flag)
     pub(super) async fn do_keepalive_check(&mut self) -> IndiResult<()> {
         let keepalive_interval_ms = self.timeout_config.keepalive_interval_secs * 1000;
         let keepalive_timeout_ms = keepalive_interval_ms * 2; // Response timeout is 2x interval
@@ -99,7 +169,6 @@ impl IndiClient {
         Ok(())
     }
 
-    /// Check if a keepalive is currently in progress
     pub fn is_keepalive_in_progress(&self) -> bool {
         self.keepalive_in_progress.load(Ordering::SeqCst)
     }
@@ -180,7 +249,6 @@ impl IndiClient {
         .await
     }
 
-    /// Check if reconnection is currently in progress
     pub fn is_reconnecting(&self) -> bool {
         self.reconnecting.load(Ordering::SeqCst)
     }
@@ -198,7 +266,6 @@ impl IndiClient {
     ///
     /// Returns Ok(()) if reconnection succeeds, Err if it fails.
     pub async fn recover_reader(&mut self) -> IndiResult<()> {
-        // Check if we've already exceeded max failures
         if self.is_reader_failed_permanently() {
             let failures = self.reader_consecutive_failures();
             return Err(IndiError::ReconnectionFailed {
@@ -219,10 +286,8 @@ impl IndiClient {
             reader_status: Some(self.reader_status.clone()),
         };
 
-        // Get current failure count for delay calculation
         let failures = self.reader_consecutive_failures();
 
-        // Update status to Restarting
         *self.reader_status.write().await = ReaderStatus::Restarting;
         send_indi_event(
             &self.event_tx,
@@ -234,7 +299,6 @@ impl IndiClient {
             "recover_reader.reader_health_restarting",
         );
 
-        // Calculate and wait for delay
         if failures > 0 {
             let delay = self
                 .reader_task_config
@@ -247,7 +311,6 @@ impl IndiClient {
             sleep(delay).await;
         }
 
-        // Attempt to reconnect
         match self.connect().await {
             Ok(_) => {
                 tracing::info!("Reader recovery successful after {} attempts", failures);
@@ -304,7 +367,6 @@ impl IndiClient {
             return false;
         }
 
-        // Check if reconnection is already in progress
         if self.reconnecting.load(Ordering::SeqCst) {
             return false;
         }
@@ -318,29 +380,27 @@ impl IndiClient {
         reconnect_attempts == 0
     }
 
-    /// Get the number of reconnection attempts
     pub async fn reconnect_attempts(&self) -> u32 {
         self.reconnect_attempts.load(Ordering::SeqCst)
     }
+}
 
-    /// Request protocol version info from server
-    pub async fn request_version(&mut self) -> IndiResult<()> {
-        self.send_command("<getProperties version=\"\"/>").await
+/// Holds the keepalive flag for one check and releases it when the check ends,
+/// by return or by being dropped mid-send: a flag left set skips every later
+/// keepalive, so a dead connection would never be noticed.
+struct KeepaliveInProgress(Arc<AtomicBool>);
+
+impl KeepaliveInProgress {
+    fn acquire(flag: &Arc<AtomicBool>) -> Option<Self> {
+        flag.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .ok()
+            .map(|_| Self(flag.clone()))
     }
+}
 
-    /// Check if server version is compatible with minimum required version
-    pub async fn check_version_compatibility(&self) -> IndiResult<()> {
-        if let Some(ref min_version) = self.protocol_config.min_version {
-            if let Some(server_ver) = self.server_version().await {
-                if !is_version_compatible(&server_ver, min_version) {
-                    return Err(IndiError::VersionMismatch {
-                        required: min_version.clone(),
-                        server: server_ver,
-                    });
-                }
-            }
-        }
-        Ok(())
+impl Drop for KeepaliveInProgress {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
     }
 }
 

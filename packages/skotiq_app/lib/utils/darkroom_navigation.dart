@@ -1,10 +1,8 @@
 /// How the rest of the app opens the Darkroom.
 ///
-/// The `/darkroom` route is scoped by ONE of two query parameters — `recipe`
-/// for a saved recipe row and `master` for a linear master whose newest recipe
-/// should be loaded. Every entry point goes through the builders here so the
-/// parameter names live in one place: a link written by hand somewhere else
-/// would resolve to the screen's empty state without ever saying why.
+/// Every entry point goes through the builders here, which write a
+/// [DarkroomRoute]: a link written by hand somewhere else would resolve to the
+/// screen's empty state without ever saying why.
 ///
 /// Screens that only hold a session id resolve it with
 /// [resolveDarkroomTargetForSession], which reads the session's masters the
@@ -16,44 +14,44 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
-import '../screens/darkroom/darkroom_route.dart';
+import '../router/app_routes.dart';
+import '../router/darkroom_route.dart';
 import 'snackbar_helper.dart';
 
-export '../screens/darkroom/darkroom_route.dart' show DarkroomTab;
+export '../router/darkroom_route.dart' show DarkroomTab;
 
-/// The Darkroom location for a saved recipe row.
-String darkroomRecipeLocation(int recipeId) => '/darkroom?recipe=$recipeId';
-
-/// The Darkroom location for a linear master; the screen loads its newest
-/// recipe, or offers to compose one when the master has none.
-String darkroomMasterLocation(int masterId) => '/darkroom?master=$masterId';
+String darkroomTabLocation(DarkroomTab tab) =>
+    AppRoutes.darkroom(DarkroomRoute(tab: tab));
 
 /// The Darkroom location for a pass, live while it runs and its record after.
-String darkroomPassLocation(String runId) =>
-    '/darkroom?tab=activity&pass=${Uri.encodeQueryComponent(runId)}';
-
-/// The Darkroom opened on one of its tabs.
-String darkroomTabLocation(DarkroomTab tab) => DarkroomRoute(tab: tab).location;
+String darkroomPassLocation(String runId) => AppRoutes.darkroom(
+    DarkroomRoute(tab: DarkroomTab.activity, passRunId: runId));
 
 /// The Targets tab with [target] selected. [target] is the key the build
 /// jobs use (`DarkroomBuildJob.target`).
 String darkroomTargetLocation(String target) =>
-    DarkroomRoute(target: target).location;
+    AppRoutes.darkroom(DarkroomRoute(target: target));
 
 /// The framing check of [target]'s master build.
-String darkroomFramingLocation(String target) => DarkroomRoute(
+String darkroomFramingLocation(String target) =>
+    AppRoutes.darkroom(DarkroomRoute(
       target: target,
       view: DarkroomTargetView.framing,
-    ).location;
+    ));
 
-/// The Edit tab opened on a registered image or a saved recipe.
-String darkroomEditLocation({int? masterId, int? recipeId}) => DarkroomRoute(
+/// The Edit tab opened on a registered image or a saved recipe. For a linear
+/// master the screen loads its newest recipe, or offers to compose one when
+/// the master has none.
+String darkroomEditLocation({int? masterId, int? recipeId}) =>
+    AppRoutes.darkroom(DarkroomRoute(
       tab: DarkroomTab.edit,
       masterId: masterId,
       recipeId: recipeId,
-    ).location;
+    ));
 
 /// The one sentence every Darkroom entry point refuses a remote client with.
 ///
@@ -70,7 +68,7 @@ const String kDarkroomHostOnlyRefusal =
 ///
 /// Gated on the client ROLE ([isRemoteClientProvider]), not on the connection:
 /// a desktop launched with `--remote-host` that has not reached its rig is
-/// `Disconnected`, so `backend is NetworkBackend` reads false for the whole
+/// `Disconnected`, so `backend.remoteHost != null` reads false for the whole
 /// pre-handshake window and after every drop — and during exactly that window
 /// the client owns none of the host's masters.
 String? darkroomHostOnlyRefusal(WidgetRef ref) =>
@@ -120,7 +118,7 @@ String? watchDarkroomHostOnlyRefusal(WidgetRef ref) =>
 /// or through [resolveDarkroomTargetForSession] — before reaching it;
 /// [openDarkroomForMasterRow] is the entry point that does both.
 void openDarkroomForMaster(BuildContext context, int masterId) {
-  context.push(darkroomMasterLocation(masterId));
+  context.push(darkroomEditLocation(masterId: masterId));
 }
 
 /// Open the Darkroom on [masterId] from a control that names the master row
@@ -258,7 +256,7 @@ Future<DarkroomSessionTarget> _resolveDarkroomTarget({
     set = await resolver.resolve(sessionId);
   } catch (error) {
     return DarkroomSessionTarget.unavailable(
-      'This session\'s masters could not be read: $error',
+      'This session\'s masters could not be read: ${userFacingError(error)}',
     );
   }
 
@@ -313,10 +311,6 @@ Future<int?> resolveSessionForDarkroomMaster(
 /// How many fold records [resolveSessionForDarkroomMaster] reads before it
 /// answers "cannot say".
 const int _sessionScanLimit = 32;
-
-/// The session review location for [sessionId].
-String sessionReviewLocation(int sessionId) =>
-    '/session-review?session=$sessionId';
 
 /// Resolve [sessionId] and push the Darkroom onto its master, or say why there
 /// is nothing to open.

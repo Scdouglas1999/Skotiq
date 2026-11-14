@@ -31,7 +31,7 @@ impl SequenceExecutor {
             for end in &rolled {
                 let message = end.message();
                 tracing::warn!("{}", message);
-                let _ = self.event_tx.send(ExecutorEvent::Warning { message });
+                self.run_state.emit(ExecutorEvent::Warning { message });
             }
         }
         if let Some(refusal) = self
@@ -73,17 +73,7 @@ impl SequenceExecutor {
             // Re-seed from the retained sequence (reset deliberately keeps
             // `self.sequence` so the same tree can be re-run).
             if let Some(sequence) = self.sequence.as_ref() {
-                let (total_exposures, total_integration, indeterminate) =
-                    self.calculate_totals(sequence);
-                let mut progress = self.progress.write();
-                if indeterminate {
-                    progress.total_exposures = 0;
-                    progress.total_integration_secs = 0.0;
-                    progress.estimated_remaining_secs = None;
-                } else {
-                    progress.total_exposures = total_exposures;
-                    progress.total_integration_secs = total_integration;
-                }
+                self.publish_totals(sequence);
             }
         }
 
@@ -131,12 +121,13 @@ impl SequenceExecutor {
             if let Some(root) = self.root_node.as_ref() {
                 collect_required_devices(&**root, &mut required);
             }
+            let devices = self.devices();
             validate_required_devices(&required, |role| match role {
-                RequiredDevice::Camera => self.camera_id.clone(),
-                RequiredDevice::Mount => self.mount_id.clone(),
-                RequiredDevice::FilterWheel => self.filterwheel_id.clone(),
-                RequiredDevice::Focuser => self.focuser_id.clone(),
-                RequiredDevice::Rotator => self.rotator_id.clone(),
+                RequiredDevice::Camera => devices.camera_id.clone(),
+                RequiredDevice::Mount => devices.mount_id.clone(),
+                RequiredDevice::FilterWheel => devices.filterwheel_id.clone(),
+                RequiredDevice::Focuser => devices.focuser_id.clone(),
+                RequiredDevice::Rotator => devices.rotator_id.clone(),
             })?;
         }
 
@@ -153,7 +144,7 @@ impl SequenceExecutor {
         if !unreachable_instruction_names.is_empty() {
             let message = unreachable_instructions_message(&unreachable_instruction_names);
             tracing::error!("{}", message);
-            let _ = self.event_tx.send(ExecutorEvent::Error { message });
+            self.run_state.emit(ExecutorEvent::Error { message });
         }
 
         // Plate-solve preflight. If the sequence centers on a target it needs a
@@ -183,7 +174,7 @@ impl SequenceExecutor {
         let meridian_auto_centers = {
             let manager = self.trigger_manager.read().await;
             manager
-                .get_trigger("meridian_flip")
+                .standard(StandardTrigger::MeridianFlip)
                 .filter(|t| t.enabled)
                 .and_then(|t| match &t.trigger_type {
                     TriggerType::MeridianFlip { config } => Some(config.auto_center),
@@ -196,12 +187,12 @@ impl SequenceExecutor {
             .as_ref()
             .is_some_and(|root| tree_contains_centering(&**root));
 
-        if meridian_auto_centers && !tree_centers && !skotiq_imaging::is_solver_available() {
+        if meridian_auto_centers && !tree_centers && !skotiq_platesolve::is_solver_available() {
             // A WARNING, not an error: the run is starting and will very
             // probably finish. Sent as `Error`, this sentence gave a completed
             // 3/3 darks run a "Sequence failed / Sequence aborted" toast, a
             // Critical alert, and a red Errors section in its Session Report.
-            let _ = self.event_tx.send(ExecutorEvent::Warning {
+            self.run_state.emit(ExecutorEvent::Warning {
                 message: "The meridian-flip trigger is set to re-center after a flip, but no \
                           plate solver (ASTAP or solve-field) was found on this system. If the \
                           flip fires it will retry and fail against a solver that is not there, \
@@ -212,7 +203,7 @@ impl SequenceExecutor {
         }
 
         if tree_centers {
-            if !skotiq_imaging::is_solver_available() {
+            if !skotiq_platesolve::is_solver_available() {
                 return Err(
                     "This sequence centers on a target but no plate solver (ASTAP or \
                  solve-field) was found on this system. Install and configure a plate \
@@ -220,7 +211,7 @@ impl SequenceExecutor {
                         .to_string(),
                 );
             }
-            if skotiq_imaging::detect_astap_catalog(None, None).is_none() {
+            if skotiq_platesolve::detect_astap_catalog(None, None).is_none() {
                 tracing::warn!(
                     "Plate-solve preflight: a solver is installed but no ASTAP star catalog was \
                  detected. ASTAP needs a star database installed separately from astap.exe."
@@ -245,7 +236,7 @@ impl SequenceExecutor {
                 // in this sequence will fail") and is then contradicted by the
                 // run it warned about teaches the operator to skip the next
                 // one.
-                let _ = self.event_tx.send(ExecutorEvent::Warning {
+                self.run_state.emit(ExecutorEvent::Warning {
                     message: "Plate-solve setup: no ASTAP star catalog was found next to the \
                           detected ASTAP executable, in the folder set in Settings → Plate \
                           Solving, or in the usual install locations. If you are solving with \

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../services/mount_command_service.dart';
@@ -105,8 +110,8 @@ class _Header extends StatelessWidget {
                   const SizedBox(width: SkotiqTokens.spaceXs),
                   Flexible(
                     child: Text(
-                      '${CoordinateFormat.ra(detection.raDeg / 15.0)}  '
-                      '${CoordinateFormat.dec(detection.decDeg)}',
+                      '${CoordinateFormat.raReadout(detection.raDeg / 15.0)}  '
+                      '${CoordinateFormat.decReadout(detection.decDeg)}',
                       style: SkotiqTypography.monoSm.copyWith(
                         color: colors.textSecondary,
                       ),
@@ -308,18 +313,14 @@ class _ActionsRow extends StatelessWidget {
       } else {
         await triage.review(detection.id);
       }
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            dismiss
-                ? 'Dismissed as an artifact — it will not resurface.'
-                : 'Marked as confirmed.',
-          ),
-        ),
+      messenger?.showInfoSnackBar(
+        dismiss
+            ? 'Dismissed as an artifact — it will not resurface.'
+            : 'Marked as confirmed.',
       );
     } catch (e) {
-      messenger?.showSnackBar(
-        SnackBar(content: Text('Could not update detection: $e')),
+      messenger?.showErrorSnackBar(
+        'Could not update detection: ${userFacingError(e)}',
       );
     }
   }
@@ -359,8 +360,8 @@ class _ActionsRow extends StatelessWidget {
       return;
     }
 
-    final coords = '${CoordinateFormat.ra(detection.raDeg / 15.0)}  '
-        '${CoordinateFormat.dec(detection.decDeg)}';
+    final coords = '${CoordinateFormat.raReadout(detection.raDeg / 15.0)}  '
+        '${CoordinateFormat.decReadout(detection.decDeg)}';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => SkotiqDialog(
@@ -422,14 +423,10 @@ class _ActionsRow extends StatelessWidget {
             onPressed: canSubmit
                 ? () => TransientSubmitDialog.show(context, detection)
                 : () {
-                    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          kindBlocker ??
-                              'Not yet confirmed — mark this detection as '
-                                  'confirmed before submitting.',
-                        ),
-                      ),
+                    context.showInfoSnackBar(
+                      kindBlocker ??
+                          'Not yet confirmed — mark this detection as '
+                              'confirmed before submitting.',
                     );
                   },
           ),

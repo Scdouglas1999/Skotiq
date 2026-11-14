@@ -1,120 +1,102 @@
 part of '../../device_service.dart';
 
 extension _DeviceServiceImagingChainConnections on DeviceService {
-  /// Connect to a camera
-  Future<void> _connectCamera(String deviceId) {
-    return _trackInFlight(() async {
-      final notifier = _ref.read(cameraStateProvider.notifier);
+  Future<void> _bringUpCamera(String deviceId, String deviceName) async {
+    final notifier = _ref.read(cameraStateProvider.notifier);
+    notifier.setConnected();
 
-      // Structural format check only — discovery is not a precondition for
-      // connect. The backend's `connectDevice` decides reachability; see
-      // [InvalidDeviceIdException].
-      if (!isValidDeviceIdFormat(deviceId)) {
-        throw InvalidDeviceIdException('camera', deviceId);
-      }
-
-      final deviceName = await _resolveDeviceDisplayName(
-        DeviceType.camera,
-        deviceId,
+    // A DSLR or mirrorless body keeps the ISO it is set to: the capture
+    // settings take it from the body (syncExposureFromProfileProvider), and a
+    // profile gain written over it would change the body behind the owner's
+    // back. A camera without an offset control is not sent one.
+    CameraCapabilities? capabilities;
+    try {
+      capabilities = await _backend.getCameraCapabilities(deviceId);
+    } catch (e) {
+      logSafely(
+        _ref,
+        (l) => l.warning(
+          'Camera capabilities unknown at connect; keeping the camera\'s '
+          'current gain or ISO and offset: $e',
+          source: 'DeviceService',
+        ),
       );
-      // Hand the type slot over cleanly rather than orphaning the
-      // incumbent's driver connection (see [_releaseDisplacedDevice]).
-      await _releaseDisplacedDevice(DeviceType.camera, deviceId);
+    }
+    final takesGain =
+        capabilities != null &&
+        capabilities.canSetGain &&
+        capabilities.isoSpeeds.isEmpty;
+    final takesOffset = capabilities?.canSetOffset ?? false;
 
-      notifier.setConnecting(deviceId, deviceName);
-
-      try {
-        // Connect via native bridge
-        await _backend.connectDevice(DeviceType.camera, deviceId);
-
-        notifier.setConnected();
-
-        // Apply active profile's cooling target temperature if available
-        // and auto-start cooling if coolOnConnect is enabled
+    // Apply active profile's cooling target temperature if available
+    // and auto-start cooling if coolOnConnect is enabled
+    try {
+      final activeProfile = _ref.read(activeEquipmentProfileProvider);
+      if (activeProfile?.defaultGain != null && takesGain) {
         try {
-          final activeProfile = _ref.read(activeEquipmentProfileProvider);
-          if (activeProfile?.defaultGain != null) {
-            try {
-              await _backend.cameraSetGain(
-                deviceId,
-                activeProfile!.defaultGain!,
-              );
-            } catch (e) {
-              _safeLog(
-                (l) => l.warning(
-                  'Profile gain could not be applied on connect: $e',
-                  source: 'DeviceService',
-                ),
-                'profile-gain-on-connect',
-              );
-            }
-          }
-          if (activeProfile?.defaultOffset != null) {
-            try {
-              await _backend.cameraSetOffset(
-                deviceId,
-                activeProfile!.defaultOffset!,
-              );
-            } catch (e) {
-              _safeLog(
-                (l) => l.warning(
-                  'Profile offset could not be applied on connect: $e',
-                  source: 'DeviceService',
-                ),
-                'profile-offset-on-connect',
-              );
-            }
-          }
-          if (activeProfile?.defaultCoolingTemp != null) {
-            notifier.setTargetTemp(activeProfile!.defaultCoolingTemp!);
-
-            if (activeProfile.coolOnConnect) {
-              await _backend.cameraSetCooling(
-                deviceId: deviceId,
-                enabled: true,
-                targetTemp: activeProfile.defaultCoolingTemp,
-              );
-              notifier.setCooling(true);
-            }
-          }
+          await _backend.cameraSetGain(deviceId, activeProfile!.defaultGain!);
         } catch (e) {
-          _safeLog(
+          logSafely(
+            _ref,
             (l) => l.warning(
-              'Cool-on-connect failed (profile lookup or cooling command): $e',
+              'Profile gain could not be applied on connect: $e',
               source: 'DeviceService',
             ),
-            'cool-on-connect',
           );
         }
-
-        // Auto-detect manufacturer-recommended gain/offset from the
-        // camera SDK and populate the active equipment profile when the user
-        // has NOT explicitly set those values. We never overwrite an existing
-        // profile value — the SDK recommendation is a starting point, not an
-        // override of the user's deliberate choice.
-        //
-        // Failures here are non-fatal: connection has already succeeded, and
-        // a missing recommendation is the honest "the SDK didn't tell us"
-        // answer (most ASCOM/Alpaca/INDI cameras, and several native vendors,
-        // don't expose this). The user can still set values manually.
-        await _autoApplyRecommendedCameraSettings(deviceId, deviceName);
-
-        // Start temperature polling (this will immediately poll and update)
-        _temperaturePoller.start(deviceId);
-
-        // Start heartbeat monitoring (10 second interval). Optional —
-        // failures inside DeviceHeartbeatRouter.start are logged but
-        // never thrown so connect cannot fail on a missing heartbeat.
-        await _heartbeat.start(
-          deviceType: DeviceType.camera,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        );
-      } catch (e) {
-        notifier.setDisconnected();
-        rethrow;
       }
-    });
+      if (activeProfile?.defaultOffset != null && takesOffset) {
+        try {
+          await _backend.cameraSetOffset(
+            deviceId,
+            activeProfile!.defaultOffset!,
+          );
+        } catch (e) {
+          logSafely(
+            _ref,
+            (l) => l.warning(
+              'Profile offset could not be applied on connect: $e',
+              source: 'DeviceService',
+            ),
+          );
+        }
+      }
+      if (activeProfile?.defaultCoolingTemp != null) {
+        notifier.setTargetTemp(activeProfile!.defaultCoolingTemp!);
+
+        if (activeProfile.coolOnConnect) {
+          await _backend.cameraSetCooling(
+            deviceId: deviceId,
+            enabled: true,
+            targetTemp: activeProfile.defaultCoolingTemp,
+          );
+          notifier.setCooling(true);
+        }
+      }
+    } catch (e) {
+      logSafely(
+        _ref,
+        (l) => l.warning(
+          'Cool-on-connect failed (profile lookup or cooling command): $e',
+          source: 'DeviceService',
+        ),
+      );
+    }
+
+    // Auto-detect manufacturer-recommended gain/offset from the
+    // camera SDK and populate the active equipment profile when the user
+    // has NOT explicitly set those values. We never overwrite an existing
+    // profile value — the SDK recommendation is a starting point, not an
+    // override of the user's deliberate choice.
+    //
+    // Failures here are non-fatal: connection has already succeeded, and
+    // a missing recommendation is the honest "the SDK didn't tell us"
+    // answer (most ASCOM/Alpaca/INDI cameras, and several native vendors,
+    // don't expose this). The user can still set values manually.
+    await _autoApplyRecommendedCameraSettings(deviceId, deviceName);
+
+    // Start temperature polling (this will immediately poll and update)
+    _temperaturePoller.start(deviceId);
   }
 
   /// Public re-entry point: re-query the SDK for the recommendation. Used by
@@ -149,11 +131,10 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       defaultOffset: rec.defaultOffset ?? activeProfile.defaultOffset,
     );
     final notifier = _ref.read(equipmentProfilesProvider.notifier);
-    await notifier.updateProfile(updated);
+    await notifier.saveProfile(updated);
     return true;
   }
 
-  /// Set camera cooling
   Future<void> _setCameraCooling({
     required bool enabled,
     double? targetTemp,
@@ -208,18 +189,18 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
   /// On a remote client the host runs the ramp, next to the camera, so it
   /// continues when this client leaves and any client can cancel it.
   Future<CameraWarmupOutcome> _warmCamera({double ratePerMin = 2.0}) async {
-    final backend = _backend;
-    if (backend is! NetworkBackend) {
+    final host = _hostDevices;
+    if (host == null) {
       return _warmupController.start(ratePerMin: ratePerMin);
     }
-    final name = await backend.cameraStartHostWarmUp(ratePerMin: ratePerMin);
+    final name = await host.cameraStartHostWarmUp(ratePerMin: ratePerMin);
     final outcome = CameraWarmupOutcome.values.firstWhere(
       (value) => value.name == name,
       orElse: () => CameraWarmupOutcome.started,
     );
     if (outcome == CameraWarmupOutcome.started) {
       _ref.read(cameraStateProvider.notifier).setWarming(true);
-      _followHostWarmUp(backend);
+      _followHostWarmUp(host);
     }
     return outcome;
   }
@@ -231,8 +212,8 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
   /// command next, which the host treats as replacing its warm-up, or are
   /// tearing this client down, which must leave the host's warm-up running.
   void _cancelWarmCamera({bool restorePriorSetting = true}) {
-    final backend = _backend;
-    if (backend is! NetworkBackend) {
+    final host = _hostDevices;
+    if (host == null) {
       _warmupController.cancel(restorePriorSetting: restorePriorSetting);
       return;
     }
@@ -241,7 +222,7 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     _hostWarmUpWatch = null;
     _ref.read(cameraStateProvider.notifier).setWarming(false);
     unawaited(
-      backend.cameraCancelHostWarmUp(restorePriorSetting: true).catchError((
+      host.cameraCancelHostWarmUp(restorePriorSetting: true).catchError((
         Object e,
       ) {
         _ref
@@ -255,12 +236,12 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
   }
 
   /// Show the host's warm-up as running until the host reports it over.
-  void _followHostWarmUp(NetworkBackend backend) {
+  void _followHostWarmUp(HostDeviceControl host) {
     _hostWarmUpWatch?.cancel();
     _hostWarmUpWatch = Timer.periodic(const Duration(seconds: 10), (_) async {
       bool warming;
       try {
-        warming = await backend.cameraHostIsWarming();
+        warming = await host.cameraHostIsWarming();
       } catch (_) {
         return;
       }
@@ -271,148 +252,70 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     });
   }
 
-  /// Disconnect camera
-  Future<void> _disconnectCamera() {
-    return _trackInFlight(() async {
-      // Cancel any warming in progress; the disconnect decides the cooler.
-      _cancelWarmCamera(restorePriorSetting: false);
-      // Stop temperature polling first
-      _temperaturePoller.stop();
-
-      final notifier = _ref.read(cameraStateProvider.notifier);
-      final state = _ref.read(cameraStateProvider);
-
-      // Audit surface "nothing connected" as a typed precondition
-      // instead of a silent no-op so the equipment screen's bulk-disconnect
-      // sweep can distinguish "already disconnected" (skip cleanly) from
-      // "real disconnect failure" (toast + log).
-      final deviceId = state.deviceId;
-      if (deviceId == null || deviceId.isEmpty) {
-        throw const DeviceNotConnectedException('camera');
-      }
-
-      _markUserInitiatedDisconnect(deviceId);
+  Future<void> _coolerOffForDisconnect(String deviceId) async {
+    final notifier = _ref.read(cameraStateProvider.notifier);
+    final state = _ref.read(cameraStateProvider);
+    // Best-effort cooler shutdown: ASCOM/INDI driver-side coolers keep
+    // running after the client disconnects, so an intentional
+    // disconnect with the cooler at setpoint would silently keep
+    // pulling power (and surprise the user packing up the rig).
+    // Fail-soft — an unreachable driver must not block the disconnect.
+    if (state.isCooling) {
       try {
-        // Best-effort cooler shutdown: ASCOM/INDI driver-side coolers keep
-        // running after the client disconnects, so an intentional
-        // disconnect with the cooler at setpoint would silently keep
-        // pulling power (and surprise the user packing up the rig).
-        // Fail-soft — an unreachable driver must not block the disconnect.
-        if (state.isCooling) {
-          try {
-            await _backend.cameraSetCooling(deviceId: deviceId, enabled: false);
-            notifier.setCooling(false);
-            _safeLog(
-              (l) => l.info(
-                'Cooler disabled as part of camera disconnect',
-                source: 'DeviceService',
-              ),
-              'disconnect-cooler-off',
-            );
-          } catch (e) {
-            _safeLog(
-              (l) => l.warning(
-                'Could not disable cooler during disconnect: $e',
-                source: 'DeviceService',
-              ),
-              'disconnect-cooler-off',
-            );
-          }
-        }
-
-        // Stop heartbeat monitoring. DeviceHeartbeatRouter.stop is
-        // fail-soft: it logs and swallows so the disconnect proceeds
-        // even if the driver is already gone.
-        await _heartbeat.stop(
-          deviceType: DeviceType.camera,
-          deviceId: deviceId,
+        await _backend.cameraSetCooling(deviceId: deviceId, enabled: false);
+        notifier.setCooling(false);
+        logSafely(
+          _ref,
+          (l) => l.info(
+            'Cooler disabled as part of camera disconnect',
+            source: 'DeviceService',
+          ),
         );
-
-        // Disconnect device
-        await _backend.disconnectDevice(DeviceType.camera, deviceId);
-      } catch (_) {
-        _clearUserInitiatedDisconnect(deviceId);
-        _temperaturePoller.start(deviceId);
-        await _heartbeat.start(
-          deviceType: DeviceType.camera,
-          deviceId: deviceId,
-          intervalMs: 10000,
+      } catch (e) {
+        logSafely(
+          _ref,
+          (l) => l.warning(
+            'Could not disable cooler during disconnect: $e',
+            source: 'DeviceService',
+          ),
         );
-        rethrow;
       }
-      notifier.setDisconnected();
-    });
+    }
   }
 
-  /// Connect to a mount
-  Future<void> _connectMount(String deviceId) {
-    return _trackInFlight(() async {
-      final notifier = _ref.read(mountStateProvider.notifier);
+  Future<void> _bringUpMount(String deviceId, String deviceName) async {
+    final notifier = _ref.read(mountStateProvider.notifier);
+    notifier.setConnected();
 
-      // Format check only; backend is the source of truth for
-      // reachability. See [connectCamera] for the full rationale.
-      if (!isValidDeviceIdFormat(deviceId)) {
-        throw InvalidDeviceIdException('mount', deviceId);
-      }
-
-      final deviceName = await _resolveDeviceDisplayName(
-        DeviceType.mount,
-        deviceId,
+    // Fetch actual mount status from hardware instead of hardcoding defaults
+    try {
+      final status = await _backend.getMountStatus(deviceId);
+      notifier.updatePosition(
+        status.rightAscension,
+        status.declination,
+        status.altitude,
+        status.azimuth,
       );
-      // Hand the type slot over cleanly rather than orphaning the
-      // incumbent's driver connection (see [_releaseDisplacedDevice]).
-      await _releaseDisplacedDevice(DeviceType.mount, deviceId);
+      notifier.setParked(status.parked);
+      notifier.setTracking(status.tracking);
+      notifier.setSlewing(status.slewing);
+    } catch (e) {
+      // If status query fails, log but don't fail the connection
+      logSafely(
+        _ref,
+        (l) => l.warning(
+          'Failed to get initial mount status for ($deviceId): $e',
+          source: 'DeviceService',
+        ),
+      );
+    }
 
-      notifier.setConnecting(deviceId, deviceName);
-
-      try {
-        await _backend.connectDevice(DeviceType.mount, deviceId);
-
-        notifier.setConnected();
-
-        // Fetch actual mount status from hardware instead of hardcoding defaults
-        try {
-          final status = await _backend.getMountStatus(deviceId);
-          notifier.updatePosition(
-            status.rightAscension,
-            status.declination,
-            status.altitude,
-            status.azimuth,
-          );
-          notifier.setParked(status.parked);
-          notifier.setTracking(status.tracking);
-          notifier.setSlewing(status.slewing);
-        } catch (e) {
-          // If status query fails, log but don't fail the connection
-          _safeLog(
-            (l) => l.warning(
-              'Failed to get initial mount status for ($deviceId): $e',
-              source: 'DeviceService',
-            ),
-            'mount-initial-status-fail',
-          );
-        }
-
-        // Start heartbeat monitoring (10 second interval) for critical
-        // device. Fail-soft inside DeviceHeartbeatRouter.start so a
-        // missing heartbeat cannot abort connect.
-        await _heartbeat.start(
-          deviceType: DeviceType.mount,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        );
-
-        // Compare the mount's idea of where and when it is against this
-        // computer's. Entirely fail-soft: a mount that cannot answer, a
-        // driver that has no site commands, or a serial hiccup must never
-        // turn a working connection into a failed one, so everything here
-        // is inside its own guard and nothing rethrows.
-        unawaited(_reconcileMountSite(deviceId, deviceName));
-      } catch (e) {
-        notifier.setDisconnected();
-        rethrow;
-      }
-    });
+    // Compare the mount's idea of where and when it is against this
+    // computer's. Entirely fail-soft: a mount that cannot answer, a
+    // driver that has no site commands, or a serial hiccup must never
+    // turn a working connection into a failed one, so everything here
+    // is inside its own guard and nothing rethrows.
+    unawaited(_reconcileMountSite(deviceId, deviceName));
   }
 
   /// Read the mount's site/time and either apply the operator's standing
@@ -444,13 +347,13 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
         await _ref
             .read(appSettingsProvider.notifier)
             .updateLocation(elevation: elevation);
-        _safeLog(
+        logSafely(
+          _ref,
           (l) => l.info(
             'The site elevation was not set; using the '
             '${elevation.toStringAsFixed(0)} m that $deviceName reports',
             source: 'DeviceService',
           ),
-          'mount-site-elevation-adopted',
         );
       }
 
@@ -473,12 +376,12 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
               .raise(comparison);
       }
     } catch (e) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Mount site/time reconciliation skipped for ($deviceId): $e',
           source: 'DeviceService',
         ),
-        'mount-site-reconcile-fail',
       );
     }
   }
@@ -490,13 +393,13 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     if (!comparison.canApply(direction)) {
       // The operator asked for a direction this mount cannot do. Say so once
       // rather than silently doing nothing every single connect.
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Mount ${comparison.deviceId} cannot sync '
           '${direction.name}: ${comparison.unavailableReason(direction)}',
           source: 'DeviceService',
         ),
-        'mount-site-direction-unavailable',
       );
       return;
     }
@@ -505,324 +408,130 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
         .read(mountSiteReconcilerProvider)
         .apply(comparison, direction);
     if (failures.isEmpty) {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.info(
           'Mount ${comparison.deviceId} site/time synced ${direction.name}',
           source: 'DeviceService',
         ),
-        'mount-site-synced',
       );
     } else {
-      _safeLog(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'Mount ${comparison.deviceId} site/time sync '
           '${direction.name} partially failed: ${failures.join('; ')}',
           source: 'DeviceService',
         ),
-        'mount-site-sync-partial',
       );
     }
   }
 
-  /// Disconnect mount
-  Future<void> _disconnectMount() {
-    return _trackInFlight(() async {
-      final notifier = _ref.read(mountStateProvider.notifier);
-      final state = _ref.read(mountStateProvider);
-
-      // Audit see [disconnectCamera] for the rationale.
-      final deviceId = state.deviceId;
-      if (deviceId == null || deviceId.isEmpty) {
-        throw const DeviceNotConnectedException('mount');
-      }
-
-      // A card asking about this mount must not outlive it.
-      _ref
-          .read(pendingMountSiteReconciliationProvider.notifier)
-          .clearFor(deviceId);
-      _markUserInitiatedDisconnect(deviceId);
-
+  Future<void> _bringUpFocuser(String deviceId) async {
+    final notifier = _ref.read(focuserStateProvider.notifier);
+    // Get actual focuser status from the backend (now typed FocuserStatus).
+    // Some drivers (notably INDI) stream device properties asynchronously
+    // AFTER the connection is established, so an immediate status read can
+    // race the property stream and throw ("Position not available") even
+    // though the focuser is connected and movable. The connection itself is
+    // up — retry the initial snapshot for a couple of seconds before giving
+    // up, mirroring the filter-wheel encoder-settle poll.
+    FocuserStatus? status;
+    Object? lastStatusError;
+    for (var attempt = 0; attempt < 5; attempt++) {
       try {
-        // Stop heartbeat monitoring; fail-soft inside the router so the
-        // matching disconnectDevice call below proceeds regardless.
-        await _heartbeat.stop(deviceType: DeviceType.mount, deviceId: deviceId);
-
-        await _backend.disconnectDevice(DeviceType.mount, deviceId);
-      } catch (_) {
-        _clearUserInitiatedDisconnect(deviceId);
-        await _heartbeat.start(
-          deviceType: DeviceType.mount,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        );
-        rethrow;
-      }
-      notifier.setDisconnected();
-    });
-  }
-
-  /// Connect to a focuser
-  Future<void> _connectFocuser(String deviceId) {
-    return _trackInFlight(() async {
-      final notifier = _ref.read(focuserStateProvider.notifier);
-
-      // Format check only; backend is the source of truth for
-      // reachability. See [connectCamera] for the full rationale.
-      if (!isValidDeviceIdFormat(deviceId)) {
-        throw InvalidDeviceIdException('focuser', deviceId);
-      }
-
-      final deviceName = await _resolveDeviceDisplayName(
-        DeviceType.focuser,
-        deviceId,
-      );
-      // Hand the type slot over cleanly rather than orphaning the
-      // incumbent's driver connection (see [_releaseDisplacedDevice]).
-      await _releaseDisplacedDevice(DeviceType.focuser, deviceId);
-
-      notifier.setConnecting(deviceId, deviceName);
-
-      try {
-        await _backend.connectDevice(DeviceType.focuser, deviceId);
-
-        // Get actual focuser status from the backend (now typed FocuserStatus).
-        // Some drivers (notably INDI) stream device properties asynchronously
-        // AFTER the connection is established, so an immediate status read can
-        // race the property stream and throw ("Position not available") even
-        // though the focuser is connected and movable. The connection itself is
-        // up — retry the initial snapshot for a couple of seconds before giving
-        // up, mirroring the filter-wheel encoder-settle poll.
-        FocuserStatus? status;
-        Object? lastStatusError;
-        for (var attempt = 0; attempt < 5; attempt++) {
-          try {
-            status = await _backend.getFocuserStatus(deviceId);
-            break;
-          } catch (e) {
-            lastStatusError = e;
-            await Future<void>.delayed(const Duration(milliseconds: 500));
-          }
-        }
-        if (status == null) {
-          throw StateError(
-            'Focuser connected but did not report status in time '
-            '(driver property stream too slow): $lastStatusError',
-          );
-        }
-
-        notifier.setConnected(
-          maxPosition: status.maxPosition,
-          stepSize: status.stepSize,
-          isAbsolute: status.isAbsolute,
-          hasTemperature: status.hasTemperature,
-        );
-        notifier.updatePosition(status.position);
-        notifier.setMoving(status.moving);
-        if (status.temperature != null) {
-          notifier.updateTemperature(status.temperature!);
-        }
-        await _heartbeat.start(
-          deviceType: DeviceType.focuser,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        );
+        status = await _backend.getFocuserStatus(deviceId);
+        break;
       } catch (e) {
-        try {
-          if (!_hostOwnsDevices) {
-            await _backend.disconnectDevice(DeviceType.focuser, deviceId);
-          }
-        } catch (_) {
-          // The connect itself may have failed before the backend registered
-          // the device. Preserve the original, more useful failure.
-        }
-        notifier.setDisconnected();
-        rethrow;
+        lastStatusError = e;
+        await Future<void>.delayed(const Duration(milliseconds: 500));
       }
-    });
-  }
-
-  /// Disconnect focuser
-  Future<void> _disconnectFocuser() {
-    return _trackInFlight(() async {
-      final notifier = _ref.read(focuserStateProvider.notifier);
-      final state = _ref.read(focuserStateProvider);
-
-      // Audit see [disconnectCamera] for the rationale.
-      final deviceId = state.deviceId;
-      if (deviceId == null || deviceId.isEmpty) {
-        throw const DeviceNotConnectedException('focuser');
-      }
-
-      _markUserInitiatedDisconnect(deviceId);
-      _focuserVerifyGeneration++;
-
-      try {
-        await _heartbeat.stop(
-          deviceType: DeviceType.focuser,
-          deviceId: deviceId,
-        );
-        await _backend.disconnectDevice(DeviceType.focuser, deviceId);
-      } catch (_) {
-        _clearUserInitiatedDisconnect(deviceId);
-        await _heartbeat.start(
-          deviceType: DeviceType.focuser,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        );
-        rethrow;
-      }
-      notifier.setDisconnected();
-    });
-  }
-
-  /// Connect to a filter wheel
-  Future<void> _connectFilterWheel(String deviceId) {
-    return _trackInFlight(() async {
-      final notifier = _ref.read(filterWheelStateProvider.notifier);
-      final logger = _ref.read(loggingServiceProvider);
-
-      // Format check only; backend is the source of truth for
-      // reachability. See [connectCamera] for the full rationale.
-      if (!isValidDeviceIdFormat(deviceId)) {
-        throw InvalidDeviceIdException('filter wheel', deviceId);
-      }
-
-      // Derive a friendly name without running discovery.
-      // Discovery opens/closes hardware (e.g. ZWO EFW via native SDK) which
-      // can interfere with subsequent position reads.  The device manager will
-      // register the full DeviceInfo during api_connect_device anyway.
-      final deviceName = await _resolveDeviceDisplayName(
-        DeviceType.filterWheel,
-        deviceId,
+    }
+    if (status == null) {
+      throw StateError(
+        'The focuser opened but did not report its position: '
+        '${connectFailureReason(lastStatusError!)}',
       );
+    }
 
-      // Hand the type slot over cleanly rather than orphaning the
-      // incumbent's driver connection (see [_releaseDisplacedDevice]).
-      await _releaseDisplacedDevice(DeviceType.filterWheel, deviceId);
-
-      notifier.setConnecting(deviceId, deviceName);
-
-      try {
-        await _backend.connectDevice(DeviceType.filterWheel, deviceId);
-
-        // Give the filter wheel firmware time to synchronise the actual
-        // encoder position after the USB/COM connection is established.
-        // Some SDKs (ZWO EFW, ASCOM wrappers) report position 0 or -1
-        // immediately after opening before the firmware has read the encoder.
-        // Allow up to 10 s for a stable reading. Empirical testing on a ZWO
-        // EFW after an unclean process restart showed that the SDK can remain
-        // at -1 for more than 3 s even though the wheel is healthy; rejecting
-        // it that early caused a noisy disconnect/reconnect cycle at startup.
-        FilterWheelStatus status;
-        int pollAttempts = 0;
-        const maxPolls = 20;
-        const pollDelay = Duration(milliseconds: 500);
-
-        status = await _backend.getFilterWheelStatus(deviceId);
-        logger.debug(
-          'Filter wheel poll #0: position=${status.position}, '
-          'moving=${status.moving}',
-          source: 'DeviceService',
-        );
-
-        // Keep polling while position is -1 (moving/initializing)
-        while (status.position < 0 && pollAttempts < maxPolls) {
-          pollAttempts++;
-          await Future.delayed(pollDelay);
-          status = await _backend.getFilterWheelStatus(deviceId);
-          logger.debug(
-            'Filter wheel poll #$pollAttempts: position=${status.position}, '
-            'moving=${status.moving}',
-            source: 'DeviceService',
-          );
-        }
-
-        logger.debug(
-          'Filter wheel final status: ${status.filterNames.length} filter '
-          'names=${status.filterNames}, position=${status.position}',
-          source: 'DeviceService',
-        );
-        if (status.position < 0) {
-          throw StateError(
-            'Filter wheel connected but did not report a valid position '
-            'after ${maxPolls + 1} status reads',
-          );
-        }
-
-        notifier.setConnected(filterNames: status.filterNames);
-        notifier.setDeviceName(deviceName);
-        notifier.updatePosition(status.position);
-        notifier.setMoving(status.moving);
-        await _heartbeat.start(
-          deviceType: DeviceType.filterWheel,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        );
-
-        // Seed the per-wheel "last applied offset" baseline with the CURRENT
-        // filter's configured offset. The map entry is cleared on disconnect,
-        // so without this seed the first filter change after a reconnect
-        // computes its focuser delta against 0 — double-applying an offset
-        // that is already physically embodied in the focuser position (the
-        // rig was focused with the current filter in place).
-        if (status.position >= 0 &&
-            status.position < status.filterNames.length) {
-          _lastAppliedFilterOffsetByWheel[deviceId] =
-              _resolveConfiguredFilterOffset(
-                status.filterNames[status.position],
-              );
-        }
-
-        // After connection, sync profile/session filter names to the native
-        // driver so user-defined names (Ha, OIII, SII, etc.) are used in
-        // sequences and UI instead of generic "Filter 1", "Filter 2".
-        await _syncFilterNamesToDriver(status.filterNames);
-      } catch (e) {
-        try {
-          if (!_hostOwnsDevices) {
-            await _backend.disconnectDevice(DeviceType.filterWheel, deviceId);
-          }
-        } catch (_) {
-          // Preserve the original connect/status failure.
-        }
-        notifier.setDisconnected();
-        rethrow;
-      }
-    });
+    notifier.setConnected(
+      maxPosition: status.maxPosition,
+      stepSize: status.stepSize,
+      isAbsolute: status.isAbsolute,
+      hasTemperature: status.hasTemperature,
+    );
+    notifier.updatePosition(status.position);
+    notifier.setMoving(status.moving);
+    if (status.temperature != null) {
+      notifier.updateTemperature(status.temperature!);
+    }
   }
 
-  /// Disconnect filter wheel
-  Future<void> _disconnectFilterWheel() {
-    return _trackInFlight(() async {
-      final notifier = _ref.read(filterWheelStateProvider.notifier);
-      final state = _ref.read(filterWheelStateProvider);
+  Future<void> _bringUpFilterWheel(String deviceId, String deviceName) async {
+    final notifier = _ref.read(filterWheelStateProvider.notifier);
+    final logger = _ref.read(loggingServiceProvider);
+    // Give the filter wheel firmware time to synchronise the actual
+    // encoder position after the USB/COM connection is established.
+    // Some SDKs (ZWO EFW, ASCOM wrappers) report position 0 or -1
+    // immediately after opening before the firmware has read the encoder.
+    // Allow up to 10 s for a stable reading. Empirical testing on a ZWO
+    // EFW after an unclean process restart showed that the SDK can remain
+    // at -1 for more than 3 s even though the wheel is healthy; rejecting
+    // it that early caused a noisy disconnect/reconnect cycle at startup.
+    FilterWheelStatus status;
+    int pollAttempts = 0;
+    const maxPolls = 20;
+    const pollDelay = Duration(milliseconds: 500);
 
-      // Audit see [disconnectCamera] for the rationale.
-      final deviceId = state.deviceId;
-      if (deviceId == null || deviceId.isEmpty) {
-        throw const DeviceNotConnectedException('filter wheel');
-      }
+    status = await _backend.getFilterWheelStatus(deviceId);
+    logger.debug(
+      'Filter wheel poll #0: position=${status.position}, '
+      'moving=${status.moving}',
+      source: 'DeviceService',
+    );
 
-      _markUserInitiatedDisconnect(deviceId);
-      _filterWheelVerifyGeneration++;
+    // Keep polling while position is -1 (moving/initializing)
+    while (status.position < 0 && pollAttempts < maxPolls) {
+      pollAttempts++;
+      await Future.delayed(pollDelay);
+      status = await _backend.getFilterWheelStatus(deviceId);
+      logger.debug(
+        'Filter wheel poll #$pollAttempts: position=${status.position}, '
+        'moving=${status.moving}',
+        source: 'DeviceService',
+      );
+    }
 
-      try {
-        await _heartbeat.stop(
-          deviceType: DeviceType.filterWheel,
-          deviceId: deviceId,
-        );
-        await _backend.disconnectDevice(DeviceType.filterWheel, deviceId);
-      } catch (_) {
-        _clearUserInitiatedDisconnect(deviceId);
-        await _heartbeat.start(
-          deviceType: DeviceType.filterWheel,
-          deviceId: deviceId,
-          intervalMs: 10000,
-        );
-        rethrow;
-      }
-      _lastAppliedFilterOffsetByWheel.remove(deviceId);
-      notifier.setDisconnected();
-    });
+    logger.debug(
+      'Filter wheel final status: ${status.filterNames.length} filter '
+      'names=${status.filterNames}, position=${status.position}',
+      source: 'DeviceService',
+    );
+    if (status.position < 0) {
+      throw StateError(
+        'Filter wheel connected but did not report a valid position '
+        'after ${maxPolls + 1} status reads',
+      );
+    }
+
+    notifier.setConnected(filterNames: status.filterNames);
+    notifier.setDeviceName(deviceName);
+    notifier.updatePosition(status.position);
+    notifier.setMoving(status.moving);
+    // Seed the per-wheel "last applied offset" baseline with the CURRENT
+    // filter's configured offset. The map entry is cleared on disconnect,
+    // so without this seed the first filter change after a reconnect
+    // computes its focuser delta against 0 — double-applying an offset
+    // that is already physically embodied in the focuser position (the
+    // rig was focused with the current filter in place).
+    if (status.position >= 0 && status.position < status.filterNames.length) {
+      _lastAppliedFilterOffsetByWheel[deviceId] =
+          _resolveConfiguredFilterOffset(status.filterNames[status.position]);
+    }
+
+    // After connection, sync profile/session filter names to the native
+    // driver so user-defined names (Ha, OIII, SII, etc.) are used in
+    // sequences and UI instead of generic "Filter 1", "Filter 2".
+    await _syncFilterNamesToDriver(status.filterNames);
   }
 }

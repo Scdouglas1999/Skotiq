@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart' show unavailableControlName;
@@ -19,7 +20,6 @@ class MasterLibraryPanel extends StatelessWidget {
   /// Accepted-light count in scope, so "add tonight" can be disabled when empty.
   final int acceptedSubCount;
 
-  /// True while any integration / accumulation run is in flight.
   final bool busy;
 
   final void Function(IntegratedMaster) onOpen;
@@ -86,8 +86,9 @@ class MasterLibraryPanel extends StatelessWidget {
                 const SizedBox(width: SkotiqTokens.spaceMd),
                 Expanded(
                   child: Text(
-                    'No masters yet. Integrate the night, or start an '
-                    'accumulating master to grow across multiple nights.',
+                    'Masters the Darkroom builds are listed in its Edit tab. '
+                    'Start an accumulating master here to grow one across '
+                    'nights.',
                     style: SkotiqTypography.bodySm.copyWith(
                       color: colors.textSecondary,
                     ),
@@ -210,7 +211,7 @@ class _MasterCard extends StatelessWidget {
                 Text(
                   '${master.width}×${master.height} · '
                   '${master.isColor ? 'color' : 'mono'} · '
-                  'updated ${_relativeDate(master.updatedAt)}',
+                  'updated ${ClockFormat.date(master.updatedAt.toLocal())}',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textMuted,
                   ),
@@ -269,12 +270,6 @@ class _MasterCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _relativeDate(DateTime when) {
-    final d = when.toLocal();
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-'
-        '${d.day.toString().padLeft(2, '0')}';
   }
 }
 

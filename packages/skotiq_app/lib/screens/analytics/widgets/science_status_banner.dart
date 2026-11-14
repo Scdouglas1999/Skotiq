@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Live status of the science processing pipeline.
@@ -121,7 +123,7 @@ class ScienceStatusBanner extends ConsumerWidget {
           : 'Science up to date';
       final completedAt = last.finishedAt ?? last.startedAt;
       subtitle =
-          '${snapshot.processedCount} frame${snapshot.processedCount == 1 ? '' : 's'} processed · last ${_relativeTime(completedAt)}';
+          '${snapshot.processedCount} frame${snapshot.processedCount == 1 ? '' : 's'} processed · last ${RelativeTime.ago(completedAt)}';
       icon =
           last.hasFailure ? LucideIcons.alertCircle : LucideIcons.checkCircle;
     } else if (persistedFrameCount != null && persistedFrameCount > 0) {
@@ -156,15 +158,6 @@ class ScienceStatusBanner extends ConsumerWidget {
 
   bool _isRecent(DateTime ts) =>
       DateTime.now().difference(ts) < const Duration(minutes: 10);
-
-  String _relativeTime(DateTime ts) {
-    final delta = DateTime.now().difference(ts);
-    if (delta.inSeconds < 30) return 'just now';
-    if (delta.inSeconds < 60) return '${delta.inSeconds}s ago';
-    if (delta.inMinutes < 60) return '${delta.inMinutes}m ago';
-    if (delta.inHours < 24) return '${delta.inHours}h ago';
-    return '${delta.inDays}d ago';
-  }
 }
 
 class _StatusContainer extends StatelessWidget {
@@ -301,14 +294,6 @@ class _StageTicker extends StatelessWidget {
   }
 }
 
-/// The three tones this banner takes, as tokens rather than as a decoration
-/// it takes apart.
-///
-/// It used to read its own colours back out of a [BoxDecoration] and cast
-/// `decoration.border` to a `Border`. That was already fragile, and it broke
-/// outright when the deprecated `emphasisSurface` collapsed into
-/// `SkotiqDecorations.chip`, which has no border at all -- because in this
-/// language a tinted fill IS its own boundary (02 rule 2: tone, not lines).
 class _BannerStyle {
   final Color background;
   final Color accent;

@@ -30,8 +30,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/delivery_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show PairedDevice;
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -247,7 +251,7 @@ void main() {
       );
       final secrets = SecretsStore(InMemorySecureKeyValueStore());
       await secrets.write(deliverySecretRef(id), privateKey);
-      await targets.update(id, secretRef: deliverySecretRef(id));
+      await targets.updateDestination(id, secretRef: deliverySecretRef(id));
 
       await _pumpDelivery(tester, database, secrets: secrets);
 
@@ -965,7 +969,7 @@ void main() {
 
       await pumpAppScreen(
         tester,
-        const DeliverySettings(isMobile: true),
+        const SettingsFormScope(narrow: true, child: DeliverySettings()),
         database: database,
         size: const Size(360, 740),
         extraOverrides: _overrides(),

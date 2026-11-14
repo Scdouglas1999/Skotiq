@@ -271,7 +271,7 @@ class _Countdown extends StatelessWidget {
     final delta = next.difference(DateTime.now());
     final label = delta.isNegative
         ? 'Choosing a target now...'
-        : 'Next target check in ${_fmtDuration(delta)}';
+        : 'Next target check in ${DurationFormat.of(delta, style: DurationStyle.short)}';
     return Row(
       children: [
         Icon(LucideIcons.timer,
@@ -290,14 +290,6 @@ class _Countdown extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  String _fmtDuration(Duration d) {
-    final total = d.inSeconds;
-    final m = total ~/ 60;
-    final s = total % 60;
-    if (m == 0) return '${s}s';
-    return '${m}m ${s.toString().padLeft(2, '0')}s';
   }
 }
 

@@ -15,9 +15,10 @@ function createClient(overrides) {
     clearInterval,
     clearTimeout,
     console,
-    ...(overrides || {}),
     setInterval,
     setTimeout,
+    SKOTIQ_RELEASE: '8.2.1',
+    ...(overrides || {}),
   };
   vm.createContext(sandbox);
   vm.runInContext(`${source}\nthis.TestApi = SkotiqApi;`, sandbox);
@@ -141,6 +142,24 @@ test('remembered cookie sessions mint a WebSocket ticket', async () => {
   assert.equal(socketUrl.searchParams.get('deviceId'), 'browser-1');
 });
 
+test('a failed ticket mint never puts the bearer in the URL; it retries', async () => {
+  const openedUrls = [];
+  class FakeWebSocket {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    constructor(url) { openedUrls.push(url); }
+  }
+  const client = createClient({ WebSocket: FakeWebSocket });
+  client.configure('http://skotiq.local:8080', 'secret-token', 'browser-1');
+  client.issueWebSocketTicket = async () => { throw new Error('mint failed'); };
+
+  await assert.rejects(client.connectWebSocket(), /mint failed/);
+
+  assert.deepEqual(openedUrls, []);
+  assert.ok(client._wsReconnectTimer, 'a reconnect is scheduled');
+  client.disconnectWebSocket();
+});
+
 test('raw image data decodes the little-endian u16 wire contract', async () => {
   const bytes = Uint8Array.from([
     0x00, 0x00,
@@ -224,6 +243,7 @@ test('WebSocket heartbeat frames emit activity without becoming app events', asy
 
   const client = createClient({ WebSocket: FakeWebSocket });
   client.configure('http://skotiq.local:8080', 'secret-token', 'browser-1');
+  client.issueWebSocketTicket = async () => ({ ticket: 't1', expiresInSeconds: 60 });
   const activity = [];
   const events = [];
   client.on('ws:activity', (data) => activity.push(data));
@@ -403,4 +423,121 @@ test('an object body is still delivered untouched', async () => {
   assert.equal(info.name, 'Skotiq Headless');
   assert.equal(info.version, '6.2.0');
   assert.equal(info.authRequired, true);
+});
+
+// A job-returning action answers `{jobId, status: 'queued'}` at once and the
+// work runs on the host. The dashboard read `success` off that envelope, so
+// Center always said "Centering failed: unknown failure" and a plate solve
+// "Plate solve failed" while the job was still running.
+function jobClient(snapshots) {
+  const client = createClient({
+    // No real waiting between polls.
+    setTimeout: (fn) => {
+      fn();
+      return 0;
+    },
+  });
+  const requests = [];
+  client._request = async (method, requestPath) => {
+    requests.push(method + ' ' + requestPath);
+    if (method === 'POST') return { jobId: 'job-7', status: 'queued' };
+    return snapshots.shift();
+  };
+  client._post = (requestPath, body) => client._request('POST', requestPath, body);
+  client._get = (requestPath) => client._request('GET', requestPath);
+  return { client, requests };
+}
+
+test('center on target follows its job and returns the job result', async () => {
+  const { client, requests } = jobClient([
+    { jobId: 'job-7', state: 'running', progressMessage: 'Centering' },
+    {
+      jobId: 'job-7',
+      state: 'succeeded',
+      result: { success: true, iterations: 2, finalOffsetArcsec: 4.5 },
+    },
+  ]);
+  const progress = [];
+
+  const result = await client.framingCenterOnTarget(5.5, -5.4, {
+    onProgress: (job) => progress.push(job.progressMessage),
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), {
+    success: true,
+    iterations: 2,
+    finalOffsetArcsec: 4.5,
+  });
+  assert.deepEqual(requests, [
+    'POST /api/framing/center-on-target',
+    'GET /api/jobs/job-7',
+    'GET /api/jobs/job-7',
+  ]);
+  assert.deepEqual(progress, ['Centering']);
+});
+
+test('a failed job is an error that carries the host reason', async () => {
+  const { client } = jobClient([
+    {
+      jobId: 'job-7',
+      state: 'failed',
+      error: {
+        code: 'plate_solve_failed',
+        message: 'Not enough stars to solve',
+        details: { success: false },
+      },
+    },
+  ]);
+
+  await assert.rejects(
+    () => client.plateSolve('/data/frame.fits', {}),
+    (e) =>
+      e.kind === 'job_failed' &&
+      e.message === 'Not enough stars to solve' &&
+      e.detail.code === 'plate_solve_failed',
+  );
+});
+
+test('a cancelled job is an error that says so', async () => {
+  const { client } = jobClient([
+    {
+      jobId: 'job-7',
+      state: 'cancelled',
+      error: { code: 'job_cancelled', message: 'Autofocus cancellation requested by client' },
+    },
+  ]);
+
+  await assert.rejects(
+    () => client.followJob({ jobId: 'job-7', status: 'queued' }),
+    (e) => e.kind === 'job_cancelled',
+  );
+});
+
+test('an answer that is already the result is returned as it is', async () => {
+  const client = createClient();
+  client._get = async () => {
+    throw new Error('nothing to follow');
+  };
+
+  const result = await client.followJob({ success: true, ra: 83.8 });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), { success: true, ra: 83.8 });
+});
+
+test('a job that outlasts the wait is reported as still running', async () => {
+  let now = 0;
+  const client = createClient({
+    setTimeout: (fn) => {
+      now += 1000;
+      fn();
+      return 0;
+    },
+    Date: { now: () => now },
+  });
+  client._get = async () => ({ jobId: 'job-7', state: 'running' });
+
+  await assert.rejects(
+    () => client.followJob({ jobId: 'job-7' }, { timeoutMs: 3000 }),
+    (e) => e.kind === 'job_timeout' && /still running/.test(e.message),
+  );
 });

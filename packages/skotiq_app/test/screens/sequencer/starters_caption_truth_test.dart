@@ -14,12 +14,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/sequencer/tabs/templates_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockSequenceRepository extends Mock implements SequenceRepository {}
 
-SampleSequence _starter() => SampleSequence(
+SampleSequence _starter({Sequence? template}) => SampleSequence(
       id: 'starter',
       displayName: 'Safe Starter',
       description: 'A starter sequence',
@@ -27,13 +29,17 @@ SampleSequence _starter() => SampleSequence(
       skillLevel: SampleSequenceSkillLevel.beginner,
       expectedTotalTime: '10 min',
       assetPath: 'unused',
-      template: Sequence.create(name: 'Safe Starter'),
+      template: template ?? Sequence.create(name: 'Safe Starter'),
     );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Future<CurrentSequenceNotifier> pump(WidgetTester tester) async {
+  Future<CurrentSequenceNotifier> pump(
+    WidgetTester tester, {
+    SampleSequence? starter,
+    List<String> wheel = const [],
+  }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(430, 932);
     addTearDown(() {
@@ -54,7 +60,9 @@ void main() {
           sequenceRepositoryProvider.overrideWithValue(repository),
           currentSequenceProvider.overrideWith((ref) => editor),
           allSnippetsProvider.overrideWithValue(const []),
-          sampleSequencesProvider.overrideWith((ref) async => [_starter()]),
+          sampleSequencesProvider
+              .overrideWith((ref) async => [starter ?? _starter()]),
+          effectiveFiltersProvider.overrideWithValue(wheel),
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
@@ -98,5 +106,34 @@ void main() {
     expect(find.text('Discard unsaved changes?'), findsNothing);
     expect(editor.state!.name, 'Safe Starter');
     expect(editor.state!.id, isNot(before));
+  });
+
+  // Starters name L/R/G/B; a wheel that calls them Luminance/Red/... gets
+  // the plan in its own names instead of a pre-flight that fails.
+  testWidgets('a starter takes the wheel\'s names for its filters',
+      (tester) async {
+    final root = InstructionSetNode(name: 'Root');
+    final lights = ExposureNode(name: 'Lights', filter: 'L');
+    final editor = await pump(
+      tester,
+      wheel: const ['Luminance', 'Red', 'Green', 'Blue'],
+      starter: _starter(
+        template: Sequence.create(
+          name: 'Safe Starter',
+          rootNodeId: root.id,
+          nodes: {
+            root.id: root.copyWith(childIds: [lights.id]),
+            lights.id: lights.copyWith(parentId: root.id),
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Use this starter'));
+    await tester.pump();
+
+    final loaded = editor.state!.nodes.values.whereType<ExposureNode>().single;
+    expect(loaded.filter, 'Luminance');
+    expect(find.textContaining('L → Luminance'), findsOneWidget);
   });
 }

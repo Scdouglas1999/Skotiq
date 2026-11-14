@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/guiding_active_chip.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Seeds a fixed [Phd2GuideStats]. The base [GuideStatsNotifier] binds to
@@ -89,22 +92,43 @@ void main() {
     expect(tester.getSize(find.byType(GuidingActiveChip)), Size.zero);
   });
 
-  testWidgets('guiding + stats shows the Guiding label and arcsecond RMS',
-      (tester) async {
+  testWidgets(
+      'guiding + stats shows the Guiding label and the RMS in pixels '
+      'while the guide scale is unknown', (tester) async {
     await _pumpChip(
       tester,
       phd2State: Phd2State.guiding,
-      // rmsTotal is already arcseconds (PHD2 AvgDist / RADistanceRaw) — it is
-      // labelled with the arcsec glyph, never px.
+      // rmsTotal is guide-camera pixels (PHD2 RADistanceRaw / AvgDist). With
+      // no scale from the guider it is shown as pixels, never as arcseconds.
       guide: const Phd2GuideStats(rmsTotal: 0.42, snr: 18.6),
     );
 
     expect(find.text('Guiding'), findsOneWidget);
-    expect(find.text('RMS 0.42\"'), findsOneWidget);
+    expect(find.text('RMS 0.42 px'), findsOneWidget);
     // SNR rounds to nearest integer.
     expect(find.text('SNR 19'), findsOneWidget);
-    // Honest: the value is arcseconds, never falsely labelled px.
+    expect(find.textContaining('"'), findsNothing);
+    expect(find.textContaining('″'), findsNothing);
+  });
+
+  testWidgets(
+      'the RMS is converted to arcseconds when the guider reports '
+      'its scale', (tester) async {
+    await _pumpChip(
+      tester,
+      phd2State: Phd2State.guiding,
+      guider: const GuiderState(
+        connectionState: DeviceConnectionState.connected,
+        pixelScaleArcsecPerPixel: 2.0,
+      ),
+      guide: const Phd2GuideStats(rmsTotal: 0.42),
+    );
+
+    // 0.42 px at 2.00″/px.
+    expect(find.text('RMS 0.84″'), findsOneWidget);
     expect(find.textContaining('px'), findsNothing);
+    final tooltip = tester.widget<SkotiqTooltip>(find.byType(SkotiqTooltip));
+    expect(tooltip.message, contains('arcseconds'));
   });
 
   testWidgets('zero SNR is suppressed rather than shown as "SNR 0"',
@@ -143,7 +167,7 @@ void main() {
     );
 
     expect(find.text('Settling'), findsOneWidget);
-    expect(find.text('RMS 0.42\"'), findsOneWidget);
+    expect(find.text('RMS 0.42 px'), findsOneWidget);
   });
 
   testWidgets('the dot turns warning-colored on lost lock', (tester) async {
@@ -177,12 +201,12 @@ void main() {
     expect(dot.variant, StatusDotVariant.attention);
   });
 
-  testWidgets('tooltip explains the RMS units honestly as arcseconds',
-      (tester) async {
+  testWidgets('tooltip names the unit the RMS is shown in', (tester) async {
     await _pumpChip(tester, phd2State: Phd2State.guiding);
 
     final tooltip = tester.widget<SkotiqTooltip>(find.byType(SkotiqTooltip));
     expect(tooltip.message, contains('PHD2 guiding active'));
-    expect(tooltip.message, contains('arcseconds'));
+    expect(tooltip.message, contains('guide-camera pixels'));
+    expect(tooltip.message, isNot(contains('arcseconds')));
   });
 }

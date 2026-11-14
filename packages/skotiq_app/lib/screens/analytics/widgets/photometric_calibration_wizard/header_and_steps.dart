@@ -101,6 +101,4 @@ extension _PhotometricWizardHeaderAndSteps
       },
     );
   }
-
-  // Step 1: select a standard star field frame
 }

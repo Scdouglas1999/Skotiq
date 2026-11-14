@@ -32,7 +32,6 @@ import 'tiles/tile_builder.dart';
 import 'tiles/tile_codec.dart';
 import 'tiles/tile_store.dart';
 
-/// Configuration for a [HubServer].
 class HubConfig {
   HubConfig({
     required this.databasePath,
@@ -491,8 +490,6 @@ class HubServer {
     ('POST', '/v1/sessions'),
   };
 
-  // --- Middleware ----------------------------------------------------------
-
   Middleware _requestIdMiddleware() {
     return (Handler inner) {
       return (Request request) async {
@@ -593,8 +590,6 @@ class HubServer {
     return 'anon';
   }
 
-  // --- Auth helpers --------------------------------------------------------
-
   String? _bearer(Request request) {
     final header = request.headers['authorization'];
     if (header == null) return null;
@@ -683,8 +678,6 @@ class HubServer {
     }
     return (identity: identity, error: null);
   }
-
-  // --- Handlers ------------------------------------------------------------
 
   Response _infoHandler(Request request) {
     return hubJson(<String, Object?>{
@@ -2591,7 +2584,6 @@ class HubServer {
         'no such co-imaging session',
       ).toResponse(requestId: requestId);
     }
-    // Only the owner (or an admin-scoped operator) may close the session.
     final mayClose =
         identity.scope == HubScope.admin ||
         identity.accountId == session.ownerAccountId;
@@ -3390,8 +3382,6 @@ class HubServer {
     if (auth.error != null) return auth.error!;
     return hubJson(<String, Object?>{'entries': _audit.recent()});
   }
-
-  // --- Body helpers --------------------------------------------------------
 
   Future<Map<String, Object?>> _readJson(Request request) async {
     final raw = await request.readAsString();

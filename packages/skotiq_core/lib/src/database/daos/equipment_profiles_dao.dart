@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../backend/roles/host_data/host_records.dart';
 import '../database.dart';
 import '../tables/equipment_profiles.dart';
 
@@ -7,40 +8,37 @@ part 'equipment_profiles_dao.g.dart';
 
 @DriftAccessor(tables: [EquipmentProfiles])
 class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$EquipmentProfilesDaoMixin {
+    with _$EquipmentProfilesDaoMixin
+    implements EquipmentProfileLibrary {
   EquipmentProfilesDao(super.db);
 
-  /// Get all equipment profiles
-  Future<List<EquipmentProfile>> getAllProfiles() =>
+  Future<List<DbEquipmentProfile>> getAllProfiles() =>
       select(equipmentProfiles).get();
 
-  /// Watch all equipment profiles
-  Stream<List<EquipmentProfile>> watchAllProfiles() =>
+  @override
+  Stream<List<DbEquipmentProfile>> watchAllProfiles() =>
       select(equipmentProfiles).watch();
 
-  /// Get the active profile
-  Future<EquipmentProfile?> getActiveProfile() {
+  Future<DbEquipmentProfile?> getActiveProfile() {
     return (select(
       equipmentProfiles,
     )..where((p) => p.isActive.equals(true))).getSingleOrNull();
   }
 
-  /// Watch the active profile
-  Stream<EquipmentProfile?> watchActiveProfile() {
+  @override
+  Stream<DbEquipmentProfile?> watchActiveProfile() {
     return (select(
       equipmentProfiles,
     )..where((p) => p.isActive.equals(true))).watchSingleOrNull();
   }
 
-  /// Get a profile by ID
-  Future<EquipmentProfile?> getProfileById(int id) {
+  Future<DbEquipmentProfile?> getProfileById(int id) {
     return (select(
       equipmentProfiles,
     )..where((p) => p.id.equals(id))).getSingleOrNull();
   }
 
-  /// Get the default profile.
-  Future<EquipmentProfile?> getDefaultProfile() {
+  Future<DbEquipmentProfile?> getDefaultProfile() {
     return (select(
       equipmentProfiles,
     )..where((p) => p.isDefault.equals(true))).getSingleOrNull();
@@ -74,9 +72,18 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Update a profile in place.
-  Future<bool> updateProfile(EquipmentProfile profile) async {
+  Future<bool> updateProfile(DbEquipmentProfile profile) async {
     return update(equipmentProfiles).replace(profile);
+  }
+
+  /// Write [columns] (SQL column name to value) to profile [id].
+  Future<void> updateProfileColumns(
+    int id,
+    Map<String, Expression> columns,
+  ) async {
+    await (update(equipmentProfiles)..where((p) => p.id.equals(id))).write(
+      RawValuesInsertable<DbEquipmentProfile>(columns),
+    );
   }
 
   /// Delete a profile and preserve a coherent default/active selection.
@@ -102,11 +109,11 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
         return rows;
       }
 
-      final activeProfile = remaining.cast<EquipmentProfile?>().firstWhere(
+      final activeProfile = remaining.cast<DbEquipmentProfile?>().firstWhere(
         (p) => p!.isActive,
         orElse: () => null,
       );
-      final defaultProfile = remaining.cast<EquipmentProfile?>().firstWhere(
+      final defaultProfile = remaining.cast<DbEquipmentProfile?>().firstWhere(
         (p) => p!.isDefault,
         orElse: () => null,
       );
@@ -202,7 +209,6 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Duplicate a profile
   Future<int> duplicateProfile(int sourceId, String newName) async {
     final source = await getProfileById(sourceId);
     if (source == null) {
@@ -210,51 +216,16 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     }
 
     return into(equipmentProfiles).insert(
-      EquipmentProfilesCompanion.insert(
-        name: newName,
-        description: Value(source.description),
-        cameraId: Value(source.cameraId),
-        mountId: Value(source.mountId),
-        focuserId: Value(source.focuserId),
-        filterWheelId: Value(source.filterWheelId),
-        guiderId: Value(source.guiderId),
-        guideCameraId: Value(source.guideCameraId),
-        guideFocalLength: Value(source.guideFocalLength),
-        rotatorId: Value(source.rotatorId),
-        domeId: Value(source.domeId),
-        weatherId: Value(source.weatherId),
-        safetyMonitorId: Value(source.safetyMonitorId),
-        switchId: Value(source.switchId),
-        coverCalibratorId: Value(source.coverCalibratorId),
-        focalLength: Value(source.focalLength),
-        aperture: Value(source.aperture),
-        focalRatio: Value(source.focalRatio),
-        defaultGain: Value(source.defaultGain),
-        defaultOffset: Value(source.defaultOffset),
-        defaultBinX: Value(source.defaultBinX),
-        defaultBinY: Value(source.defaultBinY),
-        defaultCoolingTemp: Value(source.defaultCoolingTemp),
-        coolOnConnect: Value(source.coolOnConnect),
-        defaultCenteringExposure: Value(source.defaultCenteringExposure),
-        filterNames: Value(source.filterNames),
-        filterFocusOffsets: Value(source.filterFocusOffsets),
-        meridianFlipOverrides: Value(source.meridianFlipOverrides),
-        cameraName: Value(source.cameraName),
-        mountName: Value(source.mountName),
-        focuserName: Value(source.focuserName),
-        filterWheelName: Value(source.filterWheelName),
-        guiderName: Value(source.guiderName),
-        guideCameraName: Value(source.guideCameraName),
-        rotatorName: Value(source.rotatorName),
-        safetyMonitorName: Value(source.safetyMonitorName),
-        switchName: Value(source.switchName),
-        telescopeName: Value(source.telescopeName),
-        telescopeFocalLength: Value(source.telescopeFocalLength),
-        telescopeAperture: Value(source.telescopeAperture),
-        profileIcon: Value(source.profileIcon),
-        profileColor: Value(source.profileColor),
-        sortOrder: Value(source.sortOrder),
-      ),
+      source
+          .toCompanion(false)
+          .copyWith(
+            id: const Value.absent(),
+            name: Value(newName),
+            isDefault: const Value(false),
+            isActive: const Value(false),
+            createdAt: const Value.absent(),
+            updatedAt: const Value.absent(),
+          ),
     );
   }
 }

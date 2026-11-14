@@ -1,8 +1,11 @@
+import '../models/imaging/frame_type_record.dart';
 import '../database/daos/targets_dao.dart';
-import 'imaging_records_repository.dart';
 import '../database/database.dart';
 import '../models/campaign_rollup.dart';
+import 'project_tracking_service.dart';
 import 'scheduler/integration_goal_service.dart';
+import '../models/scheduler/integration_goal.dart';
+import '../backend/roles/host_data/imaging_records.dart';
 
 /// Builds a multi-night [CampaignRollup] for one target (Feature B).
 ///
@@ -17,12 +20,12 @@ import 'scheduler/integration_goal_service.dart';
 /// to lowercase internally and surface the most common original-case label
 /// in the rollup so the UI doesn't show 'l' / 'lum' / 'LUM' separately.
 class CampaignRollupService {
-  final ImagingRecordsRepository _records;
+  final ImagingRecords _records;
   final TargetsDao _targetsDao;
   final IntegrationGoalService _goalService;
 
   CampaignRollupService({
-    required ImagingRecordsRepository records,
+    required ImagingRecords records,
     required TargetsDao targetsDao,
     required IntegrationGoalService goalService,
   }) : _records = records,
@@ -33,9 +36,9 @@ class CampaignRollupService {
   /// `SessionReportService.buildReport`.
   Future<CampaignRollup> buildForTarget(
     int targetId, {
-    Iterable<Target>? targetCatalog,
+    Iterable<DbTarget>? targetCatalog,
   }) async {
-    Target? target;
+    DbTarget? target;
     if (targetCatalog != null) {
       for (final candidate in targetCatalog) {
         if (candidate.id == targetId) {
@@ -57,7 +60,7 @@ class CampaignRollupService {
   /// still appear with empty per-filter / per-session lists so the panel
   /// can render "no captures yet" tiles.
   Future<Map<int, CampaignRollup>> buildForAllTargets({
-    Iterable<Target>? targetCatalog,
+    Iterable<DbTarget>? targetCatalog,
   }) async {
     final targets =
         targetCatalog?.toList(growable: false) ??
@@ -69,18 +72,43 @@ class CampaignRollupService {
     return out;
   }
 
-  Future<CampaignRollup> _build(Target target) async {
-    final allSessions = await _records.getSessionsForTarget(target.id);
+  Future<CampaignRollup> _build(DbTarget target) async {
     final imagesForTarget = await _records.getImagesForTarget(target.id);
+    final namingSessions = await _records.getSessionsForTarget(target.id);
+    final sessionIds = targetSessionIds(
+      target.id,
+      frames: imagesForTarget,
+      sessions: namingSessions,
+    );
+    final allSessions = [
+      for (final session in namingSessions)
+        if (sessionIds.contains(session.id)) session,
+    ];
+    for (final id in sessionIds) {
+      if (allSessions.any((s) => s.id == id)) continue;
+      final session = await _records.getSessionById(id);
+      if (session != null) allSessions.add(session);
+    }
     final lightFrames = imagesForTarget
-        .where((i) => i.frameType == 'light' && i.isAccepted)
+        .where((i) => i.isLight)
         .toList(growable: false);
 
-    final filters = _buildFilters(lightFrames, target.id);
-    // Honor goals even when no light frames have been captured yet so the
-    // UI can show a 0% progress bar for the new campaign.
-    await _attachGoalsToFilters(filters, target.id);
+    final accepted = acceptedLightsByFilter(lightFrames);
+    final goals = await _goalService.listForTarget(target.id);
+    final goal = TargetGoal.of(
+      accepted: accepted,
+      goals: goals,
+      oldTotalGoalSecs: target.goalIntegrationSecs,
+    );
+    final filters = _filterRows(accepted, goals);
 
+    final targetSecsBySession = <int, double>{};
+    for (final frame in lightFrames) {
+      final id = frame.sessionId;
+      if (id == null) continue;
+      targetSecsBySession[id] =
+          (targetSecsBySession[id] ?? 0) + frame.exposureDuration;
+    }
     final sessionRefs = allSessions
         .map(
           (s) => CampaignSessionRef(
@@ -89,14 +117,13 @@ class CampaignRollupService {
             startTime: s.startTime,
             endTime: s.endTime,
             status: s.status,
-            sessionIntegrationSecs: s.totalIntegrationSecs,
+            sessionIntegrationSecs: targetSecsBySession[s.id] ?? 0.0,
             avgHfr: s.avgHfr,
             avgGuidingRms: s.avgGuidingRms,
             avgSeeing: s.avgSeeing,
           ),
         )
         .toList(growable: false);
-    // Sorted descending so the most recent session is at the top.
     sessionRefs.sort((a, b) => b.startTime.compareTo(a.startTime));
 
     DateTime? firstAt;
@@ -108,9 +135,9 @@ class CampaignRollupService {
       if (lastAt == null || s.startTime.isAfter(lastAt)) lastAt = s.startTime;
     }
 
-    final totalCapturedSecs = lightFrames.fold<double>(
+    final totalCapturedSecs = filters.fold<double>(
       0.0,
-      (sum, f) => sum + f.exposureDuration,
+      (sum, f) => sum + f.capturedIntegrationSecs,
     );
 
     final hfrInputs = <_WeightedSample>[];
@@ -161,6 +188,8 @@ class CampaignRollupService {
       firstSessionAt: firstAt,
       lastSessionAt: lastAt,
       totalCapturedIntegrationSecs: totalCapturedSecs,
+      allFiltersGoalSecs: goal.allFilters ? goal.goalSecs : null,
+      goalDoneSecs: goal.doneSecs,
       meanSessionHfr: weightedMean(hfrInputs),
       meanSessionSeeing: simpleMean(seeingInputs),
       meanEffectiveImagingFraction: simpleMean(efficiencyInputs) ?? 0.0,
@@ -168,103 +197,58 @@ class CampaignRollupService {
     );
   }
 
-  /// Build the per-filter rollup from accepted light frames; we lowercase
-  /// for grouping but pick the most-frequently-occurring original-case
-  /// label so the UI doesn't show 'L' / 'l' / 'Lum' as separate rows for
-  /// the same filter.
-  List<CampaignFilterRollup> _buildFilters(
-    List<CapturedImage> lightFrames,
-    int targetId,
+  /// One row per goal, holding the share of its filter's accepted time that
+  /// goal counts ([acceptedPerGoal]), then one row per captured filter no goal
+  /// names. A goal with no frames yet still has its row, so the panel shows
+  /// the goal before the first night.
+  List<CampaignFilterRollup> _filterRows(
+    List<FilterIntegration> accepted,
+    List<IntegrationGoal> goals,
   ) {
-    final byLowerFilter = <String, _FilterBucket>{};
-    for (final f in lightFrames) {
-      final raw = (f.filter == null || f.filter!.isEmpty)
-          ? 'Unfiltered'
-          : f.filter!;
-      final key = raw.toLowerCase();
-      final bucket = byLowerFilter.putIfAbsent(key, () => _FilterBucket());
-      bucket.totalFrames++;
-      bucket.totalSecs += f.exposureDuration;
-      bucket.labelCounts[raw] = (bucket.labelCounts[raw] ?? 0) + 1;
-    }
-
-    final out = <CampaignFilterRollup>[];
-    for (final entry in byLowerFilter.entries) {
-      final bucket = entry.value;
-      final label = bucket.pickLabel();
-      out.add(
+    final shares = acceptedPerGoal(accepted, goals);
+    final named = <String>{};
+    final rows = <CampaignFilterRollup>[];
+    for (var i = 0; i < goals.length; i++) {
+      final goal = goals[i];
+      final share = shares[i];
+      // The spelling the frames carry, which also names the unfiltered group.
+      final group = acceptedInGoalFilter(accepted, goal.filter);
+      named.add(group.filter.toLowerCase());
+      rows.add(
         CampaignFilterRollup(
-          filter: label,
-          capturedFrames: bucket.totalFrames,
-          capturedIntegrationSecs: bucket.totalSecs,
-          goalExposureSecs: null,
-          goalFrames: null,
-          meanCapturedExposureSecs: bucket.totalFrames > 0
-              ? bucket.totalSecs / bucket.totalFrames
+          filter: group.filter.trim().isEmpty ? 'Unfiltered' : group.filter,
+          capturedFrames: share.frames,
+          capturedIntegrationSecs: share.seconds,
+          goalExposureSecs: goal.exposureSeconds,
+          goalFrames: goal.frameCount,
+          meanCapturedExposureSecs: group.frames > 0
+              ? group.seconds / group.frames
               : null,
         ),
       );
     }
-    out.sort(
-      (a, b) => a.filter.toLowerCase().compareTo(b.filter.toLowerCase()),
-    );
-    return out;
-  }
-
-  /// Merge integration-goal rows into the per-filter list. Goals that have
-  /// no captured frames yet are appended as zero-frame rows so the panel
-  /// can show the goal even before the first night.
-  Future<void> _attachGoalsToFilters(
-    List<CampaignFilterRollup> filters,
-    int targetId,
-  ) async {
-    final goals = await _goalService.listForTarget(targetId);
-    if (goals.isEmpty) return;
-    final byKey = <String, CampaignFilterRollup>{
-      for (final f in filters) f.filter.toLowerCase(): f,
-    };
-    final merged = <CampaignFilterRollup>[];
-    final consumed = <String>{};
-    // First update existing filter rows in place by replacement.
-    for (final goal in goals) {
-      final key = goal.filter.toLowerCase();
-      final existing = byKey[key];
-      if (existing != null) {
-        merged.add(
-          CampaignFilterRollup(
-            filter: existing.filter,
-            capturedFrames: existing.capturedFrames,
-            capturedIntegrationSecs: existing.capturedIntegrationSecs,
-            goalExposureSecs: goal.exposureSeconds,
-            goalFrames: goal.frameCount,
-            meanCapturedExposureSecs: existing.meanCapturedExposureSecs,
-          ),
-        );
-        consumed.add(key);
-      } else {
-        // Goal exists with no captured frames yet — show a goal-only row.
-        merged.add(
-          CampaignFilterRollup(
-            filter: goal.filter,
-            capturedFrames: 0,
-            capturedIntegrationSecs: 0.0,
-            goalExposureSecs: goal.exposureSeconds,
-            goalFrames: goal.frameCount,
-            meanCapturedExposureSecs: null,
-          ),
-        );
-      }
+    for (final f in accepted) {
+      if (named.contains(f.filter.toLowerCase())) continue;
+      rows.add(
+        CampaignFilterRollup(
+          filter: f.filter,
+          capturedFrames: f.frames,
+          capturedIntegrationSecs: f.seconds,
+          goalExposureSecs: null,
+          goalFrames: null,
+          meanCapturedExposureSecs: f.frames > 0 ? f.seconds / f.frames : null,
+        ),
+      );
     }
-    // Carry through any captured filters with no matching goal.
-    for (final entry in byKey.entries) {
-      if (!consumed.contains(entry.key)) merged.add(entry.value);
-    }
-    merged.sort(
-      (a, b) => a.filter.toLowerCase().compareTo(b.filter.toLowerCase()),
-    );
-    filters
-      ..clear()
-      ..addAll(merged);
+    // Sorted by index so two goals in one filter keep their goal order.
+    final order = List<int>.generate(rows.length, (i) => i)
+      ..sort((a, b) {
+        final byName = rows[a].filter.toLowerCase().compareTo(
+          rows[b].filter.toLowerCase(),
+        );
+        return byName != 0 ? byName : a.compareTo(b);
+      });
+    return [for (final i in order) rows[i]];
   }
 }
 
@@ -273,26 +257,4 @@ class _WeightedSample {
   final double weight;
 
   const _WeightedSample({required this.value, required this.weight});
-}
-
-class _FilterBucket {
-  int totalFrames = 0;
-  double totalSecs = 0.0;
-  final Map<String, int> labelCounts = <String, int>{};
-
-  /// Pick the most common original-case label as the display name; ties
-  /// fall back to alphabetical order for determinism.
-  String pickLabel() {
-    String? best;
-    int bestCount = -1;
-    final keys = labelCounts.keys.toList()..sort();
-    for (final key in keys) {
-      final c = labelCounts[key]!;
-      if (c > bestCount) {
-        bestCount = c;
-        best = key;
-      }
-    }
-    return best ?? 'Unfiltered';
-  }
 }

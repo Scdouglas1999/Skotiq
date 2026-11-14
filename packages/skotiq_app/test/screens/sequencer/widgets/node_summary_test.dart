@@ -16,7 +16,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_summary.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Matcher: the summary contains an [EditableFragment] of [kind] showing
 /// [value]. Matches on the semantic identity (kind + display value) and is
@@ -114,6 +114,19 @@ void main() {
           .where((f) => f.kind == InlineEditKind.gain);
       expect(gainFrags, isEmpty);
       expect(fragments, _hasEditable(InlineEditKind.binning, '3x3'));
+    });
+
+    test(
+        'ExposureNode with a gain names none for a camera without gain '
+        'control', () {
+      final node = ExposureNode(count: 2, durationSecs: 60, gain: 120);
+      final gainFrags = nodeSummary(
+        node,
+        sensitivity: const GainSensitivity(hasGain: false, hasOffset: false),
+      ).whereType<EditableFragment>().where(
+            (f) => f.kind == InlineEditKind.gain,
+          );
+      expect(gainFrags, isEmpty);
     });
 
     test('ExposureNode with fractional duration keeps one decimal', () {

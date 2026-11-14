@@ -2,10 +2,20 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../models/equipment/filter_names.dart';
 import '../../../models/imaging/imaging_models.dart';
+import '../../../models/imaging/naming_pattern.dart';
 import '../../../models/meridian_flip_settings.dart' show TrackingLimitPolicy;
+import '../../../models/sequence/autofocus_run.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../../models/settings/app_settings.dart' show SafetyFailMode;
+import '../../../services/imaging_service.dart' show ImagingService;
+import '../../clock_provider.dart';
+import '../../equipment_provider.dart';
+import '../../imaging_provider.dart' show namingPatternProvider;
+import '../../scheduler_provider.dart' show altitudeFloorProvider;
+import '../../../services/scheduler/horizon_profile.dart'
+    show HorizonProfile, HorizonSample;
 import '../../profiles_provider.dart' show activeEquipmentProfileProvider;
 import '../../frame_watch_settings_provider.dart';
 import '../../focuser_backlash_provider.dart'
@@ -13,6 +23,7 @@ import '../../focuser_backlash_provider.dart'
 import '../../meridian_flip_provider.dart';
 import '../../settings_provider.dart';
 import '../sequencer_defaults.dart';
+import '../../../settings/app_settings_state.g.dart';
 
 /// Translates the Dart sequence model into the JSON the Rust executor loads.
 ///
@@ -63,10 +74,54 @@ class SequenceSerializer {
   final Ref _ref;
   final void Function(String message) _warn;
 
+  /// The plan [sequenceToJson] is sending, for the frame names its steps get.
+  String _sequenceName = 'Sequence';
+  DateTime? _sentAt;
+
+  /// Where a capture step saves its frames: the Settings naming pattern, with
+  /// the step's own values for the tokens the run does not fill in.
+  String _frameSaveTo({
+    required FrameType frameType,
+    required int? gain,
+    required int? offset,
+    required BinningMode binning,
+  }) {
+    final camera = _ref.read(cameraStateProvider);
+    return ImagingService.runFrameSaveTemplate(
+      _ref.read(namingPatternProvider).pattern,
+      NamingStep(
+        frameType: frameType,
+        gain: gain ?? camera.gain ?? 0,
+        offset: offset ?? camera.offset ?? 0,
+        binX: binning.factor,
+        binY: binning.factor,
+        camera: camera.deviceName,
+        telescope: _ref.read(mountStateProvider).deviceName,
+        sequence: _sequenceName,
+        session: _sentAt ?? _ref.read(clockProvider).nowUtc(),
+      ),
+    );
+  }
+
+  /// The effective floor, including learned obstructions at sites that have
+  /// no imported or manually drawn horizon.
+  HorizonProfile _siteHorizonMask() {
+    final floor = _ref.read(altitudeFloorProvider);
+    return HorizonProfile(
+      name: 'Site altitude floor',
+      samples: [
+        for (final sample in floor.denseSamples())
+          HorizonSample(sample.azimuth, sample.altitude),
+      ],
+    );
+  }
+
   /// The run's native tree. With [deferShutdownWarmUp], the Warm Camera
   /// steps that close the plan are marked for end-of-night calibration to
   /// take over, so the camera stays at its set-point for the darks.
   String sequenceToJson(Sequence sequence, {bool deferShutdownWarmUp = false}) {
+    _sequenceName = sequence.name;
+    _sentAt = _ref.read(clockProvider).nowUtc();
     final deferredWarmUps = deferShutdownWarmUp
         ? shutdownWarmUpIds(sequence)
         : const <String>{};
@@ -152,7 +207,7 @@ class SequenceSerializer {
             'name': 'Autofocus (auto, post filter change)',
             'node_type': autofocusRuntimeConfig(
               autofocusSettings,
-              maxDurationSecs: 600,
+              AutofocusRun.fromSettings(autofocusSettings),
             ),
             'enabled': true,
             'children': const <String>[],
@@ -194,6 +249,10 @@ class SequenceSerializer {
       'autofocus_every_minutes': autoFocusEveryMinutes.toString(),
       'autofocus_on_filter_change': autoFocusOnFilterChange.toString(),
       'frame_watch': _frameWatchMetadata(),
+      if (appSettings != null && appSettings.tempCompensation)
+        'temperature_compensation': _temperatureCompensationMetadata(
+          appSettings,
+        ),
     };
 
     return jsonEncode({
@@ -206,6 +265,19 @@ class SequenceSerializer {
     });
   }
 
+  /// The operator's temperature compensation, as the JSON string the native
+  /// executor reads from `metadata["temperature_compensation"]`. During a run
+  /// the executor applies it before each light frame and
+  /// `focuserTempCompensationProvider` stands down, so one compensator works
+  /// the focuser at a time, on the same settings.
+  String _temperatureCompensationMetadata(AppSettingsState settings) =>
+      jsonEncode({
+        'steps_per_degree': settings.tempCoefficient,
+        'min_steps': AppSettingDefs.tempCompensationMinSteps.clean(
+          settings.tempCompensationMinSteps,
+        ),
+      });
+
   /// The frame watch's settings for this run, as the JSON string the native
   /// executor reads from `metadata["frame_watch"]`: the drift limit, whether
   /// obstruction detection runs, and the obstructions learned at the current
@@ -213,7 +285,7 @@ class SequenceSerializer {
   String _frameWatchMetadata() {
     final settings =
         _ref.read(frameWatchSettingsProvider).valueOrNull ??
-        const FrameWatchSettings();
+        FrameWatchSettings.initial;
     final site = _ref.read(appObserverLocationProvider);
     return jsonEncode(
       settings.sequenceMetadata(
@@ -223,19 +295,20 @@ class SequenceSerializer {
     );
   }
 
+  /// The executor's config for [run], with the rest of its settings (filter,
+  /// binning, crop, backlash) from the Autofocus [settings].
   Map<String, dynamic> autofocusRuntimeConfig(
-    AutofocusSettings settings, {
-    AutofocusNode? nodeOverrides,
-    required double maxDurationSecs,
-  }) {
-    final useGlobalBasics = nodeOverrides == null;
-    final method = useGlobalBasics
+    AutofocusSettings settings,
+    AutofocusRun run,
+  ) {
+    final nodeMethod = run.method;
+    final method = nodeMethod == null
         ? switch (settings.curveFitting.trim().toLowerCase()) {
             'hyperbolic' => 'Hyperbolic',
             'parabolic' || 'quadratic' => 'Quadratic',
             _ => 'VCurve',
           }
-        : _autofocusMethodToString(nodeOverrides.method);
+        : _autofocusMethodToString(nodeMethod);
     final backlashEnabled = !settings.backlashCompMethod
         .trim()
         .toLowerCase()
@@ -244,13 +317,9 @@ class SequenceSerializer {
     return {
       'type': 'Autofocus',
       'method': method,
-      'step_size': useGlobalBasics ? settings.stepSize : nodeOverrides.stepSize,
-      'steps_out': useGlobalBasics
-          ? settings.initialOffsetSteps
-          : nodeOverrides.stepsOut,
-      'exposure_duration': useGlobalBasics
-          ? settings.exposureTime
-          : nodeOverrides.exposureDuration,
+      'step_size': run.stepSize,
+      'steps_out': run.stepsOut,
+      'exposure_duration': run.exposureSecs,
       'filter': settings.autofocusFilterName.trim().isEmpty
           ? null
           : settings.autofocusFilterName.trim(),
@@ -265,9 +334,7 @@ class SequenceSerializer {
       ),
       'binning': _autofocusBinningToString(settings.binning),
       'number_of_attempts': settings.numberOfAttempts,
-      'exposures_per_point': useGlobalBasics
-          ? settings.exposuresPerPoint
-          : nodeOverrides.exposuresPerPoint,
+      'exposures_per_point': run.exposuresPerPoint,
       'r_squared_threshold': settings.rSquaredThreshold,
       'failure_hfr_tolerance_ratio': settings.failureHfrToleranceRatio,
       'outer_crop_ratio': settings.outerCropRatio,
@@ -285,7 +352,7 @@ class SequenceSerializer {
       // typed into `backlash_compensation` still outranks this one.
       'measured_backlash_in': _ref.read(measuredFocuserBacklashStepsProvider),
       'disable_guiding_during_af': settings.disableGuidingDuringAf,
-      'max_duration_secs': maxDurationSecs,
+      'max_duration_secs': run.maxDurationSecs,
     };
   }
 
@@ -329,11 +396,8 @@ class SequenceSerializer {
       );
       return null;
     }
-    for (int i = 0; i < filterNames.length; i++) {
-      if (filterNames[i].toLowerCase() == filterName.toLowerCase()) {
-        return i;
-      }
-    }
+    final index = matchingFilterIndex(filterName, filterNames);
+    if (index != null) return index;
     _surfaceFilterLookupWarning(
       'Filter "$filterName" not found in active profile '
       '(available: ${filterNames.join(", ")}); node will use the literal '
@@ -371,7 +435,7 @@ class SequenceSerializer {
           // FITS IMAGETYP-style frame type. Omitting this stamped every
           // sequencer capture "Light" — sequenced darks/flats/bias were
           // mislabeled on disk, star-graded (and rejected), and dithered.
-          'frame_type': _frameTypeToWire(n.frameType),
+          'frame_type': n.frameType.imageType,
           'filter': n.filter,
           'filter_index': filterIndex,
           'gain': n.gain,
@@ -383,11 +447,16 @@ class SequenceSerializer {
           'dither_settle_time': defaults.ditherSettleTime,
           'dither_settle_timeout': defaults.ditherSettleTimeout,
           'dither_ra_only': defaults.ditherRaOnly,
-          'save_to': null,
+          'save_to': _frameSaveTo(
+            frameType: n.frameType,
+            gain: n.gain,
+            offset: n.offset,
+            binning: n.binning,
+          ),
           'triggers': n.triggers,
           // Per-node sky-brightness adaptive exposure
-          // override. `null` => use the global default pushed via
-          // `sequencerUpdateDefaultAdaptiveExposure`. The Rust JSON
+          // override. `null` => use the global default the run
+          // configuration carries. The Rust JSON
           // schema uses `serde(default)` so omitting the key is fine,
           // but emitting it explicitly keeps the wire shape visible
           // and the downstream tests reproducible.
@@ -430,8 +499,7 @@ class SequenceSerializer {
         final settings = _ref.read(autofocusSettingsProvider);
         return autofocusRuntimeConfig(
           settings,
-          nodeOverrides: n.useSettingsDefaults ? null : n,
-          maxDurationSecs: n.maxDurationSecs,
+          AutofocusRun.ofNode(settings, n),
         );
       case DitherNode n:
         return {
@@ -605,6 +673,13 @@ class SequenceSerializer {
           'iterations': n.repeatCount,
           'condition': _loopConditionToString(n.conditionType),
           'condition_value': conditionValue,
+          if (n.conditionType == LoopConditionType.untilAltitude ||
+              n.conditionType == LoopConditionType.altitudeAbove)
+            'horizon_profile': {
+              'samples': _siteHorizonMask().samples
+                  .map((s) => s.toJson())
+                  .toList(),
+            },
         };
       case ParallelNode n:
         return {'type': 'Parallel', 'required_successes': n.requiredSuccesses};
@@ -724,15 +799,12 @@ class SequenceSerializer {
           'swap_hysteresis_secs': n.swapHysteresisSecs,
           'brightness_tier_preferences': n.brightnessTierPreferences.toJson(),
           'max_conditions_score_age_secs': n.maxConditionsScoreAgeSecs,
-          // Azimuth-dependent site-horizon mask. The Rust `horizon_profile`
-          // config takes the samples-only shape; null => no mask (flat floor).
-          'horizon_profile': n.horizonProfile == null
-              ? null
-              : {
-                  'samples': n.horizonProfile!.samples
-                      .map((s) => s.toJson())
-                      .toList(),
-                },
+          // Explicit node masks take precedence over the site's effective floor.
+          'horizon_profile': {
+            'samples': (n.horizonProfile ?? _siteHorizonMask()).samples
+                .map((s) => s.toJson())
+                .toList(),
+          },
         };
       // Science: SciencePhotometry — cadence-enforced photometric capture.
       case SciencePhotometryNode n:
@@ -756,6 +828,12 @@ class SequenceSerializer {
                 'offset': p.offset,
                 'binning': _binningToString(p.binning),
                 'dither_every': p.ditherEvery,
+                'save_to': _frameSaveTo(
+                  frameType: FrameType.light,
+                  gain: p.gain,
+                  offset: p.offset,
+                  binning: p.binning,
+                ),
                 // Rust `FilterPlan::depth_goal` is `#[serde(default)]`: an
                 // unbound plan sends nothing rather than an explicit null,
                 // so pre-feature documents and executors stay identical.
@@ -804,8 +882,6 @@ class SequenceSerializer {
           'stack_method': n.stackMethod.storageKey,
           'max_frames_to_stack': n.maxFramesToStack,
           'broadcast_enabled': n.broadcastEnabled,
-          'broadcast_port': n.broadcastPort,
-          'broadcast_path': n.broadcastPath,
           'auth_token': n.authToken,
           'watermark_text': n.watermarkText,
           'thumbnail_width': n.thumbnailWidth,
@@ -938,18 +1014,6 @@ class SequenceSerializer {
         return 'AbortAndPark';
     }
   }
-
-  /// Wire form of [FrameType] for the Rust `ExposureConfig.frame_type`
-  /// field — PascalCase because it lands verbatim in the FITS `IMAGETYP`
-  /// keyword via `FrameContext.frame_type`.
-  String _frameTypeToWire(FrameType type) => switch (type) {
-    FrameType.light => 'Light',
-    FrameType.dark => 'Dark',
-    FrameType.flat => 'Flat',
-    FrameType.bias => 'Bias',
-    FrameType.darkFlat => 'DarkFlat',
-    FrameType.snapshot => 'Snapshot',
-  };
 
   String _binningToString(BinningMode binning) {
     switch (binning) {

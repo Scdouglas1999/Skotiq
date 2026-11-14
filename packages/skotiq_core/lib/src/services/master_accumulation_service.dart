@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../database/daos/integrated_masters_dao.dart';
 import '../database/database.dart';
+import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_settings.dart';
 import '../providers/dark_library_provider.dart';
+import 'calibration/calibration_selection.dart';
 import 'dark_library_service.dart';
 import 'flat_library_service.dart';
 import 'logging_service.dart';
@@ -118,7 +119,7 @@ class MasterAccumulationService {
   /// Writes the sidecar at [sidecarPath] and inserts the `integrated_masters`
   /// row in status `accumulating`. Returns the new master id.
   Future<int> createMaster({
-    required CapturedImage referenceSub,
+    required DbCapturedImage referenceSub,
     required String sidecarPath,
     IntegrationSettings settings = IntegrationSettings.defaults,
     int? targetId,
@@ -175,7 +176,7 @@ class MasterAccumulationService {
   /// [ArgumentError] when [subs] is empty.
   Future<MasterAccumulateResult> addNight({
     required int masterId,
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     required String label,
     IntegrationSettings settings = IntegrationSettings.defaults,
     String? biasPath,
@@ -309,7 +310,7 @@ class MasterAccumulationService {
   Future<MasterAccumulateResult> _supersedeRetiredMaster({
     required IntegratedMaster retired,
     required String sidecar,
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     required String label,
     required IntegrationSettings settings,
     String? biasPath,
@@ -493,40 +494,38 @@ class MasterAccumulationService {
   }
 
   Future<Map<String, dynamic>> _resolveCalibration({
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     String? filter,
     String? biasPath,
     required bool cosmeticCorrection,
   }) async {
     final anchor = subs.first;
-    final gain = anchor.gain ?? 0;
-    final offset = anchor.offset ?? 0;
-    final binX = anchor.binX;
-    final binY = anchor.binY;
-    final temperature = anchor.sensorTemp;
     final matchFilter = (filter != null && filter.trim().isNotEmpty)
         ? filter.trim()
         : anchor.filter;
 
     final dark = await _darkLibrary.findMatchingDark(
       exposureTime: anchor.exposureDuration,
-      gain: gain,
-      offset: offset,
-      binX: binX,
-      binY: binY,
-      temperature: temperature,
+      gain: anchor.gain,
+      offset: anchor.offset,
+      binX: anchor.binX,
+      binY: anchor.binY,
+      temperature: anchor.sensorTemp,
       tolerances: _darkTolerances,
     );
     final flat = await _flatLibrary.findBestMatch(
-      filter: matchFilter,
-      gain: gain,
-      offset: offset,
-      binX: binX,
-      binY: binY,
-      temperature: temperature,
+      LightFrameContext(
+        gain: anchor.gain,
+        offset: anchor.offset,
+        exposureSeconds: anchor.exposureDuration,
+        temperature: anchor.sensorTemp,
+        filter: matchFilter,
+        binX: anchor.binX,
+        binY: anchor.binY,
+      ),
     );
 
-    final darkPath = dark?.masterDarkPath ?? dark?.filePath;
+    final darkPath = dark?.calibrationPath;
     return {
       if (darkPath != null) 'dark': darkPath,
       if (flat != null) 'flat': flat.filePath,
@@ -545,17 +544,3 @@ class MasterAccumulationService {
     return f != null ? '$base · $f' : base;
   }
 }
-
-/// Provider for the [MasterAccumulationService].
-final masterAccumulationServiceProvider = Provider<MasterAccumulationService>((
-  ref,
-) {
-  return MasterAccumulationService(
-    mastersDao: ref.watch(integratedMastersDaoProvider),
-    darkLibrary: ref.watch(darkLibraryServiceProvider),
-    flatLibrary: ref.watch(flatLibraryServiceProvider),
-    seam: ref.watch(postSessionSeamProvider),
-    darkTolerances: ref.watch(darkLibraryMatchTolerancesProvider),
-    logger: ref.watch(loggingServiceProvider),
-  );
-});

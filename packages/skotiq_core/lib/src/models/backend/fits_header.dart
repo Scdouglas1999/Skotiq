@@ -1,31 +1,51 @@
-/// FITS file header data for image saving.
+/// What the caller of a manual capture knows about the frame it saves: what
+/// it was told to take, who and where the observer is, and which devices make
+/// up the rig.
 ///
-/// This class contains all metadata needed to write a FITS file header.
-/// It mirrors the Rust FitsWriteHeader struct but is a pure Dart type.
+/// Everything the devices know (pointing, pier side, focuser, rotator,
+/// temperatures, guiding, pixel size, the exposure the camera recorded) is
+/// read from them by the host when the frame is saved, the same way and at
+/// the same moment as for a sequence's frame, so the two carry the same
+/// header apart from the cards that tie a frame to a run.
 class FitsWriteHeader {
   final String? objectName;
+
+  /// Seconds the exposure was commanded for.
   final double exposureTime;
+
+  /// When the exposure started, UTC ISO-8601, as the caller recorded it. The
+  /// host's image view and the database row use it; `DATE-OBS` is the camera
+  /// layer's own record of the same instant.
   final String captureTimestamp;
   final String frameType;
+
+  /// The filter the capture was set to. Null records the one the wheel
+  /// reports.
   final String? filter;
+
+  /// Commanded gain and offset, for a camera that does not report its own.
   final int? gain;
   final int? offset;
-  final double? ccdTemp;
-  final double? ra;
-  final double? dec;
-  final double? altitude;
-  final String? telescope;
-  final String? instrument;
-  final String? observer;
   final int? binX;
   final int? binY;
+  final String? telescope;
+
+  /// The camera as the equipment profile names it. Null records the
+  /// driver's model name.
+  final String? instrument;
+  final String? observer;
   final double? focalLength;
   final double? aperture;
-  final double? pixelSizeX;
-  final double? pixelSizeY;
   final double? siteLatitude;
   final double? siteLongitude;
   final double? siteElevation;
+
+  /// The rig's devices. The host reads each one when it saves the frame; a
+  /// null id, or a device that is not connected, leaves its cards out.
+  final String? mountId;
+  final String? focuserId;
+  final String? filterWheelId;
+  final String? rotatorId;
 
   const FitsWriteHeader({
     this.objectName,
@@ -35,25 +55,22 @@ class FitsWriteHeader {
     this.filter,
     this.gain,
     this.offset,
-    this.ccdTemp,
-    this.ra,
-    this.dec,
-    this.altitude,
+    this.binX,
+    this.binY,
     this.telescope,
     this.instrument,
     this.observer,
-    this.binX,
-    this.binY,
     this.focalLength,
     this.aperture,
-    this.pixelSizeX,
-    this.pixelSizeY,
     this.siteLatitude,
     this.siteLongitude,
     this.siteElevation,
+    this.mountId,
+    this.focuserId,
+    this.filterWheelId,
+    this.rotatorId,
   });
 
-  /// Create from JSON (for network transport)
   factory FitsWriteHeader.fromJson(Map<String, dynamic> json) {
     return FitsWriteHeader(
       objectName: json['objectName'] as String?,
@@ -63,26 +80,23 @@ class FitsWriteHeader {
       filter: json['filter'] as String?,
       gain: json['gain'] as int?,
       offset: json['offset'] as int?,
-      ccdTemp: (json['ccdTemp'] as num?)?.toDouble(),
-      ra: (json['ra'] as num?)?.toDouble(),
-      dec: (json['dec'] as num?)?.toDouble(),
-      altitude: (json['altitude'] as num?)?.toDouble(),
+      binX: json['binX'] as int?,
+      binY: json['binY'] as int?,
       telescope: json['telescope'] as String?,
       instrument: json['instrument'] as String?,
       observer: json['observer'] as String?,
-      binX: json['binX'] as int?,
-      binY: json['binY'] as int?,
       focalLength: (json['focalLength'] as num?)?.toDouble(),
       aperture: (json['aperture'] as num?)?.toDouble(),
-      pixelSizeX: (json['pixelSizeX'] as num?)?.toDouble(),
-      pixelSizeY: (json['pixelSizeY'] as num?)?.toDouble(),
       siteLatitude: (json['siteLatitude'] as num?)?.toDouble(),
       siteLongitude: (json['siteLongitude'] as num?)?.toDouble(),
       siteElevation: (json['siteElevation'] as num?)?.toDouble(),
+      mountId: json['mountId'] as String?,
+      focuserId: json['focuserId'] as String?,
+      filterWheelId: json['filterWheelId'] as String?,
+      rotatorId: json['rotatorId'] as String?,
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'objectName': objectName,
     'exposureTime': exposureTime,
@@ -91,21 +105,19 @@ class FitsWriteHeader {
     'filter': filter,
     'gain': gain,
     'offset': offset,
-    'ccdTemp': ccdTemp,
-    'ra': ra,
-    'dec': dec,
-    'altitude': altitude,
+    'binX': binX,
+    'binY': binY,
     'telescope': telescope,
     'instrument': instrument,
     'observer': observer,
-    'binX': binX,
-    'binY': binY,
     'focalLength': focalLength,
     'aperture': aperture,
-    'pixelSizeX': pixelSizeX,
-    'pixelSizeY': pixelSizeY,
     'siteLatitude': siteLatitude,
     'siteLongitude': siteLongitude,
     'siteElevation': siteElevation,
+    'mountId': mountId,
+    'focuserId': focuserId,
+    'filterWheelId': filterWheelId,
+    'rotatorId': rotatorId,
   };
 }

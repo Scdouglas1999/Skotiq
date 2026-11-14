@@ -20,7 +20,7 @@
 //! trigger-state updates, HFR baseline propagation, and FITS-save error
 //! routing. Re-implementing any of that here would inevitably diverge.
 //! Instead, SmartExposure constructs the matching `NodeType` variant per
-//! plan row and dispatches through [`InstructionRegistry::build`] just like
+//! plan row and runs the same instruction node as
 //! the executor would for a hand-authored sequence. Each delegated child
 //! sees the same `ExecutionContext`, so its progress events, trigger
 //! updates, and integration accounting are indistinguishable from the
@@ -51,11 +51,14 @@
 use crate::depth_goal::DepthGoalVerdict;
 use crate::executor::ExecutorEvent;
 use crate::node::context::ExecutionContext;
+use crate::node::instructions::{
+    change_filter::ChangeFilterInstruction, dither::DitherInstruction, expose::ExposeInstruction,
+};
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
-use crate::node::registry::{registry, InstructionNode};
+use crate::node::registry::InstructionNode;
 use crate::{
-    smart_exposure_checkpoint_key, DitherConfig, ExposureConfig, FilterConfig, FilterPlan,
-    NodeStatus, NodeType, SmartExposureCheckpoint, SmartExposureConfig,
+    DitherConfig, ExposureConfig, FilterConfig, FilterPlan, NodeStatus, NodeType,
+    SmartExposureCheckpoint, SmartExposureConfig,
 };
 use async_trait::async_trait;
 use std::collections::HashSet;
@@ -64,10 +67,6 @@ pub struct SmartExposureInstruction;
 
 #[async_trait]
 impl InstructionNode for SmartExposureInstruction {
-    fn type_name(&self) -> &'static str {
-        "Smart Exposure"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -91,6 +90,7 @@ impl InstructionNode for SmartExposureInstruction {
             .iter()
             .any(|plan| plan.dither_every.is_some_and(|every| every > 0));
         let cadence_state = context
+            .run
             .trigger_state
             .clone()
             .filter(|_| owns_dither_cadence);
@@ -646,7 +646,7 @@ fn refresh_depth_completions(
                 state
                     .depth_completed
                     .insert(binding.goal_id.clone(), binding.revision);
-                if let Some(event_tx) = &context.event_tx {
+                if let Some(event_tx) = &context.run.event_tx {
                     // A closed receiver only means no subscriber; the log line
                     // above is the durable record.
                     let _ = event_tx.send(ExecutorEvent::DepthGoalCompleted {
@@ -706,7 +706,7 @@ fn warn_depth_unavailable(
         reason
     );
     tracing::warn!("SmartExposure '{}': {}", node_id, message);
-    if let Some(event_tx) = &context.event_tx {
+    if let Some(event_tx) = &context.run.event_tx {
         let _ = event_tx.send(ExecutorEvent::Warning { message });
     }
 }
@@ -729,15 +729,8 @@ async fn run_filter_change(
         filter_index: plan.filter_index,
         timeout_secs: None,
     });
-    let Some(instruction) = registry().build(&filter_node_type) else {
-        tracing::error!(
-            "SmartExposure '{}': InstructionRegistry returned None for ChangeFilter; \
-             cannot proceed (registry bug)",
-            node_id
-        );
-        return NodeStatus::Failure;
-    };
-    instruction
+
+    ChangeFilterInstruction
         .execute(node_id, &filter_node_type, context)
         .await
 }
@@ -766,14 +759,8 @@ async fn run_dither(
     // and adding them would inflate the per-row editor. Users who need
     // bespoke settle parameters can author an explicit DitherNode.
     let dither_node_type = NodeType::Dither(DitherConfig::default());
-    let Some(instruction) = registry().build(&dither_node_type) else {
-        tracing::error!(
-            "SmartExposure '{}': InstructionRegistry returned None for Dither",
-            node_id
-        );
-        return NodeStatus::Failure;
-    };
-    instruction
+
+    DitherInstruction
         .execute(node_id, &dither_node_type, context)
         .await
 }
@@ -785,15 +772,8 @@ async fn run_exposure_burst(
     context: &mut ExecutionContext,
 ) -> NodeStatus {
     let exposure_node_type = NodeType::TakeExposure(build_exposure_config(plan, batch_size));
-    let Some(instruction) = registry().build(&exposure_node_type) else {
-        tracing::error!(
-            "SmartExposure '{}': InstructionRegistry returned None for TakeExposure; \
-             cannot proceed (registry bug)",
-            node_id
-        );
-        return NodeStatus::Failure;
-    };
-    instruction
+
+    ExposeInstruction
         .execute(node_id, &exposure_node_type, context)
         .await
 }
@@ -814,6 +794,7 @@ fn build_exposure_config(plan: &FilterPlan, batch_size: u32) -> ExposureConfig {
         // The node owns the plan's dither cadence (see `execute`); a burst
         // counting its own frames would dither on the wrong frames.
         dither_every: None,
+        save_to: plan.save_to.clone(),
         ..ExposureConfig::default()
     }
 }
@@ -895,21 +876,12 @@ async fn save_checkpoint(
     let mut states = context.smart_exposure_states.write().await;
     states.insert(node_id.to_string(), state.clone());
     drop(states);
-
-    // Stable key for future cross-process persistence: when the executor
-    // plumbs a `CheckpointManager` through ExecutionContext, this is the
-    // key under which the JSON-serialized state would land in
-    // `SessionCheckpoint::wizard_states`. Computed here so the format is
-    // centralized in one place.
-    let _ = smart_exposure_checkpoint_key(&node_id.to_string());
 }
 
 async fn clear_checkpoint(node_id: &str, context: &ExecutionContext) {
     let mut states = context.smart_exposure_states.write().await;
     states.remove(node_id);
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {
@@ -1030,8 +1002,10 @@ mod tests {
             binning: Binning::Two,
             dither_every: Some(2),
             depth_goal: None,
+            save_to: Some("${filter}/${frame:04}".into()),
         };
         let cfg = build_exposure_config(&p, 2);
+        assert_eq!(cfg.save_to.as_deref(), Some("${filter}/${frame:04}"));
         assert_eq!(cfg.duration_secs, 300.0);
         // The burst takes batch_size frames, not the plan total
         assert_eq!(cfg.count, 2);
@@ -1128,14 +1102,6 @@ mod tests {
         state.per_filter_completed.insert("L".into(), 1);
         state.current_plan_index = 1;
         assert_eq!(next_plan(&cfg, &state), Some(1));
-    }
-
-    #[test]
-    fn checkpoint_key_namespacing_is_per_node() {
-        let k1 = smart_exposure_checkpoint_key(&"node_a".to_string());
-        let k2 = smart_exposure_checkpoint_key(&"node_b".to_string());
-        assert_ne!(k1, k2);
-        assert!(k1.starts_with("smart_exposure:"));
     }
 
     #[test]

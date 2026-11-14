@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 /// Sort options for the Progress tab. Persisted via [_progressSortProvider]
 /// so a user's preference survives flipping back and forth between tabs.
@@ -255,7 +258,7 @@ class _ProgressRow extends StatelessWidget {
     final etaLabel = _formatEta(progress.estimatedNightsRemaining);
     final lastImagedLabel = _formatLastImaged(progress.lastImagedAt);
     final integrationLabel =
-        '${_formatHours(progress.totalIntegrationCaptured)} / ${_formatHours(progress.totalIntegrationGoal)}';
+        '${DurationFormat.decimalHours(progress.totalIntegrationCaptured.inSeconds)} / ${DurationFormat.decimalHours(progress.totalIntegrationGoal.inSeconds)}';
     final framesLabel =
         '${progress.totalCapturedFrames} / ${progress.totalGoalFrames}';
 
@@ -424,13 +427,6 @@ class _ProgressRow extends StatelessWidget {
     if (nights <= 0) return 'tonight';
     if (nights == 1) return '1 night ago';
     return '$nights nights ago';
-  }
-
-  String _formatHours(Duration d) {
-    final hours = d.inSeconds / 3600.0;
-    if (hours < 0.05) return '0h';
-    if (hours < 10) return '${hours.toStringAsFixed(1)}h';
-    return '${hours.toStringAsFixed(0)}h';
   }
 }
 
@@ -667,7 +663,7 @@ class _ProgressErrorState extends StatelessWidget {
             ),
             const SizedBox(height: SkotiqTokens.spaceSm),
             Text(
-              error.toString(),
+              userFacingError(error),
               textAlign: TextAlign.center,
               style: SkotiqTypography.caption
                   .copyWith(color: colors.textSecondary),

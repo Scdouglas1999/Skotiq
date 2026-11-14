@@ -1,17 +1,21 @@
-import 'dart:convert';
-
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/hardware/hardware_preset_picker_dialog.dart';
 import '../../../widgets/help/field_help_label.dart';
+import '../../../widgets/sensitivity_field.dart';
 import '../utils/profile_save_errors.dart';
 import '../../../utils/count_label.dart';
+import '../../../utils/device_format_utils.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'profile_editor_dialog/profile_data_operations.dart';
 part 'profile_editor_dialog/shell_and_identity.dart';
@@ -46,7 +50,6 @@ abstract final class ProfileEditorField {
   static const centeringExposure = 'centeringExposure';
 }
 
-/// How the editor is presented.
 enum ProfileEditorMode {
   /// The whole editor, as a dialog (desktop) or a full-screen route (phone).
   full,
@@ -69,7 +72,6 @@ class ProfileEditorDialog extends ConsumerStatefulWidget {
   /// The profile to edit, or null to create a new profile.
   final EquipmentProfileModel? profile;
 
-  /// Which slice of the editor to present. See [ProfileEditorMode].
   final ProfileEditorMode mode;
 
   const ProfileEditorDialog({
@@ -134,7 +136,6 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
     setState(() => _fieldErrors.remove(field));
   }
 
-  // Track which sections are expanded
   final Map<String, bool> _expandedSections = {
     'identity': true,
     'optical': true,
@@ -143,8 +144,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
     'camera': true,
   };
 
-  // Section 1: Profile Identity
   final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
   String _selectedIcon = '';
   Color? _selectedColor;
   bool _isDefault = false;
@@ -168,7 +169,6 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   final _reducerController = TextEditingController();
   final _apertureController = TextEditingController();
 
-  // Section 3: Devices
   final _cameraNameController = TextEditingController();
   final _mountNameController = TextEditingController();
   final _focuserNameController = TextEditingController();
@@ -195,10 +195,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   String? _switchId;
   String? _coverCalibratorId;
 
-  // Section 4: Filters (dynamic list)
   final List<_FilterControllerPair> _filterControllers = [];
 
-  // Section 5: Camera Defaults
   final _gainController = TextEditingController();
   final _offsetController = TextEditingController();
   int _binning = 1;
@@ -212,7 +210,6 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   CameraRecommendedSettings? _recommendedSettings;
   bool _isQueryingRecommendation = false;
 
-  // Available icons for profile customization
   static const List<String> _availableIcons = [
     '',
     '\u{1F52D}', // Telescope emoji
@@ -226,7 +223,6 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
     '\u{1F7E1}', // Yellow circle
   ];
 
-  // Available accent colors
   static const List<Color> _accentColors = [
     EquipmentProfileColors.defaultProfile, // Cyan-blue (default)
     EquipmentProfileColors.sky, // Sky
@@ -259,6 +255,7 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   /// on its own against the stored profile.
   String _formSignature() => <Object?>[
         _nameController.text,
+        _descriptionController.text,
         _selectedIcon,
         _selectedColor?.toARGB32(),
         _telescopeNameController.text,
@@ -308,6 +305,7 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   /// The text fields whose edits change [_hasUnsavedChanges].
   Listenable get _formListenable => Listenable.merge(<Listenable>[
         _nameController,
+        _descriptionController,
         _telescopeNameController,
         _focalLengthController,
         _reducerController,
@@ -339,8 +337,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   void _initializeFromProfile() {
     final profile = widget.profile;
     if (profile != null) {
-      // Section 1: Identity
       _nameController.text = profile.name;
+      _descriptionController.text = profile.description ?? '';
       _selectedIcon = profile.profileIcon ?? '';
       _selectedColor =
           profile.profileColor != null ? Color(profile.profileColor!) : null;
@@ -376,7 +374,6 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
         _apertureController.text = profile.aperture.toString();
       }
 
-      // Section 3: Devices
       _cameraId = profile.cameraId;
       _cameraNameController.text = profile.cameraName ?? '';
       _mountId = profile.mountId;
@@ -405,7 +402,6 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
       _switchNameController.text = profile.switchName ?? '';
       _coverCalibratorId = profile.coverCalibratorId;
 
-      // Section 4: Filters
       for (int i = 0; i < profile.filterNames.length; i++) {
         final offset = profile.filterFocusOffsets[profile.filterNames[i]] ?? 0;
         _filterControllers.add(_FilterControllerPair(
@@ -414,7 +410,6 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
         ));
       }
 
-      // Section 5: Camera Defaults
       if (profile.defaultGain != null) {
         _gainController.text = profile.defaultGain!.toString();
       }
@@ -436,6 +431,7 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   @override
   void dispose() {
     _nameController.dispose();
+    _descriptionController.dispose();
     _telescopeNameController.dispose();
     _focalLengthController.dispose();
     _reducerController.dispose();

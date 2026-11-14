@@ -55,7 +55,7 @@ extension SafetyEventPatterns on SafetyEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SafetyEvent_WeatherUnsafe value)?  weatherUnsafe,TResult Function( SafetyEvent_WeatherSafe value)?  weatherSafe,TResult Function( SafetyEvent_EmergencyStop value)?  emergencyStop,TResult Function( SafetyEvent_ParkInitiated value)?  parkInitiated,TResult Function( SafetyEvent_ParkCompleted value)?  parkCompleted,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SafetyEvent_WeatherUnsafe value)?  weatherUnsafe,TResult Function( SafetyEvent_WeatherSafe value)?  weatherSafe,TResult Function( SafetyEvent_EmergencyStop value)?  emergencyStop,TResult Function( SafetyEvent_ParkInitiated value)?  parkInitiated,TResult Function( SafetyEvent_ParkCompleted value)?  parkCompleted,TResult Function( SafetyEvent_MountMotionFault value)?  mountMotionFault,TResult Function( SafetyEvent_MountPositionUnknown value)?  mountPositionUnknown,TResult Function( SafetyEvent_MountGuardCleared value)?  mountGuardCleared,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case SafetyEvent_WeatherUnsafe() when weatherUnsafe != null:
@@ -63,7 +63,10 @@ return weatherUnsafe(_that);case SafetyEvent_WeatherSafe() when weatherSafe != n
 return weatherSafe(_that);case SafetyEvent_EmergencyStop() when emergencyStop != null:
 return emergencyStop(_that);case SafetyEvent_ParkInitiated() when parkInitiated != null:
 return parkInitiated(_that);case SafetyEvent_ParkCompleted() when parkCompleted != null:
-return parkCompleted(_that);case _:
+return parkCompleted(_that);case SafetyEvent_MountMotionFault() when mountMotionFault != null:
+return mountMotionFault(_that);case SafetyEvent_MountPositionUnknown() when mountPositionUnknown != null:
+return mountPositionUnknown(_that);case SafetyEvent_MountGuardCleared() when mountGuardCleared != null:
+return mountGuardCleared(_that);case _:
   return orElse();
 
 }
@@ -81,7 +84,7 @@ return parkCompleted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SafetyEvent_WeatherUnsafe value)  weatherUnsafe,required TResult Function( SafetyEvent_WeatherSafe value)  weatherSafe,required TResult Function( SafetyEvent_EmergencyStop value)  emergencyStop,required TResult Function( SafetyEvent_ParkInitiated value)  parkInitiated,required TResult Function( SafetyEvent_ParkCompleted value)  parkCompleted,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SafetyEvent_WeatherUnsafe value)  weatherUnsafe,required TResult Function( SafetyEvent_WeatherSafe value)  weatherSafe,required TResult Function( SafetyEvent_EmergencyStop value)  emergencyStop,required TResult Function( SafetyEvent_ParkInitiated value)  parkInitiated,required TResult Function( SafetyEvent_ParkCompleted value)  parkCompleted,required TResult Function( SafetyEvent_MountMotionFault value)  mountMotionFault,required TResult Function( SafetyEvent_MountPositionUnknown value)  mountPositionUnknown,required TResult Function( SafetyEvent_MountGuardCleared value)  mountGuardCleared,}){
 final _that = this;
 switch (_that) {
 case SafetyEvent_WeatherUnsafe():
@@ -89,7 +92,10 @@ return weatherUnsafe(_that);case SafetyEvent_WeatherSafe():
 return weatherSafe(_that);case SafetyEvent_EmergencyStop():
 return emergencyStop(_that);case SafetyEvent_ParkInitiated():
 return parkInitiated(_that);case SafetyEvent_ParkCompleted():
-return parkCompleted(_that);}
+return parkCompleted(_that);case SafetyEvent_MountMotionFault():
+return mountMotionFault(_that);case SafetyEvent_MountPositionUnknown():
+return mountPositionUnknown(_that);case SafetyEvent_MountGuardCleared():
+return mountGuardCleared(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -103,7 +109,7 @@ return parkCompleted(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SafetyEvent_WeatherUnsafe value)?  weatherUnsafe,TResult? Function( SafetyEvent_WeatherSafe value)?  weatherSafe,TResult? Function( SafetyEvent_EmergencyStop value)?  emergencyStop,TResult? Function( SafetyEvent_ParkInitiated value)?  parkInitiated,TResult? Function( SafetyEvent_ParkCompleted value)?  parkCompleted,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SafetyEvent_WeatherUnsafe value)?  weatherUnsafe,TResult? Function( SafetyEvent_WeatherSafe value)?  weatherSafe,TResult? Function( SafetyEvent_EmergencyStop value)?  emergencyStop,TResult? Function( SafetyEvent_ParkInitiated value)?  parkInitiated,TResult? Function( SafetyEvent_ParkCompleted value)?  parkCompleted,TResult? Function( SafetyEvent_MountMotionFault value)?  mountMotionFault,TResult? Function( SafetyEvent_MountPositionUnknown value)?  mountPositionUnknown,TResult? Function( SafetyEvent_MountGuardCleared value)?  mountGuardCleared,}){
 final _that = this;
 switch (_that) {
 case SafetyEvent_WeatherUnsafe() when weatherUnsafe != null:
@@ -111,7 +117,10 @@ return weatherUnsafe(_that);case SafetyEvent_WeatherSafe() when weatherSafe != n
 return weatherSafe(_that);case SafetyEvent_EmergencyStop() when emergencyStop != null:
 return emergencyStop(_that);case SafetyEvent_ParkInitiated() when parkInitiated != null:
 return parkInitiated(_that);case SafetyEvent_ParkCompleted() when parkCompleted != null:
-return parkCompleted(_that);case _:
+return parkCompleted(_that);case SafetyEvent_MountMotionFault() when mountMotionFault != null:
+return mountMotionFault(_that);case SafetyEvent_MountPositionUnknown() when mountPositionUnknown != null:
+return mountPositionUnknown(_that);case SafetyEvent_MountGuardCleared() when mountGuardCleared != null:
+return mountGuardCleared(_that);case _:
   return null;
 
 }
@@ -128,14 +137,17 @@ return parkCompleted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String reason)?  weatherUnsafe,TResult Function()?  weatherSafe,TResult Function( String reason)?  emergencyStop,TResult Function( String reason)?  parkInitiated,TResult Function()?  parkCompleted,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String reason)?  weatherUnsafe,TResult Function()?  weatherSafe,TResult Function( String reason)?  emergencyStop,TResult Function( String reason)?  parkInitiated,TResult Function()?  parkCompleted,TResult Function( String deviceId,  String kind,  String message)?  mountMotionFault,TResult Function( String deviceId,  String reason,  String message)?  mountPositionUnknown,TResult Function( String deviceId,  String message)?  mountGuardCleared,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SafetyEvent_WeatherUnsafe() when weatherUnsafe != null:
 return weatherUnsafe(_that.reason);case SafetyEvent_WeatherSafe() when weatherSafe != null:
 return weatherSafe();case SafetyEvent_EmergencyStop() when emergencyStop != null:
 return emergencyStop(_that.reason);case SafetyEvent_ParkInitiated() when parkInitiated != null:
 return parkInitiated(_that.reason);case SafetyEvent_ParkCompleted() when parkCompleted != null:
-return parkCompleted();case _:
+return parkCompleted();case SafetyEvent_MountMotionFault() when mountMotionFault != null:
+return mountMotionFault(_that.deviceId,_that.kind,_that.message);case SafetyEvent_MountPositionUnknown() when mountPositionUnknown != null:
+return mountPositionUnknown(_that.deviceId,_that.reason,_that.message);case SafetyEvent_MountGuardCleared() when mountGuardCleared != null:
+return mountGuardCleared(_that.deviceId,_that.message);case _:
   return orElse();
 
 }
@@ -153,14 +165,17 @@ return parkCompleted();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String reason)  weatherUnsafe,required TResult Function()  weatherSafe,required TResult Function( String reason)  emergencyStop,required TResult Function( String reason)  parkInitiated,required TResult Function()  parkCompleted,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String reason)  weatherUnsafe,required TResult Function()  weatherSafe,required TResult Function( String reason)  emergencyStop,required TResult Function( String reason)  parkInitiated,required TResult Function()  parkCompleted,required TResult Function( String deviceId,  String kind,  String message)  mountMotionFault,required TResult Function( String deviceId,  String reason,  String message)  mountPositionUnknown,required TResult Function( String deviceId,  String message)  mountGuardCleared,}) {final _that = this;
 switch (_that) {
 case SafetyEvent_WeatherUnsafe():
 return weatherUnsafe(_that.reason);case SafetyEvent_WeatherSafe():
 return weatherSafe();case SafetyEvent_EmergencyStop():
 return emergencyStop(_that.reason);case SafetyEvent_ParkInitiated():
 return parkInitiated(_that.reason);case SafetyEvent_ParkCompleted():
-return parkCompleted();}
+return parkCompleted();case SafetyEvent_MountMotionFault():
+return mountMotionFault(_that.deviceId,_that.kind,_that.message);case SafetyEvent_MountPositionUnknown():
+return mountPositionUnknown(_that.deviceId,_that.reason,_that.message);case SafetyEvent_MountGuardCleared():
+return mountGuardCleared(_that.deviceId,_that.message);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -174,14 +189,17 @@ return parkCompleted();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String reason)?  weatherUnsafe,TResult? Function()?  weatherSafe,TResult? Function( String reason)?  emergencyStop,TResult? Function( String reason)?  parkInitiated,TResult? Function()?  parkCompleted,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String reason)?  weatherUnsafe,TResult? Function()?  weatherSafe,TResult? Function( String reason)?  emergencyStop,TResult? Function( String reason)?  parkInitiated,TResult? Function()?  parkCompleted,TResult? Function( String deviceId,  String kind,  String message)?  mountMotionFault,TResult? Function( String deviceId,  String reason,  String message)?  mountPositionUnknown,TResult? Function( String deviceId,  String message)?  mountGuardCleared,}) {final _that = this;
 switch (_that) {
 case SafetyEvent_WeatherUnsafe() when weatherUnsafe != null:
 return weatherUnsafe(_that.reason);case SafetyEvent_WeatherSafe() when weatherSafe != null:
 return weatherSafe();case SafetyEvent_EmergencyStop() when emergencyStop != null:
 return emergencyStop(_that.reason);case SafetyEvent_ParkInitiated() when parkInitiated != null:
 return parkInitiated(_that.reason);case SafetyEvent_ParkCompleted() when parkCompleted != null:
-return parkCompleted();case _:
+return parkCompleted();case SafetyEvent_MountMotionFault() when mountMotionFault != null:
+return mountMotionFault(_that.deviceId,_that.kind,_that.message);case SafetyEvent_MountPositionUnknown() when mountPositionUnknown != null:
+return mountPositionUnknown(_that.deviceId,_that.reason,_that.message);case SafetyEvent_MountGuardCleared() when mountGuardCleared != null:
+return mountGuardCleared(_that.deviceId,_that.message);case _:
   return null;
 
 }
@@ -450,6 +468,214 @@ String toString() {
 
 
 
+
+/// @nodoc
+
+
+class SafetyEvent_MountMotionFault extends SafetyEvent {
+  const SafetyEvent_MountMotionFault({required this.deviceId, required this.kind, required this.message}): super._();
+  
+
+ final  String deviceId;
+ final  String kind;
+ final  String message;
+
+/// Create a copy of SafetyEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SafetyEvent_MountMotionFaultCopyWith<SafetyEvent_MountMotionFault> get copyWith => _$SafetyEvent_MountMotionFaultCopyWithImpl<SafetyEvent_MountMotionFault>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SafetyEvent_MountMotionFault&&(identical(other.deviceId, deviceId) || other.deviceId == deviceId)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,deviceId,kind,message);
+
+@override
+String toString() {
+  return 'SafetyEvent.mountMotionFault(deviceId: $deviceId, kind: $kind, message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SafetyEvent_MountMotionFaultCopyWith<$Res> implements $SafetyEventCopyWith<$Res> {
+  factory $SafetyEvent_MountMotionFaultCopyWith(SafetyEvent_MountMotionFault value, $Res Function(SafetyEvent_MountMotionFault) _then) = _$SafetyEvent_MountMotionFaultCopyWithImpl;
+@useResult
+$Res call({
+ String deviceId, String kind, String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$SafetyEvent_MountMotionFaultCopyWithImpl<$Res>
+    implements $SafetyEvent_MountMotionFaultCopyWith<$Res> {
+  _$SafetyEvent_MountMotionFaultCopyWithImpl(this._self, this._then);
+
+  final SafetyEvent_MountMotionFault _self;
+  final $Res Function(SafetyEvent_MountMotionFault) _then;
+
+/// Create a copy of SafetyEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? deviceId = null,Object? kind = null,Object? message = null,}) {
+  return _then(SafetyEvent_MountMotionFault(
+deviceId: null == deviceId ? _self.deviceId : deviceId // ignore: cast_nullable_to_non_nullable
+as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as String,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class SafetyEvent_MountPositionUnknown extends SafetyEvent {
+  const SafetyEvent_MountPositionUnknown({required this.deviceId, required this.reason, required this.message}): super._();
+  
+
+ final  String deviceId;
+ final  String reason;
+ final  String message;
+
+/// Create a copy of SafetyEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SafetyEvent_MountPositionUnknownCopyWith<SafetyEvent_MountPositionUnknown> get copyWith => _$SafetyEvent_MountPositionUnknownCopyWithImpl<SafetyEvent_MountPositionUnknown>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SafetyEvent_MountPositionUnknown&&(identical(other.deviceId, deviceId) || other.deviceId == deviceId)&&(identical(other.reason, reason) || other.reason == reason)&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,deviceId,reason,message);
+
+@override
+String toString() {
+  return 'SafetyEvent.mountPositionUnknown(deviceId: $deviceId, reason: $reason, message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SafetyEvent_MountPositionUnknownCopyWith<$Res> implements $SafetyEventCopyWith<$Res> {
+  factory $SafetyEvent_MountPositionUnknownCopyWith(SafetyEvent_MountPositionUnknown value, $Res Function(SafetyEvent_MountPositionUnknown) _then) = _$SafetyEvent_MountPositionUnknownCopyWithImpl;
+@useResult
+$Res call({
+ String deviceId, String reason, String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$SafetyEvent_MountPositionUnknownCopyWithImpl<$Res>
+    implements $SafetyEvent_MountPositionUnknownCopyWith<$Res> {
+  _$SafetyEvent_MountPositionUnknownCopyWithImpl(this._self, this._then);
+
+  final SafetyEvent_MountPositionUnknown _self;
+  final $Res Function(SafetyEvent_MountPositionUnknown) _then;
+
+/// Create a copy of SafetyEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? deviceId = null,Object? reason = null,Object? message = null,}) {
+  return _then(SafetyEvent_MountPositionUnknown(
+deviceId: null == deviceId ? _self.deviceId : deviceId // ignore: cast_nullable_to_non_nullable
+as String,reason: null == reason ? _self.reason : reason // ignore: cast_nullable_to_non_nullable
+as String,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class SafetyEvent_MountGuardCleared extends SafetyEvent {
+  const SafetyEvent_MountGuardCleared({required this.deviceId, required this.message}): super._();
+  
+
+ final  String deviceId;
+ final  String message;
+
+/// Create a copy of SafetyEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SafetyEvent_MountGuardClearedCopyWith<SafetyEvent_MountGuardCleared> get copyWith => _$SafetyEvent_MountGuardClearedCopyWithImpl<SafetyEvent_MountGuardCleared>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SafetyEvent_MountGuardCleared&&(identical(other.deviceId, deviceId) || other.deviceId == deviceId)&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,deviceId,message);
+
+@override
+String toString() {
+  return 'SafetyEvent.mountGuardCleared(deviceId: $deviceId, message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SafetyEvent_MountGuardClearedCopyWith<$Res> implements $SafetyEventCopyWith<$Res> {
+  factory $SafetyEvent_MountGuardClearedCopyWith(SafetyEvent_MountGuardCleared value, $Res Function(SafetyEvent_MountGuardCleared) _then) = _$SafetyEvent_MountGuardClearedCopyWithImpl;
+@useResult
+$Res call({
+ String deviceId, String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$SafetyEvent_MountGuardClearedCopyWithImpl<$Res>
+    implements $SafetyEvent_MountGuardClearedCopyWith<$Res> {
+  _$SafetyEvent_MountGuardClearedCopyWithImpl(this._self, this._then);
+
+  final SafetyEvent_MountGuardCleared _self;
+  final $Res Function(SafetyEvent_MountGuardCleared) _then;
+
+/// Create a copy of SafetyEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? deviceId = null,Object? message = null,}) {
+  return _then(SafetyEvent_MountGuardCleared(
+deviceId: null == deviceId ? _self.deviceId : deviceId // ignore: cast_nullable_to_non_nullable
+as String,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
 
 /// @nodoc
 mixin _$SystemEvent {

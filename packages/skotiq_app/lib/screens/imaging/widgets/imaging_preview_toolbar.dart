@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/catalog_overlay_widget.dart'
     show CatalogOverlayPopover;
-import '../../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../../tours/tour_target.dart';
 import 'annotation_panel.dart' show annotationPanelVisibleProvider;
 import 'custom_annotation_drawing.dart'
     show customAnnotationDrawModeActiveProvider, toggleAnnotationDrawPalette;
@@ -18,7 +20,8 @@ import 'depthlock/depthlock_region_layer.dart'
 import 'depthlock/depthlock_selection.dart' show depthLockSelectionProvider;
 import 'live_preview_area.dart' show previewReadoutsVisibleProvider;
 import 'meridian_flip_countdown_banner.dart' show MeridianFlipChip;
-import 'preview_display_scale.dart' show previewDisplayScaleProvider;
+import '../../../widgets/image_preview/preview_display_scale.dart'
+    show previewDisplayScaleProvider;
 import 'preview_histogram_visibility.dart';
 
 /// The 44 px viewer toolbar above the canvas (06 §Imaging).
@@ -174,7 +177,7 @@ class _ImagingPreviewToolbarState extends ConsumerState<ImagingPreviewToolbar> {
               const _CatalogOverlaySettingsButton(),
               if (showAbort)
                 SkotiqIconButton(
-                  key: ImagingTutorialKeys.abortBtn,
+                  key: TourTarget.imagingAbortButton.key,
                   icon: SkotiqIcons.close,
                   tooltip: 'Abort capture',
                   size: IconButtonSize.sm,
@@ -212,7 +215,7 @@ class _ImagingPreviewToolbarState extends ConsumerState<ImagingPreviewToolbar> {
               constraints: BoxConstraints(minWidth: constraints.maxWidth),
               child: IntrinsicWidth(
                 child: Row(
-                  key: ImagingTutorialKeys.zoomControls,
+                  key: TourTarget.imagingZoomControls.key,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
                     meta,

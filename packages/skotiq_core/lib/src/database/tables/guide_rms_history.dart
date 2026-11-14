@@ -6,11 +6,13 @@ import 'package:drift/drift.dart';
 /// exposure model computes the "recent guide RMS" input as a weighted average
 /// of the last N entries for the current mount, so this table is append-only.
 @DataClassName('GuideRmsHistoryEntry')
+@TableIndex.sql(
+  'CREATE INDEX idx_guide_rms_mount_recent '
+  'ON guide_rms_history (mount_id, recorded_at DESC)',
+)
 class GuideRmsHistory extends Table {
-  /// Auto-incrementing primary key.
   IntColumn get id => integer().autoIncrement()();
 
-  /// Session identifier this sample belongs to.
   TextColumn get sessionId => text()();
 
   /// Mount identifier (driver-reported), used to scope per-mount averages.
@@ -33,6 +35,5 @@ class GuideRmsHistory extends Table {
   /// the Smart Night planner derives from this column).
   RealColumn get exposureSeconds => real().nullable()();
 
-  /// When the sample was recorded.
   DateTimeColumn get recordedAt => dateTime()();
 }

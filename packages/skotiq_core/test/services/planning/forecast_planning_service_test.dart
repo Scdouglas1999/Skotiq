@@ -16,7 +16,7 @@ import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/weather/radar_frame.dart';
 import 'package:skotiq_core/src/services/planning/forecast_planning_service.dart';
-import 'package:skotiq_core/src/services/scheduler/sky_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/src/services/weather/radar_provider.dart';
 
 void main() {
@@ -39,13 +39,15 @@ void main() {
 
   /// The astronomical dark window for the night anchored at [noonLocal].
   ({DateTime dusk, DateTime dawn}) darkWindow(DateTime noonLocal) {
-    final tw = SkyCalculations.computeTwilight(
-      noonLocal: noonLocal,
-      latitudeDegrees: lat,
-      longitudeDegrees: lon,
-      kind: TwilightKind.astronomical,
+    final tw = AstronomyCalculations.twilightTimesNear(
+      instant: noonLocal,
+      latitudeDeg: lat,
+      longitudeDeg: lon,
     );
-    return (dusk: tw.eveningEnd!.toUtc(), dawn: tw.morningStart!.toUtc());
+    return (
+      dusk: tw.astronomicalDusk!.toUtc(),
+      dawn: tw.astronomicalDawn!.toUtc(),
+    );
   }
 
   /// Builds hourly cloud frames at a fixed [opacity] covering
@@ -508,8 +510,9 @@ void main() {
   });
 }
 
-/// Reference altitude (deg) using the same spherical formula and IAU GMST the
-/// service uses — an independent reimplementation for cross-checking.
+/// Reference altitude (deg) of a J2000 target: precessed to the equinox of
+/// date, then the spherical formula over the IAU GMST polynomial written out
+/// here.
 double _refAltDeg({
   required double raHours,
   required double decDegrees,
@@ -517,7 +520,12 @@ double _refAltDeg({
   required double latDeg,
   required double lonDeg,
 }) {
-  final jd = SkyCalculations.julianDate(timeUtc);
+  final (raOfDateDeg, decOfDate) = AstronomyCalculations.precessFromJ2000ToDate(
+    raDeg: raHours * 15.0,
+    decDeg: decDegrees,
+    dt: timeUtc,
+  );
+  final jd = AstronomyCalculations.julianDate(timeUtc);
   final t = (jd - 2451545.0) / 36525.0;
   var gmstDeg =
       280.46061837 +
@@ -529,8 +537,8 @@ double _refAltDeg({
   var lstDeg = (gmstDeg + lonDeg) % 360.0;
   if (lstDeg < 0) lstDeg += 360.0;
   final lstHours = lstDeg / 15.0;
-  final haRad = (lstHours - raHours) * 15.0 * math.pi / 180.0;
-  final decRad = decDegrees * math.pi / 180.0;
+  final haRad = (lstHours - raOfDateDeg / 15.0) * 15.0 * math.pi / 180.0;
+  final decRad = decOfDate * math.pi / 180.0;
   final latRad = latDeg * math.pi / 180.0;
   final sinAlt =
       math.sin(decRad) * math.sin(latRad) +

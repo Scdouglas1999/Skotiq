@@ -26,14 +26,16 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../database/daos/settings_dao.dart';
+import '../../settings/setting.dart' show Setting;
+import '../../settings/store_settings.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../utils/legacy_install_migration.dart'
     show migrateLegacySecretsNamespace;
+import '../logging_service.dart';
 
 /// Stable key prefix inside the secure store. Versioned so a future
 /// breaking change (e.g. encrypting per-field) can migrate again.
@@ -43,14 +45,11 @@ import '../../utils/legacy_install_migration.dart'
 /// is touched, via [migrateLegacySecretsNamespace].
 const String _secretsKeyPrefix = 'skotiq.notif.v1.';
 
-/// Sentinel value written to `app_settings` once the one-shot migration
-/// has completed. Presence of this flag short-circuits subsequent
-/// migration attempts.
-// v2 adds generic-webhook URLs and authorization headers. It intentionally
-// does not honor the old v1 flag: all v1 migrations are idempotent, while
-// honoring it would leave newly-classified webhook secrets in plaintext for
-// existing users.
-const String _migrationFlagKey = 'notification_secrets_migrated_v2';
+// The one-shot migration records completion in
+// [StoreSettings.notificationSecretsMigrated] (`_v2`). v2 adds generic-webhook
+// URLs and authorization headers. It intentionally does not honor the old v1
+// flag: all v1 migrations are idempotent, while honoring it would leave
+// newly-classified webhook secrets in plaintext for existing users.
 
 /// Logical secret fields the store owns. Each one is a stable string
 /// the UI / providers reference (vs. coupling to enum names that might
@@ -202,10 +201,9 @@ class SecretsStore {
       final v = await _store.read(key: _keyFor(field));
       return v ?? '';
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[SecretsStore] read($field) failed: $e',
-        name: 'SecretsStore',
-        level: 900,
+        source: 'SecretsStore',
         error: e,
       );
       // An unavailable keyring is not the same thing as an absent secret.
@@ -229,26 +227,23 @@ class SecretsStore {
     } catch (e) {
       // Errors writing to the secure store are NOT swallowed silently.
       // Re-throwing so the UI surface (Save button) reports the failure.
-      developer.log(
+      Log.error(
         '[SecretsStore] write($field) failed: $e',
-        name: 'SecretsStore',
-        level: 1000,
+        source: 'SecretsStore',
         error: e,
       );
       rethrow;
     }
   }
 
-  /// Delete a single secret.
   Future<void> delete(String field) async {
     try {
       await _ensureLegacyNamespaceMigrated();
       await _store.delete(key: _keyFor(field));
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[SecretsStore] delete($field) failed: $e',
-        name: 'SecretsStore',
-        level: 900,
+        source: 'SecretsStore',
         error: e,
       );
       rethrow;
@@ -276,8 +271,9 @@ class SecretsStore {
   /// Best-effort: if a single transport's blob is malformed, the
   /// migration continues for the others rather than aborting whole.
   Future<bool> migrateFromPlaintext(SettingsDao dao) async {
-    final flag = await dao.getSetting(_migrationFlagKey);
-    if (flag == 'true') return false; // already migrated
+    if (await dao.read(StoreSettings.notificationSecretsMigrated)) {
+      return false;
+    }
 
     // Migrate each transport in turn. Each call writes the cleaned blob
     // back, so a crash midway leaves the database in a consistent state
@@ -287,16 +283,18 @@ class SecretsStore {
     complete =
         await _migrateBlob(
           dao,
-          transportKey:
-              'notification_transport_${NotificationTransportKind.email.storageKey}',
+          row: StoreSettings.notificationTransport(
+            NotificationTransportKind.email,
+          ),
           secretFields: const {'password': SecretField.emailPassword},
         ) &&
         complete;
     complete =
         await _migrateBlob(
           dao,
-          transportKey:
-              'notification_transport_${NotificationTransportKind.pushover.storageKey}',
+          row: StoreSettings.notificationTransport(
+            NotificationTransportKind.pushover,
+          ),
           secretFields: const {
             'apiToken': SecretField.pushoverApiToken,
             'userKey': SecretField.pushoverUserKey,
@@ -306,24 +304,27 @@ class SecretsStore {
     complete =
         await _migrateBlob(
           dao,
-          transportKey:
-              'notification_transport_${NotificationTransportKind.telegram.storageKey}',
+          row: StoreSettings.notificationTransport(
+            NotificationTransportKind.telegram,
+          ),
           secretFields: const {'botToken': SecretField.telegramBotToken},
         ) &&
         complete;
     complete =
         await _migrateBlob(
           dao,
-          transportKey:
-              'notification_transport_${NotificationTransportKind.discord.storageKey}',
+          row: StoreSettings.notificationTransport(
+            NotificationTransportKind.discord,
+          ),
           secretFields: const {'webhookUrl': SecretField.discordWebhookUrl},
         ) &&
         complete;
     complete =
         await _migrateBlob(
           dao,
-          transportKey:
-              'notification_transport_${NotificationTransportKind.mqtt.storageKey}',
+          row: StoreSettings.notificationTransport(
+            NotificationTransportKind.mqtt,
+          ),
           secretFields: const {'password': SecretField.mqttPassword},
         ) &&
         complete;
@@ -333,17 +334,17 @@ class SecretsStore {
     // forever. Successfully cleaned blobs are idempotent, so retrying all of
     // them after the malformed blob is repaired is safe.
     if (complete) {
-      await dao.setSetting(_migrationFlagKey, 'true');
+      await dao.write(StoreSettings.notificationSecretsMigrated, true);
     }
     return complete;
   }
 
   Future<bool> _migrateBlob(
     SettingsDao dao, {
-    required String transportKey,
+    required Setting<String?> row,
     required Map<String, String> secretFields,
   }) async {
-    final raw = await dao.getSetting(transportKey);
+    final raw = await dao.read(row);
     if (raw == null) return true;
 
     Map<String, dynamic> blob;
@@ -352,10 +353,9 @@ class SecretsStore {
       if (decoded is! Map) return false;
       blob = Map<String, dynamic>.from(decoded);
     } catch (e) {
-      developer.log(
-        '[SecretsStore] Skipping migration of $transportKey: bad JSON ($e)',
-        name: 'SecretsStore',
-        level: 900,
+      Log.warning(
+        '[SecretsStore] Skipping migration of ${row.key}: bad JSON ($e)',
+        source: 'SecretsStore',
       );
       return false;
     }
@@ -373,19 +373,20 @@ class SecretsStore {
     }
 
     if (changed) {
-      await dao.setSetting(transportKey, jsonEncode(blob));
-      developer.log(
-        '[SecretsStore] Migrated secrets out of $transportKey',
-        name: 'SecretsStore',
-        level: 800,
+      await dao.write(row, jsonEncode(blob));
+      Log.info(
+        '[SecretsStore] Migrated secrets out of ${row.key}',
+        source: 'SecretsStore',
       );
     }
     return true;
   }
 
   Future<bool> _migrateWebhookBlob(SettingsDao dao) async {
-    const transportKey = 'notification_transport_webhookGeneric';
-    final raw = await dao.getSetting(transportKey);
+    final row = StoreSettings.notificationTransport(
+      NotificationTransportKind.webhookGeneric,
+    );
+    final raw = await dao.read(row);
     if (raw == null) return true;
 
     Map<String, dynamic> blob;
@@ -394,11 +395,10 @@ class SecretsStore {
       if (decoded is! Map) return false;
       blob = Map<String, dynamic>.from(decoded);
     } catch (error) {
-      developer.log(
-        '[SecretsStore] Skipping migration of $transportKey: bad JSON '
+      Log.warning(
+        '[SecretsStore] Skipping migration of ${row.key}: bad JSON '
         '($error)',
-        name: 'SecretsStore',
-        level: 900,
+        source: 'SecretsStore',
       );
       return false;
     }
@@ -429,11 +429,10 @@ class SecretsStore {
     }
 
     if (changed) {
-      await dao.setSetting(transportKey, jsonEncode(blob));
-      developer.log(
-        '[SecretsStore] Migrated secrets out of $transportKey',
-        name: 'SecretsStore',
-        level: 800,
+      await dao.write(row, jsonEncode(blob));
+      Log.info(
+        '[SecretsStore] Migrated secrets out of ${row.key}',
+        source: 'SecretsStore',
       );
     }
     return true;

@@ -3,12 +3,17 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'run_dashboard/frame_detail_dialog.dart';
+import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// The window the time-range slider scrubs, as the UNION of the run's
 /// wall-clock span and the decisions actually on record.
@@ -63,25 +68,6 @@ class ReplayDebugScreen extends ConsumerStatefulWidget {
   final DateTime? startedAt;
   final DateTime? endedAt;
 
-  /// The router location for one run's replay, query-encoded so a deep link
-  /// (and the back stack) carries the header label and the scrub window.
-  static String locationFor({
-    required int sequenceRunId,
-    required String sequenceName,
-    DateTime? startedAt,
-    DateTime? endedAt,
-  }) {
-    final query = <String, String>{
-      'name': sequenceName,
-      if (startedAt != null) 'started': startedAt.toIso8601String(),
-      if (endedAt != null) 'ended': endedAt.toIso8601String(),
-    };
-    return Uri(
-      path: '/replay/$sequenceRunId',
-      queryParameters: query,
-    ).toString();
-  }
-
   /// Convenience launcher.
   ///
   /// Goes through the ROUTER, not `Navigator.push`: a [MaterialPageRoute] lands
@@ -96,9 +82,9 @@ class ReplayDebugScreen extends ConsumerStatefulWidget {
     DateTime? startedAt,
     DateTime? endedAt,
   }) {
-    final location = locationFor(
-      sequenceRunId: sequenceRunId,
-      sequenceName: sequenceName,
+    final location = AppRoutes.replay(
+      runId: sequenceRunId,
+      name: sequenceName,
       startedAt: startedAt,
       endedAt: endedAt,
     );
@@ -170,7 +156,7 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
         error: (err, _) => EmptyState(
           icon: LucideIcons.alertTriangle,
           title: 'Could not load replay log',
-          body: '$err',
+          body: userFacingError(err),
           action: SkotiqButton(
             label: 'Retry',
             icon: SkotiqIcons.refresh,
@@ -269,7 +255,6 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search.
           TextField(
             controller: _searchCtrl,
             decoration: InputDecoration(
@@ -291,7 +276,6 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
             onChanged: (v) => setState(() => _searchTerm = v.trim()),
           ),
           const SizedBox(height: 12),
-          // Category chips.
           Wrap(
             spacing: 8,
             runSpacing: 4,
@@ -326,10 +310,10 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
     DateTime spanEnd,
   ) {
     final range = _timeRange ?? const RangeValues(0, 1);
-    final startLabel = DateFormat('HH:mm:ss')
-        .format(_offsetFromFraction(spanStart, spanEnd, range.start));
-    final endLabel = DateFormat('HH:mm:ss')
-        .format(_offsetFromFraction(spanStart, spanEnd, range.end));
+    final startLabel =
+        ClockFormat.hms(_offsetFromFraction(spanStart, spanEnd, range.start));
+    final endLabel =
+        ClockFormat.hms(_offsetFromFraction(spanStart, spanEnd, range.end));
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Column(
@@ -424,10 +408,10 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
   /// (silent insert) so the operator's next visit to the run's notes
   /// list shows the entry; a snackbar confirms.
   Future<void> _addNoteForDecision(ReplayDecision d) async {
-    final notesService = ref.read(notesRepositoryProvider);
+    final notesService = ref.read(notesJournalProvider);
     final body = StringBuffer()
       ..writeln(
-          'At ${DateFormat.yMd().add_Hms().format(d.timestamp.toLocal())}: ${d.summary}')
+          'At ${ClockFormat.dateHms(d.timestamp.toLocal())}: ${d.summary}')
       ..writeln()
       ..writeln('Category: ${d.category.displayLabel}');
     if (d.nodeId != null) body.writeln('Node: ${d.nodeId}');
@@ -447,11 +431,9 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
       sequenceRunId: widget.sequenceRunId,
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Note added for this decision'),
-        duration: Duration(seconds: 2),
-      ),
+    context.showInfoSnackBar(
+      'Note added for this decision',
+      duration: Duration(seconds: 2),
     );
   }
 
@@ -463,11 +445,9 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
         _readImageId(d.details['image_id']);
     if (!mounted) return;
     if (imageId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No captured image id is linked to this row'),
-          duration: Duration(seconds: 3),
-        ),
+      context.showInfoSnackBar(
+        'No captured image id is linked to this row',
+        duration: Duration(seconds: 3),
       );
       return;
     }
@@ -538,7 +518,7 @@ class _DecisionTileState extends State<_DecisionTile> {
     final c = widget.colors;
     final badgeColor = _categoryColor(widget.decision.category, c);
     final tsLocal = widget.decision.timestamp.toLocal();
-    final timeLabel = DateFormat('HH:mm:ss').format(tsLocal);
+    final timeLabel = ClockFormat.hms(tsLocal);
     final isForensicsLinked =
         widget.decision.category == DecisionCategory.frameRejected ||
             widget.decision.details.containsKey('captured_image_id') ||

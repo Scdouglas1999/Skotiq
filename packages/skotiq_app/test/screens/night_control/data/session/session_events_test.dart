@@ -2,7 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import 'session_test_support.dart';
 
@@ -11,9 +12,9 @@ void main() {
     final h = await sessionHarness();
     final keep = h.container.listen(nightSessionEventsProvider, (_, __) {});
     addTearDown(keep.close);
-    final stats = h.container.read(liveSequenceStatsProvider.notifier);
-    stats.state = SequenceRunStats();
-    stats.state = SequenceRunStats()..autofocusRuns = 1;
+    final stats = h.container.read(runRecordProvider.notifier);
+    stats.setStats(SequenceRunStats());
+    stats.setStats(SequenceRunStats()..autofocusRuns = 1);
 
     // The overlay's result for the same run fills the mark in.
     final overlay = h.container.read(autofocusOverlayProvider.notifier);
@@ -59,7 +60,14 @@ void main() {
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
           eventType: 'MeridianFlipOutcome',
-          data: <String, dynamic>{'outcome': outcome},
+          data: <String, dynamic>{
+            'outcome': outcome,
+            'target_name': 'NGC 7814',
+            'new_pier_side': 'East',
+            'duration_secs': 0.0,
+            'attempts': 1,
+            'failed_steps': <String>[],
+          },
         );
     h.backend
       ..emitEvent(flip('failed', 10))
@@ -85,12 +93,19 @@ void main() {
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
           eventType: 'MeridianFlipOutcome',
-          data: <String, dynamic>{'outcome': outcome},
+          data: <String, dynamic>{
+            'outcome': outcome,
+            'target_name': 'NGC 7814',
+            'new_pier_side': 'East',
+            'duration_secs': 0.0,
+            'attempts': 1,
+            'failed_steps': <String>[],
+          },
         );
     h.backend
-      ..emitEvent(flip(meridianFlipPierChangedOutcome, 10))
+      ..emitEvent(flip('pier_changed', 10))
       ..emitEvent(flip('failed', 20))
-      ..emitEvent(flip(meridianFlipPierChangedOutcome, 30))
+      ..emitEvent(flip('pier_changed', 30))
       ..emitEvent(flip('success', 40));
     await Future<void>.delayed(Duration.zero);
     expect(

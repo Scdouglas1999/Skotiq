@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../services/wcs/gnomonic_projection.dart';
-import '../services/wcs/wcs_sip_codec.dart';
+import 'imaging/sip_terms.dart';
 
 part 'annotation_data.freezed.dart';
 part 'annotation_data.g.dart';
@@ -61,8 +61,12 @@ abstract class PlateSolveData with _$PlateSolveData {
     double? cd1_2,
     double? cd2_1,
     double? cd2_2,
-    // SIP distortion block in the `solved_sip` encoding (wcs_sip_codec).
+    // SIP distortion block in the `solved_sip` encoding (sip_terms.dart).
     String? sip,
+    // The 0-based pixel the solution is referenced at; null for the image
+    // centre, where every solver references its solve.
+    double? referenceX,
+    double? referenceY,
   }) = _PlateSolveData;
 
   factory PlateSolveData.fromJson(Map<String, dynamic> json) =>
@@ -94,10 +98,8 @@ abstract class CelestialObjectAnnotation with _$CelestialObjectAnnotation {
 @freezed
 abstract class ObjectData with _$ObjectData {
   const factory ObjectData({
-    // Basic info
     String? description,
     String? objectClass, // e.g., "Spiral Galaxy", "Open Cluster"
-    // Stellar data (for stars)
     SpectralClass? spectralType,
     double? temperature, // Kelvin
     double? mass, // Solar masses
@@ -107,7 +109,6 @@ abstract class ObjectData with _$ObjectData {
     double? parallax, // milliarcseconds
     String? properMotion,
 
-    // Exoplanet data
     List<ExoplanetData>? exoplanets,
 
     // DSO data (galaxies, nebulae, clusters)
@@ -115,11 +116,9 @@ abstract class ObjectData with _$ObjectData {
     double? redshift,
     String? morphology,
 
-    // External references
     String? simbadId,
     String? wikipediaUrl,
     Map<String, String>? catalogIds, // {"NGC": "224", "M": "31"}
-    // Cache metadata
     DateTime? lastUpdated,
     String? dataSource, // "SIMBAD", "Gaia", "Exoplanet Archive"
   }) = _ObjectData;
@@ -153,7 +152,6 @@ abstract class ExoplanetData with _$ExoplanetData {
 extension PlateSolveDataExtensions on PlateSolveData {
   /// The projection-model form of this solve.
   SolvedWcs toSolvedWcs() {
-    final distortion = decodeSolvedSip(sip) ?? noSolvedSip;
     return SolvedWcs(
       raHours: ra / 15.0,
       decDegrees: dec,
@@ -165,14 +163,9 @@ extension PlateSolveDataExtensions on PlateSolveData {
       cd1_2: cd1_2,
       cd2_1: cd2_1,
       cd2_2: cd2_2,
-      aOrder: distortion.aOrder,
-      bOrder: distortion.bOrder,
-      aCoeffs: distortion.aCoeffs,
-      bCoeffs: distortion.bCoeffs,
-      apOrder: distortion.apOrder,
-      bpOrder: distortion.bpOrder,
-      apCoeffs: distortion.apCoeffs,
-      bpCoeffs: distortion.bpCoeffs,
+      sip: decodeSolvedSip(sip) ?? noSipTerms,
+      referenceX: referenceX,
+      referenceY: referenceY,
     );
   }
 

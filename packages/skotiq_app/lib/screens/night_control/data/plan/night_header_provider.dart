@@ -4,10 +4,11 @@
 // controller (P2).
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../tonight_night.dart';
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import '../../../../services/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';
 import 'night_run_phase_provider.dart';
@@ -108,6 +109,14 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
   return NightHeaderVm(
     phase: phase,
     pausedFor: phase == NightRunPhase.pausedForAction ? action.active : null,
+    actionUnderWay: live || phase == NightRunPhase.armed
+        ? null
+        : action.isBusy
+            ? action.active
+            // An autofocus started elsewhere (the Imaging screen).
+            : ref.watch(autofocusOverlayProvider.select((a) => a.isRunning))
+                ? ManualActionId.autofocus
+                : null,
     runStartedAt: started == null ? null : clock.toNightClock(started),
     armedStartAt: phase == NightRunPhase.armed
         ? ref.watch(nightPlanArmedStartSeamProvider)
@@ -127,7 +136,9 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
         : frames.planned ??
             (activeNode == null ? null : nightPlannedFrames(activeNode)),
     plannedDuration:
-        timing == null || tree == null || tree.openEnded ? null : timing.total,
+        timing == null || tree == null || tree.openEnded || timing.openEnded
+            ? null
+            : timing.total,
     restoredFrames:
         live ? null : ref.watch(restoredCheckpointProvider)?.completedExposures,
     pauseResume: pauseResume,
@@ -139,7 +150,10 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
         ? switch (execution) {
             SequenceExecutionState.completed => NightRunEnding.completed,
             SequenceExecutionState.failed => NightRunEnding.failed,
-            _ => NightRunEnding.ended,
+            _ => ref.watch(sequenceStopEvidenceProvider)?.author ==
+                    SequenceStopAuthor.operatorPress
+                ? NightRunEnding.stopped
+                : NightRunEnding.ended,
           }
         : null,
   );

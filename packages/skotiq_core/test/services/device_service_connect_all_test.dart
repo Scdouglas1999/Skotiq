@@ -14,20 +14,22 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' hide CameraState;
+import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/backend/device_types.dart'
     as device_types;
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart'
     show DeviceConnectionState;
+import 'package:skotiq_core/src/providers/device_connection_progress_provider.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
-import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/services/device_exceptions.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
 import 'package:skotiq_core/src/utils/device_id.dart';
 
 import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -122,7 +124,7 @@ void main() {
       final service = container.read(deviceServiceProvider);
 
       await expectLater(
-        service.connectCamera('camera-1'),
+        service.connect(DeviceType.camera, 'camera-1'),
         throwsA(
           isA<InvalidDeviceIdException>()
               .having((e) => e.deviceType, 'deviceType', 'camera')
@@ -165,16 +167,9 @@ void main() {
           canSetOffset: true,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
-      await service.connectCamera(deviceId);
+      await service.connect(DeviceType.camera, deviceId);
 
       // Discovery was NOT a precondition.
       verifyNever(() => mockBackend.discoverDevices(any()));
@@ -198,7 +193,7 @@ void main() {
 
       final service = container.read(deviceServiceProvider);
       await expectLater(
-        service.connectMount(deviceId),
+        service.connect(DeviceType.mount, deviceId),
         throwsA(
           predicate<Object>((e) => e.toString().contains('COM port busy')),
         ),
@@ -207,11 +202,11 @@ void main() {
       // Critically: the error came from the backend, not from a "device
       // not found" pre-check. Discovery was never invoked.
       verifyNever(() => mockBackend.discoverDevices(any()));
-      // State is rolled back to disconnected.
-      expect(
-        container.read(mountStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
-      );
+      // The slot holds no mount, and says which one failed.
+      final mount = container.read(mountStateProvider);
+      expect(mount.connectionState, DeviceConnectionState.error);
+      expect(mount.deviceId, isNull);
+      expect(mount.lastError?.deviceId, deviceId);
     });
 
     test('every device-type connect rejects malformed ids', () async {
@@ -233,28 +228,46 @@ void main() {
         );
       }
 
-      await expectInvalid(() => service.connectCamera('bad'), 'camera');
-      await expectInvalid(() => service.connectMount('bad'), 'mount');
-      await expectInvalid(() => service.connectFocuser('bad'), 'focuser');
       await expectInvalid(
-        () => service.connectFilterWheel('bad'),
+        () => service.connect(DeviceType.camera, 'bad'),
+        'camera',
+      );
+      await expectInvalid(
+        () => service.connect(DeviceType.mount, 'bad'),
+        'mount',
+      );
+      await expectInvalid(
+        () => service.connect(DeviceType.focuser, 'bad'),
+        'focuser',
+      );
+      await expectInvalid(
+        () => service.connect(DeviceType.filterWheel, 'bad'),
         'filter wheel',
       );
       // Guider has a PHD2 short-circuit; a non-PHD2 unknown id still hits
       // the standard format check.
-      await expectInvalid(() => service.connectGuider('bad'), 'guider');
-      await expectInvalid(() => service.connectRotator('bad'), 'rotator');
-      await expectInvalid(() => service.connectDome('bad'), 'dome');
       await expectInvalid(
-        () => service.connectWeather('bad'),
+        () => service.connect(DeviceType.guider, 'bad'),
+        'guider',
+      );
+      await expectInvalid(
+        () => service.connect(DeviceType.rotator, 'bad'),
+        'rotator',
+      );
+      await expectInvalid(
+        () => service.connect(DeviceType.dome, 'bad'),
+        'dome',
+      );
+      await expectInvalid(
+        () => service.connect(DeviceType.weather, 'bad'),
         'weather station',
       );
       await expectInvalid(
-        () => service.connectSafetyMonitor('bad'),
+        () => service.connect(DeviceType.safetyMonitor, 'bad'),
         'safety monitor',
       );
       await expectInvalid(
-        () => service.connectCoverCalibrator('bad'),
+        () => service.connect(DeviceType.coverCalibrator, 'bad'),
         'cover calibrator',
       );
 
@@ -347,13 +360,6 @@ void main() {
           hasTemperature: false,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       final profile = buildProfile(
@@ -438,13 +444,6 @@ void main() {
           canSetOffset: false,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       const profile = EquipmentProfileModel(
@@ -504,13 +503,6 @@ void main() {
           canSetOffset: false,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       final profile = buildProfile(cameraId: cameraId, mountId: mountId);
@@ -544,9 +536,125 @@ void main() {
         container.read(cameraStateProvider).connectionState,
         DeviceConnectionState.connected,
       );
+      // The mount's slot holds nothing but says which mount failed and why.
+      final mount = container.read(mountStateProvider);
+      expect(mount.connectionState, DeviceConnectionState.error);
+      expect(mount.deviceId, isNull);
+      expect(mount.lastError?.deviceId, mountId);
+      expect(mount.lastError?.message, contains('Mount driver refused'));
+    });
+
+    test('retryConnect tries the device that failed in the sweep and the '
+        'sweep records the new outcome', () async {
+      const cameraId = 'simulator:cam-1';
+      const mountId = 'simulator:mount-1';
+      var mountAttempts = 0;
+
+      when(
+        () => mockBackend.connectDevice(DeviceType.camera, cameraId),
+      ).thenAnswer((_) async {});
+      when(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).thenAnswer((_) async {
+        if (mountAttempts++ == 0) throw Exception('Mount driver refused');
+      });
+      when(
+        () => mockBackend.getMountStatus(mountId),
+      ).thenThrow(Exception('no status in this test'));
+
+      final service = container.read(deviceServiceProvider);
+      await service.connectProfile(
+        buildProfile(cameraId: cameraId, mountId: mountId),
+        source: 'Test',
+      );
+
+      await service.retryConnect(DeviceType.mount);
+
+      verify(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).called(2);
+      verify(
+        () => mockBackend.connectDevice(DeviceType.camera, cameraId),
+      ).called(1);
       expect(
         container.read(mountStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
+        DeviceConnectionState.connected,
+      );
+      final sweep = container.read(deviceConnectionProgressProvider);
+      expect(
+        sweep.byDeviceType['mount']?.status,
+        DeviceConnectProgressStatus.connected,
+      );
+      expect(sweep.connectedCount, 2);
+    });
+
+    test('retryConnect of a device that fails again throws the reason and '
+        'leaves the slot naming it', () async {
+      const mountId = 'simulator:mount-1';
+      when(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).thenThrow(Exception('Mount driver refused'));
+
+      final service = container.read(deviceServiceProvider);
+      await expectLater(
+        service.connect(DeviceType.mount, mountId),
+        throwsA(isA<Exception>()),
+      );
+      await expectLater(
+        service.retryConnect(DeviceType.mount),
+        throwsA(isA<Exception>()),
+      );
+
+      verify(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).called(2);
+      final mount = container.read(mountStateProvider);
+      expect(mount.connectionState, DeviceConnectionState.error);
+      expect(mount.lastError?.deviceId, mountId);
+    });
+
+    test('connectProfile publishes the sweep and retryFailedConnects retries '
+        'only what failed', () async {
+      const cameraId = 'simulator:cam-1';
+      const mountId = 'simulator:mount-1';
+      var mountAttempts = 0;
+
+      when(
+        () => mockBackend.connectDevice(DeviceType.camera, cameraId),
+      ).thenAnswer((_) async {});
+      when(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).thenAnswer((_) async {
+        if (mountAttempts++ == 0) throw Exception('Mount driver refused');
+      });
+      when(
+        () => mockBackend.getMountStatus(mountId),
+      ).thenThrow(Exception('no status in this test'));
+
+      final service = container.read(deviceServiceProvider);
+      final profile = buildProfile(cameraId: cameraId, mountId: mountId);
+
+      final sweep = await service.connectProfile(profile, source: 'Test');
+      expect(sweep.connected, 1);
+      expect(sweep.failures.single.deviceType, 'mount');
+      final published = container.read(deviceConnectionProgressProvider);
+      expect(published.isSweeping, isFalse);
+      expect(published.source, 'Test');
+      expect(published.byDeviceType.keys, containsAll(['camera', 'mount']));
+
+      final retry = await service.retryFailedConnects();
+      expect(retry.connected, 2);
+      expect(retry.failures, isEmpty);
+      // The camera was up already and is left alone.
+      verify(
+        () => mockBackend.connectDevice(DeviceType.camera, cameraId),
+      ).called(1);
+      verify(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).called(2);
+      expect(
+        container.read(mountStateProvider).connectionState,
+        DeviceConnectionState.connected,
       );
     });
 
@@ -601,13 +709,6 @@ void main() {
           canSetOffset: false,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       final profile = buildProfile(cameraId: goodCamera, mountId: badMountId);
@@ -686,13 +787,6 @@ void main() {
           canSetTrackingRate: false,
         ),
       );
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
 
       final service = container.read(deviceServiceProvider);
       const profile = EquipmentProfileModel(

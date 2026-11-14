@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'poll_pace.dart';
+
 /// Repeatedly calls [fetch], emits the first successful value, and then emits
 /// only values for which [unchanged] returns false.
 ///
@@ -10,24 +12,33 @@ import 'dart:async';
 /// discarded. A controller is used instead of an `async*` loop because a
 /// distinct stream may go indefinitely without another `yield`, which prevents
 /// an `async*` subscription's cancellation future from completing.
+///
+/// The wait between fetches is [interval] at the device's [PollPace].
+///
+/// An event on [refresh] fetches now instead of waiting out the interval; one
+/// that arrives during a fetch runs another fetch as soon as that one ends,
+/// because the in-flight answer may predate whatever prompted the refresh.
 Stream<T> resilientDistinctPoll<T>({
   required Future<T> Function() fetch,
   required bool Function(T previous, T next) unchanged,
   required Duration interval,
   void Function(Object error, StackTrace stackTrace)? onRetainedError,
+  Stream<void>? refresh,
 }) {
   late T last;
   var hasLast = false;
   var stopped = false;
   var paused = false;
   var polling = false;
+  var refreshQueued = false;
   Timer? timer;
+  StreamSubscription<void>? refreshSubscription;
   late final StreamController<T> controller;
   late final Future<void> Function() poll;
 
   void scheduleNext() {
     if (stopped || paused || polling || (timer?.isActive ?? false)) return;
-    timer = Timer(interval, () {
+    timer = Timer(PollPace.stretch(interval), () {
       timer = null;
       unawaited(poll());
     });
@@ -51,23 +62,48 @@ Stream<T> resilientDistinctPoll<T>({
       }
     } finally {
       polling = false;
-      scheduleNext();
+      if (refreshQueued && !stopped && !paused) {
+        refreshQueued = false;
+        unawaited(poll());
+      } else {
+        scheduleNext();
+      }
     }
   };
 
+  void refreshNow() {
+    if (stopped) return;
+    if (polling || paused) {
+      refreshQueued = true;
+      return;
+    }
+    timer?.cancel();
+    timer = null;
+    unawaited(poll());
+  }
+
   controller = StreamController<T>(
-    onListen: () => unawaited(poll()),
+    onListen: () {
+      refreshSubscription = refresh?.listen((_) => refreshNow());
+      unawaited(poll());
+    },
     onPause: () {
       paused = true;
       timer?.cancel();
     },
     onResume: () {
       paused = false;
-      scheduleNext();
+      if (refreshQueued) {
+        refreshQueued = false;
+        unawaited(poll());
+      } else {
+        scheduleNext();
+      }
     },
     onCancel: () {
       stopped = true;
       timer?.cancel();
+      return refreshSubscription?.cancel();
     },
   );
   return controller.stream;

@@ -1,4 +1,3 @@
-// Search field, filter chips (object type, constellation, magnitude, size, altitude, moon separation), sort dropdown, reset chip, the _ControlChip primitive, and the shared _showAngleSlider helper used by the angle-based filter sheets.
 part of '../planner_screen.dart';
 
 class _SearchField extends StatelessWidget {

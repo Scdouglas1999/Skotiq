@@ -6,7 +6,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 class _MockBackend extends Mock implements SkotiqBackend {}
 
@@ -66,7 +69,7 @@ void main() {
 
   test('the scale PHD2 reports is read when the link comes up', () async {
     when(
-      () => backend.phd2GetStatus(),
+      () => backend.guiderGetStatus(),
     ).thenAnswer((_) async => _status(connected: true, pixelScale: 1.25));
 
     await deliver('Connected');
@@ -76,26 +79,26 @@ void main() {
 
   test('a calibration or guiding start re-reads it', () async {
     when(
-      () => backend.phd2GetStatus(),
+      () => backend.guiderGetStatus(),
     ).thenAnswer((_) async => _status(connected: true, pixelScale: 1.25));
     await deliver('Connected');
 
     // The operator changed the guide scope in PHD2's profile.
     when(
-      () => backend.phd2GetStatus(),
+      () => backend.guiderGetStatus(),
     ).thenAnswer((_) async => _status(connected: true, pixelScale: 3.1));
     await deliver('CalibrationComplete');
     expect(scale(), 3.1);
 
     when(
-      () => backend.phd2GetStatus(),
+      () => backend.guiderGetStatus(),
     ).thenAnswer((_) async => _status(connected: true));
     await deliver('GuidingStarted');
     expect(scale(), isNull, reason: 'no scale in the profile is unknown');
   });
 
   test('a failed read leaves the scale unknown, never 0', () async {
-    when(() => backend.phd2GetStatus()).thenThrow(StateError('rpc failed'));
+    when(() => backend.guiderGetStatus()).thenThrow(StateError('rpc failed'));
 
     await deliver('Connected');
 
@@ -104,7 +107,7 @@ void main() {
 
   test('a disconnect forgets the scale', () async {
     when(
-      () => backend.phd2GetStatus(),
+      () => backend.guiderGetStatus(),
     ).thenAnswer((_) async => _status(connected: true, pixelScale: 1.25));
     await deliver('Connected');
     expect(scale(), 1.25);

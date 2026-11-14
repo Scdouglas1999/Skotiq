@@ -1,20 +1,10 @@
 part of '../planetarium_providers.dart';
 
-// Catalog providers
-
-/// The star list the renderer and search draw from.
-///
-/// Delegates to [starsProvider] so there is exactly one [HygStarCatalog]
-/// instance, one CSV parse and one retained list — see [starCatalogProvider].
-final loadedStarsProvider = FutureProvider<List<Star>>((ref) async {
-  return ref.watch(starsProvider.future);
-});
-
+/// Deep-sky objects to magnitude 16, so faint imaging targets are there when
+/// zoomed in; the dynamic magnitude limit filters them per frame.
 final loadedDsosProvider = FutureProvider<List<DeepSkyObject>>((ref) async {
   ref.watch(catalogStateProvider.select((s) => s.installRevision));
-  // Load DSOs up to magnitude 16.0 to include faint imaging targets when zoomed in.
-  // The dynamic magnitude limit provider filters them per-frame based on FOV.
-  return OpenNgcDsoCatalog(magnitudeLimit: 16.0).loadObjects();
+  return CatalogManager.instance.dsos.brighterThan(16.0);
 });
 
 /// Spatial index for stars to avoid scanning full catalogs per frame.
@@ -124,18 +114,23 @@ final constellationDataProvider = Provider<List<ConstellationData>>((ref) {
   return Constellations.all;
 });
 
-// Computed astronomy data providers
-
 /// Provider that only updates when the date changes (not every second)
 /// This prevents unnecessary recalculations of date-dependent values like twilight.
+///
+/// Selected, not watched whole: a provider that depends on the 1 Hz
+/// observation clock is recomputed on every tick, and each recompute costs the
+/// app a frame even when the result is the same.
 final _currentDateProvider = Provider<DateTime>((ref) {
-  final time = ref.watch(observationTimeProvider);
-  // Return only the date portion, so it only changes at midnight. Preserves
-  // UTC-ness for the same reason as [_currentMinuteProvider].
-  final t = time.time;
-  return t.isUtc
-      ? DateTime.utc(t.year, t.month, t.day)
-      : DateTime(t.year, t.month, t.day);
+  // Only the date portion, so it only changes at midnight. Preserves UTC-ness
+  // for the same reason as [_currentMinuteProvider].
+  return ref.watch(
+    observationTimeProvider.select((time) {
+      final t = time.time;
+      return t.isUtc
+          ? DateTime.utc(t.year, t.month, t.day)
+          : DateTime(t.year, t.month, t.day);
+    }),
+  );
 });
 
 /// The date of the observing NIGHT in progress — what
@@ -147,8 +142,10 @@ final _currentDateProvider = Provider<DateTime>((ref) {
 /// every time one sidereal day (~4 min) out. Cheap to watch — the value only
 /// changes at local noon.
 final _currentNightDateProvider = Provider<DateTime>((ref) {
-  return AstronomyCalculations.nightDateOf(
-    ref.watch(observationTimeProvider).time,
+  return ref.watch(
+    observationTimeProvider.select(
+      (time) => AstronomyCalculations.nightDateOf(time.time),
+    ),
   );
 });
 
@@ -156,8 +153,11 @@ final _currentNightDateProvider = Provider<DateTime>((ref) {
 /// This prevents unnecessary recalculations of astronomical positions
 /// which don't need per-second precision for sky rendering.
 final _currentMinuteProvider = Provider<DateTime>((ref) {
-  final time = ref.watch(observationTimeProvider);
-  // Return only up to minute precision, ignoring seconds.
+  return ref.watch(observationTimeProvider.select(_minuteOf));
+});
+
+DateTime _minuteOf(ObservationTimeState time) {
+  // Only up to minute precision, ignoring seconds.
   //
   // Truncating through the local `DateTime(...)` constructor DROPS the UTC flag,
   // so a UTC observation time came back out as a local wall-clock time and every
@@ -168,7 +168,7 @@ final _currentMinuteProvider = Provider<DateTime>((ref) {
   return t.isUtc
       ? DateTime.utc(t.year, t.month, t.day, t.hour, t.minute)
       : DateTime(t.year, t.month, t.day, t.hour, t.minute);
-});
+}
 
 /// Public provider for observation time at minute precision.
 /// Use this for sky rendering to avoid rebuilds every second.
@@ -211,62 +211,32 @@ final objectVisibilityProvider = Provider.autoDispose
       );
     });
 
-/// The two night windows the current instant can belong to: the one that
-/// started on the PREVIOUS calendar evening and the one starting tonight.
-///
-/// Recomputed only when the calendar date (or the site) changes; the choice
-/// between them is made per-minute by [twilightTimesProvider].
+/// Twilight times for the site's night that is not over: the one in
+/// progress, or, once its dark has ended, the coming one
+/// ([AstronomyCalculations.nightAt]).
 ///
 /// With no site on record every field is null: twilight is a fact about a
 /// place, so there is nothing to state until the observer names one.
-final _nightWindowCandidatesProvider =
-    Provider<({TwilightTimes previous, TwilightTimes today})>((ref) {
-      final site = ref.watch(observerLocationProvider).site;
-      final currentDate = ref.watch(_currentDateProvider);
-
-      if (site == null) {
-        return (previous: const TwilightTimes(), today: const TwilightTimes());
-      }
-
-      TwilightTimes forDate(DateTime date) =>
-          AstronomyCalculations.calculateTwilightTimes(
-            date: date,
-            latitudeDeg: site.latitude,
-            longitudeDeg: site.longitude,
-          );
-
-      return (
-        previous: forDate(currentDate.subtract(const Duration(days: 1))),
-        today: forDate(currentDate),
-      );
-    });
-
-/// Twilight times for the observing night that is in progress, or — once it
-/// has ended — the one starting tonight.
-///
-/// `calculateTwilightTimes(date:)` returns a dusk-tonight → dawn-tomorrow
-/// window. Between local midnight and astronomical dawn the night actually in
-/// progress is the PREVIOUS date's window; anchoring on the calendar date
-/// describes the next night instead, while the current one is still running.
 final twilightTimesProvider = Provider<TwilightTimes>((ref) {
-  final candidates = ref.watch(_nightWindowCandidatesProvider);
-  final now = ref.watch(_currentMinuteProvider);
-
-  final previousDawn = candidates.previous.astronomicalDawn;
-  if (previousDawn != null && previousDawn.isAfter(now)) {
-    return candidates.previous;
-  }
-  return candidates.today;
+  final site = ref.watch(observerLocationProvider).site;
+  if (site == null) return const TwilightTimes();
+  return AstronomyCalculations.nightAt(
+    now: ref.watch(_currentMinuteProvider),
+    latitudeDeg: site.latitude,
+    longitudeDeg: site.longitude,
+  );
 });
 
-/// Moon information for current time and location
-/// Uses date precision for rise/set, minute precision for illumination.
+/// Moon information for current time and location.
+///
+/// Rise and set are searched from the start of the calendar day the
+/// [twilightTimesProvider] night's sunset falls on, so they belong to the
+/// same night as the twilight beside them; illumination is to the minute.
 ///
 /// Phase and illumination are the same everywhere on Earth, so they are stated
 /// whether or not a site is on record; rise and set are null without one.
 final moonInfoProvider = Provider<MoonTimes>((ref) {
   final site = ref.watch(observerLocationProvider).site;
-  final currentDate = ref.watch(_currentDateProvider);
   final currentMinute = ref.watch(_currentMinuteProvider);
 
   // Calculate phase and illumination - minute precision is sufficient
@@ -277,14 +247,14 @@ final moonInfoProvider = Provider<MoonTimes>((ref) {
     return MoonTimes(illumination: illumination, phaseName: phaseName);
   }
 
-  // Calculate rise/set times for the date
   final moonTimes = AstronomyCalculations.calculateMoonTimes(
-    date: currentDate,
+    date:
+        ref.watch(twilightTimesProvider.select((night) => night.sunset)) ??
+        ref.watch(_currentDateProvider),
     latitudeDeg: site.latitude,
     longitudeDeg: site.longitude,
   );
 
-  // Return combined data
   return MoonTimes(
     moonrise: moonTimes.moonrise,
     moonset: moonTimes.moonset,
@@ -295,20 +265,46 @@ final moonInfoProvider = Provider<MoonTimes>((ref) {
 
 /// Local Sidereal Time **now**, at the observing site.
 ///
-/// Per-second precision, from the wall clock — not from
-/// [observationTimeProvider]. The shell status bar and the dashboard header
-/// render this beside a real clock, and sidereal time is what an imager reads
-/// to decide what is transiting, so a scrubbed one has to stay inside the
-/// screen simulating it — see [observationSiderealTimeProvider].
+/// From the wall clock, not from [observationTimeProvider]. The shell status
+/// bar renders this beside a real clock, and sidereal time is what an imager
+/// reads to decide what is transiting, so a scrubbed one has to stay inside
+/// the screen simulating it — see [observationSiderealTimeProvider].
+///
+/// Recomputed as each sidereal minute begins, which is as often as an `HH:MM`
+/// readout changes. Every recompute costs a frame even when no readout
+/// changes, and on the Linux embedder a frame is a full-window repaint: once
+/// a second, this alone was most of an idle window's frames.
 ///
 /// Null with no site on record: sidereal time is a function of longitude.
 final localSiderealTimeProvider = Provider<double?>((ref) {
   final site = ref.watch(observerLocationProvider).site;
   if (site == null) return null;
-  final now = ref.watch(wallClockProvider);
-
-  return AstronomyCalculations.localSiderealTime(now, site.longitude);
+  final lst = AstronomyCalculations.localSiderealTime(
+    DateTime.now(),
+    site.longitude,
+  );
+  final nextMinute = Timer(untilNextSiderealMinute(lst), ref.invalidateSelf);
+  ref.onDispose(nextMinute.cancel);
+  return lst;
 });
+
+/// Solar seconds per sidereal second.
+const double _solarPerSiderealSecond = 1 / 1.00273790935;
+
+/// How long from a moment whose local sidereal time is [lstHours] until the
+/// next whole sidereal minute, plus a few milliseconds so a recompute then
+/// reads the new minute rather than the end of the old one.
+@visibleForTesting
+Duration untilNextSiderealMinute(double lstHours) {
+  final minutes = lstHours * 60;
+  final siderealSecondsLeft = (minutes.floor() + 1 - minutes) * 60;
+  final micros =
+      siderealSecondsLeft *
+      _solarPerSiderealSecond *
+      Duration.microsecondsPerSecond;
+  return Duration(microseconds: micros.ceil()) +
+      const Duration(milliseconds: 5);
+}
 
 /// Local Sidereal Time at the planetarium's *observation* time, which the time
 /// transport can hold, accelerate or jump.

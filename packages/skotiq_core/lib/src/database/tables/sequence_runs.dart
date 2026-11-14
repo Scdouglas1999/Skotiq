@@ -21,18 +21,12 @@ class SequenceRuns extends Table {
   /// Snapshot of the sequence name at the time of execution
   TextColumn get sequenceName => text()();
 
-  /// When the run started
   DateTimeColumn get startedAt => dateTime()();
 
   /// When the run ended (null if still running)
   DateTimeColumn get endedAt => dateTime().nullable()();
 
-  /// Final status: 'completed', 'failed', 'aborted', 'stopped',
-  /// 'paused-stopped', 'interrupted', or 'running' while in flight.
-  ///
-  /// 'interrupted' is assigned at startup to any row still marked 'running'
-  /// when the database opens: the executor that owned it lives in memory, so
-  /// such a row can only be residue from a process that died mid-run.
+  /// A `SequenceRunStatus` token; `running` while in flight.
   TextColumn get status => text().withDefault(const Constant('running'))();
 
   /// JSON blob with detailed statistics

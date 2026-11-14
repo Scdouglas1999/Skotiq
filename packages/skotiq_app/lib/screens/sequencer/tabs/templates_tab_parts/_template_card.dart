@@ -1,4 +1,3 @@
-// The per-template card with its hover state, instantiate/duplicate/edit/delete actions, body chips, and the _SmallIconButton primitive used for the card's icon-only secondary actions.
 part of '../templates_tab.dart';
 
 class _TemplateCard extends ConsumerStatefulWidget {
@@ -40,14 +39,12 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
   IconData _getTemplateIcon() {
     final name = widget.template.name.toLowerCase();
-    // Beginner templates
     if (name.contains('first light')) return LucideIcons.sparkles;
     if (name.contains('osc') || name.contains('one-shot')) {
       return LucideIcons.camera;
     }
     if (name.contains('quick')) return LucideIcons.zap;
     if (name.contains('beginner')) return LucideIcons.graduationCap;
-    // Intermediate templates
     if (name.contains('ha-oiii') || name.contains('bicolor')) {
       return LucideIcons.contrast;
     }
@@ -58,7 +55,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
     if (name.contains('narrowband')) return LucideIcons.waves;
     if (name.contains('multi-target')) return LucideIcons.list;
     if (name.contains('mosaic')) return LucideIcons.layoutGrid;
-    // Specialized templates
     if (name.contains('planetary')) return LucideIcons.orbit;
     if (name.contains('unattended') || name.contains('all-night')) {
       return LucideIcons.moon;
@@ -76,14 +72,12 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
   Color _getTemplateColor() {
     final name = widget.template.name.toLowerCase();
-    // Beginner templates - green/info
     if (name.contains('first light')) return widget.colors.success;
     if (name.contains('osc') || name.contains('one-shot')) {
       return widget.colors.info;
     }
     if (name.contains('quick')) return widget.colors.success;
     if (name.contains('beginner')) return widget.colors.info;
-    // Intermediate templates - primary/accent
     if (name.contains('ha-oiii') || name.contains('bicolor')) {
       return widget.colors.accent;
     }
@@ -94,7 +88,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
     if (name.contains('narrowband')) return widget.colors.accent;
     if (name.contains('multi-target')) return widget.colors.primary;
     if (name.contains('mosaic')) return widget.colors.warning;
-    // Specialized templates - warning
     if (name.contains('planetary')) return widget.colors.warning;
     if (name.contains('unattended') || name.contains('all-night')) {
       return widget.colors.warning;
@@ -160,7 +153,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Icon and actions
                   Row(
                     children: [
                       Container(
@@ -217,10 +209,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                       ],
                     ],
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Name
                   Text(
                     widget.template.name,
                     style: TextStyle(
@@ -231,10 +220,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-
                   const SizedBox(height: 6),
-
-                  // Description
                   Expanded(
                     child: Text(
                       widget.template.description.isEmpty
@@ -249,10 +235,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
-                  // Footer
                   Row(
                     children: [
                       Expanded(
@@ -287,8 +270,9 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
-                                DateFormat.yMd()
-                                    .format(widget.template.createdAt),
+                                ClockFormat.monthDayYear(
+                                  widget.template.createdAt.toLocal(),
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -301,8 +285,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                         ),
                       ),
                       const SizedBox(width: 8),
-
-                      // Use button
                       AnimatedOpacity(
                         opacity: showActions ? 1.0 : 0.0,
                         duration: const Duration(milliseconds: 150),
@@ -343,17 +325,13 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   void _useTemplate(BuildContext context) {
     final currentSequence = ref.read(currentSequenceProvider);
 
-    // Check if there are existing targets in the current sequence
     final existingTargets = currentSequence?.targetHeaders ?? [];
 
     if (existingTargets.length > 1) {
-      // Multiple targets - prompt user to choose
       _showTargetSelectionDialog(context, existingTargets);
     } else if (existingTargets.length == 1) {
-      // Single target - merge directly
       _applyTemplateToTarget(context, existingTargets.first);
     } else {
-      // No existing targets - create a new sequence from template
       _createNewSequenceFromTemplate(context);
     }
   }
@@ -441,18 +419,16 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   }
 
   Future<void> _createNewSequenceFromTemplate(BuildContext context) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final sequenceNotifier = ref.read(currentSequenceProvider.notifier);
     final newNodes = <String, SequenceNode>{};
     final idMapping = <String, String>{};
 
-    // Generate new IDs for all nodes
     for (final entry in widget.template.nodes.entries) {
       final newId = const Uuid().v4();
       idMapping[entry.key] = newId;
     }
 
-    // Clone nodes with new IDs and updated references
     for (final entry in widget.template.nodes.entries) {
       final oldNode = entry.value;
       final newId = idMapping[entry.key]!;
@@ -468,7 +444,6 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
       );
     }
 
-    // Get the new root node ID
     final newRootId = widget.template.rootNodeId != null
         ? idMapping[widget.template.rootNodeId]
         : null;
@@ -512,9 +487,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
           ],
         ),
       );
-      if (discard != true ||
-          !context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
+      if (discard != true || !context.mounted || host.isStale) {
         return;
       }
       sequenceNotifier.loadSequence(newSequence, discardUnsaved: true);
@@ -531,7 +504,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   }
 
   Future<void> _editTemplate(BuildContext context) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final editor = ref.read(currentSequenceProvider.notifier);
 
     if (editor.isDirty) {
@@ -565,7 +538,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
       if (discard != true || !context.mounted) return;
     }
 
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (host.isStale) {
       context.showWarningSnackBar(
         'The connected host changed. Reopen the template catalog.',
       );
@@ -622,8 +595,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
           editableTemplate,
           isTemplate: true,
         );
-        if (!context.mounted ||
-            !identical(ref.read(backendProvider), authority)) {
+        if (!context.mounted || host.isStale) {
           return;
         }
         editableTemplate = editableTemplate.copyWith(databaseId: savedId);
@@ -636,9 +608,9 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
         );
         ref.invalidate(sequenceTemplatesProvider);
       } catch (e) {
-        if (context.mounted &&
-            identical(ref.read(backendProvider), authority)) {
-          context.showErrorSnackBar('Could not create template copy: $e');
+        if (context.mounted && host.isCurrent) {
+          context.showErrorSnackBar(
+              'Could not create template copy: ${userFacingError(e)}');
         }
         return;
       }
@@ -659,17 +631,15 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   }
 
   Future<void> _duplicateTemplate(BuildContext context) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final repository = ref.read(sequenceRepositoryProvider);
-    // Check if template has a database ID
     final dbId = widget.template.databaseId;
     if (dbId != null) {
       try {
         final duplicated = await repository.duplicateSequence(
             dbId, '${widget.template.name} (Copy)');
 
-        if (!context.mounted ||
-            !identical(ref.read(backendProvider), authority)) {
+        if (!context.mounted || host.isStale) {
           return;
         }
 
@@ -686,9 +656,9 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
         context.showSuccessSnackBar('Duplicated "${widget.template.name}"');
       } catch (e) {
-        if (context.mounted &&
-            identical(ref.read(backendProvider), authority)) {
-          context.showErrorSnackBar('Failed to duplicate template: $e');
+        if (context.mounted && host.isCurrent) {
+          context.showErrorSnackBar(
+              'Failed to duplicate template: ${userFacingError(e)}');
         }
       }
     } else {
@@ -704,8 +674,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
         final savedId =
             await repository.saveSequence(newTemplate, isTemplate: true);
 
-        if (!context.mounted ||
-            !identical(ref.read(backendProvider), authority)) {
+        if (!context.mounted || host.isStale) {
           return;
         }
 
@@ -720,9 +689,9 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
 
         context.showSuccessSnackBar('Duplicated "${widget.template.name}"');
       } catch (e) {
-        if (context.mounted &&
-            identical(ref.read(backendProvider), authority)) {
-          context.showErrorSnackBar('Failed to duplicate template: $e');
+        if (context.mounted && host.isCurrent) {
+          context.showErrorSnackBar(
+              'Failed to duplicate template: ${userFacingError(e)}');
         }
       }
     }
@@ -731,114 +700,87 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   Future<void> _deleteTemplate(BuildContext context) async {
     final dbId = widget.template.databaseId;
     if (dbId == null) return;
-    final authority = ref.read(backendProvider);
     final repository = ref.read(sequenceRepositoryProvider);
     var isDeleting = false;
-    BuildContext? routeContext;
-    final subscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next)) return;
-        final dialogContext = routeContext;
-        if (dialogContext != null && dialogContext.mounted) {
-          dialogContext.showWarningSnackBar(
-            'The connected host changed. Template deletion canceled.',
-          );
-          closeAuthorityBoundDialog(dialogContext);
-        }
+    await showHostBoundDialog<void>(
+      context: context,
+      ref: ref,
+      hostChangedMessage:
+          'The connected host changed. Template deletion canceled.',
+      hostChangeDiscardsInput: true,
+      builder: (dialogContext, host) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) => PopScope(
+            canPop: !isDeleting,
+            child: AlertDialog(
+              backgroundColor: widget.colors.surface,
+              shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(SkotiqTokens.radiusInline8)),
+              title: Text(
+                'Delete Template',
+                style: TextStyle(color: widget.colors.textPrimary),
+              ),
+              content: ConstrainedBox(
+                constraints: AdaptiveDialogConstraints.hybrid(
+                  dialogContext,
+                  designMaxWidth: 400,
+                ),
+                child: Text(
+                  'Are you sure you want to delete "${widget.template.name}"? This action cannot be undone.',
+                  style: TextStyle(color: widget.colors.textSecondary),
+                ),
+              ),
+              actions: [
+                SkotiqButton(
+                  onPressed: isDeleting
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  label: 'Cancel',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                ),
+                SkotiqButton(
+                  onPressed: isDeleting
+                      ? null
+                      : () async {
+                          setDialogState(() => isDeleting = true);
+                          try {
+                            if (!dialogContext.mounted || host.isStale) return;
+                            await repository.deleteSequence(dbId);
+                            if (!dialogContext.mounted || host.isStale) return;
+
+                            notifySequenceCatalogChanged(
+                              ref,
+                              sequenceId: dbId,
+                              action: 'deleted',
+                              name: widget.template.name,
+                              isTemplate: true,
+                            );
+                            ref.invalidate(sequenceTemplatesProvider);
+
+                            if (!dialogContext.mounted || host.isStale) return;
+                            dialogContext.showSuccessSnackBar(
+                                'Deleted "${widget.template.name}"');
+                            Navigator.of(dialogContext).pop();
+                          } catch (e) {
+                            if (!dialogContext.mounted || host.isStale) return;
+                            setDialogState(() => isDeleting = false);
+                            dialogContext.showErrorSnackBar(
+                                'Failed to delete template: $e');
+                          }
+                        },
+                  label: 'Delete',
+                  variant: ButtonVariant.destructive,
+                  size: ButtonSize.small,
+                  isLoading: isDeleting,
+                ),
+              ],
+            ),
+          ),
+        );
       },
     );
-
-    try {
-      // Show confirmation dialog
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) {
-          routeContext = dialogContext;
-          return StatefulBuilder(
-            builder: (dialogContext, setDialogState) => PopScope(
-              canPop: !isDeleting,
-              child: AlertDialog(
-                backgroundColor: widget.colors.surface,
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline8)),
-                title: Text(
-                  'Delete Template',
-                  style: TextStyle(color: widget.colors.textPrimary),
-                ),
-                content: ConstrainedBox(
-                  constraints: AdaptiveDialogConstraints.hybrid(
-                    dialogContext,
-                    designMaxWidth: 400,
-                  ),
-                  child: Text(
-                    'Are you sure you want to delete "${widget.template.name}"? This action cannot be undone.',
-                    style: TextStyle(color: widget.colors.textSecondary),
-                  ),
-                ),
-                actions: [
-                  SkotiqButton(
-                    onPressed: isDeleting
-                        ? null
-                        : () => Navigator.of(dialogContext).pop(),
-                    label: 'Cancel',
-                    variant: ButtonVariant.ghost,
-                    size: ButtonSize.small,
-                  ),
-                  SkotiqButton(
-                    onPressed: isDeleting
-                        ? null
-                        : () async {
-                            setDialogState(() => isDeleting = true);
-                            try {
-                              if (!identical(
-                                  ref.read(backendProvider), authority)) {
-                                Navigator.of(dialogContext).pop();
-                                return;
-                              }
-                              await repository.deleteSequence(dbId);
-
-                              if (!dialogContext.mounted ||
-                                  !identical(
-                                      ref.read(backendProvider), authority)) {
-                                return;
-                              }
-
-                              notifySequenceCatalogChanged(
-                                ref,
-                                sequenceId: dbId,
-                                action: 'deleted',
-                                name: widget.template.name,
-                                isTemplate: true,
-                              );
-                              ref.invalidate(sequenceTemplatesProvider);
-
-                              if (!dialogContext.mounted) return;
-                              dialogContext.showSuccessSnackBar(
-                                  'Deleted "${widget.template.name}"');
-                              Navigator.of(dialogContext).pop();
-                            } catch (e) {
-                              if (!dialogContext.mounted) return;
-                              setDialogState(() => isDeleting = false);
-                              dialogContext.showErrorSnackBar(
-                                  'Failed to delete template: $e');
-                            }
-                          },
-                    label: 'Delete',
-                    variant: ButtonVariant.destructive,
-                    size: ButtonSize.small,
-                    isLoading: isDeleting,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    } finally {
-      subscription.close();
-    }
   }
 }
 

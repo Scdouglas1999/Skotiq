@@ -16,7 +16,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/weather/weather_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 void main() {
   group('weatherSafetyStatusText', () {
@@ -75,21 +75,44 @@ void main() {
 
   group('weatherPolicyArmedLabel', () {
     test('only says Enabled when the policy would actually fire', () {
-      expect(weatherPolicyArmedLabel(armed: true, toggledOn: true), 'Enabled');
+      expect(
+        weatherPolicyArmedLabel(armed: true, toggledOn: true, monitoring: true),
+        'Enabled',
+      );
     });
 
-    test('a toggle that is on but disarmed is reported as such', () {
+    test('a toggle held back by safety being off says so', () {
       // The reported defect: "Auto-Park: Enabled" in green while the composed
       // gate (master switch AND Sequencer policy AND this toggle) was false.
+      // "On (safety off)" that replaced it read as both on and off.
       expect(
-        weatherPolicyArmedLabel(armed: false, toggledOn: true),
-        'On (safety off)',
+        weatherPolicyArmedLabel(
+          armed: false,
+          toggledOn: true,
+          monitoring: false,
+        ),
+        'Off while safety is off',
+      );
+    });
+
+    test('a toggle held back while safety is on does not blame safety', () {
+      expect(
+        weatherPolicyArmedLabel(
+          armed: false,
+          toggledOn: true,
+          monitoring: true,
+        ),
+        'Will not fire',
       );
     });
 
     test('a toggle that is off is Disabled', () {
       expect(
-        weatherPolicyArmedLabel(armed: false, toggledOn: false),
+        weatherPolicyArmedLabel(
+          armed: false,
+          toggledOn: false,
+          monitoring: false,
+        ),
         'Disabled',
       );
     });

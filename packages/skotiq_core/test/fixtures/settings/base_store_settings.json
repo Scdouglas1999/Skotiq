@@ -1,0 +1,869 @@
+{
+  "probes": {
+    "glance mode": {
+      "reads": {
+        "missing": false,
+        "on": true,
+        "off": false,
+        "upper case": false,
+        "other text": false
+      },
+      "writes": {
+        "turn on": {
+          "glance_mode_enabled": "true"
+        },
+        "turn off": {
+          "glance_mode_enabled": "false"
+        }
+      }
+    },
+    "tutorials enabled": {
+      "reads": {
+        "missing": true,
+        "off": false,
+        "on": true,
+        "upper case off": true,
+        "empty": true
+      },
+      "writes": {
+        "turn off": {
+          "tutorials_enabled": "false"
+        },
+        "turn on": {
+          "tutorials_enabled": "true"
+        }
+      }
+    },
+    "dismissed session insights": {
+      "reads": {
+        "missing": [],
+        "two": [
+          "late_start",
+          "moon_glare"
+        ],
+        "spaces and gaps": [
+          "a",
+          "b"
+        ],
+        "empty": []
+      },
+      "writes": {
+        "dismiss two, restore one": {
+          "session_insights.dismissed": "late_start"
+        },
+        "clear": {
+          "session_insights.dismissed": ""
+        }
+      }
+    },
+    "prompt for notes after a run": {
+      "reads": {
+        "missing": true,
+        "off": false,
+        "upper case on": true,
+        "other text": false
+      },
+      "writes": {
+        "don't ask again": {
+          "notes.prompt_after_run": "false"
+        },
+        "ask again": {
+          "notes.prompt_after_run": "true"
+        }
+      }
+    },
+    "sequencer defaults": {
+      "reads": {
+        "missing": {
+          "autofocusStepSize": 100,
+          "autofocusStepsOut": 7,
+          "autofocusExposureDuration": 3.0,
+          "autofocusIntervalFrames": 25,
+          "ditherPixels": 5.0,
+          "ditherSettleTime": 30.0,
+          "ditherSettlePixels": 1.5,
+          "ditherSettleTimeout": 120.0,
+          "ditherRaOnly": false,
+          "exposureDuration": 60.0,
+          "isExposureDurationConfigured": false,
+          "exposureCount": 10,
+          "exposureFilter": null,
+          "exposureGain": null,
+          "exposureOffset": null,
+          "exposureBinning": "one",
+          "exposureDitherEvery": 3,
+          "frameDownloadOverheadSecs": 2.0,
+          "livestackingPublicByDefault": false,
+          "livestackingDefaultStackMethod": "average",
+          "livestackingDefaultWatermark": null,
+          "livestackingDefaultThumbnailSize": "medium",
+          "livestackingDisableEverywhere": false
+        },
+        "every value set": {
+          "autofocusStepSize": 80,
+          "autofocusStepsOut": 9,
+          "autofocusExposureDuration": 4.5,
+          "autofocusIntervalFrames": 40,
+          "ditherPixels": 3.5,
+          "ditherSettleTime": 12.0,
+          "ditherSettlePixels": 0.8,
+          "ditherSettleTimeout": 90.0,
+          "ditherRaOnly": true,
+          "exposureDuration": 180.0,
+          "isExposureDurationConfigured": true,
+          "exposureCount": 25,
+          "exposureFilter": "Ha",
+          "exposureGain": 139,
+          "exposureOffset": 21,
+          "exposureBinning": "two",
+          "exposureDitherEvery": 5,
+          "frameDownloadOverheadSecs": 2.0,
+          "livestackingPublicByDefault": true,
+          "livestackingDefaultStackMethod": "medianRej",
+          "livestackingDefaultWatermark": "$TARGET by me",
+          "livestackingDefaultThumbnailSize": "large",
+          "livestackingDisableEverywhere": true
+        },
+        "unreadable values": {
+          "autofocusStepSize": 100,
+          "autofocusStepsOut": 7,
+          "autofocusExposureDuration": 3.0,
+          "autofocusIntervalFrames": 25,
+          "ditherPixels": 5.0,
+          "ditherSettleTime": 30.0,
+          "ditherSettlePixels": 1.5,
+          "ditherSettleTimeout": 120.0,
+          "ditherRaOnly": false,
+          "exposureDuration": 60.0,
+          "isExposureDurationConfigured": false,
+          "exposureCount": 10,
+          "exposureFilter": "",
+          "exposureGain": null,
+          "exposureOffset": null,
+          "exposureBinning": "three",
+          "exposureDitherEvery": 3,
+          "frameDownloadOverheadSecs": 2.0,
+          "livestackingPublicByDefault": false,
+          "livestackingDefaultStackMethod": "average",
+          "livestackingDefaultWatermark": null,
+          "livestackingDefaultThumbnailSize": "medium",
+          "livestackingDisableEverywhere": false
+        },
+        "zero and negative": {
+          "autofocusStepSize": 100,
+          "autofocusStepsOut": 7,
+          "autofocusExposureDuration": 3.0,
+          "autofocusIntervalFrames": 0,
+          "ditherPixels": 5.0,
+          "ditherSettleTime": -1.0,
+          "ditherSettlePixels": 1.5,
+          "ditherSettleTimeout": 120.0,
+          "ditherRaOnly": false,
+          "exposureDuration": 60.0,
+          "isExposureDurationConfigured": false,
+          "exposureCount": 10,
+          "exposureFilter": null,
+          "exposureGain": -5,
+          "exposureOffset": null,
+          "exposureBinning": "one",
+          "exposureDitherEvery": 3,
+          "frameDownloadOverheadSecs": 2.0,
+          "livestackingPublicByDefault": false,
+          "livestackingDefaultStackMethod": "average",
+          "livestackingDefaultWatermark": null,
+          "livestackingDefaultThumbnailSize": "medium",
+          "livestackingDisableEverywhere": false
+        },
+        "negative duration": {
+          "autofocusStepSize": 100,
+          "autofocusStepsOut": 7,
+          "autofocusExposureDuration": 3.0,
+          "autofocusIntervalFrames": 25,
+          "ditherPixels": 5.0,
+          "ditherSettleTime": 30.0,
+          "ditherSettlePixels": 1.5,
+          "ditherSettleTimeout": 120.0,
+          "ditherRaOnly": false,
+          "exposureDuration": 60.0,
+          "isExposureDurationConfigured": false,
+          "exposureCount": 10,
+          "exposureFilter": null,
+          "exposureGain": null,
+          "exposureOffset": null,
+          "exposureBinning": "one",
+          "exposureDitherEvery": 3,
+          "frameDownloadOverheadSecs": 2.0,
+          "livestackingPublicByDefault": false,
+          "livestackingDefaultStackMethod": "average",
+          "livestackingDefaultWatermark": null,
+          "livestackingDefaultThumbnailSize": "medium",
+          "livestackingDisableEverywhere": false
+        },
+        "null text": {
+          "autofocusStepSize": 100,
+          "autofocusStepsOut": 7,
+          "autofocusExposureDuration": 3.0,
+          "autofocusIntervalFrames": 25,
+          "ditherPixels": 5.0,
+          "ditherSettleTime": 30.0,
+          "ditherSettlePixels": 1.5,
+          "ditherSettleTimeout": 120.0,
+          "ditherRaOnly": false,
+          "exposureDuration": 60.0,
+          "isExposureDurationConfigured": false,
+          "exposureCount": 10,
+          "exposureFilter": "null",
+          "exposureGain": null,
+          "exposureOffset": null,
+          "exposureBinning": "one",
+          "exposureDitherEvery": 3,
+          "frameDownloadOverheadSecs": 2.0,
+          "livestackingPublicByDefault": false,
+          "livestackingDefaultStackMethod": "average",
+          "livestackingDefaultWatermark": "null",
+          "livestackingDefaultThumbnailSize": "medium",
+          "livestackingDisableEverywhere": false
+        }
+      },
+      "writes": {
+        "autofocus": {
+          "sequencer_autofocus_step_size": "75",
+          "sequencer_autofocus_steps_out": "6",
+          "sequencer_autofocus_exposure_duration": "2.5",
+          "sequencer_autofocus_interval_frames": "1"
+        },
+        "dither": {
+          "sequencer_autofocus_step_size": "75",
+          "sequencer_autofocus_steps_out": "6",
+          "sequencer_autofocus_exposure_duration": "2.5",
+          "sequencer_autofocus_interval_frames": "1",
+          "sequencer_dither_pixels": "4.0",
+          "sequencer_dither_settle_time": "3.0",
+          "sequencer_dither_settle_pixels": "0.5",
+          "sequencer_dither_settle_timeout": "45.0",
+          "sequencer_dither_ra_only": "true"
+        },
+        "exposure": {
+          "sequencer_autofocus_step_size": "75",
+          "sequencer_autofocus_steps_out": "6",
+          "sequencer_autofocus_exposure_duration": "2.5",
+          "sequencer_autofocus_interval_frames": "1",
+          "sequencer_dither_pixels": "4.0",
+          "sequencer_dither_settle_time": "3.0",
+          "sequencer_dither_settle_pixels": "0.5",
+          "sequencer_dither_settle_timeout": "45.0",
+          "sequencer_dither_ra_only": "true",
+          "sequencer_exposure_duration": "300.0",
+          "sequencer_exposure_count": "12",
+          "sequencer_exposure_filter": "OIII",
+          "sequencer_exposure_gain": "0",
+          "sequencer_exposure_offset": "10",
+          "sequencer_exposure_binning": "two",
+          "sequencer_exposure_dither_every": "2"
+        },
+        "exposure empty filter": {
+          "sequencer_autofocus_step_size": "75",
+          "sequencer_autofocus_steps_out": "6",
+          "sequencer_autofocus_exposure_duration": "2.5",
+          "sequencer_autofocus_interval_frames": "1",
+          "sequencer_dither_pixels": "4.0",
+          "sequencer_dither_settle_time": "3.0",
+          "sequencer_dither_settle_pixels": "0.5",
+          "sequencer_dither_settle_timeout": "45.0",
+          "sequencer_dither_ra_only": "true",
+          "sequencer_exposure_duration": "300.0",
+          "sequencer_exposure_count": "12",
+          "sequencer_exposure_filter": "",
+          "sequencer_exposure_gain": "0",
+          "sequencer_exposure_offset": "10",
+          "sequencer_exposure_binning": "two",
+          "sequencer_exposure_dither_every": "2"
+        },
+        "live stacking": {
+          "sequencer_autofocus_step_size": "75",
+          "sequencer_autofocus_steps_out": "6",
+          "sequencer_autofocus_exposure_duration": "2.5",
+          "sequencer_autofocus_interval_frames": "1",
+          "sequencer_dither_pixels": "4.0",
+          "sequencer_dither_settle_time": "3.0",
+          "sequencer_dither_settle_pixels": "0.5",
+          "sequencer_dither_settle_timeout": "45.0",
+          "sequencer_dither_ra_only": "true",
+          "sequencer_exposure_duration": "300.0",
+          "sequencer_exposure_count": "12",
+          "sequencer_exposure_filter": "",
+          "sequencer_exposure_gain": "0",
+          "sequencer_exposure_offset": "10",
+          "sequencer_exposure_binning": "two",
+          "sequencer_exposure_dither_every": "2",
+          "livestacking_public_by_default": "true",
+          "livestacking_default_stack_method": "median_rej",
+          "livestacking_default_watermark": "Skotiq",
+          "livestacking_default_thumbnail_size": "small",
+          "livestacking_disable_everywhere": "true"
+        },
+        "live stacking cleared watermark": {
+          "sequencer_autofocus_step_size": "75",
+          "sequencer_autofocus_steps_out": "6",
+          "sequencer_autofocus_exposure_duration": "2.5",
+          "sequencer_autofocus_interval_frames": "1",
+          "sequencer_dither_pixels": "4.0",
+          "sequencer_dither_settle_time": "3.0",
+          "sequencer_dither_settle_pixels": "0.5",
+          "sequencer_dither_settle_timeout": "45.0",
+          "sequencer_dither_ra_only": "true",
+          "sequencer_exposure_duration": "300.0",
+          "sequencer_exposure_count": "12",
+          "sequencer_exposure_filter": "",
+          "sequencer_exposure_gain": "0",
+          "sequencer_exposure_offset": "10",
+          "sequencer_exposure_binning": "two",
+          "sequencer_exposure_dither_every": "2",
+          "livestacking_public_by_default": "true",
+          "livestacking_default_stack_method": "median_rej",
+          "livestacking_default_watermark": "",
+          "livestacking_default_thumbnail_size": "small",
+          "livestacking_disable_everywhere": "true"
+        }
+      }
+    },
+    "frame watch": {
+      "reads": {
+        "missing": {
+          "recenterEnabled": true,
+          "driftLimitArcsec": 30.0,
+          "obstructionDetection": true,
+          "learnedPoints": "[]"
+        },
+        "every value set": {
+          "recenterEnabled": false,
+          "driftLimitArcsec": 45.5,
+          "obstructionDetection": false,
+          "learnedPoints": "[{\"az\":120.0,\"alt\":22.0,\"lat\":40.0,\"lon\":-74.0,\"at\":\"2026-10-01T03:00:00.000Z\",\"target\":\"M31\"}]"
+        },
+        "unreadable values": {
+          "recenterEnabled": true,
+          "driftLimitArcsec": 30.0,
+          "obstructionDetection": true,
+          "learnedPoints": "[]"
+        },
+        "drift below the floor": {
+          "recenterEnabled": true,
+          "driftLimitArcsec": 10.0,
+          "obstructionDetection": true,
+          "learnedPoints": "[]"
+        },
+        "drift above the ceiling": {
+          "recenterEnabled": true,
+          "driftLimitArcsec": 600.0,
+          "obstructionDetection": true,
+          "learnedPoints": "[]"
+        },
+        "empty": {
+          "recenterEnabled": true,
+          "driftLimitArcsec": 30.0,
+          "obstructionDetection": true,
+          "learnedPoints": "[]"
+        }
+      },
+      "writes": {
+        "setters": {
+          "frame_watch_recenter_enabled": "false",
+          "frame_watch_drift_limit_arcsec": "600.0",
+          "frame_watch_obstruction_detection": "false",
+          "learned_horizon_points_json": "[{\"az\":200.0,\"alt\":15.0,\"lat\":51.5,\"lon\":-0.1,\"at\":\"2026-09-01T00:00:00.000Z\",\"target\":null}]"
+        }
+      }
+    },
+    "annotation settings": {
+      "reads": {
+        "missing": {
+          "enabled": true,
+          "magnitudeCutoff": 15.0,
+          "minMagnitude": -5.0,
+          "visibleTypes": [
+            "galaxies",
+            "nebulae",
+            "starClusters",
+            "planetaryNebulae"
+          ],
+          "showLabels": true,
+          "showMagnitudes": false,
+          "fadeWhenNotHovering": true,
+          "hoverOpacity": 0.8,
+          "idleOpacity": 0.2,
+          "fadeAnimationMs": 400,
+          "clickToIdentify": true,
+          "clickSearchRadiusArcsec": 30.0,
+          "autoAnnotate": true,
+          "maxObjectsToDisplay": 500,
+          "catalogBboxPaddingFraction": 0.05,
+          "compassEnabled": true,
+          "scaleBarEnabled": true,
+          "gridType": "none",
+          "showSolveResiduals": false
+        },
+        "stored": {
+          "enabled": false,
+          "magnitudeCutoff": 11.0,
+          "minMagnitude": -5.0,
+          "visibleTypes": [
+            "galaxies",
+            "nebulae",
+            "starClusters",
+            "planetaryNebulae"
+          ],
+          "showLabels": true,
+          "showMagnitudes": false,
+          "fadeWhenNotHovering": true,
+          "hoverOpacity": 0.8,
+          "idleOpacity": 0.2,
+          "fadeAnimationMs": 400,
+          "clickToIdentify": true,
+          "clickSearchRadiusArcsec": 30.0,
+          "autoAnnotate": true,
+          "maxObjectsToDisplay": 500,
+          "catalogBboxPaddingFraction": 0.05,
+          "compassEnabled": true,
+          "scaleBarEnabled": true,
+          "gridType": "none",
+          "showSolveResiduals": false
+        },
+        "empty": {
+          "enabled": true,
+          "magnitudeCutoff": 15.0,
+          "minMagnitude": -5.0,
+          "visibleTypes": [
+            "galaxies",
+            "nebulae",
+            "starClusters",
+            "planetaryNebulae"
+          ],
+          "showLabels": true,
+          "showMagnitudes": false,
+          "fadeWhenNotHovering": true,
+          "hoverOpacity": 0.8,
+          "idleOpacity": 0.2,
+          "fadeAnimationMs": 400,
+          "clickToIdentify": true,
+          "clickSearchRadiusArcsec": 30.0,
+          "autoAnnotate": true,
+          "maxObjectsToDisplay": 500,
+          "catalogBboxPaddingFraction": 0.05,
+          "compassEnabled": true,
+          "scaleBarEnabled": true,
+          "gridType": "none",
+          "showSolveResiduals": false
+        },
+        "corrupt": {
+          "error": "StateError"
+        }
+      },
+      "writes": {
+        "turn off": {
+          "annotation_settings": "{\"enabled\":false,\"magnitudeCutoff\":15.0,\"minMagnitude\":-5.0,\"visibleTypes\":[\"galaxies\",\"nebulae\",\"starClusters\",\"planetaryNebulae\"],\"showLabels\":true,\"showMagnitudes\":false,\"fadeWhenNotHovering\":true,\"hoverOpacity\":0.8,\"idleOpacity\":0.2,\"fadeAnimationMs\":400,\"clickToIdentify\":true,\"clickSearchRadiusArcsec\":30.0,\"autoAnnotate\":true,\"maxObjectsToDisplay\":500,\"catalogBboxPaddingFraction\":0.05,\"compassEnabled\":true,\"scaleBarEnabled\":true,\"gridType\":\"none\",\"showSolveResiduals\":false}"
+        }
+      }
+    },
+    "annotation marker style": {
+      "reads": {
+        "missing": {
+          "galaxyColor": 4294956800,
+          "nebulaColor": 4294902015,
+          "clusterColor": 4278255615,
+          "planetaryNebulaColor": 4287889619,
+          "starColor": 4294967295,
+          "otherColor": 4278255360,
+          "strokeWidth": 1.5,
+          "labelFontSize": 12.0,
+          "scaleBySize": true,
+          "minMarkerSize": 10.0,
+          "maxMarkerSize": 100.0
+        },
+        "stored": {
+          "galaxyColor": 4294956800,
+          "nebulaColor": 4294902015,
+          "clusterColor": 4278255615,
+          "planetaryNebulaColor": 4287889619,
+          "starColor": 4294967295,
+          "otherColor": 4278255360,
+          "strokeWidth": 3.0,
+          "labelFontSize": 12.0,
+          "scaleBySize": true,
+          "minMarkerSize": 10.0,
+          "maxMarkerSize": 100.0
+        },
+        "empty": {
+          "galaxyColor": 4294956800,
+          "nebulaColor": 4294902015,
+          "clusterColor": 4278255615,
+          "planetaryNebulaColor": 4287889619,
+          "starColor": 4294967295,
+          "otherColor": 4278255360,
+          "strokeWidth": 1.5,
+          "labelFontSize": 12.0,
+          "scaleBySize": true,
+          "minMarkerSize": 10.0,
+          "maxMarkerSize": 100.0
+        },
+        "corrupt": {
+          "error": "StateError"
+        }
+      },
+      "writes": {
+        "stroke width": {
+          "annotation_marker_style": "{\"galaxyColor\":4294956800,\"nebulaColor\":4294902015,\"clusterColor\":4278255615,\"planetaryNebulaColor\":4287889619,\"starColor\":4294967295,\"otherColor\":4278255360,\"strokeWidth\":2.5,\"labelFontSize\":12.0,\"scaleBySize\":true,\"minMarkerSize\":10.0,\"maxMarkerSize\":100.0}"
+        }
+      }
+    },
+    "annotation presets": {
+      "reads": {
+        "missing": [],
+        "stored": {
+          "error": "StateError"
+        },
+        "empty": [],
+        "corrupt": {
+          "error": "StateError"
+        }
+      },
+      "writes": {}
+    },
+    "polar alignment screen": {
+      "reads": {
+        "missing": {
+          "mode": "threePoint",
+          "showCommonSettings": false,
+          "showAdvancedSettings": false,
+          "showHistoryPanel": false,
+          "compactTabIndex": 1
+        },
+        "stored": {
+          "mode": "threePoint",
+          "showCommonSettings": false,
+          "showAdvancedSettings": true,
+          "showHistoryPanel": true,
+          "compactTabIndex": 2
+        },
+        "empty": {
+          "mode": "threePoint",
+          "showCommonSettings": false,
+          "showAdvancedSettings": false,
+          "showHistoryPanel": false,
+          "compactTabIndex": 1
+        },
+        "corrupt": {
+          "mode": "threePoint",
+          "showCommonSettings": false,
+          "showAdvancedSettings": false,
+          "showHistoryPanel": false,
+          "compactTabIndex": 1
+        }
+      },
+      "writes": {
+        "history panel": {
+          "polar_alignment_ui": "{\"mode\":\"threePoint\",\"showCommonSettings\":false,\"showAdvancedSettings\":false,\"showHistoryPanel\":true,\"compactTabIndex\":1}"
+        }
+      }
+    },
+    "auto stretch": {
+      "reads": {
+        "missing": {
+          "enabled": true,
+          "method": "stf",
+          "shadowClip": -2.8,
+          "highlightClip": -0.5,
+          "targetMedian": 0.25,
+          "linkedChannels": true,
+          "gammaValue": 2.2
+        },
+        "stored": {
+          "enabled": false,
+          "method": "stf",
+          "shadowClip": -2.8,
+          "highlightClip": -0.5,
+          "targetMedian": 0.25,
+          "linkedChannels": true,
+          "gammaValue": 2.2
+        },
+        "empty": {
+          "enabled": true,
+          "method": "stf",
+          "shadowClip": -2.8,
+          "highlightClip": -0.5,
+          "targetMedian": 0.25,
+          "linkedChannels": true,
+          "gammaValue": 2.2
+        },
+        "corrupt": {
+          "enabled": true,
+          "method": "stf",
+          "shadowClip": -2.8,
+          "highlightClip": -0.5,
+          "targetMedian": 0.25,
+          "linkedChannels": true,
+          "gammaValue": 2.2
+        }
+      },
+      "writes": {
+        "turn off": {
+          "auto_stretch_settings": "{\"enabled\":false,\"method\":\"stf\",\"shadowClip\":-2.8,\"highlightClip\":-0.5,\"targetMedian\":0.25,\"linkedChannels\":true,\"gammaValue\":2.2}"
+        }
+      }
+    },
+    "home assistant discovery": {
+      "reads": {
+        "missing": {
+          "enabled": false,
+          "deviceName": "",
+          "allowControl": false,
+          "discoveryPrefix": "homeassistant"
+        },
+        "stored": {
+          "enabled": true,
+          "deviceName": "Roof",
+          "allowControl": false,
+          "discoveryPrefix": "homeassistant"
+        },
+        "empty": {
+          "enabled": false,
+          "deviceName": "",
+          "allowControl": false,
+          "discoveryPrefix": "homeassistant"
+        },
+        "corrupt": {
+          "enabled": false,
+          "deviceName": "",
+          "allowControl": false,
+          "discoveryPrefix": "homeassistant"
+        }
+      },
+      "writes": {
+        "save": {
+          "home_assistant_discovery": "{\"enabled\":true,\"deviceName\":\"Dome\",\"allowControl\":false,\"discoveryPrefix\":\"homeassistant\"}"
+        }
+      }
+    },
+    "push notifications": {
+      "reads": {
+        "missing": {
+          "enabled": true,
+          "notifySequenceCompleted": true,
+          "notifySequenceFailed": true,
+          "notifyMeridianFlip": true,
+          "notifyWeatherUnsafe": true,
+          "notifyGuidingLost": true,
+          "notifyExposureFailed": true,
+          "notifyAutofocusFailed": true,
+          "notifyEquipmentDisconnected": false
+        },
+        "stored": {
+          "enabled": false,
+          "notifySequenceCompleted": true,
+          "notifySequenceFailed": true,
+          "notifyMeridianFlip": true,
+          "notifyWeatherUnsafe": true,
+          "notifyGuidingLost": false,
+          "notifyExposureFailed": true,
+          "notifyAutofocusFailed": true,
+          "notifyEquipmentDisconnected": true
+        },
+        "empty": {
+          "error": "StateError"
+        },
+        "corrupt": {
+          "error": "StateError"
+        }
+      },
+      "writes": {
+        "turn off": {
+          "push_notification_config": "{\"enabled\":false,\"notifySequenceCompleted\":true,\"notifySequenceFailed\":true,\"notifyMeridianFlip\":true,\"notifyWeatherUnsafe\":true,\"notifyGuidingLost\":true,\"notifyExposureFailed\":true,\"notifyAutofocusFailed\":true,\"notifyEquipmentDisconnected\":false}"
+        }
+      }
+    },
+    "scheduler config": {
+      "reads": {
+        "missing": {
+          "hysteresisRatio": 1.2,
+          "minAltitudeDegrees": 30.0,
+          "weights": {
+            "altitude": 1.0,
+            "meridian": 1.0,
+            "moon": 1.0,
+            "timeRemaining": 0.75,
+            "filterCoverage": 1.25,
+            "userPriority": 1.0
+          }
+        },
+        "stored": {
+          "hysteresisRatio": 1.2,
+          "minAltitudeDegrees": 25.0,
+          "weights": {
+            "altitude": 1.0,
+            "meridian": 1.0,
+            "moon": 1.0,
+            "timeRemaining": 0.75,
+            "filterCoverage": 1.25,
+            "userPriority": 1.0
+          }
+        },
+        "empty": {
+          "hysteresisRatio": 1.2,
+          "minAltitudeDegrees": 30.0,
+          "weights": {
+            "altitude": 1.0,
+            "meridian": 1.0,
+            "moon": 1.0,
+            "timeRemaining": 0.75,
+            "filterCoverage": 1.25,
+            "userPriority": 1.0
+          }
+        },
+        "corrupt": {
+          "error": "FormatException"
+        }
+      },
+      "writes": {
+        "save defaults": {
+          "scheduler_config": "{\"hysteresisRatio\":1.2,\"minAltitudeDegrees\":30.0,\"weights\":{\"altitude\":1.0,\"meridian\":1.0,\"moon\":1.0,\"timeRemaining\":0.75,\"filterCoverage\":1.25,\"userPriority\":1.0}}"
+        }
+      }
+    },
+    "plugin enablement": {
+      "reads": {
+        "missing": {
+          "a": true,
+          "b": true,
+          "unknown": true
+        },
+        "stored": {
+          "a": false,
+          "b": true,
+          "unknown": true
+        },
+        "bad entry": {
+          "a": true,
+          "b": false,
+          "unknown": true
+        },
+        "empty": {
+          "a": true,
+          "b": true,
+          "unknown": true
+        },
+        "not an object": {
+          "a": true,
+          "b": true,
+          "unknown": true
+        }
+      },
+      "writes": {}
+    },
+    "constellation account": {
+      "reads": {
+        "missing": {
+          "account": null,
+          "hub": null,
+          "token": null
+        },
+        "signed in": {
+          "account": "acct-1",
+          "hub": "http://hub.local:8800",
+          "token": "tok"
+        },
+        "empty": {
+          "account": null,
+          "hub": null,
+          "token": null
+        },
+        "no scheme": {
+          "account": null,
+          "hub": null,
+          "token": null
+        }
+      },
+      "writes": {}
+    }
+  },
+  "deviceLocal": {
+    "ai.anthropic.api_key": true,
+    "ai.ollama.api_key": true,
+    "ai.openai_compatible.api_key": true,
+    "annotation_marker_style": true,
+    "annotation_presets": true,
+    "annotation_settings": true,
+    "auto_stretch_settings": true,
+    "camera_presets": false,
+    "camera_sensor_specs": false,
+    "constellation.account_id": true,
+    "constellation.display_name": true,
+    "constellation.hub_token": true,
+    "constellation.hub_url": true,
+    "constellation.privacy": true,
+    "constellation.public_key": true,
+    "equipment_onboarding_draft": true,
+    "focuser_backlash_calibrations.v1": false,
+    "frame_watch_drift_limit_arcsec": false,
+    "frame_watch_obstruction_detection": false,
+    "frame_watch_recenter_enabled": false,
+    "framing.lastTarget": true,
+    "glance_mode_enabled": true,
+    "hardware_presets.cameras.v1": false,
+    "hardware_presets.telescopes.v1": false,
+    "home_assistant_discovery": false,
+    "imaging.depthlock_hint_dismissed": true,
+    "imaging_capture_settings_profile_1": false,
+    "learned_horizon_points_json": false,
+    "livestacking_default_stack_method": false,
+    "livestacking_default_thumbnail_size": false,
+    "livestacking_default_watermark": false,
+    "livestacking_disable_everywhere": false,
+    "livestacking_public_by_default": false,
+    "location_google_geolocation_key": true,
+    "mosaic.upload.attribution": true,
+    "mosaic.upload.auto": true,
+    "mosaic.upload.consented": true,
+    "mosaic.upload.license": true,
+    "notes.prompt_after_run": false,
+    "notification_routing_matrix": false,
+    "notification_secrets_migrated_v2": true,
+    "observer_latitude": false,
+    "planning.active_project_id": true,
+    "planning.active_project_id.host-1": true,
+    "plugin_enablement": false,
+    "polar_alignment_ui": true,
+    "push_notification_config": false,
+    "replay_debug.enabled": false,
+    "replay_debug.retention_days": false,
+    "scheduler_config": false,
+    "science.feature.sky_atlas": false,
+    "science.sky_atlas.limit_gb": false,
+    "science.sky_atlas.off_notice": false,
+    "sequence_overview_visible_v1": true,
+    "sequencer_autofocus_exposure_duration": false,
+    "sequencer_autofocus_interval_frames": false,
+    "sequencer_autofocus_step_size": false,
+    "sequencer_autofocus_steps_out": false,
+    "sequencer_density_v1": true,
+    "sequencer_dither_pixels": false,
+    "sequencer_dither_ra_only": false,
+    "sequencer_dither_settle_pixels": false,
+    "sequencer_dither_settle_time": false,
+    "sequencer_dither_settle_timeout": false,
+    "sequencer_exposure_binning": false,
+    "sequencer_exposure_count": false,
+    "sequencer_exposure_dither_every": false,
+    "sequencer_exposure_duration": false,
+    "sequencer_exposure_filter": false,
+    "sequencer_exposure_gain": false,
+    "sequencer_exposure_offset": false,
+    "session_insights.dismissed": true,
+    "sidebar_collapsed": true,
+    "smart_night.hardware.camera_overrides.v1": false,
+    "smart_night.prompt_dismissed_day_key": true,
+    "start_minimized": true,
+    "theme": true,
+    "thumbnail_strip_prefs_v1": true,
+    "tutorials_enabled": true
+  }
+}

@@ -1,7 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../darkroom_previews.dart';
 import 'darkroom_targets_model.dart';
@@ -80,7 +83,7 @@ final darkroomTargetCalibrationProvider = FutureProvider.autoDispose
   final targets = await ref.watch(darkroomTargetsProvider.future);
   final target = targets.where((t) => t.key == key).firstOrNull;
   if (target == null) return const [];
-  final library = ref.watch(calibrationLibraryServiceProvider);
+  final library = ref.watch(calibrationLibraryProvider);
   final result = <DarkroomFilterCalibration>[];
   for (final channel in target.channels) {
     final subs = [
@@ -95,7 +98,8 @@ final darkroomTargetCalibrationProvider = FutureProvider.autoDispose
     ]..sort();
     final match = await library.match(
       LightFrameContext(
-        gain: f.gain,
+        gain: f.comparableGain,
+        gainIsUnknownIso: f.hasUnknownIso,
         offset: f.offset,
         exposureSeconds: f.exposureDuration,
         temperature: temps.isEmpty ? null : temps[temps.length ~/ 2],

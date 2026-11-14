@@ -44,8 +44,9 @@ import 'dart:convert';
 
 import '../../models/planning/target_suggestion.dart';
 import '../../models/sequence/sequence_models.dart';
-import '../../providers/profiles_provider.dart' show EquipmentProfileModel;
-import '../../providers/sequence/sequence_validation.dart';
+import '../../models/equipment_profile_model.dart' show EquipmentProfileModel;
+import '../../models/sequence/validation/structural_rules.dart';
+import '../../models/sequence/validation/validation_issue.dart';
 import '../logging_service.dart';
 import '../sequence_file_service.dart';
 import 'llm_provider.dart';
@@ -309,7 +310,6 @@ class ConversationalBuilderService {
       rawReplies.add(reply.text);
       aggregateUsage = _accumulate(aggregateUsage, reply.usage);
 
-      // Parse the reply.
       Sequence? candidateSequence;
       List<ValidationIssue> issues;
       try {
@@ -366,7 +366,6 @@ class ConversationalBuilderService {
         (i) => i.severity == ValidationSeverity.error,
       );
       if (!hasErrors) {
-        // Success — return immediately.
         return ConversationalBuildResult(
           sequence: candidateSequence,
           validationIssues: issues,
@@ -610,15 +609,4 @@ String compressFilters(List<String> filters) {
 String formatUsage(LlmUsage usage) {
   return '${usage.promptTokens} prompt + ${usage.completionTokens} '
       'completion = ${usage.totalTokens} tokens';
-}
-
-/// Helper used by the system-prompt builder and the dialog: rounds a
-/// duration to a friendly "1.5h" / "30m" string. Kept in this file so
-/// the dialog can import it from the same module rather than rolling
-/// its own.
-String formatHours(double hours) {
-  if (hours >= 1.0) {
-    return '${hours.toStringAsFixed(1)}h';
-  }
-  return '${(hours * 60).round()}m';
 }

@@ -4,7 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart'
     show dbSessionImagesProvider;
 import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// The night's story is not a science product and must not be hidden with them.
@@ -74,8 +77,8 @@ List<Override> _overrides({List<NarratorEvent> narratorEvents = const []}) => [
       sessionFrameQualityMetricsProvider.overrideWith(
         (ref, id) => Stream.value(const <ScienceFrameQualityMetricsRow>[]),
       ),
-      sessionTileMetricsProvider.overrideWith(
-        (ref, id) => Stream.value(const <ScienceTileMetricRow>[]),
+      frameTileMetricsProvider.overrideWith(
+        (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
       ),
       dbSessionImagesProvider.overrideWith(
         (ref, id) => Stream.value(const <DbCapturedImage>[]),

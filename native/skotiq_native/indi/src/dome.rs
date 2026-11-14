@@ -15,7 +15,8 @@
 //! errors normally — silent fallback here applies only to status probes.
 
 use crate::client::IndiClient;
-use crate::error::IndiResult;
+use crate::error::{IndiError, IndiResult};
+use crate::protocol::names::*;
 use crate::IndiPropertyState;
 use std::sync::Arc;
 use std::time::Duration;
@@ -32,7 +33,6 @@ pub enum IndiShutterStatus {
     Unknown,
 }
 
-/// INDI Dome device wrapper
 pub struct IndiDome {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
@@ -40,7 +40,6 @@ pub struct IndiDome {
 }
 
 impl IndiDome {
-    /// Create a new INDI dome wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -49,65 +48,32 @@ impl IndiDome {
         }
     }
 
-    /// Get the device name
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    // Connection
-
-    /// Connect to the dome
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    /// Disconnect from the dome
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    /// Check if connected
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
-    // Position
-
     /// Get the current dome azimuth position in degrees (0-360)
-    pub async fn get_azimuth(&self) -> Result<f64, String> {
+    pub async fn get_azimuth(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(
-                &self.device_name,
-                "ABS_DOME_POSITION",
-                "DOME_ABSOLUTE_POSITION",
-            )
+            .get_number(&self.device_name, ABS_DOME_POSITION, DOME_ABSOLUTE_POSITION)
             .await
-            .ok_or_else(|| "Azimuth not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Azimuth not available".to_string()))
     }
 
-    /// Slew dome to specific azimuth
     pub async fn slew_to_azimuth(&self, azimuth: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
             .set_number(
                 &self.device_name,
-                "ABS_DOME_POSITION",
-                "DOME_ABSOLUTE_POSITION",
+                ABS_DOME_POSITION,
+                DOME_ABSOLUTE_POSITION,
                 azimuth,
             )
             .await
     }
 
-    /// Slew dome to specific azimuth with timeout
     pub async fn slew_to_azimuth_with_timeout(
         &self,
         azimuth: f64,
         timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    ) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -116,59 +82,55 @@ impl IndiDome {
             Duration::from_secs(client.timeout_config().dome_slew_timeout_secs)
         };
 
-        // Start the slew
         {
             let mut client = self.client.write().await;
             client
                 .set_number(
                     &self.device_name,
-                    "ABS_DOME_POSITION",
-                    "DOME_ABSOLUTE_POSITION",
+                    ABS_DOME_POSITION,
+                    DOME_ABSOLUTE_POSITION,
                     azimuth,
                 )
                 .await?;
         }
 
-        // Wait for slew to complete
         let client = self.client.read().await;
         client
-            .wait_for_property_not_busy(&self.device_name, "ABS_DOME_POSITION", timeout_duration)
+            .wait_for_property_not_busy(&self.device_name, ABS_DOME_POSITION, timeout_duration)
             .await
-            .map_err(|e| format!("Dome slew to azimuth {:.1} degrees failed: {}", azimuth, e))
+            .map_err(|e| IndiError::Failed {
+                what: format!("Dome slew to azimuth {:.1} degrees", azimuth),
+                cause: Box::new(e),
+            })
     }
 
     /// Sync dome to current azimuth
     pub async fn sync_to_azimuth(&self, azimuth: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_number(&self.device_name, "DOME_SYNC", "DOME_SYNC_VALUE", azimuth)
+            .set_number(&self.device_name, DOME_SYNC, DOME_SYNC_VALUE, azimuth)
             .await
     }
 
-    // Shutter control
-
-    /// Open the dome shutter
     pub async fn open_shutter(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, "DOME_SHUTTER", "SHUTTER_OPEN", true)
+            .set_switch(&self.device_name, DOME_SHUTTER, SHUTTER_OPEN, true)
             .await?;
         *self.last_shutter_command.write().await = Some(IndiShutterStatus::Opening);
         Ok(())
     }
 
-    /// Close the dome shutter
     pub async fn close_shutter(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, "DOME_SHUTTER", "SHUTTER_CLOSE", true)
+            .set_switch(&self.device_name, DOME_SHUTTER, SHUTTER_CLOSE, true)
             .await?;
         *self.last_shutter_command.write().await = Some(IndiShutterStatus::Closing);
         Ok(())
     }
 
-    /// Open the dome shutter with timeout
-    pub async fn open_shutter_with_timeout(&self, timeout: Option<Duration>) -> Result<(), String> {
+    pub async fn open_shutter_with_timeout(&self, timeout: Option<Duration>) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -178,28 +140,25 @@ impl IndiDome {
             Duration::from_secs(client.timeout_config().dome_slew_timeout_secs)
         };
 
-        // Start shutter operation
         {
             let mut client = self.client.write().await;
             client
-                .set_switch(&self.device_name, "DOME_SHUTTER", "SHUTTER_OPEN", true)
+                .set_switch(&self.device_name, DOME_SHUTTER, SHUTTER_OPEN, true)
                 .await?;
         }
         *self.last_shutter_command.write().await = Some(IndiShutterStatus::Opening);
 
-        // Wait for shutter operation to complete
         let client = self.client.read().await;
         client
-            .wait_for_property_not_busy(&self.device_name, "DOME_SHUTTER", timeout_duration)
+            .wait_for_property_not_busy(&self.device_name, DOME_SHUTTER, timeout_duration)
             .await
-            .map_err(|e| format!("Dome shutter open operation failed: {}", e))
+            .map_err(|e| IndiError::Failed {
+                what: "Dome shutter open operation".to_string(),
+                cause: Box::new(e),
+            })
     }
 
-    /// Close the dome shutter with timeout
-    pub async fn close_shutter_with_timeout(
-        &self,
-        timeout: Option<Duration>,
-    ) -> Result<(), String> {
+    pub async fn close_shutter_with_timeout(&self, timeout: Option<Duration>) -> IndiResult<()> {
         // Read config outside the closure - async-friendly
         let timeout_duration = if let Some(t) = timeout {
             t
@@ -209,43 +168,42 @@ impl IndiDome {
             Duration::from_secs(client.timeout_config().dome_slew_timeout_secs)
         };
 
-        // Start shutter operation
         {
             let mut client = self.client.write().await;
             client
-                .set_switch(&self.device_name, "DOME_SHUTTER", "SHUTTER_CLOSE", true)
+                .set_switch(&self.device_name, DOME_SHUTTER, SHUTTER_CLOSE, true)
                 .await?;
         }
         *self.last_shutter_command.write().await = Some(IndiShutterStatus::Closing);
 
-        // Wait for shutter operation to complete
         let client = self.client.read().await;
         client
-            .wait_for_property_not_busy(&self.device_name, "DOME_SHUTTER", timeout_duration)
+            .wait_for_property_not_busy(&self.device_name, DOME_SHUTTER, timeout_duration)
             .await
-            .map_err(|e| format!("Dome shutter close operation failed: {}", e))
+            .map_err(|e| IndiError::Failed {
+                what: "Dome shutter close operation".to_string(),
+                cause: Box::new(e),
+            })
     }
 
     /// Get shutter status by checking switch states
     pub async fn get_shutter_status(&self) -> IndiShutterStatus {
         let client = self.client.read().await;
 
-        // Check if shutter is open
         let is_open = client
-            .get_switch(&self.device_name, "DOME_SHUTTER", "SHUTTER_OPEN")
+            .get_switch(&self.device_name, DOME_SHUTTER, SHUTTER_OPEN)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns Unknown.
             .unwrap_or(false);
 
-        // Check if shutter is closed
         let is_closed = client
-            .get_switch(&self.device_name, "DOME_SHUTTER", "SHUTTER_CLOSE")
+            .get_switch(&self.device_name, DOME_SHUTTER, SHUTTER_CLOSE)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns Unknown.
             .unwrap_or(false);
 
         let shutter_state = client
-            .get_property_state(&self.device_name, "DOME_SHUTTER")
+            .get_property_state(&self.device_name, DOME_SHUTTER)
             .await;
         let shutter_busy = shutter_state == Some(IndiPropertyState::Busy);
 
@@ -277,14 +235,11 @@ impl IndiDome {
         }
     }
 
-    // Motion control
-
-    /// Check if dome is currently slewing
     pub async fn is_slewing(&self) -> bool {
         let client = self.client.read().await;
         // Check if the dome position property is in "Busy" state
         client
-            .is_property_busy(&self.device_name, "ABS_DOME_POSITION")
+            .is_property_busy(&self.device_name, ABS_DOME_POSITION)
             .await
     }
 
@@ -292,7 +247,7 @@ impl IndiDome {
     pub async fn abort_slew(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, "DOME_ABORT_MOTION", "ABORT", true)
+            .set_switch(&self.device_name, DOME_ABORT_MOTION, ABORT, true)
             .await
     }
 
@@ -300,7 +255,7 @@ impl IndiDome {
     pub async fn move_clockwise(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, "DOME_MOTION", "DOME_CW", true)
+            .set_switch(&self.device_name, DOME_MOTION, DOME_CW, true)
             .await
     }
 
@@ -308,127 +263,280 @@ impl IndiDome {
     pub async fn move_counter_clockwise(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, "DOME_MOTION", "DOME_CCW", true)
+            .set_switch(&self.device_name, DOME_MOTION, DOME_CCW, true)
             .await
     }
 
-    // Home & Park
-
-    /// Go to home position
     pub async fn find_home(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, "DOME_GOTO", "DOME_HOME", true)
+            .set_switch(&self.device_name, DOME_GOTO, DOME_HOME, true)
             .await
     }
 
-    /// Park the dome
     pub async fn park(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, "DOME_GOTO", "DOME_PARK", true)
+            .set_switch(&self.device_name, DOME_GOTO, DOME_PARK, true)
             .await
     }
 
-    /// Unpark the dome
     pub async fn unpark(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         // INDI uses DOME_PARK property with UNPARK element
         client
-            .set_switch(&self.device_name, "DOME_PARK", "UNPARK", true)
+            .set_switch(&self.device_name, DOME_PARK, UNPARK, true)
             .await
     }
 
-    /// Check if dome is at home position
     pub async fn at_home(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_switch(&self.device_name, "DOME_GOTO", "DOME_HOME")
+            .get_switch(&self.device_name, DOME_GOTO, DOME_HOME)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns false.
             .unwrap_or(false)
     }
 
-    /// Check if dome is parked
     pub async fn is_parked(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_switch(&self.device_name, "DOME_PARK", "PARK")
+            .get_switch(&self.device_name, DOME_PARK, PARK)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns false.
             .unwrap_or(false)
     }
 
-    // Slaving
-
-    /// Enable/disable mount slaving
     pub async fn set_slaved(&self, slaved: bool) -> IndiResult<()> {
         let mut client = self.client.write().await;
         if slaved {
             client
-                .set_switch(
-                    &self.device_name,
-                    "DOME_AUTOSYNC",
-                    "DOME_AUTOSYNC_ENABLE",
-                    true,
-                )
+                .set_switch(&self.device_name, DOME_AUTOSYNC, DOME_AUTOSYNC_ENABLE, true)
                 .await
         } else {
             client
                 .set_switch(
                     &self.device_name,
-                    "DOME_AUTOSYNC",
-                    "DOME_AUTOSYNC_DISABLE",
+                    DOME_AUTOSYNC,
+                    DOME_AUTOSYNC_DISABLE,
                     true,
                 )
                 .await
         }
     }
 
-    /// Check if dome is slaved to mount
     pub async fn is_slaved(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_switch(&self.device_name, "DOME_AUTOSYNC", "DOME_AUTOSYNC_ENABLE")
+            .get_switch(&self.device_name, DOME_AUTOSYNC, DOME_AUTOSYNC_ENABLE)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns false.
             .unwrap_or(false)
     }
 
-    // Configuration
-
-    /// Set home position
     pub async fn set_home_position(&self, azimuth: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_number(&self.device_name, "DOME_PARAMS", "HOME_POSITION", azimuth)
+            .set_number(&self.device_name, DOME_PARAMS, HOME_POSITION, azimuth)
             .await
     }
 
-    /// Set park position
     pub async fn set_park_position(&self, azimuth: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_number(&self.device_name, "DOME_PARAMS", "PARK_POSITION", azimuth)
+            .set_number(&self.device_name, DOME_PARAMS, PARK_POSITION, azimuth)
             .await
     }
 
-    /// Get home position
-    pub async fn get_home_position(&self) -> Result<f64, String> {
+    pub async fn get_home_position(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "DOME_PARAMS", "HOME_POSITION")
+            .get_number(&self.device_name, DOME_PARAMS, HOME_POSITION)
             .await
-            .ok_or_else(|| "Home position not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Home position not available".to_string()))
     }
 
-    /// Get park position
-    pub async fn get_park_position(&self) -> Result<f64, String> {
+    pub async fn get_park_position(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "DOME_PARAMS", "PARK_POSITION")
+            .get_number(&self.device_name, DOME_PARAMS, PARK_POSITION)
             .await
-            .ok_or_else(|| "Park position not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Park position not available".to_string()))
+    }
+}
+
+indi_accessory!(IndiDome);
+
+/// The shutter as the driver's `DOME_SHUTTER` switches and their busy state
+/// show it; `None` when they do not say.
+async fn shutter_from_switches(
+    client: &IndiClient,
+    device_name: &str,
+) -> (
+    Option<skotiq_device::ascom::ShutterStatus>,
+    Option<bool>,
+    Option<bool>,
+    bool,
+) {
+    use skotiq_device::ascom::ShutterStatus;
+    let open = client
+        .get_switch(device_name, DOME_SHUTTER, SHUTTER_OPEN)
+        .await;
+    let close = client
+        .get_switch(device_name, DOME_SHUTTER, SHUTTER_CLOSE)
+        .await;
+    let busy = client.is_property_busy(device_name, DOME_SHUTTER).await;
+    let status = match (open, close, busy) {
+        (Some(true), Some(false), true) => Some(ShutterStatus::Opening),
+        (Some(false), Some(true), true) => Some(ShutterStatus::Closing),
+        (Some(true), Some(false), false) => Some(ShutterStatus::Open),
+        (Some(false), Some(true), false) => Some(ShutterStatus::Closed),
+        _ => None,
+    };
+    (status, open, close, busy)
+}
+
+#[async_trait::async_trait]
+impl skotiq_device::DomeDriver for IndiDome {
+    async fn open_shutter(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, DOME_SHUTTER, SHUTTER_OPEN, true)
+            .await?)
+    }
+
+    async fn close_shutter(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, DOME_SHUTTER, SHUTTER_CLOSE, true)
+            .await?)
+    }
+
+    /// A shutter whose switches do not say is reported as `Error`.
+    async fn shutter_status(
+        &self,
+    ) -> Result<skotiq_device::ascom::ShutterStatus, skotiq_device::DriverError> {
+        let client = self.client.read().await;
+        let (status, ..) = shutter_from_switches(&client, &self.device_name).await;
+        Ok(status.unwrap_or(skotiq_device::ascom::ShutterStatus::Error))
+    }
+
+    /// INDI domes boot parked and ignore a slew until unparked, so a parked
+    /// dome is unparked first.
+    async fn slew_to_azimuth(&self, azimuth_deg: f64) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        let parked = client
+            .get_switch(&self.device_name, DOME_PARK, PARK)
+            .await
+            .unwrap_or(false);
+        if parked {
+            let _ = client
+                .set_switch(&self.device_name, DOME_PARK, UNPARK, true)
+                .await;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+        client
+            .set_number(
+                &self.device_name,
+                ABS_DOME_POSITION,
+                DOME_ABSOLUTE_POSITION,
+                azimuth_deg,
+            )
+            .await
+            .map_err(|e| {
+                let detail = format!(
+                    "Failed to slew INDI dome {} to azimuth {:.2}: {}",
+                    self.device_name, azimuth_deg, e
+                );
+                match skotiq_device::DriverError::from(e) {
+                    skotiq_device::DriverError::Backend(_) => {
+                        skotiq_device::DriverError::Backend(detail.into())
+                    }
+                    skotiq_device::DriverError::Timeout(_) => {
+                        skotiq_device::DriverError::Timeout(detail)
+                    }
+                    kind => kind,
+                }
+            })
+    }
+
+    async fn abort_slew(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, DOME_ABORT_MOTION, ABORT, true)
+            .await?)
+    }
+
+    async fn park(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, DOME_PARK, PARK, true)
+            .await?)
+    }
+
+    async fn find_home(&self) -> Result<(), skotiq_device::DriverError> {
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, DOME_GOTO, DOME_HOME, true)
+            .await?)
+    }
+
+    async fn set_slaved(&self, slaved: bool) -> Result<(), skotiq_device::DriverError> {
+        let element = if slaved {
+            DOME_AUTOSYNC_ENABLE
+        } else {
+            DOME_AUTOSYNC_DISABLE
+        };
+        let mut client = self.client.write().await;
+        Ok(client
+            .set_switch(&self.device_name, DOME_AUTOSYNC, element, true)
+            .await?)
+    }
+
+    async fn status(&self) -> Result<skotiq_device::DomeState, skotiq_device::DriverError> {
+        let client = self.client.read().await;
+        let name = &self.device_name;
+        let azimuth = client
+            .get_number(name, ABS_DOME_POSITION, DOME_ABSOLUTE_POSITION)
+            .await
+            .ok_or_else(|| {
+                skotiq_device::DriverError::Backend(
+                    format!("Failed to read INDI dome azimuth for {}", name).into(),
+                )
+            })?;
+        let (shutter, open, close, shutter_busy) = shutter_from_switches(&client, name).await;
+        let azimuth_busy = client.is_property_busy(name, ABS_DOME_POSITION).await;
+        let at_home = client
+            .get_switch(name, DOME_GOTO, DOME_HOME)
+            .await
+            .unwrap_or(false);
+        let at_park = client
+            .get_switch(name, DOME_PARK, PARK)
+            .await
+            .unwrap_or(false)
+            || client
+                .get_switch(name, DOME_GOTO, DOME_PARK)
+                .await
+                .unwrap_or(false);
+        let autosync_enable = client
+            .get_switch(name, DOME_AUTOSYNC, DOME_AUTOSYNC_ENABLE)
+            .await;
+        let autosync_disable = client
+            .get_switch(name, DOME_AUTOSYNC, DOME_AUTOSYNC_DISABLE)
+            .await;
+        Ok(skotiq_device::DomeState {
+            azimuth,
+            altitude: None,
+            shutter,
+            slewing: azimuth_busy || shutter_busy,
+            at_home,
+            at_park,
+            can_set_altitude: false,
+            can_set_azimuth: true,
+            can_set_shutter: open.is_some() || close.is_some(),
+            can_slave: autosync_enable.is_some() || autosync_disable.is_some(),
+            slaved: autosync_enable.unwrap_or(false),
+        })
     }
 }
 
@@ -504,7 +612,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention the azimuth or that we're not connected
-            assert!(e.contains("180") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("180")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 
@@ -521,7 +632,10 @@ mod tests {
         assert!(result.is_err());
         if let Err(e) = result {
             // Error should mention shutter or connection
-            assert!(e.contains("shutter") || e.to_lowercase().contains("not connected"));
+            assert!(
+                e.to_string().contains("shutter")
+                    || e.to_string().to_lowercase().contains("not connected")
+            );
         }
     }
 
@@ -539,7 +653,6 @@ mod tests {
         )));
         let _dome = IndiDome::new(client.clone(), "TestDome");
 
-        // Verify the timeout config is accessible
         let timeout_secs = {
             let c = client.read().await;
             c.timeout_config().dome_slew_timeout_secs

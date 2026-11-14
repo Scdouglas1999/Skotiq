@@ -112,6 +112,10 @@ class CalibrationMasterRecord {
   /// `calibration_tags.camera_id`.
   final String? cameraId;
   final String? opticalTrainId;
+
+  /// The camera's read mode the frames were read out in (`READOUTM`), read
+  /// from the file's header when lights that state one are matched.
+  final String? readoutMode;
   final DateTime createdAt;
 
   /// User tags + notes from `calibration_tags` (empty when untagged).
@@ -154,6 +158,7 @@ class CalibrationMasterRecord {
     this.height,
     this.cameraId,
     this.opticalTrainId,
+    this.readoutMode,
     required this.createdAt,
     this.tags = const [],
     this.notes,
@@ -199,6 +204,7 @@ class CalibrationMasterRecord {
     int? offset,
     String? filter,
     String? cameraId,
+    String? readoutMode,
     List<String>? tags,
     String? notes,
   }) {
@@ -220,6 +226,7 @@ class CalibrationMasterRecord {
       height: height,
       cameraId: cameraId ?? this.cameraId,
       opticalTrainId: opticalTrainId,
+      readoutMode: readoutMode ?? this.readoutMode,
       createdAt: createdAt,
       tags: tags ?? this.tags,
       notes: notes ?? this.notes,
@@ -257,6 +264,7 @@ class CalibrationMasterRecord {
       height: (json['height'] as num?)?.toInt(),
       cameraId: json['cameraId'] as String?,
       opticalTrainId: json['opticalTrainId'] as String?,
+      readoutMode: json['readoutMode'] as String?,
       createdAt:
           DateTime.tryParse('${json['createdAt']}')?.toLocal() ??
           DateTime.now(),
@@ -297,6 +305,7 @@ class CalibrationMasterRecord {
       if (height != null) 'height': height,
       if (cameraId != null) 'cameraId': cameraId,
       if (opticalTrainId != null) 'opticalTrainId': opticalTrainId,
+      if (readoutMode != null) 'readoutMode': readoutMode,
       'createdAt': createdAt.toUtc().toIso8601String(),
       'ageDays': ageDays(at),
       'freshness': freshness(at).name,
@@ -342,6 +351,46 @@ class CalibrationLibraryFilter {
     this.binY,
     this.mastersOnly = true,
   });
+
+  /// [records] narrowed by every criterion except [cameraId].
+  ///
+  /// The camera id is applied separately ([whereCameraMatches]) because a
+  /// record may only learn its camera from the FITS header, which is read
+  /// after this cheap pass.
+  List<CalibrationMasterRecord> whereStoredFieldsMatch(
+    List<CalibrationMasterRecord> records,
+  ) {
+    final filterName = filter?.trim().toLowerCase();
+    return [
+      for (final r in records)
+        if ((!mastersOnly || r.isMaster) &&
+            (type == null || r.type == type) &&
+            (gain == null || r.gain == gain) &&
+            (binX == null || r.binX == binX) &&
+            (binY == null || r.binY == binY) &&
+            (exposureSeconds == null ||
+                (r.exposureSeconds != null &&
+                    (r.exposureSeconds! - exposureSeconds!).abs() <=
+                        exposureToleranceSecs)) &&
+            (temperatureMin == null ||
+                (r.temperature != null && r.temperature! >= temperatureMin!)) &&
+            (temperatureMax == null ||
+                (r.temperature != null && r.temperature! <= temperatureMax!)) &&
+            (filterName == null ||
+                filterName.isEmpty ||
+                (r.filter != null &&
+                    r.filter!.trim().toLowerCase() == filterName)))
+          r,
+    ];
+  }
+
+  List<CalibrationMasterRecord> whereCameraMatches(
+    List<CalibrationMasterRecord> records,
+  ) {
+    final camera = cameraId?.trim();
+    if (camera == null || camera.isEmpty) return records;
+    return records.where((r) => r.cameraId == camera).toList();
+  }
 }
 
 /// Capture parameters of the light frames a calibration set is matched for.
@@ -361,6 +410,11 @@ class LightFrameContext {
   /// would either hand the lights the masters of a gain-0 library or reject
   /// every candidate the camera actually produced.
   final int? gain;
+
+  /// The lights were taken with a DSLR before Skotiq recorded ISO speeds:
+  /// [gain] is null because their ISO is unknown, not because nothing was
+  /// recorded, and the match says so.
+  final bool gainIsUnknownIso;
   final int? offset;
   final double exposureSeconds;
   final double? temperature;
@@ -376,9 +430,15 @@ class LightFrameContext {
   final int? sensorWidth;
   final int? sensorHeight;
 
+  /// The camera's read mode the lights were read out in (`READOUTM`), when
+  /// their headers state one. A dark or bias of another mode has another
+  /// read noise and pedestal.
+  final String? readoutMode;
+
   const LightFrameContext({
     this.cameraId,
     required this.gain,
+    this.gainIsUnknownIso = false,
     required this.offset,
     required this.exposureSeconds,
     this.temperature,
@@ -388,6 +448,7 @@ class LightFrameContext {
     this.opticalTrainId,
     this.sensorWidth,
     this.sensorHeight,
+    this.readoutMode,
   });
 
   factory LightFrameContext.fromJson(Map<String, dynamic> json) =>
@@ -406,6 +467,7 @@ class LightFrameContext {
         opticalTrainId: json['opticalTrainId'] as String?,
         sensorWidth: (json['sensorWidth'] as num?)?.toInt(),
         sensorHeight: (json['sensorHeight'] as num?)?.toInt(),
+        readoutMode: json['readoutMode'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -420,6 +482,7 @@ class LightFrameContext {
     if (opticalTrainId != null) 'opticalTrainId': opticalTrainId,
     if (sensorWidth != null) 'sensorWidth': sensorWidth,
     if (sensorHeight != null) 'sensorHeight': sensorHeight,
+    if (readoutMode != null) 'readoutMode': readoutMode,
   };
 }
 

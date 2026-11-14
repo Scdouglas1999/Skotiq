@@ -9,6 +9,7 @@ import 'package:skotiq_core/src/providers/settings_provider.dart';
 
 import '../harness/in_memory_database.dart';
 import 'fixtures.dart';
+import 'package:skotiq_core/src/services/focuser_backlash/effective_focuser_backlash.dart';
 
 class _FixedFocuserState extends FocuserStateNotifier {
   _FixedFocuserState(super.ref, FocuserState initial) {

@@ -1,50 +1,31 @@
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
+import '../../../services/host_folders.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/help/field_help_label.dart';
-import '../../../widgets/remote_directory_picker_dialog.dart';
-import '../../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../../tours/tour_target.dart';
+import '../../../widgets/sensitivity_field.dart';
+import '../../night_control/panel/camera/camera_panel_vm.dart'
+    show NightCoolerState, nightCoolerState;
 import 'panel_widgets.dart';
+import '../../../router/app_routes.dart';
+import '../../../router/analytics_route.dart';
 
-// Provider for park mount on end setting
 final parkMountOnEndProvider = StateProvider<bool>((ref) => false);
 
-typedef CaptureSavePathPicker = Future<String?> Function(
-  BuildContext context, {
-  required bool isRemote,
-  required String? initialPath,
-});
-
 typedef CaptureSavePathWriter = Future<void> Function(String path);
-
-Future<String?> _pickCaptureSavePath(
-  BuildContext context, {
-  required bool isRemote,
-  required String? initialPath,
-}) {
-  if (isRemote) {
-    return RemoteDirectoryPickerDialog.show(
-      context,
-      title: 'Select host capture folder',
-      initialPath: initialPath,
-    );
-  }
-  return getDirectoryPath(
-    confirmButtonText: 'Select',
-    initialDirectory: initialPath,
-  );
-}
-
-final captureSavePathPickerProvider =
-    Provider<CaptureSavePathPicker>((ref) => _pickCaptureSavePath);
 
 final captureSavePathWriterProvider = Provider<CaptureSavePathWriter>((ref) {
   return ref.read(appSettingsProvider.notifier).setImageOutputPath;
@@ -75,48 +56,60 @@ class CapturePanel extends ConsumerWidget {
     final sessionImages = ref.watch(recentSessionFramesProvider);
     final isRemoteMode = ref.watch(isRemoteModeProvider);
     final cameraState = ref.watch(cameraStateProvider);
+    final sensitivity = ref.watch(cameraSensitivityProvider);
     final hostSuffix = isRemoteMode ? ' (host)' : '';
 
-    // The Session card's "Captured" and "Integration" lines must come from the
-    // SAME record or they can contradict each other. `recentSessionFramesProvider`
-    // only holds frames captured in THIS app run, so after resuming an
-    // interrupted session the card read "Captured 0 frames" directly above
-    // "Integration 40m 0s". SessionService.recoverSession restores
-    // completedExposures from the DB row alongside totalIntegrationSecs, so
-    // prefer it whenever a session row is open; the in-run frame list is only
-    // the fallback for captures taken with no session (dbSessionId == null).
-    // ...and the fallback has to obey the same rule, which it did not. With no
-    // session row open, the count came from `sessionImages` — which includes
-    // frames the SEQUENCER captured this app run — while the integration below
-    // came from `sessionState`, which only accumulates captures this screen
-    // performed. Measured on 2026-08-10 after a ten-frame sequencer run at 8s:
-    // the card read "Captured 10 frames / Integration 0s", and one 2s Snapshot
-    // moved it to "11 frames / 2s". Eleven frames cannot total two seconds at
-    // any exposure.
-    //
-    // So derive both from the same list here, exactly as the DB branch derives
-    // both from the same row.
-    final capturedCount = sessionState.dbSessionId != null
-        ? sessionState.completedExposures
-        : sessionImages.length;
-    final integrationSecs = sessionState.dbSessionId != null
-        ? sessionState.totalIntegrationSecs
-        : sessionImages.fold<double>(
+    // The whole observing night (owner, 2026-11-08: "always the whole
+    // night"). `recentSessionFramesProvider` is the night's kept frames on the
+    // host and, mirrored, on a linked client, rebuilt from the database after
+    // a crash or a restart, so a restored run's session row (which starts
+    // over) no longer decides the count. Both numbers come from that one list
+    // so they cannot contradict each other; the session row stands in only
+    // until the night has a frame.
+    final nightCounted = sessionImages.isNotEmpty;
+    final capturedCount = nightCounted
+        ? sessionImages.length
+        : sessionState.dbSessionId != null
+            ? sessionState.completedExposures
+            : 0;
+    final integrationSecs = nightCounted
+        ? sessionImages.fold<double>(
             0.0,
             (sum, image) => sum + image.settings.exposureTime,
-          );
+          )
+        : sessionState.dbSessionId != null
+            ? sessionState.totalIntegrationSecs
+            : 0.0;
+    // Imaging for: from the night's first frame, or the session's start when
+    // that is earlier or the night has no frame yet.
+    final sessionDuration =
+        sessionState.isActive ? sessionState.duration : null;
+    final nightSpan = nightCounted
+        ? DateTime.now().difference(sessionImages.first.capturedAt)
+        : null;
+    final Duration? imagingFor = switch ((sessionDuration, nightSpan)) {
+      (final Duration s, final Duration n) => s > n ? s : n,
+      (final Duration s, null) => s,
+      (null, final Duration n) when sessionState.isActive => n,
+      _ => null,
+    };
 
-    // Get binning options based on connected camera's capabilities
     final binningOptions = ref.watch(
       cameraBinningOptionsProvider(cameraState.deviceId ?? ''),
     );
 
-    // Ensure current binning value is valid for available options
     final currentBinning = binningOptions.contains(exposureSettings.binning)
         ? exposureSettings.binning
         : binningOptions.first;
 
-    final diskFree = ref.watch(captureDirDiskSpaceProvider).valueOrNull;
+    // "252 GiB": the shared size format Tonight uses, split for the readout.
+    // Selected as text: the free bytes change on every 10 s sample.
+    final freeText =
+        ref.watch(captureDirDiskSpaceProvider.select(freeSpaceText));
+    final freeGap = freeText?.lastIndexOf(' ') ?? -1;
+    final freeSize = freeText == null || freeGap < 0
+        ? null
+        : (freeText.substring(0, freeGap), freeText.substring(freeGap + 1));
     final savePathUnset = namingPattern.baseDir.trim().isEmpty ||
         namingPattern.baseDir.trim() == '.';
 
@@ -134,9 +127,15 @@ class CapturePanel extends ConsumerWidget {
             trailing: cameraState.temperature == null
                 ? null
                 : SkotiqChip(
-                    label: '${cameraState.temperature!.toStringAsFixed(1)} °C',
-                    tone: ChipTone.success,
-                    dot: true,
+                    label: formatCelsius(cameraState.temperature!),
+                    // Green only when the cooler holds the set point (the
+                    // rule Tonight uses); an uncooled sensor is a reading,
+                    // not a good state.
+                    tone: nightCoolerState(cameraState) ==
+                            NightCoolerState.atSetpoint
+                        ? ChipTone.success
+                        : ChipTone.neutral,
+                    dot: cameraState.isCooling || cameraState.isWarming,
                   ),
           ),
           FormRow(
@@ -202,50 +201,71 @@ class CapturePanel extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: FormRow.rowGap),
-          FormRow(
-            label: 'Gain / offset',
-            child: Row(
-              children: [
-                Expanded(
-                  child: InlineNumberField(
-                    key: ImagingTutorialKeys.gainControl,
-                    value: exposureSettings.gain.toString(),
-                    semanticLabel: 'Gain',
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null && parsed >= 0) {
-                        ref.read(manualExposureSettingsUpdaterProvider).update(
-                              exposureSettings.copyWith(gain: parsed),
-                            );
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: SkotiqTokens.spaceSm - 2),
-                Expanded(
-                  child: InlineNumberField(
-                    value: exposureSettings.offset.toString(),
-                    semanticLabel: 'Offset',
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null && parsed >= 0) {
-                        ref.read(manualExposureSettingsUpdaterProvider).update(
-                              exposureSettings.copyWith(offset: parsed),
-                            );
-                      }
-                    },
-                  ),
-                ),
-              ],
+          // A control the camera does not have is left out (some CCDs have
+          // no gain, a DSLR no offset).
+          if (sensitivity.hasGain || sensitivity.hasOffset) ...[
+            const SizedBox(height: FormRow.rowGap),
+            FormRow(
+              label: switch ((sensitivity.hasGain, sensitivity.hasOffset)) {
+                (true, true) => '${sensitivity.label} / offset',
+                (true, false) => sensitivity.label,
+                _ => 'Offset',
+              },
+              child: Row(
+                children: [
+                  if (sensitivity.hasGain)
+                    Expanded(
+                      child: SensitivityField(
+                        key: TourTarget.imagingGainControl.key,
+                        value: exposureSettings.gain,
+                        sensitivity: sensitivity,
+                        onChanged: (gain) => ref
+                            .read(manualExposureSettingsUpdaterProvider)
+                            .update(exposureSettings.copyWith(gain: gain)),
+                        gainField: (_) => InlineNumberField(
+                          value: exposureSettings.gain.toString(),
+                          semanticLabel: 'Gain',
+                          onChanged: (value) {
+                            final parsed = int.tryParse(value);
+                            if (parsed != null && parsed >= 0) {
+                              ref
+                                  .read(manualExposureSettingsUpdaterProvider)
+                                  .update(
+                                      exposureSettings.copyWith(gain: parsed));
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  if (sensitivity.hasGain && sensitivity.hasOffset)
+                    const SizedBox(width: SkotiqTokens.spaceSm - 2),
+                  if (sensitivity.hasOffset)
+                    Expanded(
+                      child: InlineNumberField(
+                        value: exposureSettings.offset.toString(),
+                        semanticLabel: 'Offset',
+                        onChanged: (value) {
+                          final parsed = int.tryParse(value);
+                          if (parsed != null && parsed >= 0) {
+                            ref
+                                .read(manualExposureSettingsUpdaterProvider)
+                                .update(
+                                    exposureSettings.copyWith(offset: parsed));
+                          }
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: SidePanel.sectionGap),
           const SectionTitle(icon: SkotiqIcons.folder, title: 'Files'),
           FormRow(
             label: 'Format',
             child: ReadOnlyField(
-              value: '$kCaptureImageFormat · $kCaptureBitDepth',
+              value:
+                  '${namingPattern.format.settingsValue} · $kCaptureBitDepth',
             ),
           ),
           const SizedBox(height: FormRow.rowGap),
@@ -261,6 +281,7 @@ class CapturePanel extends ConsumerWidget {
                     value: savePathUnset ? 'Not set' : namingPattern.baseDir,
                     mono: !savePathUnset,
                     muted: savePathUnset,
+                    isPath: !savePathUnset,
                     // A Windows capture folder never fits the field.
                     showFullValueOnHover: !savePathUnset,
                   ),
@@ -303,27 +324,24 @@ class CapturePanel extends ConsumerWidget {
             children: [
               Readout(value: '$capturedCount', label: 'Captured'),
               Readout(
-                value: formatIntegrationSeconds(integrationSecs),
+                value: DurationFormat.seconds(integrationSecs),
                 label: 'Integration',
               ),
               Readout(
                 // Null while the poll is in flight or the path is unset, and a
                 // readout renders that as an em dash rather than inventing a
                 // number.
-                value: diskFree == null
-                    ? null
-                    : (diskFree.freeBytes / (1024 * 1024 * 1024))
-                        .toStringAsFixed(0),
-                unit: 'GB',
+                value: freeSize?.$1,
+                unit: freeSize?.$2,
                 label: 'Free',
               ),
             ],
           ),
-          if (sessionState.isActive && sessionState.duration != null) ...[
+          if (imagingFor != null) ...[
             const SizedBox(height: SkotiqTokens.spaceMd),
             KeyValueList(
               rows: [
-                ('Running for', _formatSessionDuration(sessionState.duration!)),
+                ('Running for', ClockFormat.stopwatchPadded(imagingFor)),
               ],
             ),
           ],
@@ -355,9 +373,11 @@ class CapturePanel extends ConsumerWidget {
                       ? () {
                           final sessionId = sessionState.dbSessionId;
                           if (sessionId != null) {
-                            context.push('/session-review?session=$sessionId');
+                            context.push(
+                                AppRoutes.sessionReviewOfSession(sessionId));
                           } else {
-                            context.push('/analytics?tab=session');
+                            context.push(
+                                AppRoutes.analytics(tab: AnalyticsTab.session));
                           }
                         }
                       : null,
@@ -407,15 +427,6 @@ class CapturePanel extends ConsumerWidget {
     );
   }
 
-  String _formatSessionDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-    return '${hours.toString().padLeft(2, '0')}:'
-        '${minutes.toString().padLeft(2, '0')}:'
-        '${seconds.toString().padLeft(2, '0')}';
-  }
-
   void _showEndSessionDialog(
       BuildContext context, WidgetRef ref, SkotiqColors colors) {
     final sessionState = ref.read(sessionStateProvider);
@@ -450,16 +461,14 @@ class CapturePanel extends ConsumerWidget {
                     ('Images captured', '${sessionState.completedExposures}'),
                     (
                       'Total integration',
-                      formatIntegrationSeconds(
-                        sessionState.totalIntegrationSecs,
-                      ),
+                      DurationFormat.seconds(sessionState.totalIntegrationSecs),
                     ),
                     (
                       'Duration',
                       // A session with no measured duration renders an em
                       // dash, never '--:--:--'.
                       sessionState.duration != null
-                          ? _formatSessionDuration(sessionState.duration!)
+                          ? ClockFormat.stopwatchPadded(sessionState.duration!)
                           : '\u2014',
                     ),
                   ],
@@ -533,7 +542,6 @@ class CapturePanel extends ConsumerWidget {
     try {
       final parkOnEnd = ref.read(parkMountOnEndProvider);
 
-      // End the session
       await ref.read(sessionStateProvider.notifier).endSession();
 
       // Park mount if requested (service handles connection check)
@@ -556,7 +564,8 @@ class CapturePanel extends ConsumerWidget {
           logger.error('[Imaging] Session ended but mount park failed: $e',
               source: 'CapturePanel', fields: {'error': e.toString()});
           if (context.mounted) {
-            context.showErrorSnackBar('Session ended, but parking failed: $e');
+            context.showErrorSnackBar(
+                'Session ended, but parking failed: ${userFacingError(e)}');
           }
         }
       }
@@ -565,7 +574,8 @@ class CapturePanel extends ConsumerWidget {
       logger.error('[Imaging] Error ending session: $e',
           source: 'CapturePanel', fields: {'error': e.toString()});
       if (context.mounted) {
-        context.showErrorSnackBar('Failed to end session: $e');
+        context
+            .showErrorSnackBar('Failed to end session: ${userFacingError(e)}');
       }
       return false;
     }
@@ -596,14 +606,17 @@ class CaptureSavePathButton extends ConsumerStatefulWidget {
 
 class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
   bool _busy = false;
-  int _operationGeneration = 0;
+
+  /// The folder choice in progress; a host change drops it and frees the
+  /// button for the new host.
+  late final _operations = ref.backendScopes(alive: () => mounted);
 
   @override
   Widget build(BuildContext context) {
     ref.watch(backendProvider);
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (_busy && previous != null && !identical(previous, next)) {
-        _operationGeneration++;
+        _operations.cancelAll();
         setState(() => _busy = false);
       }
     });
@@ -630,8 +643,7 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
   }
 
   Future<void> _choosePath() async {
-    final generation = ++_operationGeneration;
-    final authority = ref.read(backendProvider);
+    final operation = _operations.beginLatest();
     // An unset capture directory persists as '.', which the label above
     // already renders as "Not set". Passing it through as a real starting
     // point sent the host picker to the appliance's process working
@@ -641,25 +653,22 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
     final initialPath = _normalizeInitialPath(widget.currentPath);
     setState(() => _busy = true);
     try {
-      final result = await ref.read(captureSavePathPickerProvider)(
-        context,
-        isRemote: widget.isRemote,
-        initialPath: initialPath,
-      );
-      if (result == null || !_isCurrent(generation, authority)) return;
+      final result = await ref.read(hostFoldersProvider).pickUsable(
+            context,
+            title: widget.isRemote
+                ? 'Select host capture folder'
+                : 'Select capture folder',
+            initialPath: initialPath,
+          );
+      if (result == null || operation.isStale) return;
 
       await ref.read(captureSavePathWriterProvider)(result);
     } catch (error) {
-      if (!mounted ||
-          generation != _operationGeneration ||
-          !identical(ref.read(backendProvider), authority)) {
-        return;
-      }
-      context.showErrorSnackBar('Could not update the capture folder: $error');
+      if (!mounted || operation.isStale) return;
+      context.showErrorSnackBar(
+          'Could not update the capture folder: ${userFacingError(error)}');
     } finally {
-      if (mounted && generation == _operationGeneration) {
-        setState(() => _busy = false);
-      }
+      if (operation.isCurrent) setState(() => _busy = false);
     }
   }
 
@@ -672,12 +681,6 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
     final trimmed = raw.trim();
     if (trimmed.isEmpty || trimmed == '.') return null;
     return trimmed;
-  }
-
-  bool _isCurrent(int generation, SkotiqBackend authority) {
-    return mounted &&
-        generation == _operationGeneration &&
-        identical(ref.read(backendProvider), authority);
   }
 }
 

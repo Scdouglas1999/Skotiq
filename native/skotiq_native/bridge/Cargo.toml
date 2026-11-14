@@ -10,12 +10,13 @@ publish.workspace = true
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
+skotiq_device = { path = "../device" }
+skotiq_cfa = { path = "../cfa" }
 tokio.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-sha2 = "0.10"
 thiserror.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
@@ -40,6 +41,9 @@ parking_lot = "0.12"
 # Internal crates
 skotiq_sequencer = { path = "../sequencer" }
 skotiq_imaging = { path = "../imaging" }
+skotiq_phd2 = { path = "../phd2" }
+skotiq_platesolve = { path = "../platesolve" }
+skotiq_processing = { path = "../processing" }
 skotiq_alpaca = { path = "../alpaca" }
 skotiq_native = { path = "../native" }
 skotiq_indi = { path = "../indi" }

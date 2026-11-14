@@ -3,10 +3,11 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shelf/shelf.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
-import 'package:skotiq_desktop/headless_api/routes/device_routes.dart';
-import 'package:skotiq_desktop/headless_api/routes/headless_route.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
 
 import 'handler_test_helpers.dart';
 
@@ -88,9 +89,11 @@ void main() {
   });
 
   test('both spellings route to the same checked handler', () {
-    final routes = buildDeviceRoutes(
-      handlers,
-    ).where((r) => r.method == HttpMethod.post).map((r) => r.path).toSet();
+    final routes = handlers.routes.keys
+        .map((endpoint) => endpoint.route)
+        .where((r) => r.method == ApiMethod.post)
+        .map((r) => r.path)
+        .toSet();
     expect(routes, containsAll(['/api/mount/home', '/api/mount/find-home']));
   });
 }

@@ -1,13 +1,20 @@
 import 'dart:math' as math;
 
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'adaptive_chart_container.dart';
+import '../../../widgets/adaptive_chart_container.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'photometric_calibration_wizard/header_and_steps.dart';
 part 'photometric_calibration_wizard/frame_selection.dart';
@@ -22,29 +29,18 @@ part 'photometric_calibration_wizard/save_navigation.dart';
 @visibleForTesting
 const double kDefaultFallbackPixelScale = 1.5;
 
-/// Compute image scale in arcsec/pixel from sensor pitch and focal length.
-///
-/// Standard small-angle formula: `206.265 * pixelSizeUm / focalLengthMm`
-/// (206.265 = arcsec per radian / 1000, folding the µm→mm unit conversion).
-/// Returns [kDefaultFallbackPixelScale] when either input is missing or
-/// non-positive — we never invent a scale from a single known dimension.
-///
-/// Pure + [visibleForTesting] so the "compute from geometry, fall back only
-/// when both inputs are missing" rule is unit-tested directly. Example: a
-/// 3.76 µm sensor at 530 mm yields ~1.464"/px.
+/// Image scale from sensor pitch and focal length, or
+/// [kDefaultFallbackPixelScale] when either is missing or not positive.
 @visibleForTesting
 double fallbackPixelScaleArcsecPerPixel({
   double? pixelSizeUm,
   double? focalLengthMm,
-}) {
-  if (pixelSizeUm == null ||
-      pixelSizeUm <= 0 ||
-      focalLengthMm == null ||
-      focalLengthMm <= 0) {
-    return kDefaultFallbackPixelScale;
-  }
-  return 206.265 * pixelSizeUm / focalLengthMm;
-}
+}) =>
+    FOVCalculator.imageScaleOrNull(
+      pixelSizeMicrons: pixelSizeUm,
+      focalLengthMm: focalLengthMm,
+    ) ??
+    kDefaultFallbackPixelScale;
 
 /// Multi-step calibration wizard dialog for computing photometric
 /// transformation coefficients from standard star fields.
@@ -87,7 +83,7 @@ class _PhotometricCalibrationWizardState
   ) {
     return mounted &&
         generation == _operationGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.backendScopeOver(authority).isCurrent;
   }
 
   void _retireAsyncWork() {
@@ -152,20 +148,8 @@ class _PhotometricCalibrationWizardState
   }
 }
 
-/// Provider for session images (used by the calibration wizard).
-///
-/// Renamed from `sessionImagesProvider` (which collided with the in-memory
-/// `sessionImagesProvider` in skotiq_core and the analytics
-/// `dbSessionImagesProvider`) so importers don't have to `hide` declarations.
 final calibrationSessionImagesProvider =
-    FutureProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return backend.getSessionImageRows(sessionId).then(
-          (rows) => rows
-              .map((row) => DbCapturedImage.fromJson(row))
-              .toList(growable: false),
-        );
-  }
-  return ref.read(imagesDaoProvider).getImagesForSession(sessionId);
-});
+    FutureProvider.family<List<DbCapturedImage>, int>(
+  (ref, sessionId) =>
+      ref.watch(imagingRecordsProvider).getImagesForSession(sessionId),
+);

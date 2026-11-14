@@ -17,6 +17,19 @@ void main() {
       alertService.dispose();
     });
 
+    test('6% model cloud cover does not claim an observed clear sky', () {
+      final alert = alertService.evaluateConditions(
+        motion: null,
+        currentCloudDensity: 6,
+        settings: const WeatherSettings(),
+      );
+      expect(alert.cloudDensityPercent, 6);
+      expect(alert.level, AlertLevel.clear);
+      expect(alert.message, contains('Forecast cloud cover: 6%'));
+      expect(alert.message, contains('Local conditions may differ'));
+      expect(alert.message, isNot(contains('No clouds detected')));
+    });
+
     group('determineAlertLevel', () {
       test('returns critical when dense clouds are overhead', () {
         const settings = WeatherSettings(
@@ -256,32 +269,6 @@ void main() {
 
         expect(result, isNotNull);
         expect(result!.level, AlertLevel.warning);
-      });
-    });
-
-    group('degreesToCardinal', () {
-      test('0 degrees maps to N', () {
-        expect(alertService.degreesToCardinal(0.0), 'N');
-      });
-
-      test('90 degrees maps to E', () {
-        expect(alertService.degreesToCardinal(90.0), 'E');
-      });
-
-      test('180 degrees maps to S', () {
-        expect(alertService.degreesToCardinal(180.0), 'S');
-      });
-
-      test('270 degrees maps to W', () {
-        expect(alertService.degreesToCardinal(270.0), 'W');
-      });
-
-      test('45 degrees maps to NE', () {
-        expect(alertService.degreesToCardinal(45.0), 'NE');
-      });
-
-      test('360 degrees wraps to N', () {
-        expect(alertService.degreesToCardinal(360.0), 'N');
       });
     });
 

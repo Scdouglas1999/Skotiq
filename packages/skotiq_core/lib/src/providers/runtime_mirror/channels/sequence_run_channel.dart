@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../models/sequence/instruction_progress_detail.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../sequence/node_exposure_tally.dart';
+import '../../sequence/run_record.dart';
 import '../../sequence/sequence_progress.dart';
-import '../../sequence_stats_provider.dart' show currentRunIdProvider;
 import '../../session_provider.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
@@ -22,13 +23,12 @@ final _sequenceRunSnapshotProvider = Provider<SequenceRunSnapshot>(
   ),
 );
 
-/// What the host's run executor knows about the run in progress: which steps
-/// finished and how, the frame tallies per step, and the session counters.
+/// What the host's run executor knows about the run in progress: its phase,
+/// the current step and what it reports, which steps finished and how, the
+/// frame tallies per step, and the session counters.
 ///
-/// A client watching a run it did not start has only the run's lifecycle and
-/// current-step events, so its step list showed nothing done and its session
-/// counters stayed at zero. A client that started the run itself has its own
-/// executor attached and keeps its own values.
+/// The one source of a linked client's run progress: the client folds none of
+/// the host's sequencer events into it and asks for no status per event.
 class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
   const SequenceRunChannel();
 
@@ -53,6 +53,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
     };
     return {
       'progress': {
+        'state': p.state.name,
         'currentNodeId': p.currentNodeId,
         'currentNodeName': p.currentNodeName,
         'currentNodeStatus': p.currentNodeStatus?.name,
@@ -77,6 +78,14 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
           for (final e in p.nodeProgressDetail.entries)
             if (running.contains(e.key)) e.key: e.value,
         },
+        'nodeStructuredDetail': {
+          for (final e in p.nodeProgressStructuredDetail.entries)
+            if (running.contains(e.key))
+              e.key: {
+                'kind': e.value.wire.detailKind,
+                'fields': e.value.wire.detailJson,
+              },
+        },
       },
       'tally': {
         for (final e in value.tally.entries)
@@ -94,9 +103,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
         'rejectedExposures': s.rejectedExposures,
         'totalIntegrationSecs': finiteOrNull(s.totalIntegrationSecs),
         'currentFilter': s.currentFilter,
-        'isGuiding': s.isGuiding,
         'isCapturing': s.isCapturing,
-        'isDithering': s.isDithering,
         'isAutofocusing': s.isAutofocusing,
         'avgHfr': finiteOrNull(s.avgHfr),
         'avgGuidingRmsRa': finiteOrNull(s.avgGuidingRmsRa),
@@ -109,8 +116,6 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (value == null || context.networkBackend == null) return;
-    // A client that started the run has its own executor attached to it.
-    if (context.read(currentRunIdProvider) != null) return;
 
     final progress = value['progress'];
     if (progress is Map) {
@@ -126,10 +131,18 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
       }
       final percent = progress['nodePercent'];
       final detail = progress['nodeDetail'];
+      final structured = progress['nodeStructuredDetail'];
+      final phase = SequenceExecutionState.values
+          .where((s) => s.name == progress['state'])
+          .firstOrNull;
+      if (phase == null) {
+        throw const FormatException('Run progress names no known phase');
+      }
       context
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
           .mirrorHostProgress(
             SequenceProgress(
+              state: phase,
               currentNodeId: jsonString(progress['currentNodeId']),
               currentNodeName: jsonString(progress['currentNodeName']),
               currentNodeStatus: status(progress['currentNodeStatus']),
@@ -163,13 +176,25 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
                     if (e.key is String && e.value is String)
                       e.key as String: e.value as String,
               },
+              nodeProgressStructuredDetail: {
+                if (structured is Map)
+                  for (final e in structured.entries)
+                    if (e.key is String &&
+                        e.value is Map &&
+                        (e.value as Map)['kind'] is String)
+                      e.key as String:
+                          InstructionProgressDetail.fromStructuredData(
+                            detailKind: (e.value as Map)['kind'] as String,
+                            detailJson: (e.value as Map)['fields'],
+                          ),
+              },
             ),
           );
     }
 
     final tally = value['tally'];
     if (tally is Map) {
-      context.read(nodeExposureTallyProvider.notifier).mirrorHostTally({
+      context.read(runRecordProvider.notifier).mirrorHostTally({
         for (final e in tally.entries)
           if (e.key is String &&
               e.value is List &&
@@ -201,9 +226,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
                 'totalIntegrationSecs',
               ),
               currentFilter: jsonString(session['currentFilter']),
-              isGuiding: session['isGuiding'] == true,
               isCapturing: session['isCapturing'] == true,
-              isDithering: session['isDithering'] == true,
               isAutofocusing: session['isAutofocusing'] == true,
               avgHfr: jsonDouble(session['avgHfr']),
               avgGuidingRmsRa: jsonDouble(session['avgGuidingRmsRa']),

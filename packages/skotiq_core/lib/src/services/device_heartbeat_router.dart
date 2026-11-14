@@ -1,25 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/skotiq_backend.dart';
 import '../providers/device_heartbeat_health_provider.dart';
-import 'logging_service.dart';
+import '../providers/logging_service_provider.dart';
 
-/// Routes native heartbeat events to [deviceHeartbeatHealthProvider]
-/// and owns the per-device start/stop helpers DeviceService uses from
-/// its connect/disconnect flows.
+/// Routes native heartbeat events to [deviceHeartbeatHealthProvider].
 ///
-/// Pulled out of `DeviceService` so the heartbeat concern lives in one
-/// file. Every dispatch is wrapped in a fail-soft try/catch: the
-/// heartbeat indicator is strictly cosmetic relative to the connection
-/// and error events that share the same EventBus, and a mid-disposal
-/// provider read must not propagate up the device-event router.
+/// The native device manager starts a device's heartbeat when it connects,
+/// at the per-type policy (`bridge/src/device_manager/policy.rs`), and stops
+/// it when it disconnects; nothing here starts or stops one.
+///
+/// Every dispatch is wrapped in a fail-soft try/catch: the heartbeat
+/// indicator is strictly cosmetic relative to the connection and error
+/// events that share the same EventBus, and a mid-disposal provider read
+/// must not propagate up the device-event router.
 class DeviceHeartbeatRouter {
-  DeviceHeartbeatRouter({required Ref ref, required SkotiqBackend backend})
-    : _ref = ref,
-      _backend = backend;
+  DeviceHeartbeatRouter({required Ref ref}) : _ref = ref;
 
   final Ref _ref;
-  final SkotiqBackend _backend;
 
   /// `last_rtt_ms` arrives as a `BigInt` over FRB. Squeeze it down to a
   /// Dart `int` for the heartbeat provider, which only cares about
@@ -35,65 +32,6 @@ class DeviceHeartbeatRouter {
     }
     if (value is num) return value.toInt();
     return null;
-  }
-
-  /// Begin native heartbeat monitoring for [deviceType]/[deviceId] at
-  /// [intervalMs]. Logs success at INFO and failure at WARNING — never
-  /// throws. Heartbeat is an optional safety net; a failure here must
-  /// not abort the connect flow that called it.
-  Future<void> start({
-    required DeviceType deviceType,
-    required String deviceId,
-    required int intervalMs,
-  }) async {
-    try {
-      await _backend.startDeviceHeartbeat(
-        deviceType: deviceType,
-        deviceId: deviceId,
-        intervalMs: intervalMs,
-      );
-      _log(
-        (l) => l.info(
-          'Started heartbeat monitoring for ${_label(deviceType)} '
-          '($deviceId) with ${(intervalMs / 1000).toStringAsFixed(0)}s '
-          'interval',
-        ),
-      );
-    } catch (e) {
-      _log(
-        (l) => l.warning(
-          'Failed to start heartbeat monitoring for ${_label(deviceType)} '
-          '($deviceId): $e. Device will remain connected but automatic '
-          'reconnection may not work if connection is lost.',
-        ),
-      );
-    }
-  }
-
-  /// Stop native heartbeat monitoring for [deviceId]. Logs at INFO on
-  /// success, WARNING on failure — never throws. Called from disconnect
-  /// paths where the original disconnect MUST proceed even if the
-  /// matching stop call fails (e.g. driver already gone).
-  Future<void> stop({
-    required DeviceType deviceType,
-    required String deviceId,
-  }) async {
-    try {
-      await _backend.stopDeviceHeartbeat(deviceId);
-      _log(
-        (l) => l.info(
-          'Stopped heartbeat monitoring for ${_label(deviceType)} '
-          '($deviceId)',
-        ),
-      );
-    } catch (e) {
-      _log(
-        (l) => l.warning(
-          'Error stopping heartbeat monitoring for ${_label(deviceType)} '
-          '($deviceId): $e',
-        ),
-      );
-    }
   }
 
   /// Apply a `HeartbeatStarted` event to the provider.
@@ -114,7 +52,8 @@ class DeviceHeartbeatRouter {
   }) {
     if (deviceId == null || deviceId.isEmpty) return;
     if (status == null || status.isEmpty) {
-      _log(
+      logSafely(
+        _ref,
         (l) => l.warning(
           'HeartbeatStatusChanged for $deviceId missing status field; '
           'dropping. Payload may be malformed.',
@@ -203,7 +142,8 @@ class DeviceHeartbeatRouter {
     try {
       _ref.read(deviceHeartbeatHealthProvider.notifier).clearDevice(deviceId);
     } on Object catch (e) {
-      _log(
+      logSafely(
+        _ref,
         (l) => l.warning('Heartbeat provider clear failed for $deviceId: $e'),
       );
     }
@@ -217,47 +157,11 @@ class DeviceHeartbeatRouter {
       final notifier = _ref.read(deviceHeartbeatHealthProvider.notifier);
       apply(notifier);
     } on Object catch (e) {
-      _log(
+      logSafely(
+        _ref,
         (l) =>
             l.warning('Heartbeat provider dispatch failed ($contextTag): $e'),
       );
-    }
-  }
-
-  void _log(void Function(LoggingService logger) emit) {
-    try {
-      final logger = _ref.read(loggingServiceProvider);
-      emit(logger);
-    } on Object {
-      // Diagnostic-only failure during logger lookup; swallow so the
-      // heartbeat path stays fail-soft.
-    }
-  }
-
-  String _label(DeviceType type) {
-    switch (type) {
-      case DeviceType.camera:
-        return 'Camera';
-      case DeviceType.mount:
-        return 'Mount';
-      case DeviceType.focuser:
-        return 'Focuser';
-      case DeviceType.filterWheel:
-        return 'Filter Wheel';
-      case DeviceType.guider:
-        return 'Guider';
-      case DeviceType.rotator:
-        return 'Rotator';
-      case DeviceType.dome:
-        return 'Dome';
-      case DeviceType.weather:
-        return 'Weather';
-      case DeviceType.safetyMonitor:
-        return 'Safety Monitor';
-      case DeviceType.switch_:
-        return 'Switch';
-      case DeviceType.coverCalibrator:
-        return 'Cover Calibrator';
     }
   }
 }

@@ -114,15 +114,12 @@ extension _PredictiveAfFocusModelStore on PredictiveAfService {
       _validateConfig(loaded);
       _config = loaded;
     } on ArgumentError catch (error) {
-      developer.log(
+      Log.warning(
         'Ignoring invalid persisted predictive-AF config: $error',
-        name: 'PredictiveAfService',
-        level: 900,
+        source: 'PredictiveAfService',
       );
     }
   }
-
-  // ── Internals ─────────────────────────────────────────────────────────
 
   Future<void> _touchLastUsed(
     int? equipmentProfileId,

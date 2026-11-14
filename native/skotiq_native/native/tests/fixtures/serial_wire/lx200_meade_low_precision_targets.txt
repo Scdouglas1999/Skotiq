@@ -1,0 +1,49 @@
+call connect
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :GVP#
+< Autostar#
+> :GR#
+< 05:30.0#
+> :U#
+> :GR#
+< 05:30:00#
+  -> Ok(())
+call get_coordinates
+> :GR#
+< 05:30:00#
+> :GD#
+< +20*00'00#
+  -> Ok((5.5, 20.0))
+call get_alt_az
+> :GA#
+< +45*30'00#
+> :GZ#
+< 180*15'00#
+  -> Ok((45.5, 180.25))
+call slew_to_coordinates(5.5, 5.0)
+> :Sr05:30:00#
+< 1
+> :Sd+05*00:00#
+< 1
+> :MS#
+< 0
+  -> Ok(())
+call sync_to_coordinates(5.5123, -0.5)
+> :Sr05:30:44#
+< 1
+> :Sd-00*30:00#
+< 1
+> :CM#
+<  M31 EX GAL MAG 3.5 SZ178.0'#
+  -> Ok(())
+call slew_to_coordinates(5.5123, -20.2512)
+> :Sr05:30:44#
+< 1
+> :Sd-20*15:04#
+< 1
+> :MS#
+< 0
+  -> Ok(())
+call disconnect
+> :Q#
+  -> Ok(())

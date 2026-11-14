@@ -1,8 +1,5 @@
 part of '../guiding_provider.dart';
 
-// PHD2 brain params provider - fetches algorithm parameters
-
-/// Provider for PHD2 brain parameters
 final brainParamsProvider =
     StateNotifierProvider<BrainParamsNotifier, AsyncValue<Phd2BrainParams>>((
       ref,
@@ -26,7 +23,6 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
       fetch();
     }
 
-    // Listen for connection changes to fetch when connected
     ref.listen<GuiderState>(guiderStateProvider, (previous, next) {
       if (next.connectionState == DeviceConnectionState.connected &&
           next.deviceId == 'phd2_guider' &&
@@ -51,7 +47,6 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
     });
   }
 
-  /// Fetch all brain parameters from PHD2
   Future<void> fetch() async {
     if (!mounted) return;
     state = const AsyncValue.loading();
@@ -61,7 +56,6 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
     final fetchGeneration = ++_fetchGeneration;
 
     try {
-      // Fetch parameter names for both axes
       final raNames = await backend.phd2GetAlgoParamNames(axis: 'ra');
       if (!_isCurrentFetch(backend, backendGeneration, fetchGeneration)) return;
       final decNames = await backend.phd2GetAlgoParamNames(axis: 'dec');
@@ -79,7 +73,6 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
         );
       }
 
-      // Fetch all parameter values
       final raParams = <String, double>{};
       for (final name in raNames) {
         raParams[name] = await backend.phd2GetAlgoParam(axis: 'ra', name: name);
@@ -126,9 +119,8 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
       mounted &&
       backendGeneration == _backendGeneration &&
       fetchGeneration == _fetchGeneration &&
-      identical(backend, ref.read(backendProvider));
+      ref.backendScopeOver(backend).isCurrent;
 
-  /// Update a single parameter
   Future<void> setParam(String axis, String name, double value) async {
     final backend = ref.read(backendProvider);
     final backendGeneration = _backendGeneration;
@@ -137,13 +129,12 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
       await backend.phd2SetAlgoParam(axis: axis, name: name, value: value);
 
       if (backendGeneration != _backendGeneration ||
-          !identical(backend, ref.read(backendProvider))) {
+          ref.backendScopeOver(backend).isStale) {
         throw StateError(
           'The imaging host changed while updating PHD2 brain settings.',
         );
       }
 
-      // Update local state
       state.whenData((params) {
         if (axis == 'ra' || axis == 'x') {
           final newRaParams = Map<String, double>.from(params.raParams);
@@ -162,15 +153,11 @@ class BrainParamsNotifier extends StateNotifier<AsyncValue<Phd2BrainParams>> {
   }
 }
 
-// PHD2 calibration state provider
-
-/// Provider for calibration state
 final calibrationStateProvider =
     StateNotifierProvider<CalibrationStateNotifier, Phd2CalibrationData>((ref) {
       return CalibrationStateNotifier(ref);
     });
 
-/// Notifier that tracks calibration state
 class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
   final Ref ref;
   late final _BackendGuidingEventBinding _events;
@@ -180,8 +167,6 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
   LoggingService get _logger => ref.read(loggingServiceProvider);
 
   CalibrationStateNotifier(this.ref) : super(const Phd2CalibrationData()) {
-    _logger.debug('CalibrationStateNotifier: Initializing...', source: 'PHD2');
-
     _events = _BackendGuidingEventBinding(ref, _onBackendEvent);
     _events.start();
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
@@ -192,46 +177,23 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
       state = const Phd2CalibrationData();
     });
 
-    // Fetch calibration data when PHD2 connects
-    ref.listen<GuiderState>(guiderStateProvider, (previous, next) {
-      _logger.debug(
-        'CalibrationStateNotifier: guiderState changed from ${previous?.connectionState} to ${next.connectionState}',
-        source: 'PHD2',
-      );
-      if (next.connectionState == DeviceConnectionState.connected &&
-          next.deviceId == 'phd2_guider' &&
-          !_hasFetched) {
-        _logger.debug(
-          'CalibrationStateNotifier: PHD2 connected, fetching calibration data...',
-          source: 'PHD2',
-        );
-        unawaited(refreshCalibrationData());
-      } else if (next.connectionState == DeviceConnectionState.disconnected) {
-        _logger.debug(
-          'CalibrationStateNotifier: PHD2 disconnected, resetting state',
-          source: 'PHD2',
-        );
+    // Read the calibration when a guider connects or another one takes its
+    // place; forget it when the guider goes away.
+    ref.listen<(DeviceConnectionState, String?)>(
+      guiderStateProvider.select((g) => (g.connectionState, g.deviceId)),
+      (previous, next) {
+        final (connection, _) = next;
+        if (connection == DeviceConnectionState.connecting) return;
         _hasFetched = false;
         state = const Phd2CalibrationData();
-      } else if (next.connectionState == DeviceConnectionState.connected &&
-          next.deviceId != 'phd2_guider') {
-        _hasFetched = false;
-        state = const Phd2CalibrationData();
-      }
-    });
-
-    // Also check current state on initialization
-    final guiderState = ref.read(guiderStateProvider);
-    _logger.debug(
-      'CalibrationStateNotifier: Initial guiderState.connectionState = ${guiderState.connectionState}',
-      source: 'PHD2',
+        if (connection == DeviceConnectionState.connected) {
+          unawaited(refreshCalibrationData());
+        }
+      },
     );
-    if (guiderState.connectionState == DeviceConnectionState.connected &&
-        guiderState.deviceId == 'phd2_guider') {
-      _logger.debug(
-        'CalibrationStateNotifier: Already connected on init, fetching calibration data...',
-        source: 'PHD2',
-      );
+
+    if (ref.read(guiderStateProvider).connectionState ==
+        DeviceConnectionState.connected) {
       unawaited(refreshCalibrationData());
     }
   }
@@ -240,21 +202,22 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
     if (!mounted || event.category != EventCategory.guiding) return;
     switch (event.eventType) {
       case 'CalibrationComplete':
-        _logger.info('CalibrationComplete event received', source: 'PHD2');
+        _logger.info('Guider calibration complete', source: 'Guiding');
         state = state.copyWith(
           isCalibrated: true,
           calibratedAt: DateTime.now(),
         );
+        unawaited(refreshCalibrationData());
         break;
       case 'CalibrationFailed':
-        _logger.warning('CalibrationFailed event received', source: 'PHD2');
+        _logger.warning('Guider calibration failed', source: 'Guiding');
         state = state.copyWith(isCalibrated: false);
         break;
       case 'CalibrationDataFlipped':
-        _logger.info('Calibration data flipped', source: 'PHD2');
+        _logger.info('Calibration data flipped', source: 'Guiding');
         unawaited(refreshCalibrationData());
         break;
-      // PHD2's calibration can change between guiding sessions without a
+      // A calibration can change between guiding sessions without a
       // calibration event reaching here (restored, adjusted or redone in
       // PHD2). A value read once at connect went stale for the whole night.
       case 'GuidingStarted':
@@ -264,26 +227,25 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
     }
   }
 
-  /// Fetch calibration data from PHD2
   Future<void> refreshCalibrationData() async {
     final backend = ref.read(backendProvider);
     final backendGeneration = _backendGeneration;
     final fetchGeneration = ++_fetchGeneration;
     try {
-      final data = await backend.phd2GetCalibrationData();
+      final data = await backend.guiderGetCalibration();
       if (!_isCurrentFetch(backend, backendGeneration, fetchGeneration)) return;
       _hasFetched = true;
-
-      if (_isCurrentFetch(backend, backendGeneration, fetchGeneration)) {
-        state = data;
-        _logger.info(
-          'Fetched calibration data - calibrated: ${data.isCalibrated}',
-          source: 'PHD2',
-        );
-      }
+      state = data;
+      _logger.info(
+        'Fetched calibration data - calibrated: ${data.isCalibrated}',
+        source: 'Guiding',
+      );
     } catch (e) {
       if (_isCurrentFetch(backend, backendGeneration, fetchGeneration)) {
-        _logger.error('Failed to fetch calibration data: $e', source: 'PHD2');
+        _logger.error(
+          'Failed to fetch calibration data: $e',
+          source: 'Guiding',
+        );
       }
     }
   }
@@ -296,9 +258,8 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
       mounted &&
       backendGeneration == _backendGeneration &&
       fetchGeneration == _fetchGeneration &&
-      identical(backend, ref.read(backendProvider));
+      ref.backendScopeOver(backend).isCurrent;
 
-  /// Clear calibration data
   Future<void> clearCalibration({String which = 'both'}) async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
@@ -321,7 +282,7 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
     String action,
   ) {
     if (generation == _backendGeneration &&
-        identical(backend, ref.read(backendProvider))) {
+        ref.backendScopeOver(backend).isCurrent) {
       return;
     }
     throw StateError('The imaging host changed while $action.');

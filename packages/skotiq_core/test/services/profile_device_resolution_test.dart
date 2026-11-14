@@ -155,4 +155,86 @@ void main() {
       expect(isPositionalDeviceId('native:builtin_guider:multi_star'), isFalse);
     });
   });
+
+  group('resolveProfileSlots', () {
+    // The rig, Nov 8 2026: the hub with both cameras dropped and the SDK
+    // enumerated them in the other order. Saved: 1600 at 1, 178 at 0.
+    test('both cameras follow their names when the bus swaps them', () {
+      final r = resolveProfileSlots(
+        [
+          (
+            label: 'camera',
+            savedId: 'native:zwo:1',
+            savedName: 'ZWO ASI1600MM-Cool',
+          ),
+          (
+            label: 'guide camera',
+            savedId: 'native:zwo:0',
+            savedName: 'ZWO ASI178MM',
+          ),
+        ],
+        (_) => [
+          _camera('native:zwo:0', 'ZWO ASI1600MM-Cool #1'),
+          _camera('native:zwo:1', 'ZWO ASI178MM #2'),
+        ],
+      );
+      expect(r['camera']!.deviceId, 'native:zwo:0');
+      expect(r['camera']!.corrected, isTrue);
+      expect(r['guide camera']!.deviceId, 'native:zwo:1');
+      expect(r['guide camera']!.corrected, isTrue);
+    });
+
+    test('the guide camera is never given the main camera\'s device', () {
+      // Discovery did not answer, so both slots keep their saved ids, and
+      // the guide camera was saved at the id the main camera now has.
+      final r = resolveProfileSlots([
+        (
+          label: 'camera',
+          savedId: 'native:zwo:0',
+          savedName: 'ZWO ASI1600MM-Cool',
+        ),
+        (
+          label: 'guide camera',
+          savedId: 'native:zwo:0',
+          savedName: 'ZWO ASI178MM',
+        ),
+      ], (_) => const []);
+      expect(r['camera']!.deviceId, 'native:zwo:0');
+      expect(r['guide camera']!.deviceId, isNull);
+      expect(r['guide camera']!.refusal, contains('which is the camera'));
+    });
+
+    test('simulator cameras resolve like a USB bus', () {
+      final r = resolveProfileSlots(
+        [
+          (
+            label: 'camera',
+            savedId: 'sim_camera_1',
+            savedName: 'Simulated Camera',
+          ),
+        ],
+        (_) => [
+          _camera('sim_camera_1', 'Simulated Guide Camera'),
+          _camera('sim_camera_2', 'Simulated Camera'),
+        ],
+      );
+      expect(r['camera']!.deviceId, 'sim_camera_2');
+    });
+  });
+
+  group('saved serial', () {
+    test('two bodies of one model are told apart by the saved serial', () {
+      final r = resolveProfileSlot(
+        savedId: 'native:qhy:0',
+        savedName: 'QHY268M (A1B2)',
+        deviceLabel: 'camera',
+        discovered: [
+          _camera('native:qhy:0', 'QHY268M (C3D4)'),
+          _camera('native:qhy:1', 'QHY268M (A1B2)'),
+        ],
+      );
+      expect(r.deviceId, 'native:qhy:1');
+      expect(r.corrected, isTrue);
+    });
+  });
 }

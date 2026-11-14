@@ -1,20 +1,19 @@
-import 'dart:developer' as developer;
+import '../models/imaging/imaging_models.dart' show FrameType;
+import '../models/imaging/frame_type_record.dart';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show AstronomyCalculations;
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 
 import '../database/daos/images_dao.dart';
 import '../database/daos/night_reports_dao.dart';
 import '../database/daos/science_dao.dart';
 import '../database/database.dart';
 import '../models/imaging/night_report.dart';
-import '../providers/database_provider.dart';
+import '../models/site/location_settings.dart';
 import 'frame_quality_assessment_service.dart';
 import 'optical_train_diagnostics_service.dart';
-import 'scheduler/sky_calculations.dart';
+import 'logging_service.dart';
 part 'night_analysis_service/detectors.dart';
 part 'night_analysis_service/night_data.dart';
 part 'night_analysis_service/moon_ephemeris.dart';
@@ -49,15 +48,20 @@ class NightAnalysisService {
     required ImagesDao images,
     required ScienceDao science,
     required NightReportsDao reports,
+    required LocationSettings? Function() site,
     DateTime Function()? clock,
   }) : _images = images,
        _science = science,
        _reports = reports,
+       _site = site,
        _clock = clock ?? DateTime.now;
 
   final ImagesDao _images;
   final ScienceDao _science;
   final NightReportsDao _reports;
+
+  /// The configured observing site, read when a report is computed.
+  final LocationSettings? Function() _site;
   final DateTime Function() _clock;
 
   /// Compute (and persist) a [NightReport] for a session or a target.
@@ -105,10 +109,9 @@ class NightAnalysisService {
         // leave a trace. A silently-skipped detector reads as "no finding",
         // which is indistinguishable from "checked and healthy"; the log
         // line is the only way a degraded report can be diagnosed.
-        developer.log(
+        Log.warning(
           'Night Doctor detector threw and was skipped: $e',
-          name: 'NightAnalysisService',
-          level: 900,
+          source: 'NightAnalysisService',
         );
       }
     }
@@ -182,8 +185,6 @@ class NightAnalysisService {
       sub.fwhm != null ||
       sub.eccentricity != null;
 
-  // Detector registry
-
   late final List<List<NightFinding> Function(NightData)> _detectors = [
     _detectFocusDrift,
     _detectCloudTransparencyLoss,
@@ -193,8 +194,6 @@ class NightAnalysisService {
     _detectTiltCollimation,
     _detectGraderPoorNight,
   ];
-
-  // Data loading
 
   Future<NightData> _load({int? sessionId, int? targetId}) async {
     List<NightSub> subs;
@@ -212,6 +211,7 @@ class NightAnalysisService {
     return NightData(
       subs,
       opticalDiagnostics: await _loadOpticalDiagnostics(sessionId),
+      site: _site(),
     );
   }
 
@@ -237,12 +237,10 @@ class NightAnalysisService {
   }
 
   Future<List<NightSub>> _toSubs(
-    List<CapturedImage> rows, {
+    List<DbCapturedImage> rows, {
     required int? sessionId,
   }) async {
-    final lights = rows
-        .where((r) => r.frameType.toLowerCase() == 'light')
-        .toList(growable: false);
+    final lights = rows.where((r) => r.isLight).toList(growable: false);
     if (lights.isEmpty) return const [];
 
     final ids = lights.map((r) => r.id).toList(growable: false);
@@ -273,8 +271,7 @@ class NightAnalysisService {
     ];
   }
 
-  /// Read the raw-DDL `eccentricity` column (not on the drift table class) for a
-  /// batch of sub ids. Fail-soft: any read error → empty map (the eccentricity
+  /// Read the `eccentricity` column for a batch of sub ids. Fail-soft: any read error → empty map (the eccentricity
   /// signal is simply absent and detectors that need it stay silent).
   Future<Map<int, double>> _loadEccentricity(List<int> ids) async {
     if (ids.isEmpty) return const {};
@@ -346,8 +343,6 @@ class NightAnalysisService {
     }
   }
 
-  // Scoring + headline
-
   /// Per-finding penalties. Monotone in severity (critical > warn > info), so
   /// the night score is monotone w.r.t. the worst finding's severity. Penalties
   /// stack but the score is floored at 0.
@@ -382,7 +377,7 @@ class NightAnalysisService {
       case NightFindingSeverity.warn:
         return 'Decent night, but ${worst.title.toLowerCase()}$tail.';
       case NightFindingSeverity.info:
-        return 'Good night${tail.isEmpty ? '' : ' —'}${worst.title.toLowerCase()}$tail.';
+        return 'Good night — ${worst.title.toLowerCase()}$tail.';
     }
   }
 
@@ -390,14 +385,3 @@ class NightAnalysisService {
     return b.severity.index.compareTo(a.severity.index);
   }
 }
-
-/// Riverpod provider for the Night Doctor. Constructor-injected DAOs mirror the
-/// post-session services' idiom so tests override the DAO providers (or
-/// construct the service directly) to run without native code.
-final nightAnalysisServiceProvider = Provider<NightAnalysisService>((ref) {
-  return NightAnalysisService(
-    images: ref.watch(imagesDaoProvider),
-    science: ref.watch(scienceDaoProvider),
-    reports: ref.watch(nightReportsDaoProvider),
-  );
-});

@@ -13,22 +13,20 @@ pub struct PlayerOneFilterWheelInfo {
 }
 
 /// Discover Player One Phoenix filter wheels.
-pub async fn discover_filter_wheels() -> Result<Vec<PlayerOneFilterWheelInfo>, NativeError> {
-    let sdk = match PoaPwSdk::get() {
-        Some(sdk) => sdk,
-        None => return Ok(Vec::new()),
+pub async fn discover_filter_wheels() -> Result<Vec<PlayerOneFilterWheelInfo>, DriverError> {
+    let sdk = match PoaPwSdk::lock().await {
+        Ok(sdk) => sdk,
+        Err(_) => return Ok(Vec::new()),
     };
-
-    let _lock = player_one_mutex().lock().await;
-    let sdk_version = pw_sdk_version_from_sdk(sdk);
-    // SAFETY: player_one_mutex held; POAGetPWCount takes no arguments.
+    let sdk_version = pw_sdk_version_from_sdk(&sdk);
+    // SAFETY: POAGetPWCount takes no arguments.
     let count = unsafe { (sdk.get_pw_count)() };
     let mut wheels = Vec::new();
 
     for index in 0..count {
         // SAFETY: PWProperties is repr(C) POD; zeroed is a valid initial out buffer.
         let mut props: PWProperties = unsafe { std::mem::zeroed() };
-        // SAFETY: player_one_mutex held; index is in [0, count); props is a valid out-pointer.
+        // SAFETY: index is in [0, count); props is a valid out-pointer.
         let result = unsafe { (sdk.get_pw_properties)(index, &mut props) };
         if result != 0 {
             tracing::warn!(
@@ -58,6 +56,9 @@ pub async fn discover_filter_wheels() -> Result<Vec<PlayerOneFilterWheelInfo>, N
     Ok(wheels)
 }
 
+/// How long a wheel may take to home after it is opened (INDI's POA_EFW_TIMEOUT).
+const HOMING_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
+
 /// Player One Phoenix filter-wheel driver.
 pub struct PlayerOneFilterWheel {
     pub(crate) handle: i32,
@@ -65,6 +66,9 @@ pub struct PlayerOneFilterWheel {
     pub(crate) name: String,
     pub(crate) connected: bool,
     pub(crate) filter_count: i32,
+    /// `PWProperties.SN` of the open wheel; `None` before connect and for a
+    /// unit that reports none.
+    pub(crate) serial_number: Option<String>,
 }
 
 impl std::fmt::Debug for PlayerOneFilterWheel {
@@ -86,12 +90,13 @@ impl PlayerOneFilterWheel {
             name: format!("Player One PW {}", handle),
             connected: false,
             filter_count: 0,
+            serial_number: None,
         }
     }
 }
 
 #[async_trait]
-impl NativeDevice for PlayerOneFilterWheel {
+impl DeviceDriver for PlayerOneFilterWheel {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -100,44 +105,48 @@ impl NativeDevice for PlayerOneFilterWheel {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::PlayerOne
+    fn vendor(&self) -> Vendor {
+        Vendor::PlayerOne
+    }
+
+    fn serial_number(&self) -> Option<String> {
+        self.serial_number.clone()
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         if self.connected {
             return Ok(());
         }
 
-        let sdk = PoaPwSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
+        let sdk = PoaPwSdk::lock().await?;
 
-        // SAFETY: player_one_mutex held; handle comes from discovery or caller input. SDK
+        // SAFETY: handle comes from discovery or caller input. SDK
         // validates it and returns PW_ERROR_INVALID_HANDLE if stale.
         check_poa_pw_error(unsafe { (sdk.open_pw)(self.handle) }, "open filter wheel")?;
 
         let handle = self.handle;
+        let locked_sdk: &PoaPwSdk = &sdk;
         let cleanup_guard = CleanupGuard::new(|| {
-            // SAFETY: player_one_mutex remains held for the lifetime of this guard;
+            // SAFETY: the cleanup borrows the lock guard, so it runs while connect() still holds the lock;
             // handle was successfully opened immediately before the guard was created.
-            let _ = unsafe { (sdk.close_pw)(handle) };
+            let _ = unsafe { (locked_sdk.close_pw)(handle) };
         });
 
         // SAFETY: PWProperties is repr(C) POD and props is a valid out-pointer.
         let mut props: PWProperties = unsafe { std::mem::zeroed() };
-        // SAFETY: player_one_mutex held; handle has just been opened.
-        check_poa_pw_error(
-            // SAFETY: player_one_mutex held; handle just opened, props valid.
+        // SAFETY: handle has just been opened.
+        check_open_poa_pw_error(
+            // SAFETY: handle just opened, props valid.
             unsafe { (sdk.get_pw_properties_by_handle)(self.handle, &mut props) },
             "get filter wheel properties",
         )?;
 
         if props.position_count <= 0 {
-            return Err(NativeError::SdkError(format!(
+            return Err(DriverError::SdkError(format!(
                 "Player One PW handle {} reported invalid position count {}",
                 self.handle, props.position_count
             )));
@@ -145,97 +154,118 @@ impl NativeDevice for PlayerOneFilterWheel {
 
         self.name = pw_cstr(&props.name);
         self.filter_count = props.position_count;
+        self.serial_number = Some(pw_cstr(&props.sn)).filter(|sn| !sn.is_empty());
         cleanup_guard.defuse();
+        drop(sdk);
         self.connected = true;
+
+        // A wheel turns to find its home right after it is opened and refuses
+        // moves until that ends (INDI and NINA wait for it the same way). The
+        // SDK lock is shared with the cameras, so it is taken per poll.
+        let deadline = std::time::Instant::now() + HOMING_TIMEOUT;
+        loop {
+            match self.is_moving().await {
+                Ok(false) => break,
+                Ok(true) if std::time::Instant::now() < deadline => {}
+                outcome => {
+                    // NINA connects anyway; position reads say -1 until the turn ends.
+                    tracing::warn!(
+                        "Player One filter wheel {} had not finished homing {} s after it was opened ({:?})",
+                        self.handle,
+                        HOMING_TIMEOUT.as_secs(),
+                        outcome
+                    );
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
 
-        let sdk = PoaPwSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
-        // SAFETY: player_one_mutex held; handle is open because connected is true.
-        check_poa_pw_error(unsafe { (sdk.close_pw)(self.handle) }, "close filter wheel")?;
+        let sdk = PoaPwSdk::lock().await?;
+        // SAFETY: handle is open because connected is true.
+        check_open_poa_pw_error(unsafe { (sdk.close_pw)(self.handle) }, "close filter wheel")?;
         self.connected = false;
         Ok(())
     }
 }
 
 #[async_trait]
-impl NativeFilterWheel for PlayerOneFilterWheel {
-    async fn move_to_position(&mut self, position: i32) -> Result<(), NativeError> {
+impl FilterWheelDriver for PlayerOneFilterWheel {
+    async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         if position < 0 || position >= self.filter_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Player One PW position {} outside valid range 0-{}",
                 position,
                 self.filter_count - 1
             )));
         }
 
-        let sdk = PoaPwSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
-        // SAFETY: player_one_mutex held; handle is open and position is bounds-checked.
-        check_poa_pw_error(
+        let sdk = PoaPwSdk::lock().await?;
+        // SAFETY: handle is open and position is bounds-checked.
+        check_open_poa_pw_error(
             unsafe { (sdk.goto_position)(self.handle, position) },
             "goto filter position",
         )
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = PoaPwSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
+        let sdk = PoaPwSdk::lock().await?;
         let mut position = 0;
-        // SAFETY: player_one_mutex held; handle is open and position is a valid out-pointer.
-        check_poa_pw_error(
-            // SAFETY: player_one_mutex held; handle open, out-pointer valid.
-            unsafe { (sdk.get_current_position)(self.handle, &mut position) },
-            "get current filter position",
-        )?;
+        // SAFETY: handle is open and position is a valid out-pointer.
+        let result = unsafe { (sdk.get_current_position)(self.handle, &mut position) };
+        // The wheel answers a position read while it turns with an error; the
+        // driver contract (and the ZWO EFW) says -1.
+        if result == PW_ERROR_IS_MOVING {
+            return Ok(-1);
+        }
+        check_open_poa_pw_error(result, "get current filter position")?;
         Ok(position)
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = PoaPwSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
-        let mut state = PWState::Closed;
-        // SAFETY: player_one_mutex held; handle is open and state is a valid out-pointer.
-        check_poa_pw_error(
-            // SAFETY: player_one_mutex held; handle open, out-pointer valid.
+        let sdk = PoaPwSdk::lock().await?;
+        let mut state: c_int = 0;
+        // SAFETY: handle is open and state is a valid out-pointer.
+        check_open_poa_pw_error(
+            // SAFETY: handle open, out-pointer valid.
             unsafe { (sdk.get_pw_state)(self.handle, &mut state) },
             "get filter wheel state",
         )?;
-        Ok(state == PWState::Moving)
+        Ok(state == PW_STATE_MOVING)
     }
 
-    fn get_filter_count(&self) -> i32 {
+    async fn get_filter_count(&self) -> i32 {
         self.filter_count
     }
 
-    async fn get_filter_names(&self) -> Result<Vec<String>, NativeError> {
+    async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = PoaPwSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
+        let sdk = PoaPwSdk::lock().await?;
         let mut names = Vec::new();
         for position in 0..self.filter_count {
             let mut name_buf = [0 as c_char; 24];
-            // SAFETY: player_one_mutex held; handle is open; position is in range; buffer length
+            // SAFETY: handle is open; position is in range; buffer length
             // matches PlayerOnePW.h MAX_NAME_LEN.
             let result =
                 unsafe { (sdk.get_filter_alias)(self.handle, position, name_buf.as_mut_ptr(), 24) };
@@ -253,32 +283,34 @@ impl NativeFilterWheel for PlayerOneFilterWheel {
         Ok(names)
     }
 
-    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), NativeError> {
+    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         if position < 0 || position >= self.filter_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Player One PW position {} outside valid range 0-{}",
                 position,
                 self.filter_count - 1
             )));
         }
         if name.as_bytes().contains(&0) || name.len() >= 24 {
-            return Err(NativeError::InvalidParameter(
+            return Err(DriverError::InvalidParameter(
                 "Player One PW filter alias must be non-NUL and shorter than 24 bytes".to_string(),
             ));
         }
 
+        // Shorter than 24 bytes, checked above.
+        let length = name.len() as c_int;
         let c_name = std::ffi::CString::new(name).map_err(|_| {
-            NativeError::InvalidParameter("Player One PW filter alias contains NUL".to_string())
+            DriverError::InvalidParameter("Player One PW filter alias contains NUL".to_string())
         })?;
-        let sdk = PoaPwSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = player_one_mutex().lock().await;
-        // SAFETY: player_one_mutex held; handle is open; position bounds checked; CString is
-        // NUL-terminated and lives for the call.
-        check_poa_pw_error(
-            unsafe { (sdk.set_filter_alias)(self.handle, position, c_name.as_ptr()) },
+        let sdk = PoaPwSdk::lock().await?;
+        // SAFETY: handle is open; position bounds checked; CString is
+        // NUL-terminated, `length` bytes long, and lives for the call. A length
+        // of 0 clears the alias (PlayerOnePW.h).
+        check_open_poa_pw_error(
+            unsafe { (sdk.set_filter_alias)(self.handle, position, c_name.as_ptr(), length) },
             "set filter alias",
         )
     }

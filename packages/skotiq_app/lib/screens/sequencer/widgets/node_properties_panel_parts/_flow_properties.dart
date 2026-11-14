@@ -1,4 +1,3 @@
-// Properties widgets for flow-control nodes: target group, loop, delay, wait-time, conditional, parallel, recovery.
 part of '../node_properties_panel.dart';
 
 class _LoopProperties extends ConsumerWidget {
@@ -114,7 +113,6 @@ class _LoopProperties extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Quick set buttons for common times
                 Row(
                   children: [
                     NodeQuickTimeButton(
@@ -127,7 +125,6 @@ class _LoopProperties extends ConsumerWidget {
                         if (site == null) return;
                         final now = DateTime.now();
 
-                        // Calculate for today first
                         var twilight =
                             AstronomyCalculations.calculateTwilightTimes(
                           date: now,
@@ -166,7 +163,6 @@ class _LoopProperties extends ConsumerWidget {
                         if (site == null) return;
                         final now = DateTime.now();
 
-                        // Calculate for today first
                         var twilight =
                             AstronomyCalculations.calculateTwilightTimes(
                           date: now,
@@ -693,6 +689,13 @@ class _ParallelProperties extends ConsumerWidget {
   }
 }
 
+/// When the run watches the shutter, so the trigger is not expected to see a
+/// dome the plan never opened.
+const domeShutterTriggerHelp =
+    'Watches the shutter from this plan\'s Open Dome step until its Close '
+    'Dome or Park Dome step, and fires if the dome reports it not open in '
+    'between. A dome that cannot report its shutter is not watched.';
+
 class _RecoveryProperties extends ConsumerWidget {
   final SkotiqColors colors;
   final RecoveryNode node;
@@ -709,6 +712,9 @@ class _RecoveryProperties extends ConsumerWidget {
         NodePropertyField(
           colors: colors,
           label: 'Trigger type',
+          helpText: node.triggerType == TriggerType.domeShutterNotOpen
+              ? domeShutterTriggerHelp
+              : null,
           child: NodeDropdown<TriggerType?>(
             colors: colors,
             value: node.triggerType,

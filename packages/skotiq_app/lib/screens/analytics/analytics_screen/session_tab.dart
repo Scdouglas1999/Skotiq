@@ -1,9 +1,7 @@
-// ignore_for_file: unused_element_parameter
-
 part of '../analytics_screen.dart';
 
 class _SessionTab extends ConsumerStatefulWidget {
-  const _SessionTab({super.key});
+  const _SessionTab();
 
   @override
   ConsumerState<_SessionTab> createState() => _SessionTabState();
@@ -17,7 +15,10 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
   /// The third state is the point: with only "auto" and "a session", the first
   /// completed run won the auto-pick forever and the quick captures could never
   /// be asked for again.
-  int? _selectedSessionId;
+  int? get _selectedSessionId => ref.watch(analyticsSessionPickProvider);
+
+  void _pick(int? id) =>
+      ref.read(analyticsSessionPickProvider.notifier).state = id;
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +42,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
     // Watched unconditionally: a watch inside the ?? chain would come and go
     // with the pick and silently drop the dependency.
     final autoSessionId = sessionState.dbSessionId ??
-        ref.watch(latestScienceSessionProvider).valueOrNull;
+        ref.watch(scienceDefaultSessionProvider).valueOrNull;
     final reviewSessionId =
         quickCapturesPinned ? null : (pickedSessionId ?? autoSessionId);
     final reviewSession = allSessions
@@ -85,16 +86,17 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
           ? l10n.text(
               'analyticsStarted',
               params: {
-                'time': DateFormat('MMM d, yyyy HH:mm')
-                    .format(sessionState.startTime!),
+                'time': ClockFormat.monthDayYearHm(
+                    sessionState.startTime!.toLocal()),
               },
             )
           : l10n.text('analyticsSessionInProgress');
     } else if (reviewSession != null) {
       headerTitle = reviewSession.name ?? l10n.text('analyticsUnnamedSession');
       headerSubtitle =
-          '${DateFormat('EEE MMM d, yyyy · HH:mm').format(reviewSession.startTime)}'
-          '  ·  ${reviewSession.status}';
+          '${ClockFormat.weekdayMonthDayYear(reviewSession.startTime.toLocal())} · '
+          '${ClockFormat.hm(reviewSession.startTime.toLocal())}'
+          '  ·  ${sessionStatusLabel(reviewSession.status)}';
     } else if (isStandaloneMode) {
       headerTitle = l10n.text('analyticsQuickCapture');
       headerSubtitle = l10n.text('analyticsQuickCaptureSubtitle');
@@ -160,9 +162,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
         value: isLive
             ? '${sessionState.completedExposures}/${sessionState.totalExposures}'
             : frameMetric((images) {
-                final lights = images
-                    .where((i) => i.frameType.toLowerCase() == 'light')
-                    .length;
+                final lights = images.where((i) => i.isLight).length;
                 final accepted = acceptedLights(images).length;
                 return lights == accepted ? '$accepted' : '$accepted/$lights';
               }),
@@ -236,7 +236,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                     sessions: allSessions,
                     selectedId: reviewSelectionId,
                     offerQuickCaptures: offerQuickCaptures,
-                    onSelected: (id) => setState(() => _selectedSessionId = id),
+                    onSelected: _pick,
                   ),
                   const SizedBox(height: SkotiqTokens.space2xl),
                 ],
@@ -284,9 +284,9 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
             );
           }
           final hfr =
-              HfrChart(key: AnalyticsTutorialKeys.hfrChart, images: images);
+              HfrChart(key: TourTarget.analyticsHfrChart.key, images: images);
           final guiding = GuidingRmsChart(
-              key: AnalyticsTutorialKeys.guidingChart, images: images);
+              key: TourTarget.analyticsGuidingChart.key, images: images);
           final focuser = FocuserPositionChart(images: images);
           final temperature = TemperatureChart(images: images);
           // Say which frames are plotted rather than letting the reader assume
@@ -369,8 +369,8 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                       ),
                     if (reviewStatus != null)
                       SkotiqChip(
-                        label: reviewStatus,
-                        tone: _SessionHistoryCard._statusTone(reviewStatus),
+                        label: sessionStatusLabel(reviewStatus),
+                        tone: sessionStatusTone(reviewStatus),
                       ),
                   ],
                 ),
@@ -383,11 +383,10 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                         selectedId: reviewSelectionId,
                         offerQuickCaptures: offerQuickCaptures,
                         framed: false,
-                        onSelected: (id) =>
-                            setState(() => _selectedSessionId = id),
+                        onSelected: _pick,
                         onClear: _selectedSessionId == null
                             ? null
-                            : () => setState(() => _selectedSessionId = null),
+                            : () => _pick(null),
                       )
                     else ...[
                       Text(
@@ -423,11 +422,10 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
               if (framesError != null)
                 _AnalyticsError(
                   title: 'Frames did not load',
-                  message: framesError.toString(),
+                  error: framesError,
                   onRetry: retryImages,
                 )
               else ...[
-                // Graph grid
                 imagesAsyncValue.when(
                   data: chartGrid,
                   loading: () => const _AnalyticsLoading(
@@ -435,10 +433,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                   ),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
-
                 const SizedBox(height: SkotiqTokens.space2xl),
-
-                // Captured images strip
                 SkotiqPanel(
                   head: PanelHead(
                     icon: LucideIcons.image,
@@ -447,12 +442,10 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // One line, not the four-sentence reassurance that used
-                      // to sit here: the only fact a reader cannot get from
-                      // the badges themselves is WHERE the bulk grader lives.
                       Text(
-                        'Quality badges are advisory. To reject frames in '
-                        'bulk, use Science ▸ Field quality ▸ Grade frames.',
+                        'Quality badges are advisory. Right-click or long-press '
+                        'a frame to reject it; to reject in bulk, use Science ▸ '
+                        'Field quality ▸ Grade frames.',
                         style: SkotiqTypography.caption.copyWith(
                           color: colors.textMuted,
                         ),
@@ -460,7 +453,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                       const SizedBox(height: SkotiqTokens.spaceMd),
                       imagesAsyncValue.when(
                         data: (images) => ImageThumbnailStrip(
-                            key: AnalyticsTutorialKeys.thumbnails,
+                            key: TourTarget.analyticsThumbnails.key,
                             images: images),
                         loading: () => const _AnalyticsLoading(
                           height: kAnalyticsThumbnailRailHeight,
@@ -540,7 +533,6 @@ const double _chartGridSkeletonHeight = 320;
 class _AnalyticsLoading extends StatelessWidget {
   const _AnalyticsLoading({required this.height});
 
-  /// How much vertical space to hold open.
   final double height;
 
   @override
@@ -575,15 +567,15 @@ class _AnalyticsLoading extends StatelessWidget {
 class _AnalyticsError extends StatelessWidget {
   const _AnalyticsError({
     required this.title,
-    this.message,
+    required this.error,
     this.onRetry,
   });
 
   /// What failed, in one short sentence.
   final String title;
 
-  /// The detail — usually the exception's message.
-  final String? message;
+  /// Why, shown as the person-readable sentence of the error.
+  final Object error;
 
   /// Retry handler; the banner's single action.
   final VoidCallback? onRetry;
@@ -592,7 +584,7 @@ class _AnalyticsError extends StatelessWidget {
   Widget build(BuildContext context) {
     return SkotiqBanner(
       title: title,
-      message: message,
+      message: userFacingError(error),
       tone: BannerTone.error,
       action: onRetry == null
           ? null
@@ -609,54 +601,19 @@ class _AnalyticsError extends StatelessWidget {
 
 /// Null (not 'No data') when there is nothing to report: the caller is a
 /// [Readout], whose one way of saying "unknown" is the em dash.
-String? _formatAnalyticsIntegration(double seconds) {
-  if (!seconds.isFinite || seconds <= 0) return null;
-  final rounded = seconds.round();
-  if (rounded < 60) return '${rounded}s';
-  if (rounded < 3600) {
-    final minutes = rounded ~/ 60;
-    final remainder = rounded % 60;
-    return remainder == 0 ? '${minutes}m' : '${minutes}m ${remainder}s';
-  }
-  final hours = rounded ~/ 3600;
-  final minutes = (rounded % 3600) ~/ 60;
-  return '${hours}h ${minutes}m';
-}
+String? _formatAnalyticsIntegration(double seconds) =>
+    !seconds.isFinite || seconds <= 0
+        ? null
+        : DurationFormat.seconds(seconds, style: DurationStyle.short);
 
-/// Provider for watching session images (Drift rows) on the Analytics screen.
-///
-/// Renamed from `sessionImagesProvider` (which collided with the
-/// in-memory `sessionImagesProvider` in skotiq_core) so importers don't
-/// have to `hide` either declaration.
 final dbSessionImagesProvider =
-    StreamProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteSessionImages(
-      backend,
-      sessionId,
-      interval: ref.watch(analyticsRemoteImagePollIntervalProvider),
-    );
-  }
-  return ref.watch(imagesDaoProvider).watchImagesForSession(sessionId);
-});
+    StreamProvider.family<List<DbCapturedImage>, int>(
+  (ref, sessionId) =>
+      ref.watch(capturedImageRowsProvider).watchSession(sessionId),
+);
 
-/// Provider for watching standalone (sessionless) images
-final standaloneImagesProvider = StreamProvider<List<DbCapturedImage>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteStandaloneImages(
-      backend,
-      interval: ref.watch(analyticsRemoteImagePollIntervalProvider),
-    );
-  }
-  return ref.watch(imagesDaoProvider).watchStandaloneImages();
-});
-
-/// Remote image catalogs are low-churn and do not need to hammer the host.
-/// Exposed so tests can exercise retry/distinct behavior without waiting 10s.
-final analyticsRemoteImagePollIntervalProvider = Provider<Duration>(
-  (ref) => const Duration(seconds: 10),
+final standaloneImagesProvider = StreamProvider<List<DbCapturedImage>>(
+  (ref) => ref.watch(capturedImageRowsProvider).watchStandalone(),
 );
 
 /// The label of the History target filter's "no filter" entry.
@@ -724,7 +681,6 @@ bool sessionMatchesTargetFilter(
   return name == filter;
 }
 
-/// Picks which past session the Session tab is reviewing.
 class _SessionReviewBar extends StatelessWidget {
   final List<ImagingSession> sessions;
   final int? selectedId;
@@ -752,7 +708,6 @@ class _SessionReviewBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final format = DateFormat('MMM d, yyyy HH:mm');
     final hasSelection =
         (offerQuickCaptures && selectedId == kQuickCaptureSessionSelection) ||
             sessions.any((s) => s.id == selectedId);
@@ -799,7 +754,7 @@ class _SessionReviewBar extends StatelessWidget {
                       value: session.id,
                       child: Text(
                         '${session.name ?? 'Session ${session.id}'}'
-                        '  ·  ${format.format(session.startTime)}'
+                        '  ·  ${ClockFormat.monthDayYearHm(session.startTime.toLocal())}'
                         // Every capture, not the frames kept: the row's
                         // `successful_exposures` ignores the auto-grader, and
                         // "7/8 frames kept" sat over "4/8" (rig, 2026-11-03).

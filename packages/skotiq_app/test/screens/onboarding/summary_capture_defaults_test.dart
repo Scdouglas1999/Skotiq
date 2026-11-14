@@ -11,7 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/summary_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _SeededNotifier extends OnboardingNotifier {
   _SeededNotifier(super.ref, OnboardingDraft draft) {
@@ -70,8 +72,7 @@ void main() {
     );
 
     expect(find.text('Capture defaults'), findsOneWidget);
-    expect(
-        find.text('gain 100 · offset 50 · bin 1×1 · -10 °C'), findsOneWidget);
+    expect(find.text('gain 100 · offset 50 · bin 1×1 · -10°C'), findsOneWidget);
   });
 
   testWidgets('no set-points reads as not set rather than invented numbers', (

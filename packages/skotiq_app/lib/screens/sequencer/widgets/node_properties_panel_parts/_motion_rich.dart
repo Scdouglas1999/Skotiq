@@ -1,9 +1,3 @@
-// Part of ../node_properties_panel.dart -- migrated from the former
-// instruction_node_properties library. Richer
-// mount/optics motion editors: Center (custom-coords + solve params),
-// Autofocus (settings-defaults display + per-node overrides), Rotator,
-// Slew (custom-coords + target-resolution preview), Meridian Flip, and
-// Polar Alignment.
 part of '../node_properties_panel.dart';
 
 class _CenterProperties extends ConsumerWidget {
@@ -23,6 +17,7 @@ class _CenterProperties extends ConsumerWidget {
           colors: colors,
           label: 'Use target coordinates',
           child: NodeToggleSwitch(
+            label: 'Use target coordinates',
             colors: colors,
             value: node.useTargetCoords,
             onChanged: (value) {
@@ -173,7 +168,6 @@ class _AutofocusProperties extends ConsumerWidget {
       children: [
         NodeSectionHeader(colors: colors, label: 'Autofocus settings'),
         const SizedBox(height: 12),
-        // Use Settings Defaults toggle
         NodePropertyField(
           colors: colors,
           label: 'Use settings defaults',
@@ -204,10 +198,8 @@ class _AutofocusProperties extends ConsumerWidget {
           ),
         ),
         if (node.useSettingsDefaults)
-          // Read-only display of current global AF settings
           _buildDefaultsDisplay(context, afSettings)
         else
-          // Editable per-node overrides
           _buildEditableFields(ref),
 
         const SizedBox(height: 8),
@@ -239,7 +231,6 @@ class _AutofocusProperties extends ConsumerWidget {
     );
   }
 
-  /// Displays the persisted global AF settings as read-only informational rows.
   Widget _buildDefaultsDisplay(
       BuildContext context, AutofocusSettings afSettings) {
     return Container(
@@ -308,7 +299,6 @@ class _AutofocusProperties extends ConsumerWidget {
     );
   }
 
-  /// Editable fields for per-node overrides (original behavior).
   Widget _buildEditableFields(WidgetRef ref) {
     return Column(
       children: [
@@ -467,6 +457,7 @@ class _RotatorProperties extends ConsumerWidget {
           colors: colors,
           label: 'Relative movement',
           child: NodeToggleSwitch(
+            label: 'Relative movement',
             colors: colors,
             value: node.relative,
             onChanged: (value) {
@@ -508,6 +499,7 @@ class _SlewProperties extends ConsumerWidget {
           colors: colors,
           label: 'Use target coordinates',
           child: NodeToggleSwitch(
+            label: 'Use target coordinates',
             colors: colors,
             value: node.useTargetCoords,
             onChanged: (value) {
@@ -593,7 +585,7 @@ class _CoordinateReadout extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
-        '${formatRaHoursAsHms(raHours)}   ${formatDecDegAsDms(decDeg)}',
+        '${CoordinateFormat.raReadout(raHours)}   ${CoordinateFormat.decReadout(decDeg)}',
         style: TextStyle(
           fontSize: Responsive.fontSize(context, 11),
           color: colors.textMuted,
@@ -667,8 +659,8 @@ class _TargetResolutionPreview extends ConsumerWidget {
                             'coordinates set — this node has nowhere to point.\n'
                             'Look up or enter RA/Dec in the target editor.'
                         : 'Will use target: ${targetGroup.targetName}\n'
-                            '${formatRaHoursAsHms(targetGroup.raHours)}   '
-                            '${formatDecDegAsDms(targetGroup.decDegrees)}',
+                            '${CoordinateFormat.raReadout(targetGroup.raHours)}   '
+                            '${CoordinateFormat.decReadout(targetGroup.decDegrees)}',
                 style: TextStyle(
                   fontSize: Responsive.fontSize(context, 12),
                   color: resolved ? colors.success : colors.warning,
@@ -681,14 +673,3 @@ class _TargetResolutionPreview extends ConsumerWidget {
     );
   }
 }
-
-/// Format decimal RA hours as `HHh MMm SS.Ss`.
-String formatRaHoursAsHms(double hours) => CoordinateFormat.ra(
-      hours,
-      seconds: SecondsPrecision.oneDecimalPadded,
-      wrapHours: true,
-    );
-
-/// Format decimal declination degrees as `\u00B1DD\u00B0 MM' SS"`.
-String formatDecDegAsDms(double degrees) =>
-    CoordinateFormat.dec(degrees, seconds: SecondsPrecision.integerRounded);

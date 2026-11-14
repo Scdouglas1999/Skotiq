@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:file_selector/file_selector.dart';
 
@@ -87,7 +89,7 @@ class CalibrationSettingsPanel extends ConsumerWidget {
     } catch (error) {
       if (context.mounted) {
         context.showErrorSnackBar(
-          'Could not update the calibration settings: $error',
+          'Could not update the calibration settings: ${userFacingError(error)}',
         );
       }
     }
@@ -177,8 +179,8 @@ class CalibrationSettingsPanel extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        'How far a dark\'s sensor temperature may be from '
-                        'the light\'s.',
+                        'Darks this close to the light\'s sensor temperature '
+                        'are preferred. With none, the nearest is used.',
                         style: SkotiqTypography.caption.copyWith(
                           color: colors.textMuted,
                         ),
@@ -389,7 +391,7 @@ class _CalibrationFileBrowseButtonState
     } catch (error) {
       if (!mounted || !_isCurrent(generation, authority)) return;
       context.showErrorSnackBar(
-        'Could not update calibration settings: $error',
+        'Could not update calibration settings: ${userFacingError(error)}',
       );
     } finally {
       if (_isCurrent(generation, authority)) {
@@ -401,7 +403,7 @@ class _CalibrationFileBrowseButtonState
   bool _isCurrent(int generation, SkotiqBackend authority) {
     return mounted &&
         generation == _operationGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.backendScopeOver(authority).isCurrent;
   }
 }
 

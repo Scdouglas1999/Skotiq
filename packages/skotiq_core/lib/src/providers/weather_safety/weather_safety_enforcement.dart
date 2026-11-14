@@ -29,7 +29,7 @@ extension _WeatherSafetyEnforcement on WeatherSafetyNotifier {
     // client nor disconnected UI-only mode may execute the host's local
     // SafeRig workflow.
     final backend = _ref.read(backendProvider);
-    if (backend is DisconnectedBackend || backend is NetworkBackend) {
+    if (backend.hasNoHost || _ref.read(isRemoteModeProvider)) {
       return false;
     }
     if (_enforceInFlight) return false;
@@ -45,12 +45,7 @@ extension _WeatherSafetyEnforcement on WeatherSafetyNotifier {
     // shutdown steps and the night-end automation. A pause here would hold
     // the run where neither can happen. Dawn only puts away an idle rig.
     if (state.decisionSource == WeatherDecisionSource.dawn &&
-        switch (_ref.read(sequenceExecutionStateProvider)) {
-          SequenceExecutionState.running ||
-          SequenceExecutionState.paused ||
-          SequenceExecutionState.recovering => true,
-          _ => false,
-        }) {
+        _ref.read(sequenceExecutionStateProvider).isLive) {
       return true;
     }
     _enforceInFlight = true;

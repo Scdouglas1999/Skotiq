@@ -16,9 +16,13 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 
 class _FakeCriticalAlertPlayer implements CriticalAlertPlayer {
   final List<String> playCalls = [];
@@ -42,7 +46,24 @@ bridge_event.SkotiqEvent _sequencerError(int id, String message) =>
       severity: bridge_event.EventSeverity.error,
       category: bridge_event.EventCategory.sequencer,
       payload: bridge_event.EventPayload.sequencer(
-        bridge_event.SequencerEvent.error(message: message),
+        bridge_event.SequencerEvent.error(
+          message: message,
+          kind: bridge_event.SequencerErrorKind.stepFailed,
+        ),
+      ),
+    );
+
+/// A stopped run's cancellation, as the host sends it.
+bridge_event.SkotiqEvent _cancellation(int id) => bridge_event.SkotiqEvent(
+      eventId: BigInt.from(id),
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: bridge_event.EventSeverity.error,
+      category: bridge_event.EventCategory.sequencer,
+      payload: const bridge_event.EventPayload.sequencer(
+        bridge_event.SequencerEvent.error(
+          message: kSequenceCancelledNotice,
+          kind: bridge_event.SequencerErrorKind.cancelled,
+        ),
       ),
     );
 
@@ -79,14 +100,16 @@ void main() {
     return container;
   }
 
-  test('an operator Stop raises no banner, no toast and no alarm', () async {
+  test('an operator Stop raises no banner, no alert and no alarm', () async {
     final container = makeContainer();
     await container.read(appSettingsProvider.future);
-    container.read(runDashboardCriticalEventsBridgeProvider);
+    final alerts = <RunCriticalAlert>[];
+    final subscription =
+        container.read(runCriticalAlertsProvider).listen(alerts.add);
+    addTearDown(subscription.cancel);
+    container.read(runCriticalAlertSoundProvider);
 
-    container
-        .read(eventHistoryProvider.notifier)
-        .addEvent(_sequencerError(1, kSequenceCancelledNotice));
+    container.read(eventHistoryProvider.notifier).addEvent(_cancellation(1));
     await Future<void>.delayed(Duration.zero);
 
     expect(
@@ -95,7 +118,7 @@ void main() {
       reason: 'the red Dashboard banner fired for a button the operator '
           'pressed on purpose',
     );
-    expect(container.read(uiNotificationProvider), isEmpty);
+    expect(alerts, isEmpty);
     expect(player.playCalls, isEmpty);
   });
 
@@ -103,9 +126,7 @@ void main() {
     final container = makeContainer();
     await container.read(appSettingsProvider.future);
 
-    container
-        .read(eventHistoryProvider.notifier)
-        .addEvent(_sequencerError(1, kSequenceCancelledNotice));
+    container.read(eventHistoryProvider.notifier).addEvent(_cancellation(1));
 
     final recent = container.read(runDashboardRecentEventsProvider(5));
     expect(recent, hasLength(1));
@@ -119,7 +140,7 @@ void main() {
       () async {
     final container = makeContainer();
     await container.read(appSettingsProvider.future);
-    container.read(runDashboardCriticalEventsBridgeProvider);
+    container.read(runCriticalAlertSoundProvider);
 
     container.read(eventHistoryProvider.notifier).addEvent(
           _sequencerError(1, 'Temperature compensation cancelled'),

@@ -69,20 +69,6 @@ Future<CoverCalibratorCapabilities> apiGetCoverCalibratorCapabilities({
   deviceId: deviceId,
 );
 
-/// Get weather capabilities for a specific weather/observing conditions device.
-Future<WeatherCapabilities> apiGetWeatherCapabilities({
-  required String deviceId,
-}) => RustLib.instance.api.crateApiDiagnosticsApiGetWeatherCapabilities(
-  deviceId: deviceId,
-);
-
-/// Get safety monitor capabilities for a specific safety monitor device.
-Future<SafetyMonitorCapabilities> apiGetSafetyMonitorCapabilities({
-  required String deviceId,
-}) => RustLib.instance.api.crateApiDiagnosticsApiGetSafetyMonitorCapabilities(
-  deviceId: deviceId,
-);
-
 /// Get switch capabilities for a specific switch device.
 Future<SwitchCapabilities> apiGetSwitchCapabilities({
   required String deviceId,

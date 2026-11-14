@@ -2,7 +2,12 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/utils.dart';
 import '../harness/in_memory_database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -35,12 +40,13 @@ void main() {
       fakeAsync((async) {
         final backend = _MockNetworkBackend();
         var calls = 0;
-        when(() => backend.phd2GetStatus()).thenAnswer((_) async {
+        when(() => backend.guiderGetStatus()).thenAnswer((_) async {
           calls++;
           if (calls < 3) {
             throw StateError('PHD2 client not ready');
           }
           return const Phd2Status(
+            deviceId: kPhd2CanonicalId,
             state: 'Stopped',
             connected: true,
             rmsRa: 0,
@@ -81,8 +87,9 @@ void main() {
             port: any(named: 'port'),
           ),
         ).thenAnswer((_) async {});
-        when(() => backend.phd2GetStatus()).thenAnswer(
+        when(() => backend.guiderGetStatus()).thenAnswer(
           (_) async => const Phd2Status(
+            deviceId: kPhd2CanonicalId,
             state: 'Stopped',
             connected: true,
             rmsRa: 0,
@@ -111,7 +118,7 @@ void main() {
         verify(
           () => backend.phd2Connect(host: 'localhost', port: 4400),
         ).called(1);
-        verify(() => backend.phd2GetStatus()).called(1);
+        verify(() => backend.guiderGetStatus()).called(greaterThanOrEqualTo(1));
         expect(
           container.read(guiderStateProvider).connectionState,
           DeviceConnectionState.connected,
@@ -124,7 +131,7 @@ void main() {
       () async {
         final backend = _MockNetworkBackend();
         when(
-          () => backend.phd2GetStatus(),
+          () => backend.guiderGetStatus(),
         ).thenAnswer((_) async => kPhd2DisconnectedStatus);
 
         await expectLater(
@@ -153,8 +160,9 @@ void main() {
             port: any(named: 'port'),
           ),
         ).thenAnswer((_) async {});
-        when(() => backend.phd2GetStatus()).thenAnswer(
+        when(() => backend.guiderGetStatus()).thenAnswer(
           (_) async => const Phd2Status(
+            deviceId: kPhd2CanonicalId,
             state: 'Stopped',
             connected: true,
             rmsRa: 0,
@@ -180,62 +188,16 @@ void main() {
 
         await container
             .read(deviceServiceProvider)
-            .connectGuider('phd2_guider');
+            .connect(DeviceType.guider, 'phd2_guider');
 
         verify(
           () => backend.phd2Connect(host: '127.0.0.1', port: 4400),
         ).called(1);
-        verify(() => backend.phd2GetStatus()).called(1);
+        verify(() => backend.guiderGetStatus()).called(greaterThanOrEqualTo(1));
         expect(
           container.read(guiderStateProvider).connectionState,
           DeviceConnectionState.connected,
         );
-      },
-    );
-  });
-
-  group('remote session PHD2 hydration', () {
-    test(
-      'does not clear guider when status poll fails after device list hydrate',
-      () async {
-        final backend = _MockNetworkBackend();
-        when(() => backend.sequencerGetStatus()).thenAnswer(
-          (_) async => const SequencerStatus(state: 'Idle', progress: 0),
-        );
-        when(() => backend.getConnectedDevices()).thenAnswer(
-          (_) async => const [
-            DeviceInfo(
-              id: 'phd2_guider',
-              name: 'PHD2',
-              deviceType: DeviceType.guider,
-              driverType: DriverType.native,
-              description: '',
-              driverVersion: '1.0',
-            ),
-          ],
-        );
-        when(
-          () => backend.phd2GetStatus(),
-        ).thenThrow(StateError('PHD2 not connected'));
-
-        final container = ProviderContainer(
-          overrides: [
-            inMemoryDatabaseOverride(),
-            backendProvider.overrideWith(
-              (ref) => _FixedBackendNotifier(ref, backend),
-            ),
-            loggingServiceProvider.overrideWithValue(LoggingService()),
-          ],
-        );
-        addTearDown(container.dispose);
-
-        await hydrateRemoteSessionState(container, backend);
-
-        expect(
-          container.read(guiderStateProvider).connectionState,
-          DeviceConnectionState.connected,
-        );
-        expect(container.read(guiderStateProvider).deviceId, 'phd2_guider');
       },
     );
   });

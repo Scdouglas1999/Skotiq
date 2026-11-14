@@ -79,10 +79,8 @@ class PanelTabStrip extends StatelessWidget {
   /// A tab's height, centered in the strip.
   static const double tabHeight = 26;
 
-  /// The strip's horizontal padding.
   static const double horizontalPadding = SkotiqTokens.spaceSm;
 
-  /// Gap between tabs.
   static const double gap = 2;
 
   /// A tab's horizontal padding around its label.
@@ -104,7 +102,6 @@ class PanelTabStrip extends StatelessWidget {
         color: selected ? colors.textPrimary : colors.textMuted,
       );
 
-  /// The selected tab's fill.
   static Color selectedFill(SkotiqColors colors) =>
       colors.primary.withValues(alpha: selectedAlpha);
 

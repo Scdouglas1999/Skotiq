@@ -27,6 +27,7 @@ import 'package:skotiq_core/src/providers/operation_progress_provider.dart';
 
 import '../mocks/mock_backend.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 SkotiqEvent _progressEvent({
   required int point,

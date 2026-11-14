@@ -5,6 +5,7 @@
 //! surface is introduced — the modules localize per-device code paths so
 //! `device_manager/mod.rs` can read as a thin router.
 
+pub(crate) mod backstop;
 pub(crate) mod camera;
 pub(crate) mod cover;
 pub(crate) mod dome;
@@ -16,5 +17,4 @@ pub(crate) mod safety;
 pub(crate) mod switch;
 pub(crate) mod weather;
 
-pub(crate) mod sim_faults;
-pub(crate) mod sim_gate;
+pub(crate) mod state_events;

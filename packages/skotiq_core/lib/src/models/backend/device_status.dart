@@ -7,8 +7,6 @@ library;
 import 'device_capabilities.dart' show TrackingRate;
 import 'device_types.dart' show CameraState, PierSide;
 
-// Camera status
-
 /// Current status of a connected camera
 class CameraStatus {
   final bool connected;
@@ -16,7 +14,11 @@ class CameraStatus {
   final double? sensorTemp;
   final double? coolerPower;
   final double? targetTemp;
-  final bool coolerOn;
+
+  /// Whether the cooler is switched on; null when the camera does not say
+  /// and the host has not set it since connecting (the camera may still be
+  /// cooling from an earlier session).
+  final bool? coolerOn;
   final int gain;
   final int offset;
   final int binX;
@@ -26,6 +28,12 @@ class CameraStatus {
   final double pixelSizeX;
   final double pixelSizeY;
   final int maxAdu;
+
+  /// Where the sensor stops responding linearly, when the camera records it
+  /// below [maxAdu] (a DSLR's per-ISO saturation level from its last raw
+  /// file). Only saturation checks use it; full-scale arithmetic keeps
+  /// [maxAdu].
+  final int? saturationAdu;
   final bool canCool;
   final bool canSetGain;
   final bool canSetOffset;
@@ -36,7 +44,7 @@ class CameraStatus {
     this.sensorTemp,
     this.coolerPower,
     this.targetTemp,
-    required this.coolerOn,
+    this.coolerOn,
     required this.gain,
     required this.offset,
     required this.binX,
@@ -46,12 +54,12 @@ class CameraStatus {
     required this.pixelSizeX,
     required this.pixelSizeY,
     required this.maxAdu,
+    this.saturationAdu,
     required this.canCool,
     required this.canSetGain,
     required this.canSetOffset,
   });
 
-  /// Create from JSON (for network transport)
   factory CameraStatus.fromJson(Map<String, dynamic> json) {
     return CameraStatus(
       connected: json['connected'] as bool? ?? false,
@@ -63,7 +71,7 @@ class CameraStatus {
       targetTemp:
           (json['target_temp'] ?? json['targetTemp'] ?? json['setpoint'])
               ?.toDouble(),
-      coolerOn: json['cooler_on'] ?? json['coolerOn'] ?? false,
+      coolerOn: (json['cooler_on'] ?? json['coolerOn']) as bool?,
       gain: json['gain'] as int? ?? 0,
       offset: json['offset'] as int? ?? 0,
       binX: (json['bin_x'] ?? json['binX']) as int? ?? 1,
@@ -76,13 +84,13 @@ class CameraStatus {
       pixelSizeY:
           (json['pixel_size_y'] ?? json['pixelSizeY'])?.toDouble() ?? 0.0,
       maxAdu: (json['max_adu'] ?? json['maxAdu']) as int? ?? 65535,
+      saturationAdu: (json['saturation_adu'] ?? json['saturationAdu']) as int?,
       canCool: json['can_cool'] ?? json['canCool'] ?? false,
       canSetGain: json['can_set_gain'] ?? json['canSetGain'] ?? false,
       canSetOffset: json['can_set_offset'] ?? json['canSetOffset'] ?? false,
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'connected': connected,
     'state': state.name,
@@ -99,6 +107,7 @@ class CameraStatus {
     'pixelSizeX': pixelSizeX,
     'pixelSizeY': pixelSizeY,
     'maxAdu': maxAdu,
+    'saturationAdu': saturationAdu,
     'canCool': canCool,
     'canSetGain': canSetGain,
     'canSetOffset': canSetOffset,
@@ -114,8 +123,6 @@ class CameraStatus {
     );
   }
 }
-
-// Mount status
 
 /// Current status of a connected mount
 class MountStatus {
@@ -176,7 +183,6 @@ class MountStatus {
     this.availability = const {},
   });
 
-  /// Create from JSON (for network transport)
   factory MountStatus.fromJson(Map<String, dynamic> json) {
     return MountStatus(
       connected: json['connected'] as bool? ?? false,
@@ -214,7 +220,6 @@ class MountStatus {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'connected': connected,
     'tracking': tracking,
@@ -257,8 +262,6 @@ class MountStatus {
   }
 }
 
-// Focuser status
-
 /// Current status of a connected focuser
 class FocuserStatus {
   final bool connected;
@@ -281,7 +284,6 @@ class FocuserStatus {
     required this.hasTemperature,
   });
 
-  /// Create from JSON (for network transport)
   factory FocuserStatus.fromJson(Map<String, dynamic> json) {
     return FocuserStatus(
       connected: json['connected'] as bool? ?? false,
@@ -298,7 +300,6 @@ class FocuserStatus {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'connected': connected,
     'position': position,
@@ -310,8 +311,6 @@ class FocuserStatus {
     'hasTemperature': hasTemperature,
   };
 }
-
-// Filter wheel status
 
 /// Current status of a connected filter wheel
 class FilterWheelStatus {
@@ -329,13 +328,11 @@ class FilterWheelStatus {
     required this.filterNames,
   });
 
-  /// Get the name of the current filter
   String? get currentFilterName {
     if (position < 0 || position >= filterNames.length) return null;
     return filterNames[position];
   }
 
-  /// Create from JSON (for network transport)
   factory FilterWheelStatus.fromJson(Map<String, dynamic> json) {
     return FilterWheelStatus(
       connected: json['connected'] as bool? ?? false,
@@ -348,7 +345,6 @@ class FilterWheelStatus {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'connected': connected,
     'position': position,
@@ -357,8 +353,6 @@ class FilterWheelStatus {
     'filterNames': filterNames,
   };
 }
-
-// Rotator status
 
 /// Current status of a connected rotator
 class RotatorStatus {
@@ -378,7 +372,6 @@ class RotatorStatus {
     required this.canReverse,
   });
 
-  /// Create from JSON (for network transport)
   factory RotatorStatus.fromJson(Map<String, dynamic> json) {
     final position = json['position']?.toDouble() ?? 0.0;
     return RotatorStatus(
@@ -394,7 +387,6 @@ class RotatorStatus {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'connected': connected,
     'position': position,

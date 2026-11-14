@@ -21,7 +21,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_summary_line.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -40,7 +41,9 @@ Future<void> _pump(
 
   final container = ProviderContainer(overrides: [
     inMemoryDatabaseOverride(),
-    sequenceExecutionStateProvider.overrideWith((ref) => executionState),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: executionState)),
+    ),
     ...extraOverrides,
   ]);
   addTearDown(container.dispose);
@@ -76,6 +79,12 @@ Future<void> _pump(
     ),
   );
   await tester.pump();
+}
+
+class _StubFilterWheel extends FilterWheelStateNotifier {
+  _StubFilterWheel(super.ref, FilterWheelState initial) {
+    state = initial;
+  }
 }
 
 void main() {
@@ -124,6 +133,37 @@ void main() {
 
       // The C3 inline editor titles its count section "Exposure count".
       expect(find.text('Exposure count'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'the inline filter menu offers the connected wheel\'s slots when the '
+    'profile names none, as the inspector does',
+    (tester) async {
+      await _pump(
+        tester,
+        ExposureNode(count: 12, durationSecs: 180, filter: 'R'),
+        executionState: SequenceExecutionState.idle,
+        extraOverrides: [
+          activeEquipmentProfileProvider.overrideWithValue(null),
+          filterWheelStateProvider.overrideWith(
+            (ref) => _StubFilterWheel(
+              ref,
+              const FilterWheelState(
+                connectionState: DeviceConnectionState.connected,
+                filterNames: ['L', 'R', 'G'],
+              ),
+            ),
+          ),
+        ],
+      );
+
+      await tester.tap(find.text('R'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('L'), findsOneWidget);
+      expect(find.text('G'), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
     },
   );
 

@@ -28,14 +28,15 @@
 // The notifier is intentionally implementation-agnostic about the
 // backend: tests inject a `SessionReplayDataSource` that returns
 // canned data. Production wiring constructs the data source from the
-// app's `NetworkBackend` at the screen layer (see the mobile
-// `session_replay_screen.dart`).
+// linked host at the screen layer (skotiq_app
+// `screens/session_replay/session_replay_screen.dart`).
 
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 
 /// One playhead-positioned snapshot of "what the dashboard would have
 /// shown at this moment". Built by [SessionReplayNotifier] by scanning
@@ -322,7 +323,7 @@ abstract class SessionReplayDataSource {
 /// server-side cap (1000 rows per page) so even a multi-thousand-
 /// frame all-night run completes in a handful of round-trips.
 class NetworkSessionReplayDataSource implements SessionReplayDataSource {
-  final NetworkBackend backend;
+  final HostImagingRecords backend;
 
   /// Per-page size for the fetch loops. Matches the server's
   /// default + max so we don't overshoot the clamp.

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -10,35 +9,35 @@ import '../services/framing_survey_fetcher.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show MosaicPanel, MosaicStartCorner, mosaicPanelCenters;
 
-import '../backend/network_backend.dart';
+import 'linked_host.dart';
+import '../errors/error_text.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/equipment/equipment_models.dart';
+import '../models/framing_models.dart';
 import '../models/framing_plate_scale.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/target/target_models.dart';
-import '../services/mosaic_project_service.dart';
 import '../services/sensor_specs/camera_sensor_specs.dart';
 import '../services/target_library_service.dart';
-import '../utils/coordinate_format.dart';
 import '../utils/coordinate_parser.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'camera_sensor_specs_provider.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'framing_image_cache_provider.dart';
 import 'profiles_provider.dart';
+import 'mosaic_project_service_provider.dart';
+import 'target_library_service_provider.dart';
+import '../services/logging_service.dart';
 
 part 'framing_provider/models.dart';
 part 'framing_provider/support.dart';
 part 'framing_provider/survey_operations.dart';
-
-// Astronomy HTTP client
-
-/// Shared HTTP client for astronomy server requests.
-/// Uses standard certificate verification — no SSL bypass.
-
-// Framing state notifier
 
 class FramingNotifier extends StateNotifier<FramingState> {
   final Ref _ref;
@@ -155,7 +154,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     loadSurveyImage(canvasWidthLogicalPx: width);
   }
 
-  /// Set the target by coordinates
   void setTargetCoordinates(
     double raHours,
     double decDegrees, {
@@ -187,10 +185,10 @@ class FramingNotifier extends StateNotifier<FramingState> {
 
     _rememberLastFramedTarget(target);
 
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final remote = _ref.read(linkedHostPointingProvider);
+    if (remote != null) {
       _queueTargetPush(
-        backend,
+        remote,
         raHours: raHours,
         decDegrees: decDegrees,
         name: targetName,
@@ -221,10 +219,10 @@ class FramingNotifier extends StateNotifier<FramingState> {
     loadSurveyImage();
     _rememberLastFramedTarget(target);
 
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final remote = _ref.read(linkedHostPointingProvider);
+    if (remote != null) {
       _queueTargetPush(
-        backend,
+        remote,
         raHours: target.raHours,
         decDegrees: target.decDegrees,
         name: target.name,
@@ -233,7 +231,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
   }
 
   void _queueTargetPush(
-    NetworkBackend backend, {
+    HostPointing remote, {
     required double raHours,
     required double decDegrees,
     required String name,
@@ -242,11 +240,11 @@ class FramingNotifier extends StateNotifier<FramingState> {
     _targetPushTail = _targetPushTail.then((_) async {
       if (!mounted ||
           revision != _targetPushRevision ||
-          !identical(backend, _ref.read(backendProvider))) {
+          !identical(remote, _ref.read(linkedHostPointingProvider))) {
         return;
       }
       await _pushTargetToHost(
-        backend,
+        remote,
         raHours: raHours,
         decDegrees: decDegrees,
         name: name,
@@ -255,18 +253,17 @@ class FramingNotifier extends StateNotifier<FramingState> {
   }
 
   Future<void> _pushTargetToHost(
-    NetworkBackend backend, {
+    HostPointing remote, {
     required double raHours,
     required double decDegrees,
     required String name,
   }) async {
     try {
-      await backend.framingSetTarget(ra: raHours, dec: decDegrees, name: name);
+      await remote.framingSetTarget(ra: raHours, dec: decDegrees, name: name);
     } catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         'Failed to push framing target to host: $e',
-        name: 'FramingNotifier',
-        level: 1000,
+        source: 'FramingNotifier',
         error: e,
         stackTrace: stackTrace,
       );
@@ -279,10 +276,10 @@ class FramingNotifier extends StateNotifier<FramingState> {
     loadSurveyImage();
     _rememberLastFramedTarget(target);
 
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    final remote = _ref.read(linkedHostPointingProvider);
+    if (remote != null) {
       _queueTargetPush(
-        backend,
+        remote,
         raHours: target.raHours,
         decDegrees: target.decDegrees,
         name: target.name,
@@ -296,10 +293,9 @@ class FramingNotifier extends StateNotifier<FramingState> {
   void _rememberLastFramedTarget(FramingTarget target) {
     unawaited(
       persistLastFramedTarget(target).catchError((Object e, StackTrace s) {
-        developer.log(
+        Log.error(
           'Failed to persist last framed target: $e',
-          name: 'FramingNotifier',
-          level: 1000,
+          source: 'FramingNotifier',
           error: e,
           stackTrace: s,
         );
@@ -307,14 +303,12 @@ class FramingNotifier extends StateNotifier<FramingState> {
     );
   }
 
-  /// Clear the current target
   void clearTarget() {
     _cancelPendingTargetWork();
     _cutoutCanvasWidthPx = null;
     state = state.copyWith(clearTarget: true, clearImage: true);
   }
 
-  /// Set the survey source
   void setSurveySource(SurveySource source) {
     state = state.copyWith(surveySource: source, clearImage: true);
     if (state.target != null) {
@@ -343,17 +337,14 @@ class FramingNotifier extends StateNotifier<FramingState> {
     }
   }
 
-  /// Set zoom level
   void setZoom(double zoom) {
     state = state.copyWith(zoom: zoom.clamp(0.25, 4.0));
   }
 
-  /// Zoom in
   void zoomIn() {
     setZoom(state.zoom * 1.25);
   }
 
-  /// Zoom out
   void zoomOut() {
     setZoom(state.zoom / 1.25);
   }
@@ -364,7 +355,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     state = state.copyWith(zoom: 1.0, panX: 0, panY: 0, clearAim: true);
   }
 
-  /// Set pan offset
   void setPan(double x, double y) {
     state = state.copyWith(panX: x, panY: y);
   }
@@ -502,41 +492,34 @@ class FramingNotifier extends StateNotifier<FramingState> {
     loadSurveyImage();
   }
 
-  /// Toggle grid display
   void toggleGrid() {
     state = state.copyWith(showGrid: !state.showGrid);
   }
 
-  /// Toggle labels display
   void toggleLabels() {
     state = state.copyWith(showLabels: !state.showLabels);
   }
 
-  /// Toggle cardinal directions
   void toggleCardinalDirections() {
     state = state.copyWith(
       showCardinalDirections: !state.showCardinalDirections,
     );
   }
 
-  /// Toggle the candidate guide-star overlay.
   void toggleGuideStars() {
     state = state.copyWith(showGuideStars: !state.showGuideStars);
   }
 
-  /// Toggle optical config panel visibility
   void toggleOpticalConfigPanel() {
     state = state.copyWith(
       showOpticalConfigPanel: !state.showOpticalConfigPanel,
     );
   }
 
-  /// Set optical config panel visibility
   void setOpticalConfigPanelVisible(bool visible) {
     state = state.copyWith(showOpticalConfigPanel: visible);
   }
 
-  /// Set custom equipment
   void setCustomEquipment(FramingEquipment equipment) {
     state = state.copyWith(
       customEquipment: equipment,
@@ -544,7 +527,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     );
   }
 
-  /// Use equipment from active profile
   void useProfileEquipment() {
     state = state.copyWith(useCustomEquipment: false);
   }
@@ -560,21 +542,16 @@ class FramingNotifier extends StateNotifier<FramingState> {
     }
   }
 
-  /// Set equipment FOV overlay opacity
   void setEquipmentFovOverlayOpacity(double opacity) {
     state = state.copyWith(equipmentFovOverlayOpacity: opacity.clamp(0.0, 1.0));
   }
 
-  /// Toggle equipment FOV overlay visibility
   void toggleEquipmentFovOverlay() {
     state = state.copyWith(
       showEquipmentFovOverlay: !state.showEquipmentFovOverlay,
     );
   }
 
-  // Mosaic methods
-
-  /// Enable or disable mosaic mode
   void setMosaicEnabled(bool enabled) {
     state = state.copyWith(mosaicEnabled: enabled);
     if (enabled) {
@@ -584,7 +561,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     }
   }
 
-  /// Update mosaic configuration
   void setMosaicConfig(FramingMosaicConfig config) {
     state = state.copyWith(mosaicConfig: config);
     if (state.mosaicEnabled) {
@@ -592,46 +568,38 @@ class FramingNotifier extends StateNotifier<FramingState> {
     }
   }
 
-  /// Set number of mosaic columns
   void setMosaicColumns(int columns) {
     setMosaicConfig(state.mosaicConfig.copyWith(columns: columns.clamp(1, 10)));
   }
 
-  /// Set number of mosaic rows
   void setMosaicRows(int rows) {
     setMosaicConfig(state.mosaicConfig.copyWith(rows: rows.clamp(1, 10)));
   }
 
-  /// Set mosaic overlap percentage
   void setMosaicOverlap(double percent) {
     setMosaicConfig(
       state.mosaicConfig.copyWith(overlapPercent: percent.clamp(0, 50)),
     );
   }
 
-  /// Toggle serpentine capture pattern
   void toggleSerpentine() {
     setMosaicConfig(
       state.mosaicConfig.copyWith(serpentine: !state.mosaicConfig.serpentine),
     );
   }
 
-  /// Set mosaic start corner
   void setMosaicStartCorner(MosaicStartCorner corner) {
     setMosaicConfig(state.mosaicConfig.copyWith(startCorner: corner));
   }
 
-  /// Select a panel by index
   void selectPanel(int index) {
     state = state.copyWith(selectedPanelIndex: index);
   }
 
-  /// Toggle panel number visibility
   void togglePanelNumbers() {
     state = state.copyWith(showPanelNumbers: !state.showPanelNumbers);
   }
 
-  /// Toggle sequence path visibility
   void toggleSequencePath() {
     state = state.copyWith(showSequencePath: !state.showSequencePath);
   }
@@ -651,107 +619,25 @@ class FramingNotifier extends StateNotifier<FramingState> {
 
     final (fovWidth, fovHeight) = fov;
     final config = state.mosaicConfig;
-
-    // Calculate step size accounting for overlap
     final overlapFactor = 1 - (config.overlapPercent / 100);
-    final stepWidthDeg = fovWidth * overlapFactor;
-    final stepHeightDeg = fovHeight * overlapFactor;
 
-    // Calculate the total extent of the mosaic
-    final totalWidthDeg = fovWidth + (config.columns - 1) * stepWidthDeg;
-    final totalHeightDeg = fovHeight + (config.rows - 1) * stepHeightDeg;
-
-    // Center coordinates: the mosaic is a capture plan around where the
-    // telescope will point, so panels are built around the effective AIM (the
-    // dragged reticle position), not the view-center target. They coincide
-    // whenever the box has not been dragged off-center.
-    final centerRa = state.effectiveAimRaHours!;
-    final centerDec = state.effectiveAimDecDegrees!;
-
-    // Frame rotation, applied to each panel's tangent-plane offset with the
-    // same convention as mosaicPanelCenters so the listed coords match the
-    // rotated on-sky grid and the project MosaicService.generatePanels creates.
-    final rotation = state.rotation;
-    final rotRad = rotation * math.pi / 180;
-    final cosRot = math.cos(rotRad);
-    final sinRot = math.sin(rotRad);
-
-    // Calculate starting corner offset from center
-    final startRaOffset = -totalWidthDeg / 2 + fovWidth / 2;
-    final startDecOffset = totalHeightDeg / 2 - fovHeight / 2;
-
-    // Generate panels in capture order
-    final panels = <FramingMosaicPanel>[];
-    int panelIndex = 0;
-
-    for (int row = 0; row < config.rows; row++) {
-      final actualRow = _getActualRow(row, config);
-
-      for (int col = 0; col < config.columns; col++) {
-        final actualCol = _getActualCol(col, row, config);
-
-        // Panel offset from center in the tangent plane (east/north degrees),
-        // rotated by the frame rotation before the cos(dec) RA compression.
-        // Columns run left to right on screen, and east is left, so the
-        // first column is the eastmost.
-        final eastOffsetDeg = -(startRaOffset + actualCol * stepWidthDeg);
-        final northOffsetDeg = startDecOffset - actualRow * stepHeightDeg;
-
-        final double rotatedEastDeg;
-        final double rotatedNorthDeg;
-        if (rotation != 0.0) {
-          rotatedEastDeg = eastOffsetDeg * cosRot - northOffsetDeg * sinRot;
-          rotatedNorthDeg = eastOffsetDeg * sinRot + northOffsetDeg * cosRot;
-        } else {
-          rotatedEastDeg = eastOffsetDeg;
-          rotatedNorthDeg = northOffsetDeg;
-        }
-
-        // Note: RA offset needs to account for declination (cos(dec) factor)
-        final decRad = centerDec * math.pi / 180;
-        final cosDec = math.cos(decRad);
-        final raOffsetHours =
-            rotatedEastDeg / 15 / (cosDec.abs() > 0.01 ? cosDec : 0.01);
-
-        final panelRa = (centerRa + raOffsetHours) % 24;
-        final panelDec = (centerDec + rotatedNorthDeg).clamp(-90.0, 90.0);
-
-        panels.add(
-          FramingMosaicPanel(
-            index: panelIndex,
-            column: actualCol,
-            row: actualRow,
-            centerRaHours: panelRa,
-            centerDecDegrees: panelDec,
-            name: 'Panel ${panelIndex + 1} ($actualCol,$actualRow)',
-          ),
-        );
-
-        panelIndex++;
-      }
-    }
+    // The mosaic is a capture plan around where the telescope will point, so
+    // panels are built around the effective AIM (the dragged reticle
+    // position), not the view-center target. They coincide whenever the box
+    // has not been dragged off-center.
+    final panels = mosaicPanelCenters(
+      centerRaHours: state.effectiveAimRaHours!,
+      centerDecDegrees: state.effectiveAimDecDegrees!,
+      stepRaDegrees: fovWidth * overlapFactor,
+      stepDecDegrees: fovHeight * overlapFactor,
+      columns: config.columns,
+      rows: config.rows,
+      rotationDegrees: state.rotation,
+      startCorner: config.startCorner,
+      serpentine: config.serpentine,
+    );
 
     state = state.copyWith(mosaicPanels: panels);
-  }
-
-  int _getActualRow(int row, FramingMosaicConfig config) {
-    final flipVertical =
-        config.startCorner == MosaicStartCorner.bottomLeft ||
-        config.startCorner == MosaicStartCorner.bottomRight;
-    return flipVertical ? (config.rows - 1 - row) : row;
-  }
-
-  int _getActualCol(int col, int row, FramingMosaicConfig config) {
-    final flipHorizontal =
-        config.startCorner == MosaicStartCorner.topRight ||
-        config.startCorner == MosaicStartCorner.bottomRight;
-    final baseCol = flipHorizontal ? (config.columns - 1 - col) : col;
-
-    // Apply serpentine pattern (reverse direction on odd rows)
-    if (config.serpentine && row % 2 == 1) {
-      return config.columns - 1 - baseCol;
-    }
-    return baseCol;
   }
 
   /// Recalculate panels when target or equipment changes
@@ -761,7 +647,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     }
   }
 
-  /// Get mosaic total coverage info
   (double widthDeg, double heightDeg) getMosaicCoverage() {
     final config = state.mosaicConfig;
     final baseWidthDeg =
@@ -791,7 +676,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
   /// Returns the new project id, or null when there is no framed target or the
   /// rig FOV cannot be resolved (in which case no rows are written).
   Future<int?> createDurableMosaicProject({String? name}) async {
-    if (_ref.read(backendProvider) is NetworkBackend) {
+    if (_ref.read(isRemoteModeProvider)) {
       throw StateError(
         'Durable mosaic projects must be created on the imaging host.',
       );
@@ -815,6 +700,8 @@ class FramingNotifier extends StateNotifier<FramingState> {
       centerDec: aimTarget.decDegrees,
       overlapPct: config.overlapPercent,
       positionAngleDeg: state.rotation,
+      startCorner: config.startCorner,
+      serpentine: config.serpentine,
       fovWidthDeg: fovWidthDeg,
       fovHeightDeg: fovHeightDeg,
     );
@@ -827,14 +714,17 @@ class FramingNotifier extends StateNotifier<FramingState> {
   /// targets the user never deliberately added.
   Future<void> persistLastFramedTarget(FramingTarget target) async {
     final dao = _ref.read(settingsDaoProvider);
-    await dao.setSetting(_lastFramedTargetKey, jsonEncode(target.toJson()));
+    await dao.write(
+      StoreSettings.lastFramedTarget,
+      jsonEncode(target.toJson()),
+    );
   }
 
   /// Saves the current target into the persistent targets library.
   ///
   /// Routed through [TargetLibraryService.ensureCatalogTarget], which dedups
   /// against existing rows (by catalog id / name / coordinates) and handles both
-  /// the local SQLite (FFI) and remote host (NetworkBackend) backends, so
+  /// this process's database and a linked host, so
   /// repeated "Save target" presses do not stack duplicate rows.
   Future<void> saveTarget() async {
     final target = state.target;
@@ -858,23 +748,22 @@ class FramingNotifier extends StateNotifier<FramingState> {
   /// deliberately NO fallback to scanning the `targets` table, so the framing
   /// restore never resurrects phantom library rows.
   Future<void> loadMostRecentTarget() async {
-    if (_ref.read(backendProvider) is NetworkBackend) return;
+    if (_ref.read(isRemoteModeProvider)) return;
     final dao = _ref.read(settingsDaoProvider);
-    final raw = await dao.getSetting(_lastFramedTargetKey);
-    if (raw == null || raw.isEmpty) return;
+    final raw = await dao.read(StoreSettings.lastFramedTarget);
+    if (raw == null) return;
 
     final Object? decoded;
     try {
       decoded = jsonDecode(raw);
     } on FormatException catch (e, stackTrace) {
-      developer.log(
+      Log.warning(
         'Discarding corrupt framing.lastTarget setting: $e',
-        name: 'FramingNotifier',
-        level: 900,
+        source: 'FramingNotifier',
         error: e,
         stackTrace: stackTrace,
       );
-      await dao.deleteSetting(_lastFramedTargetKey);
+      await dao.clear(StoreSettings.lastFramedTarget);
       return;
     }
     if (decoded is! Map<String, dynamic>) return;
@@ -885,10 +774,6 @@ class FramingNotifier extends StateNotifier<FramingState> {
     setTarget(target);
   }
 }
-
-/// Settings key holding the JSON-encoded last framed target. Single key,
-/// overwritten on every selection — never a new `targets` row.
-const String _lastFramedTargetKey = 'framing.lastTarget';
 
 /// Factory for the HTTP client the survey-image fetch uses.
 ///
@@ -907,15 +792,3 @@ final framingProvider = StateNotifierProvider<FramingNotifier, FramingState>((
 ) {
   return FramingNotifier(ref);
 });
-
-double _normalizeRaHoursMaybeDegrees(double ra) {
-  if (ra.isNaN || ra.isInfinite) return ra;
-
-  // Normal case: already in hours.
-  if (ra >= 0.0 && ra < 24.0) return ra;
-
-  // Legacy bug / external sources: treat as degrees and convert to hours.
-  var deg = ra % 360.0;
-  if (deg < 0.0) deg += 360.0;
-  return deg / 15.0;
-}

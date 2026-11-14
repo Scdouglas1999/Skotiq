@@ -30,7 +30,6 @@ class _TargetDetailColumn extends ConsumerWidget {
   /// Height of the altitude well, its degree and clock scales included.
   static const double _altitudeHeight = 128;
 
-  /// Whether the selected target IS the one the optimizer chose.
   bool get _isOptimizerPick => plan.primaryTarget?.targetId == target.targetId;
 
   @override
@@ -184,9 +183,21 @@ class _TargetDetailColumn extends ConsumerWidget {
     final preview =
         ref.watch(plannerTargetIntegrationPreviewProvider(target.targetId));
     final estimated = preview.valueOrNull;
-    final filters = plan.recommendedFilterNames.isNotEmpty
-        ? plan.recommendedFilterNames.join('  ')
-        : plan.recommendedFilterName;
+    // The plan's filters and sub length are its primary target's; another
+    // selected row quotes its own estimate, or nothing it does not have.
+    final isPrimary = plan.primaryTarget?.targetId == target.targetId;
+    final filters = estimated != null && estimated.filterNames.isNotEmpty
+        ? estimated.filterNames.join('  ')
+        : !isPrimary
+            ? null
+            : plan.recommendedFilterNames.isNotEmpty
+                ? plan.recommendedFilterNames.join('  ')
+                : plan.recommendedFilterName;
+    final exposureSeconds = estimated != null && estimated.subExposureSecs > 0
+        ? estimated.subExposureSecs
+        : isPrimary
+            ? plan.recommendedExposureSeconds
+            : null;
 
     return <(String, String)>[
       if (target.objectType != null)
@@ -201,10 +212,8 @@ class _TargetDetailColumn extends ConsumerWidget {
       if (target.sizeArcmin != null && target.sizeArcmin! > 0)
         (l10n.text('plannerKvSize'), _formatSizeLabel(target.sizeArcmin)),
       if (filters != null) (l10n.text('plannerKvSuggestedFilters'), filters),
-      (
-        l10n.text('plannerKvExposure'),
-        '${plan.recommendedExposureSeconds.round()} s',
-      ),
+      if (exposureSeconds != null && exposureSeconds > 0)
+        (l10n.text('plannerKvExposure'), '${exposureSeconds.round()} s'),
       if (estimated != null && estimated.estimatedIntegrationHours > 0)
         (
           l10n.text('plannerKvEstimatedIntegration'),
@@ -326,75 +335,195 @@ class _TargetAltitudeWell extends ConsumerWidget {
   }
 }
 
+/// How a target of [sizeArcmin] sits in a camera field of [fieldWidthArcmin]
+/// by [fieldHeightArcmin]: inside the short side with room around it, filling
+/// the short side, or larger than it and needing a mosaic of [columns] by
+/// [rows] panels at the mosaic planner's default overlap.
+@immutable
+class PlannerFieldFit {
+  const PlannerFieldFit._(this.kind, {this.columns = 1, this.rows = 1});
+
+  final PlannerFieldFitKind kind;
+  final int columns;
+  final int rows;
+
+  /// The share of the short side a target may take and still leave room to
+  /// frame it.
+  static const double _roomy = 0.8;
+
+  static PlannerFieldFit? of({
+    required double? sizeArcmin,
+    required double fieldWidthArcmin,
+    required double fieldHeightArcmin,
+  }) {
+    if (sizeArcmin == null || sizeArcmin <= 0) return null;
+    final long = math.max(fieldWidthArcmin, fieldHeightArcmin);
+    final short = math.min(fieldWidthArcmin, fieldHeightArcmin);
+    if (sizeArcmin <= short * _roomy) {
+      return const PlannerFieldFit._(PlannerFieldFitKind.fits);
+    }
+    if (sizeArcmin <= short) {
+      return const PlannerFieldFit._(PlannerFieldFitKind.fills);
+    }
+    final (rows, columns) = MosaicPlanner.calculatePanelCount(
+      totalWidth: sizeArcmin,
+      totalHeight: sizeArcmin,
+      panelWidth: long,
+      panelHeight: short,
+    );
+    return PlannerFieldFit._(
+      PlannerFieldFitKind.mosaic,
+      columns: columns,
+      rows: rows,
+    );
+  }
+
+  String get label => switch (kind) {
+        PlannerFieldFitKind.fits => 'Fits the frame',
+        PlannerFieldFitKind.fills => 'Fills the frame',
+        PlannerFieldFitKind.mosaic => 'Needs a $columns × $rows mosaic',
+      };
+}
+
+enum PlannerFieldFitKind { fits, fills, mosaic }
+
 /// The field preview at the top of the detail column.
 ///
-/// The mockup fills this with a decorative star field. Skotiq does not
-/// have the target's sky in hand here — the HiPS surface that does lives on
-/// the Framing tab and needs its own tile loader — and a synthetic star field
-/// in a slot that reads as a preview would be the app claiming to show
-/// something it has not fetched. So the well carries the ONE thing that IS
-/// known from the numbers on this column: the target's angular extent against
-/// the frame, drawn as the `primary` rectangle the mockup puts there, with the
-/// action that opens the real sky.
+/// Skotiq does not have the target's sky in hand here — the HiPS surface
+/// that does lives on the Framing tab and needs its own tile loader — so the
+/// well is a scale drawing of what IS known: the camera's field (the active
+/// profile's sensor and focal length) as the `primary` rectangle, the
+/// target's catalogued size as a circle, and whether it fits.
 class _TargetFieldPreview extends ConsumerWidget {
   final TargetSuggestion target;
 
   const _TargetFieldPreview({required this.target});
 
-  /// The size (in arcminutes) the preview treats as filling the well. Anything
-  /// larger is drawn at the full width.
+  /// The size (in arcminutes) the preview treats as filling the well when the
+  /// camera's field is not known.
   static const double _fullFrameArcmin = 90;
 
-  /// The smallest fraction of the well the rectangle is drawn at, so a small
-  /// target is still a visible mark rather than a dot.
-  static const double _minFraction = 0.12;
+  /// Room left around the larger of the field and the target.
+  static const double _margin = 1.2;
+
+  /// The smallest the target circle is drawn, so a small target is still a
+  /// visible mark rather than a dot.
+  static const double _minTargetPx = 6;
+
+  /// The caption row's share of the well's top.
+  static const double _captionBand = 30;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
-    final size = target.sizeArcmin;
-    final fraction = size == null || size <= 0
+    final size = target.sizeArcmin != null && target.sizeArcmin! > 0
+        ? target.sizeArcmin
+        : null;
+    final fov = ref.watch(opticalConfigProvider)?.fieldOfView;
+    final field = fov == null
         ? null
-        : (size / _fullFrameArcmin).clamp(_minFraction, 1.0);
+        : (
+            math.max(fov.$1, fov.$2) * 60,
+            math.min(fov.$1, fov.$2) * 60,
+          );
+    final fit = field == null
+        ? null
+        : PlannerFieldFit.of(
+            sizeArcmin: size,
+            fieldWidthArcmin: field.$1,
+            fieldHeightArcmin: field.$2,
+          );
+    final caption = field != null
+        ? 'Camera field ${_arcmin(field.$1)} × ${_arcmin(field.$2)}'
+            '${size == null ? ' · size not catalogued' : ' · target ${_arcmin(size)}'}'
+        : size == null
+            ? 'Size not catalogued'
+            : 'Target size to scale in a ${_fullFrameArcmin.round()} arcmin '
+                'field · camera field unknown';
 
     return Semantics(
-      label: 'Field preview for ${target.targetName}',
+      label: 'Field preview for ${target.targetName}. $caption'
+          '${fit == null ? '' : '. ${fit.label}'}',
       child: Container(
         decoration: SkotiqDecorations.well(colors),
         clipBehavior: Clip.antiAlias,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (fraction != null)
-              Center(
-                child: FractionallySizedBox(
-                  widthFactor: fraction,
-                  heightFactor: fraction,
-                  child: DecoratedBox(
-                    // The mockup softens this hairline to 80% primary; there
-                    // is no 0.8 opacity token and 03 §5.1 forbids inventing
-                    // one, so a 1px line takes the token colour whole.
-                    decoration: BoxDecoration(
-                      border: Border.all(color: colors.primary),
-                    ),
-                  ),
-                ),
+            // The drawing sits under the caption row, so the frame never
+            // covers the words that say what it is.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                SkotiqTokens.spaceSm,
+                _captionBand,
+                SkotiqTokens.spaceSm,
+                SkotiqTokens.spaceSm,
               ),
-            // Without a caption the well read as a preview that failed to
-            // load; it is a scale drawing of the target's size.
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final w = constraints.maxWidth;
+                  final h = constraints.maxHeight;
+                  final double pxPerArcmin;
+                  if (field != null) {
+                    pxPerArcmin = math.min(
+                      w / (math.max(field.$1, size ?? 0) * _margin),
+                      h / (math.max(field.$2, size ?? 0) * _margin),
+                    );
+                  } else {
+                    pxPerArcmin = math.min(w, h) / _fullFrameArcmin;
+                  }
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (field != null)
+                        Container(
+                          width: field.$1 * pxPerArcmin,
+                          height: field.$2 * pxPerArcmin,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: colors.primary),
+                          ),
+                        ),
+                      if (size != null)
+                        Container(
+                          width: math.max(_minTargetPx, size * pxPerArcmin),
+                          height: math.max(_minTargetPx, size * pxPerArcmin),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: colors.textSecondary),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
             Positioned(
               left: SkotiqTokens.spaceSm,
               top: SkotiqTokens.spaceSm,
               right: SkotiqTokens.spaceSm,
-              child: Text(
-                fraction == null
-                    ? 'Size not catalogued'
-                    : 'Target size to scale in a '
-                        '${_fullFrameArcmin.round()} arcmin field',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: SkotiqTypography.caption.copyWith(
-                  color: colors.textMuted,
+              child: ExcludeSemantics(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SkotiqTypography.caption.copyWith(
+                          color: colors.textMuted,
+                        ),
+                      ),
+                    ),
+                    if (fit != null) ...[
+                      const SizedBox(width: SkotiqTokens.spaceSm),
+                      SkotiqChip(
+                        label: fit.label,
+                        tone: fit.kind == PlannerFieldFitKind.mosaic
+                            ? ChipTone.warning
+                            : ChipTone.neutral,
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -443,3 +572,7 @@ class _TargetFieldPreview extends ConsumerWidget {
     );
   }
 }
+
+/// [arcmin] as `31′`, or `7.4′` below ten.
+String _arcmin(double arcmin) =>
+    '${arcmin < 10 ? arcmin.toStringAsFixed(1) : arcmin.round()}′';

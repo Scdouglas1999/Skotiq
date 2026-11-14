@@ -7,8 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_planetarium/src/celestial_object.dart';
-import 'package:skotiq_planetarium/src/coordinate_system.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_planetarium/src/providers/deep_star_providers.dart';
 import 'package:skotiq_planetarium/src/providers/planetarium_providers.dart';
 import 'package:skotiq_planetarium/src/widgets/interactive_sky_view.dart';

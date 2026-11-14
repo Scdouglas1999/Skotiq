@@ -1,0 +1,340 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_bridge/events.dart';
+
+import 'event_wire_samples.g.dart';
+
+EventCategory _family(EventPayload payload) => switch (payload) {
+  EventPayload_Equipment() => EventCategory.equipment,
+  EventPayload_Imaging() || EventPayload_DepthLock() => EventCategory.imaging,
+  EventPayload_Guiding() => EventCategory.guiding,
+  EventPayload_Sequencer() => EventCategory.sequencer,
+  EventPayload_Safety() => EventCategory.safety,
+  EventPayload_System() => EventCategory.system,
+  EventPayload_PolarAlignment() ||
+  EventPayload_PolarAlignmentStatus() ||
+  EventPayload_PolarAlignmentImage() => EventCategory.polarAlignment,
+};
+
+/// What a client receives: the data after the JSON envelope.
+Map<String, Object?> _overTheWire(Map<String, Object?> data) =>
+    (jsonDecode(
+              jsonEncode(
+                data,
+                toEncodable: (value) =>
+                    value is Uint8List ? base64Encode(value) : value,
+              ),
+            )
+            as Map)
+        .cast<String, Object?>();
+
+EventPayload? _decode(
+  EventCategory family,
+  String type,
+  Map<String, Object?> data, {
+  EventSeverity severity = EventSeverity.info,
+}) => decodeEventPayload(family, type, data, severity: severity);
+
+void _expectWire(EventPayload payload, String type, Map<String, Object?> data) {
+  final sent = encodeEventPayload(payload);
+  expect(sent.$1, type);
+  expect(sent.$2, data);
+}
+
+void main() {
+  test('the generated codec is the one the event unions generate', () {
+    final result = Process.runSync('dart', [
+      'run',
+      'tool/generate_event_wire.dart',
+      '--check',
+    ]);
+    expect(result.exitCode, 0, reason: '${result.stdout}${result.stderr}');
+  });
+
+  test('every event variant a host sends is the same variant on a client', () {
+    for (final sample in eventWireSamples) {
+      final (type, data) = encodeEventPayload(sample);
+      final received = _decode(_family(sample), type, _overTheWire(data));
+      // A pass report's details are JSON text; the sample's are not.
+      if (sample case EventPayload_Imaging(
+        field0: ImagingEvent_IntegrationTelemetry(),
+      )) {
+        expect(received, isA<EventPayload_Imaging>());
+        continue;
+      }
+      expect('$received', '$sample', reason: type);
+      expect(eventWireTypes[_family(sample)], contains(type));
+    }
+  });
+
+  test('the names other readers know are the names sent', () {
+    _expectWire(
+      const EventPayload.guiding(
+        GuidingEvent.correction(ra: 1, dec: 2, raRaw: 3, decRaw: 4),
+      ),
+      'GuideStep',
+      {
+        'RADistance': 1.0,
+        'DECDistance': 2.0,
+        'RADistanceRaw': 3.0,
+        'DECDistanceRaw': 4.0,
+      },
+    );
+    _expectWire(
+      const EventPayload.guiding(GuidingEvent.lostStar()),
+      'StarLost',
+      <String, Object?>{},
+    );
+    _expectWire(
+      const EventPayload.guiding(GuidingEvent.settled(rms: 0.5)),
+      'SettleDone',
+      {'rms': 0.5},
+    );
+    _expectWire(
+      const EventPayload.sequencer(SequencerEvent.failed(error: 'x')),
+      'SequenceFailed',
+      {'error': 'x'},
+    );
+    _expectWire(
+      const EventPayload.imaging(
+        ImagingEvent.exposureStartedWithFrame(
+          durationSecs: 30,
+          frameType: FrameType.darkFlat,
+          frameNumber: 2,
+          totalFrames: 5,
+        ),
+      ),
+      'ExposureStarted',
+      {'duration_secs': 30.0, 'frame_type': 'darkFlat', 'frame': 2, 'total': 5},
+    );
+    expect(
+      encodeEventPayload(
+        const EventPayload.sequencer(
+          SequencerEvent.meridianFlipOutcome(
+            outcome: FlipOutcome.pierChanged,
+            targetName: 'M42',
+            newPierSide: 'East',
+            durationSecs: 0,
+            attempts: 1,
+            failedSteps: [],
+          ),
+        ),
+      ).$2['outcome'],
+      'pier_changed',
+    );
+    _expectWire(
+      const EventPayload.equipment(
+        EquipmentEvent.propertyChanged(
+          deviceType: 'Focuser',
+          deviceId: 'f',
+          property: 'AutofocusProgress',
+          value: '{}',
+        ),
+      ),
+      'AutofocusProgress',
+      {'device_type': 'Focuser', 'device_id': 'f', 'detail': '{}'},
+    );
+    expect(
+      eventWireTypes[EventCategory.imaging],
+      containsAll(['DepthLockGoalUpdated', 'ExposureFailed']),
+    );
+    final goal = encodeEventPayload(
+      eventWireSamples.firstWhere(
+        (sample) =>
+            sample is EventPayload_DepthLock &&
+            sample.field0 is DepthLockEvent_GoalUpdated,
+      ),
+    );
+    expect(goal.$1, 'DepthLockGoalUpdated');
+    expect(goal.$2['revision'], isA<int>());
+    expect(goal.$2, contains('framesRemaining'));
+    expect(goal.$2, isNot(contains('frames_remaining')));
+
+    // The frame's capture record is written beside the frame's own fields;
+    // the images table and the run record read these keys.
+    final frame = encodeEventPayload(
+      eventWireSamples.firstWhere(
+        (sample) =>
+            sample is EventPayload_Sequencer &&
+            sample.field0 is SequencerEvent_FrameAccepted,
+      ),
+    );
+    expect(
+      frame.$2.keys,
+      containsAll([
+        'gain',
+        'gain_is_iso',
+        'offset',
+        'sensor_temp_c',
+        'cooler_power_percent',
+        'mount_ra_hours',
+        'mount_dec_degrees',
+        'mount_altitude_deg',
+        'mount_azimuth_deg',
+        'pier_side',
+        'focuser_position',
+        'focuser_temperature_c',
+        'rotator_angle_deg',
+        'exposure_secs',
+        'bin_x',
+        'bin_y',
+        'frame_type',
+        'target_id',
+        'save_path',
+      ]),
+    );
+  });
+
+  test('an event type this build does not know is no event', () {
+    expect(_decode(EventCategory.sequencer, 'NewerHostEvent', {}), isNull);
+    expect(_decode(EventCategory.system, 'HostStateChanged', {}), isNull);
+  });
+
+  test('an event without a count it needs is refused', () {
+    expect(
+      () => _decode(EventCategory.sequencer, 'ExposureStarted', {
+        'duration_secs': 30.0,
+      }),
+      throwsFormatException,
+    );
+  });
+
+  test('every stop a row records reaches a client as that stop', () {
+    for (final stop in const [
+      SequencerStop.cancelled(),
+      SequencerStop.operator_(),
+      SequencerStop.autopilot(),
+      SequencerStop.system(origin: 'disk-watchdog'),
+      SequencerStop.trigger(triggerId: 'weather', triggerName: 'Weather'),
+    ]) {
+      final row = EventPayload.sequencer(
+        SequencerEvent.decisionLogged(
+          timestampIso: '2026-11-13T03:00:00Z',
+          category: 'system_event',
+          // Words that name no stop: the stop travels as itself.
+          summary: 'Reworded',
+          detailsJson: '{}',
+          stop: stop,
+        ),
+      );
+      final (type, data) = encodeEventPayload(row);
+      expect(_decode(EventCategory.sequencer, type, _overTheWire(data)), row);
+    }
+  });
+
+  group('an event in an old shape is not read', () {
+    test('an error without its kind', () {
+      expect(
+        () => _decode(EventCategory.sequencer, 'Error', {'message': 'x'}),
+        throwsFormatException,
+      );
+    });
+
+    test('a frame without its capture record', () {
+      expect(
+        () => _decode(EventCategory.sequencer, 'FrameAccepted', {
+          'node_id': 'n',
+          'frame': 1,
+          'total': 2,
+          'accepted_total': 1,
+          'rejected_total': 0,
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('a run state under its old name', () {
+      expect(_decode(EventCategory.sequencer, 'SequencePaused', {}), isNull);
+      expect(_decode(EventCategory.sequencer, 'SequenceCompleted', {}), isNull);
+    });
+
+    test('a trigger action in another spelling', () {
+      expect(
+        () => _decode(EventCategory.sequencer, 'TriggerFired', {
+          'trigger_id': 'meridian_flip',
+          'trigger_name': 'Meridian Flip',
+          'action': 'MeridianFlip(MeridianFlipConfig { ... })',
+        }),
+        throwsFormatException,
+      );
+    });
+  });
+
+  group('the web pages', () {
+    final webJs = Directory('../../apps/desktop/web_run_watch/js');
+    final dashboardJs = Directory('../../apps/desktop/web_dashboard/js');
+    // `<category>: Object.freeze({` then `<name>: '<Type>',` per type.
+    Map<String, Set<String>> table() {
+      final byCategory = <String, Set<String>>{};
+      Set<String>? current;
+      for (final line in File(
+        '${webJs.path}/wire-events.js',
+      ).readAsLinesSync()) {
+        final category = RegExp(r'^  (\w+): Object\.freeze').firstMatch(line);
+        if (category != null) {
+          current = byCategory[category[1]!] = {};
+          continue;
+        }
+        final entry = RegExp(r"^    (\w+): '(\w+)',").firstMatch(line);
+        if (entry != null) current!.add('${entry[1]}=${entry[2]}');
+      }
+      return byCategory;
+    }
+
+    test('their table of event types is the types the codec sends', () {
+      final byCategory = table();
+      for (final category in EventCategory.values) {
+        final sent = eventWireTypes[category];
+        if (sent == null) continue;
+        expect(
+          {for (final e in byCategory[category.name]!) e.split('=').last},
+          sent.toSet(),
+          reason: category.name,
+        );
+      }
+    });
+
+    test('both pages serve the same table', () {
+      expect(
+        File('${dashboardJs.path}/wire-events.js').readAsStringSync(),
+        File('${webJs.path}/wire-events.js').readAsStringSync(),
+      );
+    });
+
+    Set<String> tableNames() => {
+      for (final entries in table().entries)
+        for (final e in entries.value) '${entries.key}.${e.split('=').first}',
+    };
+
+    test('the dashboard names every event it follows from that table', () {
+      final source = File('${dashboardJs.path}/app.js').readAsStringSync();
+      final references = RegExp(
+        r'WIRE_EVENTS\.(\w+)\.(\w+)',
+      ).allMatches(source).map((m) => '${m[1]}.${m[2]}');
+      expect(references, isNotEmpty);
+      expect(tableNames(), containsAll(references));
+      // An event type named by a string literal bypasses the table.
+      expect(
+        RegExp(r"(type|eventType) [!=]== '[A-Z]").hasMatch(source),
+        isFalse,
+      );
+    });
+
+    test('run-watch names every event it listens for from that table', () {
+      final names = tableNames();
+      final source = File('${webJs.path}/run-watch.js').readAsStringSync();
+      final references = RegExp(
+        r'WIRE_EVENTS\.(\w+)\.(\w+)',
+      ).allMatches(source).map((m) => '${m[1]}.${m[2]}');
+      expect(references, isNotEmpty);
+      for (final reference in references) {
+        expect(names, contains(reference));
+      }
+      // A listener named by a string literal bypasses the table.
+      expect(RegExp(r"sse\.addEventListener\(\s*'").hasMatch(source), isFalse);
+    });
+  });
+}

@@ -4,7 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/annotation_data.dart';
-import 'package:skotiq_core/src/services/wcs/wcs_sip_codec.dart';
+import 'package:skotiq_core/src/models/imaging/sip_terms.dart';
 
 // Annotation labels and click-to-identify on the rig's NGC 891 frame (a
 // Newtonian, so mirrored parity), against astropy's all_world2pix on ASTAP's
@@ -37,7 +37,7 @@ void main() {
     cd1_2: cd[1],
     cd2_1: cd[2],
     cd2_2: cd[3],
-    sip: encodeSolvedSip(
+    sip: encodeSolvedSip((
       aOrder: f['aOrder'] as int,
       bOrder: f['bOrder'] as int,
       aCoeffs: doubles(f['a']),
@@ -46,7 +46,7 @@ void main() {
       bpOrder: f['bpOrder'] as int,
       apCoeffs: doubles(f['ap']),
       bpCoeffs: doubles(f['bp']),
-    ),
+    )),
   );
   Map<String, dynamic> object(String name) => (f['objects'] as List)
       .cast<Map<String, dynamic>>()

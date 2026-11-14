@@ -1,8 +1,6 @@
 part of '../mosaic_project_service.dart';
 
 extension _MosaicStitching on MosaicProjectService {
-  // Helpers.
-
   Future<bool> _safeFitsHasWcs(
     Future<bool> Function(String fitsPath) probe,
     String fitsPath,
@@ -30,7 +28,7 @@ extension _MosaicStitching on MosaicProjectService {
   /// Accepted light subs for a capture target (the population the per-panel
   /// integration folds). Non-accepted subs are excluded so a panel's master is
   /// built only from frames that passed grading.
-  Future<List<CapturedImage>> _acceptedSubsForTarget(int targetId) async {
+  Future<List<DbCapturedImage>> _acceptedSubsForTarget(int targetId) async {
     final all = await _imagesDao.getImagesForTarget(targetId);
     return all.where((s) => s.isAccepted).toList(growable: false);
   }
@@ -63,12 +61,11 @@ extension _MosaicStitching on MosaicProjectService {
   }
 
   void _logSoftFailure(String step, Object error, StackTrace stackTrace) {
-    developer.log(
+    Log.warning(
       'mosaic project step "$step" failed (continuing)',
-      name: 'MosaicProjectService',
+      source: 'MosaicProjectService',
       error: error,
       stackTrace: stackTrace,
-      level: 900, // WARNING
     );
   }
 }

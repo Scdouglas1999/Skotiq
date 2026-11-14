@@ -119,3 +119,10 @@ Future<Directory> resolveSkotiqDocumentsDirectory({
   }
   return (documentsDirectoryProvider ?? getApplicationDocumentsDirectory)();
 }
+
+/// Where exports land when no save dialog chooses a place (a phone's share
+/// sheet, an automatic report): `Skotiq/exports` in the documents folder,
+/// created if absent.
+Future<Directory> resolveSkotiqExportsDirectory({
+  Future<Directory> Function() documents = resolveSkotiqDocumentsDirectory,
+}) async => _ensure(p.join((await documents()).path, 'Skotiq', 'exports'));

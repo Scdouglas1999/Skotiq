@@ -7,13 +7,14 @@
 //! target slew "missed" by the precession offset) passed every one of them.
 
 use super::*;
-use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
 use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::epoch::{
     j2000_to_jnow, jnow_to_j2000, SimFrameGuard as FrameGuard, SimMountFrame,
 };
+use crate::simulator::mount::get_sim_mount;
+use crate::simulator::sim_singleton_test_lock;
 use skotiq_sequencer::instructions::InstructionContext;
-use skotiq_sequencer::{Binning, SlewConfig};
+use skotiq_sequencer::SlewConfig;
 use std::sync::atomic::AtomicBool;
 
 /// NGC 7380, the target of the night the defect was found, J2000.
@@ -31,8 +32,8 @@ async fn attach_sim_mount(device_id: &str) {
         unique_id: None,
         display_name: "Simulated Mount".to_string(),
     };
-    get_device_manager().register_device(info, false).await;
-    crate::api::devices::simulation::cancel_sim_slew().await;
+    crate::simulator::register_connected(get_device_manager(), info).await;
+    crate::simulator::mount::cancel_sim_slew().await;
     let mut mount = get_sim_mount().write().await;
     mount.status.connected = true;
     mount.status.parked = false;
@@ -42,66 +43,19 @@ async fn attach_sim_mount(device_id: &str) {
 
 /// The context a TargetHeader hands a Slew node: J2000 target, mount only.
 fn target_context(mount_id: &str, target: (f64, f64)) -> InstructionContext {
+    let mut run = skotiq_sequencer::instructions::RunShared::new(create_unified_device_ops());
+    run.rig.mount_id = Some(mount_id.to_string());
+    // These tests are about where the mount lands, not about daylight: with no
+    // site the slew's daylight gate stands aside, whatever site another test
+    // left in the device layer.
+    run.rig.latitude = None;
+    run.rig.longitude = None;
     InstructionContext {
         node_id: "frame-test-slew".to_string(),
         target_ra: Some(target.0),
         target_dec: Some(target.1),
         target_name: Some("NGC 7380".to_string()),
-        target_rotation: None,
-        current_filter: None,
-        current_binning: Binning::One,
-        cancellation_token: Arc::new(AtomicBool::new(false)),
-        camera_id: None,
-        mount_id: Some(mount_id.to_string()),
-        focuser_id: None,
-        filterwheel_id: None,
-        rotator_id: None,
-        dome_id: None,
-        cover_calibrator_id: None,
-        save_path: None,
-        latitude: None,
-        longitude: None,
-        device_ops: create_unified_device_ops(),
-        trigger_state: None,
-        filter_focus_offsets: std::collections::HashMap::new(),
-        event_tx: None,
-        recovery_request_tx: None,
-        session_id: String::new(),
-        target_id: None,
-        mosaic_panel: None,
-        current_filter_index: None,
-        set_temp_c: None,
-        bayer_pattern: None,
-        observer_name: None,
-        site_elevation_m: None,
-        camera_make: None,
-        camera_model: None,
-        telescope_name: None,
-        telescope_focal_length_mm: None,
-        telescope_aperture_mm: None,
-        last_plate_solve: Arc::new(tokio::sync::RwLock::new(None)),
-        hfr_baseline: Arc::new(tokio::sync::RwLock::new(None)),
-        hfr_baseline_samples: Arc::new(tokio::sync::RwLock::new(Vec::new())),
-        star_count_baselines: Default::default(),
-        consecutive_rejects: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        frames_accepted: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        frames_rejected: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        default_quality_check: None,
-        reject_folder_path: None,
-        defect_map_apply: Arc::new(tokio::sync::RwLock::new(None)),
-        forensics_history: Arc::new(tokio::sync::RwLock::new(std::collections::VecDeque::new())),
-        current_sky_brightness_mag: Arc::new(tokio::sync::RwLock::new(None)),
-        cloud_motion_snapshot: Arc::new(tokio::sync::RwLock::new(
-            skotiq_sequencer::CloudMotionSnapshot::default(),
-        )),
-        current_wind_kph: Arc::new(tokio::sync::RwLock::new(None)),
-        current_sensor_temp_c: Arc::new(tokio::sync::RwLock::new(None)),
-        decision_tx: None,
-        active_sequence_run_id: Arc::new(parking_lot::RwLock::new(None)),
-        device_disconnect_recovery_pending: Arc::new(AtomicBool::new(false)),
-        dither_barrier: None,
-        device_retry: skotiq_sequencer::instructions::DeviceRetryHandle::single_attempt(),
-        target_light_filters: Vec::new(),
+        ..InstructionContext::new(run, Arc::new(AtomicBool::new(false)))
     }
 }
 
@@ -209,28 +163,27 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
     let mount_id = "sim_mount_frame_fits";
     attach_sim_mount(mount_id).await;
     let camera_id = "sim_camera_frame_fits";
-    get_device_manager()
-        .register_device(
-            DeviceInfo {
-                id: camera_id.to_string(),
-                name: "Simulated Camera".to_string(),
-                device_type: DeviceType::Camera,
-                driver_type: DriverType::Simulator,
-                description: "Simulated camera".to_string(),
-                driver_version: "1.0".to_string(),
-                serial_number: None,
-                unique_id: None,
-                display_name: "Simulated Camera".to_string(),
-            },
-            false,
-        )
-        .await;
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::register_connected(
+        get_device_manager(),
+        DeviceInfo {
+            id: camera_id.to_string(),
+            name: "Simulated Camera".to_string(),
+            device_type: DeviceType::Camera,
+            driver_type: DriverType::Simulator,
+            description: "Simulated camera".to_string(),
+            driver_version: "1.0".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: "Simulated Camera".to_string(),
+        },
+    )
+    .await;
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
         .connected = true;
-    crate::api::devices::simulation::clear_sim_exposure().await;
+    crate::simulator::camera::clear_sim_exposure().await;
 
     let mut ctx = target_context(mount_id, NGC7380_J2000);
     let slewed =
@@ -242,8 +195,8 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
     );
 
     let dir = tempfile::TempDir::new().unwrap();
-    ctx.camera_id = Some(camera_id.to_string());
-    ctx.save_path = Some(dir.path().to_path_buf());
+    ctx.run.rig.camera_id = Some(camera_id.to_string());
+    ctx.run.rig.save_path = Some(dir.path().to_path_buf());
     let config = skotiq_sequencer::ExposureConfig {
         duration_secs: 0.1,
         count: 1,
@@ -253,7 +206,7 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
     let exposed =
         skotiq_sequencer::instructions::execute_exposure(&config, &ctx, |_, _, _| {}).await;
 
-    crate::api::devices::simulation::get_sim_camera()
+    crate::simulator::camera::get_sim_camera()
         .write()
         .await
         .status
@@ -266,7 +219,7 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
 
     let fits = walk_fits(dir.path());
     assert_eq!(fits.len(), 1, "expected one light frame, found {fits:?}");
-    let header = skotiq_imaging::read_fits_header(&fits[0]).expect("header");
+    let header = skotiq_imaging::read_frame_header(&fits[0]).expect("header");
     let ra_hours = header.get_float("RA").expect("RA card") / 15.0;
     let dec = header.get_float("DEC").expect("DEC card");
     let off = separation_arcmin((ra_hours, dec), NGC7380_J2000);
@@ -316,11 +269,13 @@ async fn a_flip_without_pier_side_telemetry_verifies_on_an_of_date_mount() {
     let _frame = FrameGuard::pin(SimMountFrame::OfDate);
     // No site: the simulated mount then has no hour angle to pick a pier side
     // from and keeps reporting Unknown, like a driver without SideOfPier.
-    let previous_site = crate::api::get_state()
+    let previous_site = crate::state::get_state()
         .get_observer_location()
         .ok()
         .flatten();
-    crate::api::get_state().set_observer_location(None).unwrap();
+    crate::state::get_state()
+        .set_observer_location(None)
+        .unwrap();
     let mount_id = "sim_mount_frame_flip";
     attach_sim_mount(mount_id).await;
     get_sim_mount().write().await.status.side_of_pier = Some(crate::device::PierSide::Unknown);
@@ -350,7 +305,7 @@ async fn a_flip_without_pier_side_telemetry_verifies_on_an_of_date_mount() {
     let mut executor =
         skotiq_sequencer::MeridianFlipExecutor::new(config, create_unified_device_ops());
     let result = executor.execute(&ctx).await;
-    let _ = crate::api::get_state().set_observer_location(previous_site);
+    let _ = crate::state::get_state().set_observer_location(previous_site);
 
     assert!(
         matches!(result, skotiq_sequencer::FlipResult::Success { .. }),
@@ -369,4 +324,298 @@ fn walk_fits(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
         }
     }
     found
+}
+
+/// The cards that say a frame belongs to a sequence run, the only ones a
+/// sequence's frame may carry that a manual capture of the same rig does not:
+/// the run and the frame's place in its burst, the mosaic panel, the optical
+/// train of a two-camera run, the run's plate solve of its target, the
+/// photometry a science node measured, and the defect-map record.
+const SEQUENCE_ONLY_CARDS: &[&str] = &[
+    "SK-SESID", "SK-FIDX", "SK-NPLN", "MOSAIC", "SK-MOSNM", "PANELIDX", "SK-PIDX", "PANELROW",
+    "SK-PROW", "PANELCOL", "SK-PCOL", "SK-NPAN", "SK-RIG", "SOLVRA", "SOLVDEC", "PIXSCALE",
+    "CROTA1", "CROTA2", "OBJCAT", "REFSTARS", "INSTRMAG", "DIFFMAG", "FWHM", "SNR", "HISTORY",
+];
+
+/// Cards whose value is a reading or a time, so two exposures legitimately
+/// differ in it. They are compared by key, position and value format.
+const READING_CARDS: &[&str] = &[
+    "DATE-OBS", "DATE-END", "MJD-OBS", "CCD-TEMP", "FOCTEMP", "OBJCTALT", "AIRMASS",
+];
+
+/// A header's 80-character cards up to END, trailing blanks trimmed.
+fn raw_cards(path: &std::path::Path) -> Vec<String> {
+    let bytes = std::fs::read(path).expect("read FITS");
+    let mut cards = Vec::new();
+    for card in bytes.chunks(80) {
+        let text = String::from_utf8_lossy(card).trim_end().to_string();
+        if text == "END" {
+            return cards;
+        }
+        cards.push(text);
+    }
+    panic!("no END card in {}", path.display());
+}
+
+fn card_key(card: &str) -> &str {
+    card[..card.len().min(8)].trim_end()
+}
+
+/// A card with every digit replaced, so two readings in one format compare
+/// equal: same key, same quoting, same number of places, same comment.
+fn card_format(card: &str) -> String {
+    card.chars()
+        .map(|c| if c.is_ascii_digit() { '0' } else { c })
+        .collect()
+}
+
+async fn attach_sim_device(device_id: &str, device_type: DeviceType, name: &str) {
+    crate::simulator::register_connected(
+        get_device_manager(),
+        DeviceInfo {
+            id: device_id.to_string(),
+            name: name.to_string(),
+            device_type,
+            driver_type: DriverType::Simulator,
+            description: name.to_string(),
+            driver_version: "1.0".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: name.to_string(),
+        },
+    )
+    .await;
+}
+
+/// The owner's rule: a frame saved from the Imaging screen and a frame saved
+/// by a sequence carry the same header, card for card (keys, order, comments,
+/// value formats), apart from the cards that tie a frame to a run. Both are
+/// taken here on the simulated rig (mount of date, camera, focuser, filter
+/// wheel, rotator) through the code each path runs in the app.
+#[tokio::test]
+async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
+    use crate::simulator::camera::get_sim_camera_for;
+    use crate::simulator::filter_wheel::get_sim_filterwheel;
+    use crate::simulator::focuser::get_sim_focuser;
+    use crate::simulator::rotator::get_sim_rotator;
+
+    let _serialized = sim_singleton_test_lock().lock().await;
+    let _frame = FrameGuard::pin(SimMountFrame::OfDate);
+    let mount_id = "sim_mount_same_header";
+    let camera_id = "sim_camera_same_header";
+    let focuser_id = "sim_focuser_same_header";
+    let wheel_id = "sim_wheel_same_header";
+    let rotator_id = "sim_rotator_same_header";
+    attach_sim_mount(mount_id).await;
+    attach_sim_device(camera_id, DeviceType::Camera, "Simulated Camera").await;
+    attach_sim_device(focuser_id, DeviceType::Focuser, "Simulated Focuser").await;
+    attach_sim_device(wheel_id, DeviceType::FilterWheel, "Simulated Filter Wheel").await;
+    attach_sim_device(rotator_id, DeviceType::Rotator, "Simulated Rotator").await;
+    get_sim_camera_for(camera_id).write().await.status.connected = true;
+    get_sim_focuser().write().await.status.connected = true;
+    get_sim_filterwheel().write().await.status.connected = true;
+    get_sim_rotator().write().await.status.connected = true;
+    // Focuser, wheel and rotator are read through their driver handles, which
+    // only a connect creates, as the Equipment screen's connect does.
+    for id in [focuser_id, wheel_id, rotator_id] {
+        get_device_manager()
+            .connect_device(id)
+            .await
+            .unwrap_or_else(|e| panic!("connect {id}: {e}"));
+    }
+    crate::simulator::camera::clear_sim_exposure().await;
+
+    // A site where it is night whenever the test runs: the daylight gate
+    // refuses light frames under a Sun above -12 degrees.
+    let now = chrono::Utc::now();
+    let site = (0..24)
+        .map(|hour| (39.9719, -180.0 + 15.0 * f64::from(hour)))
+        .min_by(|a, b| {
+            skotiq_sequencer::solar::sun_altitude_degrees(a.0, a.1, &now).total_cmp(
+                &skotiq_sequencer::solar::sun_altitude_degrees(b.0, b.1, &now),
+            )
+        })
+        .unwrap();
+    // The simulated mount takes its hour angle, and so its pier side, from the
+    // app's site.
+    let previous_site = crate::state::get_state()
+        .get_observer_location()
+        .ok()
+        .flatten();
+    crate::state::get_state()
+        .set_observer_location(Some(crate::storage::ObserverLocation {
+            latitude: site.0,
+            longitude: site.1,
+            elevation: 120.0,
+        }))
+        .unwrap();
+    let mut ctx = target_context(mount_id, NGC7380_J2000);
+    let slewed =
+        skotiq_sequencer::instructions::execute_slew(&SlewConfig::default(), &ctx, None).await;
+    assert!(
+        slewed.status == skotiq_sequencer::NodeStatus::Success,
+        "{:?}",
+        slewed.message
+    );
+
+    // The sequence's frame.
+    let sequence_dir = tempfile::TempDir::new().unwrap();
+    ctx.run.rig.camera_id = Some(camera_id.to_string());
+    ctx.run.rig.focuser_id = Some(focuser_id.to_string());
+    ctx.run.rig.filterwheel_id = Some(wheel_id.to_string());
+    ctx.run.rig.rotator_id = Some(rotator_id.to_string());
+    ctx.run.rig.latitude = Some(site.0);
+    ctx.run.rig.longitude = Some(site.1);
+    ctx.run.rig.save_path = Some(sequence_dir.path().to_path_buf());
+    ctx.run.identity.session_id = "same-header-run".to_string();
+    ctx.run.identity.observer_name = Some("Test Observer".to_string());
+    ctx.run.identity.site_elevation_m = Some(120.0);
+    ctx.run.identity.camera_make = Some("ZWO".to_string());
+    ctx.run.identity.camera_model = Some("ASI2600MM Pro".to_string());
+    ctx.run.identity.telescope_name = Some("Askar 65PHQ".to_string());
+    ctx.run.identity.telescope_focal_length_mm = Some(416.0);
+    ctx.run.identity.telescope_aperture_mm = Some(65.0);
+    let config = skotiq_sequencer::ExposureConfig {
+        duration_secs: 0.1,
+        count: 1,
+        dither_every: None,
+        ..Default::default()
+    };
+    let exposed =
+        skotiq_sequencer::instructions::execute_exposure(&config, &ctx, |_, _, _| {}).await;
+    assert!(
+        exposed.status == skotiq_sequencer::NodeStatus::Success,
+        "{:?}",
+        exposed.message
+    );
+    let sequence_files = walk_fits(sequence_dir.path());
+    assert_eq!(
+        sequence_files.len(),
+        1,
+        "one sequence frame: {sequence_files:?}"
+    );
+
+    // The manual frame, as the Imaging screen takes and saves it.
+    let manual_dir = tempfile::TempDir::new().unwrap();
+    let manual_path = manual_dir.path().join("manual.fits");
+    crate::api::imaging::camera_start_exposure_configured_opt(
+        camera_id.to_string(),
+        0.1,
+        None,
+        None,
+        1,
+        1,
+        None,
+        skotiq_device::FrameType::Light,
+    )
+    .await
+    .expect("manual exposure");
+    let saved = crate::api::imaging::api_save_fits_from_last_capture(
+        camera_id.to_string(),
+        manual_path.to_string_lossy().to_string(),
+        crate::api::imaging::FitsWriteHeader {
+            object_name: Some("NGC 7380".to_string()),
+            exposure_time: 0.1,
+            frame_type: "Light".to_string(),
+            filter: None,
+            gain: None,
+            offset: None,
+            bin_x: 1,
+            bin_y: 1,
+            telescope: Some("Askar 65PHQ".to_string()),
+            instrument: Some("ZWO ASI2600MM Pro".to_string()),
+            observer: Some("Test Observer".to_string()),
+            focal_length: Some(416.0),
+            aperture: Some(65.0),
+            site_latitude: Some(site.0),
+            site_longitude: Some(site.1),
+            site_elevation: Some(120.0),
+            mount_id: Some(mount_id.to_string()),
+            focuser_id: Some(focuser_id.to_string()),
+            filter_wheel_id: Some(wheel_id.to_string()),
+            rotator_id: Some(rotator_id.to_string()),
+        },
+        false,
+    )
+    .await;
+
+    get_sim_camera_for(camera_id).write().await.status.connected = false;
+    get_sim_focuser().write().await.status.connected = false;
+    get_sim_filterwheel().write().await.status.connected = false;
+    for id in [focuser_id, wheel_id, rotator_id] {
+        let _ = get_device_manager().disconnect_device(id).await;
+    }
+    get_sim_rotator().write().await.status.connected = false;
+    for id in [camera_id, focuser_id, wheel_id, rotator_id, mount_id] {
+        get_device_manager().unregister_device(id).await;
+    }
+    crate::last_frame::clear(camera_id).await;
+    saved.expect("manual save");
+
+    let sequence = raw_cards(&sequence_files[0]);
+    let manual = raw_cards(&manual_path);
+    let both = format!(
+        "--- sequence\n{}\n--- manual\n{}",
+        sequence.join("\n"),
+        manual.join("\n")
+    );
+
+    // A manual frame carries no card that ties it to a run, and the rig's
+    // cards are all there.
+    for card in &manual {
+        assert!(
+            !SEQUENCE_ONLY_CARDS.contains(&card_key(card)),
+            "a manual frame carries the sequence-only card {card:?}\n{both}"
+        );
+    }
+    for key in [
+        "FILTER", "FILTPOS", "CCD-TEMP", "XPIXSZ", "RA", "DEC", "OBJCTALT", "EQUINOX", "RADESYS",
+        "PIERSIDE", "FOCUSPOS", "FOCTEMP", "ROTATPOS", "SITELAT", "INSTRUME",
+    ] {
+        assert!(
+            manual.iter().any(|card| card_key(card) == key),
+            "the manual frame has no {key} card\n{both}"
+        );
+    }
+    let sequence_only: Vec<&str> = sequence
+        .iter()
+        .map(|card| card_key(card))
+        .filter(|key| SEQUENCE_ONLY_CARDS.contains(key))
+        .collect();
+    assert_eq!(
+        sequence_only,
+        ["SK-SESID", "SK-FIDX", "SK-NPLN"],
+        "the cards that tie this frame to its run\n{both}"
+    );
+
+    // Everything else is the same card in the same place.
+    let shared: Vec<&String> = sequence
+        .iter()
+        .filter(|card| !SEQUENCE_ONLY_CARDS.contains(&card_key(card)))
+        .collect();
+    assert_eq!(
+        shared.iter().map(|card| card_key(card)).collect::<Vec<_>>(),
+        manual.iter().map(|card| card_key(card)).collect::<Vec<_>>(),
+        "the two headers hold different keys or a different order\n{both}"
+    );
+    for (sequence_card, manual_card) in shared.iter().zip(&manual) {
+        if READING_CARDS.contains(&card_key(sequence_card)) {
+            assert_eq!(
+                card_format(sequence_card),
+                card_format(manual_card),
+                "a reading is written in two formats\n{both}"
+            );
+        } else {
+            assert_eq!(*sequence_card, manual_card, "a card differs\n{both}");
+        }
+    }
+    let date_obs = manual
+        .iter()
+        .find(|card| card_key(card) == "DATE-OBS")
+        .expect("DATE-OBS");
+    assert!(
+        !date_obs.contains('Z'),
+        "DATE-OBS carries a zone suffix, which the FITS standard does not allow: {date_obs}"
+    );
+    let _ = crate::state::get_state().set_observer_location(previous_site);
 }

@@ -24,17 +24,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/hips/hips_properties.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/framing_provider.dart'
-    show FramingTarget;
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/healpix_nested.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_selection.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../fixtures/hips/fixture_field.dart' as fixture;
 

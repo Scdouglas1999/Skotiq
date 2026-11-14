@@ -10,7 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/stacking_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -49,6 +50,8 @@ Future<void> _pumpPanel(
   final overrides = <Override>[
     isRemoteModeProvider.overrideWithValue(isRemote),
     connectedCameraIdProvider.overrideWithValue(cameraId),
+    // The Stack & Share picker lists the recorded sessions.
+    allSessionsProvider.overrideWith((ref) => Stream.value(const [])),
   ];
   if (cameraId != null && caps != null) {
     overrides.add(
@@ -119,6 +122,7 @@ void main() {
             inMemoryDatabaseOverride(),
             isRemoteModeProvider.overrideWithValue(false),
             connectedCameraIdProvider.overrideWithValue(null),
+            allSessionsProvider.overrideWith((ref) => Stream.value(const [])),
           ],
           child: Consumer(
             builder: (context, ref, _) {
@@ -202,6 +206,7 @@ void main() {
             connectedCameraIdProvider.overrideWithValue('native:zwo:0'),
             equipmentCameraCapabilitiesProvider('native:zwo:0')
                 .overrideWith((ref) async => _colorCaps(bayerPattern: 'RGGB')),
+            allSessionsProvider.overrideWith((ref) => Stream.value(const [])),
           ],
           child: Consumer(
             builder: (context, ref, _) {

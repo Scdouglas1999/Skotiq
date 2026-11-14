@@ -6,7 +6,9 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:path/path.dart' as p;
 
 class _RecordingSeam implements SkyAtlasSeam {
@@ -62,6 +64,7 @@ DbCapturedImage _light(int id) => DbCapturedImage(
   solvedRa: 5.575,
   solvedDec: -5.39,
   solvedPixelScale: 1.5,
+  solvedRotation: 0.0,
   capturedAt: DateTime.utc(2026, 6, 11, 22),
   createdAt: DateTime.utc(2026, 6, 11, 22),
   isAccepted: true,

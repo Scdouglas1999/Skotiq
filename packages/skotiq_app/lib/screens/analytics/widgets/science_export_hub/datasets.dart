@@ -55,7 +55,7 @@ final _photometryDataset = _ExportDataset<PhotometryMeasurementRow>(
     m.uncertainty ?? '',
     m.isOutlier,
     _utcStamp(m.timestamp),
-    _julianDate(m.timestamp),
+    AstronomyCalculations.julianDate(m.timestamp),
   ],
 );
 

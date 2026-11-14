@@ -99,7 +99,6 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
       _drawHorizon(canvas, size, center, scale);
     }
 
-    // Draw coordinate grids
     if (_drawBase && config.showCoordinateGrid) {
       if (config.showEquatorialGrid) {
         _drawEquatorialGrid(canvas, size, center, scale);
@@ -107,7 +106,6 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
       if (config.showAltAzGrid) {
         _drawAltAzGrid(canvas, size, center, scale);
       }
-      // Draw zenith marker when grid is shown
       _drawZenithMarker(canvas, size, center, scale);
     }
     if (doTiming) {
@@ -117,17 +115,14 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
     }
 
     if (_drawBase) {
-      // Draw ecliptic
       if (config.showEcliptic) {
         _drawEcliptic(canvas, size, center, scale);
       }
 
-      // Draw galactic plane
       if (config.showGalacticPlane) {
         _drawGalacticPlane(canvas, size, center, scale);
       }
 
-      // Draw meridian line
       if (config.showMeridian) {
         _drawMeridianLine(canvas, size, center, scale);
       }
@@ -165,7 +160,6 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
         _drawConstellationBoundaries(canvas, size, center, scale);
       }
 
-      // Draw constellation lines
       if (config.showConstellationLines) {
         _drawConstellationLines(canvas, size, center, scale);
       }
@@ -196,7 +190,6 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
     }
 
     if (_drawBase) {
-      // Draw DSOs
       if (config.showDSOs) {
         _drawDSOs(canvas, size, center, scale);
       }
@@ -212,27 +205,22 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
     }
 
     if (_drawBase) {
-      // Draw Sun
       if (config.showSun && sunPosition != null) {
         _drawSun(canvas, size, center, scale);
       }
 
-      // Draw Moon
       if (config.showMoon && moonPosition != null) {
         _drawMoon(canvas, size, center, scale);
       }
 
-      // Draw planets
       if (config.showPlanets && planets.isNotEmpty) {
         _drawPlanets(canvas, size, center, scale);
       }
 
-      // Draw satellites
       if (config.showSatellites && satellites.isNotEmpty) {
         _drawSatellites(canvas, size, center, scale);
       }
 
-      // Draw variable stars
       if (config.showVariableStars && variableStars.isNotEmpty) {
         _drawVariableStars(canvas, size, center, scale);
       }
@@ -259,12 +247,10 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
     }
 
     if (_drawBase) {
-      // Draw constellation labels
       if (config.showConstellationLabels) {
         _drawConstellationLabels(canvas, size, center, scale);
       }
 
-      // Draw cardinal directions
       if (config.showCardinalDirections) {
         _drawCardinalDirections(canvas, size);
       }
@@ -432,7 +418,6 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
   /// True if anything that affects the static base layer changed. Excludes the
   /// purely-animated phases (twinkle, selection pulse, parallax, star pop-in).
   bool _poseOrDataChanged(SkyCanvasPainter oldDelegate) {
-    // Primary triggers
     if (viewState != oldDelegate.viewState ||
         config != oldDelegate.config ||
         qualityConfig != oldDelegate.qualityConfig ||
@@ -451,7 +436,6 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
       return true;
     }
 
-    // Mount status change always triggers repaint
     if (mountStatus != oldDelegate.mountStatus) {
       return true;
     }
@@ -499,7 +483,6 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
       }
     }
 
-    // Variable stars / minor planets change
     if (variableStars.length != oldDelegate.variableStars.length) {
       return true;
     }
@@ -528,7 +511,6 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
       }
     }
 
-    // Milky way data change
     if (milkyWayPoints != oldDelegate.milkyWayPoints) {
       return true;
     }
@@ -540,13 +522,11 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
       return true;
     }
 
-    // Observed object IDs change
     if (observedObjectIds.length != oldDelegate.observedObjectIds.length ||
         !observedObjectIds.containsAll(oldDelegate.observedObjectIds)) {
       return true;
     }
 
-    // Listed object IDs change
     if (listedObjectIds.length != oldDelegate.listedObjectIds.length ||
         !listedObjectIds.containsAll(oldDelegate.listedObjectIds)) {
       return true;

@@ -9,7 +9,6 @@ import '../components/skotiq_switch.dart';
 import '../components/skotiq_switch_row.dart';
 import '../components/skotiq_text_field.dart';
 import '../components/status_dot.dart';
-// Observatory wave 1
 import '../components/instrument_pill.dart';
 import '../components/page_header.dart';
 import '../tokens/shell_chrome_metrics.dart';
@@ -17,7 +16,6 @@ import '../theme/skotiq_colors.dart';
 import '../theme/skotiq_decorations.dart';
 import '../theme/skotiq_tokens.dart';
 import '../theme/skotiq_typography.dart';
-// Observatory wave 2
 import '../components/adaptive_tab_bar.dart';
 import '../components/candidate_row.dart';
 import '../components/checklist.dart';
@@ -239,10 +237,8 @@ class _SkotiqDesignSystemGalleryState extends State<SkotiqDesignSystemGallery> {
                       ],
                     ),
                   ),
-                  // Observatory wave 2
                   const _ObservatorySections(),
 
-                  // Observatory wave 1
                   ShowcaseSection.plain(
                     title: 'Instrument bar',
                     child: Column(
@@ -382,10 +378,6 @@ class _TypographySpecimen extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Observatory wave 2
-// ---------------------------------------------------------------------------
 
 /// Every component added or changed by 05-components.md, in one block.
 ///

@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'calibration_panel.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Raw darks, bias and flats Skotiq captured that no library master covers
 /// yet, each with a one-click build that registers the result.

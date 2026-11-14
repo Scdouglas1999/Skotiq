@@ -2,8 +2,6 @@
 
 part of '../sequence_models.dart';
 
-// Sequence
-
 /// Complete sequence.
 ///
 /// **Tree representation contract**:
@@ -122,159 +120,32 @@ abstract class Sequence with _$Sequence {
   /// [SequenceTreeIndex.invariants] for the full set of checks.
   List<String> invariants() => treeIndex.invariants();
 
-  /// Get total exposure count.
-  ///
-  /// Walks the tree from [rootNodeId] applying loop multipliers, mirroring
-  /// [_calculateOverhead] / [estimateIntegrationSecs] so the progress
-  /// denominator counts looped frames the same way the integration estimate
-  /// does. Falls back to the flat sum over [nodes] when there is no tree
-  /// structure (no root node), matching the fallback in
-  /// [estimateIntegrationSecs].
+  /// Whether a run executes [node]: it and every ancestor are enabled. See
+  /// [SequenceTreeIndex.isEnabled].
+  bool isNodeEnabled(SequenceNode node) => treeIndex.isEnabled(node.id);
+
+  /// The steps a run executes ([isNodeEnabled]). Every pre-flight and start
+  /// check reads the plan through this, so a switched-off step, or one inside
+  /// a switched-off container, blocks and checks nothing.
+  Iterable<SequenceNode> get enabledNodes => nodes.values.where(isNodeEnabled);
+
+  /// Frames the plan takes, with count loops multiplied (see
+  /// [plannedCaptureUnder]). Without a root node, the sum over every enabled
+  /// step.
   int get totalExposures {
-    if (rootNodeId != null && nodes[rootNodeId] != null) {
-      return _countExposures(rootNodeId!, 1);
+    final rootId = rootNodeId;
+    if (rootId != null && nodes[rootId] != null) {
+      return plannedCaptureUnder(this, rootId).frames;
     }
-    int count = 0;
-    for (final node in nodes.values) {
-      if (node is ExposureNode && node.isEnabled) {
-        count += node.count;
-      } else if (node is SmartExposureNode && node.isEnabled) {
-        count += node.plans.fold(0, (s, p) => s + p.count);
-      } else if (node is SciencePhotometryNode && node.isEnabled) {
-        count += node.count;
-      }
-    }
-    return count;
-  }
-
-  /// Recursively count planned exposures under [nodeId], scaling by [mult]
-  /// (the accumulated loop multiplier). Count loops multiply the child
-  /// multiplier by their iteration count; unbounded / other loops keep the
-  /// single-iteration multiplier (matching how [_calculateOverhead] treats
-  /// them so the denominator never reports an unbounded total).
-  int _countExposures(String nodeId, int mult) {
-    final node = nodes[nodeId];
-    if (node == null || !node.isEnabled) return 0;
-
-    int count = 0;
-    if (node is ExposureNode) {
-      count += node.count * mult;
-    } else if (node is SmartExposureNode) {
-      count += node.plans.fold(0, (s, p) => s + p.count) * mult;
-    } else if (node is SciencePhotometryNode) {
-      // A photometry burst captures `count` frames through the standard
-      // TakeExposure pipeline. Omitting it made the sequence header read
-      // "0 frames" for a node whose own properties panel said 60.
-      count += node.count * mult;
-    }
-
-    int childMultiplier = mult;
-    if (node is LoopNode && node.conditionType == LoopConditionType.count) {
-      childMultiplier = mult * (node.repeatCount ?? 1);
-    }
-
-    for (final childId in node.childIds) {
-      count += _countExposures(childId, childMultiplier);
-    }
-    return count;
+    return nodes.values
+        .where((node) => node.isEnabled)
+        .fold(0, (sum, node) => sum + node.framesPerPass);
   }
 
   /// Get total integration time in seconds
   /// This walks the tree structure and accounts for loop iterations
   double get totalIntegrationSecs {
     return estimateIntegrationSecs().estimatedSecs;
-  }
-
-  /// Estimate integration time with overhead awareness.
-  /// Walks the sequence tree counting occurrences of each operation type
-  /// and applies configurable per-operation overhead estimates.
-  ///
-  /// NOT the model any UI surface bills against — do not reach for it from one.
-  /// Its per-node costs are flat constants that know nothing about a node's own
-  /// configuration (a Cool Camera is billed a fixed "cooling" figure rather
-  /// than its configured duration) and it has no entry at all for the
-  /// clock-dependent nodes. Pointing the Builder's estimate chip at it while
-  /// the Pre-Flight panel used [SequenceTimeEstimator] is what made the two
-  /// print different totals for the same sequence. Every estimate surface now
-  /// goes through [SequenceTimeEstimator.nodeDuration] with the overhead config
-  /// from `sequencerOverheadConfigProvider`.
-  SequenceEstimate estimateWithOverhead({
-    SequenceOverheadConfig config = const SequenceOverheadConfig(),
-    DateTime? referenceTime,
-  }) {
-    final base = estimateIntegrationSecs(referenceTime: referenceTime);
-
-    // Walk tree counting overhead-generating operations
-    double overheadSecs = 0;
-
-    if (rootNodeId != null && nodes[rootNodeId] != null) {
-      overheadSecs = _calculateOverhead(rootNodeId!, config, 1);
-    } else {
-      // No tree structure - just count nodes directly
-      for (final node in nodes.values) {
-        if (!node.isEnabled) continue;
-        overheadSecs += _nodeOverhead(node, config);
-      }
-    }
-
-    return SequenceEstimate(
-      estimatedSecs: base.estimatedSecs,
-      overheadSecs: overheadSecs,
-      singleIterationSecs: base.singleIterationSecs,
-      isUnbounded: base.isUnbounded,
-      untilTime: base.untilTime,
-      conditionType: base.conditionType,
-    );
-  }
-
-  /// Calculate overhead for a node and its subtree, respecting loop multipliers
-  double _calculateOverhead(
-    String nodeId,
-    SequenceOverheadConfig config,
-    int multiplier,
-  ) {
-    final node = nodes[nodeId];
-    if (node == null || !node.isEnabled) return 0;
-
-    // Leaf node overhead
-    final selfOverhead = _nodeOverhead(node, config) * multiplier;
-
-    // Children overhead
-    double childrenOverhead = 0;
-    int childMultiplier = multiplier;
-    if (node is LoopNode) {
-      if (node.conditionType == LoopConditionType.count) {
-        childMultiplier = multiplier * (node.repeatCount ?? 1);
-      }
-      // For unbounded loops, keep multiplier at 1 for overhead
-    }
-
-    for (final childId in node.childIds) {
-      childrenOverhead += _calculateOverhead(childId, config, childMultiplier);
-    }
-
-    return selfOverhead + childrenOverhead;
-  }
-
-  /// Get the overhead contribution for a single node instance
-  double _nodeOverhead(SequenceNode node, SequenceOverheadConfig config) {
-    if (node is SlewNode) return config.slewSecs;
-    if (node is CenterNode) return config.centerTargetSecs;
-    if (node is AutofocusNode) return config.autofocusSecs;
-    if (node is FilterChangeNode) return config.filterChangeSecs;
-    if (node is DitherNode) return config.ditherSecs;
-    if (node is StartGuidingNode) return config.guideAcquireSecs;
-    if (node is MeridianFlipNode) return config.meridianFlipSecs;
-    if (node is CoolCameraNode) return config.coolingSecs;
-    if (node is WarmCameraNode) return config.warmingSecs;
-    if (node is OpenCoverNode || node is CloseCoverNode) {
-      return config.coverMoveSecs;
-    }
-    if (node is ExposureNode) {
-      // Download overhead per exposure
-      return config.downloadOverheadPerExposureSecs * node.count;
-    }
-    return 0;
   }
 
   /// Estimate integration time with detailed info about bounded/unbounded status
@@ -302,7 +173,6 @@ abstract class Sequence with _$Sequence {
       );
     }
 
-    // Walk the tree from root
     return _estimateNodeIntegration(rootNodeId!, referenceTime);
   }
 
@@ -361,7 +231,6 @@ abstract class Sequence with _$Sequence {
       );
     }
 
-    // For exposure nodes, return the direct duration
     if (node is ExposureNode) {
       final duration = node.totalDurationSecs;
       return SequenceEstimate(
@@ -392,7 +261,6 @@ abstract class Sequence with _$Sequence {
       );
     }
 
-    // For nodes with children, sum up children's estimates
     double childrenSecs = 0;
     double childrenSingleIteration = 0;
     bool anyChildUnbounded = false;
@@ -404,11 +272,9 @@ abstract class Sequence with _$Sequence {
       if (childEstimate.isUnbounded) anyChildUnbounded = true;
     }
 
-    // For loop nodes, apply the loop multiplier
     if (node is LoopNode) {
       switch (node.conditionType) {
         case LoopConditionType.count:
-          // Fixed iteration count
           final iterations = node.repeatCount ?? 1;
           return SequenceEstimate(
             estimatedSecs: childrenSecs * iterations,
@@ -424,7 +290,6 @@ abstract class Sequence with _$Sequence {
                 .inSeconds
                 .toDouble();
             if (availableSecs > 0) {
-              // Estimate how many iterations can fit in the time window
               final estimatedIterations =
                   (availableSecs / childrenSingleIteration).floor();
               final estimatedTotal =
@@ -515,10 +380,11 @@ abstract class Sequence with _$Sequence {
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
   }
 
-  /// Get node by ID
+  /// Something a run can do: a target or an exposure.
+  bool get launchable => targetHeaders.isNotEmpty || totalExposures > 0;
+
   SequenceNode? getNode(String id) => nodes[id];
 
-  /// Get root node
   SequenceNode? get rootNode => rootNodeId != null ? nodes[rootNodeId] : null;
 
   /// Get children of a node. See [childrenOf] for the index-backed equivalent;
@@ -544,7 +410,7 @@ abstract class Sequence with _$Sequence {
 /// Progress of sequence execution.
 ///
 /// Phase 3 Step 2 resolved the freezed-incompatibility blocker on this
-/// class by rewriting `SequenceProgressNotifier.updateProgress` to build
+/// class by rewriting `RunRecordNotifier.updateProgress` to build
 /// the next `SequenceProgress` explicitly (no reliance on the pre-freezed
 /// `copyWith(x: x ?? this.x)` quirk). Step 3 then converted this class to
 /// freezed; the rewritten `updateProgress` continues to work because it
@@ -585,5 +451,3 @@ abstract class SequenceProgress with _$SequenceProgress {
     return completedExposures / totalExposures;
   }
 }
-
-// Science — SciencePhotometryNode + transparency-adaptive support.

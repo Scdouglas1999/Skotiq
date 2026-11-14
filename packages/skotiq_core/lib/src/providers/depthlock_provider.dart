@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +6,7 @@ import '../backend/skotiq_backend.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/depthlock/depthlock_models.dart';
 import 'backend_provider.dart';
+import '../services/logging_service.dart';
 
 /// The DepthLock slice of the active backend.
 ///
@@ -72,17 +72,6 @@ final depthLockGoalsForFilterProvider =
           .where(
             (goal) => goal.definition.filterName.trim().toLowerCase() == wanted,
           )
-          .toList(growable: false);
-    });
-
-/// Goals anchored on [targetId], for the overlays the imaging preview draws
-/// over the frame the operator is looking at.
-final depthLockGoalsForTargetProvider =
-    Provider.family<List<DepthLockGoal>, String>((ref, targetId) {
-      final goals = ref.watch(depthLockGoalsProvider).valueOrNull;
-      if (goals == null) return const <DepthLockGoal>[];
-      return goals
-          .where((goal) => goal.definition.targetId == targetId)
           .toList(growable: false);
     });
 
@@ -213,10 +202,9 @@ class DepthLockGoalsNotifier extends AsyncNotifier<List<DepthLockGoal>> {
             ref.invalidate(depthLockGoalCurveProvider);
           },
           onError: (Object error) {
-            developer.log(
+            Log.warning(
               'DepthLock event stream error: $error',
-              name: 'DepthLockProvider',
-              level: 900,
+              source: 'DepthLockProvider',
             );
           },
         );

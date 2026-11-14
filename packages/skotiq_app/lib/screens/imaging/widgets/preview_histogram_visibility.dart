@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_core/services.dart';
 
 /// SharedPreferences key holding whether the live-view histogram is drawn
 /// over the frame.
@@ -35,16 +35,15 @@ class PreviewHistogramVisibleNotifier extends StateNotifier<bool> {
       if (!mounted || _chosen) return;
       state = prefs.getBool(previewHistogramVisiblePrefsKey) ?? false;
     } catch (e, st) {
-      developer.log(
+      Log.warning(
         'Failed to read the histogram overlay preference: $e',
-        name: 'PreviewHistogramVisible',
+        source: 'PreviewHistogramVisible',
         error: e,
         stackTrace: st,
       );
     }
   }
 
-  /// Shows or hides the histogram and remembers the choice.
   Future<void> setVisible(bool visible) async {
     _chosen = true;
     state = visible;
@@ -52,9 +51,9 @@ class PreviewHistogramVisibleNotifier extends StateNotifier<bool> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(previewHistogramVisiblePrefsKey, visible);
     } catch (e, st) {
-      developer.log(
+      Log.warning(
         'Failed to store the histogram overlay preference: $e',
-        name: 'PreviewHistogramVisible',
+        source: 'PreviewHistogramVisible',
         error: e,
         stackTrace: st,
       );

@@ -123,13 +123,7 @@ class RecoveryNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'Recovery';
-
-  @override
-  String get iconName => 'shield-check';
-
-  @override
-  NodeCategory get category => NodeCategory.logic;
+  NodeKind<RecoveryNode> get kind => NodeKinds.recovery;
 
   @override
   RecoveryNode copyWith({

@@ -45,9 +45,6 @@
 //!
 //! Same pattern groupings as `sequencer_ops.rs` (this file is the unified
 //! replacement and the cast taxonomy is identical):
-//! - **Pixel histogram u16 → usize index** (line 548): u16 max 65535 fits
-//!   any supported usize.
-//! - **Image normalize u16 → f64** (line 505): exact widening.
 //! - **bool → u8** (lines 660, 904): wire encoding.
 //! - **Filter wheel index ±1** (lines 815, 817): bounded by slot count.
 //! - **star_count usize → u32** (line 544): real frames have ≤ tens of
@@ -57,70 +54,67 @@
 //!   `sequencer/src/meridian.rs::julian_day`, where the per-site reasoning
 //!   lives.
 
-/// Prefix marking a capture that failed *image validation* rather than failing
-/// in the driver or the transport.
-///
-/// The `DeviceOps` trait signs its errors as bare `String` (`DeviceResult<T> =
-/// Result<T, String>`), so a caller cannot otherwise tell "the camera worked and
-/// the frame is unusable" apart from "the camera broke". That distinction
-/// matters at the HTTP boundary: a completely saturated frame is a normal,
-/// operator-actionable outcome (shorten the exposure) and must not be reported
-/// as an internal server fault. `api::imaging` matches this prefix to promote
-/// the error to [`SkotiqError::ExposureFailed`], which the headless API maps
-/// to 422 instead of 500.
-///
-/// Producer and consumer live in the same crate and share this constant so the
-/// two cannot drift apart.
-pub(crate) const IMAGE_VALIDATION_FAILED_PREFIX: &str = "Image validation failed: ";
-
-fn median_from_sorted_f64(sorted: &[f64]) -> Option<f64> {
-    if sorted.is_empty() {
-        return None;
-    }
-
-    let mid = sorted.len() / 2;
-    if sorted.len() % 2 == 0 {
-        Some((sorted[mid - 1] + sorted[mid]) / 2.0)
-    } else {
-        Some(sorted[mid])
-    }
-}
-
-use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
-use crate::api::*;
 use crate::device::DeviceType;
-use crate::event::*;
-use crate::filter_matching::{filter_slot_name, find_filter_match};
+use crate::device_manager::get_device_manager;
+use crate::dispatch::error::DeviceOpError;
 use crate::state::SharedAppState;
-use crate::FitsWriteHeader;
-use async_trait::async_trait;
+use crate::unified_device_ops::pointing::{altitude_degrees, MountPointing};
 // Julian Day and local sidereal time come from the sequencer; this file keeps
 // no copy of either.
-use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
-use skotiq_sequencer::{
-    CameraSubframe, DeviceOps, DeviceResult, GuidingCalibration, GuidingStatus, ImageData,
-    PlateSolveResult, PolarAlignResult,
-};
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
-use tokio::sync::Mutex;
+use skotiq_sequencer::{DeviceError, DeviceResult, SiteOps};
+use std::sync::Arc;
 
-pub(crate) mod device_ops;
+mod camera;
+#[cfg(test)]
+mod capture_pins_tests;
+mod connection;
+mod cover_calibrator;
+mod dome;
 pub(crate) mod exposure_wait;
-mod solve_diagnostics;
-pub(crate) use exposure_wait::*;
-pub(crate) mod pointing;
-pub(crate) use pointing::*;
+mod filter_wheel;
+mod focuser;
+mod frame_store;
 #[cfg(test)]
 mod frame_tests;
+mod guider;
+mod mount;
+mod operator;
+mod plate_solve;
+pub(crate) mod pointing;
 #[cfg(test)]
 mod pointing_tests;
 pub(crate) mod rich_header;
 #[cfg(test)]
 mod rig_grading_tests;
-pub(crate) use rich_header::*;
+mod rotator;
+mod safety;
+mod site;
+mod solve_diagnostics;
 #[cfg(test)]
 mod tests;
+
+/// What the sequencer is told about a failed operation on its `device`: the
+/// same kind of failure, in the device layer's words.
+fn device_error<E: Into<DeviceOpError>>(
+    device: skotiq_sequencer::DeviceKind,
+) -> impl Fn(E) -> DeviceError {
+    move |error| {
+        let error = error.into();
+        let message = error.to_string();
+        match error {
+            DeviceOpError::NotConnected { .. } => DeviceError::NotConnected { device, message },
+            DeviceOpError::Unsupported { .. } => DeviceError::Unsupported(message),
+            DeviceOpError::Timeout { .. } => DeviceError::Timeout(message),
+            DeviceOpError::DeviceNotFound(_)
+            | DeviceOpError::InvalidDeviceId { .. }
+            | DeviceOpError::InvalidParameter { .. }
+            | DeviceOpError::InvalidState { .. } => DeviceError::Rejected(message),
+            DeviceOpError::Hardware { .. } | DeviceOpError::Message(_) => {
+                DeviceError::Failed(message)
+            }
+        }
+    }
+}
 
 /// Unified device operations implementation
 ///
@@ -170,7 +164,7 @@ impl UnifiedDeviceOps {
             return Ok(id);
         }
 
-        Err(skotiq_sequencer::NO_SAFETY_DEVICE_CONFIGURED.to_string())
+        Err(DeviceError::NO_SAFETY_DEVICE)
     }
 
     /// Where the telescope is actually pointing, sampled for the FITS header.
@@ -205,7 +199,7 @@ impl UnifiedDeviceOps {
             .first_connected_device_id(DeviceType::Mount)
             .await?;
 
-        match mount_get_coordinates(mount_id.clone()).await {
+        match get_device_manager().mount_get_coordinates(&mount_id).await {
             Ok((ra_hours, dec_degrees)) => {
                 // Altitude is derived, not read back: `mount_get_status` would
                 // report it but costs a full capability sweep per saved frame
@@ -217,15 +211,11 @@ impl UnifiedDeviceOps {
                     .map(|(lat, lon)| altitude_degrees(ra_hours, dec_degrees, lat, lon, when));
                 // The altitude wants the of-date read-back; the RA/DEC cards are
                 // read as J2000, so they get the mount's position in J2000.
-                let (ra_hours, dec_degrees) = match get_device_manager().get_device(&mount_id).await
-                {
-                    Some(device) => crate::device_manager::epoch::mount_frame_to_j2000(
-                        device.info.driver_type,
-                        ra_hours,
-                        dec_degrees,
-                    ),
-                    None => return None,
-                };
+                let (ra_hours, dec_degrees) =
+                    match get_device_manager().mount_frame(&mount_id).await {
+                        Some(frame) => frame.mount_to_j2000(ra_hours, dec_degrees),
+                        None => return None,
+                    };
                 Some(MountPointing {
                     ra_hours,
                     dec_degrees,
@@ -251,12 +241,5 @@ impl UnifiedDeviceOps {
 /// This is the recommended way to get a DeviceOps implementation.
 /// It uses the unified implementation that routes through the bridge API.
 pub fn create_unified_device_ops() -> Arc<dyn skotiq_sequencer::DeviceOps> {
-    Arc::new(UnifiedDeviceOps::new(crate::api::get_state().clone()))
-}
-
-/// Create a unified DeviceOps instance with a specific app state
-pub fn create_unified_device_ops_with_state(
-    app_state: SharedAppState,
-) -> Arc<dyn skotiq_sequencer::DeviceOps> {
-    Arc::new(UnifiedDeviceOps::new(app_state))
+    Arc::new(UnifiedDeviceOps::new(crate::state::get_state().clone()))
 }

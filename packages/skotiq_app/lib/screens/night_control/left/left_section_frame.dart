@@ -3,8 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../night_control_contracts.dart';
-
 class NightLeftSectionFrame extends StatelessWidget {
   const NightLeftSectionFrame({
     super.key,
@@ -113,11 +111,3 @@ class NightLeftEmpty extends StatelessWidget {
         style: NightLeftSectionFrame.noteStyle(context.skotiqColors),
       );
 }
-
-/// The color a [MetricTone] reads in, on [colors].
-Color nightToneColor(MetricTone tone, SkotiqColors colors) => switch (tone) {
-      MetricTone.neutral => colors.textPrimary,
-      MetricTone.good => colors.success,
-      MetricTone.warning => colors.warning,
-      MetricTone.bad => colors.error,
-    };

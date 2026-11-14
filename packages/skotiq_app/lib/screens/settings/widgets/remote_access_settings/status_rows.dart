@@ -66,8 +66,31 @@ class _PairingCallout extends StatelessWidget {
 /// and it can load no data. Kept as a literal here rather than a new l10n key
 /// because the translation table is owned elsewhere; lifting these two strings
 /// into `translations.dart` (en + es) is tracked as a follow-up.
+///
+/// On a computer linked to an imaging host the page is about that host's
+/// server, not this app's own (which is not running): [linkedHost] names it
+/// and [hostRequiresPairing] is what it said when this app connected, null
+/// when it did not say. It used to read this app's idle server, so a host
+/// that demanded a token was described as open to anything that could reach
+/// it.
 @visibleForTesting
-String describeRemoteAccessPairing({required bool requiresAuthentication}) {
+String describeRemoteAccessPairing({
+  required bool requiresAuthentication,
+  String? linkedHost,
+  bool? hostRequiresPairing,
+}) {
+  if (linkedHost != null) {
+    return switch (hostRequiresPairing) {
+      true => '$linkedHost serves its dashboard and this link. Every device '
+          'has to pair with it before it can load data or control the rig; '
+          'this computer is paired.',
+      false => '$linkedHost serves its dashboard and this link. It does not '
+          'ask for pairing, so anything that can reach it can control the '
+          'rig.',
+      null => '$linkedHost serves its dashboard and this link. It did not '
+          'say whether devices have to pair with it.',
+    };
+  }
   if (requiresAuthentication) {
     return 'Desktop remote access serves the same dashboard locally and on '
         'your LAN. Every client has to pair before it can load data or control '
@@ -186,11 +209,9 @@ class _StatusRow extends StatelessWidget {
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: copyable));
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Error copied to clipboard'),
-                    duration: Duration(seconds: 2),
-                  ),
+                context.showInfoSnackBar(
+                  'Error copied to clipboard',
+                  duration: Duration(seconds: 2),
                 );
               },
               size: IconButtonSize.sm,

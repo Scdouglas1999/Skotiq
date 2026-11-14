@@ -129,47 +129,14 @@ impl BacklashFocuserOps {
 }
 
 #[async_trait]
-impl DeviceOps for BacklashFocuserOps {
-    async fn focuser_move_to(&self, _focuser_id: &str, position: i32) -> DeviceResult<()> {
-        let mut state = self.state.lock().await;
-        if state.stuck_after.is_some_and(|n| state.commands.len() >= n) {
-            state.commands.push(position);
-            return Ok(());
-        }
-        let delta = position - state.commanded;
-        // Upward motion pays down the dead band; downward motion fills it. A
-        // move shorter than the remaining slack only moves the motor.
-        state.takeup = (state.takeup - delta).clamp(0, self.backlash);
-        state.commanded = position;
-        state.commands.push(position);
-        Ok(())
-    }
-
-    async fn focuser_get_position(&self, _focuser_id: &str) -> DeviceResult<i32> {
-        Ok(self.state.lock().await.commanded)
-    }
-
-    async fn focuser_is_moving(&self, _focuser_id: &str) -> DeviceResult<bool> {
-        Ok(false)
-    }
-
-    async fn focuser_get_temperature(&self, _focuser_id: &str) -> DeviceResult<Option<f64>> {
-        Ok(Some(11.5))
-    }
-
-    async fn focuser_halt(&self, _focuser_id: &str) -> DeviceResult<()> {
-        Ok(())
-    }
-
-    async fn camera_start_exposure(
-        &self,
-        _camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        _bin_x: i32,
-        _bin_y: i32,
-    ) -> DeviceResult<ImageData> {
+impl CameraOps for BacklashFocuserOps {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            duration_secs,
+            gain,
+            offset,
+            ..
+        } = request;
         let (optical_position, clouded) = {
             let mut state = self.state.lock().await;
             let sample = (state.commanded, state.takeup);
@@ -213,58 +180,6 @@ impl DeviceOps for BacklashFocuserOps {
             offset,
         ))
     }
-
-    // Everything the calibration does not touch falls through to the standard
-    // test double. `DeviceOps` has no blanket default for these, so the
-    // delegation is spelled out the same way the in-crate scripted doubles do.
-    async fn mount_slew_to_coordinates(
-        &self,
-        mount_id: &str,
-        ra_hours: f64,
-        dec_degrees: f64,
-    ) -> DeviceResult<()> {
-        self.inner
-            .mount_slew_to_coordinates(mount_id, ra_hours, dec_degrees)
-            .await
-    }
-    async fn mount_abort_slew(&self, mount_id: &str) -> DeviceResult<()> {
-        self.inner.mount_abort_slew(mount_id).await
-    }
-    async fn mount_get_coordinates(&self, mount_id: &str) -> DeviceResult<(f64, f64)> {
-        self.inner.mount_get_coordinates(mount_id).await
-    }
-    async fn mount_sync(
-        &self,
-        mount_id: &str,
-        ra_hours: f64,
-        dec_degrees: f64,
-    ) -> DeviceResult<()> {
-        self.inner.mount_sync(mount_id, ra_hours, dec_degrees).await
-    }
-    async fn mount_park(&self, mount_id: &str) -> DeviceResult<()> {
-        self.inner.mount_park(mount_id).await
-    }
-    async fn mount_unpark(&self, mount_id: &str) -> DeviceResult<()> {
-        self.inner.mount_unpark(mount_id).await
-    }
-    async fn mount_is_slewing(&self, mount_id: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_slewing(mount_id).await
-    }
-    async fn mount_is_parked(&self, mount_id: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_parked(mount_id).await
-    }
-    async fn mount_can_flip(&self, mount_id: &str) -> DeviceResult<bool> {
-        self.inner.mount_can_flip(mount_id).await
-    }
-    async fn mount_side_of_pier(&self, mount_id: &str) -> DeviceResult<crate::meridian::PierSide> {
-        self.inner.mount_side_of_pier(mount_id).await
-    }
-    async fn mount_is_tracking(&self, mount_id: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_tracking(mount_id).await
-    }
-    async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()> {
-        self.inner.mount_set_tracking(mount_id, enabled).await
-    }
     async fn camera_abort_exposure(&self, camera_id: &str) -> DeviceResult<()> {
         self.inner.camera_abort_exposure(camera_id).await
     }
@@ -284,163 +199,43 @@ impl DeviceOps for BacklashFocuserOps {
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
         self.inner.camera_get_cooler_power(camera_id).await
     }
-    async fn filterwheel_set_position(&self, fw_id: &str, position: i32) -> DeviceResult<()> {
-        self.inner.filterwheel_set_position(fw_id, position).await
+}
+
+#[async_trait]
+impl FocuserOps for BacklashFocuserOps {
+    async fn focuser_move_to(&self, _focuser_id: &str, position: i32) -> DeviceResult<()> {
+        let mut state = self.state.lock().await;
+        if state.stuck_after.is_some_and(|n| state.commands.len() >= n) {
+            state.commands.push(position);
+            return Ok(());
+        }
+        let delta = position - state.commanded;
+        // Upward motion pays down the dead band; downward motion fills it. A
+        // move shorter than the remaining slack only moves the motor.
+        state.takeup = (state.takeup - delta).clamp(0, self.backlash);
+        state.commanded = position;
+        state.commands.push(position);
+        Ok(())
     }
-    async fn filterwheel_get_position(&self, fw_id: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_get_position(fw_id).await
+
+    async fn focuser_get_position(&self, _focuser_id: &str) -> DeviceResult<i32> {
+        Ok(self.state.lock().await.commanded)
     }
-    async fn filterwheel_get_names(&self, fw_id: &str) -> DeviceResult<Vec<String>> {
-        self.inner.filterwheel_get_names(fw_id).await
+
+    async fn focuser_is_moving(&self, _focuser_id: &str) -> DeviceResult<bool> {
+        Ok(false)
     }
-    async fn filterwheel_set_filter_by_name(&self, fw_id: &str, name: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_set_filter_by_name(fw_id, name).await
+
+    async fn focuser_get_temperature(&self, _focuser_id: &str) -> DeviceResult<Option<f64>> {
+        Ok(Some(11.5))
     }
-    async fn rotator_move_to(&self, rotator_id: &str, angle: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(rotator_id, angle).await
-    }
-    async fn rotator_move_relative(&self, rotator_id: &str, delta: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(rotator_id, delta).await
-    }
-    async fn rotator_get_angle(&self, rotator_id: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(rotator_id).await
-    }
-    async fn rotator_halt(&self, rotator_id: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(rotator_id).await
-    }
-    async fn guider_dither(
-        &self,
-        pixels: f64,
-        settle_pixels: f64,
-        settle_time: f64,
-        settle_timeout: f64,
-        ra_only: bool,
-    ) -> DeviceResult<()> {
-        self.inner
-            .guider_dither(pixels, settle_pixels, settle_time, settle_timeout, ra_only)
-            .await
-    }
-    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
-        self.inner.guider_get_status().await
-    }
-    async fn guider_start(
-        &self,
-        settle_pixels: f64,
-        settle_time: f64,
-        settle_timeout: f64,
-    ) -> DeviceResult<()> {
-        self.inner
-            .guider_start(settle_pixels, settle_time, settle_timeout)
-            .await
-    }
-    async fn guider_stop(&self) -> DeviceResult<()> {
-        self.inner.guider_stop().await
-    }
-    async fn plate_solve(
-        &self,
-        image_data: &ImageData,
-        hint_ra: Option<f64>,
-        hint_dec: Option<f64>,
-        hint_scale: Option<f64>,
-    ) -> DeviceResult<PlateSolveResult> {
-        self.inner
-            .plate_solve(image_data, hint_ra, hint_dec, hint_scale)
-            .await
-    }
-    async fn save_fits(
-        &self,
-        image_data: &ImageData,
-        file_path: &str,
-        frame_ctx: &crate::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.inner.save_fits(image_data, file_path, frame_ctx).await
-    }
-    async fn send_notification(
-        &self,
-        level: &str,
-        title: &str,
-        message: &str,
-        explicit_transports: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.inner
-            .send_notification(level, title, message, explicit_transports)
-            .await
-    }
-    fn calculate_altitude(&self, ra_hours: f64, dec_degrees: f64, lat: f64, lon: f64) -> f64 {
-        self.inner
-            .calculate_altitude(ra_hours, dec_degrees, lat, lon)
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.inner.get_observer_location()
-    }
-    async fn polar_align_update(
-        &self,
-        result: &crate::polar_align::PolarAlignResult,
-    ) -> DeviceResult<()> {
-        self.inner.polar_align_update(result).await
-    }
-    async fn dome_open(&self, dome_id: &str) -> DeviceResult<()> {
-        self.inner.dome_open(dome_id).await
-    }
-    async fn dome_close(&self, dome_id: &str) -> DeviceResult<()> {
-        self.inner.dome_close(dome_id).await
-    }
-    async fn dome_park(&self, dome_id: &str) -> DeviceResult<()> {
-        self.inner.dome_park(dome_id).await
-    }
-    async fn dome_get_shutter_status(&self, dome_id: &str) -> DeviceResult<String> {
-        self.inner.dome_get_shutter_status(dome_id).await
-    }
-    async fn safety_is_safe(&self, safety_id: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(safety_id).await
-    }
-    async fn calculate_image_hfr(&self, image_data: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(image_data).await
-    }
-    async fn detect_stars_in_image(
-        &self,
-        image_data: &ImageData,
-    ) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(image_data).await
-    }
-    async fn cover_calibrator_open_cover(&self, device_id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_open_cover(device_id).await
-    }
-    async fn cover_calibrator_close_cover(&self, device_id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_close_cover(device_id).await
-    }
-    async fn cover_calibrator_halt_cover(&self, device_id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_halt_cover(device_id).await
-    }
-    async fn cover_calibrator_calibrator_on(
-        &self,
-        device_id: &str,
-        brightness: i32,
-    ) -> DeviceResult<()> {
-        self.inner
-            .cover_calibrator_calibrator_on(device_id, brightness)
-            .await
-    }
-    async fn cover_calibrator_calibrator_off(&self, device_id: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_calibrator_off(device_id).await
-    }
-    async fn cover_calibrator_get_cover_state(&self, device_id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_cover_state(device_id).await
-    }
-    async fn cover_calibrator_get_calibrator_state(&self, device_id: &str) -> DeviceResult<i32> {
-        self.inner
-            .cover_calibrator_get_calibrator_state(device_id)
-            .await
-    }
-    async fn cover_calibrator_get_brightness(&self, device_id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_brightness(device_id).await
-    }
-    async fn cover_calibrator_get_max_brightness(&self, device_id: &str) -> DeviceResult<i32> {
-        self.inner
-            .cover_calibrator_get_max_brightness(device_id)
-            .await
+
+    async fn focuser_halt(&self, _focuser_id: &str) -> DeviceResult<()> {
+        Ok(())
     }
 }
+
+crate::forward_device_ops!(BacklashFocuserOps => inner: MountOps, FilterWheelOps, RotatorOps, GuiderOps, DomeOps, CoverCalibratorOps, SafetyOps, PlateSolveOps, FrameStoreOps, OperatorNotifyOps, ConnectionOps, SiteOps);
 
 /// A frame as the simulated optics would see it from `optical_position`.
 fn render_star_field(
@@ -499,7 +294,9 @@ fn render_with_sigma(
         filter: None,
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
+        readout_mode: None,
     }
 }
 
@@ -523,9 +320,9 @@ fn test_config(clearance_steps: i32) -> BacklashCalibrationConfig {
 async fn calibration_context(ops: Arc<BacklashFocuserOps>) -> InstructionContext {
     let mut execution =
         crate::node::context::ExecutionContext::new_for_test("backlash-calibration".to_string());
-    execution.device_ops = ops;
-    execution.camera_id = Some("sim-camera".to_string());
-    execution.focuser_id = Some("sim-focuser".to_string());
+    execution.run.device_ops = ops;
+    execution.run.rig.camera_id = Some("sim-camera".to_string());
+    execution.run.rig.focuser_id = Some("sim-focuser".to_string());
     execution
         .to_instruction_context("backlash-calibration")
         .await
@@ -1148,6 +945,97 @@ async fn a_zero_failure_tolerance_does_not_fail_a_correct_landing() {
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
 }
 
+/// The focus panel draws a sweep from its measured points, and the run's
+/// progress line follows its steps; both come from the progress a sweep
+/// reports, in this order.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_autofocus_reports_each_step_of_its_sweep() {
+    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    let ctx = calibration_context(ops.clone()).await;
+    let config = AutofocusConfig {
+        measured_backlash_in: Some(SIMULATED_BACKLASH),
+        failure_hfr_tolerance_ratio: 0.0,
+        ..autofocus_test_config()
+    };
+    let steps = std::sync::Mutex::new(Vec::new());
+    let record = |percent: f64, progress: &AutofocusProgress| {
+        steps.lock().unwrap().push((percent, progress.clone()));
+    };
+
+    let result = execute_autofocus_once(
+        &config,
+        &ctx,
+        Some(&record),
+        &crate::node::context::PauseGate::default(),
+    )
+    .await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+
+    let steps = steps.into_inner().unwrap();
+    let total_points = config.sweep_point_count() as usize;
+    assert_eq!(steps[0], (0.0, AutofocusProgress::Starting));
+    assert_eq!(steps[1].0, 5.0);
+    assert!(matches!(
+        steps[1].1,
+        AutofocusProgress::MovingToStart { .. }
+    ));
+    let sweep: Vec<_> = steps[2..2 + 2 * total_points].iter().collect();
+    for (index, pair) in sweep.chunks(2).enumerate() {
+        let point = index + 1;
+        assert!(
+            matches!(&pair[0].1, AutofocusProgress::MovingToPoint { point: p, total_points: n, .. }
+                if *p == point && *n == total_points),
+            "{:?}",
+            pair[0]
+        );
+        let measured = pair[1]
+            .1
+            .sweep()
+            .expect("a measured point carries the sweep");
+        assert_eq!(
+            (measured.point, measured.total_points),
+            (point, total_points)
+        );
+        assert_eq!(measured.vcurve_points.len(), point);
+        assert_eq!(
+            measured.vcurve_points.last().map(|p| p.hfr),
+            Some(measured.hfr)
+        );
+    }
+    let tail: Vec<_> = steps[2 + 2 * total_points..]
+        .iter()
+        .filter(|(_, progress)| !matches!(progress, AutofocusProgress::PointsScreened(_)))
+        .collect();
+    let percents: Vec<f64> = tail.iter().map(|(percent, _)| *percent).collect();
+    assert_eq!(percents, vec![92.0, 95.0, 100.0], "{tail:?}");
+    assert_eq!(tail[0].1, AutofocusProgress::Validating);
+    assert!(matches!(
+        tail[1].1,
+        AutofocusProgress::MovingToBestFocus { .. }
+    ));
+    assert!(
+        matches!(tail[2].1, AutofocusProgress::Complete { hfr, .. }
+            if Some(hfr) == result.hfr_values.first().copied()),
+        "{tail:?}"
+    );
+
+    let json: serde_json::Value =
+        serde_json::from_str(&steps[3].1.sweep().unwrap().to_json()).unwrap();
+    assert_eq!(json["type"], "autofocus_progress");
+    assert_eq!(json["point"], 1);
+    assert_eq!(json["total_points"], total_points);
+    assert_eq!(
+        json["focus_range"]["min"],
+        json["vcurve_points"][0]["position"]
+    );
+    assert!(json["vcurve_points"][0].get("rejected").is_none());
+    assert!(json["star_crops"][0]["pixels_base64"].is_string());
+}
+
 /// The final approach is checked with a real frame: 38bf2b25a made autofocus
 /// take one at the landing and fail when it measures materially worse than
 /// the curve promised. That check had no test, so dropping it, or inverting
@@ -1250,7 +1138,9 @@ fn rig_fixture(name: &str) -> ImageData {
         filter: Some("L".to_string()),
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
+        readout_mode: None,
     }
 }
 

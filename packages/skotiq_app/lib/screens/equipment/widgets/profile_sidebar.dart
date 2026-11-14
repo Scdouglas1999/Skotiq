@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/tutorial_keys/equipment_keys.dart';
+import '../../../tours/tour_target.dart';
+import 'profile_scan_notice.dart';
 
 /// Footer action that switches the app to the selected profile for this
 /// session. Exposed so tests can assert it is present (and absent on the
@@ -17,17 +19,6 @@ const Key profileSidebarActivateButtonKey =
 Key profileCardMenuButtonKey(int? profileId) =>
     Key('profileSidebar.menu.$profileId');
 
-/// Device type enum for ordering dots in profile cards
-enum _DeviceType {
-  camera,
-  mount,
-  focuser,
-  filterWheel,
-  guider,
-  rotator,
-}
-
-/// A vertical sidebar for profile selection and management
 class ProfileSidebar extends ConsumerWidget {
   final int? selectedProfileId;
   final ValueChanged<int> onProfileSelected;
@@ -48,6 +39,16 @@ class ProfileSidebar extends ConsumerWidget {
   final void Function(int oldIndex, int newIndex) onReorderProfiles;
   final VoidCallback? onCollapse;
 
+  /// Read profiles from a file the user picks. Null hides the action.
+  final VoidCallback? onImportProfiles;
+
+  /// Save one profile to a file. Null hides the action.
+  final ValueChanged<EquipmentProfileModel>? onExportProfile;
+
+  /// Whether this list carries the Equipment tour's spotlight keys. They are
+  /// global keys, so only the Equipment screen's own list may hold them.
+  final bool tutorialTargets;
+
   const ProfileSidebar({
     super.key,
     required this.selectedProfileId,
@@ -62,6 +63,9 @@ class ProfileSidebar extends ConsumerWidget {
     required this.onDeleteProfile,
     required this.onReorderProfiles,
     this.onCollapse,
+    this.onImportProfiles,
+    this.onExportProfile,
+    this.tutorialTargets = true,
   });
 
   @override
@@ -69,7 +73,6 @@ class ProfileSidebar extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final profiles = ref.watch(sortedProfilesProvider);
 
-    // Find selected profile
     final selectedProfile = selectedProfileId != null
         ? profiles.where((p) => p.id == selectedProfileId).firstOrNull
         : null;
@@ -99,10 +102,7 @@ class ProfileSidebar extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
           _buildHeader(context, colors),
-
-          // Profile list or empty state
           Expanded(
             child: profiles.isEmpty
                 ? _buildEmptyState(context, colors)
@@ -114,8 +114,6 @@ class ProfileSidebar extends ConsumerWidget {
                     activeProfileId,
                   ),
           ),
-
-          // Footer actions
           if (selectedProfile != null)
             _buildFooter(
               context,
@@ -141,13 +139,26 @@ class ProfileSidebar extends ConsumerWidget {
       child: SectionTitle(
         icon: LucideIcons.layers,
         title: 'Profiles',
-        trailing: SkotiqIconButton(
-          // Spotlight target for the Equipment Setup tour's "Create a
-          // Profile" step; without the key the step had nothing to point at.
-          key: EquipmentTutorialKeys.createProfileBtn,
-          icon: LucideIcons.plus,
-          tooltip: 'Create a profile',
-          onPressed: onCreateProfile,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (onImportProfiles != null)
+              SkotiqIconButton(
+                icon: LucideIcons.download,
+                tooltip: 'Import profiles',
+                onPressed: onImportProfiles,
+              ),
+            SkotiqIconButton(
+              // Spotlight target for the Equipment Setup tour's "Create a
+              // Profile" step.
+              key: tutorialTargets
+                  ? TourTarget.equipmentCreateProfileButton.key
+                  : null,
+              icon: LucideIcons.plus,
+              tooltip: 'Create a profile',
+              onPressed: onCreateProfile,
+            ),
+          ],
         ),
       ),
     );
@@ -208,9 +219,9 @@ class ProfileSidebar extends ConsumerWidget {
         // `profileConnectionStatusProvider`, the single source of truth for
         // the "is device X connected for profile Y" matrix.
         final status = ref.watch(profileConnectionStatusProvider(profile));
-        final deviceStates = _toDeviceStateMap(status);
-        final connectedCount = status.coreConnectedCount;
-        final totalCount = status.coreTotalCount;
+        final deviceStates = status.coreSlotStates;
+        final connectedCount = status.assignedConnectedCount;
+        final totalCount = status.assignedCount;
 
         return _ProfileCard(
           key: ValueKey(profile.id),
@@ -271,12 +282,17 @@ class ProfileSidebar extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
           ],
-          // Show Connect All when selected profile has disconnected devices
           if (hasDisconnectedDevices) ...[
+            ProfileScanNotice(
+              profile: selectedProfile,
+              padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
+            ),
             SkotiqButton(
               // Spotlight target for the Equipment Setup tour's "Connect
               // Devices" step.
-              key: EquipmentTutorialKeys.quickConnectBar,
+              key: tutorialTargets
+                  ? TourTarget.equipmentQuickConnectBar.key
+                  : null,
               label: 'Connect all',
               icon: LucideIcons.plug,
               // Two primaries side by side is no emphasis at all: on a profile
@@ -287,7 +303,6 @@ class ProfileSidebar extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
           ],
-          // Show Disconnect All when any devices connected
           if (hasConnectedDevices) ...[
             SkotiqButton(
               label: 'Disconnect all',
@@ -297,7 +312,6 @@ class ProfileSidebar extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
           ],
-          // Always show Edit Profile when a profile is selected
           SkotiqButton(
             label: 'Edit profile',
             icon: LucideIcons.pencil,
@@ -397,6 +411,19 @@ class ProfileSidebar extends ConsumerWidget {
             ],
           ),
         ),
+        if (onExportProfile != null)
+          PopupMenuItem(
+            value: 'export',
+            child: Row(
+              children: [
+                Icon(LucideIcons.upload, size: 16, color: colors.textSecondary),
+                const SizedBox(width: 8),
+                Text('Export',
+                    style: SkotiqTypography.body
+                        .copyWith(color: colors.textPrimary)),
+              ],
+            ),
+          ),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: 'delete',
@@ -426,6 +453,9 @@ class ProfileSidebar extends ConsumerWidget {
           break;
         case 'duplicate':
           onDuplicateProfile(profile.id!);
+          break;
+        case 'export':
+          onExportProfile?.call(profile);
           break;
         case 'delete':
           final confirmed =
@@ -479,39 +509,15 @@ class ProfileSidebar extends ConsumerWidget {
       ),
     );
   }
-
-  /// Adapt the canonical [ProfileConnectionStatus] core-slot states onto this
-  /// widget's local [_DeviceType] keys for the connection-dot row. Only
-  /// assigned core slots are present; the dot builder filters on non-null, so
-  /// unassigned slots are simply absent (matching the prior behavior where
-  /// `_getDeviceConnectionStates` produced `null` for unassigned devices).
-  Map<_DeviceType, DeviceConnectionState?> _toDeviceStateMap(
-    ProfileConnectionStatus status,
-  ) {
-    DeviceConnectionState? stateFor(ProfileDeviceSlot slot) {
-      final conn = status[slot];
-      return conn.isAssigned ? conn.profileState : null;
-    }
-
-    return {
-      _DeviceType.camera: stateFor(ProfileDeviceSlot.camera),
-      _DeviceType.mount: stateFor(ProfileDeviceSlot.mount),
-      _DeviceType.focuser: stateFor(ProfileDeviceSlot.focuser),
-      _DeviceType.filterWheel: stateFor(ProfileDeviceSlot.filterWheel),
-      _DeviceType.guider: stateFor(ProfileDeviceSlot.guider),
-      _DeviceType.rotator: stateFor(ProfileDeviceSlot.rotator),
-    };
-  }
 }
 
-/// Individual profile card widget with all interactions
 class _ProfileCard extends StatefulWidget {
   final EquipmentProfileModel profile;
   final bool isSelected;
 
   /// True for the profile the rest of the app is pointed at.
   final bool isActive;
-  final Map<_DeviceType, DeviceConnectionState?> deviceStates;
+  final Map<DeviceType, DeviceConnectionState> deviceStates;
   final int connectedCount;
   final int totalCount;
   final int index;
@@ -592,7 +598,6 @@ class _ProfileCardState extends State<_ProfileCard>
 
   @override
   Widget build(BuildContext context) {
-    // Get profile color or fall back to primary
     final profileColor = widget.profile.profileColor != null
         ? Color(widget.profile.profileColor!)
         : widget.colors.primary;
@@ -634,7 +639,6 @@ class _ProfileCardState extends State<_ProfileCard>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top row: icon, name, default star
                   Row(
                     children: [
                       // Profile glyph. The stored emoji is a user choice and
@@ -656,7 +660,6 @@ class _ProfileCardState extends State<_ProfileCard>
                         ),
                       const SizedBox(width: SkotiqTokens.spaceSm),
 
-                      // Profile name
                       Expanded(
                         child: Text(
                           widget.profile.name,
@@ -667,7 +670,6 @@ class _ProfileCardState extends State<_ProfileCard>
                         ),
                       ),
 
-                      // Default star indicator
                       if (widget.profile.isDefault)
                         Tooltip(
                           message: 'Starts up with this profile',
@@ -705,10 +707,7 @@ class _ProfileCardState extends State<_ProfileCard>
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 4),
-
-                  // Subtitle row
                   Text(
                     widget.profile.subtitle,
                     style: SkotiqTypography.caption.copyWith(
@@ -717,14 +716,10 @@ class _ProfileCardState extends State<_ProfileCard>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-
                   const SizedBox(height: 8),
-
-                  // Bottom row: device dots + connection count
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Device dots
                       _buildDeviceDots(),
 
                       // "Selected" (this card is highlighted) and "in use by
@@ -742,7 +737,6 @@ class _ProfileCardState extends State<_ProfileCard>
                           ),
                         ),
 
-                      // Connection count
                       if (widget.totalCount > 0)
                         Text(
                           '${widget.connectedCount}/${widget.totalCount}',
@@ -771,16 +765,17 @@ class _ProfileCardState extends State<_ProfileCard>
       builder: (context, child) {
         return Row(
           mainAxisSize: MainAxisSize.min,
-          children: _DeviceType.values
-              .where((type) => widget.deviceStates[type] != null)
-              .map((type) => _buildDot(type, widget.deviceStates[type]!))
-              .toList(),
+          children: [
+            for (final MapEntry(key: type, value: state)
+                in widget.deviceStates.entries)
+              _buildDot(type, state),
+          ],
         );
       },
     );
   }
 
-  Widget _buildDot(_DeviceType type, DeviceConnectionState state) {
+  Widget _buildDot(DeviceType type, DeviceConnectionState state) {
     final Color color;
     final bool isHollow;
     final bool isPulsing;
@@ -828,15 +823,8 @@ class _ProfileCardState extends State<_ProfileCard>
     );
   }
 
-  String _getDeviceTypeTooltip(_DeviceType type, DeviceConnectionState state) {
-    final typeName = switch (type) {
-      _DeviceType.camera => 'Camera',
-      _DeviceType.mount => 'Mount',
-      _DeviceType.focuser => 'Focuser',
-      _DeviceType.filterWheel => 'Filter wheel',
-      _DeviceType.guider => 'Guider',
-      _DeviceType.rotator => 'Rotator',
-    };
+  String _getDeviceTypeTooltip(DeviceType type, DeviceConnectionState state) {
+    final typeName = type.displayName;
 
     final stateName = switch (state) {
       DeviceConnectionState.connected => 'Connected',

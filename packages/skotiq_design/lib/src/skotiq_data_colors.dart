@@ -87,3 +87,18 @@ abstract final class SkyPlotColors {
   static const star = Color(0xFFC4A055);
   static const unknown = Color(0xFF8E97A4);
 }
+
+/// Catalog annotation identities shared with the design reference board.
+abstract final class CatalogAnnotationColors {
+  static const galaxy = Color(0xFFBD8EC4);
+  static const nebula = Color(0xFF6B95B8);
+  static const starCluster = Color(0xFFC4A055);
+  static const planetaryNebula = Color(0xFF4A9A72);
+  static const star = Color(0xFFE8E4DC);
+  static const doubleStar = Color(0xFFCF8FAD);
+  static const asterism = Color(0xFF8A82B0);
+}
+
+abstract final class DriverBackendColors {
+  static const indi = Color(0xFF8575A3);
+}

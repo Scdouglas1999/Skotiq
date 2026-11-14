@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../theme/skotiq_colors.dart';
@@ -11,7 +12,6 @@ import 'skotiq_panel.dart';
 class NightBandEvent {
   const NightBandEvent({required this.time, required this.label});
 
-  /// When it happens.
   final DateTime time;
 
   /// Its label, e.g. "19:12 sunset".
@@ -96,14 +96,12 @@ class NightBand extends StatelessWidget {
   /// never collide with an event label.
   static const double nowRowHeight = 15;
 
-  /// The imageable-window bar's thickness.
   static const double windowBarHeight = 4;
 
   /// The "now" line's thickness and its cap's diameter.
   static const double nowLineWidth = 1.5;
   static const double nowDotSize = 6;
 
-  /// The altitude path's stroke width.
   static const double altitudeStrokeWidth = 1.5;
 
   /// Fill opacity under the altitude path.
@@ -179,11 +177,7 @@ class NightBand extends StatelessWidget {
   /// The caret is drawn as a Lucide icon beside it rather than as a "▲" in the
   /// string: neither bundled font carries U+25B2, and the golden showed it as a
   /// tofu box.
-  String _formatNow() {
-    final hh = now.hour.toString().padLeft(2, '0');
-    final mm = now.minute.toString().padLeft(2, '0');
-    return 'now $hh:$mm';
-  }
+  String _formatNow() => 'now ${ClockFormat.hm(now)}';
 }
 
 class _NightBandPainter extends CustomPainter {

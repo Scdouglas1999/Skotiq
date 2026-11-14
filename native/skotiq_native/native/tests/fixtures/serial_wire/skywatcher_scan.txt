@@ -1,0 +1,15 @@
+== port silent ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :e1\r
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :e1\r
+(scan over)
+== port answers-at-9600 ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :e1\r
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :e1\r
+< =030700\r
+(scan over)
+== found ==
+port=<answers-at-9600> name=Sky-Watcher EQ6 (<answers-at-9600>) firmware=Some("Sky-Watcher EQ6, motor controller firmware 3.07") baud=9600

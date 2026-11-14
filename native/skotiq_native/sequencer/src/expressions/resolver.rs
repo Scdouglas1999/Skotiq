@@ -6,7 +6,7 @@
 //! that the name exists. Adding a new variable means:
 //! 1. Add the [`VariableEntry`] to `catalog::variable_catalog()`.
 //! 2. Add a match arm in [`resolve_variable`].
-//! 3. The Dart picker auto-picks it up from the catalog JSON.
+//! 3. Copy the entry into the app's catalog (`interpolation_catalog.dart`).
 
 use super::catalog::variable_catalog;
 use super::errors::InterpolationError;
@@ -43,11 +43,8 @@ pub struct EvaluationFrame {
     pub frame: Option<u32>,
     /// Total frames in the current burst.
     pub frame_total: Option<u32>,
-    /// Exposure duration (seconds).
     pub exposure_duration_secs: Option<f64>,
-    /// Exposure gain.
     pub exposure_gain: Option<i32>,
-    /// Exposure offset.
     pub exposure_offset: Option<i32>,
     /// Binning string ("1x1", "2x2", ...).
     pub exposure_binning: Option<String>,
@@ -67,6 +64,8 @@ pub struct EvaluationFrame {
     pub weather_humidity: Option<f64>,
     /// Sky-quality measurement (mag/arcsec²).
     pub sqm: Option<f64>,
+    /// Sensor temperature (°C) the camera reported with the frame.
+    pub sensor_temp_c: Option<f64>,
 }
 
 impl EvaluationFrame {
@@ -106,6 +105,18 @@ pub fn interpolate(
     ctx: &ExecutionContext,
     frame: &EvaluationFrame,
 ) -> Result<String, InterpolationError> {
+    interpolate_with(template, ctx, frame, |value| value)
+}
+
+/// [`interpolate`] with every rendered variable passed through `value_text`
+/// before it lands in the result, so a save path can keep a value inside its
+/// own path segment.
+pub fn interpolate_with(
+    template: &str,
+    ctx: &ExecutionContext,
+    frame: &EvaluationFrame,
+    value_text: impl Fn(String) -> String,
+) -> Result<String, InterpolationError> {
     let parts = parse_template(template)?;
     let mut out = String::with_capacity(template.len());
     for part in parts {
@@ -118,7 +129,7 @@ pub fn interpolate(
             } => {
                 let value = resolve_variable(&name, offset, ctx, frame)?;
                 let rendered = apply_format_spec(&name, offset, &value, format_spec.as_deref())?;
-                out.push_str(&rendered);
+                out.push_str(&value_text(rendered));
             }
         }
     }
@@ -222,7 +233,7 @@ pub fn resolve_variable(
         ),
         "target.az" => float_or_unresolvable(
             name,
-            calculate_azimuth(ctx),
+            ctx.target_alt_az().map(|(_, azimuth)| azimuth),
             "azimuth requires target RA/Dec and observer location",
         ),
         // Filter
@@ -265,8 +276,7 @@ pub fn resolve_variable(
             frame.frame_total.map(i64::from),
             "frame total is only set inside an exposure burst",
         ),
-        // Session
-        "session.id" => Ok(VariableValue::Str(ctx.session_id.clone())),
+        "session.id" => Ok(VariableValue::Str(ctx.run.identity.session_id.clone())),
         "session.date" => {
             let dt = frame.session_start.unwrap_or_else(now_utc);
             Ok(VariableValue::Str(dt.format("%Y-%m-%d").to_string()))
@@ -277,7 +287,6 @@ pub fn resolve_variable(
                 dt.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             ))
         }
-        // Time
         "time.now" => Ok(VariableValue::Str(
             frame
                 .now_override
@@ -301,12 +310,32 @@ pub fn resolve_variable(
                 .format("%Y-%m-%d")
                 .to_string(),
         )),
-        // Moon
+        "time.clock" => Ok(VariableValue::Str(
+            frame
+                .now_override
+                .unwrap_or_else(now_utc)
+                .format("%H-%M-%S")
+                .to_string(),
+        )),
+        "time.local_clock" => Ok(VariableValue::Str(
+            frame
+                .now_override
+                .map(|u| u.with_timezone(&chrono::Local))
+                .unwrap_or_else(chrono::Local::now)
+                .format("%H:%M")
+                .to_string(),
+        )),
+        // As the app's `$TEMP` reads a manual capture: the sensor, else what
+        // the cooler holds, else 0.
+        "camera.temp_c" => Ok(VariableValue::Float(
+            frame.sensor_temp_c.or(ctx.set_temp_c).unwrap_or(0.0),
+        )),
         "moon.phase" => float_or_unresolvable(
             name,
-            frame
-                .moon_phase
-                .or_else(|| Some(moon_illumination_fraction(now_utc()))),
+            frame.moon_phase.or_else(|| {
+                let now = frame.now_override.unwrap_or_else(|| ctx.clock.now_utc());
+                Some(crate::scheduling::ephemeris::moon_illumination_percent(&now) / 100.0)
+            }),
             "moon phase requires a system clock",
         ),
         "moon.separation" => float_or_unresolvable(
@@ -314,7 +343,6 @@ pub fn resolve_variable(
             ctx.calculate_moon_separation(),
             "moon separation requires target RA/Dec",
         ),
-        // Weather
         "weather.temp_c" => float_or_unresolvable(
             name,
             frame.weather_temp_c,
@@ -330,20 +358,27 @@ pub fn resolve_variable(
             frame.sqm,
             "no SQM reading available (configure a sky-brightness provider)",
         ),
-        // Observer
         "observer.name" => str_or_unresolvable(
             name,
-            ctx.observer_name.as_deref(),
+            ctx.run.identity.observer_name.as_deref(),
             "observer name is not set in app settings",
         ),
-        "observer.lat" => float_or_unresolvable(name, ctx.latitude, "observer latitude is unset"),
-        "observer.lon" => float_or_unresolvable(name, ctx.longitude, "observer longitude is unset"),
-        "observer.elevation" => {
-            float_or_unresolvable(name, ctx.site_elevation_m, "observer elevation is unset")
+        "observer.lat" => {
+            float_or_unresolvable(name, ctx.run.rig.latitude, "observer latitude is unset")
         }
-        // Equipment
+        "observer.lon" => {
+            float_or_unresolvable(name, ctx.run.rig.longitude, "observer longitude is unset")
+        }
+        "observer.elevation" => float_or_unresolvable(
+            name,
+            ctx.run.identity.site_elevation_m,
+            "observer elevation is unset",
+        ),
         "equipment.camera" => {
-            let camera = match (ctx.camera_make.as_deref(), ctx.camera_model.as_deref()) {
+            let camera = match (
+                ctx.run.identity.camera_make.as_deref(),
+                ctx.run.identity.camera_model.as_deref(),
+            ) {
                 (Some(make), Some(model)) => Some(format!("{make} {model}")),
                 (None, Some(model)) => Some(model.to_string()),
                 (Some(make), None) => Some(make.to_string()),
@@ -357,20 +392,19 @@ pub fn resolve_variable(
         }
         "equipment.telescope" => str_or_unresolvable(
             name,
-            ctx.telescope_name.as_deref(),
+            ctx.run.identity.telescope_name.as_deref(),
             "telescope name is unset in equipment profile",
         ),
         "equipment.focal_length" => float_or_unresolvable(
             name,
-            ctx.telescope_focal_length_mm,
+            ctx.run.identity.telescope_focal_length_mm,
             "telescope focal length is unset in equipment profile",
         ),
         "equipment.aperture" => float_or_unresolvable(
             name,
-            ctx.telescope_aperture_mm,
+            ctx.run.identity.telescope_aperture_mm,
             "telescope aperture is unset in equipment profile",
         ),
-        // Exposure
         "exposure.duration" => float_or_unresolvable(
             name,
             frame.exposure_duration_secs,
@@ -620,49 +654,6 @@ fn fixed_point(
     }
 }
 
-/// Compute the moon illumination fraction (0.0 = new, 1.0 = full) using a
-/// low-precision phase angle formula. Accuracy is ~ 1% — adequate for
-/// template substitution, where the user wants a rough sense of phase, not
-/// an ephemeris.
-fn moon_illumination_fraction(now: DateTime<Utc>) -> f64 {
-    let jd = crate::meridian::julian_day(&now);
-    // Mean phase angle period: 29.530588853 days (synodic month). The
-    // reference new-moon epoch is JD 2451550.1 (2000-01-06 UTC). Wrapping
-    // the cosine of half the phase angle yields the illuminated fraction.
-    let days = jd - 2_451_550.1;
-    let phase = (days / 29.530_588_853).rem_euclid(1.0); // 0..1 fraction of synodic month
-    let angle = phase * std::f64::consts::TAU; // 0..2π radians
-                                               // illumination = (1 - cos(angle)) / 2 produces 0 at new, 1 at full,
-                                               // 0 again at the next new moon.
-    ((1.0 - angle.cos()) / 2.0).clamp(0.0, 1.0)
-}
-
-/// Calculate current azimuth (degrees, 0 = North, increasing eastward) of
-/// the active target. Mirrors `ExecutionContext::calculate_altitude` so the
-/// catalog can offer both fields without depending on the planetarium code.
-fn calculate_azimuth(ctx: &ExecutionContext) -> Option<f64> {
-    let ra_hours = ctx.target_ra?;
-    let dec_degrees = ctx.target_dec?;
-    let lat = ctx.latitude?;
-    let lon = ctx.longitude?;
-
-    let now = chrono::Utc::now();
-    let jd = crate::meridian::julian_day(&now);
-    let lst = crate::meridian::local_sidereal_time(jd, lon);
-
-    let ha = lst - ra_hours;
-    let ha_rad = (ha * 15.0).to_radians();
-    let dec_rad = dec_degrees.to_radians();
-    let lat_rad = lat.to_radians();
-
-    // Standard horizontal-coords formula: tan(Az) = -cos(dec) sin(HA) /
-    // (sin(dec) cos(lat) - cos(dec) sin(lat) cos(HA))
-    let sin_az = -dec_rad.cos() * ha_rad.sin();
-    let cos_az = dec_rad.sin() * lat_rad.cos() - dec_rad.cos() * lat_rad.sin() * ha_rad.cos();
-    let az = sin_az.atan2(cos_az).to_degrees();
-    Some(az.rem_euclid(360.0))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -677,15 +668,15 @@ mod tests {
         ctx.target_rotation = Some(45.0);
         ctx.current_filter = Some("Ha".to_string());
         ctx.current_filter_index = Some(3);
-        ctx.latitude = Some(40.7);
-        ctx.longitude = Some(-74.0);
-        ctx.observer_name = Some("Alice".to_string());
-        ctx.site_elevation_m = Some(150.0);
-        ctx.camera_make = Some("ZWO".to_string());
-        ctx.camera_model = Some("ASI2600MM".to_string());
-        ctx.telescope_name = Some("TS APO".to_string());
-        ctx.telescope_focal_length_mm = Some(910.0);
-        ctx.telescope_aperture_mm = Some(130.0);
+        ctx.run.rig.latitude = Some(40.7);
+        ctx.run.rig.longitude = Some(-74.0);
+        ctx.run.identity.observer_name = Some("Alice".to_string());
+        ctx.run.identity.site_elevation_m = Some(150.0);
+        ctx.run.identity.camera_make = Some("ZWO".to_string());
+        ctx.run.identity.camera_model = Some("ASI2600MM".to_string());
+        ctx.run.identity.telescope_name = Some("TS APO".to_string());
+        ctx.run.identity.telescope_focal_length_mm = Some(910.0);
+        ctx.run.identity.telescope_aperture_mm = Some(130.0);
         ctx.set_temp_c = Some(-10.0);
         ctx
     }
@@ -715,6 +706,7 @@ mod tests {
             weather_temp_c: Some(12.4),
             weather_humidity: Some(67.0),
             sqm: Some(21.2),
+            sensor_temp_c: Some(-9.6),
         }
     }
     use chrono::TimeZone;

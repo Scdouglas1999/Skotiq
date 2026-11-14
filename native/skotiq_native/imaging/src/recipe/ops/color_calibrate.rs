@@ -98,9 +98,7 @@ use crate::robust_stats::median_in_place;
 use crate::wcs_sip::SipWcs;
 use crate::{DetectedStar, StarDetectionConfig};
 
-/// Registry id.
 const OP_ID: &str = "color_calibrate";
-/// Registry version.
 const OP_VERSION: u32 = 1;
 
 /// The only channel layout this operation defines a result for.
@@ -589,18 +587,9 @@ fn solve_average_star(image: &OpImage, ctx: &OpContext) -> Result<ColorSolve, Op
     })
 }
 
-/// The median and `1.4826 · MAD` of `values`.
+/// The median and `1.4826 · MAD` of `values`; zeros when there are none.
 fn median_and_sigma(values: impl Iterator<Item = f64>) -> (f64, f64) {
-    let mut values: Vec<f64> = values.collect();
-    if values.is_empty() {
-        return (0.0, 0.0);
-    }
-    let centre = median_in_place(&mut values.clone());
-    let mut deviations: Vec<f64> = values.iter_mut().map(|v| (*v - centre).abs()).collect();
-    (
-        centre,
-        median_in_place(&mut deviations) * crate::robust_stats::MAD_TO_SIGMA,
-    )
+    crate::robust_stats::median_and_sigma(&mut values.collect::<Vec<f64>>())
 }
 
 /// Offsets that bring every channel's sky, after `scales`, to their mean.
@@ -748,7 +737,7 @@ fn require_three_channels(image: &OpImage) -> Result<(), OpError> {
             op_id: OP_ID,
             op_version: OP_VERSION,
             channels,
-            expected: "a colour master with 3 channels; combine a per-filter mono master first",
+            expected: "a color master with 3 channels; combine a per-filter mono master first",
         });
     }
     Ok(())

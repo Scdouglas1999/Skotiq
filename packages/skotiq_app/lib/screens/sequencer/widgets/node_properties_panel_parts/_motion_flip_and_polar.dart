@@ -1,4 +1,3 @@
-// Meridian-flip and polar-alignment instruction property editors.
 part of '../node_properties_panel.dart';
 
 class _MeridianFlipProperties extends ConsumerWidget {
@@ -129,6 +128,7 @@ class _MeridianFlipProperties extends ConsumerWidget {
           colors: colors,
           label: 'Pause guiding',
           child: NodeToggleSwitch(
+            label: 'Pause guiding',
             colors: colors,
             value: node.pauseGuiding,
             onChanged: (value) {
@@ -142,6 +142,7 @@ class _MeridianFlipProperties extends ConsumerWidget {
           colors: colors,
           label: 'Auto center after flip',
           child: NodeToggleSwitch(
+            label: 'Auto center after flip',
             colors: colors,
             value: node.autoCenter,
             onChanged: (value) {
@@ -155,6 +156,7 @@ class _MeridianFlipProperties extends ConsumerWidget {
           colors: colors,
           label: 'Refocus after flip',
           child: NodeToggleSwitch(
+            label: 'Refocus after flip',
             colors: colors,
             value: node.refocusAfter,
             onChanged: (value) {
@@ -168,6 +170,7 @@ class _MeridianFlipProperties extends ConsumerWidget {
           colors: colors,
           label: 'Resume guiding',
           child: NodeToggleSwitch(
+            label: 'Resume guiding',
             colors: colors,
             value: node.resumeGuiding,
             onChanged: (value) {
@@ -423,6 +426,7 @@ class _PolarAlignmentProperties extends ConsumerWidget {
           colors: colors,
           label: 'Start from current position',
           child: NodeToggleSwitch(
+            label: 'Start from current position',
             colors: colors,
             value: node.startFromCurrent,
             onChanged: (value) {
@@ -436,6 +440,7 @@ class _PolarAlignmentProperties extends ConsumerWidget {
           colors: colors,
           label: 'Manual slew mode',
           child: NodeToggleSwitch(
+            label: 'Manual slew mode',
             colors: colors,
             value: node.manualSlew,
             onChanged: (value) {

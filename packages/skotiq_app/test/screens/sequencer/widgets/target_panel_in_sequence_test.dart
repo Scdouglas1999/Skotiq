@@ -11,11 +11,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/plan_math.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart'
     show treeNodeKeyRegistryProvider;
 import 'package:skotiq_app/screens/sequencer/widgets/target_queue_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -171,7 +171,7 @@ void main() {
         openEndedBudgetSecs: 7200,
         hasUnboundedRepeat: false,
       );
-      expect(targetPlanSummary(planned), 'Looping up to 2h 0m');
+      expect(targetPlanSummary(planned), 'Looping up to 2h');
     });
 
     test('a target with nothing under it says so', () {

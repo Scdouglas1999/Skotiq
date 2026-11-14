@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-
-import '../utils/phd2_helper.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import '../utils/snackbar_helper.dart';
 
 /// Reusable PHD2 connection configuration dialog.
 ///
@@ -162,15 +162,9 @@ class _Phd2ConnectionDialogState extends ConsumerState<Phd2ConnectionDialog> {
     final host = _hostController.text.trim();
     final port = int.tryParse(_portController.text.trim());
     final messenger = ScaffoldMessenger.of(context);
-    final errorColor = SkotiqColors.of(context).error;
     if (host.isEmpty || port == null || port < 1 || port > 65535) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Enter a PHD2 host and a port between 1 and 65535.',
-          ),
-          backgroundColor: errorColor,
-        ),
+      messenger.showErrorSnackBar(
+        'Enter a PHD2 host and a port between 1 and 65535.',
       );
       return;
     }
@@ -184,11 +178,8 @@ class _Phd2ConnectionDialogState extends ConsumerState<Phd2ConnectionDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _connecting = false);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Could not save PHD2 connection settings: $e'),
-          backgroundColor: errorColor,
-        ),
+      messenger.showErrorSnackBar(
+        'Could not save PHD2 connection settings: ${userFacingError(e)}',
       );
       return;
     }
@@ -198,13 +189,8 @@ class _Phd2ConnectionDialogState extends ConsumerState<Phd2ConnectionDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _connecting = false);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'PHD2 connection failed: ${phd2FailureMessage(e)}',
-          ),
-          backgroundColor: errorColor,
-        ),
+      messenger.showErrorSnackBar(
+        'PHD2 connection failed: ${userFacingError(e)}',
       );
       return;
     }

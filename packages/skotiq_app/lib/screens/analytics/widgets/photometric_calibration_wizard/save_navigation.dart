@@ -60,8 +60,6 @@ extension _PhotometricWizardSaveNavigation
     );
   }
 
-  // Navigation
-
   Widget _buildNavigationButtons(SkotiqColors colors) {
     final isBusy = _isComputing || _isSaving;
     return Row(
@@ -123,13 +121,7 @@ extension _PhotometricWizardSaveNavigation
     });
 
     try {
-      if (authority is NetworkBackend) {
-        await authority.savePhotometricTransform(coeff);
-      } else {
-        await ref
-            .read(photometricTransformServiceProvider)
-            .saveTransform(coeff);
-      }
+      await ref.read(photometricTransformsProvider).save(coeff);
       if (!_isCurrentOperation(generation, authority)) return;
       _update(() => _statusMessage = 'Saved successfully!');
       await Future.delayed(const Duration(milliseconds: 500));
@@ -140,7 +132,7 @@ extension _PhotometricWizardSaveNavigation
       if (!_isCurrentOperation(generation, authority)) return;
       _update(() {
         _isSaving = false;
-        _statusMessage = 'Save failed: $error';
+        _statusMessage = 'Save failed: ${userFacingError(error)}';
       });
     }
   }

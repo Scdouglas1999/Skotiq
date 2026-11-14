@@ -39,6 +39,7 @@ String? bridgeErrorMessage(Object error) {
         "'$deviceId' does not support $operation",
     deviceBusy: (deviceId, currentOperation) =>
         "'$deviceId' is busy with $currentOperation",
+    invalidState: (message) => message,
     imageError: (message) => message,
     cameraError: (message) => message,
     exposureFailed: (_, reason) => reason,

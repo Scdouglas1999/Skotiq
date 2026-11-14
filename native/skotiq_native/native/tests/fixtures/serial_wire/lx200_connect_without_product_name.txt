@@ -1,0 +1,16 @@
+call connect
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :GVP#
+> :GR#
+< 05:30:00#
+  -> Ok(())
+  name=LX200 (<PORT>) connected=true
+call get_coordinates
+> :GR#
+< 05:30:00#
+> :GD#
+< +20*00:00#
+  -> Ok((5.5, 20.0))
+call disconnect
+> :Q#
+  -> Ok(())

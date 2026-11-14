@@ -12,12 +12,11 @@
 // `${equipment.device_id}` again fails here even if it words the rest
 // differently.
 
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/backend/event_types.dart';
 import 'package:skotiq_core/src/models/notification/notification_categories.dart';
 import 'package:skotiq_core/src/services/notification/event_classifier.dart';
+import 'package:skotiq_core/src/services/notification/notification_presentation.dart';
 import 'package:skotiq_core/src/services/notification/notification_router.dart';
 import 'package:skotiq_core/src/services/notification/transports/notification_transport.dart';
 
@@ -36,11 +35,9 @@ class _RecordingTransport extends NotificationTransport {
   bool get isConfigured => true;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final title = message.title;
+    final body = message.body;
     titles.add(title);
     bodies.add(body);
     return NotificationResult.ok();
@@ -159,45 +156,15 @@ void main() {
     expect(body, isNot(contains('  ')));
   });
 
-  test(
-    'the default disconnect template does not reference the raw id',
-    () async {
-      // Reads the shipped source: a body template that reaches for
-      // `equipment.device_id` is the defect, whatever it renders today.
-      final source = await _routerSource();
-      // The DEFINITION, not a call site: the router calls the same helper by
-      // name for the stop templates, and those calls sit above it in the file.
-      final bodyFn = source.indexOf(
-        'static String _defaultBodyTemplate(NotificationCategory',
-      );
-      expect(bodyFn, greaterThan(0), reason: 'body-template function moved');
-      final armStart = source.indexOf(
-        'NotificationCategory.equipmentDisconnected:',
-        bodyFn,
-      );
-      expect(armStart, greaterThan(0), reason: 'disconnect body arm moved');
-      final arm = source.substring(
-        armStart,
-        source.indexOf('case NotificationCategory', armStart + 1),
-      );
-      expect(
-        arm,
-        isNot(contains('equipment.device_id')),
-        reason: 'the operator-facing template must use the name',
-      );
-      expect(arm, contains('equipment.device_name'));
-    },
-  );
-}
-
-Future<String> _routerSource() async {
-  final candidates = <String>[
-    'lib/src/services/notification/notification_router.dart',
-    'packages/skotiq_core/lib/src/services/notification/notification_router.dart',
-  ];
-  for (final path in candidates) {
-    final file = File(path);
-    if (file.existsSync()) return file.readAsString();
-  }
-  fail('could not locate notification_router.dart from ${Directory.current}');
+  test('the default disconnect template does not reference the raw id', () {
+    final body = NotificationPresentation.of(
+      NotificationCategory.equipmentDisconnected,
+    ).body;
+    expect(
+      body,
+      isNot(contains('equipment.device_id')),
+      reason: 'the operator-facing template must use the name',
+    );
+    expect(body, contains('equipment.device_name'));
+  });
 }

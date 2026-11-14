@@ -19,7 +19,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/settings/widgets/notification_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -144,7 +146,7 @@ void main() {
       );
       expect(subtitle, contains('Gates the built-in error alert.'));
       expect(subtitle, contains('alert sound'));
-      expect(subtitle, contains('Discord/Pushover webhook'));
+      expect(subtitle, contains('Custom row of per-event routing'));
       // The claim that started this: it must never come back.
       expect(subtitle, isNot(contains('no longer sends anything')));
     });

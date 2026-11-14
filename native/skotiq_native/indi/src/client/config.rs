@@ -5,13 +5,9 @@ use super::*;
 /// Reader task status for supervision
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReaderStatus {
-    /// Reader task is running normally
     Running,
-    /// Reader task has stopped gracefully
     Stopped,
-    /// Reader task has crashed/failed
     Crashed,
-    /// Reader task is being restarted
     Restarting,
 }
 
@@ -77,23 +73,15 @@ impl ReaderTaskConfig {
     }
 }
 
-/// Configuration for protocol version
 #[derive(Debug, Clone)]
 pub struct ProtocolConfig {
-    /// Preferred protocol version
     pub preferred_version: String,
-    /// Whether to auto-detect server version
-    pub auto_detect: bool,
-    /// Minimum supported version
-    pub min_version: Option<String>,
 }
 
 impl Default for ProtocolConfig {
     fn default() -> Self {
         Self {
             preferred_version: DEFAULT_PROTOCOL_VERSION.to_string(),
-            auto_detect: true,
-            min_version: None,
         }
     }
 }
@@ -103,9 +91,7 @@ impl Default for ProtocolConfig {
 pub struct ReconnectionConfig {
     /// Base delay for exponential backoff
     pub base_delay_secs: u64,
-    /// Maximum delay cap
     pub max_delay_secs: u64,
-    /// Maximum number of reconnection attempts
     pub max_attempts: u32,
     /// Whether to add jitter (randomness) to prevent thundering herd
     pub use_jitter: bool,

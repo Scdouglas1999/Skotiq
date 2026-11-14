@@ -1,9 +1,10 @@
 use super::*;
+use crate::device::DriverType;
 
 // Hot-plug reconnect: re-apply essential device state.
 //
 // After an *unplanned* reconnect (the device's connection_state was Error,
-// i.e. heartbeat-lost / report_error), `connect_device_internal` must
+// i.e. heartbeat-lost), `connect_device_internal` must
 // re-apply the last commanded camera cooling setpoint and mount tracking
 // state — the driver comes back in power-on defaults and would otherwise
 // silently warm the sensor / leave the mount parked while the sequence
@@ -12,7 +13,7 @@ use super::*;
 /// Setting tracking records `desired_tracking`; an Error->reconnect replays it.
 #[tokio::test]
 async fn reconnect_reapplies_mount_tracking() {
-    use crate::api::devices::simulation::get_sim_mount;
+    use crate::simulator::mount::get_sim_mount;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = Arc::new(build_device_manager());
@@ -77,7 +78,7 @@ async fn reconnect_reapplies_mount_tracking() {
 /// Setting the cooler records `desired_cooler`; an Error->reconnect replays it.
 #[tokio::test]
 async fn reconnect_reapplies_camera_cooler() {
-    use crate::api::devices::simulation::get_sim_camera;
+    use crate::simulator::camera::get_sim_camera;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = Arc::new(build_device_manager());
@@ -111,7 +112,7 @@ async fn reconnect_reapplies_camera_cooler() {
         .await;
     {
         let mut cam = get_sim_camera().write().await;
-        cam.status.cooler_on = false;
+        cam.status.cooler_on = Some(false);
         cam.status.target_temp = None;
     }
 
@@ -122,7 +123,11 @@ async fn reconnect_reapplies_camera_cooler() {
 
     {
         let cam = get_sim_camera().read().await;
-        assert!(cam.status.cooler_on, "reconnect must re-enable the cooler");
+        assert_eq!(
+            cam.status.cooler_on,
+            Some(true),
+            "reconnect must re-enable the cooler"
+        );
         assert_eq!(
             cam.status.target_temp,
             Some(-12.0),
@@ -138,7 +143,7 @@ async fn reconnect_reapplies_camera_cooler() {
 /// recorded desired state — only an unplanned reconnect re-applies.
 #[tokio::test]
 async fn fresh_connect_does_not_reapply_state() {
-    use crate::api::devices::simulation::get_sim_mount;
+    use crate::simulator::mount::get_sim_mount;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = Arc::new(build_device_manager());
@@ -194,47 +199,57 @@ async fn fresh_connect_does_not_reapply_state() {
 #[derive(Debug, Clone, Default)]
 struct RecordingCoolerCamera {
     calls: Arc<std::sync::Mutex<Vec<(bool, Option<f64>)>>>,
+    retained_capture: bool,
 }
 
 #[async_trait::async_trait]
-impl skotiq_native::traits::NativeDevice for RecordingCoolerCamera {
+impl skotiq_device::DeviceDriver for RecordingCoolerCamera {
     fn id(&self) -> &str {
         "native:test:cooler"
     }
     fn name(&self) -> &str {
         "Recording Cooler Camera"
     }
-    fn vendor(&self) -> skotiq_native::NativeVendor {
-        skotiq_native::NativeVendor::Other("Test".to_string())
+    fn vendor(&self) -> skotiq_device::Vendor {
+        skotiq_device::Vendor::Other("Test".to_string())
     }
     fn is_connected(&self) -> bool {
         true
     }
-    async fn connect(&mut self) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn connect(&mut self) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn disconnect(&mut self) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn disconnect(&mut self) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
 }
 
 #[async_trait::async_trait]
-impl skotiq_native::traits::NativeCamera for RecordingCoolerCamera {
-    fn capabilities(&self) -> skotiq_native::camera::CameraCapabilities {
-        skotiq_native::camera::CameraCapabilities {
+impl skotiq_device::CameraDriver for RecordingCoolerCamera {
+    fn check_automatic_reconnect(&self) -> Result<(), skotiq_device::DriverError> {
+        if self.retained_capture {
+            Err(skotiq_device::DriverError::SdkError(
+                "Retrieve the retained RAW /store/DCIM/FRAME.CR2, then disconnect and reconnect"
+                    .to_string(),
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn capabilities(&self) -> skotiq_device::CameraCapabilities {
+        skotiq_device::CameraCapabilities {
             can_cool: true,
             ..Default::default()
         }
     }
-    async fn get_status(
-        &self,
-    ) -> Result<skotiq_native::camera::CameraStatus, skotiq_native::traits::NativeError> {
-        Ok(skotiq_native::camera::CameraStatus {
-            state: skotiq_native::camera::CameraState::Idle,
+    async fn get_status(&self) -> Result<skotiq_device::CameraStatus, skotiq_device::DriverError> {
+        Ok(skotiq_device::CameraStatus {
+            state: skotiq_device::CameraState::Idle,
             sensor_temp: Some(-10.0),
             cooler_power: Some(0.0),
             target_temp: Some(-10.0),
-            cooler_on: false,
+            cooler_on: Some(false),
             gain: 0,
             offset: 0,
             bin_x: 1,
@@ -244,68 +259,68 @@ impl skotiq_native::traits::NativeCamera for RecordingCoolerCamera {
     }
     async fn start_exposure(
         &mut self,
-        _params: skotiq_native::camera::ExposureParams,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+        _params: skotiq_device::ExposureParams,
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn abort_exposure(&mut self) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn is_exposure_complete(&self) -> Result<bool, skotiq_native::traits::NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, skotiq_device::DriverError> {
         Ok(true)
     }
     async fn download_image(
         &mut self,
-    ) -> Result<skotiq_native::camera::ImageData, skotiq_native::traits::NativeError> {
-        Err(skotiq_native::traits::NativeError::NotSupported)
+    ) -> Result<skotiq_device::ImageData, skotiq_device::DriverError> {
+        Err(skotiq_device::DriverError::NotSupported)
     }
     async fn set_cooler(
         &mut self,
         enabled: bool,
         target_temp: Option<f64>,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+    ) -> Result<(), skotiq_device::DriverError> {
         self.calls
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .push((enabled, target_temp));
         Ok(())
     }
-    async fn get_temperature(&self) -> Result<f64, skotiq_native::traits::NativeError> {
+    async fn get_temperature(&self) -> Result<f64, skotiq_device::DriverError> {
         Ok(-10.0)
     }
-    async fn get_cooler_power(&self) -> Result<f64, skotiq_native::traits::NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, skotiq_device::DriverError> {
         Ok(0.0)
     }
-    async fn set_gain(&mut self, _gain: i32) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn set_gain(&mut self, _gain: i32) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn get_gain(&self) -> Result<i32, skotiq_native::traits::NativeError> {
+    async fn get_gain(&self) -> Result<i32, skotiq_device::DriverError> {
         Ok(0)
     }
-    async fn set_offset(&mut self, _offset: i32) -> Result<(), skotiq_native::traits::NativeError> {
+    async fn set_offset(&mut self, _offset: i32) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn get_offset(&self) -> Result<i32, skotiq_native::traits::NativeError> {
+    async fn get_offset(&self) -> Result<i32, skotiq_device::DriverError> {
         Ok(0)
     }
     async fn set_binning(
         &mut self,
         _bin_x: i32,
         _bin_y: i32,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    async fn get_binning(&self) -> Result<(i32, i32), skotiq_native::traits::NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), skotiq_device::DriverError> {
         Ok((1, 1))
     }
     async fn set_subframe(
         &mut self,
-        _subframe: Option<skotiq_native::camera::SubFrame>,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+        _subframe: Option<skotiq_device::SubFrame>,
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
-    fn get_sensor_info(&self) -> skotiq_native::camera::SensorInfo {
-        skotiq_native::camera::SensorInfo {
+    fn get_sensor_info(&self) -> skotiq_device::SensorInfo {
+        skotiq_device::SensorInfo {
             width: 4656,
             height: 3520,
             pixel_size_x: 3.8,
@@ -314,28 +329,29 @@ impl skotiq_native::traits::NativeCamera for RecordingCoolerCamera {
             bit_depth: 16,
             color: false,
             bayer_pattern: None,
+            saturation_adu: None,
         }
     }
     async fn get_readout_modes(
         &self,
-    ) -> Result<Vec<skotiq_native::camera::ReadoutMode>, skotiq_native::traits::NativeError> {
+    ) -> Result<Vec<skotiq_device::ReadoutMode>, skotiq_device::DriverError> {
         Ok(Vec::new())
     }
     async fn set_readout_mode(
         &mut self,
-        _mode: &skotiq_native::camera::ReadoutMode,
-    ) -> Result<(), skotiq_native::traits::NativeError> {
+        _mode: &skotiq_device::ReadoutMode,
+    ) -> Result<(), skotiq_device::DriverError> {
         Ok(())
     }
     async fn get_vendor_features(
         &self,
-    ) -> Result<skotiq_native::camera::VendorFeatures, skotiq_native::traits::NativeError> {
-        Ok(skotiq_native::camera::VendorFeatures::default())
+    ) -> Result<skotiq_device::VendorFeatures, skotiq_device::DriverError> {
+        Ok(skotiq_device::VendorFeatures::default())
     }
-    async fn get_gain_range(&self) -> Result<(i32, i32), skotiq_native::traits::NativeError> {
+    async fn get_gain_range(&self) -> Result<(i32, i32), skotiq_device::DriverError> {
         Ok((0, 600))
     }
-    async fn get_offset_range(&self) -> Result<(i32, i32), skotiq_native::traits::NativeError> {
+    async fn get_offset_range(&self) -> Result<(i32, i32), skotiq_device::DriverError> {
         Ok((0, 255))
     }
 }
@@ -354,6 +370,88 @@ fn build_native_camera_info(id: &str) -> DeviceInfo {
     }
 }
 
+#[tokio::test]
+async fn a_queued_background_reconnect_leaves_an_already_restored_camera_untouched() {
+    let manager = build_device_manager();
+    let id = "native:test:cooler";
+    let info = build_native_camera_info(id);
+    manager.register_connected_device(info.clone()).await;
+    let camera = RecordingCoolerCamera::default();
+    let calls = camera.calls.clone();
+    manager.hold_vendor_camera(id, Box::new(camera));
+
+    // The queued attempt's stale Error snapshot predates the restored connection.
+    manager.attempt_reconnect(id, &info).await;
+
+    assert!(
+        manager.is_connected(id).await,
+        "a new native open would fail for this fake vendor"
+    );
+    assert_eq!(
+        manager
+            .devices
+            .read()
+            .await
+            .get(id)
+            .unwrap()
+            .reconnect_attempts,
+        0
+    );
+    manager
+        .camera_set_cooler(id, true, Some(-12.0))
+        .await
+        .unwrap();
+    assert_eq!(*calls.lock().unwrap(), [(true, Some(-12.0))]);
+}
+
+#[tokio::test]
+async fn automatic_recovery_preserves_retained_capture_after_heartbeat_loss() {
+    let manager = build_device_manager();
+    let id = "native:test:retained_raw";
+    let info = build_native_camera_info(id);
+    manager.register_connected_device(info.clone()).await;
+    manager.hold_vendor_camera(
+        id,
+        Box::new(RecordingCoolerCamera {
+            retained_capture: true,
+            ..Default::default()
+        }),
+    );
+    manager
+        .handle_heartbeat_lost(id, true, 3, "lost connection")
+        .await;
+
+    let error = manager.connect_device_automatically(id).await.unwrap_err();
+    assert!(error.contains("Retrieve the retained RAW"), "{error}");
+    // Dart recovery shares this ordinary connect entry point with the UI.
+    let error = manager.connect_device(id).await.unwrap_err();
+    assert!(error.contains("/store/DCIM/FRAME.CR2"), "{error}");
+    manager.attempt_reconnect(id, &info).await;
+    let devices = manager.devices.read().await;
+    let device = devices.get(id).unwrap();
+    assert_eq!(device.connection_state, ConnectionState::Error);
+    assert!(device
+        .last_error
+        .as_ref()
+        .unwrap()
+        .contains("Retrieve the retained RAW"));
+    drop(devices);
+    assert!(
+        manager
+            .connect_device_automatically(id)
+            .await
+            .unwrap_err()
+            .contains("Retrieve the retained RAW"),
+        "both automatic entry paths must leave the protected driver in place"
+    );
+
+    // Once the operator has retrieved the file, disconnect releases the old
+    // handle. The next connect reaches the vendor open (this fake has no SDK).
+    manager.disconnect_device(id).await.unwrap();
+    let error = manager.connect_device(id).await.unwrap_err();
+    assert!(error.contains("Unknown native camera vendor"), "{error}");
+}
+
 /// `POST /api/camera/cooling {"enabled":false}` carries no setpoint, and the
 /// device layer must not substitute one. A fabricated `SetCCDTemperature`
 /// throws on a camera reporting `CanSetCCDTemperature = False`, so the cooler
@@ -369,11 +467,7 @@ async fn turning_the_cooler_off_sends_no_setpoint_to_the_driver() {
 
     let camera = RecordingCoolerCamera::default();
     let calls = camera.calls.clone();
-    manager
-        .native_cameras
-        .write()
-        .await
-        .insert(device_id.to_string(), Box::new(camera));
+    manager.hold_vendor_camera(device_id, Box::new(camera));
 
     // The exact request the warm-up controller and safe_rig both issue.
     manager
@@ -403,11 +497,7 @@ async fn a_setpoint_supplied_with_a_cooler_off_command_is_dropped() {
 
     let camera = RecordingCoolerCamera::default();
     let calls = camera.calls.clone();
-    manager
-        .native_cameras
-        .write()
-        .await
-        .insert(device_id.to_string(), Box::new(camera));
+    manager.hold_vendor_camera(device_id, Box::new(camera));
 
     // The sequencer's WarmCamera instruction ends with exactly this shape:
     // `camera_set_cooler(id, false, 20.0)`.
@@ -445,11 +535,7 @@ async fn enabling_passes_the_callers_setpoint_through_unchanged() {
 
     let camera = RecordingCoolerCamera::default();
     let calls = camera.calls.clone();
-    manager
-        .native_cameras
-        .write()
-        .await
-        .insert(device_id.to_string(), Box::new(camera));
+    manager.hold_vendor_camera(device_id, Box::new(camera));
 
     manager
         .camera_set_cooler(device_id, true, Some(-15.0))

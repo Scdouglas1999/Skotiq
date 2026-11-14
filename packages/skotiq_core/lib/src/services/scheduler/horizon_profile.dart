@@ -109,7 +109,6 @@ class HorizonProfile extends Equatable {
     return jsonEncode(samples.map((s) => s.toJson()).toList());
   }
 
-  /// Reconstruct from a database row.
   static HorizonProfile fromRow({
     required int id,
     required String name,

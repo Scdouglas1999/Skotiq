@@ -2,6 +2,15 @@ use super::*;
 use crate::IndiPropertyState;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+#[test]
+fn a_readback_counts_only_when_it_is_newer_than_the_command() {
+    assert!(!is_newer_update(Some(100), Some(100)));
+    assert!(is_newer_update(Some(100), Some(101)));
+    assert!(is_newer_update(None, Some(1)));
+    assert!(!is_newer_update(None, None));
+    assert!(!is_newer_update(Some(100), None));
+}
+
 #[tokio::test]
 async fn test_timeout_config_default() {
     let config = IndiTimeoutConfig::default();
@@ -180,7 +189,6 @@ async fn test_reconnect_attempts_tracking() {
 async fn test_send_command_error_messages() {
     let mut client = IndiClient::new("localhost", Some(7624));
 
-    // Try to send without connecting
     let result = client.send_command("<getProperties/>").await;
     assert!(result.is_err());
     if let Err(e) = result {
@@ -296,15 +304,12 @@ async fn test_any_of_many_switch_command_preserves_single_element_write() {
 async fn test_timeout_config_modification() {
     let mut client = IndiClient::new("localhost", Some(7624));
 
-    // Check default
     assert_eq!(client.timeout_config().mount_slew_timeout_secs, 300);
 
-    // Modify
     let mut new_config = client.timeout_config().clone();
     new_config.mount_slew_timeout_secs = 600;
     client.set_timeout_config(new_config);
 
-    // Verify change
     assert_eq!(client.timeout_config().mount_slew_timeout_secs, 600);
 }
 
@@ -325,16 +330,6 @@ async fn test_client_default_creation() {
     let client = IndiClient::default();
     assert_eq!(client.host, "localhost");
     assert_eq!(client.port, INDI_DEFAULT_PORT);
-}
-
-#[test]
-fn test_version_compatibility() {
-    assert!(is_version_compatible("1.7", "1.7"));
-    assert!(is_version_compatible("1.8", "1.7"));
-    assert!(is_version_compatible("1.9", "1.7"));
-    assert!(is_version_compatible("2.0", "1.7"));
-    assert!(!is_version_compatible("1.6", "1.7"));
-    assert!(!is_version_compatible("1.0", "1.7"));
 }
 
 #[test]
@@ -364,8 +359,6 @@ fn test_blob_format_validation() {
 async fn test_protocol_config() {
     let protocol_config = ProtocolConfig {
         preferred_version: "1.8".to_string(),
-        auto_detect: true,
-        min_version: Some("1.7".to_string()),
     };
 
     let client = IndiClient::with_full_config(
@@ -377,7 +370,6 @@ async fn test_protocol_config() {
     );
 
     assert_eq!(client.protocol_config().preferred_version, "1.8");
-    assert!(client.protocol_config().auto_detect);
 }
 
 #[tokio::test]
@@ -419,8 +411,6 @@ async fn test_reader_status() {
     let status = client.reader_status().await;
     assert_eq!(status, ReaderStatus::Stopped);
 }
-
-// Reader supervision tests
 
 #[tokio::test]
 async fn test_reader_task_config_default() {
@@ -520,7 +510,6 @@ async fn test_is_reader_healthy_initial_state() {
 async fn test_reader_consecutive_failures_tracking() {
     let client = IndiClient::new("localhost", Some(7624));
 
-    // Initially zero
     assert_eq!(client.reader_consecutive_failures(), 0);
 
     // Simulate failures (normally done by supervised_reader_task)
@@ -529,7 +518,6 @@ async fn test_reader_consecutive_failures_tracking() {
         .store(3, Ordering::SeqCst);
     assert_eq!(client.reader_consecutive_failures(), 3);
 
-    // Reset
     client.reset_reader_failures();
     assert_eq!(client.reader_consecutive_failures(), 0);
 }
@@ -573,7 +561,6 @@ async fn test_can_reconnect_initial_state() {
 async fn test_can_reconnect_when_restarting() {
     let client = IndiClient::new("localhost", Some(7624));
 
-    // Set status to Restarting
     *client.reader_status.write().await = ReaderStatus::Restarting;
 
     // Should not be able to reconnect while restarting
@@ -611,16 +598,13 @@ async fn test_reader_status_enum_values() {
 async fn test_reader_task_config_getter_setter() {
     let mut client = IndiClient::new("localhost", Some(7624));
 
-    // Check default
     assert_eq!(client.reader_task_config().max_consecutive_failures, 5);
 
-    // Modify
     let mut new_config = client.reader_task_config().clone();
     new_config.max_consecutive_failures = 10;
     new_config.auto_restart = false;
     client.set_reader_task_config(new_config);
 
-    // Verify change
     assert_eq!(client.reader_task_config().max_consecutive_failures, 10);
     assert!(!client.reader_task_config().auto_restart);
 }
@@ -694,13 +678,10 @@ async fn test_disconnect_resets_failure_counter() {
     assert_eq!(client.reader_consecutive_failures(), 0);
 }
 
-// Keepalive race condition prevention tests
-
 #[tokio::test]
 async fn test_keepalive_in_progress_flag_initial_state() {
     let client = IndiClient::new("localhost", Some(7624));
 
-    // Should not be in progress initially
     assert!(!client.is_keepalive_in_progress());
 }
 
@@ -726,7 +707,6 @@ async fn test_keepalive_in_progress_prevents_concurrent_checks() {
 async fn test_reconnecting_flag_initial_state() {
     let client = IndiClient::new("localhost", Some(7624));
 
-    // Should not be reconnecting initially
     assert!(!client.is_reconnecting());
 }
 
@@ -734,7 +714,6 @@ async fn test_reconnecting_flag_initial_state() {
 async fn test_check_keepalive_skips_during_reconnection() {
     let mut client = IndiClient::new("localhost", Some(7624));
 
-    // Set reconnecting flag
     client.reconnecting.store(true, Ordering::SeqCst);
     assert!(client.is_reconnecting());
 
@@ -753,6 +732,28 @@ async fn test_check_keepalive_skips_when_not_connected() {
     // check_keepalive should succeed but skip sending
     let result = client.check_keepalive().await;
     assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_keepalive_dropped_mid_send_lets_the_next_check_run() {
+    let mut client = IndiClient::new("localhost", Some(7624));
+    client.connected.store(true, Ordering::SeqCst);
+    client
+        .last_keepalive_response_ms
+        .store(current_time_ms(), Ordering::SeqCst);
+    client.last_keepalive_ms.store(0, Ordering::SeqCst);
+    // A full writer queue that nobody drains holds the keepalive send forever.
+    let (tx, _rx) = mpsc::channel(1);
+    tx.send("queued".to_string()).await.unwrap();
+    client.tx = Some(tx);
+
+    let check = tokio::time::timeout(Duration::from_millis(50), client.check_keepalive()).await;
+    assert!(
+        check.is_err(),
+        "the send should still be waiting when the check is dropped"
+    );
+
+    assert!(!client.is_keepalive_in_progress());
 }
 
 #[tokio::test]
@@ -828,14 +829,12 @@ async fn test_disconnect_resets_keepalive_state() {
     client.reconnecting.store(true, Ordering::SeqCst);
     client.reconnect_attempts.store(3, Ordering::SeqCst);
 
-    // Verify states are set
     assert!(client.is_keepalive_in_progress());
     assert!(client.is_reconnecting());
 
     // Disconnect should reset
     let _ = client.disconnect().await;
 
-    // Verify reset
     assert!(!client.is_keepalive_in_progress());
     assert!(!client.is_reconnecting());
     assert_eq!(client.reconnect_attempts.load(Ordering::SeqCst), 0);
@@ -848,7 +847,6 @@ async fn test_can_reconnect_when_reconnecting() {
     // Initially can reconnect
     assert!(client.can_reconnect().await);
 
-    // Set reconnecting flag
     client.reconnecting.store(true, Ordering::SeqCst);
 
     // Should not be able to reconnect
@@ -897,7 +895,6 @@ async fn test_connect_resets_keepalive_state() {
         "last_keepalive_response_ms should be recent"
     );
 
-    // Keepalive in progress should be false
     assert!(!client.is_keepalive_in_progress());
 }
 
@@ -931,8 +928,6 @@ async fn test_keepalive_atomic_guard_acquire_release() {
         .is_ok();
     assert!(acquired_after_release);
 }
-
-// XML depth-stack parser tests
 
 #[test]
 fn test_classify_indi_tag_dispatches_each_kind() {
@@ -1462,4 +1457,41 @@ async fn an_aborted_reader_recovery_does_not_wedge_the_client() {
         "an aborted recovery left the client unable to recover (reader_status={:?})",
         guard.reader_status().await
     );
+}
+
+#[tokio::test]
+async fn a_focuser_compensation_property_without_a_value_stays_unknown() {
+    use skotiq_device::FocuserDriver;
+    let client = Arc::new(RwLock::new(IndiClient::new("localhost", Some(7624))));
+    let focuser = crate::IndiFocuser::new(client.clone(), "Focuser");
+    assert_eq!(focuser.temp_comp().await, None);
+    client.read().await.properties.write().await.insert(
+        ("Focuser".into(), FOCUS_TEMPERATURE_COMP.into()),
+        IndiProperty {
+            device: "Focuser".into(),
+            name: FOCUS_TEMPERATURE_COMP.into(),
+            label: String::new(),
+            group: String::new(),
+            property_type: IndiPropertyType::Switch,
+            state: IndiPropertyState::Ok,
+            perm: IndiPermission::ReadWrite,
+            elements: vec![INDI_ENABLED.into()],
+            element_labels: vec![INDI_ENABLED.into()],
+            switch_rule: None,
+        },
+    );
+    assert_eq!(focuser.temp_comp().await, None);
+    for (value, expected) in [("On", true), ("Off", false)] {
+        client.read().await.property_values.write().await.insert(
+            (
+                "Focuser".into(),
+                FOCUS_TEMPERATURE_COMP.into(),
+                INDI_ENABLED.into(),
+            ),
+            value.into(),
+        );
+        assert_eq!(focuser.temp_comp().await, Some(expected));
+    }
+    client.read().await.property_values.write().await.clear();
+    assert_eq!(focuser.temp_comp().await, None);
 }

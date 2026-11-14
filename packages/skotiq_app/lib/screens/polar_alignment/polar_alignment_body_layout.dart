@@ -1,6 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Responsive three-panel body for [PolarAlignmentScreen].
@@ -54,10 +56,6 @@ class PolarAlignmentBodyLayout extends StatelessWidget {
 
   static const double leftPanelMin = 240;
   static const double rightPanelMin = 280;
-
-  /// Legacy names — same as preferred widths.
-  static const double leftPanelWidth = leftPanelPreferred;
-  static const double rightPanelWidth = rightPanelPreferred;
 
   /// Computes side panel widths for [width] so the center column is at least
   /// [minCenterWidth], shrinking sides down to their minimums first.
@@ -400,6 +398,123 @@ class _CompactTabLayoutState extends ConsumerState<_CompactTabLayout>
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Body of a run in progress: the live frame is the screen, and the error
+/// readout and the step card sit in one narrow column beside it.
+///
+/// The three-panel layout gave a running alignment a frame about 370 px wide
+/// on a 1600 px window, between a locked settings column and a bullseye
+/// column 440 px wide. The settings cannot change mid-run, so they are left
+/// out unless the operator opened History, and the bullseye shrinks to a
+/// readout. The column moves under the frame when that shows the frame larger
+/// (see [besideShowsFrameLarger]).
+class PolarAlignmentLiveLayout extends StatelessWidget {
+  /// The progress rail over the frame.
+  final Widget rail;
+
+  /// The live frame. Takes all the room the layout has left.
+  final Widget frame;
+
+  /// The compact readout and the step card.
+  final Widget side;
+
+  /// The settings column, shown only when non-null (History is open).
+  final Widget? settings;
+
+  const PolarAlignmentLiveLayout({
+    super.key,
+    required this.rail,
+    required this.frame,
+    required this.side,
+    this.settings,
+  });
+
+  /// Narrowest the frame gets with the readout column beside it.
+  static const double minFrameWidthBeside = 320;
+
+  /// Height the progress rail takes over the frame, near enough.
+  static const double railAllowance = 72;
+
+  /// The camera frame's aspect, near enough: sensors are landscape.
+  static const double frameAspect = 1.5;
+
+  static const double sideWidth = 300;
+
+  /// Tallest the readout strip under the frame may get, as a share of the
+  /// body, before it scrolls.
+  static const double stackedSideMaxShare = 0.45;
+
+  /// Whether a [width] x [height] body shows a landscape frame wider with the
+  /// readout column beside it than with the readout strip under it.
+  ///
+  /// A width breakpoint alone stacks a landscape phone (640x360), leaving the
+  /// frame a strip about 50 px tall, and sets a tall tablet side by side with
+  /// the frame squeezed into what the column leaves.
+  static bool besideShowsFrameLarger(double width, double height) {
+    final besideWidth = width - sideWidth;
+    if (besideWidth < minFrameWidthBeside) return false;
+    if (!height.isFinite) return true;
+    final beside =
+        math.min(besideWidth, (height - railAllowance) * frameAspect);
+    final stacked = math.min(
+      width,
+      (height * (1 - stackedSideMaxShare) - railAllowance) * frameAspect,
+    );
+    return beside >= stacked;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final settingsPanel = settings;
+        final besideWidth = settingsPanel == null
+            ? width
+            : width - PolarAlignmentBodyLayout.leftPanelPreferred;
+        final frameColumn = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [rail, Expanded(child: frame)],
+        );
+
+        if (besideShowsFrameLarger(besideWidth, constraints.maxHeight)) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (settingsPanel != null) ...[
+                SizedBox(
+                  width: PolarAlignmentBodyLayout.leftPanelPreferred,
+                  child: settingsPanel,
+                ),
+                Container(width: 1, color: colors.border),
+              ],
+              Expanded(child: frameColumn),
+              Container(width: 1, color: colors.border),
+              SizedBox(width: sideWidth, child: side),
+            ],
+          );
+        }
+
+        final strip = settingsPanel ?? side;
+        final maxStrip = constraints.hasBoundedHeight
+            ? constraints.maxHeight * stackedSideMaxShare
+            : double.infinity;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: frameColumn),
+            Container(height: 1, color: colors.border),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxStrip),
+              child: strip,
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,31 +1,14 @@
 import '../models/sequence/sequence_models.dart';
 import '../models/imaging/imaging_models.dart' show FrameType;
 import 'package:uuid/uuid.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show mosaicPanelCenters;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show
+        MosaicPanel,
+        MosaicStartCorner,
+        mosaicPanelCenters,
+        mosaicPanelName,
+        mosaicPanelTargetName;
 
-/// Result of mosaic panel generation
-class MosaicPanel {
-  final double raHours;
-  final double decDegrees;
-  final int panelIndex;
-  final int row;
-  final int col;
-
-  const MosaicPanel({
-    required this.raHours,
-    required this.decDegrees,
-    required this.panelIndex,
-    required this.row,
-    required this.col,
-  });
-
-  @override
-  String toString() =>
-      'Panel $panelIndex [$row,$col]: RA=${raHours.toStringAsFixed(4)}h, Dec=${decDegrees.toStringAsFixed(4)}°';
-}
-
-/// Configuration for generating a mosaic
 class MosaicConfig {
   final double centerRa;
   final double centerDec;
@@ -36,6 +19,10 @@ class MosaicConfig {
   final int panelsHorizontal;
   final int panelsVertical;
 
+  /// Where capture starts, and whether each row reverses (see [MosaicPanel]).
+  final MosaicStartCorner startCorner;
+  final bool serpentine;
+
   const MosaicConfig({
     required this.centerRa,
     required this.centerDec,
@@ -45,6 +32,8 @@ class MosaicConfig {
     this.rotation = 0.0,
     required this.panelsHorizontal,
     required this.panelsVertical,
+    this.startCorner = MosaicStartCorner.topLeft,
+    this.serpentine = true,
   });
 
   int get totalPanels => panelsHorizontal * panelsVertical;
@@ -180,11 +169,7 @@ class MosaicExposureSettings {
         ];
 }
 
-/// Options for mosaic sequence generation
 class MosaicSequenceOptions {
-  /// Use serpentine (snake) ordering to minimize slew distance
-  final bool serpentineOrdering;
-
   /// Add autofocus before each panel
   final bool autofocusPerPanel;
 
@@ -207,7 +192,6 @@ class MosaicSequenceOptions {
   final double? maxAltitude;
 
   const MosaicSequenceOptions({
-    this.serpentineOrdering = true,
     this.autofocusPerPanel = false,
     this.autofocusInterval = 0,
     this.centerAfterSlew = true,
@@ -218,7 +202,6 @@ class MosaicSequenceOptions {
   });
 }
 
-/// Validation result for a mosaic configuration
 class MosaicValidation {
   final bool isValid;
   final List<String> errors;
@@ -233,11 +216,9 @@ class MosaicValidation {
   bool get hasWarnings => warnings.isNotEmpty;
 }
 
-/// Service for generating and managing mosaics
 class MosaicService {
   const MosaicService();
 
-  /// Convert int binning to BinningMode enum
   BinningMode _intToBinningMode(int binning) {
     switch (binning) {
       case 1:
@@ -253,42 +234,21 @@ class MosaicService {
     }
   }
 
-  /// Generate mosaic panels from configuration
-  ///
-  /// Returns a list of panel coordinates calculated using pure Dart spherical geometry.
-  /// This implementation is driver-agnostic and works for both local and remote clients.
+  /// The mosaic's panels in capture order, numbered as the app numbers them
+  /// everywhere ([mosaicPanelCenters]).
   List<MosaicPanel> generatePanels(MosaicConfig config) {
-    // Calculate effective step sizes accounting for overlap, converting the
-    // panel dimensions from arcminutes to degrees on the sky.
     final overlapFactor = 1.0 - (config.overlapPercent / 100.0);
-    final stepRaDeg = config.panelWidthArcmin * overlapFactor / 60.0;
-    final stepDecDeg = config.panelHeightArcmin * overlapFactor / 60.0;
-
-    // Delegate the panel-center/overlap/rotation/cos(dec) math to the shared,
-    // canonical [mosaicPanelCenters] implementation (in skotiq_planetarium)
-    // so the imaging-side layout and the planetarium preview stay identical —
-    // one source of truth for panel geometry.
-    final centers = mosaicPanelCenters(
+    return mosaicPanelCenters(
       centerRaHours: config.centerRa,
       centerDecDegrees: config.centerDec,
-      stepRaDegrees: stepRaDeg,
-      stepDecDegrees: stepDecDeg,
+      stepRaDegrees: config.panelWidthArcmin * overlapFactor / 60.0,
+      stepDecDegrees: config.panelHeightArcmin * overlapFactor / 60.0,
       columns: config.panelsHorizontal,
       rows: config.panelsVertical,
       rotationDegrees: config.rotation,
+      startCorner: config.startCorner,
+      serpentine: config.serpentine,
     );
-
-    return centers
-        .map(
-          (c) => MosaicPanel(
-            raHours: c.raHours,
-            decDegrees: c.decDegrees,
-            panelIndex: c.index,
-            row: c.row,
-            col: c.col,
-          ),
-        )
-        .toList();
   }
 
   /// Calculate the sky area the mosaic covers, in square degrees.
@@ -325,12 +285,10 @@ class MosaicService {
     return config.totalPanels * totalTimePerPanel;
   }
 
-  /// Validate mosaic configuration
   MosaicValidation validateMosaic(MosaicConfig config) {
     final errors = <String>[];
     final warnings = <String>[];
 
-    // Validate panel dimensions
     if (config.panelWidthArcmin <= 0 || config.panelHeightArcmin <= 0) {
       errors.add('Panel dimensions must be positive');
     }
@@ -340,7 +298,6 @@ class MosaicService {
       errors.add('Panel dimensions exceed 360 degrees');
     }
 
-    // Validate grid size
     if (config.panelsHorizontal < 1 || config.panelsVertical < 1) {
       errors.add('Grid size must be at least 1x1');
     }
@@ -351,7 +308,6 @@ class MosaicService {
       );
     }
 
-    // Validate coordinates
     if (config.centerRa < 0 || config.centerRa >= 24) {
       errors.add('Right Ascension must be between 0 and 24 hours');
     }
@@ -360,7 +316,6 @@ class MosaicService {
       errors.add('Declination must be between -90 and 90 degrees');
     }
 
-    // Validate overlap
     if (config.overlapPercent < 0 || config.overlapPercent > 100) {
       errors.add('Overlap must be between 0 and 100 percent');
     }
@@ -373,7 +328,6 @@ class MosaicService {
       warnings.add('High overlap (>50%) wastes imaging time');
     }
 
-    // Check total panel count
     if (config.totalPanels > 100) {
       warnings.add(
         'More than 100 panels will take multiple nights to complete',
@@ -413,7 +367,7 @@ class MosaicService {
   /// path; it is written only when a sequence contains a Rust `Mosaic` node.
   ///
   /// [panelTargetId] optionally maps a panel's 0-based row-major
-  /// [MosaicPanel.panelIndex] to the DB `targets.id` that the panel images,
+  /// [MosaicPanel.index] to the DB `targets.id` that the panel images,
   /// which is stamped onto that panel's [TargetHeaderNode.catalogTargetId].
   /// This is what makes a durable mosaic's frames attributable PER PANEL: the
   /// frame-registration path walks to the header's `catalogTargetId`, so each
@@ -432,25 +386,39 @@ class MosaicService {
     MosaicSequenceOptions options = const MosaicSequenceOptions(),
     int? Function(int panelIndex)? panelTargetId,
   }) {
-    final panels = generatePanels(config);
+    return sequenceForPanels(
+      mosaicName: mosaicName,
+      panels: generatePanels(config),
+      rotation: config.rotation,
+      exposure: exposure,
+      options: options,
+      panelTargetId: panelTargetId,
+    );
+  }
+
+  /// The mosaic's sequence for [panels] already in capture order: one
+  /// [TargetHeaderNode] per panel, as [panelHeader] names and gates it, with
+  /// its slew, centering and exposures, under one [InstructionSetNode] named
+  /// [mosaicName].
+  Map<String, SequenceNode> sequenceForPanels({
+    required String mosaicName,
+    required List<MosaicPanel> panels,
+    required double rotation,
+    required MosaicExposureSettings exposure,
+    MosaicSequenceOptions options = const MosaicSequenceOptions(),
+    int? Function(int panelIndex)? panelTargetId,
+  }) {
     final nodes = <String, SequenceNode>{};
     const uuid = Uuid();
     final rootId = uuid.v4();
 
-    // Reorder panels if using serpentine ordering
-    final orderedPanels = options.serpentineOrdering
-        ? _applySerpentineOrdering(panels, config.panelsHorizontal)
-        : panels;
-
-    // Create target group nodes for each panel
     final targetGroupIds = <String>[];
 
-    for (var i = 0; i < orderedPanels.length; i++) {
-      final panel = orderedPanels[i];
+    for (var i = 0; i < panels.length; i++) {
+      final panel = panels[i];
       final targetGroupId = uuid.v4();
       final childIds = <String>[];
 
-      // Add autofocus if enabled and at the right interval
       if (options.autofocusPerPanel &&
           (options.autofocusInterval == 0 ||
               i % (options.autofocusInterval + 1) == 0)) {
@@ -464,12 +432,11 @@ class MosaicService {
         );
       }
 
-      // Add slew instruction
       final slewId = uuid.v4();
       childIds.add(slewId);
       nodes[slewId] = SlewNode(
         id: slewId,
-        name: 'Slew to Panel ${panel.panelIndex + 1}',
+        name: 'Slew to ${mosaicPanelName(panel.index)}',
         useTargetCoords: false,
         customRa: panel.raHours,
         customDec: panel.decDegrees,
@@ -477,7 +444,6 @@ class MosaicService {
         orderIndex: childIds.length - 1,
       );
 
-      // Add centering if enabled
       if (options.centerAfterSlew) {
         final centerId = uuid.v4();
         childIds.add(centerId);
@@ -500,7 +466,6 @@ class MosaicService {
         childIds.add(loopId);
         final loopOrderIndex = childIds.length - 1;
 
-        // Create exposure node
         final exposureId = uuid.v4();
         final exposureChildIds = <String>[exposureId];
 
@@ -548,36 +513,27 @@ class MosaicService {
         );
       }
 
-      // Create target header
-      nodes[targetGroupId] = TargetHeaderNode(
-        id: targetGroupId,
-        name: 'Panel ${panel.panelIndex + 1} [${panel.row},${panel.col}]',
-        targetName: '$mosaicName Panel ${panel.panelIndex + 1}',
-        raHours: panel.raHours,
-        decDegrees: panel.decDegrees,
-        rotation: config.rotation != 0.0 ? config.rotation : null,
-        priority: i,
-        minAltitude: options.minAltitude,
-        maxAltitude: options.maxAltitude,
-        mosaicPanel: MosaicPanelInfo(
-          mosaicName: mosaicName,
-          panelIndex: panel.panelIndex,
-          totalPanels: panels.length,
-          row: panel.row,
-          column: panel.col,
-        ),
-        // Stamp the panel's own capture target so frames written under this
-        // header attribute to the per-panel `targets` row, not a shared one.
-        catalogTargetId: panelTargetId?.call(panel.panelIndex),
-        childIds: childIds,
-        parentId: rootId,
-        orderIndex: i,
-      );
+      nodes[targetGroupId] =
+          panelHeader(
+            mosaicName: mosaicName,
+            panel: panel,
+            totalPanels: panels.length,
+            rotation: rotation,
+            minAltitude: options.minAltitude,
+            maxAltitude: options.maxAltitude,
+            // Stamp the panel's own capture target so frames written under this
+            // header attribute to the per-panel `targets` row, not a shared one.
+            catalogTargetId: panelTargetId?.call(panel.index),
+          ).copyWith(
+            id: targetGroupId,
+            childIds: childIds,
+            parentId: rootId,
+            orderIndex: i,
+          );
 
       targetGroupIds.add(targetGroupId);
     }
 
-    // Create root instruction set containing all target groups
     nodes[rootId] = InstructionSetNode(
       id: rootId,
       name: mosaicName,
@@ -587,44 +543,38 @@ class MosaicService {
     return nodes;
   }
 
-  /// Apply serpentine (snake) ordering to panels to minimize slew distance
-  ///
-  /// Instead of always going left-to-right, alternate:
-  /// Row 0: left -> right
-  /// Row 1: right -> left
-  /// Row 2: left -> right
-  /// etc.
-  List<MosaicPanel> _applySerpentineOrdering(
-    List<MosaicPanel> panels,
-    int panelsHorizontal,
-  ) {
-    // Group panels by row
-    final rowMap = <int, List<MosaicPanel>>{};
-    for (final panel in panels) {
-      rowMap.putIfAbsent(panel.row, () => []).add(panel);
-    }
-
-    // Sort each row by column
-    for (final row in rowMap.values) {
-      row.sort((a, b) => a.col.compareTo(b.col));
-    }
-
-    // Build serpentine ordered list
-    final result = <MosaicPanel>[];
-    final sortedRows = rowMap.keys.toList()..sort();
-
-    for (var i = 0; i < sortedRows.length; i++) {
-      final row = sortedRows[i];
-      final rowPanels = rowMap[row]!;
-
-      // Reverse every other row
-      if (i.isOdd) {
-        result.addAll(rowPanels.reversed);
-      } else {
-        result.addAll(rowPanels);
-      }
-    }
-
-    return result;
+  /// The target header of one mosaic panel, without children: the one
+  /// definition of a panel's name, target name, mosaic identity (stamped
+  /// into its frames' FITS headers), rotation and altitude gate. A bare header is what a drawn
+  /// mosaic adds to a sequence the operator is building; [sequenceForPanels]
+  /// gives the same header its slew, centering and exposures.
+  TargetHeaderNode panelHeader({
+    required String mosaicName,
+    required MosaicPanel panel,
+    required int totalPanels,
+    required double rotation,
+    double? minAltitude,
+    double? maxAltitude,
+    int? catalogTargetId,
+  }) {
+    final name = mosaicPanelTargetName(mosaicName, panel.index);
+    return TargetHeaderNode(
+      name: name,
+      targetName: name,
+      raHours: panel.raHours,
+      decDegrees: panel.decDegrees,
+      rotation: rotation != 0.0 ? rotation : null,
+      priority: panel.index,
+      minAltitude: minAltitude,
+      maxAltitude: maxAltitude,
+      mosaicPanel: MosaicPanelInfo(
+        mosaicName: mosaicName,
+        panelIndex: panel.index,
+        totalPanels: totalPanels,
+        row: panel.row,
+        column: panel.col,
+      ),
+      catalogTargetId: catalogTargetId,
+    );
   }
 }

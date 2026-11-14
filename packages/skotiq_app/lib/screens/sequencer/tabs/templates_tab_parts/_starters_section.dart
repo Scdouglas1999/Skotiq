@@ -226,11 +226,18 @@ class _StarterCard extends ConsumerWidget {
   }
 
   Future<void> _useStarter(BuildContext context, WidgetRef ref) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final service = ref.read(sampleSequenceServiceProvider);
     final notifier = ref.read(currentSequenceProvider.notifier);
 
-    final cloned = service.cloneForUse(sample);
+    // A starter names the standard filters; a wheel that spells one
+    // differently ("Lum", "Red") gets the plan in its own spelling.
+    final starter = service.cloneForUse(sample);
+    final filterRenames = filterRenamesFor(
+      starter,
+      ref.read(effectiveFiltersProvider),
+    );
+    final cloned = renameFilters(starter, filterRenames);
     try {
       notifier.loadSequence(cloned);
     } on UnsavedChangesException catch (e) {
@@ -261,9 +268,7 @@ class _StarterCard extends ConsumerWidget {
           ],
         ),
       );
-      if (discard != true ||
-          !context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
+      if (discard != true || !context.mounted || host.isStale) {
         return;
       }
       try {
@@ -281,7 +286,13 @@ class _StarterCard extends ConsumerWidget {
     ref.read(sequencerTabProvider.notifier).state = 0;
 
     context.showSuccessSnackBar(
-      'Loaded "${sample.displayName}" into the builder',
+      filterRenames.isEmpty
+          ? 'Loaded "${sample.displayName}" into the builder'
+          : 'Loaded "${sample.displayName}" into the builder with your '
+              'filter names: ${[
+              for (final MapEntry(:key, :value) in filterRenames.entries)
+                '$key → $value',
+            ].join(', ')}',
     );
   }
 
@@ -393,7 +404,7 @@ class _StartersError extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '$error',
+              userFacingError(error),
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: SkotiqTypography.fontSize12,

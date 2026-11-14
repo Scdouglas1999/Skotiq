@@ -12,14 +12,24 @@ Future<void> prepareFlatOutputDirectory(
   await Directory(path).create(recursive: true);
 }
 
+/// `Flats` inside [captureFolder], joined in the style of the computer that
+/// writes the files; null when there is no capture folder.
+String? defaultFlatFolder(String captureFolder, {required bool onHost}) {
+  final base = captureFolder.trim();
+  if (base.isEmpty) return null;
+  return (onHost ? hostPathContext(base) : p.context).join(base, _flatsFolder);
+}
+
+const String _flatsFolder = 'Flats';
+
 /// Validates a controller-supplied output directory against the host's
 /// allow-listed, writable roots and returns the normalized host path.
 @visibleForTesting
 Future<String> validateRemoteFlatOutputDirectory(
-  NetworkBackend backend,
+  HostFiles remote,
   String path,
 ) async {
-  final validation = await backend.validateRemoteDirectory(
+  final validation = await remote.validateRemoteDirectory(
     path,
     mustExist: true,
     mustBeWritable: true,
@@ -51,12 +61,3 @@ String _sanitizeComponent(String raw) {
   s = s.replaceAll(RegExp(r'^[.\s]+'), '').replaceAll(RegExp(r'[.\s]+$'), '');
   return s.isEmpty ? 'unnamed' : s;
 }
-
-String _two(int v) => v.toString().padLeft(2, '0');
-
-String _fmtDate(DateTime d) =>
-    '${d.year.toString().padLeft(4, '0')}-${_two(d.month)}-${_two(d.day)}';
-
-String _fmtStamp(DateTime d) =>
-    '${d.year.toString().padLeft(4, '0')}${_two(d.month)}${_two(d.day)}'
-    '_${_two(d.hour)}${_two(d.minute)}${_two(d.second)}';

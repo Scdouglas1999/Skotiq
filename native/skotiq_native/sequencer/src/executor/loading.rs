@@ -62,21 +62,7 @@ impl SequenceExecutor {
     pub fn load_sequence(&mut self, sequence: SequenceDefinition) -> Result<(), String> {
         let root_node = self.build_node_tree(&sequence)?;
 
-        let (total_exposures, total_integration, totals_indeterminate) =
-            self.calculate_totals(&sequence);
-
-        {
-            let mut progress = self.progress.write();
-            if totals_indeterminate {
-                // Unbounded loops (while-dark/forever/etc.) don't have a meaningful finite ETA.
-                progress.total_exposures = 0;
-                progress.total_integration_secs = 0.0;
-                progress.estimated_remaining_secs = None;
-            } else {
-                progress.total_exposures = total_exposures;
-                progress.total_integration_secs = total_integration;
-            }
-        }
+        self.publish_totals(&sequence);
 
         self.sequence = Some(sequence);
         self.root_node = Some(root_node);
@@ -85,6 +71,7 @@ impl SequenceExecutor {
         // load).
         self.resume_prepared = false;
         self.current_checkpoint = None;
+        self.run = None;
 
         Ok(())
     }
@@ -121,7 +108,7 @@ impl SequenceExecutor {
     ///   * a `Loop` with a non-`Count` condition (`while-dark`,
     ///     `forever`, …) is encountered,
     ///   * a `SmartExposure` node has an integration-budget cap that
-    ///     trims the un-capped plan total,
+    ///     trims the un-capped plan total, or loops until stopped,
     ///   * the un-capped exposure total exceeds `u32::MAX` and was
     ///     clamped.
     ///
@@ -231,7 +218,11 @@ impl SequenceExecutor {
                     let frames_total = plan_total_count.saturating_mul(multiplier);
                     *total_exposures = total_exposures.saturating_add(frames_total);
                     *total_integration += effective_secs * multiplier as f64;
-                    if budget_engaged {
+                    // Loop-until-stopped ignores the counts and runs until the
+                    // target's window or the budget ends it, so the per-filter
+                    // counts are no total at all: a 999-per-filter rotation
+                    // showed "4/5994 exposures" and a 300-hour ETA.
+                    if budget_engaged || config.loop_until_stopped {
                         *totals_indeterminate = true;
                     }
                 }

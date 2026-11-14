@@ -135,24 +135,33 @@
 // }
 // ```
 //
-// The app-side tones below ([MetricTone], [SeriesTone]) carry the same names
+// The app-side tones below ([MetricGridTone], [SeriesChartTone]) carry the same names
 // as the kit's, so the mapping is one switch.
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' show FrameExclusionKind;
 
 import '../../localization/skotiq_localizations.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone, SeriesChartTone;
 
 part 'contracts/plan_models.dart';
 part 'contracts/session_models.dart';
 part 'contracts/action_models.dart';
 
-// ---------------------------------------------------------------------------
-// Enums
-// ---------------------------------------------------------------------------
-
 /// The right panel's tabs, in display order.
 enum NightPanelTab { overview, camera, focus, mount, guide, solve }
+
+extension NightPanelTabLabel on NightPanelTab {
+  /// The tab's name in translations.dart.
+  String get labelKey => switch (this) {
+        NightPanelTab.overview => 'nightPanelTabOverview',
+        NightPanelTab.camera => 'nightPanelTabCamera',
+        NightPanelTab.focus => 'nightPanelTabFocus',
+        NightPanelTab.mount => 'nightPanelTabMount',
+        NightPanelTab.guide => 'nightPanelTabGuide',
+        NightPanelTab.solve => 'nightPanelTabSolve',
+      };
+}
 
 /// Where tonight's run stands, as the header shows it.
 enum NightRunPhase {
@@ -165,10 +174,8 @@ enum NightRunPhase {
   /// "Start at dark" is armed; the run starts at astronomical dark.
   armed,
 
-  /// The run is executing.
   running,
 
-  /// The operator paused the run.
   pausedByUser,
 
   /// The action controller paused the run to perform a manual action, or a
@@ -225,13 +232,16 @@ extension ManualActionPanelTab on ManualActionId {
 final nightPanelTabProvider =
     StateProvider<NightPanelTab>((ref) => NightPanelTab.overview);
 
-/// Emphasis for a value, a delta or a row. Maps one to one onto the kit's
-/// `MetricGridTone`.
-enum MetricTone { neutral, good, warning, bad }
+/// Counts the operator's requests to see the panel. In the single column
+/// the panel sits below the frame, so opening a tab from elsewhere on the
+/// page scrolls it into view.
+final nightPanelRevealProvider = StateProvider<int>((ref) => 0);
 
-// ---------------------------------------------------------------------------
-// Copy
-// ---------------------------------------------------------------------------
+/// Opens [tab] for the operator and brings the panel into view.
+void nightOpenPanelTab(WidgetRef ref, NightPanelTab tab) {
+  ref.read(nightPanelTabProvider.notifier).state = tab;
+  ref.read(nightPanelRevealProvider.notifier).state++;
+}
 
 /// Copy produced away from a BuildContext.
 ///
@@ -279,10 +289,6 @@ class NightText {
   @override
   String toString() => literal ?? 'NightText($key, $params)';
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 bool _nullableListEquals<T>(List<T>? a, List<T>? b) =>
     a == null ? b == null : b != null && listEquals(a, b);

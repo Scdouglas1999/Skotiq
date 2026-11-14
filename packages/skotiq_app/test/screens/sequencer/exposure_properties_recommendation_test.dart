@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_properties_panel.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/smart_exposure_properties.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -65,6 +67,7 @@ class _FakeImagingService extends ImagingService {
 ProviderContainer _seed(
   Sequence sequence, {
   _CaptureSpy? captureSpy,
+  ExposureSensitivity? sensitivity,
 }) {
   final notifier = CurrentSequenceNotifier();
   // ignore: invalid_use_of_protected_member
@@ -86,6 +89,8 @@ ProviderContainer _seed(
       smartNightExposureContextProvider.overrideWith(
         (ref) async => _exposureContext,
       ),
+      if (sensitivity != null)
+        cameraSensitivityProvider.overrideWithValue(sensitivity),
       if (captureSpy != null)
         imagingServiceProvider.overrideWith(
           (ref) => _FakeImagingService(ref, captureSpy),
@@ -141,6 +146,59 @@ Future<void> _pumpPanel(
 }
 
 void main() {
+  group('a camera without gain or offset control', () {
+    const gainless = GainSensitivity(hasGain: false, hasOffset: false);
+
+    testWidgets('gets no gain or offset field for a Take exposures step',
+        (tester) async {
+      final exposure = ExposureNode(id: 'exp', durationSecs: 60, count: 5);
+      final root = InstructionSetNode(id: 'root', childIds: [exposure.id]);
+      final sequence = Sequence.create(
+        name: 'Gainless',
+        rootNodeId: root.id,
+        nodes: {
+          root.id: root,
+          exposure.id: exposure.copyWith(parentId: root.id),
+        },
+      );
+      final container = _seed(sequence, sensitivity: gainless);
+      container.read(selectedNodeIdProvider.notifier).state = exposure.id;
+
+      await _pumpPanel(tester, container);
+
+      expect(find.text('Duration'), findsOneWidget);
+      expect(find.textContaining('Gain'), findsNothing);
+      expect(find.textContaining('Offset'), findsNothing);
+      await tester.pump(const Duration(seconds: 1));
+    });
+
+    testWidgets('gets no gain or offset field in a Smart Exposure row',
+        (tester) async {
+      final smart = SmartExposureNode(
+        id: 'smart',
+        plans: const [FilterPlan(filterName: 'L', durationSecs: 60, count: 5)],
+      );
+      final root = InstructionSetNode(id: 'root', childIds: [smart.id]);
+      final sequence = Sequence.create(
+        name: 'Gainless Smart',
+        rootNodeId: root.id,
+        nodes: {root.id: root, smart.id: smart.copyWith(parentId: root.id)},
+      );
+      final container = _seed(sequence, sensitivity: gainless);
+
+      await _pump(
+        tester,
+        container,
+        SmartExposureProperties(colors: SkotiqColors.dark, node: smart),
+      );
+
+      expect(find.text('Count'), findsWidgets);
+      expect(find.text('Gain'), findsNothing);
+      expect(find.text('Offset'), findsNothing);
+      await tester.pump(const Duration(seconds: 1));
+    });
+  });
+
   testWidgets('Exposure properties can apply shared Smart Night recommendation',
       (tester) async {
     final exposure = ExposureNode(

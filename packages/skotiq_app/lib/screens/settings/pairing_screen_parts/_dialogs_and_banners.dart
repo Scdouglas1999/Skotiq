@@ -107,7 +107,8 @@ class _AccessBadge extends StatelessWidget {
     final colors = SkotiqColors.of(context);
     final spec = grantSpec.trim().toLowerCase();
     final (String label, Color color) = switch (spec) {
-      // Admin can re-pair, revoke other devices and change server settings.
+      // Admin can re-pair, revoke other devices and manage stored
+      // credentials, backups, plugins and updates.
       // Coloured as a warning because it is the grant you look for when you
       // are deciding what to revoke.
       'admin' => ('Full access', colors.warning),

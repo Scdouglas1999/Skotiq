@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/app.dart';
 import 'package:skotiq_app/router/app_router.dart';
-import 'package:skotiq_app/services/location_sync_service.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/startup/location_sync_service.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -55,7 +57,7 @@ void main() {
               .overrideWith((ref) async => const <SessionRecoveryInfo>[]),
           quickStartContextProvider.overrideWith((ref) async => null),
         ],
-        child: const SkotiqApp(isDesktop: false, isMobile: false),
+        child: const SkotiqApp(isDesktop: false),
       ),
     );
 

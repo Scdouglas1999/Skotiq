@@ -1,9 +1,9 @@
 // Integration test for the USB disconnect event bridge.
 //
 // Verifies that the `usbDisconnectEventBridgeProvider` correctly
-// subscribes to the backend's event stream and forwards equipment
-// `Disconnected` / `Error` events into the underlying log, while
-// ignoring unrelated event categories.
+// subscribes to the backend's event stream and forwards equipment `Error`
+// events into the underlying log, while ignoring commanded disconnects and
+// unrelated event categories.
 
 import 'dart:async';
 
@@ -17,6 +17,7 @@ import 'package:skotiq_core/src/services/usb_disconnect_log.dart';
 
 import '../mocks/mock_backend.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -60,11 +61,13 @@ void main() {
     await Future<void>.delayed(Duration.zero);
   }
 
-  test('records equipment Disconnected events into the log', () async {
+  test('a device the operator disconnected is not a dropout', () async {
+    // The native side publishes `Disconnected` only from its disconnect
+    // command: the Disconnect button, a profile switch, shutdown.
     await emit(
       SkotiqEvent(
         timestamp: DateTime.now().millisecondsSinceEpoch,
-        severity: EventSeverity.warning,
+        severity: EventSeverity.info,
         category: EventCategory.equipment,
         eventType: 'Disconnected',
         data: {'device_type': 'camera', 'device_id': 'cam-1'},
@@ -72,8 +75,43 @@ void main() {
     );
 
     final log = container.read(usbDisconnectLogProvider);
-    expect(log.totalLast24h(), 1);
+    expect(log.totalLast24h(), 0);
+    expect(log.countForDevice('cam-1'), 0);
+  });
+
+  test('a device that stopped answering is one dropout', () async {
+    // What the heartbeat publishes when it gives a device up: the status
+    // change, then the error that carries the reason.
+    await emit(
+      SkotiqEvent(
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        severity: EventSeverity.error,
+        category: EventCategory.equipment,
+        eventType: 'HeartbeatStatusChanged',
+        data: {
+          'device_type': 'Camera',
+          'device_id': 'cam-1',
+          'status': 'Disconnected',
+        },
+      ),
+    );
+    await emit(
+      SkotiqEvent(
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        severity: EventSeverity.error,
+        category: EventCategory.equipment,
+        eventType: 'Error',
+        data: {
+          'device_type': 'Camera',
+          'device_id': 'cam-1',
+          'message': 'Device unresponsive after 3 heartbeat failures: timeout',
+        },
+      ),
+    );
+
+    final log = container.read(usbDisconnectLogProvider);
     expect(log.countForDevice('cam-1'), 1);
+    expect(log.recentEntries().first.reason, contains('unresponsive'));
   });
 
   test('records equipment Error events at warning+ severity', () async {
@@ -146,7 +184,7 @@ void main() {
         timestamp: DateTime.now().millisecondsSinceEpoch,
         severity: EventSeverity.warning,
         category: EventCategory.guiding,
-        eventType: 'Disconnected',
+        eventType: 'Error',
         data: const {'device_id': 'guide-1'},
       ),
     );

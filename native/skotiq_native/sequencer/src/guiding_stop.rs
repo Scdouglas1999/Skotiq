@@ -25,10 +25,12 @@ pub enum GuidingStopReason {
     SequenceStep,
     /// The guider is settling after a dither.
     DitherSettle,
-    /// The run was stopped.
     RunStopped,
     /// Someone stopped guiding from the guider controls.
     Operator,
+    /// The mount moved on its own or lost its position, and the run is held
+    /// until the operator recovers it.
+    MountFault,
 }
 
 impl GuidingStopReason {
@@ -44,6 +46,7 @@ impl GuidingStopReason {
             Self::DitherSettle => "dither_settle",
             Self::RunStopped => "run_stopped",
             Self::Operator => "operator",
+            Self::MountFault => "mount_fault",
         }
     }
 
@@ -58,6 +61,7 @@ impl GuidingStopReason {
             "dither_settle" => Self::DitherSettle,
             "run_stopped" => Self::RunStopped,
             "operator" => Self::Operator,
+            "mount_fault" => Self::MountFault,
             _ => return None,
         })
     }
@@ -76,6 +80,7 @@ impl GuidingStopReason {
             Self::DitherSettle => "Guiding is settling after a dither",
             Self::RunStopped => "Guiding stopped because the run was stopped",
             Self::Operator => "Guiding stopped from the guider controls",
+            Self::MountFault => "Guiding stopped: the mount moved on its own",
         }
     }
 }
@@ -96,6 +101,7 @@ mod tests {
             GuidingStopReason::DitherSettle,
             GuidingStopReason::RunStopped,
             GuidingStopReason::Operator,
+            GuidingStopReason::MountFault,
         ] {
             assert_eq!(GuidingStopReason::from_wire(reason.as_wire()), Some(reason));
             assert_eq!(

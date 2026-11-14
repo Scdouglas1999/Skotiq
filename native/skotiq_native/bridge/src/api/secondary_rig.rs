@@ -59,6 +59,10 @@ pub struct SecondaryRigConfigApi {
     pub telescope_name: Option<String>,
     pub telescope_focal_length_mm: Option<f64>,
     pub telescope_aperture_mm: Option<f64>,
+    /// How the frames are named under the rig's folder, as a capture step's
+    /// `save_to` (the app's naming pattern). `None` names them as a step
+    /// without one does.
+    pub save_to: Option<String>,
     /// Max seconds the primary waits for the secondary to clear before
     /// dithering anyway (bounded so a stuck secondary never stalls the primary).
     pub dither_max_wait_secs: f64,
@@ -218,6 +222,7 @@ pub async fn api_secondary_rig_start(config: SecondaryRigConfigApi) -> Result<()
         telescope_name: config.telescope_name.clone(),
         telescope_focal_length_mm: config.telescope_focal_length_mm,
         telescope_aperture_mm: config.telescope_aperture_mm,
+        save_to: config.save_to.clone(),
     };
 
     let meta = SecondaryFrameMeta {
@@ -231,6 +236,9 @@ pub async fn api_secondary_rig_start(config: SecondaryRigConfigApi) -> Result<()
         site_longitude_deg: config.site_longitude_deg,
         site_elevation_m: config.site_elevation_m,
         save_base: Some(std::path::PathBuf::from(save_base_path)),
+        camera_file_saving: skotiq_sequencer::executor_handle()
+            .run_config()
+            .camera_file_saving,
     };
 
     // Reuse the unified device-ops path: the secondary camera is driven through
@@ -303,11 +311,6 @@ pub async fn api_secondary_rig_get_status() -> SecondaryRigStatusApi {
         forced_proceeds: forced,
         last_error: s.last_error,
     }
-}
-
-/// Whether a secondary rig is currently armed.
-pub async fn api_secondary_rig_is_armed() -> bool {
-    manager().lock().await.rig.is_some()
 }
 
 async fn await_rig_teardown(rig: SecondaryRig) -> Result<(), SkotiqError> {

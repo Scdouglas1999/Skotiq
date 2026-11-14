@@ -24,7 +24,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:skotiq_app/screens/planner/widgets/projects_tab_content.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/smart_night_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A fake [ActiveProjectNotifier] that holds a fixed selection in memory and
@@ -115,6 +117,7 @@ ProjectTargetProgress _targetProgress({
         exposureSeconds: exposureSeconds,
         goalFrames: goalFrames,
         capturedFrames: capturedFrames,
+        capturedSeconds: capturedFrames * exposureSeconds,
       ),
     ],
   );
@@ -192,7 +195,7 @@ void main() {
 
     expect(find.text('Orion Nebula'), findsOneWidget);
     // Per-target accrued / goal label.
-    expect(find.text('2.0h / 4.0h'), findsOneWidget);
+    expect(find.text('2h / 4h'), findsOneWidget);
     // Per-target percent label (50%). The project summary header also shows a
     // 50% telemetry figure, so expect at least one.
     expect(find.text('50%'), findsWidgets);

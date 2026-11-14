@@ -1,0 +1,106 @@
+qhy.discover_devices = Ok(2)
+qhy.camera0.name before connect = QHY268M-FAKE0001
+qhy.camera0.connect = Ok(())
+qhy.camera0.is_connected = true
+qhy.camera0.name = QHY268M-FAKE0001
+qhy.camera0.vendor = Qhy
+qhy.camera0.serial_number = None
+qhy.camera0.capabilities = CameraCapabilities { can_cool: true, can_set_gain: true, can_set_offset: true, can_set_binning: true, can_subframe: true, has_shutter: false, has_guider_port: true, max_bin_x: 4, max_bin_y: 4, supports_readout_modes: true }
+qhy.camera0.get_sensor_info = SensorInfo { width: 64, height: 48, pixel_size_x: 3.76, pixel_size_y: 3.76, max_adu: 65535, bit_depth: 16, color: false, bayer_pattern: None, saturation_adu: None }
+qhy.camera0.get_gain_range = Ok((0, 600))
+qhy.camera0.get_offset_range = Ok((0, 600))
+qhy.camera0.get_exposure_range = Ok(Some((1e-6, 3600.0)))
+qhy.camera0.get_cooler_temp_range = Ok(None)
+qhy.camera0.get_recommended_settings = Ok(CameraRecommendedSettings { unity_gain: Some(0), hcg_gain: None, default_offset: Some(0), recommended_cooling_setpoint_c: None, notes: "QHY DefaultGain control reports 0; QHY DefaultOffset control reports 0" })
+qhy.camera0.get_readout_modes = Ok([ReadoutMode { name: "Photographic DSO", description: "QHY Readout Mode", index: 0, gain_min: None, gain_max: None, offset_min: None, offset_max: None }, ReadoutMode { name: "High Gain", description: "QHY Readout Mode", index: 1, gain_min: None, gain_max: None, offset_min: None, offset_max: None }])
+qhy.camera0.get_vendor_features = Ok(VendorFeatures { sensor_chamber_pressure: Some(900.0), sensor_chamber_humidity: Some(23.0), usb_bandwidth: Some(40.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} })
+qhy.camera0.get_status initial = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: Some(5.833333333333333), target_temp: None, cooler_on: None, gain: 0, offset: 0, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
+qhy.camera0.set_gain(42) = Ok(())
+qhy.camera0.get_gain = Ok(42)
+qhy.camera0.set_offset(8) = Ok(())
+qhy.camera0.get_offset = Ok(8)
+qhy.camera0.set_binning(2,2) = Ok(())
+qhy.camera0.get_binning = Ok((2, 2))
+qhy.camera0.set_subframe(8,4,16,8) = Ok(())
+qhy.camera0.set_subframe(None) = Ok(())
+qhy.camera0.set_cooler(on,-12.5) = Ok(())
+qhy.camera0.get_status cooling = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: Some(5.833333333333333), target_temp: Some(-12.5), cooler_on: Some(true), gain: 42, offset: 8, bin_x: 2, bin_y: 2, exposure_remaining: None }) exposure_remaining_reported=false
+qhy.camera0.get_temperature = Ok(-9.25)
+qhy.camera0.get_cooler_power = Ok(5.833333333333333)
+qhy.camera0.start_exposure light bin2 = Ok(())
+qhy.camera0.exposure complete = Ok(true)
+qhy.camera0.download light bin2 = Ok 32x24 pixels=768 fnv1a=a467edb10901afe5 bits_per_pixel=16 bayer=None metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 2, bin_y: 2, temperature: Some(-9.25), timestamp: 1970-01-01T00:00:00Z, subframe: None, readout_mode: Some("Photographic DSO"), vendor_data: VendorFeatures { sensor_chamber_pressure: Some(900.0), sensor_chamber_humidity: Some(23.0), usb_bandwidth: Some(40.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+qhy.camera0.get_status after download = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: Some(5.833333333333333), target_temp: Some(-12.5), cooler_on: Some(true), gain: 55, offset: 9, bin_x: 2, bin_y: 2, exposure_remaining: None }) exposure_remaining_reported=false
+qhy.camera0.start_exposure dark bin1 subframe = Ok(())
+qhy.camera0.exposure complete = Ok(true)
+qhy.camera0.download dark subframe = Ok 16x8 pixels=128 fnv1a=ad58c2b33087e525 bits_per_pixel=16 bayer=None metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(-9.25), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 8 }), readout_mode: Some("Photographic DSO"), vendor_data: VendorFeatures { sensor_chamber_pressure: Some(900.0), sensor_chamber_humidity: Some(23.0), usb_bandwidth: Some(40.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+qhy.camera0.start_exposure invalid bin = Err(InvalidParameter("QHY camera QHY268M-FAKE0001 bins 1x1, 2x2, 3x3, 4x4; 99x99 was asked"))
+qhy.camera0.start_exposure long = Ok(())
+qhy.camera0.get_status exposing = Ok(CameraStatus { state: Exposing, sensor_temp: Some(-9.25), cooler_power: Some(5.833333333333333), target_temp: Some(-12.5), cooler_on: Some(true), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=true
+qhy.camera0.abort_exposure = Ok(())
+qhy.camera0.get_status aborted = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: Some(5.833333333333333), target_temp: Some(-12.5), cooler_on: Some(true), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
+qhy.camera0.set_cooler(off) = Ok(())
+qhy.camera0.get_status cooler off = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: Some(5.833333333333333), target_temp: None, cooler_on: Some(false), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
+qhy.camera0.disconnect = Ok(())
+qhy.camera0.is_connected = false
+qhy.camera0.get_status disconnected = Err(NotConnected)
+qhy.camera1.name before connect = QHY5III462C-FAKE0002
+qhy.camera1.connect = Ok(())
+qhy.camera1.is_connected = true
+qhy.camera1.name = QHY5III462C-FAKE0002
+qhy.camera1.vendor = Qhy
+qhy.camera1.serial_number = None
+qhy.camera1.capabilities = CameraCapabilities { can_cool: false, can_set_gain: true, can_set_offset: true, can_set_binning: true, can_subframe: true, has_shutter: false, has_guider_port: false, max_bin_x: 4, max_bin_y: 4, supports_readout_modes: true }
+qhy.camera1.get_sensor_info = SensorInfo { width: 48, height: 32, pixel_size_x: 2.9, pixel_size_y: 2.9, max_adu: 65535, bit_depth: 16, color: true, bayer_pattern: Some(Bayer(Bggr)), saturation_adu: None }
+qhy.camera1.get_gain_range = Ok((0, 600))
+qhy.camera1.get_offset_range = Ok((0, 600))
+qhy.camera1.get_exposure_range = Ok(Some((1e-6, 3600.0)))
+qhy.camera1.get_cooler_temp_range = Ok(None)
+qhy.camera1.get_recommended_settings = Ok(CameraRecommendedSettings { unity_gain: Some(0), hcg_gain: None, default_offset: Some(0), recommended_cooling_setpoint_c: None, notes: "QHY DefaultGain control reports 0; QHY DefaultOffset control reports 0" })
+qhy.camera1.get_readout_modes = Ok([ReadoutMode { name: "Photographic DSO", description: "QHY Readout Mode", index: 0, gain_min: None, gain_max: None, offset_min: None, offset_max: None }, ReadoutMode { name: "High Gain", description: "QHY Readout Mode", index: 1, gain_min: None, gain_max: None, offset_min: None, offset_max: None }])
+qhy.camera1.get_vendor_features = Ok(VendorFeatures { sensor_chamber_pressure: Some(900.0), sensor_chamber_humidity: Some(23.0), usb_bandwidth: Some(40.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} })
+qhy.camera1.get_status initial = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
+qhy.camera1.set_gain(42) = Ok(())
+qhy.camera1.get_gain = Ok(42)
+qhy.camera1.set_offset(8) = Ok(())
+qhy.camera1.get_offset = Ok(8)
+qhy.camera1.set_binning(2,2) = Ok(())
+qhy.camera1.get_binning = Ok((2, 2))
+qhy.camera1.set_subframe(8,4,16,8) = Ok(())
+qhy.camera1.set_subframe(None) = Ok(())
+qhy.camera1.set_cooler(on,-12.5) = Err(NotSupported)
+qhy.camera1.get_status cooling = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 42, offset: 8, bin_x: 2, bin_y: 2, exposure_remaining: None }) exposure_remaining_reported=false
+qhy.camera1.get_temperature = Ok(-9.25)
+qhy.camera1.get_cooler_power = Err(NotSupported)
+qhy.camera1.start_exposure light bin2 = Ok(())
+qhy.camera1.exposure complete = Ok(true)
+qhy.camera1.download light bin2 = Ok 24x16 pixels=384 fnv1a=27dbc391c7837785 bits_per_pixel=16 bayer=None metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 2, bin_y: 2, temperature: Some(-9.25), timestamp: 1970-01-01T00:00:00Z, subframe: None, readout_mode: Some("Photographic DSO"), vendor_data: VendorFeatures { sensor_chamber_pressure: Some(900.0), sensor_chamber_humidity: Some(23.0), usb_bandwidth: Some(40.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+qhy.camera1.get_status after download = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 55, offset: 9, bin_x: 2, bin_y: 2, exposure_remaining: None }) exposure_remaining_reported=false
+qhy.camera1.start_exposure dark bin1 subframe = Ok(())
+qhy.camera1.exposure complete = Ok(true)
+qhy.camera1.download dark subframe = Ok 16x8 pixels=128 fnv1a=ad58c2b33087e525 bits_per_pixel=16 bayer=Some(Bayer(Bggr)) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(-9.25), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 8 }), readout_mode: Some("Photographic DSO"), vendor_data: VendorFeatures { sensor_chamber_pressure: Some(900.0), sensor_chamber_humidity: Some(23.0), usb_bandwidth: Some(40.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+qhy.camera1.start_exposure invalid bin = Err(InvalidParameter("QHY camera QHY5III462C-FAKE0002 bins 1x1, 2x2, 3x3, 4x4; 99x99 was asked"))
+qhy.camera1.start_exposure long = Ok(())
+qhy.camera1.get_status exposing = Ok(CameraStatus { state: Exposing, sensor_temp: Some(-9.25), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=true
+qhy.camera1.abort_exposure = Ok(())
+qhy.camera1.get_status aborted = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
+qhy.camera1.set_cooler(off) = Err(NotSupported)
+qhy.camera1.get_status cooler off = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
+qhy.camera1.disconnect = Ok(())
+qhy.camera1.is_connected = false
+qhy.camera1.get_status disconnected = Err(NotConnected)
+qhy.discover_filter_wheels = Ok(1)
+qhy.cfw.connect = Ok(())
+qhy.cfw.name = QHY268M CFW
+qhy.cfw.serial_number = None
+qhy.cfw.get_filter_count = 7
+qhy.cfw.get_filter_names = Ok(["Filter 1", "Filter 2", "Filter 3", "Filter 4", "Filter 5", "Filter 6", "Filter 7"])
+qhy.cfw.get_position = Ok(0)
+qhy.cfw.move_to_position(2) = Ok(())
+qhy.cfw.is_moving = Ok(false)
+qhy.cfw.get_position = Ok(2)
+qhy.cfw.move_to_position(99) = Err(InvalidParameter("Position 99 out of range (0-6)"))
+qhy.cfw.set_filter_name(1) = Ok(())
+qhy.cfw.get_filter_names = Ok(["Filter 1", "Ha", "Filter 3", "Filter 4", "Filter 5", "Filter 6", "Filter 7"])
+qhy.cfw.disconnect = Ok(())
+qhy.cfw.get_position disconnected = Err(NotConnected)

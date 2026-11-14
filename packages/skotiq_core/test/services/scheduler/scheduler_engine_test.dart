@@ -8,8 +8,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show AstronomyCalculations;
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 
 import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
 import 'package:skotiq_core/src/models/scheduler/scheduler_status.dart';

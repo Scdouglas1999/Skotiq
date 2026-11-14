@@ -2,7 +2,6 @@
 
 part of '../../sequence_models.dart';
 
-/// Change filter instruction
 class FilterChangeNode extends SequenceNode {
   final String filterName;
   final int? filterPosition;
@@ -20,16 +19,7 @@ class FilterChangeNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'ChangeFilter';
-
-  @override
-  String get iconName => 'circle';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.filterWheel};
+  NodeKind<FilterChangeNode> get kind => NodeKinds.filterChange;
 
   @override
   FilterChangeNode copyWith({
@@ -60,7 +50,6 @@ class FilterChangeNode extends SequenceNode {
   List<Object?> get props => [...super.props, filterName, filterPosition];
 }
 
-/// Cool camera instruction
 class CoolCameraNode extends SequenceNode {
   final double targetTemp;
   final double? durationMins;
@@ -78,16 +67,7 @@ class CoolCameraNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'CoolCamera';
-
-  @override
-  String get iconName => 'snowflake';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.camera};
+  NodeKind<CoolCameraNode> get kind => NodeKinds.coolCamera;
 
   @override
   CoolCameraNode copyWith({
@@ -118,7 +98,6 @@ class CoolCameraNode extends SequenceNode {
   List<Object?> get props => [...super.props, targetTemp, durationMins];
 }
 
-/// Warm camera instruction
 class WarmCameraNode extends SequenceNode {
   final double ratePerMin;
   final double targetTemp;
@@ -136,16 +115,7 @@ class WarmCameraNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'WarmCamera';
-
-  @override
-  String get iconName => 'flame';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.camera};
+  NodeKind<WarmCameraNode> get kind => NodeKinds.warmCamera;
 
   @override
   WarmCameraNode copyWith({
@@ -176,7 +146,6 @@ class WarmCameraNode extends SequenceNode {
   List<Object?> get props => [...super.props, ratePerMin, targetTemp];
 }
 
-/// Move rotator instruction
 class RotatorNode extends SequenceNode {
   final double targetAngle;
   final bool relative;
@@ -194,16 +163,7 @@ class RotatorNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'MoveRotator';
-
-  @override
-  String get iconName => 'rotate-cw';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.rotator};
+  NodeKind<RotatorNode> get kind => NodeKinds.rotator;
 
   @override
   RotatorNode copyWith({
@@ -234,7 +194,6 @@ class RotatorNode extends SequenceNode {
   List<Object?> get props => [...super.props, targetAngle, relative];
 }
 
-/// Park mount instruction
 class ParkNode extends SequenceNode {
   ParkNode({
     super.id,
@@ -247,16 +206,7 @@ class ParkNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'Park';
-
-  @override
-  String get iconName => 'parking-circle';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.mount};
+  NodeKind<ParkNode> get kind => NodeKinds.park;
 
   @override
   ParkNode copyWith({
@@ -280,7 +230,6 @@ class ParkNode extends SequenceNode {
   }
 }
 
-/// Unpark mount instruction
 class UnparkNode extends SequenceNode {
   UnparkNode({
     super.id,
@@ -293,16 +242,7 @@ class UnparkNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'Unpark';
-
-  @override
-  String get iconName => 'unlock';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.mount};
+  NodeKind<UnparkNode> get kind => NodeKinds.unpark;
 
   @override
   UnparkNode copyWith({
@@ -343,16 +283,7 @@ class HomeMountNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'HomeMount';
-
-  @override
-  String get iconName => 'home';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.mount};
+  NodeKind<HomeMountNode> get kind => NodeKinds.homeMount;
 
   @override
   HomeMountNode copyWith({
@@ -376,7 +307,6 @@ class HomeMountNode extends SequenceNode {
   }
 }
 
-/// Wait for time instruction
 class WaitTimeNode extends SequenceNode {
   final DateTime? waitUntil;
   final TwilightType? waitForTwilight;
@@ -394,13 +324,7 @@ class WaitTimeNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'WaitForTime';
-
-  @override
-  String get iconName => 'clock';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
+  NodeKind<WaitTimeNode> get kind => NodeKinds.waitTime;
 
   @override
   WaitTimeNode copyWith({
@@ -435,7 +359,6 @@ class WaitTimeNode extends SequenceNode {
   List<Object?> get props => [...super.props, waitUntil, waitForTwilight];
 }
 
-/// Delay instruction
 class DelayNode extends SequenceNode {
   final double seconds;
 
@@ -451,13 +374,7 @@ class DelayNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'Delay';
-
-  @override
-  String get iconName => 'timer';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
+  NodeKind<DelayNode> get kind => NodeKinds.delay;
 
   @override
   DelayNode copyWith({
@@ -486,7 +403,6 @@ class DelayNode extends SequenceNode {
   List<Object?> get props => [...super.props, seconds];
 }
 
-/// Notification instruction
 class NotificationNode extends SequenceNode {
   final String title;
   final String message;
@@ -515,13 +431,7 @@ class NotificationNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'Notification';
-
-  @override
-  String get iconName => 'bell';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
+  NodeKind<NotificationNode> get kind => NodeKinds.notification;
 
   /// `copyWith` for `explicitTransports` uses plain keep-or-replace
   /// semantics:
@@ -574,7 +484,6 @@ class NotificationNode extends SequenceNode {
   ];
 }
 
-/// Script instruction
 class ScriptNode extends SequenceNode {
   final String scriptPath;
   final List<String> arguments;
@@ -594,13 +503,7 @@ class ScriptNode extends SequenceNode {
   });
 
   @override
-  String get nodeType => 'RunScript';
-
-  @override
-  String get iconName => 'code';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
+  NodeKind<ScriptNode> get kind => NodeKinds.script;
 
   @override
   ScriptNode copyWith({

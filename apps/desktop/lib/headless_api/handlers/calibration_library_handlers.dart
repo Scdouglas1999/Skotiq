@@ -1,9 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Handlers for the unified Calibration Library Manager.
 ///
@@ -17,8 +23,22 @@ import '../validation.dart';
 ///   GET    /api/calibration-library            — list masters (filters)
 ///   POST   /api/calibration-library/match      — best master per type + why
 ///   PUT    `/api/calibration-library/<type>/<id>/tags` — set tags/notes
+///   GET    `/api/calibration-library/<type>/<id>/file` — the master's file
 ///   DELETE `/api/calibration-library/<type>/<id>`      — delete row (+ file?)
-class CalibrationLibraryHandlers {
+class CalibrationLibraryHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    CalibrationLibraryApi.list: handleList,
+    CalibrationLibraryApi.backlog: handleBacklog,
+    CalibrationLibraryApi.match: handleMatch,
+    CalibrationLibraryApi.accept: handleAccept,
+    CalibrationLibraryApi.publish: handlePublish,
+    CalibrationLibraryApi.retract: handleRetract,
+    CalibrationLibraryApi.setTags: handleSetTags,
+    CalibrationLibraryApi.download: handleDownload,
+    CalibrationLibraryApi.delete: handleDelete,
+  };
+
   final ProviderContainer container;
   CalibrationLibraryHandlers(this.container);
 
@@ -79,7 +99,7 @@ class CalibrationLibraryHandlers {
             'binX': group.binX,
             'binY': group.binY,
             'night': group.night,
-            'lastCapturedAt': group.lastCapturedAt.toIso8601String(),
+            'lastCapturedAt': group.lastCapturedAt.toWireTime(),
             'frameIds': group.frames.map((f) => f.id).toList(),
             'buildable': group.buildable,
             'missingFiles': group.missingFiles,
@@ -195,6 +215,7 @@ class CalibrationLibraryHandlers {
       opticalTrainId: optionalString(body, 'opticalTrainId'),
       sensorWidth: optionalInt(body, 'sensorWidth', min: 1),
       sensorHeight: optionalInt(body, 'sensorHeight', min: 1),
+      readoutMode: optionalString(body, 'readoutMode'),
     );
 
     final matchSet = await _service.match(context);
@@ -401,6 +422,39 @@ class CalibrationLibraryHandlers {
     return jsonOk(updated.toJson());
   }
 
+  /// GET `/api/calibration-library/<type>/<id>/file` — the master's file,
+  /// with Range support. Darks, flats and defect maps are numbered apart, so
+  /// the type is part of which file is meant.
+  Future<Response> handleDownload(
+    Request request,
+    String typeRaw,
+    String idRaw,
+  ) async {
+    final type = _requireType(typeRaw);
+    final id = _requireId(idRaw);
+    final record = await _service.getRecord(type, id);
+    if (record == null) {
+      throw HandlerFailure(
+        code: 'calibration_master_not_found',
+        message: 'No calibration master with that type/id',
+        statusCode: 404,
+      );
+    }
+    final path = record.filePath;
+    if (path == null || !await File(path).exists()) {
+      throw HandlerFailure(
+        code: 'calibration_master_file_missing',
+        message: 'The file of this calibration master is not on disk',
+        statusCode: 404,
+      );
+    }
+    return fileDownloadResponse(
+      request,
+      File(path),
+      etagKey: '${calibrationMasterTypeWireName(type)}-$id',
+    );
+  }
+
   /// DELETE `/api/calibration-library/<type>/<id>[?deleteFile=true]`.
   Future<Response> handleDelete(
     Request request,
@@ -431,8 +485,6 @@ class CalibrationLibraryHandlers {
     }
     return jsonOk({'status': 'deleted', 'type': typeRaw, 'id': id});
   }
-
-  // param helpers
 
   CalibrationMasterType _requireType(String? raw) {
     final type = _typeParam(raw);

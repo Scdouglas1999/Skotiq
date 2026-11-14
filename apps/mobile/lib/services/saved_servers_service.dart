@@ -35,14 +35,15 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:skotiq_relay/skotiq_relay.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_core/services.dart';
 
 /// One row in the persisted saved-server list.
 ///
@@ -521,20 +522,18 @@ class SavedServersService {
     try {
       final any = jsonDecode(raw);
       if (any is! List) {
-        developer.log(
+        Log.error(
           'saved_servers: list blob was not a JSON array; resetting',
-          name: 'SavedServersService',
-          level: 1000,
+          source: 'SavedServersService',
         );
         await prefs.remove(SavedServersStorageKeys.list);
         return const [];
       }
       decoded = any;
     } on FormatException catch (e, st) {
-      developer.log(
+      Log.error(
         'saved_servers: list blob is not valid JSON, resetting: $e',
-        name: 'SavedServersService',
-        level: 1000,
+        source: 'SavedServersService',
         error: e,
         stackTrace: st,
       );
@@ -554,10 +553,9 @@ class SavedServersService {
         // shouldn't make the whole list unusable. Surface the failure
         // (no silent fallbacks) via a structured log line so
         // the operator sees something is up.
-        developer.log(
+        Log.error(
           'saved_servers: skipping malformed row: $e',
-          name: 'SavedServersService',
-          level: 1000,
+          source: 'SavedServersService',
           error: e,
           stackTrace: st,
         );
@@ -987,8 +985,6 @@ class SavedServersService {
     );
   }
 
-  // Internals
-
   Future<T> _serializeMutation<T>(Future<T> Function() operation) {
     final completer = Completer<T>();
     _mutationTail = _mutationTail.then((_) async {
@@ -1083,10 +1079,9 @@ class SavedServersService {
       // Don't block the rest of the app over a one-shot migration: log
       // and mark migrated so we don't keep retrying. The user can still
       // re-pair manually.
-      developer.log(
+      Log.error(
         'saved_servers: legacy import failed: $e',
-        name: 'SavedServersService',
-        level: 1000,
+        source: 'SavedServersService',
         error: e,
         stackTrace: st,
       );
@@ -1122,7 +1117,6 @@ class SavedServersService {
         // Bad JSON — treat as empty.
       }
     }
-    // If the legacy host/port is already represented, skip the import.
     final alreadyPresent = existingList.any(
       (s) => s.host == legacy!.host && s.port == legacy.webPort,
     );
@@ -1162,10 +1156,10 @@ class SavedServersService {
       );
     }
     await prefs.setBool(SavedServersStorageKeys.migrated, true);
-    developer.log(
+    Log.debug(
       'saved_servers: imported legacy server ${imported.host}:${imported.port} '
       'as $id',
-      name: 'SavedServersService',
+      source: 'SavedServersService',
     );
   }
 }

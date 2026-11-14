@@ -82,10 +82,8 @@ Future<void> _writePassingFixture(Directory root) async {
       'registeredRouteCount': 295,
       'advertisedRouteCount': 295,
       'openApiOperationCount': 293,
-      'networkBackendRouteCount': 255,
       'registeredNotAdvertisedCount': 0,
       'advertisedNotRegisteredCount': 0,
-      'networkBackendMissingOnServerCount': 0,
       'advertisedHttpMissingOpenApiCount': 0,
       'openApiMetadataCoverage': {'request_body_limit_extension': true},
       'webSocketContractCoverage': {'heartbeat_ping_pong': true},
@@ -111,7 +109,7 @@ Future<void> _writePassingFixture(Directory root) async {
       'serverMiddlewareTests': {
         'oversized_control_request_before_auth': true,
         'high_risk_control_rate_limit': true,
-        'websocket_api_version_before_auth': true,
+        'websocket_release_before_auth': true,
       },
     },
   );
@@ -173,10 +171,8 @@ Future<void> _writeFailingFixture(Directory root) async {
       'registeredRouteCount': 2,
       'advertisedRouteCount': 1,
       'openApiOperationCount': 1,
-      'networkBackendRouteCount': 2,
       'registeredNotAdvertisedCount': 1,
       'advertisedNotRegisteredCount': 0,
-      'networkBackendMissingOnServerCount': 1,
       'advertisedHttpMissingOpenApiCount': 0,
       'openApiMetadataCoverage': {'request_body_limit_extension': false},
       'webSocketContractCoverage': {'heartbeat_ping_pong': false},
@@ -274,10 +270,10 @@ void logRequest() {
 class _NetworkBackendTransport {
   static const _requestIdHeader = 'x-request-id';
   final compatHeaders = {
-    _NetworkBackendTransport._requestIdHeader: _nextRequestId('compat'),
+    _NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
   };
   void headers(Map<String, String> headers, String endpoint) {
-    headers[RemoteApiCompatibility.apiVersionHeader] = '2.5.0';
+    headers[LinkVersion.header] = skotiqRelease;
     headers[_NetworkBackendTransport._requestIdHeader] = _nextRequestId(endpoint);
   }
 }

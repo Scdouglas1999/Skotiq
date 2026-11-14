@@ -3,9 +3,7 @@ import 'package:drift/drift.dart';
 import 'imaging_sessions.dart';
 import 'targets.dart';
 
-/// Captured images table
-/// Records metadata for every captured image
-@DataClassName('CapturedImage')
+@DataClassName('DbCapturedImage')
 @TableIndex(name: 'idx_images_session', columns: {#sessionId})
 @TableIndex(name: 'idx_images_target', columns: {#targetId})
 @TableIndex(name: 'idx_images_frame_type', columns: {#frameType})
@@ -17,17 +15,21 @@ import 'targets.dart';
   name: 'idx_images_session_captured_at',
   columns: {#sessionId, #capturedAt},
 )
+@TableIndex(name: 'idx_images_producing_node', columns: {#producingNodeId})
+@TableIndex(name: 'idx_images_producing_run', columns: {#producingRunId})
+@TableIndex(
+  name: 'idx_images_node_captured_at',
+  columns: {#producingNodeId, #capturedAt},
+)
 class CapturedImages extends Table {
   IntColumn get id => integer().autoIncrement()();
 
-  // File information
   TextColumn get filePath => text()();
   TextColumn get fileName => text()();
   TextColumn get fileFormat =>
       text().withDefault(const Constant('fits'))(); // fits, xisf, raw
   IntColumn get fileSize => integer().nullable()();
 
-  // Foreign keys
   IntColumn get sessionId => integer().nullable().references(
     ImagingSessions,
     #id,
@@ -39,23 +41,26 @@ class CapturedImages extends Table {
     onDelete: KeyAction.setNull,
   )();
 
-  // Frame type
   TextColumn get frameType =>
       text().withDefault(const Constant('light'))(); // light, dark, flat, bias
 
-  // Exposure settings
   RealColumn get exposureDuration => real()();
   IntColumn get gain => integer().nullable()();
+
+  /// What [gain] is: `gain` (a camera's gain number), `iso` (the ISO speed
+  /// of a DSLR or mirrorless frame) or `isoListPosition` (a DSLR frame from
+  /// before Skotiq recorded ISO speeds, which stored the position in the
+  /// camera's ISO list; its ISO is unknown). Null reads as `gain`. See
+  /// `GainKind`.
+  TextColumn get gainKind => text().nullable()();
   IntColumn get offset => integer().nullable()();
   IntColumn get binX => integer().withDefault(const Constant(1))();
   IntColumn get binY => integer().withDefault(const Constant(1))();
   TextColumn get filter => text().nullable()();
 
-  // Camera state
   RealColumn get sensorTemp => real().nullable()();
   RealColumn get coolerPower => real().nullable()();
 
-  // Quality metrics
   RealColumn get hfr => real().nullable()();
   IntColumn get starCount => integer().nullable()();
   RealColumn get background => real().nullable()();
@@ -83,14 +88,11 @@ class CapturedImages extends Table {
   RealColumn get mountAzimuth => real().nullable()();
   TextColumn get pierSide => text().nullable()();
 
-  // Focuser position
   IntColumn get focuserPosition => integer().nullable()();
   RealColumn get focuserTemp => real().nullable()();
 
-  // Rotator position
   RealColumn get rotatorAngle => real().nullable()();
 
-  // Plate solve result
   BoolColumn get isPlateSolved =>
       boolean().withDefault(const Constant(false))();
   RealColumn get solvedRa => real().nullable()();
@@ -98,7 +100,6 @@ class CapturedImages extends Table {
   RealColumn get solvedRotation => real().nullable()();
   RealColumn get solvedPixelScale => real().nullable()();
 
-  // Timestamps
   DateTimeColumn get capturedAt => dateTime()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -109,19 +110,33 @@ class CapturedImages extends Table {
   /// master/slave sync architecture) cannot double-count photons.
   DateTimeColumn get atlasFoldedAt => dateTime().nullable()();
 
-  // Flags
   BoolColumn get isAccepted =>
       boolean().withDefault(const Constant(true))(); // For rejection marking
   TextColumn get rejectionReason => text().nullable()();
 
-  // Thumbnail: producing-instruction provenance lives in raw-DDL
-  // columns (`producing_node_id`, `producing_run_id`, `runtime_grade`,
-  // `eccentricity`) added by the v30 migration but NOT declared on the
-  // Drift Table here. Same convention as (notes_journal)
-  // and the v27/v28 raw-DDL tables — the migration lands without
-  // forcing a drift codegen pass, and the new
-  // `ImagesDao.watchImagesByProducingNode` reads the columns via
-  // `customSelect`.
+  // Which instruction of which run produced the frame, and the grade the
+  // run gave it while it was still executing.
+  TextColumn get producingNodeId => text().nullable()();
+  TextColumn get producingRunId => text().nullable()();
+  TextColumn get runtimeGrade => text().nullable()();
+
+  RealColumn get eccentricity => real().nullable()();
+  RealColumn get fwhm => real().nullable()();
+
+  // Anisotropic WCS of the solve: the CD matrix (degrees per pixel) and the
+  // SIP distortion terms as JSON.
+  RealColumn get solvedCd1_1 => real().named('solved_cd1_1').nullable()();
+  RealColumn get solvedCd1_2 => real().named('solved_cd1_2').nullable()();
+  RealColumn get solvedCd2_1 => real().named('solved_cd2_1').nullable()();
+  RealColumn get solvedCd2_2 => real().named('solved_cd2_2').nullable()();
+  TextColumn get solvedSip => text().nullable()();
+
+  TextColumn get thumbnailPath => text().nullable()();
+
+  /// When a plate solver ran on the frame and found no solution, as unix
+  /// MILLISECONDS. A frame with neither this nor `isPlateSolved` was never
+  /// sent to a solver, so solve-rate statistics leave it out.
+  IntColumn get plateSolveFailedAt => integer().nullable()();
 }
 
 /// Extended image metadata table

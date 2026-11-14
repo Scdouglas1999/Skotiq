@@ -1,7 +1,10 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 /// The Continue Session handoff dialog said "Unknown Profile" and "No Sequence"
 /// while naming the sequence in its own header and with a real profile active.
@@ -24,7 +27,7 @@ void main() {
     sequencesDao = SequencesDao(db);
     checkpointsDao = SequenceCheckpointsDao(db);
     sessionService = SessionService(
-      records: ImagingRecordsRepository.local(
+      records: LocalImagingRecords(
         sessionsDao: sessionsDao,
         imagesDao: ImagesDao(db),
       ),

@@ -26,9 +26,8 @@
 library;
 
 import 'package:equatable/equatable.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-
-import 'ledger_seconds.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Which kind of contiguous sibling run a [FoldGroup] collapses into one row.
 enum FoldKind {
@@ -61,7 +60,6 @@ final class SingleEntry extends TreeEntry {
 
 /// A contiguous sibling run collapsed into one folded row.
 final class FoldedEntry extends TreeEntry {
-  /// The group the folded row stands in for.
   final FoldGroup group;
 
   const FoldedEntry(this.group);
@@ -85,7 +83,6 @@ class FoldGroup extends Equatable {
   /// ephemeral ids would forget the user's expansion on every rebuild.
   final String id;
 
-  /// Which run kind produced this group.
   final FoldKind kind;
 
   /// Member node ids in tree order. The first id is the group's
@@ -135,10 +132,8 @@ class FoldGroup extends Equatable {
   /// Shared camera offset override.
   final int? offset;
 
-  /// Shared binning mode.
   final BinningMode? binning;
 
-  /// Shared frame type.
   final FrameType? frameType;
 
   /// Shared dither cadence (every N frames).
@@ -163,7 +158,6 @@ class FoldGroup extends Equatable {
   })  : memberIds = List.unmodifiable(memberIds),
         memberLabels = List.unmodifiable(memberLabels);
 
-  /// Number of members the folded row stands in for.
   int get memberCount => memberIds.length;
 
   @override
@@ -201,7 +195,6 @@ class FoldDragPayload extends Equatable {
   /// Member ids in tree order. The block is re-inserted in this order.
   final List<String> memberIds;
 
-  /// The parent the run currently sits under.
   final String parentId;
 
   FoldDragPayload({
@@ -349,8 +342,6 @@ Set<String> foldedMemberIds(List<TreeEntry> entries) => <String>{
         if (entry is FoldedEntry) ...entry.group.memberIds,
     };
 
-// Run detection
-
 /// Filter runs fold frames the night will actually shoot: a disabled node
 /// breaks the run, and a non-leaf is excluded because a folded row cannot
 /// show its subtree.
@@ -362,10 +353,15 @@ bool _isFoldableExposure(SequenceNode node) =>
 bool _isAcquireLeaf(SequenceNode node) =>
     node.isEnabled &&
     node.childIds.isEmpty &&
-    (node is SlewNode ||
-        node is CenterNode ||
-        node is StartGuidingNode ||
-        node is AutofocusNode);
+    _acquireVerbs.containsKey(node.kind);
+
+/// The acquire steps and the verb a folded acquire row names each by.
+final Map<NodeKind, String> _acquireVerbs = {
+  NodeKinds.slew: 'slew',
+  NodeKinds.center: 'center',
+  NodeKinds.startGuiding: 'guide',
+  NodeKinds.autofocus: 'AF',
+};
 
 /// Emit a maximal contiguous block of foldable exposures, split into sub-runs
 /// by capture-spec equality: a differing member splits the run AT that point
@@ -516,7 +512,7 @@ FoldGroup _filterRunGroup(
     firstIndex: start,
     label: memberLabels.join(' · '),
     chipText:
-        '${formatLedgerSeconds(first.durationSecs)} s ×${first.count} each',
+        '${QuantityFormat.trimmed(first.durationSecs)} s ×${first.count} each',
     durationSecs: first.durationSecs,
     count: first.count,
     gain: first.gain,
@@ -564,17 +560,7 @@ String _filterLabel(ExposureNode node) {
   return node.name;
 }
 
-/// Short member verb for the acquire chip. Callers have already confined the
-/// input to the four acquire leaf types, so the wildcard is unreachable — it
-/// throws rather than guessing because silently mislabelling a member is the
-/// failure mode this function exists to prevent.
-String _acquireVerb(SequenceNode node) => switch (node) {
-      SlewNode() => 'slew',
-      CenterNode() => 'center',
-      StartGuidingNode() => 'guide',
-      AutofocusNode() => 'AF',
-      _ => throw StateError('not an acquire leaf: ${node.runtimeType}'),
-    };
+String _acquireVerb(SequenceNode node) => _acquireVerbs[node.kind]!;
 
 /// Frames captured for one member, or null when the member has no run data.
 ///

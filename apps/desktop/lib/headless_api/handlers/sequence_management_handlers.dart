@@ -2,107 +2,49 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/database_entities.dart'
-    show Sequence, SequenceNode, SequencesCompanion, SequenceNodesCompanion;
-import 'package:skotiq_core/skotiq_core.dart'
-    hide Sequence, SequenceNode; // Hide domain models
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for sequence management (CRUD operations)
 /// This is SEPARATE from sequencer_handlers.dart which controls sequencer execution.
-class SequenceManagementHandlers {
-  final ProviderContainer container;
+class SequenceManagementHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SequenceManagementApi.getAllSequences: handleGetAllSequences,
+    SequenceManagementApi.listFullSequences: handleListFullSequences,
+    SequenceManagementApi.listFullTemplates: handleListFullTemplates,
+    SequenceManagementApi.saveFullSequence: handleSaveFullSequence,
+    SequenceManagementApi.listSequenceSummaries: handleListSequenceSummaries,
+    SequenceManagementApi.getVersion: handleGetVersion,
+    SequenceManagementApi.getFullSequence: handleGetFullSequence,
+    SequenceManagementApi.getAllTemplates: handleGetAllTemplates,
+    SequenceManagementApi.getSequenceById: handleGetSequenceById,
+    SequenceManagementApi.getNodesForSequence: handleGetNodesForSequence,
+    SequenceManagementApi.getChildNodes: handleGetChildNodes,
+    SequenceManagementApi.listVersions: handleListVersions,
+    SequenceManagementApi.createSequence: handleCreateSequence,
+    SequenceManagementApi.updateSequence: handleUpdateSequence,
+    SequenceManagementApi.deleteSequence: handleDeleteSequence,
+    SequenceManagementApi.duplicateSequence: handleDuplicateSequence,
+    SequenceManagementApi.setTags: handleSetTags,
+    SequenceManagementApi.toggleFavorite: handleToggleFavorite,
+    SequenceManagementApi.snapshotVersion: handleSnapshotVersion,
+    SequenceManagementApi.createNode: handleCreateNode,
+    SequenceManagementApi.updateNode: handleUpdateNode,
+    SequenceManagementApi.deleteNode: handleDeleteNode,
+    SequenceManagementApi.reorderNodes: handleReorderNodes,
+    SequenceManagementApi.setNodeEnabled: handleSetNodeEnabled,
+  };
 
-  static const Set<String> _logicNodeTypes = {
-    'loop',
-    'Loop',
-    'parallel',
-    'Parallel',
-    'conditional',
-    'Conditional',
-    'recovery',
-    'Recovery',
-    'instructionSet',
-    'InstructionSet',
-    'targetScheduler',
-    'TargetScheduler',
-    'target_scheduler',
-  };
-  static const Set<String> _targetNodeTypes = {'targetGroup', 'TargetHeader'};
-  static const Set<String> _triggerNodeTypes = {'meridianFlip', 'MeridianFlip'};
-  static const Set<String> _instructionNodeTypes = {
-    'exposure',
-    'TakeExposure',
-    'slew',
-    'SlewToTarget',
-    'center',
-    'CenterTarget',
-    'autofocus',
-    'Autofocus',
-    'dither',
-    'Dither',
-    'filterChange',
-    'ChangeFilter',
-    'coolCamera',
-    'CoolCamera',
-    'warmCamera',
-    'WarmCamera',
-    'rotator',
-    'MoveRotator',
-    'park',
-    'Park',
-    'unpark',
-    'Unpark',
-    'homeMount',
-    'HomeMount',
-    'waitTime',
-    'WaitForTime',
-    'delay',
-    'Delay',
-    'notification',
-    'Notification',
-    'script',
-    'RunScript',
-    'startGuiding',
-    'StartGuiding',
-    'stopGuiding',
-    'StopGuiding',
-    'openDome',
-    'OpenDome',
-    'closeDome',
-    'CloseDome',
-    'parkDome',
-    'ParkDome',
-    'polarAlignment',
-    'PolarAlignment',
-    'smartExposure',
-    'SmartExposure',
-    'smart_exposure',
-    'pluginNode',
-    'PluginNode',
-    'plugin_node',
-    'liveStacking',
-    'LiveStacking',
-    'live_stacking',
-    'openCover',
-    'OpenCover',
-    'open_cover',
-    'closeCover',
-    'CloseCover',
-    'close_cover',
-    'calibratorOn',
-    'CalibratorOn',
-    'calibrator_on',
-    'calibratorOff',
-    'CalibratorOff',
-    'calibrator_off',
-    'sciencePhotometry',
-    'SciencePhotometry',
-    'science_photometry',
-  };
+  final ProviderContainer container;
 
   SequenceManagementHandlers(this.container);
 
@@ -130,13 +72,9 @@ class SequenceManagementHandlers {
   }
 
   void _validateNodeWireType(String nodeType, String specificType) {
-    final expectedCategory = switch (specificType) {
-      _ when _logicNodeTypes.contains(specificType) => 'logic',
-      _ when _targetNodeTypes.contains(specificType) => 'target',
-      _ when _triggerNodeTypes.contains(specificType) => 'trigger',
-      _ when _instructionNodeTypes.contains(specificType) => 'instruction',
-      _ => null,
-    };
+    final expectedCategory = NodeKind.forDatabaseName(
+      specificType,
+    )?.category.name;
     if (expectedCategory == null) {
       throw BadRequestError(
         field: 'specificType',
@@ -167,8 +105,6 @@ class SequenceManagementHandlers {
       );
     }
   }
-
-  // Full sequence documents (remote companion sync)
 
   /// GET /api/sequence-management/list-full
   ///
@@ -418,8 +354,6 @@ class SequenceManagementHandlers {
     return jsonOk({'version': _versionToJson(version)});
   }
 
-  // Get all sequences
-
   Future<Response> handleGetAllSequences(Request request) async {
     final database = container.read(databaseProvider);
     final sequences = await database.sequencesDao.getAllSequences();
@@ -429,8 +363,6 @@ class SequenceManagementHandlers {
     });
   }
 
-  // Get all templates
-
   Future<Response> handleGetAllTemplates(Request request) async {
     final database = container.read(databaseProvider);
     final templates = await database.sequencesDao.getAllTemplates();
@@ -439,8 +371,6 @@ class SequenceManagementHandlers {
       'templates': templates.map((s) => _sequenceToJson(s)).toList(),
     });
   }
-
-  // Get Sequence By ID
 
   Future<Response> handleGetSequenceById(Request request, String id) async {
     final sequenceId = _parsePathId(id, 'id');
@@ -454,8 +384,6 @@ class SequenceManagementHandlers {
     return jsonOk({'sequence': _sequenceToJson(sequence)});
   }
 
-  // Get nodes for sequence
-
   Future<Response> handleGetNodesForSequence(Request request, String id) async {
     final sequenceId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
@@ -463,8 +391,6 @@ class SequenceManagementHandlers {
 
     return jsonOk({'nodes': nodes.map((n) => _nodeToJson(n)).toList()});
   }
-
-  // Create sequence
 
   Future<Response> handleCreateSequence(Request request) async {
     _logInfo('[API] POST /api/sequence-management');
@@ -490,15 +416,12 @@ class SequenceManagementHandlers {
     return jsonOk({'status': 'created', 'id': id});
   }
 
-  // Update sequence
-
   Future<Response> handleUpdateSequence(Request request, String id) async {
     _logInfo('[API] PUT /api/sequence-management/$id');
     final sequenceId = _parsePathId(id, 'id');
     final payload = await readJsonObject(request);
     final database = container.read(databaseProvider);
 
-    // Get existing sequence
     final existing = await database.sequencesDao.getSequenceById(sequenceId);
     if (existing == null) {
       return jsonNotFound({'error': 'Sequence not found: $id'});
@@ -531,8 +454,6 @@ class SequenceManagementHandlers {
     return jsonOk({'status': 'updated'});
   }
 
-  // Delete sequence
-
   Future<Response> handleDeleteSequence(Request request, String id) async {
     _logInfo('[API] DELETE /api/sequence-management/$id');
     final sequenceId = _parsePathId(id, 'id');
@@ -548,8 +469,6 @@ class SequenceManagementHandlers {
 
     return jsonOk({'status': 'deleted'});
   }
-
-  // Duplicate sequence
 
   Future<Response> handleDuplicateSequence(Request request, String id) async {
     _logInfo('[API] POST /api/sequence-management/$id/duplicate');
@@ -575,8 +494,6 @@ class SequenceManagementHandlers {
 
     return jsonOk({'status': 'duplicated', 'id': newId});
   }
-
-  // Create node
 
   Future<Response> handleCreateNode(Request request, String sequenceId) async {
     _logInfo('[API] POST /api/sequence-management/$sequenceId/nodes');
@@ -616,15 +533,12 @@ class SequenceManagementHandlers {
     return jsonOk({'status': 'created', 'id': id});
   }
 
-  // Update node
-
   Future<Response> handleUpdateNode(Request request, String nodeId) async {
     _logInfo('[API] PUT /api/sequence-management/nodes/$nodeId');
     final nid = _parsePathId(nodeId, 'nodeId');
     final payload = await readJsonObject(request);
     final database = container.read(databaseProvider);
 
-    // Get existing node
     final existing = await database.sequencesDao.getNodeById(nid);
     if (existing == null) {
       return jsonNotFound({'error': 'Node not found: $nodeId'});
@@ -665,8 +579,6 @@ class SequenceManagementHandlers {
     return jsonOk({'status': 'updated'});
   }
 
-  // Delete node
-
   Future<Response> handleDeleteNode(Request request, String nodeId) async {
     _logInfo('[API] DELETE /api/sequence-management/nodes/$nodeId');
     final nid = _parsePathId(nodeId, 'nodeId');
@@ -688,8 +600,6 @@ class SequenceManagementHandlers {
     return jsonOk({'status': 'deleted'});
   }
 
-  // Reorder nodes
-
   Future<Response> handleReorderNodes(
     Request request,
     String sequenceId,
@@ -709,8 +619,6 @@ class SequenceManagementHandlers {
     );
     return jsonOk({'status': 'reordered'});
   }
-
-  // Set node enabled
 
   Future<Response> handleSetNodeEnabled(Request request, String nodeId) async {
     _logInfo('[API] POST /api/sequence-management/nodes/$nodeId/enabled');
@@ -732,8 +640,6 @@ class SequenceManagementHandlers {
     return jsonOk({'status': 'updated'});
   }
 
-  // Get child nodes
-
   Future<Response> handleGetChildNodes(
     Request request,
     String sequenceId,
@@ -752,9 +658,7 @@ class SequenceManagementHandlers {
     return jsonOk({'nodes': nodes.map((n) => _nodeToJson(n)).toList()});
   }
 
-  // Helper: Convert Sequence to JSON
-
-  Map<String, dynamic> _sequenceToJson(Sequence sequence) {
+  Map<String, dynamic> _sequenceToJson(DbSequence sequence) {
     return {
       'id': sequence.id,
       'name': sequence.name,
@@ -766,40 +670,41 @@ class SequenceManagementHandlers {
     };
   }
 
-  Map<String, dynamic> _summaryToJson(SequenceSummary summary) => {
-    'id': summary.id,
-    'name': summary.name,
-    'nodeCount': summary.nodeCount,
-    'targetCount': summary.targetCount,
-    'exposureCount': summary.exposureCount,
-    'totalIntegrationSecs': summary.totalIntegrationSecs,
-    'primaryTargetName': summary.primaryTargetName,
-    'lastRunAt': summary.lastRunAt?.toIso8601String(),
-    'runCount': summary.runCount,
-    'tags': summary.tags,
-    'isFavorite': summary.isFavorite,
-    'createdAt': summary.createdAt.toIso8601String(),
-    'modifiedAt': summary.modifiedAt.toIso8601String(),
-  };
+  Map<String, dynamic> _summaryToJson(SequenceSummary summary) =>
+      RemoteSequenceSummary(
+        id: summary.id,
+        name: summary.name,
+        nodeCount: summary.nodeCount,
+        targetCount: summary.targetCount,
+        exposureCount: summary.exposureCount,
+        totalIntegrationSecs: summary.totalIntegrationSecs,
+        primaryTargetName: summary.primaryTargetName,
+        lastRunAt: summary.lastRunAt,
+        runCount: summary.runCount,
+        tags: summary.tags,
+        isFavorite: summary.isFavorite,
+        createdAt: summary.createdAt,
+        modifiedAt: summary.modifiedAt,
+      ).toJson();
 
-  Map<String, dynamic> _versionToJson(SequenceVersion version) => {
-    'id': version.id,
-    'sequenceId': version.sequenceId,
-    'snapshotJson': version.snapshotJson,
-    'label': version.label,
-    'createdAt': version.createdAt.toIso8601String(),
-  };
+  Map<String, dynamic> _versionToJson(SequenceVersion version) =>
+      RemoteSequenceVersion(
+        id: version.id,
+        sequenceId: version.sequenceId,
+        snapshotJson: version.snapshotJson,
+        label: version.label,
+        createdAt: version.createdAt,
+      ).toJson();
 
-  Map<String, dynamic> _versionSummaryToJson(SequenceVersion version) => {
-    'id': version.id,
-    'sequenceId': version.sequenceId,
-    'label': version.label,
-    'createdAt': version.createdAt.toIso8601String(),
-  };
+  Map<String, dynamic> _versionSummaryToJson(SequenceVersion version) =>
+      RemoteSequenceVersionSummary(
+        id: version.id,
+        sequenceId: version.sequenceId,
+        label: version.label,
+        createdAt: version.createdAt,
+      ).toJson();
 
-  // Helper: Convert SequenceNode to JSON
-
-  Map<String, dynamic> _nodeToJson(SequenceNode node) {
+  Map<String, dynamic> _nodeToJson(DbSequenceNode node) {
     return {
       'id': node.id,
       'nodeId': node.nodeId,

@@ -5,11 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/slew_dropdown_button.dart';
-import '../../../widgets/tutorial_keys/planetarium_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../planetarium_screen.dart';
 
 // NOTE (design tokens): the `ImageOverlayColors.foreground*` text/icons and `ImageOverlayColors.shadow*`
@@ -220,7 +223,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
           child: GestureDetector(
             onTap: _consumeTap,
             child: Container(
-              key: PlanetariumTutorialKeys.objectPopup,
+              key: TourTarget.planetariumObjectPopup.key,
               width: layout.width,
               constraints: BoxConstraints(maxHeight: layout.height),
               decoration: BoxDecoration(
@@ -246,16 +249,11 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Header
                       _buildHeader(),
-
-                      // Divider
                       Container(
                         height: 1,
                         color: widget.colors.border.withValues(alpha: 0.5),
                       ),
-
-                      // Content
                       Flexible(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.all(16),
@@ -271,14 +269,10 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
                           ),
                         ),
                       ),
-
-                      // Divider
                       Container(
                         height: 1,
                         color: widget.colors.border.withValues(alpha: 0.5),
                       ),
-
-                      // Action buttons
                       _buildActions(),
                     ],
                   ),
@@ -388,7 +382,6 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
               ],
             ),
           ),
-          // Export chart button
           if (widget.onExportChart != null) ...[
             GestureDetector(
               onTap: widget.onExportChart,
@@ -407,7 +400,6 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
             ),
             const SizedBox(width: 4),
           ],
-          // Close button
           GestureDetector(
             onTap: widget.onDismiss,
             child: Container(
@@ -463,19 +455,8 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
   Widget _buildCoordinates() {
     final coords = widget.coordinates;
 
-    // Format RA
-    final raH = coords.ra.floor();
-    final raM = ((coords.ra - raH) * 60).floor();
-    final raS = (((coords.ra - raH) * 60 - raM) * 60).toStringAsFixed(1);
-    final raStr = '${raH}h ${raM}m ${raS}s';
-
-    // Format Dec
-    final sign = coords.dec >= 0 ? '+' : '-';
-    final decD = coords.dec.abs().floor();
-    final decM = ((coords.dec.abs() - decD) * 60).floor();
-    final decS =
-        (((coords.dec.abs() - decD) * 60 - decM) * 60).toStringAsFixed(0);
-    final decStr = "$sign$decD\u00b0 $decM' $decS\"";
+    final raStr = CoordinateFormat.raReadout(coords.ra);
+    final decStr = CoordinateFormat.decReadout(coords.dec);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,7 +626,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
             children: [
               Expanded(
                 child: PopupActionButton(
-                  key: PlanetariumTutorialKeys.sendFraming,
+                  key: TourTarget.planetariumSendToFraming.key,
                   icon: SkotiqIcons.frame,
                   label: 'Framing',
                   colors: widget.colors,
@@ -655,7 +636,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
               const SizedBox(width: 8),
               Expanded(
                 child: PopupActionButton(
-                  key: PlanetariumTutorialKeys.addSequence,
+                  key: TourTarget.planetariumAddToSequence.key,
                   icon: LucideIcons.listPlus,
                   label: 'Sequence',
                   colors: widget.colors,

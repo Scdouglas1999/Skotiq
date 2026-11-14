@@ -7,7 +7,7 @@ import 'package:skotiq_core/src/database/daos/targets_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
 import 'package:skotiq_core/src/services/campaign_rollup_service.dart';
-import 'package:skotiq_core/src/services/imaging_records_repository.dart';
+import 'package:skotiq_core/src/services/local_imaging_records.dart';
 import 'package:skotiq_core/src/services/scheduler/integration_goal_service.dart';
 
 void main() {
@@ -28,7 +28,7 @@ void main() {
       targetsDao = TargetsDao(db);
       goalService = IntegrationGoalService(db);
       service = CampaignRollupService(
-        records: ImagingRecordsRepository.local(
+        records: LocalImagingRecords(
           sessionsDao: sessionsDao,
           imagesDao: imagesDao,
         ),
@@ -281,6 +281,48 @@ void main() {
       expect(rollup.isComplete, isTrue);
     });
 
+    test('two goals in one filter share its time across their rows', () async {
+      final targetId = await createTarget('Soul');
+      final sId = await insertSession(
+        targetId: targetId,
+        name: 'Night',
+        startTime: DateTime.utc(2026, 3, 1, 22),
+        endTime: DateTime.utc(2026, 3, 2, 2),
+        successfulExposures: 15,
+        totalIntegrationSecs: 4500,
+      );
+      for (var i = 0; i < 15; i++) {
+        await insertLight(
+          sessionId: sId,
+          targetId: targetId,
+          filter: 'Ha',
+          exposure: 300,
+        );
+      }
+      for (final exposure in [300.0, 600.0]) {
+        await goalService.upsert(
+          IntegrationGoal(
+            targetId: targetId,
+            filter: 'Ha',
+            exposureSeconds: exposure,
+            frameCount: 10,
+            createdAt: DateTime.utc(2026, 2, 1),
+          ),
+        );
+      }
+
+      final rollup = await service.buildForTarget(targetId);
+      final rows = rollup.filters;
+      expect(rows, hasLength(2));
+      expect(
+        rows.map((r) => r.capturedIntegrationSecs),
+        unorderedEquals([3000.0, 1500.0]),
+      );
+      expect(rows.fold(0, (sum, r) => sum + r.capturedFrames), 15);
+      expect(rollup.totalCapturedIntegrationSecs, 4500);
+      expect(rollup.goalDoneSecs, 4500);
+    });
+
     test('throws StateError for unknown target id', () async {
       await expectLater(
         service.buildForTarget(99999),
@@ -309,6 +351,65 @@ void main() {
         expect(all[t1]!.filters, isEmpty);
         expect(all[t2]!.sessionCount, 1);
         expect(all[t2]!.filters, hasLength(1));
+      },
+    );
+
+    // UX walk 2, F35: a sequence run's session names the run, not a target,
+    // so the rollup listed "No sessions recorded" beside 44 s of the target's
+    // accepted frames.
+    test('a run that imaged several targets counts for each, with only that '
+        'target\'s lights', () async {
+      final fieldOne = await createTarget('Field One');
+      final fieldTwo = await createTarget('Field Two');
+      final run = await sessionsDao.createSession(
+        ImagingSessionsCompanion.insert(
+          name: const Value('Stop and recover'),
+          startTime: DateTime.utc(2026, 11, 11, 8, 21),
+          endTime: Value(DateTime.utc(2026, 11, 11, 8, 22)),
+          status: const Value('completed'),
+        ),
+      );
+      for (var i = 0; i < 3; i++) {
+        await insertLight(
+          sessionId: run,
+          targetId: fieldOne,
+          filter: 'L',
+          exposure: 4,
+          capturedAt: DateTime.utc(2026, 11, 11, 8, 21, i),
+        );
+      }
+      await insertLight(
+        sessionId: run,
+        targetId: fieldTwo,
+        filter: 'L',
+        exposure: 30,
+      );
+
+      final rollup = await service.buildForTarget(fieldOne);
+      expect(rollup.sessionCount, 1);
+      expect(rollup.sessions.single.sessionId, run);
+      expect(rollup.sessions.single.sessionIntegrationSecs, 12);
+      expect(rollup.totalCapturedIntegrationSecs, 12);
+      expect(rollup.filters.single.capturedFrames, 3);
+    });
+
+    test(
+      'a target with only the old hours goal shows it over all filters',
+      () async {
+        final t = await createTarget('M101');
+        await targetsDao.updateProgress(t, goalIntegrationSecs: 36000);
+        final sId = await insertSession(
+          targetId: t,
+          name: 'M101 night',
+          startTime: DateTime.utc(2026, 4, 1, 22),
+        );
+        await insertLight(sessionId: sId, targetId: t, filter: 'L');
+
+        final rollup = await service.buildForTarget(t);
+        expect(rollup.allFiltersGoalSecs, 36000);
+        expect(rollup.totalGoalIntegrationSecs, 36000);
+        expect(rollup.totalPercentComplete, closeTo(60 / 36000, 1e-9));
+        expect(rollup.isComplete, isFalse);
       },
     );
   });

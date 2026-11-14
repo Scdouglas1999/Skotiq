@@ -83,45 +83,15 @@ extension _SkotiqDatabaseMigrationV23ToV31 on SkotiqDatabase {
       }
     }
 
-    // Version 27: Dynamic scheduler tables. The tables are
-    // intentionally managed with raw CREATE TABLE statements rather
-    // than @DriftDatabase entries so they can land without an FRB/
-    // drift codegen pass. The corresponding services do raw SQL
-    // through customSelect/customStatement.
+    // Version 27: Dynamic scheduler tables.
     if (from < 27) {
-      await customStatement(
-        'CREATE TABLE IF NOT EXISTS integration_goals ('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
-        'target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,'
-        'filter TEXT NOT NULL,'
-        'exposure_seconds REAL NOT NULL,'
-        'frame_count INTEGER NOT NULL,'
-        'priority INTEGER NOT NULL DEFAULT 5,'
-        'created_at INTEGER NOT NULL,'
-        'UNIQUE(target_id, filter, exposure_seconds))',
-      );
-      await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_integration_goals_target '
-        'ON integration_goals (target_id)',
-      );
-      await customStatement(
-        'CREATE TABLE IF NOT EXISTS target_constraints ('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
-        'target_id INTEGER NOT NULL REFERENCES targets(id) ON DELETE CASCADE,'
-        'kind TEXT NOT NULL,'
-        'payload_json TEXT NOT NULL,'
-        'enabled INTEGER NOT NULL DEFAULT 1)',
-      );
-      await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_target_constraints_target '
-        'ON target_constraints (target_id)',
-      );
-      await customStatement(
-        'CREATE TABLE IF NOT EXISTS horizon_profiles ('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
-        'name TEXT NOT NULL,'
-        'samples_json TEXT NOT NULL)',
-      );
+      await _createMissing(m, [
+        integrationGoals,
+        idxIntegrationGoalsTarget,
+        targetConstraints,
+        idxTargetConstraintsTarget,
+        horizonProfiles,
+      ]);
     }
 
     // Version 28: Defect map table for bad-pixel cosmetic correction. The
@@ -148,55 +118,14 @@ extension _SkotiqDatabaseMigrationV23ToV31 on SkotiqDatabase {
       );
     }
 
-    // Version 29: Per-target / per-run notes/journal entries.
-    // Managed with raw DDL — same convention as the v27
-    // scheduler tables and the v28 defect_maps table — so the
-    // migration lands without forcing a drift codegen pass. The
-    // accompanying [NotesService] performs all reads/writes via
-    // `customSelect`/`customStatement`.
-    //
-    // Schema design:
-    //   * `id` is a UUID string (TEXT PRIMARY KEY) for future
-    //     cross-machine sync; never reused on updates.
-    //   * `target_id` is a logical TEXT identifier (catalog id like
-    //     "M31", or display name) rather than an FK to `targets.id`
-    //     so that renaming or recreating a target row does not
-    //     silently NULL-out its notes.
-    //   * `sequence_run_id` is a soft INT pointer to the
-    //     `sequence_runs` row when the note is run-scoped; no FK so
-    //     deleting an old run record does not cascade-delete the
-    //     journal entry.
-    //   * `tags_json` / `attachments_json` store JSON arrays of
-    //     strings — search-by-tag uses plain LIKE which is enough
-    //     for the small per-user dataset (typically <10k notes).
-    //   * `sentiment` is the literal emoji string from the
-    //     auto-prompt sentiment dropdown, or NULL when not set.
+    // Version 29: Per-target / per-run notes journal.
     if (from < 29) {
-      await customStatement(
-        'CREATE TABLE IF NOT EXISTS notes_journal ('
-        'id TEXT PRIMARY KEY NOT NULL,'
-        'target_id TEXT NOT NULL,'
-        'sequence_run_id INTEGER,'
-        'created_at INTEGER NOT NULL,'
-        'updated_at INTEGER NOT NULL,'
-        'title TEXT,'
-        'body TEXT NOT NULL,'
-        'tags_json TEXT NOT NULL DEFAULT \'[]\','
-        'attachments_json TEXT NOT NULL DEFAULT \'[]\','
-        'sentiment TEXT)',
-      );
-      await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_notes_journal_target '
-        'ON notes_journal (target_id)',
-      );
-      await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_notes_journal_run '
-        'ON notes_journal (sequence_run_id)',
-      );
-      await customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_notes_journal_created '
-        'ON notes_journal (created_at)',
-      );
+      await _createMissing(m, [
+        notesJournal,
+        idxNotesJournalTarget,
+        idxNotesJournalRun,
+        idxNotesJournalCreated,
+      ]);
     }
 
     // Version 30: Inline frame thumbnails (Thumbnails).
@@ -344,7 +273,7 @@ extension _SkotiqDatabaseMigrationV23ToV31 on SkotiqDatabase {
     // [FocusModelService] continues to work unchanged. The DB rows
     // here are written by [PredictiveAfService] and are additive.
     if (from < 31) {
-      await _createFocusModelsTable();
+      await _createFocusModelsTable(m);
       await customStatement(
         "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('predictive_af.enabled', 'true')",
       );

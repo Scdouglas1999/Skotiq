@@ -12,25 +12,16 @@
 //   * Notification toggles → see `notifications.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for general application behaviour toggles.
 extension GeneralSettingsSection on AppSettingsNotifier {
-  Future<void> setStartMinimized(bool value) async {
-    await _saveSetting('start_minimized', value.toString());
-    _patchState((s) => s.copyWith(startMinimized: value));
-  }
+  Future<void> setStartMinimized(bool value) =>
+      _set(AppSettingDefs.startMinimized, value);
 
-  Future<void> setAutoConnectEquipment(bool value) async {
-    await _saveSetting('auto_connect_equipment', value.toString());
-    _patchState((s) => s.copyWith(autoConnectEquipment: value));
-  }
+  Future<void> setAutoConnectEquipment(bool value) =>
+      _set(AppSettingDefs.autoConnectEquipment, value);
 
-  Future<void> setConfirmBeforeClosing(bool value) async {
-    await _saveSetting('confirm_before_closing', value.toString());
-    _patchState((s) => s.copyWith(confirmBeforeClosing: value));
-  }
+  Future<void> setConfirmBeforeClosing(bool value) =>
+      _set(AppSettingDefs.confirmBeforeClosing, value);
 
-  Future<void> setAutoDiscoverOnLaunch(bool value) async {
-    await _saveSetting('auto_discover_on_launch', value.toString());
-    _patchState((s) => s.copyWith(autoDiscoverOnLaunch: value));
-  }
+  Future<void> setAutoDiscoverOnLaunch(bool value) =>
+      _set(AppSettingDefs.autoDiscoverOnLaunch, value);
 }

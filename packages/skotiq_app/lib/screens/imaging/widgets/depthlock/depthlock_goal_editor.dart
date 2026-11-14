@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../panel_widgets.dart';
 import 'depthlock_pickers.dart';
-import 'depthlock_presentation.dart';
 import 'depthlock_presets.dart';
 
 /// A calibration master as the editor shows it: what went into it, not where
@@ -205,7 +207,7 @@ class _DepthLockGoalEditorState extends ConsumerState<DepthLockGoalEditor> {
       if (!mounted || generation != _checkGeneration) return;
       setState(() {
         _apertureCount = null;
-        _measurementIssue = depthLockErrorMessage(error);
+        _measurementIssue = userFacingError(error);
       });
     }
   }
@@ -249,7 +251,7 @@ class _DepthLockGoalEditorState extends ConsumerState<DepthLockGoalEditor> {
       setState(() {
         _floorInFlight = false;
         _floor = null;
-        _floorIssue = depthLockErrorMessage(error);
+        _floorIssue = userFacingError(error);
         // Nothing can be derived, so the operator has to supply the number
         // and say where it came from. Advanced opens so the two fields are
         // in front of them rather than behind a disclosure.
@@ -322,7 +324,7 @@ class _DepthLockGoalEditorState extends ConsumerState<DepthLockGoalEditor> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _saveError = depthLockErrorMessage(error);
+        _saveError = userFacingError(error);
       });
     }
   }
@@ -761,7 +763,7 @@ class _DepthLockGoalEditorState extends ConsumerState<DepthLockGoalEditor> {
                   'Sensor temperature',
                   acquisition.ccdTempC == null
                       ? '—'
-                      : '${acquisition.ccdTempC!.toStringAsFixed(1)} °C',
+                      : formatCelsius(acquisition.ccdTempC!),
                 ),
               ],
             ),

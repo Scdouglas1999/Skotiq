@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/catalog_settings_screen.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -42,7 +43,7 @@ void main() {
     await for (final entity in catalogDirectory.list()) {
       await entity.delete(recursive: true);
     }
-    await File(CatalogManager.instance.starCatalogPath).writeAsString(
+    await File(CatalogManager.instance.pathOf(SkyCatalog.stars)).writeAsString(
       'id,proper,ra,dec,mag\n1,Polaris,2.5,89.2,1.9\n',
     );
   });
@@ -58,12 +59,12 @@ void main() {
     var deleteCalls = 0;
     await pumpAppScreen(
       tester,
-      const CatalogSettingsScreen(isMobile: true),
+      const SettingsFormScope(narrow: true, child: CatalogSettingsScreen()),
       size: const Size(1000, 1800),
       settle: false,
       extraOverrides: [
-        catalogDeleteActionProvider.overrideWithValue(() async {
-          deleteCalls++;
+        catalogUninstallProvider.overrideWithValue((catalog) async {
+          if (catalog == SkyCatalog.stars) deleteCalls++;
           throw StateError('catalog file is locked');
         }),
       ],

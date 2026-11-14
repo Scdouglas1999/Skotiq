@@ -1,0 +1,956 @@
+## switch.connect [ok]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=1]
+= Ok(())
+
+## switch.connect [ascom 0x400]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.connect [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.connect [http 400]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.connect [http 500]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.connect [malformed json]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.connect [connected reads false x1]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=3]
+= Ok(())
+
+## switch.connect [connected reads false x99]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=3]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=4&Connected=true]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=5]
+= Err(Connection validation failed: Connected=true succeeded, but the device still reports disconnected after 3 attempts)
+
+## switch.disconnect [ok]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Ok(())
+
+## switch.disconnect [ascom 0x400]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.disconnect [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.disconnect [http 400]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.disconnect [http 500]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.disconnect [malformed json]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/switch/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.is_connected [ok]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## switch.is_connected [ascom 0x400]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.is_connected [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.is_connected [http 400]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.is_connected [http 500]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.is_connected [malformed json]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.name [ok]
+> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Name")
+
+## switch.name [ascom 0x400]
+> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.name [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.name [http 400]
+> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.name [http 500]
+> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.name [malformed json]
+> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.description [ok]
+> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Description")
+
+## switch.description [ascom 0x400]
+> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.description [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.description [http 400]
+> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.description [http 500]
+> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.description [malformed json]
+> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.driver_version [ok]
+> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok("1.2.3")
+
+## switch.driver_version [ascom 0x400]
+> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.driver_version [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.driver_version [http 400]
+> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.driver_version [http 500]
+> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.driver_version [malformed json]
+> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.driver_info [ok]
+> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Driver Info")
+
+## switch.driver_info [ascom 0x400]
+> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.driver_info [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.driver_info [http 400]
+> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.driver_info [http 500]
+> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.driver_info [malformed json]
+> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.interface_version [ok]
+> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3)
+
+## switch.interface_version [ascom 0x400]
+> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.interface_version [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.interface_version [http 400]
+> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.interface_version [http 500]
+> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.interface_version [malformed json]
+> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.supported_actions [ok]
+> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["ActionA", "ActionB"])
+
+## switch.supported_actions [ascom 0x400]
+> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.supported_actions [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.supported_actions [http 400]
+> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.supported_actions [http 500]
+> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.supported_actions [malformed json]
+> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.max_switch [ok]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Ok(2)
+
+## switch.max_switch [ascom 0x400]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.max_switch [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.max_switch [http 400]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.max_switch [http 500]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.max_switch [malformed json]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.max_switch [ascom 0x401]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## switch.max_switch [ascom 0x402]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## switch.max_switch [ascom 0x407]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## switch.max_switch [ascom 0x408]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## switch.max_switch [ascom 0x409]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## switch.max_switch [ascom 0x40B]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## switch.max_switch [ascom 0x40C without Value]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1036: Action not implemented)
+
+## switch.max_switch [ascom 0x500]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## switch.max_switch [http 404]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## switch.max_switch [http 429 retry-after 0]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## switch.max_switch [http 503]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## switch.max_switch [wrong value type]
+> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
+= Err(Parse error: invalid type: map, expected i32)
+
+## switch.get_switch [ok]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(true)
+
+## switch.get_switch [ascom 0x400]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.get_switch [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.get_switch [http 400]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.get_switch [http 500]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.get_switch [malformed json]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.get_switch [ascom 0x401]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1025: Invalid value)
+
+## switch.get_switch [ascom 0x402]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1026: Value not set)
+
+## switch.get_switch [ascom 0x407]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1031: Not connected)
+
+## switch.get_switch [ascom 0x408]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1032: Invalid while parked)
+
+## switch.get_switch [ascom 0x409]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1033: Invalid while slaved)
+
+## switch.get_switch [ascom 0x40B]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1035: Invalid operation)
+
+## switch.get_switch [ascom 0x40C without Value]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1036: Action not implemented)
+
+## switch.get_switch [ascom 0x500]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1280: Driver specific error)
+
+## switch.get_switch [http 404]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 404: Not Found)
+
+## switch.get_switch [http 429 retry-after 0]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## switch.get_switch [http 503]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## switch.get_switch [wrong value type]
+> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Parse error: invalid type: map, expected a boolean)
+
+## switch.set_switch(true) [ok]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Ok(())
+
+## switch.set_switch(true) [ascom 0x400]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.set_switch(true) [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.set_switch(true) [http 400]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.set_switch(true) [http 500]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&State=true]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&State=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.set_switch(true) [malformed json]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&State=true]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&State=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.set_switch(true) [ascom 0x401]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1025: Invalid value)
+
+## switch.set_switch(true) [ascom 0x402]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1026: Value not set)
+
+## switch.set_switch(true) [ascom 0x407]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1031: Not connected)
+
+## switch.set_switch(true) [ascom 0x408]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1032: Invalid while parked)
+
+## switch.set_switch(true) [ascom 0x409]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1033: Invalid while slaved)
+
+## switch.set_switch(true) [ascom 0x40B]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1035: Invalid operation)
+
+## switch.set_switch(true) [ascom 0x40C without Value]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1036: Action not implemented)
+
+## switch.set_switch(true) [ascom 0x500]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1280: Driver specific error)
+
+## switch.set_switch(true) [http 404]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(HTTP error 404: Not Found)
+
+## switch.set_switch(true) [http 429 retry-after 0]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&State=true]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&State=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## switch.set_switch(true) [http 503]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&State=true]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&State=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## switch.set_switch(true) [wrong value type]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Ok(())
+
+## switch.set_switch(false) [ok]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=0&State=false]
+= Ok(())
+
+## switch.set_switch(false) [ascom 0x400]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=0&State=false]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.set_switch(false) [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=0&State=false]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.set_switch(false) [http 400]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=0&State=false]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.set_switch(false) [http 500]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=0&State=false]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=1&Id=0&State=false]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=2&Id=0&State=false]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.set_switch(false) [malformed json]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=0&State=false]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=1&Id=0&State=false]
+> PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=2&Id=0&State=false]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.get_switch_name [ok]
+> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok("Switch A")
+
+## switch.get_switch_name [ascom 0x400]
+> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.get_switch_name [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.get_switch_name [http 400]
+> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.get_switch_name [http 500]
+> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.get_switch_name [malformed json]
+> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.set_switch_name [ok]
+> PUT /api/v1/switch/#/setswitchname query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Name=Dew+heater+A%26B]
+= Ok(())
+
+## switch.set_switch_name [ascom 0x400]
+> PUT /api/v1/switch/#/setswitchname query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Name=Dew+heater+A%26B]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.set_switch_name [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/setswitchname query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Name=Dew+heater+A%26B]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.set_switch_name [http 400]
+> PUT /api/v1/switch/#/setswitchname query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Name=Dew+heater+A%26B]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.set_switch_name [http 500]
+> PUT /api/v1/switch/#/setswitchname query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Name=Dew+heater+A%26B]
+> PUT /api/v1/switch/#/setswitchname query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&Name=Dew+heater+A%26B]
+> PUT /api/v1/switch/#/setswitchname query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&Name=Dew+heater+A%26B]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.set_switch_name [malformed json]
+> PUT /api/v1/switch/#/setswitchname query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Name=Dew+heater+A%26B]
+> PUT /api/v1/switch/#/setswitchname query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&Name=Dew+heater+A%26B]
+> PUT /api/v1/switch/#/setswitchname query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&Name=Dew+heater+A%26B]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.get_switch_description [ok]
+> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok("Switch A description")
+
+## switch.get_switch_description [ascom 0x400]
+> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.get_switch_description [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.get_switch_description [http 400]
+> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.get_switch_description [http 500]
+> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.get_switch_description [malformed json]
+> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.get_switch_value [ok]
+> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(0.5)
+
+## switch.get_switch_value [ascom 0x400]
+> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.get_switch_value [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.get_switch_value [http 400]
+> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.get_switch_value [http 500]
+> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.get_switch_value [malformed json]
+> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.set_switch_value [ok]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.75]
+= Ok(())
+
+## switch.set_switch_value [ascom 0x400]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.75]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.set_switch_value [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.75]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.set_switch_value [http 400]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.75]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.set_switch_value [http 500]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.75]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&Value=0.75]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&Value=0.75]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.set_switch_value [malformed json]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.75]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&Value=0.75]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&Value=0.75]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.set_switch_value(whole) [ok]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=1&Value=12]
+= Ok(())
+
+## switch.set_switch_value(whole) [ascom 0x400]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=1&Value=12]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.set_switch_value(whole) [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=1&Value=12]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.set_switch_value(whole) [http 400]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=1&Value=12]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.set_switch_value(whole) [http 500]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=1&Value=12]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=1&Id=1&Value=12]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=2&Id=1&Value=12]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.set_switch_value(whole) [malformed json]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=1&Value=12]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=1&Id=1&Value=12]
+> PUT /api/v1/switch/#/setswitchvalue query[] form[ClientID=<id>&ClientTransactionID=2&Id=1&Value=12]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.min_switch_value [ok]
+> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(0.0)
+
+## switch.min_switch_value [ascom 0x400]
+> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.min_switch_value [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.min_switch_value [http 400]
+> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.min_switch_value [http 500]
+> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.min_switch_value [malformed json]
+> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.max_switch_value [ok]
+> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(1.0)
+
+## switch.max_switch_value [ascom 0x400]
+> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.max_switch_value [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.max_switch_value [http 400]
+> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.max_switch_value [http 500]
+> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.max_switch_value [malformed json]
+> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.can_write [ok]
+> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(true)
+
+## switch.can_write [ascom 0x400]
+> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.can_write [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.can_write [http 400]
+> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.can_write [http 500]
+> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.can_write [malformed json]
+> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.switch_step [ok]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(0.5)
+
+## switch.switch_step [ascom 0x400]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.switch_step [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.switch_step [http 400]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.switch_step [http 500]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.switch_step [malformed json]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.can_async [ok]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(true)
+
+## switch.can_async [ascom 0x400]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.can_async [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.can_async [http 400]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.can_async [http 500]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.can_async [malformed json]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.set_async [ok]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Ok(())
+
+## switch.set_async [ascom 0x400]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.set_async [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.set_async [http 400]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.set_async [http 500]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&State=true]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&State=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.set_async [malformed json]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&State=true]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&State=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.set_async_value [ok]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+= Ok(())
+
+## switch.set_async_value [ascom 0x400]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.set_async_value [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.set_async_value [http 400]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.set_async_value [http 500]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&Value=0.5]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&Value=0.5]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.set_async_value [malformed json]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&Value=0.5]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&Value=0.5]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.state_change_complete [ok]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(true)
+
+## switch.state_change_complete [ascom 0x400]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.state_change_complete [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.state_change_complete [http 400]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.state_change_complete [http 500]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.state_change_complete [malformed json]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.cancel_async [ok]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(())
+
+## switch.cancel_async [ascom 0x400]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.cancel_async [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.cancel_async [http 400]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.cancel_async [http 500]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=1&Id=3]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.cancel_async [malformed json]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=1&Id=3]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)

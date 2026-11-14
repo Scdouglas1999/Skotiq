@@ -20,7 +20,7 @@ class _MobileSectionList extends StatelessWidget {
   final String query;
   final List<SettingsSearchResult> results;
   final ValueChanged<String> onQueryChanged;
-  final void Function(String key, String? rowTitle) onSectionTap;
+  final void Function(SettingsSectionId section, String? rowTitle) onSectionTap;
   final SkotiqColors colors;
   final String title;
 
@@ -71,7 +71,7 @@ class _MobileSectionList extends StatelessWidget {
                         onSectionTap: onSectionTap,
                       )
                     : ListView.builder(
-                        key: SettingsTutorialKeys.categories,
+                        key: TourTarget.settingsCategories.key,
                         padding: const EdgeInsets.symmetric(
                           horizontal: SkotiqTokens.spaceSm,
                           vertical: SkotiqTokens.spaceSm,
@@ -91,9 +91,9 @@ class _MobileSectionList extends StatelessWidget {
                                   icon: section.icon,
                                   label: section.label,
                                   isSelected: false,
-                                  onTap: () => onSectionTap(section.key, null),
+                                  onTap: () => onSectionTap(section.id, null),
                                   colors: colors,
-                                  isMobile: true,
+                                  navigationStep: true,
                                 ),
                               ),
                             ],
@@ -118,7 +118,7 @@ class _MobileSearchResults extends StatelessWidget {
 
   final List<SettingsSearchResult> results;
   final SkotiqColors colors;
-  final void Function(String key, String? rowTitle) onSectionTap;
+  final void Function(SettingsSectionId section, String? rowTitle) onSectionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -146,15 +146,15 @@ class _MobileSearchResults extends StatelessWidget {
               icon: section.icon,
               label: section.label,
               isSelected: false,
-              onTap: () => onSectionTap(section.key, null),
+              onTap: () => onSectionTap(section.id, null),
               colors: colors,
-              isMobile: true,
+              navigationStep: true,
             ),
             for (final row in result.rows)
               _SearchRowResult(
                 label: row,
                 colors: colors,
-                onTap: () => onSectionTap(section.key, row),
+                onTap: () => onSectionTap(section.id, row),
                 // The same trailing inset the section rows of this list carry,
                 // so the sub-result's rounded corner is on screen with them.
                 endInset: SkotiqTokens.spaceSm,
@@ -176,17 +176,16 @@ class _CategoryItem extends StatefulWidget {
   final VoidCallback onTap;
   final SkotiqColors colors;
 
-  /// Narrow layout: a taller touch target with a trailing chevron, because at
-  /// this width the row is a navigation step rather than a selection.
-  final bool isMobile;
-
+  /// In the single-pane list the row is a navigation step rather than a
+  /// selection: a taller target with a trailing chevron.
+  final bool navigationStep;
   const _CategoryItem({
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
     required this.colors,
-    this.isMobile = false,
+    this.navigationStep = false,
   });
 
   @override
@@ -224,7 +223,7 @@ class _CategoryItemState extends State<_CategoryItem> {
             onFocusChange: (value) => setState(() => _isFocused = value),
             borderRadius: SkotiqTokens.borderRadiusSm,
             child: Container(
-              height: widget.isMobile
+              height: widget.navigationStep
                   ? SkotiqTokens.minTouchTarget
                   : _navItemHeight,
               padding: const EdgeInsets.symmetric(
@@ -261,7 +260,7 @@ class _CategoryItemState extends State<_CategoryItem> {
                       style: SkotiqTypography.button.copyWith(color: ink),
                     ),
                   ),
-                  if (widget.isMobile)
+                  if (widget.navigationStep)
                     Icon(
                       LucideIcons.chevronRight,
                       size: _navIconSize,

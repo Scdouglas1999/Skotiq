@@ -180,9 +180,7 @@ void main() {
   });
 
   group('Checklist', () {
-    testWidgets('a done step is struck through and a todo step is not', (
-      tester,
-    ) async {
+    testWidgets('a done step is checked off, not struck out', (tester) async {
       await tester.pumpWidget(
         _host(
           const SizedBox(
@@ -206,8 +204,9 @@ void main() {
 
       final colors = SkotiqColors.dark;
       final done = tester.widget<Text>(find.text('Set your observing site'));
-      expect(done.style!.decoration, TextDecoration.lineThrough);
+      expect(done.style!.decoration, isNot(TextDecoration.lineThrough));
       expect(done.style!.color, colors.textSecondary);
+      expect(find.byIcon(LucideIcons.check), findsOneWidget);
 
       for (final title in <String>[
         'Connect a camera',

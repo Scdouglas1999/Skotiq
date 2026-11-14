@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/phd2_guiding_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 import '../../harness/harness.dart';
 
@@ -21,6 +22,33 @@ class _StubAppSettingsNotifier extends AppSettingsNotifier {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets(
+    'a link without admin access sees the PHD2 path and where to change it',
+    (tester) async {
+      const initial = AppSettingsState(phd2Path: '/opt/phd2/bin/phd2');
+      await pumpAppScreen(
+        tester,
+        const Phd2GuidingSettings(),
+        extraOverrides: [
+          appSettingsProvider.overrideWith(
+            () => _StubAppSettingsNotifier(initial),
+          ),
+          isRemoteModeProvider.overrideWithValue(true),
+          hostAdminAccessProvider.overrideWith((ref) async => false),
+        ],
+      );
+
+      expect(find.text('/opt/phd2/bin/phd2'), findsOneWidget);
+      expect(find.byKey(const ValueKey('phd2_executable_path')), findsNothing);
+      expect(
+        find.text(
+          'Change this on the imaging computer, or link with admin access.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets(
     'remote PHD2 browse collects and saves an executable path on the host',

@@ -1,36 +1,33 @@
 import 'dart:async';
-import 'dart:developer' as developer;
-import 'dart:math' as math;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import '../../services/finder_chart_service.dart';
-import '../../services/fov_presets_sync_service.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
+import 'finder_chart_service.dart';
+import 'fov_presets_sync_service.dart';
 import '../../utils/plan_tonight_sequencer_helper.dart';
 import 'providers/sequenced_object_ids_provider.dart';
-import 'widgets/filter_sidebar.dart';
-import 'widgets/top_overlay.dart';
 import 'widgets/bottom_info_bar.dart';
-import 'widgets/view_controls.dart';
-import 'widgets/slew_controls.dart';
 import 'widgets/search_header.dart';
 import 'widgets/sidebar_tabs.dart';
 import 'widgets/object_info_popup.dart';
 import 'widgets/mobile_widgets.dart';
-import 'widgets/mobile_overlay_layout.dart';
 import 'providers/device_orientation_provider.dart';
 import 'providers/finder_chart_catalog_provider.dart';
 import '../../services/mount_command_service.dart';
 import '../../utils/exported_file_reveal.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../widgets/tutorial_keys/planetarium_keys.dart';
+import '../../tours/tour_target.dart';
 import 'sky_imagery/planetarium_sky_imagery_layer.dart';
 import 'sky_imagery/planetarium_sky_imagery_providers.dart';
 import 'widgets/full_screen_sky_view.dart';
@@ -39,11 +36,13 @@ import 'widgets/star_catalog_fallback_banner.dart';
 import 'widgets/star_chart_depth_notice.dart';
 import 'widgets/redesign/command_bar.dart';
 import 'widgets/redesign/layers_panel.dart';
-import 'show_in_sky.dart';
-import '../imaging/centering_dialog.dart';
+import '../../router/show_in_sky.dart';
+import '../../widgets/centering_dialog.dart';
+import '../../services/equipment_fov_binding.dart';
+import '../../router/app_routes.dart';
+import '../../router/planner_route.dart';
 
 part 'planetarium_screen/actions.dart';
-part 'planetarium_screen/layouts.dart';
 part 'planetarium_screen/local_widgets.dart';
 part 'widgets/redesign/planetarium_shell.dart';
 part 'planetarium_screen/sheets.dart';
@@ -51,7 +50,6 @@ part 'planetarium_screen/sheets.dart';
 /// Get display name and catalog tag for a DSO
 /// Returns (displayName, catalogTag)
 (String, String) getDsoDisplayInfo(DeepSkyObject dso) {
-  // If it's a Messier object, use Messier number as name
   if (dso.isMessier) {
     final messierNum = dso.messierNumber;
     if (messierNum != null) {
@@ -59,7 +57,6 @@ part 'planetarium_screen/sheets.dart';
     }
   }
 
-  // For non-Messier objects, use NGC/IC designation as name
   final ngcIc = dso.ngcIcDesignation;
   if (ngcIc != null) {
     if (ngcIc.startsWith('NGC')) {
@@ -69,7 +66,6 @@ part 'planetarium_screen/sheets.dart';
     }
   }
 
-  // Fallback to id and extract catalog prefix
   if (dso.id.startsWith('NGC')) {
     return (dso.id, 'NGC');
   } else if (dso.id.startsWith('IC')) {
@@ -78,7 +74,6 @@ part 'planetarium_screen/sheets.dart';
     return (dso.id, 'M');
   }
 
-  // Last resort: use name and id
   return (dso.name, dso.id);
 }
 
@@ -109,19 +104,19 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
   // so a second press while the panel is already open still fires.
   int _searchFocusToken = 0;
 
-  // Popup state
   bool _showPopup = false;
   Offset _popupPosition = Offset.zero;
   CelestialObject? _popupObject;
   final GlobalKey _skyViewKey = GlobalKey();
 
-  // Slew mode state
+  // Tap-to-slew. Nothing sets this: its toggle lived in the layouts the
+  // redesigned shell replaced (SlewControls / MobileSlewControls are the
+  // unmounted controls). Kept so the mode can be wired back in.
+  // ignore: prefer_final_fields
   bool _slewMode = false;
 
-  // FOV overlay state
   bool _showFOV = false;
 
-  // Track if initial sync has been done
   bool _initialSyncDone = false;
 
   // Last `?ra=&dec=&name=` hand-off already applied, so re-running the parse on
@@ -129,15 +124,11 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
   // user has panned away.
   String? _appliedSkyTargetQuery;
 
-  // Filter sidebar expansion state for the desktop layout.
-  bool _filterSidebarExpanded = false;
-
   // Redesigned shell: which right-docked panel is open (desktop). Mutually
   // exclusive; on phone these surface as bottom sheets instead.
   bool _layersPanelOpen = false;
   bool _planPanelOpen = false;
 
-  // Help overlay state
   bool _showHelpOverlay = false;
 
   bool _finderChartExportInFlight = false;
@@ -152,7 +143,6 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
   @override
   void initState() {
     super.initState();
-    // Do initial sync after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _performInitialSync();
@@ -191,7 +181,6 @@ class _PlanetariumScreenState extends ConsumerState<PlanetariumView>
     // clears itself when the rig is unknown, so nothing bogus is drawn.
     ref.watch(equipmentFovBindingProvider);
 
-    // Sync mount state from equipment provider to planetarium mount position provider
     ref.listen<MountState>(mountStateProvider, (previous, next) {
       final mountNotifier = ref.read(mountPositionProvider.notifier);
       if (next.connectionState == DeviceConnectionState.connected) {

@@ -1,10 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for intelligent scheduler endpoints
 ///
@@ -16,7 +22,22 @@ import '../validation.dart';
 /// - Target optimization for tonight
 /// - Twilight times
 /// - Moon information
-class SchedulerHandlers {
+class SchedulerHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SchedulerApi.previewDecision: handlePreviewDecision,
+    SchedulerApi.getState: handleGetState,
+    SchedulerApi.control: handleControl,
+    SchedulerApi.updateConfig: handleUpdateConfig,
+    SchedulerApi.calculateAltitude: handleCalculateAltitude,
+    SchedulerApi.calculateTransitTime: handleCalculateTransitTime,
+    SchedulerApi.calculateRiseSet: handleCalculateRiseSet,
+    SchedulerApi.calculateHoursAbove: handleCalculateHoursAbove,
+    SchedulerApi.optimizeTargets: handleOptimizeTargets,
+    SchedulerApi.getTwilightTimes: handleGetTwilightTimes,
+    SchedulerApi.getMoonInfo: handleGetMoonInfo,
+  };
+
   final ProviderContainer container;
 
   SchedulerHandlers(this.container);
@@ -25,8 +46,6 @@ class SchedulerHandlers {
 
   void _logInfo(String message) =>
       _logger.info(message, source: 'SchedulerHandlers');
-
-  // Autopilot preview decision (host -> slave mirror)
 
   /// GET /api/scheduler/preview
   ///
@@ -179,14 +198,11 @@ class SchedulerHandlers {
     return jsonOk(await _schedulerState());
   }
 
-  // Calculate altitude
-
   /// GET /api/scheduler/altitude?ra=X&dec=Y&time=Z
   /// Calculate altitude of object at given time (or now if no time)
   Future<Response> handleCalculateAltitude(Request request) async {
     final database = container.read(databaseProvider);
 
-    // Parse query parameters
     final raParam = request.url.queryParameters['ra'];
     final decParam = request.url.queryParameters['dec'];
     final timeParam = request.url.queryParameters['time'];
@@ -203,7 +219,6 @@ class SchedulerHandlers {
       return jsonBadRequest({'error': 'Invalid ra or dec values'});
     }
 
-    // Parse time or use now
     DateTime time;
     if (timeParam != null) {
       final parsed = DateTime.tryParse(timeParam);
@@ -222,9 +237,8 @@ class SchedulerHandlers {
       time = DateTime.now();
     }
 
-    // Get observer location
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -232,7 +246,6 @@ class SchedulerHandlers {
       });
     }
 
-    // Calculate altitude and azimuth
     final raDeg = raHours * 15.0; // Convert RA hours to degrees
     final (altitude, azimuth) = AstronomyCalculations.objectAltAz(
       raDeg: raDeg,
@@ -242,7 +255,6 @@ class SchedulerHandlers {
       longitudeDeg: longitude,
     );
 
-    // Calculate airmass
     final airmass = altitude > 0
         ? AstronomyCalculations.airmass(altitude)
         : double.infinity;
@@ -261,7 +273,7 @@ class SchedulerHandlers {
     return jsonOk({
       'ra': raHours,
       'dec': decDegrees,
-      'time': time.toIso8601String(),
+      'time': time.toWireTime(),
       'altitude': altitude,
       'azimuth': azimuth,
       'airmass': airmass.isFinite ? airmass : null,
@@ -271,14 +283,11 @@ class SchedulerHandlers {
     });
   }
 
-  // Calculate transit time
-
   /// GET /api/scheduler/transit-time?ra=X&dec=Y
   /// Get transit time for object tonight
   Future<Response> handleCalculateTransitTime(Request request) async {
     final database = container.read(databaseProvider);
 
-    // Parse query parameters
     final raParam = request.url.queryParameters['ra'];
     final decParam = request.url.queryParameters['dec'];
 
@@ -294,9 +303,8 @@ class SchedulerHandlers {
       return jsonBadRequest({'error': 'Invalid ra or dec values'});
     }
 
-    // Get observer location
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -304,7 +312,6 @@ class SchedulerHandlers {
       });
     }
 
-    // Calculate visibility
     final raDeg = raHours * 15.0;
     final now = DateTime.now();
     final visibility = AstronomyCalculations.calculateObjectVisibility(
@@ -329,7 +336,7 @@ class SchedulerHandlers {
     return jsonOk({
       'ra': raHours,
       'dec': decDegrees,
-      'transitTime': visibility.transitTime!.toIso8601String(),
+      'transitTime': visibility.transitTime!.toWireTime(),
       'transitTimeEpoch': visibility.transitTime!.millisecondsSinceEpoch,
       'transitAltitude': visibility.transitAltitude,
       'isCircumpolar': visibility.isCircumpolar,
@@ -337,8 +344,6 @@ class SchedulerHandlers {
       'location': {'latitude': latitude, 'longitude': longitude},
     });
   }
-
-  // Calculate Rise/Set times
 
   /// GET /api/scheduler/rise-set?ra=X&dec=Y
   /// Get rise and set times for object
@@ -356,9 +361,8 @@ class SchedulerHandlers {
 
     final database = container.read(databaseProvider);
 
-    // Get observer location
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -366,7 +370,6 @@ class SchedulerHandlers {
       });
     }
 
-    // Calculate visibility
     final raDeg = raHours * 15.0;
     final now = DateTime.now();
     final visibility = AstronomyCalculations.calculateObjectVisibility(
@@ -382,11 +385,11 @@ class SchedulerHandlers {
       'ra': raHours,
       'dec': decDegrees,
       'minAltitude': minAltitude,
-      'riseTime': visibility.riseTime?.toIso8601String(),
+      'riseTime': visibility.riseTime?.toWireTime(),
       'riseTimeEpoch': visibility.riseTime?.millisecondsSinceEpoch,
-      'transitTime': visibility.transitTime?.toIso8601String(),
+      'transitTime': visibility.transitTime?.toWireTime(),
       'transitTimeEpoch': visibility.transitTime?.millisecondsSinceEpoch,
-      'setTime': visibility.setTime?.toIso8601String(),
+      'setTime': visibility.setTime?.toWireTime(),
       'setTimeEpoch': visibility.setTime?.millisecondsSinceEpoch,
       'transitAltitude': visibility.transitAltitude,
       'isCircumpolar': visibility.isCircumpolar,
@@ -395,8 +398,6 @@ class SchedulerHandlers {
       'location': {'latitude': latitude, 'longitude': longitude},
     });
   }
-
-  // Calculate hours above horizon
 
   /// GET /api/scheduler/hours-above-horizon?ra=X&dec=Y&minAltitude=30
   /// Get hours object is above altitude
@@ -412,9 +413,8 @@ class SchedulerHandlers {
 
     final database = container.read(databaseProvider);
 
-    // Get observer location
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -422,7 +422,6 @@ class SchedulerHandlers {
       });
     }
 
-    // Calculate visibility
     final raDeg = raHours * 15.0;
     final now = DateTime.now();
     final visibility = AstronomyCalculations.calculateObjectVisibility(
@@ -456,8 +455,6 @@ class SchedulerHandlers {
       'location': {'latitude': latitude, 'longitude': longitude},
     });
   }
-
-  // Optimize targets
 
   /// POST /api/scheduler/optimize-targets
   /// Reorder a list of target IDs for optimal imaging tonight
@@ -498,13 +495,11 @@ class SchedulerHandlers {
       return jsonBadRequest({'error': 'Missing or empty targetIds array'});
     }
 
-    // Parse strategy
     final strategyStr = optionalString(payload, 'strategy') ?? 'transitTime';
     final minAltitude = optionalDouble(payload, 'minAltitude') ?? 30.0;
 
-    // Get observer location
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -512,7 +507,6 @@ class SchedulerHandlers {
       });
     }
 
-    // Fetch targets from database
     final targets = <dynamic>[];
     for (final id in targetIds) {
       final target = await database.targetsDao.getTargetById(id);
@@ -527,7 +521,6 @@ class SchedulerHandlers {
       });
     }
 
-    // Calculate visibility data for each target
     final now = DateTime.now();
     final targetVisibility = <int, Map<String, dynamic>>{};
 
@@ -616,7 +609,6 @@ class SchedulerHandlers {
         break;
 
       case 'risingfirst':
-        // Image rising targets first
         sortedTargets.sort((a, b) {
           final aData = targetVisibility[a.id]!;
           final bData = targetVisibility[b.id]!;
@@ -633,7 +625,6 @@ class SchedulerHandlers {
         break;
 
       case 'settingfirst':
-        // Image setting targets first
         sortedTargets.sort((a, b) {
           final aData = targetVisibility[a.id]!;
           final bData = targetVisibility[b.id]!;
@@ -670,7 +661,6 @@ class SchedulerHandlers {
         });
     }
 
-    // Build response
     final orderedResults = sortedTargets.map((target) {
       final data = targetVisibility[target.id]!;
       final visibility = data['visibility'] as ObjectVisibility;
@@ -682,7 +672,7 @@ class SchedulerHandlers {
         'currentAltitude': data['currentAltitude'],
         'currentAzimuth': data['currentAzimuth'],
         'isRising': data['isRising'],
-        'transitTime': visibility.transitTime?.toIso8601String(),
+        'transitTime': visibility.transitTime?.toWireTime(),
         'transitAltitude': visibility.transitAltitude,
         'isCircumpolar': visibility.isCircumpolar,
         'neverRises': visibility.neverRises,
@@ -697,16 +687,13 @@ class SchedulerHandlers {
     });
   }
 
-  // Get twilight times
-
   /// GET /api/scheduler/twilight-times
   /// Get astronomical, nautical, civil twilight times for tonight
   Future<Response> handleGetTwilightTimes(Request request) async {
     final database = container.read(databaseProvider);
 
-    // Get observer location
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -714,7 +701,6 @@ class SchedulerHandlers {
       });
     }
 
-    // Optional date parameter
     final dateParam = request.url.queryParameters['date'];
     DateTime date;
     if (dateParam != null) {
@@ -727,7 +713,6 @@ class SchedulerHandlers {
       date = DateTime.now();
     }
 
-    // Calculate twilight times
     final twilight = AstronomyCalculations.calculateTwilightTimes(
       date: date,
       latitudeDeg: latitude,
@@ -736,39 +721,36 @@ class SchedulerHandlers {
 
     return jsonOk({
       'date': date.toIso8601String().split('T')[0],
-      'sunset': twilight.sunset?.toIso8601String(),
+      'sunset': twilight.sunset?.toWireTime(),
       'sunsetEpoch': twilight.sunset?.millisecondsSinceEpoch,
-      'civilDusk': twilight.civilDusk?.toIso8601String(),
+      'civilDusk': twilight.civilDusk?.toWireTime(),
       'civilDuskEpoch': twilight.civilDusk?.millisecondsSinceEpoch,
-      'nauticalDusk': twilight.nauticalDusk?.toIso8601String(),
+      'nauticalDusk': twilight.nauticalDusk?.toWireTime(),
       'nauticalDuskEpoch': twilight.nauticalDusk?.millisecondsSinceEpoch,
-      'astronomicalDusk': twilight.astronomicalDusk?.toIso8601String(),
+      'astronomicalDusk': twilight.astronomicalDusk?.toWireTime(),
       'astronomicalDuskEpoch':
           twilight.astronomicalDusk?.millisecondsSinceEpoch,
-      'astronomicalDawn': twilight.astronomicalDawn?.toIso8601String(),
+      'astronomicalDawn': twilight.astronomicalDawn?.toWireTime(),
       'astronomicalDawnEpoch':
           twilight.astronomicalDawn?.millisecondsSinceEpoch,
-      'nauticalDawn': twilight.nauticalDawn?.toIso8601String(),
+      'nauticalDawn': twilight.nauticalDawn?.toWireTime(),
       'nauticalDawnEpoch': twilight.nauticalDawn?.millisecondsSinceEpoch,
-      'civilDawn': twilight.civilDawn?.toIso8601String(),
+      'civilDawn': twilight.civilDawn?.toWireTime(),
       'civilDawnEpoch': twilight.civilDawn?.millisecondsSinceEpoch,
-      'sunrise': twilight.sunrise?.toIso8601String(),
+      'sunrise': twilight.sunrise?.toWireTime(),
       'sunriseEpoch': twilight.sunrise?.millisecondsSinceEpoch,
       'darknessDurationMinutes': twilight.darknessDuration?.inMinutes,
       'location': {'latitude': latitude, 'longitude': longitude},
     });
   }
 
-  // Get moon info
-
   /// GET /api/scheduler/moon-info
   /// Get moon phase, rise/set, illumination
   Future<Response> handleGetMoonInfo(Request request) async {
     final database = container.read(databaseProvider);
 
-    // Get observer location
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         'error':
@@ -776,7 +758,6 @@ class SchedulerHandlers {
       });
     }
 
-    // Optional date parameter
     final dateParam = request.url.queryParameters['date'];
     DateTime date;
     if (dateParam != null) {
@@ -789,14 +770,12 @@ class SchedulerHandlers {
       date = DateTime.now();
     }
 
-    // Calculate moon position and illumination
     final (moonRaDeg, moonDecDeg, moonDistance) =
         AstronomyCalculations.moonPosition(date);
     final moonRaHours = moonRaDeg / 15.0;
     final illumination = AstronomyCalculations.moonIllumination(date);
     final phaseName = AstronomyCalculations.moonPhaseName(date);
 
-    // Calculate current altitude
     final (moonAlt, moonAz) = AstronomyCalculations.objectAltAz(
       raDeg: moonRaDeg,
       decDeg: moonDecDeg,
@@ -805,7 +784,6 @@ class SchedulerHandlers {
       longitudeDeg: longitude,
     );
 
-    // Calculate moon rise/set times
     final moonTimes = AstronomyCalculations.calculateMoonTimes(
       date: date,
       latitudeDeg: latitude,
@@ -813,7 +791,7 @@ class SchedulerHandlers {
     );
 
     return jsonOk({
-      'date': date.toIso8601String(),
+      'date': date.toWireTime(),
       'position': {
         'raHours': moonRaHours,
         'raDegrees': moonRaDeg,
@@ -825,9 +803,9 @@ class SchedulerHandlers {
       'currentAltitude': moonAlt,
       'currentAzimuth': moonAz,
       'isAboveHorizon': moonAlt > 0,
-      'moonrise': moonTimes.moonrise?.toIso8601String(),
+      'moonrise': moonTimes.moonrise?.toWireTime(),
       'moonriseEpoch': moonTimes.moonrise?.millisecondsSinceEpoch,
-      'moonset': moonTimes.moonset?.toIso8601String(),
+      'moonset': moonTimes.moonset?.toWireTime(),
       'moonsetEpoch': moonTimes.moonset?.millisecondsSinceEpoch,
       'location': {'latitude': latitude, 'longitude': longitude},
     });

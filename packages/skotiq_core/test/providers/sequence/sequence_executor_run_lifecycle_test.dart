@@ -30,10 +30,16 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
+import '../../harness/sequencer_wire.dart';
 import '../../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -91,7 +97,9 @@ class _RecordingSessionNotifier extends SessionStateNotifier {
   }
 
   @override
-  Future<void> endSession({String status = 'completed'}) async {
+  Future<void> endSession({
+    SessionStatus status = SessionStatus.completed,
+  }) async {
     final gate = endGate;
     if (gate != null) {
       await gate.future;
@@ -100,7 +108,7 @@ class _RecordingSessionNotifier extends SessionStateNotifier {
     // active. Only a genuine finalization is recorded, so `endedStatuses`
     // proves exactly-once.
     if (!state.isActive || state.dbSessionId == null) return;
-    endedStatuses.add(status);
+    endedStatuses.add(status.token);
     if (throwOnEnd) {
       throw StateError('endSession failed (injected)');
     }
@@ -196,102 +204,14 @@ void _stubBackendForStart(MockBackend backend) {
     ),
   ).thenAnswer((_) async {});
   when(() => backend.sequencerLoadJson(any())).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerSetSafetyFailMode(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerSetParkPolicy(
-      parkOnUnsafeWeather: any(named: 'parkOnUnsafeWeather'),
-      parkBeforeDawn: any(named: 'parkBeforeDawn'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerSetDeviceRetries(
-      cameraRetries: any(named: 'cameraRetries'),
-      filterWheelRetries: any(named: 'filterWheelRetries'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerSetStopOnQualityProblems(any()),
-  ).thenAnswer((_) async {});
   when(() => backend.setLocation(any())).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateLocation(
-      latitude: any(named: 'latitude'),
-      longitude: any(named: 'longitude'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateDefaultQualityCheck(
-      hfrThreshold: any(named: 'hfrThreshold'),
-      hfrBaselinePercent: any(named: 'hfrBaselinePercent'),
-      eccentricityThreshold: any(named: 'eccentricityThreshold'),
-      starCountMin: any(named: 'starCountMin'),
-      maxConsecutiveRejects: any(named: 'maxConsecutiveRejects'),
-      enabled: any(named: 'enabled'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateRejectFolderPath(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerClearDefaultAdaptiveExposure(),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateDefaultAdaptiveExposure(
-      enabled: any(named: 'enabled'),
-      targetSnr: any(named: 'targetSnr'),
-      referenceSkyBrightnessMag: any(named: 'referenceSkyBrightnessMag'),
-      minExposureSecs: any(named: 'minExposureSecs'),
-      maxExposureSecs: any(named: 'maxExposureSecs'),
-      perFilterEnabled: any(named: 'perFilterEnabled'),
-      perFilterMinSecs: any(named: 'perFilterMinSecs'),
-      perFilterMaxSecs: any(named: 'perFilterMaxSecs'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateAutofocusInterval(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateAutofocusConfig(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateDitherConfig(
-      pixels: any(named: 'pixels'),
-      settlePixels: any(named: 'settlePixels'),
-      settleTime: any(named: 'settleTime'),
-      settleTimeout: any(named: 'settleTimeout'),
-      raOnly: any(named: 'raOnly'),
-    ),
-  ).thenAnswer((_) async {});
-  // The start path seeds the meridian-flip trigger from the operator's
-  // settings; without it the Rust trigger keeps `MeridianFlipConfig::default()`
-  // and the whole Settings -> Meridian Flip panel is inert on the flip that
-  // actually fires unattended.
-  when(
-    () => backend.sequencerUpdateMeridianFlipConfig(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateFilterOffsets(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateObserverProfile(
-      observerName: any(named: 'observerName'),
-      siteElevationM: any(named: 'siteElevationM'),
-      cameraMake: any(named: 'cameraMake'),
-      cameraModel: any(named: 'cameraModel'),
-      telescopeName: any(named: 'telescopeName'),
-      telescopeFocalLengthMm: any(named: 'telescopeFocalLengthMm'),
-      telescopeApertureMm: any(named: 'telescopeApertureMm'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerSetDecisionLoggingEnabled(any()),
-  ).thenAnswer((_) async {});
+  // The operator's settings, as the one run configuration.
+  when(() => backend.sequencerApplyRunConfig(any())).thenAnswer((_) async {});
 }
 
 void main() {
   setUpAll(() {
+    registerFallbackValue(SequenceRunStatus.completed);
     registerMocktailFallbackValues();
   });
 
@@ -653,7 +573,7 @@ void main() {
 
       // Duplicate + aliased terminal events must not end the session again.
       eventController.add(_sequencerEvent('Completed'));
-      eventController.add(_sequencerEvent('SequenceCompleted'));
+      eventController.add(_sequencerEvent('Completed'));
       await pumpEvents();
       await executor.terminalCleanupSettledForTest;
       expect(session.endedStatuses, ['completed']);
@@ -696,6 +616,7 @@ void main() {
           data: const {
             'category': 'manual_intervention',
             'summary': 'Operator: stop requested',
+            'stop': {'by': 'operator'},
           },
         ),
       );
@@ -710,7 +631,7 @@ void main() {
         SequenceExecutionState.idle,
       );
 
-      eventController.add(_sequencerEvent('SequenceStopped'));
+      eventController.add(_sequencerEvent('Stopped'));
       await pumpEvents();
       await executor.terminalCleanupSettledForTest;
       expect(session.endedStatuses, ['stopped']);
@@ -1560,7 +1481,7 @@ void main() {
       final result = container.read(sequenceTerminalRunResultProvider);
       expect(result, isNotNull);
       expect(result!.outcome, SequenceExecutionState.completed);
-      expect(result.runStatus, 'completed');
+      expect(result.runStatus, SequenceRunStatus.completed);
       expect(
         result.runId,
         runIdDuringRun,
@@ -1585,7 +1506,7 @@ void main() {
 
         final result = container.read(sequenceTerminalRunResultProvider)!;
         expect(result.outcome, SequenceExecutionState.failed);
-        expect(result.runStatus, 'failed');
+        expect(result.runStatus, SequenceRunStatus.failed);
         expect(result.runId, runId);
         expect(result.dbSessionId, sessionId);
       },
@@ -1733,9 +1654,9 @@ void main() {
         ),
       ).thenAnswer((_) async => 4242);
       when(() => dao.updateStats(any(), any())).thenAnswer((_) async {});
-      final finishCalls = <String>[];
+      final finishCalls = <SequenceRunStatus>[];
       when(() => dao.finishRun(any(), any(), any())).thenAnswer((inv) async {
-        finishCalls.add(inv.positionalArguments[1] as String);
+        finishCalls.add(inv.positionalArguments[1] as SequenceRunStatus);
         throw StateError('finishRun failed (injected)');
       });
 
@@ -1761,7 +1682,7 @@ void main() {
 
       // finishRun was attempted and failed; endSession must NOT have been
       // called (no half-finished session end after an unpersisted run row).
-      expect(finishCalls, ['completed']);
+      expect(finishCalls, [SequenceRunStatus.completed]);
       expect(
         session.endedStatuses,
         isEmpty,
@@ -1840,7 +1761,7 @@ void main() {
       final c = ProviderContainer();
       addTearDown(c.dispose);
       final stats = SequenceRunStats();
-      c.read(liveSequenceStatsProvider.notifier).state = stats;
+      c.read(runRecordProvider.notifier).setStats(stats);
 
       var notifications = 0;
       c.listen<SequenceRunStats?>(
@@ -1856,7 +1777,7 @@ void main() {
         exposureSecs: 60,
         accepted: true,
       );
-      c.read(liveSequenceStatsProvider.notifier).state = stats;
+      c.read(runRecordProvider.notifier).setStats(stats);
       expect(
         notifications,
         0,
@@ -1866,7 +1787,7 @@ void main() {
       // Re-store a copy(): identity changes, so consumers are notified — and the
       // copy carries the mutated values.
       final snapshot = stats.copy();
-      c.read(liveSequenceStatsProvider.notifier).state = snapshot;
+      c.read(runRecordProvider.notifier).setStats(snapshot);
       expect(notifications, 1, reason: 'copy() changes identity and notifies');
       expect(snapshot.framesCaptured, 1);
       expect(identical(snapshot, stats), isFalse);
@@ -1908,7 +1829,14 @@ void main() {
       // A real stat-producing event (TriggerFired) submits an incremental
       // updateStats through the executor's own path — held in flight by the gate.
       eventController.add(
-        _sequencerEvent('TriggerFired', data: {'trigger_name': 'dusk'}),
+        _sequencerEvent(
+          'TriggerFired',
+          data: {
+            'trigger_id': 'dusk',
+            'trigger_name': 'dusk',
+            'action': 'Notify',
+          },
+        ),
       );
       await pumpEvents();
       expect(ops, contains('updateStats-start'));
@@ -2001,7 +1929,7 @@ void main() {
         sequenceId: null,
         sequenceName: 'interrupted night',
       );
-      await dao.setLiveStatus(runId, 'paused');
+      await dao.setLiveStatus(runId, SequenceRunStatus.paused);
 
       // The startup sweep runs in `beforeOpen`; re-running its statement here
       // is what a fresh process does with the same rows.
@@ -2088,14 +2016,11 @@ void main() {
 
     void emitAcceptedFrame(String nodeId) {
       eventController.add(
-        _sequencerEvent(
-          'FrameAccepted',
-          data: {
-            'node_id': nodeId,
-            'frame': 1,
-            'total': 4,
-            'save_path': '/captures/New Target_R_0001.fits',
-          },
+        frameVerdictEvent(
+          accepted: true,
+          nodeId: nodeId,
+          total: 4,
+          path: '/captures/New Target_R_0001.fits',
         ),
       );
     }
@@ -2168,16 +2093,16 @@ void main() {
   ///   WARN Trigger fired: Altitude Limit (altitude_limit) - action: NextTarget
   ///   ... once per 60 s cooldown, all run
   ///
-  /// `sequencerUpdateLocation` takes non-nullable doubles, so an unset site
-  /// arrives in Rust as a real place off West Africa. Vega is below 30° from
+  /// A (0, 0) site sent as a site arrives in Rust as a real place off West
+  /// Africa. Vega is below 30° from
   /// there at that hour, so the always-armed altitude trigger voted to abandon
   /// the target. With more than one target, every one would be skipped in turn.
   ///
   /// The Rust side already handles a genuinely absent location — it computes an
   /// altitude only when RA, Dec, lat and lon are all present and returns false
-  /// from the condition otherwise. Withholding the push is what lets that work.
+  /// from the condition otherwise. Sending no site is what lets that work.
   group('F. an unset observing location is not pushed as Null Island', () {
-    test('no location configured means no location pushed', () async {
+    test('no location configured means no site in the run config', () async {
       final container = buildContainer();
       // Settings must be RESOLVED, not merely absent: the defect is that a
       // loaded-but-unconfigured profile reports latitude 0 / longitude 0 and
@@ -2202,12 +2127,14 @@ void main() {
       final executor = container.read(sequenceExecutorProvider);
       await executor.start();
 
-      verifyNever(
-        () => backend.sequencerUpdateLocation(
-          latitude: any(named: 'latitude'),
-          longitude: any(named: 'longitude'),
-        ),
-      );
+      final sent = verify(
+        () => backend.sequencerApplyRunConfig(captureAny()),
+      ).captured;
+      for (final config in sent) {
+        final decoded = jsonDecode(config as String) as Map<String, dynamic>;
+        expect(decoded['latitude'], isNull);
+        expect(decoded['longitude'], isNull);
+      }
 
       await executor.stop();
     });
@@ -2230,12 +2157,12 @@ void main() {
       final executor = container.read(sequenceExecutorProvider);
       await executor.start();
 
-      verify(
-        () => backend.sequencerUpdateLocation(
-          latitude: 39.9719,
-          longitude: -75.3576,
-        ),
-      ).called(1);
+      final sent = verify(
+        () => backend.sequencerApplyRunConfig(captureAny()),
+      ).captured;
+      final atStart = jsonDecode(sent.last as String) as Map<String, dynamic>;
+      expect(atStart['latitude'], 39.9719);
+      expect(atStart['longitude'], -75.3576);
 
       await executor.stop();
     });
@@ -2245,7 +2172,7 @@ void main() {
     // The appliance's canonical flow is POST /api/sequencer/load ->
     // POST /api/sequencer/start, which never calls start(): the handler opens
     // the `imaging_sessions` row itself and reaches this executor only through
-    // attachHostListenersForNativeRun. So nothing on that path clears the per-
+    // startLoadedRun. So nothing on that path clears the per-
     // run finalization latches, and the FIRST night leaves `_settledRunStatus`
     // behind. Reproduced on the release bundle with
     // tools/harness/d1_sim_night/two_nights.sh: night two reached `completed`
@@ -2262,7 +2189,8 @@ void main() {
       await c
           .read(sessionStateProvider.notifier)
           .startSession(targetName: name);
-      await executor.attachHostListenersForNativeRun();
+      when(() => backend.sequencerStart()).thenAnswer((_) async {});
+      await executor.startLoadedRun();
       eventController.add(_sequencerEvent('Completed'));
       await pumpEvents();
       await executor.terminalCleanupSettledForTest;
@@ -2299,13 +2227,13 @@ void main() {
         await headlessNight(container, executor, 'night two');
         final second = container.read(sequenceTerminalRunResultProvider)!;
 
-        // The terminal result is what auto-integration and the dawn Darkroom
-        // pass key off (autoIntegrationCoordinatorProvider reads dbSessionId).
+        // The terminal result is what the night-end automation keys off
+        // (nightEndCoordinatorProvider reads dbSessionId).
         // A missing or stale one is a night with masters nobody makes.
         expect(second.dbSessionId, isNot(first.dbSessionId));
         expect(second.dbSessionId, session.lastSessionId);
         expect(second.generation, greaterThan(first.generation));
-        expect(second.runStatus, 'completed');
+        expect(second.runStatus, SequenceRunStatus.completed);
       },
     );
 
@@ -2326,7 +2254,7 @@ void main() {
       // A re-attach must not discard that transaction: the run's hardware
       // ending was never fully recorded, and a fresh finalization on top would
       // publish a verdict for a run whose cleanup never finished.
-      await executor.attachHostListenersForNativeRun();
+      await executor.startLoadedRun();
       eventController.add(_sequencerEvent('Completed'));
       await pumpEvents();
       await executor.terminalCleanupSettledForTest;
@@ -2419,7 +2347,11 @@ void main() {
         await executor.terminalCleanupSettledForTest;
         expect(
           executor.runPhaseForTest,
-          isA<RunSettled>().having((p) => p.runStatus, 'status', 'completed'),
+          isA<RunSettled>().having(
+            (p) => p.runStatus,
+            'status',
+            SequenceRunStatus.completed,
+          ),
         );
       },
     );

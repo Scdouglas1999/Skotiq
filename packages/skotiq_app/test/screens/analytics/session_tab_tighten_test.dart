@@ -8,24 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
 import 'package:skotiq_app/screens/analytics/widgets/session_chart.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao());
-
-  @override
-  // ignore: invalid_use_of_protected_member
-  TutorialProgress get state => const TutorialProgress(tutorialsEnabled: false);
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
 
 DbCapturedImage _frame(int id, {required bool accepted, double? hfr}) =>
     DbCapturedImage(
@@ -64,10 +50,8 @@ Widget _app(List<DbCapturedImage> frames) => ProviderScope(
         allDbImagesProvider
             .overrideWith((ref) => Stream.value(const <DbCapturedImage>[])),
         allSessionsProvider.overrideWith((ref) => Stream.value([_night])),
-        latestScienceSessionProvider.overrideWith((ref) async => 1),
-        latestScienceProductSessionProvider.overrideWith((ref) async => 1),
+        scienceDefaultSessionProvider.overrideWith((ref) async => 1),
         dbSessionImagesProvider(1).overrideWith((ref) => Stream.value(frames)),
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
@@ -111,7 +95,7 @@ void main() {
       findsNothing,
       reason: 'the date is already in the picker',
     );
-    expect(find.text('failed'), findsOneWidget);
+    expect(find.text('Failed'), findsOneWidget);
   });
 
   testWidgets('no frame with anything to plot is one line, not four charts',

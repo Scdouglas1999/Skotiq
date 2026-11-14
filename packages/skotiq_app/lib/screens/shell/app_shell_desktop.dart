@@ -1,16 +1,14 @@
 // Desktop implementation with window_manager
-import 'dart:developer' as developer;
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'shell_exit_recorder.dart';
 import 'widgets/window_chrome_desktop.dart' as chrome_impl;
+import 'package:skotiq_core/services.dart';
 
-/// Callback type for when window close is requested
 typedef OnCloseRequested = Future<bool> Function();
 
-/// Window close listener that holds a reference to the close callback
 class _WindowCloseListener extends WindowListener {
   final OnCloseRequested? onCloseRequested;
 
@@ -21,11 +19,28 @@ class _WindowCloseListener extends WindowListener {
     final closeDecision = await onCloseRequested?.call();
     final shouldClose = closeDecision != false;
     if (shouldClose) {
-      // Say so BEFORE destroying the window: the entry point's session record
-      // is what tells the next launch whether the previous one ended on
-      // purpose, and nothing after destroy() runs.
+      // Say so BEFORE the process ends: the entry point's session record is
+      // what tells the next launch whether the previous one ended on purpose.
       ShellExit.recordClean('Window closed');
-      await windowManager.destroy();
+      // A role switch asked for this close: start the next process now. It
+      // waits for this one to release the database before it opens a window.
+      try {
+        await ShellExit.runPendingRelaunch();
+      } catch (e) {
+        Log.error(
+          '[AppShell] Relaunch failed: $e',
+          source: 'AppShell',
+          error: e,
+        );
+      }
+      final end = ShellExit.endProcess;
+      if (end != null) {
+        await end();
+      } else {
+        await windowManager.destroy();
+      }
+    } else {
+      ShellExit.cancelPendingRelaunch();
     }
   }
 }
@@ -33,7 +48,6 @@ class _WindowCloseListener extends WindowListener {
 /// Global listener instance (needed because WindowManager uses static methods)
 _WindowCloseListener? _closeListener;
 
-/// Initialize window manager with optional close confirmation callback
 void initWindowManager(State state, {OnCloseRequested? onCloseRequested}) {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     try {
@@ -53,8 +67,11 @@ void initWindowManager(State state, {OnCloseRequested? onCloseRequested}) {
       // grips.
       chrome_impl.ensureWindowChromeState();
     } catch (e) {
-      developer.log('[AppShell] Error initializing window manager: $e',
-          name: 'AppShell', level: 1000, error: e);
+      Log.error(
+        '[AppShell] Error initializing window manager: $e',
+        source: 'AppShell',
+        error: e,
+      );
     }
   }
 }
@@ -75,8 +92,11 @@ void disposeWindowManager(State state) {
         windowManager.addListener(_closeListener!);
       }
     } catch (e) {
-      developer.log('[AppShell] Error disposing window manager: $e',
-          name: 'AppShell', level: 1000, error: e);
+      Log.error(
+        '[AppShell] Error disposing window manager: $e',
+        source: 'AppShell',
+        error: e,
+      );
     }
   }
 }

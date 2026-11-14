@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
@@ -7,13 +6,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
+import '../../../widgets/sensitivity_field.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';
-import '../filter_source.dart';
 import 'delete_node_confirmation.dart';
 import 'live_stacking_properties.dart';
 import 'meridian_flip_edit_helper.dart';
@@ -27,6 +32,7 @@ import 'smart_exposure_properties.dart';
 import 'target_coordinates.dart';
 import 'target_node_properties.dart';
 import 'target_scheduler_properties.dart';
+import '../../../utils/snackbar_helper.dart';
 
 // File split: the per-node property widgets, input primitives, dispatcher,
 // and timing section live in `node_properties_panel_parts/`. The public
@@ -94,7 +100,6 @@ class NodePropertiesPanel extends ConsumerWidget {
       BuildContext context, WidgetRef ref, SequenceNode? selectedNode) {
     return Column(
       children: [
-        // Handle bar
         Center(
           child: Container(
             margin: const EdgeInsets.only(top: 12, bottom: 8),
@@ -106,8 +111,6 @@ class NodePropertiesPanel extends ConsumerWidget {
             ),
           ),
         ),
-
-        // Header with close button
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: SkotiqTokens.spaceLg,
@@ -125,15 +128,11 @@ class NodePropertiesPanel extends ConsumerWidget {
                   ),
           ),
         ),
-
         Divider(color: colors.border, height: 1),
-
         if (selectedNode != null) ...[
           _buildInspectorTabBar(selectedNode),
           Divider(color: colors.border, height: 1),
         ],
-
-        // Content
         Expanded(
           child: selectedNode == null
               ? _EmptySelection(colors: colors, isMobile: true)
@@ -273,13 +272,22 @@ class _SelectedNodeBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final issues = ref.watch(liveValidationProvider).issuesByNodeId[nodeId];
-    if (issues == null || issues.isEmpty) return const SizedBox.shrink();
+    // The target editor says "Coordinates not set" beside the RA/Dec fields
+    // with its own Look up button; pinned here as well, the same words sat
+    // over the fields below them.
+    final issues = [
+      for (final issue
+          in ref.watch(liveValidationProvider).issuesByNodeId[nodeId] ??
+              const <ValidationIssue>[])
+        if (issue.code != kTargetCoordinatesUnsetCode) issue,
+    ];
+    if (issues.isEmpty) return const SizedBox.shrink();
 
     // One banner per problem: the worst issue speaks for the node, and the
-    // Preflight dialog in the page header lists the rest.
+    // Preflight dialog in the page header lists the rest. Severity runs
+    // error, warning, info, so the worst has the lowest index.
     final worst = issues.reduce(
-      (a, b) => a.severity.index >= b.severity.index ? a : b,
+      (a, b) => a.severity.index <= b.severity.index ? a : b,
     );
     final tone = switch (worst.severity) {
       ValidationSeverity.error => BannerTone.error,

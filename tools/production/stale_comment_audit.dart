@@ -23,7 +23,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-/// One stale-comment finding.
 class StaleFinding {
   final String file;
   final int line;

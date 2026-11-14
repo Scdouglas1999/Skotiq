@@ -208,7 +208,7 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     }
     final createdAtRaw = json['createdAt'];
     final createdAt = createdAtRaw is String
-        ? DateTime.tryParse(createdAtRaw)
+        ? tryParseWireTime(createdAtRaw)
         : null;
     if (createdAt == null) {
       throw FormatException(
@@ -284,9 +284,10 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     return Map<String, dynamic>.from(value);
   }
 
-  /// Require and decode the full six-field stats object under `stats`. Counts
-  /// must be integral and non-negative; averages must be finite and
-  /// non-negative. No field is defaulted — a partial stats object throws.
+  /// Require and decode the stats object under `stats`. Counts must be
+  /// integral and non-negative; averages must be finite and non-negative. Of
+  /// the six counters and averages none is defaulted: a partial stats object
+  /// throws. The filter fields are newer than the endpoint and optional.
   LiveStackingStats _requireStackingStats(
     Map<String, dynamic> json,
     String endpoint,
@@ -327,8 +328,19 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
         endpoint,
         min: 0,
       ),
+      // A host from before stacks were kept to one filter sends none of
+      // these.
+      filter: _optionalFilterName(stats['filter']),
+      otherFilterFrames: switch (stats['otherFilterFrames']) {
+        final int count when count > 0 => count,
+        _ => 0,
+      },
+      lastOtherFilter: _optionalFilterName(stats['lastOtherFilter']),
     );
   }
+
+  String? _optionalFilterName(Object? value) =>
+      value is String && value.trim().isNotEmpty ? value : null;
 
   /// Require the stacked result's `channels`, accepting only the two documented
   /// counts.
@@ -402,8 +414,6 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     return samples;
   }
 
-  // Endpoints
-
   /// Start (or arm) live stacking on the host. With [referencePath] (a host
   /// path) the stack starts immediately from that frame; without it the host
   /// arms and the next captured frame becomes the reference.
@@ -416,29 +426,35 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     String? referencePath,
     LiveStackingConfig config = const LiveStackingConfig(),
   }) async {
-    final response = await _post('stacking/start', {
-      'config': _stackingConfigToJson(config),
-      if (referencePath != null) 'referencePath': referencePath,
-    });
+    final response = await _post(
+      StackingApi.start,
+      body: {
+        'config': _stackingConfigToJson(config),
+        if (referencePath != null) 'referencePath': referencePath,
+      },
+    );
     return _requireStackingStats(response, 'POST /api/stacking/start');
   }
 
   /// Push the host config to apply on the next start.
   Future<void> stackingUpdateConfig(LiveStackingConfig config) async {
-    await _post('stacking/config', {'config': _stackingConfigToJson(config)});
+    await _post(
+      StackingApi.updateConfig,
+      body: {'config': _stackingConfigToJson(config)},
+    );
   }
 
   /// Add a host-side frame to the running stack and return the refreshed
   /// result (dimensions + stats + stacked pixels).
   Future<LiveStackingResult> stackingAddFrame(String imagePath) async {
-    await _post('stacking/add-frame', {'imagePath': imagePath});
+    await _post(StackingApi.addFrame, body: {'imagePath': imagePath});
     return stackingGetResult();
   }
 
   /// Current accumulation stats only (cheap; no pixels). Requires a complete
   /// stats object; a partial/malformed 200 throws rather than reporting zeros.
   Future<LiveStackingStats> stackingGetStats() async {
-    final response = await _get('stacking/stats');
+    final response = await _get(StackingApi.stats);
     return _requireStackingStats(response, 'GET /api/stacking/stats');
   }
 
@@ -453,13 +469,13 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
   Future<LiveStackingResult> stackingGetResult() async {
     const metaEndpoint = 'GET /api/stacking/result';
     const previewEndpoint = 'GET /api/stacking/preview';
-    final meta = await _get('stacking/result');
+    final meta = await _get(StackingApi.result);
     final width = _requireStackingInt(meta, 'width', metaEndpoint, min: 1);
     final height = _requireStackingInt(meta, 'height', metaEndpoint, min: 1);
     final channels = _requireStackingChannels(meta, metaEndpoint);
     final stats = _requireStackingStats(meta, metaEndpoint);
 
-    final bytes = await _downloadBytes('stacking/preview');
+    final bytes = await _downloadBytes(StackingApi.preview);
     final samples = _decodeStackingPreview(
       bytes,
       width,
@@ -479,12 +495,12 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
 
   /// Clear the accumulation (host stays armed).
   Future<void> stackingReset() async {
-    await _post('stacking/reset', const {});
+    await _post(StackingApi.reset, body: const {});
   }
 
   /// Stop the stacker and disarm host auto-feed.
   Future<void> stackingStop() async {
-    await _post('stacking/stop', const {});
+    await _post(StackingApi.stop, body: const {});
   }
 
   /// Liveness + counters.
@@ -494,7 +510,7 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
   /// truthful-looking idle host (`active: false, frameCount: 0`).
   Future<({bool active, int frameCount})> stackingStatus() async {
     const endpoint = 'GET /api/stacking/status';
-    final response = await _get('stacking/status');
+    final response = await _get(StackingApi.status);
     return (
       active: _requireStackingBool(response, 'active', endpoint),
       frameCount: _requireStackingInt(response, 'frameCount', endpoint, min: 0),
@@ -507,7 +523,10 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
       throw ArgumentError.value(resultId, 'resultId', 'must be positive');
     }
     final endpoint = 'GET /api/stacking/results/$resultId';
-    final response = await _get('stacking/results/$resultId');
+    final response = await _get(
+      StackingApi.savedResult,
+      path: {'resultId': resultId},
+    );
     final result = _requireStackingObject(response, 'result', endpoint);
     return _savedStackResultFromJson(result, endpoint);
   }
@@ -520,7 +539,10 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
       throw RangeError.range(limit, 1, 100, 'limit');
     }
     const endpoint = 'GET /api/stacking/results';
-    final response = await _get('stacking/results?limit=$limit');
+    final response = await _get(
+      StackingApi.savedResults,
+      query: {'limit': limit},
+    );
     final rawResults = response['results'];
     if (rawResults is! List) {
       throw const FormatException(
@@ -554,7 +576,8 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     }
     final endpoint = 'GET /api/stacking/results/$resultId/preview';
     final downloaded = await _downloadBytesWithHeaders(
-      'stacking/results/$resultId/preview',
+      StackingApi.savedResultPreview,
+      path: {'resultId': resultId},
     );
     final contentType = downloaded.headers['content-type']
         ?.split(';')

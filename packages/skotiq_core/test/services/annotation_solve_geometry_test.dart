@@ -14,8 +14,11 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:path/path.dart' as path;
 
 import '../harness/in_memory_database.dart';
@@ -74,7 +77,9 @@ void main() {
     addTearDown(() async => tempDir.delete(recursive: true));
 
     await CatalogManager.instance.initialize(tempDir.path);
-    await File(CatalogManager.instance.annotationCatalogPath).writeAsString(
+    await File(
+      CatalogManager.instance.pathOf(SkyCatalog.annotation),
+    ).writeAsString(
       'RAJ2000,DEJ2000,Bmag,zhelio,PGC\n'
       // Deliberately OFF the solved centre (by 0.01°, ~24 px at 1.5"/px):
       // an object sitting exactly on the centre is inside even a zero-radius

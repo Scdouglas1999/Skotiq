@@ -10,7 +10,7 @@
 // one and shipping the other cannot happen silently.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/utils/device_format_utils.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
 
 void main() {
   group('friendlyNameFromDeviceId names the ids a hardware-free rig produces',

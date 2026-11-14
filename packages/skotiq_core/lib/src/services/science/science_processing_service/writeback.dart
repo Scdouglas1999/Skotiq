@@ -66,7 +66,7 @@ extension _ScienceProcessingWriteback on ScienceProcessingService {
   /// not retroactively fail a capture that has already been recorded.
   Future<void> _runFitsHeaderWriteback({
     required String imagePath,
-    required db.CapturedImage? capturedImage,
+    required db.DbCapturedImage? capturedImage,
     required ScienceSettings globalSettings,
     required FramePhotometricCalibration? calibration,
     required TransparencySample? transparency,
@@ -78,13 +78,10 @@ extension _ScienceProcessingWriteback on ScienceProcessingService {
       );
       return;
     }
-    final lower = imagePath.toLowerCase();
-    if (!(lower.endsWith('.fits') ||
-        lower.endsWith('.fts') ||
-        lower.endsWith('.fit'))) {
+    if (!FrameFiles.isArchive(imagePath)) {
       _status.skipStage(
         ScienceStage.fitsWriteback,
-        note: 'Not a FITS file — writeback skipped',
+        note: 'Not a FITS or XISF frame — writeback skipped',
       );
       return;
     }
@@ -103,19 +100,12 @@ extension _ScienceProcessingWriteback on ScienceProcessingService {
 
     final sw = _status.beginStage(ScienceStage.fitsWriteback);
     try {
-      final writer = FitsHeaderWriter();
-      final result = await writer.updateKeywords(imagePath, updates);
-      final summary = StringBuffer()
-        ..write('${result.keywordsUpdated} updated, ')
-        ..write('${result.keywordsInjected} injected');
-      if (result.headerGrew) {
-        summary.write(' (header grew to ${result.headerBlocks} blocks)');
-      }
+      await _ref.read(backendProvider).updateFrameCards(imagePath, updates);
       _status.endStage(
         ScienceStage.fitsWriteback,
         ScienceStageOutcome.ok,
         stopwatch: sw,
-        note: summary.toString(),
+        note: '${updates.length} keywords written',
       );
     } catch (error, stack) {
       _logger.warning(

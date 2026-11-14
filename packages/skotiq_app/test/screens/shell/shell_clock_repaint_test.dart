@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/screens/shell/widgets/window_chrome.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/pump_app_screen.dart';
 
@@ -110,7 +111,8 @@ void main() {
 
     // The readout is HH:MM. A per-second tick would repaint the whole window
     // every second on the Linux embedder to change nothing on screen. Over
-    // ten seconds the clock may cross one minute boundary, never more.
+    // ten seconds the clock may cross one local minute and one sidereal
+    // minute, which fall at different seconds, and never more.
     final rebuilt = <String>[];
     final previousPrint = debugPrint;
     debugPrint = (String? message, {int? wrapWidth}) {
@@ -127,7 +129,7 @@ void main() {
         rebuilt.where((line) => line.contains('ShellClock(')).length;
     expect(
       clockBuilds,
-      lessThanOrEqualTo(1),
+      lessThanOrEqualTo(2),
       reason: 'the clock rebuilt $clockBuilds times in ten seconds, so it is '
           'still ticking every second',
     );

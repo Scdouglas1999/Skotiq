@@ -7,13 +7,10 @@ import '../utils/image_decode_size.dart';
 import 'red_night_filter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        DbCapturedImage,
-        imagingBackendProvider,
-        isRemoteModeProvider,
-        loggingServiceProvider;
+import 'package:skotiq_core/database.dart' show DbCapturedImage;
+import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors, SkotiqMark;
+import 'package:skotiq_core/providers.dart';
 
 /// Result of asking the backend (and then the local disk) for a frame's
 /// preview bytes.
@@ -35,24 +32,10 @@ class FrameThumbnailPayload {
   });
 }
 
-/// True for the container formats Flutter's image decoders cannot open.
-///
-/// A FITS/XISF path must never be handed to `Image.file`: it renders as a
-/// broken-image glyph rather than as the frame.
-bool isFitsLikePath(String path) {
-  final lower = path.toLowerCase();
-  return lower.endsWith('.fits') ||
-      lower.endsWith('.fit') ||
-      lower.endsWith('.fts') ||
-      lower.endsWith('.xisf');
-}
-
 /// True for the raster formats `Image.file` can actually decode.
 ///
-/// This is the allowlist, and it is deliberately not `!isFitsLikePath`: the two
-/// disagree on every extension neither names and on extension-less paths, which
-/// is why the same frame used to preview on one surface and show a placeholder
-/// on another. An unknown extension is not evidence that Flutter can decode it.
+/// This is an allowlist: an unknown extension is not evidence that Flutter can
+/// decode it, and a frame file (`FrameFiles.isFrame`) never is.
 bool isDisplayableImagePath(String path) {
   final lower = path.toLowerCase();
   return lower.endsWith('.png') ||
@@ -82,7 +65,7 @@ Future<FrameThumbnailPayload> loadFrameThumbnail(
         'Thumbnail not found in backend cache for image ${image.id}.';
   } catch (error) {
     backendError =
-        'Backend thumbnail request failed for image ${image.id}: $error';
+        'Backend thumbnail request failed for image ${image.id}: ${userFacingError(error)}';
     ref.read(loggingServiceProvider).warning(
           'loadFrameThumbnail: $backendError',
           source: 'FrameThumbnail',
@@ -106,7 +89,7 @@ Future<FrameThumbnailPayload> loadFrameThumbnail(
     );
   } catch (error) {
     final localError =
-        'Failed to check local image file "${image.filePath}": $error';
+        'Failed to check local image file "${image.filePath}": ${userFacingError(error)}';
     ref.read(loggingServiceProvider).warning(
           'loadFrameThumbnail: $localError',
           source: 'FrameThumbnail',

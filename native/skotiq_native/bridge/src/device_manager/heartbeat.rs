@@ -1,12 +1,12 @@
 //! Device heartbeat monitoring loop and lifecycle.
 //!
 //! Methods in this module are an additional impl block on `DeviceManager`
-//! using Rust's split-impl-block feature. Behavior is identical to the
-//! previous monolithic `devices.rs`.
+//! using Rust's split-impl-block feature.
 
-use crate::device::*;
+use crate::device::{DeviceType, DriverType};
+use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, HeartbeatConfig};
-use crate::event::*;
+use crate::event::equipment::{EquipmentEvent, EventSeverity};
 use crate::state::SharedAppState;
 use std::sync::Arc;
 use std::time::Duration;
@@ -29,6 +29,21 @@ pub(crate) enum HeartbeatEventKind {
     /// together and replace the old (redundant) standalone `Disconnected`
     /// event so the disconnect surfaces exactly one user-facing toast.
     DisconnectedAndError,
+}
+
+/// A heartbeat probe's answer, overruled by failing status reads: a driver can
+/// keep answering the probe while every read the app shows fails (the NYX-101
+/// answered `Tracking` and failed `RightAscension` all night), so a run of
+/// failed reads counts as a failed poll. See
+/// [`crate::device_manager::read_health`].
+pub(crate) fn with_status_reads(
+    probe: Result<bool, String>,
+    failing_reads: Option<String>,
+) -> Result<bool, String> {
+    match (probe, failing_reads) {
+        (Ok(true), Some(reason)) => Err(format!("Status reads are failing: {reason}")),
+        (probe, _) => probe,
+    }
 }
 
 /// Pure decision for one failed heartbeat poll.
@@ -89,28 +104,8 @@ pub(crate) fn heartbeat_events_for_poll(
 }
 
 impl DeviceManager {
-    // Heartbeat monitoring
-
-    /// Configuration for heartbeat monitoring per device type
-    /// Uses optimized presets for each device type based on operational characteristics
-    pub(crate) fn get_heartbeat_config(device_type: &DeviceType) -> HeartbeatConfig {
-        match device_type {
-            DeviceType::Camera => HeartbeatConfig::for_camera(),
-            DeviceType::Mount => HeartbeatConfig::for_mount(),
-            DeviceType::Focuser => HeartbeatConfig::for_focuser(),
-            DeviceType::FilterWheel => HeartbeatConfig::for_filter_wheel(),
-            DeviceType::Dome => HeartbeatConfig::for_dome(),
-            DeviceType::Rotator => HeartbeatConfig::for_rotator(),
-            DeviceType::Weather => HeartbeatConfig::for_weather(),
-            DeviceType::SafetyMonitor => HeartbeatConfig::for_safety_monitor(),
-            DeviceType::Guider => HeartbeatConfig::for_guider(),
-            DeviceType::Switch => HeartbeatConfig::for_switch(),
-            DeviceType::CoverCalibrator => HeartbeatConfig::for_cover_calibrator(),
-        }
-    }
-
     /// Perform a health check for a specific device, with a single retry for
-    /// the slow, contention-prone device types (mount, focuser, filter wheel).
+    /// the device types whose policy asks for one (`retry_heartbeat`).
     ///
     /// Returns Ok(true) if healthy, Ok(false) if not responding, Err for
     /// connection errors.
@@ -147,12 +142,7 @@ impl DeviceManager {
             .await;
 
         // Healthy first try, or a device type we don't retry → done.
-        if matches!(first, Ok(true))
-            || !matches!(
-                device_type,
-                DeviceType::Mount | DeviceType::Focuser | DeviceType::FilterWheel
-            )
-        {
+        if matches!(first, Ok(true)) || !policy(*device_type).retry_heartbeat {
             return first;
         }
 
@@ -189,116 +179,24 @@ impl DeviceManager {
         device_type: &DeviceType,
         driver_type: &DriverType,
     ) -> Result<bool, String> {
+        if let Some(handle) = self.handles.get(device_id) {
+            return handle.heartbeat(device_id).await;
+        }
         match driver_type {
-            DriverType::Alpaca => {
-                self.perform_alpaca_health_check(device_id, device_type)
-                    .await
-            }
-            #[cfg(windows)]
-            DriverType::Ascom => {
-                self.perform_ascom_health_check(device_id, device_type)
-                    .await
-            }
-            #[cfg(not(windows))]
-            DriverType::Ascom => Err("ASCOM is not supported on this platform".to_string()),
+            // Every Alpaca, ASCOM and simulated device answers through its
+            // handle.
+            DriverType::Alpaca | DriverType::Ascom | DriverType::Simulator => Err(format!(
+                "No {} heartbeat implementation for device {} ({:?})",
+                crate::device_manager::handle::protocol_label(*driver_type),
+                device_id,
+                device_type
+            )),
             DriverType::Indi => self.perform_indi_health_check(device_id).await,
             DriverType::Native => {
                 self.perform_native_health_check(device_id, device_type)
                     .await
             }
-            DriverType::Simulator => {
-                Self::perform_simulator_health_check(device_id, device_type).await
-            }
         }
-    }
-
-    /// Health check for a simulator device.
-    ///
-    /// Reads the `connected` field from the matching `simulation.rs`
-    /// singleton instead of trivially returning `Ok(true)`. If
-    /// `connect_simulator` or `disconnect_simulator` has not been called for
-    /// the device (or the device is disconnected out-of-band by flipping the
-    /// singleton state), the heartbeat correctly reports `Ok(false)` and the
-    /// surrounding loop in `run_heartbeat_loop` escalates to a Disconnected
-    /// event after `failure_threshold` consecutive misses.
-    ///
-    /// `Err` is reserved for unrecognized device ids and unsupported device
-    /// types: those are a programming bug rather than a transient outage, so
-    /// they surface loudly instead of collapsing into `false`.
-    async fn perform_simulator_health_check(
-        device_id: &str,
-        device_type: &DeviceType,
-    ) -> Result<bool, String> {
-        if !device_id.starts_with("sim_") {
-            return Err(format!(
-                "simulator health check: device id '{}' is not a simulator id",
-                device_id
-            ));
-        }
-
-        use crate::api::devices::simulation::{
-            get_sim_camera_for, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
-            get_sim_focuser, get_sim_mount, get_sim_rotator, get_sim_safety_monitor,
-            get_sim_switch, get_sim_weather,
-        };
-
-        let connected = match device_type {
-            DeviceType::Camera => get_sim_camera_for(device_id).read().await.status.connected,
-            DeviceType::Mount => get_sim_mount().read().await.status.connected,
-            DeviceType::Focuser => get_sim_focuser().read().await.status.connected,
-            DeviceType::FilterWheel => get_sim_filterwheel().read().await.status.connected,
-            DeviceType::Rotator => get_sim_rotator().read().await.status.connected,
-            DeviceType::Dome => get_sim_dome().read().await.status.connected,
-            DeviceType::Weather => get_sim_weather().read().await.connected,
-            DeviceType::SafetyMonitor => get_sim_safety_monitor().read().await.status.connected,
-            DeviceType::Switch => get_sim_switch().read().await.connected,
-            DeviceType::CoverCalibrator => get_sim_cover_calibrator().read().await.connected,
-            other => {
-                return Err(format!(
-                    "simulator health check: no simulator implementation for device type {:?} (id '{}')",
-                    other, device_id
-                ));
-            }
-        };
-
-        Ok(connected)
-    }
-
-    // perform_alpaca_health_check / perform_ascom_health_check /
-    // perform_indi_health_check moved to crate::dispatch::{alpaca,ascom,indi}.
-
-    /// Start heartbeat monitoring for a device with default configuration
-    ///
-    /// This spawns a background task that periodically checks if the device
-    /// is still responding. If the device fails to respond after multiple
-    /// attempts with exponential backoff, a Disconnected event is emitted.
-    ///
-    /// Uses device-type specific defaults for heartbeat configuration.
-    /// If `interval` is non-zero, it overrides the device-type default interval.
-    pub async fn start_heartbeat(&self, device_id: &str, interval: Duration) -> Result<(), String> {
-        // Check if device exists and get its info
-        let (device_type, _device_type_str, _driver_type) = {
-            let devices = self.devices.read().await;
-            match devices.get(device_id) {
-                Some(device) => (
-                    device.info.device_type.clone(),
-                    device.info.device_type.as_str().to_string(),
-                    device.info.driver_type.clone(),
-                ),
-                None => return Err(format!("Device {} not found", device_id)),
-            }
-        };
-
-        // Get device-type specific heartbeat configuration
-        let mut config = Self::get_heartbeat_config(&device_type);
-
-        // Allow interval override if provided (non-zero)
-        if !interval.is_zero() {
-            config.base_interval_secs = interval.as_secs();
-        }
-
-        // Use the configurable version
-        self.start_heartbeat_with_config(device_id, config).await
     }
 
     /// Start heartbeat monitoring with custom configuration
@@ -338,7 +236,6 @@ impl DeviceManager {
             config.auto_reconnect
         );
 
-        // Emit heartbeat started event
         self.app_state.publish_equipment_event(
             EquipmentEvent::HeartbeatStarted {
                 device_type: device_type_str.clone(),
@@ -348,7 +245,6 @@ impl DeviceManager {
             EventSeverity::Info,
         );
 
-        // Mark heartbeat as active
         {
             let mut devices = self.devices.write().await;
             if let Some(device) = devices.get_mut(device_id) {
@@ -365,7 +261,7 @@ impl DeviceManager {
         let device_id_clone = device_id.to_string();
         let app_state = self.app_state.clone();
         // We need a reference to perform health checks - clone Arc pointer from the global singleton
-        let manager = crate::api::get_device_manager().clone();
+        let manager = crate::device_manager::get_device_manager().clone();
 
         let give_up_app_state = app_state.clone();
         let give_up_device_type_str = device_type_str.clone();
@@ -410,7 +306,6 @@ impl DeviceManager {
             }),
         );
 
-        // Store the task handle
         {
             let mut tasks = self.heartbeat_tasks.write().await;
             tasks.insert(device_id.to_string(), task);
@@ -439,7 +334,6 @@ impl DeviceManager {
         // per episode instead of on every failing poll (avoids toast spam).
         let mut was_degraded = false;
         loop {
-            // Wait for interval
             tokio::time::sleep(current_interval).await;
 
             // Skip the poll while a blocking operation (e.g. a focuser move) is
@@ -469,9 +363,7 @@ impl DeviceManager {
             // operation: just wait for the next poll at the base cadence. The
             // camera's and mount's own heartbeats are deliberately NOT
             // suppressed (the camera is the one we most need to keep watching).
-            if DeviceManager::device_type_suppressed_by_usb_contention(&device_type)
-                && manager.is_usb_contended()
-            {
+            if policy(device_type).yields_to_camera_usb && manager.is_usb_contended() {
                 current_interval = Duration::from_secs(config.base_interval_secs);
                 if consecutive_failures == 0 {
                     manager.note_heartbeat_deferred(&device_id_clone).await;
@@ -483,6 +375,13 @@ impl DeviceManager {
             let health_check_result = manager
                 .perform_health_check(&device_id_clone, &device_type, &driver_type)
                 .await;
+            // A driver can keep answering the probe while every read the app
+            // shows fails (the NYX-101 answered Tracking and failed RA all
+            // night). Failing status reads count as a failed poll.
+            let health_check_result = with_status_reads(
+                health_check_result,
+                manager.failing_status_reads(&device_id_clone),
+            );
 
             match health_check_result {
                 Ok(true) => {
@@ -498,7 +397,7 @@ impl DeviceManager {
                             EquipmentEvent::HeartbeatStatusChanged {
                                 device_type: device_type_str.clone(),
                                 device_id: device_id_clone.clone(),
-                                status: crate::event::HeartbeatStatus::Healthy,
+                                status: crate::event::equipment::HeartbeatStatus::Healthy,
                                 consecutive_failures: 0,
                                 last_rtt_ms: None, // RTT not available for generic health check
                             },
@@ -511,7 +410,6 @@ impl DeviceManager {
                     was_degraded = false;
                     current_interval = Duration::from_secs(config.base_interval_secs);
 
-                    // Update last successful communication time
                     {
                         let mut devices = manager.devices.write().await;
                         if let Some(device) = devices.get_mut(&device_id_clone) {
@@ -571,7 +469,7 @@ impl DeviceManager {
                                     EquipmentEvent::HeartbeatStatusChanged {
                                         device_type: device_type_str.clone(),
                                         device_id: device_id_clone.clone(),
-                                        status: crate::event::HeartbeatStatus::Degraded,
+                                        status: crate::event::equipment::HeartbeatStatus::Degraded,
                                         consecutive_failures,
                                         last_rtt_ms: None,
                                     },
@@ -609,7 +507,7 @@ impl DeviceManager {
                                         EquipmentEvent::HeartbeatStatusChanged {
                                             device_type: device_type_str.clone(),
                                             device_id: device_id_clone.clone(),
-                                            status: crate::event::HeartbeatStatus::Disconnected,
+                                            status: crate::event::equipment::HeartbeatStatus::Disconnected,
                                             consecutive_failures,
                                             last_rtt_ms: None,
                                         },
@@ -697,7 +595,6 @@ impl DeviceManager {
             Err(_) => tracing::debug!("Heartbeat task aborted for {}", device_id),
         }
 
-        // Emit heartbeat stopped event
         if let Some(device_type) = device_type_str {
             self.app_state.publish_equipment_event(
                 EquipmentEvent::HeartbeatStopped {
@@ -708,7 +605,6 @@ impl DeviceManager {
             );
         }
 
-        // Mark heartbeat as inactive
         {
             let mut devices = self.devices.write().await;
             if let Some(device) = devices.get_mut(device_id) {
@@ -717,27 +613,6 @@ impl DeviceManager {
         }
 
         Ok(())
-    }
-
-    /// Stop all heartbeat tasks (call during shutdown)
-    pub async fn stop_all_heartbeats(&self) {
-        let tasks: Vec<(String, tokio::task::JoinHandle<()>)> = {
-            let mut tasks = self.heartbeat_tasks.write().await;
-            std::mem::take(&mut *tasks).into_iter().collect()
-        };
-
-        for (device_id, task) in tasks {
-            task.abort();
-            tracing::debug!("Aborted heartbeat for device: {}", device_id);
-        }
-
-        // Mark all heartbeats as inactive
-        {
-            let mut devices = self.devices.write().await;
-            for device in devices.values_mut() {
-                device.heartbeat_active = false;
-            }
-        }
     }
 
     /// Get device health status
@@ -783,35 +658,11 @@ impl DeviceManager {
             device.heartbeat_deferred_at = Some(chrono::Utc::now().timestamp_millis());
         }
     }
-
-    /// Update last successful communication timestamp for a device
-    ///
-    /// This should be called by device operations when they successfully
-    /// communicate with the device.
-    pub async fn update_device_communication(&self, device_id: &str) {
-        let mut devices = self.devices.write().await;
-        if let Some(device) = devices.get_mut(device_id) {
-            device.last_successful_comm = Some(chrono::Utc::now().timestamp_millis());
-        }
-    }
-
-    /// Check if heartbeat is active for a device
-    pub async fn is_heartbeat_active(&self, device_id: &str) -> bool {
-        let devices = self.devices.read().await;
-        // Why: unregistered device → "no heartbeat
-        // active". The UI uses this to decide whether to show the
-        // heartbeat-pulse indicator; absence-of-device = no indicator
-        // is the correct visual state.
-        devices
-            .get(device_id)
-            .map(|d| d.heartbeat_active)
-            .unwrap_or(false)
-    }
 }
 
 #[cfg(test)]
 mod heartbeat_event_tests {
-    use super::{heartbeat_events_for_poll, HeartbeatEventKind};
+    use super::{heartbeat_events_for_poll, with_status_reads, HeartbeatEventKind};
 
     const THRESHOLD: u32 = 5;
     // Most existing tests describe an escalating device, where crossing the
@@ -821,6 +672,22 @@ mod heartbeat_event_tests {
 
     /// (a) The first failing poll of an episode emits exactly one Degraded
     /// and arms the latch.
+    #[test]
+    fn failing_status_reads_overrule_a_passing_probe() {
+        let reads = Some("the last 3 status reads failed: Failed to get RA".to_string());
+        let result = with_status_reads(Ok(true), reads.clone());
+        assert!(
+            matches!(&result, Err(e) if e.contains("Failed to get RA")),
+            "{result:?}"
+        );
+        assert_eq!(with_status_reads(Ok(true), None), Ok(true));
+        // A failing probe keeps its own, more specific reason.
+        assert_eq!(
+            with_status_reads(Err("probe".into()), reads),
+            Err("probe".to_string())
+        );
+    }
+
     #[test]
     fn first_failure_below_threshold_emits_one_degraded() {
         let (events, was_degraded) = heartbeat_events_for_poll(false, 1, THRESHOLD, ESCALATE);

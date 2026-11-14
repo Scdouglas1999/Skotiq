@@ -5,7 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/settings/widgets/notification_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -17,11 +21,9 @@ class _LoadedAppSettings extends AppSettingsNotifier {
       );
 }
 
-class _MockNotificationService extends Mock implements NotificationService {}
-
-/// The legacy `app_settings`-backed Discord row is a remote-controller-only
-/// surface now (locally the keyring-backed section owns Discord), so this
-/// authority test drives it through a [NetworkBackend] stand-in.
+/// The synced Discord row is shown on a linked client only (on the host the
+/// transport section owns Discord), so this authority test drives it through
+/// a [NetworkBackend] stand-in.
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
 _MockNetworkBackend _networkBackend() {
@@ -68,10 +70,7 @@ void main() {
       addTearDown(hostA.dispose);
       addTearDown(hostB.dispose);
       final result = Completer<bool>();
-      final service = _MockNotificationService();
-      when(
-        () => service.testDiscordWebhook('https://discord.example/test'),
-      ).thenAnswer((_) => result.future);
+      final probed = <String>[];
       late _SwappableBackendNotifier backendNotifier;
 
       await pumpAppScreen(
@@ -85,7 +84,14 @@ void main() {
             return backendNotifier;
           }),
           appSettingsProvider.overrideWith(_LoadedAppSettings.new),
-          notificationServiceProvider.overrideWithValue(service),
+          notificationTransportProbeProvider.overrideWithValue((
+            transport,
+          ) async {
+            probed.add((transport as DiscordTransport).config.webhookUrl);
+            return await result.future
+                ? NotificationResult.ok()
+                : NotificationResult.fail('refused');
+          }),
         ],
       );
       await tester.pump();
@@ -95,9 +101,7 @@ void main() {
       await tester.pump();
       await tester.tap(_discordTestButton());
       await tester.tap(_discordTestButton());
-      verify(
-        () => service.testDiscordWebhook('https://discord.example/test'),
-      ).called(1);
+      expect(probed, ['https://discord.example/test']);
       await tester.pump();
 
       var button = tester.widget<SkotiqButton>(_discordTestButton());
@@ -121,4 +125,56 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'a link without admin access sees whether each credential is set, and '
+    'no test that needs the value',
+    (tester) async {
+      final host = _networkBackend();
+      addTearDown(host.dispose);
+
+      await pumpAppScreen(
+        tester,
+        const NotificationSettings(),
+        size: const Size(1200, 1600),
+        settle: false,
+        extraOverrides: [
+          backendProvider.overrideWith(
+            (ref) => _SwappableBackendNotifier(ref, host),
+          ),
+          appSettingsProvider.overrideWith(_HiddenCredentials.new),
+          hostAdminAccessProvider.overrideWith((ref) async => false),
+        ],
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text(
+          'Set. Change it on the imaging computer, or link with admin access.',
+        ),
+        findsNWidgets(2),
+        reason: 'the Discord webhook and the Pushover API key are set',
+      );
+      expect(
+        find.text(
+          'Not set. Set it on the imaging computer, or link with admin '
+          'access.',
+        ),
+        findsOneWidget,
+        reason: 'the Pushover user key is not',
+      );
+      expect(find.textContaining(credentialSetMarker), findsNothing);
+      expect(find.text('Test Discord'), findsNothing);
+      expect(find.text('Test Pushover'), findsNothing);
+    },
+  );
+}
+
+class _HiddenCredentials extends AppSettingsNotifier {
+  @override
+  Future<AppSettingsState> build() async => const AppSettingsState(
+        discordWebhook: credentialSetMarker,
+        pushoverKey: credentialSetMarker,
+      );
 }

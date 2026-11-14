@@ -15,13 +15,14 @@
 // that has stopped updating is visible rather than silently stale.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import 'voice_control_service.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Bridges Riverpod sequence state -> native voice cache and back.
 class VoiceControlLifecycleController {
@@ -81,10 +82,9 @@ class VoiceControlLifecycleController {
     _actionSubscription = _service.actionStream.listen(
       _handleInboundAction,
       onError: (Object error, StackTrace stack) {
-        developer.log(
+        Log.error(
           '[VoiceControlLifecycle] inbound action stream error: $error',
-          name: 'VoiceControlLifecycle',
-          level: 1000,
+          source: 'VoiceControlLifecycle',
           error: error,
           stackTrace: stack,
         );
@@ -133,10 +133,9 @@ class VoiceControlLifecycleController {
         await _service.clearStatus();
         _lastPublishedAt = DateTime.now();
       } catch (e, st) {
-        developer.log(
+        Log.warning(
           '[VoiceControlLifecycle] clearStatus failed: $e',
-          name: 'VoiceControlLifecycle',
-          level: 900,
+          source: 'VoiceControlLifecycle',
           error: e,
           stackTrace: st,
         );
@@ -164,26 +163,13 @@ class VoiceControlLifecycleController {
       await _service.publishSequenceStatus(snapshot);
       _lastPublishedAt = DateTime.now();
     } catch (e, st) {
-      developer.log(
+      Log.warning(
         '[VoiceControlLifecycle] publish failed: $e',
-        name: 'VoiceControlLifecycle',
-        level: 900,
+        source: 'VoiceControlLifecycle',
         error: e,
         stackTrace: st,
       );
-      // Don't rethrow inside a Riverpod listener — surface via dev log
-      // and the LoggingService (production telemetry).
-      try {
-        _ref
-            .read(loggingServiceProvider)
-            .warning(
-              'Voice control publish failed: $e',
-              source: 'VoiceControlLifecycle',
-            );
-      } catch (_) {
-        // Logging service may not be ready during very-early app start;
-        // we already wrote to developer.log above.
-      }
+      // Not rethrown: this runs inside a Riverpod listener.
     }
   }
 
@@ -284,43 +270,19 @@ class VoiceControlLifecycleController {
     }
   }
 
-  void _logInfo(String message) {
-    try {
-      _ref
-          .read(loggingServiceProvider)
-          .info(message, source: 'VoiceControlLifecycle');
-    } catch (_) {
-      developer.log(
-        '[VoiceControlLifecycle] $message',
-        name: 'VoiceControlLifecycle',
-      );
-    }
-  }
+  void _logInfo(String message) =>
+      Log.info(message, source: 'VoiceControlLifecycle');
 
   void _logError(
     String message, {
     required Object error,
     required StackTrace stack,
-  }) {
-    developer.log(
-      '[VoiceControlLifecycle] $message',
-      name: 'VoiceControlLifecycle',
-      level: 1000,
-      error: error,
-      stackTrace: stack,
-    );
-    try {
-      _ref
-          .read(loggingServiceProvider)
-          .error(
-            message,
-            source: 'VoiceControlLifecycle',
-            fields: <String, Object?>{'error': error.toString()},
-          );
-    } catch (_) {
-      // best-effort
-    }
-  }
+  }) => Log.error(
+    message,
+    source: 'VoiceControlLifecycle',
+    error: error,
+    stackTrace: stack,
+  );
 
   Future<void> dispose() async {
     if (_disposed) return;
@@ -345,8 +307,8 @@ final voiceControlServiceProvider = Provider<VoiceControlService>((ref) {
 });
 
 /// Eagerly-constructed lifecycle controller. The consumer in
-/// `apps/mobile/lib/main.dart` calls `ref.watch(voiceControlLifecycleProvider)`
-/// during app boot which triggers `start()` and installs the listeners.
+/// `mobilePlatformServices` lists it, so it is started with the app,
+/// which triggers `start()` and installs the listeners.
 final voiceControlLifecycleProvider = Provider<VoiceControlLifecycleController>(
   (ref) {
     // Share the same service instance so the inbound stream a UI listener

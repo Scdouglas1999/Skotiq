@@ -3,7 +3,7 @@ part of '../database.dart';
 /// Environment variable used by headless/systemd deployments to pin the Drift
 /// database under a daemon-owned state directory instead of a user Documents
 /// folder.
-const skotiqDatabaseDirEnv = 'SKOTIQ_DATABASE_DIR';
+const skotiqDatabaseDirEnv = pairingDatabaseDirEnv;
 
 /// Resolve the on-disk path the desktop/mobile database lives at. Exposed
 /// separately so the UI bootstrap and CLI tools can find the file (e.g. for
@@ -43,7 +43,6 @@ LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final file = await resolveDefaultDatabaseFile();
 
-    // Ensure directory exists
     await file.parent.create(recursive: true);
 
     // The GUI and the headless service resolve the same default database
@@ -68,6 +67,13 @@ LazyDatabase _openConnection() {
     // corrupt file to a `skotiq-corrupt-<ts>.db` forensic backup so that
     // drift's `onCreate` then seeds a fresh database.
     //
+    // It is `PRAGMA quick_check`, the open's only check: 0.3 s on a 185 MB rig
+    // database where the full `integrity_check` takes 1.2 s warm and 12 s
+    // straight after a boot. The full check, which also compares every index
+    // with its table, runs on a copy once the app is up
+    // ([DatabaseHealthCheck]); when it finds damage it asks the next start to
+    // run the full check here instead.
+    //
     // The recovery marker file written by [runIntegrityCheckAndRecover] is
     // consumed on next launch by [SkotiqDatabase.consumeRecoveryMarker]
     // so the UI can show a one-shot "your database was corrupted and
@@ -77,7 +83,7 @@ LazyDatabase _openConnection() {
     // throws (file lock, permission denied, …) the exception propagates and
     // the operator sees the real error rather than a silently broken
     // database. The check only quarantines a file SQLite reports as
-    // SQLITE_CORRUPT/SQLITE_NOTADB or that fails `PRAGMA integrity_check`.
+    // SQLITE_CORRUPT/SQLITE_NOTADB or that fails the check.
     await integrity.runIntegrityCheckAndRecover(file);
 
     // A first boot that was killed part-way through schema creation leaves a

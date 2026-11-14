@@ -6,19 +6,23 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:skotiq_app/screens/framing/altitude_chart.dart';
+import 'package:skotiq_app/widgets/altitude_chart.dart';
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
 import 'package:skotiq_app/screens/suggestions/widgets/transient_alerts_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../scheduler/scheduler_test_doubles.dart';
+import 'scheduler_test_doubles.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../harness/provider_teardown.dart';
 
@@ -246,28 +250,28 @@ void main() {
     await settleProviderTeardown(tester);
   });
 
-  group('plannerTabFromQuery', () {
+  group('PlannerTab.fromQuery', () {
     test('returns null for null input', () {
-      expect(plannerTabFromQuery(null), isNull);
+      expect(PlannerTab.fromQuery(null), isNull);
     });
 
     test('returns null for an unrecognized value', () {
-      expect(plannerTabFromQuery('made-up-tab'), isNull);
+      expect(PlannerTab.fromQuery('made-up-tab'), isNull);
     });
 
     test('maps canonical tab names', () {
-      expect(plannerTabFromQuery('recommendation'), PlannerTab.recommendation);
+      expect(PlannerTab.fromQuery('recommendation'), PlannerTab.recommendation);
       // Scheduler folded into Schedule; Progress folded into Projects.
-      expect(plannerTabFromQuery('scheduler'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('progress'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('scheduler'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('progress'), PlannerTab.projects);
     });
 
     test('accepts case-insensitive aliases', () {
-      expect(plannerTabFromQuery('Scheduler'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('queue'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('target-queue'), PlannerTab.schedule);
-      expect(plannerTabFromQuery('history'), PlannerTab.projects);
-      expect(plannerTabFromQuery('recommend'), PlannerTab.recommendation);
+      expect(PlannerTab.fromQuery('Scheduler'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('queue'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('target-queue'), PlannerTab.schedule);
+      expect(PlannerTab.fromQuery('history'), PlannerTab.projects);
+      expect(PlannerTab.fromQuery('recommend'), PlannerTab.recommendation);
     });
 
     test('Recommendation is the first enum entry', () {
@@ -422,8 +426,8 @@ void main() {
         overrides: _commonOverrides(),
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: PlannerScreen(initialTabQuery: 'scheduler'),
+          home: Scaffold(
+            body: PlannerScreen(initialTab: PlannerTab.fromQuery('scheduler')),
           ),
         ),
       ),
@@ -450,8 +454,8 @@ void main() {
         overrides: _commonOverrides(),
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: PlannerScreen(initialTabQuery: 'progress'),
+          home: Scaffold(
+            body: PlannerScreen(initialTab: PlannerTab.fromQuery('progress')),
           ),
         ),
       ),
@@ -694,6 +698,93 @@ void main() {
       reason: 'the other candidate is not stranded without an action',
     );
 
+    await settleProviderTeardown(tester);
+  });
+
+  // walk-2 F18: the row's Image tonight ran its own build that ignored the
+  // detail column's suggested sub length and dropped the operator in the
+  // Sequencer; it now runs the same build as the column's Build sequence.
+  testWidgets('Image tonight on the selected row pre-fills its own sub length',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1400, 900);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const suggestion = TargetSuggestion(
+      targetId: 1023,
+      targetName: 'NGC1023',
+      raHours: 2.67,
+      decDegrees: 39.06,
+      totalScore: 98,
+      objectType: 'Galaxy',
+      visibility: TargetVisibilityInfo(
+        currentAltitude: 50,
+        currentAzimuth: 170,
+        airmass: 1.3,
+        moonDistance: 100,
+        peakAltitude: 89,
+        hoursAboveMinAlt: 10,
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          ..._commonOverrides(),
+          tonightSuggestionsProvider.overrideWith((ref) async => [suggestion]),
+          activeEquipmentProfileProvider.overrideWithValue(
+            const EquipmentProfileModel(
+              id: 1,
+              name: 'Sim',
+              focalLength: 800,
+              aperture: 100,
+              filterNames: ['L', 'R', 'G', 'B'],
+            ),
+          ),
+          effectiveFiltersProvider
+              .overrideWithValue(const ['L', 'R', 'G', 'B']),
+          plannerTargetIntegrationPreviewProvider(1023).overrideWith(
+            (ref) async => const TargetIntegrationPreview(
+              estimatedIntegrationHours: 4,
+              usableWindowHours: 10,
+              subExposureSecs: 105,
+              filterNames: ['L', 'R', 'G', 'B'],
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: PlannerScreen()),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Image tonight'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Build sequence · NGC1023'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextFormField, 'L exposure (seconds)'),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<TextFormField>(
+            find.widgetWithText(TextFormField, 'L exposure (seconds)'),
+          )
+          .controller!
+          .text,
+      '105',
+    );
+
+    await tester.tap(find.text('Cancel'));
     await settleProviderTeardown(tester);
   });
 

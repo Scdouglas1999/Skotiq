@@ -1,43 +1,20 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/remote_directory_picker_dialog.dart';
-
-typedef OnboardingCaptureDirectoryPicker = Future<String?> Function(
-  BuildContext context, {
-  required bool isRemote,
-  required String? initialPath,
-});
-
-typedef OnboardingCaptureDirectoryValidator = Future<String?> Function(
-  String path,
-);
+import '../../../services/host_folders.dart';
 
 typedef OnboardingCaptureDirectoryWriter = Future<void> Function(String path);
 
-Future<String?> _pickCaptureDirectory(
-  BuildContext context, {
-  required bool isRemote,
-  required String? initialPath,
-}) {
-  if (isRemote) {
-    return RemoteDirectoryPickerDialog.show(
-      context,
-      title: 'Choose capture folder on host',
-      initialPath: initialPath,
-    );
-  }
-  return file_selector.getDirectoryPath(
-    confirmButtonText: 'Use this folder',
-  );
-}
+/// Makes the folder a first run suggests and returns its path, or null where
+/// there is no sensible default (no home directory, a phone).
+typedef OnboardingDefaultCaptureDirectory = Future<String?> Function();
 
 /// Resolve a leading `~` against this machine's home directory.
 ///
@@ -53,47 +30,49 @@ String expandCaptureDirHome(String path) {
   return '$home${Platform.pathSeparator}${path.substring(2)}';
 }
 
-/// The one line the step shows when the write probe fails.
-///
-/// [FileSystemException.message] is the generic dart:io phrase — a folder the
-/// user has no permission on reports "Cannot open file", which names no cause
-/// and suggests no remedy. The reason they can act on ("Permission denied",
-/// "Read-only file system", "No space left on device") only ever lives in
-/// [OSError.message], so lead with that and keep the generic phrase as the
-/// fallback for the platforms that supply no errno.
+/// The pictures folder the XDG user-dirs file in [configDir] names, if any.
+String? _xdgPicturesDir(String home, String configDir) {
+  final file = File('$configDir/user-dirs.dirs');
+  if (!file.existsSync()) return null;
+  final match = RegExp(r'^XDG_PICTURES_DIR="(.+)"', multiLine: true)
+      .firstMatch(file.readAsStringSync());
+  return match?.group(1)?.replaceFirst(r'$HOME', home);
+}
+
+/// Makes `Skotiq` inside the pictures folder of [home] (inside [home] itself
+/// when it has none) and returns its path. [configDir] is where Linux keeps
+/// the user-dirs file that can rename the pictures folder.
 @visibleForTesting
-String describeCaptureDirWriteFailure(FileSystemException error) {
-  final reason = error.osError?.message.trim() ?? '';
-  return reason.isEmpty
-      ? 'Not writable: ${error.message}'
-      : 'Not writable: $reason';
+Future<String> makeCaptureDirectoryIn(String home, {String? configDir}) async {
+  final sep = Platform.pathSeparator;
+  final pictures =
+      (configDir == null ? null : _xdgPicturesDir(home, configDir)) ??
+          '$home${sep}Pictures';
+  final parent = await Directory(pictures).exists() ? pictures : home;
+  final folder = await Directory('$parent${sep}Skotiq').create(recursive: true);
+  return folder.path;
 }
 
-Future<String?> _validateCaptureDirectory(String path) async {
-  if (path.trim().isEmpty) return 'Pick a folder to continue.';
-  final dir = Directory(path);
-  if (!await dir.exists()) return 'That folder does not exist.';
-  final probe = File(
-    '${dir.path}${Platform.pathSeparator}.skotiq_write_probe',
+/// The capture folder a first run on this computer starts with, made if it is
+/// not there yet. Null where there is no sensible default (no home directory,
+/// a phone).
+Future<String?> prepareDefaultCaptureDirectory() async {
+  if (Platform.isAndroid || Platform.isIOS) return null;
+  final env = Platform.environment;
+  final home = env[Platform.isWindows ? 'USERPROFILE' : 'HOME'];
+  if (home == null || home.trim().isEmpty) return null;
+  return makeCaptureDirectoryIn(
+    home,
+    configDir:
+        Platform.isLinux ? env['XDG_CONFIG_HOME'] ?? '$home/.config' : null,
   );
-  try {
-    await probe.writeAsString('probe');
-    await probe.delete();
-    return null;
-  } on FileSystemException catch (error) {
-    return describeCaptureDirWriteFailure(error);
-  } catch (error) {
-    return 'Validation failed: $error';
-  }
 }
 
-final onboardingCaptureDirectoryPickerProvider =
-    Provider<OnboardingCaptureDirectoryPicker>((ref) => _pickCaptureDirectory);
-
-final onboardingCaptureDirectoryValidatorProvider =
-    Provider<OnboardingCaptureDirectoryValidator>(
-  (ref) => _validateCaptureDirectory,
-);
+/// No suggestion unless the app installs [prepareDefaultCaptureDirectory]
+/// (see `appProviderOverrides`), so a test never makes folders in the home
+/// directory of the machine it runs on.
+final onboardingDefaultCaptureDirectoryProvider =
+    Provider<OnboardingDefaultCaptureDirectory>((ref) => () async => null);
 
 final onboardingCaptureDirectoryWriterProvider =
     Provider<OnboardingCaptureDirectoryWriter>((ref) {
@@ -108,7 +87,6 @@ const Key onboardingCaptureDirFieldKey = Key('onboarding.captureDir.field');
 ///
 /// Writability records an actual filesystem check, never just a stored path.
 enum _FolderCheck {
-  /// A check is in flight.
   checking,
 
   /// A check passed for [_OnboardingCaptureDirStepState._checkedPath].
@@ -159,7 +137,14 @@ class _OnboardingCaptureDirStepState
 
   bool _selecting = false;
   bool _validating = false;
-  int _operationGeneration = 0;
+
+  /// A verdict belongs to the folders it was checked on, which change with
+  /// the imaging host, and only the newest operation may apply its result.
+  late final AsyncScopes<HostFolders> _operations = AsyncScopes(
+    ref.read,
+    hostFoldersProvider,
+    alive: () => mounted,
+  );
 
   /// Re-check pending for the text now in the box.
   Timer? _editDebounce;
@@ -189,9 +174,38 @@ class _OnboardingCaptureDirStepState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final path = ref.read(onboardingDraftProvider).captureDirectory;
-      if (path == null || path.trim().isEmpty) return;
+      if (path == null || path.trim().isEmpty) {
+        unawaited(_suggestDefault());
+        return;
+      }
       unawaited(_verify(path.trim()));
     });
+  }
+
+  /// Start a first run with a folder already chosen and checked, as NINA and
+  /// ASIAIR do, instead of an empty box and "Pick a capture folder.". Only on
+  /// this machine: a linked host's folders are the host's to suggest.
+  Future<void> _suggestDefault() async {
+    if (ref.read(isRemoteModeProvider)) return;
+    final String? suggested;
+    try {
+      suggested = await ref.read(onboardingDefaultCaptureDirectoryProvider)();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _check = _FolderCheck.failed;
+        _checkDetail = 'Could not make a Skotiq folder in your pictures '
+            'folder: ${userFacingError(error)}. Pick a folder instead.';
+      });
+      return;
+    }
+    if (suggested == null || !mounted) return;
+    final current = ref.read(onboardingDraftProvider).captureDirectory;
+    if ((current ?? '').trim().isNotEmpty ||
+        _pathController.text.trim().isNotEmpty) {
+      return;
+    }
+    await _commitTypedPath(suggested);
   }
 
   @override
@@ -263,14 +277,12 @@ class _OnboardingCaptureDirStepState
   /// retyped.
   Future<void> _commitTypedPath(String raw) async {
     _editDebounce?.cancel();
-    final isRemote = ref.read(isRemoteModeProvider);
     final path = _resolve(raw);
     final current = ref.read(onboardingDraftProvider).captureDirectory?.trim();
     if (path.isEmpty || path == current) return;
     if (_selecting || _validating) return;
 
-    final authority = ref.read(backendProvider);
-    final generation = ++_operationGeneration;
+    final operation = _operations.beginLatest();
     setState(() {
       _validating = true;
       _check = null;
@@ -278,43 +290,25 @@ class _OnboardingCaptureDirStepState
       _checkDetail = null;
     });
     try {
-      // Remote paths belong to the host, which is the only thing that can
-      // answer for them; _verify already routes that question correctly.
-      // It has to run as PART of this commit, not as a new operation: a
-      // _verify that allocated its own generation left this one stale, so the
-      // guard below fired on its own helper and the host-approved path was
-      // never written to the draft. Staying `_validating` for the whole round
-      // trip also keeps the box disabled, which is what stops the focus-loss
-      // listener firing a second identical question at the host.
-      if (isRemote) {
-        await _verify(path, operation: generation);
-        if (!_isCurrent(generation, authority)) return;
-        if (_check == _FolderCheck.writable && _checkedPath == path) {
-          await ref.read(onboardingCaptureDirectoryWriterProvider)(path);
-        }
-        return;
-      }
-      final error =
-          await ref.read(onboardingCaptureDirectoryValidatorProvider)(path);
-      if (!_isCurrent(generation, authority)) return;
-      setState(() {
-        _validating = false;
-        _checkedPath = path;
-        _check = error == null ? _FolderCheck.writable : _FolderCheck.failed;
-        _checkDetail = error;
-      });
-      if (error == null) {
+      // Part of this commit, not a new operation, so its result is this
+      // commit's; staying `_validating` keeps the box disabled for the round
+      // trip, which stops the focus-loss listener asking a second time.
+      await _verify(path, operation: operation);
+      if (operation.isStale) return;
+      setState(() => _validating = false);
+      if (_check == _FolderCheck.writable && _checkedPath == path) {
         await ref.read(onboardingCaptureDirectoryWriterProvider)(path);
       }
     } catch (error) {
-      if (!mounted || !_isCurrent(generation, authority)) return;
+      if (operation.isStale) return;
       setState(() {
         _validating = false;
         _check = _FolderCheck.failed;
-        _checkDetail = 'Could not set the capture folder: $error';
+        _checkDetail =
+            'Could not set the capture folder: ${userFacingError(error)}';
       });
     } finally {
-      if (mounted && generation == _operationGeneration && _validating) {
+      if (operation.isCurrent && _validating) {
         setState(() => _validating = false);
       }
     }
@@ -329,12 +323,11 @@ class _OnboardingCaptureDirStepState
   ///
   /// [operation] joins an already-open operation instead of starting a new one.
   /// A caller that keeps working after the check (the typed-path commit, which
-  /// still has a draft write to do) must share its generation, or it supersedes
+  /// still has a draft write to do) must share its scope, or it supersedes
   /// itself and discards its own result.
-  Future<void> _verify(String path, {int? operation}) async {
-    final isRemote = ref.read(isRemoteModeProvider);
-    final authority = ref.read(backendProvider);
-    final generation = operation ?? ++_operationGeneration;
+  Future<void> _verify(String path,
+      {AsyncScope<HostFolders>? operation}) async {
+    final scope = operation ?? _operations.beginLatest();
     setState(() {
       _check = _FolderCheck.checking;
       _checkedPath = path;
@@ -343,56 +336,33 @@ class _OnboardingCaptureDirStepState
 
     _FolderCheck outcome;
     String? detail;
-    if (isRemote) {
-      if (authority is NetworkBackend) {
-        try {
-          final result = await authority.validateRemoteDirectory(
-            path,
-            mustExist: true,
-            mustBeWritable: true,
-          );
-          if (result['valid'] == true) {
-            outcome = _FolderCheck.writable;
-            detail = null;
-          } else {
-            final reason = result['error'];
-            outcome = _FolderCheck.failed;
-            detail = reason is String && reason.trim().isNotEmpty
-                ? reason.trim()
-                : 'The host rejected this folder.';
-          }
-        } catch (error) {
-          outcome = _FolderCheck.unverified;
-          detail = 'Could not ask the imaging host about this folder: $error';
-        }
-      } else {
-        outcome = _FolderCheck.unverified;
-        detail = 'This folder is on the imaging host, which is not connected '
-            'right now.';
-      }
-    } else {
-      try {
-        final error =
-            await ref.read(onboardingCaptureDirectoryValidatorProvider)(path);
-        outcome = error == null ? _FolderCheck.writable : _FolderCheck.failed;
-        detail = error;
-      } catch (error) {
-        outcome = _FolderCheck.unverified;
-        detail = 'Could not check this folder: $error';
-      }
+    try {
+      (outcome, detail) = _describe(await scope.value.check(path));
+    } catch (error) {
+      outcome = _FolderCheck.unverified;
+      detail = 'Could not check this folder: ${userFacingError(error)}';
     }
 
-    if (!_isCurrent(generation, authority)) return;
+    if (scope.isStale) return;
     setState(() {
       _check = outcome;
       _checkDetail = detail;
     });
   }
 
+  /// The step's verdict for a [FolderCheck]. Onboarding makes no folder: a
+  /// missing one is the operator's to create or correct.
+  static (_FolderCheck, String?) _describe(FolderCheck verdict) =>
+      switch (verdict) {
+        FolderUsable() => (_FolderCheck.writable, null),
+        FolderMissing() => (_FolderCheck.failed, 'That folder does not exist.'),
+        FolderRefused(:final reason) => (_FolderCheck.failed, reason),
+        FolderUnchecked(:final reason) => (_FolderCheck.unverified, reason),
+      };
+
   Future<void> _pickDirectory() async {
-    final isRemote = ref.read(isRemoteModeProvider);
-    final authority = ref.read(backendProvider);
-    final generation = ++_operationGeneration;
+    final operation = _operations.beginLatest();
+    final folders = operation.value;
     setState(() {
       _selecting = true;
       _check = null;
@@ -400,46 +370,37 @@ class _OnboardingCaptureDirStepState
       _checkDetail = null;
     });
     try {
-      final selected = await ref.read(onboardingCaptureDirectoryPickerProvider)(
+      final picked = await folders.pickChecked(
         context,
-        isRemote: isRemote,
+        title: ref.read(isRemoteModeProvider)
+            ? 'Choose capture folder on host'
+            : 'Choose capture folder',
         initialPath: ref.read(onboardingDraftProvider).captureDirectory,
+        confirmLabel: 'Use this folder',
       );
-      if (selected == null || !_isCurrent(generation, authority)) return;
-
+      if (picked == null || operation.isStale) return;
+      final selected = picked.path;
+      final (outcome, detail) = _describe(picked.verdict);
       setState(() {
         _selecting = false;
-        _validating = true;
-      });
-      // Remote paths are validated by the host inside the picker dialog, which
-      // only returns a path after `validateRemoteDirectory(mustExist,
-      // mustBeWritable)` passes — so a returned remote path is already checked
-      // and re-asking would double the round-trip.
-      final error = isRemote
-          ? null
-          : await ref.read(onboardingCaptureDirectoryValidatorProvider)(
-              selected,
-            );
-      if (!_isCurrent(generation, authority)) return;
-      setState(() {
-        _validating = false;
         _checkedPath = selected;
-        _check = error == null ? _FolderCheck.writable : _FolderCheck.failed;
-        _checkDetail = error;
+        _check = outcome;
+        _checkDetail = detail;
       });
-      if (error == null) {
+      if (outcome == _FolderCheck.writable) {
         await ref.read(onboardingCaptureDirectoryWriterProvider)(selected);
       }
     } catch (error) {
-      if (!mounted || !_isCurrent(generation, authority)) return;
+      if (operation.isStale) return;
       setState(() {
         _selecting = false;
         _validating = false;
         _check = _FolderCheck.failed;
-        _checkDetail = 'Could not set the capture folder: $error';
+        _checkDetail =
+            'Could not set the capture folder: ${userFacingError(error)}';
       });
     } finally {
-      if (mounted && generation == _operationGeneration) {
+      if (operation.isCurrent) {
         setState(() {
           _selecting = false;
           _validating = false;
@@ -450,13 +411,13 @@ class _OnboardingCaptureDirStepState
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
+    ref.listen<HostFolders>(hostFoldersProvider, (previous, next) {
       if (previous == null || identical(previous, next)) return;
       // A verdict earned against the previous host says nothing about this one:
       // /mnt/captures may be a real, writable folder on the Pi and not exist at
       // all on the laptop the app just fell back to. Drop the outcome and
       // re-check the remembered path against whoever is answering now.
-      _operationGeneration++;
+      _operations.cancelAll();
       setState(() {
         _selecting = false;
         _validating = false;
@@ -637,11 +598,5 @@ class _OnboardingCaptureDirStepState
       case null:
         return const [];
     }
-  }
-
-  bool _isCurrent(int generation, SkotiqBackend authority) {
-    return mounted &&
-        generation == _operationGeneration &&
-        identical(ref.read(backendProvider), authority);
   }
 }

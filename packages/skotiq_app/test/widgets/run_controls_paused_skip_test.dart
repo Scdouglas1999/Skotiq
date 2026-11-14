@@ -11,9 +11,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/widgets/running_sequence_mini_bar.dart';
+import 'package:skotiq_app/screens/shell/widgets/running_sequence_mini_bar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/mobile_playback_bar.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/harness.dart';
@@ -55,8 +56,10 @@ void main() {
       size: const Size(1000, 400),
       settle: false,
       extraOverrides: [
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.paused),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(
+              ref, RunRecord(lifecycle: SequenceExecutionState.paused)),
+        ),
         sequenceExecutorProvider.overrideWith((ref) {
           executor = _SkipRecordingExecutor(ref);
           return executor;
@@ -93,8 +96,10 @@ void main() {
       size: const Size(430, 400),
       settle: false,
       extraOverrides: [
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.paused),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(
+              ref, RunRecord(lifecycle: SequenceExecutionState.paused)),
+        ),
         sequenceExecutorProvider.overrideWith((ref) {
           executor = _SkipRecordingExecutor(ref);
           return executor;

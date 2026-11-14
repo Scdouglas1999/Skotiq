@@ -45,6 +45,7 @@ const int skyAtlasHealpixOrder = 9;
   columns: {#tileId, #healpixOrder},
 )
 @TableIndex(name: 'idx_sky_tiles_region', columns: {#regionId})
+@TableIndex(name: 'idx_sky_tiles_dec', columns: {#centerDecDeg})
 class SkyTiles extends Table {
   IntColumn get id => integer().autoIncrement()();
 
@@ -146,6 +147,10 @@ class SkyAtlasRegions extends Table {
   columns: {#tileId, #healpixOrder, #foldedAt},
 )
 @TableIndex(name: 'idx_sky_atlas_folds_session', columns: {#sessionId})
+@TableIndex(
+  name: 'idx_sky_atlas_folds_contributor',
+  columns: {#contributor, #tileId, #healpixOrder},
+)
 class SkyAtlasFolds extends Table {
   IntColumn get id => integer().autoIncrement()();
 

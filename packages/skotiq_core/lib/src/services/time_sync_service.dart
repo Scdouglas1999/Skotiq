@@ -96,7 +96,10 @@ class TimeSyncService {
       }
 
       if (response == null) {
-        throw TimeoutException('NTP query to $host timed out', timeout);
+        throw TimeoutException(
+          '$host did not answer within ${timeout.inSeconds} s',
+          timeout,
+        );
       }
 
       final recvTime = DateTime.now();

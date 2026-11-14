@@ -4,11 +4,16 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
 import 'eon_service_test.dart' show FakeRig;
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -21,7 +26,7 @@ void main() {
     test('a completed plan ends the night', () {
       expect(
         classifyRunEnd(
-          runStatus: 'completed',
+          runStatus: SequenceRunStatus.completed,
           stopOrigin: null,
           nightEnding: false,
         ),
@@ -32,7 +37,7 @@ void main() {
     test('the dawn trigger ends the night', () {
       expect(
         classifyRunEnd(
-          runStatus: 'stopped',
+          runStatus: SequenceRunStatus.stopped,
           stopOrigin: 'dawn_approaching',
           nightEnding: false,
         ),
@@ -45,7 +50,7 @@ void main() {
       // as `aborted`, not `stopped`.
       expect(
         classifyRunEnd(
-          runStatus: 'aborted',
+          runStatus: SequenceRunStatus.aborted,
           stopOrigin: 'dawn_approaching',
           nightEnding: true,
         ),
@@ -59,7 +64,7 @@ void main() {
         for (final origin in ['dawn_approaching', 'obstruction']) {
           expect(
             classifyRunEnd(
-              runStatus: 'failed',
+              runStatus: SequenceRunStatus.failed,
               stopOrigin: origin,
               nightEnding: true,
               parked: true,
@@ -68,7 +73,7 @@ void main() {
           );
           expect(
             classifyRunEnd(
-              runStatus: 'failed',
+              runStatus: SequenceRunStatus.failed,
               stopOrigin: origin,
               nightEnding: true,
               parked: false,
@@ -78,7 +83,7 @@ void main() {
         }
         expect(
           classifyRunEnd(
-            runStatus: 'failed',
+            runStatus: SequenceRunStatus.failed,
             stopOrigin: 'operator',
             nightEnding: true,
             parked: true,
@@ -89,7 +94,10 @@ void main() {
     );
 
     test('an obstruction park ends the night at any hour', () {
-      for (final status in ['aborted', 'stopped']) {
+      for (final status in [
+        SequenceRunStatus.aborted,
+        SequenceRunStatus.stopped,
+      ]) {
         expect(
           classifyRunEnd(
             runStatus: status,
@@ -97,7 +105,7 @@ void main() {
             nightEnding: false,
           ),
           EonEndReason.obstruction,
-          reason: status,
+          reason: status.token,
         );
       }
     });
@@ -106,7 +114,7 @@ void main() {
       for (final origin in ['weather_unsafe', 'safety', null]) {
         expect(
           classifyRunEnd(
-            runStatus: 'stopped',
+            runStatus: SequenceRunStatus.stopped,
             stopOrigin: origin,
             nightEnding: true,
           ),
@@ -115,7 +123,7 @@ void main() {
         );
         expect(
           classifyRunEnd(
-            runStatus: 'stopped',
+            runStatus: SequenceRunStatus.stopped,
             stopOrigin: origin,
             nightEnding: false,
           ),
@@ -128,7 +136,7 @@ void main() {
     test('an operator stop or a failure leaves the night open', () {
       expect(
         classifyRunEnd(
-          runStatus: 'stopped',
+          runStatus: SequenceRunStatus.stopped,
           stopOrigin: 'operator',
           nightEnding: true,
         ),
@@ -136,7 +144,7 @@ void main() {
       );
       expect(
         classifyRunEnd(
-          runStatus: 'failed',
+          runStatus: SequenceRunStatus.failed,
           stopOrigin: null,
           nightEnding: true,
         ),
@@ -228,10 +236,10 @@ void main() {
       await db.close();
     });
 
-    Future<void> recordRunFrame(int runId, String frameType) async {
+    Future<void> recordRunFrame(int runId, FrameType frameType) async {
       await ImagesDao(db).insertSequenceFrame(
-        filePath: '/n/$frameType-$runId.fits',
-        fileName: '$frameType-$runId.fits',
+        filePath: '/n/${frameType.record}-$runId.fits',
+        fileName: '${frameType.record}-$runId.fits',
         fileFormat: 'fits',
         exposureDuration: 90,
         capturedAt: DateTime.now(),
@@ -242,16 +250,18 @@ void main() {
       );
     }
 
-    void finishRun(int generation, int runId, String status) {
+    void finishRun(int generation, int runId, SequenceRunStatus status) {
       container
-          .read(sequenceTerminalRunResultProvider.notifier)
-          .state = SequenceTerminalRunResult(
-        generation: generation,
-        outcome: SequenceExecutionState.completed,
-        runStatus: status,
-        runId: runId,
-        dbSessionId: null,
-      );
+          .read(runRecordProvider.notifier)
+          .publishTerminal(
+            SequenceTerminalRunResult(
+              generation: generation,
+              outcome: SequenceExecutionState.completed,
+              runStatus: status,
+              runId: runId,
+              dbSessionId: null,
+            ),
+          );
     }
 
     Future<void> settle() async {
@@ -266,8 +276,8 @@ void main() {
 
     test('a completed imaging run starts the step when it is on', () async {
       await enable(true);
-      await recordRunFrame(7, 'light');
-      finishRun(1, 7, 'completed');
+      await recordRunFrame(7, FrameType.light);
+      finishRun(1, 7, SequenceRunStatus.completed);
       await settle();
       expect(rig.calls, contains('run'));
       expect(
@@ -278,57 +288,64 @@ void main() {
 
     test('nothing starts while the setting is off', () async {
       await enable(false);
-      await recordRunFrame(7, 'light');
-      finishRun(1, 7, 'completed');
+      await recordRunFrame(7, FrameType.light);
+      finishRun(1, 7, SequenceRunStatus.completed);
       await settle();
       expect(rig.calls, isEmpty);
     });
 
     test('a run that took no lights does not start it', () async {
       await enable(true);
-      await recordRunFrame(8, 'dark');
-      finishRun(1, 8, 'completed');
+      await recordRunFrame(8, FrameType.dark);
+      finishRun(1, 8, SequenceRunStatus.completed);
       await settle();
       expect(rig.calls, isEmpty);
     });
 
     test('an operator stop does not start it; the dawn trigger does', () async {
       await enable(true);
-      await recordRunFrame(9, 'light');
-      container.read(sequenceStopEvidenceProvider.notifier).state =
-          const SequenceStopDecision(SequenceStopAuthor.operatorPress);
-      finishRun(1, 9, 'stopped');
+      await recordRunFrame(9, FrameType.light);
+      container
+          .read(runRecordProvider.notifier)
+          .setStopEvidence(
+            const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+          );
+      finishRun(1, 9, SequenceRunStatus.stopped);
       await settle();
       expect(rig.calls, isEmpty);
 
       container
-          .read(sequenceStopEvidenceProvider.notifier)
-          .state = const SequenceStopDecision(
-        SequenceStopAuthor.system,
-        origin: 'dawn_approaching',
-        parked: true,
-      );
-      finishRun(2, 9, 'stopped');
+          .read(runRecordProvider.notifier)
+          .setStopEvidence(
+            const SequenceStopDecision(
+              SequenceStopAuthor.system,
+              origin: 'dawn_approaching',
+              parked: true,
+            ),
+          );
+      finishRun(2, 9, SequenceRunStatus.stopped);
       await settle();
       expect(rig.calls, contains('run'));
     });
 
     test('the dawn park, retaining an earlier failure, starts it', () async {
       await enable(true);
-      await recordRunFrame(10, 'light');
+      await recordRunFrame(10, FrameType.light);
       container
-          .read(sequenceStopEvidenceProvider.notifier)
-          .state = const SequenceStopDecision(
-        SequenceStopAuthor.system,
-        origin: 'dawn_approaching',
-        parked: true,
-      );
+          .read(runRecordProvider.notifier)
+          .setStopEvidence(
+            const SequenceStopDecision(
+              SequenceStopAuthor.system,
+              origin: 'dawn_approaching',
+              parked: true,
+            ),
+          );
       container.read(mountStateProvider.notifier).setConnecting('mount');
       when(() => backend.getMountStatus('mount')).thenAnswer(
         (_) async => MountStatus.fromJson({'connected': true, 'parked': true}),
       );
       container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
-      finishRun(1, 10, 'failed');
+      finishRun(1, 10, SequenceRunStatus.failed);
       await settle();
       expect(rig.calls, contains('run'));
       rig.runGate!.complete();
@@ -346,20 +363,22 @@ void main() {
       'a fired dawn park that did not park must not start calibration',
       () async {
         await enable(true);
-        await recordRunFrame(10, 'light');
+        await recordRunFrame(10, FrameType.light);
         container
-            .read(sequenceStopEvidenceProvider.notifier)
-            .state = sequenceStopTriggerDecision(
-          triggerId: 'dawn_approaching',
-          triggerName: 'Dawn Approaching',
-          action: 'ParkAndAbort',
-        );
+            .read(runRecordProvider.notifier)
+            .setStopEvidence(
+              sequenceStopTriggerDecision(
+                triggerId: 'dawn_approaching',
+                triggerName: 'Dawn Approaching',
+                action: SequencerTriggerAction.parkAndAbort,
+              ),
+            );
         container.read(mountStateProvider.notifier).setConnecting('mount');
         when(() => backend.getMountStatus('mount')).thenAnswer(
           (_) async =>
               MountStatus.fromJson({'connected': true, 'parked': false}),
         );
-        finishRun(1, 10, 'failed');
+        finishRun(1, 10, SequenceRunStatus.failed);
         await settle();
         expect(rig.calls, isEmpty);
       },
@@ -367,11 +386,11 @@ void main() {
 
     test('the night settles only after the calibration it started', () async {
       await enable(true);
-      await recordRunFrame(11, 'light');
+      await recordRunFrame(11, FrameType.light);
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
-      finishRun(1, 11, 'completed');
+      finishRun(1, 11, SequenceRunStatus.completed);
       expect(await coordinator.runEnded(1), EonEndReason.targetsComplete);
       var settled = false;
       unawaited(coordinator.nightSettled(1).then((_) => settled = true));
@@ -385,13 +404,16 @@ void main() {
 
     test('an operator stop settles at once as not ending the night', () async {
       await enable(true);
-      await recordRunFrame(12, 'light');
-      container.read(sequenceStopEvidenceProvider.notifier).state =
-          const SequenceStopDecision(SequenceStopAuthor.operatorPress);
+      await recordRunFrame(12, FrameType.light);
+      container
+          .read(runRecordProvider.notifier)
+          .setStopEvidence(
+            const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+          );
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
-      finishRun(1, 12, 'stopped');
+      finishRun(1, 12, SequenceRunStatus.stopped);
       expect(await coordinator.runEnded(1), isNull);
       await coordinator.nightSettled(1);
       expect(rig.calls, isEmpty);
@@ -399,12 +421,12 @@ void main() {
 
     test('a run that deferred its warm-up hands it to the step', () async {
       await enable(true);
-      await recordRunFrame(13, 'light');
+      await recordRunFrame(13, FrameType.light);
       container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
-      finishRun(1, 13, 'completed');
+      finishRun(1, 13, SequenceRunStatus.completed);
       await settle();
       rig.runGate!.complete();
       await coordinator.nightSettled(1);
@@ -415,12 +437,12 @@ void main() {
     test('a deferred warm-up happens when the step cannot run', () async {
       await enable(true);
       // No light frames: the step does not start.
-      await recordRunFrame(14, 'dark');
+      await recordRunFrame(14, FrameType.dark);
       container.read(shutdownWarmUpDeferredProvider.notifier).state = true;
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
-      finishRun(1, 14, 'completed');
+      finishRun(1, 14, SequenceRunStatus.completed);
       await coordinator.nightSettled(1);
       expect(rig.calls, isNot(contains('run')));
       expect(rig.calls, contains('warmUp'));
@@ -428,21 +450,26 @@ void main() {
 
     test('a manual run after an operator stop queues the night', () async {
       await enable(true);
-      await recordRunFrame(15, 'light');
-      container.read(sequenceStopEvidenceProvider.notifier).state =
-          const SequenceStopDecision(SequenceStopAuthor.operatorPress);
+      await recordRunFrame(15, FrameType.light);
+      container
+          .read(runRecordProvider.notifier)
+          .setStopEvidence(
+            const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+          );
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
       container
-          .read(sequenceTerminalRunResultProvider.notifier)
-          .state = const SequenceTerminalRunResult(
-        generation: 1,
-        outcome: SequenceExecutionState.idle,
-        runStatus: 'stopped',
-        runId: 15,
-        dbSessionId: 40,
-      );
+          .read(runRecordProvider.notifier)
+          .publishTerminal(
+            const SequenceTerminalRunResult(
+              generation: 1,
+              outcome: SequenceExecutionState.idle,
+              runStatus: SequenceRunStatus.stopped,
+              runId: 15,
+              dbSessionId: 40,
+            ),
+          );
       await coordinator.nightSettled(1);
       expect(container.read(nightIntegrationRequestProvider), isNull);
 

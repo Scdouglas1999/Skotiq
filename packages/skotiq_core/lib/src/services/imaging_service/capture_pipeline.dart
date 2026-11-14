@@ -15,6 +15,12 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     String? producingNodeId,
     String? producingRunId,
     required bool persistFrame,
+    // Whether this is a frame the operator keeps as a frame (a Snapshot), so
+    // the camera's raw file follows the camera-file setting.
+    required bool keepsCameraFile,
+    FramePurpose purpose = FramePurpose.capture,
+    int? purposeStep,
+    int? purposeSteps,
   }) async {
     if (_isCapturing) {
       throw const DeviceBusyException(
@@ -24,7 +30,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
       );
     }
 
-    // Check camera connected
     final cameraState = _ref.read(cameraStateProvider);
     if (cameraState.connectionState != DeviceConnectionState.connected) {
       throw const ConnectionException(
@@ -38,7 +43,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     // that changes a filter responsible for mirroring the name back into the
     // settings object, and the Imaging screen's own filter strip shipped
     // without doing so: every manual capture was written with no FILTER card,
-    // a "NoFilter" filename and an empty `captured_images.filter`, while the
+    // a no-filter filename and an empty `captured_images.filter`, while the
     // banner displayed the active filter one row below. Resolving from the
     // live wheel here means no call site can drop it again.
     settings = _withLiveFilter(settings);
@@ -59,6 +64,10 @@ extension _ImagingServiceCapturePipeline on ImagingService {
       _frameNumber =
           frameNumber ??
           await _nextKeeperFrameNumber(
+            basePath: _ref
+                .read(appSettingsProvider)
+                .valueOrNull
+                ?.imageOutputPath,
             exposureSettings: settings,
             targetName: targetName,
           );
@@ -71,8 +80,11 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     final progressNotifier = _ref.read(exposureProgressProvider.notifier);
 
     try {
-      // Get backend and camera ID
       final backend = _ref.read(backendProvider);
+      // A linked host writes, calibrates and grades the frame itself; this
+      // machine cannot open the host's path and must not process it twice.
+      final hostFiles = _hostFiles;
+      final hostOwnsFrame = hostFiles != null;
       final deviceId = cameraState.deviceId;
 
       if (deviceId == null) {
@@ -114,7 +126,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         if (!_hasBackendAuthority(backend)) return null;
       }
 
-      // Update state to exposing
       _activeCameraNotifier = cameraNotifier;
       _activeProgressNotifier = progressNotifier;
       _ownsSharedExposureState = true;
@@ -154,7 +165,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
               progress * 100,
             );
           } else if (event.eventType == 'ExposureComplete') {
-            // Exposure is complete - signal the completer
             _logger.debug(
               'ExposureComplete event received',
               source: 'ImagingService',
@@ -200,13 +210,16 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         // timed-out exposure returned; a site west of the host pushed it into
         // the past and the check stopped firing at all.
         final exposureStartedAt = _ref.read(clockProvider).nowUtc();
+        final commanded = _ref
+            .read(cameraSensitivityProvider)
+            .commanded(gain: settings.gain, offset: settings.offset);
         try {
           await backend.cameraStartExposure(
             deviceId: deviceId,
             exposureTime: settings.exposureTime,
             frameType: settings.frameType,
-            gain: settings.gain,
-            offset: settings.offset,
+            gain: commanded.gain,
+            offset: commanded.offset,
             binX: settings.binningX,
             binY: settings.binningY,
           );
@@ -252,7 +265,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         );
         if (!_hasBackendAuthority(backend)) return null;
 
-        // Check if cancelled
         if (!completed || _cancelRequested) {
           if (_cancelRequested) {
             await _abortActiveExposure();
@@ -276,12 +288,11 @@ extension _ImagingServiceCapturePipeline on ImagingService {
           }
         }
 
-        // Update to downloading state
         progressNotifier.startDownload();
 
         // Get the captured image from backend (remote uses JPEG wire format).
         _logger.debug(
-          'Calling cameraGetLastImage (${backend is NetworkBackend ? 'remote/jpeg' : 'local'})...',
+          'Calling cameraGetLastImage (${hostOwnsFrame ? 'remote/jpeg' : 'local'})...',
           source: 'ImagingService',
         );
         final capturedImage = await backend
@@ -335,17 +346,10 @@ extension _ImagingServiceCapturePipeline on ImagingService {
           source: 'ImagingService',
         );
 
-        // FITS DATE-OBS means the START of the observation, and every
-        // photometry, occultation and astrometry tool reads it that way. The
-        // bridge reports when the frame finished downloading, so stamping that
-        // straight into the header made DATE-OBS late by exactly EXPTIME on
-        // every frame the app has ever written (measured: a 30 s exposure
-        // starting 14:04:37 recorded 14:05:09).
-        //
-        // Derived from the camera's own timestamp rather than the host clock on
-        // purpose. The hardware instant is the authoritative one, its timezone
-        // handling is pinned by tests, and using `DateTime.now()` here instead
-        // both bypassed that and left the file disagreeing with the database.
+        // The frame's timestamp is the end of the exposure as the camera layer
+        // recorded it (start plus the commanded time), so this is the start
+        // the host writes as DATE-OBS. The file name and the database row use
+        // it, so they agree with the header.
         final observationStartedAt = captureTimestamp.subtract(
           Duration(microseconds: (settings.exposureTime * 1e6).round()),
         );
@@ -380,9 +384,12 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             settings: settings,
             capturedAt: observationStartedAt,
             targetName: targetName,
-            previewSource: backend is NetworkBackend
+            previewSource: hostOwnsFrame
                 ? CapturePreviewSource.remote
                 : CapturePreviewSource.local,
+            purpose: purpose,
+            purposeStep: purposeStep,
+            purposeSteps: purposeSteps,
           );
         } catch (e) {
           _logger.error(
@@ -413,21 +420,20 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         // Database indexing remains best-effort once the FITS is safely on
         // disk.
         String? savedFilePath;
+        String? scratchName;
         String? effectiveFilePath;
         int? dbImageId;
         bool isTempFile = false;
 
         try {
-          // Get app settings for file path
           final appSettingsAsync = _ref.read(appSettingsProvider);
           final appSettings = appSettingsAsync.valueOrNull;
 
           if (persistFrame &&
               appSettings != null &&
               appSettings.imageOutputPath.isNotEmpty) {
-            // Generate file path using naming pattern
             savedFilePath = await _generateImageFilePath(
-              appSettings: appSettings,
+              basePath: appSettings.imageOutputPath,
               exposureSettings: settings,
               targetName: targetName,
               frameNumber: captureFrameNumber,
@@ -435,9 +441,8 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             );
             if (!_hasBackendAuthority(backend)) return null;
           } else {
-            // No output path configured - save to temp directory for annotation/plate solving
-            // This ensures live annotation can still work even without a configured save location
-            final String scratchName;
+            // A scratch frame, saved where the host keeps them, so solving and
+            // annotation work without a configured capture folder.
             if (!persistFrame) {
               // A live-view frame. It still has to reach the disk so "solve the
               // latest camera frame", annotation and the preview loader keep
@@ -458,53 +463,32 @@ extension _ImagingServiceCapturePipeline on ImagingService {
                   .millisecondsSinceEpoch;
               scratchName = 'capture_$timestamp.fits';
             }
-            if (backend is NetworkBackend) {
-              // The host writes the file, so the path has to be one of its own.
-              final roots = await backend.browseRemoteDirectories();
-              if (!_hasBackendAuthority(backend)) return null;
-              savedFilePath = hostScratchFilePath(
-                roots.directories,
-                scratchName,
-              );
-              if (savedFilePath == null) {
-                throw StateError(
-                  'the imaging host lists no folder it will write to',
-                );
-              }
-            } else {
-              final skotiqTemp = Directory(
-                path.join(Directory.systemTemp.path, 'skotiq_captures'),
-              );
-              if (!await skotiqTemp.exists()) {
-                await skotiqTemp.create(recursive: true);
-              }
-              if (!_hasBackendAuthority(backend)) return null;
-              savedFilePath = path.join(skotiqTemp.path, scratchName);
-            }
             isTempFile = true;
             _logger.debug(
               persistFrame
-                  ? 'No output path configured, saving to temp: $savedFilePath'
-                  : 'Live-view frame, using scratch path: $savedFilePath',
+                  ? 'No output path configured, saving a scratch frame: '
+                        '$scratchName'
+                  : 'Live-view frame, saving scratch frame $scratchName',
               source: 'ImagingService',
             );
           }
 
           // Call native FITS save API
           // Note: This uses the raw data still in memory on the Rust side
-          await _saveFitsFile(
+          final recordedPath = await _saveFitsFile(
             backend: backend,
             deviceId: deviceId,
             filePath: savedFilePath,
-            width: capturedImage.width,
-            height: capturedImage.height,
-            capturedImage: capturedImage,
+            scratchName: scratchName,
             exposureSettings: settings,
-            appSettings: appSettings,
             targetName: targetName,
             timestamp: observationStartedAt,
+            keepCameraFile: keepsCameraFile && !isTempFile,
           );
-          if (!_hasBackendAuthority(backend)) return null;
+          if (recordedPath == null || !_hasBackendAuthority(backend)) {
+            return null;
+          }
+          savedFilePath = recordedPath;
 
           imageData = imageData.copyWith(filePath: savedFilePath);
           final currentPreview = _ref.read(currentImageProvider);
@@ -522,6 +506,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             try {
               dbImageId = await _saveToDatabase(
                 backend: backend,
+                fileOnHost: hostOwnsFrame,
                 filePath: savedFilePath,
                 capturedImage: capturedImage,
                 exposureSettings: settings,
@@ -540,7 +525,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
                   producingNodeId != null &&
                   producingNodeId.isNotEmpty) {
                 try {
-                  final records = _ref.read(imagingRecordsRepositoryProvider);
+                  final records = _ref.read(imagingRecordsProvider);
                   await records.stampProducingNode(
                     imageId: dbImageId,
                     producingNodeId: producingNodeId,
@@ -617,11 +602,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
 
         _logger.debug('FITS save complete.', source: 'ImagingService');
 
-        // A companion's frame lives on the imaging host, which owns its
-        // calibration, quality and science processing; this machine cannot
-        // open the host path and must not process the frame a second time.
-        final hostOwnsFrame = backend is NetworkBackend;
-
         // Auto-calibration: apply dark/flat/bias correction if enabled
         // Only calibrate light frames - darks, flats, and biases should not be calibrated
         if (!hostOwnsFrame &&
@@ -657,7 +637,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
 
               if (dbImageId != null && effectiveFilePath != savedFilePath) {
                 await _ref
-                    .read(imagingRecordsRepositoryProvider)
+                    .read(imagingRecordsProvider)
                     .updateImageFilePath(dbImageId, effectiveFilePath);
                 if (!_hasBackendAuthority(backend)) return null;
               }
@@ -680,9 +660,10 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             );
             final notificationService = _ref.read(notificationServiceProvider);
             await notificationService.notifyError(
-              errorTitle: 'Auto-Calibration Failed',
+              errorTitle: 'Frame kept uncalibrated',
               errorMessage:
-                  'Failed to calibrate $savedFilePath: ${e.toString()}',
+                  '${path.basename(savedFilePath)} was saved without '
+                  'calibration. ${userFacingError(e)}',
               source: 'Calibration',
             );
             if (!_hasBackendAuthority(backend)) return null;

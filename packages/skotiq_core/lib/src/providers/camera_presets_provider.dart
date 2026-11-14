@@ -6,10 +6,12 @@ import '../models/equipment/equipment_models.dart'
     show CameraStateSnapshot, DeviceConnectionState;
 import '../models/imaging/camera_preset.dart';
 import 'backend_provider.dart';
+import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'equipment/device_capability_provider.dart';
 import 'imaging_provider.dart';
+import '../database/daos/settings_dao.dart';
 
 /// Provider for managing camera gain/offset presets
 final cameraPresetsProvider =
@@ -22,7 +24,6 @@ final cameraPresetsProvider =
       return CameraPresetsNotifier(ref);
     });
 
-/// Provider for the currently selected preset ID
 final selectedPresetIdProvider = StateProvider<String?>((ref) => null);
 
 /// The literal gain/offset of the factory-shipped "unity_gain" preset.
@@ -129,7 +130,6 @@ Future<void> _seedFromConnectedCamera(Ref ref, String deviceId) async {
 class CameraPresetsNotifier
     extends StateNotifier<AsyncValue<List<CameraPreset>>> {
   final Ref _ref;
-  static const String _storageKey = 'camera_presets';
   late final Future<void> _loadFuture;
   Future<void> _mutationTail = Future<void>.value();
 
@@ -137,14 +137,12 @@ class CameraPresetsNotifier
     _loadFuture = _loadPresets();
   }
 
-  /// Load presets from storage
   Future<void> _loadPresets() async {
     try {
       final dao = _ref.read(settingsDaoProvider);
-      final jsonString = await dao.getSetting(_storageKey);
+      final jsonString = await dao.read(StoreSettings.cameraPresets);
 
-      if (jsonString == null || jsonString.isEmpty) {
-        // Initialize with default presets
+      if (jsonString == null) {
         final defaults = _createDefaultPresets();
         await _savePresets(defaults);
         state = AsyncValue.data(defaults);
@@ -160,7 +158,6 @@ class CameraPresetsNotifier
     }
   }
 
-  /// Create default camera presets
   List<CameraPreset> _createDefaultPresets() {
     final now = DateTime.now();
     return [
@@ -188,12 +185,11 @@ class CameraPresetsNotifier
     ];
   }
 
-  /// Save presets to storage
   Future<void> _savePresets(List<CameraPreset> presets) async {
     final dao = _ref.read(settingsDaoProvider);
     final jsonList = presets.map((p) => p.toJson()).toList();
     final jsonString = jsonEncode(jsonList);
-    await dao.setSetting(_storageKey, jsonString);
+    await dao.write(StoreSettings.cameraPresets, jsonString);
   }
 
   Future<void> _mutate(
@@ -228,7 +224,6 @@ class CameraPresetsNotifier
     return operation;
   }
 
-  /// Add a new preset
   Future<void> addPreset(CameraPreset preset) => _mutate((currentPresets) {
     if (currentPresets.any(
       (p) => p.name.toLowerCase() == preset.name.toLowerCase(),
@@ -238,7 +233,6 @@ class CameraPresetsNotifier
     return [...currentPresets, preset];
   });
 
-  /// Update an existing preset
   Future<void> updatePreset(String id, CameraPreset updatedPreset) => _mutate((
     currentPresets,
   ) {
@@ -253,7 +247,6 @@ class CameraPresetsNotifier
     return updatedPresets;
   });
 
-  /// Delete a preset
   Future<void> deletePreset(String id) => _mutate(
     (currentPresets) {
       if (!currentPresets.any((preset) => preset.id == id)) return null;
@@ -275,7 +268,6 @@ class CameraPresetsNotifier
 
     if (preset == null) return;
 
-    // Update the selected preset
     _ref.read(selectedPresetIdProvider.notifier).state = id;
 
     // Applying a preset is an explicit user choice of gain/offset. Mark the
@@ -358,7 +350,6 @@ class CameraPresetsNotifier
     }, authorityGuard: authorityGuard);
   }
 
-  /// Reset to default presets
   Future<void> resetToDefaults() => _mutate(
     (_) => _createDefaultPresets(),
     afterSave: () => _ref.read(selectedPresetIdProvider.notifier).state = null,

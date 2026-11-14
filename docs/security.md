@@ -47,11 +47,62 @@ fail-safe default.
 | Scope | Grants |
 |-------|--------|
 | `view` | Read status endpoints, subscribe to WebSocket events |
-| `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control |
-| `admin` | Full protected API: self-test, settings, file browse, backup/restore |
+| `control` | `view` plus device/capture/mount/guider/sequencer/dome/safety/switch/cover control, the app settings (`POST /api/settings`, `/api/settings/store`, `/api/settings/meridian-flip`, `/api/settings/location`) except the admin-only settings below, and the folder check (`POST /api/files/validate`) |
+| `admin` | Full protected API: the admin-only settings, Home Assistant, self-test, file browse, backup/restore, plugins, updates, catalogs, clearing logs, pairing list |
 
 The legacy `--auth-token` / `SKOTIQ_AUTH_TOKEN` value is an **admin** token.
 Give monitoring clients a `view` token instead.
+
+**Admin-only settings.** The settings routes are `control`, but some settings
+change only from a request with admin access. Each one says so where it is
+declared, with the reason (`adminOnly:` in
+`packages/skotiq_core/lib/src/settings/app_settings_table.dart` and
+`store_settings.dart`), and both settings routes ask the same question of that
+catalog (`adminOnlyRow`, `refuseAdminOnlyChange`); no route keeps a list of its
+own.
+
+| `adminOnly` | Settings | Refusal |
+|-------------|----------|---------|
+| `credential` | the Discord webhook and the Pushover keys | `403 credential_setting` |
+| `credentialTarget` | rows saying where the host sends a credential it keeps in its keyring: `notification_transport_*`, `cloud_sync_*`, `home_assistant_discovery` | `403 credential_setting` |
+| `hostProgram` | the ASTAP, Astrometry.net and PHD2 program paths, and which plugins run (`plugin_enablement`) | `403 host_program_setting` |
+| `administration` | where backups go and how many are kept (`backup.*`, `autosave.backup_*`, `autosave.max_backups`), the catalog download source, and the remote access server's switch and port | `403 admin_setting` |
+
+The refusal names the settings. A full settings document that carries an
+admin-only field back unchanged is accepted. The auth middleware passes the
+grant it admitted the request with to the handler on the request context
+(`authGrantContextKey`), and a handler that finds none treats the request as
+not admin. `GET /api/settings/store` answers `adminAccess` so a client can mark
+these rows before anyone edits them.
+
+`POST /api/settings` answers `400` for a changed field no setting stands
+behind (the update channel and server, for example), instead of dropping it
+and reporting the save as done.
+
+A request or WebSocket without admin access never receives a credential's
+value. `GET /api/settings`, `GET /api/settings/store`, the `settings.changed`
+events on `/events` (live and replayed) and `GET /api/runtime/recent-events`
+carry `(set on the imaging host)` in place of a credential that is set, and an
+empty value for one that is not (`credentialSetMarker`, `credential_settings.dart`).
+The host takes that marker posted back to `POST /api/settings` as "unchanged",
+so a client that saves the document it read leaves the credentials alone. The
+`credentialTarget` rows hold no secret themselves and stay readable. Backups, which
+hold the credentials, are admin only, and no settings value is written to the
+logs.
+
+**Folder check.** `POST /api/files/validate` answers whether one folder exists
+and can be written (it creates and deletes one probe file to find out), and
+only for a folder under the same roots `/api/files/browse` uses or one of the
+folders the settings name; it lists and reads nothing, and its refusal does not
+name the roots. It is `control`, because the rig card, the flat wizard and
+first-run setup on a linked client check the capture folder with it. Listing
+the host's folders (`GET /api/files/browse`) stays `admin`.
+
+**Program paths.** `POST /api/plate-solver/config` refuses a change to its
+ASTAP and `solve-field` paths from a request without admin access the same way
+(`403 host_program_setting`). `POST /api/plate-solver/verify` runs the program
+it is given, so without admin access it runs only a solver the host is already
+set to use (configured or found).
 
 **Fail-closed on unknown scope.** `HeadlessAuthPolicy.requiredScopeFor` resolves
 the scope required by a route from its metadata. If a route ever declares a
@@ -77,7 +128,7 @@ as `!hasAuthentication && !allowUnauthenticatedLan` in
 to the LAN interface, and `--allow-unauthenticated-lan` /
 `SKOTIQ_ALLOW_UNAUTHENTICATED_LAN=true` forces LAN exposure without auth.
 
-`startHeadlessServices` (`apps/desktop/lib/headless/headless_services_bootstrap.dart`)
+`startHostServer` (`apps/desktop/lib/host/host_server.dart`)
 gates the LAN-facing surfaces on `bindLocalOnly`: UDP discovery (port `45679`)
 and the LAN push broadcaster only start when the server is LAN-bound. Loopback
 deployments print `http://127.0.0.1:<port>` and skip discovery entirely.
@@ -143,7 +194,8 @@ the code even on the LAN.
 
 **Assumption.** `lan-open` treats LAN membership as authorization. On a network
 where untrusted devices share the subnet, any of them can one-tap pair and
-obtain a `control` token. Use `code-required` there.
+obtain a `control` token, which runs the rig and changes its app settings
+(not its credentials). Use `code-required` there.
 
 ## 6. TLS / self-signed certificates
 
@@ -181,7 +233,9 @@ Relay mode (`--relay-url` / `SKOTIQ_RELAY_URL`,
 `apps/desktop/lib/headless/headless_relay_bootstrap.dart`) is an **opt-in,
 additive** outbound uplink for reaching the rig from outside the LAN (e.g. from
 a phone on cellular). It is off unless a relay URL is supplied, and it never
-throws — a misconfigured relay must not stop the daemon coming up.
+throws — a misconfigured relay must not stop the host coming up. The daemon
+and the desktop GUI both honor it; in the GUI the uplink runs while Remote
+Access is on and follows the server through a restart.
 
 The relay proxies the local **loopback** port outward. A minted appliance id +
 secret persist in `relay_credentials.json`; the secret authenticates the
@@ -213,7 +267,7 @@ could be bypassed with a spoofed `Host` header.
 Be honest about what reaches logs:
 
 - **Tokens are redacted.** `redactBearer` (`headless_api/request_context.dart`)
-  and `_redactToken` (`headless_services_bootstrap.dart`) show only the first
+  and `_redactToken` (`apps/desktop/lib/host/host_steps.dart`) show only the first
   and last 4 characters of a token; the raw token is never put into the request
   context or structured logs. The auth-identity recorded per request is the
   SHA-256 digest of the token, not the token itself. Auto-generated first-run
@@ -222,7 +276,7 @@ Be honest about what reaches logs:
 - **Error details are sanitized** before being returned to clients
   (`validation.dart` `_sanitizeErrorDetail`, `response_helpers.dart`).
 - **Local IP addresses are printed** to stdout in the operator connect-banner
-  (`startHeadlessServices` enumerates `NetworkInterface.list` and prints
+  (the daemon's connect banner enumerates `NetworkInterface.list` and prints
   `<scheme>://<localIp>:<port>`). The TLS SPKI fingerprint is also printed.
 - **Filesystem paths and site coordinates** are not specially redacted. Capture
   paths, browse-root paths, the TLS cert path, and the relay-credentials path

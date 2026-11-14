@@ -16,7 +16,6 @@
 //     with its own clamps) → see `smart_night.dart`.
 part of '../settings_provider.dart';
 
-/// Setters for sky-brightness adaptive exposure defaults.
 extension AdaptiveExposureSettingsSection on AppSettingsNotifier {
   AppSettingsState _requireAdaptiveExposureSettings() {
     final current = _currentValueOrNull;
@@ -45,29 +44,19 @@ extension AdaptiveExposureSettingsSection on AppSettingsNotifier {
   /// Master switch for the global default sky-brightness adaptive
   /// exposure. Off => the executor's runtime default is cleared and
   /// only per-node `ExposureNode.adaptiveExposure` overrides apply.
-  Future<void> setAdaptiveExposureEnabled(bool value) async {
-    await _saveSetting('adaptive_exposure_enabled', value.toString());
-    _patchState((s) => s.copyWith(adaptiveExposureEnabled: value));
-  }
+  Future<void> setAdaptiveExposureEnabled(bool value) =>
+      _set(AppSettingDefs.adaptiveExposureEnabled, value);
 
   /// Target SNR for the adaptive scaling (informational; the live
   /// math uses background flux ratio, not a direct SNR solver).
-  Future<void> setAdaptiveExposureTargetSnr(double value) async {
-    final clamped = value < 1.0 ? 1.0 : value;
-    await _saveSetting('adaptive_exposure_target_snr', clamped.toString());
-    _patchState((s) => s.copyWith(adaptiveExposureTargetSnr: clamped));
-  }
+  Future<void> setAdaptiveExposureTargetSnr(double value) =>
+      _set(AppSettingDefs.adaptiveExposureTargetSnr, value);
 
   /// Reference sky brightness in mag/arcsec² that the nominal duration
   /// was calibrated for. Bigger = darker; a dark site is 21.5+, an
   /// urban backyard is 18-19.
-  Future<void> setAdaptiveExposureReferenceMag(double value) async {
-    // Sky brightness physically lives in [14, 23] mag/arcsec²; clamp
-    // defensively but allow the user to type anything in that band.
-    final clamped = value.clamp(14.0, 24.0);
-    await _saveSetting('adaptive_exposure_reference_mag', clamped.toString());
-    _patchState((s) => s.copyWith(adaptiveExposureReferenceMag: clamped));
-  }
+  Future<void> setAdaptiveExposureReferenceMag(double value) =>
+      _set(AppSettingDefs.adaptiveExposureReferenceMag, value);
 
   /// Persist the global clamp as one validated unit so an intermediate save
   /// can never leave the executor with min > max.
@@ -76,16 +65,10 @@ extension AdaptiveExposureSettingsSection on AppSettingsNotifier {
     required double maxSecs,
   }) async {
     _validateAdaptiveExposureBounds(minSecs, maxSecs);
-    await _saveSettings({
-      'adaptive_exposure_min_secs': minSecs.toString(),
-      'adaptive_exposure_max_secs': maxSecs.toString(),
-    });
-    _patchState(
-      (s) => s.copyWith(
-        adaptiveExposureMinSecs: minSecs,
-        adaptiveExposureMaxSecs: maxSecs,
-      ),
-    );
+    await _setAll([
+      AppSettingDefs.adaptiveExposureMinSecs.to(minSecs),
+      AppSettingDefs.adaptiveExposureMaxSecs.to(maxSecs),
+    ]);
   }
 
   /// Compatibility setters retain the existing public API while enforcing the
@@ -111,11 +94,7 @@ extension AdaptiveExposureSettingsSection on AppSettingsNotifier {
     Map<String, bool> map,
   ) async {
     final saved = Map<String, bool>.unmodifiable(map);
-    await _saveSetting(
-      'adaptive_exposure_per_filter_enabled',
-      jsonEncode(saved),
-    );
-    _patchState((s) => s.copyWith(adaptiveExposurePerFilterEnabled: saved));
+    await _set(AppSettingDefs.adaptiveExposurePerFilterEnabled, saved);
   }
 
   /// Persist both per-filter maps atomically after resolving each missing side
@@ -140,16 +119,10 @@ extension AdaptiveExposureSettingsSection on AppSettingsNotifier {
       );
     }
 
-    await _saveSettings({
-      'adaptive_exposure_per_filter_min_secs': jsonEncode(savedMin),
-      'adaptive_exposure_per_filter_max_secs': jsonEncode(savedMax),
-    });
-    _patchState(
-      (s) => s.copyWith(
-        adaptiveExposurePerFilterMinSecs: savedMin,
-        adaptiveExposurePerFilterMaxSecs: savedMax,
-      ),
-    );
+    await _setAll([
+      AppSettingDefs.adaptiveExposurePerFilterMinSecs.to(savedMin),
+      AppSettingDefs.adaptiveExposurePerFilterMaxSecs.to(savedMax),
+    ]);
   }
 
   Future<void> setAdaptiveExposurePerFilterMinSecs(

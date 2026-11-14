@@ -52,7 +52,7 @@ class FramingStartCornerSelector extends StatelessWidget {
 /// matches the panels shown on the canvas.
 class FramingExportMosaicButton extends ConsumerStatefulWidget {
   final SkotiqColors colors;
-  final List<FramingMosaicPanel> panels;
+  final List<MosaicPanel> panels;
   final String targetName;
 
   const FramingExportMosaicButton({
@@ -73,7 +73,7 @@ class _FramingExportMosaicButtonState
 
   Future<void> _createProject() async {
     if (_isExporting || widget.panels.isEmpty) return;
-    if (ref.read(backendProvider) is NetworkBackend) {
+    if (ref.read(isRemoteModeProvider)) {
       context.showInfoSnackBar(
         'Create durable mosaic projects on the imaging host.',
       );
@@ -101,10 +101,11 @@ class _FramingExportMosaicButtonState
 
       context.showSuccessSnackBar(
           'Created mosaic project with ${widget.panels.length} panels');
-      unawaited(context.push('/mosaic/$projectId'));
+      unawaited(context.push(AppRoutes.mosaicProject(projectId)));
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not create mosaic project: $e');
+      context.showErrorSnackBar(
+          'Could not create mosaic project: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() => _isExporting = false);
@@ -114,7 +115,7 @@ class _FramingExportMosaicButtonState
 
   @override
   Widget build(BuildContext context) {
-    final isRemote = ref.watch(backendProvider) is NetworkBackend;
+    final isRemote = ref.watch(isRemoteModeProvider);
     return SkotiqButton(
       label: _isExporting
           ? 'Creating project...'

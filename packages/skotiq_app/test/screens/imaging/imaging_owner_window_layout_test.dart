@@ -14,8 +14,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/imaging/widgets/guiding_active_chip.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_capture_bar.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/imaging_keys.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../golden/surface_golden_harness.dart';
 import '../../harness/harness.dart';
@@ -74,6 +76,7 @@ class _GuidingGuider extends GuiderStateNotifier {
     setConnected();
     setGuiding(true);
     updateRms(0.31, 0.27, 0.42);
+    setPixelScale(1.34);
   }
 }
 
@@ -92,7 +95,6 @@ class _Stats extends GuideStatsNotifier {
       rmsDec: 0.27,
       rmsTotal: 0.42,
       snr: 42.6,
-      pixelScale: 1.34,
     );
   }
 }
@@ -147,7 +149,7 @@ void main() {
     final scrollable = tester.state<ScrollableState>(
       find
           .ancestor(
-            of: find.byKey(ImagingTutorialKeys.zoomControls),
+            of: find.byKey(TourTarget.imagingZoomControls.key),
             matching: find.byType(Scrollable),
           )
           .first,

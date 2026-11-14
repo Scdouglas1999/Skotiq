@@ -1,11 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for Pillar B ("First Light") — the difference-imaging transient
 /// discovery surface.
@@ -13,9 +17,20 @@ import '../validation.dart';
 /// The difference pipeline and its persistence run on the appliance/desktop
 /// (where solved frames land); a remote tablet/desktop cannot watch that DB, so
 /// these endpoints expose the persisted [TransientDetectionRow] feed over REST
-/// and let a remote client triage (review / dismiss) a candidate. Reads default
-/// to `view` scope, the triage mutations to `control`, per `route_metadata`.
-class FirstLightHandlers {
+/// and let a remote client triage (review / dismiss) a candidate.
+class FirstLightHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    FirstLightApi.getCandidates: handleGetCandidates,
+    FirstLightApi.getNear: handleGetNear,
+    FirstLightApi.getCrop: handleGetCrop,
+    FirstLightApi.review: handleReview,
+    FirstLightApi.dismiss: handleDismiss,
+    FirstLightApi.submitTns: handleSubmitTns,
+    FirstLightApi.exportAavso: handleExportAavso,
+    FirstLightApi.exportMpc: handleExportMpc,
+  };
+
   final ProviderContainer container;
 
   FirstLightHandlers(this.container);
@@ -275,7 +290,6 @@ class FirstLightHandlers {
     return parsed > _maxCandidateLimit ? _maxCandidateLimit : parsed;
   }
 
-  /// Parse the `offset` query param, flooring at 0.
   int _nonNegativeOffset(String? raw) {
     if (raw == null || raw.isEmpty) return 0;
     final parsed = int.tryParse(raw);

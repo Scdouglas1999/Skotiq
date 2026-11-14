@@ -6,7 +6,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' show CatalogManager;
+import 'package:skotiq_astro/skotiq_astro.dart' show CatalogManager;
 import 'package:path/path.dart' as p;
 
 import '../../models/science/science_models.dart';
@@ -14,6 +14,7 @@ import '../../providers/database_provider.dart';
 import '../logging_service.dart';
 import '../../utils/skotiq_data_directory.dart';
 import 'photometric_bands.dart';
+import '../../providers/logging_service_provider.dart';
 
 /// One catalog star usable for photometric work: position, Johnson V, and
 /// (when the catalog provides them) a B-V color index and Sloan r'.
@@ -176,8 +177,6 @@ class PhotometricCatalogService {
       ),
     );
   }
-
-  // ── APASS (cache + online) ────────────────────────────────────────────
 
   Future<List<PhotometricCatalogStar>?> _apassCone({
     required double raDegrees,
@@ -392,8 +391,6 @@ class PhotometricCatalogService {
     return stars;
   }
 
-  // ── HYG fallback ──────────────────────────────────────────────────────
-
   Future<List<PhotometricCatalogStar>> _hygCone({
     required double raDegrees,
     required double decDegrees,
@@ -420,8 +417,8 @@ class PhotometricCatalogService {
       }
       stars.add(
         PhotometricCatalogStar(
-          raDegrees: star.ra,
-          decDegrees: star.dec,
+          raDegrees: star.coordinates.raDegrees,
+          decDegrees: star.coordinates.dec,
           magV: magV,
           colorIndexBv: bv,
         ),
@@ -460,8 +457,6 @@ class PhotometricCatalogService {
     }
     return baseBv + 0.06 * (subtype / 10.0);
   }
-
-  // ── Cache ─────────────────────────────────────────────────────────────
 
   Future<Directory> _cacheDirectory() async {
     final base = await resolveSkotiqDataDirectory();
@@ -536,9 +531,3 @@ class PhotometricCatalogService {
         .toList(growable: false);
   }
 }
-
-final photometricCatalogServiceProvider = Provider<PhotometricCatalogService>((
-  ref,
-) {
-  return PhotometricCatalogService(ref);
-});

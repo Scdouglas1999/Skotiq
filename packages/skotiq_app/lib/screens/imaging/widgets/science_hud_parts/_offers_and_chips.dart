@@ -25,7 +25,7 @@ class _ScienceHudAuthorityNotice extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Some science controls are unavailable: $error'
+              'Some science controls are unavailable: ${userFacingError(error)}'
               '${additionalErrorCount > 0 ? ' (+$additionalErrorCount more)' : ''}',
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -123,9 +123,8 @@ class _ContextualOffers extends ConsumerWidget {
     final images = imageStream.valueOrNull ?? const <DbCapturedImage>[];
     if (images.isEmpty) return const SizedBox.shrink();
 
-    final lights = images
-        .where((image) => image.frameType.toLowerCase() == 'light')
-        .toList(growable: false);
+    final lights =
+        images.where((image) => image.isLight).toList(growable: false);
 
     final filterCounts = <String, int>{};
     for (final image in lights) {
@@ -181,15 +180,11 @@ class _ContextualOffers extends ConsumerWidget {
 /// session's image list once per session id change. Drift de-dupes parallel
 /// watchers automatically.
 ///
-/// Routes through [imagingRecordsRepositoryProvider], which already branches on
-/// `NetworkBackend` and polls the host's session image rows on a slave. Without
-/// that branch the slave reads its empty local SQLite (the master is the node
-/// actually capturing) and the contextual nudge tiles never appear.
+/// [imagingRecordsProvider] serves the imaging host's rows, so a linked
+/// client shows the nudges for the session its host is capturing.
 final _huddedImagesProvider =
     StreamProvider.family<List<DbCapturedImage>, int>((ref, sessionId) {
-  return ref
-      .watch(imagingRecordsRepositoryProvider)
-      .watchImagesForSession(sessionId);
+  return ref.watch(imagingRecordsProvider).watchImagesForSession(sessionId);
 });
 
 class _OfferTile extends StatelessWidget {

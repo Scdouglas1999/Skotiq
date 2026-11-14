@@ -2,7 +2,6 @@
 
 use super::*;
 
-/// Information about a discovered Touptek camera
 #[derive(Debug, Clone)]
 pub struct TouptekDeviceInfo {
     pub camera_id: String,
@@ -55,14 +54,12 @@ pub(crate) fn enumerate_brand_devices_from_sdk(
     // plus a raw model pointer; all-zero is valid for both character representations and
     // for the null pointer. OGMACAM_MAX matches the SDK's documented enumeration cap.
     let mut arr: Vec<OgmacamDeviceV2> = vec![unsafe { std::mem::zeroed() }; OGMACAM_MAX];
-    // SAFETY: caller (discover_devices / discover_devices_for_brand) holds touptek_mutex; `arr.as_mut_ptr()` points to a contiguous buffer of OGMACAM_MAX `#[repr(C)]` OgmacamDeviceV2 entries; OgmacamEnumV2 fills at most OGMACAM_MAX entries and returns the count, per the SDK header.
+    // SAFETY: `arr.as_mut_ptr()` points to a contiguous buffer of OGMACAM_MAX `#[repr(C)]` OgmacamDeviceV2 entries; OgmacamEnumV2 fills at most OGMACAM_MAX entries and returns the count, per the SDK header.
     let count = unsafe { (sdk.enum_v2)(arr.as_mut_ptr()) };
 
     // Why: count is c_uint (u32) returned by OgmacamEnumV2; widening u32 -> usize is
     // value-preserving on every Tier 1 target.
-    for i in 0..count as usize {
-        let dev = &arr[i];
-
+    for dev in arr.iter().take(count as usize) {
         let name = touptek_device_string(&dev.displayname);
         let id = touptek_device_string(&dev.id);
 
@@ -81,12 +78,16 @@ pub(crate) fn enumerate_brand_devices_from_sdk(
         } else {
             (0, 0, 0, 0, 0.0, 0.0)
         };
+        if (flags & (OGMACAM_FLAG_FILTERWHEEL | OGMACAM_FLAG_AUTOFOCUSER)) != 0 {
+            tracing::debug!("{brand}: '{name}' is a filter wheel or focuser, not a camera");
+            continue;
+        }
 
         devices.push(TouptekDeviceInfo {
             camera_id: id,
             name,
             serial_number: None,
-            discovery_index: i,
+            discovery_index: devices.len(),
             model_flags: flags,
             max_fan_speed,
             width,
@@ -117,31 +118,29 @@ pub(crate) fn enumerate_brand_devices_from_sdk(
 ///
 /// Iterates over all known Touptek white-label SDKs, attempts to load each,
 /// and enumerates cameras from each successfully loaded SDK.
-pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, NativeError> {
-    // Acquire global SDK mutex for thread safety
-    let _lock = touptek_mutex().lock().await;
+pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, DriverError> {
+    let lock = TOUPTEK_SDK_LOCK.lock().await;
 
     let mut devices = Vec::new();
     let mut loaded_sdk_count = 0usize;
     let mut load_errors = Vec::new();
+    let mut none_installed = true;
 
-    for &(dll_name, _func_prefix, brand_name) in TOUPTEK_BRANDS {
+    for &(library_base, _func_prefix, brand_name) in TOUPTEK_BRANDS {
+        let dll_name = brand_library_file(library_base);
         if let Err(err) = get_sdk_for_brand(brand_name) {
             tracing::debug!(
                 "Touptek brand SDK '{}' ({}) not available, skipping",
                 brand_name,
                 dll_name
             );
-            load_errors.push((
-                brand_name.to_string(),
-                dll_name.to_string(),
-                err.to_string(),
-            ));
+            none_installed &= matches!(err, DriverError::SdkNotInstalled(_));
+            load_errors.push((brand_name.to_string(), dll_name, err.to_string()));
             continue;
         }
         loaded_sdk_count += 1;
 
-        let brand_devices = with_sdk(brand_name, |sdk| {
+        let brand_devices = with_sdk(&lock, brand_name, |sdk| {
             Ok(enumerate_brand_devices_from_sdk(sdk, brand_name))
         })?;
 
@@ -152,7 +151,7 @@ pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, NativeError> {
     }
 
     if loaded_sdk_count == 0 {
-        let err = touptek_no_sdk_loaded_error(&load_errors);
+        let err = touptek_no_sdk_loaded_error(&load_errors, none_installed);
         tracing::warn!("{}", err);
         return Err(err);
     }
@@ -163,12 +162,20 @@ pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, NativeError> {
 /// Discover connected Touptek cameras for a specific brand only
 pub async fn discover_devices_for_brand(
     brand: &str,
-) -> Result<Vec<TouptekDeviceInfo>, NativeError> {
-    let _lock = touptek_mutex().lock().await;
+) -> Result<Vec<TouptekDeviceInfo>, DriverError> {
+    let lock = TOUPTEK_SDK_LOCK.lock().await;
 
     get_sdk_for_brand(brand)?;
 
-    with_sdk(brand, |sdk| {
+    with_sdk(&lock, brand, |sdk| {
         Ok(enumerate_brand_devices_from_sdk(sdk, brand))
     })
+}
+
+/// Check if any Touptek-family SDK library is available. Loads each brand
+/// library on first use, as discovery does.
+pub fn is_sdk_available() -> bool {
+    TOUPTEK_BRANDS
+        .iter()
+        .any(|&(_, _, brand)| get_sdk_for_brand(brand).is_ok())
 }

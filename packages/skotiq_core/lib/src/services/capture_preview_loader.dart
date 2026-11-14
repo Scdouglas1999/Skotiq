@@ -1,17 +1,17 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/fwhm_conversion.dart';
-import '../backend/disconnected_backend.dart';
-import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/imaging_models.dart';
 import '../providers/backend_provider.dart';
 import '../providers/imaging_provider.dart';
 import 'imaging_service.dart';
+import '../backend/remote_host.dart';
+import '../models/backend/backend_types.dart';
+import 'logging_service.dart';
 
 /// Publishes JPEG-first capture previews and loads host raw data in the background.
 class CapturePreviewPublisher {
@@ -32,7 +32,7 @@ class CapturePreviewPublisher {
   }) {
     final generation = ++_generation;
     final backend = _read(ref, backendProvider);
-    final source = backend is NetworkBackend
+    final source = _read(ref, isRemoteModeProvider)
         ? CapturePreviewSource.remote
         : CapturePreviewSource.local;
     final scheduleRaw = loadRaw && _shouldScheduleRawLoad(backend);
@@ -44,7 +44,12 @@ class CapturePreviewPublisher {
     );
 
     _read(ref, currentImageProvider.notifier).state = withSource;
-    _read(ref, lastImageStatsProvider.notifier).state = withSource.stats;
+    // An autofocus or solve frame is shown, but its numbers are not the
+    // night's: the sub-quality badge and the narrator read these stats as the
+    // latest light frame's.
+    if (!withSource.isUtilityFrame) {
+      _read(ref, lastImageStatsProvider.notifier).state = withSource.stats;
+    }
 
     if (!scheduleRaw) {
       return;
@@ -69,7 +74,7 @@ class CapturePreviewPublisher {
   }
 
   bool _shouldScheduleRawLoad(SkotiqBackend backend) {
-    if (backend is DisconnectedBackend) {
+    if (backend.hasNoHost) {
       return false;
     }
     return true;
@@ -112,11 +117,10 @@ class CapturePreviewPublisher {
       // native bridge and the network backend.
       final expectedPixels = expectedWidth * expectedHeight;
       if (rawList.length != expectedPixels) {
-        developer.log(
+        Log.warning(
           '[CapturePreview] Raw sample count ${rawList.length} does not match '
           '${expectedWidth}x$expectedHeight ($expectedPixels pixels)',
-          name: 'CapturePreview',
-          level: 900,
+          source: 'CapturePreview',
         );
         _read(ref, currentImageProvider.notifier).state = current.copyWith(
           rawLoadStatus: RawLoadStatus.failed,
@@ -133,10 +137,9 @@ class CapturePreviewPublisher {
         rawLoadStatus: RawLoadStatus.ready,
       );
     } catch (e, st) {
-      developer.log(
+      Log.warning(
         '[CapturePreview] Background raw load failed: $e',
-        name: 'CapturePreview',
-        level: 900,
+        source: 'CapturePreview',
         error: e,
         stackTrace: st,
       );
@@ -159,16 +162,6 @@ class CapturePreviewPublisher {
   }
 }
 
-final capturePreviewPublisherProvider = Provider<CapturePreviewPublisher>((
-  ref,
-) {
-  ref.watch(backendProvider);
-  final publisher = CapturePreviewPublisher();
-  ref.onDispose(publisher.cancelPending);
-  return publisher;
-});
-
-/// Build UI image data from a backend capture result.
 CapturedImageData capturedImageDataFromResult({
   required CapturedImageResult capturedImage,
   required ExposureSettings settings,
@@ -176,11 +169,20 @@ CapturedImageData capturedImageDataFromResult({
   String? targetName,
   String? filePath,
   CapturePreviewSource previewSource = CapturePreviewSource.local,
+  FramePurpose purpose = FramePurpose.capture,
+  int? purposeStep,
+  int? purposeSteps,
 }) {
   return CapturedImageData(
     width: capturedImage.width,
     height: capturedImage.height,
-    displayData: Uint8List.fromList(capturedImage.displayData),
+    // The native and remote paths hand over a fresh Uint8List nobody else
+    // holds; copying it again cost the UI isolate 40 ms at 26 MP and 100 ms
+    // at 61 MP per frame.
+    displayData: switch (capturedImage.displayData) {
+      final Uint8List bytes => bytes,
+      final other => Uint8List.fromList(other),
+    },
     histogram: capturedImage.histogram,
     stats: ImageStats(
       min: capturedImage.stats.min,
@@ -208,5 +210,8 @@ CapturedImageData capturedImageDataFromResult({
     filePath: filePath,
     isColor: capturedImage.isColor,
     previewSource: previewSource,
+    purpose: purpose,
+    purposeStep: purposeStep,
+    purposeSteps: purposeSteps,
   );
 }

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_app/screens/darkroom/darkroom_route.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
 import 'package:skotiq_app/screens/darkroom/targets/calibration_panel.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_providers.dart';
@@ -13,7 +13,10 @@ import 'package:skotiq_app/screens/darkroom/targets/framing_check.dart';
 import 'package:skotiq_app/screens/darkroom/targets/tile_crop.dart';
 import 'package:skotiq_app/screens/session_review/widgets/sub_cull_rail.dart'
     show subThumbnailProvider;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_backend.dart';
@@ -101,12 +104,12 @@ class _Service extends DarkroomBuildService {
             tagsDao: CalibrationTagsDao(db),
           ),
           masters: IntegratedMastersDao(db),
-          readHeader: (_) async => {
+          readHeader: (_) async => FrameHeader({
             'INSTRUME': 'ZWO ASI294MM Pro',
             'TELESCOP': '10" Newt',
-            'NAXIS1': '4656',
-            'NAXIS2': '3520',
-          },
+            'NAXIS1': 4656,
+            'NAXIS2': 3520,
+          }),
         );
 
   @override
@@ -152,7 +155,6 @@ class _CountingLibrary extends CalibrationLibraryService {
   @override
   Future<CalibrationMatchSet> match(
     LightFrameContext context, {
-    CalibrationMatchTolerances tolerances = CalibrationMatchTolerances.defaults,
     bool includeRemote = true,
   }) async {
     matches++;
@@ -270,8 +272,10 @@ Future<_Harness> _pump(
       darkroomBuildJobsProvider.overrideWith(() => jobs),
       darkroomTargetCalibrationProvider
           .overrideWith((ref, key) async => _library()),
-      darkroomMastersRootProvider
-          .overrideWith((ref) async => Directory('/data/Masters')),
+      outputLocationsProvider.overrideWith(
+        (ref) async => OutputLocations(
+            captureFolder: '/data', documents: Directory('/home')),
+      ),
       darkroomFileExistsProvider.overrideWithValue((_) => true),
       subThumbnailProvider.overrideWith(
         (ref, id) => Future<Uint8List>.error(StateError('no thumbnail')),

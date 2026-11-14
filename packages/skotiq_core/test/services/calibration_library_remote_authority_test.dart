@@ -4,7 +4,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -29,7 +32,7 @@ Map<String, dynamic> _masterJson({
 ).toJson(now: createdAt);
 
 void main() {
-  test('remote list and record reads use the appliance library', () async {
+  test('a linked client lists and reads the host library', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final backend = _MockNetworkBackend();
@@ -51,17 +54,18 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    final service = container.read(calibrationLibraryServiceProvider);
+    final library = container.read(calibrationLibraryProvider);
+    expect(library, same(backend.remoteHost!.calibrationLibrary));
 
-    final records = await service.listMasters(
+    final records = await library.listMasters(
       filter: const CalibrationLibraryFilter(type: CalibrationMasterType.dark),
     );
     expect(records.map((record) => record.id), [9, 4]);
-    expect((await service.getRecord(CalibrationMasterType.dark, 4))?.id, 4);
+    expect((await library.getRecord(CalibrationMasterType.dark, 4))?.id, 4);
     verify(() => backend.getCalibrationMasters(type: 'dark')).called(2);
   });
 
-  test('a late library response from the old host is discarded', () async {
+  test('a late library response from the old host is stale', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final oldBackend = _MockNetworkBackend();
@@ -80,9 +84,12 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    final service = container.read(calibrationLibraryServiceProvider);
+    final scope = AsyncScopes(
+      container.read,
+      calibrationLibraryProvider,
+    ).begin();
 
-    final loading = service.listMasters();
+    final loading = scope.value.listMasters();
     await Future<void>.delayed(Duration.zero);
     backendNotifier.replaceWith(newBackend);
     response.complete([
@@ -93,8 +100,14 @@ void main() {
       ),
     ]);
 
-    await expectLater(
-      loading,
+    expect((await loading).single.id, 7);
+    expect(scope.isStale, isTrue);
+    expect(
+      container.read(calibrationLibraryProvider),
+      same(newBackend.remoteHost!.calibrationLibrary),
+    );
+    expect(
+      () => scope.ensureCurrent('the calibration library was loading'),
       throwsA(
         isA<StateError>().having(
           (error) => error.message,
@@ -104,4 +117,33 @@ void main() {
       ),
     );
   });
+
+  test('a local backend reads this process\'s own library', () async {
+    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final local = DisconnectedBackend();
+    addTearDown(local.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        backendProvider.overrideWith(
+          (ref) => _ReplaceableBackendNotifier(ref, local),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final library = container.read(calibrationLibraryProvider);
+    expect(library, same(container.read(calibrationLibraryServiceProvider)));
+    expect(library.masterFileDownload(_record(1)), isNull);
+    expect(await library.listMasters(), isEmpty);
+  });
 }
+
+CalibrationMasterRecord _record(int id) => CalibrationMasterRecord(
+  type: CalibrationMasterType.dark,
+  id: id,
+  filePath: '/host/master_$id.fits',
+  isMaster: true,
+  createdAt: DateTime.utc(2026, 7, 15),
+);

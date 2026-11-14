@@ -1,7 +1,4 @@
-// Unacknowledged badge, alert tiles and type badges.
 part of '../transient_alerts_panel.dart';
-
-// Unacknowledged badge
 
 class _UnacknowledgedBadge extends ConsumerWidget {
   final SkotiqColors colors;
@@ -30,8 +27,6 @@ class _UnacknowledgedBadge extends ConsumerWidget {
     );
   }
 }
-
-// Transient alert tile
 
 class _TransientAlertTile extends ConsumerStatefulWidget {
   final TransientAlert alert;
@@ -90,14 +85,11 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Priority/type indicator
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: _TypeBadge(type: alert.type),
                   ),
                   const SizedBox(width: 10),
-
-                  // Main content
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,7 +164,6 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        // Type, magnitude, coordinates
                         Wrap(
                           spacing: 12,
                           runSpacing: 4,
@@ -193,13 +184,14 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                                 ),
                               ),
                             Text(
-                              'RA ${_formatRa(alert.raHours)} Dec ${_formatDec(alert.decDegrees)}',
+                              'RA ${CoordinateFormat.raCompact(alert.raHours)} Dec ${CoordinateFormat.decCompact(alert.decDegrees)}',
                               style: TextStyle(
                                   fontSize: SkotiqTypography.fontSize11,
                                   color: colors.textMuted),
                             ),
                             Text(
-                              DateFormat('MMM d').format(alert.discoveryTime),
+                              ClockFormat.monthDay(
+                                  alert.discoveryTime.toLocal()),
                               style: TextStyle(
                                   fontSize: SkotiqTypography.fontSize11,
                                   color: colors.textMuted),
@@ -220,8 +212,6 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                       ],
                     ),
                   ),
-
-                  // Action buttons
                   if (!isDismissed && !isQueued && !isObserved) ...[
                     const SizedBox(width: 8),
                     Column(
@@ -274,20 +264,7 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
           )),
     );
   }
-
-  String _formatRa(double raHours) => CoordinateFormat.ra(
-        raHours,
-        style: SexagesimalStyle.compactLeadPlainLetters,
-        seconds: SecondsPrecision.integerFloored,
-      );
-
-  String _formatDec(double decDegrees) => CoordinateFormat.decDm(
-        decDegrees,
-        style: SexagesimalStyle.compactLeadPlainLetters,
-      );
 }
-
-// Type badge
 
 class _TypeBadge extends StatelessWidget {
   final TransientType type;

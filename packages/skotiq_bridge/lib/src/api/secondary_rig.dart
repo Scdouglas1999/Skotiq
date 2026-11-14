@@ -34,10 +34,6 @@ Future<void> apiSecondaryRigStop() =>
 Future<SecondaryRigStatusApi> apiSecondaryRigGetStatus() =>
     RustLib.instance.api.crateApiSecondaryRigApiSecondaryRigGetStatus();
 
-/// Whether a secondary rig is currently armed.
-Future<bool> apiSecondaryRigIsArmed() =>
-    RustLib.instance.api.crateApiSecondaryRigApiSecondaryRigIsArmed();
-
 /// FRB-facing configuration for arming the secondary rig. Mirrors
 /// [`SecondaryRigConfig`] plus the dither-coordination policy + frame metadata.
 class SecondaryRigConfigApi {
@@ -62,6 +58,11 @@ class SecondaryRigConfigApi {
   final String? telescopeName;
   final double? telescopeFocalLengthMm;
   final double? telescopeApertureMm;
+
+  /// How the frames are named under the rig's folder, as a capture step's
+  /// `save_to` (the app's naming pattern). `None` names them as a step
+  /// without one does.
+  final String? saveTo;
 
   /// Max seconds the primary waits for the secondary to clear before
   /// dithering anyway (bounded so a stuck secondary never stalls the primary).
@@ -99,6 +100,7 @@ class SecondaryRigConfigApi {
     this.telescopeName,
     this.telescopeFocalLengthMm,
     this.telescopeApertureMm,
+    this.saveTo,
     required this.ditherMaxWaitSecs,
     required this.inFlightPolicy,
     this.saveBasePath,
@@ -128,6 +130,7 @@ class SecondaryRigConfigApi {
       telescopeName.hashCode ^
       telescopeFocalLengthMm.hashCode ^
       telescopeApertureMm.hashCode ^
+      saveTo.hashCode ^
       ditherMaxWaitSecs.hashCode ^
       inFlightPolicy.hashCode ^
       saveBasePath.hashCode ^
@@ -159,6 +162,7 @@ class SecondaryRigConfigApi {
           telescopeName == other.telescopeName &&
           telescopeFocalLengthMm == other.telescopeFocalLengthMm &&
           telescopeApertureMm == other.telescopeApertureMm &&
+          saveTo == other.saveTo &&
           ditherMaxWaitSecs == other.ditherMaxWaitSecs &&
           inFlightPolicy == other.inFlightPolicy &&
           saveBasePath == other.saveBasePath &&

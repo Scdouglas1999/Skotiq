@@ -13,12 +13,12 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
 import '../../models/notification/transport_configs.dart';
 import '../notification/transports/mqtt_transport.dart' show MqttSocketOpener;
+import '../logging_service.dart';
 
 Future<Socket> _defaultOpener(String host, int port, bool useTls) {
   if (useTls) return SecureSocket.connect(host, port);
@@ -166,8 +166,6 @@ class HaMqttSessionClient {
     await sub?.cancel();
   }
 
-  // Incoming data
-
   void _onData(List<int> bytes) {
     _buffer.addAll(bytes);
     while (true) {
@@ -234,10 +232,9 @@ class HaMqttSessionClient {
     try {
       onMessage?.call(topic, payload);
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[HomeAssistant/MQTT] Command handler failed: $e',
-        name: 'HaMqttSessionClient',
-        level: 900,
+        source: 'HaMqttSessionClient',
         error: e,
       );
     }
@@ -273,10 +270,9 @@ class HaMqttSessionClient {
       }
     }
     if (wasConnected) {
-      developer.log(
+      Log.warning(
         '[HomeAssistant/MQTT] Session dropped: $error',
-        name: 'HaMqttSessionClient',
-        level: 900,
+        source: 'HaMqttSessionClient',
       );
       onDisconnected?.call();
     }

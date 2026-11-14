@@ -85,7 +85,6 @@ _Phd2GuideStats _$Phd2GuideStatsFromJson(Map<String, dynamic> json) =>
       hfd: (json['hfd'] as num?)?.toDouble() ?? 0.0,
       starX: (json['starX'] as num?)?.toDouble() ?? 0.0,
       starY: (json['starY'] as num?)?.toDouble() ?? 0.0,
-      pixelScale: (json['pixelScale'] as num?)?.toDouble() ?? 0.0,
       frameCount: (json['frameCount'] as num?)?.toInt() ?? 0,
       loopFrameCount: (json['loopFrameCount'] as num?)?.toInt() ?? 0,
     );
@@ -102,7 +101,6 @@ Map<String, dynamic> _$Phd2GuideStatsToJson(_Phd2GuideStats instance) =>
       'hfd': instance.hfd,
       'starX': instance.starX,
       'starY': instance.starY,
-      'pixelScale': instance.pixelScale,
       'frameCount': instance.frameCount,
       'loopFrameCount': instance.loopFrameCount,
     };

@@ -48,8 +48,8 @@ fn state_with_target_hour_angle(
     let mut state = TriggerState::new();
     state.set_target(62.23, 40.0);
     state.set_meridian_target("D1 Simulated Field".to_string());
-    state.current_hour_angle = Some(hour_angle_hours);
-    state.pier_side = pier_side;
+    state.target.current_hour_angle = Some(hour_angle_hours);
+    state.telemetry.pier_side = pier_side;
     state
 }
 
@@ -138,6 +138,6 @@ async fn the_configured_boundary_is_inclusive() {
 async fn an_unpublished_hour_angle_never_fires() {
     let mut trigger = flip_trigger(MeridianTriggerMethod::MinutesPastMeridian, 5.0);
     let mut state = state_with_target_hour_angle(2.0, Some(PierSide::West));
-    state.current_hour_angle = None;
+    state.target.current_hour_angle = None;
     assert!(!trigger.check(&state).await);
 }

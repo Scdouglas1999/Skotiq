@@ -1,6 +1,3 @@
-// Properties widgets for the guiding instruction nodes: StartGuiding (settle
-// pixels/time/timeout + auto-select star) and StopGuiding (a descriptive
-// info card; the node has no configurable fields).
 part of '../node_properties_panel.dart';
 
 class _StartGuidingProperties extends ConsumerWidget {
@@ -108,6 +105,7 @@ class _StartGuidingProperties extends ConsumerWidget {
           colors: colors,
           label: 'Auto-select star',
           child: NodeToggleSwitch(
+            label: 'Auto-select star',
             colors: colors,
             value: node.autoSelectStar,
             onChanged: (value) {

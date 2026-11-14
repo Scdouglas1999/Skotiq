@@ -37,8 +37,6 @@ extension _CoImagingSessionInternals on CoImagingSessionService {
     return resolver();
   }
 
-  // Internals
-
   /// The session target's sky centre (degrees): from the durable membership when
   /// it carries coordinates, else from a single live [getSession] (self-healing
   /// the membership row so later offline calls are cheap).

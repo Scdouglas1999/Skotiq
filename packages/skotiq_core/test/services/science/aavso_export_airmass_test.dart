@@ -10,7 +10,9 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 const int _sessionId = 1;
 
@@ -47,6 +49,7 @@ void main() {
     settingsDao = SettingsDao(db);
     documents = await Directory.systemTemp.createTemp('aavso-amass-test');
     service = AavsoExportService(
+      softwareLabel: 'Skotiq',
       scienceDao: scienceDao,
       settingsDao: settingsDao,
       imagesDao: imagesDao,

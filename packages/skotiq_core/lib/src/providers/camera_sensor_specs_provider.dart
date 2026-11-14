@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import 'host_role.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/equipment/equipment_models.dart';
@@ -14,6 +13,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'profiles_provider.dart';
+import '../services/logging_service.dart';
 
 /// The rig's raw camera-spec settings: everything under `science.` and
 /// `smart_night.`, from the host that owns the camera when paired.
@@ -31,16 +31,28 @@ import 'profiles_provider.dart';
 final rigCameraSettingsProvider = FutureProvider<Map<String, String>>((
   ref,
 ) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final values = await Future.wait([
-      backend.getScienceSettings(),
-      backend.getSmartNightSettings(),
-    ]);
-    return {...values[0], ...values[1]};
-  }
-  return ref.watch(allSettingsProvider.future);
+  return ref.watch(_rigCameraSettingRowsProvider)(ref);
 });
+
+final _rigCameraSettingRowsProvider =
+    hostRoleProvider<Future<Map<String, String>> Function(Ref ref)>(
+      here: (_) =>
+          (ref) => ref.watch(allSettingsProvider.future),
+      linked: (_, host) => (_) async {
+        final values = await Future.wait([
+          host.rigSettings.getScienceSettings(),
+          host.rigSettings.getSmartNightSettings(),
+        ]);
+        return {...values[0], ...values[1]};
+      },
+    );
+
+/// The table that remembers camera geometry: this machine's, and none on a
+/// linked client, whose host remembers it.
+final _rememberedGeometryRowsProvider = hostRoleProvider<SettingsDao?>(
+  here: (ref) => ref.watch(settingsDaoProvider),
+  linked: (_, _) => null,
+);
 
 /// The resolver. Overridden in tests to pin a database.
 final cameraSensorSpecResolverProvider = Provider<CameraSensorSpecResolver>(
@@ -85,9 +97,7 @@ final activeCameraSensorSpecsProvider =
           : (profile?.cameraName ?? deviceName);
 
       final backend = ref.watch(backendProvider);
-      final settingsDao = backend is NetworkBackend
-          ? null
-          : ref.watch(settingsDaoProvider);
+      final settingsDao = ref.watch(_rememberedGeometryRowsProvider);
       final gain = connected
           ? (driverGain ?? profile?.defaultGain)
           : profile?.defaultGain;
@@ -136,10 +146,9 @@ Future<SensorGeometryReading?> _readLiveGeometry(
   } catch (error, stack) {
     // A camera that cannot answer right now is not a reason to withhold the
     // remembered or published values below it in the chain.
-    developer.log(
+    Log.warning(
       'Could not read live sensor geometry for $cameraId.',
-      name: 'SensorSpecs',
-      level: 900,
+      source: 'SensorSpecs',
       error: error,
       stackTrace: stack,
     );
@@ -163,10 +172,9 @@ Future<SensorGeometryReading?> _readRememberedGeometry(
       readAt: spec.recordedAt,
     );
   } catch (error, stack) {
-    developer.log(
+    Log.warning(
       'Could not read remembered sensor geometry for $cameraId.',
-      name: 'SensorSpecs',
-      level: 900,
+      source: 'SensorSpecs',
       error: error,
       stackTrace: stack,
     );
@@ -195,10 +203,9 @@ UserSensorSpecOverrides _readOverrides(
   } catch (error, stack) {
     // A malformed override blob must not take the published figures down with
     // it; the planner says so through its own caveat.
-    developer.log(
+    Log.warning(
       'Could not read camera sensor overrides.',
-      name: 'SensorSpecs',
-      level: 900,
+      source: 'SensorSpecs',
       error: error,
       stackTrace: stack,
     );

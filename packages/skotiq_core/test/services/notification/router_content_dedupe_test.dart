@@ -12,7 +12,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 class _RecordingTransport extends NotificationTransport {
   _RecordingTransport(this.kind);
@@ -29,11 +30,9 @@ class _RecordingTransport extends NotificationTransport {
   bool get isConfigured => true;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final title = message.title;
+    final body = message.body;
     sent.add((title: title, body: body));
     return NotificationResult.ok();
   }

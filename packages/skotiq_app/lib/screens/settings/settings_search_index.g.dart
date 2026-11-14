@@ -187,6 +187,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'catalogs': [
     'Actions',
+    'Advanced',
     'Catalogs',
     'Deep-Star Tier (Tycho-2 / Gaia)',
     'Delete annotation catalog',
@@ -195,6 +196,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'GLADE+ galaxy catalog',
     'HYG Star Database',
     'Minor Planets & Comets (MPC)',
+    'Mirror address',
     'OpenNGC',
   ],
   'connection': [
@@ -207,6 +209,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Include the configured Alpaca server in automatic startup discovery',
     'Include the configured INDI server in automatic startup discovery',
     'INDI server address',
+    'Look for QHY cameras',
     'Query Alpaca on startup',
     'Query INDI on startup',
     'Refresh host settings',
@@ -253,12 +256,16 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Without a dark slot in the filter wheel',
   ],
   'equipment-profiles': [
+    'Aperture (mm)',
     'Camera defaults',
-    'Device assignments',
-    'Equipment profiles',
-    'Filter configuration',
-    'Filter focus offsets',
-    'Optical configuration',
+    'Devices',
+    'Focal length (mm)',
+    'Optical train',
+    'Profile identity',
+    'Profiles',
+    'Reducer or barlow factor',
+    'Set as the active profile on startup',
+    'stored in the profile',
   ],
   'files-storage': [
     'Application data',
@@ -306,7 +313,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Calibration frames',
     'Capture your first light',
     'Clear all tutorial progress and start fresh',
-    'Enable tutorials',
     'Equipment setup',
     'First night walkthrough',
     'Generate diagnostic dump',
@@ -319,8 +325,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Reset all progress',
     'Reset progress',
     'Run the one-click first-light flow again — short exposure,',
-    'Settings',
-    'Show tutorial prompts and guided tours',
     'Target planning',
     'Tutorial tours',
     'Walk back through the equipment onboarding wizard to scan',
@@ -353,10 +357,16 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'imaging': [
     'Archive format',
-    'Captured images are saved as lossless 16-bit FITS files',
+    'Camera raw files',
     'File format',
     'File naming pattern',
+    'Folders and file name, separated by /.',
+    'For DSLR and mirrorless cameras. The raw file is',
     'Imaging',
+    'Smaller files at no cost to the pixels. Byte shuffling helps',
+    'Store a SHA-1 checksum with each frame so damage on disk is',
+    'XISF checksums',
+    'XISF compression',
   ],
   'integrations': [
     'Application token',
@@ -379,7 +389,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Coordinates',
     'Decimal degrees or DMS (121 18 55 W). Positive is',
     'Decimal degrees or DMS (44 3 29 N). Positive is',
-    'Detect location',
     'Elevation',
     'Fetch location from the connected imaging host',
     'Google Geolocation API key',
@@ -390,7 +399,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Local horizon mask',
     'Location',
     'Longitude',
-    'Nearby Wi-Fi networks place you to within',
     'Observing environment',
     'Optional. beaconDB, the key-free service Detect',
     'Search place',
@@ -529,9 +537,10 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Use TLS',
     'User key',
     'Username override',
+    'Uses the imaging host\'s MQTT broker and its password.',
     'Weather unsafe',
     'Webhook URL',
-    'When off, no per-category routing fires (legacy push still works)',
+    'When off, nothing is sent to any transport',
     'Which of these decides where an alert goes',
     'Which sound to play when critical events fire',
     'Write-only secret stored on the imaging host.',
@@ -683,7 +692,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Your 3-character MPC observatory code (e.g.,',
     'Your assigned AAVSO observer initials (1-5 chars,',
     'Your Sky atlas',
-    'Your Sky size limit (GB)',
     'Your Sky storage',
     'Your TNS bot id (tns_marker tns_id).',
     'Your TNS bot name (tns_marker name).',
@@ -700,7 +708,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Autofocus cadence (frames)',
     'Average is fastest; Median + Rejection and Sigma',
     'Camera retries',
-    'Default broadcast port',
     'Default per-target imaging budget the wizard uses.',
     'Default stack method',
     'Default thumbnail size',
@@ -742,11 +749,11 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Plate solve and re-center target after flip',
     'Play sound when flip starts/completes/fails',
     'Polar alignment stale after',
-    'Port used by newly-created LiveStacking nodes.',
     'Prompt for notes after run',
     'Public by default',
     'Push notification',
     'Recenter after flip',
+    'Recover the mount on its own after a mount fault',
     'Refocus after flip',
     'Rendered on the broadcast JPEG. Variable interpolation',
     'Restart autoguider if it was running',
@@ -775,6 +782,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Use the scheduler when target count reaches this',
     'Wait before flip',
     'Wait time after flip before resuming',
+    'When the mount moves on its own or loses its',
     'When the mount stops at its limit',
     'Wrap multi-target plans in a TargetScheduler so',
   ],
@@ -932,7 +940,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Re-run onboarding tour',
     'Run the one-click first-light flow again — short exposure,':
         'Capture your first light',
-    'Show tutorial prompts and guided tours': 'Enable tutorials',
     'Walk back through the equipment onboarding wizard to scan':
         'Re-run equipment setup',
   },
@@ -955,7 +962,12 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Reject folder path',
   },
   'imaging': {
-    'Captured images are saved as lossless 16-bit FITS files': 'Archive format',
+    'Folders and file name, separated by /.': 'File naming pattern',
+    'For DSLR and mirrorless cameras. The raw file is': 'Camera raw files',
+    'Smaller files at no cost to the pixels. Byte shuffling helps':
+        'XISF compression',
+    'Store a SHA-1 checksum with each frame so damage on disk is':
+        'XISF checksums',
   },
   'integrations': {
     'Open Skotiq on the rig to enable plugins and enter':
@@ -968,7 +980,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Decimal degrees or DMS (44 3 29 N). Positive is': 'Latitude',
     'Fetch location from the connected imaging host': 'Sync from server',
     'Height above sea level': 'Elevation',
-    'Nearby Wi-Fi networks place you to within': 'Detect location',
     'Optional. beaconDB, the key-free service Detect':
         'Google Geolocation API key',
     'Sync time from operating system': 'Use system time',
@@ -1023,7 +1034,9 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Webhook URL',
     'This broker is separate from notification MQTT on':
         'Runs on the imaging host',
-    'When off, no per-category routing fires (legacy push still works)':
+    'Uses the imaging host\'s MQTT broker and its password.':
+        'Publish to Home Assistant',
+    'When off, nothing is sent to any transport':
         'Notification routing enabled',
     'Which sound to play when critical events fire': 'Alert sound',
     'Write-only secret stored on the imaging host.': 'Broker password',
@@ -1070,8 +1083,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Deep catalog lookups (APASS DR9)',
     'Generate SII/Ha, OIII/Ha, and SII/OIII products': 'Narrowband line ratios',
     'Map catalog offsets across each solved frame': 'Astrometric residuals',
-    'New frames stop being added to the atlas when it':
-        'Your Sky size limit (GB)',
     'Off unless you turn it on. Stacks each accepted,': 'Your Sky atlas',
     'Reference catalog your solver uses (ADES astCat, e.g.':
         'Astrometric catalog',
@@ -1123,7 +1134,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Park on unsafe weather',
     'Plate solve and re-center target after flip': 'Recenter after flip',
     'Play sound when flip starts/completes/fails': 'Sound alert',
-    'Port used by newly-created LiveStacking nodes.': 'Default broadcast port',
     'Rendered on the broadcast JPEG. Variable interpolation':
         'Default watermark template',
     'Restart autoguider if it was running': 'Resume guiding after flip',
@@ -1141,6 +1151,8 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Use the scheduler when target count reaches this':
         'Scheduler threshold (targets)',
     'Wait time after flip before resuming': 'Settle time',
+    'When the mount moves on its own or loses its':
+        'Recover the mount on its own after a mount fault',
     'Wrap multi-target plans in a TargetScheduler so':
         'Scheduler for multi-target nights',
   },

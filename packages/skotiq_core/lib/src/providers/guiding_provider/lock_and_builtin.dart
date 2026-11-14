@@ -1,7 +1,5 @@
 part of '../guiding_provider.dart';
 
-// PHD2 lock position provider
-
 /// Provider for current guide star lock position
 final lockPositionProvider =
     StateNotifierProvider<LockPositionNotifier, ({double x, double y})?>((ref) {
@@ -35,17 +33,10 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
     }
   }
 
-  /// Set a new lock position
   Future<void> setLockPosition(double x, double y, {bool exact = false}) async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final guiderId = ref.read(guiderStateProvider).deviceId ?? 'phd2_guider';
-    await backend.guiderSetLockPosition(
-      deviceId: guiderId,
-      x: x,
-      y: y,
-      exact: exact,
-    );
+    await backend.guiderSetLockPosition(x: x, y: y, exact: exact);
     _ensureBackendUnchanged(backend, generation, 'setting the guide star');
     state = (x: x, y: y);
   }
@@ -54,18 +45,15 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
   Future<void> findStar() async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final guiderId = ref.read(guiderStateProvider).deviceId ?? 'phd2_guider';
-    final pos = await backend.guiderFindStar(deviceId: guiderId);
+    final pos = await backend.guiderFindStar();
     _ensureBackendUnchanged(backend, generation, 'finding a guide star');
     state = (x: pos.$1, y: pos.$2);
   }
 
-  /// Deselect the current star
   Future<void> deselectStar() async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final guiderId = ref.read(guiderStateProvider).deviceId ?? 'phd2_guider';
-    await backend.guiderDeselectStar(deviceId: guiderId);
+    await backend.guiderDeselectStar();
     _ensureBackendUnchanged(backend, generation, 'deselecting the guide star');
     state = null;
   }
@@ -76,7 +64,7 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
     String action,
   ) {
     if (generation == _backendGeneration &&
-        identical(backend, ref.read(backendProvider))) {
+        ref.backendScopeOver(backend).isCurrent) {
       return;
     }
     throw StateError('The imaging host changed while $action.');
@@ -90,11 +78,6 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
   }
 }
 
-// Built-in guider config provider
-
-/// The device ID used by the built-in multi-star guider.
-const String builtinGuiderDeviceId = 'native:builtin_guider:multi_star';
-
 /// Provider that exposes whether the currently connected guider is the built-in
 /// guider (as opposed to PHD2 or another external guider).
 final isBuiltinGuiderProvider = Provider<bool>((ref) {
@@ -102,8 +85,9 @@ final isBuiltinGuiderProvider = Provider<bool>((ref) {
   return guiderState.deviceId == builtinGuiderDeviceId;
 });
 
-/// Provider for the built-in guider configuration.
-/// Fetches the config from the Rust backend and allows updating it.
+/// The built-in guider's configuration on the current host. The host keeps
+/// one whether or not the guider is connected, so it is read at once and again
+/// when the guider connects or disconnects and when the host changes.
 final builtinGuiderConfigProvider =
     StateNotifierProvider<
       BuiltinGuiderConfigNotifier,
@@ -120,26 +104,15 @@ class BuiltinGuiderConfigNotifier
   LoggingService get _logger => ref.read(loggingServiceProvider);
 
   BuiltinGuiderConfigNotifier(this.ref) : super(const AsyncValue.loading()) {
-    // Auto-fetch when the built-in guider is connected
-    final isBuiltin = ref.read(isBuiltinGuiderProvider);
-    if (isBuiltin) {
-      fetch();
-    }
-
-    // Listen for guider changes to fetch/clear config
     ref.listen<bool>(isBuiltinGuiderProvider, (previous, next) {
-      if (next && previous != true) {
-        fetch();
-      } else if (!next) {
-        state = const AsyncValue.loading();
-      }
+      if (previous != next) fetch();
     });
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (identical(previous, next)) return;
       _backendGeneration++;
-      _fetchGeneration++;
-      state = const AsyncValue.loading();
+      fetch();
     });
+    fetch();
   }
 
   /// Fetch the current config from the Rust backend.
@@ -177,7 +150,7 @@ class BuiltinGuiderConfigNotifier
       mounted &&
       backendGeneration == _backendGeneration &&
       fetchGeneration == _fetchGeneration &&
-      identical(backend, ref.read(backendProvider));
+      ref.backendScopeOver(backend).isCurrent;
 
   /// Update the full config and push to the backend.
   Future<void> updateConfig(BuiltinGuiderConfig newConfig) async {
@@ -191,7 +164,7 @@ class BuiltinGuiderConfigNotifier
     try {
       await backend.builtinGuiderSetConfig(newConfig);
       if (generation != _backendGeneration ||
-          !identical(backend, ref.read(backendProvider))) {
+          ref.backendScopeOver(backend).isStale) {
         throw StateError(
           'The imaging host changed while updating built-in guider settings.',
         );
@@ -204,14 +177,13 @@ class BuiltinGuiderConfigNotifier
       // Revert on failure
       if (mounted &&
           generation == _backendGeneration &&
-          identical(backend, ref.read(backendProvider))) {
+          ref.backendScopeOver(backend).isCurrent) {
         state = previousState;
       }
       rethrow;
     }
   }
 
-  /// Reset config to defaults.
   Future<void> resetToDefaults() async {
     await updateConfig(BuiltinGuiderConfig.defaults);
   }

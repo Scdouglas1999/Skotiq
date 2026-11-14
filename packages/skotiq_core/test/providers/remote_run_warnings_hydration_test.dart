@@ -3,8 +3,8 @@
 // guidingStopReason "tracking_limit_hold" and /api/phd2/status its
 // stopReason, but the client set its stop reason only from live StopReason
 // events, so a client that joined later read "Guider needs a look, not
-// looping" with no reason. The run's warnings were mirrored into the live
-// stats already; this pins that too.
+// looping" with no reason. The run's warnings reach the live stats on the
+// host's run-record channel; this pins that too.
 
 import 'dart:async';
 
@@ -12,7 +12,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../harness/in_memory_database.dart';
 
@@ -32,13 +35,11 @@ const _warnings = <String>[
 
 SequencerStatus _pausedStatus({
   String? guidingStopReason = 'tracking_limit_hold',
-  bool reportsGuidingStopReason = true,
 }) => SequencerStatus(
   state: 'paused',
   progress: 0.275,
   message: 'Meridian flip failed.',
   guidingStopReason: guidingStopReason,
-  reportsGuidingStopReason: reportsGuidingStopReason,
   runVitals: SequencerRunVitals(
     startTime: DateTime(2026, 11, 3, 20, 21),
     framesCaptured: 11,
@@ -52,12 +53,9 @@ SequencerStatus _pausedStatus({
   ),
 );
 
-Phd2Status _phd2({String? stopReason}) =>
-    Phd2Status(state: 'Stopped', connected: true, stopReason: stopReason);
-
 Future<ProviderContainer> _hydrate(
   SequencerStatus status, {
-  Phd2Status? phd2,
+  String? guiderStopReason,
 }) async {
   final events = StreamController<SkotiqEvent>.broadcast();
   final backend = _MockNetworkBackend();
@@ -67,8 +65,35 @@ Future<ProviderContainer> _hydrate(
   when(() => backend.isAuthTokenRejected).thenReturn(false);
   when(() => backend.eventStream).thenAnswer((_) => events.stream);
   when(() => backend.sequencerGetStatus()).thenAnswer((_) async => status);
-  when(() => backend.getConnectedDevices()).thenAnswer((_) async => const []);
-  when(() => backend.phd2GetStatus()).thenAnswer((_) async => phd2 ?? _phd2());
+  when(() => backend.getHostRuntimeState()).thenAnswer(
+    (_) async => [
+      HostRuntimeUpdate(
+        channel: 'guiderStatus',
+        revision: 1,
+        value: {
+          'deviceId': 'phd2_guider',
+          'state': 'stopped',
+          'stopReason': guiderStopReason,
+        },
+      ),
+      // The run's vitals as the host's run-record channel carries them.
+      HostRuntimeUpdate(
+        channel: runRecordChannelKey,
+        revision: 1,
+        value: const RunRecordChannel().encode((
+          terminal: null,
+          imagingRun: null,
+          lastEnded: null,
+          lastEndedPlanLoaded: false,
+          stopEvidence: null,
+          runStartedAt: null,
+          stats: status.runVitals == null
+              ? null
+              : SequenceRunStats.fromRemoteVitals(status.runVitals!),
+        )),
+      ),
+    ],
+  );
 
   final container = ProviderContainer(
     overrides: [
@@ -114,24 +139,10 @@ void main() {
     },
   );
 
-  test('a host that does not report the reason leaves it alone', () async {
-    final container = await _hydrate(
-      _pausedStatus(guidingStopReason: null, reportsGuidingStopReason: false),
-    );
-    container.read(guidingStopReasonProvider.notifier).state = 'autofocus';
-
-    await hydrateRemoteSessionState(
-      container,
-      container.read(backendProvider) as NetworkBackend,
-    );
-
-    expect(container.read(guidingStopReasonProvider), 'autofocus');
-  });
-
   test("the guider's own status gives the reason too", () async {
     final container = await _hydrate(
-      _pausedStatus(guidingStopReason: null, reportsGuidingStopReason: false),
-      phd2: _phd2(stopReason: 'meridian_flip'),
+      _pausedStatus(guidingStopReason: null),
+      guiderStopReason: 'meridian_flip',
     );
 
     expect(container.read(guidingStopReasonProvider), 'meridian_flip');
@@ -146,14 +157,13 @@ void main() {
     );
   });
 
-  test('the wire reading of the status keeps the reason and its presence', () {
+  test('the wire reading of the status keeps the reason', () {
     final withReason = SequencerStatus.fromJson(<String, dynamic>{
       'state': 'paused',
       'progress': 0.2,
       'guidingStopReason': 'tracking_limit_hold',
     });
     expect(withReason.guidingStopReason, 'tracking_limit_hold');
-    expect(withReason.reportsGuidingStopReason, isTrue);
 
     final guiding = SequencerStatus.fromJson(<String, dynamic>{
       'state': 'running',
@@ -161,12 +171,5 @@ void main() {
       'guidingStopReason': null,
     });
     expect(guiding.guidingStopReason, isNull);
-    expect(guiding.reportsGuidingStopReason, isTrue);
-
-    final older = SequencerStatus.fromJson(<String, dynamic>{
-      'state': 'running',
-      'progress': 0.2,
-    });
-    expect(older.reportsGuidingStopReason, isFalse);
   });
 }

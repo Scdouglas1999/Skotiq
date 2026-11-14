@@ -1,8 +1,6 @@
 part of '../calibration_handlers.dart';
 
 extension CalibrationDefectMapHandlers on CalibrationHandlers {
-  // Defect maps
-
   Map<String, dynamic> _defectMapStatusJson(DefectMapStatus status) => {
     'cameraId': status.cameraId,
     'width': status.width,
@@ -14,19 +12,10 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
     'storedOnDisk': status.storedOnDisk,
   };
 
-  Future<Map<String, dynamic>> _defectMapSettingsJson() async {
-    final stored = await container.read(settingsDaoProvider).getAllSettings();
-    return {
-      'autoApply': stored[DefectMapSettingsKeys.autoApply] == 'true',
-      'method': DefectMapMethod.fromWire(
-        stored[DefectMapSettingsKeys.method],
-      ).wireValue,
-      'kernelDiameter': DefectMapKernelSize.fromDiameter(
-        int.tryParse(stored[DefectMapSettingsKeys.kernel] ?? '') ?? 3,
-      ).diameter,
-      'saveOriginal': stored[DefectMapSettingsKeys.saveOriginal] == 'true',
-    };
-  }
+  Future<Map<String, dynamic>> _defectMapSettingsJson() async =>
+      DefectMapSettings.fromRows(
+        await container.read(settingsDaoProvider).getAllSettings(),
+      ).toRemoteJson();
 
   Future<Response> handleGetDefectMapSettings(Request request) async {
     return jsonOk(await _defectMapSettingsJson());
@@ -35,19 +24,19 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
   Future<Response> handleUpdateDefectMapSettings(Request request) async {
     _logInfo('[API] POST /api/calibration/defect-maps/settings');
     final payload = await readJsonObject(request);
-    final updates = <String, String>{};
+    final updates = <SettingValue<Object?>>[];
 
     if (payload.containsKey('autoApply')) {
-      updates[DefectMapSettingsKeys.autoApply] = requireBool(
-        payload,
-        'autoApply',
-      ).toString();
+      updates.add(
+        StoreSettings.defectMapAutoApply.to(requireBool(payload, 'autoApply')),
+      );
     }
     if (payload.containsKey('saveOriginal')) {
-      updates[DefectMapSettingsKeys.saveOriginal] = requireBool(
-        payload,
-        'saveOriginal',
-      ).toString();
+      updates.add(
+        StoreSettings.defectMapSaveOriginal.to(
+          requireBool(payload, 'saveOriginal'),
+        ),
+      );
     }
     if (payload.containsKey('method')) {
       final value = requireString(payload, 'method');
@@ -58,7 +47,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
           message: 'Unknown defect-map replacement method',
         );
       }
-      updates[DefectMapSettingsKeys.method] = value;
+      updates.add(StoreSettings.defectMapMethod.to(value));
     }
     if (payload.containsKey('kernelDiameter')) {
       final value = requireInt(payload, 'kernelDiameter');
@@ -71,7 +60,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
           message: 'Defect-map kernel must be 3, 5, or 7 pixels',
         );
       }
-      updates[DefectMapSettingsKeys.kernel] = value.toString();
+      updates.add(StoreSettings.defectMapKernelDiameter.to(value));
     }
 
     if (updates.isEmpty) {
@@ -81,7 +70,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
         message: 'At least one defect-map setting is required',
       );
     }
-    await container.read(settingsDaoProvider).setSettings(updates);
+    await container.read(settingsDaoProvider).writeAll(updates);
     publishHostMutationFromContainer(
       container,
       entityType: HostMutationEntity.settings,
@@ -191,6 +180,12 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
           kernel: kernel,
           saveOriginal: saveOriginal,
         );
+    publishHostMutationFromContainer(
+      container,
+      entityType: HostMutationEntity.settings,
+      action: HostMutationAction.updated,
+      extra: const {'namespace': 'defect-map'},
+    );
     return jsonOk({'status': 'applied'});
   }
 
@@ -223,7 +218,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
     final rows = await query.get();
     final list = <Map<String, dynamic>>[];
     for (final row in rows) {
-      list.add(await _defectMapMetadataToJson(row));
+      list.add((await _defectMapToWire(row)).toJson());
     }
     return jsonOk({'defectMaps': list, 'count': list.length});
   }
@@ -253,7 +248,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
     }
 
     if (format == 'json') {
-      final meta = await _defectMapMetadataToJson(row);
+      final meta = (await _defectMapToWire(row)).toJson();
       return jsonOk({
         'defectMap': {...meta, 'bitmapBase64': base64Encode(row.bitmap)},
       });
@@ -351,7 +346,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
       action: HostMutationAction.created,
       extra: const {'namespace': 'defect-map'},
     );
-    return jsonCreated({'defectMap': await _defectMapMetadataToJson(row)});
+    return jsonCreated({'defectMap': (await _defectMapToWire(row)).toJson()});
   }
 
   /// POST /api/calibration/defect-maps/build
@@ -424,37 +419,8 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
     });
   }
 
-  /// POST /api/calibration/defect-maps/apply
-  ///
-  /// Toggles whether the stored defect map for `cameraId` is applied to
-  /// lights at capture time. The map itself already lives host-side; this is
-  /// a pure preference flip with no file transfer.
-  Future<Response> handleApplyDefectMap(Request request) async {
-    _logInfo('[API] POST /api/calibration/defect-maps/apply');
-    final payload = await readJsonObject(request);
-
-    final cameraId = requireString(payload, 'cameraId');
-    final applyDuringCapture = requireBool(payload, 'applyDuringCapture');
-
-    final service = container.read(defectMapServiceProvider);
-    await service.apply(
-      cameraId: cameraId,
-      applyDuringCapture: applyDuringCapture,
-    );
-    publishHostMutationFromContainer(
-      container,
-      entityType: HostMutationEntity.settings,
-      action: HostMutationAction.updated,
-      extra: const {'namespace': 'defect-map'},
-    );
-
-    return jsonOk({
-      'cameraId': cameraId,
-      'applyDuringCapture': applyDuringCapture,
-    });
-  }
-
-  /// Enumerate dark-frame files (FITS/XISF) directly under [directoryPath].
+  /// Enumerate dark-frame files (any frame format) directly under
+  /// [directoryPath].
   /// Non-recursive: callers point at the directory that holds the darks.
   Future<List<String>> _enumerateDarkFrames(String directoryPath) async {
     final directory = Directory(directoryPath);
@@ -466,12 +432,9 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
         details: {'darkFramesDirectory': directoryPath},
       );
     }
-    const darkExtensions = {'.fits', '.fit', '.fts', '.xisf'};
     final paths = <String>[];
     await for (final entity in directory.list(followLinks: false)) {
-      if (entity is! File) continue;
-      final ext = p.extension(entity.path).toLowerCase();
-      if (darkExtensions.contains(ext)) {
+      if (entity is File && FrameFiles.isFrame(entity.path)) {
         paths.add(entity.path);
       }
     }
@@ -615,7 +578,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
         'storedOnDisk': status.storedOnDisk,
       },
       if (refreshed != null)
-        'defectMap': await _defectMapMetadataToJson(refreshed),
+        'defectMap': (await _defectMapToWire(refreshed)).toJson(),
     });
   }
 }

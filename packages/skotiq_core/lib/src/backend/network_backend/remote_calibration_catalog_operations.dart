@@ -2,13 +2,11 @@ part of '../network_backend.dart';
 
 mixin _NetworkBackendRemoteCalibrationCatalogOperations
     on _NetworkBackendTransport {
-  // Remote calibration library management.
-
   /// Read the complete automatic-calibration configuration owned by the
   /// imaging host. This is intentionally separate from the app-settings wire
   /// model because the master-frame paths are host filesystem resources.
   Future<Map<String, dynamic>> getCalibrationSettings() {
-    return _get('calibration/settings');
+    return _get(CalibrationApi.getCalibrationSettings);
   }
 
   /// Apply a partial automatic-calibration configuration on the imaging host.
@@ -16,17 +14,17 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   Future<Map<String, dynamic>> updateCalibrationSettings(
     Map<String, dynamic> patch,
   ) {
-    return _post('calibration/settings', patch);
+    return _post(CalibrationApi.updateCalibrationSettings, body: patch);
   }
 
   Future<Map<String, dynamic>> getDefectMapSettings() {
-    return _get('calibration/defect-maps/settings');
+    return _get(CalibrationApi.getDefectMapSettings);
   }
 
   Future<Map<String, dynamic>> updateDefectMapSettings(
     Map<String, dynamic> patch,
   ) {
-    return _post('calibration/defect-maps/settings', patch);
+    return _post(CalibrationApi.updateDefectMapSettings, body: patch);
   }
 
   /// GET /api/calibration-library — the appliance's master calibration
@@ -37,9 +35,10 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   Future<List<Map<String, dynamic>>> getCalibrationMasters({
     String? type,
   }) async {
-    final response = await _get('calibration-library', {
-      if (type != null && type.isNotEmpty) 'type': type,
-    });
+    final response = await _get(
+      CalibrationLibraryApi.list,
+      query: {if (type != null && type.isNotEmpty) 'type': type},
+    );
     return _rowsFromJson<Map<String, dynamic>>(
       response['masters'],
       (row) => row,
@@ -55,9 +54,11 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     required int id,
     required List<String> tags,
   }) async {
-    final response = await _put('calibration-library/$type/$id/tags', {
-      'tags': tags,
-    });
+    final response = await _put(
+      CalibrationLibraryApi.setTags,
+      path: {'type': type, 'id': id},
+      body: {'tags': tags},
+    );
     return CalibrationMasterRecord.fromJson(response);
   }
 
@@ -68,11 +69,28 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     required int id,
     required String? notes,
   }) async {
-    final response = await _put('calibration-library/$type/$id/tags', {
-      'notes': notes,
-    });
+    final response = await _put(
+      CalibrationLibraryApi.setTags,
+      path: {'type': type, 'id': id},
+      body: {'notes': notes},
+    );
     return CalibrationMasterRecord.fromJson(response);
   }
+
+  /// GET `/api/calibration-library/<type>/<id>/file` — stream one master's
+  /// file to [localPath]. [type] is the wire name (`dark`/`bias`/`flat`/
+  /// `defectMap`).
+  Future<void> downloadCalibrationMaster({
+    required String type,
+    required int id,
+    required String localPath,
+    void Function(double)? onProgress,
+  }) => _downloadToFile(
+    CalibrationLibraryApi.download,
+    localPath,
+    path: {'type': type, 'id': id},
+    onProgress: onProgress,
+  );
 
   /// DELETE `/api/calibration-library/<type>/<id>[?deleteFile=true]` — remove
   /// one master from the appliance library, optionally deleting the on-disk
@@ -86,9 +104,16 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     // variable) so the path normalizes to the registered
     // `/api/calibration-library/<type>/<id>` route.
     if (deleteFile) {
-      await _delete('calibration-library/$type/$id?deleteFile=true');
+      await _delete(
+        CalibrationLibraryApi.delete,
+        path: {'type': type, 'id': id},
+        query: {'deleteFile': 'true'},
+      );
     } else {
-      await _delete('calibration-library/$type/$id');
+      await _delete(
+        CalibrationLibraryApi.delete,
+        path: {'type': type, 'id': id},
+      );
     }
   }
 
@@ -98,7 +123,10 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   Future<CalibrationMatchSet> matchCalibrationMasters(
     LightFrameContext context,
   ) async {
-    final response = await _post('calibration-library/match', context.toJson());
+    final response = await _post(
+      CalibrationLibraryApi.match,
+      body: context.toJson(),
+    );
     return CalibrationMatchSet.fromJson(response);
   }
 
@@ -111,7 +139,7 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   Future<Map<String, dynamic>> acceptRemoteCalibrationMaster(
     CalibrationMasterRecord remote,
   ) async {
-    return _post('calibration-library/accept', remote.toJson());
+    return _post(CalibrationLibraryApi.accept, body: remote.toJson());
   }
 
   /// POST /api/calibration-library/publish — publish one LOCAL appliance master
@@ -123,13 +151,16 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     String? attributionName,
     double? darkCurrent,
   }) async {
-    return _post('calibration-library/publish', {
-      'type': type,
-      'id': id,
-      'license': license,
-      if (attributionName != null) 'attributionName': attributionName,
-      if (darkCurrent != null) 'darkCurrent': darkCurrent,
-    });
+    return _post(
+      CalibrationLibraryApi.publish,
+      body: {
+        'type': type,
+        'id': id,
+        'license': license,
+        if (attributionName != null) 'attributionName': attributionName,
+        if (darkCurrent != null) 'darkCurrent': darkCurrent,
+      },
+    );
   }
 
   /// POST /api/calibration-library/retract — retract (un-share) one LOCAL
@@ -140,7 +171,7 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     required String type,
     required int id,
   }) async {
-    return _post('calibration-library/retract', {'type': type, 'id': id});
+    return _post(CalibrationLibraryApi.retract, body: {'type': type, 'id': id});
   }
 
   /// GET /api/calibration/darks — filtered listing.
@@ -158,38 +189,10 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     }
     if (limit != null) params['limit'] = limit;
     final response = await _get(
-      'calibration/darks',
-      params.isEmpty ? null : params,
+      CalibrationApi.listDarks,
+      query: params.isEmpty ? null : params,
     );
     return _rowsFromJson(response['darks'], RemoteDarkLibraryEntry.fromJson);
-  }
-
-  /// GET /api/calibration/darks/{id}.
-  Future<RemoteDarkLibraryEntry> getDark(int id) async {
-    final response = await _get('calibration/darks/$id');
-    final row = response['dark'];
-    if (row is! Map) {
-      throw StateError('Malformed darks/{id} response: missing `dark` field');
-    }
-    return RemoteDarkLibraryEntry.fromJson(row.cast<String, dynamic>());
-  }
-
-  /// GET `/api/calibration/darks/{id}/download` — stream the on-disk
-  /// dark/master file for entry [id] to [localPath] so a paired device can
-  /// pull a calibration frame off the appliance.
-  Future<void> downloadDark(
-    int id,
-    String localPath, {
-    void Function(double)? onProgress,
-  }) {
-    if (id <= 0) {
-      throw ArgumentError.value(id, 'id', 'must be positive');
-    }
-    return _downloadToFile(
-      'calibration/darks/$id/download',
-      localPath,
-      onProgress: onProgress,
-    );
   }
 
   /// POST /api/calibration/darks — register an already-on-disk file.
@@ -221,7 +224,7 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
       if (frameCount != null) 'frameCount': frameCount,
       if (masterPath != null) 'masterPath': masterPath,
     };
-    final response = await _post('calibration/darks', body);
+    final response = await _post(CalibrationApi.registerDark, body: body);
     return RemoteDarkLibraryEntry.fromJson(
       (response['dark'] as Map).cast<String, dynamic>(),
     );
@@ -241,9 +244,9 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     final name = fileName ?? p.basename(darkFile.path);
     final meta = jsonEncode(metadata.toJson());
     final response = await _postRaw(
-      'calibration/darks/upload',
-      {'meta': meta, 'fileName': name},
-      bytes,
+      CalibrationApi.uploadDark,
+      query: {'meta': meta, 'fileName': name},
+      bytes: bytes,
       contentType: 'application/octet-stream',
     );
     return RemoteDarkLibraryEntry.fromJson(
@@ -273,28 +276,14 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
       if (tolerances != null) 'tolerances': tolerances,
     };
     try {
-      final response = await _post('calibration/darks/find-match', body);
+      final response = await _post(CalibrationApi.findMatchingDark, body: body);
       return RemoteDarkLibraryEntry.fromJson(
         (response['dark'] as Map).cast<String, dynamic>(),
       );
     } on ServerError catch (e) {
-      // Error parsing: handler returns 404 + the structured
-      // envelope {code: 'no_matching_dark'} when no dark satisfies the
-      // requested parameters. Treating it as the legitimate "no match"
-      // outcome (null) instead of an exception.
+      // No dark satisfies the requested parameters.
       if (e.code == 'no_matching_dark' ||
           (e.httpStatus == 404 && e.code.contains('no_matching'))) {
-        return null;
-      }
-      rethrow;
-    } on dart_error.SkotiqError catch (e) {
-      // The handler returns 404 with `error: no_matching_dark` when no
-      // dark matches the requested capture parameters. `_parseErrorResponse`
-      // collapses the 404 into the `connection` category and stuffs the
-      // server-side `error` field into the message, so we sniff for the
-      // sentinel string to map the legitimate non-error outcome to null.
-      if (e.category == dart_error.BackendErrorCategory.connection &&
-          e.message.contains('no_matching_dark')) {
         return null;
       }
       rethrow;
@@ -304,9 +293,13 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   /// DELETE `/api/calibration/darks/{id}?deleteFile=<bool>`.
   Future<void> deleteDark(int id, {bool deleteFile = false}) async {
     if (deleteFile) {
-      await _delete('calibration/darks/$id?deleteFile=true');
+      await _delete(
+        CalibrationApi.deleteDark,
+        path: {'id': id},
+        query: {'deleteFile': 'true'},
+      );
     } else {
-      await _delete('calibration/darks/$id');
+      await _delete(CalibrationApi.deleteDark, path: {'id': id});
     }
   }
 
@@ -315,7 +308,7 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   /// Returns the raw counts map; callers usually only need to display the
   /// totals, so we don't bother wrapping in a typed model.
   Future<Map<String, int>> verifyDarkSizes() async {
-    final response = await _post('calibration/darks/backfill-sizes');
+    final response = await _post(CalibrationApi.verifyDarkSizes);
     return {
       for (final entry in response.entries)
         if (entry.value is num) entry.key: (entry.value as num).toInt(),
@@ -323,18 +316,21 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   }
 
   Future<Map<String, dynamic>> getDarkLibrarySettings() async {
-    return _get('calibration/darks/settings');
+    return _get(CalibrationApi.getDarkSettings);
   }
 
   Future<Map<String, dynamic>> updateDarkLibrarySettings({
     bool? autoCalibrate,
     double? temperatureTolerance,
   }) async {
-    return _post('calibration/darks/settings', {
-      if (autoCalibrate != null) 'autoCalibrate': autoCalibrate,
-      if (temperatureTolerance != null)
-        'temperatureTolerance': temperatureTolerance,
-    });
+    return _post(
+      CalibrationApi.updateDarkSettings,
+      body: {
+        if (autoCalibrate != null) 'autoCalibrate': autoCalibrate,
+        if (temperatureTolerance != null)
+          'temperatureTolerance': temperatureTolerance,
+      },
+    );
   }
 
   Future<Map<String, dynamic>> createDarkLibraryMaster({
@@ -346,47 +342,54 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     required String outputPath,
     required String frameType,
   }) async {
-    return _post('calibration/darks/create-master', {
-      'exposureTime': exposureTime,
-      'gain': gain,
-      'offset': offset,
-      'binX': binX,
-      'binY': binY,
-      'outputPath': outputPath,
-      'frameType': frameType,
-    });
+    return _post(
+      CalibrationApi.createMasterDark,
+      body: {
+        'exposureTime': exposureTime,
+        'gain': gain,
+        'offset': offset,
+        'binX': binX,
+        'binY': binY,
+        'outputPath': outputPath,
+        'frameType': frameType,
+      },
+    );
   }
 
   Future<int> cleanDarkLibraryOrphans() async {
-    final response = await _post('calibration/darks/clean-orphans');
+    final response = await _post(CalibrationApi.cleanDarkOrphans);
     return (response['removed'] as num?)?.toInt() ?? 0;
   }
 
   Future<int> clearDarkLibrary({bool deleteFiles = false}) async {
-    final response = await _post('calibration/darks/clear', {
-      'deleteFiles': deleteFiles,
-    });
+    final response = await _post(
+      CalibrationApi.clearDarkLibrary,
+      body: {'deleteFiles': deleteFiles},
+    );
     return (response['removed'] as num?)?.toInt() ?? 0;
   }
 
   Future<int> deleteDarkLibraryGroup({
     required double exposureTime,
-    required int gain,
-    required int offset,
+    required int? gain,
+    required int? offset,
     required int binX,
     required int binY,
     required String frameType,
     bool deleteFiles = false,
   }) async {
-    final response = await _post('calibration/darks/delete-group', {
-      'exposureTime': exposureTime,
-      'gain': gain,
-      'offset': offset,
-      'binX': binX,
-      'binY': binY,
-      'frameType': frameType,
-      'deleteFiles': deleteFiles,
-    });
+    final response = await _post(
+      CalibrationApi.deleteDarkGroup,
+      body: {
+        'exposureTime': exposureTime,
+        if (gain != null) 'gain': gain,
+        if (offset != null) 'offset': offset,
+        'binX': binX,
+        'binY': binY,
+        'frameType': frameType,
+        'deleteFiles': deleteFiles,
+      },
+    );
     return (response['removed'] as num?)?.toInt() ?? 0;
   }
 
@@ -407,18 +410,10 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     if (since != null) params['since'] = since.toUtc().toIso8601String();
     if (limit != null) params['limit'] = limit;
     final response = await _get(
-      'calibration/flats',
-      params.isEmpty ? null : params,
+      CalibrationApi.listFlats,
+      query: params.isEmpty ? null : params,
     );
     return _rowsFromJson(response['flats'], RemoteFlatHistoryEntry.fromJson);
-  }
-
-  /// GET /api/calibration/flats/{id}.
-  Future<RemoteFlatHistoryEntry> getFlat(int id) async {
-    final response = await _get('calibration/flats/$id');
-    return RemoteFlatHistoryEntry.fromJson(
-      (response['flat'] as Map).cast<String, dynamic>(),
-    );
   }
 
   /// POST /api/calibration/flats — record a flat-history entry.
@@ -446,7 +441,7 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
       if (twilightPhase != null) 'twilightPhase': twilightPhase,
       if (equipmentProfileId != null) 'equipmentProfileId': equipmentProfileId,
     };
-    final response = await _post('calibration/flats', body);
+    final response = await _post(CalibrationApi.recordFlat, body: body);
     return RemoteFlatHistoryEntry.fromJson(
       (response['flat'] as Map).cast<String, dynamic>(),
     );
@@ -454,7 +449,7 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
 
   /// DELETE /api/calibration/flats/{id}.
   Future<void> deleteFlat(int id) async {
-    await _delete('calibration/flats/$id');
+    await _delete(CalibrationApi.deleteFlat, path: {'id': id});
   }
 
   /// GET /api/calibration/flats/recommendation. Returns null when no
@@ -469,7 +464,10 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
       params['equipmentProfileId'] = equipmentProfileId;
     }
     if (gain != null) params['gain'] = gain;
-    final response = await _get('calibration/flats/recommendation', params);
+    final response = await _get(
+      CalibrationApi.flatRecommendation,
+      query: params,
+    );
     final recommended = response['recommended'];
     if (recommended == null || recommended is! Map) return null;
     final basedOn = recommended['basedOn'] as Map?;
@@ -497,8 +495,8 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
       params['temperatureBucketDecicelsius'] = temperatureBucketDecicelsius;
     }
     final response = await _get(
-      'calibration/defect-maps',
-      params.isEmpty ? null : params,
+      CalibrationApi.listDefectMaps,
+      query: params.isEmpty ? null : params,
     );
     return _rowsFromJson(response['defectMaps'], RemoteDefectMap.fromJson);
   }
@@ -506,7 +504,11 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   /// GET /api/calibration/defect-maps/{id}?format=binary — fetch the
   /// packed bitmap as raw bytes.
   Future<Uint8List> getDefectMapBitmap(int id) async {
-    return _downloadBytes('calibration/defect-maps/$id', {'format': 'binary'});
+    return _downloadBytes(
+      CalibrationApi.getDefectMap,
+      path: {'id': id},
+      query: {'format': 'binary'},
+    );
   }
 
   /// POST /api/calibration/defect-maps — register a defect map by metadata
@@ -529,7 +531,7 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
       'defectCount': defectCount,
       if (sourceFilePath != null) 'sourceFilePath': sourceFilePath,
     };
-    final response = await _post('calibration/defect-maps', body);
+    final response = await _post(CalibrationApi.registerDefectMap, body: body);
     return RemoteDefectMap.fromJson(
       (response['defectMap'] as Map).cast<String, dynamic>(),
     );
@@ -538,32 +540,34 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   /// DELETE `/api/calibration/defect-maps/{id}?deleteFile=<bool>`.
   Future<void> deleteDefectMap(int id, {bool deleteFile = false}) async {
     if (deleteFile) {
-      await _delete('calibration/defect-maps/$id?deleteFile=true');
+      await _delete(
+        CalibrationApi.deleteDefectMap,
+        path: {'id': id},
+        query: {'deleteFile': 'true'},
+      );
     } else {
-      await _delete('calibration/defect-maps/$id');
+      await _delete(CalibrationApi.deleteDefectMap, path: {'id': id});
     }
   }
 
   /// POST /api/calibration/defect-maps/{id}/regenerate.
   Future<Map<String, dynamic>> regenerateDefectMap(int id) async {
-    return _post('calibration/defect-maps/$id/regenerate');
+    return _post(CalibrationApi.regenerateDefectMap, path: {'id': id});
   }
-
-  // Remote catalog management.
 
   /// GET /api/catalog/status. Returns the on-disk state of every known
   /// catalog on the *server*. The mobile/desktop remote client surfaces
   /// this in the catalog management UI so a freshly-imaged server can be
   /// detected ("plate-solve will fail until you download a star catalog").
   Future<RemoteCatalogStatusResponse> getCatalogStatus() async {
-    final response = await _get('catalog/status');
+    final response = await _get(CatalogApi.status);
     return RemoteCatalogStatusResponse.fromJson(response);
   }
 
   /// GET /api/catalog/available. Returns the manifest of catalogs the
   /// server knows how to download. Cached server-side for 1 hour.
   Future<List<RemoteAvailableCatalog>> listAvailableCatalogs() async {
-    final response = await _get('catalog/available');
+    final response = await _get(CatalogApi.available);
     return _rowsFromJson(
       response['available'],
       RemoteAvailableCatalog.fromJson,
@@ -574,7 +578,7 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   /// download runs in the background and progress is broadcast as
   /// `catalog`-category events on the WS stream.
   Future<RemoteJob> downloadCatalog(String name) async {
-    final response = await _post('catalog/download', {'name': name});
+    final response = await _post(CatalogApi.download, body: {'name': name});
     return RemoteJob.fromJson(response, fallbackOperation: 'catalog.download');
   }
 
@@ -588,9 +592,9 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   }) async {
     final bytes = await archive.readAsBytes();
     final response = await _postRaw(
-      'catalog/upload',
-      {'name': name, 'sha256': sha256},
-      bytes,
+      CatalogApi.upload,
+      query: {'name': name, 'sha256': sha256},
+      bytes: bytes,
       contentType: 'application/octet-stream',
     );
     final installed = response['installed'];
@@ -610,8 +614,8 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
     String? name,
   }) async {
     final response = await _post(
-      'catalog/verify',
-      name == null ? null : {'name': name},
+      CatalogApi.verify,
+      body: name == null ? null : {'name': name},
     );
     final verified = response['verified'];
     if (verified is! Map) {
@@ -632,13 +636,13 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
 
   /// DELETE /api/catalog/{name}.
   Future<void> uninstallCatalog(String name) async {
-    await _delete('catalog/$name');
+    await _delete(CatalogApi.delete, path: {'name': name});
   }
 
   /// POST /api/catalog/reload. Drops the server's cached catalog loaders
   /// so subsequent searches re-parse the on-disk files.
   Future<void> reloadCatalogs() async {
-    await _post('catalog/reload');
+    await _post(CatalogApi.reload);
   }
 
   // Read-only DB endpoints. Each returns a paginated `{items, total}`

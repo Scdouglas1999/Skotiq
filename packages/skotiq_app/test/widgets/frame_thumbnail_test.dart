@@ -18,7 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/frame_thumbnail_loader.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -97,21 +99,19 @@ void main() {
         '/frames/light.fit',
         '/frames/light.fts',
         '/frames/light.xisf',
+        '/frames/IMG_0001.CR3',
+        '/frames/DSCF0001.RAF',
       ]) {
         expect(isDisplayableImagePath(path), isFalse, reason: path);
-        expect(isFitsLikePath(path), isTrue, reason: path);
+        expect(FrameFiles.isFrame(path), isTrue, reason: path);
       }
     });
 
     test('rejects what the denylist used to wave through', () {
       // These are exactly the paths the two rules disagreed on, and the reason
       // one surface drew a broken-image glyph where another drew a placeholder.
-      for (final path in [
-        '/frames/light.cr2',
-        '/frames/light.ser',
-        '/frames/light'
-      ]) {
-        expect(isFitsLikePath(path), isFalse, reason: path);
+      for (final path in ['/frames/light.ser', '/frames/light']) {
+        expect(FrameFiles.isFrame(path), isFalse, reason: path);
         expect(isDisplayableImagePath(path), isFalse, reason: path);
       }
     });

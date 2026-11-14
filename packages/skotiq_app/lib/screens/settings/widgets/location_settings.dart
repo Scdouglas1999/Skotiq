@@ -1,23 +1,25 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-// The barrel's `HorizonProfile` is the scheduler's samples-based class;
-// this screen needs the legacy 8-point compass profile, exported through
-// the barrel under the `LegacyHorizonProfile` alias (see
-// `src/legacy_aliases.dart`).
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 import '../../../utils/confirm_dialog.dart';
+import '../../../utils/site_angle.dart';
 import '../../../utils/snackbar_helper.dart';
+import '../../../services/site_detection.dart';
 import '../../../widgets/geolocation_consent.dart';
-import '../../../widgets/tutorial_keys/settings_keys.dart';
+import '../../../widgets/site/place_search.dart';
+import '../../../tours/tour_target.dart';
 import 'learned_obstructions_section.dart';
 import 'settings_widgets.dart';
 
@@ -26,28 +28,6 @@ part 'location_settings_parts/_timezone_data.dart';
 typedef HorizonImportPicker = Future<file_selector.XFile?> Function();
 typedef HorizonImportReader = Future<String> Function(
   file_selector.XFile file,
-);
-
-/// Resolves this machine's position through the three positioning tiers —
-/// the platform's location service, a Wi-Fi scan resolved by a positioning
-/// service, then the public-IP estimate — and reports what each one did.
-/// Injected so the consent, radio-power and write flows can be driven in
-/// tests without a network, a GPS or a wireless card.
-typedef SiteLocator = Future<PositioningAttempt> Function({
-  required bool allowWifiScan,
-  required bool allowIp,
-  bool mayEnableWifiRadio,
-  String? googleApiKey,
-});
-
-final siteLocatorProvider = Provider<SiteLocator>(
-  (ref) => GeolocationService.locate,
-);
-
-typedef PlaceSearcher = Future<List<PlaceSearchHit>> Function(String query);
-
-final placeSearchProvider = Provider<PlaceSearcher>(
-  (ref) => GeolocationService.searchPlaces,
 );
 
 Future<file_selector.XFile?> _pickHorizonImport() {
@@ -69,25 +49,18 @@ final horizonImportReaderProvider = Provider<HorizonImportReader>(
 );
 
 class LocationSettingsPage extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const LocationSettingsPage({super.key, this.isMobile = false});
+  const LocationSettingsPage({super.key});
 
   @override
   ConsumerState<LocationSettingsPage> createState() => _LocationSettingsState();
 }
 
 class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
-  final _latController = TextEditingController();
-  final _lonController = TextEditingController();
-  final _elevController = TextEditingController();
-  final _placeSearchController = TextEditingController();
+  final _placeSearch = PlaceSearch();
   final Map<String, TextEditingController> _horizonControllers = {};
   bool _isImportingHorizon = false;
   int _horizonImportGeneration = 0;
   bool _legacyTimezoneMigrated = false;
-  bool _placeSearching = false;
-  List<PlaceSearchHit> _placeHits = const [];
   bool _detecting = false;
 
   /// Set when a detect ran and the precise Wi-Fi tier was skipped because the
@@ -103,6 +76,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   @override
   void initState() {
     super.initState();
+    _placeSearch.addListener(_onPlaceSearchChanged);
     for (final dir in horizonDirections) {
       _horizonControllers[dir] = TextEditingController();
     }
@@ -118,10 +92,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
 
   @override
   void dispose() {
-    _latController.dispose();
-    _lonController.dispose();
-    _elevController.dispose();
-    _placeSearchController.dispose();
+    _placeSearch.dispose();
     _googleKeyController.dispose();
     _googleKeyFocus.dispose();
     for (final c in _horizonControllers.values) {
@@ -145,38 +116,27 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
       data: (settings) {
         final authority = ref.watch(backendProvider);
         final isRemoteMode = ref.watch(isRemoteModeProvider);
-        // A host that serves its key/value settings takes horizon mask edits;
-        // an older one does not store them, so the mask stays read-only there.
-        final horizonEditable = !isRemoteMode ||
-            ref.watch(hostSettingsStoreSupportProvider).valueOrNull ==
-                HostSettingsStoreSupport.full;
         final storedGoogleKey = ref.watch(googleGeolocationKeyProvider).value;
         if (storedGoogleKey != null) _seedGoogleKey(storedGoogleKey);
         final horizonProfile =
-            LegacyHorizonProfile.fromJson(settings.horizonProfileJson);
+            SiteHorizonProfile.fromJson(settings.horizonProfileJson);
         _migrateLegacyTimezone(settings);
 
         return SettingsPage(
-          key: SettingsTutorialKeys.location,
+          key: TourTarget.settingsLocation.key,
           title: 'Location',
           description: 'Observatory location for calculations',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             SettingsSection(
               title: 'Coordinates',
-              isMobile: widget.isMobile,
               children: [
                 // A fresh profile seeds observer_latitude/longitude/elevation
                 // at 0.0 before the user has been asked anything, so these
@@ -215,55 +175,23 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   subtitle:
                       'Town or observatory by name. Accurate on a desktop '
                       'with no GPS',
-                  trailing: SizedBox(
-                    width: widget.isMobile ? 180 : 240,
-                    child: SkotiqTextField(
-                      controller: _placeSearchController,
-                      // A real town as the hint read as the saved site's name.
-                      hint: 'Town, city or observatory',
-                      onSubmitted: (_) => _searchPlace(),
-                      suffixWidget: GestureDetector(
-                        onTap: _placeSearching ? null : _searchPlace,
-                        child: Icon(
-                          LucideIcons.search,
-                          size: SkotiqTokens.iconXs,
-                          color: SkotiqColors.of(context).textMuted,
-                        ),
-                      ),
-                    ),
+                  trailing: SettingsControlBox(
+                    width: 240,
+                    narrowWidth: 180,
+                    child: PlaceSearchInput(search: _placeSearch),
                   ),
                   controlFlex: 2,
-                  isMobile: widget.isMobile,
                 ),
-                if (_placeHits.isNotEmpty)
+                // Only while there is something to show: the section draws a
+                // hairline between children, so an empty one doubled it.
+                if (_placeSearch.hasOutcome)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      SkotiqTokens.spaceLg,
-                      SkotiqTokens.spaceSm,
-                      SkotiqTokens.spaceLg,
-                      SkotiqTokens.spaceMd,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: SkotiqTokens.spaceLg,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final hit in _placeHits)
-                          GestureDetector(
-                            onTap: () => _applyPlace(hit),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: SkotiqTokens.spaceSm,
-                              ),
-                              child: Text(
-                                hit.elevation == null
-                                    ? hit.label
-                                    : '${hit.label} · ${hit.elevation!.round()} m',
-                                style: SkotiqTypography.body.copyWith(
-                                  color: SkotiqColors.of(context).textPrimary,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                    child: PlaceSearchResults(
+                      search: _placeSearch,
+                      onPicked: _applyPlace,
                     ),
                   ),
                 SettingRow(
@@ -292,28 +220,20 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   title: 'Latitude',
                   subtitle: 'Decimal degrees or DMS (44 3 29 N). Positive is '
                       'North, negative is South',
-                  trailing: SettingsNumberInput(
-                    controller: _latController,
+                  trailing: _locationEditor(SettingsNumberInput(
                     authoritativeValue: settings.latitude,
                     authorityKey: authority,
                     suffix: '\u00B0',
                     min: -90,
                     max: 90,
                     decimals: 6,
-                    parse: (text) => parseSiteAngle(
-                      text,
-                      maxDegrees: 90,
-                      positiveHemisphere: 'N',
-                      negativeHemisphere: 'S',
-                    ),
+                    parse: parseSiteLatitude,
                     onChanged: (value) async {
                       await ref
                           .read(appSettingsProvider.notifier)
                           .setLatitude(value);
                     },
-                    isMobile: widget.isMobile,
-                  ),
-                  isMobile: widget.isMobile,
+                  )),
                 ),
                 SettingRow(
                   key: const ValueKey('site-longitude-row'),
@@ -321,36 +241,27 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   title: 'Longitude',
                   subtitle: 'Decimal degrees or DMS (121 18 55 W). Positive is '
                       'East, negative is West',
-                  trailing: SettingsNumberInput(
-                    controller: _lonController,
+                  trailing: _locationEditor(SettingsNumberInput(
                     authoritativeValue: settings.longitude,
                     authorityKey: authority,
                     suffix: '\u00B0',
                     min: -180,
                     max: 180,
                     decimals: 6,
-                    parse: (text) => parseSiteAngle(
-                      text,
-                      maxDegrees: 180,
-                      positiveHemisphere: 'E',
-                      negativeHemisphere: 'W',
-                    ),
+                    parse: parseSiteLongitude,
                     onChanged: (value) async {
                       await ref
                           .read(appSettingsProvider.notifier)
                           .setLongitude(value);
                     },
-                    isMobile: widget.isMobile,
-                  ),
-                  isMobile: widget.isMobile,
+                  )),
                 ),
                 SettingRow(
                   key: const ValueKey('site-elevation-row'),
                   icon: LucideIcons.mountain,
                   title: 'Elevation',
                   subtitle: 'Height above sea level',
-                  trailing: SettingsNumberInput(
-                    controller: _elevController,
+                  trailing: _locationEditor(SettingsNumberInput(
                     authoritativeValue: settings.elevation,
                     authorityKey: authority,
                     suffix: 'm',
@@ -362,10 +273,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setElevation(value);
                     },
-                    isMobile: widget.isMobile,
-                  ),
+                  )),
                   isLast: false,
-                  isMobile: widget.isMobile,
                 ),
                 // Only a remote session HAS a server to read from: over a local
                 // backend `profileSettingsBackendProvider` reads this app's own
@@ -388,10 +297,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           final location = await backend.getLocation();
 
                           if (!mounted ||
-                              !identical(
-                                ref.read(backendProvider),
-                                actionAuthority,
-                              )) {
+                              ref.backendScopeOver(actionAuthority).isStale) {
                             if (mounted) {
                               this.context.showWarningSnackBar(
                                     'The imaging host changed while syncing. '
@@ -421,13 +327,13 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            context.showErrorSnackBar('Sync failed: $e');
+                            context.showErrorSnackBar(
+                                'Sync failed: ${userFacingError(e)}');
                           }
                         }
                       },
                     ),
                     isLast: false,
-                    isMobile: widget.isMobile,
                   ),
                 SettingRow(
                   icon: LucideIcons.locate,
@@ -445,15 +351,17 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       : 'Nearby Wi-Fi networks place you to within '
                           'about 100 m. Falls back to this machine’s GPS or '
                           'your internet address.',
-                  trailing: SkotiqIconButton(
-                    icon: LucideIcons.crosshair,
-                    tooltip: 'Detect this location',
-                    color: SkotiqColors.of(context).primary,
-                    onPressed:
-                        _detecting ? null : () => _detectLocation(settings),
+                  // A labeled button: a bare red crosshair read as a status
+                  // glyph, not as the action this row offers.
+                  trailing: SkotiqButton(
+                    icon: LucideIcons.locate,
+                    label: 'Detect',
+                    variant: ButtonVariant.secondary,
+                    size: ButtonSize.small,
+                    isLoading: _detecting,
+                    onPressed: _detecting ? null : () => _detectLocation(),
                   ),
                   isLast: !_wifiRadioOffersPrecision,
-                  isMobile: widget.isMobile,
                 ),
                 if (_wifiRadioOffersPrecision)
                   SettingRow(
@@ -469,19 +377,14 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       isLoading: _detecting,
                       onPressed: _detecting
                           ? null
-                          : () => _detectLocation(
-                                settings,
-                                mayEnableWifiRadio: true,
-                              ),
+                          : () => _detectLocation(mayEnableWifiRadio: true),
                     ),
                     isLast: true,
-                    isMobile: widget.isMobile,
                   ),
               ],
             ),
             SettingsSection(
               title: 'Advanced',
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.key,
@@ -492,8 +395,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       'Cloud’s Geolocation API the same list of nearby '
                       'networks goes to a far larger map first. The key is '
                       'stored on this machine and sent only to Google.',
-                  trailing: SizedBox(
-                    width: widget.isMobile ? 180 : 240,
+                  trailing: SettingsControlBox(
+                    width: 240,
+                    narrowWidth: 180,
                     child: SkotiqTextField(
                       controller: _googleKeyController,
                       focusNode: _googleKeyFocus,
@@ -506,13 +410,11 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   ),
                   controlFlex: 2,
                   isLast: true,
-                  isMobile: widget.isMobile,
                 ),
               ],
             ),
             SettingsSection(
               title: 'Observing environment',
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.sun,
@@ -530,10 +432,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setBortleClass(int.parse(value));
                     },
-                    width: widget.isMobile ? 200 : 280,
-                    isMobile: widget.isMobile,
+                    width: 280,
+                    narrowWidth: 200,
                   ),
-                  isMobile: widget.isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.eye,
@@ -546,14 +447,13 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                         .copyWith(color: SkotiqColors.of(context).textPrimary),
                   ),
                   isLast: true,
-                  isMobile: widget.isMobile,
                 ),
               ],
             ),
             SettingsSection(
               title: 'Local horizon mask',
-              isMobile: widget.isMobile,
               children: [
+                _AltitudeFloorInForce(floor: ref.watch(altitudeFloorProvider)),
                 Padding(
                   padding:
                       const EdgeInsets.only(left: 16, right: 16, bottom: 8),
@@ -579,96 +479,75 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     ),
                   ),
                 ),
-                // An imaging host too old to serve its key/value settings cannot
-                // store a horizon mask edit, so show a host-only notice instead
-                // of editors that cannot persist.
-                if (!horizonEditable)
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(left: 16, right: 16, bottom: 8),
-                    child: Text(
-                      'The local horizon mask can only be edited on the imaging '
-                      'host.',
-                      style: SkotiqTypography.caption.copyWith(
-                        color: SkotiqColors.of(context).textSecondary,
-                      ),
+                ...List.generate(horizonDirections.length, (i) {
+                  final dir = horizonDirections[i];
+                  final azimuth = horizonDirectionAzimuths[i];
+                  return SettingRow(
+                    icon: _compassIcon(dir),
+                    title: '$dir (${azimuth.toStringAsFixed(0)}\u00B0)',
+                    subtitle: 'Horizon altitude at $dir',
+                    trailing: SettingsNumberInput(
+                      controller: _horizonControllers[dir]!,
+                      authoritativeValue: horizonProfile.altitudeAt(dir),
+                      authorityKey: authority,
+                      suffix: '\u00B0',
+                      min: 0,
+                      max: 89,
+                      decimals: 0,
+                      onChanged: (_) => _updateHorizonProfile(),
                     ),
-                  )
-                else ...[
-                  ...List.generate(horizonDirections.length, (i) {
-                    final dir = horizonDirections[i];
-                    final azimuth = horizonDirectionAzimuths[i];
-                    return SettingRow(
-                      icon: _compassIcon(dir),
-                      title: '$dir (${azimuth.toStringAsFixed(0)}\u00B0)',
-                      subtitle: 'Horizon altitude at $dir',
-                      trailing: SettingsNumberInput(
-                        controller: _horizonControllers[dir]!,
-                        authoritativeValue: horizonProfile.altitudeAt(dir),
-                        authorityKey: authority,
-                        suffix: '\u00B0',
-                        min: 0,
-                        max: 89,
-                        decimals: 0,
-                        onChanged: (_) => _updateHorizonProfile(),
-                        isMobile: widget.isMobile,
-                      ),
-                      isLast: i == horizonDirections.length - 1,
-                      isMobile: widget.isMobile,
-                    );
-                  }),
-                  Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        TextButton.icon(
-                          icon: _isImportingHorizon
-                              ? SizedBox.square(
-                                  dimension: 14,
-                                  child: SkotiqSpinner(
-                                      size: 14,
-                                      color: SkotiqColors.of(context).primary),
-                                )
-                              : Icon(
-                                  LucideIcons.upload,
-                                  size: 14,
-                                  color: SkotiqColors.of(context).primary,
-                                ),
-                          label: Text(
-                              _isImportingHorizon
-                                  ? 'Importing horizon...'
-                                  : 'Import .hor / CSV',
-                              style: SkotiqTypography.caption.copyWith(
-                                color: _isImportingHorizon
-                                    ? SkotiqColors.of(context).textMuted
-                                    : SkotiqColors.of(context).primary,
-                              )),
-                          onPressed:
-                              _isImportingHorizon ? null : _importHorizonFile,
-                        ),
-                        TextButton.icon(
-                          icon: Icon(LucideIcons.rotateCcw,
-                              size: 14,
-                              color: SkotiqColors.of(context).primary),
-                          label: Text('Reset All to 0\u00B0',
-                              style: SkotiqTypography.caption.copyWith(
+                    isLast: i == horizonDirections.length - 1,
+                  );
+                }),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      TextButton.icon(
+                        icon: _isImportingHorizon
+                            ? SizedBox.square(
+                                dimension: 14,
+                                child: SkotiqSpinner(
+                                    size: 14,
+                                    color: SkotiqColors.of(context).primary),
+                              )
+                            : Icon(
+                                LucideIcons.upload,
+                                size: 14,
                                 color: SkotiqColors.of(context).primary,
-                              )),
-                          onPressed: () => _resetHorizon(horizonProfile),
-                        ),
-                      ],
-                    ),
+                              ),
+                        label: Text(
+                            _isImportingHorizon
+                                ? 'Importing horizon...'
+                                : 'Import .hor / CSV',
+                            style: SkotiqTypography.caption.copyWith(
+                              color: _isImportingHorizon
+                                  ? SkotiqColors.of(context).textMuted
+                                  : SkotiqColors.of(context).primary,
+                            )),
+                        onPressed:
+                            _isImportingHorizon ? null : _importHorizonFile,
+                      ),
+                      TextButton.icon(
+                        icon: Icon(LucideIcons.rotateCcw,
+                            size: 14, color: SkotiqColors.of(context).primary),
+                        label: Text('Reset All to 0\u00B0',
+                            style: SkotiqTypography.caption.copyWith(
+                              color: SkotiqColors.of(context).primary,
+                            )),
+                        onPressed: () => _resetHorizon(horizonProfile),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ],
             ),
-            LearnedObstructionsSection(isMobile: widget.isMobile),
+            const LearnedObstructionsSection(),
             SettingsSection(
               title: 'Time',
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.clock,
@@ -682,10 +561,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setTimezone(value);
                     },
-                    width: widget.isMobile ? 160 : 200,
-                    isMobile: widget.isMobile,
+                    width: 200,
+                    narrowWidth: 160,
                   ),
-                  isMobile: widget.isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.globe,
@@ -700,7 +578,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     },
                   ),
                   isLast: true,
-                  isMobile: widget.isMobile,
                 ),
               ],
             ),
@@ -710,49 +587,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     );
   }
 
-  /// How far the resolved position may sit from the stored one before the
-  /// stored elevation is treated as belonging to a different place. An IP
-  /// estimate is accurate to roughly a city (~10 km), so a fix inside this
-  /// radius is plausibly the same observing site.
-  static const double _sameSiteRadiusKm = 25;
-
-  /// Great-circle distance in kilometres.
-  static double _kmBetween(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    const earthRadiusKm = 6371.0;
-    double toRad(double deg) => deg * math.pi / 180.0;
-    final dLat = toRad(lat2 - lat1);
-    final dLon = toRad(lon2 - lon1);
-    final a = math.pow(math.sin(dLat / 2), 2) +
-        math.cos(toRad(lat1)) *
-            math.cos(toRad(lat2)) *
-            math.pow(math.sin(dLon / 2), 2);
-    return earthRadiusKm * 2 * math.asin(math.min(1.0, math.sqrt(a)));
-  }
-
-  Future<void> _searchPlace() async {
-    final query = _placeSearchController.text.trim();
-    if (query.isEmpty || _placeSearching) return;
-    setState(() => _placeSearching = true);
-    try {
-      final hits = await ref.read(placeSearchProvider)(query);
-      if (!mounted) return;
-      setState(() {
-        _placeSearching = false;
-        _placeHits = hits;
-      });
-      if (hits.isEmpty) {
-        context.showWarningSnackBar('No places matched that name.');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _placeSearching = false);
-      context.showErrorSnackBar('Could not search for a place: $e');
-    }
+  void _onPlaceSearchChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _applyPlace(PlaceSearchHit hit) async {
@@ -762,7 +598,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
           elevation: hit.elevation ?? 0.0,
         );
     if (!mounted) return;
-    setState(() => _placeHits = const []);
+    _placeSearch.clear();
     final elev = hit.elevation;
     context.showSuccessSnackBar(
       elev == null
@@ -793,96 +629,53 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     );
   }
 
-  /// Resolve this machine's position, with consent, and never leave the
-  /// site in a state that does not exist.
-  ///
-  /// Three rules. ASK before the lookup, once per session, naming each tier
-  /// that will run: the Wi-Fi tier sends the names of the networks around the
-  /// house and the IP tier sends a public address, and this app is often run
-  /// on an isolated observatory network. NEVER mix a new fix with a stale
-  /// elevation: carrying the old value through gives a site that does not
-  /// exist, feeding refraction and horizon maths. And never CHANGE the
-  /// machine unasked — [mayEnableWifiRadio] is set only by the explicit "Turn
-  /// Wi-Fi on for a precise fix" row, and the radio is switched back off
-  /// afterwards.
-  Future<void> _detectLocation(
-    AppSettingsState rendered, {
-    bool mayEnableWifiRadio = false,
-  }) async {
+  /// Number inputs save on blur. Starting to edit must take precedence over
+  /// startup detection before the text is complete or valid enough to save.
+  Widget _locationEditor(Widget child) => Focus(
+        canRequestFocus: false,
+        onFocusChange: (focused) {
+          if (focused) {
+            ref.read(appSettingsProvider.notifier).noteLocationEdit();
+          }
+        },
+        child: child,
+      );
+
+  /// Detect location, with consent: see [detectSite] for its rules.
+  Future<void> _detectLocation({bool mayEnableWifiRadio = false}) async {
     if (_detecting) return;
-    final googleKey = ref.read(googleGeolocationKeyProvider).value ?? '';
-    // Shared with the first-run wizard's site step, which fires the same
-    // service: one dialog means the two surfaces cannot describe the outbound
-    // request differently, or one of them forget to ask.
-    final consented = await ensureGeolocationConsent(
-      context,
-      ref,
-      outcome: kGeolocationWritesSiteOutcome,
-      googleKeyPresent: googleKey.isNotEmpty,
-    );
-    if (!consented || !mounted) return;
-
-    setState(() => _detecting = true);
     try {
-      final actionAuthority = ref.read(backendProvider);
-      // Re-read rather than trust the value this row was built with: the
-      // operator can edit the elevation while the consent dialog is up, and
-      // the same-site comparison below has to be against what is stored now.
-      final settings = ref.read(appSettingsProvider).value ?? rendered;
-      final attempt = await ref.read(siteLocatorProvider)(
-        allowWifiScan: true,
-        allowIp: true,
+      final detection = await detectSite(
+        context,
+        ref,
         mayEnableWifiRadio: mayEnableWifiRadio,
-        googleApiKey: googleKey.isEmpty ? null : googleKey,
+        onLookingUp: () => setState(() => _detecting = true),
       );
-      if (!mounted || !identical(ref.read(backendProvider), actionAuthority)) {
-        if (mounted) {
+      if (detection == null || !mounted) return;
+      setState(
+        () => _wifiRadioOffersPrecision = detection.attempt.canRetryWithWifi,
+      );
+      switch (detection) {
+        case SiteNotFound(:final attempt):
           context.showWarningSnackBar(
-            'The imaging host changed while reading the device location. Try '
-            'again on the current host.',
+            '${attempt.failureMessage} Search for a place by name, or enter '
+            'coordinates.',
           );
-        }
-        return;
-      }
-      setState(() => _wifiRadioOffersPrecision = attempt.canRetryWithWifi);
-
-      final location = attempt.fix;
-      if (location == null) {
-        context.showWarningSnackBar(
-          'No position from Wi-Fi, this machine, or the internet lookup. '
-          '${attempt.failureDetail} Search for a place by name, or enter '
-          'coordinates.',
-        );
-        return;
-      }
-
-      final lat = location.latitude;
-      final lon = location.longitude;
-      final movedKm =
-          _kmBetween(settings.latitude, settings.longitude, lat, lon);
-      final keepElevation = movedKm <= _sameSiteRadiusKm;
-      await ref.read(appSettingsProvider.notifier).updateLocation(
-            latitude: lat,
-            longitude: lon,
-            // Clearing beats inheriting: an elevation from another site is a
-            // wrong number the app would use, while 0 m is the app's own
-            // "not set" value and is called out in the message below.
-            elevation: keepElevation ? settings.elevation : 0,
+        case SiteDetected():
+          final elevation = ref.read(appSettingsProvider).value?.elevation ?? 0;
+          context.showSuccessSnackBar(
+            'Coordinates set to ${detection.where}. '
+            '${detection.fix.explanation} '
+            '${detection.keptElevation ? 'Elevation kept at '
+                '${elevation.toStringAsFixed(0)} m.' : 'Elevation cleared to '
+                '0 m — enter the elevation for this site.'} '
+            '${_refinementNudge(detection.attempt)}',
           );
-      if (!mounted) return;
-      final where = location.locationName ??
-          '${lat.toStringAsFixed(4)}, '
-              '${lon.toStringAsFixed(4)}';
-      context.showSuccessSnackBar(
-        'Coordinates set to $where. ${location.explanation} '
-        '${keepElevation ? 'Elevation kept at '
-            '${settings.elevation.toStringAsFixed(0)} m.' : 'Elevation '
-            'cleared to 0 m — enter the elevation for this site.'} '
-        '${_refinementNudge(attempt)}',
-      );
+      }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not detect a location: $e');
+        context.showErrorSnackBar(
+            'Could not detect a location: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) setState(() => _detecting = false);
@@ -904,7 +697,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   /// eight compass fields on this page summarise them (highest altitude per
   /// 45° sector, so the number shown never under-reports an obstruction).
   ///
-  /// [LegacyHorizonProfile] carries the SAMPLES, not just the eight sector
+  /// [SiteHorizonProfile] carries the SAMPLES, not just the eight sector
   /// summaries, and interpolates them in `altitudeAtAzimuth` — the call the
   /// planner's visibility filter and the planetarium's 360-entry terrain table
   /// both make. Keeping only the summaries applies one 29° tree across a whole
@@ -923,7 +716,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
 
       final content = await ref.read(horizonImportReaderProvider)(file);
       if (!_isCurrentHorizonImport(generation, authority)) return;
-      final imported = LegacyHorizonProfile.parseHorizonText(content);
+      final imported = SiteHorizonProfile.parseHorizonText(content);
       final sampleCount = _countHorizonSamples(content);
 
       final confirmed = await _confirmHorizonReduction(
@@ -954,7 +747,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       }
     } catch (e) {
       if (mounted && _isCurrentHorizonImport(generation, authority)) {
-        context.showErrorSnackBar('Could not import horizon file: $e');
+        context.showErrorSnackBar(
+            'Could not import horizon file: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentHorizonImport(generation, authority)) {
@@ -965,7 +759,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
 
   /// How many azimuth/altitude samples the file actually contained.
   ///
-  /// Counts the lines [LegacyHorizonProfile.parseHorizonText] treats as data:
+  /// Counts the lines [SiteHorizonProfile.parseHorizonText] treats as data:
   /// it skips blanks and `#`/`//`/`;` comments and REQUIRES every remaining
   /// line to be a valid pair (it throws otherwise), so after a successful
   /// parse this count is the sample count. Deliberately does not re-parse the
@@ -991,7 +785,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   Future<bool?> _confirmHorizonReduction({
     required String fileName,
     required int sampleCount,
-    required LegacyHorizonProfile imported,
+    required SiteHorizonProfile imported,
   }) {
     final colors = SkotiqColors.of(context);
     // The survey is kept whole; the eight fields are its summary. Stated in
@@ -1076,7 +870,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   /// 120 px from it. A survey is hours of work with a compass and an
   /// inclinometer, the app does not keep the source file, and there is no undo,
   /// so a misclick beside Import would cost the whole skyline.
-  Future<void> _resetHorizon(LegacyHorizonProfile current) async {
+  Future<void> _resetHorizon(SiteHorizonProfile current) async {
     final hasSurvey = current.sampleCount >= 2;
     final hasMask = horizonDirections.any((dir) => current.altitudeAt(dir) > 0);
 
@@ -1103,11 +897,12 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
         for (final dir in horizonDirections) dir: 0,
       };
       await ref.read(appSettingsProvider.notifier).setHorizonProfileJson(
-            LegacyHorizonProfile(reset).toJson(),
+            SiteHorizonProfile(reset).toJson(),
           );
     } catch (error) {
       if (mounted) {
-        context.showErrorSnackBar('Could not reset the horizon mask: $error');
+        context.showErrorSnackBar(
+            'Could not reset the horizon mask: ${userFacingError(error)}');
       }
     }
   }
@@ -1118,7 +913,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   ) {
     return mounted &&
         generation == _horizonImportGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.backendScopeOver(authority).isCurrent;
   }
 
   Future<void> _updateHorizonProfile() async {
@@ -1192,5 +987,36 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
         debugPrint('Could not migrate legacy timezone "$stored": $error');
       }
     });
+  }
+}
+
+/// Which altitude floor is in force, stated where the horizon is edited: the
+/// horizon when any direction is above 0°, otherwise the scheduler's minimum
+/// altitude.
+class _AltitudeFloorInForce extends StatelessWidget {
+  const _AltitudeFloorInForce({required this.floor});
+
+  final AltitudeFloor floor;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    final minimum = '${floor.minimumDeg.toStringAsFixed(0)}\u00B0';
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+      child: Text(
+        floor.followsHorizon
+            ? 'In force: this horizon is how high a target must be to image, '
+                'for the scheduler, built sequences, framing and every '
+                'time-to-set. The minimum altitude ($minimum, Plan Tonight > '
+                'Schedule) applies again if every direction is set to 0\u00B0.'
+            : 'Not in force: every direction is 0\u00B0, so the minimum '
+                'altitude ($minimum, Plan Tonight > Schedule) is how high a '
+                'target must be. Set a direction above 0\u00B0 and this '
+                'horizon takes over.',
+        key: const Key('location.altitudeFloorInForce'),
+        style: SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
+      ),
+    );
   }
 }

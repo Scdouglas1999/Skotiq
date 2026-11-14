@@ -12,7 +12,6 @@ extension _SkyViewHitTesting on _InteractiveSkyViewState {
   void _handleDoubleTapZoom(Offset position, Size size) {
     final viewState = ref.read(skyViewStateProvider);
 
-    // Convert tap position to celestial coordinates
     final coord = _screenToCelestial(position, size, viewState);
     if (coord == null) return;
 
@@ -28,11 +27,9 @@ extension _SkyViewHitTesting on _InteractiveSkyViewState {
   void _handleTap(Offset position, Size size) {
     final viewState = ref.read(skyViewStateProvider);
 
-    // Convert screen position to celestial coordinates
     final coord = _screenToCelestial(position, size, viewState);
     if (coord == null) return;
 
-    // Notify coordinate tap
     widget.onCoordinateTapped?.call(coord);
 
     // Try to find a nearby object using FOV-filtered objects (same as rendering)

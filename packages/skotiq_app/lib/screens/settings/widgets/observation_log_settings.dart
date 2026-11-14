@@ -3,13 +3,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../utils/exported_file_reveal.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 /// Settings panel for viewing and managing observation logs.
 class ObservationLogSettings extends ConsumerStatefulWidget {
@@ -239,7 +243,7 @@ class _ObservationLogSettingsState
             const SizedBox(width: 16),
             _StatChip(
               label: 'Since',
-              value: _formatDate(stats.firstObservation!),
+              value: ClockFormat.date(stats.firstObservation!),
             ),
           ],
         ],
@@ -261,13 +265,13 @@ class _ObservationLogSettingsState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _formatDate(log.timestamp),
+                  ClockFormat.date(log.timestamp),
                   style: SkotiqTypography.caption
                       .copyWith(fontWeight: FontWeight.w600)
                       .copyWith(color: colors.textPrimary),
                 ),
                 Text(
-                  _formatTime(log.timestamp),
+                  ClockFormat.hm(log.timestamp),
                   style: SkotiqTypography.captionSm.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -419,7 +423,7 @@ class _ObservationLogSettingsState
 
     if (confirmed != true || _deletingLogIds.contains(log.id)) return;
 
-    final backendAtStart = ref.read(backendProvider);
+    final host = ref.backendScope();
     setState(() => _deletingLogIds.add(log.id));
     try {
       final deleted = await ref
@@ -427,7 +431,7 @@ class _ObservationLogSettingsState
           .deleteLog(log.id);
       if (!mounted || deleted) return;
 
-      final message = !identical(ref.read(backendProvider), backendAtStart)
+      final message = host.isStale
           ? 'Delete canceled because the imaging host changed.'
           : ref.read(observationLogNotifierProvider).errorMessage ??
               'Could not delete the observation.';
@@ -442,7 +446,7 @@ class _ObservationLogSettingsState
   Future<void> _exportCsv(BuildContext context) async {
     if (_isExporting) return;
 
-    final backendAtStart = ref.read(backendProvider);
+    final host = ref.backendScope();
     setState(() => _isExporting = true);
     try {
       final csv =
@@ -451,7 +455,7 @@ class _ObservationLogSettingsState
         if (!context.mounted) return;
 
         final error = ref.read(observationLogNotifierProvider).errorMessage;
-        if (!identical(ref.read(backendProvider), backendAtStart)) {
+        if (host.isStale) {
           context.showErrorSnackBar(
             'Export canceled because the imaging host changed.',
           );
@@ -463,9 +467,7 @@ class _ObservationLogSettingsState
         return;
       }
 
-      final docsDir = await resolveSkotiqDocumentsDirectory();
-      final exportDir = Directory(p.join(docsDir.path, 'Skotiq', 'exports'));
-      await exportDir.create(recursive: true);
+      final exportDir = await resolveSkotiqExportsDirectory();
 
       final timestamp = DateTime.now()
           .toIso8601String()
@@ -485,21 +487,13 @@ class _ObservationLogSettingsState
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Export failed: $e');
+        context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) {
         setState(() => _isExporting = false);
       }
     }
-  }
-
-  String _formatDate(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-  }
-
-  String _formatTime(DateTime dt) {
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 }
 

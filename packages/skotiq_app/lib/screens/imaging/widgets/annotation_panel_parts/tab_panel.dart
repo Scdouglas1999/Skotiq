@@ -32,12 +32,9 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       await action();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$failureMessage: $error'),
-          backgroundColor: SkotiqColors.of(context).error,
-          duration: const Duration(seconds: 4),
-        ),
+      context.showErrorSnackBar(
+        '$failureMessage: ${userFacingError(error)}',
+        duration: const Duration(seconds: 4),
       );
     }
   }
@@ -51,11 +48,8 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       await annotationService.reAnnotate();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Re-annotation failed: $error'),
-            backgroundColor: SkotiqColors.of(context).error,
-          ),
+        context.showErrorSnackBar(
+          'Re-annotation failed: ${userFacingError(error)}',
         );
       }
     } finally {
@@ -113,12 +107,9 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save annotated image: $e'),
-            backgroundColor: SkotiqColors.of(context).error,
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Failed to save annotated image: ${userFacingError(e)}',
+          duration: const Duration(seconds: 4),
         );
       }
     } finally {
@@ -143,51 +134,11 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           child: const CatalogSettingsScreen(),
         ),
       ),
-    ).then((_) => ref.invalidate(annotationCatalogInstalledProvider));
+    );
   }
 
   void _onObjectSelected(CelestialObjectAnnotation object) {
     ref.read(selectedAnnotationObjectProvider.notifier).state = object;
-  }
-
-  Future<void> _exportCsv(List<CelestialObjectAnnotation> objects) async {
-    if (objects.isEmpty) return;
-    final timestamp = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
-    final csv = generateAnnotationCsv(objects);
-    final path = await _saveExportFile(
-      suggestedName: 'annotations_$timestamp.csv',
-      content: csv,
-      label: 'CSV files',
-      extensions: ['csv'],
-    );
-    if (path != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Annotations exported to $path'),
-          duration: const Duration(seconds: 4),
-        ),
-      );
-    }
-  }
-
-  Future<void> _exportDs9(List<CelestialObjectAnnotation> objects) async {
-    if (objects.isEmpty) return;
-    final timestamp = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
-    final reg = generateDs9RegionFile(objects);
-    final path = await _saveExportFile(
-      suggestedName: 'annotations_$timestamp.reg',
-      content: reg,
-      label: 'DS9 region files',
-      extensions: ['reg'],
-    );
-    if (path != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('DS9 regions exported to $path'),
-          duration: const Duration(seconds: 4),
-        ),
-      );
-    }
   }
 
   Future<void> _saveAsPreset() async {
@@ -202,21 +153,16 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           .read(annotationPresetsProvider.notifier)
           .saveCurrentAsPreset(name);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Preset "$name" saved'),
-            duration: const Duration(seconds: 3),
-          ),
+        context.showInfoSnackBar(
+          'Preset "$name" saved',
+          duration: const Duration(seconds: 3),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save preset: $e'),
-            backgroundColor: SkotiqColors.of(context).error,
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Failed to save preset: ${userFacingError(e)}',
+          duration: const Duration(seconds: 4),
         );
       }
     }
@@ -239,12 +185,9 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
       await ref.read(annotationSettingsProvider.notifier).applyPreset(preset);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to apply preset: $e'),
-            backgroundColor: SkotiqColors.of(context).error,
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Failed to apply preset: ${userFacingError(e)}',
+          duration: const Duration(seconds: 4),
         );
       }
     }
@@ -279,21 +222,16 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
     try {
       await ref.read(annotationPresetsProvider.notifier).deletePreset(name);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Preset "$name" deleted'),
-            duration: const Duration(seconds: 3),
-          ),
+        context.showInfoSnackBar(
+          'Preset "$name" deleted',
+          duration: const Duration(seconds: 3),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete preset: $e'),
-            backgroundColor: SkotiqColors.of(context).error,
-            duration: const Duration(seconds: 4),
-          ),
+        context.showErrorSnackBar(
+          'Failed to delete preset: ${userFacingError(e)}',
+          duration: const Duration(seconds: 4),
         );
       }
     }
@@ -380,7 +318,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
 
     return Column(
       children: [
-        // Toolbar row with actions
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
@@ -390,7 +327,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           ),
           child: Row(
             children: [
-              // Object count badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: SkotiqDecorations.tintedBadge(
@@ -404,7 +340,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                 ),
               ),
               const Spacer(),
-              // Sort menu
               PopupMenuButton<AnnotationPanelSortMode>(
                 tooltip: 'Sort objects',
                 color: widget.colors.surfaceElevated,
@@ -450,7 +385,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                 ),
               ),
               const SizedBox(width: 4),
-              // Re-annotate button
               _isReAnnotating
                   ? Padding(
                       padding: EdgeInsets.all(4),
@@ -478,7 +412,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                       ),
                     ),
               const SizedBox(width: 4),
-              // Save annotated image button
               _isSaving
                   ? Padding(
                       padding: EdgeInsets.all(4),
@@ -510,69 +443,12 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
                       ),
                     ),
               const SizedBox(width: 4),
-              // Export menu
-              PopupMenuButton<String>(
-                tooltip: 'Export annotations',
-                color: widget.colors.surfaceElevated,
-                surfaceTintColor: Colors.transparent,
-                elevation: 0,
-                shape: _annotationMenuShape(widget.colors),
-                enabled: displayableObjects.isNotEmpty,
-                onSelected: (value) {
-                  switch (value) {
-                    case 'csv':
-                      unawaited(_runPanelAction(
-                        () => _exportCsv(displayableObjects),
-                        'CSV export failed',
-                      ));
-                    case 'ds9':
-                      unawaited(_runPanelAction(
-                        () => _exportDs9(displayableObjects),
-                        'DS9 export failed',
-                      ));
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'csv',
-                    child: Row(
-                      children: [
-                        Icon(LucideIcons.fileSpreadsheet,
-                            size: 14, color: widget.colors.textPrimary),
-                        const SizedBox(width: 8),
-                        Text('Export CSV',
-                            style: SkotiqTypography.caption
-                                .copyWith(color: widget.colors.textPrimary)),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'ds9',
-                    child: Row(
-                      children: [
-                        Icon(SkotiqIcons.map,
-                            size: 14, color: widget.colors.textPrimary),
-                        const SizedBox(width: 8),
-                        Text('Export DS9 Regions',
-                            style: SkotiqTypography.caption
-                                .copyWith(color: widget.colors.textPrimary)),
-                      ],
-                    ),
-                  ),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(
-                    LucideIcons.fileOutput,
-                    size: 14,
-                    color: displayableObjects.isNotEmpty
-                        ? widget.colors.textMuted
-                        : widget.colors.textMuted.withValues(alpha: 0.3),
-                  ),
-                ),
+              _AnnotationExportMenu(
+                colors: widget.colors,
+                annotation: annotation,
+                objects: displayableObjects,
               ),
               const SizedBox(width: 4),
-              // Presets menu
               PopupMenuButton<String>(
                 tooltip: 'Annotation presets',
                 color: widget.colors.surfaceElevated,
@@ -703,7 +579,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           ),
         ),
 
-        // Search bar
         AnnotationSearchBar(
           onChanged: (value) => setState(() => _searchQuery = value),
         ),
@@ -910,7 +785,6 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           ),
         ),
 
-        // Objects list
         Expanded(
           child: filteredObjects.isEmpty
               ? AnnotationEmptyState(

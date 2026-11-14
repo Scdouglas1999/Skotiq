@@ -1,8 +1,6 @@
 part of '../device_handlers.dart';
 
 extension CameraDeviceHandlers on DeviceHandlers {
-  // Camera control
-
   /// Reject exposure parameters the camera has told us it cannot honour.
   ///
   /// Vendor SDKs clamp an out-of-range request instead of failing it, and the
@@ -148,7 +146,6 @@ extension CameraDeviceHandlers on DeviceHandlers {
   }
 
   Future<Response> handleCameraExpose(Request request) async {
-    _logInfo('[API] POST /api/camera/expose');
     final payload = await readJsonObject(request);
     final deviceId = requireString(payload, 'deviceId');
     final exposureTime = requireDouble(
@@ -702,16 +699,14 @@ extension CameraDeviceHandlers on DeviceHandlers {
       }
     }
 
-    // A cooler command from any client replaces a warm-up in progress here,
-    // as the host's own cooler controls do; otherwise the ramp's next step
-    // would overwrite the set-point just sent.
-    container
-        .read(deviceServiceProvider)
-        .cancelWarmCamera(restorePriorSetting: false);
-    await backend.cameraSetCooling(
-      deviceId: deviceId,
-      enabled: enabled,
-      targetTemp: targetTemp,
+    // The host's camera cools through DeviceService, as from the host UI:
+    // it replaces a warm-up in progress and records the cooling goal the
+    // "Cool to" action offers.
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(
+        container,
+      ).cameraSetCooling(deviceId, enabled: enabled, targetTemp: targetTemp),
     );
 
     return jsonOk({'status': 'ok'});
@@ -864,8 +859,11 @@ extension CameraDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final modeIndex = requireInt(payload, 'modeIndex', min: 0);
 
-    final backend = container.read(deviceBackendProvider);
-    await backend.cameraSetReadoutMode(deviceId, modeIndex);
+    await runDeviceCommand(
+      deviceId,
+      () =>
+          deviceCommandsOf(container).cameraSetReadoutMode(deviceId, modeIndex),
+    );
 
     return jsonOk({'status': 'ok'});
   }
@@ -891,7 +889,10 @@ extension CameraDeviceHandlers on DeviceHandlers {
       width: null,
       height: null,
     );
-    await backend.cameraSetGain(deviceId, gain);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).cameraSetGain(deviceId, gain),
+    );
 
     return jsonOk({'status': 'ok'});
   }
@@ -917,10 +918,11 @@ extension CameraDeviceHandlers on DeviceHandlers {
       width: null,
       height: null,
     );
-    await backend.cameraSetOffset(deviceId, offset);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).cameraSetOffset(deviceId, offset),
+    );
 
     return jsonOk({'status': 'ok'});
   }
-
-  // Mount control
 }

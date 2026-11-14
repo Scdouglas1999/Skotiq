@@ -1,37 +1,6 @@
 // Settings search synonyms, ranking and row matching helpers.
 part of '../settings_screen.dart';
 
-/// Words a user types for a setting that the owning page never says.
-///
-/// The app's own vocabulary does not always match the owning page's: the
-/// Dashboard says "Set a capture directory to track free space" and the status
-/// bar says "No save path", while Files & Storage titles that row "Image
-/// output".
-///
-/// Kept small and deliberate: a synonym that is too generous makes the search
-/// match everything.
-const Map<String, List<String>> kSettingsSearchSynonyms = {
-  'files-storage': [
-    'capture folder',
-    'capture directory',
-    'save path',
-    'image folder',
-    'disk space',
-    'free space',
-    'storage location',
-  ],
-};
-
-/// Whether [section] answers a single search token, including the synonyms
-/// above. Exposed so tests can exercise the same predicate the screen uses.
-bool sectionMatchesToken(SettingsSectionDef section, String token) {
-  if (section.matches(token)) return true;
-  for (final synonym in kSettingsSearchSynonyms[section.key] ?? const []) {
-    if (synonym.contains(token)) return true;
-  }
-  return false;
-}
-
 /// How well [section] answers [query]; lower sorts first.
 ///
 /// Exact section titles outrank a row title that merely contains the query,

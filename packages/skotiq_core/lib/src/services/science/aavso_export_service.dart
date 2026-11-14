@@ -7,14 +7,10 @@ import '../../database/daos/images_dao.dart';
 import '../../database/daos/science_dao.dart';
 import '../../database/daos/settings_dao.dart';
 import '../../database/database.dart';
-import 'airmass.dart';
+import '../../settings/store_settings.dart';
 import 'photometric_bands.dart';
 import '../../utils/skotiq_data_directory.dart';
-
-// Surfaced through the science-services barrel, which already exports this
-// library, so every consumer reaches the one airmass model by importing
-// skotiq_core rather than re-deriving the formula locally.
-export 'airmass.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Generates AAVSO Extended Format (Version 1.11) text files from photometry
 /// measurements stored in the Skotiq database.
@@ -29,16 +25,15 @@ class AavsoExportService {
   final ImagesDao _imagesDao;
   final Future<Directory> Function() _documentsDirectoryProvider;
 
-  /// Written to the #SOFTWARE header line. Callers should pass
-  /// `ref.read(appVersionLabelProvider)` so the reported version tracks
-  /// version.yaml instead of a hard-coded constant.
+  /// Written to the #SOFTWARE header line: the app and its version
+  /// (`appVersionLabelProvider`). Built once by `aavsoExportServiceProvider`.
   final String _softwareLabel;
 
   AavsoExportService({
     required ScienceDao scienceDao,
     required SettingsDao settingsDao,
     required ImagesDao imagesDao,
-    String softwareLabel = 'Skotiq',
+    required String softwareLabel,
     Future<Directory> Function()? documentsDirectoryProvider,
   }) : _scienceDao = scienceDao,
        _settingsDao = settingsDao,
@@ -65,10 +60,10 @@ class AavsoExportService {
     String? filterBand,
     String? chartId,
   }) async {
-    final observerCode = await _settingsDao.getSetting(
-      'science.aavso.observer_code',
+    final observerCode = await _settingsDao.read(
+      StoreSettings.scienceAavsoObserverCode,
     );
-    if (observerCode == null || observerCode.trim().isEmpty) {
+    if (observerCode.trim().isEmpty) {
       throw const AavsoExportError(
         'AAVSO observer code is not set. '
         'Please set your observer code in Settings > Science before exporting.',
@@ -242,7 +237,6 @@ class AavsoExportService {
       );
     }
 
-    // Write to file
     final directory = await _getExportDirectory();
     final sanitizedName = targetStarName
         .replaceAll(RegExp(r'[^\w\s-]'), '')
@@ -310,14 +304,8 @@ class AavsoExportService {
     return value.replaceAll(',', ' ').trim();
   }
 
-  Future<Directory> _getExportDirectory() async {
-    final docs = await _documentsDirectoryProvider();
-    final exportDir = Directory(path.join(docs.path, 'Skotiq', 'exports'));
-    if (!await exportDir.exists()) {
-      await exportDir.create(recursive: true);
-    }
-    return exportDir;
-  }
+  Future<Directory> _getExportDirectory() =>
+      resolveSkotiqExportsDirectory(documents: _documentsDirectoryProvider);
 }
 
 /// Error thrown when AAVSO export fails due to missing data or configuration.

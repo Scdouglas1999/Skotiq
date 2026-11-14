@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The hardware-presets provider deliberately sits outside the core barrel (it
-// would collide with `cameraPresetsProvider`), so it is imported by source
-// path — the precedent set by hardware_preset_picker_dialog.dart.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'device_picker_step.dart';

@@ -43,10 +43,6 @@ pub const RECIPE_SCHEMA_VERSION: u32 = 1;
 /// aborts at safing instead of running the shutdown budget out.
 pub const CANCEL_POLL_PIXELS: usize = 65_536;
 
-// ---------------------------------------------------------------------------
-// Recipe model
-// ---------------------------------------------------------------------------
-
 /// Who authored a recipe. The morning draft is `autopilot` until the user edits
 /// it; the distinction drives "this is a first draft" affordances in the editor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -240,10 +236,6 @@ impl Recipe {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Canonical JSON + fingerprint
-// ---------------------------------------------------------------------------
-
 /// Render a JSON value with object keys sorted at every depth and no
 /// insignificant whitespace.
 ///
@@ -328,10 +320,6 @@ pub fn fingerprint_hex(bytes: &[u8]) -> String {
     format!("{hash:032x}")
 }
 
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
-
 /// Faults an operation reports to the engine. Every variant names the caller
 /// mistake or the missing capability; none of them describe a degraded result
 /// that was applied anyway.
@@ -340,9 +328,7 @@ pub enum OpError {
     /// The parameter payload is not a JSON object.
     #[error("{op_id}@{op_version}: parameters must be a JSON object, found {found}")]
     ParamsNotObject {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
         /// JSON type of what was supplied.
         found: &'static str,
@@ -350,31 +336,22 @@ pub enum OpError {
     /// A parameter key the operation version does not define.
     #[error("{op_id}@{op_version}: unknown parameter '{key}'")]
     UnknownParam {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
-        /// The offending key.
         key: String,
     },
     /// A parameter with no default was not supplied.
     #[error("{op_id}@{op_version}: missing required parameter '{key}'")]
     MissingParam {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
-        /// The missing key.
         key: String,
     },
     /// A parameter has the wrong JSON type.
     #[error("{op_id}@{op_version}: parameter '{key}' must be {expected}, found {found}")]
     ParamType {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
-        /// The offending key.
         key: String,
         /// The type the operation requires.
         expected: &'static str,
@@ -384,11 +361,8 @@ pub enum OpError {
     /// A parameter is outside the range the operation accepts.
     #[error("{op_id}@{op_version}: parameter '{key}' = {value} is outside {range}")]
     ParamRange {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
-        /// The offending key.
         key: String,
         /// The rejected value, rendered.
         value: String,
@@ -401,11 +375,8 @@ pub enum OpError {
     /// The declared geometry and the pixel buffer disagree.
     #[error("pixel buffer holds {found} samples, {width}x{height}x{channels} needs {expected}")]
     GeometryMismatch {
-        /// Image width in pixels.
         width: u32,
-        /// Image height in pixels.
         height: u32,
-        /// Channel count.
         channels: u32,
         /// Samples the geometry requires.
         expected: usize,
@@ -416,20 +387,14 @@ pub enum OpError {
     #[error(
         "unsupported pixel type {found:?} for the recipe engine; linear masters are F32 and U16 is carried as ADU"
     )]
-    UnsupportedPixelType {
-        /// The pixel type that was supplied.
-        found: PixelType,
-    },
+    UnsupportedPixelType { found: PixelType },
     /// The operation does not define a result for this channel layout.
     #[error(
         "{op_id}@{op_version}: unsupported channel layout: a {channels}-channel image, {expected}"
     )]
     UnsupportedChannels {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
-        /// Channel count supplied.
         channels: u32,
         /// What the operation requires, in words.
         expected: &'static str,
@@ -439,9 +404,7 @@ pub enum OpError {
     /// image through unchanged; it never reports the step as applied.
     #[error("{op_id}@{op_version}: unavailable: {reason}")]
     Unavailable {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
         /// Why the capability is absent, in the words the user reads.
         reason: String,
@@ -452,9 +415,7 @@ pub enum OpError {
     /// The operation ran and failed for a reason of its own.
     #[error("{op_id}@{op_version}: {reason}")]
     Failed {
-        /// Operation id.
         op_id: &'static str,
-        /// Operation version.
         op_version: u32,
         /// The underlying failure, already user-readable.
         reason: String,
@@ -495,9 +456,7 @@ pub enum RecipeError {
         /// Step index in the recipe, counted from 0; the sentence counts it
         /// from 1.
         index: usize,
-        /// Operation id requested.
         op_id: String,
-        /// Operation version requested.
         op_version: u32,
     },
     /// The step's parameters failed the operation's own validation.
@@ -506,11 +465,8 @@ pub enum RecipeError {
         /// Step index in the recipe, counted from 0; the sentence counts it
         /// from 1.
         index: usize,
-        /// Operation id.
         op_id: String,
-        /// Operation version.
         op_version: u32,
-        /// The operation's parameter fault.
         source: Box<OpError>,
     },
     /// A linear-stage operation sits after a stretched-stage operation.
@@ -558,17 +514,13 @@ pub enum RecipeError {
     },
     /// The base image is not usable as a render input.
     #[error("base image is not renderable: {source}")]
-    BaseImage {
-        /// The image fault.
-        source: Box<OpError>,
-    },
+    BaseImage { source: Box<OpError> },
     /// An operation failed while the recipe was rendering.
     #[error("step {} failed: {source}", .index + 1)]
     Step {
         /// Step index in the recipe, counted from 0; the sentence counts it
         /// from 1.
         index: usize,
-        /// The operation's fault.
         source: Box<OpError>,
     },
     /// The cancel flag was raised during the render.
@@ -576,12 +528,13 @@ pub enum RecipeError {
     Cancelled,
 }
 
-// ---------------------------------------------------------------------------
-// OpImage
-// ---------------------------------------------------------------------------
-
 /// The image an operation reads and writes: linear-or-stretched F32 samples plus
 /// the FITS header they came with.
+///
+/// The samples are the source's numbers as it stores them, and a recipe's
+/// parameters (a stretch's black and white points) are in those units, so a
+/// recipe saved against a master keeps meaning the same thing. The source's
+/// sample range rides along for the export of a still-linear render.
 ///
 /// Samples are row-major and channel-interleaved, matching [`ImageData`]: index
 /// `(y * width + x) * channels + c`. The header travels with the pixels through
@@ -595,6 +548,7 @@ pub struct OpImage {
     channels: u32,
     data: Vec<f32>,
     header: FitsHeader,
+    range: crate::SampleRange,
 }
 
 impl OpImage {
@@ -626,14 +580,14 @@ impl OpImage {
             channels,
             data,
             header,
+            range: crate::SampleRange::ADU,
         })
     }
 
     /// Read an [`ImageData`] as a render input.
     ///
-    /// `F32` samples carry over verbatim. `U16` samples carry over as their ADU
-    /// value with no rescaling, so a 16-bit master and a float master of the same
-    /// exposure hold the same numbers. Any other pixel type is
+    /// `F32` samples carry over verbatim and `U16` samples as their ADU value,
+    /// with the image's sample range kept beside them. Any other pixel type is
     /// [`OpError::UnsupportedPixelType`] — silently reinterpreting the bytes is
     /// how a `U16` reader once ate an `F32` master.
     pub fn from_image_data(image: &ImageData, header: FitsHeader) -> Result<Self, OpError> {
@@ -641,36 +595,37 @@ impl OpImage {
             return Err(OpError::EmptyImage);
         }
         let data: Vec<f32> = match image.pixel_type {
-            PixelType::F32 => image
-                .data
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(read_le_f32)
-                .collect(),
-            PixelType::U16 => image
-                .data
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|c| u16::from_le_bytes([c[0], c[1]]) as f32)
-                .collect(),
+            PixelType::F32 | PixelType::U16 => image.stored_f32(),
             other => return Err(OpError::UnsupportedPixelType { found: other }),
         };
-        Self::new(image.width, image.height, image.channels, data, header)
+        Ok(
+            Self::new(image.width, image.height, image.channels, data, header)?
+                .with_range(image.range),
+        )
     }
 
-    /// Write the samples back out as an `F32` [`ImageData`].
+    /// Write the samples back out as an `F32` [`ImageData`] in the range the
+    /// source had. A render that left the linear stage is display-referred;
+    /// its exporter declares that.
     pub fn to_image_data(&self) -> ImageData {
         ImageData::from_f32(self.width, self.height, self.channels, &self.data)
+            .with_range(self.range)
     }
 
-    /// Image width in pixels.
+    /// The sample range of the source these samples came from.
+    pub fn range(&self) -> crate::SampleRange {
+        self.range
+    }
+
+    pub fn with_range(mut self, range: crate::SampleRange) -> Self {
+        self.range = range;
+        self
+    }
+
     pub fn width(&self) -> u32 {
         self.width
     }
 
-    /// Image height in pixels.
     pub fn height(&self) -> u32 {
         self.height
     }
@@ -683,11 +638,6 @@ impl OpImage {
     /// Samples, row-major and channel-interleaved.
     pub fn data(&self) -> &[f32] {
         &self.data
-    }
-
-    /// Samples, mutable and in place.
-    pub fn data_mut(&mut self) -> &mut [f32] {
-        &mut self.data
     }
 
     /// Number of samples (`width * height * channels`).
@@ -722,20 +672,16 @@ impl OpImage {
         &mut self.header
     }
 
-    /// Replace the header wholesale.
-    pub fn set_header(&mut self, header: FitsHeader) {
-        self.header = header;
-    }
-
     /// A new image with the same geometry and header and different samples.
     pub fn with_data(&self, data: Vec<f32>) -> Result<Self, OpError> {
-        Self::new(
+        Ok(Self::new(
             self.width,
             self.height,
             self.channels,
             data,
             self.header.clone(),
-        )
+        )?
+        .with_range(self.range))
     }
 
     /// A new image with different geometry, carrying this header forward with
@@ -761,95 +707,27 @@ impl OpImage {
         if header.get("NAXIS3").is_some() {
             header.set_int("NAXIS3", channels as i64);
         }
-        Self::new(width, height, channels, data, header)
+        Ok(Self::new(width, height, channels, data, header)?.with_range(self.range))
     }
 
     /// Move the WCS reference pixel by a crop origin of `(dx, dy)` pixels, so a
     /// cropped image keeps pointing at the same sky.
     pub fn translate_reference_pixel(&mut self, dx: f64, dy: f64) {
-        if let Some(crpix1) = self.header.get_float("CRPIX1") {
-            self.header.set_float("CRPIX1", crpix1 - dx);
-        }
-        if let Some(crpix2) = self.header.get_float("CRPIX2") {
-            self.header.set_float("CRPIX2", crpix2 - dy);
-        }
+        crate::wcs_sip::crop_header_wcs(&mut self.header, dx, dy);
     }
 
-    /// The astrometry carried in the header, if it holds a complete `CRVAL` +
-    /// `CRPIX` + `CD` set. SIP terms are read when `A_ORDER`/`B_ORDER` are
-    /// present and default to a CD-only solution otherwise.
+    /// The usable astrometry carried in the header ([`wcs_from_header`]).
     pub fn wcs(&self) -> Option<SipWcs> {
         wcs_from_header(&self.header)
     }
 }
 
-fn read_le_f32(chunk: &[u8; 4]) -> f32 {
-    f32::from_le_bytes(*chunk)
-}
-
-/// Read a [`SipWcs`] out of a FITS header.
-///
-/// Returns `None` unless `CRVAL1/2`, `CRPIX1/2` and all four `CD` terms are
-/// present and the CD matrix is non-degenerate, so a caller never folds a frame
-/// whose astrometry cannot be inverted.
+/// The usable astrometry in a FITS header: [`SipWcs::from_header`], or `None`
+/// when what it reads cannot be inverted, so a caller never folds a frame
+/// whose astrometry is degenerate.
 pub fn wcs_from_header(header: &FitsHeader) -> Option<SipWcs> {
-    let crval1 = header.get_float("CRVAL1")?;
-    let crval2 = header.get_float("CRVAL2")?;
-    let crpix1 = header.get_float("CRPIX1")?;
-    let crpix2 = header.get_float("CRPIX2")?;
-    let cd1_1 = header.get_float("CD1_1")?;
-    let cd1_2 = header.get_float("CD1_2")?;
-    let cd2_1 = header.get_float("CD2_1")?;
-    let cd2_2 = header.get_float("CD2_2")?;
-    let det = cd1_1 * cd2_2 - cd1_2 * cd2_1;
-    if !det.is_finite() || det == 0.0 {
-        return None;
-    }
-    let a_order = header.get_int("A_ORDER").unwrap_or(0).max(0) as u32;
-    let b_order = header.get_int("B_ORDER").unwrap_or(0).max(0) as u32;
-    let ap_order = header.get_int("AP_ORDER").unwrap_or(0).max(0) as u32;
-    let bp_order = header.get_int("BP_ORDER").unwrap_or(0).max(0) as u32;
-    Some(SipWcs {
-        crval1,
-        crval2,
-        crpix1,
-        crpix2,
-        cd1_1,
-        cd1_2,
-        cd2_1,
-        cd2_2,
-        a_order,
-        b_order,
-        a_coeffs: read_sip_coeffs(header, "A", a_order),
-        b_coeffs: read_sip_coeffs(header, "B", b_order),
-        ap_order,
-        bp_order,
-        ap_coeffs: read_sip_coeffs(header, "AP", ap_order),
-        bp_coeffs: read_sip_coeffs(header, "BP", bp_order),
-    })
+    SipWcs::from_header(header).filter(SipWcs::is_invertible)
 }
-
-/// SIP coefficients for one polynomial, packed row-major as `i*(order+1)+j`.
-/// Absent terms are zero, which is the FITS convention for an omitted card.
-fn read_sip_coeffs(header: &FitsHeader, prefix: &str, order: u32) -> Vec<f64> {
-    if order == 0 {
-        return Vec::new();
-    }
-    let n = (order + 1) as usize;
-    let mut coeffs = vec![0.0_f64; n * n];
-    for i in 0..n {
-        for j in 0..n {
-            if let Some(v) = header.get_float(&format!("{prefix}_{i}_{j}")) {
-                coeffs[i * n + j] = v;
-            }
-        }
-    }
-    coeffs
-}
-
-// ---------------------------------------------------------------------------
-// Catalog handle
-// ---------------------------------------------------------------------------
 
 /// One catalogue star with genuine photometry, in degrees.
 ///
@@ -917,10 +795,6 @@ pub trait PhotometryCatalog: Send + Sync {
     /// them, not the list.
     fn identity(&self) -> String;
 }
-
-// ---------------------------------------------------------------------------
-// OpContext
-// ---------------------------------------------------------------------------
 
 /// Everything an operation needs beyond its image and parameters.
 ///
@@ -1026,12 +900,10 @@ impl OpContext {
         Arc::clone(&self.cancel)
     }
 
-    /// Whether cancellation has been requested.
     pub fn cancel_requested(&self) -> bool {
         self.cancel.load(Ordering::Relaxed)
     }
 
-    /// Raise the cancel flag.
     pub fn request_cancel(&self) {
         self.cancel.store(true, Ordering::Relaxed);
     }
@@ -1118,10 +990,6 @@ impl OpContext {
     }
 }
 
-// ---------------------------------------------------------------------------
-// The operation trait
-// ---------------------------------------------------------------------------
-
 /// The pixel domain an operation *emits*.
 ///
 /// A `Linear` operation reads and writes linear data. A `Stretched` operation
@@ -1158,7 +1026,6 @@ impl OpStage {
 /// it the fit would have to be repeated outside the render to be seen.
 #[derive(Debug, Clone)]
 pub struct OpApplied {
-    /// The image the operation produced.
     pub image: OpImage,
     /// What the operation solved while it ran, as the step report's detail, or
     /// `None` when its parameters already describe its result in full.

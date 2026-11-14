@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import '../models/sequence/sequence_models.dart';
 import 'sequence_time_estimator.dart';
 
@@ -74,6 +75,9 @@ class PreSessionSimulator {
     SequenceTimeEstimator estimator = const SequenceTimeEstimator(),
   }) : _estimator = estimator;
 
+  /// Simulate [sequence] run from [start]. [framesDone] holds the frames each
+  /// exposure step already has, by node id, when the run continues one that
+  /// was stopped; the run's end then counts only what is left.
   PreSessionSimulationResult simulate(
     Sequence sequence, {
     required DateTime start,
@@ -82,6 +86,10 @@ class PreSessionSimulator {
     double minAltitude = 20.0,
     DateTime? darkWindowStart,
     DateTime? darkWindowEnd,
+    DateTime? runEndsBy,
+    bool autoFocusOnFilterChange = false,
+    int autoFocusEveryMinutes = 0,
+    Map<String, int> framesDone = const {},
   }) {
     final analysis = latitude == null || longitude == null
         ? (
@@ -95,6 +103,7 @@ class PreSessionSimulator {
             latitude: latitude,
             longitude: longitude,
             minAltitude: minAltitude,
+            runEndsBy: runEndsBy,
           );
 
     final segments = analysis.timings
@@ -117,11 +126,20 @@ class PreSessionSimulator {
         start,
         latitude: latitude,
         longitude: longitude,
+        autoFocusOnFilterChange: autoFocusOnFilterChange,
+        autoFocusEveryMinutes: autoFocusEveryMinutes,
+        runEndsBy: runEndsBy,
       ),
     );
-    final end = segments.isEmpty
+    final planEnd = segments.isEmpty
         ? start
         : (walkEnd.isAfter(segments.last.end) ? walkEnd : segments.last.end);
+    // A run continued from its checkpoint takes only the frames its steps
+    // still owe.
+    final remainingEnd = planEnd.subtract(
+      _framesDoneTime(sequence, framesDone),
+    );
+    final end = remainingEnd.isBefore(start) ? start : remainingEnd;
     final issues = <PreSessionSimulationIssue>[
       ...analysis.conflicts.map(
         (message) => PreSessionSimulationIssue(
@@ -134,15 +152,15 @@ class PreSessionSimulator {
         PreSessionSimulationIssue(
           severity: PreSessionSimulationSeverity.warning,
           message:
-              'Sequence is expected to start at ${_formatTime(start)}, '
-              'before the dark window starts at ${_formatTime(darkWindowStart)}.',
+              'Sequence is expected to start at ${ClockFormat.hm(start)}, '
+              'before the dark window starts at ${ClockFormat.hm(darkWindowStart)}.',
         ),
       if (darkWindowEnd != null && end.isAfter(darkWindowEnd))
         PreSessionSimulationIssue(
           severity: PreSessionSimulationSeverity.warning,
           message:
-              'Sequence is expected to end at ${_formatTime(end)}, '
-              'after the dark window ends at ${_formatTime(darkWindowEnd)}.',
+              'Sequence is expected to end at ${ClockFormat.hm(end)}, '
+              'after the dark window ends at ${ClockFormat.hm(darkWindowEnd)}.',
         ),
     ];
 
@@ -154,6 +172,17 @@ class PreSessionSimulator {
       targetWindows: Map.unmodifiable(analysis.windows),
       issues: List.unmodifiable(issues),
     );
+  }
+
+  Duration _framesDoneTime(Sequence sequence, Map<String, int> framesDone) {
+    var done = Duration.zero;
+    for (final MapEntry(key: nodeId, value: frames) in framesDone.entries) {
+      final node = sequence.nodes[nodeId];
+      if (node is ExposureNode) {
+        done += _estimator.exposureFramesDuration(node, frames);
+      }
+    }
+    return done;
   }
 
   PreSessionSimulationSegment _segmentFromTiming(
@@ -197,8 +226,4 @@ class PreSessionSimulator {
       }
     }
   }
-
-  String _formatTime(DateTime time) =>
-      '${time.hour.toString().padLeft(2, '0')}:'
-      '${time.minute.toString().padLeft(2, '0')}';
 }

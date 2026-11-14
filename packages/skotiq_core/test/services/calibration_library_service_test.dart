@@ -8,7 +8,7 @@ import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/calibration/calibration_library_models.dart';
-import 'package:skotiq_core/src/services/calibration/fits_header_reader.dart';
+import 'package:skotiq_core/src/services/frame_header.dart';
 import 'package:skotiq_core/src/services/calibration_library_service.dart';
 
 void main() {
@@ -30,9 +30,9 @@ void main() {
       db: db,
       flatLibraryDao: flatDao,
       tagsDao: tagsDao,
-      // Disable header enrichment in tests: the test fixtures are not real
-      // FITS files, and the matcher logic under test doesn't depend on it.
-      headerReader: const FitsHeaderReader(),
+      // The fixtures are not frame files, and the matcher logic under test
+      // does not depend on their headers.
+      readHeader: (_) async => FrameHeader(const {}),
       now: () => now,
     );
   });
@@ -41,8 +41,8 @@ void main() {
 
   Future<int> insertDark({
     required double exposureTime,
-    int gain = 100,
-    int offset = 50,
+    int? gain = 100,
+    int? offset = 50,
     int binX = 1,
     int binY = 1,
     double? temperature,
@@ -71,8 +71,8 @@ void main() {
 
   Future<int> insertFlat({
     String filter = 'L',
-    int gain = 100,
-    int offset = 50,
+    int? gain = 100,
+    int? offset = 50,
     int binX = 1,
     int binY = 1,
     double? temperature,
@@ -235,6 +235,66 @@ void main() {
     });
   });
 
+  group('read modes', () {
+    // A QHY camera read out in two modes has two read noises and pedestals;
+    // its darks of one mode do not calibrate lights of the other.
+    test('lights that state a read mode take a dark of that mode', () async {
+      final dir = await Directory.systemTemp.createTemp('cal_read_mode');
+      addTearDown(() => dir.delete(recursive: true));
+      Future<String> masterIn(String mode) async {
+        final path = '${dir.path}/master_dark_$mode.fits';
+        await File(path).writeAsBytes(const [0]);
+        await darkDao.addEntry(
+          DarkLibraryCompanion.insert(
+            filePath: path,
+            exposureTime: 300,
+            gain: const Value(30),
+            offset: const Value(10),
+            masterDarkPath: Value(path),
+            masterFrameCount: const Value(20),
+            createdAt: Value(now),
+          ),
+        );
+        return path;
+      }
+
+      final photographic = await masterIn('photographic');
+      final highGain = await masterIn('highgain');
+      final matcher = CalibrationLibraryService(
+        db: db,
+        flatLibraryDao: flatDao,
+        tagsDao: tagsDao,
+        readHeader: (path) async => FrameHeader({
+          'READOUTM': path == photographic
+              ? 'Photographic DSO 16BIT'
+              : 'High Gain Mode 16BIT',
+        }),
+        now: () => now,
+      );
+      LightFrameContext lights(String? mode) => LightFrameContext(
+        gain: 30,
+        offset: 10,
+        exposureSeconds: 300,
+        readoutMode: mode,
+      );
+
+      for (final (mode, path) in [
+        ('Photographic DSO 16BIT', photographic),
+        ('High Gain Mode 16BIT', highGain),
+      ]) {
+        final match = await matcher.match(lights(mode), includeRemote: false);
+        expect(match.dark?.record.filePath, path, reason: mode);
+      }
+      final other = await matcher.match(
+        lights('Extended Full Well 16BIT'),
+        includeRemote: false,
+      );
+      expect(other.dark, isNull);
+      final unstated = await matcher.match(lights(null), includeRemote: false);
+      expect(unstated.dark, isNotNull);
+    });
+  });
+
   group('bias matching', () {
     test('matches exact gain/offset and is detected as a bias', () async {
       await insertDark(
@@ -335,9 +395,9 @@ void main() {
         db: db,
         flatLibraryDao: flatDao,
         tagsDao: tagsDao,
-        headerReader: _FixedHeaderReader({
-          flatPath: {'FILTER': "'Ha'", 'CCD-TEMP': '-10.0'},
-        }),
+        readHeader: (path) async => FrameHeader(
+          path == flatPath ? {'FILTER': 'Ha', 'CCD-TEMP': -10.0} : const {},
+        ),
         now: () => now,
       );
 
@@ -363,6 +423,62 @@ void main() {
         isFalse,
         reason: 'the matcher must not contradict the library list',
       );
+    });
+  });
+
+  group('a camera without gain or offset control', () {
+    test('its lights match its darks, bias and flats, which record neither, '
+        'as an exact pick, ahead of a gain-0 master', () async {
+      await insertDark(exposureTime: 300, gain: 0, offset: 0, temperature: -10);
+      await insertDark(
+        exposureTime: 300,
+        gain: null,
+        offset: null,
+        temperature: -10,
+      );
+      await insertDark(
+        exposureTime: 0,
+        gain: null,
+        offset: null,
+        frameType: 'bias',
+      );
+      await insertFlat(gain: null, offset: null);
+
+      final match = await service.match(
+        const LightFrameContext(
+          gain: null,
+          offset: null,
+          exposureSeconds: 300,
+          temperature: -10,
+          filter: 'L',
+        ),
+      );
+
+      for (final pick in [match.dark, match.bias, match.flat]) {
+        expect(pick, isNotNull);
+        expect((pick!.record.gain, pick.record.offset), (null, null));
+        expect(pick.reasons.any((r) => r.contains('UNVERIFIED')), isFalse);
+        expect(pick.warnings.any((w) => w.contains('record no')), isFalse);
+      }
+      expect(
+        match.dark!.reasons.first,
+        'Exact no gain / no offset / bin 1x1 match (required for darks)',
+      );
+      expect(match.dark!.score, 100);
+    });
+
+    test('its lights never take a master of a camera with gain as an exact '
+        'pick', () async {
+      await insertDark(exposureTime: 300, gain: 0, offset: 0);
+      final match = await service.match(
+        const LightFrameContext(gain: null, offset: null, exposureSeconds: 300),
+      );
+      expect(match.dark, isNotNull);
+      expect(
+        match.dark!.reasons.any((r) => r.contains('gain UNVERIFIED')),
+        isTrue,
+      );
+      expect(match.dark!.score, lessThan(100));
     });
   });
 
@@ -484,8 +600,8 @@ void main() {
       final darkWarning = match.warnings.firstWhere(
         (w) => w.contains('No matching master dark'),
       );
-      expect(darkWarning, contains('gain unrecorded'));
-      expect(darkWarning, contains('offset unrecorded'));
+      expect(darkWarning, contains('no gain'));
+      expect(darkWarning, contains('no offset'));
       expect(darkWarning, isNot(contains('gain 0')));
     });
 
@@ -576,16 +692,4 @@ void main() {
       );
     });
   });
-}
-
-/// A [FitsHeaderReader] that serves canned primary headers by path, so the
-/// enrichment pass can be exercised without writing real FITS files.
-class _FixedHeaderReader implements FitsHeaderReader {
-  const _FixedHeaderReader(this._byPath);
-
-  final Map<String, Map<String, String>> _byPath;
-
-  @override
-  Future<Map<String, String>> readPrimaryHeader(String path) async =>
-      _byPath[path] ?? const {};
 }

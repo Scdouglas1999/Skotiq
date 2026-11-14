@@ -89,7 +89,7 @@ class FramingTargetSearch extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SkotiqTextField(
-              key: FramingTutorialKeys.targetSearch,
+              key: TourTarget.framingTargetSearch.key,
               controller: searchController,
               focusNode: searchFocusNode,
               hint: 'Search M42, NGC 7000, Orion',
@@ -346,7 +346,8 @@ class FramingTargetSection extends StatelessWidget {
           size: IconButtonSize.sm,
           onPressed: () {
             Clipboard.setData(ClipboardData(
-              text: '${aim.raFormatted}, ${aim.decFormatted}',
+              text: '${CoordinateFormat.raReadout(aim.raHours)}, '
+                  '${CoordinateFormat.decReadout(aim.decDegrees)}',
             ));
             context.showInfoSnackBar('Coordinates copied');
           },
@@ -360,7 +361,7 @@ class FramingTargetSection extends StatelessWidget {
       ],
       children: [
         KeyedSubtree(
-          key: FramingTutorialKeys.coordinates,
+          key: TourTarget.framingCoordinates.key,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -369,8 +370,14 @@ class FramingTargetSection extends StatelessWidget {
                 columns: 2,
                 semanticLabel: 'Frame center',
                 items: [
-                  MetricGridItem(label: 'RA', value: aim.raFormatted),
-                  MetricGridItem(label: 'Dec', value: aim.decFormatted),
+                  MetricGridItem(
+                    label: 'RA',
+                    value: CoordinateFormat.raReadout(aim.raHours),
+                  ),
+                  MetricGridItem(
+                    label: 'Dec',
+                    value: CoordinateFormat.decReadout(aim.decDegrees),
+                  ),
                 ],
               ),
               const SizedBox(height: SkotiqTokens.spaceSm),
@@ -423,7 +430,7 @@ class FramingTargetSection extends StatelessWidget {
           ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         AltitudeChart(
-          key: FramingTutorialKeys.altitudeChart,
+          key: TourTarget.framingAltitudeChart.key,
           raHours: aim.raHours,
           decDegrees: aim.decDegrees,
           targetName: aim.name,
@@ -436,7 +443,7 @@ class FramingTargetSection extends StatelessWidget {
 
 /// The Camera section: the active profile's field of view as readouts, the
 /// camera and telescope, or the single [SkotiqBanner] for the current
-/// `EquipmentStatus` (noProfile / noFocalLength / noCameraSpecs).
+/// `FramingEquipmentStatus` (noProfile / noFocalLength / noCameraSpecs).
 class FramingEquipmentSection extends StatelessWidget {
   final SkotiqColors colors;
   final AsyncValue<FramingEquipmentResult> equipmentAsync;
@@ -484,7 +491,7 @@ class FramingEquipmentSection extends StatelessWidget {
           SkotiqBanner(
             tone: BannerTone.error,
             title: 'Could not read your equipment',
-            message: e.toString(),
+            message: userFacingError(e),
           ),
         ],
       ),
@@ -498,19 +505,19 @@ class FramingEquipmentSection extends StatelessWidget {
           label: 'Open settings',
           size: ButtonSize.small,
           variant: ButtonVariant.secondary,
-          onPressed: () => context.go('/equipment'),
+          onPressed: () => context.go(AppRoute.equipment.path),
         );
 
     final Widget body;
     switch (result.status) {
-      case EquipmentStatus.noProfile:
+      case FramingEquipmentStatus.noProfile:
         body = SkotiqBanner(
           tone: BannerTone.warning,
           title: 'No equipment profile',
           message: 'Create and activate one to preview your field of view.',
           action: openSettings(),
         );
-      case EquipmentStatus.noFocalLength:
+      case FramingEquipmentStatus.noFocalLength:
         body = SkotiqBanner(
           tone: BannerTone.warning,
           title: 'Optical specs missing',
@@ -518,14 +525,14 @@ class FramingEquipmentSection extends StatelessWidget {
               'preview your field of view.',
           action: openSettings(),
         );
-      case EquipmentStatus.noCameraSpecs:
+      case FramingEquipmentStatus.noCameraSpecs:
         body = const SkotiqBanner(
           tone: BannerTone.warning,
           title: 'Camera not configured',
           message: 'Connect a camera, or enter its sensor specs, for '
               'an accurate field of view.',
         );
-      case EquipmentStatus.ready:
+      case FramingEquipmentStatus.ready:
         final equipment = result.equipment!;
         body = LayoutBuilder(
           builder: (context, constraints) =>

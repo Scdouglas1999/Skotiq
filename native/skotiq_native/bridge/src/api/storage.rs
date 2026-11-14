@@ -1,28 +1,6 @@
-// split from monolithic api.rs
-#![allow(unused_imports)]
-// Shared imports inherited from the monolithic api.rs.
-use crate::device::*;
-use crate::device_manager::DeviceManager;
-use crate::error::*;
-use crate::event::*;
-use crate::state::*;
+use crate::error::SkotiqError;
+use crate::state::{get_state, EquipmentProfile};
 use crate::storage::{AppSettings, ObserverLocation};
-use crate::unified_device_ops::create_unified_device_ops;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use skotiq_imaging::{
-    calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
-    DebayerAlgorithm, FitsHeader, ImageData,
-};
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
-use tokio::sync::RwLock;
-// Sibling-module items via the parent's pub use re-exports.
-use super::*;
 
 // Equipment profiles
 
@@ -70,8 +48,6 @@ pub async fn api_get_active_profile() -> Result<Option<EquipmentProfile>, Skotiq
     Ok(get_state().get_profile().await)
 }
 
-// Settings & location
-
 /// Initialize settings storage and load observer location into memory
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_init_settings_storage(storage_path: String) -> Result<(), SkotiqError> {
@@ -94,7 +70,7 @@ pub fn api_init_settings_storage(storage_path: String) -> Result<(), SkotiqError
     // paths immediately — without waiting for the UI to call
     // api_platesolve_set_config.
     if let Ok(pref) = crate::state::get_platesolver_preference() {
-        skotiq_imaging::set_solver_preference(
+        skotiq_platesolve::set_solver_preference(
             if pref.astap_path.is_empty() {
                 None
             } else {

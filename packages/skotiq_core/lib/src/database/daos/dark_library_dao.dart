@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../models/calibration/dark_library_match_tolerances.dart';
 import '../../services/logging_service.dart';
+import '../camera_setting_match.dart';
 import '../database.dart';
 import '../tables/dark_library.dart';
 
@@ -14,7 +15,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
     with _$DarkLibraryDaoMixin {
   DarkLibraryDao(super.db);
 
-  /// Insert a new dark frame entry and return its ID.
   Future<int> addEntry(DarkLibraryCompanion entry) {
     return transaction(() async {
       final filePath = entry.filePath.present ? entry.filePath.value : null;
@@ -58,7 +58,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Watch entries by frame type.
   Stream<List<DarkLibraryEntry>> watchEntriesByFrameType(String type) {
     return (select(darkLibrary)
           ..where((t) => t.frameType.equals(type))
@@ -66,95 +65,15 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  /// Find the best matching dark/bias for a given light frame's parameters.
-  ///
-  /// Matching rules:
-  /// - Exposure time must be within [tolerances.exposureSecs] (default ±0.5s)
-  /// - Gain, offset, and binning must match exactly
-  /// - Temperature must be within [tolerances.temperatureC] (default ±1.0°C)
-  /// - Prefers master darks over individual raws
-  /// - Among matches, picks the one closest in temperature
-  ///
-  /// The tolerances argument is the SAME value object consulted by
-  /// `DarkLibraryCoverageService.evaluate`. Before unification, the coverage
-  /// UI used ±1.0s while this DAO used ±0.001s, so the UI happily showed
-  /// "all darks present" while this method returned null at runtime.
-  Future<DarkLibraryEntry?> findBestMatch({
-    required double exposureTime,
-    required int gain,
-    required int offset,
-    required int binX,
-    required int binY,
-    double? temperature,
-    DarkLibraryMatchTolerances tolerances = DarkLibraryMatchTolerances.defaults,
-    String frameType = 'dark',
-  }) async {
-    // Build query: tolerance match on exposure, exact on gain/offset/binning/frame type.
-    final exposureTol = tolerances.exposureSecs;
-    var query = select(darkLibrary)
-      ..where(
-        (t) =>
-            t.exposureTime.isBiggerOrEqualValue(exposureTime - exposureTol) &
-            t.exposureTime.isSmallerOrEqualValue(exposureTime + exposureTol) &
-            t.gain.equals(gain) &
-            t.offset.equals(offset) &
-            t.binX.equals(binX) &
-            t.binY.equals(binY) &
-            t.frameType.equals(frameType),
-      );
-
-    final candidates = await query.get();
-    if (candidates.isEmpty) return null;
-
-    // Filter by temperature tolerance if temperature is available
-    List<DarkLibraryEntry> filtered;
-    if (temperature != null) {
-      filtered = candidates.where((c) {
-        if (c.temperature == null) {
-          return true; // Accept frames without temp data
-        }
-        return (c.temperature! - temperature).abs() <= tolerances.temperatureC;
-      }).toList();
-    } else {
-      filtered = candidates;
-    }
-
-    if (filtered.isEmpty) return null;
-
-    // Prefer master darks over raw frames
-    final masters = filtered.where((c) => c.masterDarkPath != null).toList();
-    final pool = masters.isNotEmpty ? masters : filtered;
-
-    if (temperature == null) {
-      // No temperature to sort by; return the newest entry
-      pool.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return pool.first;
-    }
-
-    // Sort by closest temperature match
-    pool.sort((a, b) {
-      final aDelta = a.temperature != null
-          ? (a.temperature! - temperature).abs()
-          : double.maxFinite;
-      final bDelta = b.temperature != null
-          ? (b.temperature! - temperature).abs()
-          : double.maxFinite;
-      return aDelta.compareTo(bDelta);
-    });
-
-    return pool.first;
-  }
-
   /// Get all entries that match a specific exposure/gain/binning combo.
   /// Useful for selecting frames to combine into a master dark.
   ///
-  /// Uses the same exposure tolerance as [findBestMatch] (default ±0.5s) so
-  /// master-dark grouping cannot disagree with what calibration matches at
-  /// runtime.
+  /// Uses the exposure tolerance of the dark selection rule (default ±0.5 s),
+  /// so master-dark grouping cannot disagree with what calibration matches.
   Future<List<DarkLibraryEntry>> getMatchingFrames({
     required double exposureTime,
-    required int gain,
-    required int offset,
+    required int? gain,
+    required int? offset,
     required int binX,
     required int binY,
     String frameType = 'dark',
@@ -170,8 +89,8 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
                 t.exposureTime.isSmallerOrEqualValue(
                   exposureTime + exposureTol,
                 ) &
-                t.gain.equals(gain) &
-                t.offset.equals(offset) &
+                t.gain.isSetting(gain) &
+                t.offset.isSetting(offset) &
                 t.binX.equals(binX) &
                 t.binY.equals(binY) &
                 t.frameType.equals(frameType) &
@@ -193,8 +112,8 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
           ..where(
             (t) =>
                 t.exposureTime.equals(group.exposureTime) &
-                t.gain.equals(group.gain) &
-                t.offset.equals(group.offset) &
+                t.gain.isSetting(group.gain) &
+                t.offset.isSetting(group.offset) &
                 t.binX.equals(group.binX) &
                 t.binY.equals(group.binY) &
                 t.frameType.equals(group.frameType),
@@ -203,24 +122,20 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Get a single entry by ID.
   Future<DarkLibraryEntry?> getEntryById(int id) {
     return (select(
       darkLibrary,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
-  /// Delete an entry by ID.
   Future<int> deleteEntry(int id) {
     return (delete(darkLibrary)..where((t) => t.id.equals(id))).go();
   }
 
-  /// Delete multiple entries by IDs.
   Future<int> deleteEntries(List<int> ids) {
     return (delete(darkLibrary)..where((t) => t.id.isIn(ids))).go();
   }
 
-  /// Delete all entries.
   Future<int> deleteAll() {
     return delete(darkLibrary).go();
   }
@@ -236,14 +151,12 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
   Future<DarkLibraryStats> getStats() async {
     final totalExp = darkLibrary.id.count();
 
-    // Count master darks (masterDarkPath IS NOT NULL)
     final masterQuery = selectOnly(darkLibrary)
       ..addColumns([totalExp])
       ..where(darkLibrary.masterDarkPath.isNotNull());
     final masterResult = await masterQuery.getSingle();
     final masterCount = masterResult.read(totalExp) ?? 0;
 
-    // Count bias frames (non-master)
     final biasQuery = selectOnly(darkLibrary)
       ..addColumns([totalExp])
       ..where(
@@ -253,7 +166,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
     final biasResult = await biasQuery.getSingle();
     final biasCount = biasResult.read(totalExp) ?? 0;
 
-    // Count dark frames (non-master, non-bias)
     final darkQuery = selectOnly(darkLibrary)
       ..addColumns([totalExp])
       ..where(
@@ -263,7 +175,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
     final darkResult = await darkQuery.getSingle();
     final darkCount = darkResult.read(totalExp) ?? 0;
 
-    // Total entries
     final totalQuery = selectOnly(darkLibrary)..addColumns([totalExp]);
     final totalResult = await totalQuery.getSingle();
     final totalEntries = totalResult.read(totalExp) ?? 0;
@@ -493,8 +404,8 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
       return DarkGroupKey(
         frameType: row.read(darkLibrary.frameType)!,
         exposureTime: row.read(darkLibrary.exposureTime)!,
-        gain: row.read(darkLibrary.gain)!,
-        offset: row.read(darkLibrary.offset)!,
+        gain: row.read(darkLibrary.gain),
+        offset: row.read(darkLibrary.offset),
         binX: row.read(darkLibrary.binX)!,
         binY: row.read(darkLibrary.binY)!,
       );
@@ -502,7 +413,6 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
   }
 }
 
-/// Summary statistics for the dark library.
 class DarkLibraryStats {
   final int totalEntries;
   final int darkCount;
@@ -521,8 +431,10 @@ class DarkLibraryStats {
 class DarkGroupKey {
   final String frameType;
   final double exposureTime;
-  final int gain;
-  final int offset;
+
+  /// Null for a camera without gain or offset control.
+  final int? gain;
+  final int? offset;
   final int binX;
   final int binY;
 

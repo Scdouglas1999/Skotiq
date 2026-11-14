@@ -13,7 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/photometric_calibration_wizard.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 ImagingSession _session(int id, String name) => ImagingSession(
@@ -47,7 +48,7 @@ DbCapturedImage _frame(
       createdAt: DateTime.utc(2026, 7, 14),
       isAccepted: true,
       isPlateSolved: true,
-      // 5.5 hours = 05:30:00, NOT 5.5 degrees.
+      // 5.5 hours = 05h 30m, NOT 5.5 degrees.
       solvedRa: 5.5,
       solvedDec: 25.0,
       mountAltitude: altitude,
@@ -116,8 +117,8 @@ void main() {
     await tester.pumpWidget(_app([_frame(11, 'v.fits', altitude: 60.0)]));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('RA 05:30:00.00'), findsOneWidget);
-    expect(find.textContaining('Dec +25:00:00.00'), findsOneWidget);
+    expect(find.textContaining('RA 05h 30m 00.0s'), findsOneWidget);
+    expect(find.textContaining('Dec +25° 00\' 00"'), findsOneWidget);
     expect(
       find.textContaining('RA: 5.5000'),
       findsNothing,

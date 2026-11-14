@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/backend/device_types.dart'
     as device_types;
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
@@ -10,6 +9,7 @@ import 'package:skotiq_core/src/providers/imaging_provider.dart';
 import 'package:skotiq_core/src/services/camera_temperature_poller.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 /// Builds a fully-populated [CameraStatus] varying only the cooling-relevant
 /// telemetry under test. Everything else mirrors a typical cooled camera so

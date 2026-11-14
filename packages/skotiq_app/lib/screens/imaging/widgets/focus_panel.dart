@@ -4,11 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/focus_model_curve_card.dart';
-import '../../../widgets/focuser_backlash/focuser_backlash_offer.dart';
-import '../../../widgets/focuser_controls.dart';
+import 'focus_model_curve_card.dart';
+import '../../equipment/focuser_backlash/focuser_backlash_offer.dart';
+import 'focuser_controls.dart';
 import 'panel_widgets.dart';
 
 /// Gap between the manual-focus step-size chips, in logical pixels.
@@ -122,7 +126,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
       }
     } catch (e) {
       if (mounted && _isCurrentService(service)) {
-        context.showErrorSnackBar('Autofocus failed: $e');
+        context.showErrorSnackBar('Autofocus failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentService(service)) {
@@ -171,7 +175,6 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Connection status
           if (!isConnected)
             Container(
               padding: const EdgeInsets.all(12),
@@ -196,13 +199,11 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
               ),
             ),
 
-          // Manual Focus Section
           PanelSection(
             title: 'Manual focus',
             colors: widget.colors,
             child: Column(
               children: [
-                // Position display
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -251,7 +252,7 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                             style: SkotiqTypography.caption
                                 .copyWith(color: widget.colors.textSecondary)),
                         Text(
-                          '${temperature.toStringAsFixed(1)}°C',
+                          formatCelsius(temperature),
                           style: SkotiqTypography.caption
                               .copyWith(color: widget.colors.textPrimary),
                         ),
@@ -260,7 +261,6 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
                   ),
                 const SizedBox(height: SkotiqTokens.spaceMd),
 
-                // Movement buttons - using shared FocuserControls widget
                 const FocuserControls(
                   compact: true,
                   showAutofocus: false,
@@ -325,7 +325,6 @@ class _FocusPanelState extends ConsumerState<FocusPanel> {
           ),
           const SizedBox(height: SidePanel.sectionGap),
 
-          // Autofocus Section
           PanelSection(
             title: 'Autofocus',
             colors: widget.colors,
@@ -587,7 +586,7 @@ class _GoToPositionDialogState extends State<GoToPositionDialog> {
       // flight owns the visible error, so don't clobber it here.
       setState(() {
         _submitting = false;
-        if (!_halting) _errorText = 'Move failed: $e';
+        if (!_halting) _errorText = 'Move failed: ${userFacingError(e)}';
       });
     }
   }
@@ -613,7 +612,7 @@ class _GoToPositionDialogState extends State<GoToPositionDialog> {
       // a focuser that may still be moving.
       setState(() {
         _halting = false;
-        _haltError = 'Stop failed: $e';
+        _haltError = 'Stop failed: ${userFacingError(e)}';
       });
     }
   }

@@ -5,7 +5,6 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as path;
 
 import '../models/update_manifest.dart';
@@ -14,7 +13,6 @@ import 'update_compatibility.dart';
 import 'update_service.dart' show persistStagedManifest;
 import 'update_verifier.dart';
 
-/// Callback for push progress updates
 typedef PushProgressCallback =
     void Function(
       int receivedBytes,
@@ -40,6 +38,7 @@ class LanPushReceiver {
   static const int maxManifestBytes = 1024 * 1024;
 
   final String _currentVersion;
+  final Future<Directory> Function() _dataDirectory;
   final int _currentBuildNumber;
   final UpdateVerifier _verifier;
   final int _serverPort;
@@ -56,15 +55,14 @@ class LanPushReceiver {
   /// Callback when an update push is complete
   void Function(UpdateManifest manifest, String stagingPath)? onUpdateReceived;
 
-  /// Callback for push progress
   PushProgressCallback? onProgress;
 
-  /// Callback for errors
   void Function(String error)? onError;
 
   LanPushReceiver({
     required String currentVersion,
     required int currentBuildNumber,
+    required Future<Directory> Function() dataDirectory,
     String? pushSecret,
     UpdateVerifier? verifier,
     int serverPort = pushPort,
@@ -72,6 +70,7 @@ class LanPushReceiver {
     String? currentArch,
   }) : _currentVersion = currentVersion,
        _currentBuildNumber = currentBuildNumber,
+       _dataDirectory = dataDirectory,
        _pushSecret = pushSecret,
        _serverPort = serverPort,
        _currentPlatform = normalizeUpdatePlatform(
@@ -154,7 +153,6 @@ class LanPushReceiver {
     );
   }
 
-  /// Stop the server
   Future<void> stopServer() async {
     await _server?.close();
     _server = null;
@@ -400,7 +398,6 @@ class LanPushReceiver {
       }
     }
 
-    // Verify package size
     final actualSize = await packageFile.length();
     if (actualSize != manifest.compressedSize) {
       await packageFile.delete();
@@ -467,7 +464,6 @@ class LanPushReceiver {
     _assertCompatibleManifest(manifest);
     onProgress?.call(packageBytes, packageBytes, 1.0, 'Extracting...');
 
-    // Extract package
     final extractDir = Directory(path.join(staging.path, 'extracted'));
     if (await extractDir.exists()) {
       await extractDir.delete(recursive: true);
@@ -478,7 +474,6 @@ class LanPushReceiver {
 
     onProgress?.call(packageBytes, packageBytes, 1.0, 'Verifying...');
 
-    // Verify extracted files
     final verification = await _verifier.verifyDirectory(extractDir, manifest);
     if (!verification.success) {
       await extractDir.delete(recursive: true);
@@ -494,7 +489,6 @@ class LanPushReceiver {
     // the marker is never written over an unverified or partial tree.
     await persistStagedManifest(staging, manifest);
 
-    // Write ready marker
     final markerFile = File(path.join(staging.path, 'ready.json'));
     developer.log(
       'Writing ready marker to: ${markerFile.path}',
@@ -523,9 +517,8 @@ class LanPushReceiver {
     if (incompatibility != null) throw Exception(incompatibility);
   }
 
-  /// Get staging directory
   Future<Directory> _getStagingDirectory() async {
-    final appData = await resolveSkotiqDataDirectory();
+    final appData = await _dataDirectory();
     final staging = Directory(path.join(appData.path, 'updates', 'staging'));
     if (!await staging.exists()) {
       await staging.create(recursive: true);
@@ -533,7 +526,6 @@ class LanPushReceiver {
     return staging;
   }
 
-  /// Dispose resources
   void dispose() {
     stopServer();
   }

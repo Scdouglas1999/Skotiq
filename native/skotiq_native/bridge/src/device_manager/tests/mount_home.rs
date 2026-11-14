@@ -3,6 +3,7 @@
 //! with no home command.
 
 use super::*;
+use crate::device::{DriverType, MountStatus};
 use crate::dispatch::error::DeviceOpError;
 use crate::storage::ObserverLocation;
 
@@ -11,10 +12,16 @@ pub(super) async fn register_mount(
     device_id: &str,
     driver_type: DriverType,
 ) {
+    let info = build_mount_info(device_id, driver_type);
+    if driver_type == DriverType::Simulator {
+        // The handle answers from the simulated mount, connected or not.
+        let handle = crate::simulator::driver::handle(&info).expect("simulated mount handle");
+        manager.handles.insert(device_id, handle);
+    }
     manager.devices.write().await.insert(
         device_id.to_string(),
         ManagedDevice {
-            info: build_mount_info(device_id, driver_type),
+            info,
             connection_state: ConnectionState::Connected,
             last_error: None,
             reconnect_attempts: 0,
@@ -22,9 +29,9 @@ pub(super) async fn register_mount(
             last_successful_comm: None,
             heartbeat_deferred_at: None,
             heartbeat_active: false,
-            api_version: None,
             desired_cooler: None,
             desired_tracking: None,
+            declared_mount_frame: None,
         },
     );
 }
@@ -32,10 +39,10 @@ pub(super) async fn register_mount(
 /// Put the simulated mount somewhere that is plainly not home: unparked,
 /// tracking, pointing well away from either pole.
 pub(super) async fn connect_sim_mount_away_from_home() {
-    crate::api::devices::simulation::cancel_sim_slew().await;
-    let mount = crate::api::devices::simulation::get_sim_mount();
+    crate::simulator::mount::cancel_sim_slew().await;
+    let mount = crate::simulator::mount::get_sim_mount();
     let mut mount = mount.write().await;
-    *mount = crate::api::devices::simulation::SimulatedMount::default();
+    *mount = crate::simulator::mount::SimulatedMount::default();
     mount.status.connected = true;
     mount.status.parked = false;
     mount.status.tracking = true;
@@ -44,8 +51,8 @@ pub(super) async fn connect_sim_mount_away_from_home() {
 }
 
 pub(super) async fn disconnect_sim_mount() {
-    crate::api::devices::simulation::cancel_sim_slew().await;
-    crate::api::devices::simulation::get_sim_mount()
+    crate::simulator::mount::cancel_sim_slew().await;
+    crate::simulator::mount::get_sim_mount()
         .write()
         .await
         .status
@@ -59,7 +66,7 @@ where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = ()>,
 {
-    let state = crate::api::get_state();
+    let state = crate::state::get_state();
     let previous = state.get_observer_location().ok().flatten();
     state
         .set_observer_location(Some(ObserverLocation {
@@ -171,7 +178,7 @@ async fn a_parked_mount_is_refused_and_stays_parked() {
     register_mount(&manager, device_id, DriverType::Simulator).await;
 
     connect_sim_mount_away_from_home().await;
-    crate::api::devices::simulation::get_sim_mount()
+    crate::simulator::mount::get_sim_mount()
         .write()
         .await
         .status
@@ -258,8 +265,8 @@ async fn a_mount_without_a_home_command_is_unsupported() {
     let manager = build_device_manager();
     let device_id = "native:meade:TEST_PORT";
     register_mount(&manager, device_id, DriverType::Native).await;
-    manager.native_mounts.write().await.insert(
-        device_id.to_string(),
+    manager.hold_vendor_mount(
+        device_id,
         Box::new(skotiq_native::vendor::lx200::Lx200Mount::new_meade(
             "TEST_PORT".to_string(),
         )),

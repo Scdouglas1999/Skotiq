@@ -1,0 +1,673 @@
+use super::{
+    emit_integration_progress, FRACTION_CALIBRATE, FRACTION_DONE, FRACTION_INTEGRATE,
+    FRACTION_INTEGRATE_DONE, FRACTION_NORMALIZE, FRACTION_REGISTER, FRACTION_WEIGHT,
+    FRACTION_WRITE,
+};
+use crate::output::{ensure_parent_dir, write_preview_png};
+use crate::post_session::args::{
+    transform_kind_wire, transform_to_row_major, IntegrateSessionArgs, IntegrateSessionResult,
+    PerFrameRecord,
+};
+use crate::post_session::calibration_report::build_calibration_report;
+use crate::post_session::cancel::{check_stage, RUNS};
+use crate::post_session::helpers::{
+    aligned_quality, build_integration_config, build_master_header, build_normalization_config,
+    build_registration_config, build_weight_formula, choose_reference, collect_master_provenance,
+    derive_luma_f64, exposures_per_light, extract_channel, header_string, image_to_f64,
+    reference_wcs_from_fits, write_channel, LightCalibration,
+};
+use crate::post_session::telemetry::{
+    elapsed_ms, emit_pass_telemetry, file_name, master_noise, report_normalized, RunningPreview,
+};
+use skotiq_imaging::calibration_masters::{cosmetic_correct_transient, CosmeticConfig};
+use skotiq_imaging::frame_weighting::{
+    weight_frames, CullPolicy, FrameQuality, FrameQualityConfig,
+};
+use skotiq_imaging::integration::{integrate_frames, IntegrationFrame};
+use skotiq_imaging::normalization::{apply_normalization, estimate_normalization, CoverageMask};
+use skotiq_imaging::registration::{register_frame, TransformModel};
+use skotiq_imaging::{read_image, write_fits, FitsHeader, ImageData, PixelType};
+use std::path::Path;
+
+/// A light frame loaded, calibrated, and ready to register: kept around so the
+/// reference can be picked after every sub's quality is known.
+pub(crate) struct LoadedLight {
+    pub(crate) path: String,
+    pub(crate) image: ImageData,
+    pub(crate) exposure_sec: f64,
+    /// The sub's own FITS keywords, kept from the single read so the master can
+    /// inherit FILTER/OBJECT/INSTRUME/DATE-OBS without re-opening every file.
+    pub(crate) header: FitsHeader,
+}
+
+pub(crate) fn run_integration(
+    args: IntegrateSessionArgs,
+) -> Result<IntegrateSessionResult, String> {
+    if args.light_paths.is_empty() {
+        return Err("no light frames supplied".to_string());
+    }
+    if args.output.master_fits_path.trim().is_empty() {
+        return Err("output.masterFitsPath is required".to_string());
+    }
+    // One exposure per light, or none at all. Refused before the run claims a
+    // cancellation id: a mismatched request is never a run.
+    let exposures = exposures_per_light(&args.exposures_sec, args.light_paths.len())?;
+
+    let cancel = RUNS.register(&args.run_id)?;
+    check_stage(&cancel, "calibrating", None, None)?;
+    let run_id = args.run_id.clone();
+
+    // Load calibration masters once (shared across all lights).
+    let masters = LightCalibration::load(
+        &args.calibration.dark,
+        &args.calibration.flat,
+        &args.calibration.bias,
+    )?;
+
+    // What the masters above actually are, measured against the group's anchor
+    // sub — the same first-sub anchor the Dart matcher selects on.
+    let calibration_report = build_calibration_report(&args.light_paths[0], &args.calibration);
+
+    emit_pass_telemetry(
+        &run_id,
+        "run_started",
+        serde_json::json!({
+            "lane": args.telemetry.lane,
+            "subs": args.light_paths.len(),
+            "names": args.light_paths.iter().map(|p| file_name(p)).collect::<Vec<_>>(),
+            "exposures": exposures,
+            "calibration": {
+                "dark": masters.dark.is_some(),
+                "flat": masters.flat.is_some(),
+                "bias": masters.bias.is_some(),
+                "cosmetic": args.calibration.cosmetic_correction,
+            },
+        }),
+    );
+
+    // Load + calibrate every light.
+    let total_lights = args.light_paths.len() as u32;
+    emit_integration_progress(
+        "calibrating",
+        FRACTION_CALIBRATE,
+        Some(0),
+        Some(total_lights),
+    );
+    let mut loaded: Vec<LoadedLight> = Vec::with_capacity(args.light_paths.len());
+    for (i, path) in args.light_paths.iter().enumerate() {
+        check_stage(&cancel, "calibrating", Some(i as u32), Some(total_lights))?;
+        let read =
+            read_image(Path::new(path)).map_err(|e| format!("failed to read '{path}': {e}"))?;
+        let source_header = read.header;
+        let mut image = read.image;
+        if image.pixel_type != PixelType::U16 {
+            return Err(format!(
+                "light '{path}' is {:?}; registration requires U16 (debayer/convert first)",
+                image.pixel_type
+            ));
+        }
+        if !masters.is_empty() {
+            image = masters
+                .apply(&image)
+                .map_err(|e| format!("calibration of '{path}' failed: {e}"))?;
+        }
+        if args.calibration.cosmetic_correction {
+            // Self-derived hot/cold transient repair (cosmic rays, residual hot
+            // pixels). Operates per-channel in place; the RETURNED REPORT is
+            // advisory, but the error is not: the calibration report stamps
+            // `cosmetic correction: applied` straight off this request flag
+            // (`build_calibration_report`), so a swallowed failure here writes a
+            // master that claims a repair it never ran.
+            cosmetic_correct_transient(&mut image, CosmeticConfig::default())
+                .map_err(|e| format!("cosmetic correction of '{path}' failed: {e}"))?;
+        }
+        // `exposures_per_light` guaranteed one entry per light, so `i` is in range.
+        loaded.push(LoadedLight {
+            path: path.clone(),
+            image,
+            exposure_sec: exposures[i],
+            header: source_header,
+        });
+        // Calibrate phase spans 0.0..0.20 across all lights.
+        let done = (i + 1) as u32;
+        let frac = if total_lights > 0 {
+            FRACTION_REGISTER * (done as f32 / total_lights as f32)
+        } else {
+            FRACTION_REGISTER
+        };
+        emit_integration_progress("calibrating", frac, Some(done), Some(total_lights));
+        emit_pass_telemetry(
+            &run_id,
+            "calibrated",
+            serde_json::json!({
+                "index": done,
+                "dateObs": header_string(&loaded[i].header, "DATE-OBS"),
+            }),
+        );
+    }
+
+    // Choose the reference frame.
+    // The registration config is built first: reference choice must consult the
+    // same star detector the registration will use.
+    check_stage(&cancel, "reference", None, None)?;
+    let reg_cfg = build_registration_config(&args.settings.align)?;
+    let q_cfg = FrameQualityConfig::default();
+    emit_pass_telemetry(&run_id, "reference_choosing", serde_json::json!({}));
+    let reference_started = std::time::Instant::now();
+    let ref_index = choose_reference(&args.reference, &loaded, &q_cfg, &reg_cfg)?;
+    let reference = &loaded[ref_index].image;
+    let width = reference.width;
+    let height = reference.height;
+    let channels = reference.channels;
+    let locations = (width as usize) * (height as usize);
+    let chan = channels as usize;
+    let mut preview = RunningPreview::new(&args.telemetry, width as usize, height as usize);
+    emit_pass_telemetry(
+        &run_id,
+        "reference_chosen",
+        serde_json::json!({
+            "index": ref_index + 1,
+            "ms": elapsed_ms(reference_started),
+            "path": preview.write_reference(reference),
+        }),
+    );
+
+    // Register every light onto the reference.
+    // Per-frame outputs, aligned to `loaded`.
+    struct Registered {
+        path: String,
+        // f64 channel-interleaved aligned pixels on the reference grid.
+        pixels: Vec<f64>,
+        coverage: CoverageMask,
+        rms_residual_px: Option<f64>,
+        exposure_sec: f64,
+        // Quality measured on the *aligned* luminance plane.
+        quality: Option<FrameQuality>,
+        accepted: bool,
+        reason: Option<String>,
+        // Source→reference homogeneous transform fitted during registration
+        // (identity for the reference). `None` only when registration failed.
+        // Surfaced to Dart so the drizzle flow can deposit each sub's raw,
+        // un-resampled pixels onto the finer output grid using this transform.
+        transform: Option<TransformModel>,
+    }
+
+    // One `registered` report per sub, from the record just pushed.
+    let emit_registered = |run_id: &str,
+                           i: usize,
+                           r: Option<&Registered>,
+                           matched: Option<usize>,
+                           inliers: Option<usize>,
+                           started: std::time::Instant| {
+        let Some(r) = r else { return };
+        let q = r.quality;
+        emit_pass_telemetry(
+            run_id,
+            "registered",
+            serde_json::json!({
+                "index": i + 1,
+                "name": file_name(&r.path),
+                "reference": i == ref_index,
+                "accepted": r.accepted,
+                "reason": r.reason,
+                "stars": q.map(|q| q.star_count),
+                "fwhm": q.map(|q| q.fwhm),
+                "eccentricity": q.and_then(|q| q.eccentricity),
+                "background": q.map(|q| q.background),
+                "noise": q.map(|q| q.noise),
+                "snr": q.map(|q| q.snr),
+                "rmsPx": r.rms_residual_px,
+                "transform": r.transform.as_ref().map(transform_to_row_major),
+                "matched": matched,
+                "inliers": inliers,
+                "ms": elapsed_ms(started),
+            }),
+        );
+    };
+
+    emit_integration_progress(
+        "registering",
+        FRACTION_REGISTER,
+        Some(0),
+        Some(total_lights),
+    );
+    let mut registered: Vec<Registered> = Vec::with_capacity(loaded.len());
+    for (i, light) in loaded.iter().enumerate() {
+        // Registering one full-sensor frame is the pipeline's longest
+        // uninterruptible step, so the flag is read before each one rather than
+        // only at the phase boundary.
+        check_stage(&cancel, "registering", Some(i as u32), Some(total_lights))?;
+        // Register phase spans 0.20..0.60; emit per frame (cheap), never per
+        // pixel. Emitted at the top so both the reference (`continue`) and the
+        // matched branches report uniform per-frame progress.
+        let done = (i + 1) as u32;
+        let frac = if total_lights > 0 {
+            FRACTION_REGISTER
+                + (FRACTION_WEIGHT - FRACTION_REGISTER) * (done as f32 / total_lights as f32)
+        } else {
+            FRACTION_WEIGHT
+        };
+        emit_integration_progress("registering", frac, Some(done), Some(total_lights));
+        let registering_started = std::time::Instant::now();
+        let mut matched: Option<usize> = None;
+        let mut inliers: Option<usize> = None;
+
+        if i == ref_index {
+            // The reference aligns to itself by identity; flatten directly.
+            let pixels = image_to_f64(&light.image);
+            let coverage = CoverageMask::full(width as usize, height as usize);
+            let quality = aligned_quality(&light.image, &q_cfg);
+            registered.push(Registered {
+                path: light.path.clone(),
+                pixels,
+                coverage,
+                rms_residual_px: Some(0.0),
+                exposure_sec: light.exposure_sec,
+                quality,
+                accepted: true,
+                reason: None,
+                transform: Some(TransformModel::identity()),
+            });
+            emit_registered(
+                &run_id,
+                i,
+                registered.last(),
+                None,
+                None,
+                registering_started,
+            );
+            continue;
+        }
+
+        match register_frame(reference, &light.image, &reg_cfg) {
+            Ok(reg) => {
+                matched = Some(reg.stats.correspondence_count);
+                inliers = Some(reg.stats.inlier_count);
+                let pixels = image_to_f64(&reg.aligned);
+                let coverage = CoverageMask::from_zero_fill(
+                    &derive_luma_f64(&pixels, locations, chan),
+                    width as usize,
+                    height as usize,
+                );
+                let quality = aligned_quality(&reg.aligned, &q_cfg);
+                registered.push(Registered {
+                    path: light.path.clone(),
+                    pixels,
+                    coverage,
+                    rms_residual_px: Some(reg.stats.rms_residual_px),
+                    exposure_sec: light.exposure_sec,
+                    quality,
+                    accepted: true,
+                    reason: None,
+                    transform: Some(reg.transform),
+                });
+            }
+            Err(e) => {
+                // A sub that cannot be registered is dropped (not fatal): the
+                // rest of the night still integrates. Recorded honestly so the
+                // UI can show why.
+                registered.push(Registered {
+                    path: light.path.clone(),
+                    pixels: Vec::new(),
+                    coverage: CoverageMask::full(0, 0),
+                    rms_residual_px: None,
+                    exposure_sec: light.exposure_sec,
+                    quality: None,
+                    accepted: false,
+                    reason: Some(format!("registration failed: {e}")),
+                    transform: None,
+                });
+            }
+        }
+        emit_registered(
+            &run_id,
+            i,
+            registered.last(),
+            matched,
+            inliers,
+            registering_started,
+        );
+    }
+
+    // Weight the accepted subs.
+    let accepted_idx: Vec<usize> = registered
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| r.accepted && r.quality.is_some())
+        .map(|(i, _)| i)
+        .collect();
+    if accepted_idx.is_empty() {
+        return Err("no subs could be registered + measured; nothing to integrate".to_string());
+    }
+
+    check_stage(&cancel, "weighting", None, None)?;
+    emit_integration_progress("weighting", FRACTION_WEIGHT, None, None);
+    let weights: Vec<f64> = if args.settings.weighting.enabled {
+        let qualities: Vec<FrameQuality> = accepted_idx
+            .iter()
+            .map(|&i| registered[i].quality.expect("filtered to Some"))
+            .collect();
+        let formula = build_weight_formula(&args.settings.weighting)?;
+        let report = weight_frames(&qualities, &formula, &CullPolicy::default())
+            .ok_or_else(|| "weighting produced no result".to_string())?;
+        report.frames.iter().map(|f| f.weight).collect()
+    } else {
+        vec![1.0; accepted_idx.len()]
+    };
+
+    emit_pass_telemetry(
+        &run_id,
+        "weighted",
+        serde_json::json!({
+            "weights": accepted_idx
+                .iter()
+                .zip(weights.iter())
+                .map(|(&i, &w)| serde_json::json!({ "index": i + 1, "weight": w }))
+                .collect::<Vec<_>>(),
+        }),
+    );
+
+    // Reference luminance for normalization (the anchor).
+    // Use the *registered* reference buffer (already on the grid).
+    let ref_reg_pos = accepted_idx
+        .iter()
+        .position(|&i| i == ref_index)
+        .ok_or_else(|| "reference frame was dropped during registration".to_string())?;
+    let ref_pixels = registered[ref_index].pixels.clone();
+
+    // Normalize each accepted sub to the reference, per channel.
+    let norm_total = accepted_idx.len() as u32;
+    emit_integration_progress("normalizing", FRACTION_NORMALIZE, Some(0), Some(norm_total));
+    if args.settings.normalization.enabled {
+        let norm_cfg = build_normalization_config(&args.settings.normalization)?;
+        // Per-channel reference planes (borrowed once).
+        let ref_planes: Vec<Vec<f64>> = (0..chan)
+            .map(|ch| extract_channel(&ref_pixels, locations, chan, ch))
+            .collect();
+        for (pos, &i) in accepted_idx.iter().enumerate() {
+            check_stage(&cancel, "normalizing", Some(pos as u32), Some(norm_total))?;
+            // Normalize phase spans 0.62..0.80; emit per accepted sub (cheap),
+            // emitted at the top so the reference (`continue`) frame still
+            // advances the bar.
+            let done = (pos + 1) as u32;
+            let frac = if norm_total > 0 {
+                FRACTION_NORMALIZE
+                    + (FRACTION_INTEGRATE - FRACTION_NORMALIZE) * (done as f32 / norm_total as f32)
+            } else {
+                FRACTION_INTEGRATE
+            };
+            emit_integration_progress("normalizing", frac, Some(done), Some(norm_total));
+
+            if i == ref_index {
+                report_normalized(
+                    &run_id,
+                    &mut preview,
+                    i,
+                    &registered[i].pixels,
+                    width,
+                    height,
+                    chan,
+                    done == norm_total,
+                );
+                continue;
+            }
+            let coverage = registered[i].coverage.clone();
+            for (ch, ref_plane) in ref_planes.iter().enumerate() {
+                let mut plane = extract_channel(&registered[i].pixels, locations, chan, ch);
+                let coeffs = estimate_normalization(
+                    &plane,
+                    ref_plane,
+                    &coverage,
+                    width as usize,
+                    height as usize,
+                    &norm_cfg,
+                )
+                .map_err(|e| format!("normalization of '{}' failed: {e}", registered[i].path))?;
+                apply_normalization(&mut plane, &coeffs, width as usize, height as usize);
+                write_channel(&mut registered[i].pixels, locations, chan, ch, &plane);
+            }
+            report_normalized(
+                &run_id,
+                &mut preview,
+                i,
+                &registered[i].pixels,
+                width,
+                height,
+                chan,
+                done == norm_total,
+            );
+        }
+    } else if preview.enabled() {
+        for (pos, &i) in accepted_idx.iter().enumerate() {
+            report_normalized(
+                &run_id,
+                &mut preview,
+                i,
+                &registered[i].pixels,
+                width,
+                height,
+                chan,
+                pos + 1 == accepted_idx.len(),
+            );
+        }
+    }
+    let _ = ref_reg_pos; // reference normalizes to identity; kept for clarity.
+
+    // Integrate.
+    let sub_count = accepted_idx.len();
+    let int_cfg = build_integration_config(&args.settings.integration, sub_count)?;
+    let frames: Vec<IntegrationFrame<'_>> = accepted_idx
+        .iter()
+        .zip(weights.iter())
+        .map(|(&i, &w)| IntegrationFrame {
+            pixels: &registered[i].pixels,
+            weight: w,
+            coverage: Some(&registered[i].coverage),
+        })
+        .collect();
+
+    // `integrate_frames` has no inner progress callback, so bracket it: 0.80
+    // before, 0.92 after. It is also the last point a cancellation can be
+    // honoured cheaply — the combine itself runs to completion once entered.
+    check_stage(&cancel, "integrating", None, None)?;
+    emit_integration_progress("integrating", FRACTION_INTEGRATE, None, None);
+    emit_pass_telemetry(
+        &run_id,
+        "integrating",
+        serde_json::json!({ "subs": sub_count, "reject": format!("{:?}", int_cfg.reject) }),
+    );
+    let integrating_started = std::time::Instant::now();
+    let output = integrate_frames(&frames, width, height, channels, &int_cfg)
+        .map_err(|e| format!("integration failed: {e}"))?;
+    emit_integration_progress("integrating", FRACTION_INTEGRATE_DONE, None, None);
+    emit_pass_telemetry(
+        &run_id,
+        "integrated",
+        serde_json::json!({
+            "frames": output.stats.frames_integrated,
+            "totalRejected": output.stats.total_rejected,
+            "rejectedFraction": output.stats.rejection_fraction,
+            "uncovered": output.stats.uncovered_pixels,
+            "noise": master_noise(&output.master),
+            "ms": elapsed_ms(integrating_started),
+        }),
+    );
+
+    // Write the master FITS. This is the last cancellation point: past the
+    // write the master exists, and a run that reported itself cancelled while a
+    // complete master sat on disk would misdescribe it.
+    check_stage(&cancel, "writing", None, None)?;
+    emit_integration_progress("writing", FRACTION_WRITE, None, None);
+    let master_path = Path::new(&args.output.master_fits_path);
+    ensure_parent_dir(master_path)?;
+    // Carry the reference frame's plate-solved WCS into the master so the mosaic
+    // stitcher can place this panel without a post-hoc solve. Best-effort: a
+    // reference with no WCS leaves the master WCS-less (the stitch gates it out).
+    let reference_wcs = reference_wcs_from_fits(&loaded[ref_index].path);
+    // Provenance comes from the ACCEPTED subs only: a frame that was rejected
+    // contributed no signal and must not name the master's filter or pull
+    // DATE-OBS earlier than the data actually integrated.
+    let accepted_headers: Vec<_> = accepted_idx
+        .iter()
+        .map(|&i| loaded[i].header.clone())
+        .collect();
+    let accepted_exposures: Vec<f64> = accepted_idx
+        .iter()
+        .map(|&i| loaded[i].exposure_sec)
+        .collect();
+    let provenance = collect_master_provenance(&accepted_headers, &accepted_exposures);
+    let header = build_master_header(
+        sub_count,
+        &args.settings.integration,
+        &int_cfg.reject,
+        &provenance,
+        reference_wcs.as_ref(),
+        &calibration_report,
+    );
+    write_fits(master_path, &output.master, &header)
+        .map_err(|e| format!("failed to write master FITS: {e:?}"))?;
+
+    // Optional rejection map FITS.
+    let rejection_map_path = if let (Some(p), Some(map)) = (
+        args.output.rejection_map_path.as_ref(),
+        output.rejection_map.as_ref(),
+    ) {
+        if !p.trim().is_empty() {
+            let path = Path::new(p);
+            ensure_parent_dir(path)?;
+            let mut h = FitsHeader::new();
+            h.set_string("IMAGETYP", "REJECTION_MAP");
+            h.add_history("Skotiq post-session rejection-count map");
+            write_fits(path, map, &h)
+                .map_err(|e| format!("failed to write rejection map: {e:?}"))?;
+            Some(p.clone())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // Optional stretched rejection-map PNG.
+    // Flutter cannot decode the scientific FITS map directly. Keep that FITS
+    // for inspection and emit a real image sibling for Session Review.
+    let rejection_map_preview_path = if let (Some(p), Some(map)) = (
+        args.output.rejection_map_preview_path.as_ref(),
+        output.rejection_map.as_ref(),
+    ) {
+        if !p.trim().is_empty() {
+            match write_preview_png(map, Path::new(p)) {
+                Ok(()) => Some(p.clone()),
+                Err(e) => {
+                    tracing::warn!(
+                        path = %p,
+                        error = %e,
+                        "rejection preview PNG write failed; keeping master and FITS map"
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // Optional stretched preview PNG.
+    let preview_path = if let Some(p) = args.output.preview_png_path.as_ref() {
+        if !p.trim().is_empty() {
+            write_preview_png(&output.master, Path::new(p))?;
+            Some(p.clone())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    // Final boundary: the master (and optional preview) are on disk.
+    emit_integration_progress("preview", FRACTION_DONE, None, None);
+    emit_pass_telemetry(
+        &run_id,
+        "written",
+        serde_json::json!({
+            "masterPath": args.output.master_fits_path,
+            "previewPath": preview_path,
+            "rejectionMapPreviewPath": rejection_map_preview_path,
+        }),
+    );
+
+    // Assemble per-frame stats + aggregate residual.
+    // Map normalized weights back to the accepted frames by position.
+    let mut weight_by_index: std::collections::HashMap<usize, f64> =
+        std::collections::HashMap::new();
+    for (pos, &i) in accepted_idx.iter().enumerate() {
+        weight_by_index.insert(i, weights[pos]);
+    }
+
+    let mut per_frame_stats = Vec::with_capacity(registered.len());
+    let mut residual_sum = 0.0;
+    let mut residual_n = 0usize;
+    let mut total_integration_sec = 0.0;
+    let mut frames_rejected = 0usize;
+    for (i, r) in registered.iter().enumerate() {
+        let weight = weight_by_index.get(&i).copied().unwrap_or(0.0);
+        if r.accepted {
+            if let Some(rms) = r.rms_residual_px {
+                if i != ref_index {
+                    residual_sum += rms;
+                    residual_n += 1;
+                }
+            }
+            total_integration_sec += r.exposure_sec;
+        } else {
+            frames_rejected += 1;
+        }
+        // Thread this sub's own measured FrameQuality into the record so the
+        // Dart side can persist per-sub snr/fwhm/eccentricity (the v42
+        // `integrated_master_frames` columns the Night Doctor reads). Quality is
+        // `None` only for subs that failed registration/measurement.
+        per_frame_stats.push(PerFrameRecord {
+            path: r.path.clone(),
+            weight,
+            rms_residual_px: r.rms_residual_px,
+            accepted: r.accepted,
+            reason: r.reason.clone(),
+            snr: r.quality.map(|q| q.snr),
+            // Surface the same measured quality the optimizer needs: `noise`
+            // (its variance term) plus the background/star_count context. Without
+            // `noise` the Dart morning-report curve is structurally dead.
+            noise: r.quality.map(|q| q.noise),
+            background: r.quality.map(|q| q.background),
+            star_count: r.quality.map(|q| q.star_count),
+            fwhm: r.quality.map(|q| q.fwhm),
+            eccentricity: r.quality.and_then(|q| q.eccentricity),
+            transform: r.transform.as_ref().map(transform_to_row_major),
+            transform_kind: r
+                .transform
+                .as_ref()
+                .map(|t| transform_kind_wire(t.kind).to_string()),
+        });
+    }
+    let rms_residual = if residual_n > 0 {
+        residual_sum / residual_n as f64
+    } else {
+        0.0
+    };
+
+    Ok(IntegrateSessionResult {
+        master_fits_path: args.output.master_fits_path.clone(),
+        preview_path,
+        rejection_map_path,
+        rejection_map_preview_path,
+        frames_integrated: output.stats.frames_integrated,
+        frames_rejected,
+        total_integration_sec,
+        rms_residual,
+        width,
+        height,
+        channels,
+        per_frame_stats,
+        calibration: calibration_report,
+    })
+}

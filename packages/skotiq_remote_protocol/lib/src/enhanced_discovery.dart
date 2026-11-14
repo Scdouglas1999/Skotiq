@@ -9,8 +9,9 @@ import 'package:nsd/nsd.dart';
 
 import 'discovery.dart';
 import 'network_uri.dart';
-import 'server_compatibility.dart';
+import 'link_version.dart';
 import 'tailnet_detector.dart';
+import 'wire/routes/system_api.dart';
 
 /// SharedPreferences keys for server persistence.
 ///
@@ -25,7 +26,6 @@ class _DiscoveryPrefs {
   static const lastServerSignalingPort = 'skotiq_last_server_signaling_port';
   static const lastServerName = 'skotiq_last_server_name';
   static const lastServerVersion = 'skotiq_last_server_version';
-  static const lastServerApiVersion = 'skotiq_last_server_api_version';
   static const lastServerMode = 'skotiq_last_server_mode';
   static const lastServerAuthRequired = 'skotiq_last_server_auth_required';
   static const lastServerAuthMode = 'skotiq_last_server_auth_mode';
@@ -407,10 +407,8 @@ String _normalizeTransportScheme(Object? raw, {String fallback = 'http'}) {
   return (lowered == 'http' || lowered == 'https') ? lowered : fallback;
 }
 
-/// Discovery status callback type
 typedef DiscoveryStatusCallback = void Function(String status);
 
-/// Enhanced discovery service with multiple fallback methods
 /// Why a server probe succeeded or failed.
 ///
 /// Reachable and authorised are different answers. A Skotiq host drops
@@ -448,12 +446,11 @@ class EnhancedSkotiqDiscovery {
       server.signalingPort,
     );
     await prefs.setString(_DiscoveryPrefs.lastServerName, server.name);
-    await prefs.setString(_DiscoveryPrefs.lastServerVersion, server.version);
-    final apiVersion = server.apiVersion;
-    if (apiVersion != null && apiVersion.isNotEmpty) {
-      await prefs.setString(_DiscoveryPrefs.lastServerApiVersion, apiVersion);
+    final version = server.version;
+    if (version != null) {
+      await prefs.setString(_DiscoveryPrefs.lastServerVersion, version);
     } else {
-      await prefs.remove(_DiscoveryPrefs.lastServerApiVersion);
+      await prefs.remove(_DiscoveryPrefs.lastServerVersion);
     }
     await prefs.setString(_DiscoveryPrefs.lastServerMode, server.mode);
     await prefs.setBool(
@@ -509,8 +506,7 @@ class EnhancedSkotiqDiscovery {
       signalingPort:
           prefs.getInt(_DiscoveryPrefs.lastServerSignalingPort) ?? 45678,
       name: prefs.getString(_DiscoveryPrefs.lastServerName) ?? 'Skotiq',
-      version: prefs.getString(_DiscoveryPrefs.lastServerVersion) ?? '2.0.0',
-      apiVersion: prefs.getString(_DiscoveryPrefs.lastServerApiVersion),
+      version: prefs.getString(_DiscoveryPrefs.lastServerVersion),
       mode: prefs.getString(_DiscoveryPrefs.lastServerMode) ?? 'desktop',
       authRequired:
           prefs.getBool(_DiscoveryPrefs.lastServerAuthRequired) ?? false,
@@ -534,7 +530,6 @@ class EnhancedSkotiqDiscovery {
     await prefs.remove(_DiscoveryPrefs.lastServerSignalingPort);
     await prefs.remove(_DiscoveryPrefs.lastServerName);
     await prefs.remove(_DiscoveryPrefs.lastServerVersion);
-    await prefs.remove(_DiscoveryPrefs.lastServerApiVersion);
     await prefs.remove(_DiscoveryPrefs.lastServerMode);
     await prefs.remove(_DiscoveryPrefs.lastServerAuthRequired);
     await prefs.remove(_DiscoveryPrefs.lastServerAuthMode);
@@ -549,11 +544,7 @@ class EnhancedSkotiqDiscovery {
   }
 
   static Map<String, String> _authHeaders(String? authToken) {
-    final headers = {
-      SkotiqServerCompatibility.apiVersionHeader: SkotiqServerCompatibility
-          .clientApiVersion
-          .format(),
-    };
+    final headers = {LinkVersion.header: skotiqRelease};
     if (authToken == null || authToken.isEmpty) {
       return headers;
     }
@@ -567,10 +558,6 @@ class EnhancedSkotiqDiscovery {
     return seed.copyWith(
       name: info['name'] as String? ?? seed.name,
       version: info['version'] as String? ?? seed.version,
-      apiVersion:
-          info['apiVersion'] as String? ??
-          info['version'] as String? ??
-          seed.apiVersion,
       mode: info['mode'] as String? ?? seed.mode,
       authRequired: info['authRequired'] as bool? ?? seed.authRequired,
       authenticationMode:
@@ -587,8 +574,22 @@ class EnhancedSkotiqDiscovery {
       tailscaleHost: info['tailscaleHost'] as String? ?? seed.tailscaleHost,
       relayApplianceId:
           info['relayApplianceId'] as String? ?? seed.relayApplianceId,
+      hostName: _nonEmpty(info['hostName']) ?? seed.hostName,
+      platform: _nonEmpty(info['platform']) ?? seed.platform,
+      hostMode: _nonEmpty(info['hostMode']) ?? seed.hostMode,
     );
   }
+
+  static String? _nonEmpty(Object? value) =>
+      value is String && value.trim().isNotEmpty ? value.trim() : null;
+
+  /// Merge a parsed `/api/info` body into [seed]. Public for the desktop
+  /// discovery, which fetches the info itself so it can keep the fingerprint
+  /// it pins.
+  static DiscoveredServer mergeServerInfo(
+    DiscoveredServer seed,
+    Map<String, dynamic> info,
+  ) => _mergeServerInfo(seed, info);
 
   static Future<DiscoveredServer?> fetchServerInfo(
     DiscoveredServer server, {
@@ -607,7 +608,7 @@ class EnhancedSkotiqDiscovery {
               scheme: server.scheme,
               host: server.host,
               port: server.webPort,
-              pathAndQuery: '/api/info',
+              pathAndQuery: SystemApi.info.route.path,
             ),
             headers: _authHeaders(server.authToken),
           )
@@ -698,7 +699,7 @@ class EnhancedSkotiqDiscovery {
               scheme: lowered,
               host: host,
               port: port,
-              pathAndQuery: '/api/info',
+              pathAndQuery: SystemApi.info.route.path,
             ),
             headers: _authHeaders(authToken),
           )
@@ -712,12 +713,10 @@ class EnhancedSkotiqDiscovery {
       }
 
       final info = jsonDecode(infoResponse.body) as Map<String, dynamic>;
-      final compatibility = SkotiqServerCompatibility.check(
-        info['apiVersion'] as String? ?? info['version'] as String?,
-      );
-      if (!compatibility.isCompatible) {
+      final mismatch = LinkVersion.check(host: info['version'] as String?);
+      if (mismatch != null) {
         developer.log(
-          'Incompatible Skotiq server: ${compatibility.message}',
+          'Incompatible Skotiq server: ${mismatch.message}',
           name: 'EnhancedDiscovery',
           level: 900,
         );
@@ -743,7 +742,7 @@ class EnhancedSkotiqDiscovery {
               scheme: lowered,
               host: host,
               port: port,
-              pathAndQuery: '/api/status',
+              pathAndQuery: SystemApi.status.route.path,
             ),
             headers: _authHeaders(authToken),
           )
@@ -770,12 +769,10 @@ class EnhancedSkotiqDiscovery {
   }
 
   static bool _isCompatibleServer(DiscoveredServer server) {
-    final compatibility = SkotiqServerCompatibility.check(
-      server.apiVersion ?? server.version,
-    );
-    if (!compatibility.isCompatible) {
+    final mismatch = server.linkMismatch;
+    if (mismatch != null) {
       developer.log(
-        'Skipping incompatible Skotiq server ${server.host}:${server.webPort}: ${compatibility.message}',
+        'Skipping incompatible Skotiq server ${server.host}:${server.webPort}: ${mismatch.message}',
         name: 'EnhancedDiscovery',
         level: 900,
       );
@@ -945,7 +942,6 @@ class EnhancedSkotiqDiscovery {
         }
       });
 
-      // Set timeout for discovery
       timeoutTimer = Timer(timeout, () {
         if (!completer.isCompleted) {
           completer.complete(servers);
@@ -979,7 +975,6 @@ class EnhancedSkotiqDiscovery {
     }
   }
 
-  /// Discover via UDP broadcast (existing method)
   static Future<List<DiscoveredServer>> discoverViaUdp({
     Duration timeout = const Duration(seconds: 3),
     DiscoveryStatusCallback? onStatus,

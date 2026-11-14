@@ -1,9 +1,13 @@
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
+import '../models/imaging/imaging_models.dart' show AutofocusSettings;
+import '../models/sequence/autofocus_run.dart';
 import '../models/sequence/sequence_models.dart';
 part 'sequence_time_estimator/timing_models.dart';
 part 'sequence_time_estimator/node_durations.dart';
 part 'sequence_time_estimator/window_solver.dart';
+part 'sequence_time_estimator/target_window.dart';
 
 /// Service for estimating sequence execution timing with astronomical awareness.
 ///
@@ -20,11 +24,23 @@ class SequenceTimeEstimator {
   /// call sites); the no-arg `const` form uses [defaultEstimatorOverhead].
   final SequenceOverheadConfig overhead;
 
+  /// The Autofocus settings: the sweep of every autofocus the executor adds
+  /// and of every Autofocus node that uses them (see [AutofocusRun]).
+  final AutofocusSettings autofocus;
+
   /// Construct with an explicit overhead model. Defaults to
   /// [defaultEstimatorOverhead] (2 s download, 5 s dither, 30 s slew/center,
   /// 120 s meridian-flip base, 10 min cooling), not the
   /// [SequenceOverheadConfig] field defaults.
-  const SequenceTimeEstimator({this.overhead = defaultEstimatorOverhead});
+  const SequenceTimeEstimator({
+    this.overhead = defaultEstimatorOverhead,
+    this.autofocus = const AutofocusSettings(),
+  });
+
+  /// The time one autofocus run the executor adds by itself takes.
+  Duration get addedAutofocusDuration => AutofocusRun.fromSettings(
+    autofocus,
+  ).duration(downloadSecs: overhead.downloadOverheadPerExposureSecs);
 
   // Default timing constants (in seconds unless noted)
 
@@ -52,6 +68,15 @@ class SequenceTimeEstimator {
 
   static const int _defaultScriptTimeoutSecs = 60;
 
+  /// The time [frames] frames of [node] take, each one's download included.
+  Duration exposureFramesDuration(ExposureNode node, int frames) => Duration(
+    milliseconds:
+        (frames *
+                (node.durationSecs + overhead.downloadOverheadPerExposureSecs) *
+                1000)
+            .round(),
+  );
+
   /// Minimum altitude for target visibility calculations (degrees)
   static const double _defaultMinAltitude = 0.0;
 
@@ -66,22 +91,27 @@ class SequenceTimeEstimator {
   /// [latitude] - Observer latitude in degrees (optional, needed for twilight waits)
   /// [longitude] - Observer longitude in degrees (optional, needed for twilight waits)
   ///
+  /// [runEndsBy] is when the run is stopped whatever the plan says (the
+  /// dawn park); a target is not started after it and its window ends there.
+  /// It needs the site, as do the targets' start and end conditions.
+  ///
   /// Returns a list of [NodeTiming] objects in execution order.
   List<NodeTiming> estimateSequenceTiming(
     Sequence sequence,
     DateTime startTime, {
     double? latitude,
     double? longitude,
+    DateTime? runEndsBy,
   }) {
     final timings = <NodeTiming>[];
     var currentTime = startTime;
 
-    // Create location context if coordinates provided
     final locationContext = (latitude != null && longitude != null)
         ? _LocationContext(
             latitude: latitude,
             longitude: longitude,
             date: startTime,
+            runEndsBy: runEndsBy,
           )
         : null;
 
@@ -100,7 +130,6 @@ class SequenceTimeEstimator {
         );
       }
     } else {
-      // Process from root node
       final rootNode = sequence.nodes[sequence.rootNodeId];
       if (rootNode != null && rootNode.isEnabled) {
         _processNode(
@@ -157,7 +186,6 @@ class SequenceTimeEstimator {
     final windows = <String, TargetWindow>{};
     final nightDate = AstronomyCalculations.nightDateOf(date);
 
-    // Find all TargetHeaderNode instances in the sequence
     for (final node in sequence.nodes.values) {
       if (node is TargetHeaderNode && node.isEnabled) {
         final effectiveMinAltitude = _effectiveMinAltitude(node, minAltitude);
@@ -224,16 +252,16 @@ class SequenceTimeEstimator {
         final startAfter = _effectiveStartAfter(targetNode);
         if (startAfter != null && timing.estimatedStart.isBefore(startAfter)) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" scheduled at ${_formatTime(timing.estimatedStart)} '
-            'before target start time ${_formatTime(startAfter)}',
+            '$targetName: "${timing.nodeName}" scheduled at ${ClockFormat.hm(timing.estimatedStart)} '
+            'before target start time ${ClockFormat.hm(startAfter)}',
           );
         }
 
         final endBefore = _effectiveEndBefore(targetNode);
         if (endBefore != null && timing.estimatedEnd.isAfter(endBefore)) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" ends at ${_formatTime(timing.estimatedEnd)} '
-            'after target end time ${_formatTime(endBefore)}',
+            '$targetName: "${timing.nodeName}" ends at ${ClockFormat.hm(timing.estimatedEnd)} '
+            'after target end time ${ClockFormat.hm(endBefore)}',
           );
         }
       }
@@ -251,17 +279,16 @@ class SequenceTimeEstimator {
         continue;
       }
 
-      // Check start time
       if (!window.isVisibleAt(timing.estimatedStart)) {
         final start = timing.estimatedStart;
         if (window.riseTime != null && start.isBefore(window.riseTime!)) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" scheduled at ${_formatTime(start)} '
+            '$targetName: "${timing.nodeName}" scheduled at ${ClockFormat.hm(start)} '
             'before target rises at ${_formatTimeRelativeTo(window.riseTime!, start)}',
           );
         } else if (window.setTime != null) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" scheduled at ${_formatTime(start)} '
+            '$targetName: "${timing.nodeName}" scheduled at ${ClockFormat.hm(start)} '
             'after target sets at ${_formatTimeRelativeTo(window.setTime!, start)}',
           );
         }
@@ -278,7 +305,7 @@ class SequenceTimeEstimator {
           !window.isCircumpolar &&
           !window.isVisibleAt(end)) {
         conflicts.add(
-          '$targetName: "${timing.nodeName}" ends at ${_formatTime(end)} '
+          '$targetName: "${timing.nodeName}" ends at ${ClockFormat.hm(end)} '
           'after target sets at ${_formatTimeRelativeTo(window.setTime!, end)}',
         );
       }
@@ -308,12 +335,14 @@ class SequenceTimeEstimator {
     required double latitude,
     required double longitude,
     double minAltitude = _defaultMinAltitude,
+    DateTime? runEndsBy,
   }) {
     final timings = estimateSequenceTiming(
       sequence,
       startTime,
       latitude: latitude,
       longitude: longitude,
+      runEndsBy: runEndsBy,
     );
     final windows = calculateTargetWindows(
       sequence,
@@ -329,7 +358,8 @@ class SequenceTimeEstimator {
 
   /// Extra overhead (seconds) from autofocus runs the executor will splice in
   /// at runtime but which never appear as nodes in the sequence tree, so no
-  /// per-node timing entry exists for them.
+  /// per-node timing entry exists for them. Each costs
+  /// [addedAutofocusDuration].
   ///
   /// Two synthetic-AF sources, both driven by app settings (mirroring the
   /// serializer's [_sequenceToJson] injection logic):
@@ -337,11 +367,11 @@ class SequenceTimeEstimator {
   ///   * [autoFocusOnFilterChange] — one AF run is injected after every
   ///     [FilterChangeNode] that is NOT already immediately followed by an
   ///     [AutofocusNode] sibling. We count those filter changes across the
-  ///     whole tree and charge [overhead.autofocusSecs] each.
+  ///     whole tree.
   ///   * [autoFocusEveryMinutes] — the AF-interval trigger fires roughly
   ///     every N minutes of run time. We approximate the count as
-  ///     floor(estimatedTotalMinutes / N) and charge [overhead.autofocusSecs]
-  ///     each. `0` (or negative) disables this term.
+  ///     floor(estimatedTotalMinutes / N). `0` (or negative) disables this
+  ///     term.
   ///
   /// This is read-only: it never mutates the [Sequence] (no synthetic nodes
   /// are inserted), matching how the estimator stays a pure function of the
@@ -353,6 +383,7 @@ class SequenceTimeEstimator {
     Duration? estimatedTotal,
   }) {
     double secs = 0.0;
+    final addedRunSecs = addedAutofocusDuration.inMilliseconds / 1000;
 
     if (autoFocusOnFilterChange) {
       var injectedFilterChangeAf = 0;
@@ -368,14 +399,14 @@ class SequenceTimeEstimator {
           injectedFilterChangeAf++;
         }
       }
-      secs += injectedFilterChangeAf * overhead.autofocusSecs;
+      secs += injectedFilterChangeAf * addedRunSecs;
     }
 
     if (autoFocusEveryMinutes > 0 && estimatedTotal != null) {
       final totalMins = estimatedTotal.inSeconds / 60.0;
       final intervalRuns = (totalMins / autoFocusEveryMinutes).floor();
       if (intervalRuns > 0) {
-        secs += intervalRuns * overhead.autofocusSecs;
+        secs += intervalRuns * addedRunSecs;
       }
     }
 
@@ -399,12 +430,14 @@ class SequenceTimeEstimator {
     double? longitude,
     bool autoFocusOnFilterChange = false,
     int autoFocusEveryMinutes = 0,
+    DateTime? runEndsBy,
   }) {
     final timings = estimateSequenceTiming(
       sequence,
       startTime,
       latitude: latitude,
       longitude: longitude,
+      runEndsBy: runEndsBy,
     );
     if (timings.isEmpty) {
       return Duration.zero;
@@ -422,6 +455,7 @@ class SequenceTimeEstimator {
       startTime,
       latitude: latitude,
       longitude: longitude,
+      runEndsBy: runEndsBy,
     );
     final lastTiming = timings.last;
     final end = lastTiming.estimatedEnd.isAfter(walkEnd)

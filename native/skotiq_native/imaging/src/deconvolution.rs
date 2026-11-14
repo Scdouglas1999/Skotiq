@@ -50,7 +50,9 @@
 //! multiplicative update, TV damping) are deterministic and unit-tested on
 //! synthetic frames at the bottom of this file.
 
-use crate::{detect_stars, ImageData, StarDetectionConfig};
+use crate::detection_plane::{DetectionPlane, Quantize};
+use crate::resample::bilinear_clamped;
+use crate::{detect_stars_in_plane, ImageData, StarDetectionConfig};
 use rayon::prelude::*;
 
 /// The Gaussian FWHM↔σ relationship: `FWHM = 2·√(2 ln 2)·σ`.
@@ -80,7 +82,6 @@ pub enum PsfKind {
 /// `size` is always odd so the kernel has a well-defined centre pixel.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PsfModel {
-    /// Which family produced this kernel.
     pub kind: PsfKind,
     /// Full-width-half-maximum of the PSF, in pixels. For the empirical kind
     /// this is measured from the stacked core; for the parametric kinds it is
@@ -114,7 +115,6 @@ pub struct PsfEstimateConfig {
     /// pixels. Must be odd (forced odd internally if an even value is supplied).
     /// 25 px comfortably contains the wings of a well-sampled stellar PSF.
     pub crop: usize,
-    /// Which PSF family to produce.
     pub kind: PsfKind,
 }
 
@@ -186,8 +186,6 @@ pub enum DeconvError {
 /// at which a per-pixel median is meaningfully robust to one outlier.
 const MIN_STARS_FOR_PSF: usize = 3;
 
-// PSF estimation
-
 /// Estimate the point-spread function from the stars in `image`.
 ///
 /// The frame's stars are physical samples of the PSF, so the algorithm is:
@@ -206,10 +204,9 @@ const MIN_STARS_FOR_PSF: usize = 3;
 ///    radial profile.
 /// 5. Build an odd, sum-normalized kernel and report the FWHM.
 ///
-/// Both `U16` (ADU-scaled) and `F32` (normalized linear, `[0, 1]`) frames are
-/// supported: the detection step derives its working scale and saturation guard
-/// from the data (see [`as_u16_image`]), so a normalized float frame is not
-/// crushed to 0/1 before detection.
+/// `U16` and `F32` frames are supported. A float frame is read through its
+/// sample range, so a normalized `[0, 1]` frame and an ADU one give the same
+/// model.
 ///
 /// # Errors
 /// * [`DeconvError::EmptyImage`] if `image` is empty or not `U16`/`F32`.
@@ -230,18 +227,13 @@ pub fn estimate_psf(image: &ImageData, cfg: &PsfEstimateConfig) -> Result<PsfMod
     let crop = force_odd(cfg.crop.max(5));
     let half = crop / 2;
 
-    // Detect stars on the source frame (detection wants the native U16 layout;
-    // for non-U16 frames we synthesize a U16 view so detection still runs). For a
-    // normalized [0,1] F32 plane a bare clamp would crush every pixel to 0/1 and
-    // hide all stars, so `as_u16_image` rescales low-amplitude planes into the
-    // detector's U16 domain and reports the saturation level in that same domain.
-    let (detect_image, sat_level) = as_u16_image(image, &plane, width, height);
-    let mut stars = detect_stars(&detect_image, &psf_detection_config());
+    let Some((detection_plane, sat_level)) = psf_detection_plane(image, &plane, width, height)
+    else {
+        return Err(DeconvError::EmptyImage);
+    };
+    let mut stars = detect_stars_in_plane(detection_plane, &psf_detection_config());
 
-    // Keep only well-behaved PSF stars and cap to the budget. The saturation guard
-    // is expressed in the detection-plane's scale (which `as_u16_image` derived
-    // from the data), so it is meaningful for both ADU-scaled and normalized
-    // inputs rather than assuming a fixed 16-bit full-well.
+    // Keep only well-behaved PSF stars and cap to the budget.
     select_psf_stars(&mut stars, width, height, half, cfg.max_stars, sat_level);
     if stars.len() < MIN_STARS_FOR_PSF {
         return Err(DeconvError::TooFewStars);
@@ -304,7 +296,7 @@ fn select_psf_stars(
     sat_level: f64,
 ) {
     // Saturation guard: stars whose peak is above `sat_level` (≈ 90% of the
-    // detection plane's full range, derived from the data by `as_u16_image`) are
+    // detection plane's full range, derived from the data by `psf_detection_plane`) are
     // likely clipped or non-linear and are dropped. Deriving the level from the
     // data — rather than hardcoding a 16-bit full-well — is what makes this work
     // for normalized [0,1] F32 frames as well as ADU-scaled U16.
@@ -322,7 +314,6 @@ fn select_psf_stars(
             && s.flux > 0.0
     });
 
-    // Brightest first.
     stars.sort_by(|a, b| b.flux.total_cmp(&a.flux));
 
     // Skip the very brightest handful (closest to non-linear) when we have a
@@ -361,7 +352,7 @@ fn extract_normalized_crop(
         for i in 0..crop {
             let sx = cx + (i as f64 - half as f64);
             let sy = cy + (j as f64 - half as f64);
-            let v = bilinear_sample(plane, width, height, sx, sy);
+            let v = bilinear_clamped(plane, width, height, sx, sy);
             out[j * crop + i] = v;
             if v < min_v {
                 min_v = v;
@@ -383,28 +374,6 @@ fn extract_normalized_crop(
         *v = ((*v - min_v) / amplitude).max(0.0);
     }
     Some(out)
-}
-
-/// Bilinear sample of `plane` at fractional coordinates, clamped to the image.
-#[inline]
-fn bilinear_sample(plane: &[f64], width: usize, height: usize, x: f64, y: f64) -> f64 {
-    let xc = x.clamp(0.0, (width - 1) as f64);
-    let yc = y.clamp(0.0, (height - 1) as f64);
-    let x0 = xc.floor() as usize;
-    let y0 = yc.floor() as usize;
-    let x1 = (x0 + 1).min(width - 1);
-    let y1 = (y0 + 1).min(height - 1);
-    let fx = xc - x0 as f64;
-    let fy = yc - y0 as f64;
-
-    let v00 = plane[y0 * width + x0];
-    let v10 = plane[y0 * width + x1];
-    let v01 = plane[y1 * width + x0];
-    let v11 = plane[y1 * width + x1];
-
-    let top = v00 * (1.0 - fx) + v10 * fx;
-    let bot = v01 * (1.0 - fx) + v11 * fx;
-    top * (1.0 - fy) + bot * fy
 }
 
 /// Per-pixel median of a set of equal-length crops.
@@ -685,8 +654,6 @@ fn measure_kernel_fwhm(kernel: &[f64], size: usize) -> f64 {
     2.0 * half as f64
 }
 
-// Richardson–Lucy deconvolution
-
 /// Deconvolve `image` with `psf` using regularized Richardson–Lucy.
 ///
 /// The RL iteration on a single channel is
@@ -878,7 +845,6 @@ fn convolve(plane: &[f64], width: usize, height: usize, kernel: &[f64], half: us
             for x in 0..width {
                 let mut acc = 0.0_f64;
                 for kj in 0..(2 * half + 1) {
-                    // Clamp sample row to the image.
                     let sy = clamp_coord(y as isize + kj as isize - half as isize, height);
                     let krow = kj * (2 * half + 1);
                     let prow = sy * width;
@@ -917,8 +883,6 @@ fn flip_kernel(kernel: &[f64], size: usize) -> Vec<f64> {
     }
     out
 }
-
-// Shared helpers
 
 /// Validate a PSF kernel: odd side, matching length, and a usable normalization.
 fn validate_kernel(psf: &PsfModel) -> Result<(), DeconvError> {
@@ -987,27 +951,22 @@ fn image_to_planes(image: &ImageData) -> Option<Vec<Vec<f64>>> {
         return None;
     }
 
-    let interleaved: Vec<f64> = match image.pixel_type {
-        crate::PixelType::U16 => image.as_u16()?.into_iter().map(|v| v as f64).collect(),
-        crate::PixelType::F32 => image.as_f32()?.into_iter().map(|v| v as f64).collect(),
-        _ => return None,
-    };
-    if interleaved.len() < n * channels {
+    if !matches!(
+        image.pixel_type,
+        crate::PixelType::U16 | crate::PixelType::F32
+    ) {
         return None;
     }
-
-    // De-interleave channel-by-channel.
-    let mut planes = vec![vec![0.0_f64; n]; channels];
-    for pix in 0..n {
-        for (c, plane) in planes.iter_mut().enumerate() {
-            plane[pix] = interleaved[pix * channels + c];
-        }
+    let planes = image.planes_f64();
+    if planes.len() != channels {
+        return None;
     }
     Some(planes)
 }
 
-/// Re-interleave planar f64 channels back into an `ImageData` matching the
-/// template's dimensions and pixel type (`U16` clamped to `[0, 65535]`, or `F32`).
+/// Re-interleave planar f64 channels in ADU back into an `ImageData` matching
+/// the template's dimensions, pixel type and sample range (`U16` clamped to
+/// `[0, 65535]`, or `F32`).
 fn planes_to_image(planes: &[Vec<f64>], template: &ImageData) -> ImageData {
     let width = template.width;
     let height = template.height;
@@ -1019,10 +978,10 @@ fn planes_to_image(planes: &[Vec<f64>], template: &ImageData) -> ImageData {
             let mut inter = vec![0.0_f32; n * planes.len()];
             for (c, plane) in planes.iter().enumerate() {
                 for (pix, &v) in plane.iter().enumerate() {
-                    inter[pix * planes.len() + c] = v as f32;
+                    inter[pix * planes.len() + c] = template.range.from_adu(v) as f32;
                 }
             }
-            ImageData::from_f32(width, height, channels, &inter)
+            ImageData::from_f32(width, height, channels, &inter).with_range(template.range)
         }
         // Default to U16 for U16 and anything else that reached here.
         _ => {
@@ -1042,75 +1001,25 @@ fn planes_to_image(planes: &[Vec<f64>], template: &ImageData) -> ImageData {
 /// non-linear and excluded from the PSF stack (see [`select_psf_stars`]).
 const SATURATION_FRACTION: f64 = 0.9;
 
-/// Upper bound of the normalized-linear `F32` domain. The crate treats `F32`
-/// frames as normalized linear light in `[0, 1]` (e.g. `xisf.rs` declares the F32
-/// bounds as `0:1`), so `1.0` is the full-well a clipped star core saturates to.
-const F32_FULL_SCALE: f64 = 1.0;
-
-/// Build a `U16` `ImageData` view of a luminance plane so [`detect_stars`] (which
-/// expects the native U16 layout) can run on any supported input pixel type, and
-/// report the **saturation level in that view's scale** for [`select_psf_stars`].
-///
-/// The detector and the saturation guard both assume a 16-bit ADU domain. A
-/// normalized linear `F32` frame — what the rest of the crate treats `F32` as
-/// ([0, 1], e.g. `xisf.rs` bounds, `stretch.rs`) — has every star living in
-/// values like `[0.02, 0.82]`; a bare `round().clamp(0, 65535)` would crush the
-/// whole frame to 0/1, so `detect_stars` would find nothing and `estimate_psf`
-/// would wrongly return `TooFewStars` even on a perfect star field. To support
-/// that path honestly we derive the working scale from the data:
-///
-/// * A wide-range plane (peak ≥ 256 — any real ADU frame, whose stars are in the
-///   thousands) is passed through with a plain clamp: native ADU, zero behaviour
-///   change, and the saturation level is the usual `0.9 · 65535`.
-/// * A low-amplitude plane (peak < 256 — a normalized float frame) is rescaled
-///   from its *known full-scale* `[0, 1] → [0, 65535]` (NOT from the data peak):
-///   this preserves the absolute meaning of "near full-well" so an unsaturated
-///   star at 0.4 maps to ~26000 (well below the guard, kept) while only a clipped
-///   core at 1.0 maps to 65535 and is correctly flagged. The saturation level is
-///   therefore the same `0.9 · 65535` the ADU path uses. (Rescaling from the data
-///   *peak* instead would pin the brightest star to full range, and the guard
-///   would then wrongly reject every bright star.)
-fn as_u16_image(image: &ImageData, plane: &[f64], width: usize, height: usize) -> (ImageData, f64) {
-    const U16_SAT: f64 = 65535.0 * SATURATION_FRACTION;
+/// The detector's plane for a luminance plane in 16-bit ADU (what
+/// [`image_to_plane`] yields for an image of any sample range), and the
+/// saturation level [`select_psf_stars`] rejects clipped stars above.
+fn psf_detection_plane(
+    image: &ImageData,
+    plane: &[f64],
+    width: usize,
+    height: usize,
+) -> Option<(DetectionPlane, f64)> {
+    const SATURATION: f64 = crate::ADU_FULL_SCALE * SATURATION_FRACTION;
 
     if image.pixel_type == crate::PixelType::U16 && image.channels == 1 {
-        return (image.clone(), U16_SAT);
+        return Some((DetectionPlane::from_image(image)?, SATURATION));
     }
-
-    // Peak of the (finite) luminance plane decides ADU vs normalized-float.
-    let peak = plane
-        .iter()
-        .copied()
-        .filter(|v| v.is_finite())
-        .fold(f64::NEG_INFINITY, f64::max);
-
-    // Wide-range / ADU-scaled (or degenerate-empty): native passthrough.
-    if !peak.is_finite() || peak >= 256.0 {
-        let data: Vec<u16> = plane
-            .iter()
-            .map(|&v| v.round().clamp(0.0, 65535.0) as u16)
-            .collect();
-        return (
-            ImageData::from_u16(width as u32, height as u32, 1, &data),
-            U16_SAT,
-        );
-    }
-
-    // Normalized-float plane: rescale from the known [0, 1] full-scale into the
-    // 16-bit detector domain. A flat/non-positive plane simply maps to all-zero
-    // (nothing detectable), which this same linear map already produces.
-    let scale = 65535.0 / F32_FULL_SCALE;
-    let data: Vec<u16> = plane
-        .iter()
-        .map(|&v| (v * scale).round().clamp(0.0, 65535.0) as u16)
-        .collect();
-    (
-        ImageData::from_u16(width as u32, height as u32, 1, &data),
-        U16_SAT,
-    )
+    Some((
+        DetectionPlane::from_adu(width, height, plane, Quantize::Round)?,
+        SATURATION,
+    ))
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {
@@ -1354,7 +1263,6 @@ mod tests {
         };
         let restored = richardson_lucy(&blurred, &psf, &cfg).expect("RL must succeed");
 
-        // Dimensions preserved.
         assert_eq!(restored.width, blurred.width);
         assert_eq!(restored.height, blurred.height);
         assert_eq!(restored.channels, blurred.channels);
@@ -1427,7 +1335,8 @@ mod tests {
         let u16_field = render_star_field(200, 200, sigma, 25000.0, 800.0, 6.0, 28, 0xC0FFEE);
         let src = u16_field.as_u16().unwrap();
         let f32_data: Vec<f32> = src.iter().map(|&v| v as f32 / 65535.0).collect();
-        let field = ImageData::from_f32(200, 200, 1, &f32_data);
+        let field =
+            ImageData::from_f32(200, 200, 1, &f32_data).with_range(crate::SampleRange::UNIT);
         assert_eq!(field.pixel_type, crate::PixelType::F32);
         // Sanity: this really is a low-amplitude [0,1] frame.
         let max_v = f32_data.iter().cloned().fold(0.0f32, f32::max);

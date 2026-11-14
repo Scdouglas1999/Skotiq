@@ -1,4 +1,3 @@
-// Observing-list dialog, rows, score badges and candidate chips.
 part of '../planner_screen.dart';
 
 /// Host-bound add/create flow for a Planner candidate.
@@ -22,10 +21,13 @@ class _CandidateObservingListDialog extends ConsumerStatefulWidget {
 }
 
 class _CandidateObservingListDialogState
-    extends ConsumerState<_CandidateObservingListDialog> {
+    extends ConsumerState<_CandidateObservingListDialog>
+    with HostBoundDialogState<_CandidateObservingListDialog> {
   late final TextEditingController _nameController;
-  late final SkotiqBackend _authority;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. Adding the target was canceled.';
+
   bool _creating = false;
   bool _saving = false;
   String? _error;
@@ -39,33 +41,14 @@ class _CandidateObservingListDialogState
   void initState() {
     super.initState();
     _nameController = TextEditingController();
-    _authority = ref.read(backendProvider);
     _loadExistingMembership();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'The connected host changed. Adding the target was canceled.',
-            ),
-          ),
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   @override
   void dispose() {
-    _backendSubscription?.close();
     _nameController.dispose();
     super.dispose();
   }
-
-  bool get _isCurrentAuthority =>
-      identical(ref.read(backendProvider), _authority);
 
   /// Mark the lists this target is already in, so the user is not invited to
   /// perform an add that can only be a no-op. Best-effort: a failure leaves
@@ -77,7 +60,7 @@ class _CandidateObservingListDialogState
       final lists = await ref
           .read(observingListNotifierProvider.notifier)
           .getListsContaining(catalogId);
-      if (!mounted || !_isCurrentAuthority) return;
+      if (!mounted || host.isStale) return;
       setState(() {
         _listsContaining = lists.map((list) => list.id).toSet();
       });
@@ -87,7 +70,7 @@ class _CandidateObservingListDialogState
   }
 
   Future<void> _addToList(int listId) async {
-    if (_saving || !_isCurrentAuthority) return;
+    if (_saving || host.isStale) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -103,7 +86,7 @@ class _CandidateObservingListDialogState
           magnitude: widget.suggestion.magnitude,
           sizeArcmin: widget.suggestion.sizeArcmin,
         );
-    if (!mounted || !_isCurrentAuthority) return;
+    if (!mounted || host.isStale) return;
 
     final uiState = ref.read(observingListNotifierProvider);
     if (id == null) {
@@ -137,7 +120,7 @@ class _CandidateObservingListDialogState
       setState(() => _error = 'Enter a list name');
       return;
     }
-    if (_saving || !_isCurrentAuthority) return;
+    if (_saving || host.isStale) return;
 
     setState(() {
       _saving = true;
@@ -155,7 +138,7 @@ class _CandidateObservingListDialogState
           magnitude: widget.suggestion.magnitude,
           sizeArcmin: widget.suggestion.sizeArcmin,
         );
-    if (!mounted || !_isCurrentAuthority) return;
+    if (!mounted || host.isStale) return;
 
     if (id == null) {
       setState(() {
@@ -179,12 +162,11 @@ class _CandidateObservingListDialogState
   void _showOutcomeAndClose(String message, {required bool success}) {
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: success ? widget.colors.success : null,
-      ),
-    );
+    if (success) {
+      messenger.showSuccessSnackBar(message);
+    } else {
+      messenger.showInfoSnackBar(message);
+    }
   }
 
   @override
@@ -214,7 +196,7 @@ class _CandidateObservingListDialogState
                   ),
                 ),
                 error: (error, _) => Text(
-                  'Could not load observing lists: $error',
+                  'Could not load observing lists: ${userFacingError(error)}',
                   style: SkotiqTypography.body
                       .copyWith(color: widget.colors.error),
                 ),
@@ -416,13 +398,10 @@ class _CandidateSkeleton extends StatelessWidget {
   static const double _readoutHeight = 30;
   static const double _buttonHeight = 28;
 
-  /// Width of one readout placeholder.
   static const double _readoutWidth = 90;
 
-  /// Width of the action placeholder.
   static const double _actionWidth = 96;
 
-  /// Width of the window-bar placeholder.
   static const double _windowWidth = 120;
 
   /// Below this the trailing placeholders are dropped rather than overflowed:

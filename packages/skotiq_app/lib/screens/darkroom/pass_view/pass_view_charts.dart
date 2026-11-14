@@ -5,20 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'package:skotiq_core/skotiq_core.dart' show PassDepth;
-
-/// The color a filter lane draws in.
-Color passFilterColor(String filter, SkotiqColors colors) =>
-    switch (filter.toUpperCase()) {
-      'R' => SkotiqChartColors.forTheme(SkotiqChartColors.seriesRed, colors),
-      'G' => SkotiqChartColors.forTheme(SkotiqChartColors.seriesGreen, colors),
-      'B' => SkotiqChartColors.forTheme(SkotiqChartColors.seriesBlue, colors),
-      'HA' ||
-      'SII' ||
-      'OIII' =>
-        SkotiqChartColors.forTheme(SkotiqChartColors.seriesAmber, colors),
-      _ => colors.textSecondary,
-    };
+import 'package:skotiq_core/services.dart' show PassDepth;
 
 TextStyle passAxisStyle(SkotiqColors colors) =>
     SkotiqTypography.monoXs.copyWith(
@@ -43,15 +30,6 @@ List<double> passTicks(double lo, double hi, int maxTicks) {
     out.add(double.parse(v.toStringAsFixed(6)));
   }
   return out.isEmpty ? <double>[lo, hi] : out;
-}
-
-/// The smallest of 1, 2, 2.5, 5 times a power of ten that is at least [v].
-double passNiceCeil(double v) {
-  final mag = math.pow(10, (math.log(v) / math.ln10).floor()).toDouble();
-  for (final m in const <double>[1, 2, 2.5, 5, 10]) {
-    if (m * mag >= v - 1e-9) return m * mag;
-  }
-  return 10 * mag;
 }
 
 String passTickLabel(double v, double step) {
@@ -185,7 +163,7 @@ class PassNoiseChart extends StatelessWidget {
             depths: depths,
             totalSubs: totalSubs,
             colors: colors,
-            line: passFilterColor(filter, colors),
+            line: FilterColors.forName(filter, colors: colors),
           ),
         ),
       ),
@@ -264,7 +242,6 @@ class _NoisePainter extends CustomPainter {
       yUnit: 'ADU',
       xTicks: xTicks,
     );
-    // The expected curve, dashed, over the whole lane.
     final dash = Paint()
       ..color = colors.textMuted
       ..strokeWidth = 1
@@ -276,7 +253,6 @@ class _NoisePainter extends CustomPainter {
       if (prev != null && i.isEven) canvas.drawLine(prev, p, dash);
       prev = p;
     }
-    // Measured points joined.
     final stroke = Paint()
       ..color = line
       ..strokeWidth = 1.5

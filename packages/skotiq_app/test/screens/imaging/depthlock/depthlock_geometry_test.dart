@@ -10,7 +10,8 @@
 import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/depthlock/depthlock_geometry.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 const SolvedWcs _wcs = SolvedWcs(
   raHours: 13.4980,

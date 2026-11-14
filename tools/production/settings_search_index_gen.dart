@@ -5,8 +5,8 @@
 // A search box that matches only the hand-maintained `SettingsSectionDef.
 // keywords` cannot find most rows by their own visible title. Measured on the
 // live app, 243 of 496 rendered setting rows (49%) were unreachable that way:
-// "Safety fail mode", "Park on unsafe weather", "Default watermark template"
-// and "Default broadcast port" all returned "No settings match your search",
+// "Safety fail mode", "Park on unsafe weather" and "Default watermark
+// template" all returned "No settings match your search",
 // and it misdirected as well as missed — "thumbnail" returned only Captured
 // Images even though the Sequencer page has a "Default thumbnail size" row.
 //
@@ -28,9 +28,12 @@ const _generatedPath =
     'packages/skotiq_app/lib/screens/settings/settings_search_index.g.dart';
 const _catalogPath =
     'packages/skotiq_app/lib/screens/settings/settings_catalog.dart';
+const _sectionIdsPath =
+    'packages/skotiq_app/lib/router/settings_sections.dart';
 const _translationsPath =
     'packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart';
 const _libRoot = 'packages/skotiq_app/lib';
+const _toursPath = 'packages/skotiq_app/lib/tours/tour.dart';
 
 Future<void> main(List<String> args) async {
   final checkOnly = args.contains('--check');
@@ -100,18 +103,34 @@ String? _findRepoRoot() {
 }
 
 /// `key` -> widget class that renders that section's detail pane.
-Map<String, String> _sectionWidgets(String catalogSource) {
+///
+/// The catalog names each section by its `SettingsSectionId` member; the
+/// member's string key is declared once, in the enum.
+Map<String, String> _sectionWidgets(String catalogSource, String idsSource) {
+  final keyOf = <String, String>{};
+  final enumBody = RegExp(
+    r'enum SettingsSectionId \{(.*?)const SettingsSectionId\(',
+    dotAll: true,
+  ).firstMatch(idsSource)?.group(1);
+  if (enumBody != null) {
+    for (final m in RegExp(
+      r"^\s*([a-zA-Z0-9]+)\(\s*'([^']+)'",
+      multiLine: true,
+    ).allMatches(enumBody)) {
+      keyOf[m.group(1)!] = m.group(2)!;
+    }
+  }
   final result = <String, String>{};
-  // Each SettingsSectionDef literal spans from `SettingsSectionDef(` to the
-  // `build:` line that names its widget, which is always the last field.
+  // Each arm spans from `SettingsSectionId.<member> => SettingsSectionDef(` to
+  // the `build:` line that names its widget, which is always the last field.
   final defs = RegExp(
-    r'SettingsSectionDef\((.*?)build:\s*\(isMobile\)\s*=>\s*(?:const\s+)?([A-Za-z0-9_]+)',
+    r'SettingsSectionId\.([a-zA-Z0-9]+)\s*=>\s*SettingsSectionDef\((.*?)build:\s*\(context\)\s*=>\s*(?:const\s+)?([A-Za-z0-9_]+)',
     dotAll: true,
   );
   for (final m in defs.allMatches(catalogSource)) {
-    final key = RegExp(r"key:\s*'([^']+)'").firstMatch(m.group(1)!);
+    final key = keyOf[m.group(1)!];
     if (key == null) continue;
-    result[key.group(1)!] = m.group(2)!;
+    result[key] = m.group(3)!;
   }
   return result;
 }
@@ -291,6 +310,65 @@ Map<String, String> _englishStrings(String translationsSource) {
 /// Constructors whose `label:`/`labelText:` names a SETTING rather than an
 /// action. A button's label is a verb ("Delete", "Cancel") and indexing it would
 /// make "delete" match half the app; an input's label is the setting's name.
+/// The guided tours, read from their one declaration in [_toursPath].
+///
+/// Settings > Help lists tours from that data (`for (final tour in
+/// Tour.workflows) ... title: tour.title`), so their visible names appear in
+/// no `title: '...'` a page carries. Without this the search could not find
+/// "Target planning" on the page that shows it.
+class _Tours {
+  _Tours(this.titles, this.workflows);
+
+  /// Tour enum value name -> its title.
+  final Map<String, String> titles;
+
+  /// The tours `Tour.workflows` lists, in order.
+  final List<String> workflows;
+
+  static _Tours parse(String source) {
+    final titles = <String, String>{};
+    final enumBody = RegExp(
+      r'enum Tour \{(.*?)\n  const Tour\(',
+      dotAll: true,
+    ).firstMatch(source)?.group(1);
+    if (enumBody == null) {
+      stderr.writeln('error: could not read the Tour enum in $_toursPath');
+      exit(2);
+    }
+    for (final m in RegExp(
+      r"^  (\w+)\(\s*'[^']*',\s*title:\s*'((?:[^'\\]|\\.)*)'",
+      multiLine: true,
+    ).allMatches(enumBody)) {
+      titles[m.group(1)!] = m.group(2)!;
+    }
+    final list = RegExp(
+      r'static const List<Tour> workflows = \[(.*?)\];',
+      dotAll: true,
+    ).firstMatch(source)?.group(1);
+    final workflows = [
+      for (final m in RegExp(r'\b(\w+)\b').allMatches(list ?? '')) m.group(1)!,
+    ];
+    final unknown = workflows.where((name) => !titles.containsKey(name));
+    if (titles.isEmpty || workflows.isEmpty || unknown.isNotEmpty) {
+      stderr.writeln(
+        'error: could not read the tour titles in $_toursPath '
+        '(${titles.length} titles, workflows $workflows)',
+      );
+      exit(2);
+    }
+    return _Tours(titles, workflows);
+  }
+
+  /// The tour titles a page shows: every tour of `Tour.workflows` when it
+  /// lists them, and each `Tour.<name>.title` it names.
+  List<String> shownBy(String source) => [
+    if (source.contains('Tour.workflows'))
+      for (final name in workflows) titles[name]!,
+    for (final m in RegExp(r'\bTour\.(\w+)\.title\b').allMatches(source))
+      if (titles[m.group(1)!] case final title?) title,
+  ];
+}
+
 final _inputWidget = RegExp(r'(Field|Input|Number|Slider|Dropdown|Picker)$');
 
 /// Constructors whose `title:` is NOT a settings row: a confirmation dialog,
@@ -313,10 +391,11 @@ final _nonRowTitle = RegExp(
 /// description.
 List<String> _titles(
   String source,
-  Map<String, String> english, {
+  Map<String, String> english,
+  _Tours tours, {
   Map<String, String>? rowOf,
 }) {
-  final found = <String>[];
+  final found = <String>[...tours.shownBy(source)];
 
   void addLiteral(RegExp pattern, {bool inputsOnly = false}) {
     for (final m in pattern.allMatches(source)) {
@@ -407,19 +486,29 @@ List<String> _titles(
 /// Composition is followed from the CLASS body, so a sibling class that happens
 /// to live in the same file contributes nothing unless this page actually
 /// builds it.
+///
+/// A section whose page lives outside `screens/settings/` is followed through
+/// its own feature folder as well ([featureRoot]). Equipment profiles is the
+/// profile manager under `screens/equipment/`, and its settings are the rows
+/// of the profile editor it opens; followed only into `screens/settings/`, the
+/// section indexed nothing, so "Focal length" and "Camera defaults" found no
+/// page.
 List<String> _collect(
   _Library? library,
   _Libraries libraries,
-  Map<String, String> english, {
+  Map<String, String> english,
+  _Tours tours, {
   int depth = 0,
   Set<String>? visited,
   Map<String, String>? rowOf,
+  String? featureRoot,
 }) {
   visited ??= <String>{};
   if (library == null || !visited.add(library.path) || depth > 3) {
     return const [];
   }
-  final found = _titles(library.source, english, rowOf: rowOf);
+  if (depth == 0) featureRoot = _featureRoot(library.path);
+  final found = _titles(library.source, english, tours, rowOf: rowOf);
   // Follow constructor calls that resolve to another page under settings/,
   // excluding the shared row/section components — those are generic chrome and
   // their internal strings are not this page's content.
@@ -428,20 +517,32 @@ List<String> _collect(
   ).allMatches(library.source)) {
     final target = libraries.forClass(m.group(1)!);
     if (target == null) continue;
-    if (!target.path.contains('/screens/settings/')) continue;
+    final inFeature =
+        featureRoot != null && target.path.startsWith(featureRoot);
+    if (!inFeature && !target.path.contains('/screens/settings/')) continue;
     if (target.path.contains('/widgets/settings_widgets/')) continue;
     found.addAll(
       _collect(
         target,
         libraries,
         english,
+        tours,
         depth: depth + 1,
         visited: visited,
         rowOf: rowOf,
+        featureRoot: featureRoot,
       ),
     );
   }
   return found;
+}
+
+/// `…/screens/<feature>/` of a page that is not under `screens/settings/`;
+/// null for one that is.
+String? _featureRoot(String path) {
+  final m = RegExp(r'^(.*/screens/[^/]+/)').firstMatch(path);
+  final root = m?.group(1);
+  return root == null || root.endsWith('/screens/settings/') ? null : root;
 }
 
 /// Whether the `title:` match at [offset] is really the tail of `subtitle:`.
@@ -546,8 +647,12 @@ String _generate(String repoRoot) {
   final english = _englishStrings(
     File('$repoRoot/$_translationsPath').readAsStringSync(),
   );
-  final widgets = _sectionWidgets(catalog);
+  final widgets = _sectionWidgets(
+    catalog,
+    File('$repoRoot/$_sectionIdsPath').readAsStringSync(),
+  );
   final roots = widgets.values.toSet();
+  final tours = _Tours.parse(File('$repoRoot/$_toursPath').readAsStringSync());
 
   final missing = <String>[];
   final entries = <String, List<String>>{};
@@ -567,7 +672,7 @@ String _generate(String repoRoot) {
     }
     final rawRowOf = <String, String>{};
     final titles = _clean(
-      _collect(library, libraries, english, rowOf: rawRowOf),
+      _collect(library, libraries, english, tours, rowOf: rawRowOf),
     );
     if (titles.isNotEmpty) entries[key] = titles;
     final sectionRowOf = <String, String>{};

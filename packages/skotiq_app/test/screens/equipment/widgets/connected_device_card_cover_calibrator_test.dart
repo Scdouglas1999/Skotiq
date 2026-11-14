@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'device_action_finder.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/equipment/widgets/connected_device_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../harness/harness.dart';
 
@@ -25,7 +26,7 @@ Future<HarnessHandle> pumpCover(
 }) {
   return pumpAppScreen(
     tester,
-    const ConnectedDeviceCard(type: ConnectedDeviceType.coverCalibrator),
+    const ConnectedDeviceCard(type: DeviceType.coverCalibrator),
     backend: backend,
     extraOverrides: [
       coverCalibratorStateProvider.overrideWith(_CoverNotifier.new),

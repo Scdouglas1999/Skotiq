@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/flat_wizard/flat_wizard_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
 
@@ -92,8 +93,7 @@ void main() {
     expect(find.text('100'), findsWidgets);
     expect(find.text('10'), findsWidgets);
     expect(
-      find.textContaining(
-          'Inherited settings differ from current light settings'),
+      find.textContaining('Camera settings differ from current light settings'),
       findsWidgets,
     );
     expect(find.textContaining('offset 10 vs 50'), findsWidgets);
@@ -112,9 +112,46 @@ void main() {
     );
 
     expect(
-      find.textContaining(
-          'Inherited settings differ from current light settings'),
+      find.textContaining('Camera settings differ from current light settings'),
       findsNothing,
+    );
+  });
+
+  testWidgets('a camera without gain or offset is not described as a DSLR',
+      (tester) async {
+    await _pump(
+      tester,
+      config: const FlatCaptureConfig(
+        sensitivity: GainSensitivity(hasGain: false, hasOffset: false),
+        capabilitiesKnown: true,
+      ),
+      lights: _lights,
+    );
+
+    expect(find.textContaining('ISO'), findsNothing);
+    expect(find.text('Gain'), findsNothing);
+    expect(find.text('Offset'), findsNothing);
+    expect(find.text('Every filter uses these.'), findsOneWidget);
+  });
+
+  testWidgets('a gain camera without offset names only its gain',
+      (tester) async {
+    await _pump(
+      tester,
+      config: const FlatCaptureConfig(
+        gain: 100,
+        canSetGain: true,
+        sensitivity: GainSensitivity(hasOffset: false),
+        capabilitiesKnown: true,
+      ),
+      lights: _lights,
+    );
+
+    expect(find.textContaining('ISO'), findsNothing);
+    expect(find.text('Offset'), findsNothing);
+    expect(
+      find.text('Every filter uses these unless its own gain is set above.'),
+      findsOneWidget,
     );
   });
 }

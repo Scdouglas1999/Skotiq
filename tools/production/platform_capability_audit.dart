@@ -26,8 +26,7 @@ const _requiredFiles = <_RequiredFile>[
     ],
   ),
   _RequiredFile(
-    path:
-        'packages/skotiq_core/test/models/platform_capabilities_test.dart',
+    path: 'packages/skotiq_core/test/models/platform_capabilities_test.dart',
     label: 'Platform capability model tests',
     requiredText: [
       'marks ASCOM COM as Windows-only',
@@ -52,17 +51,15 @@ const _requiredFiles = <_RequiredFile>[
     ],
   ),
   _RequiredFile(
-    path: 'apps/desktop/lib/headless_api/handlers/system_endpoint_catalog.dart',
-    label: 'Headless endpoint catalog capability exposure',
+    path:
+        'packages/skotiq_remote_protocol/lib/src/wire/routes/equipment_api.dart',
+    label: 'Declared capability routes',
     requiredText: [
-      // The capability endpoints live in this hand-maintained catalog,
-      // re-exported via availableHeadlessEndpoints through
-      // system_handlers.dart, so the API-exposure invariant is pinned here.
-      "'GET /api/equipment/camera/capabilities'",
-      "'GET /api/equipment/mount/capabilities'",
-      "'GET /api/equipment/focuser/capabilities'",
-      "'GET /api/equipment/filter-wheel/capabilities'",
-      "'GET /api/equipment/rotator/capabilities'",
+      "'/api/equipment/camera/capabilities'",
+      "'/api/equipment/mount/capabilities'",
+      "'/api/equipment/focuser/capabilities'",
+      "'/api/equipment/filter-wheel/capabilities'",
+      "'/api/equipment/rotator/capabilities'",
     ],
   ),
   _RequiredFile(

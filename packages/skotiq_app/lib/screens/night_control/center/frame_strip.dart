@@ -10,7 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
@@ -90,6 +90,8 @@ class FrameStrip extends ConsumerStatefulWidget {
 }
 
 class _FrameStripState extends ConsumerState<FrameStrip> {
+  static const double _fadeWidth = 32;
+
   final ScrollController _scroll = ScrollController();
 
   @override
@@ -117,29 +119,44 @@ class _FrameStripState extends ConsumerState<FrameStrip> {
         ),
         child: frames.isEmpty
             ? const _EmptyStrip()
-            : ListView.separated(
-                controller: _scroll,
-                primary: false,
-                // Newest first and reversed, so the strip opens on the newest
-                // frame at the right edge and a new frame lands there.
-                reverse: true,
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: SkotiqTokens.spaceSm,
-                  vertical: 5,
+            // The oldest frames fade out at the left edge, so a tile cut
+            // there reads as more to scroll to, not as a broken strip.
+            : ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: const <Color>[
+                    Colors.transparent,
+                    ImageOverlayColors.foreground
+                  ],
+                  stops: <double>[
+                    0,
+                    (_fadeWidth / bounds.width).clamp(0.0, 1.0)
+                  ],
+                ).createShader(bounds),
+                child: ListView.separated(
+                  controller: _scroll,
+                  primary: false,
+                  // Newest first and reversed, so the strip opens on the newest
+                  // frame at the right edge and a new frame lands there.
+                  reverse: true,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: SkotiqTokens.spaceSm,
+                    vertical: 5,
+                  ),
+                  itemCount: frames.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(width: SkotiqTokens.spaceSm),
+                  itemBuilder: (context, index) {
+                    final frame = frames[frames.length - 1 - index];
+                    return _StripTile(
+                      key: ValueKey<int>(frame.id),
+                      frame: frame,
+                      selected: frame.id == selected,
+                      onTap: () => _select(frame),
+                    );
+                  },
                 ),
-                itemCount: frames.length,
-                separatorBuilder: (_, __) =>
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                itemBuilder: (context, index) {
-                  final frame = frames[frames.length - 1 - index];
-                  return _StripTile(
-                    key: ValueKey<int>(frame.id),
-                    frame: frame,
-                    selected: frame.id == selected,
-                    onTap: () => _select(frame),
-                  );
-                },
               ),
       ),
     );

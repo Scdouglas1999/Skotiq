@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../errors/error_text.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import 'stacking_engine_seam.dart';
@@ -15,13 +15,17 @@ import '../database/daos/images_dao.dart';
 import '../database/daos/sessions_dao.dart';
 import '../database/daos/stacked_results_dao.dart';
 import '../providers/database_provider.dart';
-import '../providers/backend_provider.dart';
+import '../providers/async_scope.dart';
+import 'calibration/calibration_selection.dart';
 import 'calibration_service.dart';
 import 'dark_library_service.dart';
 import 'live_stacking_service.dart';
 import 'logging_service.dart';
 import 'stack_light_selector.dart';
-import 'stack_share_export_service.dart';
+import '../providers/calibration_service_providers.dart';
+import '../providers/live_stacking_service_provider.dart';
+import '../providers/logging_service_provider.dart';
+import '../providers/stack_light_selector_provider.dart';
 part 'stack_and_share_service/stack_results.dart';
 part 'stack_and_share_service/rejection_reasons.dart';
 part 'stack_and_share_service/stack_frame_io.dart';
@@ -85,20 +89,16 @@ part 'stack_and_share_service/stack_run_helpers.dart';
 class StackAndShareService {
   StackAndShareService(
     this._ref, {
-    SkotiqBackend? backend,
     StackingEngineSeam engine = const BridgeStackingEngineSeam(),
     StackResultPreviewPersister? persistPreview,
-  }) : _backend = backend ?? _ref.read(backendProvider),
-       _backendNotifier = _ref.read(backendProvider.notifier),
+  }) : _host = _ref.providerBackendScope(),
        _logger = _ref.read(loggingServiceProvider),
        _engine = engine,
        _persistPreview = persistPreview;
 
   final Ref _ref;
-  final SkotiqBackend _backend;
-  final BackendNotifier _backendNotifier;
+  final AsyncScope<SkotiqBackend> _host;
   final LoggingService _logger;
-  bool _retired = false;
 
   // The native stacking engine is process-wide. This admission lock closes
   // the gap before the engine reports itself active (selection/calibration can
@@ -134,13 +134,8 @@ class StackAndShareService {
   SessionsDao get _sessionsDao => _ref.read(sessionsDaoProvider);
   StackedResultsDao get _resultsDao => _ref.read(stackedResultsDaoProvider);
 
-  bool get _hasAuthority =>
-      !_retired && _backendNotifier.isCurrentBackend(_backend);
-
-  void retire() => _retired = true;
-
-  void _ensureAuthority() {
-    if (_hasAuthority) return;
+  void _ensureSameHost() {
+    if (_host.isCurrent) return;
     throw StateError(
       'The imaging host changed while Stack & Share was running. The outgoing '
       'run was stopped and its result was discarded; start it again on the '
@@ -158,12 +153,7 @@ class StackAndShareService {
     required StackAndShareConfig config,
     void Function(StackAndShareProgress)? onProgress,
   }) async {
-    _ensureAuthority();
-    if (_backend is NetworkBackend) {
-      throw StateError(
-        'Stack & Share runs on the imaging host, not a remote controller.',
-      );
-    }
+    _ensureSameHost();
     if (_processRunOwner != null) {
       throw const LiveStackBusyException(
         'Another Stack-and-Share run is already preparing or stacking',
@@ -190,7 +180,7 @@ class StackAndShareService {
     _processRunOwner = runOwner;
 
     void emit(StackAndShareProgress progress) {
-      _ensureAuthority();
+      _ensureSameHost();
       onProgress?.call(progress);
     }
 
@@ -211,7 +201,7 @@ class StackAndShareService {
         sessionId: sessionId,
         config: config,
       );
-      _ensureAuthority();
+      _ensureSameHost();
 
       final referencePath = selection.referencePath;
       if (referencePath == null) {
@@ -236,17 +226,13 @@ class StackAndShareService {
       // Resolve the owning session's target id for the persisted provenance
       // record (the selector already resolved the human-readable target name).
       final session = await sessionsDao.getSessionById(sessionId);
-      _ensureAuthority();
+      _ensureSameHost();
       final targetId = session?.targetId;
 
-      // Pre-resolve calibration inputs once when calibration is enabled: the
-      // master flat / bias are shared across every frame, so load them a single
-      // time rather than per-frame.
-      _CalibrationContext? calibration;
-      if (config.applyCalibration) {
-        calibration = await _buildCalibrationContext();
-        _ensureAuthority();
-      }
+      // The master flat / bias are shared across every frame.
+      final calibration = config.applyCalibration
+          ? _buildCalibrationContext()
+          : null;
 
       // Resolve the OSC / colour intent ONCE for the whole run, off the
       // reference frame, before any engine work. The live stacker fixes the
@@ -257,7 +243,7 @@ class StackAndShareService {
         config: config,
         reference: reference,
       );
-      _ensureAuthority();
+      _ensureSameHost();
 
       // (3)+(4) Feed the reference, then every follower, into the engine.
       var framesProcessed = 0;
@@ -280,7 +266,7 @@ class StackAndShareService {
           );
         },
       );
-      _ensureAuthority();
+      _ensureSameHost();
       framesProcessed = 1; // The reference is always frame #1 in the stack.
       progress = progress.copyWith(
         phase: StackAndSharePhase.stacking,
@@ -325,10 +311,10 @@ class StackAndShareService {
           // A refused frame is a PER-FRAME outcome: count it, remember why, and
           // keep stacking. Authority loss is the one genuine run-level abort
           // that can surface from in here, so it still propagates.
-          if (!_hasAuthority) rethrow;
+          if (_host.isStale) rethrow;
           framesProcessed++;
           framesRejected++;
-          final reason = _rejectionReason(e);
+          final reason = userFacingError(e);
           rejectionReasons[reason] = (rejectionReasons[reason] ?? 0) + 1;
           _logger.warning(
             'Frame rejected from the stack (${frame.filePath}): $reason',
@@ -343,7 +329,7 @@ class StackAndShareService {
           emit(progress);
           continue;
         }
-        _ensureAuthority();
+        _ensureSameHost();
 
         framesProcessed++;
         final stackedCount = result.stats.stackedFrameCount;
@@ -380,7 +366,7 @@ class StackAndShareService {
 
       // (5) Final integrated result + statistics.
       final stacked = await liveStacking.getCurrentResult();
-      _ensureAuthority();
+      _ensureSameHost();
       final stats = stacked.stats;
       final rawU16 = Uint16List.fromList(stacked.data);
 
@@ -442,7 +428,7 @@ class StackAndShareService {
         sessionId: sessionId,
         imageIds: integratedImageIds,
       );
-      _ensureAuthority();
+      _ensureSameHost();
       final result = StackAndShareResult(
         sessionId: sessionId,
         targetId: targetId,
@@ -466,7 +452,7 @@ class StackAndShareService {
 
       final id = await resultsDao.insertResult(result);
       incompleteResultId = id;
-      _ensureAuthority();
+      _ensureSameHost();
       var persisted = result.copyWith(id: id);
 
       // Metadata alone is not a saved result: the raw integration is released
@@ -494,7 +480,7 @@ class StackAndShareService {
           result: persisted,
           rgba: previewRgba,
         );
-        _ensureAuthority();
+        _ensureSameHost();
         persisted = persisted.copyWith(exportedImagePath: previewPath);
       }
 
@@ -537,7 +523,7 @@ class StackAndShareService {
           );
         }
       }
-      if (_hasAuthority) {
+      if (_host.isCurrent) {
         emit(
           progress.copyWith(phase: StackAndSharePhase.error).clearCurrentFile(),
         );
@@ -578,22 +564,3 @@ class StackAndShareService {
     }
   }
 }
-
-/// Provider for the [StackAndShareService].
-///
-/// Reads the selector, calibration, dark-library, DAO, and live-stacking
-/// providers lazily inside the service so it follows the same Drift instance
-/// and backend as the rest of the app, and so test overrides flow through.
-final stackAndShareServiceProvider = Provider<StackAndShareService>((ref) {
-  final backend = ref.watch(backendProvider);
-  final exportService = ref.watch(stackShareExportServiceProvider);
-  final service = StackAndShareService(
-    ref,
-    backend: backend,
-    persistPreview: ({required result, required rgba}) {
-      return exportService.persistViewerPreview(result: result, rgba: rgba);
-    },
-  );
-  ref.onDispose(service.retire);
-  return service;
-});

@@ -23,7 +23,11 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 import '../mocks/mock_database.dart';
 
@@ -38,6 +42,14 @@ class _FixedBackendNotifier extends BackendNotifier {
   }
 }
 
+class _FakeAppSettings extends AppSettingsNotifier {
+  _FakeAppSettings(this._initial);
+  final AppSettingsState _initial;
+
+  @override
+  Future<AppSettingsState> build() async => _initial;
+}
+
 class _SeededCameraNotifier extends CameraStateNotifier {
   _SeededCameraNotifier(super.ref, CameraStateSnapshot seed) {
     state = seed;
@@ -45,10 +57,13 @@ class _SeededCameraNotifier extends CameraStateNotifier {
 }
 
 class _SeededFilterWheelNotifier extends FilterWheelStateNotifier {
-  // Names present (so the wizard seeds its filter list) but the wheel is
-  // disconnected, so `_moveFilterWheel` short-circuits and never drives it.
+  // A connected wheel with no device id: the wizard lists its slots, and
+  // `moveFilterWheelAndWait` has no device to drive.
   _SeededFilterWheelNotifier(super.ref, List<String> names) {
-    state = FilterWheelState(filterNames: names);
+    state = FilterWheelState(
+      connectionState: DeviceConnectionState.connected,
+      filterNames: names,
+    );
   }
 }
 
@@ -83,9 +98,16 @@ void main() {
     List<String> filterNames = const ['L', 'R', 'G'],
     bool cameraExposing = false,
     bool cameraConnected = true,
+    String? captureFolder,
   }) {
     final container = ProviderContainer(
       overrides: [
+        if (captureFolder != null)
+          appSettingsProvider.overrideWith(
+            () => _FakeAppSettings(
+              AppSettingsState(imageOutputPath: captureFolder),
+            ),
+          ),
         databaseProvider.overrideWithValue(db),
         activeEquipmentProfileProvider.overrideWithValue(null),
         backendProvider.overrideWith(
@@ -122,7 +144,7 @@ void main() {
     bool filterSubfolders = false,
   }) async {
     final notifier = container.read(flatWizardProvider.notifier);
-    await notifier.loadFiltersFromWheel();
+    await notifier.loadFilters();
     notifier.updateGlobalSettings(
       container
           .read(flatWizardProvider)
@@ -321,7 +343,7 @@ void main() {
       );
       final notifier = container.read(flatWizardProvider.notifier);
       // Seed filters manually (no wheel path needed for this negative case).
-      await notifier.loadFiltersFromWheel();
+      await notifier.loadFilters();
       notifier.updateGlobalSettings(
         container
             .read(flatWizardProvider)
@@ -336,6 +358,66 @@ void main() {
       expect(state.isCapturing, isFalse);
       expect(state.errorMessage, contains('Camera not connected'));
       expect(backend.startCount, 0);
+    });
+  });
+
+  group('save folder', () {
+    test(
+      'without a chosen folder, flats go to Flats in the capture folder',
+      () async {
+        final backend = _AutoBackend();
+        addTearDown(backend.dispose);
+        final container = makeContainer(
+          backend,
+          filterNames: const ['L'],
+          captureFolder: tempDir.path,
+        );
+        await container.read(appSettingsProvider.future);
+        final notifier = container.read(flatWizardProvider.notifier);
+        await notifier.loadFilters();
+        notifier.updateGlobalSettings(
+          container
+              .read(flatWizardProvider)
+              .globalSettings
+              .copyWith(
+                createDateSubfolder: false,
+                createFilterSubfolders: false,
+                frameCount: 1,
+              ),
+        );
+        final flats = '${tempDir.path}${Platform.pathSeparator}Flats';
+        expect(container.read(flatWizardSaveFolderProvider), flats);
+
+        notifier.setMode(FlatWizardMode.quick);
+        notifier.setCurrentFilterIndex(0);
+        await notifier.runCapture();
+
+        expect(container.read(flatWizardProvider).errorMessage, isNull);
+        expect(backend.savedPaths, hasLength(1));
+        expect(backend.savedPaths.single, startsWith(flats));
+        // A flat is saved as a frame: it follows the camera-file setting.
+        expect(backend.keptCameraFiles, [true]);
+      },
+    );
+
+    test('a chosen folder wins over the capture folder', () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(
+        backend,
+        captureFolder: '/somewhere/else',
+      );
+      await container.read(appSettingsProvider.future);
+      await primeWizard(container);
+      expect(container.read(flatWizardSaveFolderProvider), tempDir.path);
+    });
+
+    test('with neither, there is no folder to save to', () async {
+      final backend = _AutoBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend, captureFolder: '');
+      await container.read(appSettingsProvider.future);
+      expect(container.read(flatWizardSaveFolderProvider), isNull);
     });
   });
 
@@ -486,6 +568,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
   int saveCount = 0;
   int _saveAttempts = 0;
   final List<String> savedPaths = [];
+  final List<bool> keptCameraFiles = [];
   int _seq = 0;
 
   @override
@@ -541,14 +624,17 @@ class _AutoBackend extends Mock implements SkotiqBackend {
   }
 
   @override
-  Future<CapturedImageResult?> cameraGetLastImage(String deviceId) async =>
-      _image(_onTargetAdu);
+  Future<CapturedImageResult?> cameraGetLastImage(
+    String deviceId, {
+    int? maxWidth,
+  }) async => _image(_onTargetAdu);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     _saveAttempts++;
     if (failSaveAt?.call(_saveAttempts) ?? false) {
@@ -556,6 +642,8 @@ class _AutoBackend extends Mock implements SkotiqBackend {
     }
     saveCount++;
     savedPaths.add(filePath);
+    keptCameraFiles.add(keepCameraFile);
+    return filePath;
   }
 }
 
@@ -647,16 +735,20 @@ class _AutoNetworkBackend extends Mock implements NetworkBackend {
   }
 
   @override
-  Future<CapturedImageResult?> cameraGetLastImage(String deviceId) async =>
-      _image(_onTargetAdu);
+  Future<CapturedImageResult?> cameraGetLastImage(
+    String deviceId, {
+    int? maxWidth,
+  }) async => _image(_onTargetAdu);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     savedPaths.add(filePath);
+    return filePath;
   }
 
   @override

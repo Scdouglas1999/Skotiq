@@ -75,9 +75,10 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   /// has no such file.
   Future<({int width, int height})?> getFitsDimensions(String hostPath) async {
     try {
-      final response = await _get('imaging/fits-dimensions', {
-        'path': hostPath,
-      });
+      final response = await _get(
+        ImagingApi.getFitsDimensions,
+        query: {'path': hostPath},
+      );
       return (
         width: _sessionScienceNumber(
           response,
@@ -95,38 +96,20 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
         return null;
       }
       rethrow;
-    } on dart_error.SkotiqError catch (error) {
-      // Compatibility with hosts that predate the structured error envelope.
-      final message = error.message.toLowerCase();
-      if (message.contains('fits_not_found') || message.contains('http 404')) {
-        return null;
-      }
-      rethrow;
     }
   }
 
-  // Sessions & Analytics
-
-  /// Get all imaging sessions
   Future<List<Map<String, dynamic>>> getAllSessions() async {
-    final response = await _get('sessions');
+    final response = await _get(AnalyticsApi.getAllSessions);
     return _sessionScienceObjectList(response, 'sessions', 'GET /api/sessions');
   }
 
-  /// Get active session
-  Future<Map<String, dynamic>?> getActiveSession() async {
-    final response = await _get('sessions/active');
-    return _sessionScienceNullableObject(
-      response,
-      'session',
-      'GET /api/sessions/active',
-    );
-  }
-
-  /// Get session by ID
   Future<Map<String, dynamic>?> getSessionById(int id) async {
     try {
-      final response = await _get('sessions/$id');
+      final response = await _get(
+        AnalyticsApi.getSessionById,
+        path: {'id': id},
+      );
       return _sessionScienceNullableObject(
         response,
         'session',
@@ -138,25 +121,32 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     }
   }
 
-  /// Create a new session
   Future<int> createSession(Map<String, dynamic> session) async {
-    final response = await _post('sessions', session);
+    final response = await _post(AnalyticsApi.createSession, body: session);
     return _sessionScienceNumber(response, 'id', 'POST /api/sessions').toInt();
   }
 
   /// Update session fields (stats, notes, status).
   Future<void> updateSession(int id, Map<String, dynamic> body) async {
-    await _put('sessions/$id', body);
+    await _put(AnalyticsApi.updateSession, path: {'id': id}, body: body);
   }
 
-  /// End a session with the given status.
-  Future<void> endSession(int id, {String status = 'completed'}) async {
-    await _post('sessions/$id/end', {'status': status});
+  Future<void> endSession(
+    int id, {
+    SessionStatus status = SessionStatus.completed,
+  }) async {
+    await _post(
+      AnalyticsApi.endSession,
+      path: {'id': id},
+      body: {'status': status.token},
+    );
   }
 
-  /// Sessions for a target.
   Future<List<Map<String, dynamic>>> getSessionsForTarget(int targetId) async {
-    final response = await _get('sessions/target/$targetId');
+    final response = await _get(
+      AnalyticsApi.getSessionsForTarget,
+      path: {'targetId': targetId},
+    );
     return _sessionScienceObjectList(
       response,
       'sessions',
@@ -166,19 +156,21 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
 
   /// Create a captured-image metadata row on the host.
   Future<int> createCapturedImage(Map<String, dynamic> image) async {
-    final response = await _post('images', image);
+    final response = await _post(SessionApi.createImage, body: image);
     return _sessionScienceNumber(response, 'id', 'POST /api/images').toInt();
   }
 
   /// Patch captured-image metadata on the host.
   Future<void> updateCapturedImage(int id, Map<String, dynamic> patch) async {
-    await _put('images/$id', patch);
+    await _put(SessionApi.updateImage, path: {'imageId': id}, body: patch);
   }
 
-  /// Fetch one captured-image row by id.
   Future<Map<String, dynamic>?> getCapturedImageById(int id) async {
     try {
-      final response = await _get('images/$id');
+      final response = await _get(
+        SessionApi.getImageById,
+        path: {'imageId': id},
+      );
       return _sessionScienceNullableObject(
         response,
         'image',
@@ -190,15 +182,16 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     }
   }
 
-  /// Every image row the host has recorded.
   Future<List<Map<String, dynamic>>> getAllImages() async {
-    final response = await _get('images');
+    final response = await _get(SessionApi.getAllImages);
     return _sessionScienceObjectList(response, 'images', 'GET /api/images');
   }
 
-  /// Images for a target.
   Future<List<Map<String, dynamic>>> getImagesForTarget(int targetId) async {
-    final response = await _get('images', {'targetId': targetId.toString()});
+    final response = await _get(
+      SessionApi.getAllImages,
+      query: {'targetId': targetId.toString()},
+    );
     return _sessionScienceObjectList(response, 'images', 'GET /api/images');
   }
 
@@ -213,27 +206,23 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
       if (producingRunId != null) 'producingRunId': producingRunId,
       if (limit != null) 'limit': limit.toString(),
     };
-    final response = await _get('images', params);
+    final response = await _get(SessionApi.getAllImages, query: params);
     return _sessionScienceObjectList(response, 'images', 'GET /api/images');
   }
 
-  /// Get session statistics
-  Future<Map<String, dynamic>> getSessionStats(int sessionId) async {
-    final response = await _get('sessions/$sessionId/stats');
-    return _sessionScienceObject(
-      response,
-      'stats',
-      'GET /api/sessions/$sessionId/stats',
-    );
-  }
-
   Future<Uint8List> downloadSessionExport(int sessionId, String format) async {
-    return _downloadBytes('sessions/$sessionId/export/$format');
+    return _downloadBytes(
+      SessionApi.exportSession,
+      path: {'sessionId': sessionId, 'format': format},
+    );
   }
 
   Future<List<PsfFieldTileRow>> getSessionPsfTiles(int sessionId) async {
     final endpoint = 'GET /api/sessions/$sessionId/psf-tiles';
-    final response = await _get('sessions/$sessionId/psf-tiles');
+    final response = await _get(
+      AnalyticsApi.getSessionPsfTiles,
+      path: {'id': sessionId},
+    );
     final rows = _sessionScienceObjectList(response, 'psfTiles', endpoint);
     final seenIds = <int>{};
     final tiles = <PsfFieldTileRow>[];
@@ -253,7 +242,10 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     int sessionId,
   ) async {
     final endpoint = 'GET /api/sessions/$sessionId/residuals';
-    final response = await _get('sessions/$sessionId/residuals');
+    final response = await _get(
+      AnalyticsApi.getSessionResiduals,
+      path: {'id': sessionId},
+    );
     final rows = _sessionScienceObjectList(response, 'residuals', endpoint);
     final seenIds = <int>{};
     final vectors = <AstrometryResidualVectorRow>[];
@@ -269,7 +261,6 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     return vectors;
   }
 
-  /// Get analytics summary
   Future<Map<String, dynamic>> getAnalyticsSummary({
     DateTime? startDate,
     DateTime? endDate,
@@ -282,13 +273,12 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
       params['endDate'] = endDate.toUtc().toIso8601String();
     }
     final response = await _get(
-      'analytics/summary',
-      params.isEmpty ? null : params,
+      AnalyticsApi.getAnalyticsSummary,
+      query: params.isEmpty ? null : params,
     );
     return response;
   }
 
-  /// Get total integration time
   Future<Map<String, dynamic>> getTotalIntegrationTime({
     DateTime? startDate,
     DateTime? endDate,
@@ -301,8 +291,8 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
       params['endDate'] = endDate.toUtc().toIso8601String();
     }
     final response = await _get(
-      'analytics/integration-time',
-      params.isEmpty ? null : params,
+      AnalyticsApi.getTotalIntegrationTime,
+      query: params.isEmpty ? null : params,
     );
     return response;
   }
@@ -312,7 +302,7 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   /// time, not referenced by any session). The session-aware predicate runs
   /// against the host DB, so a remote client asks the host instead of guessing.
   Future<int> countUntrackedTargets() async {
-    final response = await _get('analytics/untracked-targets/count');
+    final response = await _get(AnalyticsApi.getUntrackedTargetsCount);
     return _sessionScienceNumber(
       response,
       'count',
@@ -324,8 +314,8 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   /// the number deleted. Irreversible — the caller confirms with the user first.
   Future<int> removeUntrackedTargets() async {
     final response = await _post(
-      'analytics/untracked-targets/remove',
-      const {},
+      AnalyticsApi.removeUntrackedTargets,
+      body: const {},
     );
     return _sessionScienceNumber(
       response,
@@ -334,25 +324,24 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     ).toInt();
   }
 
-  // Weather & Radar
-
-  /// Get weather radar data
   Future<Map<String, dynamic>> getWeatherRadar(
     double lat,
     double lon, {
     bool forceRefresh = false,
   }) async {
-    final response = await _get('weather/radar', {
-      'lat': lat.toString(),
-      'lon': lon.toString(),
-      if (forceRefresh) 'refresh': 'true',
-    });
+    final response = await _get(
+      WeatherApi.getRadarData,
+      query: {
+        'lat': lat.toString(),
+        'lon': lon.toString(),
+        if (forceRefresh) 'refresh': 'true',
+      },
+    );
     return response;
   }
 
-  /// Get weather alerts
   Future<List<Map<String, dynamic>>> getWeatherAlerts() async {
-    final response = await _get('weather/alerts');
+    final response = await _get(WeatherApi.getAlerts);
     return _sessionScienceObjectList(
       response,
       'alerts',
@@ -360,15 +349,8 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Check safe imaging conditions
-  Future<Map<String, dynamic>> checkSafeImaging() async {
-    final response = await _get('weather/safe-imaging');
-    return response;
-  }
-
-  /// Get weather settings
   Future<Map<String, dynamic>> getWeatherSettings() async {
-    final response = await _get('weather/settings');
+    final response = await _get(WeatherApi.getSettings);
     return _sessionScienceObject(
       response,
       'settings',
@@ -376,14 +358,12 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Update weather settings
   Future<void> updateWeatherSettings(Map<String, dynamic> settings) async {
-    await _post('weather/settings', settings);
+    await _post(WeatherApi.updateSettings, body: settings);
   }
 
-  /// Clear weather cache
   Future<void> clearWeatherCache() async {
-    await _post('weather/clear-cache');
+    await _post(WeatherApi.clearCache);
   }
 
   // Night Narrator feed (read-only)
@@ -393,9 +373,10 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   /// `NarratorEvent` via `narratorEventFromWireJson`. The narrator runs on the
   /// host, so a remote client reads its feed here instead of the local DB.
   Future<List<Map<String, dynamic>>> getNarratorFeed(int sessionId) async {
-    final json = await _get('narrator/feed', {
-      'sessionId': sessionId.toString(),
-    });
+    final json = await _get(
+      NarratorApi.feed,
+      query: {'sessionId': sessionId.toString()},
+    );
     return _narratorEventsList(json);
   }
 
@@ -403,7 +384,10 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   Future<List<Map<String, dynamic>>> getRecentNarratorFeed({
     int limit = 50,
   }) async {
-    final json = await _get('narrator/recent', {'limit': limit.toString()});
+    final json = await _get(
+      NarratorApi.recent,
+      query: {'limit': limit.toString()},
+    );
     return _narratorEventsList(json);
   }
 
@@ -422,8 +406,8 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     int? sessionId,
   }) async {
     final json = await _get(
-      'firstlight/candidates',
-      sessionId == null ? null : {'sessionId': sessionId.toString()},
+      FirstLightApi.getCandidates,
+      query: sessionId == null ? null : {'sessionId': sessionId.toString()},
     );
     return _sessionScienceObjectList(
       json,
@@ -441,11 +425,14 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     required double decDeg,
     double radiusDeg = 0.02,
   }) async {
-    final json = await _get('firstlight/near', {
-      'ra': raDeg.toString(),
-      'dec': decDeg.toString(),
-      'radius': radiusDeg.toString(),
-    });
+    final json = await _get(
+      FirstLightApi.getNear,
+      query: {
+        'ra': raDeg.toString(),
+        'dec': decDeg.toString(),
+        'radius': radiusDeg.toString(),
+      },
+    );
     return _sessionScienceObjectList(
       json,
       'detections',
@@ -455,13 +442,13 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
 
   /// Mark a First Light detection reviewed (confirmed) on the host.
   Future<void> reviewFirstLightCandidate(int id) async {
-    await _post('firstlight/$id/review');
+    await _post(FirstLightApi.review, path: {'id': id});
   }
 
   /// Dismiss a First Light detection as a triaged artefact on the host so the
   /// next difference scan suppresses the same position.
   Future<void> dismissFirstLightCandidate(int id) async {
-    await _post('firstlight/$id/dismiss');
+    await _post(FirstLightApi.dismiss, path: {'id': id});
   }
 
   /// Fetch a REAL per-detection pixel postage stamp (PNG bytes) for detection
@@ -471,7 +458,10 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   /// around the candidate — not a host-local file path. Maps to the advertised
   /// `GET /api/firstlight/<id>/crops/<stage>`.
   Future<Uint8List> getFirstLightCrop(int id, String stage) {
-    return _downloadBytes('firstlight/$id/crops/$stage');
+    return _downloadBytes(
+      FirstLightApi.getCrop,
+      path: {'id': id, 'stage': stage},
+    );
   }
 
   /// Trigger a REAL TNS submission for detection [id] ON THE HOST. The host
@@ -479,7 +469,7 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   /// the slave only triggers and surfaces the result. Returns the host's
   /// `{success, atName?, reportId?, message}` payload.
   Future<Map<String, dynamic>> submitFirstLightToTns(int id) async {
-    return _post('firstlight/$id/submit/tns');
+    return _post(FirstLightApi.submitTns, path: {'id': id});
   }
 
   /// Ask the host to generate an ingestible AAVSO Extended File Format report
@@ -492,17 +482,25 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     required double magZeroPoint,
     String? standardBand,
   }) async {
-    return _postRawBytes('firstlight/$id/export/aavso', {
-      'magZeroPoint': magZeroPoint,
-      if (standardBand != null && standardBand.isNotEmpty)
-        'standardBand': standardBand,
-    });
+    return _postRawBytes(
+      FirstLightApi.exportAavso,
+      path: {'id': id},
+      body: {
+        'magZeroPoint': magZeroPoint,
+        if (standardBand != null && standardBand.isNotEmpty)
+          'standardBand': standardBand,
+      },
+    );
   }
 
   /// Ask the host to generate an MPC ADES PSV astrometry report for detection
   /// [id] and return the bytes (MPC submission is via the web form / email).
   Future<Uint8List> exportFirstLightMpc(int id) async {
-    return _postRawBytes('firstlight/$id/export/mpc', const {});
+    return _postRawBytes(
+      FirstLightApi.exportMpc,
+      path: {'id': id},
+      body: const {},
+    );
   }
 
   // Sky Atlas — Pillar A ("Your Sky") personal atlas
@@ -512,7 +510,7 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   /// a remote client reads its regions here instead of its (empty) local store.
   /// Callers reconstruct rows via `skyAtlasRegionFromWireJson`.
   Future<List<Map<String, dynamic>>> getAtlasRegions() async {
-    final json = await _get('atlas/regions');
+    final json = await _get(AtlasApi.getRegions);
     return _sessionScienceObjectList(json, 'regions', 'GET /api/atlas/regions');
   }
 
@@ -526,14 +524,17 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     required String kind,
     int? targetId,
   }) async {
-    final response = await _post('atlas/regions', {
-      'name': name,
-      'centerRaDeg': centerRaDeg,
-      'centerDecDeg': centerDecDeg,
-      'radiusDeg': radiusDeg,
-      'kind': kind,
-      if (targetId != null) 'targetId': targetId,
-    });
+    final response = await _post(
+      AtlasApi.createRegion,
+      body: {
+        'name': name,
+        'centerRaDeg': centerRaDeg,
+        'centerDecDeg': centerDecDeg,
+        'radiusDeg': radiusDeg,
+        'kind': kind,
+        if (targetId != null) 'targetId': targetId,
+      },
+    );
     final raw = response['id'];
     if (raw is! num || !raw.isFinite || raw.toInt() != raw || raw <= 0) {
       throw const FormatException(
@@ -548,7 +549,7 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   /// The native coverage query runs on the host. Callers reconstruct rows via
   /// `AtlasTileCoverage.fromJson`.
   Future<List<Map<String, dynamic>>> getAtlasCoverage() async {
-    final json = await _get('atlas/coverage');
+    final json = await _get(AtlasApi.getCoverage);
     return _sessionScienceObjectList(json, 'tiles', 'GET /api/atlas/coverage');
   }
 
@@ -558,14 +559,14 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   /// slave and so must branch here. Maps to the already-advertised
   /// `GET /api/atlas/region/<id>` route (no catalog change).
   Future<Map<String, dynamic>> getAtlasRegion(int regionId) async {
-    return _get('atlas/region/$regionId');
+    return _get(AtlasApi.getRegion, path: {'id': regionId});
   }
 
   /// Fetch a region's fold timeline (`folds`) + deepening growth curve
   /// (`growth`) from the host — the scrubber stops + contributing-frames list on
   /// a slave. Maps to the advertised `GET /api/atlas/region/<id>/timeline`.
   Future<Map<String, dynamic>> getAtlasRegionTimeline(int regionId) async {
-    return _get('atlas/region/$regionId/timeline');
+    return _get(AtlasApi.getRegionTimeline, path: {'id': regionId});
   }
 
   /// Fetch the co-added region cone as PNG bytes (latest depth) so the companion
@@ -577,15 +578,16 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     int outPixels = 2048,
     String? interp,
   }) {
-    return _downloadBytes('atlas/region/$regionId/cutout', {
-      'outPixels': outPixels.toString(),
-      if (interp != null) 'interp': interp,
-    });
+    return _downloadBytes(
+      AtlasApi.getRegionCutout,
+      path: {'id': regionId},
+      query: {
+        'outPixels': outPixels.toString(),
+        if (interp != null) 'interp': interp,
+      },
+    );
   }
 
-  // Target suggestions
-
-  /// Get target suggestions for tonight
   Future<Map<String, dynamic>> getSuggestionsForTonight({
     double? minAltitude,
     double? minScore,
@@ -606,8 +608,8 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
       params['objectTypes'] = objectTypes.join(',');
     }
     final response = await _get(
-      'suggestions/tonight',
-      params.isEmpty ? null : params,
+      SuggestionApi.getSuggestionsForTonight,
+      query: params.isEmpty ? null : params,
     );
     return response;
   }
@@ -629,7 +631,10 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
       if (config.preferredObjectTypes.isNotEmpty)
         'objectTypes': config.preferredObjectTypes.join(','),
     };
-    final response = await _get('suggestions/ranked', params);
+    final response = await _get(
+      SuggestionApi.getRankedSuggestions,
+      query: params,
+    );
     return _sessionScienceObjectList(
       response,
       'suggestions',
@@ -637,17 +642,16 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     ).map(TargetSuggestion.fromJson).toList(growable: false);
   }
 
-  /// Get target score
   Future<Map<String, dynamic>> getTargetScore(int targetId) async {
-    final response = await _get('suggestions/score/$targetId');
+    final response = await _get(
+      SuggestionApi.getTargetScore,
+      path: {'targetId': targetId},
+    );
     return response;
   }
 
-  // Transient alerts
-
-  /// Get active transient alerts
   Future<Map<String, dynamic>> getActiveTransients() async {
-    final response = await _get('transients');
+    final response = await _get(TransientApi.getActiveTransients);
     return {
       ...response,
       'alerts': _sessionScienceObjectList(
@@ -658,9 +662,8 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     };
   }
 
-  /// Get transient settings
   Future<Map<String, dynamic>> getTransientSettings() async {
-    final response = await _get('transients/settings');
+    final response = await _get(TransientApi.getSettings);
     return _sessionScienceObject(
       response,
       'settings',
@@ -668,24 +671,21 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Update transient settings
   Future<void> updateTransientSettings(Map<String, dynamic> settings) async {
-    await _post('transients/settings', settings);
+    await _post(TransientApi.updateSettings, body: settings);
   }
 
-  /// Queue a transient for observation
   Future<void> queueTransient(String transientId) async {
-    await _post('transients/$transientId/queue');
+    await _post(TransientApi.queueTransient, path: {'id': transientId});
   }
 
-  /// Dismiss a transient
   Future<void> dismissTransient(String transientId) async {
-    await _post('transients/$transientId/dismiss');
+    await _post(TransientApi.dismissTransient, path: {'id': transientId});
   }
 
   /// Get the imaging host's durable per-alert action states.
   Future<Map<String, dynamic>> getTransientStates() async {
-    final response = await _get('transients/states');
+    final response = await _get(TransientApi.getStates);
     return _sessionScienceObject(
       response,
       'states',
@@ -695,30 +695,29 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
 
   /// Persist an alert action state on the imaging host.
   Future<void> updateTransientState(String transientId, String state) async {
-    await _post('transients/$transientId/state', {'state': state});
+    await _post(
+      TransientApi.updateState,
+      path: {'id': transientId},
+      body: {'state': state},
+    );
   }
 
   /// Remove all durable alert action states on the imaging host.
   Future<void> clearTransientStates() async {
-    await _delete('transients/states');
+    await _delete(TransientApi.clearStates);
   }
 
-  /// Refresh transient alerts
   Future<void> refreshTransientAlerts() async {
-    await _post('transients/refresh');
+    await _post(TransientApi.refreshAlerts);
   }
 
-  /// Get queued transients
   Future<Map<String, dynamic>> getQueuedTransients() async {
-    final response = await _get('transients/queued');
+    final response = await _get(TransientApi.getQueued);
     return response;
   }
 
-  // Backup & Restore
-
-  /// List available backups
   Future<List<Map<String, dynamic>>> listBackups() async {
-    final response = await _get('backup/list');
+    final response = await _get(BackupApi.listBackups);
     final backupsList = response['backups'];
     if (backupsList is! List) {
       throw const FormatException(
@@ -737,9 +736,11 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
         .toList(growable: false);
   }
 
-  /// Create a new backup
   Future<Map<String, dynamic>> createBackup({bool autoSave = false}) async {
-    final response = await _post('backup/create', {'autoSave': autoSave});
+    final response = await _post(
+      BackupApi.createBackup,
+      body: {'autoSave': autoSave},
+    );
     return response;
   }
 
@@ -752,43 +753,27 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     String backupId, {
     bool replaceExisting = false,
   }) async {
-    final response = await _post('backup/restore', {
-      'id': backupId,
-      'replaceExisting': replaceExisting,
-    });
+    final response = await _post(
+      BackupApi.restoreBackup,
+      body: {'id': backupId, 'replaceExisting': replaceExisting},
+    );
     return response;
   }
 
-  /// Restore from a backup by absolute server [filePath].
-  ///
-  /// Legacy/compat entry point retained for older hosts. Newer clients should
-  /// use [restoreBackupById]; the host containment-checks any `filePath` to the
-  /// backup directory regardless, so a path outside it is rejected.
-  Future<Map<String, dynamic>> restoreBackup(
-    String filePath, {
-    bool replaceExisting = false,
-  }) async {
-    final response = await _post('backup/restore', {
-      'filePath': filePath,
-      'replaceExisting': replaceExisting,
-    });
-    return response;
-  }
-
-  /// Delete a backup
   Future<void> deleteBackup(String backupId) async {
-    await _delete('backup/$backupId');
+    await _delete(BackupApi.deleteBackup, path: {'id': backupId});
   }
 
-  /// Get backup metadata
   Future<Map<String, dynamic>> getBackupMetadata(String backupId) async {
-    final response = await _get('backup/$backupId/metadata');
+    final response = await _get(
+      BackupApi.getBackupMetadata,
+      path: {'id': backupId},
+    );
     return response;
   }
 
-  /// Download backup file bytes
   Future<Uint8List> downloadBackup(String backupId) async {
-    return _downloadBytes('backup/$backupId/download');
+    return _downloadBytes(BackupApi.downloadBackup, path: {'id': backupId});
   }
 
   Future<Map<String, dynamic>> uploadBackupAndRestore(
@@ -797,9 +782,9 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     bool replaceExisting = false,
   }) async {
     return _postRaw(
-      'backup/upload-restore',
-      {'fileName': fileName, 'replaceExisting': replaceExisting},
-      bytes,
+      BackupApi.uploadRestoreBackup,
+      query: {'fileName': fileName, 'replaceExisting': replaceExisting},
+      bytes: bytes,
       contentType: 'application/octet-stream',
     );
   }
@@ -808,13 +793,13 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   /// database and keyring; a remote controller must never inspect its own
   /// phone-local [SyncService] for this state.
   Future<SyncStatus> getCloudSyncStatus() async {
-    final response = await _get('sync/status');
+    final response = await _get(SyncApi.getStatus);
     return SyncStatus.fromJson(response);
   }
 
   /// Ask the imaging host to create and upload a configuration bundle now.
   Future<SyncPushResult> pushCloudSyncNow() async {
-    final response = await _post('sync/push');
+    final response = await _post(SyncApi.pushNow);
     if (response['status'] != 'pushed') {
       throw const FormatException(
         'POST /api/sync/push returned no pushed status',
@@ -840,10 +825,15 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   Future<RemoteScienceBundle> getScienceSessionBundle(int sessionId) async {
     final cached = _scienceSessionCache[sessionId];
     final response = cached == null
-        ? await _get('science/session/$sessionId/bundle')
-        : await _post('science/session/$sessionId/bundle', {
-            'spatialVersions': cached.versions,
-          });
+        ? await _get(
+            ScienceApi.getSessionBundle,
+            path: {'sessionId': sessionId},
+          )
+        : await _post(
+            ScienceApi.postSessionBundle,
+            path: {'sessionId': sessionId},
+            body: {'spatialVersions': cached.versions},
+          );
     final versions = (response['spatialVersions'] as Map?)
         ?.cast<String, dynamic>();
     List<T> spatialRows<T>(
@@ -941,7 +931,7 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   }
 
   Future<RemoteScienceBundle> getSessionlessScienceBundle() async {
-    final response = await _get('science/sessionless/recent');
+    final response = await _get(ScienceApi.getSessionlessBundle);
     return RemoteScienceBundle(
       photometry: _rowsFromJson<PhotometryMeasurementRow>(
         response['photometry'],
@@ -986,8 +976,8 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     int? profileId,
   }) async {
     final response = await _get(
-      'science/transforms',
-      profileId == null ? null : {'profileId': profileId.toString()},
+      ScienceApi.getPhotometricTransforms,
+      query: profileId == null ? null : {'profileId': profileId.toString()},
     );
     return _rowsFromJson<PhotometricTransformRow>(
       response['transforms'],
@@ -999,8 +989,9 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     int imageId,
   ) async {
     final response = await _post(
-      'science/calibration/image/$imageId/match-stars',
-      const {},
+      ScienceApi.matchPhotometricCalibrationStars,
+      path: {'imageId': imageId},
+      body: const {},
     );
     return _rowsFromJson<CatalogStarMatch>(
       response['starMatches'],
@@ -1014,12 +1005,15 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     int? equipmentProfileId,
   }) async {
     try {
-      final response = await _post('science/calibration/compute-transform', {
-        'starMatches': starMatches.map((match) => match.toJson()).toList(),
-        'filterName': filterName,
-        if (equipmentProfileId != null)
-          'equipmentProfileId': equipmentProfileId,
-      });
+      final response = await _post(
+        ScienceApi.computePhotometricTransform,
+        body: {
+          'starMatches': starMatches.map((match) => match.toJson()).toList(),
+          'filterName': filterName,
+          if (equipmentProfileId != null)
+            'equipmentProfileId': equipmentProfileId,
+        },
+      );
       return PhotometricTransformCoefficients.fromJson(
         _sessionScienceObject(
           response,
@@ -1039,9 +1033,10 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   Future<int> savePhotometricTransform(
     PhotometricTransformCoefficients coefficients,
   ) async {
-    final response = await _post('science/calibration/save-transform', {
-      'coefficients': coefficients.toJson(),
-    });
+    final response = await _post(
+      ScienceApi.savePhotometricTransform,
+      body: {'coefficients': coefficients.toJson()},
+    );
     return _sessionScienceNumber(
       response,
       'id',
@@ -1050,11 +1045,15 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   }
 
   Future<Map<String, dynamic>> generateSessionLineRatios(int sessionId) async {
-    return _post('science/session/$sessionId/generate-line-ratios', {});
+    return _post(
+      ScienceApi.generateLineRatios,
+      path: {'sessionId': sessionId},
+      body: {},
+    );
   }
 
   Future<Map<String, String>> getScienceSettings() async {
-    final response = await _get('science/settings');
+    final response = await _get(ScienceApi.getScienceSettings);
     return _sessionScienceObject(
       response,
       'settings',
@@ -1063,11 +1062,11 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   }
 
   Future<void> updateScienceSettings(Map<String, String> settings) async {
-    await _post('science/settings', {'settings': settings});
+    await _post(ScienceApi.updateScienceSettings, body: {'settings': settings});
   }
 
   Future<Map<String, String>> getSmartNightSettings() async {
-    final response = await _get('smart-night/settings');
+    final response = await _get(ScienceApi.getSmartNightSettings);
     return _sessionScienceObject(
       response,
       'settings',
@@ -1076,11 +1075,17 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
   }
 
   Future<void> updateSmartNightSettings(Map<String, String> settings) async {
-    await _post('smart-night/settings', {'settings': settings});
+    await _post(
+      ScienceApi.updateSmartNightSettings,
+      body: {'settings': settings},
+    );
   }
 
   Future<ScienceSessionConfig?> getScienceSessionConfig(int sessionId) async {
-    final response = await _get('science/session/$sessionId/config');
+    final response = await _get(
+      ScienceApi.getSessionConfig,
+      path: {'sessionId': sessionId},
+    );
     final config = _sessionScienceNullableObject(
       response,
       'config',
@@ -1093,9 +1098,11 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     int sessionId,
     ScienceSessionConfig config,
   ) async {
-    await _post('science/session/$sessionId/config', {
-      'config': config.toJson(),
-    });
+    await _post(
+      ScienceApi.updateSessionConfig,
+      path: {'sessionId': sessionId},
+      body: {'config': config.toJson()},
+    );
   }
 
   Future<Uint8List> exportSessionAavso(
@@ -1104,23 +1111,55 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     String? filterBand,
     String? chartId,
   }) async {
-    return _postRawBytes('science/session/$sessionId/export/aavso', {
-      'targetStarName': targetStarName,
-      if (filterBand != null && filterBand.isNotEmpty) 'filterBand': filterBand,
-      if (chartId != null && chartId.isNotEmpty) 'chartId': chartId,
-    });
+    return _postRawBytes(
+      ScienceApi.exportAavso,
+      path: {'sessionId': sessionId},
+      body: {
+        'targetStarName': targetStarName,
+        if (filterBand != null && filterBand.isNotEmpty)
+          'filterBand': filterBand,
+        if (chartId != null && chartId.isNotEmpty) 'chartId': chartId,
+      },
+    );
   }
 
   Future<Uint8List> generateObservationReport(int sessionId) async {
-    return _downloadBytes('science/session/$sessionId/report/pdf');
+    return _downloadBytes(
+      ScienceApi.generateObservationReport,
+      path: {'sessionId': sessionId},
+    );
   }
 
-  // Remote filesystem
+  Future<int?> scienceDefaultSession() async {
+    final response = await _get(ScienceApi.defaultSession);
+    final sessionId = response['sessionId'];
+    if (sessionId != null && sessionId is! int) {
+      throw const FormatException(
+        'GET /api/science/default-session: sessionId is not a number',
+      );
+    }
+    return sessionId as int?;
+  }
+
+  Future<String> scienceReport(int sessionId, {PeriodFinding? period}) async {
+    final response = await _post(
+      ScienceApi.scienceReport,
+      path: {'sessionId': sessionId},
+      body: {if (period != null) 'period': period.toJson()},
+    );
+    final markdown = response['markdown'];
+    if (markdown is! String) {
+      throw FormatException(
+        'POST /api/science/session/$sessionId/report has no markdown',
+      );
+    }
+    return markdown;
+  }
 
   Future<RemoteDirectoryListing> browseRemoteDirectories({String? path}) async {
     final response = await _get(
-      'files/browse',
-      path == null || path.isEmpty ? null : {'path': path},
+      FileSystemApi.browseDirectories,
+      query: path == null || path.isEmpty ? null : {'path': path},
     );
     return RemoteDirectoryListing.fromJson(response);
   }
@@ -1130,11 +1169,25 @@ mixin _NetworkBackendSessionScienceOperations on _NetworkBackendTransport {
     bool mustExist = false,
     bool mustBeWritable = false,
   }) async {
-    return _post('files/validate', {
-      'path': path,
-      'mustExist': mustExist,
-      'mustBeWritable': mustBeWritable,
-    });
+    try {
+      return await _post(
+        FileSystemApi.validateDirectory,
+        body: {
+          'path': path,
+          'mustExist': mustExist,
+          'mustBeWritable': mustBeWritable,
+        },
+      );
+    } on ServerError catch (refusal) {
+      // A folder outside the host's folders is an answer about the folder.
+      if (refusal.code != 'path_not_allowed') rethrow;
+      return {
+        'valid': false,
+        'exists': false,
+        'writable': false,
+        'error': refusal.message,
+      };
+    }
   }
 
   int _sessionScienceRowInt(

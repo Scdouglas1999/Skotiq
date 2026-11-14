@@ -9,10 +9,8 @@ import 'skotiq_typography.dart';
 
 /// App-specific theme modes including red night for astronomy.
 enum AppThemeMode {
-  /// Standard dark theme
   dark,
 
-  /// Light theme
   light,
 
   /// Red night vision theme - preserves dark-adapted eyes
@@ -143,22 +141,6 @@ SystemUiOverlayStyle systemUiOverlayStyleFor(ThemeData theme) {
         ? Brightness.light
         : Brightness.dark,
   );
-}
-
-/// Get the appropriate ThemeData for the current app theme mode
-ThemeData getThemeForMode(AppThemeMode mode, Brightness systemBrightness) {
-  switch (mode) {
-    case AppThemeMode.dark:
-      return SkotiqTheme.dark;
-    case AppThemeMode.light:
-      return SkotiqTheme.light;
-    case AppThemeMode.redNight:
-      return SkotiqTheme.redNight;
-    case AppThemeMode.system:
-      return systemBrightness == Brightness.dark
-          ? SkotiqTheme.dark
-          : SkotiqTheme.light;
-  }
 }
 
 /// Assembles Flutter [ThemeData] from [SkotiqColors], [SkotiqTokens],

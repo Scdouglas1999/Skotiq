@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as sk_events;
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import '../../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 /// An event's declared severity is authoritative — payload-type classification
@@ -33,7 +33,13 @@ sk_events.SkotiqEvent _event({
       severity: severity,
       category: sk_events.EventCategory.sequencer,
       payload: sk_events.EventPayload.sequencer(
-        sk_events.SequencerEvent.error(message: message),
+        sk_events.SequencerEvent.error(
+          message: message,
+          kind: severity == sk_events.EventSeverity.error ||
+                  severity == sk_events.EventSeverity.critical
+              ? sk_events.SequencerErrorKind.stepFailed
+              : sk_events.SequencerErrorKind.advisory,
+        ),
       ),
     );
 

@@ -10,11 +10,12 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/log_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -217,6 +218,31 @@ void main() {
         final body = await response.read().expand((c) => c).toList();
         expect(body, payload);
       });
+
+      test(
+        'a log still being written is sent as long as it was when asked',
+        () async {
+          final response = await translateHandlerErrors(
+            handlers.handleDownloadFile(
+              Request(
+                'GET',
+                Uri.parse(
+                  'http://localhost/api/logs/files/skotiq.log.2026-05-22/download',
+                ),
+              ),
+              'skotiq.log.2026-05-22',
+            ),
+          );
+          await targetFile.writeAsString(
+            'a line written meanwhile\n',
+            mode: FileMode.append,
+          );
+
+          expect(response.headers['content-length'], fileLength.toString());
+          final body = await response.read().expand((c) => c).toList();
+          expect(body, payload);
+        },
+      );
 
       test('206 partial content for Range requests', () async {
         final response = await translateHandlerErrors(

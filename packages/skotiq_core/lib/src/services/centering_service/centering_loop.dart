@@ -132,47 +132,6 @@ extension _CenteringLoop on CenteringService {
     }
   }
 
-  /// Stop the guider if it may move the mount: guiding or calibrating as the
-  /// app last saw it, or in any PHD2 state other than idle, looping or
-  /// paused (PHD2 in LostLock guides again the moment it finds the star). A
-  /// guider that cannot be stopped is logged and centering goes ahead.
-  Future<void> _stopGuidingForCentering(DeviceService deviceService) async {
-    final guider = _ref.read(guiderStateProvider);
-    if (guider.connectionState != DeviceConnectionState.connected) return;
-    var active = guider.isGuiding || guider.isCalibrating;
-    if (!active) {
-      try {
-        final status = await _ref.read(guidingBackendProvider).phd2GetStatus();
-        active = !_idleGuiderStates.contains(status.state);
-      } catch (e) {
-        // Not PHD2, or PHD2 not answering: the app's own view stands.
-        _ref
-            .read(loggingServiceProvider)
-            .debug(
-              'PHD2 state unavailable before centering ($e); the guider is '
-              'treated as idle as the app last saw it.',
-              source: 'CenteringService',
-            );
-      }
-    }
-    if (!active) return;
-    final logger = _ref.read(loggingServiceProvider);
-    try {
-      await deviceService.stopGuiding();
-      logger.info(
-        'Stopped guiding for centering: the guider cannot guide while the '
-        'mount moves. Start guiding again when centering is done.',
-        source: 'CenteringService',
-      );
-    } catch (e) {
-      logger.warning(
-        'Could not stop guiding before centering ($e); the guider may fight '
-        'the correction slews.',
-        source: 'CenteringService',
-      );
-    }
-  }
-
   CenteringResult _abortedResult(
     int iteration,
     List<CenteringIteration> iterations,
@@ -195,7 +154,6 @@ extension _CenteringLoop on CenteringService {
     final mountState = _ref.read(mountStateProvider);
     final cameraState = _ref.read(cameraStateProvider);
 
-    // Validate mount and camera are connected
     if (mountState.connectionState != DeviceConnectionState.connected) {
       return CenteringResult.failure(
         errorMessage: 'Mount not connected',
@@ -219,11 +177,9 @@ extension _CenteringLoop on CenteringService {
     _ownedDeviceService = deviceService;
 
     // A guider cannot guide while centering moves the mount: it fights every
-    // correction slew and trails the plate-solve frames. On the rig
-    // (2026-10-20) a Slew & Center with PHD2 guiding converged only to 5.4"
-    // and timed out. Stopped as the sequencer's Center stops it, and left
-    // stopped: guiding started outside a run is the operator's to restart.
-    await _stopGuidingForCentering(deviceService);
+    // correction slew and trails the plate-solve frames. Centering does not
+    // move the mount when guiding will not stop.
+    await stopGuidingForMove(_ref);
     if (_abortRequested) return _abortedResult(0, iterations);
 
     // Fail before taking a throwaway exposure when the selected solver is not
@@ -293,7 +249,6 @@ extension _CenteringLoop on CenteringService {
     for (int iteration = 1; iteration <= config.maxIterations; iteration++) {
       if (_abortRequested) return _abortedResult(iteration - 1, iterations);
 
-      // Update status
       onStatusUpdate?.call(
         CenteringStatus(
           state: CenteringState.exposing,
@@ -322,6 +277,9 @@ extension _CenteringLoop on CenteringService {
         capturedImage = await imagingService.captureUtilityFrame(
           settings: exposureSettings,
           targetName: 'Centering',
+          purpose: FramePurpose.centering,
+          purposeStep: iteration,
+          purposeSteps: config.maxIterations,
         );
       } catch (e) {
         // Abort interrupts the in-flight exposure via cancelExposure() — the
@@ -455,7 +413,14 @@ extension _CenteringLoop on CenteringService {
       // that `targetRa`, the mount and `CenteringStatus.solvedRa` all use.
       final solvedRa = _solvedRaHours(solveResult.ra);
       final solvedDec = solveResult.dec;
-      final offset = _calculateOffset(targetRa, targetDec, solvedRa, solvedDec);
+      final offset =
+          AstronomyCalculations.angularSeparation(
+            ra1Deg: targetRa * 15.0,
+            dec1Deg: targetDec,
+            ra2Deg: solvedRa * 15.0,
+            dec2Deg: solvedDec,
+          ) *
+          3600.0;
 
       final iter = CenteringIteration(
         iterationNumber: iteration,
@@ -502,7 +467,6 @@ extension _CenteringLoop on CenteringService {
           ),
         );
 
-        // Smart notification for centering completion
         final offsetArcmin = offset / 60.0;
         _ref
             .read(smartNotificationServiceProvider)

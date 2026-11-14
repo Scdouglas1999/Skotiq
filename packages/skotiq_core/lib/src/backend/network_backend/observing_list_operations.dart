@@ -12,23 +12,22 @@ part of '../network_backend.dart';
 ///
 /// These methods mirror the host's rows over REST and route slave mutations to
 /// the host so they persist on the master. They are NOT part of the abstract
-/// [SkotiqBackend] surface — only a slave calls them, behind an
-/// `is NetworkBackend` branch in the corresponding provider/notifier.
+/// [SkotiqBackend] surface — only a slave calls them, through the
+/// `ObservingListsStore` that `backend.remoteHost` hands out.
 mixin _NetworkBackendObservingListOperations on _NetworkBackendTransport {
-  // Reads
-
   /// GET /api/observing-lists — every observing list on the host, ordered by
   /// sortOrder.
   Future<List<ObservingList>> getObservingLists() async {
-    final response = await _get('observing-lists');
+    final response = await _get(PlanetariumApi.getObservingLists);
     return _observingListsFrom(response, 'lists', ObservingList.fromJson);
   }
 
   /// GET /api/observing-lists/items?listId= — the items in one list.
   Future<List<ObservingListItem>> getObservingListItems(int listId) async {
-    final response = await _get('observing-lists/items', {
-      'listId': listId.toString(),
-    });
+    final response = await _get(
+      PlanetariumApi.getObservingListItems,
+      query: {'listId': listId.toString()},
+    );
     return _observingListsFrom(response, 'items', ObservingListItem.fromJson);
   }
 
@@ -36,9 +35,10 @@ mixin _NetworkBackendObservingListOperations on _NetworkBackendTransport {
   /// all lists, or (with [listId]) for one list. Drives the planetarium
   /// star-chart list markers.
   Future<Set<String>> getListedCatalogIds({int? listId}) async {
-    final response = await _get('observing-lists/listed-catalog-ids', {
-      if (listId != null) 'listId': listId.toString(),
-    });
+    final response = await _get(
+      PlanetariumApi.getListedCatalogIds,
+      query: {if (listId != null) 'listId': listId.toString()},
+    );
     final raw = response['catalogIds'];
     if (raw is! List) {
       throw const FormatException(
@@ -62,9 +62,10 @@ mixin _NetworkBackendObservingListOperations on _NetworkBackendTransport {
   /// GET /api/observing-lists/containing?catalogId= — which lists contain a
   /// given catalog id (drives the per-object "in N lists" membership badge).
   Future<List<ObservingList>> getListsContaining(String catalogId) async {
-    final response = await _get('observing-lists/containing', {
-      'catalogId': catalogId,
-    });
+    final response = await _get(
+      PlanetariumApi.getListsContaining,
+      query: {'catalogId': catalogId},
+    );
     return _observingListsFrom(response, 'lists', ObservingList.fromJson);
   }
 
@@ -86,10 +87,10 @@ mixin _NetworkBackendObservingListOperations on _NetworkBackendTransport {
     required String name,
     String? description,
   }) async {
-    final response = await _post('observing-lists', {
-      'name': name,
-      if (description != null) 'description': description,
-    });
+    final response = await _post(
+      PlanetariumApi.createObservingList,
+      body: {'name': name, if (description != null) 'description': description},
+    );
     return _requiredObservingListId(response, 'POST /api/observing-lists');
   }
 
@@ -100,24 +101,28 @@ mixin _NetworkBackendObservingListOperations on _NetworkBackendTransport {
     String? description,
     bool setDescription = false,
   }) async {
-    await _post('observing-lists/update', {
-      'id': id,
-      if (name != null) 'name': name,
-      if (setDescription) 'description': description,
-    });
+    await _post(
+      PlanetariumApi.updateObservingList,
+      body: {
+        'id': id,
+        if (name != null) 'name': name,
+        if (setDescription) 'description': description,
+      },
+    );
   }
 
   /// DELETE /api/observing-lists?id= — delete a list (cascades items) on host.
   Future<void> deleteObservingList(int id) async {
-    await _delete('observing-lists?id=$id');
+    await _delete(PlanetariumApi.deleteObservingList, query: {'id': id});
   }
 
   /// POST /api/observing-lists/duplicate — duplicate a list + its items on the
   /// host; returns the new list's id.
   Future<int> duplicateObservingList(int sourceId) async {
-    final response = await _post('observing-lists/duplicate', {
-      'sourceId': sourceId,
-    });
+    final response = await _post(
+      PlanetariumApi.duplicateObservingList,
+      body: {'sourceId': sourceId},
+    );
     return _requiredObservingListId(
       response,
       'POST /api/observing-lists/duplicate',
@@ -137,17 +142,20 @@ mixin _NetworkBackendObservingListOperations on _NetworkBackendTransport {
     double? sizeArcmin,
     String? notes,
   }) async {
-    final response = await _post('observing-lists/items', {
-      'listId': listId,
-      'objectName': objectName,
-      if (catalogId != null) 'catalogId': catalogId,
-      if (objectType != null) 'objectType': objectType,
-      'ra': ra,
-      'dec': dec,
-      if (magnitude != null) 'magnitude': magnitude,
-      if (sizeArcmin != null) 'sizeArcmin': sizeArcmin,
-      if (notes != null) 'notes': notes,
-    });
+    final response = await _post(
+      PlanetariumApi.addObservingListItem,
+      body: {
+        'listId': listId,
+        'objectName': objectName,
+        if (catalogId != null) 'catalogId': catalogId,
+        if (objectType != null) 'objectType': objectType,
+        'ra': ra,
+        'dec': dec,
+        if (magnitude != null) 'magnitude': magnitude,
+        if (sizeArcmin != null) 'sizeArcmin': sizeArcmin,
+        if (notes != null) 'notes': notes,
+      },
+    );
     return _requiredObservingListId(
       response,
       'POST /api/observing-lists/items',
@@ -156,16 +164,19 @@ mixin _NetworkBackendObservingListOperations on _NetworkBackendTransport {
 
   /// DELETE /api/observing-lists/items?id= — remove an item on the host.
   Future<void> removeObservingListItem(int itemId) async {
-    await _delete('observing-lists/items?id=$itemId');
+    await _delete(
+      PlanetariumApi.removeObservingListItem,
+      query: {'id': itemId},
+    );
   }
 
   /// POST /api/observing-lists/items/update-notes — edit an item's notes on the
   /// host.
   Future<void> updateObservingListItemNotes(int itemId, String? notes) async {
-    await _post('observing-lists/items/update-notes', {
-      'itemId': itemId,
-      'notes': notes,
-    });
+    await _post(
+      PlanetariumApi.updateObservingListItemNotes,
+      body: {'itemId': itemId, 'notes': notes},
+    );
   }
 
   int _requiredObservingListId(Map<String, dynamic> response, String request) {

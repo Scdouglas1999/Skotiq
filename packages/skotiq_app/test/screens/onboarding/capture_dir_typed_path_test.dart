@@ -10,8 +10,12 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_app/screens/onboarding/steps/capture_dir_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+
+import '../../harness/fake_host_folders.dart';
 
 class _TestOnboardingNotifier extends OnboardingNotifier {
   _TestOnboardingNotifier(super.ref);
@@ -34,14 +38,12 @@ ProviderContainer _container({
       // the write is exercised rather than warned about.
       databaseProvider.overrideWithValue(db),
       onboardingDraftProvider.overrideWith(_TestOnboardingNotifier.new),
-      onboardingCaptureDirectoryPickerProvider.overrideWithValue(
-        (context, {required isRemote, required initialPath}) async => null,
-      ),
-      onboardingCaptureDirectoryValidatorProvider.overrideWithValue(
+      hostFoldersProvider.overrideWithValue(FakeHostFolders(
+          onCheck: folderCheckFrom(
         (path) async => writableFolders.contains(path)
             ? null
             : 'That folder does not exist.',
-      ),
+      ))),
       // Wrap the real writer so the draft actually moves — the step only shows
       // its "writable" verdict for the folder the DRAFT holds, which is what
       // stops a stale green tick surviving a changed path.

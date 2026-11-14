@@ -1,15 +1,17 @@
+import '../../../models/imaging/frame_type_record.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 
-import '../../../backend/network_backend.dart';
-import '../../../database/database.dart' show DarkLibraryEntry, Target;
+import '../../../database/database.dart' show DarkLibraryEntry, DbTarget;
+import '../../../models/backend/device_capabilities.dart';
 import '../../../models/backend/device_types.dart';
-import '../../../models/calibration/remote_calibration_models.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
+import '../../linked_host.dart';
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/sequence/sequence_models.dart';
 import '../../../services/dark_library_coverage_service.dart';
-import '../../backend_provider.dart';
 import '../../capability_provider.dart';
 import '../../dark_library_provider.dart';
 import '../../equipment/camera_state_provider.dart';
@@ -18,8 +20,11 @@ import '../../equipment/focuser_state_provider.dart';
 import '../../equipment_health_provider.dart';
 import '../../preflight_providers.dart';
 import '../../database_provider.dart';
+import '../../../errors/error_text.dart';
 import '../../settings_provider.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
+import '../../../settings/preflight_strictness.dart';
 
 // Pre-flight check validation rules.
 //
@@ -130,9 +135,8 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
     var anyPlannedByNode = false;
 
     final requirements = <DarkFrameRequirement>{};
-    for (final node in sequence.nodes.values) {
+    for (final node in sequence.enabledNodes) {
       if (node is! ExposureNode) continue;
-      if (!node.isEnabled) continue;
       if (node.frameType != FrameType.light) continue;
       if (node.durationSecs <= 0) continue;
       if (node.count <= 0) continue;
@@ -167,10 +171,10 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
     // darks. Pull the host's real library over the wire instead and map the
     // remote rows into DarkLibraryEntry so the coverage evaluator agrees with
     // the master; keep the local DAO path on the host.
-    final backend = ref.read(backendProvider);
+    final remote = ref.read(linkedHostCalibrationFramesProvider);
     final List<DarkLibraryEntry> entries;
-    if (backend is NetworkBackend) {
-      final remoteDarks = await backend.listDarks();
+    if (remote != null) {
+      final remoteDarks = await remote.listDarks();
       entries = remoteDarks.map(_darkEntryFromRemote).toList(growable: false);
     } else {
       final service = ref.read(darkLibraryServiceProvider);
@@ -337,9 +341,8 @@ class HistoryDrivenQualityRule implements AsyncSequenceValidator {
     Sequence sequence,
     ValidationContext ctx,
   ) async {
-    final targetNodes = sequence.nodes.values
+    final targetNodes = sequence.enabledNodes
         .whereType<TargetHeaderNode>()
-        .where((node) => node.isEnabled)
         .toList(growable: false);
     if (targetNodes.isEmpty) return const [];
 
@@ -360,7 +363,7 @@ class HistoryDrivenQualityRule implements AsyncSequenceValidator {
       final buckets = <String, _HistoricalQualityBucket>{};
 
       for (final frame in frames) {
-        if (frame.frameType.toLowerCase() != 'light') continue;
+        if (!frame.isLight) continue;
         final filter = _filterKey(frame.filter);
         if (plannedFilters.isNotEmpty && !plannedFilters.contains(filter)) {
           continue;
@@ -426,7 +429,7 @@ class HistoryDrivenQualityRule implements AsyncSequenceValidator {
     return issues;
   }
 
-  Target? _resolveTarget(TargetHeaderNode node, List<Target> targets) {
+  DbTarget? _resolveTarget(TargetHeaderNode node, List<DbTarget> targets) {
     final wanted = _normalizeName(node.targetName);
     for (final target in targets) {
       final name = _normalizeName(target.name);
@@ -452,7 +455,7 @@ class HistoryDrivenQualityRule implements AsyncSequenceValidator {
     final filters = <String>{};
     for (final childId in sequence.descendantsOf(target.id)) {
       final child = sequence.nodes[childId];
-      if (child == null || !child.isEnabled) continue;
+      if (child == null || !sequence.isNodeEnabled(child)) continue;
       if (child is ExposureNode) {
         filters.add(_filterKey(child.filter));
       } else if (child is SmartExposureNode) {
@@ -544,6 +547,68 @@ class UsbStabilityRule implements RefAwareSequenceValidator {
 /// Warns if the focuser is within 100 steps of either travel limit. The
 /// rule is a no-op if the focuser doesn't report position or max
 /// position (relative focusers report neither).
+/// Pre-flight rule: with a DSLR or mirrorless camera connected, every
+/// exposure's gain is one of the body's ISO speeds.
+///
+/// A gain far below the lowest speed is a position in the camera's ISO list,
+/// which is what sequences recorded before Skotiq used ISO numbers for these
+/// cameras; the camera would shoot at its lowest ISO. A gain between two
+/// speeds is taken at the nearest one, which is only worth a note.
+class IsoSpeedRule implements RefAwareSequenceValidator {
+  @override
+  String get name => 'IsoSpeed';
+
+  @override
+  List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
+    final sensitivity = ctx.ref.read(cameraSensitivityProvider);
+    if (sensitivity is! IsoSensitivity) return const [];
+    final strictness = ctx.ref
+        .read(appSettingsProvider)
+        .valueOrNull
+        ?.preflightStrictness;
+    final lowest = sensitivity.speeds.first;
+    final issues = <ValidationIssue>[];
+    for (final node in sequence.enabledNodes) {
+      if (node is! ExposureNode) continue;
+      final gain = node.gain;
+      if (gain == null) continue;
+      final taken = sensitivity.accept(gain);
+      if (gain * 2 < lowest) {
+        issues.add(
+          ValidationIssue(
+            severity: strictness == null
+                ? ValidationSeverity.warning
+                : _severityFor(ValidationSeverity.warning, strictness),
+            category: ValidationCategory.exposures,
+            title: 'ISO Not Set',
+            description:
+                'Exposure "${node.name}" asks for ISO $gain, below this '
+                'camera\'s lowest ISO $lowest. Sequences saved before Skotiq '
+                'used ISO numbers for DSLR and mirrorless cameras stored the '
+                'position in the camera\'s ISO list instead. The camera would '
+                'shoot at ISO $taken.',
+            affectedNodeId: node.id,
+            resolutionHint: 'Choose the ISO in the exposure step.',
+          ),
+        );
+      } else if (taken != gain) {
+        issues.add(
+          ValidationIssue(
+            severity: ValidationSeverity.info,
+            category: ValidationCategory.exposures,
+            title: 'ISO Rounded',
+            description:
+                'Exposure "${node.name}" asks for ISO $gain, which this camera '
+                'does not offer. It will shoot at ISO $taken.',
+            affectedNodeId: node.id,
+          ),
+        );
+      }
+    }
+    return issues;
+  }
+}
+
 class FocuserRangeRule implements RefAwareSequenceValidator {
   @override
   String get name => 'FocuserRange';
@@ -560,10 +625,9 @@ class FocuserRangeRule implements RefAwareSequenceValidator {
     // Only relevant if the sequence will touch the focuser (autofocus
     // node or any node that requires focuser). Don't pester users
     // running an exposure-only sequence with no focus mention.
-    final requiresFocuser = sequence.nodes.values.any((node) {
-      if (!node.isEnabled) return false;
-      return node.requiredDevices.contains(DeviceType.focuser);
-    });
+    final requiresFocuser = sequence.enabledNodes.any(
+      (node) => node.requiredDevices.contains(DeviceType.focuser),
+    );
     if (!requiresFocuser) return const [];
 
     final focuser = ref.read(focuserStateProvider);
@@ -634,11 +698,9 @@ class PolarAlignmentFreshnessRule implements RefAwareSequenceValidator {
     if (settings == null) return const [];
     if (settings.polarAlignmentMaxAgeDays <= 0) return const [];
 
-    // Only relevant if a mount is required for this run.
-    final requiresMount = sequence.nodes.values.any((node) {
-      if (!node.isEnabled) return false;
-      return node.requiredDevices.contains(DeviceType.mount);
-    });
+    final requiresMount = sequence.enabledNodes.any(
+      (node) => node.requiredDevices.contains(DeviceType.mount),
+    );
     if (!requiresMount) return const [];
 
     final lastAsync = ref.read(lastPolarAlignmentAnywhereProvider);
@@ -770,7 +832,8 @@ class TimeSyncRule implements AsyncSequenceValidator {
           category: ValidationCategory.equipmentHealth,
           title: 'Time Sync Check Unavailable',
           description:
-              'Could not contact NTP server to verify the system clock: $e',
+              'Could not reach a time server to check the system clock: '
+              '${userFacingError(e)}.',
           resolutionHint:
               'This is normal on observatory networks without internet. '
               'Verify your system clock manually before unattended runs.',
@@ -821,10 +884,10 @@ class CoolerDeltaRule implements RefAwareSequenceValidator {
         category: ValidationCategory.equipmentHealth,
         title: 'Cooler May Not Reach Setpoint',
         description:
-            'Ambient/sensor is ${ambient.toStringAsFixed(1)}°C, target '
-            'is ${cam.targetTemp.toStringAsFixed(1)}°C — '
-            '${delta.toStringAsFixed(0)}°C below ambient exceeds typical '
-            'TEC headroom (~${maxRealisticDeltaC.toStringAsFixed(0)}°C).',
+            'Ambient/sensor is ${formatCelsius(ambient)}, target '
+            'is ${formatCelsius(cam.targetTemp)} — '
+            '${formatCelsius(delta, decimals: 0)} below ambient exceeds typical '
+            'TEC headroom (~${formatCelsius(maxRealisticDeltaC, decimals: 0)}).',
         resolutionHint:
             'Raise the target temperature in the cooling controls, or wait '
             'for ambient to drop before starting.',
@@ -849,11 +912,9 @@ class FilterWheelHomingRule implements RefAwareSequenceValidator {
     final settings = ref.read(appSettingsProvider).valueOrNull;
     if (settings == null) return const [];
 
-    // Only relevant when the sequence will actually use a filter wheel.
-    final requiresFw = sequence.nodes.values.any((node) {
-      if (!node.isEnabled) return false;
-      return node.requiredDevices.contains(DeviceType.filterWheel);
-    });
+    final requiresFw = sequence.enabledNodes.any(
+      (node) => node.requiredDevices.contains(DeviceType.filterWheel),
+    );
     if (!requiresFw) return const [];
 
     final fw = ref.read(filterWheelStateProvider);

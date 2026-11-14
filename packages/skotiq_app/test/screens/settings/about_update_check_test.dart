@@ -14,11 +14,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/about_settings.dart';
+import 'package:skotiq_app/services/app_update.dart';
 // `UpdateSettings` is also the name of a freezed model in skotiq_updater,
 // so the appliance page is imported under a prefix.
 import 'package:skotiq_app/screens/settings/widgets/update_settings.dart'
     as appliance;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 
 import '../../harness/harness.dart';
@@ -30,6 +31,7 @@ class _FakeUpdateNotifier extends UpdateNotifier {
       : super(
           currentVersion: '6.1.0',
           currentBuildNumber: 21,
+          dataDirectory: () async => supportDirectory,
           updateService: UpdateService(
             currentVersion: '6.1.0',
             currentBuildNumber: 21,
@@ -183,6 +185,32 @@ void main() {
 
     expect(find.textContaining('Could not check for updates'), findsOneWidget);
     expect(find.textContaining('503'), findsOneWidget);
+  });
+
+  // ux walk-2 F1/F40: a launch after an offline check said "No update check
+  // has run yet" although the earlier launch had checked and failed.
+  testWidgets('a check from an earlier launch is reported with how it ended', (
+    tester,
+  ) async {
+    final notifier = await _pumpAbout(tester);
+    notifier.put(
+      notifier.state.copyWith(
+        status: UpdateStatus.idle,
+        sourceConfigured: true,
+        lastCheckTime: DateTime.now().subtract(const Duration(minutes: 18)),
+        errorMessage: 'Could not reach GitHub (Connection failed).',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('No update check has run yet'), findsNothing);
+    expect(
+      find.text(
+        'The last update check, 18 minutes ago, did not finish: Could not '
+        'reach GitHub (Connection failed). Check now to try again.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

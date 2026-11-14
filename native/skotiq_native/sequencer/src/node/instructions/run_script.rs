@@ -17,10 +17,6 @@ pub struct RunScriptInstruction;
 
 #[async_trait]
 impl InstructionNode for RunScriptInstruction {
-    fn type_name(&self) -> &'static str {
-        "Run Script"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -77,6 +73,7 @@ impl InstructionNode for RunScriptInstruction {
         let ctx = context.to_instruction_context(node_id).await;
         execute_script(&interpolated, &ctx, context, &frame)
             .await
-            .log_and_get_status_with_context("Run Script", &ctx)
+            .settle("Run Script", &ctx)
+            .await
     }
 }

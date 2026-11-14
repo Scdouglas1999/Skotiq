@@ -46,8 +46,9 @@ void main() {
   });
 
   test('the locale-independent group lookup agrees with the catalog', () {
-    expect(groupTitleForKey('darkroom'), 'Automation & Safety');
-    expect(resolveSectionKey('darkroom'), 'darkroom');
+    expect(SettingsSectionId.resolve('darkroom')!.group.title,
+        'Automation & Safety');
+    expect(SettingsSectionId.resolve('darkroom')?.key, 'darkroom');
   });
 
   testWidgets('opening the entry goes to the Activity tab', (tester) async {

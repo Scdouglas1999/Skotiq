@@ -12,10 +12,14 @@
 // Opening a session is the one moment every surface (sequencer run, ad-hoc
 // capture) passes through, so that is where the snapshot is stamped.
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   late SkotiqDatabase db;
@@ -106,5 +110,62 @@ void main() {
           'NULL column the button had nothing to restore',
     );
     expect(context.equipmentSnapshot!.cameraGain, 120);
+  });
+
+  // The walk-through's Continue Session offered "-10°C" for a run taken at
+  // 20 °C with the cooler off, and "Filter 1" for the L filter.
+  test('a snapshot records what was in use, by name', () {
+    final quickStart = QuickStartService(
+      sessionsDao: sessionsDao,
+      profilesDao: EquipmentProfilesDao(db),
+      targetsDao: TargetsDao(db),
+      sequencesDao: SequencesDao(db),
+      checkpointsDao: SequenceCheckpointsDao(db),
+    );
+    const wheel = FilterWheelState(
+      currentPosition: 0,
+      filterNames: ['L', 'R', 'G', 'B'],
+    );
+    final atAmbient = quickStart.captureEquipmentSnapshot(
+      cameraState: const CameraStateSnapshot(temperature: 20),
+      filterWheelState: wheel,
+      focuserState: const FocuserState(),
+    );
+    expect(atAmbient.coolerTargetTemp, isNull);
+    expect(atAmbient.filterName, 'L');
+    expect(
+      EquipmentSnapshot.fromJsonString(atAmbient.toJsonString()).filterName,
+      'L',
+    );
+
+    final cooled = quickStart.captureEquipmentSnapshot(
+      cameraState: const CameraStateSnapshot(
+        temperature: -9.8,
+        targetTemp: -10,
+        coolerOn: true,
+      ),
+      filterWheelState: wheel,
+      focuserState: const FocuserState(),
+    );
+    expect(cooled.coolerTargetTemp, -10);
+  });
+
+  test('a run the operator stopped says so', () async {
+    final id = await sessionsDao.createSession(
+      ImagingSessionsCompanion.insert(
+        name: const Value('M34'),
+        startTime: DateTime.now().subtract(const Duration(hours: 1)),
+      ),
+    );
+    await sessionsDao.endSession(id, status: SessionStatus.stoppedResumable);
+    final quickStart = QuickStartService(
+      sessionsDao: sessionsDao,
+      profilesDao: EquipmentProfilesDao(db),
+      targetsDao: TargetsDao(db),
+      sequencesDao: SequencesDao(db),
+      checkpointsDao: SequenceCheckpointsDao(db),
+    );
+    final context = await quickStart.getQuickStartContext();
+    expect(context?.stoppedByOperator, isTrue);
   });
 }

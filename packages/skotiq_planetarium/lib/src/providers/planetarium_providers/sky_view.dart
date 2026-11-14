@@ -1,7 +1,5 @@
 part of '../planetarium_providers.dart';
 
-// Sky view state provider
-
 class SkyViewNotifier extends StateNotifier<SkyViewState> {
   SkyViewNotifier()
     : super(const SkyViewState(centerRA: 0, centerDec: 0, fieldOfView: 60));
@@ -166,7 +164,6 @@ class SkyViewNotifier extends StateNotifier<SkyViewState> {
       return;
     }
 
-    // Apply zoom
     final oldFOV = state.fieldOfView;
     final newFOV = (oldFOV / zoomFactor).clamp(1.0, 180.0);
     state = state.copyWith(fieldOfView: newFOV);
@@ -192,7 +189,6 @@ class SkyViewNotifier extends StateNotifier<SkyViewState> {
     );
   }
 
-  /// Convert screen position to celestial coordinates
   CelestialCoordinate? _screenToCelestial(Offset position, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final scale =

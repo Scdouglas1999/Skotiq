@@ -1,10 +1,15 @@
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// The grading verdict over one session's LIGHT frames.
 ///
@@ -35,7 +40,28 @@ class SessionGrading {
 const String _kAvgHfrBasis = 'accepted-frames';
 
 /// Handlers for session management and analytics
-class AnalyticsHandlers {
+class AnalyticsHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    AnalyticsApi.getAllSessions: handleGetAllSessions,
+    AnalyticsApi.getActiveSession: handleGetActiveSession,
+    AnalyticsApi.getRecentSessions: handleGetRecentSessions,
+    AnalyticsApi.getSessionById: handleGetSessionById,
+    AnalyticsApi.getSessionStats: handleGetSessionStats,
+    AnalyticsApi.getSessionPsfTiles: handleGetSessionPsfTiles,
+    AnalyticsApi.getSessionResiduals: handleGetSessionResiduals,
+    AnalyticsApi.getSessionsForTarget: handleGetSessionsForTarget,
+    AnalyticsApi.createSession: handleCreateSession,
+    AnalyticsApi.updateSession: handleUpdateSession,
+    AnalyticsApi.endSession: handleEndSession,
+    AnalyticsApi.deleteSession: handleDeleteSession,
+    AnalyticsApi.getAnalyticsSummary: handleGetAnalyticsSummary,
+    AnalyticsApi.getTotalIntegrationTime: handleGetTotalIntegrationTime,
+    AnalyticsApi.getUntrackedTargetsCount: handleGetUntrackedTargetsCount,
+    AnalyticsApi.removeUntrackedTargets: handleRemoveUntrackedTargets,
+    AnalyticsApi.getTargetStatistics: handleGetTargetStatistics,
+  };
+
   final ProviderContainer container;
 
   /// Upper bound for the `/api/sessions/recent` `limit`. Imaging sessions
@@ -146,16 +172,12 @@ class AnalyticsHandlers {
     };
   }
 
-  // Get all sessions
-
   Future<Response> handleGetAllSessions(Request request) async {
     final database = container.read(databaseProvider);
     final sessions = await database.sessionsDao.getAllSessions();
 
     return jsonOk({"sessions": await _sessionsToJson(database, sessions)});
   }
-
-  // Get Session By ID
 
   Future<Response> handleGetSessionById(Request request, String id) async {
     final sessionId = _parsePathId(id, 'id');
@@ -174,8 +196,6 @@ class AnalyticsHandlers {
     });
   }
 
-  // Get active session
-
   Future<Response> handleGetActiveSession(Request request) async {
     final database = container.read(databaseProvider);
     final activeSessions = await database.sessionsDao.getActiveSessions();
@@ -190,8 +210,6 @@ class AnalyticsHandlers {
       "session": _sessionToJson(active, await _gradingFor(database, active.id)),
     });
   }
-
-  // Get recent sessions
 
   Future<Response> handleGetRecentSessions(Request request) async {
     // Absent → 10. A supplied limit must be a positive, bounded whole number so
@@ -210,8 +228,6 @@ class AnalyticsHandlers {
 
     return jsonOk({"sessions": await _sessionsToJson(database, sessions)});
   }
-
-  // Create session
 
   Future<Response> handleCreateSession(Request request) async {
     _logInfo('[API] POST /api/sessions');
@@ -295,15 +311,12 @@ class AnalyticsHandlers {
     return jsonOk({"status": "created", "id": id});
   }
 
-  // Update session
-
   Future<Response> handleUpdateSession(Request request, String id) async {
     _logInfo('[API] PUT /api/sessions/$id');
     final sessionId = _parsePathId(id, 'id');
     final payload = await readJsonObject(request);
     final database = container.read(databaseProvider);
 
-    // Update stats if provided
     if (payload.containsKey('totalExposures') ||
         payload.containsKey('successfulExposures') ||
         payload.containsKey('failedExposures') ||
@@ -331,7 +344,6 @@ class AnalyticsHandlers {
       );
     }
 
-    // Update notes if provided
     if (payload.containsKey('notes')) {
       await database.sessionsDao.updateNotes(
         sessionId,
@@ -339,16 +351,19 @@ class AnalyticsHandlers {
       );
     }
 
-    // Update status if provided
     if (payload.containsKey('status')) {
-      final status = requireString(payload, 'status');
-      if (!const {'active', 'completed', 'aborted', 'error'}.contains(status)) {
-        throw BadRequestError(
-          field: 'status',
-          expected: 'active|completed|aborted|error',
-        );
-      }
-      await database.sessionsDao.updateSessionStatus(sessionId, status);
+      await database.sessionsDao.updateSessionStatus(
+        sessionId,
+        _sessionStatus(
+          requireString(payload, 'status'),
+          allowed: const {
+            SessionStatus.active,
+            SessionStatus.completed,
+            SessionStatus.aborted,
+            SessionStatus.error,
+          },
+        ),
+      );
     }
 
     publishHostMutationFromContainer(
@@ -360,19 +375,18 @@ class AnalyticsHandlers {
     return jsonOk({"status": "updated"});
   }
 
-  // End session
-
   Future<Response> handleEndSession(Request request, String id) async {
     _logInfo('[API] POST /api/sessions/$id/end');
     final sessionId = _parsePathId(id, 'id');
     final payload = await readJsonObject(request);
-    final status = optionalString(payload, 'status') ?? 'completed';
-    if (!const {'completed', 'aborted', 'error'}.contains(status)) {
-      throw BadRequestError(
-        field: 'status',
-        expected: 'completed|aborted|error',
-      );
-    }
+    final status = _sessionStatus(
+      optionalString(payload, 'status') ?? SessionStatus.completed.token,
+      allowed: const {
+        SessionStatus.completed,
+        SessionStatus.aborted,
+        SessionStatus.error,
+      },
+    );
     final database = container.read(databaseProvider);
 
     await database.sessionsDao.endSession(sessionId, status: status);
@@ -382,12 +396,10 @@ class AnalyticsHandlers {
       entityType: HostMutationEntity.session,
       action: HostMutationAction.updated,
       entityId: sessionId.toString(),
-      extra: {'status': status},
+      extra: {'status': status.token},
     );
     return jsonOk({"status": "ended"});
   }
-
-  // Delete session
 
   Future<Response> handleDeleteSession(Request request, String id) async {
     _logInfo('[API] DELETE /api/sessions/$id');
@@ -407,8 +419,6 @@ class AnalyticsHandlers {
     );
     return jsonOk({"status": "deleted"});
   }
-
-  // Get session stats
 
   /// `GET /api/sessions/<id>/stats`
   ///
@@ -437,7 +447,6 @@ class AnalyticsHandlers {
       return jsonNotFound({"error": "Session not found: $id"});
     }
 
-    // Get images for this session
     final images = await database.imagesDao.getImagesForSession(sessionId);
     // The same read the list surfaces use, rather than a second tally over the
     // rows already in hand: two counters over one fact drift, and this endpoint
@@ -445,7 +454,6 @@ class AnalyticsHandlers {
     // this call closes.
     final grading = await _gradingFor(database, sessionId);
 
-    // Calculate stats
     int lightCount = 0;
     int darkCount = 0;
     int flatCount = 0;
@@ -473,7 +481,7 @@ class AnalyticsHandlers {
           break;
       }
 
-      if (img.hfr != null && img.frameType == 'light') {
+      if (img.hfr != null && img.isLight) {
         totalLightHfr += img.hfr!;
         lightHfrCount++;
       }
@@ -513,8 +521,6 @@ class AnalyticsHandlers {
     });
   }
 
-  // Session science data
-
   Future<Response> handleGetSessionPsfTiles(Request request, String id) async {
     final sessionId = _parsePathId(id, 'id');
     final database = container.read(databaseProvider);
@@ -533,8 +539,6 @@ class AnalyticsHandlers {
     return jsonOk({'residuals': residuals.map(_residualVectorToJson).toList()});
   }
 
-  // Get analytics summary
-
   Future<Response> handleGetAnalyticsSummary(Request request) async {
     final sessions = await _sessionsInRequestedRange(request);
     final stats = _statisticsForSessions(sessions);
@@ -549,8 +553,6 @@ class AnalyticsHandlers {
     });
   }
 
-  // Get total integration time
-
   Future<Response> handleGetTotalIntegrationTime(Request request) async {
     final sessions = await _sessionsInRequestedRange(request);
     final stats = _statisticsForSessions(sessions);
@@ -560,8 +562,6 @@ class AnalyticsHandlers {
       "totalIntegrationHours": stats['totalIntegrationHours'],
     });
   }
-
-  // Get target statistics
 
   Future<Response> handleGetTargetStatistics(
     Request request,
@@ -573,8 +573,6 @@ class AnalyticsHandlers {
 
     return jsonOk({"stats": stats});
   }
-
-  // Untracked targets cleanup
 
   /// GET /api/analytics/untracked-targets/count
   /// Number of "untracked" library targets (no integration goal, not a
@@ -605,8 +603,6 @@ class AnalyticsHandlers {
     return jsonOk({"status": "removed", "deleted": deleted});
   }
 
-  // Get sessions for target
-
   Future<Response> handleGetSessionsForTarget(
     Request request,
     String targetId,
@@ -617,8 +613,6 @@ class AnalyticsHandlers {
 
     return jsonOk({"sessions": await _sessionsToJson(database, sessions)});
   }
-
-  // Helpers
 
   /// Accepted and rejected LIGHT frames per session id, counted from
   /// `captured_images` — the one place the grading verdict is recorded.
@@ -661,7 +655,7 @@ class AnalyticsHandlers {
           .customSelect(
             'SELECT session_id, is_accepted, COUNT(*) AS frames '
             'FROM captured_images '
-            "WHERE frame_type = 'light' AND session_id IN ($placeholders) "
+            'WHERE $lightFrameSql AND session_id IN ($placeholders) '
             'GROUP BY session_id, is_accepted',
             variables: [for (final id in batch) Variable<int>(id)],
             readsFrom: {database.capturedImages},
@@ -684,7 +678,6 @@ class AnalyticsHandlers {
     };
   }
 
-  /// The grading verdict for a single session.
   Future<SessionGrading> _gradingFor(
     SkotiqDatabase database,
     int sessionId,
@@ -781,4 +774,20 @@ class AnalyticsHandlers {
       'timestamp': residual.timestamp.millisecondsSinceEpoch,
     };
   }
+}
+
+/// The session status [token] names, when a client may set it; anything else
+/// is a bad request.
+SessionStatus _sessionStatus(
+  String token, {
+  required Set<SessionStatus> allowed,
+}) {
+  final status = SessionStatus.tryParse(token);
+  if (status == null || !allowed.contains(status)) {
+    throw BadRequestError(
+      field: 'status',
+      expected: allowed.map((s) => s.token).join('|'),
+    );
+  }
+  return status;
 }

@@ -1,12 +1,9 @@
 // `$SEQUENCE` must mean the sequence, not the target.
 //
-// ImagingService documents its `$VARIABLE` set as "honoured here so that
-// patterns shared between the Dart and Rust capture paths behave identically",
-// and the Rust generator (native/skotiq_native/imaging/src/naming.rs)
-// resolves `$SEQUENCE` to `ctx.sequence`, falling back to the literal
-// "Sequence". The Dart side substituted the TARGET name instead, so one pattern
-// filed sequencer frames under the plan's name and manual frames of the same
-// object under the object's name — in a folder labelled as a sequence.
+// With no sequence, `$SEQUENCE` resolves to the literal "Sequence". The target
+// name there would file sequencer frames under the plan's name and manual
+// frames of the same object under the object's name, in a folder labelled as a
+// sequence.
 
 import 'dart:async';
 import 'dart:io';
@@ -21,10 +18,14 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart';
-import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/science/science_processing_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/providers/capture_preview_loader_provider.dart';
+import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
+import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
 
 class _NoOpScienceProcessingService extends ScienceProcessingService {
   _NoOpScienceProcessingService(super.ref);
@@ -136,12 +137,14 @@ void main() {
         deviceId: any(named: 'deviceId'),
         filePath: any(named: 'filePath'),
         headerData: any(named: 'headerData'),
+        keepCameraFile: any(named: 'keepCameraFile'),
       ),
     ).thenAnswer((invocation) async {
       final path = invocation.namedArguments[#filePath] as String;
       writtenPaths.add(path);
       File(path).createSync(recursive: true);
       File(path).writeAsBytesSync(const <int>[0]);
+      return invocation.namedArguments[#filePath] as String;
     });
   });
 

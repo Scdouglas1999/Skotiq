@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/panel/mount/night_mount_tab.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../../harness/harness.dart';
 import '../scope_panel_test_support.dart';
@@ -34,6 +35,35 @@ void main() {
     expect(find.text('01h37m58s'), findsOneWidget);
     expect(find.text('Set park'), findsOneWidget);
     expect(find.textContaining('Swap E/W'), findsNothing);
+  });
+
+  // The tab lives on in an IndexedStack while another one is shown. Following
+  // every position poll there rebuilt it, and each rebuild cost a frame.
+  testWidgets(
+      'a hidden tab does not follow the mount, and catches up when '
+      'shown', (tester) async {
+    final shown = ValueNotifier<bool>(false);
+    addTearDown(shown.dispose);
+    final handle = await pumpPanelTab(
+      tester,
+      ValueListenableBuilder<bool>(
+        valueListenable: shown,
+        builder: (context, enabled, child) =>
+            TickerMode(enabled: enabled, child: child!),
+        child: const NightMountTab(),
+      ),
+      overrides: panelOverrides(),
+    );
+    final mount = handle.container.read(mountStateProvider.notifier)
+        as PanelMountNotifier;
+
+    mount.put(kTrackingMount.copyWith(ra: 2.0));
+    await tester.pump();
+    expect(find.text('01h37m58s', skipOffstage: false), findsOneWidget);
+
+    shown.value = true;
+    await tester.pump();
+    expect(find.text('02h00m00s'), findsOneWidget);
   });
 
   // qa-surfaces S16: past the flip point the tab read "Flip in 0m" for a

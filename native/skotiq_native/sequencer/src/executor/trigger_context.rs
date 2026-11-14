@@ -1,54 +1,16 @@
-//! Context the trigger-fired recovery actions run against: the device-id
-//! snapshot, the autofocus / meridian-flip context builders, the in-flight
-//! guard, camera claiming, and the small verdict helpers. Moved verbatim out
-//! of `executor/mod.rs`.
+//! What the trigger-fired recovery actions share: the recovery-trigger specs
+//! a sequence carries, the in-flight guard, and the small verdict helpers.
 
 use super::*;
 
-#[derive(Debug, Clone, Default)]
-pub(super) struct TriggerActionContext {
-    pub(super) camera_id: Option<String>,
-    pub(super) mount_id: Option<String>,
-    pub(super) focuser_id: Option<String>,
-    pub(super) filterwheel_id: Option<String>,
-    pub(super) rotator_id: Option<String>,
-    pub(super) dome_id: Option<String>,
-    pub(super) cover_calibrator_id: Option<String>,
-    pub(super) save_path: Option<PathBuf>,
-    pub(super) latitude: Option<f64>,
-    pub(super) longitude: Option<f64>,
-    pub(super) filter_focus_offsets: HashMap<String, i32>,
-}
-
-impl TriggerActionContext {
-    pub(super) fn connected_device_ids(&self) -> Vec<String> {
-        [
-            self.camera_id.as_ref(),
-            self.mount_id.as_ref(),
-            self.focuser_id.as_ref(),
-            self.filterwheel_id.as_ref(),
-            self.rotator_id.as_ref(),
-            self.dome_id.as_ref(),
-            self.cover_calibrator_id.as_ref(),
-        ]
-        .into_iter()
-        .flatten()
-        .cloned()
-        .collect()
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(super) struct SequenceRecoveryTriggerSpec {
+    pub(super) node_id: NodeId,
     pub(super) trigger_id: String,
     pub(super) trigger_name: String,
     pub(super) trigger_type: TriggerType,
     pub(super) recovery_action: RecoveryAction,
     pub(super) custom_branch_node_id: Option<NodeId>,
-}
-
-pub(super) fn recovery_node_trigger_id(node_id: &str) -> String {
-    format!("{}{}", RECOVERY_NODE_TRIGGER_PREFIX, node_id)
 }
 
 pub(super) fn sequence_recovery_trigger_specs(
@@ -63,7 +25,8 @@ pub(super) fn sequence_recovery_trigger_specs(
             };
             let trigger_type = config.trigger.clone()?;
             Some(SequenceRecoveryTriggerSpec {
-                trigger_id: recovery_node_trigger_id(&node.id),
+                node_id: node.id.clone(),
+                trigger_id: crate::triggers::recovery_node_trigger_id(&node.id),
                 trigger_name: format!("Recovery: {}", node.name),
                 trigger_type,
                 recovery_action: config.recovery_action.clone(),
@@ -113,185 +76,6 @@ pub(super) fn build_runtime_node_from_map(
     node
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(super) fn build_trigger_autofocus_context(
-    trigger_context: &TriggerActionContext,
-    target_name: Option<String>,
-    target_ra: Option<f64>,
-    target_dec: Option<f64>,
-    current_filter: Option<String>,
-    cancellation_token: Arc<AtomicBool>,
-    device_ops: SharedDeviceOps,
-    trigger_state: Arc<RwLock<TriggerState>>,
-    runtime_config: &Arc<StdRwLock<RuntimeConfig>>,
-    event_tx: Option<broadcast::Sender<ExecutorEvent>>,
-) -> crate::instructions::InstructionContext {
-    // read filter_focus_offsets and location from the runtime
-    // config so a mid-flight UpdateFilterOffsets / UpdateLocation is honoured
-    // by trigger-initiated autofocus / dither / recenter actions. The
-    // trigger_context is a snapshot taken at start(); without this read the
-    // updates would only reach the executor on a sequence reload.
-    let (rc_filter_offsets, rc_lat, rc_lon) = {
-        let rc = runtime_config.read();
-        (rc.filter_focus_offsets.clone(), rc.latitude, rc.longitude)
-    };
-    let filter_focus_offsets = if rc_filter_offsets.is_empty() {
-        // Why: if the runtime config has not been seeded (no
-        // UpdateFilterOffsets has fired yet) fall back to the start-time
-        // snapshot. Empty-vs-explicit is the only way to disambiguate
-        // "user wants no offsets" from "config not yet pushed".
-        trigger_context.filter_focus_offsets.clone()
-    } else {
-        rc_filter_offsets
-    };
-    let latitude = rc_lat.or(trigger_context.latitude);
-    let longitude = rc_lon.or(trigger_context.longitude);
-
-    crate::instructions::InstructionContext {
-        // Trigger-driven recenter is not a sequence node.
-        node_id: String::new(),
-        target_ra,
-        target_dec,
-        // Trigger-initiated recenter does not move the rotator; rotation is a
-        // CenterTarget concern driven from the TargetHeader. None here keeps
-        // the trigger recenter path rotation-agnostic.
-        target_rotation: None,
-        target_name,
-        current_filter,
-        current_binning: crate::Binning::One,
-        cancellation_token,
-        camera_id: trigger_context.camera_id.clone(),
-        mount_id: trigger_context.mount_id.clone(),
-        focuser_id: trigger_context.focuser_id.clone(),
-        filterwheel_id: trigger_context.filterwheel_id.clone(),
-        rotator_id: trigger_context.rotator_id.clone(),
-        dome_id: trigger_context.dome_id.clone(),
-        cover_calibrator_id: trigger_context.cover_calibrator_id.clone(),
-        save_path: trigger_context.save_path.clone(),
-        latitude,
-        longitude,
-        device_ops,
-        trigger_state: Some(trigger_state),
-        filter_focus_offsets,
-        // callers pass `Some(event_tx_clone2.clone())` so
-        // FITS-save failures and other instruction-level errors fired from
-        // trigger-initiated work (autofocus / dither / recenter) reach the
-        // executor's event subscribers (UI, logging). Unit tests still pass
-        // `None` because they exercise the build helper in isolation.
-        event_tx,
-        recovery_request_tx: None,
-        // Trigger-initiated work is not wrapped by the node-runtime retry path,
-        // so this flag is a standalone fresh Arc here.
-        device_disconnect_recovery_pending: std::sync::Arc::new(
-            std::sync::atomic::AtomicBool::new(false),
-        ),
-        // Image Grading: trigger-initiated autofocus does not save
-        // FITS frames itself, so empty defaults are honest here. If trigger
-        // code ever calls save_fits in the future these would need to be
-        // wired through the trigger_context snapshot.
-        session_id: String::new(),
-        target_id: None,
-        mosaic_panel: None,
-        current_filter_index: None,
-        set_temp_c: None,
-        bayer_pattern: None,
-        observer_name: None,
-        site_elevation_m: None,
-        camera_make: None,
-        camera_model: None,
-        telescope_name: None,
-        telescope_focal_length_mm: None,
-        telescope_aperture_mm: None,
-        last_plate_solve: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        hfr_baseline: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        hfr_baseline_samples: std::sync::Arc::new(tokio::sync::RwLock::new(Vec::new())),
-        star_count_baselines: Default::default(),
-        consecutive_rejects: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        frames_accepted: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        frames_rejected: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-        default_quality_check: None,
-        reject_folder_path: None,
-        // trigger-initiated autofocus does not save
-        // FITS frames itself; the defect-map slot starts empty so a
-        // future trigger code path that does save_fits will need to
-        // wire this through the trigger_context.
-        defect_map_apply: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        // Forensics: trigger-initiated work doesn't have the
-        // shared forensics history available; start empty Arcs so any
-        // grading reached by a future trigger path falls back gracefully.
-        forensics_history: std::sync::Arc::new(tokio::sync::RwLock::new(
-            std::collections::VecDeque::new(),
-        )),
-        current_sky_brightness_mag: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        cloud_motion_snapshot: std::sync::Arc::new(tokio::sync::RwLock::new(
-            crate::node::context::CloudMotionSnapshot::default(),
-        )),
-        current_wind_kph: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        current_sensor_temp_c: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-        // Replay Debug — trigger-initiated work (autofocus,
-        // dither) does not currently emit DecisionEvents (we wire
-        // recoveries + scheduler + lifecycle separately), so the
-        // sender starts None and emissions from this context are no-
-        // ops. A future caller that wants trigger-initiated work to
-        // appear in the replay feed can clone the executor's
-        // decision_tx into this helper.
-        decision_tx: None,
-        active_sequence_run_id: std::sync::Arc::new(parking_lot::RwLock::new(None)),
-        // Dual-rig — trigger-initiated dither/recenter is not coordinated with
-        // the secondary loop in v1 (the secondary only gates on the main-burst
-        // dither path); start None.
-        dither_barrier: None,
-        // The run's retry policy, so a trigger-fired action's filter change
-        // retries like the sequence's own.
-        device_retry: runtime_config.read().device_retry.clone(),
-        target_light_filters: Vec::new(),
-    }
-}
-
-/// The target a trigger-initiated meridian flip is being built for.
-///
-/// Grouped into a struct rather than passed as three positional parameters:
-/// `ra_hours` and `dec_degrees` are both `Option<f64>`, so as bare positional
-/// arguments they are silently transposable at a call site, and a flip aimed at
-/// the transposed coordinates would recentre onto the wrong sky.
-pub(super) struct TriggerFlipTarget {
-    pub(super) name: String,
-    pub(super) ra_hours: Option<f64>,
-    pub(super) dec_degrees: Option<f64>,
-}
-
-pub(super) fn build_trigger_flip_context(
-    trigger_context: &TriggerActionContext,
-    target: TriggerFlipTarget,
-    cancellation_token: Option<Arc<AtomicBool>>,
-    trigger_state: Option<Arc<RwLock<TriggerState>>>,
-    autofocus_config: Option<crate::AutofocusConfig>,
-    current_filter: Option<String>,
-) -> Option<crate::meridian_flip_executor::FlipContext> {
-    Some(crate::meridian_flip_executor::FlipContext {
-        target_name: target.name,
-        target_ra_hours: target.ra_hours?,
-        target_dec_degrees: target.dec_degrees?,
-        mount_id: trigger_context.mount_id.clone()?,
-        camera_id: trigger_context.camera_id.clone(),
-        focuser_id: trigger_context.focuser_id.clone(),
-        cover_calibrator_id: trigger_context.cover_calibrator_id.clone(),
-        cancellation_token,
-        trigger_state,
-        autofocus_config: autofocus_config.map(|config| {
-            crate::meridian_flip_executor::PostFlipAutofocusConfig {
-                config,
-                current_filter,
-                filterwheel_id: trigger_context.filterwheel_id.clone(),
-                filter_focus_offsets: trigger_context.filter_focus_offsets.clone(),
-            }
-        }),
-        // Trigger-driven flips command the hardware; the dry-run path is the
-        // only caller that sets this true.
-        simulate: false,
-    })
-}
-
 /// Cancel node execution and wait until the active node has finished its
 /// cancellation cleanup. Exposure instructions use that cleanup window to
 /// abort the camera integration, so callers must not move or close hardware
@@ -323,6 +107,10 @@ pub(super) async fn cancel_and_wait_for_execution(
 /// we give up loudly rather than waiting silently.
 pub(super) const TRIGGER_ACTION_QUIESCE_MAX_SECS: u64 = 15 * 60;
 
+/// How long an in-flight trigger action is given to restore the rig after
+/// its end-of-run budget ran out and it was cancelled.
+pub(super) const TRIGGER_CLEANUP_BUDGET_SECS: u64 = 300;
+
 /// Cancel cooperatively so in-flight recovery can restore borrowed equipment.
 /// A wedged driver still has a finite cleanup budget.
 pub(super) async fn cancel_trigger_monitor_with_cleanup<F: std::future::Future>(
@@ -330,17 +118,13 @@ pub(super) async fn cancel_trigger_monitor_with_cleanup<F: std::future::Future>(
     monitor: F,
 ) -> bool {
     cancelled.store(true, Ordering::Release);
-    tokio::time::timeout(std::time::Duration::from_secs(300), monitor)
-        .await
-        .is_ok()
+    tokio::time::timeout(
+        std::time::Duration::from_secs(TRIGGER_CLEANUP_BUDGET_SECS),
+        monitor,
+    )
+    .await
+    .is_ok()
 }
-
-/// How long a trigger-fired camera action expects to hold the imaging train.
-/// Long enough for a full V-curve autofocus (15 points at several seconds each,
-/// plus focuser travel). The action releases explicitly when it finishes, so
-/// this is only an estimate a waiter reads. The live guard retains ownership
-/// through overruns; expiry is only a fallback for an abandoned claim.
-pub(super) const TRIGGER_CAMERA_CLAIM_SECS: f64 = 10.0 * 60.0;
 
 /// RAII latch marking that a trigger recovery action is executing.
 ///
@@ -388,94 +172,6 @@ pub(super) fn skip_to_node_accepted_event(node_id: NodeId) -> ExecutorEvent {
     }
 }
 
-/// Which trigger actions drive the camera themselves, and the label each waits
-/// under. `None` means the action never touches the sensor.
-///
-/// Autofocus, the meridian flip and `Recenter` all expose — the post-flip
-/// recenter plate-solves, and a plate solve is an exposure. The capture loop's
-/// pre-frame gate cannot stand in for the claim: it holds the NEXT frame, not
-/// the one already exposing, so a flip firing a millisecond into a 15 s light
-/// restarts the same sensor for its solve and the burst downloads the solve
-/// frame and files it as that light.
-pub(super) fn camera_driving_trigger_action(action: &RecoveryAction) -> Option<&'static str> {
-    match action {
-        RecoveryAction::Autofocus => Some("autofocus"),
-        RecoveryAction::MeridianFlip(_) => Some("meridian flip"),
-        RecoveryAction::Recenter => Some("recenter"),
-        _ => None,
-    }
-}
-
-/// Hold a camera-using trigger action until the capture loop's in-flight
-/// exposure has been downloaded.
-///
-/// Starting one mid-frame destroys that frame: the capture loop's download
-/// finds the camera empty, the exposure node fails, and the sequential parent
-/// takes the run down with it.
-///
-/// Waiting is bounded by the claim's own deadline (see
-/// [`TriggerState::camera_busy_until_ms`]), so a hold that is never released
-/// expires rather than blocking autofocus for the rest of the night. A cancel
-/// releases immediately: an operator Stop must not wait out an exposure.
-///
-/// Returns the deadline (epoch ms) of the claim that was taken, or `None` when
-/// the wait ended without one because the sequence was cancelled.
-///
-/// The distinction matters: a cancelled wait never holds the token, so a caller
-/// that assumed "I waited, therefore I hold it" would go on to release a claim
-/// belonging to whoever took it next — the capture loop — and reopen the
-/// frame-destroying race this protocol exists to close.
-pub(super) async fn claim_camera_for_trigger_action(
-    trigger_state: &Arc<RwLock<crate::triggers::TriggerState>>,
-    is_cancelled: &Arc<AtomicBool>,
-    action: &'static str,
-) -> Option<u64> {
-    let mut announced = false;
-    loop {
-        if is_cancelled.load(Ordering::Relaxed) {
-            tracing::info!(
-                "Trigger-fired {} released early: sequence cancelled",
-                action
-            );
-            return None;
-        }
-
-        let (hold, token) = {
-            let mut state = trigger_state.write().await;
-            match state.try_claim_imaging_train(action, TRIGGER_CAMERA_CLAIM_SECS) {
-                Some(token) => (None, Some(token)),
-                None => (state.imaging_train_hold(), None),
-            }
-        };
-
-        let Some(hold) = hold else {
-            if announced {
-                tracing::info!("Imaging train free; running trigger-fired {} now", action);
-            }
-            return token;
-        };
-
-        if !announced {
-            announced = true;
-            // The bound is derived from the in-flight operation, not fixed: the
-            // holder's own expected finish, and the claim's hard expiry as the
-            // worst case. A 180 s light is waited out as 180 s; a 5 s one as
-            // 5 s. The failure this replaces reported a 65 s timeout while
-            // queued behind a 180 s frame, a number that came from the waiter's
-            // own request and told the operator nothing.
-            tracing::info!(
-                "Holding trigger-fired {} for ~{:.0}s ({} holds the camera and filter wheel; \
-                 at most {:.0}s): starting now would destroy the frame and fight for the wheel",
-                action,
-                hold.expected_remaining_secs,
-                hold.holder,
-                hold.max_remaining_secs
-            );
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    }
-}
-
 /// Which device is missing when a trigger-fired autofocus cannot run at all,
 /// or `None` when the rig has both the camera and the focuser it needs.
 ///
@@ -492,124 +188,6 @@ pub(super) fn autofocus_trigger_skip_reason(
         (None, None) => Some("no camera and no focuser are"),
         (None, Some(_)) => Some("no camera is"),
         (Some(_), None) => Some("no focuser is"),
-    }
-}
-
-/// The capture loop's camera claim, held on behalf of a trigger recovery
-/// action and handed back on EVERY exit of the arm that took it.
-///
-/// Taking the claim is only half a protocol. Releasing it in exactly one place
-/// — after the sweep, inside the `(Some, Some)` camera+focuser branch — leaves
-/// the sibling branch (the rig whose focuser is absent or has disappeared
-/// mid-run) logging "skipping the refocus and continuing the run" and falling
-/// through with nothing released, so the hold sits until
-/// [`TRIGGER_CAMERA_CLAIM_SECS`] expires. For those ten minutes the capture
-/// loop's pre-frame gate in `instructions/expose.rs` blocks every frame while
-/// the run goes on reporting itself as imaging: a night's worth of exposures
-/// lost to a recovery that never ran.
-///
-/// A guard rather than another `clear_camera_busy()` call site because the
-/// dispatch exits in three different ways — falling out of the match, a
-/// `continue` in the trigger loop, and several `return terminate_with(...)`
-/// early returns — and only `Drop` covers all of them, including the arms
-/// nobody has written yet. Callers that finish with the camera mid-arm still
-/// call [`TriggerCameraClaim::release`] explicitly, so the capture loop gets
-/// its next frame the moment the sweep is done rather than at the end of the
-/// dispatch.
-///
-/// Release is once-only and identity-checked: the token is a single shared
-/// deadline, so clearing it twice — or clearing it after the capture loop has
-/// taken it for its own frame — would destroy exactly the frame the claim
-/// protects.
-pub(super) struct TriggerCameraClaim {
-    trigger_state: Option<Arc<RwLock<crate::triggers::TriggerState>>>,
-    /// The token this guard installed. Only the claim still carrying it is ours
-    /// to release.
-    token: Option<u64>,
-    label: &'static str,
-    _owner: Option<Arc<()>>,
-}
-
-impl TriggerCameraClaim {
-    /// Take the claim if `action` drives the camera, waiting out any frame in
-    /// flight. A non-camera action (a dither, a park) returns an unheld guard
-    /// rather than waiting — holding those behind a ten-minute sub would be
-    /// its own defect.
-    pub(super) async fn acquire(
-        trigger_state: &Arc<RwLock<crate::triggers::TriggerState>>,
-        is_cancelled: &Arc<AtomicBool>,
-        action: &RecoveryAction,
-    ) -> Self {
-        let Some(label) = camera_driving_trigger_action(action) else {
-            return Self::unheld();
-        };
-        let token = claim_camera_for_trigger_action(trigger_state, is_cancelled, label).await;
-        if token.is_none() {
-            // Cancelled before the token was ours; there is nothing to give
-            // back and releasing anyway would steal someone else's claim.
-            return Self::unheld();
-        }
-        let owner = Arc::new(());
-        trigger_state.write().await.imaging_train_owner =
-            token.map(|t| (t, Arc::downgrade(&owner)));
-        Self {
-            _owner: Some(owner),
-            trigger_state: Some(trigger_state.clone()),
-            token,
-            label,
-        }
-    }
-
-    pub(super) fn unheld() -> Self {
-        Self {
-            trigger_state: None,
-            token: None,
-            label: "",
-            _owner: None,
-        }
-    }
-
-    #[cfg(test)]
-    pub(super) fn is_held(&self) -> bool {
-        self.trigger_state.is_some()
-    }
-
-    /// Hand the camera back now — the normal path, taken the moment the action
-    /// is done with the sensor. Idempotent.
-    pub(super) async fn release(&mut self) {
-        let (Some(state), Some(token)) = (self.trigger_state.take(), self.token.take()) else {
-            return;
-        };
-        state.write().await.release_imaging_train(token);
-    }
-}
-
-impl Drop for TriggerCameraClaim {
-    fn drop(&mut self) {
-        let (Some(state), Some(token)) = (self.trigger_state.take(), self.token.take()) else {
-            return;
-        };
-        let label = self.label;
-        // The lock is only ever held for a field write or two, so the
-        // uncontended path is the normal one and the release is immediate.
-        if let Ok(mut guard) = state.try_write() {
-            guard.release_imaging_train(token);
-            return;
-        }
-        // Contended: hand the release to the runtime rather than blocking a
-        // drop. The identity check is what makes the delay safe.
-        match tokio::runtime::Handle::try_current() {
-            Ok(handle) => {
-                handle.spawn(async move {
-                    state.write().await.release_imaging_train(token);
-                });
-            }
-            Err(_) => tracing::error!(
-                "Trigger-fired {} could not hand the camera back (no runtime at drop); the \
-                 capture loop will wait out the claim's expiry",
-                label
-            ),
-        }
     }
 }
 
@@ -636,16 +214,6 @@ impl AutofocusOutcome {
             Self::Unmeasurable => "there is no HFR measurement to judge focus by".to_string(),
         }
     }
-}
-
-/// Where the focuser is right now, or `None` when the rig has no focuser or the
-/// driver will not answer. Used either side of a trigger-fired sweep so the
-/// continuation record can name the focus the run kept.
-pub(super) async fn read_focuser_position(
-    device_ops: &SharedDeviceOps,
-    focuser_id: Option<&String>,
-) -> Option<i32> {
-    device_ops.focuser_get_position(focuser_id?).await.ok()
 }
 
 /// How the frames measure after autofocus failed, for the operator's notice.
@@ -736,6 +304,7 @@ pub(super) fn emit_lifecycle_decision(
         "cancelled" => "Sequence cancelled".to_string(),
         other => format!("Sequence lifecycle: {}", other),
     };
+    let stop = (phase == "cancelled").then_some(crate::decision::RunStop::Cancelled);
     let mut details = match extra {
         serde_json::Value::Object(m) => serde_json::Value::Object(m),
         // Why: wrap non-object payloads under a `data` key so the
@@ -756,6 +325,8 @@ pub(super) fn emit_lifecycle_decision(
         details,
         node_id: None,
         sequence_run_id: *active_run_id.read(),
+        notice: None,
+        stop,
     };
     let _ = tx.send(event);
 }

@@ -1,5 +1,3 @@
-// ignore_for_file: unused_element
-
 part of '../polar_alignment_screen.dart';
 
 extension _CenterPanel on _PolarAlignmentScreenState {
@@ -52,7 +50,7 @@ extension _CenterPanel on _PolarAlignmentScreenState {
               label: 'Set up plate solver',
               variant: ButtonVariant.secondary,
               size: ButtonSize.small,
-              onPressed: () => context.push('/settings/plate-solving'),
+              onPressed: () => context.push(AppRoute.plateSolvingSettings.path),
             ),
           ),
           bannerGap,
@@ -78,7 +76,8 @@ extension _CenterPanel on _PolarAlignmentScreenState {
               label: 'Set a location',
               variant: ButtonVariant.secondary,
               size: ButtonSize.small,
-              onPressed: () => context.push('/settings/location'),
+              onPressed: () =>
+                  openSettings(context, SettingsSectionId.location),
             ),
           ),
           bannerGap,
@@ -88,40 +87,18 @@ extension _CenterPanel on _PolarAlignmentScreenState {
     );
   }
 
-  /// The run view: the progress rail over whatever the phase shows. Only
-  /// built once a run has left idle — see [_buildIdleGuide].
+  /// The finished run's summary, complete or failed. A run in progress has
+  /// its own body (see [_buildLiveBody]).
   Widget _buildCenterPanel(
     SkotiqColors colors,
     PolarAlignmentState state,
     PolarAlignmentConfig config,
   ) {
-    final live = state.phase == PolarAlignPhase.measuring ||
-        state.phase == PolarAlignPhase.adjusting;
-
     return Container(
       color: colors.background,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (live) _buildProgressSteps(colors, state),
-          Expanded(
-            // The live phases fill the column: the frame takes the width and
-            // height left over, and their own layout scrolls only when it
-            // has to stack on a narrow column. Wrapping them in a scroll view
-            // as well handed them unbounded height, so they always stacked —
-            // a 560px frame and its card below it, scrolled, with empty bands
-            // either side on a 1080p screen.
-            child: switch (state.phase) {
-              PolarAlignPhase.measuring => _buildMeasuringStatus(colors, state),
-              PolarAlignPhase.adjusting =>
-                _buildAdjustmentInstructions(colors, state, config),
-              PolarAlignPhase.complete =>
-                _cappedScroll(_buildCompleteStatus(colors, state)),
-              _ => _cappedScroll(_buildErrorStatus(colors, state)),
-            },
-          ),
-        ],
-      ),
+      child: state.phase == PolarAlignPhase.complete
+          ? _cappedScroll(_buildCompleteStatus(colors, state))
+          : _cappedScroll(_buildErrorStatus(colors, state)),
     );
   }
 
@@ -159,7 +136,7 @@ extension _CenterPanel on _PolarAlignmentScreenState {
     final phase = state.phase;
 
     return Container(
-      key: PolarAlignmentTutorialKeys.progress,
+      key: TourTarget.polarProgress.key,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       decoration: BoxDecoration(
         color: colors.surfaceAlt,

@@ -14,15 +14,21 @@
 // `_effectiveSafetyFailMode` computation.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 import '../../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 /// A backend whose unstubbed members answer with a completed `Future<void>`,
 /// so the deep runtime-config push runs end to end without stubbing 30 calls.
@@ -109,10 +115,11 @@ void main() {
     when(
       () => backend.polarAlignmentEvents,
     ).thenAnswer((_) => const Stream.empty());
-    when(() => backend.sequencerSetSafetyFailMode(any())).thenAnswer((
-      inv,
-    ) async {
-      pushedModes.add(inv.positionalArguments.first as String);
+    when(() => backend.sequencerApplyRunConfig(any())).thenAnswer((inv) async {
+      final config =
+          jsonDecode(inv.positionalArguments.first as String)
+              as Map<String, dynamic>;
+      pushedModes.add(config['safety_fail_mode'] as String);
     });
     when(() => backend.getCheckpointInfo()).thenAnswer(
       (_) async => CheckpointInfo(
@@ -171,7 +178,7 @@ void main() {
       );
       expect(
         pushedModes,
-        everyElement('fail_open'),
+        everyElement('FailOpen'),
         reason:
             'with weather safety disabled and no safety monitor on the rig, '
             'pushing fail_closed arms the always-on WeatherUnsafe trigger and '
@@ -190,7 +197,7 @@ void main() {
     await executor.start();
 
     expect(pushedModes, isNotEmpty);
-    expect(pushedModes, everyElement('fail_open'));
+    expect(pushedModes, everyElement('FailOpen'));
 
     await executor.stop();
   });
@@ -206,7 +213,7 @@ void main() {
 
       expect(
         pushedModes,
-        contains('fail_closed'),
+        contains('FailClosed'),
         reason:
             'the guard must only relax the mode while the operator has opted '
             'out of weather safety — it is not a blanket downgrade',
@@ -225,7 +232,7 @@ void main() {
 
       await executor.start();
 
-      expect(pushedModes, contains('fail_closed'));
+      expect(pushedModes, contains('FailClosed'));
 
       await executor.stop();
     },

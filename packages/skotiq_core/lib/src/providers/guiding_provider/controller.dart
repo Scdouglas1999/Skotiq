@@ -15,6 +15,39 @@ final phd2ControllerProvider = Provider<Phd2Controller>((ref) {
 /// in-flight positive command drains. That final stop is the ordering fence:
 /// even if the first stop reached the host before Start did, the terminal
 /// command observed by PHD2 is still Stop.
+/// The guider state an `AppState` string names (the guiding events and the
+/// guider status use the same words); null for one this build does not know.
+Phd2State? phd2StateFromAppState(String? appState) => switch (appState) {
+  'Stopped' => Phd2State.stopped,
+  'Selected' => Phd2State.selected,
+  'Calibrating' => Phd2State.calibrating,
+  'Guiding' => Phd2State.guiding,
+  'LostLock' => Phd2State.lostLock,
+  'Paused' => Phd2State.paused,
+  'Looping' => Phd2State.looping,
+  _ => null,
+};
+
+/// The guider state a guiding event leaves, or null for an event that says
+/// nothing about it (a guide step, a star statistic). An `AppState` this
+/// build does not know is [Phd2State.unknown], never stopped: that would
+/// offer Start over a guider that may be running.
+Phd2State? phd2StateAfterEvent(String eventType, Map<String, dynamic> data) =>
+    switch (eventType) {
+      'AppState' => switch (data['State']) {
+        final String name => phd2StateFromAppState(name) ?? Phd2State.unknown,
+        _ => null,
+      },
+      'GuidingStarted' || 'Resumed' || 'SettleDone' => Phd2State.guiding,
+      'GuidingStopped' => Phd2State.stopped,
+      'Paused' => Phd2State.paused,
+      'StarLost' => Phd2State.lostLock,
+      'Settling' => Phd2State.settling,
+      'LoopingExposures' => Phd2State.looping,
+      'Calibrating' => Phd2State.calibrating,
+      _ => null,
+    };
+
 class _GuidingCommandGate {
   bool _positiveInFlight = false;
   bool _stopInFlight = false;
@@ -109,7 +142,7 @@ class Phd2Controller {
   LoggingService get _logger => ref.read(loggingServiceProvider);
 
   /// True on a companion, whose guider is the imaging host's.
-  bool get _hostOwnsGuider => backend is NetworkBackend;
+  bool get _hostOwnsGuider => ref.read(isRemoteModeProvider);
 
   /// Whether a UI-issued guiding command is currently in flight. Surfaced so
   /// controls can stay busy/disabled until the command is accepted or fails.
@@ -160,7 +193,7 @@ class Phd2Controller {
 
   /// Crash recovery: the Rust socket layer retries the TCP link, but a
   /// DEAD PHD2 process never re-opens its port — only a relaunch does.
-  /// Each attempt routes through [DeviceService.connectGuider], which
+  /// Each attempt routes through [DeviceService.connect], which
   /// re-runs `Phd2Launcher.ensureRunning` (spawn if local + port closed)
   /// before connecting. Skipped entirely for deliberate disconnects and
   /// when auto-reconnect is disabled for the guider.
@@ -192,7 +225,7 @@ class Phd2Controller {
           source: 'Phd2Controller',
         );
         try {
-          await deviceService.connectGuider(kPhd2CanonicalId);
+          await deviceService.connect(DeviceType.guider, kPhd2CanonicalId);
           _logger.info(
             'PHD2 automatic relaunch/reconnect succeeded',
             source: 'Phd2Controller',
@@ -270,7 +303,16 @@ class Phd2Controller {
     ) {
       if (next != null && next.trim().isNotEmpty) _lastGuiderId = next;
     }, fireImmediately: true);
-    // Listen to backend events
+    // A guider connected through the device service (the built-in guider, a
+    // driver) sends no guiding Connected event.
+    ref.listen<bool>(
+      guiderStateProvider.select(
+        (state) => state.connectionState == DeviceConnectionState.connected,
+      ),
+      (previous, connected) {
+        if (connected && previous != true) unawaited(_refreshPixelScale());
+      },
+    );
     _eventSub = backend.eventStream.listen(
       (event) {
         if (event.category != EventCategory.guiding) return;
@@ -281,8 +323,11 @@ class Phd2Controller {
           source: 'Phd2Controller',
         );
 
-        // Update the main GuiderState used by the UI
         final guiderNotifier = ref.read(guiderStateProvider.notifier);
+        final stateAfter = phd2StateAfterEvent(event.eventType, event.data);
+        if (stateAfter != null) {
+          ref.read(phd2StateProvider.notifier).state = stateAfter;
+        }
 
         switch (event.eventType) {
           case 'Connected':
@@ -294,7 +339,7 @@ class Phd2Controller {
             _handlePhd2LinkLost();
             return;
           case 'AppState':
-            _updateStateFromString(event.data['State']);
+            _afterAppState(event.data['State'], stateAfter);
             break;
           case 'GuideStep':
             _logger.debug(
@@ -319,40 +364,22 @@ class Phd2Controller {
             break;
           case 'GuidingStarted':
             ref.read(guidingStopReasonProvider.notifier).state = null;
-            ref.read(phd2StateProvider.notifier).state = Phd2State.guiding;
             guiderNotifier.setGuiding(true);
             unawaited(_refreshPixelScale());
             break;
           case 'GuidingStopped':
             _resetStarLoss();
-            ref.read(phd2StateProvider.notifier).state = Phd2State.stopped;
             guiderNotifier.setGuiding(false);
             break;
-          case 'Paused':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.paused;
-            break;
           case 'Resumed':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.guiding;
             guiderNotifier.setGuiding(true);
             break;
           case 'StarLost':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.lostLock;
             _handleStarLost();
             break;
-          case 'Settling':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.settling;
-            break;
           case 'SettleDone':
-            // Settle complete - return to guiding state
             ref.read(guiderSettleTimeoutProvider.notifier).state = null;
-            ref.read(phd2StateProvider.notifier).state = Phd2State.guiding;
             _logger.info('Settle complete', source: 'PHD2');
-            break;
-          case 'LoopingExposures':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.looping;
-            break;
-          case 'Calibrating':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.calibrating;
             break;
           case 'CalibrationComplete':
             _logger.info('Calibration complete', source: 'PHD2');
@@ -390,48 +417,17 @@ class Phd2Controller {
     );
   }
 
-  void _updateStateFromString(String? stateStr) {
-    if (stateStr == null) return;
-
-    Phd2State state;
-    switch (stateStr) {
-      case 'Stopped':
-        state = Phd2State.stopped;
-        break;
-      case 'Selected':
-        state = Phd2State.selected;
-        break;
-      case 'Calibrating':
-        state = Phd2State.calibrating;
-        break;
-      case 'Guiding':
-        state = Phd2State.guiding;
-        break;
-      case 'LostLock':
-        state = Phd2State.lostLock;
-        break;
-      case 'Paused':
-        state = Phd2State.paused;
-        break;
-      case 'Looping':
-        state = Phd2State.looping;
-        break;
-      default:
-        // An unrecognised AppState must NOT collapse to `stopped` — that would
-        // falsely enable Start over a process that may well be live. Surface it
-        // as `unknown` so the controls stay conservative (Stop, not Start).
-        _logger.warning(
-          'Unrecognized PHD2 AppState "$stateStr" — treating as unknown',
-          source: 'Phd2Controller',
-        );
-        state = Phd2State.unknown;
+  void _afterAppState(Object? name, Phd2State? state) {
+    if (state == null) return;
+    if (state == Phd2State.unknown) {
+      _logger.warning(
+        'Unrecognized PHD2 AppState "$name" — treating as unknown',
+        source: 'Phd2Controller',
+      );
     }
-
-    ref.read(phd2StateProvider.notifier).state = state;
-
-    // Update UI provider
-    final guiderNotifier = ref.read(guiderStateProvider.notifier);
-    guiderNotifier.setGuiding(state == Phd2State.guiding);
+    ref
+        .read(guiderStateProvider.notifier)
+        .setGuiding(state == Phd2State.guiding);
   }
 
   void _handleGuideStep(Map<String, dynamic> json) {
@@ -463,11 +459,9 @@ class Phd2Controller {
   }
 
   void _handleGuideStats(Map<String, dynamic> json) {
-    // Update SNR and star mass from GuideStats event
     final snr = (json['SNR'] as num?)?.toDouble() ?? 0;
     final starMass = (json['StarMass'] as num?)?.toDouble() ?? 0;
 
-    // Update the guide stats provider with SNR and star mass
     ref.read(guideStatsProvider.notifier).updateStarData(snr, starMass);
   }
 
@@ -494,7 +488,6 @@ class Phd2Controller {
   }
 
   void _handleStarLost() {
-    // Record the event timestamp
     ref.read(starLostEventProvider.notifier).state = DateTime.now();
 
     // Update UI state: the star is gone, so we are no longer actively guiding.
@@ -542,15 +535,21 @@ class Phd2Controller {
 
   /// Read the guide camera's pixel scale (arcsec/px) into [guiderStateProvider].
   ///
-  /// PHD2 computes it from its profile's focal length and pixel size, so it
-  /// is read when the link comes up and again when calibration or guiding
-  /// starts, the points at which a profile change would have taken effect.
-  /// A guider with no scale, or a failed read, leaves it null: the guide
-  /// chart then stays in pixels rather than converting with a guess.
+  /// PHD2 computes it from its profile's focal length and pixel size, the
+  /// built-in guider from the guide camera and the profile's guide focal
+  /// length. It is read when the guider connects and again when calibration
+  /// or guiding starts, the points at which a profile change would have taken
+  /// effect. A guider with no scale, or a failed read, leaves it null: guide
+  /// errors then stay in pixels rather than converting with a guess.
   Future<void> _refreshPixelScale() async {
+    final guiderId = ref.read(guiderStateProvider).deviceId;
     try {
-      final status = await backend.phd2GetStatus();
-      if (_disposed || !status.connected) return;
+      final status = await backend.guiderGetStatus();
+      if (_disposed ||
+          !status.connected ||
+          ref.read(guiderStateProvider).deviceId != guiderId) {
+        return;
+      }
       ref.read(guiderStateProvider.notifier).setPixelScale(status.pixelScale);
     } catch (e) {
       if (_disposed) return;
@@ -570,14 +569,14 @@ class Phd2Controller {
     _userDisconnectRequested = false;
     _linkLossHandled = false;
 
-    if (backend is FfiBackend) {
+    if (backend.ownsDeviceBridge) {
       // Desktop owns launch + socket connect via DeviceService (polls port,
       // launches the configured binary). The requested endpoint is honoured
       // rather than silently discarded — for a local host DeviceService still
       // auto-launches; for a remote host it connects over TCP without spawning.
       await ref
           .read(deviceServiceProvider)
-          .connectGuider(kPhd2CanonicalId, host: host, port: port);
+          .connect(DeviceType.guider, kPhd2CanonicalId, host: host, port: port);
       return;
     }
 
@@ -643,11 +642,11 @@ class Phd2Controller {
 
     final status = await readPhd2StatusOrDisconnected(backend);
     if (status.connected && status.state.toLowerCase() != 'stopped') {
-      await backend.phd2StopGuiding();
+      await backend.guiderStopGuiding();
     }
 
     try {
-      await deviceService.disconnectGuider();
+      await deviceService.disconnect(DeviceType.guider);
     } on DeviceNotConnectedException {
       // No live guider record (a prior connect never completed): fall back to a
       // direct backend teardown so the socket + UI still end up disconnected.
@@ -670,42 +669,39 @@ class Phd2Controller {
     double settleTimeout,
   ) => math.max(settleTimeout, settleTime + 1.0);
 
-  static void _validateSettle({
-    required double settlePixels,
-    required double settleTime,
-    required double settleTimeout,
-  }) {
-    if (!settlePixels.isFinite || settlePixels < 0.05 || settlePixels > 20) {
-      throw RangeError('settlePixels must be between 0.05 and 20.');
-    }
-    if (!settleTime.isFinite || settleTime < 0 || settleTime > 120) {
-      throw RangeError.range(settleTime, 0, 120, 'settleTime');
-    }
-    if (!settleTimeout.isFinite || settleTimeout < 1 || settleTimeout > 600) {
-      throw RangeError.range(settleTimeout, 1, 600, 'settleTimeout');
-    }
-  }
+  /// The settle and dither values every guiding command uses: the
+  /// guiding settings, whichever screen sent the command.
+  GuideSettle get _settle => GuideSettle.of(
+    ref.read(appSettingsProvider).valueOrNull ?? const AppSettingsState(),
+  );
 
-  Future<void> startGuiding({
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) {
+  /// Calibrates when the guider needs it, then guides and waits for the
+  /// settle. The one start of guiding every screen uses.
+  Future<void> startGuiding() {
     return _commandGate.runPositive('start', () async {
-      _validateSettle(
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: settleTimeout,
-      );
-      final guiderId =
-          ref.read(guiderStateProvider).deviceId ?? kPhd2CanonicalId;
+      final settle = _settle;
       _warnIfMountNotTracking();
-      await backend.guiderStartGuiding(
-        deviceId: guiderId,
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: _effectiveSettleTimeout(settleTime, settleTimeout),
+      final operations = ref.read(activeOperationsProvider.notifier);
+      final operationId = operations.startOperation(
+        type: OperationType.guideSettle,
+        description: 'Starting guiding and settling',
+        currentStep: 'Calibrating...',
       );
+      try {
+        await backend.guiderStartGuiding(
+          settlePixels: settle.pixels,
+          settleTime: settle.seconds,
+          settleTimeout: _effectiveSettleTimeout(
+            settle.seconds,
+            settle.timeoutSeconds,
+          ),
+        );
+      } finally {
+        operations.completeOperation(
+          OperationType.guideSettle,
+          operationId: operationId,
+        );
+      }
     });
   }
 
@@ -728,51 +724,25 @@ class Phd2Controller {
     // Stop rides its own gate slot so it can always pre-empt a settling Start
     // (the safe abort direction); only a second concurrent Stop is rejected.
     return _commandGate.runStop('stop', () async {
-      final guiderId =
-          ref.read(guiderStateProvider).deviceId ?? kPhd2CanonicalId;
-      await backend.guiderStopGuiding(deviceId: guiderId);
+      await backend.guiderStopGuiding();
     });
   }
 
   Future<void> pauseGuiding() {
     return _commandGate.runPositive('pause', () async {
-      _requirePhd2('Pause');
-      await backend.phd2SetPaused(true);
+      await backend.guiderSetPaused(true);
     });
   }
 
   Future<void> resumeGuiding() {
     return _commandGate.runPositive('resume', () async {
-      _requirePhd2('Resume');
-      await backend.phd2SetPaused(false);
+      await backend.guiderSetPaused(false);
     });
   }
 
-  void _requirePhd2(String command) {
-    final guiderId = ref.read(guiderStateProvider).deviceId;
-    if (guiderId != null && !isPhd2DeviceId(guiderId)) {
-      throw UnsupportedError(
-        '$command is only available when PHD2 is the active guider.',
-      );
-    }
-  }
-
-  Future<void> dither({
-    double amount = 5.0,
-    bool raOnly = false,
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) {
+  Future<void> dither() {
     return _commandGate.runPositive('dither', () async {
-      _validateSettle(
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: settleTimeout,
-      );
-      if (!amount.isFinite || amount < 0.1 || amount > 100) {
-        throw RangeError('amount must be between 0.1 and 100.');
-      }
+      final settle = _settle;
       final guiderState = ref.read(guiderStateProvider);
       // PHD2 rejects dither outside the Guiding state with an opaque RPC
       // error; pre-check so the user (and the sequencer log) gets an
@@ -783,24 +753,36 @@ class Phd2Controller {
           '(PHD2 must be in the Guiding state to accept a dither).',
         );
       }
-      final guiderId = guiderState.deviceId ?? kPhd2CanonicalId;
-      await backend.guiderDither(
-        deviceId: guiderId,
-        amount: amount,
-        raOnly: raOnly,
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: _effectiveSettleTimeout(settleTime, settleTimeout),
+      final operations = ref.read(activeOperationsProvider.notifier);
+      final operationId = operations.startOperation(
+        type: OperationType.dither,
+        description: 'Dithering ${settle.ditherPixels.toStringAsFixed(1)} px',
+        currentStep: 'Moving...',
       );
+      try {
+        await backend.guiderDither(
+          amount: settle.ditherPixels,
+          raOnly: settle.ditherRaOnly,
+          settlePixels: settle.pixels,
+          settleTime: settle.seconds,
+          settleTimeout: _effectiveSettleTimeout(
+            settle.seconds,
+            settle.timeoutSeconds,
+          ),
+        );
+      } finally {
+        operations.completeOperation(
+          OperationType.dither,
+          operationId: operationId,
+        );
+      }
     });
   }
 
   /// Start looping exposures without guiding
   Future<void> loop() {
     return _commandGate.runPositive('loop', () async {
-      final guiderId =
-          ref.read(guiderStateProvider).deviceId ?? kPhd2CanonicalId;
-      await backend.guiderLoop(deviceId: guiderId);
+      await backend.guiderLoop();
     });
   }
 

@@ -13,7 +13,8 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
 LoggingService _testLogger(Directory tempDir) {
@@ -48,7 +49,7 @@ void main() {
 
     BackupService serviceFor(SkotiqDatabase d) => BackupService(
       database: d,
-      sequenceRepository: SequenceRepository(d.sequencesDao),
+      sequenceRepository: LocalSequenceRepository(d.sequencesDao),
       logger: logger,
     );
 
@@ -106,7 +107,7 @@ void main() {
       await seedLiveData();
       final backup = await writeBackup(
         jsonEncode({
-          'version': '3.0',
+          'version': '3.1',
           'settings': <String, dynamic>{},
           'equipmentProfiles': <Object>[],
           'sequences': <Object>[],

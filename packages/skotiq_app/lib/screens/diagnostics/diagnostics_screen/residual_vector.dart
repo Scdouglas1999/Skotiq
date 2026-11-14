@@ -151,7 +151,6 @@ class _ResidualVectorPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (residuals.isEmpty) return;
 
-    // Background
     final bgPaint = Paint()..color = bgColor;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -161,7 +160,6 @@ class _ResidualVectorPainter extends CustomPainter {
       bgPaint,
     );
 
-    // Grid lines
     final gridPaint = Paint()
       ..color = gridColor.withValues(alpha: 0.3)
       ..strokeWidth = 0.5;
@@ -174,7 +172,6 @@ class _ResidualVectorPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    // Find max magnitude for scaling vectors
     final maxMag = residuals
         .map((r) => r.magnitudeArcsec)
         .reduce(math.max)
@@ -202,13 +199,11 @@ class _ResidualVectorPainter extends CustomPainter {
       )!;
       vectorPaint.color = color;
 
-      // Draw dot at position
       final dotPaint = Paint()
         ..color = vectorColor.withValues(alpha: 0.6)
         ..style = PaintingStyle.fill;
       canvas.drawCircle(Offset(px, py), 2, dotPaint);
 
-      // Draw vector arrow
       canvas.drawLine(Offset(px, py), Offset(px + dx, py + dy), vectorPaint);
     }
   }
@@ -217,5 +212,3 @@ class _ResidualVectorPainter extends CustomPainter {
   bool shouldRepaint(covariant _ResidualVectorPainter old) =>
       residuals != old.residuals;
 }
-
-// Issues card

@@ -5,29 +5,6 @@
 use super::*;
 
 #[test]
-fn test_normalize_ra_diff_hours_no_wrap() {
-    // Simple cases with no wraparound
-    assert!((normalize_ra_diff_hours(1.0) - 1.0).abs() < 0.0001);
-    assert!((normalize_ra_diff_hours(-1.0) - (-1.0)).abs() < 0.0001);
-    assert!((normalize_ra_diff_hours(11.0) - 11.0).abs() < 0.0001);
-    assert!((normalize_ra_diff_hours(-11.0) - (-11.0)).abs() < 0.0001);
-}
-
-#[test]
-fn test_normalize_ra_diff_hours_wraparound() {
-    // Wraparound cases: 23h to 1h should be 2h diff, not 22h
-    assert!((normalize_ra_diff_hours(22.0) - (-2.0)).abs() < 0.0001);
-    assert!((normalize_ra_diff_hours(-22.0) - 2.0).abs() < 0.0001);
-
-    // 13 hours should wrap to -11 hours (shorter path)
-    assert!((normalize_ra_diff_hours(13.0) - (-11.0)).abs() < 0.0001);
-    assert!((normalize_ra_diff_hours(-13.0) - 11.0).abs() < 0.0001);
-
-    // Edge case: exactly 12 hours
-    assert!((normalize_ra_diff_hours(12.0).abs() - 12.0).abs() < 0.0001);
-}
-
-#[test]
 fn test_validate_slew_position_success() {
     // Exact match
     assert!(validate_slew_position(12.0, 45.0, 12.0, 45.0, 1.0 / 60.0).is_ok());
@@ -210,16 +187,68 @@ mod slew_arrival {
         let (result, _) = slew_with(
             ScriptedDomeRotatorOps::new()
                 .with_mount_slewing_states(vec![true, false])
-                .with_scripted_mount_coordinates(TARGET_JNOW.0 + 0.2, TARGET_JNOW.1)
+                // 4.7' short: inside the arrival window, outside the 1'
+                // tolerance, so both slews complete and both miss.
+                .with_scripted_mount_coordinates(TARGET_JNOW.0 + 0.01, TARGET_JNOW.1)
                 .with_scripted_readback_frame(Ok(TARGET_JNOW)),
         )
         .await;
 
         assert_eq!(result.status, NodeStatus::Failure);
-        assert_eq!(
-            recovery_code_of(&result).as_deref(),
-            Some("SLEW_POSITION_MISMATCH")
+        assert_eq!(result.setback(), Some(Setback::OffTarget));
+    }
+
+    /// 2026-11-08 on the NYX-101: parked past its meridian limit, the mount
+    /// ignored the tracking command sent before the slew, drifted in RA while
+    /// it settled and stopped 2.11' off. Tracking is turned back on at the end
+    /// of the slew, the operator is told, and a second slew lands it.
+    #[tokio::test(start_paused = true)]
+    async fn a_mount_that_ignored_tracking_is_tracked_again_and_slewed_once_more() {
+        let (result, ops) = slew_with(
+            ScriptedDomeRotatorOps::new()
+                .with_mount_tracking(false)
+                .with_ignored_tracking_commands(1)
+                .with_mount_slewing_states(vec![true, false])
+                .with_coordinates_per_slew(vec![
+                    (TARGET_JNOW.0 + 0.0049, TARGET_JNOW.1),
+                    MOUNT_REPORTED,
+                ])
+                .with_scripted_readback_frame(Ok(TARGET_JNOW)),
+        )
+        .await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(ops.mount_slew_calls.load(Ordering::SeqCst), 2);
+        assert_eq!(*ops.tracking_commands.lock().unwrap(), vec![true, true]);
+        assert!(matches!(ops.mount_is_tracking("m").await, Ok(true)));
+        let notifications = ops.notifications.lock().unwrap();
+        assert!(
+            notifications
+                .iter()
+                .any(|(_, title, _)| title == "Tracking turned back on"),
+            "{notifications:?}"
         );
+    }
+
+    /// A miss that a second slew does not fix is still reported as one, so
+    /// the Slew node can tell the operator and go on to centering.
+    #[tokio::test(start_paused = true)]
+    async fn a_miss_that_a_second_slew_does_not_fix_is_reported_after_two_slews() {
+        let (result, ops) = slew_with(
+            ScriptedDomeRotatorOps::new()
+                .with_mount_slewing_states(vec![true, false])
+                .with_scripted_mount_coordinates(TARGET_JNOW.0 + 0.01, TARGET_JNOW.1)
+                .with_scripted_readback_frame(Ok(TARGET_JNOW)),
+        )
+        .await;
+
+        assert_eq!(
+            result.setback(),
+            Some(Setback::OffTarget),
+            "{:?}",
+            result.message
+        );
+        assert_eq!(ops.mount_slew_calls.load(Ordering::SeqCst), 2);
     }
 
     /// ASCOM drivers return from `SlewToCoordinatesAsync` before `Slewing`
@@ -262,7 +291,7 @@ mod slew_arrival {
         let (result, _) = slew_with(
             ScriptedDomeRotatorOps::new()
                 .with_scripted_mount_coordinates(MOUNT_REPORTED.0, MOUNT_REPORTED.1)
-                .with_scripted_readback_frame(Err("driver type unknown".to_string())),
+                .with_scripted_readback_frame(Err("driver type unknown".into())),
         )
         .await;
 
@@ -343,14 +372,14 @@ mod guiding_through_a_move {
 
     async fn slew_ctx(ops: Arc<ScriptedDomeRotatorOps>, run_guiding: bool) -> InstructionContext {
         let ctx = pointing_ctx(ops, "M1", TARGET).await;
-        if let Some(state) = &ctx.trigger_state {
+        if let Some(state) = &ctx.run.trigger_state {
             state.write().await.set_guiding_enabled(run_guiding);
         }
         ctx
     }
 
     async fn state_of(ctx: &InstructionContext) -> (bool, bool, u32) {
-        let state = ctx.trigger_state.as_ref().unwrap().read().await;
+        let state = ctx.run.trigger_state.as_ref().unwrap().read().await;
         (
             state.guiding.is_enabled(),
             state.guiding.resume_pending(),
@@ -489,7 +518,7 @@ mod guiding_through_a_move {
     async fn a_center_outside_a_run_stops_the_guider() {
         let ops = guided_rig();
         let mut ctx = slew_ctx(ops.clone(), false).await;
-        ctx.trigger_state = None;
+        ctx.run.trigger_state = None;
 
         let _ = execute_center(&center_cfg(), &ctx, None).await;
 
@@ -509,4 +538,97 @@ mod guiding_through_a_move {
 
         assert_eq!(ops.guider_stop_calls.load(Ordering::SeqCst), 0);
     }
+}
+
+/// What a Slew node did with a mount that stopped just off its target.
+async fn slew_node_off_target(stop_on_quality_problems: bool) -> (NodeStatus, Vec<String>) {
+    use crate::node::registry::InstructionNode;
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_mount_slewing_states(vec![true, false])
+            .with_scripted_mount_coordinates(22.817, 58.2738)
+            .with_scripted_readback_frame(Ok((22.8070, 58.2738))),
+    );
+    let mut context = crate::node::context::ExecutionContext::new_for_test("slew".to_string());
+    context.run.device_ops = ops;
+    context.run.rig.mount_id = Some("mount-1".to_string());
+    context.target_name = Some("Heart Nebula core".to_string());
+    context.target_ra = Some(22.7892);
+    context.target_dec = Some(58.1324);
+    let mut state = crate::triggers::TriggerState::new();
+    state.settings.stop_on_quality_problems = stop_on_quality_problems;
+    context.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
+    context.run.event_tx = Some(event_tx);
+    let config = SlewConfig {
+        use_target_coords: true,
+        ..SlewConfig::default()
+    };
+
+    let status = crate::node::instructions::slew::SlewInstruction
+        .execute("slew", &crate::NodeType::SlewToTarget(config), &mut context)
+        .await;
+
+    let mut warnings = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
+            warnings.push(message);
+        }
+    }
+    (status, warnings)
+}
+
+/// 2026-11-08: a slew that stopped 2.11' off failed its node, which ended the
+/// target and the night before its first frame. The mount is at the target
+/// within a few arcminutes and centering follows, so by default the operator
+/// is told and the run goes on.
+#[tokio::test(start_paused = true)]
+async fn a_slew_that_lands_off_target_notifies_and_the_run_goes_on() {
+    let (status, warnings) = slew_node_off_target(false).await;
+    assert_eq!(status, NodeStatus::Skipped, "{warnings:?}");
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains("did not reach target") && w.contains("The run continues")),
+        "{warnings:?}"
+    );
+
+    let (status, _) = slew_node_off_target(true).await;
+    assert_eq!(
+        status,
+        NodeStatus::Failure,
+        "the operator asked for the stop"
+    );
+}
+
+/// A run stopped while its slew is under way (the Dawn Approaching trigger
+/// parking the rig during the first slew) ends the slew as cancelled. It was
+/// a failed step, so the run ended "failed" instead of stopped by the trigger.
+#[tokio::test(start_paused = true)]
+async fn a_slew_the_run_stops_is_cancelled_not_failed() {
+    use crate::node::registry::InstructionNode;
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_mount_slewing_states(vec![true]));
+    let mut context = crate::node::context::ExecutionContext::new_for_test("slew".to_string());
+    context.run.device_ops = ops;
+    context.run.rig.mount_id = Some("mount-1".to_string());
+    context.target_name = Some("East Field".to_string());
+    context.target_ra = Some(11.14);
+    context.target_dec = Some(40.0);
+    let cancel = context.is_cancelled.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(20)).await;
+        cancel.store(true, Ordering::SeqCst);
+    });
+    let config = SlewConfig {
+        use_target_coords: true,
+        ..SlewConfig::default()
+    };
+
+    let status = crate::node::instructions::slew::SlewInstruction
+        .execute("slew", &crate::NodeType::SlewToTarget(config), &mut context)
+        .await;
+
+    assert_eq!(status, NodeStatus::Cancelled);
 }

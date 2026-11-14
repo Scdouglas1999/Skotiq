@@ -1,7 +1,5 @@
 use super::*;
 
-// Raw-frame diagnostic statistics
-
 #[test]
 fn frame_buffer_stats_match_the_four_pass_definition() {
     // Parity guard for the single-pass rewrite: min/max/mean/non-zero must
@@ -31,25 +29,6 @@ fn frame_buffer_stats_of_an_empty_buffer_is_none() {
     assert_eq!(FrameBufferStats::of(&[]), None);
 }
 
-// Pixel-container full scale (no hardware required)
-
-/// The container ceiling must be reported in the units the pixels arrive in.
-/// `(1 << bit_depth) - 1` is the ADC range and is 16x/4x too small for the
-/// 12/14-bit sensors that make up most of the ZWO line.
-#[test]
-fn raw16_container_max_adu_accounts_for_left_justification() {
-    // 12-bit ASI1600MM/ASI183/ASI294: 4095 << 4.
-    assert_eq!(raw16_container_max_adu(12), 65520);
-    // 14-bit ASI2600/ASI6200: 16383 << 2.
-    assert_eq!(raw16_container_max_adu(14), 65532);
-    // 10-bit: 1023 << 6.
-    assert_eq!(raw16_container_max_adu(10), 65472);
-    // 8-bit sensor read out in Raw16: 255 << 8.
-    assert_eq!(raw16_container_max_adu(8), 65280);
-    // A true 16-bit sensor needs no shift.
-    assert_eq!(raw16_container_max_adu(16), 65535);
-}
-
 // Reported model (no hardware required)
 
 /// Fill an `ASICameraInfo` as the SDK would, with just the fields the model
@@ -65,7 +44,7 @@ fn camera_info_named(model: &str, camera_id: c_int) -> ASICameraInfo {
     info
 }
 
-/// `NativeDevice::name()` must report the model, never the enumeration id.
+/// `DeviceDriver::name()` must report the model, never the enumeration id.
 ///
 /// This is the live-rig defect in one assertion. `native:zwo:1` is the ASI
 /// enumeration index and it swapped from the ASI1600MM-Cool to the ASI178MM
@@ -83,7 +62,7 @@ fn name_reports_the_model_once_camera_info_is_loaded() {
     );
 
     camera.camera_info = Some(camera_info_named("ZWO ASI1600MM-Cool", 1));
-    camera.model_name = camera.camera_name();
+    camera.core.name = camera.camera_name();
 
     assert_eq!(camera.name(), "ZWO ASI1600MM-Cool");
     assert_ne!(
@@ -91,49 +70,6 @@ fn name_reports_the_model_once_camera_info_is_loaded() {
         camera.id(),
         "the model must not be the positional device id"
     );
-}
-
-/// Every reported ceiling must be reachable inside a u16 and be an exact
-/// multiple of the left-shift step, which is what makes frame statistics from
-/// these cameras land on multiples of 16 (12-bit) or 4 (14-bit).
-#[test]
-fn raw16_container_max_adu_is_a_reachable_u16_sample() {
-    for bit_depth in 1..=16u32 {
-        let max = raw16_container_max_adu(bit_depth);
-        assert!(
-            max <= u16::MAX as u32,
-            "bit_depth {bit_depth} produced {max}, outside the u16 container"
-        );
-        let step = 1u32 << (16 - bit_depth.min(16));
-        assert_eq!(
-            max % step,
-            0,
-            "bit_depth {bit_depth}: {max} is not a multiple of the {step}-ADU sample step"
-        );
-    }
-}
-
-/// A bit depth the SDK never populated must not collapse the range to 0 —
-/// that would publish "this camera cannot produce any signal" and make every
-/// percent-of-full-scale target 0.
-#[test]
-fn raw16_container_max_adu_unknown_bit_depth_falls_back_to_container() {
-    assert_eq!(raw16_container_max_adu(0), 65535);
-    assert_eq!(raw16_container_max_adu(32), 65535);
-}
-
-/// The saturation threshold the imaging pipeline ships (65024 = 4064 << 4)
-/// must sit just under, not above, the 12-bit container ceiling — otherwise
-/// saturation could never be detected on the most common astro sensor class.
-#[test]
-fn raw16_container_max_adu_agrees_with_pipeline_saturation_threshold() {
-    let twelve_bit_ceiling = raw16_container_max_adu(12);
-    assert!(
-        65024 < twelve_bit_ceiling,
-        "pipeline threshold 65024 must be below the 12-bit ceiling {twelve_bit_ceiling}"
-    );
-    // The live ASI1600MM clips at 4094 << 4; that must still be flagged.
-    assert!(65024 <= 65504 && 65504 <= twelve_bit_ceiling);
 }
 
 // Connected-device registry (no hardware required)
@@ -144,7 +80,6 @@ fn eaf_registry_insert_lookup_remove() {
     // Use an id unlikely to collide with any real hardware in CI.
     let id: i32 = 0xDEAD;
 
-    // Insert
     {
         let mut reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
         reg.insert(
@@ -167,14 +102,12 @@ fn eaf_registry_insert_lookup_remove() {
         assert_eq!(entry.serial_number.as_deref(), Some("AABBCCDD"));
     }
 
-    // Remove
     {
         let mut reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
         let removed = reg.remove(&id);
         assert!(removed.is_some(), "remove must return the entry");
     }
 
-    // Verify gone
     {
         let reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
         assert!(
@@ -302,35 +235,17 @@ fn efw_discovery_skip_returns_cached_metadata() {
 }
 
 #[test]
-fn zwo_cached_setting_updates_after_success_only() {
-    let mut cached = 10;
-
-    commit_zwo_cached_setting(&mut cached, 42, Ok(())).unwrap();
-    assert_eq!(cached, 42);
-
-    let err = commit_zwo_cached_setting(
-        &mut cached,
-        99,
-        Err(NativeError::SdkError("rejected".to_string())),
-    )
-    .unwrap_err();
-
-    assert!(matches!(err, NativeError::SdkError(_)));
-    assert_eq!(cached, 42);
-}
-
-#[test]
 fn zwo_eaf_target_validation_rejects_clamped_positions() {
     assert_eq!(validate_zwo_eaf_target(0, 100).unwrap(), 0);
     assert_eq!(validate_zwo_eaf_target(100, 100).unwrap(), 100);
 
     assert!(matches!(
         validate_zwo_eaf_target(-1, 100),
-        Err(NativeError::InvalidParameter(_))
+        Err(DriverError::InvalidParameter(_))
     ));
     assert!(matches!(
         validate_zwo_eaf_target(101, 100),
-        Err(NativeError::InvalidParameter(_))
+        Err(DriverError::InvalidParameter(_))
     ));
 }
 
@@ -344,7 +259,7 @@ async fn zwo_cooler_temp_range_requires_connection() {
     // Freshly constructed camera is disconnected.
     assert!(matches!(
         camera.get_cooler_temp_range().await,
-        Err(NativeError::NotConnected)
+        Err(DriverError::NotConnected)
     ));
 }
 
@@ -356,4 +271,103 @@ fn zwo_cooler_set_point_rounds_to_whole_degrees() {
     assert_eq!(zwo_target_degrees(11.1), 11.0);
     assert_eq!(zwo_target_degrees(-10.7), -11.0);
     assert_eq!(zwo_target_degrees(-10.2), -10.0);
+}
+
+fn sub(start_x: u32, start_y: u32, width: u32, height: u32) -> SubFrame {
+    SubFrame {
+        start_x,
+        start_y,
+        width,
+        height,
+    }
+}
+
+/// The whole frame at a bin rounds down to the SDK's multiples (8 wide, 2 high)
+/// and starts at the corner; the rig's ASI1600MM-Cool needs no rounding.
+#[test]
+fn full_frame_roi_rounds_to_the_sdk_multiples() {
+    let roi = FrameRoi::within(4656, 3520, false, None).unwrap();
+    assert_eq!((roi.x, roi.y, roi.width, roi.height), (0, 0, 4656, 3520));
+    // ASI2600 at bin 2: 6248/2 = 3124 wide, 4176/2 = 2088 high.
+    let roi = FrameRoi::within(3124, 2088, true, None).unwrap();
+    assert_eq!((roi.width, roi.height), (3120, 2088));
+}
+
+#[test]
+fn a_subframe_keeps_its_start_on_mono_and_starts_on_an_even_cell_on_color() {
+    let mono = FrameRoi::within(64, 48, false, Some(&sub(3, 5, 21, 9))).unwrap();
+    assert_eq!((mono.x, mono.y, mono.width, mono.height), (3, 5, 16, 8));
+    let color = FrameRoi::within(64, 48, true, Some(&sub(3, 5, 21, 9))).unwrap();
+    assert_eq!((color.x, color.y, color.width, color.height), (2, 4, 16, 8));
+}
+
+#[test]
+fn a_subframe_that_leaves_the_frame_or_rounds_to_nothing_does_not_fit() {
+    assert!(FrameRoi::within(64, 48, false, Some(&sub(56, 0, 16, 8))).is_none());
+    assert!(FrameRoi::within(64, 48, false, Some(&sub(0, 44, 16, 8))).is_none());
+    assert!(FrameRoi::within(64, 48, false, Some(&sub(0, 0, 7, 8))).is_none());
+    assert!(FrameRoi::within(64, 48, false, Some(&sub(u32::MAX, 0, 8, 8))).is_none());
+    assert!(FrameRoi::within(64, 48, false, Some(&sub(48, 40, 16, 8))).is_some());
+}
+
+/// Mirroring an even-sized mosaic moves its pattern by one column or row.
+#[test]
+fn a_mirrored_mosaic_names_the_moved_pattern() {
+    use BayerPattern::*;
+    for (pattern, columns, rows, both) in [
+        (Rggb, Grbg, Gbrg, Bggr),
+        (Grbg, Rggb, Bggr, Gbrg),
+        (Gbrg, Bggr, Rggb, Grbg),
+        (Bggr, Gbrg, Grbg, Rggb),
+    ] {
+        assert_eq!(mirrored(pattern, false, false), pattern);
+        assert_eq!(mirrored(pattern, true, false), columns);
+        assert_eq!(mirrored(pattern, false, true), rows);
+        assert_eq!(mirrored(pattern, true, true), both);
+    }
+}
+
+#[test]
+fn accessory_serials_read_as_before() {
+    assert_eq!(
+        accessory_serial([0xEA, 0xF0, 1, 2, 0, 0, 0, 0]).as_deref(),
+        Some("EAF00102")
+    );
+    assert_eq!(accessory_serial([0; 8]), None);
+}
+
+/// An id the SDK no longer knows means the device left the bus once it was
+/// open, and a wrong id before it was opened.
+#[test]
+fn an_unknown_id_on_an_open_device_reads_as_disconnected() {
+    let open_checks: [fn(c_int) -> Result<(), DriverError>; 3] = [
+        check_open_camera_error,
+        check_open_focuser_error,
+        check_open_wheel_error,
+    ];
+    let opening_checks: [fn(c_int) -> Result<(), DriverError>; 3] =
+        [check_asi_error, check_eaf_error, check_efw_error];
+    for code in [1, 2] {
+        for check in open_checks {
+            assert!(
+                matches!(check(code), Err(DriverError::Disconnected)),
+                "code {code}"
+            );
+        }
+        for check in opening_checks {
+            assert!(
+                matches!(check(code), Err(DriverError::InvalidDevice(_))),
+                "code {code}"
+            );
+        }
+    }
+    for (open, opening) in open_checks.into_iter().zip(opening_checks) {
+        for code in [0, 3, 4, 5, 9, 11, 16, 99] {
+            assert_eq!(
+                format!("{:?}", open(code)),
+                format!("{:?}", opening(code)),
+                "code {code}"
+            );
+        }
+    }
 }

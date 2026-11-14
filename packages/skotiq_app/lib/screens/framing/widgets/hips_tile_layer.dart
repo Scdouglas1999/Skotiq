@@ -52,18 +52,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// FramingPlateScale + the shared canvas plate-scale resolution rule live in
-// skotiq_core's models layer and are intentionally not surfaced through the
-// public barrel (they are app->core src-model types shared with the framing
-// painters), so they are imported directly here, matching the convention used by
-// the framing painters and the framing canvas itself.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_hips_projection.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
-import '../painters/hips_tile_layer_painter.dart';
+import '../../../widgets/hips/hips_tile_layer_painter.dart';
 
 /// The Flutter-side GPU HiPS framing tile layer widget.
 ///

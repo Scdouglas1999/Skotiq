@@ -16,7 +16,8 @@
 // [siteLocationIsSet] is now the one definition of the rule and
 // [AppSettingsState.observerSite] is the nullable value surfaces should read.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 void main() {
   group('siteLocationIsSet', () {

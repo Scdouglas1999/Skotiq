@@ -24,38 +24,27 @@ class _VersionHistoryDialog extends ConsumerStatefulWidget {
       _VersionHistoryDialogState();
 }
 
-class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog> {
+class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
+    with HostBoundDialogState<_VersionHistoryDialog> {
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. Version history closed.';
+
+  @override
+  bool get hostChangeDiscardsInput => true;
+
   late Future<List<SequenceVersionSummary>> _versionsFuture;
-  late final SkotiqBackend _authority;
   late final SequenceRepository _repository;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
 
   @override
   void initState() {
     super.initState();
-    _authority = ref.read(backendProvider);
     _repository = ref.read(sequenceRepositoryProvider);
     _versionsFuture = _load();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        context.showWarningSnackBar(
-          'The connected host changed. Version history closed.',
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   Future<List<SequenceVersionSummary>> _load() {
     return _repository.listVersions(widget.sequenceId);
-  }
-
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
   }
 
   @override
@@ -234,18 +223,19 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog> {
   }
 
   Future<void> _restore(SequenceVersionSummary version) async {
-    if (!identical(ref.read(backendProvider), _authority)) return;
+    if (host.isStale) return;
     final editor = ref.read(currentSequenceProvider.notifier);
     Sequence? restored;
     try {
       restored = await _repository.restoreVersion(version.id);
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), _authority)) {
-        context.showErrorSnackBar('Failed to restore version: $e');
+      if (mounted && host.isCurrent) {
+        context.showErrorSnackBar(
+            'Failed to restore version: ${userFacingError(e)}');
       }
       return;
     }
-    if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+    if (!mounted || host.isStale) return;
     if (restored == null) {
       context.showErrorSnackBar('That version is no longer available');
       return;
@@ -278,14 +268,13 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog> {
           ],
         ),
       );
-      if (discard != true ||
-          !identical(ref.read(backendProvider), _authority)) {
+      if (discard != true || host.isStale) {
         return;
       }
       editor.loadSequence(restored, discardUnsaved: true);
     }
 
-    if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+    if (!mounted || host.isStale) return;
     Navigator.of(context).pop();
     ref.read(sequencerTabProvider.notifier).state = 0;
     context.showSuccessSnackBar(
@@ -308,7 +297,7 @@ class _VersionRow extends StatelessWidget {
   });
 
   String _formatTimestamp(DateTime date) {
-    return DateFormat('MMM d, yyyy HH:mm').format(date);
+    return ClockFormat.monthDayYearHm(date.toLocal());
   }
 
   @override

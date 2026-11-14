@@ -1,4 +1,25 @@
-use super::*;
+use crate::api::connection::api_get_connected_devices;
+use crate::api::plate_solve::{gather_solve_hints_for_camera, SolveHints};
+use crate::api::polar_alignment::events::{
+    emit_polar_error, emit_polar_image, emit_polar_status, plate_solve_ra_degrees,
+};
+use crate::api::polar_alignment::pole_slew::{
+    rotate_for_next_point, slew_to_pole_region, SlewOutcome,
+};
+use crate::api::polar_alignment::run_control::{
+    polar_control_lock, polar_generation, polar_loop_control, release_polar_run_if_current,
+    store_polar_task, try_admit_polar_run, PolarLoopControl,
+};
+use crate::api::polar_alignment::solve::{
+    polar_solve_downsample, read_polar_solve_hint, solve_polar_frame, PolarSolveHint,
+    DEFAULT_POLAR_SOLVE_TIMEOUT_SECS, POLAR_SOLVE_SEARCH_RADIUS_DEG,
+};
+use crate::device::{DeviceType, DriverType};
+use crate::device_manager::get_device_manager;
+use crate::error::SkotiqError;
+use crate::state::get_state;
+use crate::unified_device_ops::create_unified_device_ops;
+use std::sync::atomic::Ordering as PolarOrdering;
 
 /// Start three-point polar alignment
 ///
@@ -35,16 +56,13 @@ pub async fn api_start_polar_alignment(
         exposure_time, step_size, binning, is_north, manual_rotation, rotate_east
     );
 
-    // Get connected devices using existing API
     let connected = api_get_connected_devices().await;
 
-    // Find connected camera
     let camera_id = connected
         .iter()
         .find(|d| d.device_type == DeviceType::Camera)
         .map(|d| d.id.clone());
 
-    // Find connected mount
     let mount_id = connected
         .iter()
         .find(|d| d.device_type == DeviceType::Mount)
@@ -173,7 +191,15 @@ pub(crate) async fn run_polar_alignment(
     // Slew-to-pole start mode: point the mount at the pole region before
     // measuring, instead of measuring from wherever it currently points.
     if !start_from_current {
-        match slew_to_pole_region(&mount_id, is_north, observer_longitude, generation).await? {
+        match slew_to_pole_region(
+            &mount_id,
+            is_north,
+            rotate_east,
+            observer_longitude,
+            generation,
+        )
+        .await?
+        {
             SlewOutcome::Settled => {}
             SlewOutcome::Cancelled => {
                 emit_polar_status("Cancelled by user", "idle", 0);
@@ -183,7 +209,8 @@ pub(crate) async fn run_polar_alignment(
         }
     }
 
-    let mut solved_points: Vec<(f64, f64)> = Vec::new();
+    let mut solved_points: Vec<skotiq_sequencer::AlignmentPoint> = Vec::new();
+    let device_ops = create_unified_device_ops();
 
     // The declination every rotation step holds, read ONCE.
     //
@@ -245,6 +272,7 @@ pub(crate) async fn run_polar_alignment(
 
         // Capture image. gain/offset are Option — None leaves the camera's
         // current value untouched (never forced to 0).
+        let taken_at = skotiq_sequencer::polar_mid_exposure(chrono::Utc::now(), exposure_time);
         crate::api::imaging::camera_start_exposure_opt(
             camera_id.clone(),
             exposure_time,
@@ -255,6 +283,23 @@ pub(crate) async fn run_polar_alignment(
         )
         .await
         .map_err(|e| format!("Failed to capture: {:?}", e))?;
+
+        // Where the mount's declination axis was for this frame. A rotation
+        // step should leave it alone; when it did not (a slewing mount that
+        // rounds, or the double-precessed steps of 2026-11-07), the fit takes
+        // the move out instead of reading it as polar misalignment.
+        let mount_dec_degrees = match device_ops.mount_get_coordinates(&mount_id).await {
+            Ok((_, dec)) => Some(dec),
+            Err(e) => {
+                tracing::warn!(
+                    "Polar alignment point {}: could not read the mount declination ({}); \
+                     the fit assumes it did not move",
+                    point,
+                    e
+                );
+                None
+            }
+        };
 
         match polar_loop_control(generation) {
             PolarLoopControl::Continue => {}
@@ -271,10 +316,13 @@ pub(crate) async fn run_polar_alignment(
             point as i32,
         );
 
-        // Get the captured image
-        let image = api_get_last_image(camera_id.clone())
+        let crate::last_frame::StoredFrame {
+            display: image,
+            raw,
+            ..
+        } = crate::last_frame::frame(&camera_id)
             .await
-            .map_err(|e| format!("Failed to get image: {:?}", e))?;
+            .ok_or_else(|| format!("The camera delivered no frame for point {point}"))?;
 
         // Emit polar alignment image (before plate solve, no coordinates yet)
         emit_polar_image(&image, point as i32, "measuring", None, None);
@@ -283,14 +331,15 @@ pub(crate) async fn run_polar_alignment(
         // binning: a camera that refused the binning request would otherwise
         // have its full-resolution frame downsampled by a rule that thinks it
         // is already binned.
-        let solve_downsample = polar_solve_downsample(image.width, image.height, binning);
+        let solve_downsample = polar_solve_downsample(raw.width, raw.height, binning);
 
-        // Save temp file for plate solving
-        let temp_path = create_unique_temp_fits_path(&format!("polar_align_point_{}", point));
+        let temp_path = crate::util::temp_fits::create_unique_temp_fits_path(&format!(
+            "polar_align_point_{}",
+            point
+        ));
         let temp_path_str = temp_path.to_string_lossy().to_string();
 
-        // Write FITS file for plate solving
-        if let Err(e) = write_temp_fits_for_solve(&image, &temp_path_str, &solve_scale.hints) {
+        if let Err(e) = write_polar_solve_frame(raw, &temp_path_str, &solve_scale.hints).await {
             return Err(format!("Failed to write temp FITS: {}", e));
         }
 
@@ -314,12 +363,21 @@ pub(crate) async fn run_polar_alignment(
         // degrees. Multiplying by 15 here corrupted both the rotation-center
         // fit and the next mount slew target.
         let ra_degrees = plate_solve_ra_degrees(solve_result.ra);
-        solved_points.push((ra_degrees, solve_result.dec));
+        solved_points.push(skotiq_sequencer::AlignmentPoint {
+            ra_degrees,
+            dec_degrees: solve_result.dec,
+            taken_at,
+            mount_dec_degrees,
+        });
         tracing::info!(
-            "Point {} solved: RA={:.4}°, Dec={:.4}°",
+            "Point {} solved: RA={:.4}°, Dec={:.4}° at {} (mount Dec {})",
             point,
             ra_degrees,
-            solve_result.dec
+            solve_result.dec,
+            taken_at.to_rfc3339(),
+            mount_dec_degrees
+                .map(|d| format!("{d:.4}°"))
+                .unwrap_or_else(|| "unknown".to_string())
         );
 
         // Emit image again with plate solve coordinates
@@ -381,14 +439,26 @@ pub(crate) async fn run_polar_alignment(
     // Phase 2: Calculate center of rotation
     emit_polar_status("Calculating polar alignment error...", "adjusting", 3);
 
-    let fit = skotiq_sequencer::fit_rotation_axis(&solved_points, is_north).ok_or_else(|| {
-        let msg = "The three measurement points do not describe a rotation. The mount did not \
+    // Refraction is the sky's, and the simulator renders a sky without an
+    // atmosphere: correcting its frames for refraction would report about a
+    // minute of error on a perfectly aligned simulated mount.
+    let simulated_sky = get_device_manager()
+        .get_device(&mount_id)
+        .await
+        .is_some_and(|d| d.info.driver_type == DriverType::Simulator);
+    let refraction_site = (!simulated_sky).then_some((observer_latitude, observer_longitude));
+    let mount_axis = skotiq_sequencer::fit_mount_axis(&solved_points, is_north, refraction_site)
+        .ok_or_else(|| {
+            let msg = "The three measurement points do not describe a rotation. The mount did not \
              turn between them, or the same frame was solved three times."
-            .to_string();
-        emit_polar_status(&format!("Error: {}", msg), "error", 0);
-        msg
-    })?;
-    let (mut center_ra, mut center_dec) = (fit.ra_degrees, fit.dec_degrees);
+                .to_string();
+            emit_polar_status(&format!("Error: {}", msg), "error", 0);
+            msg
+        })?;
+    let fit = mount_axis.fit;
+    // The fit is of date at the last point; the adjustment loop works in the
+    // plate solver's J2000, at each frame's own time.
+    let (mut center_ra, mut center_dec) = mount_axis.axis_j2000_at(mount_axis.at);
     let pole_dec = if is_north { 90.0 } else { -90.0 };
 
     // The axis is the ANSWER, but a three-point circle is exactly determined:
@@ -397,10 +467,12 @@ pub(crate) async fn run_polar_alignment(
     // answer is what turns "the axis came out 9° off" into a number the next
     // run can act on.
     tracing::info!(
-        "Rotation center: RA={:.4}°, Dec={:.4}° (circle radius {:.2}°, arc {:.1}°, \
-         one arcmin of error in one point moves this axis {:.2}°)",
+        "Rotation center: RA={:.4}°, Dec={:.4}° J2000 (of date RA={:.4}°, Dec={:.4}°; circle \
+         radius {:.2}°, arc {:.1}°, one arcmin of error in one point moves this axis {:.2}°)",
         center_ra,
         center_dec,
+        fit.ra_degrees,
+        fit.dec_degrees,
         fit.radius_degrees,
         fit.arc_degrees,
         fit.axis_degrees_per_arcmin
@@ -451,8 +523,9 @@ pub(crate) async fn run_polar_alignment(
     // special case: it turns the camera about the axis itself, which leaves the
     // axis where it was. `reference_solve` is captured on the first successful
     // adjustment solve below.
-    let initial_axis = (center_ra, center_dec);
-    let mut reference_solve: Option<skotiq_sequencer::CameraAttitude> = None;
+    // The axis is fixed to the ground, so in J2000 it moves with the sky: it
+    // is taken at the reference frame's own time.
+    let mut reference_solve: Option<(skotiq_sequencer::CameraAttitude, (f64, f64))> = None;
 
     // Auto-complete timer: tracks when error first dropped below threshold
     let mut auto_complete_start: Option<std::time::Instant> = None;
@@ -486,6 +559,7 @@ pub(crate) async fn run_polar_alignment(
 
         // Capture and solve to get current position
         emit_polar_status("Capturing...", "adjusting", 0);
+        let frame_time = skotiq_sequencer::polar_mid_exposure(chrono::Utc::now(), exposure_time);
         if let Err(e) = crate::api::imaging::camera_start_exposure_opt(
             camera_id.clone(),
             exposure_time,
@@ -541,12 +615,11 @@ pub(crate) async fn run_polar_alignment(
             }
         }
 
-        // Get the captured image
-        let image = match api_get_last_image(camera_id.clone()).await {
-            Ok(img) => img,
-            Err(e) => {
+        let (image, raw) = match crate::last_frame::frame(&camera_id).await {
+            Some(frame) => (frame.display, frame.raw),
+            None => {
                 consecutive_failures += 1;
-                tracing::warn!("Failed to get image in adjustment loop: {:?}", e);
+                tracing::warn!("The camera delivered no frame in the adjustment loop");
                 emit_polar_status(
                     &format!(
                         "Image retrieval failed (retry {}/{})",
@@ -569,10 +642,11 @@ pub(crate) async fn run_polar_alignment(
         // Emit polar alignment image (adjustment phase, no coordinates yet)
         emit_polar_image(&image, 0, "adjusting", None, None);
 
-        let temp_path = create_unique_temp_fits_path("polar_align_adjust");
+        let temp_path = crate::util::temp_fits::create_unique_temp_fits_path("polar_align_adjust");
         let temp_path_str = temp_path.to_string_lossy().to_string();
+        let adjust_downsample = polar_solve_downsample(raw.width, raw.height, adjust_binning);
 
-        if let Err(e) = write_temp_fits_for_solve(&image, &temp_path_str, &adjust_scale.hints) {
+        if let Err(e) = write_polar_solve_frame(raw, &temp_path_str, &adjust_scale.hints).await {
             consecutive_failures += 1;
             tracing::warn!("Failed to write temp FITS: {}", e);
             emit_polar_status(
@@ -609,7 +683,7 @@ pub(crate) async fn run_polar_alignment(
             &temp_path_str,
             adjustment_solve_hint(last_adjust_solve, mount_hint),
             adjust_scale_arcsec_per_px,
-            polar_solve_downsample(image.width, image.height, adjust_binning),
+            adjust_downsample,
             solve_timeout_secs,
         )
         .await;
@@ -672,7 +746,8 @@ pub(crate) async fn run_polar_alignment(
         );
         let current_attitude =
             skotiq_sequencer::CameraAttitude::from_solve(ra_degrees, solve_result.dec, up_angle);
-        let reference_attitude = *reference_solve.get_or_insert(current_attitude);
+        let (reference_attitude, initial_axis) = *reference_solve
+            .get_or_insert((current_attitude, mount_axis.axis_j2000_at(frame_time)));
         let (cur_axis_ra, cur_axis_dec) = skotiq_sequencer::rotate_axis_by_attitude_change(
             initial_axis,
             &reference_attitude,
@@ -694,7 +769,7 @@ pub(crate) async fn run_polar_alignment(
         // fires the auto-complete ~60x too early.
         // The axis is in the plate solver's J2000 frame; the pole it has to
         // reach is tonight's.
-        let now = chrono::Utc::now();
+        let now = frame_time;
         let (axis_ra_of_date, axis_dec_of_date) =
             skotiq_sequencer::axis_j2000_to_date(cur_axis_ra, cur_axis_dec, now);
         let (az_arcmin, alt_arcmin, total_arcmin) =
@@ -820,7 +895,11 @@ pub(crate) fn adjustment_solve_hint(
     }
 }
 
-/// Write the temp FITS a polar-alignment frame is solved from.
+/// Write the frame a polar-alignment point is solved from: the camera's own
+/// samples, through the writer a saved capture takes. The screen's preview is
+/// a stretched 8-bit picture of the same frame; solving that loses the faint
+/// stars the stretch crushes into the background and flattens the bright ones
+/// it clips.
 ///
 /// `hints` carries the field scale (see [`SolveHints`]). No position is
 /// stamped into the header: the position hint polar alignment does have is the
@@ -830,52 +909,21 @@ pub(crate) fn adjustment_solve_hint(
 /// known from the operator's profile and the camera, and without it ASTAP has
 /// to sweep for the field of view on all three measurement frames plus every
 /// frame of the adjustment loop.
-pub(crate) fn write_temp_fits_for_solve(
-    image: &CapturedImageResult,
+pub(crate) async fn write_polar_solve_frame(
+    frame: crate::last_frame::RawFrame,
     path: &str,
     hints: &SolveHints,
-) -> Result<(), String> {
-    use skotiq_imaging::{write_fits, FitsHeader, ImageData, PixelType};
-    use std::path::Path;
-
-    // Convert RGBA display_data to grayscale 16-bit for FITS plate solving.
-    // display_data is always RGBA (4 bytes per pixel).
-    let raw_bytes: Vec<u8> = if image.is_color {
-        // For color RGBA, convert to grayscale (luminance) and scale to 16-bit
-        image
-            .display_data
-            .chunks(4)
-            .flat_map(|rgba| {
-                let lum = ((rgba[0] as u32 + rgba[1] as u32 + rgba[2] as u32) / 3) as u16 * 256;
-                lum.to_le_bytes().to_vec()
-            })
-            .collect()
-    } else {
-        // For grayscale RGBA, take the R channel (all RGB channels are the same) and scale to 16-bit
-        image
-            .display_data
-            .chunks(4)
-            .flat_map(|rgba| {
-                let scaled = (rgba[0] as u16) * 256;
-                scaled.to_le_bytes().to_vec()
-            })
-            .collect()
-    };
-
-    let mut image_data = ImageData::new(
-        image.width as u32,
-        image.height as u32,
-        1, // grayscale
-        PixelType::U16,
-    );
-    image_data.data = raw_bytes;
-
-    let mut header = FitsHeader::new();
-    header.set_float("EXPTIME", image.exposure_time);
-    hints.apply_to_fits_header(&mut header);
-
-    write_fits(Path::new(path), &image_data, &header)
-        .map_err(|e| format!("FITS write error: {:?}", e))
+) -> Result<(), SkotiqError> {
+    let frame = frame.into_image_data();
+    let header = hints.solve_frame_header(&frame);
+    crate::frame_header::write_capture_frame(
+        path.to_string(),
+        frame.width,
+        frame.height,
+        frame.data,
+        header,
+    )
+    .await
 }
 
 #[cfg(test)]

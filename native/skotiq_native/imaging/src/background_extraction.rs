@@ -63,16 +63,16 @@
 //! on the normal-equation matrix — fine for the ≤28-term systems a degree-≤6 2-D
 //! polynomial produces, and deterministic so the tests are reproducible.
 
-use crate::robust_stats::{median_in_place as median_f64, percentile_nearest_rank, MAD_TO_SIGMA};
-use crate::{detect_stars, DetectedStar, ImageData, PixelType, StarDetectionConfig};
+use crate::detection_plane::{finite_range, DetectionPlane, Quantize};
+use crate::robust_stats::{mad_sigma, median_and_sigma, median_in_place, percentile_nearest_rank};
+use crate::samples::{sample_from_le, sample_to_le};
+use crate::{detect_stars_in_plane, DetectedStar, ImageData, PixelType, StarDetectionConfig};
 use rayon::prelude::*;
 
 /// Hard cap on `poly_degree`. Beyond degree 6 the 2-D Vandermonde normal
 /// equations are ill-conditioned even after `[-1, 1]` normalisation and the
 /// model fits noise rather than the smooth background (see module docs).
 const MAX_POLY_DEGREE: usize = 6;
-
-// Public configuration
 
 /// Tunables for [`extract_background`].
 ///
@@ -139,7 +139,6 @@ pub struct BackgroundModel {
     pub width: u32,
     /// Frame height the model was fitted for (px).
     pub height: u32,
-    /// Number of channels the model covers.
     pub channels: u32,
     /// Per-channel polynomial coefficients. `coeffs_per_channel[c]` is the
     /// coefficient vector for channel `c`, in the canonical term order produced
@@ -211,8 +210,6 @@ pub enum BackgroundError {
     SingularFit { channel: usize },
 }
 
-// Public entry points
-
 /// Fit a star-masked, low-order polynomial background model to `image`.
 ///
 /// The algorithm, per channel (run in parallel across channels):
@@ -257,7 +254,10 @@ pub fn extract_background(
 
     // De-interleave every channel into its own f64 plane up front. The work is
     // linear in pixel count and lets the per-channel fits run independently.
-    let planes = deinterleave_to_f64(image);
+    let planes = image.planes_f64();
+    if planes.len() != channels {
+        return Err(BackgroundError::EmptyImage);
+    }
 
     // Star mask is computed once on a luminance plane: stars are at the same
     // location in every channel of an aligned frame, so masking per channel
@@ -268,7 +268,6 @@ pub fn extract_background(
     let degree = cfg.poly_degree;
     let n_terms = poly_terms(degree).len();
 
-    // Fit every channel; collect either all coeff/mean pairs or the first error.
     let per_channel: Result<Vec<(Vec<f64>, f64)>, BackgroundError> = (0..channels)
         .into_par_iter()
         .map(|ch| {
@@ -325,6 +324,7 @@ pub fn subtract_background(image: &mut ImageData, model: &BackgroundModel) {
     let height = image.height as usize;
     let channels = image.channels as usize;
     let pt = image.pixel_type;
+    let range = image.range;
     let bpp = pt.byte_size();
     let stride = channels * bpp;
 
@@ -372,9 +372,10 @@ pub fn subtract_background(image: &mut ImageData, model: &BackgroundModel) {
                     }
                     let (nx, ny) = normalise_xy(x as f64, y as f64, w, h);
                     let model_val = eval_poly(coeffs, &terms, nx, ny);
-                    let orig = read_pixel(&row[off..off + bpp], pt);
-                    let new_val = orig - model_val + add_back;
-                    write_pixel(&mut row[off..off + bpp], pt, new_val);
+                    // The model is in ADU; the image keeps its own range.
+                    let orig = range.to_adu(sample_from_le(&row[off..off + bpp], pt));
+                    let new_val = range.from_adu(orig - model_val + add_back);
+                    sample_to_le(&mut row[off..off + bpp], pt, new_val);
                 }
             }
         });
@@ -396,8 +397,6 @@ pub fn extract_and_subtract(
     subtract_background(&mut out, &model);
     Ok((out, model))
 }
-
-// Per-channel fit
 
 /// Fit one channel's background polynomial. Returns the coefficient vector (in
 /// [`poly_terms`] order) and the surface's mean level over the frame.
@@ -547,7 +546,7 @@ fn box_median(
             win.push(plane[row + x]);
         }
     }
-    Some(median_f64(&mut win))
+    Some(median_in_place(&mut win))
 }
 
 /// Reject boxes that overlap a detected star OR whose level sits far above the
@@ -563,13 +562,10 @@ fn reject_contaminated(samples: &mut Vec<Sample>, star_centres: &[StarBox], samp
     // object-contaminated minority of boxes. The spread (MAD of the lower half)
     // sets how far above baseline we tolerate before calling a box contaminated.
     let mut values: Vec<f64> = samples.iter().map(|s| s.value).collect();
-    let baseline = percentile_f64(&mut values, 0.25);
-    let median = percentile_f64(&mut values, 0.5);
-    let mad = {
-        let mut dev: Vec<f64> = samples.iter().map(|s| (s.value - median).abs()).collect();
-        median_f64(&mut dev)
-    };
-    let sigma = (mad * MAD_TO_SIGMA).max(f64::MIN_POSITIVE);
+    values.sort_unstable_by(f64::total_cmp);
+    let baseline = percentile_nearest_rank(&values, 0.25);
+    let median = percentile_nearest_rank(&values, 0.5);
+    let sigma = mad_sigma(&values, median).max(f64::MIN_POSITIVE);
 
     // A box more than this far above baseline is object-dominated. The factor
     // (4σ) is deliberately generous: the high-side sigma clip later does the
@@ -638,7 +634,6 @@ pub(crate) fn iterative_residual_fit(
             break;
         }
 
-        // Residual of every survivor against the current surface.
         let mut residuals: Vec<f64> = samples
             .iter()
             .map(|s| {
@@ -647,10 +642,7 @@ pub(crate) fn iterative_residual_fit(
             })
             .collect();
 
-        let median = median_f64(&mut residuals);
-        let mut dev: Vec<f64> = residuals.iter().map(|&r| (r - median).abs()).collect();
-        let mad = median_f64(&mut dev);
-        let sigma = mad * MAD_TO_SIGMA;
+        let (median, sigma) = median_and_sigma(&mut residuals);
         if sigma <= 0.0 {
             // Residuals are flat (a perfect fit, or too few distinct points) —
             // nothing more to reject.
@@ -688,8 +680,6 @@ pub(crate) fn iterative_residual_fit(
 
     Ok(coeffs)
 }
-
-// Polynomial machinery
 
 /// The exponent pairs `(i, j)` of every monomial `xⁱ·yʲ` with `i + j ≤ degree`,
 /// in a stable canonical order: ascending total degree, then **descending `i`**
@@ -831,7 +821,7 @@ pub(crate) fn solve_poly_fit(
 /// outer loop swaps whole rows. Index arithmetic is the clearest and most
 /// borrow-checker-friendly way to express the simultaneous cross-row access.
 #[allow(clippy::needless_range_loop)]
-fn solve_linear_system(mut m: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
+pub(crate) fn solve_linear_system(mut m: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
     let n = b.len();
     if n == 0 || m.len() != n {
         return None;
@@ -864,14 +854,12 @@ fn solve_linear_system(mut m: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>
         m.swap(col, pivot_row);
         b.swap(col, pivot_row);
 
-        // Normalise the pivot row.
         let pivot = m[col][col];
         for c in col..n {
             m[col][c] /= pivot;
         }
         b[col] /= pivot;
 
-        // Eliminate the column from every other row.
         for r in 0..n {
             if r == col {
                 continue;
@@ -924,33 +912,26 @@ fn surface_mean(coeffs: &[f64], degree: usize, width: usize, height: usize) -> f
     }
 }
 
-// Star masking
-
-/// Detect star centres/radii once, on a luminance proxy, so every channel's fit
-/// can reject the same star-overlapping boxes.
+/// Detect star centres/radii once, so every channel's fit can reject the same
+/// star-overlapping boxes.
 ///
-/// [`detect_stars`] expects a `U16` mono frame. For a `U16` mono input we hand
-/// it the frame directly; otherwise we synthesise a `U16` luminance frame from
-/// the de-interleaved planes (channel mean) rescaled to fill the 16-bit range,
-/// which preserves star positions (the only thing we use) regardless of the
-/// source pixel type or channel count.
+/// A mono `U16` frame is detected as it is. Anything else is detected on the
+/// channel mean, rescaled from its own range, which keeps star positions (the
+/// only thing used) whatever the source's scale.
 fn detect_star_centres(
     image: &ImageData,
     planes: &[Vec<f64>],
     width: usize,
     height: usize,
 ) -> Vec<StarBox> {
-    // Build a U16 luminance frame for detection.
-    let luminance_u16: Vec<u16> = if image.pixel_type == PixelType::U16 && image.channels == 1 {
-        image.as_u16().unwrap_or_default()
+    let plane = if image.pixel_type == PixelType::U16 && image.channels == 1 {
+        DetectionPlane::from_image(image)
     } else {
-        synth_luminance_u16(planes, width, height)
+        mean_plane(planes, width, height)
     };
-
-    if luminance_u16.len() != width * height {
+    let Some(plane) = plane else {
         return Vec::new();
-    }
-    let frame = ImageData::from_u16(width as u32, height as u32, 1, &luminance_u16);
+    };
 
     // Detection config tuned for masking, not photometry: relax sharpness so
     // compact stars are kept (a star's whole point here is to be masked), and
@@ -963,7 +944,7 @@ fn detect_star_centres(
         min_snr: 3.0,
         ..StarDetectionConfig::default()
     };
-    let stars = detect_stars(&frame, &cfg);
+    let stars = detect_stars_in_plane(plane, &cfg);
 
     stars
         .iter()
@@ -982,119 +963,25 @@ fn detect_star_centres(
         .collect()
 }
 
-/// Synthesise a U16 luminance frame from f64 planes for star detection. Uses the
-/// per-pixel channel mean rescaled to [0, 60000] so the detector's thresholds
-/// behave regardless of the source's absolute scale.
-fn synth_luminance_u16(planes: &[Vec<f64>], width: usize, height: usize) -> Vec<u16> {
+/// The channel mean of `planes`, rescaled from its own range for the detector.
+fn mean_plane(planes: &[Vec<f64>], width: usize, height: usize) -> Option<DetectionPlane> {
     let n = width * height;
-    if planes.is_empty() {
-        return Vec::new();
+    if planes.is_empty() || planes.iter().any(|plane| plane.len() != n) {
+        return None;
     }
-    let mut lum = vec![0.0_f64; n];
+    let mut mean = vec![0.0_f64; n];
     for plane in planes {
-        if plane.len() != n {
-            return Vec::new();
-        }
-        for (l, &p) in lum.iter_mut().zip(plane.iter()) {
-            *l += p;
+        for (m, &p) in mean.iter_mut().zip(plane.iter()) {
+            *m += p;
         }
     }
     let inv_c = 1.0 / planes.len() as f64;
-    for l in lum.iter_mut() {
-        *l *= inv_c;
+    for m in mean.iter_mut() {
+        *m *= inv_c;
     }
-
-    let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
-    for &v in &lum {
-        lo = lo.min(v);
-        hi = hi.max(v);
-    }
-    let range = (hi - lo).max(f64::MIN_POSITIVE);
-    lum.iter()
-        .map(|&v| (((v - lo) / range) * 60000.0).clamp(0.0, 65535.0) as u16)
-        .collect()
+    let (low, high) = finite_range(&mean)?;
+    DetectionPlane::from_range(width, height, &mean, low, high, Quantize::Truncate)
 }
-
-// Pixel <-> f64 conversion
-
-/// De-interleave an [`ImageData`] into one `f64` plane per channel.
-fn deinterleave_to_f64(image: &ImageData) -> Vec<Vec<f64>> {
-    let width = image.width as usize;
-    let height = image.height as usize;
-    let channels = image.channels as usize;
-    let pt = image.pixel_type;
-    let bpp = pt.byte_size();
-    let stride = channels * bpp;
-    let n = width * height;
-
-    (0..channels)
-        .map(|ch| {
-            let mut plane = vec![0.0_f64; n];
-            for (idx, p) in plane.iter_mut().enumerate() {
-                let off = idx * stride + ch * bpp;
-                if off + bpp <= image.data.len() {
-                    *p = read_pixel(&image.data[off..off + bpp], pt);
-                }
-            }
-            plane
-        })
-        .collect()
-}
-
-/// Read a single pixel value of the given type from its little-endian bytes,
-/// promoted to `f64`. Matches the crate's `from_le_bytes` conventions in
-/// [`ImageData`] (`as_u16`/`as_f32`) and extends them to the remaining types.
-#[inline]
-fn read_pixel(bytes: &[u8], pt: PixelType) -> f64 {
-    match pt {
-        PixelType::U8 => bytes[0] as f64,
-        PixelType::U16 => u16::from_le_bytes([bytes[0], bytes[1]]) as f64,
-        PixelType::U32 => u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as f64,
-        PixelType::F32 => f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as f64,
-        PixelType::F64 => f64::from_le_bytes([
-            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-        ]),
-    }
-}
-
-/// Write a single `f64` pixel value back into its little-endian bytes for the
-/// given type. Unsigned types saturate at 0 and the type maximum (the standard
-/// Rust `f64 as uN` saturating-cast semantics since 1.45); float types are
-/// written verbatim.
-#[inline]
-fn write_pixel(bytes: &mut [u8], pt: PixelType, value: f64) {
-    match pt {
-        PixelType::U8 => {
-            let v = value.clamp(0.0, u8::MAX as f64) as u8;
-            bytes[0] = v;
-        }
-        PixelType::U16 => {
-            let v = value.clamp(0.0, u16::MAX as f64) as u16;
-            bytes[..2].copy_from_slice(&v.to_le_bytes());
-        }
-        PixelType::U32 => {
-            let v = value.clamp(0.0, u32::MAX as f64) as u32;
-            bytes[..4].copy_from_slice(&v.to_le_bytes());
-        }
-        PixelType::F32 => {
-            bytes[..4].copy_from_slice(&(value as f32).to_le_bytes());
-        }
-        PixelType::F64 => {
-            bytes[..8].copy_from_slice(&value.to_le_bytes());
-        }
-    }
-}
-
-// Small robust-statistics helpers
-
-/// Nearest-rank percentile (`p` in `[0, 1]`) of a mutable slice, sorting it in
-/// place. See [`crate::robust_stats`] for why the convention is named.
-fn percentile_f64(v: &mut [f64], p: f64) -> f64 {
-    v.sort_unstable_by(f64::total_cmp);
-    percentile_nearest_rank(v, p)
-}
-
-// Tests
 
 #[cfg(test)]
 mod tests {
@@ -1434,7 +1321,6 @@ mod tests {
             "nebulosity patch must be preserved at ~{NEB_LEVEL} above sky, got excess {patch_excess:.1}"
         );
 
-        // Mean preservation must be reflected in the model too.
         assert!(model.preserve_mean);
         assert!(model.mean_level[0] > 0.0);
     }
@@ -1622,42 +1508,5 @@ mod tests {
             "channel 1 not flattened, std {}",
             std_dev(&ch1)
         );
-    }
-
-    #[test]
-    fn percentile_and_median_helpers_are_correct() {
-        let mut v = vec![3.0, 1.0, 2.0];
-        assert_eq!(median_f64(&mut v), 2.0);
-        let mut v2 = vec![4.0, 1.0, 3.0, 2.0];
-        assert_eq!(median_f64(&mut v2), 2.5);
-        let mut p = vec![10.0, 20.0, 30.0, 40.0, 50.0];
-        assert_eq!(percentile_f64(&mut p, 0.0), 10.0);
-        assert_eq!(percentile_f64(&mut p, 1.0), 50.0);
-        // Nearest-rank p=0.5 over 5 elements → idx round(2.0)=2 → value 30.
-        assert_eq!(percentile_f64(&mut p, 0.5), 30.0);
-    }
-
-    #[test]
-    fn read_write_pixel_roundtrips_each_type() {
-        // f64 read/write must be exact; unsigned types saturate correctly.
-        let cases = [
-            (PixelType::U8, 200.0_f64, 200.0_f64),
-            (PixelType::U8, 300.0, 255.0), // saturates high
-            (PixelType::U8, -5.0, 0.0),    // saturates low
-            (PixelType::U16, 40000.0, 40000.0),
-            (PixelType::U16, 70000.0, 65535.0),
-            (PixelType::U32, 1_000_000.0, 1_000_000.0),
-            (PixelType::F32, 1.25, 1.25),
-            (PixelType::F64, -12345.678, -12345.678),
-        ];
-        for (pt, input, expected) in cases {
-            let mut buf = vec![0u8; pt.byte_size()];
-            write_pixel(&mut buf, pt, input);
-            let got = read_pixel(&buf, pt);
-            assert!(
-                (got - expected).abs() < 1e-6,
-                "{pt:?}: wrote {input}, expected {expected}, read {got}"
-            );
-        }
     }
 }

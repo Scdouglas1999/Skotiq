@@ -3,8 +3,6 @@
 part of '../profile_editor_dialog.dart';
 
 extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
-  // Section 2: optical train
-
   Widget _buildOpticalTrainSection(SkotiqColors colors, ThemeData theme) {
     return _SectionBlock(
       title: 'Optical train',
@@ -200,8 +198,6 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
         : value.toString();
   }
 
-  // Section 3: devices
-
   /// Whether the profile guides with the built-in guider, which needs a
   /// guide camera of its own.
   bool get _usesBuiltinGuider =>
@@ -255,12 +251,24 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Camera
+          // Filling the rows from the rig that is up is the quickest way to
+          // a profile, so it comes before the rows.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SkotiqButton(
+              label: 'Use the connected devices',
+              icon: LucideIcons.plugZap,
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+              onPressed: _populateFromConnected,
+            ),
+          ),
+          const SizedBox(height: SkotiqTokens.spaceLg),
           _DeviceRow(
-            type: 'Camera',
+            label: 'Camera',
             nameController: _cameraNameController,
             deviceId: _cameraId,
-            discoveredDevices: cameras,
+            choices: _deviceChoices(DeviceType.camera, cameras),
             onDeviceSelected: (id, name) => setState(() {
               _cameraId = id;
               if (name != null && _cameraNameController.text.isEmpty) {
@@ -276,12 +284,11 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
 
-          // Mount
           _DeviceRow(
-            type: 'Mount',
+            label: 'Mount',
             nameController: _mountNameController,
             deviceId: _mountId,
-            discoveredDevices: mounts,
+            choices: _deviceChoices(DeviceType.mount, mounts),
             onDeviceSelected: (id, name) => setState(() {
               _mountId = id;
               if (name != null && _mountNameController.text.isEmpty) {
@@ -297,12 +304,11 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
 
-          // Focuser
           _DeviceRow(
-            type: 'Focuser',
+            label: 'Focuser',
             nameController: _focuserNameController,
             deviceId: _focuserId,
-            discoveredDevices: focusers,
+            choices: _deviceChoices(DeviceType.focuser, focusers),
             onDeviceSelected: (id, name) => setState(() {
               _focuserId = id;
               if (name != null && _focuserNameController.text.isEmpty) {
@@ -318,12 +324,11 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
 
-          // Filter wheel
           _DeviceRow(
-            type: 'Filter wheel',
+            label: 'Filter wheel',
             nameController: _filterWheelNameController,
             deviceId: _filterWheelId,
-            discoveredDevices: filterWheels,
+            choices: _deviceChoices(DeviceType.filterWheel, filterWheels),
             onDeviceSelected: (id, name) => setState(() {
               _filterWheelId = id;
               if (name != null && _filterWheelNameController.text.isEmpty) {
@@ -339,12 +344,11 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           ),
           const SizedBox(height: _rowGap),
 
-          // Guider
           _DeviceRow(
-            type: 'Guider',
+            label: 'Guider',
             nameController: _guiderNameController,
             deviceId: _guiderId,
-            discoveredDevices: guiders,
+            choices: _deviceChoices(DeviceType.guider, guiders),
             onDeviceSelected: (id, name) => setState(() {
               _guiderId = id;
               if (name != null && _guiderNameController.text.isEmpty) {
@@ -363,15 +367,10 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           // The built-in guider takes its frames with a camera of its own.
           if (_usesBuiltinGuider) ...[
             _DeviceRow(
-              type: 'Guide camera',
+              label: 'Guide camera',
               nameController: _guideCameraNameController,
               deviceId: _guideCameraId,
-              discoveredDevices: cameras
-                  .where(
-                    (c) => !c.availableBackends.values
-                        .any((d) => d.id == _cameraId),
-                  )
-                  .toList(),
+              choices: _guideCameraChoices(cameras),
               onDeviceSelected: (id, name) => setState(() {
                 _guideCameraId = id;
                 if (name != null && _guideCameraNameController.text.isEmpty) {
@@ -406,12 +405,11 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
             const SizedBox(height: _rowGap),
           ],
 
-          // Rotator
           _DeviceRow(
-            type: 'Rotator',
+            label: 'Rotator',
             nameController: _rotatorNameController,
             deviceId: _rotatorId,
-            discoveredDevices: rotators,
+            choices: _deviceChoices(DeviceType.rotator, rotators),
             onDeviceSelected: (id, name) => setState(() {
               _rotatorId = id;
               if (name != null && _rotatorNameController.text.isEmpty) {
@@ -428,10 +426,10 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           const SizedBox(height: _rowGap),
 
           _DeviceRow(
-            type: 'Dome',
+            label: 'Dome',
             nameController: null,
             deviceId: _domeId,
-            discoveredDevices: domes,
+            choices: _deviceChoices(DeviceType.dome, domes),
             onDeviceSelected: (id, name) => setState(() {
               _domeId = id;
             }),
@@ -444,10 +442,10 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           const SizedBox(height: _rowGap),
 
           _DeviceRow(
-            type: 'Weather',
+            label: 'Weather',
             nameController: null,
             deviceId: _weatherId,
-            discoveredDevices: weatherStations,
+            choices: _deviceChoices(DeviceType.weather, weatherStations),
             onDeviceSelected: (id, name) => setState(() {
               _weatherId = id;
             }),
@@ -460,10 +458,10 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           const SizedBox(height: _rowGap),
 
           _DeviceRow(
-            type: 'Safety monitor',
+            label: 'Safety monitor',
             nameController: _safetyMonitorNameController,
             deviceId: _safetyMonitorId,
-            discoveredDevices: safetyMonitors,
+            choices: _deviceChoices(DeviceType.safetyMonitor, safetyMonitors),
             onDeviceSelected: (id, name) => setState(() {
               _safetyMonitorId = id;
               if (name != null && _safetyMonitorNameController.text.isEmpty) {
@@ -480,10 +478,10 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           const SizedBox(height: _rowGap),
 
           _DeviceRow(
-            type: 'Switch',
+            label: 'Switch',
             nameController: _switchNameController,
             deviceId: _switchId,
-            discoveredDevices: switches,
+            choices: _deviceChoices(DeviceType.switch_, switches),
             onDeviceSelected: (id, name) => setState(() {
               _switchId = id;
               if (name != null && _switchNameController.text.isEmpty) {
@@ -500,10 +498,11 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
           const SizedBox(height: _rowGap),
 
           _DeviceRow(
-            type: 'Cover / calibrator',
+            label: 'Cover / calibrator',
             nameController: null,
             deviceId: _coverCalibratorId,
-            discoveredDevices: coverCalibrators,
+            choices:
+                _deviceChoices(DeviceType.coverCalibrator, coverCalibrators),
             onDeviceSelected: (id, name) => setState(() {
               _coverCalibratorId = id;
             }),
@@ -513,22 +512,70 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
             onScan: onScan,
             colors: colors,
           ),
-          const SizedBox(height: SkotiqTokens.spaceLg),
-
-          // Add from connected button
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SkotiqButton(
-              label: 'Add from connected',
-              icon: LucideIcons.plus,
-              variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
-              onPressed: _populateFromConnected,
-            ),
-          ),
         ],
       ),
     );
+  }
+
+  /// What a device row offers: the device connected in that slot now, what a
+  /// scan found, and what the saved profiles assign, each once.
+  List<_DeviceChoice> _deviceChoices(
+    DeviceType type,
+    List<UnifiedDevice> discovered,
+  ) {
+    final slot = ref.watch(type.slot.state);
+    return _uniqueChoices([
+      if (slot.connectionState == DeviceConnectionState.connected)
+        (slot.deviceId, slot.deviceName, 'Connected now'),
+      for (final device in discovered)
+        (
+          device.activeDeviceId,
+          device.displayName,
+          device.activeBackend.shortLabel,
+        ),
+      for (final profile in _savedProfiles)
+        (
+          profile.deviceIdFor(type),
+          profile.deviceNameFor(type),
+          'In ${profile.name}',
+        ),
+    ]);
+  }
+
+  /// The guide camera's choices: any camera but the imaging camera.
+  List<_DeviceChoice> _guideCameraChoices(List<UnifiedDevice> cameras) =>
+      _uniqueChoices([
+        for (final camera in cameras)
+          (
+            camera.activeDeviceId,
+            camera.displayName,
+            camera.activeBackend.shortLabel,
+          ),
+        for (final profile in _savedProfiles)
+          (
+            profile.guideCameraId,
+            profile.guideCameraName,
+            'In ${profile.name}'
+          ),
+      ]).where((choice) => choice.id != _cameraId).toList();
+
+  List<EquipmentProfileModel> get _savedProfiles =>
+      ref.watch(sortedProfilesProvider);
+
+  List<_DeviceChoice> _uniqueChoices(
+    List<(String?, String?, String)> candidates,
+  ) {
+    final byId = <String, _DeviceChoice>{};
+    for (final (id, name, detail) in candidates) {
+      if (id == null || id.isEmpty || byId.containsKey(id)) continue;
+      final trimmed = name?.trim();
+      byId[id] = _DeviceChoice(
+        id: id,
+        name: trimmed == null || trimmed.isEmpty ? formatDeviceId(id) : trimmed,
+        detail: detail,
+      );
+    }
+    return byId.values.toList();
   }
 
   int _countAssignedDevices() {

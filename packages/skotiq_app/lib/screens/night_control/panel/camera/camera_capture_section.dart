@@ -8,16 +8,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
+import '../../../../widgets/sensitivity_field.dart';
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import '../panel_ops.dart';
 import '../panel_widgets.dart';
 import 'camera_panel_vm.dart';
+import '../../../../router/app_routes.dart';
 
 /// The frame types the block offers, in board order.
 const List<FrameType> kNightCaptureFrameTypes = <FrameType>[
@@ -111,20 +113,22 @@ class _NightCaptureSectionState extends ConsumerState<NightCaptureSection> {
     final exposure = nightParsePositive(_exposure.text);
     final gain = int.tryParse(_gain.text.trim());
     final offset = int.tryParse(_offset.text.trim());
+    final sensitivity = ref.read(cameraSensitivityProvider);
     setState(() {
       _exposureError =
           exposure == null ? l10n.text('nightPanelEnterSeconds') : null;
-      _gainError =
-          gain == null || gain < 0 ? l10n.text('nightPanelEnterWhole') : null;
-      _offsetError = offset == null || offset < 0
+      _gainError = sensitivity.hasGain && (gain == null || gain < 0)
+          ? l10n.text('nightPanelEnterWhole')
+          : null;
+      _offsetError = sensitivity.hasOffset && (offset == null || offset < 0)
           ? l10n.text('nightPanelEnterWhole')
           : null;
     });
     if (exposure == null || _gainError != null || _offsetError != null) return;
     final next = manual.copyWith(
       exposureTime: exposure,
-      gain: gain,
-      offset: offset,
+      gain: sensitivity.hasGain ? gain : null,
+      offset: sensitivity.hasOffset ? offset : null,
     );
     if (next != manual) _update(next);
   }
@@ -137,7 +141,7 @@ class _NightCaptureSectionState extends ConsumerState<NightCaptureSection> {
     if (nodeId != null) {
       ref.read(selectedNodeIdProvider.notifier).state = nodeId;
     }
-    GoRouter.maybeOf(context)?.go(kSequencerRoutePath);
+    GoRouter.maybeOf(context)?.go(AppRoute.sequencer.path);
   }
 
   @override
@@ -171,6 +175,12 @@ class _NightCaptureSectionState extends ConsumerState<NightCaptureSection> {
       trailing = l10n.text('nightPanelCaptureManual');
     }
 
+    final sensitivity = ref.watch(cameraSensitivityProvider);
+    final gainLabel = switch (sensitivity) {
+      GainSensitivity() => l10n.text('nightPanelGain'),
+      IsoSensitivity() => sensitivity.label,
+    };
+
     return NightPanelSection(
       title: l10n.text('nightPanelCapture'),
       trailing: trailing,
@@ -194,34 +204,54 @@ class _NightCaptureSectionState extends ConsumerState<NightCaptureSection> {
                           : _seconds(values!.exposureSecs!),
                     ),
             ),
-            const SizedBox(width: kNightPanelRowGap),
-            Expanded(
-              child: editable
-                  ? _field(
-                      l10n.text('nightPanelGain'),
-                      _gain,
-                      _gainFocus,
-                      _gainError,
-                    )
-                  : _ReadOnlyField(
-                      label: l10n.text('nightPanelGain'),
-                      value: values?.gain?.toString(),
-                    ),
-            ),
-            const SizedBox(width: kNightPanelRowGap),
-            Expanded(
-              child: editable
-                  ? _field(
-                      l10n.text('nightPanelOffset'),
-                      _offset,
-                      _offsetFocus,
-                      _offsetError,
-                    )
-                  : _ReadOnlyField(
-                      label: l10n.text('nightPanelOffset'),
-                      value: values?.offset?.toString(),
-                    ),
-            ),
+            if (sensitivity.hasGain) ...<Widget>[
+              const SizedBox(width: kNightPanelRowGap),
+              Expanded(
+                child: editable
+                    ? SensitivityField(
+                        value: manual.gain,
+                        sensitivity: sensitivity,
+                        onChanged: (gain) =>
+                            _update(manual.copyWith(gain: gain)),
+                        isoField: (context, iso) => _LabeledControl(
+                          label: gainLabel,
+                          child: IsoSpeedPicker(
+                            sensitivity: iso,
+                            value: manual.gain,
+                            dense: true,
+                            onChanged: (gain) =>
+                                _update(manual.copyWith(gain: gain)),
+                          ),
+                        ),
+                        gainField: (_) => _field(
+                          gainLabel,
+                          _gain,
+                          _gainFocus,
+                          _gainError,
+                        ),
+                      )
+                    : _ReadOnlyField(
+                        label: gainLabel,
+                        value: values?.gain?.toString(),
+                      ),
+              ),
+            ],
+            if (sensitivity.hasOffset) ...<Widget>[
+              const SizedBox(width: kNightPanelRowGap),
+              Expanded(
+                child: editable
+                    ? _field(
+                        l10n.text('nightPanelOffset'),
+                        _offset,
+                        _offsetFocus,
+                        _offsetError,
+                      )
+                    : _ReadOnlyField(
+                        label: l10n.text('nightPanelOffset'),
+                        value: values?.offset?.toString(),
+                      ),
+              ),
+            ],
           ],
         ),
         NightPanelLabel(l10n.text('nightPanelFrame')),
@@ -323,6 +353,37 @@ double? nightParsePositive(String text) {
 }
 
 /// A field's look without its editing: the run's value, read-only.
+/// A caption above a control, in the read-only field's layout.
+class _LabeledControl extends StatelessWidget {
+  const _LabeledControl({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.skotiqColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        ExcludeSemantics(
+          child: Text(
+            label,
+            style: SkotiqTypography.caption.copyWith(
+              color: colors.textSecondary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        child,
+      ],
+    );
+  }
+}
+
 class _ReadOnlyField extends StatelessWidget {
   const _ReadOnlyField({required this.label, required this.value});
 

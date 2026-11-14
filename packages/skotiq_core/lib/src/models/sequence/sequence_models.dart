@@ -15,7 +15,9 @@
 // ignore_for_file: invalid_annotation_target
 import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' show ScoringWeights;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show ScoringWeights, mosaicPanelName;
 import 'package:uuid/uuid.dart';
 import '../imaging/imaging_models.dart' show FrameType;
 import '../notification/notification_categories.dart'
@@ -24,11 +26,12 @@ import '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
 export '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
-import '../../backend/skotiq_backend.dart' show DeviceType;
-import '../../services/scheduler/horizon_profile.dart' show HorizonProfile;
+import '../../services/scheduler/horizon_profile.dart'
+    show HorizonProfile, HorizonSample;
 import '_json_converters.dart';
 import 'instruction_progress_detail.dart';
 import 'sequence_tree_index.dart';
+import '../backend/backend_types.dart';
 export 'sequence_tree_index.dart' show SequenceTreeIndex;
 
 part 'sequence_models.freezed.dart';
@@ -49,6 +52,10 @@ part 'sequence_models/instruction_nodes/alignment_and_dome.dart';
 part 'sequence_models/science_and_plugin_nodes.dart';
 part 'sequence_models/sequence_state.dart';
 part 'sequence_models/sequence_sky_requirement.dart';
+part 'sequence_models/node_kind.dart';
+part 'sequence_models/node_kinds.dart';
+part 'sequence_models/planned_capture.dart';
+part 'sequence_models/wire_tokens.dart';
 
 /// Sequence execution state
 ///
@@ -146,6 +153,22 @@ extension SequenceExecutionStateCapabilities on SequenceExecutionState {
     SequenceExecutionState.finalizing => false,
   };
 
+  /// The run is under way and not ending: executing, held by a pause, or
+  /// inside a recovery. A checkpoint can be written and the run paused (the
+  /// native executor accepts a pause during recovery and keeps it after).
+  bool get isLive => switch (this) {
+    SequenceExecutionState.running ||
+    SequenceExecutionState.paused ||
+    SequenceExecutionState.recovering => true,
+    SequenceExecutionState.idle ||
+    SequenceExecutionState.stopping ||
+    SequenceExecutionState.completed ||
+    SequenceExecutionState.failed ||
+    SequenceExecutionState.stopFailed ||
+    SequenceExecutionState.cleanupFailed ||
+    SequenceExecutionState.finalizing => false,
+  };
+
   /// Pause is meaningful only while the run is actively executing.
   bool get canPause => this == SequenceExecutionState.running;
 
@@ -199,15 +222,16 @@ extension SequenceExecutionStateCapabilities on SequenceExecutionState {
   };
 }
 
-/// Node execution status
 enum NodeStatus { pending, running, success, failure, skipped, cancelled }
 
 // FrameType is imported from imaging_models.dart
 
-/// Binning options
 enum BinningMode { one, two, three, four }
 
 extension BinningModeExtension on BinningMode {
+  /// Pixels combined along each axis.
+  int get factor => index + 1;
+
   String get label {
     switch (this) {
       case BinningMode.one:
@@ -222,10 +246,8 @@ extension BinningModeExtension on BinningMode {
   }
 }
 
-/// Autofocus method
 enum AutofocusMethod { vCurve, hyperbolic, quadratic }
 
-/// Loop condition type
 enum LoopConditionType {
   count,
   untilTime,
@@ -250,9 +272,6 @@ abstract class SequenceOverheadConfig with _$SequenceOverheadConfig {
     /// Time for a slew operation (seconds)
     @Default(30.0) double slewSecs,
 
-    /// Time for an autofocus run (seconds)
-    @Default(180.0) double autofocusSecs,
-
     /// Time for a filter wheel change (seconds)
     @Default(10.0) double filterChangeSecs,
 
@@ -271,14 +290,8 @@ abstract class SequenceOverheadConfig with _$SequenceOverheadConfig {
     /// Time for camera cool-down (seconds)
     @Default(600.0) double coolingSecs,
 
-    /// Time for camera warm-up (seconds)
-    @Default(300.0) double warmingSecs,
-
     /// Per-exposure download overhead (seconds)
     @Default(3.0) double downloadOverheadPerExposureSecs,
-
-    /// Time for cover calibrator open/close (seconds)
-    @Default(30.0) double coverMoveSecs,
 
     /// Time for center target operation (plate solve + slew iterations) (seconds)
     @Default(45.0) double centerTargetSecs,
@@ -294,9 +307,6 @@ abstract class SequenceEstimate with _$SequenceEstimate {
     /// Estimated total integration time in seconds (pure shutter-open time)
     required double estimatedSecs,
 
-    /// Estimated total overhead time in seconds (slews, AF, dithers, etc.)
-    @Default(0.0) double overheadSecs,
-
     /// Time for a single iteration (useful for unbounded loops)
     required double singleIterationSecs,
 
@@ -310,44 +320,21 @@ abstract class SequenceEstimate with _$SequenceEstimate {
     LoopConditionType? conditionType,
   }) = _SequenceEstimate;
 
-  /// Total estimated wall-clock time (integration + overhead)
-  double get totalEstimatedSecs => estimatedSecs + overheadSecs;
-
-  /// Format the estimate as a human-readable string
   String format() {
     if (isUnbounded) {
       final iterationMins = (singleIterationSecs / 60).round();
       return '${iterationMins}m/iter (unbounded)';
     }
-    final hours = (estimatedSecs / 3600).floor();
-    final mins = ((estimatedSecs % 3600) / 60).round();
-    if (hours > 0) {
-      return '${hours}h ${mins}m';
-    }
-    return '${mins}m';
+    return _coarse(estimatedSecs);
   }
 
-  /// Format with overhead-aware total time display
-  /// Returns "Integration: 6h 30m | Est. total: ~9h 15m"
-  String formatWithOverhead() {
-    final integrationStr = format();
-    if (overheadSecs <= 0 || isUnbounded) {
-      return integrationStr;
-    }
-    final totalSecs = totalEstimatedSecs;
-    final totalHours = (totalSecs / 3600).floor();
-    final totalMins = ((totalSecs % 3600) / 60).round();
-    String totalStr;
-    if (totalHours > 0) {
-      totalStr = '~${totalHours}h ${totalMins}m';
-    } else {
-      totalStr = '~${totalMins}m';
-    }
-    return 'Integration: $integrationStr | Est. total: $totalStr';
-  }
+  static String _coarse(double seconds) => DurationFormat.seconds(
+    seconds,
+    style: DurationStyle.coarse,
+    roundToMinute: true,
+  );
 }
 
-/// Conditional check type
 enum ConditionalType {
   always,
   altitudeAbove,
@@ -359,7 +346,6 @@ enum ConditionalType {
   safetyMonitorSafe,
 }
 
-/// Recovery action type
 enum RecoveryActionType {
   continueExecution,
   pause,
@@ -433,10 +419,8 @@ enum TriggerType {
   transparencyDropped,
 }
 
-/// Notification level
 enum NotificationLevel { info, warning, error, success }
 
-/// Twilight type
 enum TwilightType { civil, nautical, astronomical }
 
 /// Base class for all sequence nodes.
@@ -469,20 +453,20 @@ sealed class SequenceNode extends Equatable {
     this.comment,
   }) : id = id ?? const Uuid().v4();
 
-  /// Get the node type identifier
-  String get nodeType;
+  /// What type of node this is; everything that is the same for every node
+  /// of the type lives there.
+  NodeKind get kind;
 
-  /// Get the icon name for this node
-  String get iconName;
+  String get nodeType => kind.wireName;
 
-  /// Get the color category for this node
-  NodeCategory get category;
+  /// Icon vocabulary name; the app maps it to a glyph.
+  String get iconName => kind.icon;
 
-  /// Device types required by this node to execute.
-  /// Override in subclasses that need specific hardware.
-  Set<DeviceType> get requiredDevices => {};
+  NodeCategory get category => kind.category;
 
-  /// Create a copy with updated values
+  /// Device types the node needs to execute.
+  Set<DeviceType> get requiredDevices => kind.requiredDevices;
+
   SequenceNode copyWith({
     String? id,
     String? name,
@@ -508,9 +492,10 @@ sealed class SequenceNode extends Equatable {
 /// Node category for coloring
 enum NodeCategory { instruction, trigger, logic, target }
 
-// Mosaic panel info
-
-/// Information about a mosaic panel for multi-panel imaging
+/// A panel's mosaic identity, written into its frames' FITS mosaic cards.
+/// Numbered as the app numbers every mosaic panel (`MosaicPanel` in
+/// skotiq_astro): [panelIndex] in capture order, [row] from the top of the
+/// grid as drawn, [column] from the left.
 @Freezed(fromJson: true, toJson: true)
 abstract class MosaicPanelInfo with _$MosaicPanelInfo {
   const MosaicPanelInfo._();
@@ -524,7 +509,7 @@ abstract class MosaicPanelInfo with _$MosaicPanelInfo {
     required int column,
   }) = _MosaicPanelInfo;
 
-  String get displayLabel => 'Panel ${panelIndex + 1}/$totalPanels';
+  String get displayLabel => '${mosaicPanelName(panelIndex)}/$totalPanels';
 
   factory MosaicPanelInfo.fromJson(Map<String, dynamic> json) =>
       _$MosaicPanelInfoFromJson(json);

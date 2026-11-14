@@ -1,4 +1,5 @@
-import '../../database/database.dart' show CapturedImage;
+import '../../models/imaging/frame_type_record.dart';
+import '../../database/database.dart' show DbCapturedImage;
 import '../../models/imaging/imaging_models.dart' show FrameType;
 import '../../models/sequence/sequence_models.dart';
 
@@ -15,8 +16,11 @@ class EonDarkGroup {
   });
 
   final double exposureSecs;
-  final int gain;
-  final int offset;
+
+  /// Null for a camera without gain or offset control: its lights record
+  /// none, and its darks are taken and matched without them.
+  final int? gain;
+  final int? offset;
   final int binX;
   final int binY;
 
@@ -31,7 +35,7 @@ class EonDarkGroup {
     final temp = setPointC == null
         ? 'uncooled'
         : '${_formatNumber(setPointC!)} C';
-    return '${_formatNumber(exposureSecs)} s, gain $gain, offset $offset, '
+    return '${_formatNumber(exposureSecs)} s, ${gainOffsetLabel(gain, offset)}, '
         'bin ${binX}x$binY, $temp';
   }
 
@@ -71,8 +75,8 @@ class EonBiasGroup {
     required this.setPointC,
   });
 
-  final int gain;
-  final int offset;
+  final int? gain;
+  final int? offset;
   final int binX;
   final int binY;
   final double? setPointC;
@@ -89,6 +93,12 @@ class EonBiasGroup {
   @override
   int get hashCode => Object.hash(gain, offset, binX, binY, setPointC);
 }
+
+/// "gain 100, offset 20", or "no gain" / "no offset" for a camera without
+/// that control.
+String gainOffsetLabel(int? gain, int? offset) =>
+    '${gain == null ? 'no gain' : 'gain $gain'}, '
+    '${offset == null ? 'no offset' : 'offset $offset'}';
 
 /// What the night's lights need.
 class EonFrameNeeds {
@@ -119,7 +129,7 @@ String _formatNumber(double value) {
 /// The set-point a light was taken at: the camera's set-point when the night
 /// was cooled to one, otherwise the light's sensor reading rounded to a whole
 /// degree (a cooled sensor holds its set-point to well under a degree).
-double? _setPointFor(CapturedImage light, double? cameraSetPointC) {
+double? _setPointFor(DbCapturedImage light, double? cameraSetPointC) {
   final sensor = light.sensorTemp;
   if (cameraSetPointC != null &&
       (sensor == null || (sensor - cameraSetPointC).abs() <= 1.5)) {
@@ -134,25 +144,17 @@ double? _setPointFor(CapturedImage light, double? cameraSetPointC) {
 /// used; one bias group per gain, offset, binning and set-point. Exposures are
 /// compared to the millisecond.
 EonFrameNeeds planFrameNeeds(
-  Iterable<CapturedImage> lights, {
+  Iterable<DbCapturedImage> lights, {
   double? cameraSetPointC,
 }) {
-  final darkCounts = <(int, int, int, int, int, double?), int>{};
+  final darkCounts = <(int, int?, int?, int, int, double?), int>{};
   for (final light in lights) {
-    if (light.frameType.toLowerCase() != 'light') continue;
+    if (!light.isLight) continue;
     if (light.exposureDuration <= 0) continue;
-    final gain = light.gain;
-    final offset = light.offset;
-    if (gain == null || offset == null) {
-      throw FormatException(
-        'Cannot match calibration settings for ${light.fileName}: '
-        'the recorded gain or offset is missing.',
-      );
-    }
     final key = (
       (light.exposureDuration * 1000).round(),
-      gain,
-      offset,
+      light.gain,
+      light.offset,
       light.binX,
       light.binY,
       _setPointFor(light, cameraSetPointC),
@@ -275,7 +277,7 @@ Sequence buildCalibrationSequence({
       add(
         ExposureNode(
           id: 'eon-bias-${index++}',
-          name: 'Bias gain ${bias.gain}, offset ${bias.offset}',
+          name: 'Bias ${gainOffsetLabel(bias.gain, bias.offset)}',
           parentId: root,
           durationSecs: biasExposureSecs,
           count: biasCount,

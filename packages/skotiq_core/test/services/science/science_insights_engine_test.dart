@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show DriftSqlType;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 ScienceFrameQualityMetricsRow _fq({
   double highClipPercent = 0.1,

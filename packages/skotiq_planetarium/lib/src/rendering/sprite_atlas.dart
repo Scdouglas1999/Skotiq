@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../celestial_object.dart' show DsoType;
+import 'package:skotiq_astro/skotiq_astro.dart' show DsoType;
 
 /// GPU sprite textures for the batched (`Canvas.drawRawAtlas`) star and DSO
 /// passes.
@@ -81,8 +81,6 @@ class SkySpriteAtlas {
   /// The DSO glyph families, in sheet order.
   static const List<_DsoGlyph> _glyphOrder = _DsoGlyph.values;
 
-  // Build / cache
-
   /// Whether this atlas was baked for the given [dpr]/[softness]/[spikes].
   bool matches(double dpr, double softness, bool spikes) =>
       this.dpr == dpr && this.softness == softness && this.spikes == spikes;
@@ -133,8 +131,6 @@ class SkySpriteAtlas {
     starSpiked.dispose();
     dsoSheet.dispose();
   }
-
-  // Star sprite baking
 
   /// Bake one white star PSF sprite of [px]×[px] texels.
   ///
@@ -265,8 +261,6 @@ class SkySpriteAtlas {
       canvas.drawLine(c, end, secondary);
     }
   }
-
-  // DSO glyph sheet baking
 
   /// Bake the DSO glyph sheet: one white glyph per family laid out left-to-right
   /// in a single row. Returns the sheet image plus a map from family to its

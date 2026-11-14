@@ -19,27 +19,16 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _PinnedBackend extends BackendNotifier {
   _PinnedBackend(super.ref, SkotiqBackend backend) : super() {
     state = backend;
   }
-}
-
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError(
-        'NoopTutorialProgressDao.${invocation.memberName} called in test',
-      );
 }
 
 /// A night that HAS a master, so all seven controls are live.
@@ -110,7 +99,6 @@ void main() {
           dbSessionImagesProvider(5).overrideWith(
             (ref) => Stream<List<DbCapturedImage>>.value(const []),
           ),
-          tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
           dawnMasterResolverProvider.overrideWithValue(_OneMasterResolver()),
         ],
         child: const MaterialApp(
@@ -165,7 +153,7 @@ void main() {
     }
 
     expect(names, [
-      'Review & integrate',
+      'Session review',
       'Refine in Darkroom',
       'Session report',
       'Export to JSON',

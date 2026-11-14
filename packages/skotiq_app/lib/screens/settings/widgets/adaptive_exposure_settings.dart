@@ -7,27 +7,25 @@
 // runtime; this page only tunes the *default* the executor uses when a
 // node has no own block.
 //
-// The settings are persisted via `AppSettingsNotifier.setAdaptiveExposure*`
-// and pushed to the executor via
-// `backend.sequencerUpdateDefaultAdaptiveExposure` (or the clear
-// equivalent when the master toggle is off).
+// The settings are persisted via `AppSettingsNotifier.setAdaptiveExposure*`;
+// the run configuration (`RunConfigSync`) carries them to the executor, as
+// no default at all when the master toggle is off.
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'settings_widgets.dart';
 
 class AdaptiveExposureSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
   const AdaptiveExposureSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -37,7 +35,6 @@ class AdaptiveExposureSettings extends ConsumerStatefulWidget {
 
 class _AdaptiveExposureSettingsState
     extends ConsumerState<AdaptiveExposureSettings> {
-  final _refMagController = TextEditingController();
   final _minSecsController = TextEditingController();
   final _maxSecsController = TextEditingController();
   String? _globalBoundsError;
@@ -45,7 +42,6 @@ class _AdaptiveExposureSettingsState
 
   @override
   void dispose() {
-    _refMagController.dispose();
     _minSecsController.dispose();
     _maxSecsController.dispose();
     super.dispose();
@@ -77,7 +73,8 @@ class _AdaptiveExposureSettingsState
     } catch (error) {
       if (mounted && generation == _globalBoundsSaveGeneration) {
         setState(() {
-          _globalBoundsError = 'Could not save exposure bounds: $error';
+          _globalBoundsError =
+              'Could not save exposure bounds: ${userFacingError(error)}';
         });
       }
       rethrow;
@@ -94,9 +91,8 @@ class _AdaptiveExposureSettingsState
     // bare Column renders without cards and with its controls sliced off by the
     // window edge.
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(isMobile: widget.isMobile),
+      loading: () => const SettingsLoadingState(),
       error: (e, _) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: e,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -112,12 +108,9 @@ class _AdaptiveExposureSettingsState
               'roughly constant as conditions change. A capture step that '
               'carries its own adaptive settings always wins; this page sets the '
               'default for steps that do not.',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             SettingsSection(
               title: 'Global default',
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.barChart3,
@@ -131,7 +124,6 @@ class _AdaptiveExposureSettingsState
                       await notifier.setAdaptiveExposureEnabled(v);
                     },
                   ),
-                  isMobile: widget.isMobile,
                   isLast: !enabled,
                 ),
                 // Target SNR control hidden until the native executor honors
@@ -145,7 +137,6 @@ class _AdaptiveExposureSettingsState
                         'in mag/arcsec²',
                     trailing: SettingsNumberInput(
                       key: const ValueKey('adaptive-reference-mag'),
-                      controller: _refMagController,
                       authoritativeValue: settings.adaptiveExposureReferenceMag,
                       authorityKey: authority,
                       suffix: 'mag',
@@ -154,7 +145,6 @@ class _AdaptiveExposureSettingsState
                       decimals: 2,
                       onChanged: notifier.setAdaptiveExposureReferenceMag,
                     ),
-                    isMobile: widget.isMobile,
                   ),
                   SettingRow(
                     icon: LucideIcons.arrowDownNarrowWide,
@@ -171,7 +161,6 @@ class _AdaptiveExposureSettingsState
                       decimals: 1,
                       onChanged: (_) => _commitGlobalBounds(notifier),
                     ),
-                    isMobile: widget.isMobile,
                   ),
                   SettingRow(
                     icon: LucideIcons.arrowUpNarrowWide,
@@ -188,7 +177,6 @@ class _AdaptiveExposureSettingsState
                       decimals: 1,
                       onChanged: (_) => _commitGlobalBounds(notifier),
                     ),
-                    isMobile: widget.isMobile,
                     isLast: true,
                   ),
                 ],
@@ -210,11 +198,12 @@ class _AdaptiveExposureSettingsState
             if (enabled) ...[
               SettingsSection(
                 title: 'Per-filter overrides',
-                isMobile: widget.isMobile,
                 children: [
                   Padding(
                     padding: EdgeInsets.all(
-                      widget.isMobile ? 12 : SkotiqTokens.spaceLg,
+                      SettingsFormScope.narrowOf(context)
+                          ? 12
+                          : SkotiqTokens.spaceLg,
                     ),
                     child: _PerFilterEditor(
                       settings: settings,
@@ -290,9 +279,11 @@ class _PerFilterEditorState extends ConsumerState<_PerFilterEditor> {
         setState(() {
           _boundsError = error is ArgumentError
               ? error.message.toString()
-              : 'Could not save per-filter exposure bounds: $error';
+              : 'Could not save per-filter exposure bounds: ${userFacingError(error)}';
         });
       }
+      // The message above tells the operator; this puts the field back.
+      throw SettingWriteHandled(error);
     }
   }
 
@@ -413,16 +404,15 @@ class _PerFilterEditorState extends ConsumerState<_PerFilterEditor> {
             child: _OverrideField(
               key: ValueKey('adaptiveExposure.$filter.min'),
               label: 'min s',
-              initial: minMap[filter],
+              value: minMap[filter],
               onChanged: (v) {
                 if (v == null) {
                   minMap.remove(filter);
                 } else {
                   minMap[filter] = v;
                 }
-                unawaited(_commitBounds(minMap, maxMap));
+                return _commitBounds(minMap, maxMap);
               },
-              onInvalid: _showBoundsError,
             ),
           ),
           const SizedBox(width: 8),
@@ -430,16 +420,15 @@ class _PerFilterEditorState extends ConsumerState<_PerFilterEditor> {
             child: _OverrideField(
               key: ValueKey('adaptiveExposure.$filter.max'),
               label: 'max s',
-              initial: maxMap[filter],
+              value: maxMap[filter],
               onChanged: (v) {
                 if (v == null) {
                   maxMap.remove(filter);
                 } else {
                   maxMap[filter] = v;
                 }
-                unawaited(_commitBounds(minMap, maxMap));
+                return _commitBounds(minMap, maxMap);
               },
-              onInvalid: _showBoundsError,
             ),
           ),
         ],
@@ -448,98 +437,56 @@ class _PerFilterEditorState extends ConsumerState<_PerFilterEditor> {
   }
 }
 
-class _OverrideField extends StatefulWidget {
+/// A per-filter exposure bound: empty means "use the global bound".
+class _OverrideField extends StatelessWidget {
   const _OverrideField({
     super.key,
     required this.label,
-    required this.initial,
+    required this.value,
     required this.onChanged,
-    required this.onInvalid,
   });
+
   final String label;
-  final double? initial;
-  final ValueChanged<double?> onChanged;
-  final ValueChanged<String> onInvalid;
+  final double? value;
+  final FutureOr<void> Function(double? value) onChanged;
 
-  @override
-  State<_OverrideField> createState() => _OverrideFieldState();
-}
-
-class _OverrideFieldState extends State<_OverrideField> {
-  late TextEditingController _controller;
-  final _focusNode = FocusNode();
-  late String _lastSubmitted;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text: widget.initial == null ? '' : widget.initial!.toStringAsFixed(1),
-    );
-    _lastSubmitted = _controller.text;
-    _focusNode.addListener(_onFocusChange);
-  }
-
-  void _onFocusChange() {
-    // Persist on blur, not only on Enter, so an override edit survives leaving
-    // the field without submitting.
-    if (!_focusNode.hasFocus) {
-      _submit(_controller.text);
-    }
-  }
-
-  void _submit(String v) {
-    final text = v.trim();
-    if (text == _lastSubmitted) return;
-    _lastSubmitted = text;
-    if (text.isEmpty) {
-      widget.onChanged(null);
-      return;
-    }
-    final parsed = double.tryParse(text);
-    if (parsed == null || !parsed.isFinite || parsed <= 0) {
-      widget.onInvalid('${widget.label} must be a positive number.');
-      return;
-    }
-    widget.onChanged(parsed);
-  }
-
-  @override
-  void didUpdateWidget(_OverrideField old) {
-    super.didUpdateWidget(old);
-    if (widget.initial != old.initial) {
-      _controller.text =
-          widget.initial == null ? '' : widget.initial!.toStringAsFixed(1);
-      _lastSubmitted = _controller.text;
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
+  static const _codec = OptionalCodec(
+    NumberCodec(
+      min: 0.1,
+      max: 3600,
+      decimals: 1,
+      unit: 's',
+      fixedDecimals: true,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      style: SkotiqTypography.caption.copyWith(
-        color: SkotiqColors.of(context).textPrimary,
-      ),
-      decoration: InputDecoration(
-        labelText: widget.label,
-        labelStyle: SkotiqTypography.captionSm.copyWith(
-          color: SkotiqColors.of(context).textMuted,
+    final colors = SkotiqColors.of(context);
+    return SettingRowLabel(
+      title: label,
+      child: SettingsValueField<double?>(
+        codec: _codec,
+        value: value,
+        onChanged: onChanged,
+        builder: (context, parts) => TextField(
+          controller: parts.controller,
+          focusNode: parts.focusNode,
+          style: SkotiqTypography.caption.copyWith(color: colors.textPrimary),
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle:
+                SkotiqTypography.captionSm.copyWith(color: colors.textMuted),
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          ),
+          keyboardType: parts.keyboardType,
+          inputFormatters: parts.inputFormatters,
+          onChanged: parts.onChanged,
+          onSubmitted: parts.onSubmitted,
         ),
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      onSubmitted: _submit,
     );
   }
 }

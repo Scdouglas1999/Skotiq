@@ -1,22 +1,17 @@
 part of '../profile_service.dart';
 
 extension _ProfileServiceBackends on ProfileService {
-  void _requireAuthority(_BackendAuthority authority) {
-    if (!authority.owner.isCurrentBackend(authority.backend)) {
-      throw StateError(
-        'The imaging host changed while the profile operation was running.',
-      );
-    }
-  }
+  void _requireAuthority(_BackendAuthority authority) =>
+      authority.ensureCurrent('the profile operation was running');
 
   Future<EquipmentProfileModel?> _getProfileModelById(
     int profileId, {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
-    final backend = operation.backend;
-    if (backend is NetworkBackend) {
-      final profiles = await backend.getProfiles();
+    final host = _hostProfiles;
+    if (host != null) {
+      final profiles = await host.getProfiles();
       _requireAuthority(operation);
       for (final profile in profiles) {
         if (int.tryParse(profile.id) == profileId) {
@@ -36,9 +31,9 @@ extension _ProfileServiceBackends on ProfileService {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
-    final backend = operation.backend;
-    if (backend is NetworkBackend) {
-      final active = await backend.getActiveProfile();
+    final host = _hostProfiles;
+    if (host != null) {
+      final active = await host.getActiveProfile();
       _requireAuthority(operation);
       return active != null
           ? EquipmentProfileModel.fromRemoteProfile(active)
@@ -61,9 +56,9 @@ extension _ProfileServiceBackends on ProfileService {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
-    final backend = operation.backend;
-    if (backend is NetworkBackend) {
-      final profiles = await backend.getProfiles();
+    final host = _hostProfiles;
+    if (host != null) {
+      final profiles = await host.getProfiles();
       _requireAuthority(operation);
       remote_profile.EquipmentProfile? defaultProfile;
       remote_profile.EquipmentProfile? activeProfile;
@@ -76,17 +71,9 @@ extension _ProfileServiceBackends on ProfileService {
         }
       }
       final chosen = defaultProfile ?? activeProfile;
-      if (chosen != null) {
-        return EquipmentProfileModel.fromRemoteProfile(chosen);
-      }
-      // Older hosts may omit isActive from list rows while still exposing the
-      // authoritative active row on the dedicated endpoint. Never fall back
-      // to a cached profile from the previous host.
-      final active = await backend.getActiveProfile();
-      _requireAuthority(operation);
-      return active == null
+      return chosen == null
           ? null
-          : EquipmentProfileModel.fromRemoteProfile(active);
+          : EquipmentProfileModel.fromRemoteProfile(chosen);
     }
 
     final dao = _ref.read(equipmentProfilesDaoProvider);
@@ -96,99 +83,15 @@ extension _ProfileServiceBackends on ProfileService {
     return profile != null ? EquipmentProfileModel.fromDatabase(profile) : null;
   }
 
+  /// Save [profile] through the profile store, the one writer of a profile.
   Future<void> _persistProfileModel(
     EquipmentProfileModel profile, {
     _BackendAuthority? authority,
   }) async {
     final operation = authority ?? _authority;
     _requireAuthority(operation);
-    final backend = operation.backend;
-    if (backend is NetworkBackend) {
-      await backend.saveProfile(profile.toRemoteProfile());
-      _requireAuthority(operation);
-      _ref.invalidate(equipmentProfilesProvider);
-      return;
-    }
-
-    if (profile.id == null) {
-      throw StateError('Cannot persist profile without id on local backend');
-    }
-
-    final dao = _ref.read(equipmentProfilesDaoProvider);
-    final logger = _ref.read(loggingServiceProvider);
-    final existing = await dao.getProfileById(profile.id!);
+    await _ref.read(equipmentProfilesProvider.notifier).saveProfile(profile);
     _requireAuthority(operation);
-    if (existing == null) {
-      throw Exception('Profile not found');
-    }
-
-    await dao.updateProfile(
-      existing.copyWith(
-        name: profile.name,
-        description: Value(profile.description),
-        isActive: profile.isActive,
-        cameraId: Value(profile.cameraId),
-        mountId: Value(profile.mountId),
-        focuserId: Value(profile.focuserId),
-        filterWheelId: Value(profile.filterWheelId),
-        guiderId: Value(profile.guiderId),
-        guideCameraId: Value(profile.guideCameraId),
-        guideFocalLength: Value(profile.guideFocalLength),
-        rotatorId: Value(profile.rotatorId),
-        domeId: Value(profile.domeId),
-        weatherId: Value(profile.weatherId),
-        safetyMonitorId: Value(profile.safetyMonitorId),
-        switchId: Value(profile.switchId),
-        coverCalibratorId: Value(profile.coverCalibratorId),
-        cameraName: Value(profile.cameraName),
-        mountName: Value(profile.mountName),
-        focuserName: Value(profile.focuserName),
-        filterWheelName: Value(profile.filterWheelName),
-        guiderName: Value(profile.guiderName),
-        guideCameraName: Value(profile.guideCameraName),
-        rotatorName: Value(profile.rotatorName),
-        telescopeName: Value(profile.telescopeName),
-        telescopeFocalLength: Value(profile.telescopeFocalLength),
-        telescopeAperture: Value(profile.telescopeAperture),
-        focalLength: profile.focalLength,
-        aperture: profile.aperture,
-        focalRatio: Value(profile.focalRatio),
-        defaultGain: Value(profile.defaultGain),
-        defaultOffset: Value(profile.defaultOffset),
-        defaultBinX: profile.defaultBinX,
-        defaultBinY: profile.defaultBinY,
-        defaultCoolingTemp: Value(profile.defaultCoolingTemp),
-        coolOnConnect: profile.coolOnConnect,
-        defaultCenteringExposure: Value(profile.defaultCenteringExposure),
-        filterNames: Value(
-          profile.filterNames.isNotEmpty
-              ? jsonEncode(profile.filterNames)
-              : null,
-        ),
-        filterFocusOffsets: Value(
-          profile.filterFocusOffsets.isNotEmpty
-              ? jsonEncode(profile.filterFocusOffsets)
-              : null,
-        ),
-        profileIcon: Value(profile.profileIcon),
-        profileColor: Value(profile.profileColor),
-        sortOrder: profile.sortOrder,
-        isDefault: profile.isDefault,
-        updatedAt: DateTime.now(),
-      ),
-    );
-    _requireAuthority(operation);
-    if (existing.isActive) {
-      await writeActiveProfileThrough(
-        dao: dao,
-        backend: backend,
-        logger: logger,
-        profileId: profile.id!,
-        strict: true,
-      );
-      _requireAuthority(operation);
-    }
-    _ref.invalidate(equipmentProfilesProvider);
   }
 
   /// Connect devices from a profile model (local FFI or remote host).
@@ -202,33 +105,17 @@ extension _ProfileServiceBackends on ProfileService {
     EquipmentProfileModel profile, {
     String progressSource = 'Profile connect',
   }) async {
-    final deviceService = _ref.read(deviceServiceProvider);
-    final progressNotifier = _ref.read(
-      deviceConnectionProgressProvider.notifier,
-    );
-    final failures = <String>[];
-
-    // Publish per-device outcomes to the same provider the equipment screen's
-    // progress strip renders. Before this, only the "Connect All" BUTTON
-    // recorded events, so a device that failed during startup auto-connect had
-    // no persistent surface anywhere: the card was simply absent and the only
-    // explanation in the product was a tooltip on a ~6 px status dot.
-    progressNotifier.startSweep(source: progressSource);
-    try {
-      await for (final progress in deviceService.connectAllFromProfile(
-        profile,
-      )) {
-        progressNotifier.record(progress);
-        if (progress.status == DeviceConnectProgressStatus.failed) {
-          failures.add(
-            '${progress.deviceType} (${progress.deviceId}): '
-            '${progress.errorMessage ?? progress.error ?? 'unknown error'}',
-          );
-        }
-      }
-    } finally {
-      progressNotifier.endSweep();
-    }
+    final sweep = await _ref
+        .read(deviceServiceProvider)
+        .connectProfile(profile, source: progressSource);
+    final failures = [
+      for (final failure in sweep.failures)
+        (
+          device: _deviceCalled(profile, failure.deviceType),
+          deviceId: failure.deviceId,
+          reason: '${failure.errorMessage ?? failure.error ?? 'unknown error'}',
+        ),
+    ];
 
     if (failures.isNotEmpty) {
       throw ProfileAutoConnectException(
@@ -238,15 +125,30 @@ extension _ProfileServiceBackends on ProfileService {
     }
   }
 
-  /// Create a profile from export data
+  /// What a person calls the device a sweep names by [label] ("focuser",
+  /// "guide camera"): its kind, and the name the profile gives it.
+  String _deviceCalled(EquipmentProfileModel profile, String label) {
+    final (String kind, String? name) = label == guideCameraLabel
+        ? ('Guide camera', profile.guideCameraName)
+        : switch (deviceSlots.where((slot) => slot.noun == label)) {
+            final slots when slots.isNotEmpty => (
+              slots.first.type.displayName,
+              profile.deviceNameFor(slots.first.type),
+            ),
+            _ => (label, null),
+          };
+    final trimmed = name?.trim() ?? '';
+    return trimmed.isEmpty ? kind : '$kind ($trimmed)';
+  }
+
   Future<int> _createProfileFromExport(
     ProfileExportData data, {
     required _BackendAuthority authority,
   }) async {
     _requireAuthority(authority);
-    final backend = authority.backend;
-    if (backend is NetworkBackend) {
-      final existingProfiles = await backend.getProfiles();
+    final host = _hostProfiles;
+    if (host != null) {
+      final existingProfiles = await host.getProfiles();
       _requireAuthority(authority);
       var name = data.name;
       var suffix = 1;
@@ -299,14 +201,15 @@ extension _ProfileServiceBackends on ProfileService {
         profileIcon: data.profileIcon,
         profileColor: data.profileColor,
       );
-      await backend.saveProfile(model.toRemoteProfile());
+      await host.saveProfile(model.toRemoteProfile());
       _requireAuthority(authority);
       _ref.invalidate(equipmentProfilesProvider);
-      final savedId = int.tryParse(backend.lastSavedProfileId ?? '');
+      final savedText = host.lastSavedProfileId;
+      final savedId = savedText == null ? null : int.tryParse(savedText);
       if (savedId != null && savedId > 0) {
         return savedId;
       }
-      final refreshed = await backend.getProfiles();
+      final refreshed = await host.getProfiles();
       _requireAuthority(authority);
       for (final profile in refreshed) {
         if (profile.name == name) {

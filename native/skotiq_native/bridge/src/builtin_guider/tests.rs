@@ -1,4 +1,40 @@
-use super::*;
+use crate::builtin_guider::calibration::{
+    build_calibration, estimate_dec_backlash_ms, matched_displacements,
+};
+use crate::builtin_guider::config::{
+    GuiderConfig, Vec2, BUILTIN_GUIDER_ID, GUIDE_MAX_MATCH_DISTANCE_PX, GUIDE_MAX_TRACKED_STARS,
+};
+use crate::builtin_guider::control::{
+    begin_loop, calibration_data, connect, disconnect, finish_failed_guiding, set_paused,
+    start_guiding, start_synthetic_loop, stop, stop_locked,
+};
+use crate::builtin_guider::dither::{
+    abandon_dither, dither, dither_offset, dither_target_within_jump, DITHER_MATCH_GRACE_FRAMES,
+    DITHER_MAX_JUMP_PX, DITHER_PATTERN_POINTS,
+};
+use crate::builtin_guider::loop_runner::{
+    choose_guide_camera, guide_focal_length_mm, next_guiding_frame, pick_guide_camera,
+    publish_star_measurement, retry_guide_frame, GuideFrameAttempt, GUIDE_FRAME_RETRIES,
+    NO_GUIDE_CAMERA,
+};
+use crate::builtin_guider::metrics::{
+    apply_settle_state, axis_rms, compute_pulse_durations, crop_raw_u16_image, measure_offset,
+    nearest_star, push_arcsec_sample, record_per_star_residuals, select_reference_stars,
+    settle_timeout_message, PulseDebt,
+};
+use crate::builtin_guider::state::{
+    build_tracked_stars, guide_offset_arcsec, guide_pixel_scale_arcsec, op_lock, state,
+    BuiltinGuiderState, DecDirection, GuideCalibration, GuideReferenceStar, GuideSnapshot,
+    SettleSpec, RMS_HISTORY_LEN,
+};
+use crate::device::DeviceType;
+use crate::error::SkotiqError;
+use crate::event::guiding::GuidingEvent;
+use crate::state::get_state;
+use skotiq_imaging::{DetectedStar, ImageData};
+use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
+use tokio::sync::{Mutex, RwLock};
 
 fn star(x: f64, y: f64, flux: f64) -> DetectedStar {
     DetectedStar {
@@ -217,7 +253,7 @@ fn record_per_star_residuals_sets_matched_star_delta() {
 }
 
 #[test]
-fn build_tracked_stars_flags_lock_and_serializes() {
+fn tracked_stars_flag_the_reference_nearest_the_lock() {
     let mut state = BuiltinGuiderState {
         reference_stars: vec![
             GuideReferenceStar {
@@ -240,29 +276,19 @@ fn build_tracked_stars_flags_lock_and_serializes() {
     // Lock sits on top of the second reference star.
     state.manual_lock = Some(Vec2 { x: 60.0, y: 64.0 });
 
-    let dto = build_tracked_stars(&state);
-    assert_eq!(dto.count, 2);
-    assert_eq!(dto.stars[0].id, 0);
-    assert!(!dto.stars[0].is_lock);
-    assert!(
-        dto.stars[1].is_lock,
-        "nearest reference to lock is the lock"
-    );
+    let stars = build_tracked_stars(&state);
+    assert_eq!(stars.len(), 2);
+    assert_eq!(stars[0].id, 0);
+    assert!(!stars[0].is_lock);
+    assert!(stars[1].is_lock, "nearest reference to lock is the lock");
     // residual magnitude of (0.3,-0.4) is 0.5
-    assert!((dto.stars[0].residual.expect("residual") - 0.5).abs() < 1e-6);
-    assert!(dto.stars[1].residual.is_none());
-
-    let json = serde_json::to_string(&dto).expect("serialize");
-    assert!(json.contains("\"count\":2"));
-    assert!(json.contains("\"is_lock\":true"));
+    assert!((stars[0].residual.expect("residual") - 0.5).abs() < 1e-6);
+    assert!(stars[1].residual.is_none());
 }
 
 #[test]
-fn build_tracked_stars_empty_is_zero_count() {
-    let state = BuiltinGuiderState::default();
-    let dto = build_tracked_stars(&state);
-    assert_eq!(dto.count, 0);
-    assert!(dto.stars.is_empty());
+fn no_reference_stars_track_no_stars() {
+    assert!(build_tracked_stars(&BuiltinGuiderState::default()).is_empty());
 }
 
 #[test]
@@ -382,8 +408,6 @@ fn shift_field(stars: &[DetectedStar], dx: f64, dy: f64) -> Vec<DetectedStar> {
 fn refs_from(stars: &[DetectedStar]) -> Vec<GuideReferenceStar> {
     select_reference_stars(stars, 800, 800)
 }
-
-// Star selection
 
 #[test]
 fn selection_rejects_saturated_faint_elongated_and_edge_stars() {
@@ -511,6 +535,24 @@ fn calibration_recovers_angles_rates_and_orthogonality() {
     assert!((calib.ra_rate() - 4.0 / 250.0).abs() < 1e-9);
     assert!((calib.dec_rate() - 3.0 / 250.0).abs() < 1e-9);
     assert!((calib.orthogonality_deg - 90.0).abs() < 1e-6);
+}
+
+#[test]
+fn calibration_data_reports_rates_in_pixels_per_second_like_phd2() {
+    // 4 px and 3 px per 250 ms pulse: 16 and 12 px/s.
+    let east = Vec2 { x: 4.0, y: 0.0 };
+    let north = Vec2 { x: 0.0, y: 3.0 };
+    let calib = build_calibration(east, north, 250.0, 0.0).expect("calib");
+    let data = calibration_data(Some(calib));
+    assert!(data.is_calibrated);
+    assert!((data.ra_rate.expect("ra rate") - 16.0).abs() < 1e-9);
+    assert!((data.dec_rate.expect("dec rate") - 12.0).abs() < 1e-9);
+    assert!((data.ra_angle.expect("ra angle") - 0.0).abs() < 1e-9);
+    assert!((data.dec_angle.expect("dec angle") - 90.0).abs() < 1e-9);
+
+    let none = calibration_data(None);
+    assert!(!none.is_calibrated);
+    assert!(none.ra_rate.is_none() && none.ra_angle.is_none());
 }
 
 #[test]
@@ -1089,10 +1131,9 @@ async fn a_looping_frame_announces_its_star_measurement() {
             .await
             .expect("no guiding event published for a looping frame")
             .expect("event bus closed");
-        if let crate::event::EventPayload::Guiding(crate::event::GuidingEvent::GuideStats {
-            snr,
-            star_mass,
-        }) = event.payload
+        if let crate::event::bus::EventPayload::Guiding(
+            crate::event::guiding::GuidingEvent::GuideStats { snr, star_mass },
+        ) = event.payload
         {
             break (snr, star_mass);
         }
@@ -1488,18 +1529,18 @@ fn the_guide_scale_uses_the_guide_scope_focal_length() {
 /// imaging camera takes no exposure at all.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera() {
-    use crate::api::devices::simulation::{
-        get_sim_camera, get_sim_camera_for, sim_singleton_test_lock, SIM_GUIDE_CAMERA_ID,
-        SIM_IMAGING_CAMERA_ID,
-    };
     use crate::device::{DeviceInfo, DriverType};
+    use crate::simulator::camera::{
+        get_sim_camera, get_sim_camera_for, SIM_GUIDE_CAMERA_ID, SIM_IMAGING_CAMERA_ID,
+    };
+    use crate::simulator::sim_singleton_test_lock;
     let _serial = test_serial().lock().await;
     let _sims = sim_singleton_test_lock().lock().await;
     reset_guider_state().await;
-    crate::device_manager::ops::sim_faults::clear_all();
-    crate::api::devices::simulation::reset_sim_guide_offset().await;
+    crate::simulator::faults::clear_all();
+    crate::simulator::guiding::reset_sim_guide_offset().await;
 
-    let manager = crate::api::get_device_manager();
+    let manager = crate::device_manager::get_device_manager();
     for (id, device_type) in [
         (SIM_IMAGING_CAMERA_ID, DeviceType::Camera),
         (SIM_GUIDE_CAMERA_ID, DeviceType::Camera),
@@ -1683,4 +1724,73 @@ async fn a_settle_that_runs_out_keeps_guiding_and_reads_true() {
     assert!(!within.contains("above"), "{within}");
     let above = settle_timeout_message(2.4, 1.5, 5.0, 60.0);
     assert!(above.contains("still above 1.50 px"), "{above}");
+}
+
+/// A stop that lands while a guide frame is in flight: the loop's iteration
+/// finishes and writes its status before it sees the stop flag. The guider
+/// read "Guiding" afterwards with nothing running (the run had stopped it).
+#[tokio::test]
+async fn a_stop_during_a_guide_frame_leaves_the_guider_connected() {
+    let _serial = test_serial().lock().await;
+    reset_guider_state().await;
+    state().write().await.connected = true;
+    {
+        let _op = op_lock().lock().await;
+        begin_loop(
+            |guard| {
+                guard.guiding = true;
+                guard.last_status.state = "Guiding".to_string();
+            },
+            GuidingEvent::Calibrating,
+            |controller, stop_flag| async move {
+                while !stop_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                    tokio::time::sleep(Duration::from_millis(1)).await;
+                }
+                // The frame in flight completes after the stop was asked for.
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                controller.write().await.last_status.state = "Guiding".to_string();
+            },
+        )
+        .await;
+    }
+
+    stop().await.expect("stop");
+
+    let guard = state().read().await;
+    assert_eq!(guard.last_status.state, "Connected");
+    assert!(!guard.guiding);
+    drop(guard);
+    reset_guider_state().await;
+}
+
+/// Asking a paused guider to dither, or an idle one to pause, is a request
+/// that does not fit its state: a plain sentence the API answers with 409.
+#[tokio::test]
+async fn a_paused_or_idle_guider_refuses_with_an_invalid_state() {
+    let _serial = test_serial().lock().await;
+    reset_guider_state().await;
+    state().write().await.connected = true;
+
+    match set_paused(true).await {
+        Err(SkotiqError::InvalidState(message)) => {
+            assert!(message.contains("not guiding"), "{message}")
+        }
+        other => panic!("pausing an idle guider: {other:?}"),
+    }
+
+    {
+        let mut guard = state().write().await;
+        guard.guiding = true;
+        guard.paused = true;
+    }
+    match dither(3.0, false, 1.5, 2.0, 10.0).await {
+        Err(SkotiqError::InvalidState(message)) => {
+            assert_eq!(
+                message,
+                "Guiding is paused. Resume guiding before dithering."
+            )
+        }
+        other => panic!("dithering a paused guider: {other:?}"),
+    }
+    reset_guider_state().await;
 }

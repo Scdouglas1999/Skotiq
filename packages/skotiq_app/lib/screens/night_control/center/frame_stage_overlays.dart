@@ -1,10 +1,6 @@
 // The frame stage's pills and the buttons over the frame.
 part of 'frame_stage.dart';
 
-// ---------------------------------------------------------------------------
-// Pills
-// ---------------------------------------------------------------------------
-
 enum _PillTone { neutral, good, bad, muted, active }
 
 /// One line of pill copy.
@@ -35,13 +31,22 @@ _PillText _framePill(
 ) {
   final l10n = context.l10n;
   final clock = ref.watch(clockProvider);
-  final time = nightClockHms(clock.fromUtc(image.capturedAt.toUtc()));
+  final time = ClockFormat.hms(clock.fromUtc(image.capturedAt.toUtc()));
   final frame = _stripFrameFor(ref.watch(nightSessionFramesProvider), image);
   if (frame != null) {
     return _stripPill(context, frame, time: time);
   }
   final what =
       nightFilterExposure(image.settings.filter, image.settings.exposureTime);
+  final purpose = framePurposeLabel(l10n, image);
+  if (purpose != null) {
+    return _PillText(
+      title: what == null ? purpose : '$purpose · $what',
+      time: time,
+      status: l10n.text('nightCtrNotSaved'),
+      statusTone: _PillTone.muted,
+    );
+  }
   if (nightIsScratchFrame(image.filePath)) {
     final snapshot = l10n.text('nightCtrSnapshot');
     return _PillText(
@@ -59,7 +64,7 @@ _PillText _stripPill(BuildContext context, StripFrameVm frame, {String? time}) {
   final accepted = frame.accepted;
   return _PillText(
     title: _stripTitle(frame) ?? l10n.text('nightCtrFrame'),
-    time: time ?? nightClockHms(frame.capturedAt),
+    time: time ?? ClockFormat.hms(frame.capturedAt),
     status: switch ((accepted, frame.exclusion)) {
       (false, final FrameExclusionKind kind) => frameExclusionLabel(
           context,
@@ -195,26 +200,17 @@ class _TopPills extends ConsumerWidget {
           title: l10n.text(
             'nightCtrSolved',
             params: <String, String>{
-              'ra': CoordinateFormat.raFromDegrees(
-                solve.raDegrees,
-                style: SexagesimalStyle.compactLetters,
-                seconds: SecondsPrecision.integerFloored,
-              ),
-              'dec': CoordinateFormat.dec(
-                solve.decDegrees,
-                style: SexagesimalStyle.compactLetters,
-                seconds: SecondsPrecision.integerFloored,
-              ),
+              'ra': CoordinateFormat.raDenseFromDegrees(solve.raDegrees),
+              'dec': CoordinateFormat.decDense(solve.decDegrees),
             },
           ),
           status: off == null
               ? null
               : l10n.text(
                   'nightCtrSolveOff',
+                  // In the unit every off-target reading uses.
                   params: <String, String>{
-                    'offset': off < 10
-                        ? off.toStringAsFixed(1)
-                        : off.toStringAsFixed(0),
+                    'offset': AngleFormat.arcsec(off * 60)
                   },
                 ),
           statusTone: _PillTone.good,
@@ -376,10 +372,6 @@ class _OverlayStatus extends ConsumerWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Buttons over the frame
-// ---------------------------------------------------------------------------
 
 class _BackToLatest extends ConsumerWidget {
   const _BackToLatest();

@@ -1,9 +1,12 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 
-db.CapturedImage light(
+db.DbCapturedImage light(
   int id, {
   double exposure = 90,
   int? gain = 76,
@@ -13,7 +16,7 @@ db.CapturedImage light(
   String frameType = 'light',
 }) {
   final at = DateTime(2026, 10, 22, 3).add(Duration(minutes: id));
-  return db.CapturedImage(
+  return db.DbCapturedImage(
     id: id,
     filePath: '/n/NGC0891_L_$id.fits',
     fileName: 'NGC0891_L_$id.fits',
@@ -34,13 +37,21 @@ db.CapturedImage light(
 
 void main() {
   group('planFrameNeeds', () {
-    test('missing gain or offset cannot become a zero-setting dark group', () {
-      for (final frame in [light(1, gain: null), light(2, offset: null)]) {
-        expect(() => planFrameNeeds([frame]), throwsFormatException);
-      }
-      final needs = planFrameNeeds([light(3, gain: 0, offset: 0)]);
-      expect(needs.darks.single.gain, 0);
-      expect(needs.darks.single.offset, 0);
+    test('lights without gain or offset (a camera without the controls) get '
+        'their own dark group, never a zero-setting one', () {
+      final needs = planFrameNeeds([
+        light(1, gain: null, offset: null),
+        light(2, gain: 0, offset: 0),
+      ]);
+      expect(needs.darks.map((d) => (d.gain, d.offset)).toSet(), {
+        (null, null),
+        (0, 0),
+      });
+      expect(
+        needs.darks.firstWhere((d) => d.gain == null).label,
+        contains('no gain, no offset'),
+      );
+      expect(needs.bias.map((b) => b.gain).toSet(), {null, 0});
     });
     test('one dark set per light setting and one bias set per gain', () {
       final needs = planFrameNeeds([

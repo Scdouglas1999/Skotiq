@@ -1,208 +1,160 @@
+/* Every read of LibRaw's data structures happens in this file, compiled against
+ * the headers of the LibRaw the crate links (build.rs picks them), so field
+ * offsets always match the library at run time. The Rust side only sees
+ * skotiq_raw_info_t, which this file defines and fills. */
 #include "libraw_types.h"
 #include <string.h>
 #include <stddef.h>
 
-/* libraw_COLOR lives in libraw.h (the C API), which we deliberately do NOT
- * include here (the shim only needs the POD struct layout from
- * libraw_types.h). The symbol is exported by the linked libraw, so a plain
- * forward declaration is enough to call it. It maps a sensor (row,col) to a
- * colour-descriptor index (0..3) — the exact primitive the reference driver
- * uses (RawProcessor.COLOR) to read the CFA pattern out of idata.cdesc. */
+/* Mirrors `RawInfoFfi` in raw.rs field for field. */
+typedef struct skotiq_raw_info_t {
+    char make[64];
+    char model[64];
+    char lens[128];
+    float iso;
+    float shutter;
+    float aperture;
+    float focal_length;
+    long long timestamp;
+    /* LibRaw's own "not recorded" value is -1000. */
+    float sensor_temperature;
+    float sensor_temperature2;
+    float camera_temperature;
+    int width;
+    int height;
+    int top_margin;
+    int left_margin;
+    int raw_width;
+    int raw_height;
+    int raw_bps;
+    unsigned white_level;
+    /* Smallest per-channel linear maximum the file records (0: none). */
+    unsigned linear_max;
+    unsigned filters;
+    int colors;
+    int dng_version;
+    /* CFA colour letters at the visible origin, row-major: 2x2 for Bayer,
+     * 6x6 for X-Trans; cfa_size is 2, 6, or 0 for no single-plane CFA. */
+    int cfa_size;
+    char cfa[36];
+    /* Black level at each of those positions. */
+    unsigned cfa_black[36];
+    int has_mosaic;
+} skotiq_raw_info_t;
+
+/* Exported by LibRaw's C API (libraw.h, which the shim does not include):
+ * the colour index of a visible (row, col). */
 extern int libraw_COLOR(libraw_data_t *, int row, int col);
 
-typedef struct skotiq_libraw_config_t {
-    int white_balance_mode;
-    float user_mul[4];
-    int output_color;
-    int output_bps;
-    int user_qual;
-    int highlight;
-    float bright;
-    int no_auto_bright;
-    int half_size;
-    const char *bad_pixels;
-    const char *dark_frame;
-    int user_sat;
-    int has_user_sat;
-    double gamma[2];
-    int has_gamma;
-    double chromatic_aberration[2];
-    int has_chromatic_aberration;
-    unsigned max_memory_mb;
-    int has_max_memory_mb;
-} skotiq_libraw_config_t;
-
-void skotiq_libraw_apply_config(
-    libraw_data_t *processor,
-    const skotiq_libraw_config_t *config
-) {
-    if (!processor || !config) {
-        return;
-    }
-
-    processor->params.use_camera_wb = 0;
-    processor->params.use_auto_wb = 0;
-
-    switch (config->white_balance_mode) {
-    case 0:
-        processor->params.use_camera_wb = 1;
-        break;
-    case 1:
-        processor->params.use_auto_wb = 1;
-        break;
-    case 2:
-        processor->params.user_mul[0] = config->user_mul[0];
-        processor->params.user_mul[1] = config->user_mul[1];
-        processor->params.user_mul[2] = config->user_mul[2];
-        processor->params.user_mul[3] = config->user_mul[3];
-        break;
-    default:
-        break;
-    }
-
-    processor->params.output_color = config->output_color;
-    processor->params.output_bps = config->output_bps;
-    processor->params.user_qual = config->user_qual;
-    processor->params.highlight = config->highlight;
-    processor->params.bright = config->bright;
-    processor->params.no_auto_bright = config->no_auto_bright;
-    processor->params.half_size = config->half_size;
-    processor->params.bad_pixels = (char *)config->bad_pixels;
-    processor->params.dark_frame = (char *)config->dark_frame;
-
-    if (config->has_user_sat) {
-        processor->params.user_sat = config->user_sat;
-    }
-
-    if (config->has_gamma) {
-        processor->params.gamm[0] = config->gamma[0];
-        processor->params.gamm[1] = config->gamma[1];
-    }
-
-    if (config->has_chromatic_aberration) {
-        processor->params.aber[0] = config->chromatic_aberration[0];
-        processor->params.aber[1] = 1.0;
-        processor->params.aber[2] = config->chromatic_aberration[1];
-        processor->params.aber[3] = 1.0;
-    }
-
-    if (config->has_max_memory_mb) {
-        processor->rawparams.max_raw_memory_mb = config->max_memory_mb;
-    }
+static void copy_text(char *dst, size_t dst_len, const char *src) {
+    size_t n = strnlen(src, dst_len - 1);
+    memcpy(dst, src, n);
+    dst[n] = '\0';
 }
 
-/* ------------------------------------------------------------------------- *
- * Raw CFA (Bayer / X-Trans) mosaic extraction.
- *
- * These two helpers give the Rust side the SINGLE-CHANNEL LINEAR MOSAIC that
- * astrophotography requires — the same data path the reference INDI driver
- * uses in read_libraw() (indi-gphoto/gphoto_readimage.cpp:143-218):
- *   open -> unpack -> raw2image, then copy imgdata.rawdata.raw_image with the
- *   optical-black margins trimmed. NO dcraw_process(), so NO demosaic / white
- *   balance / gamma / sRGB — the values stay the sensor's native linear ADU.
- *
- * All access to the (large, version-sensitive) libraw_data_t struct is done
- * HERE in C, where the compiler computes field offsets from the real
- * libraw_types.h — so there is zero risk of a hand-transcribed Rust ABI
- * silently reading the wrong bytes and corrupting every frame.
- * ------------------------------------------------------------------------- */
-typedef struct skotiq_cfa_info_t {
-    int width;         /* visible width  (rawdata.sizes.width)  */
-    int height;        /* visible height (rawdata.sizes.height) */
-    int raw_width;     /* stride         (rawdata.sizes.raw_width) */
-    int raw_height;    /* full raw height (rawdata.sizes.raw_height) */
-    int top_margin;    /* sizes.top_margin  */
-    int left_margin;   /* sizes.left_margin */
-    int raw_bps;       /* color.raw_bps (native ADC bit depth, best-effort) */
-    unsigned maximum;  /* color.maximum (saturation white level)   */
-    unsigned black;    /* color.black (global black level)         */
-    int filters;       /* idata.filters (0 = no CFA, 9 = X-Trans)  */
-    int is_xtrans;     /* convenience: filters == 9                */
-    char cfa[8];       /* 2x2 CFA letters, e.g. "RGGB\0"           */
-} skotiq_cfa_info_t;
+/* LibRaw's black at a visible (row, col): a common level, a per-colour offset
+ * (cblack[0..3]) and an optional cblack[4] x cblack[5] pattern stored from
+ * cblack[6], indexed by visible position the way LibRaw applies it. */
+static unsigned black_at(libraw_data_t *p, int row, int col, int index) {
+    unsigned black = p->color.black;
+    if (index >= 0 && index < 4) {
+        black += p->color.cblack[index];
+    }
+    unsigned rows = p->color.cblack[4], cols = p->color.cblack[5];
+    if (rows > 0 && cols > 0 && rows * cols <= LIBRAW_CBLACK_SIZE - 6) {
+        black += p->color.cblack[6 + (row % rows) * cols + (col % cols)];
+    }
+    return black;
+}
 
-/* Populate `info` from an unpacked (post raw2image) processor. Returns 0 on
- * success, negative on error (null args, or no single-channel raw_image —
- * e.g. Foveon / already-RGB data has raw_image == NULL). */
-int skotiq_libraw_extract_cfa_info(
-    libraw_data_t *processor,
-    skotiq_cfa_info_t *info
-) {
-    if (!processor || !info) {
+/* Fill `info` from an opened processor. Black levels and `has_mosaic` are
+ * final only after libraw_unpack. Returns 0 on success. */
+int skotiq_raw_describe(libraw_data_t *p, skotiq_raw_info_t *info) {
+    if (!p || !info) {
         return -1;
     }
-    if (!processor->rawdata.raw_image) {
-        /* No single-channel Bayer/X-Trans buffer (Foveon, sRAW, etc.). */
-        return -2;
+    memset(info, 0, sizeof(*info));
+
+    copy_text(info->make, sizeof(info->make), p->idata.make);
+    copy_text(info->model, sizeof(info->model), p->idata.model);
+    copy_text(info->lens, sizeof(info->lens), p->lens.Lens);
+    info->iso = p->other.iso_speed;
+    info->shutter = p->other.shutter;
+    info->aperture = p->other.aperture;
+    info->focal_length = p->other.focal_len;
+    info->timestamp = (long long)p->other.timestamp;
+    info->sensor_temperature = p->makernotes.common.SensorTemperature;
+    info->sensor_temperature2 = p->makernotes.common.SensorTemperature2;
+    info->camera_temperature = p->makernotes.common.CameraTemperature;
+
+    info->width = p->sizes.width;
+    info->height = p->sizes.height;
+    info->top_margin = p->sizes.top_margin;
+    info->left_margin = p->sizes.left_margin;
+    info->raw_width = p->sizes.raw_width;
+    info->raw_height = p->sizes.raw_height;
+    info->raw_bps = p->color.raw_bps;
+    info->white_level = p->color.maximum;
+    /* long[4] in LibRaw 0.21, unsigned[4] in 0.22. */
+    for (int c = 0; c < 4; c++) {
+        long value = (long)p->color.linear_max[c];
+        if (value > 0 && (info->linear_max == 0 || (unsigned)value < info->linear_max)) {
+            info->linear_max = (unsigned)value;
+        }
     }
+    info->filters = p->idata.filters;
+    info->colors = p->idata.colors;
+    info->dng_version = (int)p->idata.dng_version;
 
-    info->width       = processor->rawdata.sizes.width;
-    info->height      = processor->rawdata.sizes.height;
-    info->raw_width   = processor->rawdata.sizes.raw_width;
-    info->raw_height  = processor->rawdata.sizes.raw_height;
-    info->top_margin  = processor->sizes.top_margin;
-    info->left_margin = processor->sizes.left_margin;
-    info->raw_bps     = (int)processor->color.raw_bps;
-    info->maximum     = processor->color.maximum;
-    info->black       = processor->color.black;
-    info->filters     = (int)processor->idata.filters;
-    info->is_xtrans   = (processor->idata.filters == 9) ? 1 : 0;
-
-    /* CFA orientation, matching read_libraw() lines 179-183: read the colour
-     * descriptor letter at each of the four 2x2 positions. cdesc maps a
-     * colour index (returned by COLOR) to its letter ('R','G','B'). */
-    info->cfa[0] = processor->idata.cdesc[libraw_COLOR(processor, 0, 0)];
-    info->cfa[1] = processor->idata.cdesc[libraw_COLOR(processor, 0, 1)];
-    info->cfa[2] = processor->idata.cdesc[libraw_COLOR(processor, 1, 0)];
-    info->cfa[3] = processor->idata.cdesc[libraw_COLOR(processor, 1, 1)];
-    info->cfa[4] = '\0';
-    info->cfa[5] = '\0';
-    info->cfa[6] = '\0';
-    info->cfa[7] = '\0';
-
+    info->has_mosaic = p->rawdata.raw_image != NULL;
+    int size = 0;
+    if (p->idata.filters == 9) {
+        size = 6;
+    } else if (p->idata.filters >= 1000) {
+        size = 2;
+    }
+    /* filters 1..8 are the Leaf/Phase One 16x16 and other exotic layouts;
+     * 0 is already-colour data. Neither is reported as a CFA. */
+    if (size > 0) {
+        for (int row = 0; row < size; row++) {
+            for (int col = 0; col < size; col++) {
+                int index = libraw_COLOR(p, row, col);
+                char letter = (index >= 0 && index < 4) ? p->idata.cdesc[index] : '?';
+                info->cfa[row * size + col] = letter;
+                info->cfa_black[row * size + col] = black_at(p, row, col, index);
+            }
+        }
+        info->cfa_size = size;
+    }
     return 0;
 }
 
-/* Copy the visible single-channel mosaic into `out` (caller-allocated,
- * out_len >= width*height u16 samples). Trims the top/left optical-black
- * margins and de-strides raw_width -> width, exactly like read_libraw()
- * lines 208-216. Returns 0 on success, negative on error. */
-int skotiq_libraw_copy_cfa_mosaic(
-    libraw_data_t *processor,
-    unsigned short *out,
-    size_t out_len
-) {
-    if (!processor || !out) {
+/* Copy the visible part of the single-plane mosaic into `out`
+ * (width * height samples). Returns 0 on success. */
+int skotiq_raw_copy_mosaic(libraw_data_t *p, unsigned short *out, size_t out_len) {
+    if (!p || !out) {
         return -1;
     }
-    const unsigned short *raw = processor->rawdata.raw_image;
+    const unsigned short *raw = p->rawdata.raw_image;
     if (!raw) {
         return -2;
     }
-
-    int width      = processor->rawdata.sizes.width;
-    int height     = processor->rawdata.sizes.height;
-    int raw_width  = processor->rawdata.sizes.raw_width;
-    int top        = processor->sizes.top_margin;
-    int left       = processor->sizes.left_margin;
-
-    if (width <= 0 || height <= 0 || raw_width <= 0) {
+    size_t width = p->sizes.width;
+    size_t height = p->sizes.height;
+    size_t top = p->sizes.top_margin;
+    size_t left = p->sizes.left_margin;
+    size_t stride = p->sizes.raw_pitch ? p->sizes.raw_pitch / sizeof(unsigned short)
+                                       : p->sizes.raw_width;
+    if (width == 0 || height == 0 || left + width > stride ||
+        top + height > p->sizes.raw_height) {
         return -3;
     }
-    if (out_len < (size_t)width * (size_t)height) {
+    if (out_len < width * height) {
         return -4;
     }
-
-    /* first_visible_pixel = raw_width * top_margin + left_margin */
-    const unsigned short *src =
-        raw + (size_t)raw_width * (size_t)top + (size_t)left;
-    unsigned short *dst = out;
-
-    for (int row = 0; row < height; row++) {
-        memcpy(dst, src, (size_t)width * sizeof(unsigned short));
-        dst += width;
-        src += raw_width;
+    const unsigned short *src = raw + stride * top + left;
+    for (size_t row = 0; row < height; row++) {
+        memcpy(out + row * width, src + row * stride, width * sizeof(unsigned short));
     }
-
     return 0;
 }

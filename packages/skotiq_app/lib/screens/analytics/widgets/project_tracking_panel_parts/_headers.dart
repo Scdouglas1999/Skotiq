@@ -1,8 +1,6 @@
 // Cleanup header row, summary stats header and sort bar.
 part of '../project_tracking_panel.dart';
 
-// Cleanup header row
-
 /// Opt-in affordance to remove "untracked" library targets (no goal, no
 /// favorite, no captured data, no sessions) that accumulated as phantom rows.
 /// Hidden entirely when there is nothing to remove. Works against both the
@@ -16,7 +14,7 @@ class _CleanupHeaderRow extends ConsumerWidget {
     WidgetRef ref,
     int count,
   ) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -51,7 +49,7 @@ class _CleanupHeaderRow extends ConsumerWidget {
 
     if (confirmed != true) return;
     if (!context.mounted) return;
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (host.isStale) {
       ref.invalidate(untrackedTargetsCountProvider);
       context.showWarningSnackBar(
         'Imaging host changed. Cleanup was canceled.',
@@ -60,14 +58,9 @@ class _CleanupHeaderRow extends ConsumerWidget {
     }
 
     try {
-      final deleted = authority is NetworkBackend
-          ? await authority.removeUntrackedTargets()
-          : await ref.read(targetsDaoProvider).deleteUntrackedTargets();
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
-        return;
-      }
-      // Refresh the library-backed views and this panel's count.
+      final deleted =
+          await ref.read(targetLibraryProvider).deleteUntrackedTargets();
+      if (!context.mounted || host.isStale) return;
       ref.invalidate(allDbTargetsProvider);
       ref.invalidate(favoriteDbTargetsProvider);
       ref.invalidate(untrackedTargetsCountProvider);
@@ -75,11 +68,9 @@ class _CleanupHeaderRow extends ConsumerWidget {
         'Removed $deleted untracked target${deleted == 1 ? '' : 's'}',
       );
     } catch (e) {
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
-        return;
-      }
-      context.showErrorSnackBar('Failed to remove untracked targets: $e');
+      if (!context.mounted || host.isStale) return;
+      context.showErrorSnackBar(
+          'Failed to remove untracked targets: ${userFacingError(e)}');
     }
   }
 
@@ -90,7 +81,6 @@ class _CleanupHeaderRow extends ConsumerWidget {
 
     final count = countAsync.valueOrNull ?? 0;
     if (count <= 0) {
-      // Nothing to clean up — don't clutter the header.
       return const SizedBox.shrink();
     }
 
@@ -111,8 +101,6 @@ class _CleanupHeaderRow extends ConsumerWidget {
   }
 }
 
-// Summary stats header
-
 class _SummaryStatsHeader extends ConsumerWidget {
   final List<ProjectProgress> projects;
   final SkotiqColors colors;
@@ -127,8 +115,8 @@ class _SummaryStatsHeader extends ConsumerWidget {
     final totalTargets = projects.length;
     final trackedTargets = projects.where((p) => p.isTracked).length;
     final completedTargets = projects.where((p) => p.isCompleted).length;
-    final totalIntegrationHours =
-        projects.fold<double>(0.0, (sum, p) => sum + p.integratedSecs) / 3600.0;
+    final totalIntegrationSecs =
+        projects.fold<double>(0.0, (sum, p) => sum + p.integratedSecs);
 
     // Counted over a rolling 30 nights, not the calendar month: an observing
     // run straddles the 1st, and on Aug 1 a calendar-month window reported "0
@@ -138,7 +126,7 @@ class _SummaryStatsHeader extends ConsumerWidget {
     final activeCutoff =
         ref.watch(clockProvider).now().subtract(const Duration(days: 30));
     final activeTargets = projects.fold<int>(0, (sum, p) {
-      if (p.lastSessionAt != null && p.lastSessionAt!.isAfter(activeCutoff)) {
+      if (p.lastImagedAt != null && p.lastImagedAt!.isAfter(activeCutoff)) {
         return sum + 1;
       }
       return sum;
@@ -179,7 +167,7 @@ class _SummaryStatsHeader extends ConsumerWidget {
             child: _SummaryStat(
               icon: LucideIcons.timer,
               label: 'Total integration',
-              value: '${totalIntegrationHours.toStringAsFixed(1)}h',
+              value: DurationFormat.decimalHours(totalIntegrationSecs),
               colors: colors,
             ),
           ),
@@ -242,8 +230,6 @@ class _SummaryStat extends StatelessWidget {
     );
   }
 }
-
-// Sort bar
 
 class _SortBar extends StatelessWidget {
   final ProjectSortMode currentSort;

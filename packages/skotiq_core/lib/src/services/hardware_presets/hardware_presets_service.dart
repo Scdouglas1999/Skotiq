@@ -17,15 +17,6 @@ import '../../models/hardware_presets/hardware_preset_models.dart';
 /// persistence read/write lives in the provider layer. A malformed persisted
 /// override surfaces as a [FormatException] instead of being swallowed.
 class HardwarePresetsService {
-  /// `app_settings` key under which the JSON-encoded user telescope overrides
-  /// are persisted.
-  static const String telescopeOverridesSettingKey =
-      'hardware_presets.telescopes.v1';
-
-  /// `app_settings` key under which the JSON-encoded user camera overrides are
-  /// persisted.
-  static const String cameraOverridesSettingKey = 'hardware_presets.cameras.v1';
-
   final List<TelescopePreset> _telescopeOverrides;
   final List<CameraDefaultsPreset> _cameraOverrides;
   final List<TelescopePreset> _telescopeCatalog;
@@ -188,8 +179,6 @@ class HardwarePresetsService {
   /// Encodes camera overrides to a JSON string for persistence.
   static String encodeCameraOverrides(List<CameraDefaultsPreset> overrides) =>
       jsonEncode(overrides.map((preset) => preset.toJson()).toList());
-
-  // Internals.
 
   /// Merges [overrides] (first) with [catalog], de-duping by the key returned
   /// from [idOf] so an override replaces the matching built-in and each id

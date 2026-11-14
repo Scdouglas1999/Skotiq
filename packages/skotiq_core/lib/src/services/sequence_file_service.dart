@@ -1,25 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:file_selector/file_selector.dart' as file_selector;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import '../models/imaging/imaging_models.dart' show FrameType;
-import '../models/notification/notification_categories.dart'
-    show NotificationTransportKind;
 import '../models/sequence/sequence_models.dart';
-import '../providers/sequence/sequence_editor_exceptions.dart';
+import '../models/sequence/sequence_editor_exceptions.dart';
 import '../utils/export_target.dart';
-import '../providers/sequence/sequence_validation.dart';
-import '../providers/sequence_provider.dart' show currentSequenceProvider;
-import '../providers/settings_provider.dart';
-// Prefixed: settings_provider.dart also exports a legacy `HorizonProfile`;
-// the in-sequence TargetSchedulerNode uses the scheduler samples-based one.
-import 'scheduler/horizon_profile.dart' as sched_horizon;
-import 'quality_stop_migration.dart';
-import 'sequence_wire_codec.dart';
+import '../models/sequence/validation/structural_rules.dart';
+import '../models/sequence/validation/validation_issue.dart';
+import '../database/quality_stop_migration.dart';
 
-part 'sequence_file_service/sequence_encoder.dart';
-part 'sequence_file_service/sequence_decoder.dart';
+part 'sequence_file_service/sequence_document_codec.dart';
 
 /// Service for saving and loading sequences to/from JSON files
 typedef SequenceImportValidator = void Function(Sequence sequence);
@@ -113,7 +103,6 @@ class SequenceFileService {
       throw SequenceValidationFailedException(issues);
     }
 
-    // Prepare JSON
     final json = sequenceToMap(sequence);
     final jsonString = const JsonEncoder.withIndent('  ').convert(json);
 
@@ -132,7 +121,6 @@ class SequenceFileService {
 
     if (target == null) return null;
 
-    // Write file
     final file = File(target.path);
     await file.writeAsString(jsonString);
     // Marking-saved is the caller's responsibility — the editor notifier
@@ -147,7 +135,6 @@ class SequenceFileService {
 
   /// Import a sequence from a JSON file
   Future<Sequence?> importSequence() async {
-    // Show open dialog
     final file = await file_selector.openFile(
       initialDirectory: _initialDirectoryOrNull,
       acceptedTypeGroups: [
@@ -359,48 +346,3 @@ class SequenceFileService {
     return _jsonToSequence(migrated);
   }
 }
-
-BrightnessTierPreferences _parseBrightnessTierPreferences(Object? value) {
-  if (value is Map) {
-    return BrightnessTierPreferences.fromJson(value.cast<String, dynamic>());
-  }
-  return const BrightnessTierPreferences();
-}
-
-/// Provider for the sequence file service.
-///
-/// An opened file is not refused for naming filters the active profile lacks:
-/// it loads, and the sequence checks flag those nodes ("Filter Not in Wheel")
-/// so they can be renamed in the editor, as for a starter.
-final sequenceFileServiceProvider = Provider<SequenceFileService>((ref) {
-  return SequenceFileService(
-    // Read at dialog-open time so changing Settings → File Paths → Sequences
-    // takes effect immediately without rebuilding every service dependent.
-    defaultDirectoryProvider: () {
-      try {
-        return ref.read(appSettingsProvider).valueOrNull?.sequencesPath ?? '';
-      } catch (_) {
-        // Unit tests may construct the service without a settings database.
-        return '';
-      }
-    },
-    onExportSaved: (exported) {
-      // Reach into the sequence editor and clear the dirty flag. The
-      // export wrote the canonical bytes for the in-memory sequence, so
-      // any subsequent createSequence/loadSequence should no longer
-      // prompt "discard unsaved changes?" — the user just saved.
-      //
-      // Read (not watch) — this is a one-shot side effect inside an
-      // async write path, not a reactive subscription.
-      try {
-        final editor = ref.read(currentSequenceProvider.notifier);
-        editor.markSavedIfCurrent(exported);
-      } catch (_) {
-        // Tests may construct this provider without the sequence
-        // notifier. Failing silent is acceptable here because the
-        // editor is the only place that cares about the flag — a missing
-        // notifier means there's no editor to dirty.
-      }
-    },
-  );
-});

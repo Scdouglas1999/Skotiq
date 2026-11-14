@@ -1,7 +1,3 @@
-// Dither node properties editor (amount, settle time/threshold/timeout,
-// RA-only, and pattern/grid). The exposure, cool/warm camera, filter-change
-// and notification editors moved to _exposure_rich.dart / _capture_rich.dart
-// during the single-editor-library consolidation.
 part of '../node_properties_panel.dart';
 
 class _DitherProperties extends ConsumerWidget {
@@ -34,7 +30,6 @@ class _DitherProperties extends ConsumerWidget {
               ref.read(currentSequenceProvider.notifier).updateNode(
                     node.copyWith(pixels: value),
                   );
-              // Save as default for future nodes
               ref.read(sequencerDefaultsProvider.notifier).updateDitherDefaults(
                     pixels: value,
                   );
@@ -55,7 +50,6 @@ class _DitherProperties extends ConsumerWidget {
               ref.read(currentSequenceProvider.notifier).updateNode(
                     node.copyWith(settleTime: value),
                   );
-              // Save as default for future nodes
               ref.read(sequencerDefaultsProvider.notifier).updateDitherDefaults(
                     settleTime: value,
                   );
@@ -103,6 +97,7 @@ class _DitherProperties extends ConsumerWidget {
           colors: colors,
           label: 'RA only',
           child: NodeToggleSwitch(
+            label: 'RA only',
             colors: colors,
             value: node.raOnly,
             onChanged: (value) {

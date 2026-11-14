@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,32 +6,43 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/skotiq_app.dart';
+import 'package:skotiq_app/router/app_routes.dart';
+import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_relay/skotiq_relay.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_app/widgets/red_night_filter.dart';
 import 'screens/qr_scanner_screen.dart';
+import 'screens/setup/first_run_setup_screen.dart';
 import 'screens/servers/saved_servers_screen.dart';
 import 'services/saved_servers_service.dart';
 import 'services/android_system_ui.dart';
 import 'services/foreground_service.dart';
-import 'services/live_activity_lifecycle_provider.dart';
 import 'services/manual_server_endpoint.dart';
 import 'services/mobile_pairing_service.dart';
-import 'services/watch_complication_lifecycle_provider.dart';
+import 'services/mobile_platform_services.dart';
 import 'services/mobile_preferences.dart';
-import 'services/mobile_sequence_hooks.dart';
 import 'services/battery_service.dart';
 import 'services/network_service.dart';
 import 'services/notification_service.dart';
 import 'services/push_registration_service.dart';
+import 'services/rig_connection.dart';
 import 'services/voice_control_lifecycle_provider.dart';
 import 'services/voice_control_service.dart';
 import 'utils/error_snackbar.dart';
 import 'widgets/checkpoint_resume_dialog.dart';
+import 'widgets/phone_battery_indicator.dart';
 import 'widgets/tailscale_setup_sheet.dart';
+import 'package:skotiq_app/utils/snackbar_helper.dart';
 
 part 'main_parts/mobile_connection_state.dart';
 part 'main_parts/mobile_discovery_ops.dart';
@@ -76,7 +86,7 @@ Duration lostSessionRetryDelay(int attempt) {
 }
 
 void main() async {
-  developer.log('Starting Skotiq...', name: 'Main', level: 800);
+  Log.info('Starting Skotiq...', source: 'Main');
   WidgetsFlutterBinding.ensureInitialized();
 
   // Respect the user's immersive-mode preference. Edge-to-edge keeps the
@@ -88,72 +98,50 @@ void main() async {
     await applyAndroidSystemUiPreference(immersiveSticky);
   }
 
-  // Initialize CatalogManager
   try {
     final appDir = await resolveSkotiqDocumentsDirectory();
-    await CatalogManager.instance.initialize(appDir.path);
-  } catch (e) {
-    developer.log(
-      'Failed to initialize CatalogManager: $e',
-      name: 'Main',
-      level: 1000,
+    await CatalogManager.instance.initialize(
+      appDir.path,
+      builtIn: builtInCatalogs,
     );
+  } catch (e) {
+    Log.error('Failed to initialize CatalogManager: $e', source: 'Main');
   }
 
-  // Initialize NetworkService for connectivity monitoring
   try {
     await NetworkService().initialize();
-    developer.log('NetworkService initialized', name: 'Main');
+    Log.debug('NetworkService initialized', source: 'Main');
   } catch (e) {
-    developer.log(
-      'Failed to initialize NetworkService: $e',
-      name: 'Main',
-      level: 1000,
-    );
+    Log.error('Failed to initialize NetworkService: $e', source: 'Main');
   }
 
-  // start the battery sampler so the dashboard
-  // indicator and any throttling consumer (live-preview poller,
-  // catalog sync, etc.) see a populated PhoneBatteryState on first
-  // build. Failures are non-fatal: the indicator gracefully renders
-  // SizedBox.shrink() while the level remains -1.
+  // Sampled before the first frame so the top-bar battery warning and the
+  // poll pace start from a real reading. Without one both act as if the
+  // battery were full.
   try {
     await BatteryService().start();
-    developer.log('BatteryService started', name: 'Main');
+    Log.debug('BatteryService started', source: 'Main');
   } catch (e, st) {
-    developer.log(
+    Log.error(
       'Failed to start BatteryService: $e',
-      name: 'Main',
-      level: 1000,
+      source: 'Main',
       error: e,
       stackTrace: st,
     );
   }
 
-  // request Android POST_NOTIFICATIONS at startup
-  // *before* runApp() so the system prompt is shown on first launch (and
-  // not buried behind a connection screen). Without this, Android 13+
-  // silently drops every notification we try to fire. Also wires up the
-  // foreground-task plugin so the OS sees a granted notification permission
-  // before the first sequence tries to start a foreground service.
-  //
-  // The notification service singleton is idempotent — subsequent calls
-  // from MobileSequenceHooks.initialize() are no-ops via the _initialized
-  // flag. We deliberately initialize both services here:
-  //
-  //   1. MobileNotificationService — handles flutter_local_notifications
-  //      runtime permission request (POST_NOTIFICATIONS).
-  //   2. ImagingForegroundService — handles flutter_foreground_task's own
-  //      permission checks, which it uses before startService() will run.
+  // Request POST_NOTIFICATIONS once before the connection screen. Both
+  // plugins read the same Android permission; asking again after a denial
+  // displays a second prompt. The notification service retains the decision
+  // for the banner; configure the foreground plugin without re-prompting.
   if (Platform.isAndroid || Platform.isIOS) {
     try {
       await MobileNotificationService().initialize();
-      developer.log('MobileNotificationService initialized', name: 'Main');
+      Log.debug('MobileNotificationService initialized', source: 'Main');
     } catch (e, st) {
-      developer.log(
+      Log.error(
         'Failed to initialize MobileNotificationService: $e',
-        name: 'Main',
-        level: 1000,
+        source: 'Main',
         error: e,
         stackTrace: st,
       );
@@ -162,20 +150,11 @@ void main() async {
     if (Platform.isAndroid) {
       try {
         await ImagingForegroundService().initialize();
-        // Ask the foreground-task plugin to confirm the notification
-        // permission too — its own check sits between us and startService.
-        // We deliberately ignore the result here: the local-notifications
-        // plugin call above is the authoritative one for our banner state,
-        // and re-prompting from this call (after the user has already
-        // answered the first prompt) is a no-op on every supported API
-        // level.
-        await ImagingForegroundService().requestNotificationPermission();
-        developer.log('ImagingForegroundService initialized', name: 'Main');
+        Log.debug('ImagingForegroundService initialized', source: 'Main');
       } catch (e, st) {
-        developer.log(
+        Log.error(
           'Failed to initialize ImagingForegroundService: $e',
-          name: 'Main',
-          level: 1000,
+          source: 'Main',
           error: e,
           stackTrace: st,
         );
@@ -183,13 +162,11 @@ void main() async {
     }
   }
 
-  // Add error handling
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    developer.log(
+    Log.error(
       'Flutter Error: ${details.exception}',
-      name: 'Main',
-      level: 1000,
+      source: 'Main',
       error: details.exception,
       stackTrace: details.stack,
     );
@@ -204,22 +181,8 @@ void main() async {
   runApp(
     ProviderScope(
       overrides: [
-        // appVersionProvider throws by default to surface misconfiguration;
-        // canonical override lives in the entry point. Single source of truth
-        // is version.yaml, which the build stamps into the package manifest.
-        appVersionProvider.overrideWithValue(appVersion),
-        pluginHostAppVersionOverride(appVersion.version),
-        // wire the plugin-node dispatcher so plugin
-        // sequence nodes route through the real PluginNodeExecutor.
-        pluginNodeDispatcherOverride(),
-        // surface plugin-contributed sequence nodes in the
-        // sequencer palette.
-        pluginNodePaletteBlueprintsOverride(),
-        // C4 — honour the user's persisted plugin enable/disable choices
-        // at registration time so a plugin disabled on the Integrations
-        // page stays disabled across launches instead of silently being
-        // re-enabled by the default all-enabled store.
-        pluginEnablementStoreOverride(),
+        ...appProviderOverrides(appVersion),
+        phoneBarStatusProvider.overrideWithValue(const PhoneBatteryIndicator()),
       ],
       child: const SkotiqMobileApp(),
     ),
@@ -315,8 +278,10 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(relayReconnectProvider.notifier).state = _reconnectSavedRelay;
+      ref.read(rigConnectProvider.notifier).state = connectToRig;
+      ref.read(openRigConnectProvider.notifier).state = (_) =>
+          _showConnectionScreen();
     });
-    // Automatically discover and connect on startup
     _autoConnect();
 
     // "Hey Siri, show the last Skotiq image": the voice lifecycle
@@ -335,13 +300,11 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
     if (ref.read(lastImageStatsProvider) == null) {
       final navContext = router.routerDelegate.navigatorKey.currentContext;
       if (navContext != null && navContext.mounted) {
-        ScaffoldMessenger.maybeOf(navContext)?.showSnackBar(
-          const SnackBar(content: Text('No captured image yet this session.')),
-        );
+        navContext.showInfoSnackBar('No captured image yet this session.');
       }
       return;
     }
-    router.go('/imaging');
+    router.go(AppRoute.imaging.path);
   }
 
   @override
@@ -379,9 +342,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       // build-time setState cycle flagged
       ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
         if (!mounted) return;
-        if (_connectedServer != null &&
-            next is DisconnectedBackend &&
-            !_skippedConnection) {
+        if (_connectedServer != null && next.hasNoHost && !_skippedConnection) {
           // Audit drop the checkpoint-once latch alongside the
           // backend swap. Otherwise a Settings-driven disconnect then
           // reconnect in the same app lifecycle would silently skip the
@@ -395,82 +356,36 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
           });
           return;
         }
-        // A rig switch from Saved Servers swaps in a fresh NetworkBackend
-        // without routing through _connectToServer, so re-arm the WS monitor
-        // on the new instance. Idempotent — it cancels any prior subscription
-        // first.
-        if (next is NetworkBackend && !identical(previous, next)) {
+      });
+      // The monitor follows the link, whoever made it. Idempotent — it
+      // cancels any prior subscription first. A backend listener would run
+      // before the link is rebuilt.
+      ref.listen<HostLink?>(linkedHostLinkProvider, (previous, next) {
+        if (!mounted) return;
+        if (next != null && !identical(previous, next)) {
           _startConnectionMonitor();
         }
       });
 
-      // If not connected and not skipped, show connection screen
       if (_connectedServer == null && !_skippedConnection) {
-        final settings = ref.watch(appSettingsProvider).valueOrNull;
-        final theme = resolveSkotiqThemeData(
-          themeSetting: settings?.theme ?? 'dark',
-          accentColorHex: settings?.accentColor,
-        );
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: systemUiOverlayStyleFor(theme),
-          child: MaterialApp(
-            navigatorKey: _connectionNavigatorKey,
-            title: 'Skotiq',
-            debugShowCheckedModeBanner: false,
-            theme: theme,
-            localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
-            supportedLocales: SkotiqLocalizations.supportedLocales,
-            // The connection screen IS the app's ready state while it is
-            // disconnected — pairing, discovery and manual connect all have
-            // to stay reachable, so the splash plays its draw over it once
-            // and lifts instead of holding a loading mark in front of
-            // interactive prompts.
-            home: SkotiqSplashGate(
-              ready: true,
-              child: Builder(builder: (context) => _buildConnectionScreen()),
-            ),
+        // The connection screen IS the app's ready state while it is
+        // disconnected — pairing, discovery and manual connect all have
+        // to stay reachable, so the splash plays its draw over it once
+        // and lifts instead of holding a loading mark in front of
+        // interactive prompts.
+        return _standaloneApp(
+          SkotiqSplashGate(
+            ready: true,
+            child: Builder(builder: (context) => _buildConnectionScreen()),
           ),
+          navigatorKey: _connectionNavigatorKey,
         );
       }
 
       // Full UI parity: phones and tablets both route through the shared
-      // GoRouter shell (`SkotiqApp(isMobile: true)`).
-      return Consumer(
+      // GoRouter shell (`SkotiqApp`).
+      final shell = Consumer(
         builder: (context, ref, _) {
-          // Activate location sync
-          ref.watch(locationSyncProvider);
-
-          // Mirror host rig state (profiles, connected devices, sequencer)
-          // when controlling a remote desktop via NetworkBackend.
-          ref.watch(remoteSessionSyncProvider);
-          ref.watch(sequenceLibrarySyncProvider);
-          ref.watch(remoteSequenceEditorSyncProvider);
-
-          // Initialize mobile sequence hooks for background operation support
-          ref.watch(mobileSequenceHooksProvider);
-
-          // Architecture-unification, Subsystem 3: eager-mount the
-          // NotificationRouter so the external transports (Discord, email,
-          // Telegram, Pushover, MQTT, webhook) configured on this device fire
-          // for routed events mirrored from the host over NetworkBackend —
-          // even when no sequence is running. Watching it here keeps its
-          // backend event-stream subscription alive for the lifetime of the
-          // connected companion shell.
-          ref.watch(notificationRouterProvider);
-
-          // wire the iOS Live Activity lifecycle controller. The
-          // controller installs its own ref.listen() bindings on construction;
-          // on non-iOS platforms it is a no-op so the watch is cheap.
-          ref.watch(liveActivityLifecycleProvider);
-
-          // wire the Apple Watch complication lifecycle
-          // controller. Same shape as the Live Activity one: on iOS it
-          // installs listeners that throttle sequence + weather state
-          // changes into App Group writes + `WidgetCenter` reloads at
-          // most once per 30 s; on non-iOS platforms the provider is a
-          // no-op so this watch costs nothing on Android/desktop.
-          ref.watch(watchComplicationLifecycleProvider);
-
           // Wire notification taps into go_router. The router
           // is created lazily by `appRouterProvider`; reading it here also
           // ensures it exists before a notification can fire.
@@ -487,15 +402,15 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
           // Check for checkpoint on first connection
           _checkForCheckpoint(context, ref);
 
-          return const SkotiqApp(isMobile: true);
+          return SkotiqApp(platformServices: mobilePlatformServices);
         },
       );
+      if (_connectedServer == null) return shell;
+      return FirstRunSetupGate(frame: _standaloneApp, child: shell);
     } catch (e, stackTrace) {
-      // Fallback UI if something goes wrong
-      developer.log(
+      Log.error(
         'Error building app: $e',
-        name: 'Main',
-        level: 1000,
+        source: 'Main',
         error: e,
         stackTrace: stackTrace,
       );
@@ -528,7 +443,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Error: $e',
+                    'Error: ${userFacingError(e)}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: SkotiqTypography.fontSize12,
@@ -557,15 +472,40 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
     }
   }
 
+  /// The themed app frame for what the phone shows outside the shell: the
+  /// connection screen and first-run setup.
+  Widget _standaloneApp(
+    Widget home, {
+    GlobalKey<NavigatorState>? navigatorKey,
+  }) {
+    final settings = ref.watch(appSettingsProvider).valueOrNull;
+    final theme = resolveSkotiqThemeData(
+      themeSetting: settings?.theme ?? 'dark',
+      accentColorHex: settings?.accentColor,
+    );
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemUiOverlayStyleFor(theme),
+      child: MaterialApp(
+        navigatorKey: navigatorKey,
+        title: 'Skotiq',
+        debugShowCheckedModeBanner: false,
+        theme: theme,
+        localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
+        supportedLocales: SkotiqLocalizations.supportedLocales,
+        builder: (context, child) =>
+            RedNightScreen(child: child ?? const SizedBox.shrink()),
+        home: home,
+      ),
+    );
+  }
+
   Widget _buildConnectionScreen() {
-    // Safe color access with fallback
     return Builder(
       builder: (context) {
         final l10n = context.l10n;
         final theme = Theme.of(context);
         final colors = theme.extension<SkotiqColors>();
 
-        // If colors extension not available, use default Material colors
         final bgColor = colors?.background ?? theme.scaffoldBackgroundColor;
         final surfaceColor = colors?.surface ?? theme.cardColor;
         final textColor =
@@ -738,7 +678,6 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   ),
                 ],
 
-                // Manual IP entry field
                 if (_showManualEntry) ...[
                   const SizedBox(height: 8),
                   TextField(

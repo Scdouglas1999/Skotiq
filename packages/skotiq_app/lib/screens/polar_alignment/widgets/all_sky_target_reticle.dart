@@ -28,7 +28,6 @@ const TextStyle _cardinalTextStyle = TextStyle(
   fontWeight: FontWeight.w600,
 );
 
-/// The outer-ring radius for a reticle painted at [size].
 double allSkyReticleRadius(Size size) =>
     (math.min(size.width, size.height) / 2) - _reticleInset;
 
@@ -292,24 +291,20 @@ class _ReticlePainter extends CustomPainter {
     final acceptanceRadius =
         maxRadius * (acceptanceThresholdArcsec / outerScaleArcsec);
 
-    // Outer ring
     final outerPaint = Paint()
       ..color = colors.border
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(center, maxRadius, outerPaint);
 
-    // Mid ring (50% scale)
     canvas.drawCircle(center, maxRadius * 0.5, outerPaint);
 
-    // Acceptance threshold ring — highlighted
     final acceptancePaint = Paint()
       ..color = colors.success.withValues(alpha: 0.7)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
     canvas.drawCircle(center, acceptanceRadius, acceptancePaint);
 
-    // Crosshair lines
     final crosshairPaint = Paint()
       ..color = colors.border
       ..style = PaintingStyle.stroke
@@ -391,7 +386,6 @@ class _ReticlePainter extends CustomPainter {
         ..strokeWidth = 2.0;
       canvas.drawLine(center, markerCenter, arrowPaint);
 
-      // Arrowhead
       final angle = math.atan2(clampedDy, clampedDx);
       const headSize = 8.0;
       final head1 = Offset(
@@ -406,7 +400,6 @@ class _ReticlePainter extends CustomPainter {
       canvas.drawLine(markerCenter, head2, arrowPaint);
     }
 
-    // Marker dot
     final markerPaint = Paint()
       ..color = withinThreshold ? colors.success : colors.error
       ..style = PaintingStyle.fill;
@@ -418,7 +411,6 @@ class _ReticlePainter extends CustomPainter {
       ..strokeWidth = 1.5;
     canvas.drawCircle(markerCenter, _markerRadius, markerOutline);
 
-    // Center bullseye
     final bullseyePaint = Paint()
       ..color = colors.primary
       ..style = PaintingStyle.fill;

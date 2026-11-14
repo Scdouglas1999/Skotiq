@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 class OverlayChip extends StatelessWidget {
   final IconData icon;

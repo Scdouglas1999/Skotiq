@@ -1,0 +1,1341 @@
+//! The operator's settings for runs, and the one path that changes them.
+//!
+//! [`RunConfig`] is every setting the app pushes. [`RunConfigStore`] holds the
+//! current value for the executor, the run's tasks and the trigger-run
+//! instructions, and [`RunConfigStore::apply`] is the only way it changes:
+//! diff against the current value, store, carry each changed section to the
+//! places that keep a copy derived from it, and announce each changed section
+//! once. An idle executor and a running one take the same path.
+//!
+//! Not settings, and not here: what one start consumes ([`RunStaging`]), what
+//! is read from the loaded sequence (the trigger autofocus tuning of its first
+//! Autofocus node, kept beside the config because the operator's tuning takes
+//! precedence over it), the live sky readings the app feeds in ([`SkyFeed`]),
+//! and the defect map, which the host loads from a file and hands over whole.
+
+use super::{ExecutorEvent, ObserverProfile, ParkPolicy, RunCell};
+use crate::instructions::{DeviceRetryHandle, DeviceRetryPolicy};
+use crate::node::context::{CloudMotionSnapshot, TransparencyBackupPlan};
+use crate::scheduling::{
+    AdaptiveExposureConfig, BudgetRegistry, BudgetRegistrySnapshot, ConditionsScore,
+};
+use crate::triggers::{TriggerManager, TriggerState};
+use crate::{AutofocusConfig, GuiderSettle, MeridianFlipConfig, SafetyFailMode, TriggerType};
+use parking_lot::RwLock as StdRwLock;
+use serde::{Deserialize, Serialize};
+use skotiq_imaging::{
+    frame_extension, ChecksumAlgorithm, FrameWriteOptions, ImageFormat, XisfCompression,
+    XisfWriteOptions,
+};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+/// Every operator setting a run reads. A field the app has not pushed keeps
+/// its default, so a partial value (or one written by an older app) loads.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RunConfig {
+    /// Dither size and settle for trigger-driven dithers and Dither nodes
+    /// that carry no values of their own.
+    pub dither: crate::DitherConfig,
+    /// The operator's autofocus tuning for trigger-fired refocus. `None`
+    /// leaves it to the sequence's first Autofocus node, then to library
+    /// defaults; see [`RunConfigStore::trigger_autofocus`].
+    pub autofocus: Option<AutofocusConfig>,
+    /// Cadence of the standard autofocus-interval trigger. `None` keeps the
+    /// trigger's own value.
+    pub autofocus_interval_frames: Option<u32>,
+    /// Observer location in degrees. `None` means not configured; (0, 0) is
+    /// how an unset site arrives and is stored as `None`.
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    /// Highest Sun altitude at which a light frame may be taken. Read it
+    /// through [`RunConfig::max_sun_altitude`], which resolves the default.
+    pub max_sun_altitude_degrees: Option<f64>,
+    /// Filter name -> focus offset in steps.
+    pub filter_focus_offsets: HashMap<String, i32>,
+    /// What missing safety data means.
+    pub safety_fail_mode: SafetyFailMode,
+    /// Cadence of safety and humidity device polls. `0` is the default
+    /// cadence.
+    pub safety_check_interval_secs: u64,
+    /// How long an unsafe verdict from the app may go without a refresh
+    /// before it counts as stale. `0` is the default window.
+    pub weather_verdict_staleness_secs: u64,
+    /// How long the sky must read safe before a weather hold ends. `None` is
+    /// [`super::DEFAULT_WEATHER_RESUME_AFTER_SAFE_SECS`].
+    pub weather_resume_after_safe_secs: Option<u64>,
+    /// Grading thresholds for exposures without their own. `None` turns
+    /// grading off for them.
+    pub default_quality_check: Option<crate::quality::ImageQualityCheck>,
+    /// Where rejected frames go. `None` is a `Reject/` folder beside the
+    /// frames.
+    pub reject_folder_path: Option<String>,
+    /// Observer and equipment names for the FITS header.
+    pub observer_profile: ObserverProfile,
+    /// Retry cadence and budget of the recovery ladder, and what a run that
+    /// gives up may do to the rig.
+    pub recovery: crate::recovery::RecoveryRuntimeConfig,
+    /// Sky-brightness adaptive exposure for exposures without their own.
+    pub default_adaptive_exposure: Option<AdaptiveExposureConfig>,
+    /// Whether the standard weather and dawn triggers may park.
+    pub park_policy: ParkPolicy,
+    /// Camera and filter-wheel retries.
+    pub device_retry: DeviceRetryPolicy,
+    /// The operator's meridian-flip settings for the standard flip trigger.
+    /// `None` leaves the trigger as it is.
+    pub meridian_flip: Option<MeridianFlipConfig>,
+    /// Whether a quality problem the software judges stops the run. Off by
+    /// default: only a risk to the hardware stops a run by itself.
+    pub stop_on_quality_problems: bool,
+    /// Whether decisions are written to the replay log.
+    pub decision_logging_enabled: bool,
+    /// What is saved for a frame from a camera that delivers its own file.
+    pub camera_file_saving: CameraFileSaving,
+    /// The file format captured frames are written in.
+    pub frame_format: FrameFormat,
+}
+
+/// What is saved for a frame from a camera that delivers its own file (a
+/// DSLR's or mirrorless body's raw file). A camera that delivers none (every
+/// astronomy camera) always gets the converted file.
+///
+/// Named on the wire as the app's setting stores it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum CameraFileSaving {
+    /// The app's own file (FITS or XISF).
+    #[default]
+    #[serde(rename = "converted")]
+    Converted,
+    /// The camera's file exactly as delivered, and nothing else.
+    #[serde(rename = "camera")]
+    CameraFile,
+    /// Both, side by side under one name.
+    #[serde(rename = "both")]
+    Both,
+}
+
+impl CameraFileSaving {
+    pub fn writes_converted(self) -> bool {
+        self != Self::CameraFile
+    }
+
+    pub fn writes_camera_file(self) -> bool {
+        self != Self::Converted
+    }
+}
+
+/// The archive format a captured frame is written in, by a run and by a
+/// manual capture alike.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FrameFormat {
+    pub format: ArchiveFormat,
+    /// Named as the XISF `compression` attribute names it (`zstd+sh`, `lz4`),
+    /// `none` for none.
+    #[serde(with = "xisf_compression_name")]
+    pub xisf_compression: Option<XisfCompression>,
+    /// Write an SHA-1 checksum for each XISF data block.
+    pub xisf_checksums: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum ArchiveFormat {
+    #[default]
+    #[serde(rename = "FITS")]
+    Fits,
+    #[serde(rename = "XISF")]
+    Xisf,
+}
+
+impl FrameFormat {
+    pub fn image_format(&self) -> ImageFormat {
+        match self.format {
+            ArchiveFormat::Fits => ImageFormat::Fits,
+            ArchiveFormat::Xisf => ImageFormat::Xisf,
+        }
+    }
+
+    /// The extension, without the dot, a frame is saved under.
+    pub fn extension(&self) -> &'static str {
+        frame_extension(self.image_format())
+    }
+
+    pub fn write_options(&self) -> FrameWriteOptions {
+        FrameWriteOptions {
+            xisf: XisfWriteOptions {
+                compression: self.xisf_compression,
+                checksum: self.xisf_checksums.then_some(ChecksumAlgorithm::Sha1),
+                thumbnail: true,
+            },
+        }
+    }
+}
+
+mod xisf_compression_name {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use skotiq_imaging::XisfCompression;
+
+    pub fn serialize<S: Serializer>(
+        value: &Option<XisfCompression>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        match value {
+            None => serializer.serialize_str("none"),
+            Some(compression) => serializer.serialize_str(&format!(
+                "{}{}",
+                compression.codec.name(),
+                if compression.shuffle { "+sh" } else { "" }
+            )),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<XisfCompression>, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        XisfCompression::from_name(&name).map_err(serde::de::Error::custom)
+    }
+}
+
+impl Default for RunConfig {
+    fn default() -> Self {
+        Self {
+            dither: crate::DitherConfig::default(),
+            autofocus: None,
+            autofocus_interval_frames: None,
+            latitude: None,
+            longitude: None,
+            max_sun_altitude_degrees: None,
+            filter_focus_offsets: HashMap::new(),
+            safety_fail_mode: SafetyFailMode::default(),
+            safety_check_interval_secs: 0,
+            weather_verdict_staleness_secs: 0,
+            weather_resume_after_safe_secs: None,
+            default_quality_check: None,
+            reject_folder_path: None,
+            observer_profile: ObserverProfile::default(),
+            recovery: crate::recovery::RecoveryRuntimeConfig::default(),
+            default_adaptive_exposure: None,
+            park_policy: ParkPolicy::default(),
+            device_retry: DeviceRetryPolicy::default(),
+            meridian_flip: None,
+            stop_on_quality_problems: false,
+            decision_logging_enabled: true,
+            camera_file_saving: CameraFileSaving::default(),
+            frame_format: FrameFormat::default(),
+        }
+    }
+}
+
+impl RunConfig {
+    /// The daylight gate's limit: the pushed value, or nautical darkness
+    /// when nothing usable was pushed, so the native gate is never weaker
+    /// than the app's gate it backstops.
+    pub fn max_sun_altitude(&self) -> f64 {
+        match self.max_sun_altitude_degrees {
+            Some(degrees) if degrees.is_finite() => degrees,
+            _ => crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES,
+        }
+    }
+
+    /// Why the operator's settings cannot be run with, or `Ok` when they
+    /// can. Each rule refuses a value that would silently turn a protection
+    /// off or make a run refuse to retry.
+    pub fn validate(&self) -> Result<(), String> {
+        let mut problems = Vec::new();
+        if self.autofocus_interval_frames == Some(0) {
+            problems.push(
+                "the autofocus interval must be at least 1 frame; turn the autofocus-interval \
+                 trigger off in the trigger list to stop periodic refocus"
+                    .to_string(),
+            );
+        }
+        if self.safety_check_interval_secs != 0
+            && !(5..=3600).contains(&self.safety_check_interval_secs)
+        {
+            problems.push(format!(
+                "the safety check interval must be 5 to 3600 seconds (was {})",
+                self.safety_check_interval_secs
+            ));
+        }
+        if let Some(flip) = &self.meridian_flip {
+            if flip.max_retries > 0 && flip.retry_delays_secs.is_empty() {
+                problems.push(
+                    "the meridian flip allows retries but gives no retry delays, so it would \
+                     refuse to retry"
+                        .to_string(),
+                );
+            }
+        }
+        let max = crate::instructions::MAX_DEVICE_RETRIES;
+        if self.device_retry.camera_retries > max || self.device_retry.filter_wheel_retries > max {
+            problems.push(format!(
+                "retry counts must be 0 to {max} (camera {}, filter wheel {})",
+                self.device_retry.camera_retries, self.device_retry.filter_wheel_retries
+            ));
+        }
+        if self.recovery.retry_interval_secs.is_nan() || self.recovery.retry_interval_secs <= 0.0 {
+            problems.push(format!(
+                "the recovery retry interval must be more than 0 s (was {})",
+                self.recovery.retry_interval_secs
+            ));
+        }
+        if self.recovery.max_duration_secs.is_nan() || self.recovery.max_duration_secs <= 0.0 {
+            problems.push(format!(
+                "the recovery duration must be more than 0 s (was {})",
+                self.recovery.max_duration_secs
+            ));
+        }
+        if problems.is_empty() {
+            Ok(())
+        } else {
+            Err(format!(
+                "Sequencer settings refused: {}.",
+                problems.join("; ")
+            ))
+        }
+    }
+
+    /// The value as it is stored: an unset site as `None`, the safety poll
+    /// cadence and the retry counts inside their limits, blank names and
+    /// folders as unset, and a star-count floor arming the star-count drop
+    /// check (both grade the same count, and the drop scales to the field).
+    fn sanitized(mut self) -> Self {
+        (self.latitude, self.longitude) =
+            crate::node::context::normalized_observer_location(self.latitude, self.longitude);
+        if self.safety_check_interval_secs != 0 {
+            self.safety_check_interval_secs =
+                super::effective_safety_check_interval_secs(self.safety_check_interval_secs);
+        }
+        self.device_retry = self.device_retry.clamped();
+        self.reject_folder_path = non_blank(self.reject_folder_path);
+        let profile = &mut self.observer_profile;
+        for name in [
+            &mut profile.observer_name,
+            &mut profile.camera_make,
+            &mut profile.camera_model,
+            &mut profile.telescope_name,
+        ] {
+            *name = non_blank(name.take());
+        }
+        if let Some(check) = &mut self.default_quality_check {
+            if check.star_count_min.is_some() && check.star_count_drop_percent.is_none() {
+                check.star_count_drop_percent =
+                    Some(crate::quality::DEFAULT_STAR_COUNT_DROP_PERCENT);
+            }
+        }
+        self
+    }
+}
+
+fn non_blank(value: Option<String>) -> Option<String> {
+    value
+        .map(|text| text.trim().to_string())
+        .filter(|text| !text.is_empty())
+}
+
+/// A part of [`RunConfig`] that changes, is carried to its derived copies and
+/// is announced as one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Section {
+    Dither,
+    Autofocus,
+    AutofocusInterval,
+    Location,
+    MaxSunAltitude,
+    FilterOffsets,
+    SafetyFailMode,
+    SafetyCheckInterval,
+    WeatherVerdictStaleness,
+    WeatherResumeAfterSafe,
+    DefaultQualityCheck,
+    RejectFolderPath,
+    ObserverProfile,
+    Recovery,
+    DefaultAdaptiveExposure,
+    ParkPolicy,
+    DeviceRetries,
+    MeridianFlip,
+    StopOnQualityProblems,
+    DecisionLogging,
+    CameraFileSaving,
+    FrameFormat,
+}
+
+impl Section {
+    const ALL: [Section; 22] = [
+        Section::Dither,
+        Section::Autofocus,
+        Section::AutofocusInterval,
+        Section::Location,
+        Section::MaxSunAltitude,
+        Section::FilterOffsets,
+        Section::SafetyFailMode,
+        Section::SafetyCheckInterval,
+        Section::WeatherVerdictStaleness,
+        Section::WeatherResumeAfterSafe,
+        Section::DefaultQualityCheck,
+        Section::RejectFolderPath,
+        Section::ObserverProfile,
+        Section::Recovery,
+        Section::DefaultAdaptiveExposure,
+        Section::ParkPolicy,
+        Section::DeviceRetries,
+        Section::MeridianFlip,
+        Section::StopOnQualityProblems,
+        Section::DecisionLogging,
+        Section::CameraFileSaving,
+        Section::FrameFormat,
+    ];
+
+    /// The name the change is announced under in
+    /// [`ExecutorEvent::RuntimeConfigUpdated`].
+    pub(crate) fn what(self) -> &'static str {
+        match self {
+            Section::Dither => "dither",
+            Section::Autofocus => "autofocus",
+            Section::AutofocusInterval => "autofocus_interval",
+            Section::Location => "location",
+            Section::MaxSunAltitude => "max_sun_altitude",
+            Section::FilterOffsets => "filter_offsets",
+            Section::SafetyFailMode => "safety_fail_mode",
+            Section::SafetyCheckInterval => "safety_check_interval",
+            Section::WeatherVerdictStaleness => "weather_verdict_staleness",
+            Section::WeatherResumeAfterSafe => "weather_resume_after_safe",
+            Section::DefaultQualityCheck => "default_quality_check",
+            Section::RejectFolderPath => "reject_folder_path",
+            Section::ObserverProfile => "observer_profile",
+            Section::Recovery => "recovery_config",
+            Section::DefaultAdaptiveExposure => "default_adaptive_exposure",
+            Section::ParkPolicy => "park_policy",
+            Section::DeviceRetries => "device_retries",
+            Section::MeridianFlip => "meridian_flip_config",
+            Section::StopOnQualityProblems => "stop_on_quality_problems",
+            Section::DecisionLogging => "decision_logging",
+            Section::CameraFileSaving => "camera_file_saving",
+            Section::FrameFormat => "frame_format",
+        }
+    }
+}
+
+/// The sections in which `new` differs from `old`.
+fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
+    // Destructured so a new field cannot be added without naming its section.
+    let RunConfig {
+        dither,
+        autofocus,
+        autofocus_interval_frames,
+        latitude,
+        longitude,
+        max_sun_altitude_degrees,
+        filter_focus_offsets,
+        safety_fail_mode,
+        safety_check_interval_secs,
+        weather_verdict_staleness_secs,
+        weather_resume_after_safe_secs,
+        default_quality_check,
+        reject_folder_path,
+        observer_profile,
+        recovery,
+        default_adaptive_exposure,
+        park_policy,
+        device_retry,
+        meridian_flip,
+        stop_on_quality_problems,
+        decision_logging_enabled,
+        camera_file_saving,
+        frame_format,
+    } = new;
+    [
+        (Section::Dither, *dither != old.dither),
+        (Section::Autofocus, *autofocus != old.autofocus),
+        (
+            Section::AutofocusInterval,
+            *autofocus_interval_frames != old.autofocus_interval_frames,
+        ),
+        (
+            Section::Location,
+            *latitude != old.latitude || *longitude != old.longitude,
+        ),
+        (
+            Section::MaxSunAltitude,
+            *max_sun_altitude_degrees != old.max_sun_altitude_degrees,
+        ),
+        (
+            Section::FilterOffsets,
+            *filter_focus_offsets != old.filter_focus_offsets,
+        ),
+        (
+            Section::SafetyFailMode,
+            *safety_fail_mode != old.safety_fail_mode,
+        ),
+        (
+            Section::SafetyCheckInterval,
+            *safety_check_interval_secs != old.safety_check_interval_secs,
+        ),
+        (
+            Section::WeatherVerdictStaleness,
+            *weather_verdict_staleness_secs != old.weather_verdict_staleness_secs,
+        ),
+        (
+            Section::WeatherResumeAfterSafe,
+            *weather_resume_after_safe_secs != old.weather_resume_after_safe_secs,
+        ),
+        (
+            Section::DefaultQualityCheck,
+            *default_quality_check != old.default_quality_check,
+        ),
+        (
+            Section::RejectFolderPath,
+            *reject_folder_path != old.reject_folder_path,
+        ),
+        (
+            Section::ObserverProfile,
+            *observer_profile != old.observer_profile,
+        ),
+        (Section::Recovery, *recovery != old.recovery),
+        (
+            Section::DefaultAdaptiveExposure,
+            *default_adaptive_exposure != old.default_adaptive_exposure,
+        ),
+        (Section::ParkPolicy, *park_policy != old.park_policy),
+        (Section::DeviceRetries, *device_retry != old.device_retry),
+        (Section::MeridianFlip, *meridian_flip != old.meridian_flip),
+        (
+            Section::StopOnQualityProblems,
+            *stop_on_quality_problems != old.stop_on_quality_problems,
+        ),
+        (
+            Section::DecisionLogging,
+            *decision_logging_enabled != old.decision_logging_enabled,
+        ),
+        (
+            Section::CameraFileSaving,
+            *camera_file_saving != old.camera_file_saving,
+        ),
+        (Section::FrameFormat, *frame_format != old.frame_format),
+    ]
+    .into_iter()
+    .filter_map(|(section, changed)| changed.then_some(section))
+    .collect()
+}
+
+/// When a projection runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Projection {
+    /// A run is starting on trigger state that was just reset.
+    Start,
+    /// The operator changed a setting.
+    Change,
+}
+
+/// Copies of settings that the node tree's contexts hold as shared handles.
+/// A run's context takes clones of these, so a change reaches a running
+/// sequence without the context being rebuilt.
+#[derive(Clone)]
+pub(crate) struct ConfigSlots {
+    pub device_retry: DeviceRetryHandle,
+    pub safety_fail_mode: Arc<StdRwLock<SafetyFailMode>>,
+    pub default_adaptive_exposure: Arc<RwLock<Option<AdaptiveExposureConfig>>>,
+    pub decision_logging_enabled: Arc<AtomicBool>,
+}
+
+/// The current [`RunConfig`], shared by the executor, the run's tasks and
+/// the trigger-run instructions.
+#[derive(Clone)]
+pub struct RunConfigStore {
+    inner: Arc<StoreInner>,
+}
+
+struct StoreInner {
+    config: StdRwLock<RunConfig>,
+    /// Autofocus tuning of the loaded sequence's first Autofocus node, read
+    /// at each start.
+    sequence_autofocus: StdRwLock<Option<AutofocusConfig>>,
+    slots: ConfigSlots,
+    /// Held across read-modify-apply so two setters cannot lose each
+    /// other's change.
+    applying: tokio::sync::Mutex<()>,
+}
+
+impl Default for RunConfigStore {
+    fn default() -> Self {
+        Self::new(RunConfig::default())
+    }
+}
+
+impl RunConfigStore {
+    pub fn new(config: RunConfig) -> Self {
+        let config = config.sanitized();
+        let slots = ConfigSlots {
+            device_retry: DeviceRetryHandle::new(config.device_retry),
+            safety_fail_mode: Arc::new(StdRwLock::new(config.safety_fail_mode)),
+            default_adaptive_exposure: Arc::new(RwLock::new(
+                config.default_adaptive_exposure.clone(),
+            )),
+            decision_logging_enabled: Arc::new(AtomicBool::new(config.decision_logging_enabled)),
+        };
+        Self {
+            inner: Arc::new(StoreInner {
+                config: StdRwLock::new(config),
+                sequence_autofocus: StdRwLock::new(None),
+                slots,
+                applying: tokio::sync::Mutex::new(()),
+            }),
+        }
+    }
+
+    /// The current settings. Hold the guard for a field read, not across an
+    /// await.
+    pub fn read(&self) -> parking_lot::RwLockReadGuard<'_, RunConfig> {
+        self.inner.config.read()
+    }
+
+    pub fn snapshot(&self) -> RunConfig {
+        self.inner.config.read().clone()
+    }
+
+    pub(crate) fn slots(&self) -> &ConfigSlots {
+        &self.inner.slots
+    }
+
+    /// The tuning a trigger-fired autofocus uses: the operator's settings
+    /// when the app pushed them, else the loaded sequence's first Autofocus
+    /// node, else `None` (library defaults).
+    pub(crate) fn trigger_autofocus(&self) -> Option<AutofocusConfig> {
+        self.inner
+            .config
+            .read()
+            .autofocus
+            .clone()
+            .or_else(|| self.inner.sequence_autofocus.read().clone())
+    }
+
+    /// Record the starting sequence's own autofocus tuning.
+    pub(crate) fn set_sequence_autofocus(&self, config: Option<AutofocusConfig>) {
+        *self.inner.sequence_autofocus.write() = config;
+    }
+
+    /// Make `new` the settings: store it, carry each changed section to its
+    /// derived copies and announce each changed section once. A value equal
+    /// to the current one does nothing; one that fails
+    /// [`RunConfig::validate`] changes nothing and says why.
+    ///
+    /// A value with no site keeps the site the store holds: the app sends
+    /// none when the operator has not configured one, and a resumed run's
+    /// site from its checkpoint must survive that.
+    pub(crate) async fn apply(
+        &self,
+        new: RunConfig,
+        triggers: &Arc<RwLock<TriggerManager>>,
+        run: &RunCell,
+    ) -> Result<(), String> {
+        let _applying = self.inner.applying.lock().await;
+        self.apply_locked(new, triggers, run).await
+    }
+
+    /// Change the settings in place; see [`Self::apply`].
+    pub(crate) async fn update(
+        &self,
+        triggers: &Arc<RwLock<TriggerManager>>,
+        run: &RunCell,
+        edit: impl FnOnce(&mut RunConfig),
+    ) -> Result<(), String> {
+        let _applying = self.inner.applying.lock().await;
+        let mut new = self.snapshot();
+        edit(&mut new);
+        self.apply_locked(new, triggers, run).await
+    }
+
+    async fn apply_locked(
+        &self,
+        new: RunConfig,
+        triggers: &Arc<RwLock<TriggerManager>>,
+        run: &RunCell,
+    ) -> Result<(), String> {
+        new.validate()?;
+        let mut new = new.sanitized();
+        let changed = {
+            let current = self.inner.config.read();
+            if new.latitude.is_none() && new.longitude.is_none() {
+                new.latitude = current.latitude;
+                new.longitude = current.longitude;
+            }
+            changed_sections(&current, &new)
+        };
+        if changed.is_empty() {
+            return Ok(());
+        }
+        *self.inner.config.write() = new.clone();
+        self.project_slots(&new, &changed).await;
+        {
+            let mut manager = triggers.write().await;
+            project_onto_triggers(&mut manager, &new, &changed, Projection::Change).await;
+        }
+        for section in changed {
+            tracing::info!("Run setting changed: {}", section.what());
+            run.emit(ExecutorEvent::RuntimeConfigUpdated {
+                what: section.what().to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Carry every setting onto the trigger state and triggers of a run that
+    /// is starting. Nothing is announced: nothing changed.
+    pub(crate) async fn project_at_start(&self, manager: &mut TriggerManager) {
+        let config = self.snapshot();
+        project_onto_triggers(manager, &config, &Section::ALL, Projection::Start).await;
+    }
+
+    async fn project_slots(&self, config: &RunConfig, sections: &[Section]) {
+        let slots = &self.inner.slots;
+        for section in sections {
+            match section {
+                Section::DeviceRetries => slots.device_retry.set(config.device_retry),
+                Section::SafetyFailMode => {
+                    *slots.safety_fail_mode.write() = config.safety_fail_mode
+                }
+                Section::DefaultAdaptiveExposure => {
+                    *slots.default_adaptive_exposure.write().await =
+                        config.default_adaptive_exposure.clone()
+                }
+                Section::DecisionLogging => slots
+                    .decision_logging_enabled
+                    .store(config.decision_logging_enabled, Ordering::Relaxed),
+                _ => {}
+            }
+        }
+    }
+}
+
+/// Carry `sections` of `config` onto the standard triggers and the trigger
+/// state.
+async fn project_onto_triggers(
+    manager: &mut TriggerManager,
+    config: &RunConfig,
+    sections: &[Section],
+    projection: Projection,
+) {
+    if sections.contains(&Section::AutofocusInterval) {
+        if let Some(every_n_frames) = config.autofocus_interval_frames {
+            if let Some(trigger) =
+                manager.standard_mut(crate::triggers::StandardTrigger::AutofocusInterval)
+            {
+                if let TriggerType::AutofocusInterval {
+                    every_n_frames: live,
+                } = &mut trigger.trigger_type
+                {
+                    *live = every_n_frames;
+                }
+            }
+        }
+    }
+    // A start leaves the flip trigger as it stands: the trigger has held the
+    // operator's settings since they were pushed.
+    if projection == Projection::Change && sections.contains(&Section::MeridianFlip) {
+        if let Some(flip) = &config.meridian_flip {
+            if !manager.set_meridian_flip_config(flip.clone()) {
+                tracing::warn!(
+                    "Meridian-flip settings could not be applied: no 'meridian_flip' trigger \
+                     is registered. The flip would run on Rust defaults."
+                );
+            }
+        }
+    }
+    let trigger_flip_settle = manager.meridian_flip_config().map(GuiderSettle::from);
+    let state = manager.state();
+    let mut state = state.write().await;
+    project_onto_trigger_state(
+        &mut state,
+        config,
+        sections,
+        projection,
+        trigger_flip_settle,
+    );
+}
+
+/// The one writer of the operator settings that `TriggerState` carries for
+/// the trigger monitor and the instructions.
+fn project_onto_trigger_state(
+    state: &mut TriggerState,
+    config: &RunConfig,
+    sections: &[Section],
+    projection: Projection,
+    trigger_flip_settle: Option<GuiderSettle>,
+) {
+    for section in sections {
+        match section {
+            Section::Dither => state.settings.dither_settle = GuiderSettle::from(&config.dither),
+            Section::Location => {
+                // A start with no site configured keeps the site the trigger
+                // state holds (a resumed run's, restored from its checkpoint).
+                if config.latitude.is_some() && config.longitude.is_some() {
+                    state.set_observer_location(config.latitude, config.longitude);
+                }
+            }
+            Section::MaxSunAltitude => {
+                state.set_max_sun_altitude_degrees(config.max_sun_altitude())
+            }
+            Section::SafetyFailMode => state.settings.safety_fail_mode = config.safety_fail_mode,
+            Section::StopOnQualityProblems => {
+                state.settings.stop_on_quality_problems = config.stop_on_quality_problems
+            }
+            Section::MeridianFlip => match projection {
+                Projection::Start => state.settings.guiding_settle = trigger_flip_settle,
+                Projection::Change => {
+                    if let Some(flip) = &config.meridian_flip {
+                        state.settings.guiding_settle = Some(GuiderSettle::from(flip));
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
+}
+
+/// What the next start consumes and no later one sees.
+#[derive(Debug, Default)]
+pub(crate) struct RunStaging {
+    /// The operator's Resume / Restart choice from the session-handoff
+    /// dialog: `target_id` -> `filter` -> seconds already captured. Resume
+    /// carries the earlier totals, Restart an empty map for the target, and
+    /// a target with no entry keeps what the run would otherwise start with.
+    pub integration_carry_over: HashMap<String, HashMap<String, f64>>,
+}
+
+impl RunStaging {
+    /// Give the starting run its per-target integration accounting.
+    ///
+    /// The checkpoint's accounting goes in first and the operator's choice
+    /// on top of it, target by target. `restore_snapshot` replaces the whole
+    /// registry, so the other order would discard the operator's choice on
+    /// every checkpoint resume.
+    pub(crate) async fn seed_budget(
+        self,
+        registry: &BudgetRegistry,
+        checkpoint: Option<BudgetRegistrySnapshot>,
+    ) {
+        if let Some(snapshot) = checkpoint {
+            registry.restore_snapshot(snapshot).await;
+        }
+        for (target_id, per_filter) in self.integration_carry_over {
+            tracing::info!(
+                "Seeding integration carry-over for target_id={} ({} filter entries)",
+                target_id,
+                per_filter.len()
+            );
+            registry.seed_carry_over(&target_id, per_filter).await;
+        }
+    }
+}
+
+/// Live sky readings the app pushes: a feed, not settings. Each setter
+/// writes its slot directly; a run's context takes clones of the slots.
+#[derive(Clone)]
+pub(crate) struct SkyFeed {
+    pub sky_brightness_mag: Arc<RwLock<Option<f64>>>,
+    pub cloud_motion: Arc<RwLock<CloudMotionSnapshot>>,
+    pub transparency: Arc<RwLock<Option<f64>>>,
+    pub transparency_backup: Arc<RwLock<Option<TransparencyBackupPlan>>>,
+    pub conditions_score: Arc<RwLock<Option<ConditionsScore>>>,
+}
+
+impl SkyFeed {
+    pub(crate) fn new() -> Self {
+        Self {
+            sky_brightness_mag: Arc::new(RwLock::new(None)),
+            cloud_motion: Arc::new(RwLock::new(CloudMotionSnapshot::default())),
+            transparency: Arc::new(RwLock::new(None)),
+            transparency_backup: Arc::new(RwLock::new(None)),
+            conditions_score: Arc::new(RwLock::new(None)),
+        }
+    }
+
+    /// A run starts without the readings taken for the run before it. The
+    /// conditions score and the backup plan carry over.
+    pub(crate) async fn begin_run(&self) {
+        *self.sky_brightness_mag.write().await = None;
+        *self.cloud_motion.write().await = CloudMotionSnapshot::default();
+        *self.transparency.write().await = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::sync::broadcast;
+
+    struct Rig {
+        store: RunConfigStore,
+        triggers: Arc<RwLock<TriggerManager>>,
+        run: RunCell,
+        events: broadcast::Receiver<ExecutorEvent>,
+    }
+
+    fn rig() -> Rig {
+        let (tx, events) = broadcast::channel(64);
+        let mut manager = TriggerManager::new();
+        manager.create_standard_triggers();
+        Rig {
+            store: RunConfigStore::default(),
+            triggers: Arc::new(RwLock::new(manager)),
+            run: RunCell::new(tx),
+            events,
+        }
+    }
+
+    impl Rig {
+        async fn update(&self, edit: impl FnOnce(&mut RunConfig)) {
+            self.store
+                .update(&self.triggers, &self.run, edit)
+                .await
+                .expect("the settings apply");
+        }
+
+        fn announced(&mut self) -> Vec<String> {
+            let mut out = Vec::new();
+            while let Ok(event) = self.events.try_recv() {
+                if let ExecutorEvent::RuntimeConfigUpdated { what } = event {
+                    out.push(what);
+                }
+            }
+            out
+        }
+
+        async fn trigger_state<R>(&self, read: impl FnOnce(&TriggerState) -> R) -> R {
+            let state = self.triggers.read().await.state();
+            let state = state.read().await;
+            read(&state)
+        }
+    }
+
+    #[tokio::test]
+    async fn a_change_is_announced_once_and_an_equal_value_not_at_all() {
+        let mut rig = rig();
+        rig.update(|config| config.dither.pixels = 7.5).await;
+        assert_eq!(rig.announced(), vec!["dither"]);
+
+        rig.update(|config| config.dither.pixels = 7.5).await;
+        assert!(rig.announced().is_empty());
+    }
+
+    #[tokio::test]
+    async fn one_apply_announces_each_changed_section() {
+        let mut rig = rig();
+        let mut config = rig.store.snapshot();
+        config.latitude = Some(41.5);
+        config.longitude = Some(-71.25);
+        config.park_policy.park_before_dawn = false;
+        rig.store
+            .apply(config, &rig.triggers, &rig.run)
+            .await
+            .expect("the settings apply");
+
+        assert_eq!(rig.announced(), vec!["location", "park_policy"]);
+    }
+
+    #[tokio::test]
+    async fn the_max_sun_altitude_default_is_resolved_in_one_place() {
+        let rig = rig();
+        for unusable in [None, Some(f64::NAN), Some(f64::INFINITY)] {
+            let config = RunConfig {
+                max_sun_altitude_degrees: unusable,
+                ..RunConfig::default()
+            };
+            assert_eq!(
+                config.max_sun_altitude(),
+                crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES
+            );
+        }
+
+        rig.update(|config| config.max_sun_altitude_degrees = Some(-6.0))
+            .await;
+        assert_eq!(rig.store.read().max_sun_altitude(), -6.0);
+        assert_eq!(
+            rig.trigger_state(|state| state.settings.max_sun_altitude_degrees)
+                .await,
+            Some(-6.0)
+        );
+
+        rig.update(|config| config.max_sun_altitude_degrees = None)
+            .await;
+        assert_eq!(
+            rig.trigger_state(|state| state.settings.max_sun_altitude_degrees)
+                .await,
+            Some(crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES)
+        );
+    }
+
+    #[tokio::test]
+    async fn settings_reach_the_trigger_state_and_the_context_slots() {
+        let rig = rig();
+        rig.update(|config| {
+            config.dither.settle_pixels = 0.5;
+            config.dither.settle_time = 8.0;
+            config.dither.settle_timeout = 60.0;
+            config.stop_on_quality_problems = true;
+            config.safety_fail_mode = SafetyFailMode::WarnOnly;
+            config.device_retry = DeviceRetryPolicy {
+                camera_retries: 1,
+                filter_wheel_retries: 7,
+            };
+            config.decision_logging_enabled = false;
+            config.autofocus_interval_frames = Some(40);
+        })
+        .await;
+
+        let (settle, stops, fail_mode) = rig
+            .trigger_state(|state| {
+                (
+                    state.settings.dither_settle,
+                    state.settings.stop_on_quality_problems,
+                    state.settings.safety_fail_mode,
+                )
+            })
+            .await;
+        assert_eq!(
+            settle,
+            GuiderSettle {
+                pixels: 0.5,
+                time_secs: 8.0,
+                timeout_secs: 60.0
+            }
+        );
+        assert!(stops);
+        assert_eq!(fail_mode, SafetyFailMode::WarnOnly);
+
+        let slots = rig.store.slots();
+        assert_eq!(*slots.safety_fail_mode.read(), SafetyFailMode::WarnOnly);
+        assert_eq!(
+            slots.device_retry.get(),
+            DeviceRetryPolicy {
+                camera_retries: 1,
+                filter_wheel_retries: 7,
+            }
+        );
+        assert!(!slots.decision_logging_enabled.load(Ordering::Relaxed));
+
+        let manager = rig.triggers.read().await;
+        let interval = manager
+            .triggers()
+            .iter()
+            .find(|trigger| trigger.id == "autofocus_interval")
+            .map(|trigger| trigger.trigger_type.clone());
+        assert!(matches!(
+            interval,
+            Some(TriggerType::AutofocusInterval { every_n_frames: 40 })
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_start_keeps_the_trigger_states_site_when_none_is_configured() {
+        let rig = rig();
+        {
+            let mut manager = rig.triggers.write().await;
+            manager
+                .state()
+                .write()
+                .await
+                .set_observer_location(Some(45.5), Some(-122.6));
+            rig.store.project_at_start(&mut manager).await;
+        }
+        assert_eq!(
+            rig.trigger_state(|state| (
+                state.settings.observer_latitude,
+                state.settings.observer_longitude
+            ))
+            .await,
+            (Some(45.5), Some(-122.6))
+        );
+
+        // The app sends no site when none is configured; the site the
+        // executor holds stays.
+        rig.update(|config| {
+            config.latitude = Some(10.0);
+            config.longitude = Some(20.0);
+        })
+        .await;
+        rig.update(|config| {
+            config.latitude = None;
+            config.longitude = None;
+        })
+        .await;
+        assert_eq!(
+            (rig.store.read().latitude, rig.store.read().longitude),
+            (Some(10.0), Some(20.0))
+        );
+        assert_eq!(
+            rig.trigger_state(|state| (
+                state.settings.observer_latitude,
+                state.settings.observer_longitude
+            ))
+            .await,
+            (Some(10.0), Some(20.0))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_config_that_fails_validation_changes_nothing() {
+        let mut rig = rig();
+        let mut config = rig.store.snapshot();
+        config.dither.pixels = 9.0;
+        config.autofocus_interval_frames = Some(0);
+        config.recovery.retry_interval_secs = 0.0;
+        let refused = rig
+            .store
+            .apply(config, &rig.triggers, &rig.run)
+            .await
+            .expect_err("an interval of 0 frames and a 0 s retry are refused");
+        assert!(refused.contains("autofocus interval"), "{refused}");
+        assert!(refused.contains("recovery retry interval"), "{refused}");
+        assert_eq!(rig.store.snapshot(), RunConfig::default());
+        assert!(rig.announced().is_empty());
+
+        for config in [
+            RunConfig {
+                safety_check_interval_secs: 4,
+                ..RunConfig::default()
+            },
+            RunConfig {
+                device_retry: DeviceRetryPolicy {
+                    camera_retries: crate::instructions::MAX_DEVICE_RETRIES + 1,
+                    filter_wheel_retries: 0,
+                },
+                ..RunConfig::default()
+            },
+            RunConfig {
+                meridian_flip: Some(MeridianFlipConfig {
+                    max_retries: 2,
+                    retry_delays_secs: Vec::new(),
+                    ..MeridianFlipConfig::default()
+                }),
+                ..RunConfig::default()
+            },
+        ] {
+            assert!(config.validate().is_err(), "{config:?}");
+        }
+        assert_eq!(RunConfig::default().validate(), Ok(()));
+    }
+
+    #[tokio::test]
+    async fn blank_names_are_unset_and_a_star_floor_arms_the_drop_check() {
+        let rig = rig();
+        rig.update(|config| {
+            config.reject_folder_path = Some("   ".to_string());
+            config.observer_profile.observer_name = Some("  Ada  ".to_string());
+            config.observer_profile.telescope_name = Some(String::new());
+            config.default_quality_check = Some(crate::quality::ImageQualityCheck {
+                hfr_threshold: None,
+                hfr_baseline_percent: None,
+                eccentricity_threshold: None,
+                star_count_min: Some(20),
+                star_count_drop_percent: None,
+                max_consecutive_rejects: 3,
+            });
+        })
+        .await;
+        let config = rig.store.snapshot();
+        assert_eq!(config.reject_folder_path, None);
+        assert_eq!(
+            config.observer_profile.observer_name.as_deref(),
+            Some("Ada")
+        );
+        assert_eq!(config.observer_profile.telescope_name, None);
+        assert_eq!(
+            config
+                .default_quality_check
+                .and_then(|check| check.star_count_drop_percent),
+            Some(crate::quality::DEFAULT_STAR_COUNT_DROP_PERCENT)
+        );
+    }
+
+    /// The app builds the config it sends from its settings
+    /// (`RunConfigSync.build`); its test writes what default settings make to
+    /// this file. Every key there must be a field here: a misspelled key would
+    /// load as the field's default without a word.
+    #[test]
+    fn every_key_the_app_sends_is_a_setting_the_executor_reads() {
+        fn key_paths(value: &serde_json::Value, prefix: &str, out: &mut Vec<String>) {
+            if let serde_json::Value::Object(map) = value {
+                for (key, child) in map {
+                    let path = format!("{prefix}{key}");
+                    out.push(path.clone());
+                    // Maps keyed by filter name are data, not fields.
+                    let data_map = key.starts_with("per_filter_")
+                        || key == "filter_focus_offsets"
+                        || key == "filter_settings";
+                    if !data_map {
+                        key_paths(child, &format!("{path}."), out);
+                    }
+                }
+            }
+        }
+        let sent: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../../packages/skotiq_core/test/fixtures/run_config_wire.json"
+        ))
+        .expect("the app's run config is JSON");
+        let config: RunConfig =
+            serde_json::from_value(sent.clone()).expect("the app's run config loads");
+        assert_eq!(config.validate(), Ok(()));
+        let read = serde_json::to_value(&config).expect("serializes");
+
+        let (mut sent_paths, mut read_paths) = (Vec::new(), Vec::new());
+        key_paths(&sent, "", &mut sent_paths);
+        key_paths(&read, "", &mut read_paths);
+        // The autofocus and meridian-flip sections are their nodes' JSON, which
+        // names the node type as well.
+        let node_type = |path: &str| path == "autofocus.type" || path == "meridian_flip.type";
+        let unread: Vec<_> = sent_paths
+            .iter()
+            .filter(|path| !read_paths.contains(path) && !node_type(path))
+            .collect();
+        assert!(
+            unread.is_empty(),
+            "keys the executor does not read: {unread:?}"
+        );
+    }
+
+    #[test]
+    fn frame_saving_is_named_on_the_wire_as_the_app_stores_it() {
+        let config: RunConfig = serde_json::from_str(
+            r#"{"camera_file_saving": "both",
+                "frame_format": {"format": "XISF", "xisf_compression": "zstd+sh", "xisf_checksums": true}}"#,
+        )
+        .expect("the frame settings load");
+        assert_eq!(config.camera_file_saving, CameraFileSaving::Both);
+        assert_eq!(config.frame_format.image_format(), ImageFormat::Xisf);
+        assert_eq!(config.frame_format.extension(), "xisf");
+        let options = config.frame_format.write_options().xisf;
+        assert_eq!(
+            options.compression,
+            XisfCompression::from_name("zstd+sh").unwrap()
+        );
+        assert_eq!(options.checksum, Some(ChecksumAlgorithm::Sha1));
+
+        let json = serde_json::to_value(&config).expect("serializes");
+        assert_eq!(json["camera_file_saving"], "both");
+        assert_eq!(json["frame_format"]["xisf_compression"], "zstd+sh");
+
+        assert_eq!(RunConfig::default().frame_format.extension(), "fits");
+        assert!(serde_json::from_str::<RunConfig>(
+            r#"{"frame_format": {"xisf_compression": "rar"}}"#
+        )
+        .is_err());
+    }
+
+    /// The trigger monitor's altitude, dawn and meridian computations read
+    /// the trigger state, which takes a saved site, sun limit, park policy or
+    /// flip setting at once: safety limits do not wait for a step.
+    #[tokio::test]
+    async fn a_saved_site_and_limit_reach_the_next_trigger_computation_at_once() {
+        let rig = rig();
+        rig.update(|config| {
+            config.latitude = Some(-33.9);
+            config.longitude = Some(18.4);
+            config.max_sun_altitude_degrees = Some(-15.0);
+            config.meridian_flip = Some(MeridianFlipConfig {
+                minutes_past_meridian: 12.0,
+                ..MeridianFlipConfig::default()
+            });
+        })
+        .await;
+        let (site, sun) = rig
+            .trigger_state(|state| {
+                (
+                    (
+                        state.settings.observer_latitude,
+                        state.settings.observer_longitude,
+                    ),
+                    state.settings.max_sun_altitude_degrees,
+                )
+            })
+            .await;
+        assert_eq!(site, (Some(-33.9), Some(18.4)));
+        assert_eq!(sun, Some(-15.0));
+        assert_eq!(
+            rig.triggers
+                .read()
+                .await
+                .meridian_flip_config()
+                .map(|flip| flip.minutes_past_meridian),
+            Some(12.0)
+        );
+    }
+
+    #[tokio::test]
+    async fn the_operators_autofocus_tuning_takes_precedence_over_the_sequences() {
+        let rig = rig();
+        assert!(rig.store.trigger_autofocus().is_none());
+
+        let from_node = AutofocusConfig {
+            step_size: 55,
+            ..AutofocusConfig::default()
+        };
+        rig.store.set_sequence_autofocus(Some(from_node));
+        assert_eq!(rig.store.trigger_autofocus().map(|c| c.step_size), Some(55));
+
+        let from_operator = AutofocusConfig {
+            step_size: 80,
+            ..AutofocusConfig::default()
+        };
+        rig.update(|config| config.autofocus = Some(from_operator))
+            .await;
+        assert_eq!(rig.store.trigger_autofocus().map(|c| c.step_size), Some(80));
+
+        // The next sequence has no Autofocus node: the operator's tuning
+        // stays, and the earlier sequence's does not come back.
+        rig.store.set_sequence_autofocus(None);
+        assert_eq!(rig.store.trigger_autofocus().map(|c| c.step_size), Some(80));
+    }
+
+    #[test]
+    fn a_config_with_missing_fields_loads_with_defaults() {
+        let partial: RunConfig = serde_json::from_str(
+            r#"{"latitude": 41.5, "park_policy": {"park_before_dawn": false}}"#,
+        )
+        .expect("a partial config loads");
+        assert_eq!(partial.latitude, Some(41.5));
+        assert!(!partial.park_policy.park_before_dawn);
+        assert!(partial.park_policy.park_on_unsafe_weather);
+        assert!(partial.decision_logging_enabled);
+        assert_eq!(
+            RunConfig {
+                latitude: None,
+                park_policy: ParkPolicy::default(),
+                ..partial
+            },
+            RunConfig::default()
+        );
+
+        let empty: RunConfig = serde_json::from_str("{}").expect("an empty config loads");
+        assert_eq!(empty, RunConfig::default());
+    }
+
+    #[test]
+    fn a_config_survives_a_round_trip() {
+        let config = RunConfig {
+            latitude: Some(41.5),
+            longitude: Some(-71.25),
+            max_sun_altitude_degrees: Some(-8.0),
+            filter_focus_offsets: HashMap::from([("Ha".to_string(), 250)]),
+            safety_fail_mode: SafetyFailMode::FailOpen,
+            autofocus: Some(AutofocusConfig::default()),
+            autofocus_interval_frames: Some(12),
+            meridian_flip: Some(MeridianFlipConfig::default()),
+            stop_on_quality_problems: true,
+            decision_logging_enabled: false,
+            device_retry: DeviceRetryPolicy {
+                camera_retries: 5,
+                filter_wheel_retries: 0,
+            },
+            ..RunConfig::default()
+        };
+        let json = serde_json::to_string(&config).expect("serializes");
+        let back: RunConfig = serde_json::from_str(&json).expect("deserializes");
+        assert_eq!(back, config);
+    }
+}

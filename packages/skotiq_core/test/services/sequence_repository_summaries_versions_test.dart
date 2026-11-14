@@ -5,7 +5,9 @@
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +19,7 @@ void main() {
   setUp(() {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     fileService = SequenceFileService();
-    repo = SequenceRepository(
+    repo = LocalSequenceRepository(
       db.sequencesDao,
       runsDao: db.sequenceRunsDao,
       versionsDao: db.sequenceVersionsDao,
@@ -116,7 +118,7 @@ void main() {
         sequenceName: 'Orion',
         sequenceSnapshotJson: '{"marker":"first"}',
       );
-      await runsDao.finishRun(firstRun, 'completed', '{}');
+      await runsDao.finishRun(firstRun, SequenceRunStatus.completed, '{}');
 
       // Ensure the two runs land on distinct `startedAt` values so the
       // "strictly before" prior-run query is unambiguous. Drift persists
@@ -129,7 +131,7 @@ void main() {
         sequenceName: 'Orion',
         sequenceSnapshotJson: '{"marker":"second"}',
       );
-      await runsDao.finishRun(secondRun, 'completed', '{}');
+      await runsDao.finishRun(secondRun, SequenceRunStatus.completed, '{}');
 
       final prior = await repo.loadPreviousRunSnapshot(
         id,

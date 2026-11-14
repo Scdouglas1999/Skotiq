@@ -1,14 +1,41 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show MosaicPanel, MosaicStartCorner;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for mosaic generation
-class MosaicHandlers {
+class MosaicHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    MosaicApi.generatePanels: handleGeneratePanels,
+    MosaicApi.generateSequence: handleGenerateSequence,
+    MosaicApi.calculateArea: handleCalculateArea,
+    MosaicApi.validateMosaic: handleValidateMosaic,
+    MosaicApi.estimateTime: handleEstimateTime,
+    MosaicApi.recommendExposure: handleRecommendExposure,
+    MosaicApi.listCollaborative: handleListCollaborative,
+    MosaicApi.joinCollaborativeMosaic: handleJoinCollaborativeMosaic,
+    MosaicApi.getCollaborative: handleGetCollaborative,
+    MosaicApi.publishCollaborative: handlePublishCollaborative,
+    MosaicApi.joinCollaborative: handleJoinCollaborative,
+    MosaicApi.collaborativeStatus: handleCollaborativeStatus,
+    MosaicApi.claimPanel: handleClaimPanel,
+    MosaicApi.releasePanel: handleReleasePanel,
+    MosaicApi.forceReleasePanel: handleForceReleasePanel,
+    MosaicApi.uploadPanel: handleUploadPanel,
+    MosaicApi.assembleMosaic: handleAssembleMosaic,
+    MosaicApi.downloadCollaborativeOutput: handleDownloadCollaborativeOutput,
+  };
+
   final ProviderContainer container;
 
   MosaicHandlers(this.container);
@@ -17,8 +44,6 @@ class MosaicHandlers {
 
   void _logInfo(String message) =>
       _logger.info(message, source: 'MosaicHandlers');
-
-  // Generate mosaic panels
 
   Future<Response> handleGeneratePanels(Request request) async {
     _logInfo('[API] POST /api/mosaic/generate-panels');
@@ -30,8 +55,6 @@ class MosaicHandlers {
 
     return jsonOk({'panels': panels.map((p) => _panelToJson(p)).toList()});
   }
-
-  // Generate mosaic sequence
 
   Future<Response> handleGenerateSequence(Request request) async {
     _logInfo('[API] POST /api/mosaic/generate-sequence');
@@ -76,8 +99,6 @@ class MosaicHandlers {
     });
   }
 
-  // Calculate mosaic area
-
   Future<Response> handleCalculateArea(Request request) async {
     _logInfo('[API] POST /api/mosaic/calculate-area');
     final payload = await readJsonObject(request);
@@ -91,8 +112,6 @@ class MosaicHandlers {
       'totalPanels': config.totalPanels,
     });
   }
-
-  // Validate mosaic configuration
 
   Future<Response> handleValidateMosaic(Request request) async {
     _logInfo('[API] POST /api/mosaic/validate');
@@ -108,8 +127,6 @@ class MosaicHandlers {
       'warnings': validation.warnings,
     });
   }
-
-  // Estimate mosaic time
 
   Future<Response> handleEstimateTime(Request request) async {
     _logInfo('[API] POST /api/mosaic/estimate-time');
@@ -651,8 +668,6 @@ class MosaicHandlers {
     }
   }
 
-  // Helpers
-
   Map<String, dynamic> _collabMosaicToJson(CollabMosaic m) => {
     'mosaicId': m.mosaicId,
     if (m.ownerAccountId.isNotEmpty) 'ownerAccountId': m.ownerAccountId,
@@ -705,6 +720,19 @@ class MosaicHandlers {
       rotation: optionalDouble(json, 'rotation', min: -360, max: 360) ?? 0.0,
       panelsHorizontal: requireInt(json, 'panelsHorizontal', min: 1),
       panelsVertical: requireInt(json, 'panelsVertical', min: 1),
+      startCorner: _parseStartCorner(optionalString(json, 'startCorner')),
+      serpentine: optionalBool(json, 'serpentine') ?? true,
+    );
+  }
+
+  MosaicStartCorner _parseStartCorner(String? name) {
+    if (name == null) return MosaicStartCorner.topLeft;
+    for (final corner in MosaicStartCorner.values) {
+      if (corner.name == name) return corner;
+    }
+    throw BadRequestError(
+      field: 'startCorner',
+      expected: MosaicStartCorner.values.map((c) => c.name).join(' | '),
     );
   }
 
@@ -724,7 +752,6 @@ class MosaicHandlers {
 
   MosaicSequenceOptions _parseSequenceOptions(Map<String, dynamic> json) {
     return MosaicSequenceOptions(
-      serpentineOrdering: optionalBool(json, 'serpentineOrdering') ?? false,
       autofocusPerPanel: optionalBool(json, 'autofocusPerPanel') ?? false,
       autofocusInterval: optionalInt(json, 'autofocusInterval') ?? 0,
       centerAfterSlew: optionalBool(json, 'centerAfterSlew') ?? false,
@@ -740,7 +767,8 @@ class MosaicHandlers {
     return {
       'raHours': panel.raHours,
       'decDegrees': panel.decDegrees,
-      'panelIndex': panel.panelIndex,
+      'panelIndex': panel.index,
+      'name': panel.name,
       'row': panel.row,
       'col': panel.col,
     };
@@ -756,7 +784,6 @@ class MosaicHandlers {
       'isEnabled': node.isEnabled,
     };
 
-    // Add type-specific fields
     if (node is ExposureNode) {
       base['durationSecs'] = node.durationSecs;
       base['count'] = node.count;

@@ -2,16 +2,15 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        CoordinateParser,
-        DbCapturedImage,
-        FramePhotometricCalibrationRow,
-        FrameQualityAssessment,
-        imagingRecordsRepositoryProvider,
-        isRemoteModeProvider;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart'
+    show DbCapturedImage, FramePhotometricCalibrationRow;
+import 'package:skotiq_core/errors.dart' show userFacingError;
+import 'package:skotiq_core/models.dart' show FrameGain, GainKind;
+import 'package:skotiq_core/providers.dart' show isRemoteModeProvider;
+import 'package:skotiq_core/services.dart'
+    show FrameQualityAssessment, imagingRecordsProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/filter_label.dart';
@@ -197,18 +196,22 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
     final rows = <(String, String)>[
       (
         'Captured',
-        DateFormat('EEE MMM d, yyyy · HH:mm:ss').format(
-          image.capturedAt,
-        )
+        '${ClockFormat.weekdayMonthDayYear(image.capturedAt.toLocal())} · '
+            '${ClockFormat.hms(image.capturedAt.toLocal())}'
       ),
       ('Frame type', image.frameType),
       ('Exposure', '${_trim(image.exposureDuration)} s'),
       ('Filter', filterLabel(image.filter)),
-      if (image.gain != null) ('Gain', '${image.gain}'),
-      if (image.offset != null) ('Offset', '${image.offset}'),
+      if (image.gain != null)
+        (
+          image.recordedGainKind.label,
+          image.recordedGainKind.valueText(image.gain!),
+        ),
+      if (image.offset != null && image.recordedGainKind == GainKind.gain)
+        ('Offset', '${image.offset}'),
       ('Binning', '${image.binX}x${image.binY}'),
       if (image.sensorTemp != null)
-        ('Sensor temperature', '${image.sensorTemp!.toStringAsFixed(1)} °C'),
+        ('Sensor temperature', formatCelsius(image.sensorTemp!)),
       if (image.hfr != null) ('HFR', '${image.hfr!.toStringAsFixed(2)} px'),
       if (image.starCount != null) ('Stars detected', '${image.starCount}'),
       // Both scores, each named. The rail's tile shows the advisory number; the
@@ -239,8 +242,8 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
           image.solvedDec != null)
         (
           'Solved position',
-          'RA ${CoordinateParser.formatRaHms(image.solvedRa!)}  '
-              'Dec ${CoordinateParser.formatDecDms(image.solvedDec!)}'
+          'RA ${CoordinateFormat.raReadout(image.solvedRa!)}  '
+              'Dec ${CoordinateFormat.decReadout(image.solvedDec!)}'
         ),
       if (image.solvedPixelScale != null)
         (
@@ -272,27 +275,35 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
         const SizedBox(height: SkotiqTokens.spaceMd),
       ],
       for (final (label, value) in rows)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 150,
-                child: Text(
-                  label,
-                  style: SkotiqTypography.caption
-                      .copyWith(color: colors.textSecondary),
+        // SelectableText publishes itself as an unnamed read-only text field,
+        // so screen readers heard a column of empty fields; the row names
+        // itself instead and the text stays selectable with the pointer.
+        Semantics(
+          container: true,
+          label: '$label: $value',
+          excludeSemantics: true,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 150,
+                  child: Text(
+                    label,
+                    style: SkotiqTypography.caption
+                        .copyWith(color: colors.textSecondary),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: SelectableText(
-                  value,
-                  style: SkotiqTypography.labelSm
-                      .copyWith(color: colors.textPrimary),
+                Expanded(
+                  child: SelectableText(
+                    value,
+                    style: SkotiqTypography.labelSm
+                        .copyWith(color: colors.textPrimary),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
     ];
@@ -308,7 +319,7 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
     try {
       // Through the repository, not the local DAO: in remote mode the write
       // has to reach the host that owns the row.
-      final repo = ref.read(imagingRecordsRepositoryProvider);
+      final repo = ref.read(imagingRecordsProvider);
       if (next) {
         await repo.acceptImage(widget.image.id);
       } else {
@@ -323,7 +334,8 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _busy = false);
-      context.showErrorSnackBar('Failed to update frame: $error');
+      context.showErrorSnackBar(
+          'Failed to update frame: ${userFacingError(error)}');
     }
   }
 }

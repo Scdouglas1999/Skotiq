@@ -104,8 +104,6 @@ class ShareCardRenderer {
     return Uint8List.fromList(img.encodeJpg(bitmap, quality: quality));
   }
 
-  // Stretch + decode helpers
-
   /// Percentile-stretch a u16 luminance buffer into a 3-channel RGB
   /// [img.Image], optionally aspect-fit downscaled to the target box.
   img.Image _stretchMonoToRgb({
@@ -226,8 +224,6 @@ class ShareCardRenderer {
     if (outW == width && outH == height) return bitmap;
     return img.copyResize(bitmap, width: outW, height: outH);
   }
-
-  // Overlay compositing (watermark + stat panel)
 
   /// Draw the stat panel then the watermark onto [bitmap], in place. The
   /// watermark is drawn last so it always sits on top of the panel when the
@@ -643,8 +639,6 @@ class ShareCardRenderer {
     }
   }
 
-  // Watermark (bottom-left, drop shadow)
-
   /// Draw the watermark [text] onto [bitmap] in place, bottom-left, with a
   /// subtle dark drop shadow under a white fill — the convention Astrobin /
   /// Cuiv overlays use for outreach. No-op for empty text.
@@ -677,8 +671,6 @@ class ShareCardRenderer {
       color: img.ColorUint8.rgb(255, 255, 255),
     );
   }
-
-  // Percentile stretch
 
   /// Compute the 0.5%/99.5% percentile black/white points for the stretch.
   ///

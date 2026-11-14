@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../sequencer/widgets/session_report_dialog.dart';
-import 'adaptive_chart_container.dart';
+import '../../../widgets/adaptive_chart_container.dart';
+import '../../../widgets/run_status/run_status_presentation.dart';
 
 /// Multi-night campaign rollup dialog (Feature B).
 ///
@@ -64,7 +67,7 @@ class CampaignRollupDialog extends ConsumerWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$err',
+                  userFacingError(err),
                   style: SkotiqTypography.caption
                       .copyWith(color: colors.textMuted),
                   textAlign: TextAlign.center,
@@ -89,28 +92,20 @@ class _Body extends StatelessWidget {
 
   const _Body({required this.rollup, required this.colors});
 
-  String _formatHours(double seconds) {
-    final hours = seconds / 3600.0;
-    return '${hours.toStringAsFixed(1)}h';
-  }
-
   String _formatDate(DateTime? dt) {
     if (dt == null) return kReadoutUnknown;
-    return DateFormat('MMM d, yyyy').format(dt);
+    return ClockFormat.monthDayYear(dt.toLocal());
   }
 
   String _formatDateTime(DateTime dt) =>
-      DateFormat('MMM d, yyyy HH:mm').format(dt);
+      ClockFormat.monthDayYearHm(dt.toLocal());
 
   @override
   Widget build(BuildContext context) {
     final totalPct = rollup.totalPercentComplete;
-    // The card describes three different populations.
     // `totalCapturedIntegrationSecs` and the per-filter table count ACCEPTED
-    // light frames; the session rows print each session's own
-    // `total_integration_secs`, which counts everything it captured. Both
-    // numbers are computed here so the card can name them rather than
-    // contradict itself.
+    // light frames; the session rows count every light of this target the
+    // session took. Both are named so the card does not contradict itself.
     final capturedSecs = rollup.sessions
         .fold<double>(0, (sum, s) => sum + s.sessionIntegrationSecs);
     final acceptedSecs = rollup.totalCapturedIntegrationSecs;
@@ -164,7 +159,6 @@ class _Body extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Summary cards.
                 Wrap(
                   spacing: 12,
                   runSpacing: 8,
@@ -176,7 +170,7 @@ class _Body extends StatelessWidget {
                     ),
                     _SummaryTile(
                       label: 'Integration (accepted)',
-                      value: _formatHours(acceptedSecs),
+                      value: DurationFormat.decimalHours(acceptedSecs),
                       colors: colors,
                     ),
                     // Only shown when the two disagree, i.e. when frames were
@@ -185,7 +179,7 @@ class _Body extends StatelessWidget {
                     if (capturedSecs - acceptedSecs > 1)
                       _SummaryTile(
                         label: 'Integration (captured)',
-                        value: _formatHours(capturedSecs),
+                        value: DurationFormat.decimalHours(capturedSecs),
                         colors: colors,
                       ),
                     _SummaryTile(
@@ -225,19 +219,17 @@ class _Body extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Overall progress.
                 if (totalPct != null) ...[
                   _OverallProgress(
                     pct: totalPct,
-                    captured: rollup.totalCapturedIntegrationSecs,
+                    captured: rollup.goalDoneSecs,
                     goal: rollup.totalGoalIntegrationSecs ?? 0,
+                    allFilters: rollup.allFiltersGoalSecs != null,
                     colors: colors,
                     isComplete: rollup.isComplete,
                   ),
                   const SizedBox(height: 16),
                 ],
-
                 _SectionTitle(
                   title: 'Per-filter progress',
                   icon: LucideIcons.layers,
@@ -250,7 +242,7 @@ class _Body extends StatelessWidget {
                         // captured" would be false for a target whose whole
                         // night was rejected in the grader.
                         ? 'No accepted frames yet — '
-                            '${_formatHours(capturedSecs)} captured across '
+                            '${DurationFormat.decimalHours(capturedSecs)} captured across '
                             '${rollup.sessionCount} '
                             '${rollup.sessionCount == 1 ? 'session' : 'sessions'}'
                             ' was rejected or has not been graded.'
@@ -261,7 +253,6 @@ class _Body extends StatelessWidget {
                 else
                   for (final f in rollup.filters)
                     _FilterRow(filter: f, colors: colors),
-
                 const SizedBox(height: 16),
                 _SectionTitle(
                   title: 'Sessions',
@@ -389,12 +380,14 @@ class _OverallProgress extends StatelessWidget {
   final double captured;
   final double goal;
   final bool isComplete;
+  final bool allFilters;
   final SkotiqColors colors;
 
   const _OverallProgress({
     required this.pct,
     required this.captured,
     required this.goal,
+    required this.allFilters,
     required this.isComplete,
     required this.colors,
   });
@@ -402,7 +395,6 @@ class _OverallProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining = goal - captured;
-    final remainingHours = remaining > 0 ? remaining / 3600.0 : 0.0;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -449,7 +441,9 @@ class _OverallProgress extends StatelessWidget {
             // the session rows below now use that same word for every frame the
             // session took, so one card would read "Captured 0.0h" over
             // "0.17h captured".
-            'Accepted ${(captured / 3600.0).toStringAsFixed(1)}h of ${(goal / 3600.0).toStringAsFixed(1)}h goal | Remaining: ${remainingHours.toStringAsFixed(1)}h',
+            'Accepted ${DurationFormat.decimalHours(captured)} of ${DurationFormat.decimalHours(goal)} goal'
+            '${allFilters ? ' (all filters)' : ''}'
+            ' | Remaining: ${DurationFormat.decimalHours(remaining)}',
             style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],
@@ -512,7 +506,7 @@ class _FilterRow extends StatelessWidget {
                 ),
               const Spacer(),
               Text(
-                '${(filter.capturedIntegrationSecs / 3600.0).toStringAsFixed(1)}h',
+                DurationFormat.decimalHours(filter.capturedIntegrationSecs),
                 style: SkotiqTypography.bodyStrong.copyWith(
                   color: colors.textPrimary,
                 ),
@@ -557,28 +551,11 @@ class _SessionRow extends StatelessWidget {
     required this.formatDateTime,
   });
 
-  Color _statusColor() {
-    switch (session.status.toLowerCase()) {
-      case 'completed':
-        return colors.success;
-      case 'active':
-        return colors.info;
-      case 'aborted':
-      case 'stopped':
-        return colors.warning;
-      case 'error':
-      case 'failed':
-        return colors.error;
-      default:
-        return colors.textMuted;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final durationSecs = session.wallClockDuration.inSeconds;
     final durationLabel = durationSecs > 0
-        ? '${(durationSecs / 3600.0).toStringAsFixed(2)}h wall'
+        ? '${DurationFormat.decimalHours(durationSecs)} wall'
         : kReadoutUnknown;
     return Material(
       type: MaterialType.transparency,
@@ -603,7 +580,7 @@ class _SessionRow extends StatelessWidget {
                     height: 8,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _statusColor(),
+                      color: sessionStatusColor(colors, session.status),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -625,7 +602,7 @@ class _SessionRow extends StatelessWidget {
                           // own total across every frame it took, while the header
                           // tile and the per-filter table above count only frames
                           // that survived grading.
-                          '${formatDateTime(session.startTime)} | $durationLabel | ${(session.sessionIntegrationSecs / 3600.0).toStringAsFixed(2)}h captured',
+                          '${formatDateTime(session.startTime)} | $durationLabel | ${DurationFormat.decimalHours(session.sessionIntegrationSecs)} captured',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: SkotiqTypography.caption

@@ -6,22 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 
 import '../../harness/harness.dart';
-
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
 
 class _RecordingDeviceService extends DeviceService {
   _RecordingDeviceService(super.ref, super.backend);
@@ -29,8 +20,13 @@ class _RecordingDeviceService extends DeviceService {
   final List<String> guiderConnects = <String>[];
 
   @override
-  Future<void> connectGuider(String deviceId, {String? host, int? port}) async {
-    guiderConnects.add(deviceId);
+  Future<void> connect(
+    DeviceType type,
+    String deviceId, {
+    String? host,
+    int? port,
+  }) async {
+    if (type == DeviceType.guider) guiderConnects.add(deviceId);
   }
 
   @override
@@ -70,7 +66,6 @@ void main() {
       size: const Size(1280, 800),
       settle: false,
       extraOverrides: <Override>[
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
         deviceServiceProvider.overrideWith((ref) {
           final service =
               _RecordingDeviceService(ref, ref.watch(backendProvider));

@@ -1,5 +1,5 @@
 import '../../database/daos/settings_dao.dart';
-import '../calibration/fits_header_reader.dart';
+import '../frame_header.dart';
 import '../sensor_specs/camera_sensor_database.dart';
 import 'science_camera_auto_config.dart';
 
@@ -9,6 +9,7 @@ Future<({double? gain, double? readNoise})> frameCameraNoise(
   SettingsDao settings,
   String imagePath, {
   int? capturedGain,
+  FrameHeaderReader readHeader = readFrameHeader,
 }) async {
   final configured = await settings.getAllSettings();
   double? positive(String key) {
@@ -23,19 +24,19 @@ Future<({double? gain, double? readNoise})> frameCameraNoise(
     );
   }
 
-  Map<String, String> header;
+  final FrameHeader header;
   try {
-    header = await const FitsHeaderReader().readPrimaryHeader(imagePath);
+    header = await readHeader(imagePath);
   } on Exception {
     return (gain: null, readNoise: null);
   }
-  final camera = FitsHeaderReader.stringValue(header, 'INSTRUME');
-  final gain = capturedGain ?? FitsHeaderReader.intValue(header, 'GAIN');
+  final camera = header.string('INSTRUME');
+  final gain = capturedGain ?? header.integer('GAIN');
   if (camera == null || gain == null) return (gain: null, readNoise: null);
   final entry = CameraSensorDatabase.curated.lookup(camera);
   // The curated charts describe raw ADC counts. FITS BITPIX=16 denotes the
   // driver's 16-bit container; MAXADU, when provided, identifies unscaled ADCs.
-  final maxAdu = FitsHeaderReader.intValue(header, 'MAXADU') ?? 65535;
+  final maxAdu = header.integer('MAXADU') ?? 65535;
   final values = resolveScienceCameraValues(
     cameraName: camera,
     driverGain: gain,

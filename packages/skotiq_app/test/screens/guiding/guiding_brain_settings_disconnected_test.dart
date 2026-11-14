@@ -21,26 +21,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
-
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    throw UnimplementedError(
-      'NoopTutorialProgressDao.${invocation.memberName} called in test',
-    );
-  }
-}
 
 /// PHD2 connected, which is the only state in which a brain-params fetch can
 /// actually be in flight.
@@ -72,9 +58,7 @@ void main() {
       const GuidingScreen(),
       size: const Size(1280, 900),
       settle: false,
-      extraOverrides: [
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
-      ],
+      extraOverrides: [],
     );
     await _drain(tester);
 
@@ -127,7 +111,6 @@ void main() {
       settle: false,
       backend: backend,
       extraOverrides: [
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
         guiderStateProvider.overrideWith(_Phd2Connected.new),
       ],
     );
@@ -158,7 +141,6 @@ void main() {
       settle: false,
       backend: backend,
       extraOverrides: [
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
         guiderStateProvider.overrideWith(_Phd2Connected.new),
       ],
     );

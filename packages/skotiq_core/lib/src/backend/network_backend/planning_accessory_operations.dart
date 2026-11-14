@@ -1,17 +1,14 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
-  Future<Map<String, dynamic>> awaitJobResultOrLegacy(
+  Future<Map<String, dynamic>> awaitOperationResult(
     Map<String, dynamic> response, {
     required String operation,
     required Duration timeout,
   });
 
-  // Framing & Centering
-
-  /// Slew to target coordinates
   Future<void> slewToTarget(double ra, double dec) async {
-    await _post('framing/slew-to-target', {'ra': ra, 'dec': dec});
+    await _post(FramingApi.slewToTarget, body: {'ra': ra, 'dec': dec});
   }
 
   /// Center on target with plate solving
@@ -25,52 +22,37 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     int? gain,
     bool? syncMount,
   }) async {
-    final start = await _post('framing/center-on-target', {
-      'ra': ra,
-      'dec': dec,
-      if (maxIterations != null) 'maxIterations': maxIterations,
-      if (toleranceArcsec != null) 'toleranceArcsec': toleranceArcsec,
-      if (exposureTime != null) 'exposureTime': exposureTime,
-      if (binning != null) 'binning': binning,
-      if (gain != null) 'gain': gain,
-      if (syncMount != null) 'syncMount': syncMount,
-    });
-    return awaitJobResultOrLegacy(
+    final start = await _post(
+      FramingApi.centerOnTarget,
+      body: {
+        'ra': ra,
+        'dec': dec,
+        if (maxIterations != null) 'maxIterations': maxIterations,
+        if (toleranceArcsec != null) 'toleranceArcsec': toleranceArcsec,
+        if (exposureTime != null) 'exposureTime': exposureTime,
+        if (binning != null) 'binning': binning,
+        if (gain != null) 'gain': gain,
+        if (syncMount != null) 'syncMount': syncMount,
+      },
+    );
+    return awaitOperationResult(
       start,
       operation: 'center on target',
       timeout: const Duration(minutes: 10),
     );
   }
 
-  /// Sync mount to coordinates
   Future<void> syncMountToCoordinates(double ra, double dec) async {
-    await _post('framing/sync', {'ra': ra, 'dec': dec});
+    await _post(FramingApi.syncMount, body: {'ra': ra, 'dec': dec});
   }
 
-  /// Get current mount position
   Future<Map<String, dynamic>> getCurrentPosition() async {
-    final response = await _get('framing/current-position');
+    final response = await _get(FramingApi.getCurrentPosition);
     return response;
   }
 
-  /// Rotate to angle
-  Future<void> rotateTo(double angle) async {
-    await _post('framing/rotate-to', {'angle': angle});
-  }
-
-  /// Abort current slew
   Future<void> abortSlew() async {
-    await _post('framing/abort-slew');
-  }
-
-  /// Park the mount
-  Future<void> parkMountFraming() async {
-    await _post('framing/park');
-  }
-
-  /// Unpark the mount
-  Future<void> unparkMountFraming() async {
-    await _post('framing/unpark');
+    await _post(FramingApi.abortSlew);
   }
 
   /// Push a framing target to the imaging host (Plan Tonight handoff).
@@ -79,60 +61,57 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     required double dec,
     required String name,
   }) async {
-    await _post('framing/set-target', {'ra': ra, 'dec': dec, 'name': name});
+    await _post(
+      FramingApi.setTarget,
+      body: {'ra': ra, 'dec': dec, 'name': name},
+    );
   }
-
-  // Dome control
 
   // The headless endpoints require an explicit deviceId. Keep it on every
   // command/status/capability request so multi-dome hosts and the server's
   // connected-device validation address the same physical device.
 
-  /// Open dome shutter
   @override
   Future<void> domeOpenShutter(String deviceId) async {
-    await _post('dome/open', {'deviceId': deviceId});
+    await _post(DomeApi.open, body: {'deviceId': deviceId});
   }
 
-  /// Close dome shutter
   @override
   Future<void> domeCloseShutter(String deviceId) async {
-    await _post('dome/close', {'deviceId': deviceId});
+    await _post(DomeApi.close, body: {'deviceId': deviceId});
   }
 
-  /// Slew dome to azimuth
   @override
   Future<void> domeSlewToAzimuth(String deviceId, double azimuth) async {
-    await _post('dome/slew', {'deviceId': deviceId, 'azimuth': azimuth});
+    await _post(DomeApi.slew, body: {'deviceId': deviceId, 'azimuth': azimuth});
   }
 
   /// Enable/disable dome-mount sync (slaving)
   @override
   Future<void> domeSetSlaved(String deviceId, bool slaved) async {
-    await _post('dome/sync', {'deviceId': deviceId, 'enable': slaved});
+    await _post(
+      DomeApi.domeSync,
+      body: {'deviceId': deviceId, 'enable': slaved},
+    );
   }
 
-  /// Park dome
   @override
   Future<void> domePark(String deviceId) async {
-    await _post('dome/park', {'deviceId': deviceId});
+    await _post(DomeApi.park, body: {'deviceId': deviceId});
   }
 
-  /// Move dome to home position
   @override
   Future<void> domeFindHome(String deviceId) async {
-    await _post('dome/home', {'deviceId': deviceId});
+    await _post(DomeApi.home, body: {'deviceId': deviceId});
   }
 
-  /// Halt dome movement
   @override
   Future<void> domeAbortSlew(String deviceId) async {
-    await _post('dome/halt', {'deviceId': deviceId});
+    await _post(DomeApi.halt, body: {'deviceId': deviceId});
   }
 
-  /// Get dome status
   Future<Map<String, dynamic>> getDomeStatus(String deviceId) async {
-    return await _get('dome/status', {'deviceId': deviceId});
+    return await _get(DomeApi.status, query: {'deviceId': deviceId});
   }
 
   /// Typed dome telemetry for the equipment card's live readouts.
@@ -179,19 +158,20 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     }
   }
 
-  /// Get dome capabilities
   Future<DomeCapabilities?> getDomeCapabilities(String deviceId) async {
-    final json = await _get('dome/capabilities', {'deviceId': deviceId});
+    final json = await _get(
+      DomeApi.capabilities,
+      query: {'deviceId': deviceId},
+    );
     return DomeCapabilities.fromJson(json);
   }
 
   // Safety monitor
 
-  /// Get safety status
   Future<Map<String, dynamic>> getSafetyStatus({String? deviceId}) async {
     return await _get(
-      'safety/status',
-      deviceId != null ? {'deviceId': deviceId} : null,
+      SafetyMonitorApi.safetyStatus,
+      query: deviceId != null ? {'deviceId': deviceId} : null,
     );
   }
 
@@ -199,7 +179,7 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
   Future<HardwareWeatherConditions> getHardwareWeatherConditions(
     String deviceId,
   ) async {
-    final json = await _get('weather/current');
+    final json = await _get(WeatherApi.getCurrent);
     if (json['hardwareConnected'] != true || json['deviceId'] != deviceId) {
       throw StateError('Weather device $deviceId is not connected on the host');
     }
@@ -227,33 +207,31 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     return json['isSafe'] as bool;
   }
 
-  /// Get safety settings
   Future<Map<String, dynamic>> getSafetySettings() async {
-    return await _get('safety/settings');
+    return await _get(SafetyMonitorApi.getSafetySettings);
   }
 
-  /// Update safety settings
   Future<void> updateSafetySettings(Map<String, dynamic> settings) async {
-    await _post('safety/settings', settings);
+    await _post(SafetyMonitorApi.updateSafetySettings, body: settings);
   }
 
-  /// Acknowledge unsafe condition
   Future<void> acknowledgeSafetyCondition({
     required String reason,
     int? durationMinutes,
   }) async {
-    await _post('safety/acknowledge', {
-      'reason': reason,
-      if (durationMinutes != null) 'durationMinutes': durationMinutes,
-    });
+    await _post(
+      SafetyMonitorApi.acknowledgeUnsafe,
+      body: {
+        'reason': reason,
+        if (durationMinutes != null) 'durationMinutes': durationMinutes,
+      },
+    );
   }
 
   /// Cancel a previously acknowledged/snoozed unsafe condition on the host.
   Future<void> cancelSafetyAcknowledgement() async {
-    await _post('safety/cancel-acknowledgement');
+    await _post(SafetyMonitorApi.cancelAcknowledgement);
   }
-
-  // Switch control
 
   /// Get switch states.
   ///
@@ -262,9 +240,12 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
   /// consumes. Omit it for the all-devices summary
   /// (`{devicesConnected, devices:[...]}`).
   Future<Map<String, dynamic>> getSwitchStatus({String? deviceId}) async {
-    return await _get('switch/status', {
-      if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
-    });
+    return await _get(
+      AuxiliaryApi.switchStatus,
+      query: {
+        if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
+      },
+    );
   }
 
   /// Set a switch value. [deviceId] is required by the server
@@ -275,139 +256,45 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     required int switchId,
     required dynamic value,
   }) async {
-    await _post('switch/set', {
-      'deviceId': deviceId,
-      'switchId': switchId,
-      'value': value,
-    });
+    await _post(
+      AuxiliaryApi.switchSet,
+      body: {'deviceId': deviceId, 'switchId': switchId, 'value': value},
+    );
   }
 
-  // Cover calibrator
-
-  /// Get cover calibrator status
   Future<Map<String, dynamic>> getCoverStatus(String deviceId) async {
-    return await _get('cover/status', {'deviceId': deviceId});
+    return await _get(AuxiliaryApi.coverStatus, query: {'deviceId': deviceId});
   }
 
   // The headless endpoints validate the addressed connected device. Preserve
   // [deviceId] on every remote command just as the local FFI backend does.
 
-  /// Open cover
   @override
   Future<void> coverOpen(String deviceId) async {
-    await _post('cover/open', {'deviceId': deviceId});
+    await _post(AuxiliaryApi.coverOpen, body: {'deviceId': deviceId});
   }
 
-  /// Close cover
   @override
   Future<void> coverClose(String deviceId) async {
-    await _post('cover/close', {'deviceId': deviceId});
+    await _post(AuxiliaryApi.coverClose, body: {'deviceId': deviceId});
   }
 
-  /// Set calibrator brightness
-  Future<void> setCoverBrightness(String deviceId, int brightness) async {
-    await _post('cover/brightness', {
-      'deviceId': deviceId,
-      'brightness': brightness,
-    });
-  }
-
-  /// Turn calibrator on
   @override
   Future<void> calibratorOn(String deviceId, int brightness) async {
-    await _post('cover/calibrator-on', {
-      'deviceId': deviceId,
-      'brightness': brightness,
-    });
+    await _post(
+      AuxiliaryApi.calibratorOn,
+      body: {'deviceId': deviceId, 'brightness': brightness},
+    );
   }
 
-  /// Turn calibrator off
   @override
   Future<void> calibratorOff(String deviceId) async {
-    await _post('cover/calibrator-off', {'deviceId': deviceId});
-  }
-
-  // Scheduler (Astronomical Calculations)
-
-  /// Calculate altitude of object at given time
-  Future<Map<String, dynamic>> getAltitude({
-    required double ra,
-    required double dec,
-    DateTime? time,
-  }) async {
-    return await _get('scheduler/altitude', {
-      'ra': ra,
-      'dec': dec,
-      if (time != null) 'time': time.toIso8601String(),
-    });
-  }
-
-  /// Get transit time for object
-  Future<Map<String, dynamic>> getTransitTime({
-    required double ra,
-    required double dec,
-  }) async {
-    return await _get('scheduler/transit-time', {'ra': ra, 'dec': dec});
-  }
-
-  /// Get rise and set times for object
-  Future<Map<String, dynamic>> getRiseSetTimes({
-    required double ra,
-    required double dec,
-    double? minAltitude,
-  }) async {
-    return await _get('scheduler/rise-set', {
-      'ra': ra,
-      'dec': dec,
-      if (minAltitude != null) 'minAltitude': minAltitude,
-    });
-  }
-
-  /// Get hours object is above altitude
-  Future<Map<String, dynamic>> getHoursAboveHorizon({
-    required double ra,
-    required double dec,
-    double minAltitude = 30.0,
-  }) async {
-    return await _get('scheduler/hours-above-horizon', {
-      'ra': ra,
-      'dec': dec,
-      'minAltitude': minAltitude,
-    });
-  }
-
-  /// Optimize target order for imaging
-  Future<Map<String, dynamic>> optimizeTargets({
-    required List<int> targetIds,
-    String strategy = 'transit',
-    double minAltitude = 30.0,
-  }) async {
-    return await _post('scheduler/optimize-targets', {
-      'targetIds': targetIds,
-      'strategy': strategy,
-      'minAltitude': minAltitude,
-    });
-  }
-
-  /// Get twilight times for tonight
-  Future<Map<String, dynamic>> getTwilightTimes({DateTime? date}) async {
-    return await _get(
-      'scheduler/twilight-times',
-      date != null ? {'date': date.toIso8601String()} : null,
-    );
-  }
-
-  /// Get moon information
-  Future<Map<String, dynamic>> getMoonInfo({DateTime? date}) async {
-    return await _get(
-      'scheduler/moon-info',
-      date != null ? {'date': date.toIso8601String()} : null,
-    );
+    await _post(AuxiliaryApi.calibratorOff, body: {'deviceId': deviceId});
   }
 
   /// Get the imaging host's complete unattended-scheduler state.
   Future<Map<String, dynamic>> getSchedulerState() async {
-    return _get('scheduler/state');
+    return _get(SchedulerApi.getState);
   }
 
   /// Run a lifecycle command against the imaging host's scheduler engine.
@@ -415,49 +302,46 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     String action, {
     bool confirmWarnings = false,
   }) async {
-    return _post('scheduler/control', {
-      'action': action,
-      if (confirmWarnings) 'confirmWarnings': true,
-    });
+    return _post(
+      SchedulerApi.control,
+      body: {'action': action, if (confirmWarnings) 'confirmWarnings': true},
+    );
   }
 
   /// Persist and apply scheduler scoring configuration on the imaging host.
   Future<Map<String, dynamic>> updateSchedulerConfig(
     Map<String, dynamic> config,
   ) async {
-    return _post('scheduler/config', config);
+    return _post(SchedulerApi.updateConfig, body: config);
   }
 
-  // Focus model
-
-  /// Get all focus data points
   Future<Map<String, dynamic>> getFocusModelData() async {
-    return await _get('focus-model/data');
+    return await _get(FocusModelApi.getFocusData);
   }
 
-  /// Add a focus data point
   Future<void> addFocusDataPoint({
     required double temperature,
     required int position,
     double? hfr,
     String? filter,
   }) async {
-    await _post('focus-model/add-point', {
-      'temperature': temperature,
-      'position': position,
-      if (hfr != null) 'hfr': hfr,
-      if (filter != null) 'filter': filter,
-    });
+    await _post(
+      FocusModelApi.addFocusPoint,
+      body: {
+        'temperature': temperature,
+        'position': position,
+        if (hfr != null) 'hfr': hfr,
+        if (filter != null) 'filter': filter,
+      },
+    );
   }
 
-  /// Clear all focus data points
   Future<void> clearFocusModelData() async {
-    await _delete('focus-model/clear');
+    await _delete(FocusModelApi.clearFocusData);
   }
 
-  /// Get current focus model
   Future<Map<String, dynamic>> getFocusModel() async {
-    return await _get('focus-model/model');
+    return await _get(FocusModelApi.getFocusModel);
   }
 
   /// Predict focus position for temperature
@@ -465,26 +349,24 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     required double temperature,
     String? filter,
   }) async {
-    return await _get('focus-model/predict', {
-      'temperature': temperature,
-      if (filter != null) 'filter': filter,
-    });
+    return await _get(
+      FocusModelApi.predictFocus,
+      query: {'temperature': temperature, if (filter != null) 'filter': filter},
+    );
   }
 
-  /// Get per-filter focus offsets
   Future<Map<String, dynamic>> getFilterFocusOffsets() async {
-    return await _get('focus-model/filter-offsets');
+    return await _get(FocusModelApi.getFilterOffsets);
   }
 
-  /// Set per-filter focus offsets
   Future<void> setFilterFocusOffsets({
     required String referenceFilter,
     required Map<String, int> offsets,
   }) async {
-    await _post('focus-model/filter-offsets', {
-      'referenceFilter': referenceFilter,
-      'offsets': offsets,
-    });
+    await _post(
+      FocusModelApi.setFilterOffsets,
+      body: {'referenceFilter': referenceFilter, 'offsets': offsets},
+    );
   }
 
   /// Check if refocus needed based on temperature drift
@@ -493,124 +375,49 @@ mixin _NetworkBackendPlanningAccessoryOperations on _NetworkBackendTransport {
     required double lastFocusTemp,
     int? maxDriftSteps,
   }) async {
-    return await _get('focus-model/should-refocus', {
-      'currentTemp': currentTemp,
-      'lastFocusTemp': lastFocusTemp,
-      if (maxDriftSteps != null) 'maxDriftSteps': maxDriftSteps,
-    });
+    return await _get(
+      FocusModelApi.shouldRefocus,
+      query: {
+        'currentTemp': currentTemp,
+        'lastFocusTemp': lastFocusTemp,
+        if (maxDriftSteps != null) 'maxDriftSteps': maxDriftSteps,
+      },
+    );
   }
 
-  /// Export focus data as JSON
   Future<Map<String, dynamic>> exportFocusModel() async {
-    return await _get('focus-model/export');
+    return await _get(FocusModelApi.exportFocusData);
   }
 
-  /// Import focus data from JSON
   Future<void> importFocusModel(Map<String, dynamic> data) async {
-    await _post('focus-model/import', data);
+    await _post(FocusModelApi.importFocusData, body: data);
   }
 
   /// Get the real per-filter predictive-AF config and models used by the host.
   Future<Map<String, dynamic>> getPredictiveAfSettings() async {
-    return _get('focus-model/predictive');
+    return _get(FocusModelApi.getPredictiveSettings);
   }
 
   Future<void> updatePredictiveAfConfig(Map<String, dynamic> config) async {
-    await _post('focus-model/predictive/config', config);
+    await _post(FocusModelApi.updatePredictiveConfig, body: config);
   }
 
   Future<void> clearPredictiveAfSamples(String filterName) async {
-    await _post('focus-model/predictive/clear-samples', {'filter': filterName});
-  }
-
-  Future<String?> exportPredictiveAfModel(String filterName) async {
-    final response = await _get('focus-model/predictive/export', {
-      'filter': filterName,
-    });
-    return response['json'] as String?;
-  }
-
-  // Planetarium support
-
-  /// Get current mount position for planetarium FOV overlay
-  Future<Map<String, dynamic>> getPlanetariumMountPosition() async {
-    return await _get('planetarium/mount-position');
-  }
-
-  /// Get FOV configuration for planetarium
-  Future<Map<String, dynamic>> getPlanetariumFovConfig() async {
-    return await _get('planetarium/fov-config');
-  }
-
-  /// Slew to coordinates from planetarium
-  Future<void> planetariumSlewTo({
-    required double ra,
-    required double dec,
-  }) async {
-    await _post('planetarium/slew-to', {'ra': ra, 'dec': dec});
-  }
-
-  /// Center on coordinates from planetarium with plate solving
-  Future<Map<String, dynamic>> planetariumCenterOn({
-    required double ra,
-    required double dec,
-    int? maxIterations,
-    double? toleranceArcsec,
-  }) async {
-    return await _post('planetarium/center-on', {
-      'ra': ra,
-      'dec': dec,
-      if (maxIterations != null) 'maxIterations': maxIterations,
-      if (toleranceArcsec != null) 'toleranceArcsec': toleranceArcsec,
-    });
-  }
-
-  /// Sync mount to coordinates from planetarium
-  Future<void> planetariumSyncTo({
-    required double ra,
-    required double dec,
-  }) async {
-    await _post('planetarium/sync-to', {'ra': ra, 'dec': dec});
-  }
-
-  /// Search catalog for objects
-  Future<Map<String, dynamic>> planetariumCatalogSearch(String query) async {
-    return await _get('planetarium/catalog/search', {'query': query});
-  }
-
-  /// Get objects in a region
-  Future<Map<String, dynamic>> planetariumCatalogRegion({
-    required double ra,
-    required double dec,
-    required double radius,
-    double? minMagnitude,
-    double? maxMagnitude,
-    int? limit,
-  }) async {
-    return await _get('planetarium/catalog/region', {
-      'ra': ra,
-      'dec': dec,
-      'radius': radius,
-      if (minMagnitude != null) 'minMagnitude': minMagnitude,
-      if (maxMagnitude != null) 'maxMagnitude': maxMagnitude,
-      if (limit != null) 'limit': limit,
-    });
-  }
-
-  /// Get detailed object info
-  Future<Map<String, dynamic>> planetariumGetObject(String objectId) async {
-    return await _get(
-      'planetarium/catalog/object/${Uri.encodeComponent(objectId)}',
+    await _post(
+      FocusModelApi.clearPredictiveSamples,
+      body: {'filter': filterName},
     );
   }
 
-  /// Get WebSocket subscription info for real-time updates
-  Future<Map<String, dynamic>> getPlanetariumSubscribeInfo() async {
-    return await _get('planetarium/subscribe-info');
+  Future<String?> exportPredictiveAfModel(String filterName) async {
+    final response = await _get(
+      FocusModelApi.exportPredictiveModel,
+      query: {'filter': filterName},
+    );
+    return response['json'] as String?;
   }
 
-  /// Get observer location for planetarium calculations
-  Future<Map<String, dynamic>> getPlanetariumLocation() async {
-    return await _get('planetarium/location');
+  Future<Map<String, dynamic>> planetariumCatalogSearch(String query) async {
+    return await _get(PlanetariumApi.catalogSearch, query: {'query': query});
   }
 }

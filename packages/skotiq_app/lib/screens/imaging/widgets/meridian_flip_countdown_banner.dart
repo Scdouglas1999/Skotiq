@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Session-scoped record of the severity at which the operator dismissed the
@@ -437,22 +438,12 @@ class _MeridianFlipChipState extends ConsumerState<MeridianFlipChip>
 /// caller's "imminent" branch and reads "now".
 ///
 /// Public + pure so the formatting is unit-tested directly.
-String formatTimeToFlip(Duration remaining) {
-  if (remaining <= Duration.zero) {
-    return 'now';
-  }
-  // Round up to the next whole minute.
-  final totalMinutes = (remaining.inSeconds + 59) ~/ 60;
-  final hours = totalMinutes ~/ 60;
-  final minutes = totalMinutes % 60;
-  if (hours == 0) {
-    return '${minutes}m';
-  }
-  if (minutes == 0) {
-    return '${hours}h';
-  }
-  return '${hours}h ${minutes}m';
-}
+String formatTimeToFlip(Duration remaining) => remaining <= Duration.zero
+    ? 'now'
+    : DurationFormat.seconds(
+        ((remaining.inSeconds + 59) ~/ 60) * 60,
+        style: DurationStyle.coarse,
+      );
 
 /// Banner title: a leading label plus an optional tabular-figure value. The
 /// value uses [SkotiqTypography.telemetryMd] (tabular) so the live countdown
@@ -491,7 +482,7 @@ class _BannerTitle extends StatelessWidget {
 }
 
 /// Small trailing chip showing the mount-reported side of pier, hinting at flip
-/// direction. Matches the `_InfoChip` styling from [MeridianFlipProgressDialog].
+/// direction.
 class _PierSideChip extends StatelessWidget {
   const _PierSideChip({required this.sideOfPier});
 
@@ -544,7 +535,6 @@ String pierSideLabel(String raw) {
   }
 }
 
-/// Internal presentation descriptor produced by [_resolveSpec].
 class _BannerSpec {
   const _BannerSpec({
     required this.severity,

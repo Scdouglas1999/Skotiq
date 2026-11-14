@@ -4,23 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart'
+import 'package:skotiq_core/models.dart'
+    show MountCapabilities, MountState, DeviceConnectionState;
+import 'package:skotiq_core/providers.dart'
     show
-        MountCapabilities,
-        MountState,
         mountStateProvider,
         equipmentMountCapabilitiesProvider,
         gateCapability,
-        slewCoordinatesProvider,
-        CoordinateParser,
-        CoordinateUtils,
-        DeviceConnectionState;
+        slewCoordinatesProvider;
+import 'package:skotiq_core/utils.dart' show CoordinateParser;
 import '../../../services/mount_command_service.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/slew_dropdown_button.dart';
 import '../widgets/meridian_flip_countdown_banner.dart' show pierSideLabel;
 import '../widgets/panel_widgets.dart';
+import '../../../router/app_routes.dart';
+import '../../../utils/watch_while_shown.dart';
 
 /// The trailing half of [SlewDropdownButton]: a 4px gap and the popup that
 /// opens the slew alternatives, which is an `IconButton` at Material's minimum
@@ -42,14 +43,12 @@ class MountTab extends ConsumerStatefulWidget {
 }
 
 class _MountTabState extends ConsumerState<MountTab> {
-  // Slew target inputs - initialized from provider in initState
   late final TextEditingController _raController;
   late final TextEditingController _decController;
 
   @override
   void initState() {
     super.initState();
-    // Initialize controllers from provider state synchronously
     final coords = ref.read(slewCoordinatesProvider);
     _raController = TextEditingController(text: coords.raText);
     _decController = TextEditingController(text: coords.decText);
@@ -86,7 +85,6 @@ class _MountTabState extends ConsumerState<MountTab> {
     super.dispose();
   }
 
-  /// Sync mount to coordinates from text fields with validation
   Future<void> _handleSync() async {
     final ra = CoordinateParser.parseRa(_raController.text);
     final dec = CoordinateParser.parseDec(_decController.text);
@@ -121,7 +119,7 @@ class _MountTabState extends ConsumerState<MountTab> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<SkotiqColors>()!;
-    final mountState = ref.watch(mountStateProvider);
+    final mountState = ref.watchWhileShown(context, mountStateProvider);
     // Watch the persisted text state so validation and the command payload
     // rebuild on every edit. Reading only the TextEditingControllers inside a
     // Builder left the disabled/enabled state and captured coordinates stale.
@@ -249,7 +247,6 @@ class _MountTabState extends ConsumerState<MountTab> {
                     variant: mountState.isTracking
                         ? ButtonVariant.secondary
                         : ButtonVariant.primary,
-                    // Gate on canSetTracking capability.
                     onPressed: isConnected &&
                             canSetTracking &&
                             !mountState.isParked &&
@@ -355,7 +352,7 @@ class _MountTabState extends ConsumerState<MountTab> {
                     icon: SkotiqIcons.compass,
                     size: ButtonSize.small,
                     variant: ButtonVariant.secondary,
-                    onPressed: () => context.push('/polar-alignment'),
+                    onPressed: () => context.push(AppRoute.polarAlignment.path),
                   ),
                 ),
               ],
@@ -406,7 +403,6 @@ class _MountTabState extends ConsumerState<MountTab> {
                               ra: targetRa,
                               dec: targetDec,
                               targetName: 'Manual Coordinates',
-                              // No rotation from manual coordinate entry
                               targetRotation: null,
                               isEnabled: isConnected &&
                                   canSlew &&
@@ -676,14 +672,14 @@ class _StatusBlock extends StatelessWidget {
             'RA',
             mountState.ra == null
                 ? null
-                : CoordinateUtils.formatRA(mountState.ra!)
+                : CoordinateFormat.raReadout(mountState.ra!)
           ),
           // Mount Dec is degrees (-90..+90); render signed DMS.
           (
             'Dec',
             mountState.dec == null
                 ? null
-                : CoordinateUtils.formatDec(mountState.dec!)
+                : CoordinateFormat.decReadout(mountState.dec!)
           ),
         ]),
         const SizedBox(height: SkotiqTokens.spaceSm),

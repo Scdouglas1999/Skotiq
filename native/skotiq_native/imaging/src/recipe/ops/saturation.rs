@@ -46,9 +46,7 @@ use serde_json::Value;
 
 use crate::recipe::{DarkroomOp, OpContext, OpError, OpImage, OpStage, Params};
 
-/// Registry id.
 const OP_ID: &str = "saturation";
-/// Registry version.
 const OP_VERSION: u32 = 1;
 
 /// The only channel layout this operation defines a result for.
@@ -63,7 +61,6 @@ const LUMA_B: f64 = 0.0722;
 
 /// Strongest desaturation; `−1` collapses every channel onto its luminance.
 const AMOUNT_MIN: f64 = -1.0;
-/// Strongest boost.
 const AMOUNT_MAX: f64 = 3.0;
 /// Boost when the parameter is absent; `0` is the identity.
 const AMOUNT_DEFAULT: f64 = 0.0;
@@ -111,7 +108,7 @@ impl DarkroomOp for SaturationV1 {
                 op_id: OP_ID,
                 op_version: OP_VERSION,
                 channels,
-                expected: "a colour master with 3 channels",
+                expected: "a color master with 3 channels",
             });
         }
         ctx.check_cancel()?;

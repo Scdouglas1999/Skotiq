@@ -5,13 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/sequence_mutator_helper.dart';
-import '../../../widgets/tutorial_keys/sequencer_keys.dart';
-import '../../accessible_dropdown.dart';
-import '../ledger_seconds.dart';
+import '../sequence_mutator_helper.dart';
+import '../../../tours/tour_target.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import '../sequence_fold_model.dart';
 import '../sequence_fold_state.dart';
 import 'delete_node_confirmation.dart';
@@ -31,7 +34,10 @@ import 'sequencer_density.dart';
 import 'target_coordinates.dart';
 import 'target_header_card.dart';
 import 'target_queue_panel.dart';
+import 'tree_insert.dart';
 import 'visual_timeline.dart';
+import 'node_appearance.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'sequence_tree/auto_collapse.dart';
 part 'sequence_tree/gutter_map.dart';
@@ -101,47 +107,10 @@ void revealSequenceRow(
 // into the next sequencer session.
 final isDraggingNodeProvider = StateProvider.autoDispose<bool>((ref) => false);
 
-/// Tree search query — filters the in-tree "jump to node" results popover in
-/// the sequence header. autoDispose so it resets between sequencer visits.
-final treeSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
-
 /// Provider for "follow execution" toggle — auto-scrolls tree to current node
 // autoDispose: tab/screen-scoped toggle; default (on) is the right initial
 // state on each visit to the sequencer.
 final followExecutionProvider = StateProvider.autoDispose<bool>((ref) => true);
-
-// Note: confirm-then-delete now lives in `delete_node_confirmation.dart`
-// as `confirmAndDeleteSequenceNode`. The tree's inline trash buttons and
-// the TargetHeaderCard delete button below route through that helper so
-// every user-initiated delete surface shares one policy.
-
-/// Insert a dragged [snippet] into the tree through [withSequenceMutation]
-/// so a locked-state or unknown-node-type failure surfaces a snackbar/dialog
-/// instead of an uncaught throw. Shared by every drag-drop TemplateSnippet
-/// branch (root target, per-container target, inter-row drop zone) so the
-/// drop path matches the tap path's error handling.
-void insertSnippetGuarded(
-  BuildContext context,
-  WidgetRef ref,
-  TemplateSnippet snippet, {
-  String? parentId,
-  int? index,
-}) {
-  final profile = ref.read(activeEquipmentProfileProvider);
-  withSequenceMutation(
-    context,
-    ref,
-    operationName: 'insert template',
-    action: () async {
-      ref.read(currentSequenceProvider.notifier).insertSnippet(
-            snippet,
-            parentId: parentId,
-            index: index,
-            profileFilterNames: profile?.filterNames,
-          );
-    },
-  );
-}
 
 /// Handle node selection with modifier key support for multi-select.
 /// Ctrl+Click: toggle individual node in multi-selection.
@@ -179,10 +148,8 @@ void _handleNodeSelect(WidgetRef ref, String nodeId) {
     }
     multi.toggle(nodeId);
   } else if (isShiftPressed) {
-    // Shift+Click: range select
     ref.read(multiSelectedNodeIdsProvider.notifier).rangeSelect(nodeId);
   } else {
-    // Plain click: single select, clear multi-select
     ref.read(multiSelectedNodeIdsProvider.notifier).clear();
     ref.read(selectedNodeIdProvider.notifier).state = nodeId;
   }
@@ -361,7 +328,6 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
     if (currentNodeId == null) return;
     if (!ref.read(followExecutionProvider)) return;
 
-    // Don't re-scroll to the same node unless user scrolled away
     if (currentNodeId == _lastScrolledToNodeId && !_userScrolledManually) {
       return;
     }
@@ -724,7 +690,7 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
   @override
   Widget build(BuildContext context) {
     final sequence = ref.watch(currentSequenceProvider);
-    final progress = ref.watch(sequenceProgressProvider);
+    final progress = ref.watch(sequenceStepProgressProvider);
     final validation = ref.watch(liveValidationProvider);
     final density = effectiveSequencerDensity(
       ref.watch(sequencerDensityProvider),
@@ -735,7 +701,6 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
     // alive between scroll frames.
     _visibleOrder = ref.watch(visibleNodeOrderProvider);
 
-    // Auto-scroll whenever the executing node changes
     final followExecution = ref.watch(followExecutionProvider);
     if (followExecution && progress.currentNodeId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -807,31 +772,8 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
           details.data is NodePaletteItem ||
           details.data is TemplateSnippet ||
           details.data is TargetQueueDragPayload,
-      onAcceptWithDetails: (details) {
-        if (!ref.read(canEditSequenceProvider)) return;
-        final data = details.data;
-        if (data is NodePaletteItem) {
-          final node = data.createNode();
-          final notifier = ref.read(currentSequenceProvider.notifier);
-          notifier.addNode(node);
-          final children = data.createChildren?.call();
-          if (children != null) {
-            for (final child in children) {
-              notifier.addNode(child, parentId: node.id);
-            }
-          }
-          ref.read(selectedNodeIdProvider.notifier).state = node.id;
-        } else if (data is TemplateSnippet) {
-          insertSnippetGuarded(context, ref, data);
-        } else if (data is TargetQueueDragPayload) {
-          // Drag-drop a queued target → append the prebuilt
-          // TargetHeaderNode under the root. Selection follows the
-          // drop so the properties panel reveals the new target.
-          final notifier = ref.read(currentSequenceProvider.notifier);
-          notifier.addNode(data.node);
-          ref.read(selectedNodeIdProvider.notifier).state = data.node.id;
-        }
-      },
+      onAcceptWithDetails: (details) =>
+          insertIntoTree(context, ref, details.data),
       builder: (context, candidateData, rejectedData) {
         final isAccepting = candidateData.isNotEmpty;
 
@@ -1031,7 +973,6 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
                     ),
                   ),
 
-                  // Visual timeline (toggled via timelineVisibleProvider)
                   Consumer(
                     builder: (context, ref, child) {
                       final showTimeline = ref.watch(timelineVisibleProvider);

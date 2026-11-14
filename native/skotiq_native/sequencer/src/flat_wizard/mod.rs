@@ -26,11 +26,12 @@
 
 mod panel;
 
+use crate::device_ops::DeviceError;
+use crate::frame_naming::{frame_namer, BurstNaming};
 use crate::instructions::{
     execute_exposure_with_renderer, resolve_frame_filter, BurstControl, InstructionContext,
-    InstructionResult,
+    InstructionResult, Setback,
 };
-use crate::node::instructions::expose::build_save_path_renderer;
 use crate::wizard::{
     BorrowedProgressReporter, Wizard, WizardExecutor, WizardProgressReporter, WizardRunStatus,
     WizardStepOutcome,
@@ -40,10 +41,6 @@ use crate::{ExposureConfig, FlatWizardConfig, PanelLocation};
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-
-/// Maximum number of binary-search iterations before declaring
-/// non-convergence.
-const MAX_BINARY_SEARCH_ITERATIONS: u32 = 10;
 
 /// Steps in the flat-wizard plan. The plan begins as `[Filter, Position,
 /// Panel, Iter(1)]` and dynamically appends `Iter(n+1)` until
@@ -75,6 +72,17 @@ struct FlatWizardRun<'a> {
     /// On success: the converged (exposure, adu, brightness) triple.
     converged: Option<(f64, u16, i32)>,
     panel_cleanup_required: Arc<AtomicBool>,
+    /// The device failure that ended the run, so a lost device is recovered.
+    cause: Option<DeviceError>,
+}
+
+impl FlatWizardRun<'_> {
+    /// The "Exposure calibration attempts" setting this run was given.
+    fn max_iterations(&self) -> u32 {
+        self.config
+            .max_iterations
+            .clamp(1, crate::MAX_FLAT_CALIBRATION_ATTEMPTS)
+    }
 }
 
 #[async_trait]
@@ -111,7 +119,7 @@ impl<'a> Wizard for FlatWizardRun<'a> {
         // iterations (the natural cap) — `do_binary_search_iteration`
         // returns `Done` on convergence and trims the rest.
         let mut next_iter = 2_u32;
-        while plan.len() <= resume_idx && next_iter <= MAX_BINARY_SEARCH_ITERATIONS {
+        while plan.len() <= resume_idx && next_iter <= self.max_iterations() {
             plan.push(FlatStep::Iter(next_iter));
             next_iter += 1;
         }
@@ -123,10 +131,7 @@ impl<'a> Wizard for FlatWizardRun<'a> {
             FlatStep::Filter => "Changing filter".to_string(),
             FlatStep::Position => "Positioning for flats".to_string(),
             FlatStep::Panel => "Setting up flat panel".to_string(),
-            FlatStep::Iter(n) => format!(
-                "Binary search iteration {}/{}",
-                n, MAX_BINARY_SEARCH_ITERATIONS
-            ),
+            FlatStep::Iter(n) => format!("Binary search iteration {}/{}", n, self.max_iterations()),
         }
     }
 
@@ -138,31 +143,27 @@ impl<'a> Wizard for FlatWizardRun<'a> {
         progress: &dyn WizardProgressReporter,
     ) -> WizardStepOutcome<FlatStep> {
         match step {
-            FlatStep::Filter => match self.do_filter_change(ctx).await {
-                Ok(()) => WizardStepOutcome::Completed,
-                Err(e) => WizardStepOutcome::Failed(e),
-            },
-            FlatStep::Position => match panel::position_for_flats(self.config, ctx, progress).await
-            {
-                Ok(()) => WizardStepOutcome::Completed,
-                Err(e) => WizardStepOutcome::Failed(e),
-            },
+            FlatStep::Filter => {
+                let changed = self.do_filter_change(ctx, progress).await;
+                self.step_outcome(changed)
+            }
+            FlatStep::Position => {
+                let positioned = panel::position_for_flats(self.config, ctx, progress).await;
+                self.step_outcome(positioned)
+            }
             FlatStep::Panel => {
                 if !matches!(self.config.panel_location, PanelLocation::FlatPanel) {
                     return WizardStepOutcome::Completed;
                 }
                 progress.report(0.2, "Setting up flat panel".to_string());
-                match panel::setup_flat_panel(
+                let ready = panel::setup_flat_panel(
                     ctx,
                     self.current_brightness,
                     progress,
                     self.panel_cleanup_required.as_ref(),
                 )
-                .await
-                {
-                    Ok(()) => WizardStepOutcome::Completed,
-                    Err(e) => WizardStepOutcome::Failed(e),
-                }
+                .await;
+                self.step_outcome(ready)
             }
             FlatStep::Iter(n) => self.do_binary_search_iteration(ctx, n, progress).await,
         }
@@ -181,6 +182,7 @@ impl<'a> Wizard for FlatWizardRun<'a> {
                     final_brightness
                 );
                 InstructionResult {
+                    setback: None,
                     status: NodeStatus::Success,
                     message: Some(format!(
                         "Captured {} flat frames at {:.3}s (ADU: {}, brightness: {})",
@@ -198,17 +200,26 @@ impl<'a> Wizard for FlatWizardRun<'a> {
                     hfr_values: Vec::new(),
                 }
             }
-            (WizardRunStatus::Cancelled, _) => InstructionResult::failure("Operation cancelled"),
-            (WizardRunStatus::Failed(msg), _) => InstructionResult::failure(msg),
+            (WizardRunStatus::Cancelled, _) => {
+                InstructionResult::cancelled("Flat wizard cancelled")
+            }
+            (WizardRunStatus::Failed(msg), _) => {
+                let result = InstructionResult::failure(msg);
+                match &self.cause {
+                    Some(cause) => result.caused_by(cause),
+                    None => result,
+                }
+            }
             (WizardRunStatus::Completed, None) => {
                 // Plan exhausted without convergence — emit the canonical
                 // error message.
                 let tolerance = (f64::from(self.config.target_adu) * self.config.tolerance_percent
                     / 100.0) as u16;
                 let message = format!(
-                    "Flat wizard did not converge after {} iterations (range {:.3}s-{:.3}s, last ADU={:?}, target={}±{}). \
-Try adjusting panel brightness or exposure bounds.",
-                    MAX_BINARY_SEARCH_ITERATIONS,
+                    "Flat exposure did not converge within {} exposure calibration attempts \
+(range {:.3}s-{:.3}s, last ADU={:?}, target={}±{}). Raise \"Exposure calibration attempts\" \
+in the Flat Wizard settings, or adjust panel brightness or exposure bounds.",
+                    self.max_iterations(),
                     self.min_exp,
                     self.max_exp,
                     self.last_adu,
@@ -216,38 +227,63 @@ Try adjusting panel brightness or exposure bounds.",
                     tolerance
                 );
                 tracing::warn!("{}", message);
-                InstructionResult::failure(message)
+                InstructionResult::failure_because(message, Setback::FlatsNotConverged)
             }
         }
     }
 }
 
 impl<'a> FlatWizardRun<'a> {
-    async fn do_filter_change(&self, ctx: &InstructionContext) -> Result<(), String> {
+    /// A step's outcome, keeping the device failure behind a failed step.
+    fn step_outcome(&mut self, result: Result<(), DeviceError>) -> WizardStepOutcome<FlatStep> {
+        match result {
+            Ok(()) => WizardStepOutcome::Completed,
+            Err(error) => {
+                let message = error.to_string();
+                self.cause = Some(error);
+                WizardStepOutcome::Failed(message)
+            }
+        }
+    }
+
+    async fn do_filter_change(
+        &self,
+        ctx: &InstructionContext,
+        progress: &dyn WizardProgressReporter,
+    ) -> Result<(), DeviceError> {
         if self.config.filter.is_none() && self.config.filter_index.is_none() {
             return Ok(());
         }
-        let fw_id = match &ctx.filterwheel_id {
+        let fw_id = match &ctx.run.rig.filterwheel_id {
             Some(id) => id,
             None => return Ok(()),
         };
+        progress.report(
+            0.05,
+            match &self.config.filter {
+                Some(name) => format!("Changing filter to {name}"),
+                None => "Changing filter".to_string(),
+            },
+        );
         if let Some(index) = self.config.filter_index {
             tracing::info!(
                 "Changing to filter position: {} (name: {:?})",
                 index,
                 self.config.filter
             );
-            ctx.device_ops
+            ctx.run
+                .device_ops
                 .filterwheel_set_position(fw_id, index)
                 .await
-                .map_err(|e| format!("Failed to change filter: {}", e))
+                .map_err(|e| e.context("Failed to change filter"))
         } else if let Some(filter_name) = &self.config.filter {
             tracing::info!("Changing to filter by name: {}", filter_name);
-            ctx.device_ops
+            ctx.run
+                .device_ops
                 .filterwheel_set_filter_by_name(fw_id, filter_name)
                 .await
                 .map(|_| ())
-                .map_err(|e| format!("Failed to change filter: {}", e))
+                .map_err(|e| e.context("Failed to change filter"))
         } else {
             Ok(())
         }
@@ -259,7 +295,7 @@ impl<'a> FlatWizardRun<'a> {
         iteration: u32,
         progress: &dyn WizardProgressReporter,
     ) -> WizardStepOutcome<FlatStep> {
-        let camera_id = match ctx.camera_id.as_deref() {
+        let camera_id = match ctx.run.rig.camera_id.as_deref() {
             Some(id) => id,
             None => return WizardStepOutcome::Failed("No camera connected".to_string()),
         };
@@ -280,21 +316,21 @@ impl<'a> FlatWizardRun<'a> {
         let test_exposure = (self.min_exp + self.max_exp) / 2.0;
 
         // Iterations span 30%..85% of overall progress.
-        // Why: iteration is u32 in 1..=10; both lossless to f64.
-        let fraction =
-            0.30 + (f64::from(iteration) / f64::from(MAX_BINARY_SEARCH_ITERATIONS)) * 0.55;
+        // Why: iteration and the attempt cap are small u32s; lossless to f64.
+        let fraction = 0.30 + (f64::from(iteration) / f64::from(self.max_iterations())) * 0.55;
         progress.report(
             fraction,
             format!(
                 "Capturing flat frame {}/{}",
-                iteration, MAX_BINARY_SEARCH_ITERATIONS
+                iteration,
+                self.max_iterations()
             ),
         );
 
         tracing::info!(
             "Iteration {}/{}: testing {:.3}s exposure at brightness {}, binning {}",
             iteration,
-            MAX_BINARY_SEARCH_ITERATIONS,
+            self.max_iterations(),
             test_exposure,
             self.current_brightness,
             ctx.current_binning.as_str()
@@ -302,12 +338,20 @@ impl<'a> FlatWizardRun<'a> {
 
         let (bin_x, bin_y) = binning_dimensions(ctx.current_binning);
         let image_data = match ctx
+            .run
             .device_ops
-            .camera_start_exposure(camera_id, test_exposure, None, None, bin_x, bin_y)
+            .camera_start_exposure(
+                crate::device_ops::ExposureRequest::new(camera_id, test_exposure)
+                    .binning(bin_x, bin_y),
+            )
             .await
         {
             Ok(data) => data,
-            Err(e) => return WizardStepOutcome::Failed(format!("Test exposure failed: {}", e)),
+            Err(e) => {
+                let message = format!("Test exposure failed: {}", e);
+                self.cause = Some(e);
+                return WizardStepOutcome::Failed(message);
+            }
         };
 
         let median_adu = calculate_median_adu(&image_data);
@@ -422,7 +466,7 @@ Try adjusting panel brightness or widening exposure limits.",
             return WizardStepOutcome::Failed(message);
         }
 
-        if iteration < MAX_BINARY_SEARCH_ITERATIONS {
+        if iteration < self.max_iterations() {
             WizardStepOutcome::ContinueWithNext(FlatStep::Iter(iteration + 1))
         } else {
             // Plan exhausts; finalize emits the non-convergence error.
@@ -453,7 +497,7 @@ fn final_flat_exposure_config(
         filter_index: config.filter_index,
         binning,
         dither_every: None,
-        frame_type: "Flat".to_string(),
+        frame_type: crate::FrameType::Flat,
         ..ExposureConfig::default()
     }
 }
@@ -483,11 +527,14 @@ pub(crate) async fn capture_converged_flats(
     template_ctx.current_filter = filter_name;
     template_ctx.current_filter_index = filter_index;
 
-    let renderer = match build_save_path_renderer(&template_ctx, &capture_config, exposure_secs) {
+    let renderer = match frame_namer(
+        &template_ctx,
+        BurstNaming::of(&capture_config, exposure_secs),
+    ) {
         Ok(renderer) => renderer,
         Err(message) => {
             tracing::error!("{}", message);
-            if let Some(event_tx) = &ctx.event_tx {
+            if let Some(event_tx) = &ctx.run.event_tx {
                 let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
                     message: message.clone(),
                 });
@@ -504,6 +551,7 @@ pub(crate) async fn capture_converged_flats(
         progress_callback,
     )
     .await
+    .result
 }
 
 fn surface_cleanup_failure(result: &mut InstructionResult, cleanup_error: String) {
@@ -535,8 +583,11 @@ pub async fn execute_flat_wizard(
     );
 
     // A missing camera is surfaced before any other work.
-    if ctx.camera_id.as_deref().is_none() {
-        return InstructionResult::failure("No camera connected");
+    if ctx.run.rig.camera_id.as_deref().is_none() {
+        return InstructionResult::failure_because(
+            "No camera connected",
+            crate::instructions::Setback::Disconnected,
+        );
     }
 
     let borrow_reporter = BorrowedProgressReporter {
@@ -555,6 +606,7 @@ pub async fn execute_flat_wizard(
         last_adu: None,
         converged: None,
         panel_cleanup_required: panel_cleanup_required.clone(),
+        cause: None,
     };
     let (mut result, _status) = executor.run(wizard, ctx).await;
 
@@ -565,7 +617,8 @@ pub async fn execute_flat_wizard(
         borrow_reporter.report(0.9, "Cleaning up flat panel".to_string());
         if let Err(e) = panel::cleanup_flat_panel(ctx).await {
             tracing::error!("Failed to cleanup flat panel: {}", e);
-            surface_cleanup_failure(&mut result, e);
+            surface_cleanup_failure(&mut result, e.to_string());
+            result = result.caused_by(&e);
         }
     }
 
@@ -638,7 +691,9 @@ mod tests {
             filter: None,
             timestamp: 0,
             sensor_type: Some("Monochrome".to_string()),
-            bayer_offset: None,
+            color_filter: None,
+            camera_file: None,
+            readout_mode: None,
         }
     }
 
@@ -661,11 +716,29 @@ mod tests {
         assert!(median > 23000 && median < 27000);
     }
 
+    /// Dusk flats point away from the sunset, dawn flats away from the
+    /// sunrise: the pointing the wizard took before its azimuths were read
+    /// through the one horizontal-to-equatorial conversion.
     #[test]
-    fn test_altaz_to_radec_zenith() {
-        // Zenith (alt=90, any azimuth) should give Dec = latitude.
-        let (_ra, dec) = panel::altaz_to_radec(90.0, 180.0, 45.0, 0.0);
-        assert!((dec - 45.0).abs() < 1.0);
+    fn sky_flats_point_away_from_the_sun() {
+        let now = chrono::Utc::now();
+        for (location, east_of_meridian) in [
+            (PanelLocation::DuskSky, true),
+            (PanelLocation::DawnSky, false),
+        ] {
+            let (alt, az) = panel::sky_flat_alt_az(&location).expect("a sky location");
+            let (ra, dec) = crate::meridian::alt_az_to_ra_dec(alt, az, 40.0, -75.0, now);
+            let lst =
+                crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), -75.0);
+            let hour_angle = crate::meridian::hour_angle(ra, lst);
+            assert_eq!(
+                hour_angle < 0.0,
+                east_of_meridian,
+                "{location:?}: HA {hour_angle}"
+            );
+            let (back_alt, _) = crate::meridian::calculate_alt_az(ra, dec, 40.0, -75.0, now);
+            assert!((back_alt - 65.0).abs() < 0.01, "{location:?}: {back_alt}");
+        }
     }
 
     /// Helper: build a default FlatWizardConfig for plan-tests.
@@ -683,6 +756,7 @@ mod tests {
             last_adu: None,
             converged: None,
             panel_cleanup_required: Arc::new(AtomicBool::new(false)),
+            cause: None,
         }
     }
 
@@ -741,19 +815,43 @@ mod tests {
     #[test]
     fn resume_at_or_beyond_max_iterations_does_not_overflow() {
         // Defensive: resume_idx larger than the max iteration cap
-        // (3 structural + 10 iterations = 13 max) should bound at
-        // MAX_BINARY_SEARCH_ITERATIONS.
+        // (3 structural + the configured attempts) should bound at the
+        // configured attempts.
         let config = test_config();
         let run = make_run(&config);
         let plan = run.plan_steps(100);
-        // Total cap = 3 structural + MAX_BINARY_SEARCH_ITERATIONS.
-        let expected_cap = 3 + MAX_BINARY_SEARCH_ITERATIONS as usize;
+        // Total cap = 3 structural + the configured attempts.
+        let attempts = config.max_iterations;
+        let expected_cap = 3 + attempts as usize;
         assert_eq!(plan.len(), expected_cap);
         // Last entry is Iter(MAX).
-        assert_eq!(
-            iter_of(&plan[expected_cap - 1]),
-            Some(MAX_BINARY_SEARCH_ITERATIONS)
-        );
+        assert_eq!(iter_of(&plan[expected_cap - 1]), Some(attempts));
+    }
+
+    #[test]
+    fn a_wire_node_without_the_setting_gets_twenty_attempts() {
+        let config: crate::FlatWizardConfig = serde_json::from_value(serde_json::json!({
+            "target_adu": 30000,
+            "min_exposure": 0.01,
+            "max_exposure": 10.0,
+            "tolerance_percent": 5.0,
+            "panel_location": "FlatPanel",
+            "filter": null
+        }))
+        .unwrap();
+        assert_eq!(config.max_iterations, 20);
+    }
+
+    #[test]
+    fn the_attempts_setting_bounds_the_search() {
+        let mut config = test_config();
+        config.max_iterations = 4;
+        let run = make_run(&config);
+        let plan = run.plan_steps(100);
+        assert_eq!(plan.len(), 3 + 4);
+        config.max_iterations = 0;
+        let run = make_run(&config);
+        assert_eq!(run.max_iterations(), 1, "never zero attempts");
     }
 
     #[test]
@@ -781,7 +879,7 @@ mod tests {
         assert_eq!(exposure.filter_index, Some(3));
         assert_eq!(exposure.binning, crate::Binning::Two);
         assert_eq!(exposure.dither_every, None);
-        assert_eq!(exposure.frame_type, "Flat");
+        assert_eq!(exposure.frame_type, crate::FrameType::Flat);
         assert_eq!(binning_dimensions(exposure.binning), (2, 2));
     }
 

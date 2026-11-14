@@ -2,7 +2,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -145,7 +148,7 @@ void main() {
       () => backend.updateDefectMapSettings(any()),
     ).thenAnswer((_) async => const {'status': 'updated'});
     final localBefore = await database.settingsDao.getSetting(
-      DefectMapSettingsKeys.method,
+      'defectMap.method',
     );
     final container = ProviderContainer(
       overrides: [
@@ -171,7 +174,7 @@ void main() {
       () => backend.updateDefectMapSettings({'method': 'gaussian'}),
     ).called(1);
     expect(
-      await database.settingsDao.getSetting(DefectMapSettingsKeys.method),
+      await database.settingsDao.getSetting('defectMap.method'),
       localBefore,
     );
   });

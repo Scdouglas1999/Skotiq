@@ -166,7 +166,6 @@ class CoImagingService {
     return sessionId;
   }
 
-  /// One session by id, or null.
   CoImagingSessionRow? getSession(String sessionId) {
     final rows = _db.db.select(
       'SELECT * FROM coimaging_sessions WHERE id = ?;',
@@ -204,8 +203,6 @@ class CoImagingService {
       <Object?>[_now().toIso8601String(), sessionId],
     );
   }
-
-  // --- Join / leave ----------------------------------------------------------
 
   /// JOIN [sessionId] as [accountId]/[rigId]. Idempotent: a rig already in the
   /// session keeps its assigned slot + membership token (a re-join is a renewal
@@ -593,8 +590,6 @@ class CoImagingService {
     return _handoff.releaseSession(sessionId: sessionId, accountId: accountId);
   }
 
-  // --- Framing offsets -------------------------------------------------------
-
   /// The deterministic dither nudge (RA arcsec, Dec arcsec) for participant
   /// [slot]. Slot 0 is the anchor (0, 0); higher slots fan out on concentric
   /// rings of 8·r positions each, scaled by [framingStepArcsec]. Distinct slots
@@ -613,8 +608,6 @@ class CoImagingService {
     final radius = ring * framingStepArcsec;
     return (radius * cos(angle), radius * sin(angle));
   }
-
-  // --- Internals -------------------------------------------------------------
 
   void _insertParticipant({
     required String sessionId,
@@ -982,7 +975,6 @@ class CoImagingPreviewEvent {
   String toSseFrame() => 'event: $kind\ndata: ${jsonEncode(toJson())}\n\n';
 }
 
-/// No co-imaging session with the given id exists.
 class CoImagingSessionNotFound implements Exception {
   CoImagingSessionNotFound(this.sessionId);
   final String sessionId;
@@ -998,7 +990,6 @@ class CoImagingSessionClosed implements Exception {
   String toString() => 'CoImagingSessionClosed($sessionId)';
 }
 
-/// The caller is not a participant of the session.
 class CoImagingParticipantNotFound implements Exception {
   CoImagingParticipantNotFound(this.sessionId, this.accountId);
   final String sessionId;

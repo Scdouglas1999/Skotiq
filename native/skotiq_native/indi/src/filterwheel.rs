@@ -3,20 +3,18 @@
 //! Provides high-level filter wheel control via INDI protocol.
 
 use crate::client::IndiClient;
-use crate::error::IndiResult;
-use crate::protocol::standard_properties::*;
+use crate::error::{IndiError, IndiResult};
+use crate::protocol::names::*;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-/// INDI Filter Wheel device wrapper
 pub struct IndiFilterWheel {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiFilterWheel {
-    /// Create a new INDI filter wheel wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
@@ -24,34 +22,11 @@ impl IndiFilterWheel {
         }
     }
 
-    /// Get the device name
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    /// Connect to the filter wheel
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    /// Disconnect from the filter wheel
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    /// Check if connected
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
     /// Detect whether this driver numbers filter slots from 0 or 1 using `FILTER_SLOT` min.
     async fn slot_index_base(&self) -> i32 {
         let client = self.client.read().await;
         if let Some(limits) = client
-            .get_number_limits(&self.device_name, FILTER_SLOT, "FILTER_SLOT_VALUE")
+            .get_number_limits(&self.device_name, FILTER_SLOT, FILTER_SLOT_VALUE)
             .await
         {
             if limits.min.is_some_and(|m| m < 1.0) {
@@ -71,92 +46,85 @@ impl IndiFilterWheel {
         wire - base
     }
 
-    /// Set filter position using Skotiq's **0-based** index (ASCOM/Alpaca convention).
-    pub async fn set_position(&self, zero_based: i32) -> IndiResult<()> {
-        let wire = self.wire_slot_from_zero_based(zero_based).await;
-        self.set_slot(wire).await
-    }
-
-    /// Set filter slot using the driver's native slot numbering (usually 1-based per INDI).
-    pub async fn set_slot(&self, slot: i32) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client
+    /// Move to a **0-based** slot and return once the wheel reports it is
+    /// there.
+    ///
+    /// INDI accepts the new slot before the wheel turns, and the property only
+    /// goes Busy once the driver's reply arrives, so neither the slot value nor
+    /// the Busy state read right after the send says where the wheel is: a
+    /// caller that read back at once saw the old slot, not moving, and took the
+    /// move for a stall. This waits for the slot reading to equal the target
+    /// with the property no longer Busy, and fails when the property goes
+    /// Alert or after the filter-change timeout.
+    pub async fn move_to_position(&self, zero_based: i32) -> IndiResult<()> {
+        let target = self.wire_slot_from_zero_based(zero_based).await;
+        let (timeout, poll) = {
+            let client = self.client.read().await;
+            let config = client.timeout_config();
+            (
+                Duration::from_secs(config.filter_change_timeout_secs),
+                Duration::from_millis(config.property_poll_interval_ms.clamp(50, 500)),
+            )
+        };
+        self.client
+            .write()
+            .await
             .set_number(
                 &self.device_name,
                 FILTER_SLOT,
-                "FILTER_SLOT_VALUE",
-                // Why: i32 slot -> f64 (INDI wire); lossless.
-                f64::from(slot),
+                FILTER_SLOT_VALUE,
+                f64::from(target),
             )
-            .await
-    }
-
-    /// Set filter position (0-based) with timeout.
-    pub async fn set_position_with_timeout(
-        &self,
-        zero_based: i32,
-        timeout: Option<Duration>,
-    ) -> Result<(), String> {
-        let wire = self.wire_slot_from_zero_based(zero_based).await;
-        self.set_slot_with_timeout(wire, timeout).await
-    }
-
-    /// Set filter slot with timeout (driver-native slot index).
-    pub async fn set_slot_with_timeout(
-        &self,
-        slot: i32,
-        timeout: Option<Duration>,
-    ) -> Result<(), String> {
-        let timeout_duration = match timeout {
-            Some(timeout) => timeout,
-            None => {
+            .await?;
+        let start = std::time::Instant::now();
+        loop {
+            let (state, slot) = {
                 let client = self.client.read().await;
-                Duration::from_secs(client.timeout_config().filter_change_timeout_secs)
-            }
-        };
-
-        // Start the filter change
-        {
-            let mut client = self.client.write().await;
-            client
-                .set_number(
-                    &self.device_name,
-                    FILTER_SLOT,
-                    "FILTER_SLOT_VALUE",
-                    // Why: i32 slot -> f64 (INDI wire); lossless.
-                    f64::from(slot),
+                (
+                    client
+                        .get_property_state(&self.device_name, FILTER_SLOT)
+                        .await,
+                    client
+                        .get_number(&self.device_name, FILTER_SLOT, FILTER_SLOT_VALUE)
+                        .await,
                 )
-                .await?;
+            };
+            if state == Some(crate::IndiPropertyState::Alert) {
+                return Err(IndiError::Incomplete(format!(
+                    "Filter wheel {} reported an alert moving to slot {}",
+                    self.device_name, target
+                )));
+            }
+            // Why: INDI wire f64 -> i32 slot (bounded 1..wheel_size).
+            let at_target = slot.map(|s| s as i32) == Some(target);
+            if at_target && state != Some(crate::IndiPropertyState::Busy) {
+                return Ok(());
+            }
+            if start.elapsed() >= timeout {
+                return Err(IndiError::Incomplete(format!(
+                    "Filter wheel {} did not reach slot {} within {:?}",
+                    self.device_name, target, timeout
+                )));
+            }
+            tokio::time::sleep(poll).await;
         }
+    }
 
-        // Wait for filter change to complete
-        let client = self.client.read().await;
-        client
-            .wait_for_property_not_busy(&self.device_name, FILTER_SLOT, timeout_duration)
+    /// The current slot as a **0-based** index (Skotiq convention).
+    pub async fn get_position(&self) -> IndiResult<i32> {
+        let wire = self
+            .client
+            .read()
             .await
-            .map_err(|e| format!("Filter wheel change to slot {} failed: {}", slot, e))
-    }
-
-    /// Get current filter position as a **0-based** index (Skotiq convention).
-    pub async fn get_position(&self) -> Result<i32, String> {
-        let wire = self.get_slot().await?;
-        Ok(self.zero_based_from_wire_slot(wire).await)
-    }
-
-    /// Get current filter slot in driver-native numbering (typically 1-based).
-    pub async fn get_slot(&self) -> Result<i32, String> {
-        let client = self.client.read().await;
-        client
-            .get_number(&self.device_name, FILTER_SLOT, "FILTER_SLOT_VALUE")
+            .get_number(&self.device_name, FILTER_SLOT, FILTER_SLOT_VALUE)
             .await
             // Why: INDI wire f64 -> i32 slot (bounded 1..wheel_size); saturates per Rust 1.45.
             .map(|s| s as i32)
-            .ok_or_else(|| "Filter slot not available".to_string())
+            .ok_or_else(|| IndiError::Unavailable("Filter slot not available".to_string()))?;
+        Ok(self.zero_based_from_wire_slot(wire).await)
     }
 
-    /// Get filter names
-    /// Get filter names
-    pub async fn get_names(&self) -> Result<Vec<String>, String> {
+    pub async fn get_names(&self) -> IndiResult<Vec<String>> {
         let client = self.client.read().await;
         let props = client.get_properties(&self.device_name).await;
 
@@ -184,7 +152,7 @@ impl IndiFilterWheel {
         // wheel on a fresh install (no saved profile to fall back on) shows an
         // EMPTY filter list even though the wheel's slot count is known.
         if let Some(limits) = client
-            .get_number_limits(&self.device_name, FILTER_SLOT, "FILTER_SLOT_VALUE")
+            .get_number_limits(&self.device_name, FILTER_SLOT, FILTER_SLOT_VALUE)
             .await
         {
             if let (Some(min), Some(max)) = (limits.min, limits.max) {
@@ -201,7 +169,6 @@ impl IndiFilterWheel {
         Ok(Vec::new())
     }
 
-    /// Check if filter wheel is currently moving
     pub async fn is_moving(&self) -> bool {
         let client = self.client.read().await;
         client
@@ -209,6 +176,8 @@ impl IndiFilterWheel {
             .await
     }
 }
+
+indi_device!(IndiFilterWheel);
 
 #[cfg(test)]
 mod tests {
@@ -220,23 +189,6 @@ mod tests {
         let client = Arc::new(RwLock::new(IndiClient::new("localhost", Some(7624))));
         let fw = IndiFilterWheel::new(client, "TestFilterWheel");
         assert_eq!(fw.device_name(), "TestFilterWheel");
-    }
-
-    #[tokio::test]
-    async fn test_set_slot_with_timeout_error_message() {
-        let client = Arc::new(RwLock::new(IndiClient::new("localhost", Some(7624))));
-        let fw = IndiFilterWheel::new(client, "TestFilterWheel");
-
-        // This will fail since we're not connected
-        let result = fw
-            .set_slot_with_timeout(3, Some(Duration::from_millis(100)))
-            .await;
-
-        assert!(result.is_err());
-        if let Err(e) = result {
-            // Error should mention either the slot or that we're not connected
-            assert!(e.contains("slot 3") || e.to_lowercase().contains("not connected"));
-        }
     }
 
     #[test]
@@ -262,7 +214,6 @@ mod tests {
         )));
         let _fw = IndiFilterWheel::new(client.clone(), "TestFilterWheel");
 
-        // Verify the timeout config is accessible
         let timeout_secs = {
             let c = client.read().await;
             c.timeout_config().filter_change_timeout_secs

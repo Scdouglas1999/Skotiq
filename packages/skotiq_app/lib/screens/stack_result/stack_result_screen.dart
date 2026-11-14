@@ -7,19 +7,20 @@ import 'package:file_selector/file_selector.dart' show XTypeGroup;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// Reaches the seam directly: the per-channel colour STF (_autoStretchColor)
-// that matches the native OSC capture curve is not re-exported through the
-// core barrel.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/stacking_engine_seam.dart'
-    show BridgeStackingEngineSeam, StackingEngineSeam;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
 import '../../utils/darkroom_navigation.dart';
 import '../../widgets/astro_image_viewer.dart';
+import '../../utils/snackbar_helper.dart';
 
 part 'stack_result_screen_parts/_export_seams.dart';
 part 'stack_result_screen_parts/_support_widgets.dart';
@@ -115,7 +116,7 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
   }
 
   String _resultLoadErrorMessage(Object error) {
-    final message = _cleanErrorMessage(error);
+    final message = userFacingError(error);
     return message.isEmpty
         ? 'The imaging host could not be reached. Try again when the '
             'connection is available.'
@@ -154,10 +155,6 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
       children: [
         PageHeader(
           title: 'Stack result',
-          // The target qualifies the title. The frame count and the
-          // integration used to be a subtitle sentence here; they are Readouts
-          // in the side panel now, where every other number about this stack
-          // already lived.
           context: result.targetName,
           icon: SkotiqIcons.image,
           actions: [_buildActions(context, colors, result, rgba)],
@@ -585,7 +582,6 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
     return durablePreview;
   }
 
-  /// True while a stretch is in flight and nothing has been painted yet.
   bool get _renderPending => _renderingBuffer != null && _displayRgba == null;
 
   /// Kick a render of [buffer] under the current stretch, at most once per
@@ -624,22 +620,8 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
   }
 
   String _previewErrorMessage(Object error) {
-    final message = _cleanErrorMessage(error);
+    final message = userFacingError(error);
     return message.isEmpty ? 'The saved preview could not be opened.' : message;
-  }
-
-  String _cleanErrorMessage(Object error) {
-    var message = error.toString().trim();
-    for (final prefix in const [
-      'StateError: ',
-      'Bad state: ',
-      'FormatException: ',
-    ]) {
-      if (message.startsWith(prefix)) {
-        message = message.substring(prefix.length).trim();
-      }
-    }
-    return message;
   }
 
   /// Render [buffer] to display RGBA under the current [_stretch].
@@ -695,9 +677,6 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
     };
   }
 
-  // Export / share
-
-  /// Suggested file name (no directory) for [result] in [format].
   String _suggestedFileName(StackAndShareResult result, String extension) {
     final base = (result.targetName ?? 'stack')
         .replaceAll(RegExp(r'[^A-Za-z0-9_\- ]'), '')
@@ -716,7 +695,7 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
     final picker = ref.read(stackResultSavePickerProvider);
     final share = ref.read(stackResultShareProvider);
     final service = ref.read(stackShareExportServiceProvider);
-    final stampPersistedResult = ref.read(backendProvider) is! NetworkBackend;
+    final stampPersistedResult = !ref.read(isRemoteModeProvider);
 
     final (extension, allowed, title) = switch (format) {
       ShareExportFormat.png => ('png', ['png'], 'Export PNG'),
@@ -751,34 +730,31 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
         stampPersistedResult: stampPersistedResult,
       );
       if (!mounted) return;
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'Exported ${p.basename(written)}',
-        severity: SkotiqAlertSeverity.success,
-      );
 
       // The share card always hands the written file to the OS share sheet. On
       // Android/iOS so must PNG/JPEG: there is no save dialog on those
-      // platforms, so the export landed in the app sandbox and the toast alone
+      // platforms, so the export landed in the app sandbox and the notice alone
       // would name a file the user cannot open. On desktop those two stay
       // save-only — the user picked the path. A share failure never means the
-      // export failed — the file is already on disk — so it surfaces as a
-      // non-fatal warning.
+      // export failed — the file is already on disk — so it is the one notice,
+      // a warning, in place of the success.
       final handOffToShareSheet = format == ShareExportFormat.shareCard ||
           Platform.isAndroid ||
           Platform.isIOS;
+      var shared = true;
       if (handOffToShareSheet) {
         try {
           // share_plus is a UI dependency, so the call lives at this boundary.
           await share(written, text: result.targetName ?? 'Stacked result');
         } catch (e) {
-          if (!mounted) return;
-          SkotiqToastHelper.show(
-            context: context,
-            message: 'Saved, but sharing failed.',
-            severity: SkotiqAlertSeverity.warning,
-          );
+          shared = false;
         }
+      }
+      if (!mounted) return;
+      if (shared) {
+        context.showSuccessSnackBar('Exported ${p.basename(written)}');
+      } else {
+        context.showWarningSnackBar('Saved, but sharing failed.');
       }
     } catch (e) {
       if (!mounted) return;
@@ -878,11 +854,7 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
         text: 'AstroBin acquisition details: ${result.targetName ?? ''}',
       );
       if (!mounted) return;
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'AstroBin sidecar exported',
-        severity: SkotiqAlertSeverity.success,
-      );
+      context.showSuccessSnackBar('AstroBin sidecar exported');
     } catch (e) {
       if (!mounted) return;
       await ErrorDialog.show(

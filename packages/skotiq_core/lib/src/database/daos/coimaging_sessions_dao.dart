@@ -1,7 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../tables/coimaging_sessions.dart';
 
@@ -116,7 +114,6 @@ class CoImagingSessionsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Delete the membership row for [sessionId] at [hubKey].
   Future<int> deleteSession(String hubKey, String sessionId) {
     return (delete(coImagingSessions)..where(
           (s) => s.hubKey.equals(hubKey) & s.sessionId.equals(sessionId),
@@ -155,8 +152,3 @@ class CoImagingSessionsDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 }
-
-/// Riverpod provider for [CoImagingSessionsDao].
-final coImagingSessionsDaoProvider = Provider<CoImagingSessionsDao>((ref) {
-  return CoImagingSessionsDao(ref.watch(databaseProvider));
-});

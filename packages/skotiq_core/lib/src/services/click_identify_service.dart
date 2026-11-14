@@ -3,14 +3,12 @@ part of 'annotation_service.dart';
 // Click-to-identify query logic
 
 extension ClickIdentifyService on AnnotationService {
-  /// Identify an object at specific pixel coordinates
   Future<CelestialObjectAnnotation?> identifyAtPixel({
     required PlateSolveData plateSolve,
     required double x,
     required double y,
     double? searchRadiusArcsec,
   }) async {
-    // Convert pixels to RA/Dec
     final coords = plateSolve.pixelToSky(x, y);
 
     _logger.debug(
@@ -18,7 +16,6 @@ extension ClickIdentifyService on AnnotationService {
       source: 'Annotation',
     );
 
-    // Search for object at these coordinates
     final configuredRadius =
         searchRadiusArcsec ??
         (await _ref.read(
@@ -60,7 +57,6 @@ extension ClickIdentifyService on AnnotationService {
 
     if (details == null) return null;
 
-    // Convert to annotation format
     final objectType = _inferObjectType(details.objectClass);
     final name =
         details.catalogIds?['Name'] ??
@@ -86,7 +82,6 @@ extension ClickIdentifyService on AnnotationService {
     );
   }
 
-  /// Get detailed information about an object at given coordinates
   Future<ObjectData?> getObjectDetails({
     required double ra,
     required double dec,
@@ -104,31 +99,40 @@ extension ClickIdentifyService on AnnotationService {
       );
 
       if (dsos.isNotEmpty) {
-        // Find the closest object
         final closest = dsos.reduce((a, b) {
-          final distA = _angularDistance(ra, dec, a.ra, a.dec);
-          final distB = _angularDistance(ra, dec, b.ra, b.dec);
+          final distA = AstronomyCalculations.angularSeparation(
+            ra1Deg: ra,
+            dec1Deg: dec,
+            ra2Deg: a.coordinates.raDegrees,
+            dec2Deg: a.coordinates.dec,
+          );
+          final distB = AstronomyCalculations.angularSeparation(
+            ra1Deg: ra,
+            dec1Deg: dec,
+            ra2Deg: b.coordinates.raDegrees,
+            dec2Deg: b.coordinates.dec,
+          );
           return distA < distB ? a : b;
         });
 
         result = ObjectData(
-          description: closest.typeDescription,
-          objectClass: closest.typeDescription,
+          description: closest.type.displayName,
+          objectClass: closest.type.displayName,
           catalogIds: {
-            'Name': closest.displayName,
-            if (closest.messier != null)
-              'M': closest.messier!.replaceAll('M', ''),
-            if (closest.name.startsWith('NGC'))
-              'NGC': closest.name.replaceAll('NGC', '').trim(),
-            if (closest.name.startsWith('IC'))
-              'IC': closest.name.replaceAll('IC', '').trim(),
+            'Name': closest.name,
+            if (closest.messierNumber != null)
+              'M': closest.messierNumber!.replaceAll('M', ''),
+            if (closest.id.startsWith('NGC'))
+              'NGC': closest.id.replaceAll('NGC', '').trim(),
+            if (closest.id.startsWith('IC'))
+              'IC': closest.id.replaceAll('IC', '').trim(),
           },
           lastUpdated: DateTime.now(),
           dataSource: 'Local Catalog',
         );
 
         _logger.debug(
-          'Found in local DSO catalog: ${closest.displayName}',
+          'Found in local DSO catalog: ${closest.name}',
           source: 'Annotation',
         );
       }
@@ -139,7 +143,6 @@ extension ClickIdentifyService on AnnotationService {
       );
     }
 
-    // Also check local star catalog
     if (result == null) {
       try {
         final stars = await _catalogManager.searchStarsNearby(
@@ -149,10 +152,19 @@ extension ClickIdentifyService on AnnotationService {
         );
 
         if (stars.isNotEmpty) {
-          // Find the closest star
           final closest = stars.reduce((a, b) {
-            final distA = _angularDistance(ra, dec, a.ra, a.dec);
-            final distB = _angularDistance(ra, dec, b.ra, b.dec);
+            final distA = AstronomyCalculations.angularSeparation(
+              ra1Deg: ra,
+              dec1Deg: dec,
+              ra2Deg: a.coordinates.raDegrees,
+              dec2Deg: a.coordinates.dec,
+            );
+            final distB = AstronomyCalculations.angularSeparation(
+              ra1Deg: ra,
+              dec1Deg: dec,
+              ra2Deg: b.coordinates.raDegrees,
+              dec2Deg: b.coordinates.dec,
+            );
             return distA < distB ? a : b;
           });
 
@@ -160,11 +172,11 @@ extension ClickIdentifyService on AnnotationService {
             description: 'Star',
             objectClass: 'Star',
             spectralType: _parseSpectralType(closest.spectralType),
-            distance: closest.distance,
+            distance: closest.distanceParsecs,
             catalogIds: {
               'Name': closest.name,
-              if (closest.hipId != null) 'HIP': closest.hipId.toString(),
-              if (closest.hdId != null) 'HD': closest.hdId.toString(),
+              if (closest.catalogNumber('HIP') case final hip?) 'HIP': '$hip',
+              if (closest.catalogNumber('HD') case final hd?) 'HD': '$hd',
             },
             lastUpdated: DateTime.now(),
             dataSource: 'Local Catalog',
@@ -213,7 +225,6 @@ extension ClickIdentifyService on AnnotationService {
 
     // 4. Check for Exoplanets (if it's a star)
     if (result != null && result.catalogIds != null) {
-      // Try to find a name to query
       final name =
           result.catalogIds?['Name'] ??
           (result.catalogIds?['HD'] != null

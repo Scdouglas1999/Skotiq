@@ -1,7 +1,3 @@
-import 'dart:developer' as developer;
-
-import 'coordinate_format.dart';
-
 /// Utility class for parsing astronomical coordinates in various formats
 class CoordinateParser {
   /// Parse RA string to hours (decimal)
@@ -24,7 +20,6 @@ class CoordinateParser {
       if (degText.endsWith('deg')) {
         degText = degText.substring(0, degText.length - 3).trim();
       } else {
-        // remove trailing '°' or 'd'
         degText = degText.substring(0, degText.length - 1).trim();
       }
       final deg = double.tryParse(degText);
@@ -34,7 +29,6 @@ class CoordinateParser {
       return null;
     }
 
-    // Try decimal format first
     final decimal = double.tryParse(trimmed);
     if (decimal != null && decimal.isFinite) {
       if (decimal >= 0 && decimal < 24) {
@@ -47,7 +41,6 @@ class CoordinateParser {
       return null;
     }
 
-    // Remove common separators and letters
     final cleaned = lower
         .replaceAll('h', ':')
         .replaceAll('m', ':')
@@ -69,17 +62,9 @@ class CoordinateParser {
       if (seconds < 0 || seconds >= 60) return null;
 
       return hours + minutes / 60.0 + seconds / 3600.0;
-    } catch (e, stackTrace) {
-      // This is a user-input parser: `null` is the contract for any
-      // unparseable string (the UI binds the field to "invalid RA" feedback),
-      // and nothing throws across the validator boundary. FINE keeps a sudden
-      // flood of parse failures visible in the dev console without spamming the
-      // user-facing error pipeline.
-      developer.log(
-        'parseRa("$input") failed: $e\n$stackTrace',
-        name: 'CoordinateParser',
-        level: 500,
-      );
+    } on FormatException {
+      // Unparseable input is `null` by contract; the field shows the
+      // validation message.
       return null;
     }
   }
@@ -97,7 +82,6 @@ class CoordinateParser {
     final trimmed = input.trim();
     final lower = trimmed.toLowerCase();
 
-    // Try decimal format first
     final decimal = double.tryParse(trimmed);
     if (decimal != null && decimal.isFinite) {
       if (decimal >= -90 && decimal <= 90) {
@@ -106,7 +90,6 @@ class CoordinateParser {
       return null;
     }
 
-    // Determine sign
     final isNegative = lower.startsWith('-');
     final cleaned = lower
         .replaceAll('+', '')
@@ -136,50 +119,8 @@ class CoordinateParser {
       final result = degrees + minutes / 60.0 + seconds / 3600.0;
       if (result > 90) return null;
       return isNegative ? -result : result;
-    } catch (e, stackTrace) {
-      // Why: user-input parser — see parseRa above. Returning `null` is the
-      // contract for "unparseable Dec string"; the UI binds invalid input to
-      // a validation message. Log at FINE for diagnostic visibility.
-      developer.log(
-        'parseDec("$input") failed: $e\n$stackTrace',
-        name: 'CoordinateParser',
-        level: 500,
-      );
+    } on FormatException {
       return null;
     }
-  }
-
-  /// Hundredths of a second per hour/degree — the quantum
-  /// [SecondsPrecision.twoDecimal] renders at, and therefore the resolution at
-  /// which an RA can round up into a whole extra day.
-  static const int _hundredthsPerUnit = 360000;
-
-  /// Format RA from decimal hours to HMS string (HH:MM:SS.ss).
-  ///
-  /// [raHours] is folded into [0, 24) first, so 24h and negative inputs render
-  /// as a real time of day rather than "24:00:00.00" or a negative hour.
-  static String formatRaHms(double raHours) {
-    if (raHours.isNaN || raHours.isInfinite) return '--:--:--.--';
-    var wrapped = raHours % 24.0;
-    if (wrapped < 0) wrapped += 24.0;
-    // The rounding itself can push 23:59:59.999 up to a full 24h.
-    if ((wrapped * _hundredthsPerUnit).round() >= 24 * _hundredthsPerUnit) {
-      wrapped = 0.0;
-    }
-    return CoordinateFormat.ra(
-      wrapped,
-      style: SexagesimalStyle.paddedColons,
-      seconds: SecondsPrecision.twoDecimal,
-    );
-  }
-
-  /// Format Dec from decimal degrees to DMS string (+DD:MM:SS.ss)
-  static String formatDecDms(double decDegrees) {
-    if (decDegrees.isNaN || decDegrees.isInfinite) return '+--:--:--.--';
-    return CoordinateFormat.dec(
-      decDegrees,
-      style: SexagesimalStyle.paddedColons,
-      seconds: SecondsPrecision.twoDecimal,
-    );
   }
 }

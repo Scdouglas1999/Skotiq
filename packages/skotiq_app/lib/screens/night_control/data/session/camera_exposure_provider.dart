@@ -15,7 +15,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// One exposure the camera is taking.
 @immutable
@@ -120,23 +123,23 @@ class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
   DateTime _now() => _ref.read(clockProvider).nowUtc();
 
   void _onEvent(SkotiqEvent event) {
-    if (event.category != EventCategory.imaging) return;
-    final data = event.data;
-    switch (event.eventType) {
-      case 'ExposureStarted':
-        final total = (data['duration_secs'] as num?)?.toDouble() ??
-            (data['durationSecs'] as num?)?.toDouble();
-        if (total == null || total <= 0) {
+    final payload = typedEventFromWire(event)?.payload;
+    if (payload is! sk_events.EventPayload_Imaging) return;
+    switch (payload.field0) {
+      case sk_events.ImagingEvent_ExposureStarted(durationSecs: final total) ||
+            sk_events.ImagingEvent_ExposureStartedWithFrame(
+              durationSecs: final total,
+            ):
+        if (total <= 0) {
           state = null;
           return;
         }
         state = NightCameraExposure(startedAt: _now(), total: total);
-      case 'ExposureProgress':
+      case sk_events.ImagingEvent_ExposureProgress(
+          remainingSecs: final remaining,
+        ):
         final current = state;
         if (current == null) return;
-        final remaining = (data['remainingSecs'] as num?)?.toDouble() ??
-            (data['remaining_secs'] as num?)?.toDouble();
-        if (remaining == null) return;
         final now = _now();
         final last = current.reportedAt ?? current.startedAt;
         if (now.difference(last) < progressResync) return;
@@ -146,11 +149,14 @@ class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
           elapsed: (current.total - remaining).clamp(0.0, current.total),
           reportedAt: now,
         );
-      case 'ExposureComplete' ||
-            'ExposureCompleted' ||
-            'ExposureCancelled' ||
-            'ExposureFailed':
+      case sk_events.ImagingEvent_ExposureComplete() ||
+            sk_events.ImagingEvent_ExposureCompleted() ||
+            sk_events.ImagingEvent_ExposureCompletedWithFrame() ||
+            sk_events.ImagingEvent_ExposureCancelled() ||
+            sk_events.ImagingEvent_ExposureFailed() ||
+            sk_events.ImagingEvent_ExposureFailedOld():
         state = null;
+      default:
     }
   }
 

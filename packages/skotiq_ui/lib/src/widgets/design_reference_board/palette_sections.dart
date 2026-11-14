@@ -1,9 +1,5 @@
 part of '../design_reference_board.dart';
 
-// Section shell
-
-// Semantic palette
-
 class _SemanticPaletteSection extends StatelessWidget {
   const _SemanticPaletteSection({required this.colors});
 
@@ -135,20 +131,8 @@ class _DomainPaletteSection extends StatelessWidget {
             spacing: SkotiqTokens.spaceSm,
             runSpacing: SkotiqTokens.spaceSm,
             children: [
-              for (final type in const [
-                ObjectType.galaxy,
-                ObjectType.nebula,
-                ObjectType.starCluster,
-                ObjectType.planetaryNebula,
-                ObjectType.star,
-                ObjectType.doubleStar,
-                ObjectType.asterism,
-              ])
-                _DotChip(
-                  label: _objectTypeLabel(type),
-                  color: AnnotationTypeColors.forType(type, colors),
-                  colors: colors,
-                ),
+              for (final (label, color) in _objectTypeSamples)
+                _DotChip(label: label, color: color, colors: colors),
             ],
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
@@ -158,18 +142,8 @@ class _DomainPaletteSection extends StatelessWidget {
             spacing: SkotiqTokens.spaceSm,
             runSpacing: SkotiqTokens.spaceSm,
             children: [
-              for (final backend in const [
-                DriverType.native,
-                DriverType.ascom,
-                DriverType.alpaca,
-                DriverType.indi,
-                DriverType.simulator,
-              ])
-                _DotChip(
-                  label: _backendLabel(backend),
-                  color: BackendProtocolColors.forBackend(backend, colors),
-                  colors: colors,
-                ),
+              for (final (label, color) in _backendSamples(colors))
+                _DotChip(label: label, color: color, colors: colors),
             ],
           ),
         ],
@@ -177,22 +151,23 @@ class _DomainPaletteSection extends StatelessWidget {
     );
   }
 
-  static String _objectTypeLabel(ObjectType type) => switch (type) {
-    ObjectType.galaxy => 'Galaxy',
-    ObjectType.nebula => 'Nebula',
-    ObjectType.starCluster => 'Star Cluster',
-    ObjectType.planetaryNebula => 'Planetary Nebula',
-    ObjectType.star => 'Star',
-    ObjectType.doubleStar => 'Double Star',
-    ObjectType.asterism => 'Asterism',
-    ObjectType.unknown => 'Unknown',
-  };
+  // Sample domain hues. The app owns the real mappings (it knows the object
+  // and driver types); the board only shows how such hues sit on the palette.
+  static const _objectTypeSamples = <(String, Color)>[
+    ('Galaxy', CatalogAnnotationColors.galaxy),
+    ('Nebula', CatalogAnnotationColors.nebula),
+    ('Star Cluster', CatalogAnnotationColors.starCluster),
+    ('Planetary Nebula', CatalogAnnotationColors.planetaryNebula),
+    ('Star', CatalogAnnotationColors.star),
+    ('Double Star', CatalogAnnotationColors.doubleStar),
+    ('Asterism', CatalogAnnotationColors.asterism),
+  ];
 
-  static String _backendLabel(DriverType backend) => switch (backend) {
-    DriverType.native => 'Native SDK',
-    DriverType.ascom => 'ASCOM',
-    DriverType.alpaca => 'Alpaca',
-    DriverType.indi => 'INDI',
-    DriverType.simulator => 'Simulator',
-  };
+  static List<(String, Color)> _backendSamples(SkotiqColors colors) => [
+    ('Native SDK', colors.success),
+    ('ASCOM', colors.info),
+    ('Alpaca', colors.warning),
+    ('INDI', DriverBackendColors.indi),
+    ('Simulator', colors.textMuted),
+  ];
 }

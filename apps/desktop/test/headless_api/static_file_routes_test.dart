@@ -1,12 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/static_file_handlers.dart';
-import 'package:skotiq_desktop/headless_api/routes/headless_route.dart';
-import 'package:skotiq_desktop/headless_api/routes/static_file_routes.dart';
+import 'package:skotiq_desktop/headless_api/route_table.dart';
 import 'package:shelf/shelf.dart';
-import 'package:shelf_router/shelf_router.dart';
 
 /// D4W-4 — the run-watch SPA must have exactly one address.
 ///
@@ -21,7 +19,7 @@ void main() {
 
   late Directory tempDir;
   late LoggingService logger;
-  late Router router;
+  late Handler router;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('sk_static_routes_test_');
@@ -32,17 +30,35 @@ void main() {
       currentLogFileProvider: () => null,
     );
     await logger.ensureInitialized();
-    router = Router();
-    registerRoutes(
-      router,
-      buildStaticFileRoutes(StaticFileHandlers(logger: logger)),
-    );
+    router = RouteTable.only(
+      StaticFileHandlers(logger: logger, release: () => '8.2.1'),
+    ).handler;
   });
 
   tearDown(() async {
     await logger.dispose();
     await tempDir.delete(recursive: true);
   });
+
+  test(
+    'the dashboard page reads the release of the host that serves it',
+    () async {
+      final response = await router(
+        Request('GET', Uri.parse('http://localhost/dashboard/js/release.js')),
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(
+        response.headers['content-type'],
+        startsWith('application/javascript'),
+      );
+      expect(response.headers['cache-control'], 'no-cache');
+      expect(
+        await response.readAsString(),
+        "const SKOTIQ_RELEASE = \"8.2.1\";\n",
+      );
+    },
+  );
 
   test('GET /run-watch redirects permanently to the canonical URL', () async {
     final response = await router(

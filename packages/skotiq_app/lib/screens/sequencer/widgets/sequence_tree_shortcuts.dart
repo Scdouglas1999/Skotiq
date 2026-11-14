@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../sequence_fold_model.dart';
 import '../sequence_fold_state.dart';
@@ -18,8 +18,6 @@ import 'sequencer_density.dart';
 /// the keyboard layer is orthogonal to its rendering. Scoping the
 /// shortcuts here means widget tests can dispatch [Intent]s directly
 /// without spinning up a full tree.
-
-// Intent types
 
 /// Move tree selection to the previous visible node.
 class TreeMoveSelectionUpIntent extends Intent {
@@ -47,14 +45,19 @@ class TreeExpandFocusedIntent extends Intent {
   const TreeExpandFocusedIntent();
 }
 
+/// Move the selected step [delta] places among its siblings (Alt+Up /
+/// Alt+Down).
+class TreeShiftNodeIntent extends Intent {
+  const TreeShiftNodeIntent(this.delta);
+  final int delta;
+}
+
 /// Move keyboard focus from the tree to the right-hand properties panel.
 /// The panel listens for [propertiesPanelFocusRequestProvider] tick to
 /// pull focus onto its first interactive element.
 class TreeFocusPropertiesIntent extends Intent {
   const TreeFocusPropertiesIntent();
 }
-
-// Bindings table — read this first
 
 /// The user-visible keyboard bindings for the sequencer tree.
 ///
@@ -69,6 +72,10 @@ const Map<ShortcutActivator, Intent> kSequenceTreeShortcuts =
       TreeMoveSelectionUpIntent(extend: true),
   SingleActivator(LogicalKeyboardKey.arrowDown, shift: true):
       TreeMoveSelectionDownIntent(extend: true),
+  SingleActivator(LogicalKeyboardKey.arrowUp, alt: true):
+      TreeShiftNodeIntent(-1),
+  SingleActivator(LogicalKeyboardKey.arrowDown, alt: true):
+      TreeShiftNodeIntent(1),
   SingleActivator(LogicalKeyboardKey.arrowLeft): TreeCollapseFocusedIntent(),
   SingleActivator(LogicalKeyboardKey.arrowRight): TreeExpandFocusedIntent(),
   SingleActivator(LogicalKeyboardKey.enter): TreeFocusPropertiesIntent(),
@@ -120,7 +127,6 @@ class _CollapsedNodeIdsNotifier extends StateNotifier<Set<String>> {
     state = {...state, ...containerIds};
   }
 
-  /// Expand everything (clears the collapsed set).
   void expandAll() {
     if (state.isEmpty) return;
     state = const <String>{};
@@ -192,8 +198,6 @@ FoldGroup? _foldGroupForSelection(WidgetRef ref, String nodeId) {
   return foldGroupForNode(sequence, nodeId);
 }
 
-// Action implementations
-
 /// Build the [Actions] map for the tree's `Focus`/`Shortcuts` widget.
 ///
 /// Factored as a function (rather than a const map) because Actions need
@@ -246,6 +250,14 @@ Map<Type, Action<Intent>> buildSequenceTreeActions(WidgetRef ref) {
         return null;
       },
     ),
+    TreeShiftNodeIntent: CallbackAction<TreeShiftNodeIntent>(
+      onInvoke: (intent) {
+        final id = ref.read(selectedNodeIdProvider);
+        if (id == null || !ref.read(canEditSequenceProvider)) return null;
+        ref.read(currentSequenceProvider.notifier).shiftNode(id, intent.delta);
+        return null;
+      },
+    ),
     TreeFocusPropertiesIntent: CallbackAction<TreeFocusPropertiesIntent>(
       onInvoke: (_) {
         // Tick the request counter; NodePropertiesPanel listens via
@@ -272,7 +284,6 @@ void _moveSelection(
   final current = ref.read(selectedNodeIdProvider);
   int currentIdx = current == null ? -1 : order.indexOf(current);
   if (currentIdx < 0) {
-    // No selection: snap to the first/last row depending on direction.
     currentIdx = delta > 0 ? -1 : order.length;
   }
 

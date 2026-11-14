@@ -4,13 +4,11 @@ part of '../network_backend.dart';
 // _NetworkBackendRemoteOperations.
 
 mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
-  Future<Map<String, dynamic>> awaitJobResultOrLegacy(
+  Future<Map<String, dynamic>> awaitOperationResult(
     Map<String, dynamic> response, {
     required String operation,
     required Duration timeout,
   });
-
-  // Device Discovery & Connection
 
   // Cache for device discovery to prevent redundant API calls
   List<Map<String, dynamic>>? _cachedDevices;
@@ -21,41 +19,34 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
 
   @override
   Future<List<DeviceInfo>> discoverDevices(DeviceType deviceType) async {
-    // Check if we have a valid cache
     if (_cachedDevices != null &&
         _cacheTimestamp != null &&
         DateTime.now().difference(_cacheTimestamp!) < _cacheDuration) {
-      developer.log(
+      Log.info(
         '[NetworkBackend] Using cached device list (${_cachedDevices!.length} devices)',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       _cachedDevicesByType ??= _indexCachedDevicesByType(_cachedDevices!);
     } else if (_ongoingDiscovery != null) {
-      // Another discovery is in progress, wait for it
-      developer.log(
+      Log.info(
         '[NetworkBackend] Waiting for ongoing discovery...',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       _cachedDevices = await _ongoingDiscovery!;
       _cachedDevicesByType = _indexCachedDevicesByType(_cachedDevices!);
     } else {
-      // Start new discovery
-      developer.log(
+      Log.info(
         '[NetworkBackend] Starting new device discovery...',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       _ongoingDiscovery = _fetchDevicesFromServer();
       try {
         _cachedDevices = await _ongoingDiscovery!;
         _cachedDevicesByType = _indexCachedDevicesByType(_cachedDevices!);
         _cacheTimestamp = DateTime.now();
-        developer.log(
+        Log.info(
           '[NetworkBackend] Cached ${_cachedDevices!.length} devices',
-          name: 'NetworkBackend',
-          level: 800,
+          source: 'NetworkBackend',
         );
       } finally {
         _ongoingDiscovery = null;
@@ -66,10 +57,9 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
       _cachedDevicesByType?[deviceType] ?? const <DeviceInfo>[],
     );
 
-    developer.log(
+    Log.info(
       '[NetworkBackend] Returning ${filtered.length} ${deviceType.name} devices',
-      name: 'NetworkBackend',
-      level: 800,
+      source: 'NetworkBackend',
     );
     return filtered;
   }
@@ -142,7 +132,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   }
 
   Future<List<Map<String, dynamic>>> _fetchDevicesFromServer() async {
-    final response = await _get('devices');
+    final response = await _get(DeviceDiscoveryApi.getDevices);
     final source = response.containsKey('devices')
         ? response['devices']
         : response['available'];
@@ -152,11 +142,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   /// Invalidate device cache (called when "Scan Network" is clicked)
   @override
   void invalidateDeviceCache() {
-    developer.log(
-      '[NetworkBackend] Cache invalidated',
-      name: 'NetworkBackend',
-      level: 800,
-    );
+    Log.info('[NetworkBackend] Cache invalidated', source: 'NetworkBackend');
     _cachedDevices = null;
     _cachedDevicesByType = null;
     _cacheTimestamp = null;
@@ -165,7 +151,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   @override
   Future<List<DeviceInfo>> discoverIndiAtAddress(String host, int port) =>
       _discoverAtAddress(
-        endpoint: 'devices/discover-indi',
+        endpoint: DeviceDiscoveryApi.discoverIndiAtAddress,
         host: host,
         port: port,
         fallbackDriverType: DriverType.indi,
@@ -174,7 +160,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   @override
   Future<List<DeviceInfo>> discoverAlpacaAtAddress(String host, int port) =>
       _discoverAtAddress(
-        endpoint: 'devices/discover-alpaca',
+        endpoint: DeviceDiscoveryApi.discoverAlpacaAtAddress,
         host: host,
         port: port,
         fallbackDriverType: DriverType.alpaca,
@@ -186,15 +172,15 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   /// only when the server omits or misspells the `driverType` field
   /// (defensive default — the server is supposed to always send it).
   Future<List<DeviceInfo>> _discoverAtAddress({
-    required String endpoint,
+    required ApiEndpoint endpoint,
     required String host,
     required int port,
     required DriverType fallbackDriverType,
   }) async {
-    final response = await _get(endpoint, {
-      'host': host,
-      'port': port.toString(),
-    });
+    final response = await _get(
+      endpoint,
+      query: {'host': host, 'port': port.toString()},
+    );
 
     final devices = _rowsFromJson<Map<String, dynamic>>(
       response['devices'],
@@ -222,11 +208,10 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
           .where((t) => t.name == deviceTypeName)
           .firstOrNull;
       if (deviceType == null) {
-        developer.log(
+        Log.warning(
           'discoverAtAddress: dropping device id="$id" name="$name" '
           'with unknown deviceType="$deviceTypeName" from $endpoint',
-          name: 'NetworkBackend',
-          level: 900, // warning
+          source: 'NetworkBackend',
         );
         continue;
       }
@@ -241,11 +226,10 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
               .firstOrNull ??
           fallbackDriverType;
       if (driverTypeName != null && driverTypeName != driverType.name) {
-        developer.log(
+        Log.warning(
           'discoverAtAddress: device id="$id" reported unknown driverType='
           '"$driverTypeName"; using fallback ${fallbackDriverType.name}',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
       }
       results.add(
@@ -263,13 +247,19 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> connectDevice(DeviceType deviceType, String deviceId) {
-    return _dedupedConnectOp(deviceType, deviceId, 'devices/connect');
+  Future<void> connectDevice(
+    DeviceType deviceType,
+    String deviceId, {
+    // The host connects through its own DeviceService, which expects the
+    // model its active profile names.
+    String? expectedModel,
+  }) {
+    return _dedupedConnectOp(deviceType, deviceId, DeviceApi.connectDevice);
   }
 
   @override
   Future<void> disconnectDevice(DeviceType deviceType, String deviceId) {
-    return _dedupedConnectOp(deviceType, deviceId, 'devices/disconnect');
+    return _dedupedConnectOp(deviceType, deviceId, DeviceApi.disconnectDevice);
   }
 
   /// Shared connect/disconnect dispatch with in-flight dedupe and NO retry.
@@ -288,25 +278,23 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   Future<void> _dedupedConnectOp(
     DeviceType deviceType,
     String deviceId,
-    String endpoint,
+    ApiEndpoint endpoint,
   ) {
-    final key = '$endpoint|${deviceType.name}:$deviceId';
+    final key = '${endpoint.route.path}|${deviceType.name}:$deviceId';
     final existing = _inFlightConnectOps[key];
     if (existing != null) {
-      developer.log(
-        '[NetworkBackend] $endpoint already in flight for $key; '
+      Log.info(
+        '[NetworkBackend] ${endpoint.route.path} already in flight for $key; '
         'reusing pending request',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       return existing;
     }
     final future = () async {
       await _post(
         endpoint,
-        {'deviceType': deviceType.name, 'deviceId': deviceId},
-        null,
-        1,
+        body: {'deviceType': deviceType.name, 'deviceId': deviceId},
+        maxAttempts: 1,
       );
     }();
     _inFlightConnectOps[key] = future;
@@ -326,17 +314,15 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     // call re-fetches the fresh host-side list (mirrors invalidateDeviceCache()
     // on "Scan Network"). Errors propagate so the UI shows a real failure
     // instead of a fake "rescan complete" toast.
-    await _post('devices/rescan');
+    await _post(DeviceDiscoveryApi.rescanDevices);
     invalidateDeviceCache();
   }
 
   @override
   Future<List<DeviceInfo>> getConnectedDevices() async {
-    final response = await _get('devices/connected');
+    final response = await _get(DeviceDiscoveryApi.getConnectedDevices);
     return _rowsFromJson(response['devices'], DeviceInfo.fromJson);
   }
-
-  // Camera control
 
   @override
   Future<void> cameraStartExposure({
@@ -358,11 +344,11 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     // single attempt (no auto-retry), mirroring connect/disconnect. The user
     // (or sequencer) re-issues if it genuinely failed.
     await _post(
-      'camera/expose',
-      {
+      DeviceApi.cameraExpose,
+      body: {
         'deviceId': deviceId,
         'exposureTime': exposureTime,
-        'frameType': frameType.name,
+        'frameType': frameType.record,
         if (gain != null) 'gain': gain,
         if (offset != null) 'offset': offset,
         'binX': binX,
@@ -372,13 +358,10 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
         if (width != null) 'width': width,
         if (height != null) 'height': height,
       },
-      null,
-      1,
-      // The host endpoint intentionally completes the entire exposure,
-      // download, and processing workflow before responding. Add the requested
-      // exposure duration to the transport's normal LAN/tailnet allowance so
-      // legitimate long subs do not time out and appear failed remotely.
-      Duration(
+      maxAttempts: 1,
+      // The host answers only after the whole exposure, download and
+      // processing, so the exposure time is added to the usual allowance.
+      timeout: Duration(
         milliseconds:
             requestTimeout.inMilliseconds + (exposureTime * 1000).ceil(),
       ),
@@ -387,20 +370,17 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
 
   @override
   Future<void> cameraAbortExposure(String deviceId) async {
-    await _post('camera/abort', {'deviceId': deviceId});
+    await _post(DeviceApi.cameraAbort, body: {'deviceId': deviceId});
   }
 
   @override
   Future<Uint8List> cameraLiveViewFrame(String deviceId) async {
     try {
-      return await _downloadBytes('camera/live-view/frame', {
-        'deviceId': deviceId,
-      });
+      return await _downloadBytes(
+        DeviceApi.cameraLiveViewFrame,
+        query: {'deviceId': deviceId},
+      );
     } on ServerError catch (e) {
-      // Error parsing: prefer the machine-readable `code` over
-      // the substring-match on `message`. The server emits
-      // `live_view_unavailable` when the driver doesn't support live
-      // view, and the underlying 503 is surfaced via httpStatus.
       if (e.code == 'live_view_unavailable' ||
           e.code == 'not_supported' ||
           e.httpStatus == 503) {
@@ -410,26 +390,24 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
         );
       }
       rethrow;
-    } on dart_error.SkotiqError catch (e) {
-      final msg = e.message.toLowerCase();
-      if (msg.contains('503') ||
-          msg.contains('live_view_unavailable') ||
-          msg.contains('not supported')) {
-        throw dart_error.SkotiqError(
-          category: dart_error.BackendErrorCategory.validation,
-          message: e.message,
-        );
-      }
-      rethrow;
     }
   }
 
+  /// [maxWidth] asks the host for a smaller JPEG; the frame still comes
+  /// back at the sensor's size (see [capturedImageFromRemoteJpegWire]), so
+  /// overlays and zoom keep their geometry. Null is the full frame.
   @override
-  Future<CapturedImageResult?> cameraGetLastImage(String deviceId) async {
+  Future<CapturedImageResult?> cameraGetLastImage(
+    String deviceId, {
+    int? maxWidth,
+  }) async {
     try {
       final downloaded = await _downloadBytesWithHeaders(
-        'camera/last-image/jpeg',
-        {'deviceId': deviceId},
+        DeviceApi.cameraGetLastImageJpeg,
+        query: {
+          'deviceId': deviceId,
+          if (maxWidth != null) 'maxWidth': '$maxWidth',
+        },
       );
       final metaHeader = _headerValue(downloaded.headers, 'x-image-meta');
       if (metaHeader == null || metaHeader.isEmpty) {
@@ -439,21 +417,13 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
               'GET /api/camera/last-image/jpeg missing x-image-meta header',
         );
       }
-      return capturedImageFromRemoteJpegWire(
+      return await decodeRemoteJpegWire(
         jpegBytes: downloaded.bytes,
         metaHeaderBase64: metaHeader,
       );
     } on ServerError catch (e) {
-      // Error parsing: treat 404 or the explicit `no_image`
-      // envelope code as "no image cached yet" and return null instead
-      // of bubbling an exception. Anything else is a real failure.
+      // No image cached yet.
       if (e.httpStatus == 404 || e.code == 'no_image') {
-        return null;
-      }
-      rethrow;
-    } on dart_error.SkotiqError catch (e) {
-      final msg = e.message.toLowerCase();
-      if (msg.contains('404') || msg.contains('no_image')) {
         return null;
       }
       rethrow;
@@ -474,21 +444,25 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
   /// the ramp next to the camera. Returns the host's outcome name (see
   /// `CameraWarmupOutcome`).
   Future<String> cameraStartHostWarmUp({double ratePerMin = 2.0}) async {
-    final response = await _post('camera/warm-up', {'ratePerMin': ratePerMin});
+    final response = await _post(
+      DeviceApi.cameraStartWarmUp,
+      body: {'ratePerMin': ratePerMin},
+    );
     return response['outcome'] as String? ?? 'started';
   }
 
   /// Remote-only: stop the host's warm-up. With [restorePriorSetting] the
   /// cooler goes back to the set-point it held before the warm-up.
   Future<void> cameraCancelHostWarmUp({bool restorePriorSetting = true}) async {
-    await _post('camera/warm-up/cancel', {
-      'restorePriorSetting': restorePriorSetting,
-    });
+    await _post(
+      DeviceApi.cameraCancelWarmUp,
+      body: {'restorePriorSetting': restorePriorSetting},
+    );
   }
 
   /// Remote-only: whether the host is warming the camera.
   Future<bool> cameraHostIsWarming() async {
-    final response = await _get('camera/warm-up');
+    final response = await _get(DeviceApi.cameraGetWarmUp);
     return response['warming'] == true;
   }
 
@@ -498,91 +472,57 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     required bool enabled,
     double? targetTemp,
   }) async {
-    await _post('camera/cooling', {
-      'deviceId': deviceId,
-      'enabled': enabled,
-      if (targetTemp != null) 'targetTemp': targetTemp,
-    });
+    await _post(
+      DeviceApi.cameraSetCooling,
+      body: {
+        'deviceId': deviceId,
+        'enabled': enabled,
+        if (targetTemp != null) 'targetTemp': targetTemp,
+      },
+    );
   }
 
   @override
   Future<void> cameraSetReadoutMode(String deviceId, int modeIndex) async {
-    await _post('camera/readoutMode', {
-      'deviceId': deviceId,
-      'modeIndex': modeIndex,
-    });
+    await _post(
+      DeviceApi.cameraSetReadoutMode,
+      body: {'deviceId': deviceId, 'modeIndex': modeIndex},
+    );
   }
 
   @override
   Future<void> cameraSetGain(String deviceId, int gain) async {
-    await _post('camera/gain', {'deviceId': deviceId, 'gain': gain});
+    await _post(
+      DeviceApi.cameraSetGain,
+      body: {'deviceId': deviceId, 'gain': gain},
+    );
   }
 
   @override
   Future<void> cameraSetOffset(String deviceId, int offset) async {
-    await _post('camera/offset', {'deviceId': deviceId, 'offset': offset});
+    await _post(
+      DeviceApi.cameraSetOffset,
+      body: {'deviceId': deviceId, 'offset': offset},
+    );
   }
 
   @override
   Future<CameraRecommendedSettings> cameraGetRecommendedSettings(
     String deviceId,
   ) async {
-    // Network backend: the remote host owns the SDK. Query it via the
-    // headless API, parsing the same struct shape Rust returns.
-    //
-    // Fallback policy:
-    //   * HTTP 404 / `not_implemented` code → host predates this route. Return
-    //     an empty recommendation, logged; the user can still set values
-    //     manually from the profile editor.
-    //   * Anything else (timeout, malformed JSON, 5xx, transport failure)
-    //     rethrows, so the UI shows a real error rather than pretending the
-    //     device has no recommendation.
-    try {
-      final response = await _get('camera/recommended-settings', {
-        'deviceId': deviceId,
-      });
-      return CameraRecommendedSettings(
-        unityGain: (response['unityGain'] as num?)?.toInt(),
-        hcgGain: (response['hcgGain'] as num?)?.toInt(),
-        defaultOffset: (response['defaultOffset'] as num?)?.toInt(),
-        // `num?.toDouble()` widens an integer JSON value (e.g. `-10`) to the
-        // double the FFI backend reports, and older hosts that omit the field
-        // decode as `null` — preserving the honest "not reported" state.
-        recommendedCoolingSetpointC:
-            (response['recommendedCoolingSetpointC'] as num?)?.toDouble(),
-        notes: (response['notes'] as String?) ?? '',
-      );
-    } on ServerError catch (e) {
-      if (e.httpStatus == 404 || e.code == 'not_implemented') {
-        developer.log(
-          'cameraGetRecommendedSettings not implemented on remote '
-          '(${e.code}, HTTP ${e.httpStatus}); returning empty recommendation',
-          name: 'NetworkBackend',
-          level: 900, // WARNING
-        );
-        return const CameraRecommendedSettings(notes: '');
-      }
-      rethrow;
-    } on dart_error.SkotiqError catch (e) {
-      // `_parseErrorResponse` falls back to a `SkotiqError` with
-      // `BackendErrorCategory.connection` for HTTP 404 when the body
-      // isn't a recognized error envelope. Treat that specific shape as
-      // "route missing" too — any other category propagates.
-      if (e.category == dart_error.BackendErrorCategory.connection &&
-          e.message.contains('HTTP 404')) {
-        developer.log(
-          'cameraGetRecommendedSettings route 404 on remote '
-          '(${e.message}); returning empty recommendation',
-          name: 'NetworkBackend',
-          level: 900, // WARNING
-        );
-        return const CameraRecommendedSettings(notes: '');
-      }
-      rethrow;
-    }
+    final response = await _get(
+      DeviceApi.cameraGetRecommendedSettings,
+      query: {'deviceId': deviceId},
+    );
+    return CameraRecommendedSettings(
+      unityGain: (response['unityGain'] as num?)?.toInt(),
+      hcgGain: (response['hcgGain'] as num?)?.toInt(),
+      defaultOffset: (response['defaultOffset'] as num?)?.toInt(),
+      recommendedCoolingSetpointC:
+          (response['recommendedCoolingSetpointC'] as num?)?.toDouble(),
+      notes: response['notes'] as String,
+    );
   }
-
-  // Mount control
 
   @override
   Future<void> mountSlewToCoordinates(
@@ -590,27 +530,36 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     double ra,
     double dec,
   ) async {
-    await _post('mount/slew', {'deviceId': deviceId, 'ra': ra, 'dec': dec});
+    await _post(
+      DeviceApi.mountSlew,
+      body: {'deviceId': deviceId, 'ra': ra, 'dec': dec},
+    );
   }
 
   @override
   Future<void> mountSync(String deviceId, double ra, double dec) async {
-    await _post('mount/sync', {'deviceId': deviceId, 'ra': ra, 'dec': dec});
+    await _post(
+      DeviceApi.mountSync,
+      body: {'deviceId': deviceId, 'ra': ra, 'dec': dec},
+    );
   }
 
   @override
   Future<void> mountPark(String deviceId) async {
-    await _post('mount/park', {'deviceId': deviceId});
+    await _post(DeviceApi.mountPark, body: {'deviceId': deviceId});
   }
 
   @override
   Future<void> mountUnpark(String deviceId) async {
-    await _post('mount/unpark', {'deviceId': deviceId});
+    await _post(DeviceApi.mountUnpark, body: {'deviceId': deviceId});
   }
 
   @override
   Future<void> mountSetTracking(String deviceId, bool enabled) async {
-    await _post('mount/tracking', {'deviceId': deviceId, 'enabled': enabled});
+    await _post(
+      DeviceApi.mountSetTracking,
+      body: {'deviceId': deviceId, 'enabled': enabled},
+    );
   }
 
   @override
@@ -624,29 +573,32 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     // can turn a small guide error into a large one. Keep this at-most-once,
     // matching move-axis and other non-idempotent hardware commands.
     await _post(
-      'mount/pulse-guide',
-      {'deviceId': deviceId, 'direction': direction, 'durationMs': durationMs},
-      null,
-      1,
+      DeviceApi.mountPulseGuide,
+      body: {
+        'deviceId': deviceId,
+        'direction': direction,
+        'durationMs': durationMs,
+      },
+      maxAttempts: 1,
     );
   }
 
   @override
   Future<void> mountAbort(String deviceId) async {
-    await _post('mount/abort', {'deviceId': deviceId});
+    await _post(DeviceApi.mountAbort, body: {'deviceId': deviceId});
   }
 
   @override
   Future<dynamic> mountGetStatus(String deviceId) async {
-    return await _get('mount/status', {'deviceId': deviceId});
+    return await _get(DeviceApi.mountGetStatus, query: {'deviceId': deviceId});
   }
 
   @override
   Future<void> mountSetTrackingRate(String deviceId, int rate) async {
-    await _post('mount/set-tracking-rate', {
-      'deviceId': deviceId,
-      'rate': rate,
-    });
+    await _post(
+      DeviceApi.mountSetTrackingRate,
+      body: {'deviceId': deviceId, 'rate': rate},
+    );
   }
 
   @override
@@ -656,10 +608,9 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     // already cancelled (or double-applied), so this POST is pinned to a single
     // attempt with no auto-retry, mirroring connect/disconnect.
     await _post(
-      'mount/move-axis',
-      {'deviceId': deviceId, 'axis': axis, 'rate': rate},
-      null,
-      1,
+      DeviceApi.mountMoveAxis,
+      body: {'deviceId': deviceId, 'axis': axis, 'rate': rate},
+      maxAttempts: 1,
     );
   }
 
@@ -669,26 +620,28 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     double altitude,
     double azimuth,
   ) async {
-    await _post('mount/slew-alt-az', {
-      'deviceId': deviceId,
-      'altitude': altitude,
-      'azimuth': azimuth,
-    });
+    await _post(
+      DeviceApi.mountSlewAltAz,
+      body: {'deviceId': deviceId, 'altitude': altitude, 'azimuth': azimuth},
+    );
   }
 
   @override
   Future<void> mountFindHome(String deviceId) async {
-    await _post('mount/find-home', {'deviceId': deviceId});
+    await _post(DeviceApi.mountHomeFindHome, body: {'deviceId': deviceId});
   }
 
   @override
   Future<void> mountSetPark(String deviceId) async {
-    await _post('mount/set-park', {'deviceId': deviceId});
+    await _post(DeviceApi.mountSetPark, body: {'deviceId': deviceId});
   }
 
   @override
   Future<MountSiteCapabilities> mountSiteCapabilities(String deviceId) async {
-    final json = await _get('mount/site-capabilities', {'deviceId': deviceId});
+    final json = await _get(
+      DeviceApi.mountSiteCapabilities,
+      query: {'deviceId': deviceId},
+    );
     return MountSiteCapabilities(
       canReadSite: json['canReadSite'] as bool? ?? false,
       canWriteSite: json['canWriteSite'] as bool? ?? false,
@@ -699,7 +652,10 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
 
   @override
   Future<MountSite> mountGetSite(String deviceId) async {
-    final json = await _get('mount/site', {'deviceId': deviceId});
+    final json = await _get(
+      DeviceApi.mountGetSite,
+      query: {'deviceId': deviceId},
+    );
     return MountSite(
       latitudeDeg: (json['latitudeDeg'] as num).toDouble(),
       longitudeDeg: (json['longitudeDeg'] as num).toDouble(),
@@ -714,17 +670,23 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     double longitudeDeg,
     double? elevationM,
   ) async {
-    await _post('mount/site', {
-      'deviceId': deviceId,
-      'latitudeDeg': latitudeDeg,
-      'longitudeDeg': longitudeDeg,
-      if (elevationM != null) 'elevationM': elevationM,
-    });
+    await _post(
+      DeviceApi.mountSetSite,
+      body: {
+        'deviceId': deviceId,
+        'latitudeDeg': latitudeDeg,
+        'longitudeDeg': longitudeDeg,
+        if (elevationM != null) 'elevationM': elevationM,
+      },
+    );
   }
 
   @override
   Future<MountTimeInfo> mountGetTime(String deviceId) async {
-    final json = await _get('mount/time', {'deviceId': deviceId});
+    final json = await _get(
+      DeviceApi.mountGetTime,
+      query: {'deviceId': deviceId},
+    );
     return MountTimeInfo(
       utcUnixSeconds: (json['utcUnixSeconds'] as num).toInt(),
       utcOffsetHours: (json['utcOffsetHours'] as num).toDouble(),
@@ -737,21 +699,22 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     int utcUnixSeconds,
     double utcOffsetHours,
   ) async {
-    await _post('mount/time', {
-      'deviceId': deviceId,
-      'utcUnixSeconds': utcUnixSeconds,
-      'utcOffsetHours': utcOffsetHours,
-    });
+    await _post(
+      DeviceApi.mountSetTime,
+      body: {
+        'deviceId': deviceId,
+        'utcUnixSeconds': utcUnixSeconds,
+        'utcOffsetHours': utcOffsetHours,
+      },
+    );
   }
-
-  // Focuser control
 
   @override
   Future<void> focuserMoveTo(String deviceId, int position) async {
-    await _post('focuser/move-to', {
-      'deviceId': deviceId,
-      'position': position,
-    });
+    await _post(
+      DeviceApi.focuserMoveTo,
+      body: {'deviceId': deviceId, 'position': position},
+    );
   }
 
   @override
@@ -761,16 +724,15 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     // Pinned to a single attempt (no auto-retry), mirroring connect/disconnect.
     // The absolute `focuser/move-to` above is idempotent and keeps retries.
     await _post(
-      'focuser/move-relative',
-      {'deviceId': deviceId, 'delta': delta},
-      null,
-      1,
+      DeviceApi.focuserMoveRelative,
+      body: {'deviceId': deviceId, 'delta': delta},
+      maxAttempts: 1,
     );
   }
 
   @override
   Future<void> focuserHalt(String deviceId) async {
-    await _post('focuser/halt', {'deviceId': deviceId});
+    await _post(DeviceApi.focuserHalt, body: {'deviceId': deviceId});
   }
 
   @override
@@ -797,36 +759,39 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     int backlashOut = 0,
     int? measuredBacklashIn,
   }) async {
-    final start = await _post('focuser/autofocus/start', {
-      'deviceId': deviceId,
-      'cameraId': cameraId,
-      'exposureTime': exposureTime,
-      'stepSize': stepSize,
-      'stepsOut': stepsOut,
-      'method': method,
-      'binning': binning,
-      if (gain != null) 'gain': gain,
-      if (offset != null) 'offset': offset,
-      'curveFitting': curveFitting,
-      'numberOfAttempts': numberOfAttempts,
-      'exposuresPerPoint': exposuresPerPoint,
-      'rSquaredThreshold': rSquaredThreshold,
-      'outerCropRatio': outerCropRatio,
-      'innerCropRatio': innerCropRatio,
-      'useBrightestNStars': useBrightestNStars,
-      'focuserSettleTimeMs': focuserSettleTimeMs,
-      'backlashCompMethod': backlashCompMethod,
-      'backlashIn': backlashIn,
-      'backlashOut': backlashOut,
-      if (measuredBacklashIn != null) 'measuredBacklashIn': measuredBacklashIn,
-    });
-    final response = await awaitJobResultOrLegacy(
+    final start = await _post(
+      DeviceApi.autofocusStart,
+      body: {
+        'deviceId': deviceId,
+        'cameraId': cameraId,
+        'exposureTime': exposureTime,
+        'stepSize': stepSize,
+        'stepsOut': stepsOut,
+        'method': method,
+        'binning': binning,
+        if (gain != null) 'gain': gain,
+        if (offset != null) 'offset': offset,
+        'curveFitting': curveFitting,
+        'numberOfAttempts': numberOfAttempts,
+        'exposuresPerPoint': exposuresPerPoint,
+        'rSquaredThreshold': rSquaredThreshold,
+        'outerCropRatio': outerCropRatio,
+        'innerCropRatio': innerCropRatio,
+        'useBrightestNStars': useBrightestNStars,
+        'focuserSettleTimeMs': focuserSettleTimeMs,
+        'backlashCompMethod': backlashCompMethod,
+        'backlashIn': backlashIn,
+        'backlashOut': backlashOut,
+        if (measuredBacklashIn != null)
+          'measuredBacklashIn': measuredBacklashIn,
+      },
+    );
+    final response = await awaitOperationResult(
       start,
       operation: 'autofocus',
       timeout: const Duration(minutes: 30),
     );
 
-    // Parse using pure Dart types from JSON
     return AutofocusResult.fromJson(response);
   }
 
@@ -836,12 +801,11 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     required String cameraId,
     required String configJson,
   }) async {
-    final start = await _post('focuser/backlash-calibration/start', {
-      'deviceId': deviceId,
-      'cameraId': cameraId,
-      'config': configJson,
-    });
-    final response = await awaitJobResultOrLegacy(
+    final start = await _post(
+      DeviceApi.focuserBacklashCalibrationStart,
+      body: {'deviceId': deviceId, 'cameraId': cameraId, 'config': configJson},
+    );
+    final response = await awaitOperationResult(
       start,
       operation: 'focuser backlash calibration',
       timeout: _backlashCalibrationTimeout,
@@ -857,7 +821,7 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
 
   @override
   Future<void> focuserBacklashCalibrationCancel() async {
-    await _post('focuser/backlash-calibration/cancel', const {});
+    await _post(DeviceApi.focuserBacklashCalibrationCancel, body: const {});
   }
 
   @override
@@ -865,10 +829,10 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     required String configJson,
     required int centerPosition,
   }) async {
-    final response = await _post('focuser/backlash-calibration/plan', {
-      'config': configJson,
-      'centerPosition': centerPosition,
-    });
+    final response = await _post(
+      DeviceApi.focuserBacklashCalibrationPlan,
+      body: {'config': configJson, 'centerPosition': centerPosition},
+    );
     final plan = response['plan'];
     if (plan is! Map) {
       throw StateError('The host returned no backlash calibration plan');
@@ -883,53 +847,48 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
 
   @override
   Future<void> autofocusCancel() async {
-    await _post('focuser/autofocus/cancel');
+    await _post(DeviceApi.autofocusCancel);
   }
-
-  // Filter wheel control
 
   @override
   Future<void> filterWheelSetPosition(String deviceId, int position) async {
-    await _post('filter-wheel/position', {
-      'deviceId': deviceId,
-      'position': position,
-    });
+    await _post(
+      DeviceApi.filterWheelSetPosition,
+      body: {'deviceId': deviceId, 'position': position},
+    );
   }
 
   @override
   Future<List<String>> filterWheelGetNames(String deviceId) async {
-    final response = await _get('filter-wheel/names', {'deviceId': deviceId});
+    final response = await _get(
+      DeviceApi.filterWheelGetNames,
+      query: {'deviceId': deviceId},
+    );
     return (response['names'] as List).cast<String>();
   }
 
   @override
   Future<void> filterWheelSetNames(String deviceId, List<String> names) async {
-    await _post('filter-wheel/names', {'deviceId': deviceId, 'names': names});
+    await _post(
+      DeviceApi.filterWheelSetNames,
+      body: {'deviceId': deviceId, 'names': names},
+    );
   }
 
   @override
   Future<void> filterWheelSetByName(String deviceId, String name) async {
-    await _post('filter-wheel/set-by-name', {
-      'deviceId': deviceId,
-      'name': name,
-    });
+    await _post(
+      DeviceApi.filterWheelSetByName,
+      body: {'deviceId': deviceId, 'name': name},
+    );
   }
-
-  /// Fetch the current filter-wheel slot, slot name, and
-  /// in-motion flag from the headless server. Not on
-  /// [SkotiqBackend] because the local FfiBackend already exposes
-  /// the same data via `filterWheelStateProvider`; the network surface
-  /// is the only one that needs an explicit GET.
-  Future<RemoteFilterWheelPosition> getFilterWheelPosition() async {
-    final response = await _get('filter-wheel/position');
-    return RemoteFilterWheelPosition.fromJson(response);
-  }
-
-  // Rotator control
 
   @override
   Future<void> rotatorMoveTo(String deviceId, double angle) async {
-    await _post('rotator/move-to', {'deviceId': deviceId, 'angle': angle});
+    await _post(
+      DeviceApi.rotatorMoveTo,
+      body: {'deviceId': deviceId, 'angle': angle},
+    );
   }
 
   @override
@@ -939,34 +898,39 @@ mixin _NetworkBackendDeviceOperations on _NetworkBackendTransport {
     // a single attempt (no auto-retry), mirroring connect/disconnect. The
     // absolute `rotator/move-to` above is idempotent and keeps retries.
     await _post(
-      'rotator/move-relative',
-      {'deviceId': deviceId, 'delta': delta},
-      null,
-      1,
+      DeviceApi.rotatorMoveRelative,
+      body: {'deviceId': deviceId, 'delta': delta},
+      maxAttempts: 1,
     );
   }
 
   @override
   Future<double> rotatorGetAngle(String deviceId) async {
-    final response = await _get('rotator/status', {'deviceId': deviceId});
+    final response = await _get(
+      DeviceApi.rotatorGetStatus,
+      query: {'deviceId': deviceId},
+    );
     return (response['position'] as num).toDouble();
   }
 
   @override
   Future<void> rotatorHalt(String deviceId) async {
-    await _post('rotator/halt', {'deviceId': deviceId});
+    await _post(DeviceApi.rotatorHalt, body: {'deviceId': deviceId});
   }
 
   @override
   Future<void> rotatorSetReverse(String deviceId, bool reverse) async {
-    await _post('rotator/set-reverse', {
-      'deviceId': deviceId,
-      'reverse': reverse,
-    });
+    await _post(
+      DeviceApi.rotatorSetReverse,
+      body: {'deviceId': deviceId, 'reverse': reverse},
+    );
   }
 
   @override
   Future<void> rotatorSyncToPa(String deviceId, double pa) async {
-    await _post('rotator/sync', {'deviceId': deviceId, 'positionAngle': pa});
+    await _post(
+      DeviceApi.rotatorSync,
+      body: {'deviceId': deviceId, 'positionAngle': pa},
+    );
   }
 }

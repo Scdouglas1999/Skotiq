@@ -11,11 +11,11 @@
 // is standing in for.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
-import '../../plan_math.dart';
 import '../node_summary.dart';
-import '../../ledger_seconds.dart';
 
 /// How many child names the generic shape lists before it counts the rest.
 const _genericNameLimit = 3;
@@ -116,7 +116,7 @@ String? _filterRunSummary(List<SequenceNode> children) {
   // 300 s ×12 each` reads as one phrase; a ` · ` there would detach the
   // exposure length from the bands it belongs to.
   return <String>[
-    '${filters.join(' · ')} ${formatLedgerSeconds(first.durationSecs)} s '
+    '${filters.join(' · ')} ${QuantityFormat.trimmed(first.durationSecs)} s '
         '×${first.count} each',
     if (dither != null && dither > 0) 'dither every $dither',
   ].join(' · ');

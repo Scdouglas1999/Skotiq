@@ -10,8 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/widgets/log_viewer.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockLoggingService extends Mock implements LoggingService {}
@@ -84,7 +88,8 @@ Future<({_MockLoggingService logging, String targetPath})> _pump(
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
-        home: const Scaffold(body: LogViewer(isMobile: true)),
+        home: const Scaffold(
+            body: SettingsFormScope(narrow: true, child: LogViewer())),
       ),
     ),
   );
@@ -136,7 +141,7 @@ void main() {
     expect(find.text('Entries on screen'), findsOneWidget);
     expect(find.text('2 entries, exactly as filtered'), findsOneWidget);
     expect(
-      find.textContaining('Every retained log file — about 4.0 KB'),
+      find.textContaining('Every retained log file — about 4.0 KiB'),
       findsOneWidget,
       reason: 'the full-history size must be stated before it is written',
     );

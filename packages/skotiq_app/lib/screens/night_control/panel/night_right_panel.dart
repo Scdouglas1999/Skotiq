@@ -9,7 +9,8 @@
 // a sequence step started, a lost guide star) puts a dot on the tab instead.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide EquipmentStatus;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
@@ -49,14 +50,8 @@ class NightRightPanel extends ConsumerWidget {
   final Widget guideTab;
   final Widget solveTab;
 
-  static String _tabKey(NightPanelTab tab) => switch (tab) {
-        NightPanelTab.overview => 'nightPanelTabOverview',
-        NightPanelTab.camera => 'nightPanelTabCamera',
-        NightPanelTab.focus => 'nightPanelTabFocus',
-        NightPanelTab.mount => 'nightPanelTabMount',
-        NightPanelTab.guide => 'nightPanelTabGuide',
-        NightPanelTab.solve => 'nightPanelTabSolve',
-      };
+  /// How long the single column takes to scroll the panel into view.
+  static const Duration revealDuration = Duration(milliseconds: 250);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,7 +62,7 @@ class NightRightPanel extends ConsumerWidget {
     final guideAlert = ref.watch(nightGuideAlertProvider);
 
     PanelTabItem item(NightPanelTab tab) {
-      final label = l10n.text(_tabKey(tab));
+      final label = l10n.text(tab.labelKey);
       if (tab == NightPanelTab.focus && focusActive) {
         return PanelTabItem(
           label,
@@ -101,6 +96,19 @@ class NightRightPanel extends ConsumerWidget {
     ];
     final scrolls =
         NightControlDensity.maybeOf(context)?.slotsScrollThemselves ?? true;
+    // The column layouts show the panel already; the single column scrolls
+    // the page to it.
+    ref.listen<int>(nightPanelRevealProvider, (_, __) {
+      if (scrolls) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        Scrollable.ensureVisible(
+          context,
+          duration: NightRightPanel.revealDuration,
+          curve: Curves.easeOut,
+        );
+      });
+    });
 
     final strip = DecoratedBox(
       decoration: BoxDecoration(

@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import '../harness/in_memory_database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -37,7 +39,9 @@ void main() {
       when(
         () => backend.eventStream,
       ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-      when(() => backend.saveProfile(any())).thenAnswer((_) async {});
+      when(
+        () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
+      ).thenAnswer((_) async {});
       when(() => backend.lastSavedProfileId).thenReturn('42');
       when(() => backend.getProfiles()).thenAnswer(
         (_) async => [
@@ -63,9 +67,11 @@ void main() {
       addTearDown(container.dispose);
 
       final notifier = container.read(equipmentProfilesProvider.notifier);
-      await notifier.createProfile(name: 'Remote Rig');
+      await notifier.saveProfile(
+        const EquipmentProfileModel(name: 'Remote Rig'),
+      );
 
-      verify(() => backend.saveProfile(any())).called(1);
+      verify(() => backend.saveProfileFields(any(), fields: null)).called(1);
       verifyNever(() => backend.loadProfile('0'));
     });
 
@@ -110,7 +116,9 @@ void main() {
           when(() => backend.getActiveProfile()).thenAnswer((_) async => null);
         }
         when(() => hostA.lastSavedProfileId).thenReturn('42');
-        when(() => hostA.saveProfile(any())).thenAnswer((_) => save.future);
+        when(
+          () => hostA.saveProfileFields(any(), fields: any(named: 'fields')),
+        ).thenAnswer((_) => save.future);
 
         late _SwappableBackendNotifier backendNotifier;
         final container = ProviderContainer(
@@ -127,8 +135,12 @@ void main() {
 
         final creating = container
             .read(equipmentProfilesProvider.notifier)
-            .createProfile(name: 'Delayed host A profile');
-        await untilCalled(() => hostA.saveProfile(any()));
+            .saveProfile(
+              const EquipmentProfileModel(name: 'Delayed host A profile'),
+            );
+        await untilCalled(
+          () => hostA.saveProfileFields(any(), fields: any(named: 'fields')),
+        );
         backendNotifier.switchTo(hostB);
         save.complete();
 
@@ -168,7 +180,7 @@ void main() {
         ],
       );
 
-      await applyRemoteSyncEvent(
+      applyHostLocalSyncEvent(
         container,
         buildHostMutationEvent(
           entityType: HostMutationEntity.target,

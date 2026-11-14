@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
-import '../../../services/push_delivery_targets_provider.dart';
+import '../push_delivery_targets_provider.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../utils/user_facing_error.dart';
-import '../../../widgets/tutorial_keys/settings_keys.dart';
+import '../../../tours/tour_target.dart';
+import 'admin_only.dart';
 import 'notification_routing_settings.dart';
 import 'settings_widgets.dart';
 
@@ -39,10 +43,9 @@ String pushDeliverySubtitleFor(AsyncValue<PushDeliveryTargets> async) {
 ///
 /// The three settings are live, not decorative: `NotificationService.notify`
 /// refuses the entire dispatch for an event family whose flag is off (see
-/// `_shouldNotifyForEvent`), so with one off that family plays no alert sound,
-/// posts nothing in-app and sends nothing to the Discord/Pushover webhook this
-/// page configures. Per-event routing runs off its own matrix and is
-/// unaffected either way.
+/// `_shouldNotifyForEvent`), so with one off that family plays no alert sound
+/// and nothing is sent through the Custom routing row. The events the router
+/// classifies from the run itself are unaffected either way.
 ///
 /// [sends] names what the family covers. [offByDefault] is true for meridian
 /// flip alone, whose stored default is `false` — the one row where a switch
@@ -54,8 +57,8 @@ String builtInEventAlertSubtitle(
   bool offByDefault = false,
 }) {
   if (enabled) {
-    return '$sends Delivered by the alert sound, the in-app feed, and the '
-        'Discord/Pushover webhook configured on this page.';
+    return '$sends Delivered by the alert sound and by every transport on '
+        'the Custom row of per-event routing.';
   }
   return offByDefault
       ? '$sends Off — and off is the shipped default, so no flip alert is sent '
@@ -64,9 +67,7 @@ String builtInEventAlertSubtitle(
 }
 
 class NotificationSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const NotificationSettings({super.key, this.isMobile = false});
+  const NotificationSettings({super.key});
 
   @override
   ConsumerState<NotificationSettings> createState() =>
@@ -118,8 +119,10 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
     final generation = ++_testGeneration;
     setState(() => _activeTest = _NotificationTest.discord);
     try {
-      final notificationService = ref.read(notificationServiceProvider);
-      final success = await notificationService.testDiscordWebhook(webhook);
+      final result = await ref.read(notificationTransportProbeProvider)(
+        DiscordTransport(config: DiscordTransportConfig(webhookUrl: webhook)),
+      );
+      final success = result.success;
       if (mounted &&
           _isCurrentTest(
             authority,
@@ -170,8 +173,12 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
     final generation = ++_testGeneration;
     setState(() => _activeTest = _NotificationTest.pushover);
     try {
-      final notificationService = ref.read(notificationServiceProvider);
-      final success = await notificationService.testPushover(key, user);
+      final result = await ref.read(notificationTransportProbeProvider)(
+        PushoverTransport(
+          config: PushoverTransportConfig(apiToken: key, userKey: user),
+        ),
+      );
+      final success = result.success;
       if (mounted &&
           _isCurrentTest(
             authority,
@@ -246,13 +253,14 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
       mounted &&
       generation == _testGeneration &&
       _activeTest == test &&
-      identical(ref.read(backendProvider), authority);
+      ref.backendScopeOver(authority).isCurrent;
 
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
     final authority = ref.watch(backendProvider);
-    final isRemoteController = authority is NetworkBackend;
+    final isRemoteController = ref.watch(isRemoteModeProvider);
+    final credentialsHidden = hostRefusesAdminOnly(ref);
     final AsyncValue<PushNotificationConfig>? pushConfigAsync =
         isRemoteController ? null : ref.watch(pushNotificationConfigProvider);
     // Real delivery state, so the critical-alert row can stop asserting a
@@ -262,11 +270,8 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
         pushTargetsAsync.valueOrNull ?? PushDeliveryTargets.none;
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -279,7 +284,8 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
             !pushConfigAsync.hasError;
 
         return SettingsPage(
-          key: SettingsTutorialKeys.notifications,
+          hideHeader: false,
+          key: TourTarget.settingsNotifications.key,
           title: 'Notifications',
           description: 'Configure alerts and notifications',
           children: [
@@ -327,14 +333,13 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   title: 'Per-event routing is the live one',
                   subtitle:
                       'Per-event routing (Settings → Notification Routing) '
-                      'maps each event to its transports and is what actually '
-                      'delivers. Push to Mobile below is the separate host '
-                      'push gate; neither overrides the other, so an event '
-                      'enabled in both is sent by both. The switches under '
-                      '"Built-in event alerts" are a third, older path: they '
-                      'gate Skotiq\'s own alert sound, in-app post and '
-                      'Discord/Pushover webhook for those three event '
-                      'families only.',
+                      'maps each event to its transports and is the only '
+                      'thing that sends. Push to Mobile below can mute '
+                      'individual events on the phone; an event reaches the '
+                      'phone when both allow it. The switches under '
+                      '"Built-in event alerts" turn off three kinds of alert '
+                      'Skotiq raises itself: their sound, and the message '
+                      'they send through the Custom routing row.',
                   trailing: SizedBox.shrink(),
                   isLast: true,
                 ),
@@ -655,17 +660,11 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   ),
                 ],
               ),
-            // Legacy `app_settings`-backed Discord/Pushover credentials. They
-            // are shown ONLY on a remote controller: locally the keyring-backed
-            // sections inside NotificationRoutingSettings below are the single
-            // Discord/Pushover configuration on this page (they adopt and keep
-            // these same legacy keys in step, so the pre-router
-            // NotificationService keeps sending to whatever is on screen).
-            // Rendering both locally is what let one half of the page report
-            // "unconfigured" while the other half held a saved webhook.
-            // A remote controller cannot reach the host's keyring, so there the
-            // legacy keys — which ride the settings remote-sync to the host —
-            // remain the only way to configure these two transports.
+            // A linked client cannot reach the host's keyring, so it edits
+            // the host's Discord and Pushover credentials through the three
+            // app settings that sync to the host; the host turns each edit
+            // into its transport config. On the host itself the sections
+            // inside NotificationRoutingSettings below are the only form.
             if (isRemoteController)
               SettingsSection(
                 title: 'Discord',
@@ -674,35 +673,41 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     icon: LucideIcons.messageSquare,
                     title: 'Webhook URL',
                     subtitle: 'Discord channel webhook for notifications',
-                    trailing: settingsTrailingTextInput(
-                      context: context,
-                      controller: _discordController,
-                      authoritativeValue: settings.discordWebhook,
-                      authorityKey: authority,
-                      hint: 'https://discord.com/api/webhooks/...',
-                      isMobile: widget.isMobile,
-                      obscure: true,
-                      onChanged: (value) {
-                        return ref
-                            .read(appSettingsProvider.notifier)
-                            .setDiscordWebhook(value);
-                      },
+                    isLast: credentialsHidden,
+                    trailing: AdminOnlyControl(
+                      text: adminOnlyCredentialAdvice(settings.discordWebhook),
+                      child: settingsTrailingTextInput(
+                        context: context,
+                        controller: _discordController,
+                        authoritativeValue: settings.discordWebhook,
+                        authorityKey: authority,
+                        hint: 'https://discord.com/api/webhooks/...',
+                        obscure: true,
+                        onChanged: (value) {
+                          return ref
+                              .read(appSettingsProvider.notifier)
+                              .setDiscordWebhook(value);
+                        },
+                      ),
                     ),
                   ),
-                  SettingRow(
-                    icon: LucideIcons.send,
-                    title: 'Test Discord',
-                    subtitle:
-                        'Send a test notification to your Discord channel',
-                    trailing: SkotiqButton(
-                      label: 'Test',
-                      variant: ButtonVariant.primary,
-                      size: ButtonSize.small,
-                      isLoading: _activeTest == _NotificationTest.discord,
-                      onPressed: _activeTest == null ? _testDiscord : null,
+                  // The test sends from this computer with the typed URL,
+                  // which a link without admin access never has.
+                  if (!credentialsHidden)
+                    SettingRow(
+                      icon: LucideIcons.send,
+                      title: 'Test Discord',
+                      subtitle:
+                          'Send a test notification to your Discord channel',
+                      trailing: SkotiqButton(
+                        label: 'Test',
+                        variant: ButtonVariant.primary,
+                        size: ButtonSize.small,
+                        isLoading: _activeTest == _NotificationTest.discord,
+                        onPressed: _activeTest == null ? _testDiscord : null,
+                      ),
+                      isLast: true,
                     ),
-                    isLast: true,
-                  ),
                 ],
               ),
             if (isRemoteController)
@@ -713,60 +718,64 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     icon: LucideIcons.key,
                     title: 'API key',
                     subtitle: 'Pushover application API key',
-                    trailing: SettingsTextInput(
-                      controller: _pushoverKeyController,
-                      authoritativeValue: settings.pushoverKey,
-                      authorityKey: authority,
-                      hint: 'API key',
-                      width: 200,
-                      obscure: true,
-                      onChanged: (value) {
-                        return ref
-                            .read(appSettingsProvider.notifier)
-                            .setPushoverKey(value);
-                      },
+                    trailing: AdminOnlyControl(
+                      text: adminOnlyCredentialAdvice(settings.pushoverKey),
+                      child: SettingsTextInput(
+                        controller: _pushoverKeyController,
+                        authoritativeValue: settings.pushoverKey,
+                        authorityKey: authority,
+                        hint: 'API key',
+                        width: 200,
+                        obscure: true,
+                        onChanged: (value) {
+                          return ref
+                              .read(appSettingsProvider.notifier)
+                              .setPushoverKey(value);
+                        },
+                      ),
                     ),
                   ),
                   SettingRow(
                     icon: LucideIcons.user,
                     title: 'User key',
                     subtitle: 'Pushover user/group key',
-                    trailing: SettingsTextInput(
-                      controller: _pushoverUserController,
-                      authoritativeValue: settings.pushoverUser,
-                      authorityKey: authority,
-                      hint: 'User key',
-                      width: 200,
-                      obscure: true,
-                      onChanged: (value) {
-                        return ref
-                            .read(appSettingsProvider.notifier)
-                            .setPushoverUser(value);
-                      },
+                    isLast: credentialsHidden,
+                    trailing: AdminOnlyControl(
+                      text: adminOnlyCredentialAdvice(settings.pushoverUser),
+                      child: SettingsTextInput(
+                        controller: _pushoverUserController,
+                        authoritativeValue: settings.pushoverUser,
+                        authorityKey: authority,
+                        hint: 'User key',
+                        width: 200,
+                        obscure: true,
+                        onChanged: (value) {
+                          return ref
+                              .read(appSettingsProvider.notifier)
+                              .setPushoverUser(value);
+                        },
+                      ),
                     ),
                   ),
-                  SettingRow(
-                    icon: LucideIcons.send,
-                    title: 'Test Pushover',
-                    subtitle: 'Send a test notification to your device',
-                    trailing: SkotiqButton(
-                      label: 'Test',
-                      variant: ButtonVariant.primary,
-                      size: ButtonSize.small,
-                      isLoading: _activeTest == _NotificationTest.pushover,
-                      onPressed: _activeTest == null ? _testPushover : null,
+                  if (!credentialsHidden)
+                    SettingRow(
+                      icon: LucideIcons.send,
+                      title: 'Test Pushover',
+                      subtitle: 'Send a test notification to your device',
+                      trailing: SkotiqButton(
+                        label: 'Test',
+                        variant: ButtonVariant.primary,
+                        size: ButtonSize.small,
+                        isLoading: _activeTest == _NotificationTest.pushover,
+                        onPressed: _activeTest == null ? _testPushover : null,
+                      ),
+                      isLast: true,
                     ),
-                    isLast: true,
-                  ),
                 ],
               ),
-            // Comprehensive per-event routing matrix + every transport's
-            // credentials, including the only local Discord / Pushover
-            // configuration. Lives inside the same Notifications page so users
-            // see one place for every transport.
-            NotificationRoutingSettings(
-              isMobile: widget.isMobile,
-            ),
+            // The per-event routing matrix and every transport's credentials,
+            // on the same page so there is one place for every transport.
+            const NotificationRoutingSettings(),
           ],
         );
       },

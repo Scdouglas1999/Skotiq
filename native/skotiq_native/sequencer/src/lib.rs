@@ -4,6 +4,8 @@
 
 pub mod all_sky_polar;
 pub mod autofocus;
+#[cfg(test)]
+mod autofocus_screen_tests;
 // live-stacking broadcast service.
 pub mod broadcast;
 pub mod checkpoint;
@@ -13,7 +15,7 @@ pub mod checkpoint;
 // and system event).
 pub mod decision;
 pub mod depth_goal;
-mod device_ops;
+pub mod device_ops;
 // Dual-rig / multi-camera synchronized imaging: dither-coordination barrier
 // + secondary capture-loop driver.
 pub mod dual_rig;
@@ -23,17 +25,18 @@ mod executor;
 // paths. See `expressions/mod.rs` for syntax + variable catalog.
 pub mod expressions;
 pub mod flat_wizard;
-pub mod focus_prediction;
 // Measuring a focuser's mechanical backlash instead of asking the operator
 // for a figure the app has never been able to work out for itself.
 pub mod focuser_calibration;
+mod frame_naming;
+#[cfg(test)]
+mod frame_naming_fixture_tests;
 pub mod frame_watch;
 pub mod guiding_stop;
 pub mod instructions;
 pub mod meridian;
 pub mod meridian_events;
 pub mod meridian_flip_executor;
-pub mod mosaic;
 mod node;
 mod polar_align;
 // Image Grading: per-frame Pass/Reject grading + reject-folder routing.
@@ -62,8 +65,8 @@ pub use checkpoint::*;
 // Replay Debug — hoist the decision types so the bridge can use
 // them without pathing through `skotiq_sequencer::decision::…`.
 pub use decision::{
-    emit_decision, DecisionCategory, DecisionEvent, DecisionReceiver, DecisionSender,
-    DEFAULT_DECISION_CHANNEL_CAPACITY,
+    emit_decision, DecisionCategory, DecisionEvent, DecisionReceiver, DecisionSender, RunNotice,
+    RunStop, DEFAULT_DECISION_CHANNEL_CAPACITY,
 };
 pub use depth_goal::{
     DepthGoalBinding, DepthGoalCompletion, DepthGoalOps, DepthGoalVerdict, SharedDepthGoalOps,
@@ -78,8 +81,8 @@ pub use executor::*;
 // callers outside the sequencer (bridge, integration tests) can build
 // templates without pathing through `expressions::resolver`.
 pub use expressions::{
-    catalog::catalog_json, interpolate, interpolate_optional, EvaluationFrame, InterpolationError,
-    TemplatePart, VariableEntry, VariableGroup, VariableValue,
+    interpolate, interpolate_optional, EvaluationFrame, InterpolationError, TemplatePart,
+    VariableEntry, VariableGroup, VariableValue,
 };
 pub use focuser_calibration::{
     derive_backlash_calibration, resolution_limit_steps, ApproachDirection,
@@ -90,7 +93,6 @@ pub use guiding_stop::GuidingStopReason;
 pub use instructions::*;
 pub use meridian_events::*;
 pub use meridian_flip_executor::*;
-pub use mosaic::*;
 pub use node::*;
 pub use polar_align::*;
 // hoist the recovery types so the bridge can use them without
@@ -100,12 +102,6 @@ pub use recovery::{
     RecoveryPhase, RecoveryRuntimeConfig, RecoverySignals,
 };
 pub use triggers::*;
-
-// Re-export focus prediction types
-pub use focus_prediction::{
-    DriftStatus, FilterOffset, FocusModel, FocusPredictionEngine, FocusTrainingSample,
-    PersistedFocusModel, PredictionResult, PredictiveAfConfig, PredictiveAfDecision,
-};
 
 // Re-export autofocus types (with alias to avoid conflict)
 pub use autofocus::{
@@ -138,17 +134,11 @@ pub enum SafetyFailMode {
 /// Status of a node execution
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeStatus {
-    /// Node has not started
     Pending,
-    /// Node is currently running
     Running,
-    /// Node completed successfully
     Success,
-    /// Node failed
     Failure,
-    /// Node was skipped
     Skipped,
-    /// Node was cancelled
     Cancelled,
 }
 
@@ -184,6 +174,30 @@ impl SequenceDefinition {
             nodes: Vec::new(),
             metadata: HashMap::new(),
         }
+    }
+
+    /// The nodes a run of this plan executes, in tree order: those reached
+    /// from the root through enabled nodes only. A disabled node is skipped
+    /// with everything under it, as the run skips it (`RuntimeNode::execute`
+    /// returns before it descends), so nothing under it may block, check or
+    /// shape the run.
+    pub fn enabled_nodes(&self) -> Vec<&NodeDefinition> {
+        let by_id: HashMap<&str, &NodeDefinition> =
+            self.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+        let mut out = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut stack: Vec<&str> = self.root_node_id.iter().map(String::as_str).collect();
+        while let Some(id) = stack.pop() {
+            let Some(node) = by_id.get(id) else {
+                continue;
+            };
+            if !node.enabled || !seen.insert(id) {
+                continue;
+            }
+            out.push(*node);
+            stack.extend(node.children.iter().rev().map(String::as_str));
+        }
+        out
     }
 }
 
@@ -245,7 +259,6 @@ pub enum NodeType {
     OpenDome(DomeConfig),
     CloseDome(DomeConfig),
     ParkDome(DomeConfig),
-    Mosaic(MosaicConfig),
     FlatWizard(FlatWizardConfig),
     // Cover Calibrator / Flat Panel instructions
     OpenCover(CoverCalibratorConfig),
@@ -259,8 +272,8 @@ pub enum NodeType {
     TargetScheduler(TargetSchedulerConfig),
 
     // SmartExposure — one row per filter, container-style
-    // instruction. Internally delegates to ChangeFilter + TakeExposure via
-    // the InstructionRegistry; per-filter completed counts and the current
+    // instruction. Internally runs the ChangeFilter and TakeExposure
+    // instruction nodes; per-filter completed counts and the current
     // plan index are persisted to `SessionCheckpoint::wizard_states` so a
     // sequence killed mid-rotation resumes on the right filter at the
     // right frame index.
@@ -345,6 +358,99 @@ pub enum NodeType {
 }
 
 impl NodeType {
+    /// The `type` tag this node carries in a saved sequence and in the JSON
+    /// the app sends.
+    pub fn wire_name(&self) -> &'static str {
+        match self {
+            NodeType::TargetHeader(_) => "TargetHeader",
+            NodeType::TargetGroup(_) => "TargetGroup",
+            NodeType::Loop(_) => "Loop",
+            NodeType::Parallel(_) => "Parallel",
+            NodeType::Conditional(_) => "Conditional",
+            NodeType::Recovery(_) => "Recovery",
+            NodeType::SlewToTarget(_) => "SlewToTarget",
+            NodeType::CenterTarget(_) => "CenterTarget",
+            NodeType::TakeExposure(_) => "TakeExposure",
+            NodeType::Autofocus(_) => "Autofocus",
+            NodeType::TemperatureCompensation(_) => "TemperatureCompensation",
+            NodeType::Dither(_) => "Dither",
+            NodeType::StartGuiding(_) => "StartGuiding",
+            NodeType::StopGuiding => "StopGuiding",
+            NodeType::ChangeFilter(_) => "ChangeFilter",
+            NodeType::CoolCamera(_) => "CoolCamera",
+            NodeType::WarmCamera(_) => "WarmCamera",
+            NodeType::MoveRotator(_) => "MoveRotator",
+            NodeType::Park => "Park",
+            NodeType::Unpark => "Unpark",
+            NodeType::HomeMount => "HomeMount",
+            NodeType::WaitForTime(_) => "WaitForTime",
+            NodeType::Delay(_) => "Delay",
+            NodeType::Notification(_) => "Notification",
+            NodeType::RunScript(_) => "RunScript",
+            NodeType::PolarAlignment(_) => "PolarAlignment",
+            NodeType::MeridianFlip(_) => "MeridianFlip",
+            NodeType::OpenDome(_) => "OpenDome",
+            NodeType::CloseDome(_) => "CloseDome",
+            NodeType::ParkDome(_) => "ParkDome",
+            NodeType::FlatWizard(_) => "FlatWizard",
+            NodeType::OpenCover(_) => "OpenCover",
+            NodeType::CloseCover(_) => "CloseCover",
+            NodeType::CalibratorOn(_) => "CalibratorOn",
+            NodeType::CalibratorOff(_) => "CalibratorOff",
+            NodeType::TargetScheduler(_) => "TargetScheduler",
+            NodeType::SmartExposure(_) => "SmartExposure",
+            NodeType::PluginNode { .. } => "PluginNode",
+            NodeType::LiveStacking(_) => "LiveStacking",
+            NodeType::SciencePhotometry(_) => "SciencePhotometry",
+        }
+    }
+
+    /// What progress events, failures and logs call this kind of step.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            NodeType::TargetHeader(_) => "Target",
+            NodeType::TargetGroup(_) => "Target",
+            NodeType::Loop(_) => "Loop",
+            NodeType::Parallel(_) => "Parallel",
+            NodeType::Conditional(_) => "Conditional",
+            NodeType::Recovery(_) => "Recovery",
+            NodeType::SlewToTarget(_) => "Slew",
+            NodeType::CenterTarget(_) => "Center",
+            NodeType::TakeExposure(_) => "Exposure",
+            NodeType::Autofocus(_) => "Autofocus",
+            NodeType::TemperatureCompensation(_) => "Temp Comp",
+            NodeType::Dither(_) => "Dither",
+            NodeType::StartGuiding(_) => "Start Guiding",
+            NodeType::StopGuiding => "Stop Guiding",
+            NodeType::ChangeFilter(_) => "Filter",
+            NodeType::CoolCamera(_) => "Cool Camera",
+            NodeType::WarmCamera(_) => "Warm Camera",
+            NodeType::MoveRotator(_) => "Move Rotator",
+            NodeType::Park => "Park",
+            NodeType::Unpark => "Unpark",
+            NodeType::HomeMount => "Home Mount",
+            NodeType::WaitForTime(_) => "Wait",
+            NodeType::Delay(_) => "Delay",
+            NodeType::Notification(_) => "Notification",
+            NodeType::RunScript(_) => "Run Script",
+            NodeType::PolarAlignment(_) => "Polar Alignment",
+            NodeType::MeridianFlip(_) => "Meridian Flip",
+            NodeType::OpenDome(_) => "Open Dome",
+            NodeType::CloseDome(_) => "Close Dome",
+            NodeType::ParkDome(_) => "Park Dome",
+            NodeType::FlatWizard(_) => "Flat Wizard",
+            NodeType::OpenCover(_) => "Open Cover",
+            NodeType::CloseCover(_) => "Close Cover",
+            NodeType::CalibratorOn(_) => "Calibrator On",
+            NodeType::CalibratorOff(_) => "Calibrator Off",
+            NodeType::TargetScheduler(_) => "Target Scheduler",
+            NodeType::SmartExposure(_) => "Smart Exposure",
+            NodeType::PluginNode { .. } => "Plugin Node",
+            NodeType::LiveStacking(_) => "Live Stacking",
+            NodeType::SciencePhotometry(_) => "Science Photometry",
+        }
+    }
+
     /// True for the variants whose executor actually descends into children.
     ///
     /// Every other variant is a leaf: its instruction runs, returns a status,
@@ -367,8 +473,6 @@ impl NodeType {
         )
     }
 }
-
-// Science: SciencePhotometry configuration
 
 /// Configuration for the [`NodeType::SciencePhotometry`] instruction.
 ///
@@ -713,10 +817,10 @@ impl LiveStackingMode {
 
 /// Configuration for the [`NodeType::LiveStacking`] node.
 ///
-/// All ports / paths are validated by the editor-side validation rules
-/// (see Dart `LiveStackingPortClashRule` / `LiveStackingNoExposureRule`).
-/// The Rust runtime does not re-validate — invalid configs are caught
-/// before the sequence starts.
+/// The broadcast is served by the host's API server under `/broadcast`, on
+/// that server's port; the node carries no address of its own. Sequences
+/// saved while it did (`broadcast_port`, `broadcast_path`) still load: serde
+/// ignores the unknown keys.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LiveStackingConfig {
     /// `BroadcastOnly` or `RecordAndBroadcast`.
@@ -735,17 +839,6 @@ pub struct LiveStackingConfig {
     /// this mid-sequence by editing the node when paused.
     #[serde(default = "default_broadcast_enabled")]
     pub broadcast_enabled: bool,
-    /// TCP port the broadcast service binds. Defaults to 8081 to stay
-    /// out of the headless API server (default 8080) and the web
-    /// dashboard. The Dart `LiveStackingPortClashRule` errors if this
-    /// matches the headless API port.
-    #[serde(default = "default_broadcast_port")]
-    pub broadcast_port: u16,
-    /// HTTP path prefix the broadcast service serves under. Default
-    /// `/broadcast`. Allows the user to host the broadcast under a
-    /// vanity prefix at outreach events.
-    #[serde(default = "default_broadcast_path")]
-    pub broadcast_path: String,
     /// Optional shared secret. When `Some` and non-empty, every
     /// broadcast endpoint requires `?token=…` matching this value.
     /// `None` (or `Some("")`) = public access.
@@ -781,14 +874,6 @@ fn default_broadcast_enabled() -> bool {
     true
 }
 
-fn default_broadcast_port() -> u16 {
-    8081
-}
-
-fn default_broadcast_path() -> String {
-    "/broadcast".to_string()
-}
-
 fn default_thumbnail_width() -> u32 {
     1280
 }
@@ -804,8 +889,6 @@ impl Default for LiveStackingConfig {
             stack_method: StackMethod::default(),
             max_frames_to_stack: 0,
             broadcast_enabled: default_broadcast_enabled(),
-            broadcast_port: default_broadcast_port(),
-            broadcast_path: default_broadcast_path(),
             auth_token: None,
             watermark_text: None,
             thumbnail_width: default_thumbnail_width(),
@@ -813,8 +896,6 @@ impl Default for LiveStackingConfig {
         }
     }
 }
-
-// SmartExposure configuration
 
 /// Configuration for the SmartExposure container instruction.
 ///
@@ -939,6 +1020,9 @@ pub struct FilterPlan {
     /// count-bounded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depth_goal: Option<crate::depth_goal::DepthGoalBinding>,
+    /// Where this plan's frames are saved, as `ExposureConfig::save_to`.
+    #[serde(default)]
+    pub save_to: Option<String>,
 }
 
 impl Default for FilterPlan {
@@ -953,15 +1037,15 @@ impl Default for FilterPlan {
             binning: Binning::default(),
             dither_every: None,
             depth_goal: None,
+            save_to: None,
         }
     }
 }
 
 /// Per-filter progress record persisted in
-/// [`crate::checkpoint::SessionCheckpoint::wizard_states`] under the key
-/// [`smart_exposure_checkpoint_key`]. Old sequences without this entry
-/// resume from a fresh state (all counts zero, plan index 0) — the
-/// `#[serde(default)]` on `wizard_states` already guarantees this.
+/// [`crate::checkpoint::SessionCheckpoint::smart_exposure_states`], keyed
+/// by node id. Checkpoints without an entry resume from a fresh state
+/// (all counts zero, plan index 0).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SmartExposureCheckpoint {
     /// completed_count keyed by filter name. We key by name (not index)
@@ -986,15 +1070,6 @@ pub struct SmartExposureCheckpoint {
     /// Absent in pre-feature checkpoints.
     #[serde(default)]
     pub depth_completed: HashMap<String, u64>,
-}
-
-/// Stable checkpoint key for SmartExposure resume state. Re-uses the
-/// `wizard_states` slot on `SessionCheckpoint` so a single map covers
-/// every kind of step-level resume state — but the key namespace is
-/// distinct (`smart_exposure:<node_id>`) so two SmartExposure nodes in the
-/// same sequence don't clobber each other's state.
-pub fn smart_exposure_checkpoint_key(node_id: &NodeId) -> String {
-    format!("smart_exposure:{}", node_id)
 }
 
 // TargetScheduler ----------------------------------------------
@@ -1234,7 +1309,11 @@ fn default_scheduler_max_score_age_secs() -> i64 {
 
 // Configuration structs for each node type
 
-/// Information about a mosaic panel for multi-panel imaging
+/// A panel's mosaic identity, as the app numbers it: `panel_index` in capture
+/// order (FITS `PANELIDX` is `panel_index + 1`, the number the operator sees),
+/// `row` from the top of the grid as drawn (north at rotation 0) and `column`
+/// from the left (east). The app owns the numbering; this carries it to the
+/// frames.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MosaicPanelInfo {
     pub mosaic_name: String,
@@ -1595,40 +1674,6 @@ pub type TargetGroupConfig = TargetHeaderConfig;
 // Priority 2: Advanced Features Configuration
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MosaicConfig {
-    pub center_ra: f64,
-    pub center_dec: f64,
-    pub panel_width_arcmin: f64,
-    pub panel_height_arcmin: f64,
-    pub overlap_percent: f64,
-    pub rotation: f64,
-    pub panels_horizontal: u32,
-    pub panels_vertical: u32,
-    #[serde(default = "default_mosaic_panel_overhead_secs")]
-    pub panel_overhead_secs: f64,
-}
-
-impl Default for MosaicConfig {
-    fn default() -> Self {
-        Self {
-            center_ra: 0.0,
-            center_dec: 0.0,
-            panel_width_arcmin: 60.0,
-            panel_height_arcmin: 40.0,
-            overlap_percent: 10.0,
-            rotation: 0.0,
-            panels_horizontal: 3,
-            panels_vertical: 3,
-            panel_overhead_secs: default_mosaic_panel_overhead_secs(),
-        }
-    }
-}
-
-fn default_mosaic_panel_overhead_secs() -> f64 {
-    60.0
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlatWizardConfig {
     /// Target ADU value for flats
     pub target_adu: u16,
@@ -1640,7 +1685,6 @@ pub struct FlatWizardConfig {
     pub tolerance_percent: f64,
     /// Where flats are taken from (panel, dawn sky, dusk sky)
     pub panel_location: PanelLocation,
-    /// Filter to use (optional)
     pub filter: Option<String>,
     /// Filter position (0-based index). When specified, used instead of filter name.
     #[serde(default)]
@@ -1660,6 +1704,23 @@ pub struct FlatWizardConfig {
     /// Number of flat frames the wizard captures and saves after finding optimal exposure
     #[serde(default = "default_flat_count")]
     pub flat_count: u32,
+    /// Test exposures the search may take to find the flat exposure: the
+    /// app's "Exposure calibration attempts" setting. Clamped to
+    /// 1..=[`MAX_FLAT_CALIBRATION_ATTEMPTS`].
+    #[serde(default = "default_flat_calibration_attempts")]
+    pub max_iterations: u32,
+}
+
+/// Default for the "Exposure calibration attempts" flat setting. Twilight
+/// skies and dim panels need well over the 3 to 10 tries the paths used to
+/// hard-code.
+pub const DEFAULT_FLAT_CALIBRATION_ATTEMPTS: u32 = 20;
+
+/// Ceiling on that setting.
+pub const MAX_FLAT_CALIBRATION_ATTEMPTS: u32 = 100;
+
+fn default_flat_calibration_attempts() -> u32 {
+    DEFAULT_FLAT_CALIBRATION_ATTEMPTS
 }
 
 fn default_brightness() -> i32 {
@@ -1697,6 +1758,7 @@ impl Default for FlatWizardConfig {
             min_brightness: 10,
             max_brightness: 255,
             flat_count: default_flat_count(),
+            max_iterations: DEFAULT_FLAT_CALIBRATION_ATTEMPTS,
         }
     }
 }
@@ -1886,7 +1948,7 @@ pub struct ExposureConfig {
     pub triggers: Vec<ExposureTrigger>,
     /// Image Grading: per-node image-quality thresholds. When
     /// `None`, the executor falls back to the global grading settings
-    /// installed in the runtime config (`RuntimeConfig::default_quality_check`).
+    /// installed in the runtime config (`RunConfig::default_quality_check`).
     /// `#[serde(default)]` keeps old sequence JSON loadable.
     #[serde(default)]
     pub quality_check: Option<crate::quality::ImageQualityCheck>,
@@ -1895,23 +1957,98 @@ pub struct ExposureConfig {
     /// reading at capture time and may extend (or shrink) the burst's
     /// per-frame duration to keep SNR roughly constant across changing
     /// sky conditions. `None` falls back to the runtime default
-    /// (`RuntimeConfig::default_adaptive_exposure`) and finally to using
+    /// (`RunConfig::default_adaptive_exposure`) and finally to using
     /// `duration_secs` as-is. `#[serde(default)]` keeps old JSON
     /// loadable without an adaptive section.
     #[serde(default)]
     pub adaptive_exposure: Option<crate::scheduling::AdaptiveExposureConfig>,
-    /// FITS `IMAGETYP`-style frame type for every frame this node captures:
-    /// "Light" | "Dark" | "Flat" | "Bias" | "DarkFlat" | "Snapshot".
-    /// Drives the saved FITS header, and gates star-based quality grading
-    /// and in-burst dithering (both light-frame-only). `#[serde(default)]`
-    /// keeps old sequence JSON (which omitted the key and was implicitly
-    /// all-lights) loadable.
-    #[serde(default = "default_frame_type")]
-    pub frame_type: String,
+    /// What every frame this node captures is.
+    pub frame_type: FrameType,
 }
 
-fn default_frame_type() -> String {
-    "Light".to_string()
+/// What a captured frame is, as its FITS `IMAGETYP` names it.
+///
+/// A Snapshot is a frame of the sky the operator wants to look at now (a
+/// framing or focus check, a test of the exposure), not part of the night's
+/// data: it is taken, analyzed and guided like a light, but it does not wait
+/// for darkness and is not stacked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum FrameType {
+    #[default]
+    Light,
+    Dark,
+    Flat,
+    Bias,
+    DarkFlat,
+    Snapshot,
+}
+
+impl FrameType {
+    const ALL: [Self; 6] = [
+        Self::Light,
+        Self::Dark,
+        Self::Flat,
+        Self::Bias,
+        Self::DarkFlat,
+        Self::Snapshot,
+    ];
+
+    /// The `IMAGETYP` spelling, which is also the wire spelling.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Light => "Light",
+            Self::Dark => "Dark",
+            Self::Flat => "Flat",
+            Self::Bias => "Bias",
+            Self::DarkFlat => "DarkFlat",
+            Self::Snapshot => "Snapshot",
+        }
+    }
+
+    /// The frame type its `IMAGETYP` spelling names.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|frame_type| frame_type.as_str() == name)
+    }
+
+    /// A frame of the sky through the open telescope: its stars are measured
+    /// and graded, it is dithered and guided for, it counts toward the
+    /// autofocus and dither cadence, and it waits out a meridian flip that
+    /// would ruin it.
+    pub fn is_sky_frame(self) -> bool {
+        matches!(self, Self::Light | Self::Snapshot)
+    }
+
+    /// Part of the night's data: it waits for darkness, its filters are the
+    /// night's light filters, and it is stacked.
+    pub fn is_science(self) -> bool {
+        self == Self::Light
+    }
+
+    /// Taken with the shutter closed or on a flat light source; where the
+    /// telescope points does not matter.
+    pub fn is_calibration(self) -> bool {
+        !self.is_sky_frame()
+    }
+}
+
+impl Serialize for FrameType {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for FrameType {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        Self::from_name(&name).ok_or_else(|| {
+            serde::de::Error::custom(format!(
+                "unknown frame type `{name}`; expected one of Light, Dark, Flat, Bias, \
+                 DarkFlat, Snapshot"
+            ))
+        })
+    }
 }
 
 impl Default for ExposureConfig {
@@ -1934,7 +2071,7 @@ impl Default for ExposureConfig {
             triggers: Vec::new(),
             quality_check: None,
             adaptive_exposure: None,
-            frame_type: default_frame_type(),
+            frame_type: FrameType::default(),
         }
     }
 }
@@ -1959,7 +2096,7 @@ impl Binning {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AutofocusFilterConfig {
     /// Exposure override when this imaging filter is active.
     #[serde(default)]
@@ -1987,7 +2124,7 @@ impl Default for AutofocusFilterConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AutofocusConfig {
     #[serde(default)]
     pub method: AutofocusMethod,
@@ -2024,12 +2161,6 @@ pub struct AutofocusConfig {
     /// case this exists for.
     #[serde(default)]
     pub measured_backlash_in: Option<i32>,
-    /// Whether the autofocus engine may use temperature prediction.
-    #[serde(default = "default_af_use_temperature_prediction")]
-    pub use_temperature_prediction: bool,
-    /// Reject autofocus points when star count changes beyond this fraction.
-    #[serde(default = "default_af_max_star_count_change")]
-    pub max_star_count_change: Option<f64>,
     /// Sigma threshold for autofocus outlier rejection. Use 0 to disable.
     #[serde(default = "default_af_outlier_rejection_sigma")]
     pub outlier_rejection_sigma: f64,
@@ -2124,14 +2255,6 @@ fn default_af_backlash_compensation() -> i32 {
     0
 }
 
-fn default_af_use_temperature_prediction() -> bool {
-    true
-}
-
-fn default_af_max_star_count_change() -> Option<f64> {
-    Some(0.5)
-}
-
 fn default_af_outlier_rejection_sigma() -> f64 {
     3.0
 }
@@ -2174,6 +2297,14 @@ fn default_af_focuser_settle_time_ms() -> u64 {
     500
 }
 
+impl AutofocusConfig {
+    /// Points in one sweep: `steps_out` either side of its center, and the
+    /// center.
+    pub fn sweep_point_count(&self) -> u32 {
+        self.steps_out.saturating_mul(2).saturating_add(1)
+    }
+}
+
 impl Default for AutofocusConfig {
     fn default() -> Self {
         Self {
@@ -2188,8 +2319,6 @@ impl Default for AutofocusConfig {
             binning: Binning::One,
             backlash_compensation: default_af_backlash_compensation(),
             measured_backlash_in: None,
-            use_temperature_prediction: default_af_use_temperature_prediction(),
-            max_star_count_change: default_af_max_star_count_change(),
             outlier_rejection_sigma: default_af_outlier_rejection_sigma(),
             max_duration_secs: default_af_max_duration(),
             min_star_count: default_af_min_star_count(),
@@ -2216,8 +2345,6 @@ impl From<&AutofocusConfig> for crate::autofocus::AutofocusConfig {
             exposure_duration: config.exposure_duration,
             backlash_compensation: config.backlash_compensation,
             backlash_out_compensation: config.backlash_out_compensation,
-            use_temperature_prediction: config.use_temperature_prediction,
-            max_star_count_change: config.max_star_count_change,
             outlier_rejection_sigma: config.outlier_rejection_sigma,
             max_duration_secs: config.max_duration_secs,
         }
@@ -2254,7 +2381,7 @@ pub enum DitherPattern {
     Grid,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DitherConfig {
     pub pixels: f64,
     pub settle_pixels: f64,
@@ -2334,9 +2461,9 @@ fn default_validate_calibration() -> bool {
 impl Default for StartGuidingConfig {
     fn default() -> Self {
         Self {
-            settle_pixels: 1.5,
-            settle_time: 10.0,
-            settle_timeout: 60.0,
+            settle_pixels: GuiderSettle::START_GUIDING.pixels,
+            settle_time: GuiderSettle::START_GUIDING.time_secs,
+            settle_timeout: GuiderSettle::START_GUIDING.timeout_secs,
             auto_select_star: true,
             max_calibration_axis_error_deg: default_max_cal_axis_error_deg(),
             max_post_settle_rms_pixels: default_max_post_settle_rms_pixels(),
@@ -2411,15 +2538,34 @@ pub struct GuiderSettle {
 
 impl Default for GuiderSettle {
     fn default() -> Self {
-        Self {
-            pixels: default_dither_settle_pixels(),
-            time_secs: default_dither_settle_time(),
-            timeout_secs: default_dither_settle_timeout(),
-        }
+        Self::DITHER
     }
 }
 
 impl GuiderSettle {
+    /// After a dither.
+    pub const DITHER: Self = Self {
+        pixels: 1.5,
+        time_secs: 30.0,
+        timeout_secs: 120.0,
+    };
+
+    /// A Start Guiding step.
+    pub const START_GUIDING: Self = Self {
+        pixels: 1.5,
+        time_secs: 10.0,
+        timeout_secs: 60.0,
+    };
+
+    /// Getting a lost guide star back. A reacquire that cannot settle inside
+    /// the timeout is a failure for the retry policy, not something to wait
+    /// on while the target drifts.
+    pub const REACQUIRE: Self = Self {
+        pixels: 2.0,
+        time_secs: 10.0,
+        timeout_secs: 120.0,
+    };
+
     /// The bar a planned restart of guiding (after autofocus or a flip)
     /// settles at: the looser of the guider and dither settle thresholds,
     /// so a restart never waits on a bar the rig cannot meet. Settle time
@@ -2457,15 +2603,15 @@ impl From<&DitherConfig> for GuiderSettle {
 }
 
 const fn default_dither_settle_pixels() -> f64 {
-    1.5
+    GuiderSettle::DITHER.pixels
 }
 
 const fn default_dither_settle_time() -> f64 {
-    30.0
+    GuiderSettle::DITHER.time_secs
 }
 
 const fn default_dither_settle_timeout() -> f64 {
-    120.0
+    GuiderSettle::DITHER.timeout_secs
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2573,7 +2719,7 @@ pub enum FlipFailureAction {
     AbortAndPark,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MeridianFlipConfig {
     // Trigger conditions
     pub trigger_method: MeridianTriggerMethod,
@@ -2674,19 +2820,18 @@ pub(crate) fn default_safety_action_retry_delay_secs() -> f64 {
     5.0
 }
 
-// Post-flip guider re-lock settle defaults. Numeric values match the executor
-// constants and StartGuidingConfig's defaults, so a user who does not override
-// their guiding settle gets the same behaviour on both paths.
+// The post-flip guider settle is the Start Guiding one, so an operator who
+// does not override it gets the same behavior on both paths.
 pub(crate) fn default_guider_settle_pixels() -> f64 {
-    1.5
+    GuiderSettle::START_GUIDING.pixels
 }
 
 pub(crate) fn default_guider_settle_time() -> f64 {
-    10.0
+    GuiderSettle::START_GUIDING.time_secs
 }
 
 pub(crate) fn default_guider_settle_timeout() -> f64 {
-    60.0
+    GuiderSettle::START_GUIDING.timeout_secs
 }
 
 pub(crate) fn default_meridian_max_post_settle_rms_pixels() -> f64 {
@@ -2764,7 +2909,6 @@ impl Default for CalibratorOnConfig {
     }
 }
 
-/// Loop conditions
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LoopCondition {
     /// Loop N times (use iterations field)
@@ -2777,7 +2921,6 @@ pub enum LoopCondition {
     AltitudeAbove,
     /// Loop until integration time reached (condition_value = seconds)
     IntegrationTime,
-    /// Loop forever (until stopped)
     Forever,
     /// Loop while sky is dark
     WhileDark,
@@ -2810,17 +2953,14 @@ pub enum LoopCondition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
 pub enum ConditionalCheck {
-    /// Always execute
     Always,
     /// Check if altitude is above threshold
     AltitudeAbove(f64),
-    /// Check if time is after
     TimeAfter(i64),
     /// Check if guiding RMS is below threshold
     GuidingRmsBelow(f64),
     /// Check if HFR is below threshold
     HfrBelow(f64),
-    /// Check if weather is safe
     WeatherSafe,
     /// Check if moon separation is above degrees
     MoonSeparationAbove(f64),
@@ -2924,7 +3064,7 @@ pub enum TriggerType {
     ///
     /// The trigger is fed by Dart's `CloudMotionAnalyzer` (see
     /// `packages/skotiq_core/lib/src/services/weather/cloud_motion_analyzer.dart`)
-    /// pushed via `ExecutorCommand::UpdateCloudMotion`. When the analyzer is
+    /// pushed via `SequenceExecutor::update_cloud_motion`. When the analyzer is
     /// unavailable (e.g. no radar fetch yet) the trigger stays quiescent —
     /// `state.predicted_cloud_arrival_minutes` is `None` and the evaluator
     /// returns false.
@@ -2969,7 +3109,7 @@ pub enum TriggerType {
     /// Science — transparency-adaptive trigger.
     ///
     /// Fires when the live sky transparency reading (pushed in via
-    /// `ExecutorCommand::UpdateTransparency` from the Dart science
+    /// `SequenceExecutor::update_transparency` from the Dart science
     /// pipeline) drops below `below_threshold` (fraction of clear-sky
     /// reference; 1.0 = perfectly clear, 0.0 = totally opaque) for at
     /// least `duration_secs` consecutive seconds. The duration acts as
@@ -3143,9 +3283,10 @@ mod live_stacking_config_tests {
 
         let config: LiveStackingConfig = serde_json::from_str(json)
             .expect("legacy config with now-removed OSC keys must still deserialize");
-        // The broadcast-relevant fields still load.
-        assert_eq!(config.broadcast_port, 8081);
-        assert_eq!(config.broadcast_path, "/broadcast");
+        // The fields the broadcast still has load; the port and path a
+        // node once carried are ignored with the rest.
+        assert_eq!(config.mode, crate::LiveStackingMode::RecordAndBroadcast);
+        assert!(config.broadcast_enabled);
     }
 
     /// An empty persisted blob must load entirely via serde defaults.
@@ -3235,12 +3376,11 @@ mod recovery_action_serde_tests {
         }
     }
 
-    /// Sequence JSON authored before `frame_type` existed (every frame was
-    /// implicitly a light) must keep loading — and must default to "Light".
-    /// A serializer that DOES send the field must round-trip it verbatim.
+    /// A Take Exposures step names its frame type in the IMAGETYP spelling;
+    /// a step without one, or with another spelling, is refused.
     #[test]
-    fn exposure_frame_type_defaults_to_light_and_round_trips() {
-        let legacy = r#"{
+    fn exposure_frame_type_is_required_and_round_trips() {
+        let without = r#"{
             "type": "TakeExposure",
             "duration_secs": 60.0,
             "count": 5,
@@ -3251,12 +3391,12 @@ mod recovery_action_serde_tests {
             "dither_every": null,
             "save_to": null
         }"#;
-        let node: NodeType = serde_json::from_str(legacy)
-            .expect("legacy TakeExposure without frame_type must deserialize");
-        match node {
-            NodeType::TakeExposure(cfg) => assert_eq!(cfg.frame_type, "Light"),
-            other => panic!("expected NodeType::TakeExposure, got {other:?}"),
-        }
+        assert!(serde_json::from_str::<NodeType>(without).is_err());
+        assert!(serde_json::from_str::<NodeType>(&without.replace(
+            "\"save_to\": null",
+            "\"save_to\": null, \"frame_type\": \"dark\""
+        ))
+        .is_err());
 
         let dark = r#"{
             "type": "TakeExposure",
@@ -3273,7 +3413,7 @@ mod recovery_action_serde_tests {
         let node: NodeType = serde_json::from_str(dark)
             .expect("TakeExposure with explicit frame_type must deserialize");
         match node {
-            NodeType::TakeExposure(cfg) => assert_eq!(cfg.frame_type, "Dark"),
+            NodeType::TakeExposure(cfg) => assert_eq!(cfg.frame_type, crate::FrameType::Dark),
             other => panic!("expected NodeType::TakeExposure, got {other:?}"),
         }
     }

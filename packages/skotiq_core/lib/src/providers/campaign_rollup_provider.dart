@@ -2,15 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/campaign_rollup.dart';
 import '../services/campaign_rollup_service.dart';
-import '../services/imaging_records_repository.dart';
-import '../services/scheduler/integration_goal_service.dart';
+import '../services/local_imaging_records.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart';
+import 'scheduler/integration_goal_service_provider.dart';
 
-/// Service provider for [CampaignRollupService].
 final campaignRollupServiceProvider = Provider<CampaignRollupService>((ref) {
   return CampaignRollupService(
-    records: ref.watch(imagingRecordsRepositoryProvider),
+    records: ref.watch(imagingRecordsProvider),
     targetsDao: ref.watch(targetsDaoProvider),
     goalService: ref.watch(integrationGoalServiceProvider),
   );

@@ -4,23 +4,29 @@ Use this guide before upgrading Skotiq, moving a profile to another
 computer, or restoring a headless imaging host.
 
 Skotiq backups are JSON files with a `.skbackup` extension. The current
-backup format is version `2.0`.
+backup format is version `3.0`; backups in the older `2.x` formats still
+restore.
 
 ## What a Backup Contains
 
-Backups created by `BackupService` include:
+A backup holds the whole database: application settings, equipment profiles,
+and every other table (sequences and templates, targets, projects and
+integration goals, imaging sessions and the captured-image records, calibration
+libraries, science measurements, notes, run history, Darkroom recipes and
+masters, and any table a later version adds). It leaves out only:
 
-- Application settings
-- Equipment profiles
-- Sequences and sequence templates
-- Targets
-- Backup metadata: format version, app version, platform, created time, and
-  category counts
+- a run's crash-recovery checkpoint (restored, it would offer to resume a run
+  that never ran on this machine);
+- the Darkroom job queue and its send log (a restored queued job would start
+  by itself);
+- the backup folder setting, which describes this machine's disks.
 
-Backups do not currently include:
+The list is `backupExcludedTables` in
+`packages/skotiq_core/lib/src/services/backup_service/schema_tables.dart`.
 
-- Captured image files
-- Imaging session history and captured-image database rows
+Backups do not include files outside the database:
+
+- Captured image files and Darkroom masters on disk
 - Logs, cached thumbnails, plate-solve indexes, survey images, or downloaded
   catalogs
 - Native driver installers, ASCOM/INDI/Alpaca server configuration, PHD2
@@ -57,8 +63,11 @@ a manual upgrade from a real older profile.
    connecting hardware.
 
 The Settings UI uses merge-style restore. Existing settings with the same keys
-are updated. Equipment profiles and targets are inserted with conflict handling,
-and imaging session history is preserved.
+are updated, and an equipment profile of the same name is updated. Every other
+row keeps what the database already holds under its key: a backup row whose key
+is taken is not restored, and when the row there is a different one, the backup
+rows that belong to it are not restored either, so nothing is attached to the
+wrong target or session.
 
 ## Restore to a Remote or Headless Host
 

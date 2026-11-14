@@ -1,0 +1,759 @@
+[
+  {
+    "isEnabled": true,
+    "name": "Focus custom",
+    "nodeId": "n-Autofocus",
+    "nodeType": "instruction",
+    "orderIndex": 11,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "focus note",
+      "exposureDuration": 4.5,
+      "exposuresPerPoint": 2,
+      "maxDurationSecs": 900.0,
+      "method": "quadratic",
+      "stepSize": 80,
+      "stepsOut": 9,
+      "useSettingsDefaults": false
+    },
+    "specificType": "Autofocus"
+  },
+  {
+    "isEnabled": true,
+    "name": "Panel off",
+    "nodeId": "n-CalibratorOff",
+    "nodeType": "instruction",
+    "orderIndex": 34,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "calibrator off note",
+      "timeoutSecs": 35
+    },
+    "specificType": "CalibratorOff"
+  },
+  {
+    "isEnabled": true,
+    "name": "Panel on",
+    "nodeId": "n-CalibratorOn",
+    "nodeType": "instruction",
+    "orderIndex": 33,
+    "parentNodeId": "root",
+    "properties": {
+      "brightness": 200,
+      "comment": "calibrator on note",
+      "timeoutSecs": 40
+    },
+    "specificType": "CalibratorOn"
+  },
+  {
+    "isEnabled": true,
+    "name": "Center custom",
+    "nodeId": "n-CenterTarget",
+    "nodeType": "instruction",
+    "orderIndex": 8,
+    "parentNodeId": "root",
+    "properties": {
+      "accuracyArcsec": 2.5,
+      "comment": "center note",
+      "customDec": -5.3,
+      "customRa": 5.6,
+      "exposureDuration": 8.0,
+      "filter": "L",
+      "maxAttempts": 7,
+      "useTargetCoords": false
+    },
+    "specificType": "CenterTarget"
+  },
+  {
+    "isEnabled": true,
+    "name": "To OIII",
+    "nodeId": "n-ChangeFilter",
+    "nodeType": "instruction",
+    "orderIndex": 15,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "filter note",
+      "filterName": "OIII",
+      "filterPosition": 5
+    },
+    "specificType": "ChangeFilter"
+  },
+  {
+    "isEnabled": true,
+    "name": "Close cover",
+    "nodeId": "n-CloseCover",
+    "nodeType": "instruction",
+    "orderIndex": 32,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "close cover note",
+      "timeoutSecs": 80
+    },
+    "specificType": "CloseCover"
+  },
+  {
+    "isEnabled": true,
+    "name": "Close",
+    "nodeId": "n-CloseDome",
+    "nodeType": "instruction",
+    "orderIndex": 28,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "close dome note",
+      "shutterOnly": true
+    },
+    "specificType": "CloseDome"
+  },
+  {
+    "isEnabled": true,
+    "name": "If safe",
+    "nodeId": "n-Conditional",
+    "nodeType": "logic",
+    "orderIndex": 3,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "conditional note",
+      "conditionType": "safetyMonitorSafe",
+      "safetyMonitorId": "safety-2",
+      "thresholdTime": 1773527400000,
+      "thresholdValue": 1.25
+    },
+    "specificType": "Conditional"
+  },
+  {
+    "isEnabled": true,
+    "name": "Cool deep",
+    "nodeId": "n-CoolCamera",
+    "nodeType": "instruction",
+    "orderIndex": 16,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "cool note",
+      "durationMins": 15.0,
+      "targetTemp": -20.0
+    },
+    "specificType": "CoolCamera"
+  },
+  {
+    "isEnabled": true,
+    "name": "Pause",
+    "nodeId": "n-Delay",
+    "nodeType": "instruction",
+    "orderIndex": 23,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "delay note",
+      "seconds": 42.5
+    },
+    "specificType": "Delay"
+  },
+  {
+    "isEnabled": true,
+    "name": "Dither big",
+    "nodeId": "n-Dither",
+    "nodeType": "instruction",
+    "orderIndex": 12,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "dither note",
+      "gridSize": 5,
+      "pattern": "grid",
+      "pixels": 8.0,
+      "raOnly": true,
+      "settlePixels": 0.8,
+      "settleTime": 20.0,
+      "settleTimeout": 90.0
+    },
+    "specificType": "Dither"
+  },
+  {
+    "isEnabled": true,
+    "name": "Home it",
+    "nodeId": "n-HomeMount",
+    "nodeType": "instruction",
+    "orderIndex": 21,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "home note"
+    },
+    "specificType": "HomeMount"
+  },
+  {
+    "isEnabled": true,
+    "name": "Group",
+    "nodeId": "n-InstructionSet",
+    "nodeType": "logic",
+    "orderIndex": 5,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "set note"
+    },
+    "specificType": "InstructionSet"
+  },
+  {
+    "isEnabled": true,
+    "name": "Stack live",
+    "nodeId": "n-LiveStacking",
+    "nodeType": "instruction",
+    "orderIndex": 35,
+    "parentNodeId": "root",
+    "properties": {
+      "authToken": "secret-token",
+      "broadcastEnabled": false,
+      "comment": "live note",
+      "maxFramesToStack": 50,
+      "mode": "record_and_broadcast",
+      "stackMethod": "sigma",
+      "thumbnailHeight": 1080,
+      "thumbnailWidth": 1920,
+      "watermarkText": "Backyard"
+    },
+    "specificType": "LiveStacking"
+  },
+  {
+    "isEnabled": true,
+    "name": "Until dawn",
+    "nodeId": "n-Loop",
+    "nodeType": "logic",
+    "orderIndex": 1,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "loop note",
+      "conditionType": "untilTime",
+      "integrationTimeTarget": 5400.0,
+      "maxSafetyIterations": 99,
+      "repeatCount": 7,
+      "repeatUntil": 1773549900000,
+      "repeatUntilAltitude": 22.5
+    },
+    "specificType": "Loop"
+  },
+  {
+    "isEnabled": true,
+    "name": "Flip",
+    "nodeId": "n-MeridianFlip",
+    "nodeType": "trigger",
+    "orderIndex": 26,
+    "parentNodeId": "root",
+    "properties": {
+      "autoCenter": false,
+      "comment": "flip note",
+      "failureAction": "abortAndPark",
+      "hourAngleThreshold": 0.75,
+      "maxRetries": 5,
+      "minutesBeforeLimit": 12.0,
+      "minutesPastMeridian": 7.0,
+      "pauseGuiding": false,
+      "refocusAfter": true,
+      "resumeGuiding": false,
+      "settleTime": 20.0,
+      "triggerMethod": "hourAngleThreshold",
+      "useGlobalDefaults": false
+    },
+    "specificType": "MeridianFlip"
+  },
+  {
+    "isEnabled": true,
+    "name": "Rotate",
+    "nodeId": "n-MoveRotator",
+    "nodeType": "instruction",
+    "orderIndex": 18,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "rotator note",
+      "relative": true,
+      "targetAngle": 92.5
+    },
+    "specificType": "MoveRotator"
+  },
+  {
+    "isEnabled": true,
+    "name": "Tell me",
+    "nodeId": "n-Notification",
+    "nodeType": "instruction",
+    "orderIndex": 24,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "notify note",
+      "explicitTransports": [
+        "discord",
+        "email"
+      ],
+      "level": "warning",
+      "message": "Target {target} finished",
+      "title": "Done"
+    },
+    "specificType": "Notification"
+  },
+  {
+    "isEnabled": true,
+    "name": "Open cover",
+    "nodeId": "n-OpenCover",
+    "nodeType": "instruction",
+    "orderIndex": 31,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "open cover note",
+      "timeoutSecs": 75
+    },
+    "specificType": "OpenCover"
+  },
+  {
+    "isEnabled": true,
+    "name": "Open",
+    "nodeId": "n-OpenDome",
+    "nodeType": "instruction",
+    "orderIndex": 27,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "open dome note",
+      "shutterOnly": true
+    },
+    "specificType": "OpenDome"
+  },
+  {
+    "isEnabled": true,
+    "name": "Both",
+    "nodeId": "n-Parallel",
+    "nodeType": "logic",
+    "orderIndex": 2,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "parallel note",
+      "requiredSuccesses": 2
+    },
+    "specificType": "Parallel"
+  },
+  {
+    "isEnabled": true,
+    "name": "Park it",
+    "nodeId": "n-Park",
+    "nodeType": "instruction",
+    "orderIndex": 19,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "park note"
+    },
+    "specificType": "Park"
+  },
+  {
+    "isEnabled": true,
+    "name": "Park dome",
+    "nodeId": "n-ParkDome",
+    "nodeType": "instruction",
+    "orderIndex": 29,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "park dome note",
+      "shutterOnly": true
+    },
+    "specificType": "ParkDome"
+  },
+  {
+    "isEnabled": true,
+    "name": "Plugin step",
+    "nodeId": "n-PluginNode",
+    "nodeType": "instruction",
+    "orderIndex": 37,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "plugin note",
+      "configJson": "{\"level\":3}",
+      "iconHint": "wrench",
+      "nodeTypeId": "flat-panel-sweep",
+      "pluginId": "com.example.rig",
+      "pluginName": "Example Rig",
+      "timeoutSecs": 600
+    },
+    "specificType": "PluginNode"
+  },
+  {
+    "isEnabled": true,
+    "name": "Polar",
+    "nodeId": "n-PolarAlignment",
+    "nodeType": "instruction",
+    "orderIndex": 30,
+    "parentNodeId": "root",
+    "properties": {
+      "binning": 1,
+      "comment": "polar note",
+      "exposureDuration": 3.5,
+      "gain": 150,
+      "isNorth": false,
+      "manualSlew": true,
+      "offset": 15,
+      "rotationStep": 25.0,
+      "startAltitude": 50.0,
+      "startFromCurrent": false
+    },
+    "specificType": "PolarAlignment"
+  },
+  {
+    "isEnabled": true,
+    "name": "Recover clouds",
+    "nodeId": "n-Recovery",
+    "nodeType": "logic",
+    "orderIndex": 4,
+    "parentNodeId": "root",
+    "properties": {
+      "cloudCoverDurationSecs": 90.0,
+      "cloudCoverMaxPercent": 85.0,
+      "cloudCoverageThresholdPercent": 65.0,
+      "cloudMinutesBefore": 15.0,
+      "cloudOpeningMinDurationSecs": 420.0,
+      "comment": "recovery note",
+      "focusDriftMinIncreasingCount": 6,
+      "focusDriftMinTotalIncrease": 0.75,
+      "focusDriftWindowSize": 14,
+      "guidingFailedDurationSecs": 45.0,
+      "hfrConsecutiveFrames": 4,
+      "hfrThresholdPercent": 30.0,
+      "maxRetries": 5,
+      "recoveryAction": "continue",
+      "transparencyBelowThreshold": 0.55,
+      "transparencyDurationSecs": 75.0,
+      "triggerEveryNFrames": 12,
+      "triggerThreshold": 2.5,
+      "triggerType": "cloudCoverThreshold"
+    },
+    "specificType": "Recovery"
+  },
+  {
+    "isEnabled": true,
+    "name": "Script",
+    "nodeId": "n-RunScript",
+    "nodeType": "instruction",
+    "orderIndex": 25,
+    "parentNodeId": "root",
+    "properties": {
+      "arguments": [
+        "--fast",
+        "-n",
+        "3"
+      ],
+      "comment": "script note",
+      "scriptPath": "/opt/rig/flats.sh",
+      "timeoutSecs": 120
+    },
+    "specificType": "RunScript"
+  },
+  {
+    "isEnabled": true,
+    "name": "Photometry",
+    "nodeId": "n-SciencePhotometry",
+    "nodeType": "instruction",
+    "orderIndex": 36,
+    "parentNodeId": "root",
+    "properties": {
+      "applyDifferential": false,
+      "binning": "two",
+      "comment": "science note",
+      "count": 120,
+      "exposureSecs": 30.0,
+      "filter": "V",
+      "gain": 100,
+      "maxCadenceGapSecs": 1.5,
+      "offset": 20,
+      "quality": {
+        "max_airmass": 2.0,
+        "max_fwhm_arcsec": 3.5,
+        "min_snr": 75.0,
+        "require_all_refs_visible": false
+      },
+      "reduceLive": false,
+      "referenceStars": [
+        "ref-a",
+        "ref-b"
+      ],
+      "targetDesignation": "V0376 Per"
+    },
+    "specificType": "SciencePhotometry"
+  },
+  {
+    "isEnabled": true,
+    "name": "Slew custom",
+    "nodeId": "n-SlewToTarget",
+    "nodeType": "instruction",
+    "orderIndex": 7,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "slew note",
+      "customDec": -5.4,
+      "customRa": 5.5,
+      "useTargetCoords": false
+    },
+    "specificType": "SlewToTarget"
+  },
+  {
+    "isEnabled": true,
+    "name": "LRGB smart",
+    "nodeId": "n-SmartExposure",
+    "nodeType": "instruction",
+    "orderIndex": 10,
+    "parentNodeId": "root",
+    "properties": {
+      "batchSize": 3,
+      "comment": "smart note",
+      "ditherOnFilterChange": true,
+      "integrationBudgetSecs": 10800.0,
+      "loopUntilStopped": true,
+      "plans": [
+        {
+          "binning": "Two",
+          "count": 30,
+          "depth_goal": null,
+          "dither_every": 4,
+          "duration_secs": 120.0,
+          "filter_index": 0,
+          "filter_name": "L",
+          "gain": 100,
+          "offset": 20
+        },
+        {
+          "binning": "One",
+          "count": 10,
+          "depth_goal": null,
+          "dither_every": null,
+          "duration_secs": 180.0,
+          "filter_index": null,
+          "filter_name": "R",
+          "gain": null,
+          "offset": null
+        }
+      ],
+      "rotateFilters": false
+    },
+    "specificType": "SmartExposure"
+  },
+  {
+    "isEnabled": true,
+    "name": "Guide",
+    "nodeId": "n-StartGuiding",
+    "nodeType": "instruction",
+    "orderIndex": 13,
+    "parentNodeId": "root",
+    "properties": {
+      "autoSelectStar": false,
+      "comment": "guide note",
+      "settlePixels": 0.9,
+      "settleTime": 15.0,
+      "settleTimeout": 75.0
+    },
+    "specificType": "StartGuiding"
+  },
+  {
+    "isEnabled": true,
+    "name": "Stop guide",
+    "nodeId": "n-StopGuiding",
+    "nodeType": "instruction",
+    "orderIndex": 14,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "stop note"
+    },
+    "specificType": "StopGuiding"
+  },
+  {
+    "isEnabled": true,
+    "name": "Ha subs",
+    "nodeId": "n-TakeExposure",
+    "nodeType": "instruction",
+    "orderIndex": 9,
+    "parentNodeId": "root",
+    "properties": {
+      "adaptiveExposure": {
+        "enabled": true,
+        "max_exposure_secs": 900.0,
+        "min_exposure_secs": 10.0,
+        "per_filter_enabled": {
+          "Ha": true
+        },
+        "per_filter_max_secs": {
+          "Ha": 1200.0
+        },
+        "per_filter_min_secs": {
+          "Ha": 60.0
+        },
+        "reference_sky_brightness_mag": 20.5,
+        "target_snr": 40.0
+      },
+      "binning": "two",
+      "comment": "exposure note",
+      "count": 24,
+      "ditherEvery": 5,
+      "durationSecs": 300.0,
+      "filter": "Ha",
+      "filterIndex": 4,
+      "frameType": "flat",
+      "gain": 120,
+      "offset": 30,
+      "triggers": [
+        {
+          "action": "Autofocus",
+          "condition": {
+            "HfrAbove": 3.5
+          },
+          "debounce_secs": 45.0
+        }
+      ]
+    },
+    "specificType": "TakeExposure"
+  },
+  {
+    "isEnabled": false,
+    "name": "M31 field",
+    "nodeId": "n-TargetHeader",
+    "nodeType": "target",
+    "orderIndex": 0,
+    "parentNodeId": "root",
+    "properties": {
+      "brightnessTierHint": "medium",
+      "comment": "north panel",
+      "decDegrees": 41.27,
+      "endBefore": 1773549900000,
+      "endWhen": {
+        "kind": "TimeBefore",
+        "value": 1773550000
+      },
+      "integrationBudget": {
+        "per_filter": {
+          "L": {
+            "kind": "Absolute",
+            "value": 3600.0
+          },
+          "R": {
+            "kind": "Ratio",
+            "value": 0.25
+          }
+        },
+        "stop_on_budget_met": false,
+        "total_secs": 7200.0
+      },
+      "maxAltitude": 80.0,
+      "minAltitude": 25.0,
+      "mosaicPanel": {
+        "column": 1,
+        "mosaic_name": "M31 2x2",
+        "panel_index": 1,
+        "row": 0,
+        "total_panels": 4
+      },
+      "priority": 3,
+      "raHours": 0.712,
+      "rotation": 12.5,
+      "startAfter": 1773527400000,
+      "startWhen": {
+        "kind": "And",
+        "value": [
+          {
+            "kind": "AltitudeAbove",
+            "value": 35.0
+          },
+          {
+            "kind": "HourAngleBetween",
+            "value": {
+              "maxHa": 3.0,
+              "minHa": -2.0
+            }
+          }
+        ]
+      },
+      "targetName": "M31",
+      "triggerPollIntervalSecs": 45
+    },
+    "specificType": "TargetHeader"
+  },
+  {
+    "isEnabled": true,
+    "name": "Pick best",
+    "nodeId": "n-TargetScheduler",
+    "nodeType": "logic",
+    "orderIndex": 6,
+    "parentNodeId": "root",
+    "properties": {
+      "airmassWeight": 0.15,
+      "altitudeWeight": 0.3,
+      "brightnessTierPreferences": {
+        "bright_min_score": 35.0,
+        "faint_min_score": 75.0,
+        "medium_min_score": 55.0
+      },
+      "comment": "scheduler note",
+      "darknessWeight": 0.25,
+      "finishIterationOnSwitch": false,
+      "horizonProfile": {
+        "id": 7,
+        "name": "Trees",
+        "samples": [
+          {
+            "alt": 12.0,
+            "az": 0.0
+          },
+          {
+            "alt": 20.0,
+            "az": 180.0
+          }
+        ]
+      },
+      "maxConditionsScoreAgeSecs": 450,
+      "minMoonSeparationDeg": 40.0,
+      "minScoreToRun": 42.0,
+      "moonDistanceWeight": 0.2,
+      "recomputeEveryNExposures": 8,
+      "swapHysteresisSecs": 240.0,
+      "swapOnConditionsBelow": 55.0,
+      "transitProximityWeight": 0.1
+    },
+    "specificType": "TargetScheduler"
+  },
+  {
+    "isEnabled": true,
+    "name": "Unpark it",
+    "nodeId": "n-Unpark",
+    "nodeType": "instruction",
+    "orderIndex": 20,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "unpark note"
+    },
+    "specificType": "Unpark"
+  },
+  {
+    "isEnabled": true,
+    "name": "Wait dusk",
+    "nodeId": "n-WaitForTime",
+    "nodeType": "instruction",
+    "orderIndex": 22,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "wait note",
+      "waitForTwilight": "nautical",
+      "waitUntil": 1773527400000
+    },
+    "specificType": "WaitForTime"
+  },
+  {
+    "isEnabled": true,
+    "name": "Warm slow",
+    "nodeId": "n-WarmCamera",
+    "nodeType": "instruction",
+    "orderIndex": 17,
+    "parentNodeId": "root",
+    "properties": {
+      "comment": "warm note",
+      "ratePerMin": 1.5,
+      "targetTemp": 15.0
+    },
+    "specificType": "WarmCamera"
+  },
+  {
+    "isEnabled": true,
+    "name": "Root",
+    "nodeId": "root",
+    "nodeType": "logic",
+    "orderIndex": 0,
+    "parentNodeId": null,
+    "properties": {},
+    "specificType": "InstructionSet"
+  }
+]

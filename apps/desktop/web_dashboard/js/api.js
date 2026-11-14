@@ -55,7 +55,10 @@ class SkotiqApi {
     this._baseUrl = '';
     this._authToken = '';
     this._deviceId = '';
-    this._apiVersion = '2.6.0';
+    // The release of the host that served this page (js/release.js). The
+    // host refuses a request from another release (426 version_mismatch),
+    // which is what a tab left open across a host update sends.
+    this._release = SKOTIQ_RELEASE;
     this._requestCounter = 0;
     this._ws = null;
     this._wsReconnectTimer = null;
@@ -133,6 +136,23 @@ class SkotiqApi {
     };
   }
 
+  /// The host's refusal of a page from another Skotiq release, or null.
+  static _versionRefusalFrom(status, text, method, path) {
+    if (status !== 426 || !text) return null;
+    let body;
+    try { body = JSON.parse(text); } catch (_) { return null; }
+    if (!body || body.code !== 'version_mismatch') return null;
+    const host = typeof body.hostVersion === 'string' ? body.hostVersion : null;
+    const page = typeof body.clientVersion === 'string' ? body.clientVersion : '';
+    return new SkotiqApiError(
+      'version_mismatch',
+      'This page is from Skotiq ' + page + ' and the host ' +
+        (host ? 'now runs Skotiq ' + host : 'did not say which Skotiq it runs') +
+        '. Reload the page to use the host\u2019s own dashboard.',
+      { status, method, path, hostVersion: host, pageVersion: page },
+    );
+  }
+
   static _retryAfterSecsFrom(res, text) {
     let secs = null;
     try {
@@ -179,7 +199,7 @@ class SkotiqApi {
   _headers(extraHeaders, method) {
     const h = {
       'Content-Type': 'application/json',
-      'X-Skotiq-API-Version': this._apiVersion,
+      'X-Skotiq-Version': this._release,
       'X-Request-ID': this._nextRequestId(),
       ...extraHeaders,
     };
@@ -217,6 +237,46 @@ class SkotiqApi {
 
   async _post(path, body) {
     return this._request('POST', path, body);
+  }
+
+  /// Follow a job the host queued to its end and return its result.
+  ///
+  /// A job-returning action answers `{jobId, status}` at once and does the
+  /// work afterwards; `started` is that answer. A host that ran the work
+  /// before answering sends the result itself, which is returned as it is.
+  /// A job that fails or is cancelled is thrown with the host's reason, kind
+  /// `job_failed` / `job_cancelled`; one still running after `timeoutMs` is
+  /// thrown as `job_timeout` and keeps running on the host.
+  async followJob(started, opts) {
+    const jobId = started && started.jobId;
+    if (!jobId) return started;
+    const o = opts || {};
+    const timeoutMs = o.timeoutMs != null ? o.timeoutMs : 600000;
+    const pollMs = o.pollMs != null ? o.pollMs : 1000;
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const job = await this._get('/api/jobs/' + encodeURIComponent(jobId));
+      const state = job && job.state;
+      if (state === 'succeeded') return job.result || {};
+      if (state === 'failed' || state === 'cancelled') {
+        const error = (job && job.error) || {};
+        throw new SkotiqApiError(
+          state === 'failed' ? 'job_failed' : 'job_cancelled',
+          error.message || (state === 'failed' ? 'The host reported a failure' : 'Cancelled'),
+          { jobId, code: error.code, details: error.details },
+        );
+      }
+      if (o.onProgress) o.onProgress(job);
+      if (Date.now() >= deadline) {
+        throw new SkotiqApiError(
+          'job_timeout',
+          'No result after ' + Math.round(timeoutMs / 60000) +
+            ' min; it is still running on the host',
+          { jobId },
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+    }
   }
 
   async _put(path, body) {
@@ -293,6 +353,8 @@ class SkotiqApi {
     }
     this._rateLimitedUntil = 0;
     if (!resp.ok) {
+      const refusal = SkotiqApi._versionRefusalFrom(resp.status, text, method, path);
+      if (refusal) throw refusal;
       const scope = SkotiqApi._scopeRefusalFrom(resp.status, text);
       if (scope) {
         throw new SkotiqApiError(
@@ -419,6 +481,8 @@ class SkotiqApi {
     this._rateLimitedUntil = 0;
     if (!resp.ok) {
       const text = await resp.text();
+      const refusal = SkotiqApi._versionRefusalFrom(resp.status, text, 'GET', path);
+      if (refusal) throw refusal;
       throw new SkotiqApiError(
         'http_error',
         'GET ' + path + ' failed (' + resp.status + '): ' + text,
@@ -518,6 +582,8 @@ class SkotiqApi {
     }
     if (!resp.ok) {
       const text = await resp.text();
+      const refusal = SkotiqApi._versionRefusalFrom(resp.status, text, 'GET', path);
+      if (refusal) throw refusal;
       throw new Error('GET ' + path + ' failed (' + resp.status + '): ' + text);
     }
     const metaHeader = resp.headers.get('x-image-meta');
@@ -563,6 +629,8 @@ class SkotiqApi {
     }
     if (!resp.ok) {
       const text = await resp.text();
+      const refusal = SkotiqApi._versionRefusalFrom(resp.status, text, 'GET', path);
+      if (refusal) throw refusal;
       throw new Error('GET ' + path + ' failed (' + resp.status + '): ' + text);
     }
     const buffer = await resp.arrayBuffer();
@@ -584,6 +652,15 @@ class SkotiqApi {
 
   async cameraSetCooling(deviceId, enabled, targetTemp) {
     return this._post('/api/camera/cooling', { deviceId, enabled, targetTemp });
+  }
+
+  // What the camera's sensitivity control takes: `isoSpeeds` lists a DSLR
+  // or mirrorless body's ISO speeds (the gain it takes is the ISO number);
+  // empty for a gain camera.
+  async cameraGetCapabilities(deviceId) {
+    return this._get(
+      '/api/equipment/camera/capabilities?deviceId=' + encodeURIComponent(deviceId || ''),
+    );
   }
 
   async cameraSetGain(deviceId, gain) {
@@ -726,7 +803,8 @@ class SkotiqApi {
 
   // Autofocus requires a camera + exposure parameters; the dashboard sends
   // sensible defaults from the connected camera's last gain and a 3s sub.
-  // Step sizes mirror the desktop AutofocusDialog defaults.
+  // Step sizes mirror the desktop AutofocusDialog defaults. Answers as soon
+  // as the sweep is queued; `followJob` gives its result.
   async autofocusStart(deviceId, cameraId, opts) {
     return this._post('/api/focuser/autofocus/start', {
       deviceId,
@@ -893,7 +971,8 @@ class SkotiqApi {
   }
 
   // =========================================================================
-  // PHD2 Guiding
+  // Guiding: the host's guider (PHD2 or the built-in guider), and PHD2's
+  // connection
   // =========================================================================
 
   async phd2Connect(host, port) {
@@ -904,28 +983,28 @@ class SkotiqApi {
     return this._post('/api/phd2/disconnect', {});
   }
 
-  async phd2StartGuiding(settlePixels, settleTime, settleTimeout) {
-    return this._post('/api/phd2/start-guiding', {
+  async guiderStartGuiding(settlePixels, settleTime, settleTimeout) {
+    return this._post('/api/guider/start-guiding', {
       settlePixels: settlePixels || 1.0,
       settleTime: settleTime || 10.0,
       settleTimeout: settleTimeout || 60.0,
     });
   }
 
-  async phd2StopGuiding() {
-    return this._post('/api/phd2/stop-guiding', {});
+  async guiderStopGuiding() {
+    return this._post('/api/guider/stop-guiding', {});
   }
 
-  async phd2GetStatus() {
-    return this._get('/api/phd2/status');
+  async guiderGetStatus() {
+    return this._get('/api/guider/status');
   }
 
-  async phd2Dither(amount) {
-    return this._post('/api/phd2/dither', { amount: amount || 5.0 });
+  async guiderDither(amount) {
+    return this._post('/api/guider/dither', { amount: amount || 5.0 });
   }
 
-  async phd2SetPaused(paused) {
-    return this._post('/api/phd2/pause', { paused });
+  async guiderSetPaused(paused) {
+    return this._post('/api/guider/pause', { paused });
   }
 
   // =========================================================================
@@ -1165,12 +1244,13 @@ class SkotiqApi {
   // captured image (the desktop's AutoSaveService writes it to disk before
   // the row lands in the images table) and feeds the resulting filePath in.
   async plateSolve(imagePath, hint) {
-    return this._post('/api/plate-solve', {
+    const started = await this._post('/api/plate-solve', {
       imagePath,
       ra: hint && hint.ra,
       dec: hint && hint.dec,
       fov: hint && hint.fov,
     });
+    return this.followJob(started, { timeoutMs: 330000 });
   }
 
   // Most-recent captured image — used so the plate-solve panel can solve
@@ -1484,7 +1564,7 @@ class SkotiqApi {
   // configured plate-solver settings to drive the mount onto the target.
   async framingCenterOnTarget(ra, dec, opts) {
     const o = opts || {};
-    return this._request('POST', '/api/framing/center-on-target', {
+    const started = await this._request('POST', '/api/framing/center-on-target', {
       ra,
       dec,
       maxIterations: o.maxIterations != null ? o.maxIterations : 5,
@@ -1493,9 +1573,10 @@ class SkotiqApi {
       binning: o.binning != null ? o.binning : 2,
       gain: o.gain != null ? o.gain : 100,
       syncMount: o.syncMount != null ? o.syncMount : false,
+    });
     // Centering can iterate up to maxIterations plate-solves; allow a long
     // window so a 5-iteration run with 3s exposures + a slow solver completes.
-    }, 600000);
+    return this.followJob(started, { timeoutMs: 600000, onProgress: o.onProgress });
   }
 
   // Rotate to a chosen sky PA — used by the framing wizard's rotation step
@@ -1672,10 +1753,9 @@ class SkotiqApi {
    * Connect to the event WebSocket.
    * Events are dispatched to listeners registered via on().
    *
-   * Why request a ticket first: ?token=<bearer> still works (legacy) but
-   * leaks the bearer into HTTP/proxy access logs. A single-use 60-second
-   * ticket is preferred; ?token is the fallback when the ticket endpoint is
-   * unavailable or when no token is configured.
+   * Why a ticket: a bearer in the URL leaks into HTTP/proxy access logs, so
+   * the upgrade carries a single-use 60-second ticket. A failed mint is
+   * retried with the socket's own reconnect backoff.
    */
   async connectWebSocket() {
     if (this._ws && (this._ws.readyState === WebSocket.OPEN || this._ws.readyState === WebSocket.CONNECTING)) {
@@ -1686,13 +1766,10 @@ class SkotiqApi {
     if (this._authToken || this._useSessionCookie) {
       try {
         const result = await this.issueWebSocketTicket();
-        ticket = result && result.ticket ? String(result.ticket) : '';
+        ticket = String(result.ticket);
       } catch (e) {
-        // Why swallow: older servers did not expose /api/ws/ticket. Fall back
-        // to ?token= for bearer sessions, which the server explicitly
-        // continues to accept. Cookie sessions have no raw-token fallback;
-        // a failed ticket request will therefore fail closed at the upgrade.
-        ticket = '';
+        this._scheduleReconnect();
+        throw e;
       }
     }
 
@@ -1700,13 +1777,11 @@ class SkotiqApi {
     const query = [];
     if (ticket) {
       query.push('ticket=' + encodeURIComponent(ticket));
-    } else if (this._authToken) {
-      query.push('token=' + encodeURIComponent(this._authToken));
     }
     if (this._deviceId) {
       query.push('deviceId=' + encodeURIComponent(this._deviceId));
     }
-    query.push('apiVersion=' + encodeURIComponent(this._apiVersion));
+    query.push('version=' + encodeURIComponent(this._release));
     if (query.length > 0) {
       wsUrl += (wsUrl.includes('?') ? '&' : '?') + query.join('&');
     }

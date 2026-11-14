@@ -236,8 +236,6 @@ class FollowTheNightScheduler {
     return _angToNestPix(target.centerRaDeg, target.centerDecDeg, 1 << order);
   }
 
-  // --- Astronomy helpers ---------------------------------------------------
-
   /// Greenwich Mean Sidereal Time then site longitude → local sidereal time in
   /// degrees [0, 360). Meeus' polynomial (good to arc-seconds, ample here).
   static double _localSiderealTimeDeg(DateTime utc, double longitudeDeg) {

@@ -32,6 +32,10 @@ class _CandidateList extends ConsumerWidget {
   final int? selectedTargetId;
   final ValueChanged<TargetSuggestion> onSelect;
 
+  /// Builds tonight's sequence for a target: the selected row's action, the
+  /// same one as the detail column's Build sequence.
+  final ValueChanged<TargetSuggestion> onImageTonight;
+
   /// What the optimizer flagged about tonight as a whole (a bright moon, a
   /// short window). One banner, joined — never one per factor.
   final List<String> riskFactors;
@@ -42,6 +46,7 @@ class _CandidateList extends ConsumerWidget {
     required this.scrollController,
     required this.selectedTargetId,
     required this.onSelect,
+    required this.onImageTonight,
     required this.riskFactors,
   });
 
@@ -162,6 +167,7 @@ class _CandidateList extends ConsumerWidget {
           night: night,
           columns: columns,
           onSelect: () => onSelect(candidate),
+          onImageTonight: () => onImageTonight(candidate),
         );
       },
     );
@@ -242,7 +248,10 @@ class _CandidateColumnHeader extends StatelessWidget {
               windowLabel: l10n.text('plannerColWindow'),
               windowScale: switch (night) {
                 null => null,
-                final n => (_clock(n.start.toLocal()), _clock(n.end.toLocal())),
+                final n => (
+                    ClockFormat.hm(n.start.toLocal()),
+                    ClockFormat.hm(n.end.toLocal())
+                  ),
               },
               columns: grid,
             ),
@@ -258,6 +267,7 @@ class _PlannerCandidateRow extends ConsumerWidget {
   final _PlannerNightWindow? night;
   final CandidateColumns? columns;
   final VoidCallback onSelect;
+  final VoidCallback onImageTonight;
 
   const _PlannerCandidateRow({
     super.key,
@@ -267,6 +277,7 @@ class _PlannerCandidateRow extends ConsumerWidget {
     required this.night,
     required this.columns,
     required this.onSelect,
+    required this.onImageTonight,
   });
 
   /// Above this score a candidate is worth imaging; below it, it is marginal.
@@ -316,30 +327,10 @@ class _PlannerCandidateRow extends ConsumerWidget {
         variant: ButtonVariant.secondary,
         size: ButtonSize.small,
         onPressed: () => selected
-            ? _imageTonight(context, ref)
+            ? onImageTonight()
             : _addToObservingList(context, ref, colors),
       ),
     );
-  }
-
-  Future<void> _imageTonight(BuildContext context, WidgetRef ref) async {
-    final loaded = await addPlanTonightTargetToSequencer(
-      context: context,
-      ref: ref,
-      target: suggestion,
-      replaceSequence: true,
-      includeSessionPreamble: true,
-    );
-    if (!loaded || !context.mounted) return;
-
-    final colors = SkotiqColors.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Loaded ${suggestion.targetName} into the sequencer'),
-        backgroundColor: colors.success,
-      ),
-    );
-    context.go('/sequencer');
   }
 
   Future<void> _addToObservingList(
@@ -381,7 +372,7 @@ String? _transitValue(TargetVisibilityInfo visibility) {
   final time = visibility.transitTime;
   final altitude = visibility.transitAltitude;
   if (time == null && altitude == null) return null;
-  final clock = time == null ? null : _clock(time);
+  final clock = time == null ? null : ClockFormat.hm(time);
   final alt = altitude == null ? null : '${altitude.round()}°';
   if (clock == null) return alt;
   if (alt == null) return clock;
@@ -402,10 +393,6 @@ String? _hoursAndMinutes(double? hours) {
   if (m == 0) return '${h}h';
   return '${h}h ${m}m';
 }
-
-/// 24-hour clock, zero-padded.
-String _clock(DateTime t) =>
-    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 /// Tonight's astronomical-dark window, and where a target's own rise/set span
 /// falls inside it.
@@ -459,29 +446,14 @@ final _plannerNightWindowProvider = Provider.autoDispose<_PlannerNightWindow?>(
   (ref) {
     final location = ref.watch(appObserverLocationProvider);
     if (plannerSiteUnset(location)) return null;
-    final now = DateTime.now();
-
-    _PlannerNightWindow? nightStarting(DateTime date) {
-      final twilight = AstronomyCalculations.calculateTwilightTimes(
-        date: date,
-        latitudeDeg: location!.latitude,
-        longitudeDeg: location.longitude,
-      );
-      final dusk = twilight.astronomicalDusk;
-      final dawn = twilight.astronomicalDawn;
-      if (dusk == null || dawn == null) return null;
-      // Dusk and dawn come back for the same calendar date, so dawn precedes
-      // dusk by a day; carry it forward or every window measures negative.
-      final end = dawn.isAfter(dusk) ? dawn : dawn.add(const Duration(days: 1));
-      return _PlannerNightWindow(start: dusk, end: end);
-    }
-
-    // After midnight the night under way began yesterday. Computing from
-    // today's date alone placed every row on the NEXT night, so at 00:06 a
-    // target setting at 08:00 had no window at all. Same rule as the
-    // planetarium's twilight provider that Tonight reads.
-    final previous = nightStarting(now.subtract(const Duration(days: 1)));
-    if (previous != null && previous.end.isAfter(now)) return previous;
-    return nightStarting(now);
+    final twilight = AstronomyCalculations.nightAt(
+      now: DateTime.now(),
+      latitudeDeg: location!.latitude,
+      longitudeDeg: location.longitude,
+    );
+    final dusk = twilight.astronomicalDusk;
+    final dawn = twilight.astronomicalDawn;
+    if (dusk == null || dawn == null) return null;
+    return _PlannerNightWindow(start: dusk, end: dawn);
   },
 );

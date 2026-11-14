@@ -23,7 +23,6 @@ import 'sub_exposure_noise.dart';
 /// in the app (Success / Info / Warning / Error). UI converts to a colour.
 enum ScienceInsightSeverity { success, info, warning, error }
 
-/// A single user-facing insight.
 class ScienceInsight {
   /// Stable id (e.g. "transparency.below_threshold"). Useful for tests and
   /// for de-duplicating between Imaging and Analytics surfaces.
@@ -102,7 +101,6 @@ class ScienceInsightsEngine {
   List<ScienceInsight> evaluate(ScienceInsightsInputs input) {
     final out = <ScienceInsight>[];
 
-    // ── Last pipeline error ────────────────────────────────────────────────
     final failure = input.lastFailure;
     if (failure != null) {
       out.add(
@@ -118,7 +116,6 @@ class ScienceInsightsEngine {
       );
     }
 
-    // ── Plate-solve health ─────────────────────────────────────────────────
     if (input.processedFrameCount >= 3) {
       final pct = (input.solveRate * 100).round();
       if (input.solvedFrameCount == 0) {
@@ -166,7 +163,6 @@ class ScienceInsightsEngine {
       );
     }
 
-    // ── Frame quality ──────────────────────────────────────────────────────
     final fm = input.latestFrameQuality;
     if (fm != null) {
       if (fm.highClipPercent > 1.5) {
@@ -223,7 +219,6 @@ class ScienceInsightsEngine {
       }
     }
 
-    // ── Transparency value ─────────────────────────────────────────────────
     final transparency = input.latestTransparency;
     if (transparency != null && transparency.transparencyPercent < 75) {
       out.add(
@@ -238,7 +233,6 @@ class ScienceInsightsEngine {
       );
     }
 
-    // ── Calibration fit quality ────────────────────────────────────────────
     final calibration = input.latestCalibration;
     if (calibration != null &&
         calibration.isCalibrated &&
@@ -269,7 +263,6 @@ class ScienceInsightsEngine {
       );
     }
 
-    // ── Optical-train diagnostics ──────────────────────────────────────────
     final diag = input.diagnostics;
     if (diag != null) {
       var optIndex = 0;
@@ -289,7 +282,6 @@ class ScienceInsightsEngine {
       }
     }
 
-    // ── Equipment health ───────────────────────────────────────────────────
     final health = input.healthReport;
     if (health != null) {
       var eqIndex = 0;

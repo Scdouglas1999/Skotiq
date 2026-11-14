@@ -10,23 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart'
-    show latestScienceSessionProvider;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
 
 final _start = DateTime.utc(2026, 7, 30, 20, 30);
 
@@ -73,11 +59,10 @@ Widget _app(AnalyticsTab tab) {
       allSessionsProvider.overrideWith((ref) => Stream.value([_unfinished])),
       allDbImagesProvider.overrideWith((ref) => Stream.value(_frames)),
       dbSessionImagesProvider.overrideWith((ref, id) => Stream.value(_frames)),
-      latestScienceSessionProvider.overrideWith((ref) async => 3),
+      scienceDefaultSessionProvider.overrideWith((ref) async => 3),
       standaloneImagesProvider.overrideWith(
         (ref) => Stream.value(const <DbCapturedImage>[]),
       ),
-      tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
     ],
     child: MaterialApp(
       theme: SkotiqTheme.dark,

@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart';
 
+import '../../backend/roles/host_data/host_records.dart';
+import '../../models/sequence/sequence_run_status.dart';
 import '../database.dart';
 import '../tables/sequence_runs.dart';
 
@@ -7,7 +9,8 @@ part 'sequence_runs_dao.g.dart';
 
 @DriftAccessor(tables: [SequenceRuns])
 class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$SequenceRunsDaoMixin {
+    with _$SequenceRunsDaoMixin
+    implements RunHistory {
   SequenceRunsDao(super.db);
 
   /// Start a new run record. Returns the row ID.
@@ -38,7 +41,7 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
   ///
   /// Returns null when there is no earlier completed run, or when the earlier
   /// run predates the snapshot column (legacy rows store null). Only
-  /// `status == 'completed'` runs are considered — diffing against an aborted
+  /// completed runs are considered — diffing against an aborted
   /// or failed run's partial state would mislead the operator.
   Future<String?> previousCompletedRunSnapshot(
     int sequenceId, {
@@ -48,7 +51,7 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
       ..where(
         (r) =>
             r.sequenceId.equals(sequenceId) &
-            r.status.equals('completed') &
+            r.status.equals(SequenceRunStatus.completed.token) &
             r.sequenceSnapshotJson.isNotNull(),
       )
       ..orderBy([(r) => OrderingTerm.desc(r.startedAt)])
@@ -72,7 +75,7 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
   /// already on disk — it just needs looking up.
   ///
   /// Unlike [previousCompletedRunSnapshot] this deliberately does NOT filter on
-  /// `status == 'completed'`: the run being resumed was interrupted, so its
+  /// completed runs: the run being resumed was interrupted, so its
   /// status is precisely NOT completed, and it is the run whose tree we want.
   Future<String?> latestSnapshotForSequenceName(String sequenceName) async {
     final row =
@@ -88,25 +91,31 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
     return row?.sequenceSnapshotJson;
   }
 
-  /// Move an in-flight run between the live statuses ('running' / 'paused').
+  /// Move an in-flight run between the live statuses
+  /// ([SequenceRunStatus.isLive]).
   ///
   /// `ended_at` and `stats_json` are deliberately untouched — this is not a
   /// finish. Without it the row said 'running' throughout a pause, so every
   /// non-GUI consumer (headless API, web dashboard, phone) believed the rig
   /// was still exposing while the desktop showed PAUSED and frame progress
   /// sat frozen.
-  Future<void> setLiveStatus(int runId, String status) async {
+  Future<void> setLiveStatus(int runId, SequenceRunStatus status) async {
+    assert(status.isLive, '$status is not a live status');
     await (update(sequenceRuns)..where((r) => r.id.equals(runId))).write(
-      SequenceRunsCompanion(status: Value(status)),
+      SequenceRunsCompanion(status: Value(status.token)),
     );
   }
 
-  /// Finish a run with final status and statistics.
-  Future<void> finishRun(int runId, String status, String statsJson) async {
+  Future<void> finishRun(
+    int runId,
+    SequenceRunStatus status,
+    String statsJson,
+  ) async {
+    assert(!status.isLive, '$status does not finish a run');
     await (update(sequenceRuns)..where((r) => r.id.equals(runId))).write(
       SequenceRunsCompanion(
         endedAt: Value(DateTime.now()),
-        status: Value(status),
+        status: Value(status.token),
         statsJson: Value(statsJson),
       ),
     );
@@ -120,20 +129,20 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// Get all runs ordered by most recent first.
+  @override
   Future<List<SequenceRun>> getAllRuns() {
     return (select(
       sequenceRuns,
     )..orderBy([(r) => OrderingTerm.desc(r.startedAt)])).get();
   }
 
-  /// Watch all runs for reactive UI.
+  @override
   Stream<List<SequenceRun>> watchAllRuns() {
     return (select(
       sequenceRuns,
     )..orderBy([(r) => OrderingTerm.desc(r.startedAt)])).watch();
   }
 
-  /// Get runs for a specific sequence.
   Future<List<SequenceRun>> getRunsForSequence(int sequenceId) {
     return (select(sequenceRuns)
           ..where((r) => r.sequenceId.equals(sequenceId))
@@ -141,7 +150,7 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  /// Watch runs for a specific sequence.
+  @override
   Stream<List<SequenceRun>> watchRunsForSequence(int sequenceId) {
     return (select(sequenceRuns)
           ..where((r) => r.sequenceId.equals(sequenceId))
@@ -149,19 +158,16 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  /// Get a single run by ID.
   Future<SequenceRun?> getRunById(int id) {
     return (select(
       sequenceRuns,
     )..where((r) => r.id.equals(id))).getSingleOrNull();
   }
 
-  /// Delete a run.
   Future<int> deleteRun(int id) {
     return (delete(sequenceRuns)..where((r) => r.id.equals(id))).go();
   }
 
-  /// Delete all runs older than a given date.
   Future<int> deleteRunsOlderThan(DateTime cutoff) {
     return (delete(
       sequenceRuns,
@@ -238,4 +244,9 @@ class SequenceRunsDao extends DatabaseAccessor<SkotiqDatabase>
     final row = await query.getSingle();
     return row.read(countExpr) ?? 0;
   }
+}
+
+extension SequenceRunStatusOfRow on SequenceRun {
+  /// The row's status, or null for a value this build does not know.
+  SequenceRunStatus? get runStatus => SequenceRunStatus.tryParse(status);
 }

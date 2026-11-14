@@ -14,11 +14,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:skotiq_planetarium/src/astronomy/milky_way_data.dart';
-import 'package:skotiq_planetarium/src/astronomy/planetary_positions.dart';
-import 'package:skotiq_planetarium/src/catalogs/constellation_data.dart';
-import 'package:skotiq_planetarium/src/celestial_object.dart';
-import 'package:skotiq_planetarium/src/coordinate_system.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// The current on-disk schema version of the fixture JSON. Bump when the shape
 /// of [StressFixture.toJson] changes so a stale fixture fails loudly instead of

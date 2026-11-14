@@ -9,8 +9,8 @@
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
 use crate::stack_master::{FrameProvenance, StackProvenance};
 use crate::{
-    debayer_u16, detect_stars, BayerPattern, DebayerAlgorithm, DetectedStar, ImageData, PixelType,
-    StarDetectionConfig,
+    detect_stars, BayerPattern, ColorFilterArray, DebayerAlgorithm, DetectedStar, ImageData,
+    PixelType, StarDetectionConfig,
 };
 use rayon::prelude::*;
 
@@ -42,12 +42,10 @@ pub enum SensorMode {
     Auto,
 }
 
-/// Configuration for the live stacking engine
 #[derive(Debug, Clone)]
 pub struct LiveStackConfig {
     /// Sigma threshold for pixel rejection (e.g. 2.5 means reject > 2.5 sigma from running mean)
     pub sigma_clip_threshold: f64,
-    /// Whether sigma clipping is enabled
     pub sigma_clip_enabled: bool,
     /// Maximum number of stars to use for matching (brightest N)
     pub max_match_stars: usize,
@@ -127,7 +125,7 @@ impl Default for LiveStackConfig {
 /// - the U16 unpacking fails (corrupt/short buffer).
 pub fn debayer_cfa_to_rgb(
     cfa: &ImageData,
-    pattern: BayerPattern,
+    filter: ColorFilterArray,
     algorithm: DebayerAlgorithm,
 ) -> Result<ImageData, String> {
     if cfa.channels != 1 {
@@ -164,7 +162,7 @@ pub fn debayer_cfa_to_rgb(
     // dimensions here would declare a (w x h x 3) image backed by only
     // (w/2)*(h/2)*3 samples — a short buffer that panics or silently corrupts
     // downstream luminance/detection passes.
-    let rgb = debayer_u16(&raw, cfa.width, cfa.height, pattern, algorithm);
+    let rgb = crate::demosaic(&filter, &raw, cfa.width, cfa.height, algorithm);
     Ok(ImageData::from_u16(
         rgb.width,
         rgb.height,
@@ -173,70 +171,10 @@ pub fn debayer_cfa_to_rgb(
     ))
 }
 
-/// Build a single-channel U16 luminance proxy from a 3-channel interleaved RGB
-/// [`ImageData`], using the Rec. 601 luma weights (`0.299 R + 0.587 G +
-/// 0.114 B`, rounded to nearest ADU and clamped to the U16 range).
-///
-/// The proxy exists purely so star detection / matching / transform solving
-/// run on a stable, channel-collapsed plane rather than on a single Bayer
-/// channel or on interleaved RGB (which `detect_stars` would misread as a
-/// scrambled mono buffer). The proxy is never accumulated — only the original
-/// RGB channels are stacked.
-fn luminance_proxy(rgb: &ImageData) -> ImageData {
-    debug_assert_eq!(
-        rgb.channels, 3,
-        "luminance_proxy requires a 3-channel RGB image"
-    );
+/// How a refusal of a frame taken through another filter begins. The host's
+/// API tells this refusal from an alignment failure by these words.
+pub const OTHER_FILTER_REFUSAL: &str = "Frame of another filter not stacked";
 
-    let width = rgb.width;
-    let height = rgb.height;
-    let pixel_count = (width as usize) * (height as usize);
-
-    // Read interleaved RGB triples. `as_u16` returns the full interleaved
-    // buffer; we collapse each [r, g, b] triple to one luma sample.
-    let interleaved = rgb
-        .as_u16()
-        .expect("luminance_proxy requires a U16 RGB image");
-
-    let luma: Vec<u16> = (0..pixel_count)
-        .into_par_iter()
-        .map(|i| {
-            let base = i * 3;
-            let r = interleaved[base] as f64;
-            let g = interleaved[base + 1] as f64;
-            let b = interleaved[base + 2] as f64;
-            (0.299 * r + 0.587 * g + 0.114 * b)
-                .round()
-                .clamp(0.0, 65535.0) as u16
-        })
-        .collect();
-
-    ImageData::from_u16(width, height, 1, &luma)
-}
-
-/// Resolve the single-channel image that star detection / matching / transform
-/// solving should run on.
-///
-/// - Mono (1-channel): the frame is borrowed unchanged, so the historic path
-///   is byte-for-byte identical (no copy, no luma collapse).
-/// - RGB (3-channel): a freshly built luminance proxy (owned) so detection
-///   operates on a coherent mono plane.
-///
-/// The caller (`new` / `add_frame`) has already validated the channel count is
-/// 1 or 3, so any other count would be a programmer error; we surface it as a
-/// panic rather than silently producing a meaningless plane.
-fn detection_plane(frame: &ImageData) -> std::borrow::Cow<'_, ImageData> {
-    match frame.channels {
-        1 => std::borrow::Cow::Borrowed(frame),
-        3 => std::borrow::Cow::Owned(luminance_proxy(frame)),
-        other => unreachable!(
-            "detection_plane received {} channels; new()/add_frame() must reject anything but 1 or 3",
-            other
-        ),
-    }
-}
-
-/// Statistics about the stacking process
 #[derive(Debug, Clone, Default)]
 pub struct StackingStats {
     /// Total frames added (including rejected)
@@ -251,6 +189,14 @@ pub struct StackingStats {
     pub avg_alignment_residual: f64,
     /// Total pixels rejected by sigma clipping across all frames
     pub total_sigma_rejected_pixels: u64,
+    /// Frames left out because they were taken through another filter than
+    /// the reference. They are not attempts: nothing was aligned.
+    pub other_filter_frames: u32,
+    /// The filter of the most recent such frame; `None` for a frame taken
+    /// through no filter.
+    pub last_other_filter: Option<String>,
+    /// The filter the stack is of (see [`LiveStacker::filter`]).
+    pub filter: Option<String>,
 }
 
 /// A 2D affine transform: [cos(t)*sx, -sin(t)*sy, tx; sin(t)*sx, cos(t)*sy, ty]
@@ -266,7 +212,6 @@ struct AffineTransform {
 }
 
 impl AffineTransform {
-    /// Identity transform (no shift, no rotation)
     fn identity() -> Self {
         Self {
             tx: 0.0,
@@ -276,7 +221,6 @@ impl AffineTransform {
         }
     }
 
-    /// Apply transform to a point
     fn apply(&self, x: f64, y: f64) -> (f64, f64) {
         let rx = self.cos_theta * x - self.sin_theta * y + self.tx;
         let ry = self.sin_theta * x + self.cos_theta * y + self.ty;
@@ -288,7 +232,6 @@ impl AffineTransform {
 /// Stores sum and sum-of-squares to compute mean and variance incrementally.
 #[derive(Debug, Clone)]
 struct PixelAccumulator {
-    /// Running sum of pixel values
     sum: f64,
     /// Running sum of squared pixel values (for variance)
     sum_sq: f64,
@@ -306,9 +249,7 @@ impl Default for PixelAccumulator {
     }
 }
 
-/// The main live stacking engine
 pub struct LiveStacker {
-    /// Image dimensions
     width: u32,
     height: u32,
     channels: u32,
@@ -320,10 +261,8 @@ pub struct LiveStacker {
     /// Length: width * height * channels
     accumulators: Vec<PixelAccumulator>,
 
-    /// Configuration
     config: LiveStackConfig,
 
-    /// Running statistics
     stats: StackingStats,
 
     /// What the stacked frames' own headers said, folded for the master's FITS
@@ -332,6 +271,27 @@ pub struct LiveStacker {
 
     /// Centroid of reference stars for transform computation
     ref_centroid: (f64, f64),
+
+    /// The reference frame's filter. A stack is of one filter: a frame whose
+    /// header names another is left out (see [`LiveStacker::filter`]).
+    filter: Option<String>,
+}
+
+/// Whether two `FILTER` values name the same filter.
+fn same_filter(a: Option<&str>, b: Option<&str>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.trim().eq_ignore_ascii_case(b.trim()),
+        _ => false,
+    }
+}
+
+/// A filter as a sentence names it.
+fn filter_phrase(filter: Option<&str>) -> String {
+    match filter {
+        Some(name) => format!("through {name}"),
+        None => "with no filter".to_string(),
+    }
 }
 
 impl LiveStacker {
@@ -359,9 +319,11 @@ impl LiveStacker {
             return Err("Reference frame is empty".to_string());
         }
 
-        if reference_frame.pixel_type != PixelType::U16 {
+        // 16-bit frames and float frames, whose sample range says where their
+        // ADU are; the stack itself is 16-bit.
+        if !matches!(reference_frame.pixel_type, PixelType::U16 | PixelType::F32) {
             return Err(format!(
-                "Live stacking currently supports U16 images only, got {:?}",
+                "Live stacking reads 16-bit and 32-bit float images, got {:?}",
                 reference_frame.pixel_type
             ));
         }
@@ -382,8 +344,7 @@ impl LiveStacker {
         // proxy so star centroids come from a stable, channel-collapsed plane
         // rather than a scrambled interleaved buffer (which `detect_stars`
         // would otherwise misread).
-        let detection_image = detection_plane(reference_frame);
-        let ref_stars = detect_stars(&detection_image, &config.star_detection);
+        let ref_stars = detect_stars(reference_frame, &config.star_detection);
         if ref_stars.len() < config.min_matched_pairs {
             return Err(format!(
                 "Reference frame has only {} stars, need at least {} for alignment",
@@ -408,7 +369,7 @@ impl LiveStacker {
         let ref_centroid = (ref_centroid.0 / n, ref_centroid.1 / n);
 
         // Initialize accumulators from reference frame pixel data
-        let ref_pixels = extract_u16_as_f64(reference_frame);
+        let ref_pixels = reference_frame.samples_f64();
         let accumulators: Vec<PixelAccumulator> = ref_pixels
             .par_iter()
             .map(|&val| PixelAccumulator {
@@ -428,6 +389,7 @@ impl LiveStacker {
             stats: StackingStats::default(),
             provenance: StackProvenance::default(),
             ref_centroid,
+            filter: reference_provenance.filter.clone(),
         };
 
         stacker.stats.total_frames_attempted = 1;
@@ -445,22 +407,46 @@ impl LiveStacker {
     /// 3. Compute affine transform (translation + rotation) from matched pairs
     /// 4. Apply transform to align frame pixels to reference
     /// 5. Accumulate aligned pixels with optional sigma-clipping rejection
+    ///
+    /// A frame handed over without a header says nothing about its filter, so
+    /// it is not judged on it.
     pub fn add_frame(&mut self, frame: &ImageData) -> Result<ImageData, String> {
-        self.add_frame_with_provenance(frame, &FrameProvenance::unknown())
+        self.stack_frame(frame, &FrameProvenance::unknown())
     }
 
     /// Add a frame that arrived with a header of its own. Only frames that are
     /// actually stacked fold into the master's provenance — a frame rejected
     /// for alignment contributes no pixels, so it must contribute no
     /// integration time either.
+    ///
+    /// A stack is of one filter, the reference's. A frame whose header names
+    /// another is left out before anything is aligned, counted in
+    /// [`StackingStats::other_filter_frames`] and not as an attempt.
     pub fn add_frame_with_provenance(
+        &mut self,
+        frame: &ImageData,
+        provenance: &FrameProvenance,
+    ) -> Result<ImageData, String> {
+        if !same_filter(provenance.filter.as_deref(), self.filter.as_deref()) {
+            self.stats.other_filter_frames += 1;
+            self.stats.last_other_filter = provenance.filter.clone();
+            return Err(format!(
+                "{OTHER_FILTER_REFUSAL}: the frame was taken {} and this live stack is of frames \
+                 taken {}.",
+                filter_phrase(provenance.filter.as_deref()),
+                filter_phrase(self.filter.as_deref()),
+            ));
+        }
+        self.stack_frame(frame, provenance)
+    }
+
+    fn stack_frame(
         &mut self,
         frame: &ImageData,
         provenance: &FrameProvenance,
     ) -> Result<ImageData, String> {
         self.stats.total_frames_attempted += 1;
 
-        // Validate dimensions
         if frame.width != self.width || frame.height != self.height {
             return Err(format!(
                 "Frame dimensions {}x{} don't match reference {}x{}",
@@ -473,17 +459,16 @@ impl LiveStacker {
                 frame.channels, self.channels
             ));
         }
-        if frame.pixel_type != PixelType::U16 {
+        if !matches!(frame.pixel_type, PixelType::U16 | PixelType::F32) {
             return Err(format!(
-                "Expected U16 pixel type, got {:?}",
+                "Live stacking reads 16-bit and 32-bit float images, got {:?}",
                 frame.pixel_type
             ));
         }
 
         // Step 1: Detect stars on the alignment plane (luminance proxy for
         // RGB, the frame itself for mono — see `detection_plane`).
-        let detection_image = detection_plane(frame);
-        let frame_stars = detect_stars(&detection_image, &self.config.star_detection);
+        let frame_stars = detect_stars(frame, &self.config.star_detection);
         if frame_stars.len() < self.config.min_matched_pairs {
             self.stats.rejected_alignment_failures += 1;
             tracing::warn!(
@@ -579,7 +564,7 @@ impl LiveStacker {
         );
 
         // Step 4: Extract frame pixels and apply transform
-        let frame_pixels = extract_u16_as_f64(frame);
+        let frame_pixels = frame.samples_f64();
         let aligned_pixels = apply_transform_bilinear(
             &frame_pixels,
             self.width as usize,
@@ -591,7 +576,6 @@ impl LiveStacker {
         // Step 5: Accumulate with optional sigma clipping
         let sigma_rejected = self.accumulate_pixels(&aligned_pixels);
 
-        // Update stats
         self.stats.stacked_frame_count += 1;
         self.provenance.fold(provenance);
         // Why (audit IMG-): `avg_matched_pairs` and
@@ -623,7 +607,6 @@ impl LiveStacker {
             sigma_rejected,
         );
 
-        // Return current stack
         Ok(self.get_current_stack())
     }
 
@@ -644,8 +627,6 @@ impl LiveStacker {
         let sigma_enabled = self.config.sigma_clip_enabled;
         let sigma_threshold = self.config.sigma_clip_threshold;
 
-        // Process in parallel chunks for cache efficiency
-        // We need mutable access to accumulators, so we use par_iter_mut
         let rejected: u64 = self
             .accumulators
             .par_iter_mut()
@@ -713,14 +694,21 @@ impl LiveStacker {
         tracing::info!("Live stacker reset");
     }
 
-    /// Get the number of successfully stacked frames.
     pub fn frame_count(&self) -> u32 {
         self.stats.stacked_frame_count
     }
 
-    /// Get stacking statistics.
+    /// The filter every frame of this stack was taken through (the
+    /// reference's `FILTER`); `None` when the reference named none.
+    pub fn filter(&self) -> Option<&str> {
+        self.filter.as_deref()
+    }
+
     pub fn get_stats(&self) -> StackingStats {
-        self.stats.clone()
+        StackingStats {
+            filter: self.filter.clone(),
+            ..self.stats.clone()
+        }
     }
 
     /// The provenance of the frames actually in the stack, for the FITS master.
@@ -728,8 +716,6 @@ impl LiveStacker {
         &self.provenance
     }
 }
-
-// Star matching
 
 /// A matched star pair: reference star index, frame star index, distance
 #[derive(Debug, Clone)]
@@ -832,8 +818,6 @@ fn match_stars(
     matches
 }
 
-// Affine transform computation
-
 /// Compute the best-fit affine transform (translation + rotation) from matched star pairs.
 ///
 /// Uses the Procrustes method:
@@ -854,7 +838,6 @@ fn compute_affine_transform(
 
     let n = matches.len() as f64;
 
-    // Compute centroids of matched pairs
     let (ref_cx, ref_cy) = matches.iter().fold((0.0, 0.0), |(sx, sy), m| {
         (sx + m.ref_star.x, sy + m.ref_star.y)
     });
@@ -1100,9 +1083,7 @@ fn fit_transform_robust(
             })
             .collect();
 
-        let mut sorted = deviations.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let median = sorted[sorted.len() / 2];
+        let median = crate::robust_stats::median_upper_in_place(&mut deviations.clone());
         let cutoff = (CLIP_SIGMA * median).max(CLIP_FLOOR_PX);
 
         let kept: Vec<StarMatch> = inliers
@@ -1147,8 +1128,6 @@ fn compute_alignment_residual(matches: &[StarMatch], transform: &AffineTransform
     (sum_sq / matches.len() as f64).sqrt()
 }
 
-// Frame alignment (pixel resampling)
-
 /// Apply the inverse affine transform to resample frame pixels onto the reference grid.
 ///
 /// For each output pixel (in reference coordinates), we compute where it maps
@@ -1171,7 +1150,6 @@ fn apply_transform_bilinear(
     // For rotation matrix R(theta), R^-1 = R(-theta)
     let inv_cos = transform.cos_theta; // cos(-theta) = cos(theta)
     let inv_sin = -transform.sin_theta; // sin(-theta) = -sin(theta)
-                                        // Process rows in parallel
     let result: Vec<f64> = (0..height)
         .into_par_iter()
         .flat_map(|y| {
@@ -1184,7 +1162,6 @@ fn apply_transform_bilinear(
                 let fx = inv_cos * rx - inv_sin * ry;
                 let fy = inv_sin * rx + inv_cos * ry;
 
-                // Bilinear interpolation
                 let fx_floor = fx.floor();
                 let fy_floor = fy.floor();
                 let ix = fx_floor as i64;
@@ -1231,17 +1208,6 @@ fn apply_transform_bilinear(
 
     debug_assert_eq!(result.len(), pixel_count);
     result
-}
-
-// Utility functions
-
-/// Extract U16 image data as f64 values
-fn extract_u16_as_f64(image: &ImageData) -> Vec<f64> {
-    image
-        .data
-        .par_chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]) as f64)
-        .collect()
 }
 
 // Master frame combination (bias / dark / flat)
@@ -1324,13 +1290,9 @@ pub enum MasterOutputType {
 /// method was used and how many frames contributed.
 #[derive(Debug, Clone)]
 pub struct MasterFrame {
-    /// The combined pixel data.
     pub image: ImageData,
-    /// What kind of master this represents.
     pub kind: MasterFrameKind,
-    /// How many input frames contributed to the combine.
     pub frame_count: u32,
-    /// Which combine method produced the master.
     pub method: CombineMethod,
     /// The final output pixel type. Mirrors `image.pixel_type` for
     /// quick inspection without unpacking `image`.
@@ -1394,7 +1356,6 @@ fn combine_master_frames_banded(
     output_type: MasterOutputType,
     band_rows: usize,
 ) -> Result<MasterFrame, String> {
-    // Validation
     if frames.is_empty() {
         return Err(format!(
             "combine_master_frames: cannot build {} master from zero frames",
@@ -1509,7 +1470,7 @@ fn combine_master_frames_banded(
         let start = row * row_samples;
         let count = rows * row_samples;
         for (buffer, frame) in band.iter_mut().zip(frames) {
-            decode_band_f64(frame, start, count, buffer);
+            frame.samples_f64_into(start, count, buffer);
         }
         let borrowed: Vec<IntegrationFrame<'_>> = band
             .iter()
@@ -1560,7 +1521,6 @@ fn combine_master_frames_banded(
         MasterFrameKind::Bias | MasterFrameKind::Dark => (combined, input_mean),
     };
 
-    // Materialise the output ImageData
     let image = match output_type {
         MasterOutputType::U16 => {
             let u16_data: Vec<u16> = final_pixels
@@ -1584,36 +1544,6 @@ fn combine_master_frames_banded(
         input_mean,
         output_mean,
     })
-}
-
-/// Decode `count` samples of `image`, starting at sample `start`, into `out`
-/// as `f64`. `out` is caller-owned scratch reused across bands.
-fn decode_band_f64(image: &ImageData, start: usize, count: usize, out: &mut Vec<f64>) {
-    out.clear();
-    out.reserve(count);
-    match image.pixel_type {
-        PixelType::U16 => {
-            let bytes = &image.data[start * 2..(start + count) * 2];
-            out.extend(
-                bytes
-                    .as_chunks::<2>()
-                    .0
-                    .iter()
-                    .map(|c| u16::from_le_bytes([c[0], c[1]]) as f64),
-            );
-        }
-        PixelType::F32 => {
-            let bytes = &image.data[start * 4..(start + count) * 4];
-            out.extend(
-                bytes
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f64),
-            );
-        }
-        _ => unreachable!("pixel_type validated by combine_master_frames"),
-    }
 }
 
 #[cfg(test)]
@@ -1686,14 +1616,7 @@ mod master_parity_tests {
         let frame_stacks: Vec<Vec<f64>> = frames
             .iter()
             .map(|f| match f.pixel_type {
-                PixelType::U16 => extract_u16_as_f64(f),
-                PixelType::F32 => f
-                    .data
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f64)
-                    .collect(),
+                PixelType::U16 | PixelType::F32 => f.samples_f64(),
                 _ => unreachable!(),
             })
             .collect();
@@ -2702,6 +2625,56 @@ mod tests {
 
     /// Translate a star field by a (whole-pixel) offset so the mono and RGB
     /// "second frame" share an identical geometric shift.
+    /// A live stack is of one filter. A frame taken through another is left
+    /// out and counted on its own; it is not an attempt and not an alignment
+    /// failure, and the stack carries on with frames of its own filter.
+    #[test]
+    fn a_frame_of_another_filter_is_left_out_of_the_stack() {
+        let field = osc_test_field();
+        let reference = make_test_image(512, 512, &field);
+        let shifted = make_test_image(512, 512, &shift_field(&field, 3.0, 2.0));
+        let through = |filter: Option<&str>| FrameProvenance {
+            exposure_secs: Some(60.0),
+            date_obs: None,
+            filter: filter.map(str::to_string),
+        };
+
+        let mut stacker =
+            LiveStacker::new_with_provenance(&reference, osc_test_config(), &through(Some("L")))
+                .expect("reference accepted");
+        assert_eq!(stacker.filter(), Some("L"));
+
+        let refusal = stacker
+            .add_frame_with_provenance(&shifted, &through(Some("R")))
+            .expect_err("an R frame does not enter an L stack");
+        assert_eq!(
+            refusal,
+            "Frame of another filter not stacked: the frame was taken through R and this live \
+             stack is of frames taken through L."
+        );
+        let refusal = stacker
+            .add_frame_with_provenance(&shifted, &through(None))
+            .expect_err("an unfiltered frame does not enter an L stack");
+        assert!(refusal.contains("taken with no filter"), "{refusal}");
+
+        let stats = stacker.get_stats();
+        assert_eq!(stats.stacked_frame_count, 1);
+        assert_eq!(stats.total_frames_attempted, 1);
+        assert_eq!(stats.rejected_alignment_failures, 0);
+        assert_eq!(stats.other_filter_frames, 2);
+        assert_eq!(stats.last_other_filter, None);
+        assert_eq!(stats.filter.as_deref(), Some("L"));
+        assert_eq!(stacker.provenance().total_integration_secs(), 60.0);
+
+        stacker
+            .add_frame_with_provenance(&shifted, &through(Some(" l ")))
+            .expect("the same filter, however it is spelled, stacks");
+        stacker
+            .add_frame(&shifted)
+            .expect("a frame without a header is not judged on its filter");
+        assert_eq!(stacker.get_stats().stacked_frame_count, 3);
+    }
+
     fn shift_field(field: &[(f64, f64, f64)], dx: f64, dy: f64) -> Vec<(f64, f64, f64)> {
         field.iter().map(|&(x, y, b)| (x + dx, y + dy, b)).collect()
     }
@@ -2782,6 +2755,7 @@ mod tests {
             &FrameProvenance {
                 exposure_secs: Some(90.0),
                 date_obs: Some("2026-08-14T03:22:30".to_string()),
+                filter: None,
             },
         )
         .expect("reference accepted");
@@ -2792,6 +2766,7 @@ mod tests {
                 &FrameProvenance {
                     exposure_secs: Some(90.0),
                     date_obs: Some("2026-08-14T03:21:00".to_string()),
+                    filter: None,
                 },
             )
             .expect("shifted frame stacked");
@@ -2801,6 +2776,7 @@ mod tests {
                 &FrameProvenance {
                     exposure_secs: Some(90.0),
                     date_obs: Some("2026-08-14T03:19:30".to_string()),
+                    filter: None,
                 },
             )
             .expect_err("a starless frame cannot align");
@@ -2813,6 +2789,58 @@ mod tests {
             Some("2026-08-14T03:21:00.000"),
             "DATE-OBS must come from the earliest STACKED frame, not the rejected one"
         );
+    }
+
+    /// A float reference in [0, 1], as PixInsight saves a frame, starts the
+    /// same stack as the 16-bit frame it was made from, and a float frame
+    /// joins a 16-bit stack.
+    #[test]
+    fn a_normalized_float_frame_stacks_as_its_16_bit_twin() {
+        let field = osc_test_field();
+        let reference = make_test_image(512, 512, &field);
+        let shifted = make_test_image(512, 512, &shift_field(&field, 3.0, 2.0));
+        let unit = |image: &ImageData| {
+            let px: Vec<f32> = image
+                .as_u16()
+                .unwrap()
+                .iter()
+                .map(|&v| f32::from(v) / 65535.0)
+                .collect();
+            ImageData::from_f32(image.width, image.height, 1, &px)
+                .with_range(crate::SampleRange::UNIT)
+        };
+
+        let mut sixteen = LiveStacker::new(&reference, osc_test_config()).unwrap();
+        let expected = sixteen.add_frame(&shifted).unwrap().as_u16().unwrap();
+
+        let mut float = LiveStacker::new(&unit(&reference), osc_test_config())
+            .expect("a float reference is accepted");
+        let stacked = float
+            .add_frame(&unit(&shifted))
+            .expect("a float frame is stacked");
+        assert_eq!(stacked.pixel_type, PixelType::U16);
+        assert_eq!(float.frame_count(), 2);
+        let got = stacked.as_u16().unwrap();
+        let worst = got
+            .iter()
+            .zip(&expected)
+            .map(|(a, b)| a.abs_diff(*b))
+            .max()
+            .unwrap();
+        assert!(
+            worst <= 1,
+            "the float stack differs from the 16-bit one by {worst} ADU"
+        );
+
+        let mut mixed = LiveStacker::new(&reference, osc_test_config()).unwrap();
+        let got = mixed.add_frame(&unit(&shifted)).unwrap().as_u16().unwrap();
+        let worst = got
+            .iter()
+            .zip(&expected)
+            .map(|(a, b)| a.abs_diff(*b))
+            .max()
+            .unwrap();
+        assert!(worst <= 1, "the mixed stack differs by {worst} ADU");
     }
 
     /// The mono two-frame stack is pinned byte-for-byte.
@@ -2904,11 +2932,8 @@ mod tests {
         };
         let rgb_ref = make_test_image_rgb(512, 512, &field, gains);
         let rgb_frame = make_test_image_rgb(512, 512, &shifted_field, gains);
-        let rgb_ref_plane = detection_plane(&rgb_ref);
-        let rgb_frame_plane = detection_plane(&rgb_frame);
-        assert_eq!(rgb_ref_plane.channels, 1, "proxy must be single-channel");
-        let rgb_ref_stars = detect_stars(&rgb_ref_plane, &config.star_detection);
-        let rgb_frame_stars = detect_stars(&rgb_frame_plane, &config.star_detection);
+        let rgb_ref_stars = detect_stars(&rgb_ref, &config.star_detection);
+        let rgb_frame_stars = detect_stars(&rgb_frame, &config.star_detection);
         let rgb_matches = match_stars(
             &rgb_ref_stars,
             &rgb_frame_stars,
@@ -2985,6 +3010,7 @@ mod tests {
             stats: StackingStats::default(),
             provenance: StackProvenance::default(),
             ref_centroid: (0.0, 0.0),
+            filter: None,
         };
 
         // Three clean frames (counts → 3 per slot) of value 1000 with tiny
@@ -3027,47 +3053,12 @@ mod tests {
             "B channel of px0 must be untouched (count 4)"
         );
         // The other pixel's channels are all clean too.
-        for slot in 3..slots {
+        for (slot, accumulator) in stacker.accumulators.iter().enumerate().skip(3) {
             assert_eq!(
-                stacker.accumulators[slot].count, 4,
+                accumulator.count, 4,
                 "slot {slot} must accept all four samples"
             );
         }
-    }
-
-    /// (4) Luminance proxy weights: a single known RGB pixel must collapse to
-    /// exactly `round(0.299 R + 0.587 G + 0.114 B)`.
-    #[test]
-    fn luminance_proxy_weights() {
-        // One pixel, RGB = (10000, 20000, 30000).
-        let rgb = ImageData::from_u16(1, 1, 3, &[10000, 20000, 30000]);
-        let proxy = luminance_proxy(&rgb);
-
-        assert_eq!(proxy.channels, 1);
-        assert_eq!(proxy.width, 1);
-        assert_eq!(proxy.height, 1);
-
-        let px = proxy.as_u16().expect("proxy is u16");
-        assert_eq!(px.len(), 1);
-
-        let expected = (0.299 * 10000.0 + 0.587 * 20000.0 + 0.114 * 30000.0_f64).round() as u16;
-        // 2990 + 11740 + 3420 = 18150
-        assert_eq!(expected, 18150, "hand-computed luma weight");
-        assert_eq!(
-            px[0], expected,
-            "luminance proxy must apply exact Rec.601 weights"
-        );
-
-        // A second pixel to confirm per-pixel independence and rounding.
-        let rgb2 = ImageData::from_u16(2, 1, 3, &[255, 255, 255, 0, 100, 0]);
-        let proxy2 = luminance_proxy(&rgb2);
-        let px2 = proxy2.as_u16().unwrap();
-        assert_eq!(
-            px2[0], 255,
-            "equal RGB collapses to that value (weights sum to 1)"
-        );
-        let expected2 = (0.587 * 100.0_f64).round() as u16; // 59
-        assert_eq!(px2[1], expected2, "pure-green pixel uses the green weight");
     }
 
     /// `debayer_cfa_to_rgb` must fail loud on the wrong channel count and the
@@ -3077,20 +3068,30 @@ mod tests {
     fn debayer_cfa_to_rgb_validates_and_expands() {
         // Wrong channel count.
         let rgb_in = ImageData::from_u16(2, 2, 3, &[0u16; 12]);
-        assert!(
-            debayer_cfa_to_rgb(&rgb_in, BayerPattern::RGGB, DebayerAlgorithm::Bilinear).is_err()
-        );
+        assert!(debayer_cfa_to_rgb(
+            &rgb_in,
+            ColorFilterArray::Bayer(BayerPattern::Rggb),
+            DebayerAlgorithm::Bilinear
+        )
+        .is_err());
 
         // Wrong pixel type.
         let f32_in = ImageData::from_f32(2, 2, 1, &[0.0f32; 4]);
-        assert!(
-            debayer_cfa_to_rgb(&f32_in, BayerPattern::RGGB, DebayerAlgorithm::Bilinear).is_err()
-        );
+        assert!(debayer_cfa_to_rgb(
+            &f32_in,
+            ColorFilterArray::Bayer(BayerPattern::Rggb),
+            DebayerAlgorithm::Bilinear
+        )
+        .is_err());
 
         // Happy path: a 4x4 CFA expands to 4x4x3 under full-resolution Bilinear.
         let cfa = ImageData::from_u16(4, 4, 1, &[1234u16; 16]);
-        let rgb = debayer_cfa_to_rgb(&cfa, BayerPattern::RGGB, DebayerAlgorithm::Bilinear)
-            .expect("valid CFA debayers");
+        let rgb = debayer_cfa_to_rgb(
+            &cfa,
+            ColorFilterArray::Bayer(BayerPattern::Rggb),
+            DebayerAlgorithm::Bilinear,
+        )
+        .expect("valid CFA debayers");
         assert_eq!(rgb.channels, 3);
         assert_eq!(rgb.width, 4);
         assert_eq!(rgb.height, 4);
@@ -3102,8 +3103,12 @@ mod tests {
         // dimensions are derived from the demosaiced RgbImage, not assumed from
         // the input CFA size — otherwise the declared (4x4x3) image would be
         // backed by only (2x2x3) samples and panic/corrupt downstream.
-        let sp = debayer_cfa_to_rgb(&cfa, BayerPattern::RGGB, DebayerAlgorithm::SuperPixel)
-            .expect("valid CFA superpixel-debayers");
+        let sp = debayer_cfa_to_rgb(
+            &cfa,
+            ColorFilterArray::Bayer(BayerPattern::Rggb),
+            DebayerAlgorithm::SuperPixel,
+        )
+        .expect("valid CFA superpixel-debayers");
         assert_eq!(sp.channels, 3);
         assert_eq!(sp.width, 2, "superpixel halves width");
         assert_eq!(sp.height, 2, "superpixel halves height");

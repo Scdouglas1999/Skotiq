@@ -4,7 +4,11 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A native stand-in for the master build: records requests and writes the
 /// files a real build would, previews included, so delivery has them.
@@ -112,34 +116,23 @@ class SentNotification {
 
 /// Records every notification with its deep link.
 class RecordingNotifications extends NotificationService {
-  RecordingNotifications() : super.testing(settingsReader: () => null);
+  RecordingNotifications()
+      : super(readSettings: () => null, readRouter: () => null);
 
   final sent = <SentNotification>[];
 
   @override
-  Future<bool> notify({
+  Future<NotificationDispatch> notify({
     required NotificationEvent event,
     required String title,
     required String message,
-    NotificationPriority priority = NotificationPriority.normal,
     NotificationCategory routeAs = NotificationCategory.custom,
     String? deepLink,
   }) async {
     sent.add(SentNotification(title, message, deepLink));
-    return true;
-  }
-
-  @override
-  Future<NotificationDispatch> notifyDetailed({
-    required NotificationEvent event,
-    required String title,
-    required String message,
-    NotificationPriority priority = NotificationPriority.normal,
-    NotificationCategory routeAs = NotificationCategory.custom,
-    String? deepLink,
-  }) async {
-    sent.add(SentNotification(title, message, deepLink));
-    return const NotificationDispatch(routed: null, webhookAccepted: true);
+    return const NotificationDispatch(
+      NotificationRouteOutcome.dispatched([NotificationTransportKind.inApp]),
+    );
   }
 }
 
@@ -191,7 +184,7 @@ List<Override> nightEndOverrides({
   required FakeBuildNative native,
   required RecordingNotifications notifications,
   required InstantCalibration calibration,
-  required Directory mastersRoot,
+  required Directory outputRoot,
 }) {
   final service = DarkroomBuildService(
     operation: native.call,
@@ -201,7 +194,7 @@ List<Override> nightEndOverrides({
       tagsDao: CalibrationTagsDao(db),
     ),
     masters: IntegratedMastersDao(db),
-    readHeader: (_) async => {'NAXIS1': '100', 'NAXIS2': '80'},
+    readHeader: (_) async => FrameHeader({'NAXIS1': 100, 'NAXIS2': 80}),
   );
   return [
     databaseProvider.overrideWithValue(db),
@@ -209,7 +202,10 @@ List<Override> nightEndOverrides({
       (ref) => FixedBackend(ref, FfiBackend(database: db)),
     ),
     darkroomBuildServiceProvider.overrideWithValue(service),
-    darkroomMastersRootProvider.overrideWith((ref) async => mastersRoot),
+    outputLocationsProvider.overrideWith(
+      (ref) async => OutputLocations(
+          captureFolder: outputRoot.path, documents: outputRoot),
+    ),
     postSessionSeamProvider.overrideWithValue(QuietSeam()),
     notificationServiceProvider.overrideWithValue(notifications),
     endOfNightCalibrationProvider.overrideWith((ref) => calibration),

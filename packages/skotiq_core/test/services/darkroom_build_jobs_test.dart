@@ -7,7 +7,10 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import 'darkroom_fake_native.dart';
 
@@ -20,35 +23,22 @@ class _Seam extends Fake implements PostSessionSeam {
 }
 
 class _Notifications extends NotificationService {
-  _Notifications() : super.testing(settingsReader: () => null);
+  _Notifications() : super(readSettings: () => null, readRouter: () => null);
   final sent = <String>[];
   final links = <String?>[];
   @override
-  Future<bool> notify({
+  Future<NotificationDispatch> notify({
     required NotificationEvent event,
     required String title,
     required String message,
-    NotificationPriority priority = NotificationPriority.normal,
     NotificationCategory routeAs = NotificationCategory.custom,
     String? deepLink,
   }) async {
     sent.add('$title | $message');
     links.add(deepLink);
-    return true;
-  }
-
-  final detailed = <String>[];
-  @override
-  Future<NotificationDispatch> notifyDetailed({
-    required NotificationEvent event,
-    required String title,
-    required String message,
-    NotificationPriority priority = NotificationPriority.normal,
-    NotificationCategory routeAs = NotificationCategory.custom,
-    String? deepLink,
-  }) async {
-    detailed.add('$title | $message');
-    return const NotificationDispatch(routed: null, webhookAccepted: true);
+    return const NotificationDispatch(
+      NotificationRouteOutcome.dispatched([NotificationTransportKind.inApp]),
+    );
   }
 }
 
@@ -94,7 +84,7 @@ void main() {
         tagsDao: CalibrationTagsDao(db),
       ),
       masters: IntegratedMastersDao(db),
-      readHeader: (_) async => {'NAXIS1': '100', 'NAXIS2': '80'},
+      readHeader: (_) async => FrameHeader({'NAXIS1': 100, 'NAXIS2': 80}),
     );
     container = ProviderContainer(
       overrides: [
@@ -102,6 +92,10 @@ void main() {
         darkroomBuildServiceProvider.overrideWithValue(service),
         postSessionSeamProvider.overrideWithValue(seam),
         notificationServiceProvider.overrideWithValue(notifications),
+        outputLocationsProvider.overrideWith(
+          (ref) async =>
+              OutputLocations(captureFolder: folder.path, documents: folder),
+        ),
       ],
     );
   });
@@ -116,7 +110,7 @@ void main() {
     final service = container.read(darkroomBuildServiceProvider);
     final frames = (await loadDarkroomTargets(
       db,
-      readHeader: (_) async => const {},
+      readHeader: (_) async => FrameHeader(const {}),
     ))['NGC891']!;
     final groups = await service.prepare(frames);
     return service.plan(
@@ -299,11 +293,7 @@ void main() {
     native.buildGate = Completer<void>();
     final running = container
         .read(darkroomBuildJobsProvider.notifier)
-        .startUnattended(
-          'NGC891',
-          requireCalibration: false,
-          outputRoot: Directory('${folder.path}/auto'),
-        );
+        .startUnattended('NGC891', requireCalibration: false);
     await native.buildStarted.future;
     final job = container.read(darkroomBuildJobsProvider)!;
     expect(job.overallTotal, 5);
@@ -316,18 +306,14 @@ void main() {
     () async {
       final job = await container
           .read(darkroomBuildJobsProvider.notifier)
-          .startUnattended(
-            'NGC891',
-            requireCalibration: false,
-            outputRoot: Directory('${folder.path}/auto'),
-          );
+          .startUnattended('NGC891', requireCalibration: false);
       expect(job.stage, DarkroomJobStage.done);
       expect(job.unattended, isTrue);
       expect(native.built, ['L', 'R']);
       expect(notifications.sent.single, contains('Masters ready: NGC891'));
       expect(notifications.sent.single, contains('No filter has flats (L, R)'));
       expect(notifications.links.single, 'darkroom_target:NGC891');
-      expect(job.directory, '${folder.path}/auto/NGC891');
+      expect(job.directory, '${folder.path}/Masters/NGC891');
     },
   );
 
@@ -340,11 +326,7 @@ void main() {
       ];
       final job = await container
           .read(darkroomBuildJobsProvider.notifier)
-          .startUnattended(
-            'NGC891',
-            requireCalibration: false,
-            outputRoot: Directory('${folder.path}/auto'),
-          );
+          .startUnattended('NGC891', requireCalibration: false);
       expect(job.stage, DarkroomJobStage.awaitingReview);
       expect(native.built, isEmpty);
       expect(
@@ -367,7 +349,8 @@ void main() {
         ),
         masters: IntegratedMastersDao(db),
         // Three 20000 x 20000 subs per filter: 4.8 GB of registered subs.
-        readHeader: (_) async => {'NAXIS1': '20000', 'NAXIS2': '20000'},
+        readHeader: (_) async =>
+            FrameHeader({'NAXIS1': 20000, 'NAXIS2': 20000}),
         freeSpace: (_) async => 1 << 30,
       );
       final small = ProviderContainer(
@@ -376,20 +359,20 @@ void main() {
           darkroomBuildServiceProvider.overrideWithValue(service),
           postSessionSeamProvider.overrideWithValue(seam),
           notificationServiceProvider.overrideWithValue(notifications),
+          outputLocationsProvider.overrideWith(
+            (ref) async =>
+                OutputLocations(captureFolder: folder.path, documents: folder),
+          ),
         ],
       );
       addTearDown(small.dispose);
       final job = await small
           .read(darkroomBuildJobsProvider.notifier)
-          .startUnattended(
-            'NGC891',
-            requireCalibration: false,
-            outputRoot: Directory('${folder.path}/auto'),
-          );
+          .startUnattended('NGC891', requireCalibration: false);
       expect(job.stage, DarkroomJobStage.failed);
       expect(native.built, isEmpty);
-      expect(job.error, contains('needs 5.0 GB'));
-      expect(job.error, contains('1.0 GB is free'));
+      expect(job.error, contains('needs 5.0 GiB'));
+      expect(job.error, contains('1.0 GiB is free'));
       expect(
         notifications.sent.single,
         allOf(startsWith('Master build failed: NGC891'), contains('is free')),
@@ -412,12 +395,7 @@ void main() {
     );
     final job = await container
         .read(darkroomBuildJobsProvider.notifier)
-        .startUnattended(
-          'NGC891',
-          requireCalibration: false,
-          outputRoot: Directory('${folder.path}/auto'),
-          announce: false,
-        );
+        .startUnattended('NGC891', requireCalibration: false, announce: false);
     expect(job.stage, DarkroomJobStage.done);
     expect(
       notifications.sent,
@@ -444,8 +422,8 @@ void main() {
     expect(outcome.problems, isEmpty);
     // Two masters, two previews, the report and the frame audit.
     expect(outcome.delivery!.delivered, 6);
-    expect(notifications.detailed, hasLength(1));
-    final message = notifications.detailed.single;
+    expect(notifications.sent, hasLength(1));
+    final message = notifications.sent.single;
     expect(message, startsWith('Masters ready: NGC891'));
     expect(message, contains('1 night, 2 subs used, 4 left out.'));
     expect(message, contains('L 1 sub, 2 min; R 1 sub, 2 min.'));
@@ -489,11 +467,7 @@ void main() {
         'and accepting it builds into its own folder', () async {
       native.retained = .55;
       final jobs = container.read(darkroomBuildJobsProvider.notifier);
-      await jobs.startUnattended(
-        'NGC891',
-        requireCalibration: false,
-        outputRoot: Directory('${folder.path}/auto'),
-      );
+      await jobs.startUnattended('NGC891', requireCalibration: false);
       await jobs.flush();
 
       final after = restart();
@@ -508,7 +482,7 @@ void main() {
       await restored.accept();
       final done = after.read(darkroomBuildJobsProvider)!;
       expect(done.stage, DarkroomJobStage.done);
-      expect(done.directory, '${folder.path}/auto/NGC891');
+      expect(done.directory, '${folder.path}/Masters/NGC891');
       expect(native.built, ['L', 'R']);
     });
 
@@ -516,11 +490,7 @@ void main() {
         'resumes from its folder', () async {
       final jobs = container.read(darkroomBuildJobsProvider.notifier);
       native.buildGate = Completer<void>();
-      final running = jobs.startUnattended(
-        'NGC891',
-        requireCalibration: false,
-        outputRoot: Directory('${folder.path}/auto'),
-      );
+      final running = jobs.startUnattended('NGC891', requireCalibration: false);
       await native.buildStarted.future;
       await jobs.flush();
 
@@ -555,17 +525,9 @@ void main() {
       );
       native.retained = .55;
       final jobs = container.read(darkroomBuildJobsProvider.notifier);
-      await jobs.startUnattended(
-        'NGC891',
-        requireCalibration: false,
-        outputRoot: Directory('${folder.path}/auto'),
-      );
+      await jobs.startUnattended('NGC891', requireCalibration: false);
       native.retained = .9;
-      await jobs.startUnattended(
-        'M81',
-        requireCalibration: false,
-        outputRoot: Directory('${folder.path}/auto'),
-      );
+      await jobs.startUnattended('M81', requireCalibration: false);
       expect(container.read(darkroomBuildJobsProvider)!.target, 'M81');
       final held = container.read(darkroomHeldBuildsProvider);
       expect(held.single.target, 'NGC891');

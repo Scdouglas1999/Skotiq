@@ -6,8 +6,12 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
+import '../../harness/host_open_plan.dart';
 import '../../harness/in_memory_database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -40,16 +44,10 @@ Sequence _plan(String name, {int count = 5, int? databaseId}) {
   );
 }
 
-SkotiqEvent _hostCanvas(SequenceFileService files, Sequence sequence) =>
-    buildHostMutationEvent(
-      entityType: HostMutationEntity.sequenceEditor,
-      action: HostMutationAction.updated,
-      extra: {
-        'sequence': files.sequenceToMap(sequence),
-        if (sequence.databaseId != null) 'databaseId': sequence.databaseId,
-        'isDirty': false,
-      },
-    );
+Map<String, dynamic> _hostCanvas(
+  SequenceFileService files,
+  Sequence sequence,
+) => openPlanDocument(files, sequence, unsaved: false);
 
 Future<void> _settle() =>
     Future<void>.delayed(remoteEditorWriteThroughDebounce * 2);
@@ -106,7 +104,7 @@ void main() {
     final files = container.read(sequenceFileServiceProvider);
     final editor = container.read(currentSequenceProvider.notifier);
     final stale = _plan('New Sequence');
-    await applyRemoteSyncEvent(container, _hostCanvas(files, stale));
+    showHostOpenPlan(container, _hostCanvas(files, stale));
     expect(
       written,
       isEmpty,
@@ -121,7 +119,7 @@ void main() {
     expect(written.single?['name'], 'M13');
 
     // The re-hydrate lands while the write is still in flight.
-    await applyRemoteSyncEvent(container, _hostCanvas(files, stale));
+    showHostOpenPlan(container, _hostCanvas(files, stale));
     expect(container.read(currentSequenceProvider)?.name, 'M13');
 
     holdWrite!.complete();
@@ -129,7 +127,7 @@ void main() {
     // The host now holds this plan; its echo, which went through the wire
     // format, changes nothing here.
     final shown = container.read(currentSequenceProvider)!;
-    await applyRemoteSyncEvent(
+    showHostOpenPlan(
       container,
       _hostCanvas(files, files.parseFromMap(files.sequenceToMap(shown))),
     );
@@ -142,17 +140,14 @@ void main() {
     () async {
       final files = container.read(sequenceFileServiceProvider);
       final editor = container.read(currentSequenceProvider.notifier);
-      await applyRemoteSyncEvent(
-        container,
-        _hostCanvas(files, _plan('New Sequence')),
-      );
+      showHostOpenPlan(container, _hostCanvas(files, _plan('New Sequence')));
 
       editor.loadCopyForEditing(_plan('QA M13 pair', databaseId: 5));
       await _settle();
 
       expect(written.single?['name'], 'QA M13 pair');
       final hostNow = files.parseFromMap(written.single!);
-      await applyRemoteSyncEvent(
+      showHostOpenPlan(
         container,
         _hostCanvas(files, hostNow.copyWith(databaseId: 5)),
       );
@@ -165,12 +160,12 @@ void main() {
     () async {
       final files = container.read(sequenceFileServiceProvider);
       final editor = container.read(currentSequenceProvider.notifier);
-      await applyRemoteSyncEvent(container, _hostCanvas(files, _plan('Plan')));
+      showHostOpenPlan(container, _hostCanvas(files, _plan('Plan')));
       editor.setName('Plan, client edit');
       await _settle();
       expect(written, hasLength(1));
 
-      await applyRemoteSyncEvent(
+      showHostOpenPlan(
         container,
         _hostCanvas(files, _plan('Plan, host edit', count: 9)),
       );

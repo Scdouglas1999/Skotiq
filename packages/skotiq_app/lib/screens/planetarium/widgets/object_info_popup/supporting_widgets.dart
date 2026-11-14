@@ -1,6 +1,5 @@
 part of '../object_info_popup.dart';
 
-/// Slew popup menu button for planetarium object popup
 class SlewPopupMenuButton extends StatefulWidget {
   final SkotiqColors colors;
   final VoidCallback onSlew;
@@ -294,7 +293,6 @@ class _PopupActionButtonState extends State<PopupActionButton> {
   }
 }
 
-/// Dialog for adding a celestial object to an observing list.
 class _AddToListDialog extends ConsumerStatefulWidget {
   final CelestialObject object;
   final CelestialCoordinate coordinates;
@@ -329,7 +327,6 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
   String? get _catalogId {
     final obj = widget.object;
     if (obj is DeepSkyObject) {
-      // Prefer Messier, then NGC/IC, then id
       if (obj.isMessier && obj.messierNumber != null) return obj.messierNumber;
       if (obj.ngcIcDesignation != null) return obj.ngcIcDesignation;
       return obj.id;
@@ -412,7 +409,7 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
             child: Center(
                 child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36)),
           ),
-          error: (e, _) => Text('Error loading lists: $e'),
+          error: (e, _) => Text('Error loading lists: ${userFacingError(e)}'),
         ),
       ),
       actions: [
@@ -460,19 +457,13 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
       Navigator.of(context).pop();
       final uiState = ref.read(observingListNotifierProvider);
       if (id != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Added $_objectName to list')),
-        );
+        context.showInfoSnackBar('Added $_objectName to list');
       } else if (uiState.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(uiState.errorMessage!)),
-        );
+        context.showInfoSnackBar(uiState.errorMessage!);
       } else if (uiState.statusMessage != null) {
         // No row written and no error: the benign "already in this list"
         // outcome. Say so instead of closing silently.
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(uiState.statusMessage!)),
-        );
+        context.showInfoSnackBar(uiState.statusMessage!);
       }
     }
   }
@@ -487,9 +478,7 @@ class _AddToListDialogState extends ConsumerState<_AddToListDialog> {
       if (mounted) {
         final uiState = ref.read(observingListNotifierProvider);
         if (uiState.errorMessage != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(uiState.errorMessage!)),
-          );
+          context.showInfoSnackBar(uiState.errorMessage!);
         }
       }
       return;

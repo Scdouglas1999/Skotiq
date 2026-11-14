@@ -116,7 +116,6 @@ abstract final class SkotiqIcons {
   /// Start / run / play.
   static const IconData play = LucideIcons.play;
 
-  /// Pause.
   static const IconData pause = LucideIcons.pause;
 
   /// Stop / abort.
@@ -210,7 +209,6 @@ abstract final class SkotiqIcons {
   /// Send / submit.
   static const IconData send = LucideIcons.send;
 
-  /// Share.
   static const IconData share = LucideIcons.share2;
 
   /// External link / open elsewhere.
@@ -253,7 +251,6 @@ abstract final class SkotiqIcons {
   /// Ordered / numbered list (e.g. sequence steps).
   static const IconData listOrdered = LucideIcons.listOrdered;
 
-  /// Checklist.
   static const IconData checklist = LucideIcons.listChecks;
 
   /// Grid view.
@@ -265,7 +262,6 @@ abstract final class SkotiqIcons {
   /// Stacked layers (e.g. integration stack, overlays).
   static const IconData layers = LucideIcons.layers;
 
-  /// Folder.
   static const IconData folder = LucideIcons.folder;
 
   /// Open folder / browse.
@@ -328,13 +324,11 @@ abstract final class SkotiqIcons {
   /// Moon / night / lunar phase.
   static const IconData moon = LucideIcons.moon;
 
-  /// Wind.
   static const IconData wind = LucideIcons.wind;
 
   /// Frost / freezing.
   static const IconData frost = LucideIcons.snowflake;
 
-  /// Temperature.
   static const IconData temperature = LucideIcons.thermometer;
 
   /// Humidity / dew.
@@ -345,7 +339,6 @@ abstract final class SkotiqIcons {
   /// Disk / local storage.
   static const IconData disk = LucideIcons.hardDrive;
 
-  /// Database.
   static const IconData database = LucideIcons.database;
 
   /// Server / remote host.
@@ -374,7 +367,6 @@ abstract final class SkotiqIcons {
   /// Visible / shown.
   static const IconData visible = LucideIcons.eye;
 
-  /// Hidden.
   static const IconData hidden = LucideIcons.eyeOff;
 
   /// Notifications / alerts bell.

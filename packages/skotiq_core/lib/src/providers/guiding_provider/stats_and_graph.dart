@@ -1,11 +1,7 @@
 part of '../guiding_provider.dart';
 
 double _guideAxisPixels(Map<String, dynamic> json, {required bool isRa}) {
-  if (isRa) {
-    final raw = json['RADistanceRaw'] ?? json['raPx'];
-    return (raw ?? 0).toDouble();
-  }
-  final raw = json['DECDistanceRaw'] ?? json['decPx'];
+  final raw = json[isRa ? 'RADistanceRaw' : 'DECDistanceRaw'];
   return (raw ?? 0).toDouble();
 }
 
@@ -80,7 +76,6 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
   late final _BackendGuidingEventBinding _events;
   LoggingService get _logger => ref.read(loggingServiceProvider);
 
-  // Rolling RMS calculators for accurate statistics
   final _rmsRaCalculator = RollingRmsCalculator(windowSize: 100);
   final _rmsDecCalculator = RollingRmsCalculator(windowSize: 100);
   int _frameCount = 0;
@@ -146,7 +141,6 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
     final raDistance = _guideAxisPixels(json, isRa: true);
     final decDistance = _guideAxisPixels(json, isRa: false);
 
-    // Add values to rolling RMS calculators
     _rmsRaCalculator.add(raDistance);
     _rmsDecCalculator.add(decDistance);
     _frameCount++;
@@ -246,7 +240,8 @@ final guideStarsProvider =
 
 class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
   GuideStarsNotifier(this.ref) : super(const []) {
-    // Poll only while the built-in guider is active and producing frames.
+    // Poll only while the built-in guider is active and producing frames,
+    // including when it already was before anything asked for the list.
     ref.listen<Phd2State>(phd2StateProvider, (previous, next) {
       if (!_isBuiltin) {
         _stopPolling();
@@ -261,7 +256,7 @@ class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
       } else {
         _stopPolling();
       }
-    });
+    }, fireImmediately: true);
 
     // Clear on disconnect so a stale list never lingers across sessions.
     ref.listen<GuiderState>(guiderStateProvider, (previous, next) {
@@ -315,10 +310,10 @@ class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
     if (!_isBuiltin || guiderId == null) return;
     _pollInFlight = true;
     try {
-      final status = await backend.phd2GetStatus();
+      final status = await backend.guiderGetStatus();
       if (!mounted ||
           generation != _pollGeneration ||
-          !identical(backend, ref.read(backendProvider)) ||
+          ref.backendScopeOver(backend).isStale ||
           ref.read(guiderStateProvider).deviceId != guiderId ||
           !_isBuiltin) {
         return;
@@ -332,7 +327,7 @@ class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
     } catch (e) {
       if (mounted &&
           generation == _pollGeneration &&
-          identical(backend, ref.read(backendProvider)) &&
+          ref.backendScopeOver(backend).isCurrent &&
           ref.read(guiderStateProvider).deviceId == guiderId &&
           _isBuiltin) {
         _consecutiveFailures++;
@@ -375,7 +370,6 @@ class GuideStarsNotifier extends StateNotifier<List<GuideStar>> {
   }
 }
 
-/// Data point for the guiding graph
 class GuideGraphPoint {
   final double ra;
   final double dec;

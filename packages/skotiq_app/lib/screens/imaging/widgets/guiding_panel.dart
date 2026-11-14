@@ -3,11 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/help/field_help_copy.dart';
-import '../../../widgets/help/field_help_label.dart';
+import '../../../widgets/builtin_guider_config_form.dart';
 import 'panel_widgets.dart';
+import '../../guiding/widgets/guide_settle_settings.dart';
+import '../../../utils/guide_distance.dart';
 
 part 'guiding_panel_parts/_builtin_guider_config.dart';
 part 'guiding_panel_parts/_guide_graph_and_stars.dart';
@@ -26,13 +29,13 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
   bool _isStartingGuiding = false;
   bool _isDithering = false;
   bool _configExpanded = false;
-  ProviderSubscription<DeviceService>? _serviceSubscription;
+  ProviderSubscription<Phd2Controller>? _guiderSubscription;
 
   @override
   void initState() {
     super.initState();
-    _serviceSubscription = ref.listenManual<DeviceService>(
-      deviceServiceProvider,
+    _guiderSubscription = ref.listenManual<Phd2Controller>(
+      phd2ControllerProvider,
       (previous, next) {
         if (previous == null || identical(previous, next)) return;
         if (mounted) {
@@ -47,74 +50,59 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
 
   @override
   void dispose() {
-    _serviceSubscription?.close();
+    _guiderSubscription?.close();
     super.dispose();
   }
 
   Future<void> _startGuiding() async {
     if (_isStartingGuiding) return;
-    final deviceService = ref.read(deviceServiceProvider);
+    final guider = ref.read(phd2ControllerProvider);
     setState(() => _isStartingGuiding = true);
-    final ditherSettings = ref.read(ditherSettingsProvider);
     try {
-      await deviceService.startGuiding(
-        settlePixels: ditherSettings.settlePixels,
-        settleTime: ditherSettings.settleTime,
-      );
-      if (_isCurrentService(deviceService)) {
-        ref.read(sessionStateProvider.notifier).setGuiding(true);
-      }
+      await guider.startGuiding();
     } catch (e) {
-      if (mounted && _isCurrentService(deviceService)) {
-        context.showErrorSnackBar('Failed to start guiding: $e');
+      if (_isCurrentGuider(guider)) {
+        context.showErrorSnackBar(
+            'Failed to start guiding: ${userFacingError(e)}');
       }
     } finally {
-      if (_isCurrentService(deviceService)) {
+      if (_isCurrentGuider(guider)) {
         setState(() => _isStartingGuiding = false);
       }
     }
   }
 
   Future<void> _stopGuiding() async {
-    final deviceService = ref.read(deviceServiceProvider);
+    final guider = ref.read(phd2ControllerProvider);
     try {
-      await deviceService.stopGuiding();
-      if (_isCurrentService(deviceService)) {
-        ref.read(sessionStateProvider.notifier).setGuiding(false);
-      }
+      await guider.stopGuiding();
     } catch (e) {
-      if (mounted && _isCurrentService(deviceService)) {
-        context.showErrorSnackBar('Failed to stop guiding: $e');
+      if (_isCurrentGuider(guider)) {
+        context
+            .showErrorSnackBar('Failed to stop guiding: ${userFacingError(e)}');
       }
     }
   }
 
   Future<void> _dither() async {
     if (_isDithering) return;
-    final deviceService = ref.read(deviceServiceProvider);
+    final guider = ref.read(phd2ControllerProvider);
     setState(() => _isDithering = true);
-    ref.read(sessionStateProvider.notifier).setDithering(true);
-    final ditherSettings = ref.read(ditherSettingsProvider);
     try {
-      await deviceService.dither(
-        amount: ditherSettings.ditherAmount,
-        settlePixels: ditherSettings.settlePixels,
-        settleTime: ditherSettings.settleTime,
-      );
+      await guider.dither();
     } catch (e) {
-      if (mounted && _isCurrentService(deviceService)) {
-        context.showErrorSnackBar('Dither failed: $e');
+      if (_isCurrentGuider(guider)) {
+        context.showErrorSnackBar('Dither failed: ${userFacingError(e)}');
       }
     } finally {
-      if (_isCurrentService(deviceService)) {
+      if (_isCurrentGuider(guider)) {
         setState(() => _isDithering = false);
-        ref.read(sessionStateProvider.notifier).setDithering(false);
       }
     }
   }
 
-  bool _isCurrentService(DeviceService service) =>
-      mounted && identical(ref.read(deviceServiceProvider), service);
+  bool _isCurrentGuider(Phd2Controller guider) =>
+      mounted && identical(ref.read(phd2ControllerProvider), guider);
 
   /// Strips stacked `Exception:` / `Operation failed:` prefixes so a guider
   /// failure reads as English. The raw chain arrives as
@@ -151,17 +139,15 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
   static String _guideErrorText(
     double value, {
     required bool hasSamples,
-    required double pixelScale,
+    required double? pixelScale,
   }) {
     if (!hasSamples) return '—';
-    if (pixelScale > 0) return '${(value * pixelScale).toStringAsFixed(2)}"';
-    return '${value.toStringAsFixed(2)} px';
+    return guideDistanceText(value, pixelScale);
   }
 
   @override
   Widget build(BuildContext context) {
     final guiderState = ref.watch(guiderStateProvider);
-    final ditherSettings = ref.watch(ditherSettingsProvider);
     final isConnected =
         guiderState.connectionState == DeviceConnectionState.connected;
     final isGuiding = guiderState.isGuiding;
@@ -178,7 +164,7 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
     // bumped axis that an averaged figure would smooth away.
     final guideStats = ref.watch(guideStatsProvider);
     final hasGuideSamples = guideStats.frameCount > 0;
-    final pixelScale = guideStats.pixelScale;
+    final pixelScale = ref.watch(guideScaleProvider);
     final rmsRa = _guideErrorText(
       guideStats.rmsRa,
       hasSamples: hasGuideSamples,
@@ -255,16 +241,15 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
               ),
             ),
 
-          // Guiding graph with real data
           CompactGuidingGraph(
             colors: widget.colors,
             data: ref.watch(guideGraphProvider),
             isGuiding: isGuiding,
             isConnected: isConnected,
+            arcsecPerPixel: pixelScale,
           ),
           const SizedBox(height: 16),
 
-          // RMS Stats
           Row(
             children: [
               GuideStat(label: 'RA RMS', value: rmsRa, colors: widget.colors),
@@ -298,7 +283,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
             const SizedBox(height: 20),
           ],
 
-          // Control Section
           PanelSection(
             title: 'Control',
             colors: widget.colors,
@@ -367,7 +351,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
           ),
           const SizedBox(height: 20),
 
-          // Built-in Guider Configuration (only when built-in guider is active)
           if (isBuiltinGuider) ...[
             _BuiltinGuiderConfigSection(
               colors: widget.colors,
@@ -378,52 +361,10 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
             const SizedBox(height: 20),
           ],
 
-          // Dithering Settings
           PanelSection(
-            title: 'Dither settings',
+            title: 'Dither and settle settings',
             colors: widget.colors,
-            child: Column(
-              children: [
-                SliderRowInteractive(
-                  label: 'Amount',
-                  helpId: FieldHelpId.ditherAmount,
-                  value: ditherSettings.ditherAmount,
-                  min: 1,
-                  max: 20,
-                  suffix: 'px',
-                  colors: widget.colors,
-                  onChanged: (value) => ref
-                      .read(ditherSettingsProvider.notifier)
-                      .state = ditherSettings.copyWith(ditherAmount: value),
-                ),
-                const SizedBox(height: 12),
-                SliderRowInteractive(
-                  label: 'Settle threshold',
-                  helpId: FieldHelpId.settleThreshold,
-                  value: ditherSettings.settlePixels,
-                  min: 0.3,
-                  max: 3.0,
-                  suffix: '"',
-                  colors: widget.colors,
-                  onChanged: (value) => ref
-                      .read(ditherSettingsProvider.notifier)
-                      .state = ditherSettings.copyWith(settlePixels: value),
-                ),
-                const SizedBox(height: 12),
-                SliderRowInteractive(
-                  label: 'Settle time',
-                  helpId: FieldHelpId.settleTime,
-                  value: ditherSettings.settleTime,
-                  min: 5,
-                  max: 30,
-                  suffix: 's',
-                  colors: widget.colors,
-                  onChanged: (value) => ref
-                      .read(ditherSettingsProvider.notifier)
-                      .state = ditherSettings.copyWith(settleTime: value),
-                ),
-              ],
-            ),
+            child: const GuideSettleSettings(),
           ),
         ],
       ),

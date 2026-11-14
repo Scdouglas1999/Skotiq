@@ -20,6 +20,7 @@
 // missing-required-field errors and the self-correction loop teaches
 // the model which fields it actually needs.
 
+import 'package:skotiq_astro/format.dart';
 import 'conversational_builder_service.dart';
 
 /// Composes the conversational builder system prompt. Stateless — held
@@ -40,8 +41,6 @@ class SystemPromptBuilder {
     _writeFinalInstructions(buf);
     return buf.toString();
   }
-
-  // Persona
 
   void _writePersona(StringBuffer buf) {
     buf.writeln('# Role');
@@ -141,7 +140,7 @@ class SystemPromptBuilder {
     if (profile.defaultCoolingTemp != null) {
       buf.writeln(
         '- Default cooling target: '
-        '${profile.defaultCoolingTemp!.toStringAsFixed(0)}°C',
+        '${formatCelsius(profile.defaultCoolingTemp!, decimals: 0)}',
       );
     }
     if (ctx.latitudeDeg != null && ctx.longitudeDeg != null) {
@@ -197,8 +196,6 @@ class SystemPromptBuilder {
       '${ctx.options.useSchedulerForMultiTarget}',
     );
   }
-
-  // Node schema reference
 
   void _writeNodeSchema(StringBuffer buf) {
     buf.writeln('# Sequence JSON schema');
@@ -359,8 +356,6 @@ class SystemPromptBuilder {
     }
   }
 
-  // Few-shot examples
-
   void _writeExamples(StringBuffer buf) {
     buf.writeln('# Examples');
     buf.writeln();
@@ -380,8 +375,6 @@ class SystemPromptBuilder {
     buf.writeln('```');
   }
 
-  // Final instructions
-
   void _writeFinalInstructions(StringBuffer buf) {
     buf.writeln('# Output');
     buf.writeln(
@@ -392,11 +385,9 @@ class SystemPromptBuilder {
     );
   }
 
-  // Helpers
-
   String _durationLabel(DateTime start, DateTime end) {
     final hours = end.difference(start).inMinutes / 60.0;
-    return formatHours(hours);
+    return DurationFormat.decimalHours(hours * 3600);
   }
 }
 

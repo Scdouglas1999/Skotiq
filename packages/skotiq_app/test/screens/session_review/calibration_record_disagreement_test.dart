@@ -17,7 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/narrative_view.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
@@ -89,9 +90,6 @@ class _CleanVerdictWarnedMaster extends SessionReviewController {
 
   @override
   Future<void> refresh() async {}
-
-  @override
-  Future<void> loadComposites() async {}
 }
 
 void main() {

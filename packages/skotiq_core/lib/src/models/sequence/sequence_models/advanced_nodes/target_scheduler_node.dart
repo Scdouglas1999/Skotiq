@@ -112,25 +112,6 @@ class TargetSchedulerNode extends SequenceNode {
     airmassWeight: airmassWeight,
   );
 
-  /// Stable nodeType identifier. Must match the Rust `NodeType` discriminant
-  /// (`TargetScheduler`) so `serde_json::from_str` on the round-tripped
-  /// config picks the right variant.
-  @override
-  String get nodeType => 'TargetScheduler';
-
-  @override
-  String get iconName => 'scheduler';
-
-  /// Categorised as `logic` because the node is a container; the editor
-  /// colour-codes it the same way as Loop/Parallel.
-  @override
-  NodeCategory get category => NodeCategory.logic;
-
-  /// The scheduler does not directly require any device — its children
-  /// (TargetHeaders) accumulate the device requirements.
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.mount};
-
   /// True when the five weights sum to approximately 1.0 (lenient ±5% band
   /// so floating-point rounding from UI sliders doesn't trip the warning).
   /// Used by the validator's [TargetSchedulerWeightsRule].
@@ -167,6 +148,9 @@ class TargetSchedulerNode extends SequenceNode {
       airmassWeight: airmassWeight / sum,
     );
   }
+
+  @override
+  NodeKind<TargetSchedulerNode> get kind => NodeKinds.targetScheduler;
 
   @override
   TargetSchedulerNode copyWith({

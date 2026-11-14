@@ -5,15 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../coordinate_system.dart';
-import '../celestial_object.dart';
-import '../catalogs/constellation_data.dart';
-import '../catalogs/satellite_catalog.dart';
-import '../catalogs/variable_star_catalog.dart';
-import '../catalogs/minor_planet_catalog.dart';
-import '../astronomy/astronomy_calculations.dart';
-import '../astronomy/planetary_positions.dart';
-import '../astronomy/milky_way_data.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../rendering/sky_renderer.dart';
 import '../rendering/render_quality.dart';
 import '../providers/performance_providers.dart';
@@ -26,17 +18,14 @@ import '../providers/minor_planet_providers.dart';
 part 'interactive_sky_view/fov_overlay_painter.dart';
 part 'interactive_sky_view/measurement_overlay_painter.dart';
 part 'interactive_sky_view/sky_background_layer.dart';
-part 'interactive_sky_view/toolbar.dart';
 part 'interactive_sky_view/view_motion.dart';
 part 'interactive_sky_view/painter_wiring.dart';
 part 'interactive_sky_view/hit_testing.dart';
 
 /// Interactive sky view widget with pan, zoom, and object selection
 class InteractiveSkyView extends ConsumerStatefulWidget {
-  /// Callback when an object is selected
   final ValueChanged<CelestialObject?>? onObjectSelected;
 
-  /// Callback when coordinates are tapped
   final ValueChanged<CelestialCoordinate>? onCoordinateTapped;
 
   /// Callback when an object is tapped with position info for popup display.
@@ -50,7 +39,6 @@ class InteractiveSkyView extends ConsumerStatefulWidget {
   )?
   onObjectTapped;
 
-  /// Whether to show the FOV indicator
   final bool showFOV;
   final bool showCrosshair;
 
@@ -127,7 +115,6 @@ class _InteractiveSkyViewState extends ConsumerState<InteractiveSkyView>
   Offset? _lastFocalPoint;
   double? _lastScale;
 
-  // Smooth zoom animation
   late AnimationController _zoomController;
   Animation<double>? _zoomAnimation;
   double _targetFOV = 60.0;
@@ -149,10 +136,8 @@ class _InteractiveSkyViewState extends ConsumerState<InteractiveSkyView>
   Animation<double>? _flyToDecAnimation;
   int? _lastFlyToToken;
 
-  // Star twinkle animation
   AnimationController? _twinkleController;
 
-  // Selection pulse animation
   late AnimationController _selectionController;
   CelestialCoordinate? _lastSelection;
 
@@ -367,7 +352,6 @@ class _InteractiveSkyViewState extends ConsumerState<InteractiveSkyView>
       _startFlyTo(next.target);
     });
 
-    // Handle selection animation
     if (qualityConfig.enableSelectionAnimation) {
       if (selectedObject.coordinates != _lastSelection) {
         _lastSelection = selectedObject.coordinates;
@@ -574,7 +558,7 @@ class _InteractiveSkyViewState extends ConsumerState<InteractiveSkyView>
               _stopMomentum();
             },
             onDoubleTapDown: (details) {
-              // Zoom in 2x centered on the double-tap position
+              // Centers the view on the tapped point and animates to a 60° field.
               _stopMomentum();
               _handleDoubleTapZoom(
                 details.localPosition,
@@ -792,7 +776,6 @@ class _NoObservingSiteSky extends StatelessWidget {
   }
 }
 
-/// Helper class for tracking pan velocity samples
 class _PanSample {
   final Offset position;
   final DateTime time;

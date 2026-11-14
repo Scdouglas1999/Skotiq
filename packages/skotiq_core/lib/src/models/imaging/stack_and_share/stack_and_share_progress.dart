@@ -29,7 +29,6 @@ enum StackAndSharePhase {
 
 /// Live progress for an in-flight Stack-and-Share run.
 class StackAndShareProgress {
-  /// The current lifecycle phase.
   final StackAndSharePhase phase;
 
   /// Total number of frames the run intends to process.
@@ -194,7 +193,6 @@ class StackedFrameSelection {
 /// Summary of which frames were selected for, and which were excluded from, a
 /// Stack-and-Share run, with derived per-filter and integration totals.
 class StackSelectionSummary {
-  /// Frames included in the stack.
   final List<StackedFrameSelection> selected;
 
   /// Frames excluded from the stack (below quality, wrong filter, rejected).
@@ -221,10 +219,8 @@ class StackSelectionSummary {
     this.targetName,
   });
 
-  /// Number of frames selected for the stack.
   int get selectedCount => selected.length;
 
-  /// Number of frames excluded from the stack.
   int get excludedCount => excluded.length;
 
   StackSelectionSummary copyWith({

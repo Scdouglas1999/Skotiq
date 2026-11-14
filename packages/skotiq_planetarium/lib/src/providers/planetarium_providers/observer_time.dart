@@ -1,7 +1,5 @@
 part of '../planetarium_providers.dart';
 
-// Location provider
-
 /// The site the planetarium computes against.
 ///
 /// [latitude] / [longitude] are null until a site is on record. No coordinates
@@ -99,14 +97,12 @@ final observerLocationProvider =
 ///
 /// Planetarium-local because `skotiq_core` owns the persisted setting and
 /// already depends on this package for catalog access; the app layer syncs the
-/// two (`skotiq_app/lib/services/location_sync_service.dart`). The name is
+/// two (`skotiq_app/lib/startup/location_sync_service.dart`). The name is
 /// deliberately distinct from core's `effectiveHorizonDegProvider` to avoid
 /// `ambiguous_import` where both umbrellas are in scope.
 final planetariumEffectiveHorizonDegProvider = StateProvider<double>(
   (ref) => 0.0,
 );
-
-// Observation time provider
 
 /// Current observation time (can be simulated or real-time)
 class ObservationTimeState {
@@ -152,9 +148,8 @@ class ObservationTimeNotifier extends StateNotifier<ObservationTimeState> {
 
   void _startTimer() {
     _timer?.cancel();
-    // Aligned, not free-running: this is one of three 1 Hz clocks in the app,
-    // and an unaligned one costs a whole extra full-window frame per second at
-    // idle. See [AlignedTicker].
+    // Aligned, not free-running: an unaligned 1 Hz clock costs a whole extra
+    // full-window frame per second. See [AlignedTicker].
     _timer = AlignedTicker(const Duration(seconds: 1), () {
       if (state.isRealTime) {
         state = state.copyWith(time: DateTime.now());
@@ -207,37 +202,3 @@ final observationTimeProvider =
     StateNotifierProvider<ObservationTimeNotifier, ObservationTimeState>((ref) {
       return ObservationTimeNotifier();
     });
-
-/// Real wall-clock instant, re-published once a second.
-///
-/// Deliberately NOT [observationTimeProvider]. That clock is a preview control:
-/// the planetarium's transport can hold it, run it at a day per second or jump
-/// it to tomorrow evening, and while it is held it stops publishing at all.
-/// Anything OUTSIDE the planetarium that states a fact about *now* — the shell
-/// status bar's sidereal-time chip is the one that was caught — has to read a
-/// clock the transport cannot move, or it reports a fictional time next to the
-/// real one with nothing marking the difference.
-class WallClockNotifier extends StateNotifier<DateTime> {
-  AlignedTicker? _timer;
-
-  WallClockNotifier() : super(DateTime.now()) {
-    // Aligned so this clock shares a frame with the observation clock above and
-    // the shell status bar's, instead of costing a third one. See
-    // [AlignedTicker].
-    _timer = AlignedTicker(const Duration(seconds: 1), () {
-      state = DateTime.now();
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-}
-
-final wallClockProvider = StateNotifierProvider<WallClockNotifier, DateTime>((
-  ref,
-) {
-  return WallClockNotifier();
-});

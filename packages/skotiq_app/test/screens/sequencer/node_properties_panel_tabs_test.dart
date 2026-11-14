@@ -15,7 +15,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_activity_tab.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_progress_panels.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_properties_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -86,13 +87,9 @@ void main() {
   testWidgets('switching tabs keeps the selected-node banner pinned',
       (tester) async {
     final handle = await pumpPanel(tester);
-    // An unset target fires a real validation issue that names the node, so
-    // the banner has something to show.
-    final node = TargetHeaderNode(
-      targetName: 'Unset target',
-      raHours: 0,
-      decDegrees: 0,
-    );
+    // A zero-length exposure fires a real validation issue that names the
+    // node, so the banner has something to show.
+    final node = ExposureNode(name: 'Broken', durationSecs: 0, count: 5);
     loadAndSelect(handle, singleNodeSequence(node), node.id);
     await tester.pump();
     // liveValidationProvider debounces 500 ms before issues land.
@@ -110,6 +107,34 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
+  // The pinned banner repeated "Target Coordinates Not Set" under the target
+  // editor's own inline notice and covered the Rotation and Priority fields.
+  testWidgets('an unset target is not pinned twice', (tester) async {
+    final handle = await pumpPanel(tester);
+    final lights = ExposureNode(name: 'Lights', durationSecs: 60, count: 5);
+    final node = TargetHeaderNode(
+      targetName: 'Unset target',
+      raHours: 0,
+      decDegrees: 0,
+      childIds: [lights.id],
+    );
+    loadAndSelect(
+      handle,
+      Sequence.create(
+        name: 'Tabs test',
+        rootNodeId: node.id,
+        nodes: {node.id: node, lights.id: lights.copyWith(parentId: node.id)},
+      ),
+      node.id,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+
+    expect(find.byType(SkotiqBanner), findsNothing);
+    expect(find.textContaining('Coordinates not set'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+  });
+
   testWidgets(
       'Activity tab shows the frame grid with the seeded captured '
       'count', (tester) async {
@@ -124,10 +149,10 @@ void main() {
     await tester.pump();
 
     handle.container
-        .read(sequenceProgressProvider.notifier)
+        .read(runRecordProvider.notifier)
         .updateNodeStatus(node.id, NodeStatus.running);
     handle.container
-        .read(nodeExposureTallyProvider.notifier)
+        .read(runRecordProvider.notifier)
         .recordFrames(node.id, captured: 6, planned: 12);
 
     await tester.tap(find.text('Activity'), warnIfMissed: false);
@@ -289,19 +314,19 @@ void main() {
     // panel keeps lastKnownNodeActivityProvider alive, so it still folds.
     expect(find.text('Name'), findsOneWidget);
 
-    final exec = handle.container.read(sequenceExecutionStateProvider.notifier);
-    exec.state = SequenceExecutionState.running;
-    final progress = handle.container.read(sequenceProgressProvider.notifier);
+    final exec = handle.container.read(runRecordProvider.notifier);
+    exec.setLifecycle(SequenceExecutionState.running);
+    final progress = handle.container.read(runRecordProvider.notifier);
     progress.updateNodeStatus(node.id, NodeStatus.running);
     handle.container
-        .read(nodeExposureTallyProvider.notifier)
+        .read(runRecordProvider.notifier)
         .recordFrames(node.id, captured: 4, planned: 4);
     progress.updateNodeStatus(node.id, NodeStatus.success);
     // The run ends and the per-node maps clear (reset at the next run's
     // start — the tally follows the same lifecycle).
-    progress.reset();
-    handle.container.read(nodeExposureTallyProvider.notifier).reset();
-    exec.state = SequenceExecutionState.completed;
+    progress.resetProgress();
+    handle.container.read(runRecordProvider.notifier).resetTally();
+    exec.setLifecycle(SequenceExecutionState.completed);
     await tester.pump();
 
     await tester.tap(find.text('Activity'), warnIfMissed: false);
@@ -323,23 +348,23 @@ void main() {
     loadAndSelect(handle, singleNodeSequence(node), node.id);
     await tester.pump();
 
-    final exec = handle.container.read(sequenceExecutionStateProvider.notifier);
-    final progress = handle.container.read(sequenceProgressProvider.notifier);
-    final tally = handle.container.read(nodeExposureTallyProvider.notifier);
+    final exec = handle.container.read(runRecordProvider.notifier);
+    final progress = handle.container.read(runRecordProvider.notifier);
+    final tally = handle.container.read(runRecordProvider.notifier);
 
     // Run 1: the node completes all four frames.
-    exec.state = SequenceExecutionState.running;
+    exec.setLifecycle(SequenceExecutionState.running);
     progress.updateNodeStatus(node.id, NodeStatus.running);
     tally.recordFrames(node.id, captured: 4, planned: 4);
     progress.updateNodeStatus(node.id, NodeStatus.success);
-    exec.state = SequenceExecutionState.completed;
+    exec.setLifecycle(SequenceExecutionState.completed);
     await tester.pump();
 
     // Run 2 starts: the executor resets the progress + tally maps and the
     // execution state re-enters running from a settled state.
-    progress.reset();
-    tally.reset();
-    exec.state = SequenceExecutionState.running;
+    progress.resetProgress();
+    tally.resetTally();
+    exec.setLifecycle(SequenceExecutionState.running);
     await tester.pump();
 
     await tester.tap(find.text('Activity'), warnIfMissed: false);
@@ -362,7 +387,7 @@ void main() {
     // Running with no tally and no parsed detail yet: the unclamped
     // `liveFrame - 1` read "-1 of 12 done" here.
     handle.container
-        .read(sequenceProgressProvider.notifier)
+        .read(runRecordProvider.notifier)
         .updateNodeStatus(node.id, NodeStatus.running);
     await tester.pump();
 
@@ -384,10 +409,10 @@ void main() {
     // Six frames already captured BEFORE the tab opens: opening must not
     // pop — those frames did not "just land".
     handle.container
-        .read(sequenceProgressProvider.notifier)
+        .read(runRecordProvider.notifier)
         .updateNodeStatus(node.id, NodeStatus.running);
     handle.container
-        .read(nodeExposureTallyProvider.notifier)
+        .read(runRecordProvider.notifier)
         .recordFrames(node.id, captured: 6, planned: 12);
     await tester.pump();
 
@@ -403,7 +428,7 @@ void main() {
     // A real landing — the count increments while the tab is open — pops
     // exactly the new cell.
     handle.container
-        .read(nodeExposureTallyProvider.notifier)
+        .read(runRecordProvider.notifier)
         .recordFrames(node.id, captured: 7, planned: 12);
     await tester.pump();
 
@@ -611,7 +636,7 @@ void main() {
         'pass', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final progress = container.read(sequenceProgressProvider.notifier);
+      final progress = container.read(runRecordProvider.notifier);
 
       // Read first so the notifier is alive while progress flows — the
       // inspector watches it, and a lazy read afterwards would only see the
@@ -623,7 +648,7 @@ void main() {
       progress.updateNodeStatus('n1', NodeStatus.success);
       // The success path empties the per-node maps; the snapshot must keep
       // the last true reading.
-      progress.reset();
+      progress.resetProgress();
 
       var snapshot = container.read(lastKnownNodeActivityProvider)['n1'];
       expect(snapshot, isNotNull);
@@ -644,16 +669,16 @@ void main() {
         'settled state', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final progress = container.read(sequenceProgressProvider.notifier);
-      final exec = container.read(sequenceExecutionStateProvider.notifier);
+      final progress = container.read(runRecordProvider.notifier);
+      final exec = container.read(runRecordProvider.notifier);
       container.read(lastKnownNodeActivityProvider);
 
       // Run 1 leaves a finished-node snapshot behind.
-      exec.state = SequenceExecutionState.running;
+      exec.setLifecycle(SequenceExecutionState.running);
       progress.updateNodeStatus('n1', NodeStatus.running);
       progress.updateNodeStatus('n1', NodeStatus.success);
-      progress.reset();
-      exec.state = SequenceExecutionState.completed;
+      progress.resetProgress();
+      exec.setLifecycle(SequenceExecutionState.completed);
       expect(
         container.read(lastKnownNodeActivityProvider)['n1'],
         isNotNull,
@@ -661,13 +686,13 @@ void main() {
 
       // Run 2 starts — completed -> running is a start-admissible
       // transition, so run 1's memory is gone with it.
-      exec.state = SequenceExecutionState.running;
+      exec.setLifecycle(SequenceExecutionState.running);
       expect(container.read(lastKnownNodeActivityProvider), isEmpty);
 
       // A RESUME (paused -> running) is not a new run and must not clear.
       progress.updateNodeStatus('n2', NodeStatus.running);
-      exec.state = SequenceExecutionState.paused;
-      exec.state = SequenceExecutionState.running;
+      exec.setLifecycle(SequenceExecutionState.paused);
+      exec.setLifecycle(SequenceExecutionState.running);
       expect(
         container.read(lastKnownNodeActivityProvider)['n2']!.status,
         NodeStatus.running,

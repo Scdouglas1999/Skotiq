@@ -5,13 +5,10 @@
 
 import '../error.dart';
 import '../frb_generated.dart';
-import '../lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_auto_white_balance`, `auto_stretch_color_image`, `auto_stretch_image`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `convert_config`, `convert_result`, `convert_stats`, `debayer_image`, `defect_apply_flags`, `defect_map_path`, `defect_maps_root`, `display_data_summary`, `display_data_to_rgba`, `format_sexagesimal`, `frame_metric_median`, `frame_stats_result`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `get_unified_image_storage`, `image_data_to_linear_f64`, `image_stats`, `one_shot_focus_context`, `parse_combine_method`, `parse_master_kind`, `parse_output_type`, `sanitize_camera_id`, `set_exposure_time_keywords`, `set_horizon_keywords`, `set_pointing_keywords`, `sim_exposure_cancelled`, `store_captured_image_atomically`, `thumbnail_generation_gate`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CapturedImageData`, `RawImageInfo`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `from_frame_context`, `get_last_raw_image_info`
+// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `thumbnail_generation_gate`, `write_rgba`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Run autofocus
 Future<AutofocusResultApi> apiRunAutofocus({
@@ -126,25 +123,25 @@ Future<void> apiCameraStartExposureConfigured({
   frameType: frameType,
 );
 
-/// Get the last captured image for a specific device (display-ready format)
-/// Reads from per-device atomic storage to ensure consistency with raw data
+/// The device's last captured frame, display-ready.
 Future<CapturedImageResult> apiGetLastImage({required String deviceId}) =>
     RustLib.instance.api.crateApiImagingApiGetLastImage(deviceId: deviceId);
 
-/// Get the last captured raw image data (u16) for a specific device
-/// This is used for saving FITS files with original bit depth
-/// Reads from per-device atomic storage to ensure consistency with display data
+/// The device's last captured frame as the camera delivered it (u16).
 Future<Uint16List> apiGetLastRawImageData({required String deviceId}) => RustLib
     .instance
     .api
     .crateApiImagingApiGetLastRawImageData(deviceId: deviceId);
 
-/// Clear stored image data for a specific device
-/// This is used to free memory when a camera is disconnected or when explicitly requested
+/// Free the device's stored frame (camera disconnected or on request).
 Future<void> apiClearDeviceImage({required String deviceId}) =>
     RustLib.instance.api.crateApiImagingApiClearDeviceImage(deviceId: deviceId);
 
-/// Cancel current exposure
+/// Cancel current exposure.
+///
+/// The abort generation moves first: it is what stops the exposure waiting
+/// in `UnifiedDeviceOps`, and some SDKs report a finished exposure right after
+/// the stop, which must not be downloaded as a frame.
 Future<void> apiCameraCancelExposure({required String deviceId}) => RustLib
     .instance
     .api
@@ -153,25 +150,6 @@ Future<void> apiCameraCancelExposure({required String deviceId}) => RustLib
 /// Read a FITS file from disk
 Future<FitsReadResult> apiReadFitsFile({required String filePath}) =>
     RustLib.instance.api.crateApiImagingApiReadFitsFile(filePath: filePath);
-
-/// Update (overwrite or inject) one or more keywords on an existing FITS file.
-///
-/// Implementation: reads the full file into memory, mutates the header in
-/// place, writes the result to a sibling `<filename>.skhatmp` file, then
-/// atomically renames it over the original. If any step fails the original
-/// file is left untouched.
-///
-/// This is the writeback mechanism used by `ScienceProcessingService` to
-/// stamp `MAGZP`, `MAGZPERR`, `TRANSPAR`, etc. back onto captured frames so
-/// that PixInsight / AstroPixelProcessor / Siril can read Skotiq's
-/// science products without going through our database.
-Future<void> apiUpdateFitsKeywords({
-  required String filePath,
-  required List<FitsKeywordUpdate> updates,
-}) => RustLib.instance.api.crateApiImagingApiUpdateFitsKeywords(
-  filePath: filePath,
-  updates: updates,
-);
 
 /// Read a FITS file and return unstretched linear pixel values for science analysis.
 Future<FitsLinearReadResult> apiReadFitsLinearData({
@@ -232,21 +210,6 @@ Future<List<StarCropApi>> apiGetStarCropsFromLastImage({
   maxCrops: maxCrops,
 );
 
-/// Calculate HFR for a FITS file
-Future<double?> apiCalculateHfr({required String filePath}) =>
-    RustLib.instance.api.crateApiImagingApiCalculateHfr(filePath: filePath);
-
-/// Calculate histogram for a FITS file
-Future<Float32List> apiCalculateHistogram({
-  required String filePath,
-  required int bins,
-  required int logarithmic,
-}) => RustLib.instance.api.crateApiImagingApiCalculateHistogram(
-  filePath: filePath,
-  bins: bins,
-  logarithmic: logarithmic,
-);
-
 /// Auto-calculate stretch parameters for an image
 Future<StretchParamsApi> apiCalculateAutoStretch({required String filePath}) =>
     RustLib.instance.api.crateApiImagingApiCalculateAutoStretch(
@@ -262,50 +225,6 @@ Future<Uint8List> apiApplyStretch({
   params: params,
 );
 
-/// Debayer a raw FITS image and return RGB display data
-/// Debayer a raw FITS file and return RGB display data
-Future<Uint8List> apiDebayerFitsFile({
-  required String filePath,
-  required BayerPatternApi pattern,
-  required DebayerAlgorithmApi algorithm,
-}) => RustLib.instance.api.crateApiImagingApiDebayerFitsFile(
-  filePath: filePath,
-  pattern: pattern,
-  algorithm: algorithm,
-);
-
-/// Read an XISF file
-Future<XisfReadResult> apiReadXisfFile({required String filePath}) =>
-    RustLib.instance.api.crateApiImagingApiReadXisfFile(filePath: filePath);
-
-/// Save image as XISF
-Future<void> apiSaveXisfFile({
-  required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-  required List<(String, String)> properties,
-}) => RustLib.instance.api.crateApiImagingApiSaveXisfFile(
-  filePath: filePath,
-  width: width,
-  height: height,
-  data: data,
-  properties: properties,
-);
-
-/// Save image as TIFF (16-bit preserving)
-Future<void> apiSaveTiffFile({
-  required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-}) => RustLib.instance.api.crateApiImagingApiSaveTiffFile(
-  filePath: filePath,
-  width: width,
-  height: height,
-  data: data,
-);
-
 /// Save image as PNG (16-bit preserving, lossless)
 Future<void> apiSavePngFile({
   required String filePath,
@@ -317,21 +236,6 @@ Future<void> apiSavePngFile({
   width: width,
   height: height,
   data: data,
-);
-
-/// Save image as JPEG (8-bit, lossy - for previews)
-Future<void> apiSaveJpegFile({
-  required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-  required int quality,
-}) => RustLib.instance.api.crateApiImagingApiSaveJpegFile(
-  filePath: filePath,
-  width: width,
-  height: height,
-  data: data,
-  quality: quality,
 );
 
 /// Save an 8-bit RGBA buffer as a PNG, preserving color and alpha losslessly.
@@ -363,12 +267,9 @@ Future<void> apiSaveRgbaPngFile({
 /// Save an 8-bit RGBA buffer as a JPEG, flattening alpha onto black.
 ///
 /// Companion to [`api_save_rgba_png_file`] for the lossy export path. JPEG has
-/// no alpha channel, so we explicitly composite each pixel over an opaque black
-/// background (`out = src * alpha / 255`) and encode the resulting RGB. Doing
-/// the flatten here — rather than handing `Rgba8` straight to the encoder,
-/// which would treat the buffer as fully opaque RGB and ignore alpha entirely —
-/// keeps transparent regions rendering as black instead of leaking whatever
-/// stale color bytes happen to sit under a transparent pixel.
+/// no alpha channel, so each pixel is composited over opaque black
+/// (`out = src * alpha / 255`): transparent regions render black instead of
+/// leaking whatever color bytes sit under a transparent pixel.
 ///
 /// Length validation matches [`api_save_rgba_png_file`]: a mismatch is an
 /// upstream bug and is surfaced as [`SkotiqError::ImageError`].
@@ -386,118 +287,45 @@ Future<void> apiSaveRgbaJpegFile({
   quality: quality,
 );
 
-/// Generate a filename from pattern and context
-Future<String> apiGenerateFilename({
-  required String pattern,
-  required String baseDir,
-  String? target,
-  String? filter,
-  required double exposureTime,
-  required FrameTypeApi frameType,
-  required int frameNumber,
-  int? gain,
-  int? offset,
-  double? temperature,
-  required int binningX,
-  required int binningY,
-  String? camera,
-  String? telescope,
-  required String extension_,
-}) => RustLib.instance.api.crateApiImagingApiGenerateFilename(
-  pattern: pattern,
-  baseDir: baseDir,
-  target: target,
-  filter: filter,
-  exposureTime: exposureTime,
-  frameType: frameType,
-  frameNumber: frameNumber,
-  gain: gain,
-  offset: offset,
-  temperature: temperature,
-  binningX: binningX,
-  binningY: binningY,
-  camera: camera,
-  telescope: telescope,
-  extension_: extension_,
-);
-
-/// Get the next frame number for a directory
-Future<int> apiGetNextFrameNumber({
-  required String baseDir,
-  required String pattern,
-  String? target,
-  String? filter,
-  required FrameTypeApi frameType,
-}) => RustLib.instance.api.crateApiImagingApiGetNextFrameNumber(
-  baseDir: baseDir,
-  pattern: pattern,
-  target: target,
-  filter: filter,
-  frameType: frameType,
-);
-
-/// Save image data to FITS file
-Future<void> apiSaveFitsFile({
+/// Square cutouts of a mono frame file, `2 * half + 1` pixels on a side,
+/// centered on each (`centers_x[i]`, `centers_y[i]`) (0-based, row 0 = first
+/// stored row), concatenated in that order. A center whose cutout leaves the
+/// image is refused.
+Future<Float64List> apiReadFrameCutouts({
   required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-  required FitsWriteHeader headerData,
-}) => RustLib.instance.api.crateApiImagingApiSaveFitsFile(
+  required List<int> centersX,
+  required List<int> centersY,
+  required int half,
+}) => RustLib.instance.api.crateApiImagingApiReadFrameCutouts(
   filePath: filePath,
-  width: width,
-  height: height,
-  data: data,
-  headerData: headerData,
+  centersX: centersX,
+  centersY: centersY,
+  half: half,
 );
 
-/// Image Grading: save FITS with the rich (~40-keyword) header
-/// bundle. Used by the sequencer's per-frame save path. Not FRB-exposed —
-/// Dart callers continue to use [`api_save_fits_file`] / [`FitsWriteHeader`].
+/// Save the device's last captured frame, without moving its pixels across
+/// the FFI boundary: as the archive file (FITS or XISF, the capture format)
+/// at `file_path`, and, when `keep_camera_file` (a frame the operator keeps,
+/// not a live-view or loop scratch frame), the camera's own file beside it as
+/// the camera-file setting says.
 ///
-/// Writes every keyword the standard astrophotography workflow expects
-/// (NINA / SGP / APP / PixInsight / ASTAP all read these), plus the
-/// Skotiq-specific `NS-*` keywords for session / mosaic / frame
-/// accounting. Missing optional fields are silently omitted — never
-/// substituted with sentinel values.
-Future<void> saveFitsFileRich({
-  required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-  required FitsWriteHeaderRich headerData,
-}) => RustLib.instance.api.crateApiImagingSaveFitsFileRich(
-  filePath: filePath,
-  width: width,
-  height: height,
-  data: data,
-  headerData: headerData,
-);
-
-/// Save FITS file directly from the last captured image stored in Rust
-/// This eliminates the need to transfer raw pixel data across the FFI boundary
-/// by using the image data already stored from the last exposure.
+/// The header is the one a sequence's frame gets, less the cards that tie a
+/// frame to a run: the rig is read by `skotiq_sequencer::sample_frame_context`
+/// and the file is written by the same `save_frame`.
 ///
-/// Returns an error if no image has been captured yet for the specified device.
-Future<void> apiSaveFitsFromLastCapture({
+/// Returns the path the frame is recorded by (the archive file when one is
+/// written, else the camera's file), or an error if no image has been
+/// captured yet for the specified device.
+Future<String> apiSaveFitsFromLastCapture({
   required String deviceId,
   required String filePath,
   required FitsWriteHeader headerData,
+  required bool keepCameraFile,
 }) => RustLib.instance.api.crateApiImagingApiSaveFitsFromLastCapture(
   deviceId: deviceId,
   filePath: filePath,
   headerData: headerData,
-);
-
-/// Calculate image statistics
-ImageStatsResult apiGetImageStats({
-  required int width,
-  required int height,
-  required List<int> data,
-}) => RustLib.instance.api.crateApiImagingApiGetImageStats(
-  width: width,
-  height: height,
-  data: data,
+  keepCameraFile: keepCameraFile,
 );
 
 /// Auto-stretch image for display
@@ -529,21 +357,6 @@ Uint8List apiAutoStretchColorImage({
   data: data,
 );
 
-/// Debayer image
-Uint8List apiDebayerImage({
-  required int width,
-  required int height,
-  required List<int> data,
-  required String patternStr,
-  required String algoStr,
-}) => RustLib.instance.api.crateApiImagingApiDebayerImage(
-  width: width,
-  height: height,
-  data: data,
-  patternStr: patternStr,
-  algoStr: algoStr,
-);
-
 /// Generate thumbnail from FITS file
 /// Returns JPEG-encoded thumbnail data (~512x512 pixels)
 ///
@@ -564,29 +377,10 @@ Future<Uint8List> apiGenerateFitsThumbnail({
   maxSize: maxSize,
 );
 
-/// Run the INDI autofocus routine and return the best focus position with its
-/// curve data. Device ids are INDI-form: `indi:host:port:device_name`.
-Future<IndiAutofocusResultApi> apiRunIndiAutofocus({
-  required String cameraId,
-  required String focuserId,
-  required IndiAutofocusConfigApi config,
-}) => RustLib.instance.api.crateApiImagingApiRunIndiAutofocus(
-  cameraId: cameraId,
-  focuserId: focuserId,
-  config: config,
-);
-
-/// Calibrate an image file using dark, flat, and/or bias calibration frames.
-///
-/// Loads the light frame and any provided calibration frames from disk,
-/// applies the calibration pipeline, and saves the result to `output_path`.
-///
-/// The calibration order is:
-/// 1. Subtract bias from dark and flat (if bias provided)
-/// 2. Subtract dark from light
-/// 3. Divide light by normalized flat
-///
-/// Any calibration frame path can be empty/None to skip that correction.
+/// Calibrate a light frame file with the masters at the given paths
+/// ([`LightCalibration`](skotiq_processing::post_session::LightCalibration))
+/// and write the result to `output_path`. An absent or empty master path
+/// skips that correction.
 Future<void> apiCalibrateImageFile({
   required String lightPath,
   String? darkPath,
@@ -601,572 +395,23 @@ Future<void> apiCalibrateImageFile({
   outputPath: outputPath,
 );
 
-/// Calibrate raw pixel data in memory (u16).
-///
-/// Takes pixel data directly rather than file paths. Returns calibrated pixel data.
-/// All frames must have the same dimensions and be single-channel u16.
-Uint16List apiCalibrateImageData({
+/// Calibrate a single-plane u16 light in memory with the masters at the
+/// given paths, by the same rule as [`api_calibrate_image_file`].
+Future<Uint16List> apiCalibrateImageData({
   required int width,
   required int height,
   required List<int> lightData,
-  Uint16List? darkData,
-  Uint16List? flatData,
-  Uint16List? biasData,
+  String? darkPath,
+  String? flatPath,
+  String? biasPath,
 }) => RustLib.instance.api.crateApiImagingApiCalibrateImageData(
   width: width,
   height: height,
   lightData: lightData,
-  darkData: darkData,
-  flatData: flatData,
-  biasData: biasData,
+  darkPath: darkPath,
+  flatPath: flatPath,
+  biasPath: biasPath,
 );
-
-/// Start live stacking with a reference image file.
-///
-/// All subsequent frames will be aligned to this reference.
-Future<ApiLiveStackingStats> apiStackingStart({
-  required String referenceImagePath,
-  required ApiLiveStackingConfig config,
-}) => RustLib.instance.api.crateApiImagingApiStackingStart(
-  referenceImagePath: referenceImagePath,
-  config: config,
-);
-
-/// Start live stacking from raw pixel data in memory.
-Future<ApiLiveStackingStats> apiStackingStartFromData({
-  required int width,
-  required int height,
-  required List<int> data,
-  required ApiLiveStackingConfig config,
-}) => RustLib.instance.api.crateApiImagingApiStackingStartFromData(
-  width: width,
-  height: height,
-  data: data,
-  config: config,
-);
-
-/// Add a frame to the live stack from a file path.
-///
-/// Returns the current stacked result.
-Future<ApiLiveStackingResult> apiStackingAddFrame({
-  required String imagePath,
-}) => RustLib.instance.api.crateApiImagingApiStackingAddFrame(
-  imagePath: imagePath,
-);
-
-/// Add a frame to the live stack from raw pixel data.
-Future<ApiLiveStackingResult> apiStackingAddFrameFromData({
-  required int width,
-  required int height,
-  required List<int> data,
-}) => RustLib.instance.api.crateApiImagingApiStackingAddFrameFromData(
-  width: width,
-  height: height,
-  data: data,
-);
-
-/// Save the accumulated stack as a FITS master.
-///
-/// This is the session's data product — a PNG of the same pixels carries no
-/// header, no WCS and no integration time.
-Future<ApiLiveStackingMaster> apiStackingSaveMasterFits({
-  required String filePath,
-}) => RustLib.instance.api.crateApiImagingApiStackingSaveMasterFits(
-  filePath: filePath,
-);
-
-/// Get the current stacked result without adding a frame.
-Future<ApiLiveStackingResult> apiStackingGetResult() =>
-    RustLib.instance.api.crateApiImagingApiStackingGetResult();
-
-/// Get the current stacking statistics.
-Future<ApiLiveStackingStats> apiStackingGetStats() =>
-    RustLib.instance.api.crateApiImagingApiStackingGetStats();
-
-/// Reset the live stacker, clearing accumulated data but keeping the reference.
-Future<void> apiStackingReset() =>
-    RustLib.instance.api.crateApiImagingApiStackingReset();
-
-/// Stop live stacking and release all resources.
-Future<void> apiStackingStop() =>
-    RustLib.instance.api.crateApiImagingApiStackingStop();
-
-/// Check if live stacking is currently active.
-bool apiStackingIsActive() =>
-    RustLib.instance.api.crateApiImagingApiStackingIsActive();
-
-/// Get the current stacked frame count.
-int apiStackingFrameCount() =>
-    RustLib.instance.api.crateApiImagingApiStackingFrameCount();
-
-/// Build a defect map for a camera from a set of dark frames provided as
-/// FITS/XISF file paths. Frames must all share dimensions and pixel type.
-///
-/// The resulting map is written to disk under
-/// `$SKOTIQ_DATA_DIR/defect_maps/` keyed by camera id, sensor size and
-/// temperature bucket, and the status is returned.
-Future<ApiDefectMapStatus> apiDefectMapBuild({
-  required String cameraId,
-  required List<String> darkFramePaths,
-  required double sensorTemperatureCelsius,
-}) => RustLib.instance.api.crateApiImagingApiDefectMapBuild(
-  cameraId: cameraId,
-  darkFramePaths: darkFramePaths,
-  sensorTemperatureCelsius: sensorTemperatureCelsius,
-);
-
-/// Toggle whether the defect map for this camera is applied to lights
-/// during capture. The map must already exist on disk for the toggle to
-/// take effect at the next capture; this call only updates the user's
-/// preference.
-Future<void> apiDefectMapApply({
-  required String cameraId,
-  required bool applyDuringCapture,
-}) => RustLib.instance.api.crateApiImagingApiDefectMapApply(
-  cameraId: cameraId,
-  applyDuringCapture: applyDuringCapture,
-);
-
-/// Delete the defect map stored on disk for the given camera, sensor
-/// dimensions and temperature bucket. Also resets the apply-during-
-/// capture flag for that camera.
-Future<void> apiDefectMapClear({
-  required String cameraId,
-  required int width,
-  required int height,
-  required double sensorTemperatureCelsius,
-}) => RustLib.instance.api.crateApiImagingApiDefectMapClear(
-  cameraId: cameraId,
-  width: width,
-  height: height,
-  sensorTemperatureCelsius: sensorTemperatureCelsius,
-);
-
-/// push the active defect-map application state to the
-/// running sequencer.
-///
-/// When `enabled == true`, the bridge loads the `.ndm` file for
-/// `(camera_id, width, height, sensor_temperature_celsius)` from disk
-/// (returning an error if no map exists), wraps it in a
-/// `DefectMapApplyState` along with the configured method + kernel +
-/// save-original flag, and pushes the state via
-/// `executor.update_defect_map(Some(state))`. When `enabled == false`,
-/// `None` is pushed (the sequencer disables per-frame correction).
-///
-/// Method / kernel come from the user's settings (validated here so a
-/// bad combination is rejected at the FFI boundary rather than at
-/// per-frame application time).
-Future<void> apiSequencerApplyDefectMap({
-  required String cameraId,
-  required int width,
-  required int height,
-  required double sensorTemperatureCelsius,
-  required bool enabled,
-  required String method,
-  required int kernelDiameter,
-  required bool saveOriginal,
-}) => RustLib.instance.api.crateApiImagingApiSequencerApplyDefectMap(
-  cameraId: cameraId,
-  width: width,
-  height: height,
-  sensorTemperatureCelsius: sensorTemperatureCelsius,
-  enabled: enabled,
-  method: method,
-  kernelDiameter: kernelDiameter,
-  saveOriginal: saveOriginal,
-);
-
-/// Look up the status of the stored defect map for a camera at the given
-/// sensor size and temperature. Returns `Ok(None)` if no map is stored
-/// for that combination.
-Future<ApiDefectMapStatus?> apiDefectMapGetStatus({
-  required String cameraId,
-  required int width,
-  required int height,
-  required double sensorTemperatureCelsius,
-}) => RustLib.instance.api.crateApiImagingApiDefectMapGetStatus(
-  cameraId: cameraId,
-  width: width,
-  height: height,
-  sensorTemperatureCelsius: sensorTemperatureCelsius,
-);
-
-/// Combine a set of calibration frames into a single master and write it
-/// to disk as FITS.
-///
-/// Inputs:
-/// - `input_paths`: paths to each constituent calibration frame. All must
-///   exist, share dimensions/channels/pixel type, and be readable by the
-///   normal Skotiq image reader (FITS/XISF/PNG/TIFF/etc).
-/// - `kind`: "BIAS" | "DARK" | "FLAT" — controls normalisation (flats only).
-/// - `method`: combine algorithm + parameters; see `ApiCombineMethod`.
-/// - `output_type`: "U16" | "F32" — pixel type of the produced master.
-/// - `output_path`: where to write the FITS master.
-///
-/// Errors:
-/// - Empty input list, mismatched dimensions/channels/pixel types, or any
-///   read failure surfaces as `SkotiqError::ImageError`/`InvalidParameter`.
-///   No silent fallback to a partial result.
-Future<ApiMasterFrameResult> apiCombineMasterFrames({
-  required List<String> inputPaths,
-  required String kind,
-  required ApiCombineMethod method,
-  required String outputType,
-  required String outputPath,
-}) => RustLib.instance.api.crateApiImagingApiCombineMasterFrames(
-  inputPaths: inputPaths,
-  kind: kind,
-  method: method,
-  outputType: outputType,
-  outputPath: outputPath,
-);
-
-/// Combine method exposed across the FFI surface.
-///
-/// Dart sends a tag string ("MEAN", "MEDIAN", "SIGMA_CLIP") with optional
-/// sigma parameters. We deliberately use a flat struct rather than a
-/// tagged enum here because flutter_rust_bridge handles plain structs
-/// with optional fields cleanly across both Dart isolates and the new
-/// codec path.
-class ApiCombineMethod {
-  /// "MEAN" | "MEDIAN" | "SIGMA_CLIP" (case-insensitive)
-  final String method;
-
-  /// Kappa threshold for sigma clip; required for SIGMA_CLIP, ignored otherwise.
-  final double? sigmaKappa;
-
-  /// Number of clip iterations; required for SIGMA_CLIP, ignored otherwise.
-  final int? sigmaIterations;
-
-  const ApiCombineMethod({
-    required this.method,
-    this.sigmaKappa,
-    this.sigmaIterations,
-  });
-
-  @override
-  int get hashCode =>
-      method.hashCode ^ sigmaKappa.hashCode ^ sigmaIterations.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ApiCombineMethod &&
-          runtimeType == other.runtimeType &&
-          method == other.method &&
-          sigmaKappa == other.sigmaKappa &&
-          sigmaIterations == other.sigmaIterations;
-}
-
-/// Status of a stored defect map for a given camera / sensor / temperature.
-class ApiDefectMapStatus {
-  final String cameraId;
-  final int width;
-  final int height;
-  final int temperatureBucketDecicelsius;
-  final int defectivePixelCount;
-  final PlatformInt64 lastRebuiltUnixSeconds;
-  final bool applyDuringCapture;
-  final bool storedOnDisk;
-
-  const ApiDefectMapStatus({
-    required this.cameraId,
-    required this.width,
-    required this.height,
-    required this.temperatureBucketDecicelsius,
-    required this.defectivePixelCount,
-    required this.lastRebuiltUnixSeconds,
-    required this.applyDuringCapture,
-    required this.storedOnDisk,
-  });
-
-  @override
-  int get hashCode =>
-      cameraId.hashCode ^
-      width.hashCode ^
-      height.hashCode ^
-      temperatureBucketDecicelsius.hashCode ^
-      defectivePixelCount.hashCode ^
-      lastRebuiltUnixSeconds.hashCode ^
-      applyDuringCapture.hashCode ^
-      storedOnDisk.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ApiDefectMapStatus &&
-          runtimeType == other.runtimeType &&
-          cameraId == other.cameraId &&
-          width == other.width &&
-          height == other.height &&
-          temperatureBucketDecicelsius == other.temperatureBucketDecicelsius &&
-          defectivePixelCount == other.defectivePixelCount &&
-          lastRebuiltUnixSeconds == other.lastRebuiltUnixSeconds &&
-          applyDuringCapture == other.applyDuringCapture &&
-          storedOnDisk == other.storedOnDisk;
-}
-
-/// Live stacking configuration exposed to Dart
-class ApiLiveStackingConfig {
-  final bool sigmaClipEnabled;
-  final double sigmaClipThreshold;
-  final int maxMatchStars;
-  final double matchRadiusPx;
-  final double matchFluxTolerance;
-  final int minMatchedPairs;
-
-  /// Sensor acquisition mode: `"mono"`, `"osc"`, or `"auto"` (case-insensitive),
-  /// defaulting to `"mono"`. The three modes are specified on
-  /// `stacking_api::LiveStackingConfigApi::sensor_mode`.
-  final String sensorMode;
-
-  /// Explicit Bayer pattern override (`"RGGB"`/`"BGGR"`/`"GRBG"`/`"GBRG"`,
-  /// case-insensitive). When `None`, OSC/auto sessions fall back to the pattern
-  /// the reference frame declares via its FITS `BAYERPAT` geometry. An
-  /// unrecognised string is a hard error.
-  final String? bayerPattern;
-
-  /// Demosaic quality: `"bilinear"`, `"vng"`, or `"superpixel"`
-  /// (case-insensitive). Defaults to `"bilinear"`. An unrecognised value is a
-  /// hard error rather than a silent best-guess.
-  final String demosaicQuality;
-
-  const ApiLiveStackingConfig({
-    required this.sigmaClipEnabled,
-    required this.sigmaClipThreshold,
-    required this.maxMatchStars,
-    required this.matchRadiusPx,
-    required this.matchFluxTolerance,
-    required this.minMatchedPairs,
-    required this.sensorMode,
-    this.bayerPattern,
-    required this.demosaicQuality,
-  });
-
-  static Future<ApiLiveStackingConfig> default_() =>
-      RustLib.instance.api.crateApiImagingApiLiveStackingConfigDefault();
-
-  @override
-  int get hashCode =>
-      sigmaClipEnabled.hashCode ^
-      sigmaClipThreshold.hashCode ^
-      maxMatchStars.hashCode ^
-      matchRadiusPx.hashCode ^
-      matchFluxTolerance.hashCode ^
-      minMatchedPairs.hashCode ^
-      sensorMode.hashCode ^
-      bayerPattern.hashCode ^
-      demosaicQuality.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ApiLiveStackingConfig &&
-          runtimeType == other.runtimeType &&
-          sigmaClipEnabled == other.sigmaClipEnabled &&
-          sigmaClipThreshold == other.sigmaClipThreshold &&
-          maxMatchStars == other.maxMatchStars &&
-          matchRadiusPx == other.matchRadiusPx &&
-          matchFluxTolerance == other.matchFluxTolerance &&
-          minMatchedPairs == other.minMatchedPairs &&
-          sensorMode == other.sensorMode &&
-          bayerPattern == other.bayerPattern &&
-          demosaicQuality == other.demosaicQuality;
-}
-
-/// What was written when the stacked master was saved.
-class ApiLiveStackingMaster {
-  final String filePath;
-  final int stackedFrameCount;
-
-  /// The master's `EXPTIME`: Σ of the exposures the stacked frames reported.
-  /// `0.0` means no frame reported one (an in-memory stack has no headers to
-  /// read); the FITS card comment says so.
-  final double totalIntegrationSecs;
-
-  /// The master's `DATE-OBS`: the earliest stacked frame's stamp, or the
-  /// moment the stack started when no frame carried one.
-  final String dateObs;
-
-  const ApiLiveStackingMaster({
-    required this.filePath,
-    required this.stackedFrameCount,
-    required this.totalIntegrationSecs,
-    required this.dateObs,
-  });
-
-  @override
-  int get hashCode =>
-      filePath.hashCode ^
-      stackedFrameCount.hashCode ^
-      totalIntegrationSecs.hashCode ^
-      dateObs.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ApiLiveStackingMaster &&
-          runtimeType == other.runtimeType &&
-          filePath == other.filePath &&
-          stackedFrameCount == other.stackedFrameCount &&
-          totalIntegrationSecs == other.totalIntegrationSecs &&
-          dateObs == other.dateObs;
-}
-
-/// Result from adding a frame to the live stack
-class ApiLiveStackingResult {
-  final int width;
-  final int height;
-
-  /// Channel count of the stacked result: `1` for a monochrome session, `3`
-  /// for an OSC/colour session. The Dart side uses this to interpret `data` as
-  /// a single luminance plane vs interleaved RGB16.
-  final int channels;
-  final Uint16List data;
-  final ApiLiveStackingStats stats;
-
-  const ApiLiveStackingResult({
-    required this.width,
-    required this.height,
-    required this.channels,
-    required this.data,
-    required this.stats,
-  });
-
-  @override
-  int get hashCode =>
-      width.hashCode ^
-      height.hashCode ^
-      channels.hashCode ^
-      data.hashCode ^
-      stats.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ApiLiveStackingResult &&
-          runtimeType == other.runtimeType &&
-          width == other.width &&
-          height == other.height &&
-          channels == other.channels &&
-          data == other.data &&
-          stats == other.stats;
-}
-
-/// Live stacking statistics returned to Dart
-class ApiLiveStackingStats {
-  final int stackedFrameCount;
-  final int totalFramesAttempted;
-  final int rejectedAlignmentFailures;
-  final double avgMatchedPairs;
-  final double avgAlignmentResidual;
-  final BigInt totalSigmaRejectedPixels;
-
-  const ApiLiveStackingStats({
-    required this.stackedFrameCount,
-    required this.totalFramesAttempted,
-    required this.rejectedAlignmentFailures,
-    required this.avgMatchedPairs,
-    required this.avgAlignmentResidual,
-    required this.totalSigmaRejectedPixels,
-  });
-
-  @override
-  int get hashCode =>
-      stackedFrameCount.hashCode ^
-      totalFramesAttempted.hashCode ^
-      rejectedAlignmentFailures.hashCode ^
-      avgMatchedPairs.hashCode ^
-      avgAlignmentResidual.hashCode ^
-      totalSigmaRejectedPixels.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ApiLiveStackingStats &&
-          runtimeType == other.runtimeType &&
-          stackedFrameCount == other.stackedFrameCount &&
-          totalFramesAttempted == other.totalFramesAttempted &&
-          rejectedAlignmentFailures == other.rejectedAlignmentFailures &&
-          avgMatchedPairs == other.avgMatchedPairs &&
-          avgAlignmentResidual == other.avgAlignmentResidual &&
-          totalSigmaRejectedPixels == other.totalSigmaRejectedPixels;
-}
-
-/// Result returned from a master-frame build.
-class ApiMasterFrameResult {
-  /// Where the master FITS was written.
-  final String outputPath;
-
-  /// "BIAS" | "DARK" | "FLAT"
-  final String kind;
-
-  /// "U16" | "F32"
-  final String outputType;
-
-  /// How many input frames contributed.
-  final int frameCount;
-
-  /// String rendering of the combine method actually used.
-  final String method;
-
-  /// Width of the resulting master in pixels.
-  final int width;
-
-  /// Height of the resulting master in pixels.
-  final int height;
-
-  /// Channel count of the resulting master.
-  final int channels;
-
-  /// Pre-normalisation mean of the combined master.
-  final double inputMean;
-
-  /// Post-normalisation mean (equals `input_mean` for bias/dark, 1.0 / 32768 for flat).
-  final double outputMean;
-
-  const ApiMasterFrameResult({
-    required this.outputPath,
-    required this.kind,
-    required this.outputType,
-    required this.frameCount,
-    required this.method,
-    required this.width,
-    required this.height,
-    required this.channels,
-    required this.inputMean,
-    required this.outputMean,
-  });
-
-  @override
-  int get hashCode =>
-      outputPath.hashCode ^
-      kind.hashCode ^
-      outputType.hashCode ^
-      frameCount.hashCode ^
-      method.hashCode ^
-      width.hashCode ^
-      height.hashCode ^
-      channels.hashCode ^
-      inputMean.hashCode ^
-      outputMean.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ApiMasterFrameResult &&
-          runtimeType == other.runtimeType &&
-          outputPath == other.outputPath &&
-          kind == other.kind &&
-          outputType == other.outputType &&
-          frameCount == other.frameCount &&
-          method == other.method &&
-          width == other.width &&
-          height == other.height &&
-          channels == other.channels &&
-          inputMean == other.inputMean &&
-          outputMean == other.outputMean;
-}
 
 /// Autofocus configuration for API
 class AutofocusConfigApi {
@@ -1314,9 +559,6 @@ class AutofocusResultApi {
           backlashApplied == other.backlashApplied;
 }
 
-/// Bayer pattern type
-enum BayerPatternApi { rggb, bggr, grbg, gbrg }
-
 /// Captured image result containing display-ready data
 class CapturedImageResult {
   final int width;
@@ -1364,9 +606,6 @@ class CapturedImageResult {
           timestamp == other.timestamp &&
           isColor == other.isColor;
 }
-
-/// Debayer algorithm
-enum DebayerAlgorithmApi { bilinear, vng, superPixel }
 
 /// FITS header for writing
 /// Detected star information
@@ -1427,51 +666,6 @@ class DetectedStarInfo {
           snr == other.snr &&
           eccentricity == other.eccentricity &&
           sharpness == other.sharpness;
-}
-
-/// A single keyword to inject (or overwrite) on an existing FITS file.
-///
-/// Exactly one of `string_value`, `int_value`, `float_value` must be `Some`.
-/// The remaining fields must be `None`. The Rust side validates this and
-/// returns an `InvalidParameters` error rather than guessing — silent
-/// fallbacks would let a caller bury a typo and have the keyword vanish.
-class FitsKeywordUpdate {
-  /// FITS keyword. Uppercased on insert. Must be 1..=8 ASCII chars per the
-  /// FITS Standard (4.4.2.1); longer keys are rejected at write time.
-  final String keyword;
-
-  /// Optional inline comment ("/ comment" segment of the value card).
-  final String? comment;
-  final String? stringValue;
-  final PlatformInt64? intValue;
-  final double? floatValue;
-
-  const FitsKeywordUpdate({
-    required this.keyword,
-    this.comment,
-    this.stringValue,
-    this.intValue,
-    this.floatValue,
-  });
-
-  @override
-  int get hashCode =>
-      keyword.hashCode ^
-      comment.hashCode ^
-      stringValue.hashCode ^
-      intValue.hashCode ^
-      floatValue.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FitsKeywordUpdate &&
-          runtimeType == other.runtimeType &&
-          keyword == other.keyword &&
-          comment == other.comment &&
-          stringValue == other.stringValue &&
-          intValue == other.intValue &&
-          floatValue == other.floatValue;
 }
 
 /// Result from reading FITS file linear pixel data.
@@ -1603,94 +797,88 @@ class FitsReadResult {
           bayerPattern == other.bayerPattern;
 }
 
-/// Header data for FITS file writing.
-///
-/// Public FRB-exposed surface. Kept frozen at the original 22 fields so
-/// Dart consumers (Dart-driven snapshot saves, network-backend FITS writes)
-/// don't need a coordinated FRB regen.
-///
-/// Image Grading: the sequencer's per-frame save path uses
-/// [`FitsWriteHeaderRich`] instead, which carries every extended keyword
-/// (focuser position, rotator angle, guide RMS, plate-solve, mosaic
-/// panel, etc.). The rich path is internal — not exposed via FRB — so
-/// sequencer-driven saves can grow the FITS surface without disrupting
-/// Dart-side FRB schema.
+/// What the caller of a manual capture knows about the frame it saves: what
+/// it was told to take, who and where the observer is, and which devices make
+/// up the rig. Everything the devices know (pointing, pier side, focuser,
+/// rotator, temperatures, guiding, the camera's own exposure record) is read
+/// from them when the frame is saved, as it is for a sequence's frame.
 class FitsWriteHeader {
   final String? objectName;
+
+  /// Seconds the exposure was commanded for.
   final double exposureTime;
-  final String captureTimestamp;
   final String frameType;
+
+  /// The filter the capture was set to; `None` records the one the wheel
+  /// reports.
   final String? filter;
+
+  /// Commanded, for a camera that does not report its own.
   final int? gain;
   final int? offset;
-  final double? ccdTemp;
-  final double? ra;
-  final double? dec;
-  final double? altitude;
-  final String? telescope;
-  final String? instrument;
-  final String? observer;
   final int binX;
   final int binY;
+  final String? telescope;
+
+  /// The camera as the equipment profile names it; the driver's model name
+  /// when `None`.
+  final String? instrument;
+  final String? observer;
   final double? focalLength;
   final double? aperture;
-  final double? pixelSizeX;
-  final double? pixelSizeY;
   final double? siteLatitude;
   final double? siteLongitude;
   final double? siteElevation;
+  final String? mountId;
+  final String? focuserId;
+  final String? filterWheelId;
+  final String? rotatorId;
 
   const FitsWriteHeader({
     this.objectName,
     required this.exposureTime,
-    required this.captureTimestamp,
     required this.frameType,
     this.filter,
     this.gain,
     this.offset,
-    this.ccdTemp,
-    this.ra,
-    this.dec,
-    this.altitude,
+    required this.binX,
+    required this.binY,
     this.telescope,
     this.instrument,
     this.observer,
-    required this.binX,
-    required this.binY,
     this.focalLength,
     this.aperture,
-    this.pixelSizeX,
-    this.pixelSizeY,
     this.siteLatitude,
     this.siteLongitude,
     this.siteElevation,
+    this.mountId,
+    this.focuserId,
+    this.filterWheelId,
+    this.rotatorId,
   });
 
   @override
   int get hashCode =>
       objectName.hashCode ^
       exposureTime.hashCode ^
-      captureTimestamp.hashCode ^
       frameType.hashCode ^
       filter.hashCode ^
       gain.hashCode ^
       offset.hashCode ^
-      ccdTemp.hashCode ^
-      ra.hashCode ^
-      dec.hashCode ^
-      altitude.hashCode ^
+      binX.hashCode ^
+      binY.hashCode ^
       telescope.hashCode ^
       instrument.hashCode ^
       observer.hashCode ^
-      binX.hashCode ^
-      binY.hashCode ^
       focalLength.hashCode ^
       aperture.hashCode ^
-      pixelSizeX.hashCode ^
-      pixelSizeY.hashCode ^
       siteLatitude.hashCode ^
       siteLongitude.hashCode ^
-      siteElevation.hashCode;
+      siteElevation.hashCode ^
+      mountId.hashCode ^
+      focuserId.hashCode ^
+      filterWheelId.hashCode ^
+      rotatorId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1699,307 +887,24 @@ class FitsWriteHeader {
           runtimeType == other.runtimeType &&
           objectName == other.objectName &&
           exposureTime == other.exposureTime &&
-          captureTimestamp == other.captureTimestamp &&
           frameType == other.frameType &&
           filter == other.filter &&
           gain == other.gain &&
           offset == other.offset &&
-          ccdTemp == other.ccdTemp &&
-          ra == other.ra &&
-          dec == other.dec &&
-          altitude == other.altitude &&
+          binX == other.binX &&
+          binY == other.binY &&
           telescope == other.telescope &&
           instrument == other.instrument &&
           observer == other.observer &&
-          binX == other.binX &&
-          binY == other.binY &&
           focalLength == other.focalLength &&
           aperture == other.aperture &&
-          pixelSizeX == other.pixelSizeX &&
-          pixelSizeY == other.pixelSizeY &&
-          siteLatitude == other.siteLatitude &&
-          siteLongitude == other.siteLongitude &&
-          siteElevation == other.siteElevation;
-}
-
-/// Image Grading: internal FITS-header bundle used by the
-/// sequencer's per-frame save path. Carries every field the standard
-/// astrophotography FITS header expects PLUS the Skotiq-specific
-/// session / mosaic / plate-solve keywords.
-///
-/// Not FRB-exposed: only Rust code (the sequencer's `save_fits` impl in
-/// `real_device_ops.rs` / `unified_device_ops.rs` / `sequencer_ops.rs`)
-/// constructs this. Dart callers continue to use the simpler
-/// [`FitsWriteHeader`] for ad-hoc snapshot saves.
-class FitsWriteHeaderRich {
-  final String? objectName;
-  final double exposureTime;
-  final String captureTimestamp;
-  final String frameType;
-  final String? filter;
-
-  /// 1-based filter wheel position (FITS `FILTPOS`).
-  final int? filterPosition;
-  final int? gain;
-  final int? offset;
-  final double? ccdTemp;
-
-  /// Cooler target temperature in °C (FITS `SET-TEMP`).
-  final double? setTemp;
-  final double? ra;
-  final double? dec;
-  final double? altitude;
-  final String? telescope;
-  final String? instrument;
-  final String? observer;
-  final int binX;
-  final int binY;
-  final double? focalLength;
-  final double? aperture;
-  final double? pixelSizeX;
-  final double? pixelSizeY;
-  final double? siteLatitude;
-  final double? siteLongitude;
-  final double? siteElevation;
-
-  /// Focuser absolute position (FITS `FOCUSPOS`).
-  final int? focuserPosition;
-
-  /// Focuser temperature in °C (FITS `FOCTEMP`).
-  final double? focuserTemperature;
-
-  /// Rotator mechanical angle in degrees (FITS `ROTATPOS`).
-  final double? rotatorAngle;
-
-  /// Total guiding RMS in arcseconds (FITS `GUIDERMS`).
-  final double? guideRmsArcsec;
-
-  /// Plate-solved RA in hours (FITS `SOLVED-RA`).
-  final double? solvedRaHours;
-
-  /// Plate-solved Dec in degrees (FITS `SOLVED-DEC`).
-  final double? solvedDecDegrees;
-
-  /// Solved pixel scale in arcsec/pixel (FITS `PIXSCALE`).
-  final double? plateSolvePixelScaleArcsec;
-
-  /// Solved field rotation in degrees (FITS `CROTA1` and `CROTA2`).
-  final double? plateSolveRotationDeg;
-
-  /// Bayer pattern ("RGGB", "BGGR", etc.) (FITS `BAYERPAT`).
-  final String? bayerPattern;
-
-  /// Skotiq session identifier (FITS `SK-SESID`).
-  final String? sessionId;
-
-  /// 1-based frame index within the burst (FITS `SK-FIDX`).
-  final int? frameIndex;
-
-  /// Total planned frames in the burst (FITS `SK-NPLN`).
-  final int? totalPlannedFrames;
-
-  /// Mosaic identification (FITS `SK-MOSNM`).
-  final String? mosaicName;
-
-  /// 0-based mosaic panel index (FITS `SK-PIDX`).
-  final int? mosaicPanelIndex;
-
-  /// Mosaic panel row (FITS `SK-PROW`).
-  final int? mosaicPanelRow;
-
-  /// Mosaic panel column (FITS `SK-PCOL`).
-  final int? mosaicPanelColumn;
-
-  /// Mosaic total panel count (FITS `SK-NPAN`).
-  final int? mosaicTotalPanels;
-  final DefectMapCorrectionRecord? defectMapCorrection;
-  final String? photometryObjectCatalog;
-  final String? photometryReferenceStars;
-  final double? photometryMjdObs;
-  final double? photometryInstrumentalMag;
-  final double? photometryDifferentialMag;
-  final double? photometryFwhmArcsec;
-  final double? photometrySnr;
-
-  /// Dual-rig — optical-train / camera attribution for multi-camera
-  /// sessions (FITS `SK-RIG`). `None` for the single-rig case.
-  final String? rigLabel;
-
-  /// Side of the pier the mount reported for the frame, `"East"` or
-  /// `"West"` (FITS `PIERSIDE`): which side a frame was taken on matters
-  /// across a meridian flip, where the field turns by 180 degrees.
-  final String? pierSide;
-
-  const FitsWriteHeaderRich({
-    this.objectName,
-    required this.exposureTime,
-    required this.captureTimestamp,
-    required this.frameType,
-    this.filter,
-    this.filterPosition,
-    this.gain,
-    this.offset,
-    this.ccdTemp,
-    this.setTemp,
-    this.ra,
-    this.dec,
-    this.altitude,
-    this.telescope,
-    this.instrument,
-    this.observer,
-    required this.binX,
-    required this.binY,
-    this.focalLength,
-    this.aperture,
-    this.pixelSizeX,
-    this.pixelSizeY,
-    this.siteLatitude,
-    this.siteLongitude,
-    this.siteElevation,
-    this.focuserPosition,
-    this.focuserTemperature,
-    this.rotatorAngle,
-    this.guideRmsArcsec,
-    this.solvedRaHours,
-    this.solvedDecDegrees,
-    this.plateSolvePixelScaleArcsec,
-    this.plateSolveRotationDeg,
-    this.bayerPattern,
-    this.sessionId,
-    this.frameIndex,
-    this.totalPlannedFrames,
-    this.mosaicName,
-    this.mosaicPanelIndex,
-    this.mosaicPanelRow,
-    this.mosaicPanelColumn,
-    this.mosaicTotalPanels,
-    this.defectMapCorrection,
-    this.photometryObjectCatalog,
-    this.photometryReferenceStars,
-    this.photometryMjdObs,
-    this.photometryInstrumentalMag,
-    this.photometryDifferentialMag,
-    this.photometryFwhmArcsec,
-    this.photometrySnr,
-    this.rigLabel,
-    this.pierSide,
-  });
-
-  static Future<FitsWriteHeaderRich> default_() =>
-      RustLib.instance.api.crateApiImagingFitsWriteHeaderRichDefault();
-
-  @override
-  int get hashCode =>
-      objectName.hashCode ^
-      exposureTime.hashCode ^
-      captureTimestamp.hashCode ^
-      frameType.hashCode ^
-      filter.hashCode ^
-      filterPosition.hashCode ^
-      gain.hashCode ^
-      offset.hashCode ^
-      ccdTemp.hashCode ^
-      setTemp.hashCode ^
-      ra.hashCode ^
-      dec.hashCode ^
-      altitude.hashCode ^
-      telescope.hashCode ^
-      instrument.hashCode ^
-      observer.hashCode ^
-      binX.hashCode ^
-      binY.hashCode ^
-      focalLength.hashCode ^
-      aperture.hashCode ^
-      pixelSizeX.hashCode ^
-      pixelSizeY.hashCode ^
-      siteLatitude.hashCode ^
-      siteLongitude.hashCode ^
-      siteElevation.hashCode ^
-      focuserPosition.hashCode ^
-      focuserTemperature.hashCode ^
-      rotatorAngle.hashCode ^
-      guideRmsArcsec.hashCode ^
-      solvedRaHours.hashCode ^
-      solvedDecDegrees.hashCode ^
-      plateSolvePixelScaleArcsec.hashCode ^
-      plateSolveRotationDeg.hashCode ^
-      bayerPattern.hashCode ^
-      sessionId.hashCode ^
-      frameIndex.hashCode ^
-      totalPlannedFrames.hashCode ^
-      mosaicName.hashCode ^
-      mosaicPanelIndex.hashCode ^
-      mosaicPanelRow.hashCode ^
-      mosaicPanelColumn.hashCode ^
-      mosaicTotalPanels.hashCode ^
-      defectMapCorrection.hashCode ^
-      photometryObjectCatalog.hashCode ^
-      photometryReferenceStars.hashCode ^
-      photometryMjdObs.hashCode ^
-      photometryInstrumentalMag.hashCode ^
-      photometryDifferentialMag.hashCode ^
-      photometryFwhmArcsec.hashCode ^
-      photometrySnr.hashCode ^
-      rigLabel.hashCode ^
-      pierSide.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FitsWriteHeaderRich &&
-          runtimeType == other.runtimeType &&
-          objectName == other.objectName &&
-          exposureTime == other.exposureTime &&
-          captureTimestamp == other.captureTimestamp &&
-          frameType == other.frameType &&
-          filter == other.filter &&
-          filterPosition == other.filterPosition &&
-          gain == other.gain &&
-          offset == other.offset &&
-          ccdTemp == other.ccdTemp &&
-          setTemp == other.setTemp &&
-          ra == other.ra &&
-          dec == other.dec &&
-          altitude == other.altitude &&
-          telescope == other.telescope &&
-          instrument == other.instrument &&
-          observer == other.observer &&
-          binX == other.binX &&
-          binY == other.binY &&
-          focalLength == other.focalLength &&
-          aperture == other.aperture &&
-          pixelSizeX == other.pixelSizeX &&
-          pixelSizeY == other.pixelSizeY &&
           siteLatitude == other.siteLatitude &&
           siteLongitude == other.siteLongitude &&
           siteElevation == other.siteElevation &&
-          focuserPosition == other.focuserPosition &&
-          focuserTemperature == other.focuserTemperature &&
-          rotatorAngle == other.rotatorAngle &&
-          guideRmsArcsec == other.guideRmsArcsec &&
-          solvedRaHours == other.solvedRaHours &&
-          solvedDecDegrees == other.solvedDecDegrees &&
-          plateSolvePixelScaleArcsec == other.plateSolvePixelScaleArcsec &&
-          plateSolveRotationDeg == other.plateSolveRotationDeg &&
-          bayerPattern == other.bayerPattern &&
-          sessionId == other.sessionId &&
-          frameIndex == other.frameIndex &&
-          totalPlannedFrames == other.totalPlannedFrames &&
-          mosaicName == other.mosaicName &&
-          mosaicPanelIndex == other.mosaicPanelIndex &&
-          mosaicPanelRow == other.mosaicPanelRow &&
-          mosaicPanelColumn == other.mosaicPanelColumn &&
-          mosaicTotalPanels == other.mosaicTotalPanels &&
-          defectMapCorrection == other.defectMapCorrection &&
-          photometryObjectCatalog == other.photometryObjectCatalog &&
-          photometryReferenceStars == other.photometryReferenceStars &&
-          photometryMjdObs == other.photometryMjdObs &&
-          photometryInstrumentalMag == other.photometryInstrumentalMag &&
-          photometryDifferentialMag == other.photometryDifferentialMag &&
-          photometryFwhmArcsec == other.photometryFwhmArcsec &&
-          photometrySnr == other.photometrySnr &&
-          rigLabel == other.rigLabel &&
-          pierSide == other.pierSide;
+          mountId == other.mountId &&
+          focuserId == other.focuserId &&
+          filterWheelId == other.filterWheelId &&
+          rotatorId == other.rotatorId;
 }
 
 /// A single focus data point (position and HFR)
@@ -2030,38 +935,6 @@ class FocusDataPoint {
           fwhm == other.fwhm &&
           starCount == other.starCount;
 }
-
-/// Focus data point for autofocus curve
-class FocusDataPointApi {
-  final int position;
-  final double hfr;
-  final double? fwhm;
-  final int starCount;
-
-  const FocusDataPointApi({
-    required this.position,
-    required this.hfr,
-    this.fwhm,
-    required this.starCount,
-  });
-
-  @override
-  int get hashCode =>
-      position.hashCode ^ hfr.hashCode ^ fwhm.hashCode ^ starCount.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FocusDataPointApi &&
-          runtimeType == other.runtimeType &&
-          position == other.position &&
-          hfr == other.hfr &&
-          fwhm == other.fwhm &&
-          starCount == other.starCount;
-}
-
-/// Frame type for file naming
-enum FrameTypeApi { light, dark, flat, bias, darkFlat, snapshot }
 
 /// Image statistics
 class ImageStatsResult {
@@ -2117,121 +990,6 @@ class ImageStatsResult {
           eccentricity == other.eccentricity &&
           fwhm == other.fwhm &&
           starCount == other.starCount;
-}
-
-/// INDI autofocus configuration
-class IndiAutofocusConfigApi {
-  final String method;
-  final int stepSize;
-  final int stepsOut;
-  final double exposureDuration;
-  final int backlashCompensation;
-  final bool useTemperaturePrediction;
-  final double? maxStarCountChange;
-  final double outlierRejectionSigma;
-  final int binning;
-  final BigInt moveTimeoutSecs;
-  final BigInt settlingTimeMs;
-
-  const IndiAutofocusConfigApi({
-    required this.method,
-    required this.stepSize,
-    required this.stepsOut,
-    required this.exposureDuration,
-    required this.backlashCompensation,
-    required this.useTemperaturePrediction,
-    this.maxStarCountChange,
-    required this.outlierRejectionSigma,
-    required this.binning,
-    required this.moveTimeoutSecs,
-    required this.settlingTimeMs,
-  });
-
-  static Future<IndiAutofocusConfigApi> default_() =>
-      RustLib.instance.api.crateApiImagingIndiAutofocusConfigApiDefault();
-
-  @override
-  int get hashCode =>
-      method.hashCode ^
-      stepSize.hashCode ^
-      stepsOut.hashCode ^
-      exposureDuration.hashCode ^
-      backlashCompensation.hashCode ^
-      useTemperaturePrediction.hashCode ^
-      maxStarCountChange.hashCode ^
-      outlierRejectionSigma.hashCode ^
-      binning.hashCode ^
-      moveTimeoutSecs.hashCode ^
-      settlingTimeMs.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is IndiAutofocusConfigApi &&
-          runtimeType == other.runtimeType &&
-          method == other.method &&
-          stepSize == other.stepSize &&
-          stepsOut == other.stepsOut &&
-          exposureDuration == other.exposureDuration &&
-          backlashCompensation == other.backlashCompensation &&
-          useTemperaturePrediction == other.useTemperaturePrediction &&
-          maxStarCountChange == other.maxStarCountChange &&
-          outlierRejectionSigma == other.outlierRejectionSigma &&
-          binning == other.binning &&
-          moveTimeoutSecs == other.moveTimeoutSecs &&
-          settlingTimeMs == other.settlingTimeMs;
-}
-
-/// INDI autofocus result
-class IndiAutofocusResultApi {
-  final int bestPosition;
-  final double bestHfr;
-  final double curveFitQuality;
-  final String methodUsed;
-  final List<FocusDataPointApi> dataPoints;
-  final double? temperatureCelsius;
-  final bool backlashApplied;
-  final bool success;
-  final String? errorMessage;
-
-  const IndiAutofocusResultApi({
-    required this.bestPosition,
-    required this.bestHfr,
-    required this.curveFitQuality,
-    required this.methodUsed,
-    required this.dataPoints,
-    this.temperatureCelsius,
-    required this.backlashApplied,
-    required this.success,
-    this.errorMessage,
-  });
-
-  @override
-  int get hashCode =>
-      bestPosition.hashCode ^
-      bestHfr.hashCode ^
-      curveFitQuality.hashCode ^
-      methodUsed.hashCode ^
-      dataPoints.hashCode ^
-      temperatureCelsius.hashCode ^
-      backlashApplied.hashCode ^
-      success.hashCode ^
-      errorMessage.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is IndiAutofocusResultApi &&
-          runtimeType == other.runtimeType &&
-          bestPosition == other.bestPosition &&
-          bestHfr == other.bestHfr &&
-          curveFitQuality == other.curveFitQuality &&
-          methodUsed == other.methodUsed &&
-          dataPoints == other.dataPoints &&
-          temperatureCelsius == other.temperatureCelsius &&
-          backlashApplied == other.backlashApplied &&
-          success == other.success &&
-          errorMessage == other.errorMessage;
 }
 
 /// Frame-level quality metrics for Science visualizations.
@@ -2562,48 +1320,4 @@ class StretchParamsApi {
           shadows == other.shadows &&
           highlights == other.highlights &&
           midtones == other.midtones;
-}
-
-/// XISF file read result
-class XisfReadResult {
-  final int width;
-  final int height;
-  final int channels;
-  final Uint8List displayData;
-  final Uint32List histogram;
-  final ImageStatsResult stats;
-  final List<(String, String)> properties;
-
-  const XisfReadResult({
-    required this.width,
-    required this.height,
-    required this.channels,
-    required this.displayData,
-    required this.histogram,
-    required this.stats,
-    required this.properties,
-  });
-
-  @override
-  int get hashCode =>
-      width.hashCode ^
-      height.hashCode ^
-      channels.hashCode ^
-      displayData.hashCode ^
-      histogram.hashCode ^
-      stats.hashCode ^
-      properties.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is XisfReadResult &&
-          runtimeType == other.runtimeType &&
-          width == other.width &&
-          height == other.height &&
-          channels == other.channels &&
-          displayData == other.displayData &&
-          histogram == other.histogram &&
-          stats == other.stats &&
-          properties == other.properties;
 }

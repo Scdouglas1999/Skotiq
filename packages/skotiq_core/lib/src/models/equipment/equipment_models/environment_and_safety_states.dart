@@ -1,9 +1,11 @@
 part of '../equipment_models.dart';
 
-/// Weather state
-class WeatherState extends Equatable {
+class WeatherState extends Equatable implements DeviceSlotState<WeatherState> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
   final double? temperature;
   final double? humidity;
@@ -21,9 +23,10 @@ class WeatherState extends Equatable {
   final double? skyTemperature;
   final double? rainRate;
   final DateTime? lastUpdated;
+  @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
+  @override
   final bool autoReconnectEnabled;
 
   const WeatherState({
@@ -49,6 +52,7 @@ class WeatherState extends Equatable {
   double? get windSpeedKph => windSpeed == null ? null : windSpeed! * 3.6;
   WeatherState clearError() => copyWith(clearError: true);
 
+  @override
   WeatherState copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,
@@ -110,15 +114,20 @@ class WeatherState extends Equatable {
 }
 
 /// Safety monitor state
-class SafetyMonitorState extends Equatable {
+class SafetyMonitorState extends Equatable
+    implements DeviceSlotState<SafetyMonitorState> {
+  @override
   final DeviceConnectionState connectionState;
+  @override
   final String? deviceId;
+  @override
   final String? deviceName;
   final bool isSafe;
   final DateTime? lastChecked;
+  @override
   final DeviceError? lastError;
 
-  /// Whether auto-reconnection is enabled for this device.
+  @override
   final bool autoReconnectEnabled;
 
   const SafetyMonitorState({
@@ -134,6 +143,7 @@ class SafetyMonitorState extends Equatable {
   bool get hasError => lastError != null;
   SafetyMonitorState clearError() => copyWith(clearError: true);
 
+  @override
   SafetyMonitorState copyWith({
     DeviceConnectionState? connectionState,
     String? deviceId,

@@ -1,8 +1,6 @@
 part of '../headless_api_server.dart';
 
 extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
-  // Middleware
-
   Middleware _requestTrackingMiddleware() {
     return (innerHandler) {
       return (request) async {
@@ -20,8 +18,10 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
 
         final isRead = request.method == 'GET' || request.method == 'HEAD';
         if (!isRead) {
-          _logInfo(
+          await _logger.logRequest(
+            LogLevel.info,
             '[REQ][$requestId] ${request.method} $path started',
+            source: 'HeadlessApiServer',
             fields: {
               'requestId': requestId,
               'method': request.method,
@@ -38,8 +38,10 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
             statusCode: response.statusCode,
             elapsedMs: elapsedMs,
           )) {
-            _logInfo(
+            await _logger.logRequest(
+              LogLevel.info,
               '[REQ][$requestId] ${request.method} $path completed status=${response.statusCode} ms=$elapsedMs',
+              source: 'HeadlessApiServer',
               fields: {
                 'requestId': requestId,
                 'method': request.method,
@@ -50,7 +52,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
               },
             );
           }
-          if (path == '/api/ws' || path == '/events') {
+          if (RouteTable.of(request).isWebSocket) {
             return response;
           }
           return response.change(
@@ -66,8 +68,10 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
           rethrow;
         } catch (e, stackTrace) {
           final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
-          _logError(
+          await _logger.logRequest(
+            LogLevel.error,
             '[REQ][$requestId] ${request.method} $path failed ms=$elapsedMs error=$e\n$stackTrace',
+            source: 'HeadlessApiServer',
             fields: {
               'requestId': requestId,
               'method': request.method,
@@ -101,8 +105,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
         }
 
         final response = await innerHandler(request);
-        final path = '/${request.url.path}';
-        if (path == '/api/ws' || path == '/events') {
+        if (RouteTable.of(request).isWebSocket) {
           return response;
         }
         if (corsHeaders.isEmpty) {
@@ -125,10 +128,9 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
   Middleware _contentLengthLimitMiddleware() {
     return (innerHandler) {
       return (request) {
-        final path = '/${request.url.path}';
-        final validation = route_metadata.validateContentLength(
+        final validation = validateContentLength(
           method: request.method,
-          path: path,
+          limit: RouteTable.of(request).policy.maxBodyBytes,
           contentLengthHeader: request.headers[HttpHeaders.contentLengthHeader],
         );
         if (validation != null) {
@@ -152,7 +154,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
   Middleware _chunkedBodyLimitMiddleware() {
     return (innerHandler) {
       return (request) async {
-        if (!route_metadata.methodCanHaveBody(request.method)) {
+        if (!methodCanHaveBody(request.method)) {
           return innerHandler(request);
         }
 
@@ -163,7 +165,7 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
         }
 
         final path = '/${request.url.path}';
-        final limit = route_metadata.requestBodyLimitForPath(path);
+        final limit = RouteTable.of(request).policy.maxBodyBytes;
         final body = await _readRequestBodyWithinLimit(request, limit);
         if (!body.accepted) {
           final requestId = _requestIdFrom(request);
@@ -214,66 +216,69 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
     return _RequestBodyLimitResult.accepted(bytes.takeBytes(), receivedBytes);
   }
 
-  Middleware _apiVersionMiddleware() {
+  /// After a command (any non-GET request), forget the shared device status
+  /// reads: a read from before the command must not answer a read after it.
+  /// See [EquipmentHandlers.forgetSharedStatus].
+  Middleware _statusShareMiddleware() {
     return (innerHandler) {
       return (request) async {
-        final path = '/${request.url.path}';
-        final isWebSocket = path == '/api/ws' || path == '/events';
-        final clientVersion =
-            request.headers[RemoteApiCompatibility.apiVersionHeader] ??
-            (isWebSocket ? request.url.queryParameters['apiVersion'] : null);
-        if ((path.startsWith('/api/') || isWebSocket) &&
-            clientVersion != null &&
-            clientVersion.trim().isNotEmpty) {
-          final compatibility = RemoteApiCompatibility.checkClient(
-            clientVersion,
-          );
-          if (!compatibility.isCompatible) {
-            final requestId = _requestIdFrom(request);
-            _logWarning(
-              '[API][$requestId] Rejected incompatible client API version '
-              '$clientVersion for $path: ${compatibility.code}',
-            );
-            return jsonUpgradeRequired(
-              {
-                'error': compatibility.code,
-                'message': compatibility.message,
-                'clientApiVersion':
-                    compatibility.clientVersion ?? clientVersion,
-                'serverApiVersion': RemoteApiCompatibility.serverApiVersion
-                    .format(),
-                'minimumSupportedApiVersion': RemoteApiCompatibility
-                    .minimumSupportedVersion
-                    .format(),
-                'requestId': requestId,
-              },
-              headers: {
-                HeadlessApiServer._requestIdHeader: requestId,
-                ..._apiCompatibilityHeaders(),
-              },
-            );
-          }
-        }
-
         final response = await innerHandler(request);
-        if (isWebSocket) {
-          return response;
+        final method = request.method;
+        if (method != 'GET' && method != 'HEAD' && method != 'OPTIONS') {
+          _equipmentHandlers.forgetSharedStatus();
         }
-        return response.change(
-          headers: {...response.headers, ..._apiCompatibilityHeaders()},
-        );
+        return response;
       };
     };
   }
 
-  Map<String, String> _apiCompatibilityHeaders() {
-    return {
-      RemoteApiCompatibility.apiVersionHeader: RemoteApiCompatibility
-          .serverApiVersion
-          .format(),
-      'x-skotiq-minimum-api-version': RemoteApiCompatibility
-          .minimumSupportedVersion
-          .format(),
+  /// Refuses a request from a client of another Skotiq release
+  /// ([LinkVersion]). `/api/info` is always answered: a client reads the
+  /// host's release there before it links. Unversioned scripts and run-watch
+  /// retain API access, but the old app protocol's version marker is refused.
+  Middleware _linkVersionMiddleware() {
+    return (innerHandler) {
+      return (request) async {
+        final path = '/${request.url.path}';
+        final isWebSocket = RouteTable.of(request).isWebSocket;
+        final clientRelease =
+            request.headers[LinkVersion.header] ??
+            (isWebSocket
+                ? request.url.queryParameters[LinkVersion.queryParameter]
+                : null);
+        if (!(path.startsWith('/api/') || isWebSocket) ||
+            path == SystemApi.info.route.path) {
+          return innerHandler(request);
+        }
+        if (clientRelease == null) {
+          final oldApiVersion =
+              request.headers['x-skotiq-api-version'] ??
+              (isWebSocket ? request.url.queryParameters['apiVersion'] : null);
+          if (oldApiVersion == null) return innerHandler(request);
+          final hostRelease = container.read(appVersionProvider).version;
+          return jsonUpgradeRequired({
+            'code': 'release_required',
+            'message':
+                'This client does not report its Skotiq release. '
+                'Update this device to Skotiq $hostRelease, or reload the dashboard.',
+            'hostVersion': hostRelease,
+          });
+        }
+        final mismatch = LinkVersion.check(
+          host: container.read(appVersionProvider).version,
+          client: clientRelease,
+        );
+        if (mismatch == null) return innerHandler(request);
+        final requestId = _requestIdFrom(request);
+        _logWarning(
+          '[API][$requestId] Refused $path from Skotiq $clientRelease: '
+          '${mismatch.message}',
+        );
+        return jsonUpgradeRequired(
+          mismatch.toErrorBody(requestId: requestId).toJson(),
+          headers: {HeadlessApiServer._requestIdHeader: requestId},
+        );
+      };
     };
   }
 
@@ -305,13 +310,11 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
   String? _resolveAllowedOrigin(Request request, String? origin) {
     // Why delegate: reflecting any origin that matches the bound host:port
     // lets any local-loopback browser app bypass CORS from a different port.
-    // [CorsAllowList] applies the explicit configured allow-list and an even
-    // stricter rule for high-risk control paths; the same-origin escape hatch
-    // keeps the bundled dashboard working without configuration.
+    // [CorsAllowList] applies the configured allow-list; the same-origin
+    // escape hatch keeps the bundled dashboard working without configuration.
     return _corsAllowList.resolve(
       requestOrigin: origin,
       requestUri: request.requestedUri,
-      path: '/${request.url.path}',
     );
   }
 }

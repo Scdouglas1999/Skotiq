@@ -2,8 +2,8 @@ import 'package:skotiq_design/skotiq_design.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:intl/intl.dart';
-import '../astronomy/astronomy_calculations.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../providers/planetarium_providers.dart';
 
 /// Time control panel for the planetarium
@@ -14,13 +14,10 @@ import '../providers/planetarium_providers.dart';
 /// - Jump to specific date/time
 /// - Jump to tonight's astronomical dusk
 class TimeControlPanel extends ConsumerStatefulWidget {
-  /// Background color
   final Color? backgroundColor;
 
-  /// Text color
   final Color? textColor;
 
-  /// Accent color for buttons
   final Color? accentColor;
 
   /// Whether to show compact mode (icon-only buttons)
@@ -61,7 +58,12 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final timeState = ref.watch(observationTimeProvider);
+    // A panel on a hidden tab (TickerMode off) does not follow the 1 Hz clock:
+    // each tick would rebuild it, and every rebuild costs a frame nobody sees.
+    // It reads the time afresh when the tab is shown again.
+    final timeState = TickerMode.valuesOf(context).enabled
+        ? ref.watch(observationTimeProvider)
+        : ref.read(observationTimeProvider);
     final twilight = ref.watch(twilightTimesProvider);
 
     final bgColor = widget.backgroundColor ?? context.skotiqColors.surface;
@@ -99,19 +101,26 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
     Color accent, {
     required bool narrow,
   }) {
-    return Row(
+    final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Time display
         _buildTimeDisplay(timeState, txtColor, showSeconds: !narrow),
         const SizedBox(width: 8),
-        // Play/Pause
         _buildPlayPauseButton(timeState, accent),
         // Speed controls
         _buildSpeedButton(isForward: false, color: txtColor),
         _buildSpeedButton(isForward: true, color: txtColor),
-        // Now button
         narrow ? _buildCompactNowButton(accent) : _buildNowButton(accent),
+      ],
+    );
+    final daylight = _buildDaylightNote(txtColor);
+    if (daylight == null) return row;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        daylight,
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        row,
       ],
     );
   }
@@ -122,21 +131,23 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
     Color txtColor,
     Color accent,
   ) {
+    final daylight = _buildDaylightNote(txtColor);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (daylight != null) ...[
+          daylight,
+          const SizedBox(height: SkotiqTokens.spaceXs),
+        ],
         // Date/Time row
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Date button
             _buildDateButton(timeState.time, txtColor),
             const SizedBox(width: 8),
-            // Time display
             _buildTimeDisplay(timeState, txtColor),
             const SizedBox(width: 8),
-            // Speed indicator
             _buildSpeedIndicator(timeState, txtColor),
           ],
         ),
@@ -161,7 +172,6 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
               ),
             ),
             const SizedBox(width: 4),
-            // Play/Pause
             _buildPlayPauseButton(timeState, accent, large: true),
             const SizedBox(width: 4),
             // Step forward
@@ -237,13 +247,42 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
     );
   }
 
+  /// The chart keeps a dark sky at every hour so it stays readable, so with
+  /// the Sun up it says so instead of passing a daytime sky off as night.
+  Widget? _buildDaylightNote(Color txtColor) {
+    final sunAltitude = ref.watch(planetariumSunAltitudeProvider);
+    if (sunAltitude == null || sunAltitude < 0) return null;
+    final text = 'Sun ${sunAltitude.round()}° up · sky drawn as if dark';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          LucideIcons.sun,
+          size: SkotiqTokens.iconXs,
+          color: context.skotiqColors.warning,
+        ),
+        const SizedBox(width: SkotiqTokens.spaceXs),
+        Flexible(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: SkotiqTypography.labelSm.copyWith(
+              color: txtColor.withValues(alpha: 0.75),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTimeDisplay(
     ObservationTimeState timeState,
     Color txtColor, {
     bool showSeconds = true,
   }) {
-    final timeFormat = DateFormat(showSeconds ? 'HH:mm:ss' : 'HH:mm');
-    final displayTime = timeFormat.format(timeState.time);
+    final displayTime = showSeconds
+        ? ClockFormat.hms(timeState.time)
+        : ClockFormat.hm(timeState.time);
 
     return _readoutNode(
       label: 'Sky time $displayTime',
@@ -260,8 +299,6 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
   }
 
   Widget _buildDateButton(DateTime time, Color txtColor) {
-    final dateFormat = DateFormat('MMM d, yyyy');
-
     // A bare InkWell carries no button role and no enabled state, so the chip
     // that opens the date picker was reported as an inert, DISABLED panel.
     return MergeSemantics(
@@ -284,7 +321,7 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
                 Icon(LucideIcons.calendar, size: 14, color: txtColor),
                 const SizedBox(width: 4),
                 Text(
-                  dateFormat.format(time),
+                  ClockFormat.monthDayYear(time),
                   style: TextStyle(
                     color: txtColor,
                     fontSize: SkotiqTypography.fontSize12,

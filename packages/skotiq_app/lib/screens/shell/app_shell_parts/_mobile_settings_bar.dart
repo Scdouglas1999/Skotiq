@@ -1,13 +1,14 @@
 // The mobile settings bar shown in the shell chrome.
 part of '../app_shell.dart';
 
-class _MobileSettingsBar extends StatelessWidget {
+class _MobileSettingsBar extends ConsumerWidget {
   final VoidCallback onOpenSettings;
 
   const _MobileSettingsBar({required this.onOpenSettings});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(phoneBarStatusProvider);
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
     // A narrow DESKTOP window still has no OS decorations (the runners set
@@ -38,13 +39,21 @@ class _MobileSettingsBar extends StatelessWidget {
       child: Row(
         children: [
           // The wordmark yields before the caption buttons do: on a very
-          // narrow window the lockup may ellipsize, but close must not vanish.
+          // narrow window the lockup scales down, but close must not vanish.
           const Flexible(
-            child: SkotiqLockup(markSize: 18),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: SkotiqLockup(markSize: 18),
+            ),
           ),
           const Spacer(),
+          // The link to the imaging host, as the wide top band shows it: a
+          // linked client must see whether its host answers at every width.
+          const RemoteConnectionIndicator(compact: true),
+          if (status != null) status,
           SkotiqIconButton(
-            key: TutorialKeys.navSettings,
+            key: TourTarget.navSettings.key,
             icon: SkotiqIcons.settings,
             tooltip: l10n.text('settingsTitle'),
             tooltipPosition: SkotiqTooltipPosition.bottom,

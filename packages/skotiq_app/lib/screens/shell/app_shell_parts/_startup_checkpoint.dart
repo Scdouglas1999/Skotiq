@@ -1,4 +1,3 @@
-// Startup checkpoint discovery, recovery dialog and close-confirmation helpers.
 part of '../app_shell.dart';
 
 enum AppStartupCheckpointOutcome {
@@ -39,119 +38,28 @@ class CheckpointAttemptFailure {
   });
 }
 
-/// Render [error] as a sentence rather than as a Dart object.
-///
-/// `'$error'` on a plain `Exception` prints `Exception: <message>`, which is
-/// how a raw runtime string ended up in the operator's startup modal.
+/// Whether the linked host ([hostControl], null where the imaging host is
+/// this process) has a run in flight. Its checkpoint is then that live run's,
+/// so a client joining it is shown the run and is never offered to recover
+/// it.
 @visibleForTesting
-String describeCheckpointFailure(Object error) {
-  final text = error is SkotiqError ? error.userMessage : '$error';
-  final trimmed = text.trim();
-  for (final prefix in const ['Exception: ', 'Bad state: ']) {
-    if (trimmed.startsWith(prefix)) return trimmed.substring(prefix.length);
-  }
-  return trimmed;
-}
-
-const String kCatalogSetupSkippedSettingKey = 'catalog_setup_skipped';
-
-/// File names the native `CheckpointManager` uses inside the checkpoint
-/// directory (`native/skotiq_native/sequencer/src/checkpoint.rs`,
-/// `CHECKPOINT_FILENAME` / `CHECKPOINT_BACKUP`). Only
-/// [adoptLegacyGuiCheckpoint] needs them, and only to move a pre-existing pair
-/// forward; if the native names ever change, the adoption quietly finds
-/// nothing, which is the same outcome as not migrating at all.
-const List<String> _kCheckpointFileNames = <String>[
-  'skotiq_session.checkpoint',
-  'skotiq_session.checkpoint.bak',
-];
-
-/// Directory the desktop GUI keeps its sequence-recovery checkpoint in.
-///
-/// Anchored to the folder that holds the *open database*, not the platform
-/// application-support folder. Every Skotiq GUI on a machine shares one
-/// support folder, so anchoring there offers a second instance — pointed at its
-/// own database via `SKOTIQ_DATABASE_DIR` — the first instance's
-/// interrupted run, and its Discard deletes the OTHER instance's recovery
-/// state. On the database directory that is structurally impossible: a
-/// checkpoint can only ever be found beside the database whose run wrote it.
-///
-/// The `checkpoints/` subfolder mirrors `resolveHostCheckpointDirectory` in
-/// the headless host, so a GUI and a daemon sharing a database directory still
-/// do not overwrite one another's file.
-@visibleForTesting
-Future<Directory> resolveGuiCheckpointDirectory({
-  Future<File> Function() databaseFileResolver = resolveDefaultDatabaseFile,
-}) async {
-  final databaseFile = await databaseFileResolver();
-  return Directory(
-    '${databaseFile.parent.path}${Platform.pathSeparator}checkpoints',
-  );
-}
-
-/// Carries a checkpoint written by a build that stored it in the application
-/// support directory into [targetDir], so upgrading between a crash and the
-/// next launch does not silently drop a resumable night.
-///
-/// Only performed when `SKOTIQ_DATABASE_DIR` is unset. In that default
-/// layout there is exactly one database on the machine, so the legacy file
-/// provably belongs to it — and [SingleInstanceLock] guarantees no other
-/// Skotiq is running against it, so nothing can be moved out from under a
-/// live process. With the override set, the legacy file may belong to any of
-/// several databases; adopting it would re-create the cross-database mix-up
-/// this guards against, so it is left alone (and ignored) instead.
-///
-/// Never throws: a failed adoption must not stop the app from configuring the
-/// checkpoint directory it will write tonight's recovery data to.
-@visibleForTesting
-Future<void> adoptLegacyGuiCheckpoint({
-  required Directory targetDir,
-  Future<Directory> Function() legacyDirectoryResolver =
-      resolveSkotiqDataDirectory,
-  Map<String, String>? environment,
-}) async {
-  final env = environment ?? Platform.environment;
-  final override = env[skotiqDatabaseDirEnv]?.trim();
-  if (override != null && override.isNotEmpty) return;
-
-  try {
-    final legacyDir = await legacyDirectoryResolver();
-    if (legacyDir.path == targetDir.path) return;
-
-    for (final name in _kCheckpointFileNames) {
-      final legacyFile =
-          File('${legacyDir.path}${Platform.pathSeparator}$name');
-      if (!await legacyFile.exists()) continue;
-      final destination =
-          File('${targetDir.path}${Platform.pathSeparator}$name');
-      // An existing file at the destination is this database's own, newer
-      // checkpoint; never let the legacy copy overwrite it.
-      if (await destination.exists()) continue;
-      await targetDir.create(recursive: true);
-      await legacyFile.rename(destination.path);
-    }
-  } catch (_) {
-    // Deliberately swallowed — see doc comment.
-  }
-}
-
-@visibleForTesting
-bool catalogSetupWasSkipped(String? persistedValue) =>
-    persistedValue?.trim().toLowerCase() == 'true';
-
-/// Whether [backend] is a remote host whose run is in flight. Its checkpoint
-/// is then that live run's, so a client joining it is shown the run and is
-/// never offered to recover it.
-@visibleForTesting
-Future<bool> hostRunHoldsCheckpoint(Object backend) async =>
-    backend is NetworkBackend && await backend.hostRunInFlight();
+Future<bool> hostRunHoldsCheckpoint(HostControlSession? hostControl) async =>
+    hostControl != null && await hostControl.hostRunInFlight();
 
 /// Whether launch offers to recover [info]'s run: only a run the app died
 /// under. A run that was stopped, failed or ended early keeps its checkpoint
 /// and is continued from History instead of being raised as an interruption.
+///
+/// Nor a run with nothing to recover (no frame taken) or one older than the
+/// Continue Session window: a "Recover Sequence? (0 frames)" prompt for a
+/// days-old checkpoint offers to restore nothing.
 @visibleForTesting
-bool offersCheckpointRecovery(CheckpointInfo? info) =>
-    info != null && info.canResume && info.wasInterrupted;
+bool offersCheckpointRecovery(CheckpointInfo? info, {DateTime? now}) =>
+    info != null &&
+    info.canResume &&
+    info.wasInterrupted &&
+    (info.completedExposures > 0 || info.completedIntegrationSecs > 0) &&
+    checkpointAgeSeconds(info, now: now) <= kContinueSessionMaxAge.inSeconds;
 
 /// How old [info]'s checkpoint is now, from its save time. A host that
 /// reports a cached age keeps reporting the age it had when first read.
@@ -201,7 +109,7 @@ Widget buildCheckpointRecoveryDialog({
       : '${ageMinutes ~/ 60}h ${ageMinutes % 60}m ago';
   final integration = DurationFormat.of(
     Duration(seconds: info.completedIntegrationSecs.round()),
-    style: DurationStyle.hoursMinutesTrimmed,
+    style: DurationStyle.short,
   );
   final frames = info.completedExposures;
 
@@ -273,7 +181,7 @@ Widget buildCheckpointRecoveryDialog({
             SkotiqAlert(
               severity: SkotiqAlertSeverity.error,
               title: 'Recovery did not complete',
-              message: '${describeCheckpointFailure(failure.error)}\n\n'
+              message: '${userFacingError(failure.error)}\n\n'
                   '$aftermath',
             ),
           ],
@@ -382,22 +290,10 @@ Future<AppStartupCheckpointOutcome> runAppCheckpointRecovery({
 }
 
 @visibleForTesting
-Future<void> runAppStartupChecks({
-  required Future<AppStartupCheckpointOutcome> Function() checkCheckpoint,
-  required Future<void> Function() checkCatalogs,
-}) async {
-  final checkpointOutcome = await checkCheckpoint();
-  if (checkpointOutcome == AppStartupCheckpointOutcome.noRecovery ||
-      checkpointOutcome == AppStartupCheckpointOutcome.discarded ||
-      checkpointOutcome == AppStartupCheckpointOutcome.deferred) {
-    await checkCatalogs();
-  }
-}
-
-@visibleForTesting
 bool appCloseHasActiveOperations({
   required bool sequenceOwnsHardware,
   required bool sessionBusy,
+  required Phd2State guider,
   required bool cameraBusy,
   required bool mountBusy,
   required bool flatWizardBusy,
@@ -405,6 +301,7 @@ bool appCloseHasActiveOperations({
 }) {
   return sequenceOwnsHardware ||
       sessionBusy ||
+      guider.inGuideSession ||
       cameraBusy ||
       mountBusy ||
       flatWizardBusy ||

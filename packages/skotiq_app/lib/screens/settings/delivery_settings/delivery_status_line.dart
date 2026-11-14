@@ -306,7 +306,7 @@ class DeliveryStatusLine {
       return DeliveryStatusLine(
         DeliveryStatusKind.awaitingPull,
         'Published ${_files(awaitingPull.length)}, '
-        '${_bytes(_totalBytes(awaitingPull))} — waiting for $who to pull.',
+        '${ByteFormat.size(_totalBytes(awaitingPull))} — waiting for $who to pull.',
       );
     }
     if (delivered.isEmpty) {
@@ -316,14 +316,13 @@ class DeliveryStatusLine {
       );
     }
     final at = _newestDeliveredAt(delivered);
-    final when = at == null
-        ? 'at an unrecorded time'
-        : DateFormat('HH:mm').format(at.toLocal());
+    final when =
+        at == null ? 'at an unrecorded time' : ClockFormat.hm(at.toLocal());
     final recovered = delivered.any((entry) => entry.lastError != null);
     return DeliveryStatusLine(
       DeliveryStatusKind.delivered,
       'Delivered $when, ${_files(delivered.length)}, '
-      '${_bytes(_totalBytes(delivered))}'
+      '${ByteFormat.size(_totalBytes(delivered))}'
       '${recovered ? ' (after a retry).' : '.'}',
     );
   }
@@ -363,25 +362,6 @@ class DeliveryStatusLine {
   }
 
   static String _files(int count) => count == 1 ? '1 file' : '$count files';
-
-  /// A journal byte total in the unit it is actually divided into.
-  ///
-  /// The step is 1024, so the suffixes are the binary ones. Printed as `MB`
-  /// this understated a real delivery: the D1 night's ten delivered files sum
-  /// to 34,641,423 bytes — 34.6 MB — and the card read "33.0 MB", which is the
-  /// mebibyte count wearing the megabyte's name.
-  static String _bytes(int bytes) {
-    const units = <String>['B', 'KiB', 'MiB', 'GiB', 'TiB'];
-    var value = bytes.toDouble();
-    var unit = 0;
-    while (value >= 1024 && unit < units.length - 1) {
-      value /= 1024;
-      unit++;
-    }
-    final rendered =
-        unit == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(1);
-    return '$rendered ${units[unit]}';
-  }
 }
 
 /// The colour a status line is drawn in. Kept beside the kinds so a new kind

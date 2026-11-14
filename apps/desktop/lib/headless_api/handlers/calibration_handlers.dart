@@ -38,25 +38,73 @@ import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show OrderingTerm, Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
-import '../route_metadata.dart' show backupUploadMaxRequestBodyBytes;
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 part 'calibration_handlers/dark_library_handlers.dart';
 part 'calibration_handlers/flat_history_handlers.dart';
 part 'calibration_handlers/defect_map_handlers.dart';
 part 'calibration_handlers/end_of_night_handlers.dart';
 
-/// calibration library handlers.
-class CalibrationHandlers {
+class CalibrationHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    CalibrationApi.getCalibrationSettings: handleGetCalibrationSettings,
+    CalibrationApi.updateCalibrationSettings: handleUpdateCalibrationSettings,
+    CalibrationApi.getEndOfNight: handleGetEndOfNight,
+    CalibrationApi.updateEndOfNightSettings: handleUpdateEndOfNightSettings,
+    CalibrationApi.startEndOfNight: handleStartEndOfNight,
+    CalibrationApi.endOfNightImagingEnded: handleEndOfNightImagingEnded,
+    CalibrationApi.confirmEndOfNightCapped: handleConfirmEndOfNightCapped,
+    CalibrationApi.cancelEndOfNight: handleCancelEndOfNight,
+    CalibrationApi.matchDark: handleMatchDark,
+    CalibrationApi.listDarks: handleListDarks,
+    CalibrationApi.registerDark: handleRegisterDark,
+    CalibrationApi.uploadDark: handleUploadDark,
+    CalibrationApi.findMatchingDark: handleFindMatchingDark,
+    CalibrationApi.verifyDarkSizes: handleVerifyDarkSizes,
+    CalibrationApi.getDarkSettings: handleGetDarkSettings,
+    CalibrationApi.updateDarkSettings: handleUpdateDarkSettings,
+    CalibrationApi.createMasterDark: handleCreateMasterDark,
+    CalibrationApi.cleanDarkOrphans: handleCleanDarkOrphans,
+    CalibrationApi.clearDarkLibrary: handleClearDarkLibrary,
+    CalibrationApi.deleteDarkGroup: handleDeleteDarkGroup,
+    CalibrationApi.getDark: handleGetDark,
+    CalibrationApi.downloadDark: handleDownloadDark,
+    CalibrationApi.deleteDark: handleDeleteDark,
+    CalibrationApi.listFlats: handleListFlats,
+    CalibrationApi.recordFlat: handleRecordFlat,
+    CalibrationApi.flatRecommendation: handleFlatRecommendation,
+    CalibrationApi.getFlat: handleGetFlat,
+    CalibrationApi.deleteFlat: handleDeleteFlat,
+    CalibrationApi.listDefectMaps: handleListDefectMaps,
+    CalibrationApi.registerDefectMap: handleRegisterDefectMap,
+    CalibrationApi.buildDefectMap: handleBuildDefectMap,
+    CalibrationApi.getDefectMapStatus: handleGetDefectMapStatus,
+    CalibrationApi.getDefectMapSettings: handleGetDefectMapSettings,
+    CalibrationApi.updateDefectMapSettings: handleUpdateDefectMapSettings,
+    CalibrationApi.clearDefectMap: handleClearDefectMap,
+    CalibrationApi.applyDefectMapToSequencer: handleApplyDefectMapToSequencer,
+    CalibrationApi.getDefectMap: handleGetDefectMap,
+    CalibrationApi.deleteDefectMap: handleDeleteDefectMap,
+    CalibrationApi.regenerateDefectMap: handleRegenerateDefectMap,
+  };
+
   /// Same 256 MB cap as the backup-upload path. A dark master frame from a
   /// modern full-frame camera is typically 100–200 MB so this is a snug
   /// upper bound that still rejects accidental large-blob uploads.
-  static const int _maxDarkUploadBytes = backupUploadMaxRequestBodyBytes;
+  static const int _maxDarkUploadBytes = ApiBodyLimit.archive;
 
   /// Default limit on listing endpoints. Picked to fit comfortably in a
   /// single response payload — 100 rows is roughly 20 KB of JSON, well
@@ -111,9 +159,9 @@ class CalibrationHandlers {
     return resolveSkotiqDataDirectory();
   }
 
-  // Helpers — JSON shape
-
-  Future<Map<String, dynamic>> _darkEntryToWire(DarkLibraryEntry entry) async {
+  Future<RemoteDarkLibraryEntry> _darkEntryToWire(
+    DarkLibraryEntry entry,
+  ) async {
     final file = File(entry.filePath);
     bool exists = false;
     int? fileSize;
@@ -125,47 +173,44 @@ class CalibrationHandlers {
     } on FileSystemException {
       exists = false;
     }
-    return {
-      'id': entry.id,
-      'filePath': entry.filePath,
-      'fileName': p.basename(entry.filePath),
-      'exposureDuration': entry.exposureTime,
-      'sensorTempC': entry.temperature,
-      'gain': entry.gain,
-      'offset': entry.offset,
-      'binX': entry.binX,
-      'binY': entry.binY,
-      'frameType': entry.frameType,
-      'width': entry.width,
-      'height': entry.height,
-      'masterPath': entry.masterDarkPath,
-      'frameCount': entry.masterFrameCount,
-      'createdAt': entry.createdAt.toUtc().toIso8601String(),
-      'fileSize': fileSize,
-      'fileExists': exists,
-    };
+    return RemoteDarkLibraryEntry(
+      id: entry.id,
+      filePath: entry.filePath,
+      fileName: p.basename(entry.filePath),
+      exposureDuration: entry.exposureTime,
+      sensorTempC: entry.temperature,
+      gain: entry.gain,
+      offset: entry.offset,
+      binX: entry.binX,
+      binY: entry.binY,
+      frameType: entry.frameType,
+      width: entry.width,
+      height: entry.height,
+      masterPath: entry.masterDarkPath,
+      frameCount: entry.masterFrameCount,
+      createdAt: entry.createdAt,
+      fileSize: fileSize,
+      fileExists: exists,
+    );
   }
 
-  Map<String, dynamic> _flatEntryToJson(FlatHistoryEntry entry) {
-    return {
-      'id': entry.id,
-      'filter': entry.filterName,
-      'exposureDuration': entry.exposureTime,
-      'histogramTarget': entry.histogramTarget,
-      'adu': entry.actualAdu,
-      'gain': entry.gain,
-      'binning': entry.binning,
-      'panelBrightness': entry.panelBrightness,
-      'skyAduRate': entry.skyAduRate,
-      'twilightPhase': entry.twilightPhase,
-      'equipmentProfileId': entry.equipmentProfileId,
-      'createdAt': entry.timestamp.toUtc().toIso8601String(),
-    };
-  }
+  RemoteFlatHistoryEntry _flatEntryToWire(FlatHistoryEntry entry) =>
+      RemoteFlatHistoryEntry(
+        id: entry.id,
+        filter: entry.filterName,
+        exposureDuration: entry.exposureTime,
+        histogramTarget: entry.histogramTarget,
+        adu: entry.actualAdu,
+        gain: entry.gain,
+        binning: entry.binning,
+        panelBrightness: entry.panelBrightness,
+        skyAduRate: entry.skyAduRate,
+        twilightPhase: entry.twilightPhase,
+        equipmentProfileId: entry.equipmentProfileId,
+        createdAt: entry.timestamp,
+      );
 
-  Future<Map<String, dynamic>> _defectMapMetadataToJson(
-    DefectMapEntry row,
-  ) async {
+  Future<RemoteDefectMap> _defectMapToWire(DefectMapEntry row) async {
     int? fileSize;
     bool fileExists = false;
     final sp = row.filePath;
@@ -180,21 +225,19 @@ class CalibrationHandlers {
         fileExists = false;
       }
     }
-    return {
-      'id': row.id,
-      'cameraId': row.cameraId,
-      'width': row.width,
-      'height': row.height,
-      'temperatureBucketDecicelsius': row.temperatureBucketDecicelsius,
-      'defectivePixelCount': row.defectivePixelCount,
-      'lastRebuiltAt': row.lastRebuiltAt.toUtc().toIso8601String(),
-      'sourceFilePath': row.filePath,
-      'fileSize': fileSize,
-      'fileExists': fileExists,
-    };
+    return RemoteDefectMap(
+      id: row.id,
+      cameraId: row.cameraId,
+      width: row.width,
+      height: row.height,
+      temperatureBucketDecicelsius: row.temperatureBucketDecicelsius,
+      defectivePixelCount: row.defectivePixelCount,
+      lastRebuiltAt: row.lastRebuiltAt,
+      sourceFilePath: row.filePath,
+      fileSize: fileSize,
+      fileExists: fileExists,
+    );
   }
-
-  // Helpers — query-param parsing
 
   int? _parseIntParam(Map<String, String> params, String name) {
     final raw = params[name];

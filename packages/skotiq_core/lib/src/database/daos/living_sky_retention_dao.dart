@@ -1,7 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../tables/living_sky_retention.dart';
 
@@ -73,8 +71,3 @@ class LivingSkyRetentionDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 }
-
-/// Riverpod provider for [LivingSkyRetentionDao].
-final livingSkyRetentionDaoProvider = Provider<LivingSkyRetentionDao>((ref) {
-  return LivingSkyRetentionDao(ref.watch(databaseProvider));
-});

@@ -19,7 +19,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/auth/pairing_attempt_tracker.dart';
 import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
 import 'package:skotiq_desktop/headless_api/handlers/pairing_handlers.dart';

@@ -60,7 +60,6 @@ class AdaptiveTabBar extends StatefulWidget {
   /// The tabs, in display order.
   final List<AdaptiveTab> tabs;
 
-  /// Index of the currently selected tab.
   final int selectedIndex;
 
   /// Called with the tapped tab's index.
@@ -96,7 +95,6 @@ class AdaptiveTabBar extends StatefulWidget {
   /// `labelWidth + 2 * tabPadding`.
   static const double tabPadding = 2;
 
-  /// Thickness of the selected indicator.
   static const double indicatorThickness = 2;
 
   @override

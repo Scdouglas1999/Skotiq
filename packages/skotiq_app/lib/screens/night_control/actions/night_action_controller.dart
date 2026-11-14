@@ -11,11 +11,13 @@ import 'dart:async';
 import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../../services/manual_capture_controller.dart';
-import '../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
+import '../../../services/run_dashboard_providers.dart'
     show runDashboardActiveTargetProvider;
 import '../data/plan/night_flip_provider.dart';
 import '../night_control_contracts.dart';
@@ -23,6 +25,8 @@ import 'armed_start_provider.dart';
 import 'manual_action_gating.dart';
 import 'night_rig_ops.dart';
 import 'run_pause_guard.dart';
+import '../data/session/before_you_start_provider.dart'
+    show nightSolverStatusProvider;
 import '../data/session/camera_exposure_provider.dart';
 import 'solve_and_sync.dart';
 
@@ -99,33 +103,57 @@ NightActionInputs readNightActionInputs(
   T Function<T>(ProviderListenable<T> provider) read,
   ManualActionState action,
 ) {
+  // Selected, not whole states: the gating reads a few facts per device, and
+  // a whole state changes with every telemetry poll.
   bool connected(DeviceConnectionState state) =>
       state == DeviceConnectionState.connected;
-  final camera = read(cameraStateProvider);
-  final mount = read(mountStateProvider);
-  final focuser = read(focuserStateProvider);
-  final guider = read(guiderStateProvider);
+  final camera = read(
+    cameraStateProvider.select(
+      (c) => (connected: connected(c.connectionState), cooling: c.isCooling),
+    ),
+  );
+  final mount = read(
+    mountStateProvider.select(
+      (m) => (
+        connected: connected(m.connectionState),
+        parked: m.isParked,
+        tracking: m.isTracking,
+      ),
+    ),
+  );
+  final guider = read(
+    guiderStateProvider.select(
+      (g) => (connected: connected(g.connectionState), guiding: g.isGuiding),
+    ),
+  );
   final target = read(nightCenterTargetProvider);
   return NightActionInputs(
     canCommand: read(backendCanCommandProvider),
     runState: read(sequenceExecutionStateProvider),
     action: action,
     loopActive: action.isBusy && action.active == ManualActionId.loop,
-    cameraConnected: connected(camera.connectionState),
-    mountConnected: connected(mount.connectionState),
-    focuserConnected: connected(focuser.connectionState),
-    guiderConnected: connected(guider.connectionState),
-    isGuiding: guider.isGuiding,
-    mountParked: mount.isParked,
-    mountTracking: mount.isTracking,
-    cameraCooling: camera.isCooling,
+    cameraConnected: camera.connected,
+    mountConnected: mount.connected,
+    focuserConnected: read(
+      focuserStateProvider.select((f) => connected(f.connectionState)),
+    ),
+    guiderConnected: guider.connected,
+    isGuiding: guider.guiding,
+    mountParked: mount.parked,
+    mountTracking: mount.tracking,
+    cameraCooling: camera.cooling,
     coolerSetpoint: read(nightCoolerSetpointProvider),
     targetName: target?.name,
     hasTarget: target != null,
-    hasFrame: read(currentImageProvider)?.filePath != null,
-    exposureSeconds: read(exposureSettingsProvider).exposureTime,
-    filterName: read(filterWheelStateProvider).currentFilterName,
-    flipDone: read(nightFlipProvider).doneForThisTransit,
+    hasFrame: read(currentImageProvider.select((i) => i?.filePath != null)),
+    exposureSeconds: read(
+      exposureSettingsProvider.select((e) => e.exposureTime),
+    ),
+    filterName: read(
+      filterWheelStateProvider.select((w) => w.currentFilterName),
+    ),
+    flipDone: read(nightFlipProvider.select((f) => f.doneForThisTransit)),
+    solverMissing: read(nightSolverStatusProvider)?.ready == false,
   );
 }
 
@@ -166,10 +194,6 @@ class NightActionController extends Notifier<ManualActionState>
     });
     return ManualActionState.idle;
   }
-
-  // -------------------------------------------------------------------------
-  // NightActionApi
-  // -------------------------------------------------------------------------
 
   @override
   Future<void> run(ManualActionId id) => switch (id) {
@@ -401,10 +425,9 @@ class NightActionController extends Notifier<ManualActionState>
     _update(clearError: true);
     // On a client the host holds the schedule and starts the run itself, so
     // it fires even if this computer sleeps or loses the link before dark.
-    final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    if (ref.read(linkedHostCalibrationToolsProvider) case final hostTools?) {
       try {
-        final at = await backend.armHostStartAtDark();
+        final at = await hostTools.armHostStartAtDark();
         ref.read(hostScheduledStartProvider.notifier).state = at;
         _log.info(
             'Start at dark armed on the imaging host for '
@@ -443,11 +466,10 @@ class NightActionController extends Notifier<ManualActionState>
   @override
   void cancelArmedStart() {
     if (ref.read(nightArmedStartProvider) == null) return;
-    final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend) {
+    if (ref.read(linkedHostNightProvider) case final hostNight?) {
       unawaited(() async {
         try {
-          await backend.cancelHostScheduledStart();
+          await hostNight.cancelHostScheduledStart();
           ref.read(hostScheduledStartProvider.notifier).state = null;
           _log.info('Start at dark canceled on the imaging host',
               source: _logSource);
@@ -546,10 +568,6 @@ class NightActionController extends Notifier<ManualActionState>
           duration: const Duration(minutes: 10),
         );
   }
-
-  // -------------------------------------------------------------------------
-  // Orchestration
-  // -------------------------------------------------------------------------
 
   /// Single flight: the action in flight is joined, a different one while
   /// busy is ignored, a disabled one is refused. [holdRun] false skips the
@@ -752,8 +770,7 @@ class NightActionController extends Notifier<ManualActionState>
     );
   }
 
-  static String _clean(Object error) =>
-      ManualCaptureController.cleanError(error);
+  static String _clean(Object error) => userFacingError(error);
 }
 
 /// A failure that already has its operator-facing text.

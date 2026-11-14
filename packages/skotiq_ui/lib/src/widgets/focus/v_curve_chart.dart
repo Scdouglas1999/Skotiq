@@ -1,9 +1,32 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart' show FocusRange, VCurvePoint;
-
 import '../../theme/skotiq_typography.dart';
+
+/// One measured focus sample: a focuser position and the star size there.
+class VCurveSample {
+  const VCurveSample({
+    required this.position,
+    required this.hfr,
+    this.isRejected = false,
+  });
+
+  final int position;
+  final double hfr;
+
+  /// The curve fit left this sample out. It is drawn hollow and the line
+  /// skips it.
+  final bool isRejected;
+}
+
+/// The focuser positions the x-axis must cover even before samples reach
+/// them, so a scan in flight does not rescale as it goes.
+class VCurvePositionRange {
+  const VCurvePositionRange({required this.min, required this.max});
+
+  final int min;
+  final int max;
+}
 
 /// The ONE V-curve chart in the app.
 ///
@@ -35,7 +58,7 @@ class VCurveSeries {
 
   /// Samples in this series, in acquisition order. The line is drawn in
   /// POSITION order; `highlightLatest` reads the acquisition order.
-  final List<VCurvePoint> points;
+  final List<VCurveSample> points;
 
   /// The series line and point colour. Callers pass this through
   /// `SkotiqChartColors.forTheme` so red night stays on the red axis.
@@ -95,7 +118,7 @@ class VCurvePainter extends CustomPainter {
 
   /// The commanded scan range. When given it fixes the x-axis so the curve
   /// does not rescale under itself as points arrive.
-  final FocusRange? focusRange;
+  final VCurvePositionRange? focusRange;
 
   final Color gridColor;
   final Color textColor;
@@ -148,7 +171,7 @@ class VCurvePainter extends CustomPainter {
     ),
   };
 
-  Iterable<VCurvePoint> get _allPoints => series.expand((s) => s.points);
+  Iterable<VCurveSample> get _allPoints => series.expand((s) => s.points);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -234,7 +257,10 @@ class VCurvePainter extends CustomPainter {
     // Sorted by position so the polyline forms a clean V regardless of the
     // order the points were acquired in — which, for the from-above scan, is
     // descending.
-    final sorted = List.of(s.points)
+    // Points the fit left out stay on the chart, hollow and gray, but the
+    // line skips them: drawn through, a few falsely low dropouts turn the V
+    // into a W.
+    final sorted = s.points.where((p) => !p.isRejected).toList()
       ..sort((a, b) => a.position.compareTo(b.position));
 
     if (sorted.length > 1) {
@@ -271,9 +297,21 @@ class VCurvePainter extends CustomPainter {
       final y = toY(p.hfr);
       if (!x.isFinite || !y.isFinite) continue;
 
+      final isLatest = s.highlightLatest && i == s.points.length - 1;
+      if (p.isRejected) {
+        canvas.drawCircle(
+          Offset(x, y),
+          isLatest ? _latestRadius : _pointRadius,
+          Paint()
+            ..color = textColor.withValues(alpha: 0.8)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5,
+        );
+        continue;
+      }
+
       final isVertexSample =
           s.vertexPosition != null && p.position == s.vertexPosition;
-      final isLatest = s.highlightLatest && i == s.points.length - 1;
 
       if (isVertexSample) {
         canvas.drawCircle(
@@ -317,7 +355,7 @@ class VCurvePainter extends CustomPainter {
     Rect chartArea,
     VCurveSeries s,
     Color vertexColor,
-    List<VCurvePoint> sorted,
+    List<VCurveSample> sorted,
     double Function(num) toX,
     double Function(double) toY,
   ) {
@@ -353,7 +391,7 @@ class VCurvePainter extends CustomPainter {
 
   /// HFR of the sampled polyline at [position], so the vertex mark sits ON the
   /// curve the operator can see rather than at a fitted minimum they cannot.
-  double _interpolatedHfr(List<VCurvePoint> sorted, int position) {
+  double _interpolatedHfr(List<VCurveSample> sorted, int position) {
     if (position <= sorted.first.position) return sorted.first.hfr;
     if (position >= sorted.last.position) return sorted.last.hfr;
     for (var i = 1; i < sorted.length; i++) {
@@ -447,6 +485,8 @@ class VCurvePainter extends CustomPainter {
       final a = series[i];
       final b = old.series[i];
       if (a.points.length != b.points.length ||
+          a.points.where((p) => p.isRejected).length !=
+              b.points.where((p) => p.isRejected).length ||
           a.vertexPosition != b.vertexPosition ||
           a.color != b.color ||
           a.vertexColor != b.vertexColor ||
@@ -477,7 +517,7 @@ class VCurveChart extends StatelessWidget {
   });
 
   final List<VCurveSeries> series;
-  final FocusRange? focusRange;
+  final VCurvePositionRange? focusRange;
   final Color gridColor;
   final Color textColor;
   final VCurveChartDensity density;
@@ -493,10 +533,12 @@ class VCurveChart extends StatelessWidget {
       if (s.points.isEmpty) continue;
       final name = s.label ?? 'Focus curve';
       final vertex = s.vertexPosition;
+      final left = s.points.where((p) => p.isRejected).length;
+      final count = left == 0
+          ? '${s.points.length} points'
+          : '${s.points.length} points, $left left out of the fit';
       parts.add(
-        vertex == null
-            ? '$name: ${s.points.length} points'
-            : '$name: ${s.points.length} points, optimum at $vertex',
+        vertex == null ? '$name: $count' : '$name: $count, optimum at $vertex',
       );
     }
     if (parts.isEmpty) return 'Focus curve chart, no points yet';

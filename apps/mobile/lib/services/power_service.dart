@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:battery_plus/battery_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'mobile_preferences.dart';
 import 'notification_service.dart';
+import 'package:skotiq_core/services.dart';
 
 enum BatteryWarningLevel { normal, low, veryLow, critical }
 
@@ -24,7 +24,6 @@ class PowerService {
   BatteryState _currentBatteryState = BatteryState.full;
   BatteryWarningLevel _lastWarningLevel = BatteryWarningLevel.normal;
 
-  // Callbacks for battery events
   Function(int percentage)? onBatteryLevelChanged;
   Function(BatteryState state)? onBatteryStateChanged;
   Function(BatteryWarningLevel level)? onBatteryWarning;
@@ -45,16 +44,13 @@ class PowerService {
   final _batteryLevelStreamController = StreamController<int>.broadcast();
 
   Future<void> initialize() async {
-    // Get initial battery level
     _currentBatteryLevel = await _battery.batteryLevel;
     _currentBatteryState = await _battery.batteryState;
 
-    // Listen to battery state changes (charging/discharging)
     _batteryStateSubscription = _battery.onBatteryStateChanged.listen((state) {
       _currentBatteryState = state;
       onBatteryStateChanged?.call(state);
 
-      // Cancel critical warnings if charging
       if (state == BatteryState.charging || state == BatteryState.full) {
         _lastWarningLevel = BatteryWarningLevel.normal;
       }
@@ -66,22 +62,16 @@ class PowerService {
 
     try {
       if (enableCpuWakeLock) {
-        // Enable wake lock to keep CPU running
         await WakelockPlus.enable();
         _wakeLockActive = true;
-        developer.log(
-          'Wake lock acquired (CPU)',
-          name: 'PowerService',
-          level: 800,
-        );
+        Log.info('Wake lock acquired (CPU)', source: 'PowerService');
       }
     } catch (e, st) {
       // Caught + degraded: imaging may pause when OS suspends. Severe so
       // operators notice in the log file post-session.
-      developer.log(
+      Log.error(
         'Failed to acquire wake lock: $e',
-        name: 'PowerService',
-        level: 1000,
+        source: 'PowerService',
         error: e,
         stackTrace: st,
       );
@@ -94,14 +84,13 @@ class PowerService {
     try {
       await WakelockPlus.disable();
       _wakeLockActive = false;
-      developer.log('Wake lock released', name: 'PowerService', level: 800);
+      Log.info('Wake lock released', source: 'PowerService');
     } catch (e, st) {
       // Caught + degraded: wake lock stays held until process exit. This
       // leaks battery; severe so it surfaces in the log file.
-      developer.log(
+      Log.error(
         'Failed to release wake lock: $e',
-        name: 'PowerService',
-        level: 1000,
+        source: 'PowerService',
         error: e,
         stackTrace: st,
       );
@@ -112,19 +101,16 @@ class PowerService {
     if (_isMonitoring) return;
 
     _isMonitoring = true;
-    developer.log(
+    Log.info(
       'Started battery monitoring (interval: ${batteryCheckIntervalSeconds}s)',
-      name: 'PowerService',
-      level: 800,
+      source: 'PowerService',
     );
 
-    // Check battery level periodically
     _batteryMonitorTimer = Timer.periodic(
       Duration(seconds: batteryCheckIntervalSeconds),
       (_) => _checkBatteryLevel(),
     );
 
-    // Initial check
     _checkBatteryLevel();
   }
 
@@ -136,11 +122,7 @@ class PowerService {
     _isMonitoring = false;
     _lastWarningLevel = BatteryWarningLevel.normal;
 
-    developer.log(
-      'Stopped battery monitoring',
-      name: 'PowerService',
-      level: 800,
-    );
+    Log.info('Stopped battery monitoring', source: 'PowerService');
   }
 
   Future<void> _checkBatteryLevel() async {
@@ -148,16 +130,12 @@ class PowerService {
       final level = await _battery.batteryLevel;
       _currentBatteryLevel = level;
 
-      // Emit to stream
       _batteryLevelStreamController.add(level);
 
-      // Notify callback
       onBatteryLevelChanged?.call(level);
 
-      // Check if we need to warn about battery level
       final warningLevel = _getBatteryWarningLevel(level);
 
-      // Only notify if warning level changed and not charging
       if (warningLevel != _lastWarningLevel &&
           _currentBatteryState != BatteryState.charging &&
           _currentBatteryState != BatteryState.full) {
@@ -193,17 +171,15 @@ class PowerService {
             break;
 
           case BatteryWarningLevel.normal:
-            // Battery level returned to normal
             break;
         }
       }
     } catch (e, st) {
       // Caught + degraded: a single failed sample is fine, the periodic
       // timer keeps trying. Warn so repeated failures are visible.
-      developer.log(
+      Log.warning(
         'Error checking battery level: $e',
-        name: 'PowerService',
-        level: 900,
+        source: 'PowerService',
         error: e,
         stackTrace: st,
       );
@@ -223,13 +199,13 @@ class PowerService {
   }
 
   Future<void> startImagingSession() async {
-    developer.log('Starting imaging session', name: 'PowerService', level: 800);
+    Log.info('Starting imaging session', source: 'PowerService');
     await acquireWakeLock();
     startBatteryMonitoring();
   }
 
   Future<void> stopImagingSession() async {
-    developer.log('Stopping imaging session', name: 'PowerService', level: 800);
+    Log.info('Stopping imaging session', source: 'PowerService');
     stopBatteryMonitoring();
     await releaseWakeLock();
   }

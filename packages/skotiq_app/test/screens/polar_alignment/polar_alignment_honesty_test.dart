@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/polar_alignment/polar_alignment_screen.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/polar_alignment_keys.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -92,13 +94,13 @@ Future<HarnessHandle> _pumpScreen(
 }
 
 SkotiqButton _startButton(WidgetTester tester) => tester.widget<SkotiqButton>(
-      find.byKey(PolarAlignmentTutorialKeys.startBtn),
+      find.byKey(TourTarget.polarStartButton.key),
     );
 
 Tooltip _startTooltip(WidgetTester tester) => tester.widget<Tooltip>(
       find
           .ancestor(
-            of: find.byKey(PolarAlignmentTutorialKeys.startBtn),
+            of: find.byKey(TourTarget.polarStartButton.key),
             matching: find.byType(Tooltip),
           )
           .first,

@@ -15,10 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$WeatherStatus {
 
-/// Current alert level
  AlertLevel get currentLevel;/// Active alert (null if no alert)
- WeatherAlert? get activeAlert;/// Cloud motion analysis
- CloudMotion? get motion;/// Radar frames for animation
+ WeatherAlert? get activeAlert; CloudMotion? get motion;/// Radar frames for animation
  List<RadarFrame> get radarFrames;/// Current frame index in animation
  int get currentFrameIndex;/// When the radar data behind this status was last fetched.
 ///
@@ -27,8 +25,7 @@ mixin _$WeatherStatus {
 /// indistinguishable from a real timestamp downstream, and the card
 /// rendered it as "Updated 20667 days ago" on every pre-fetch paint (and
 /// for the whole session when the fetch never succeeds).
- DateTime? get lastUpdate;/// Whether data is currently loading
- bool get isLoading;/// Error message if update failed
+ DateTime? get lastUpdate; bool get isLoading;/// Error message if update failed
  String? get errorMessage;
 /// Create a copy of WeatherStatus
 /// with the given fields replaced by the non-null parameter values.
@@ -257,11 +254,9 @@ class _WeatherStatus implements WeatherStatus {
   const _WeatherStatus({this.currentLevel = AlertLevel.clear, this.activeAlert, this.motion, final  List<RadarFrame> radarFrames = const [], this.currentFrameIndex = 0, this.lastUpdate, this.isLoading = false, this.errorMessage}): _radarFrames = radarFrames;
   factory _WeatherStatus.fromJson(Map<String, dynamic> json) => _$WeatherStatusFromJson(json);
 
-/// Current alert level
 @override@JsonKey() final  AlertLevel currentLevel;
 /// Active alert (null if no alert)
 @override final  WeatherAlert? activeAlert;
-/// Cloud motion analysis
 @override final  CloudMotion? motion;
 /// Radar frames for animation
  final  List<RadarFrame> _radarFrames;
@@ -282,7 +277,6 @@ class _WeatherStatus implements WeatherStatus {
 /// rendered it as "Updated 20667 days ago" on every pre-fetch paint (and
 /// for the whole session when the fetch never succeeds).
 @override final  DateTime? lastUpdate;
-/// Whether data is currently loading
 @override@JsonKey() final  bool isLoading;
 /// Error message if update failed
 @override final  String? errorMessage;

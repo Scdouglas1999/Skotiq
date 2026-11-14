@@ -20,14 +20,19 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
   bool _loading = true;
   bool _pushing = false;
   String? _error;
-  int _loadGeneration = 0;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+
+  /// Status loads (the newest one wins) and pushes sent to the host; what
+  /// the old host answers after a host change is dropped.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
+  ProviderSubscription<HostCloudSync?>? _hostSubscription;
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    // The cloud-sync half, not the backend: a backend listener runs before
+    // the half is rebuilt and would load from the previous host.
+    _hostSubscription = ref.listenManual<HostCloudSync?>(
+      linkedHostCloudSyncProvider,
       (previous, next) {
         if (previous == null || identical(previous, next)) return;
         _load(authorityChanged: true);
@@ -38,13 +43,12 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
 
   @override
   void dispose() {
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     super.dispose();
   }
 
   Future<void> _load({bool authorityChanged = false}) async {
-    final generation = ++_loadGeneration;
-    final backend = ref.read(backendProvider);
+    final load = _hostScopes.beginLatest();
     if (mounted) {
       setState(() {
         _loading = true;
@@ -56,15 +60,12 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
       });
     }
     try {
-      if (backend is! NetworkBackend) {
+      final cloudSync = ref.read(linkedHostCloudSyncProvider);
+      if (cloudSync == null) {
         throw StateError('The imaging host is not connected.');
       }
-      final status = await backend.getCloudSyncStatus();
-      if (!mounted ||
-          generation != _loadGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
-        return;
-      }
+      final status = await cloudSync.getCloudSyncStatus();
+      if (load.isStale) return;
       setState(() {
         _status = status;
         _loading = false;
@@ -73,16 +74,11 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
       // The banner tells the operator the status is unavailable; the cause is
       // only in the log, and cloud backup is exactly the thing that fails
       // quietly for weeks before anyone notices.
-      developer.log(
+      Log.warning(
         'Could not load cloud sync status from the imaging host: $e',
-        name: 'CloudSyncSettings',
-        level: 900,
+        source: 'CloudSyncSettings',
       );
-      if (!mounted ||
-          generation != _loadGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
-        return;
-      }
+      if (load.isStale) return;
       setState(() {
         _loading = false;
         _error = 'Could not load cloud sync status from the imaging host.';
@@ -92,8 +88,9 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
 
   Future<void> _pushNow() async {
     if (_pushing) return;
-    final backend = ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    final push = _hostScopes.begin();
+    final cloudSync = ref.read(linkedHostCloudSyncProvider);
+    if (cloudSync == null) {
       setState(() => _error = 'The imaging host is not connected.');
       return;
     }
@@ -102,8 +99,8 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
       _error = null;
     });
     try {
-      final result = await backend.pushCloudSyncNow();
-      if (!mounted || !identical(ref.read(backendProvider), backend)) return;
+      final result = await cloudSync.pushCloudSyncNow();
+      if (!mounted || push.isStale) return;
       if (!result.success) {
         setState(() {
           _error = result.errorMessage ??
@@ -118,20 +115,17 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
     } catch (e) {
       // The panel says the push failed; without this line the reason is lost,
       // and a backup that never lands is only discovered when it is needed.
-      developer.log(
+      Log.error(
         'Cloud backup push to the imaging host failed: $e',
-        name: 'CloudSyncSettings',
-        level: 1000,
+        source: 'CloudSyncSettings',
       );
-      if (!mounted || !identical(ref.read(backendProvider), backend)) return;
+      if (!mounted || push.isStale) return;
       setState(() {
         _error = 'The imaging host could not push its cloud backup. Check the '
             'host sync configuration and try again.';
       });
     } finally {
-      if (mounted && identical(ref.read(backendProvider), backend)) {
-        setState(() => _pushing = false);
-      }
+      if (push.isCurrent) setState(() => _pushing = false);
     }
   }
 
@@ -216,8 +210,7 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
                 label: 'Last push',
                 value: status.lastPushAt == null
                     ? 'Never'
-                    : DateFormat('MMM d, yyyy HH:mm')
-                        .format(status.lastPushAt!.toLocal()),
+                    : ClockFormat.monthDayYearHm(status.lastPushAt!.toLocal()),
               ),
               if (status.lastError != null || _error != null) ...[
                 const SizedBox(height: 12),
@@ -351,7 +344,7 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is SyncTargetException ? e.message : e.toString();
+        _error = e is SyncTargetException ? e.message : userFacingError(e);
         _loading = false;
       });
     }
@@ -373,7 +366,7 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is SyncTargetException ? e.message : e.toString();
+        _error = e is SyncTargetException ? e.message : userFacingError(e);
         _loading = false;
       });
     }
@@ -485,7 +478,6 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
       itemCount: _bundles.length,
       itemBuilder: (context, index) {
         final bundle = _bundles[index];
-        final sizeKb = (bundle.sizeBytes / 1024).toStringAsFixed(1);
         return ListTile(
           leading: Icon(LucideIcons.archive, color: colors.primary),
           title: Text(
@@ -495,8 +487,8 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
             ),
           ),
           subtitle: Text(
-            '$sizeKb KB | '
-            '${DateFormat('MMM d, yyyy HH:mm').format(bundle.createdAt.toLocal())}'
+            '${ByteFormat.size(bundle.sizeBytes)} | '
+            '${ClockFormat.monthDayYearHm(bundle.createdAt.toLocal())}'
             '${bundle.sha256.isEmpty ? ' | no integrity hash' : ''}',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textSecondary,

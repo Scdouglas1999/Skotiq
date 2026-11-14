@@ -5,8 +5,6 @@ use crate::load_vendor_sdk;
 use crate::vendor::sdk_loader::vendor_library_candidates;
 use std::path::PathBuf;
 
-// EFW filter wheel SDK
-
 /// EFW Info structure from SDK
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -102,39 +100,76 @@ load_vendor_sdk! {
     }
 }
 
-/// Check EFW error code and convert to NativeError
-pub(crate) fn check_efw_error(code: c_int) -> Result<(), NativeError> {
+/// Check EFW error code and convert to DriverError
+pub(crate) fn check_efw_error(code: c_int) -> Result<(), DriverError> {
     match code {
         0 => Ok(()),
-        1 => Err(NativeError::InvalidDevice(
+        1 => Err(DriverError::InvalidDevice(
             "EFW_ERROR_INVALID_INDEX".to_string(),
         )),
-        2 => Err(NativeError::InvalidDevice(
+        2 => Err(DriverError::InvalidDevice(
             "EFW_ERROR_INVALID_ID".to_string(),
         )),
-        3 => Err(NativeError::InvalidParameter(
+        3 => Err(DriverError::InvalidParameter(
             "EFW_ERROR_INVALID_VALUE".to_string(),
         )),
-        4 => Err(NativeError::Disconnected),
-        5 => Err(NativeError::SdkError(
+        4 => Err(DriverError::Disconnected),
+        5 => Err(DriverError::SdkError(
             "EFW_ERROR_MOVING: Filter wheel is moving".to_string(),
         )),
-        6 => Err(NativeError::SdkError(
+        6 => Err(DriverError::SdkError(
             "EFW_ERROR_ERROR_STATE: Filter wheel in error state".to_string(),
         )),
-        7 => Err(NativeError::SdkError("EFW_ERROR_GENERAL_ERROR".to_string())),
-        8 => Err(NativeError::NotSupported),
-        9 => Err(NativeError::NotConnected),
-        _ => Err(NativeError::SdkError(format!(
+        7 => Err(DriverError::SdkError("EFW_ERROR_GENERAL_ERROR".to_string())),
+        8 => Err(DriverError::NotSupported),
+        9 => Err(DriverError::NotConnected),
+        _ => Err(DriverError::SdkError(format!(
             "Unknown EFW error code: {}",
             code
         ))),
     }
 }
 
-// Filter wheel implementation
+/// [`check_efw_error`] for a call on a wheel that `connect` opened: an id the
+/// SDK no longer knows (INVALID_INDEX, INVALID_ID) is a wheel that left the
+/// bus, as for the camera ([`super::sdk::check_open_camera_error`]).
+pub(crate) fn check_open_wheel_error(code: c_int) -> Result<(), DriverError> {
+    match code {
+        1 | 2 => Err(DriverError::Disconnected),
+        _ => check_efw_error(code),
+    }
+}
 
-/// ZWO EFW Filter Wheel implementation
+/// How long a wheel that was just plugged in or powered up may take to count
+/// its slots.
+const SLOT_DETECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
+
+/// `EFWGetProperty` once the wheel knows its slot count. A wheel that was just
+/// plugged in or powered up turns once to count its slots and answers
+/// EFW_ERROR_MOVING until it has (EFW_filter.h); NINA waits for it the same way.
+async fn read_property(sdk: &EfwSdk, id: c_int) -> Result<EFWInfo, DriverError> {
+    let deadline = std::time::Instant::now() + SLOT_DETECTION_TIMEOUT;
+    loop {
+        // SAFETY: EFWInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
+        let mut info: EFWInfo = unsafe { std::mem::zeroed() };
+        // SAFETY: `info` is a valid stack pointer; the caller opened `id`.
+        let result = unsafe { (sdk.get_property)(id, &mut info) };
+        if result != EFWError::EFW_ERROR_MOVING as c_int {
+            check_efw_error(result)?;
+            return Ok(info);
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(DriverError::Timeout(format!(
+                "ZWO EFW {} was still counting its filter slots after {} s; check its power and \
+                 USB cable, then connect it again",
+                id,
+                SLOT_DETECTION_TIMEOUT.as_secs()
+            )));
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
+}
+
 #[derive(Debug)]
 pub struct ZwoFilterWheel {
     pub(crate) filterwheel_id: i32,
@@ -144,10 +179,12 @@ pub struct ZwoFilterWheel {
     pub(crate) name: String,
     pub(crate) filter_names: Vec<String>,
     pub(crate) settle_after_move_pending: AtomicBool,
+    /// `EFWGetSerialNumber` of the open wheel; `None` before connect and for
+    /// a unit that reports none.
+    pub(crate) serial_number: Option<String>,
 }
 
 impl ZwoFilterWheel {
-    /// Create a new ZWO filter wheel instance
     pub fn new(filterwheel_id: i32) -> Self {
         Self {
             filterwheel_id,
@@ -157,17 +194,17 @@ impl ZwoFilterWheel {
             name: format!("ZWO EFW {}", filterwheel_id),
             filter_names: Vec::new(),
             settle_after_move_pending: AtomicBool::new(false),
+            serial_number: None,
         }
     }
 
-    pub(crate) async fn read_position_once(&self) -> Result<i32, NativeError> {
-        let sdk = EfwSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_efw_mutex().lock().await;
+    pub(crate) async fn read_position_once(&self) -> Result<i32, DriverError> {
+        let sdk = EfwSdk::lock().await?;
         let mut position: c_int = -999;
-        // SAFETY: zwo_efw_mutex held; `position` is a valid stack pointer and
+        // SAFETY: `position` is a valid stack pointer and
         // filterwheel_id is valid while this filter wheel is connected.
         let result = unsafe { (sdk.get_position)(self.filterwheel_id, &mut position) };
-        check_efw_error(result)?;
+        check_open_wheel_error(result)?;
         Ok(position)
     }
 
@@ -176,13 +213,17 @@ impl ZwoFilterWheel {
     /// A non-moving result is re-read after the configured delay. If that
     /// confirmation says the wheel is still moving, the settle remains pending
     /// so the full delay is applied again after actual completion.
-    pub(crate) async fn read_position_settled(&self) -> Result<i32, NativeError> {
+    pub(crate) async fn read_position_settled(&self) -> Result<i32, DriverError> {
         let position = self.read_position_once().await?;
         if position == -1 || !self.settle_after_move_pending.load(Ordering::Acquire) {
             return Ok(position);
         }
 
-        match crate::quirks::get_position_delay_after_move_ms(&self.device_id) {
+        match crate::quirks::get_position_delay_after_move_ms(
+            &Vendor::Zwo,
+            DeviceKind::FilterWheel,
+            &self.name,
+        ) {
             Some(delay_ms) if delay_ms > 0 => {
                 tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
             }
@@ -205,7 +246,7 @@ impl ZwoFilterWheel {
 }
 
 #[async_trait]
-impl NativeDevice for ZwoFilterWheel {
+impl DeviceDriver for ZwoFilterWheel {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -214,52 +255,45 @@ impl NativeDevice for ZwoFilterWheel {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Zwo
+    fn vendor(&self) -> Vendor {
+        Vendor::Zwo
+    }
+
+    fn serial_number(&self) -> Option<String> {
+        self.serial_number.clone()
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         tracing::info!(
             "Connecting to ZWO EFW filter wheel ID {}...",
             self.filterwheel_id
         );
 
-        let sdk = EfwSdk::get().ok_or_else(|| {
+        let efw = EfwSdk::installed().inspect_err(|_| {
             tracing::error!("Cannot connect to ZWO EFW: EFW SDK not loaded");
-            NativeError::SdkNotLoaded
         })?;
 
-        // Acquire mutex for EFW SDK operations
-        let _lock = zwo_efw_mutex().lock().await;
+        // Hold the EFW SDK lock for the connect sequence
+        let sdk = efw.lock().await;
 
         // EFWGetNum/EFWGetID populate the vendor SDK's internal ID table.
         // A profile can connect a persisted hardware ID before any discovery
         // has run; on real ZWO SDK builds, calling EFWOpen directly in that
         // state returns EFW_ERROR_INVALID_ID even though the wheel is present.
-        // SAFETY: zwo_efw_mutex is held (acquired above), so no other task is inside
-        // the EFW SDK while it re-scans its internal ID table. EFWGetNum takes no
-        // arguments and returns a c_int, so there is no pointer to invalidate, and
-        // `sdk` comes from the process-lifetime EfwSdk singleton whose library is
-        // never unloaded.
+        // SAFETY: EFWGetNum takes no arguments and returns a c_int, so there is
+        // no pointer to invalidate; the lock guard keeps every other task out of
+        // the EFW SDK while it re-scans its internal ID table.
         let num_wheels = unsafe { (sdk.get_num)() };
-        let mut id_is_present = false;
-        for index in 0..num_wheels {
-            let mut discovered_id: c_int = -1;
-            // SAFETY: zwo_efw_mutex is held, index is bounded by EFWGetNum,
-            // and discovered_id is a valid output pointer.
-            let result = unsafe { (sdk.get_id)(index, &mut discovered_id) };
-            if result == 0 && discovered_id == self.filterwheel_id {
-                id_is_present = true;
-                break;
-            }
-        }
-        if !id_is_present {
+        // SAFETY: index is bounded by EFWGetNum and `listed` is a valid output
+        // pointer.
+        let listed = |index, listed: &mut c_int| unsafe { (sdk.get_id)(index, listed) };
+        if !id_is_listed(num_wheels, listed, self.filterwheel_id) {
             let reported = num_wheels.max(0);
-            return Err(NativeError::DeviceNotFound(format!(
+            return Err(DriverError::DeviceNotFound(format!(
                 "ZWO EFW ID {} is not present (SDK reported {} wheel{})",
                 self.filterwheel_id,
                 reported,
@@ -267,65 +301,46 @@ impl NativeDevice for ZwoFilterWheel {
             )));
         }
 
-        // Open filter wheel
-        // SAFETY: zwo_efw_mutex held above; filterwheel_id was matched against
-        // the SDK-issued IDs immediately above.
+        // SAFETY: filterwheel_id was matched against the SDK-issued IDs
+        // immediately above.
         let result = unsafe { (sdk.open)(self.filterwheel_id) };
         check_efw_error(result)?;
 
-        // Create cleanup guard to close the filter wheel if subsequent operations fail
         let filterwheel_id = self.filterwheel_id;
+        let locked_sdk: &EfwSdk = &sdk;
         let cleanup_guard = CleanupGuard::new(|| {
             tracing::debug!(
                 "Cleaning up ZWO EFW filter wheel {} after failed connect",
                 filterwheel_id
             );
-            if let Some(sdk) = EfwSdk::get() {
-                // SAFETY: best-effort cleanup; filterwheel_id was successfully opened above (guard only runs after open succeeded). Mutex still held when this drop runs in connect() scope.
-                let _ = unsafe { (sdk.close)(filterwheel_id) };
-            }
+            // SAFETY: best-effort cleanup; filterwheel_id was successfully opened above (guard only runs after open succeeded). The cleanup borrows the lock guard, so it runs while connect() still holds the lock.
+            let _ = unsafe { (locked_sdk.close)(filterwheel_id) };
         });
 
-        // Get properties
-        // SAFETY: EFWInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
-        let mut info: EFWInfo = unsafe { std::mem::zeroed() };
-        // SAFETY: zwo_efw_mutex held by connect(); `info` is a valid stack pointer; filterwheel_id was successfully opened above.
-        let result = unsafe { (sdk.get_property)(self.filterwheel_id, &mut info) };
-        check_efw_error(result)?;
+        let info = read_property(&sdk, self.filterwheel_id).await?;
 
         self.slot_count = info.slot_num;
         self.name = safe_cstr_to_string(info.name.as_ptr(), 64);
 
-        // Initialize default filter names
         self.filter_names = (0..self.slot_count)
             .map(|i| format!("Filter {}", i + 1))
             .collect();
 
-        // Read serial number under the still-held SDK mutex so we can populate
+        // Read serial number under the still-held SDK lock so we can populate
         // the connected-device registry below. This is the same call discovery
         // makes; doing it at connect time means discovery never needs to open
         // an already-connected device just to re-read its serial number.
         // SAFETY: EFWSerialNumber is `#[repr(C)]` POD; zeroed is a valid initial state.
         let mut sn: EFWSerialNumber = unsafe { std::mem::zeroed() };
-        // SAFETY: zwo_efw_mutex held by connect(); `sn` is a valid stack pointer; filterwheel_id is open.
+        // SAFETY: `sn` is a valid stack pointer; filterwheel_id is open.
         let connect_serial_number =
             if unsafe { (sdk.get_serial_number)(self.filterwheel_id, &mut sn) } == 0 {
-                let sn_bytes: [u8; 8] = sn.id;
-                let sn_str = sn_bytes
-                    .iter()
-                    .take_while(|&&b| b != 0)
-                    .map(|&b| format!("{:02X}", b))
-                    .collect::<String>();
-                if sn_str.is_empty() {
-                    None
-                } else {
-                    Some(sn_str)
-                }
+                accessory_serial(sn.id)
             } else {
                 None
             };
+        self.serial_number = connect_serial_number.clone();
 
-        // All operations succeeded - defuse the cleanup guard
         cleanup_guard.defuse();
 
         self.connected = true;
@@ -333,10 +348,11 @@ impl NativeDevice for ZwoFilterWheel {
         // Populate the connected-EFW registry so that hot-plug discovery polls
         // can report this device from cache instead of calling EFWOpen/EFWClose
         // on the live handle.
-        // Lock ordering: registry lock acquired here with SDK mutex (_lock) still
-        // live. No SDK call is made while holding the registry lock. Inside
-        // discover_filter_wheels the SDK mutex is held when the registry lock is
-        // acquired (same direction). No inverse ordering exists, so no deadlock.
+        // Lock ordering: registry lock acquired here with the EFW SDK guard
+        // (`sdk`) still live. No SDK call is made while holding the registry
+        // lock. Inside discover_filter_wheels the SDK guard is held when the
+        // registry lock is acquired (same direction). No inverse ordering
+        // exists, so no deadlock.
         {
             let mut reg = connected_efw().lock().unwrap_or_else(|e| e.into_inner());
             reg.insert(
@@ -346,13 +362,13 @@ impl NativeDevice for ZwoFilterWheel {
                     name: self.name.clone(),
                     slot_count: self.slot_count,
                     serial_number: connect_serial_number,
-                    sdk_version: efw_sdk_version_from_sdk(sdk),
+                    sdk_version: efw_sdk_version_from_sdk(&sdk),
                 },
             );
         }
 
-        // Drop the mutex before the async sleep so other operations aren't blocked
-        drop(_lock);
+        // Release the SDK lock before the async sleep so other operations aren't blocked
+        drop(sdk);
 
         // Give the firmware time to read the encoder position after EFWOpen.
         // Some ZWO EFW firmware returns position 0 or -1 immediately after open
@@ -362,9 +378,9 @@ impl NativeDevice for ZwoFilterWheel {
 
         // Read initial position to pre-warm the SDK and verify it works
         {
-            let _lock = zwo_efw_mutex().lock().await;
+            let sdk = efw.lock().await;
             let mut position: c_int = -999;
-            // SAFETY: zwo_efw_mutex held in this inner scope; `position` is a valid stack pointer; filterwheel_id is valid (already opened in this connect() above).
+            // SAFETY: `position` is a valid stack pointer; filterwheel_id is valid (already opened in this connect() above).
             let result = unsafe { (sdk.get_position)(self.filterwheel_id, &mut position) };
             tracing::info!(
                 "[ZWO EFW] Post-connect initial position read: hw_id={}, SDK result={}, position={}",
@@ -382,7 +398,7 @@ impl NativeDevice for ZwoFilterWheel {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -392,24 +408,25 @@ impl NativeDevice for ZwoFilterWheel {
             self.filterwheel_id
         );
 
-        let sdk = EfwSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_efw_mutex().lock().await;
-        // SAFETY: zwo_efw_mutex held above; filterwheel_id is valid because self.connected is true (only set after successful connect()).
+        let sdk = EfwSdk::lock().await?;
+        // SAFETY: filterwheel_id is valid because self.connected is true (only set after successful connect()).
         let result = unsafe { (sdk.close)(self.filterwheel_id) };
-        check_efw_error(result)?;
 
+        // Forgotten even when the close fails: a wheel unplugged while connected
+        // cannot be closed, and the wheel plugged in next may get its id.
         self.connected = false;
         self.settle_after_move_pending
             .store(false, Ordering::Release);
 
         // Remove from the connected-EFW registry so that subsequent discovery
         // polls perform a full open/query/close (device may have been physically
-        // replugged). Lock ordering: registry lock acquired with SDK mutex held;
+        // replugged). Lock ordering: registry lock acquired with the SDK guard held;
         // same ordering as inside discover_filter_wheels; no deadlock cycle.
         {
             let mut reg = connected_efw().lock().unwrap_or_else(|e| e.into_inner());
             reg.remove(&self.filterwheel_id);
         }
+        check_efw_error(result)?;
 
         tracing::info!("Disconnected from ZWO EFW");
         Ok(())
@@ -417,36 +434,35 @@ impl NativeDevice for ZwoFilterWheel {
 }
 
 #[async_trait]
-impl NativeFilterWheel for ZwoFilterWheel {
-    async fn move_to_position(&mut self, position: i32) -> Result<(), NativeError> {
+impl FilterWheelDriver for ZwoFilterWheel {
+    async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = EfwSdk::get().ok_or(NativeError::SdkNotLoaded)?;
+        let sdk = EfwSdk::installed()?;
 
-        // Validate position
         if position < 0 || position >= self.slot_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Invalid position {}. Valid range: 0-{}",
                 position,
                 self.slot_count - 1
             )));
         }
 
-        let _lock = zwo_efw_mutex().lock().await;
+        let sdk = sdk.lock().await;
         tracing::debug!("Moving ZWO EFW to position {}", position);
-        // SAFETY: zwo_efw_mutex held above; `position` was bounds-checked against slot_count earlier in this function; filterwheel_id is valid (connected=true checked).
+        // SAFETY: `position` was bounds-checked against slot_count earlier in this function; filterwheel_id is valid (connected=true checked).
         let result = unsafe { (sdk.set_position)(self.filterwheel_id, position) };
-        check_efw_error(result)?;
+        check_open_wheel_error(result)?;
         self.settle_after_move_pending
             .store(true, Ordering::Release);
         Ok(())
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let position = self.read_position_settled().await?;
@@ -459,9 +475,9 @@ impl NativeFilterWheel for ZwoFilterWheel {
         Ok(position)
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let position = self.read_position_settled().await?;
@@ -475,24 +491,24 @@ impl NativeFilterWheel for ZwoFilterWheel {
         Ok(position == -1)
     }
 
-    fn get_filter_count(&self) -> i32 {
+    async fn get_filter_count(&self) -> i32 {
         self.slot_count
     }
 
-    async fn get_filter_names(&self) -> Result<Vec<String>, NativeError> {
+    async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
         Ok(self.filter_names.clone())
     }
 
-    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), NativeError> {
+    async fn set_filter_name(&mut self, position: i32, name: String) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         if position < 0 || position >= self.slot_count {
-            return Err(NativeError::InvalidParameter(format!(
+            return Err(DriverError::InvalidParameter(format!(
                 "Invalid position {}. Valid range: 0-{}",
                 position,
                 self.slot_count - 1
@@ -506,25 +522,6 @@ impl NativeFilterWheel for ZwoFilterWheel {
     }
 }
 
-impl ZwoFilterWheel {
-    /// `move_to_position` to the 0-indexed slot, then wait for the wheel to
-    /// settle under the config's filter-wheel timeout.
-    pub async fn move_to_position_with_timeout(
-        &mut self,
-        position: i32,
-        config: &NativeTimeoutConfig,
-    ) -> Result<(), NativeError> {
-        // Start the move
-        self.move_to_position(position).await?;
-
-        // Wait for move to complete
-        wait_for_filterwheel_move(|| async { self.is_moving().await }, config, position).await
-    }
-}
-
-// Filter wheel discovery
-
-/// ZWO filter wheel discovery info
 pub struct ZwoFilterWheelDiscoveryInfo {
     pub filterwheel_id: i32,
     pub name: String,
@@ -534,21 +531,22 @@ pub struct ZwoFilterWheelDiscoveryInfo {
     pub discovery_index: usize,
 }
 
-/// Check if EFW SDK is available
 pub fn is_efw_sdk_available() -> bool {
-    EfwSdk::get().is_some()
+    EfwSdk::is_available()
 }
 
-/// Get EFW SDK status
 pub fn get_efw_sdk_status() -> (bool, String) {
-    match EfwSdk::get() {
-        Some(_) => (
+    match EfwSdk::installed() {
+        Ok(sdk) => (
             true,
-            efw_sdk_version()
+            // Unlocked on purpose: EFWGetSDKVersion takes no arguments, returns a
+            // pointer to a string compiled into the library and touches no device,
+            // and this synchronous status helper cannot wait for the lock.
+            efw_sdk_version_from_sdk(sdk.unlocked())
                 .map(|version| format!("{version} loaded successfully"))
                 .unwrap_or_else(|| "ZWO EFW SDK loaded successfully".to_string()),
         ),
-        None => (false, "ZWO EFW SDK (EFW_filter.dll) not found.".to_string()),
+        Err(_) => (false, "ZWO EFW SDK (EFW_filter.dll) not found.".to_string()),
     }
 }
 
@@ -558,26 +556,21 @@ pub(crate) fn efw_sdk_version_from_sdk(sdk: &EfwSdk) -> Option<String> {
         .map(|version| format!("ZWO EFW SDK v{version}"))
 }
 
-pub fn efw_sdk_version() -> Option<String> {
-    EfwSdk::get().and_then(efw_sdk_version_from_sdk)
-}
-
-/// Discover ZWO EFW filter wheels
-pub async fn discover_filter_wheels() -> Result<Vec<ZwoFilterWheelDiscoveryInfo>, NativeError> {
-    let sdk = match EfwSdk::get() {
-        Some(sdk) => sdk,
-        None => {
+pub async fn discover_filter_wheels() -> Result<Vec<ZwoFilterWheelDiscoveryInfo>, DriverError> {
+    let sdk = match EfwSdk::installed() {
+        Ok(sdk) => sdk,
+        Err(_) => {
             tracing::debug!("ZWO EFW discovery skipped: EFW SDK not loaded");
             return Ok(Vec::new());
         }
     };
 
-    // Acquire mutex for EFW SDK discovery operations
-    let _lock = zwo_efw_mutex().lock().await;
+    // Hold the EFW SDK lock for the whole scan
+    let sdk = sdk.lock().await;
 
     tracing::debug!("Discovering ZWO EFW filter wheels via native SDK...");
-    let sdk_version = efw_sdk_version_from_sdk(sdk);
-    // SAFETY: zwo_efw_mutex held above; EFWGetNum takes no arguments and only reads internal SDK state.
+    let sdk_version = efw_sdk_version_from_sdk(&sdk);
+    // SAFETY: EFWGetNum takes no arguments and only reads internal SDK state.
     let num_wheels = unsafe { (sdk.get_num)() };
     tracing::info!(
         "EFW SDK reports {} connected filter wheel{}",
@@ -589,14 +582,14 @@ pub async fn discover_filter_wheels() -> Result<Vec<ZwoFilterWheelDiscoveryInfo>
 
     for i in 0..num_wheels {
         let mut id: c_int = 0;
-        // SAFETY: zwo_efw_mutex held above; `i` is bounded by num_wheels; `id` is a valid stack pointer.
+        // SAFETY: `i` is bounded by num_wheels; `id` is a valid stack pointer.
         let result = unsafe { (sdk.get_id)(i, &mut id) };
 
         if result != 0 {
             continue;
         }
 
-        // Lock-ordering note: the SDK mutex (zwo_efw_mutex) is held for the
+        // Lock-ordering note: the EFW SDK guard is held for the
         // duration of discover_filter_wheels. The registry lock is acquired
         // briefly here to read a cached entry, then immediately released before
         // any SDK call. The connect/disconnect paths acquire the registry lock
@@ -632,58 +625,41 @@ pub async fn discover_filter_wheels() -> Result<Vec<ZwoFilterWheelDiscoveryInfo>
         }
 
         // Not a connected device — perform the normal open/query/close discovery.
-        // SAFETY: mutex held; `id` was just populated by EFWGetID.
+        // SAFETY: `id` was just populated by EFWGetID.
         let result = unsafe { (sdk.open)(id) };
         if result == 0 {
-            // SAFETY: EFWInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
-            let mut info: EFWInfo = unsafe { std::mem::zeroed() };
-            // SAFETY: mutex held; `info` is a valid stack pointer; `id` was just successfully opened.
-            let property_result = unsafe { (sdk.get_property)(id, &mut info) };
-            if property_result != 0 {
-                // `info` would still be zeroed: an empty name and slot_num = 0, and
-                // discovery publishes that name verbatim as the device identity
-                // (native/src/discovery.rs). A blank, zero-slot entry is a wrong answer,
-                // not a discovery result. Close the handle and leave the wheel out of
-                // this scan; connect() runs the same EFWGetProperty (checked) and reports
-                // the failure if the user targets it, and the next scan retries.
-                tracing::error!(
-                    "ZWO EFW discovery: EFWGetProperty failed for filter wheel ID {} (EFW error {}); omitting it from this scan",
-                    id,
-                    property_result
-                );
-                // SAFETY: mutex held; `id` was successfully opened above. EFWClose pairs with EFWOpen.
-                let _ = unsafe { (sdk.close)(id) };
-                continue;
-            }
-            // SAFETY: ASI SDK guarantees `info.name` is NUL-terminated within the 64-byte array.
-            let name = unsafe {
-                CStr::from_ptr(info.name.as_ptr())
-                    .to_string_lossy()
-                    .to_string()
+            let info = match read_property(&sdk, id).await {
+                Ok(info) => info,
+                Err(error) => {
+                    // Without its properties the wheel would be a blank, zero-slot
+                    // entry, and discovery publishes the name verbatim as the device
+                    // identity (native/src/discovery.rs). Leave it out of this scan;
+                    // connect() reads the same properties and reports the failure if
+                    // the user targets it, and the next scan retries.
+                    tracing::error!(
+                        "ZWO EFW discovery: EFWGetProperty failed for filter wheel ID {} ({}); omitting it from this scan",
+                        id,
+                        error
+                    );
+                    // SAFETY: `id` was successfully opened above. EFWClose pairs with EFWOpen.
+                    let _ = unsafe { (sdk.close)(id) };
+                    continue;
+                }
             };
+            let name = safe_cstr_to_string(info.name.as_ptr(), 64);
             let slot_count = info.slot_num;
 
             // Try to get serial number (must be done before close)
             // SAFETY: EFWSerialNumber is `#[repr(C)]` POD (just `id: [u8; 8]`); zeroed is valid.
             let mut sn: EFWSerialNumber = unsafe { std::mem::zeroed() };
-            // SAFETY: mutex held; `sn` is a valid stack pointer; `id` is open.
+            // SAFETY: `sn` is a valid stack pointer; `id` is open.
             let serial_number = if unsafe { (sdk.get_serial_number)(id, &mut sn) } == 0 {
-                let sn_bytes: [u8; 8] = sn.id;
-                let sn_str = sn_bytes
-                    .iter()
-                    .take_while(|&&b| b != 0)
-                    .map(|&b| format!("{:02X}", b))
-                    .collect::<String>();
-                if sn_str.is_empty() {
-                    None
-                } else {
-                    Some(sn_str)
-                }
+                accessory_serial(sn.id)
             } else {
                 None
             };
 
-            // SAFETY: mutex held; `id` was successfully opened above. EFWClose pairs with EFWOpen.
+            // SAFETY: `id` was successfully opened above. EFWClose pairs with EFWOpen.
             let _ = unsafe { (sdk.close)(id) };
 
             tracing::info!(

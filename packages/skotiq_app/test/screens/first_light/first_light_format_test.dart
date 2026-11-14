@@ -1,32 +1,29 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/first_light/first_light_format.dart';
+import 'package:skotiq_core/errors.dart' show userFacingError;
 
 void main() {
   group('describeFirstLightError', () {
     test('strips the difference-image seam envelope', () {
       expect(
-        describeFirstLightError(
-          Exception('boring'),
-        ),
+        userFacingError(Exception('boring')),
         'boring',
       );
     });
 
     test('strips a DifferenceImageSeamException prefix', () {
       expect(
-        describeFirstLightError(
-          'DifferenceImageSeamException: bridge call failed',
-        ),
+        userFacingError('DifferenceImageSeamException: bridge call failed'),
         'bridge call failed',
       );
     });
 
     test('leaves a bare message untouched', () {
-      expect(describeFirstLightError('no template yet'), 'no template yet');
+      expect(userFacingError('no template yet'), 'no template yet');
     });
 
     test('falls back to a readable label for an empty message', () {
-      expect(describeFirstLightError(''), 'Unknown error.');
+      expect(userFacingError(''), 'Unknown error');
     });
   });
 

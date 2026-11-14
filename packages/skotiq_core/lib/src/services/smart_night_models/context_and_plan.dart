@@ -68,6 +68,10 @@ class SmartNightContext {
   /// leaves the in-sequence node on a flat altitude floor.
   final HorizonProfile? horizonProfile;
 
+  /// How the connected camera's gain reads in the steps the builder names
+  /// ("gain 100", "ISO 800"). Not persisted: it is the camera of the night.
+  final ExposureSensitivity sensitivity;
+
   const SmartNightContext({
     required this.windowStart,
     required this.windowEnd,
@@ -81,6 +85,7 @@ class SmartNightContext {
     this.missingDarkRequirements = const [],
     this.adaptiveExposuresRecommended = false,
     this.horizonProfile,
+    this.sensitivity = const GainSensitivity(),
   });
 
   SmartNightContext copyWith({
@@ -96,6 +101,7 @@ class SmartNightContext {
     List<DarkFrameRequirement>? missingDarkRequirements,
     bool? adaptiveExposuresRecommended,
     HorizonProfile? horizonProfile,
+    ExposureSensitivity? sensitivity,
   }) {
     return SmartNightContext(
       windowStart: windowStart ?? this.windowStart,
@@ -116,6 +122,7 @@ class SmartNightContext {
       adaptiveExposuresRecommended:
           adaptiveExposuresRecommended ?? this.adaptiveExposuresRecommended,
       horizonProfile: horizonProfile ?? this.horizonProfile,
+      sensitivity: sensitivity ?? this.sensitivity,
     );
   }
 

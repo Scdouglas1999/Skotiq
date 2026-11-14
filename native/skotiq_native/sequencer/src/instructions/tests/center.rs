@@ -11,7 +11,7 @@ async fn centering_waits_for_slew_startup_before_accepting_idle() {
             .with_mount_slewing_states(vec![false, false, true, true, false]),
     );
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
 
     wait_for_centering_correction_slew("mount-1", &ctx)
         .await
@@ -35,19 +35,19 @@ async fn center_node_on_cloud(stop_on_quality_problems: bool) -> CenterNodeRun {
     use crate::node::registry::InstructionNode;
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_plate_solve_failing());
     let mut context = crate::node::context::ExecutionContext::new_for_test("center".to_string());
-    context.device_ops = ops;
-    context.camera_id = Some("cam-1".to_string());
-    context.mount_id = Some("mount-1".to_string());
+    context.run.device_ops = ops;
+    context.run.rig.camera_id = Some("cam-1".to_string());
+    context.run.rig.mount_id = Some("mount-1".to_string());
     context.target_name = Some("M31".to_string());
     context.target_ra = Some(0.712);
     context.target_dec = Some(41.27);
     let mut state = crate::triggers::TriggerState::new();
-    state.stop_on_quality_problems = stop_on_quality_problems;
-    context.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+    state.settings.stop_on_quality_problems = stop_on_quality_problems;
+    context.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
-    context.event_tx = Some(event_tx);
+    context.run.event_tx = Some(event_tx);
     let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
-    context.decision_tx = Some(decision_tx);
+    context.run.decision_tx = Some(decision_tx);
     let config = crate::CenterConfig {
         max_attempts: 2,
         exposure_duration: 0.01,
@@ -64,7 +64,9 @@ async fn center_node_on_cloud(stop_on_quality_problems: bool) -> CenterNodeRun {
 
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -110,4 +112,113 @@ async fn a_center_that_does_not_converge_notifies_and_the_run_goes_on() {
         "the operator asked for the stop"
     );
     assert!(run.decisions.is_empty(), "{:?}", run.decisions);
+}
+
+/// What the run's status line and the app read from a Center node: the
+/// attempt whose frame is being taken or corrected with the distance its solve
+/// measured from the target, attempt 0 while the step starts, and the final
+/// distance once it has centered.
+#[tokio::test(start_paused = true)]
+async fn a_center_node_reports_the_attempt_it_is_on() {
+    use crate::node::registry::InstructionNode;
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_off_target_solves(1)
+            .with_mount_slewing_states(vec![true, false]),
+    );
+    let mut context = crate::node::context::ExecutionContext::new_for_test("center".to_string());
+    context.run.device_ops = ops;
+    context.run.rig.camera_id = Some("cam-1".to_string());
+    context.run.rig.mount_id = Some("mount-1".to_string());
+    context.target_ra = Some(0.712);
+    context.target_dec = Some(41.27);
+    let lines = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let solves = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let sink = lines.clone();
+    let solve_sink = solves.clone();
+    context.progress_callback = Some(Arc::new(move |update: crate::node::ProgressUpdate| {
+        if let Some(crate::node::ProgressDetail::Center {
+            attempt,
+            solved_ra_hours: Some(ra),
+            solved_dec_degrees: Some(dec),
+            ..
+        }) = update.detail
+        {
+            solve_sink.lock().unwrap().push((attempt, ra, dec));
+        }
+        sink.lock()
+            .unwrap()
+            .push(update.legacy_message().expect("a progress line"));
+    }));
+    let config = crate::CenterConfig {
+        max_attempts: 2,
+        exposure_duration: 0.01,
+        ..Default::default()
+    };
+
+    let status = crate::node::instructions::center::CenterInstruction
+        .execute(
+            "center",
+            &crate::NodeType::CenterTarget(config),
+            &mut context,
+        )
+        .await;
+
+    assert_eq!(status, NodeStatus::Success);
+    assert_eq!(
+        *lines.lock().unwrap(),
+        vec![
+            "Center: attempt 0/2 (0%)",
+            "Center: attempt 1/2 (0%)",
+            "Center: attempt 1/2 sep 36.0\" (25%)",
+            "Center: attempt 1/2 sep 36.0\" (38%)",
+            "Center: attempt 2/2 (50%)",
+            "Center: attempt 2/2 sep 0.0\" (75%)",
+            "Center: sep 0.0\" (95%)",
+            "Center: sep 0.0\" (100%)",
+        ]
+    );
+    let solves = solves.lock().unwrap();
+    assert_eq!(
+        solves
+            .iter()
+            .map(|(attempt, _, _)| *attempt)
+            .collect::<Vec<_>>(),
+        vec![1, 2],
+        "each attempt's solve says where the frame solved, once"
+    );
+    assert!((solves[1].1 - 0.712).abs() < 1e-6 && (solves[1].2 - 41.27).abs() < 1e-6);
+}
+
+/// "Center where the mount points" takes the mount's read-back, which is of
+/// date, and centers on it in J2000: the solves it is compared with and the
+/// slew path both speak J2000.
+#[tokio::test(start_paused = true)]
+async fn centering_on_the_mount_position_centers_on_it_in_j2000() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_scripted_mount_coordinates(10.0, 50.0)
+            .with_readback_to_j2000_offset(-0.02, -0.1),
+    );
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
+    let config = CenterConfig {
+        use_target_coords: false,
+        custom_ra: None,
+        custom_dec: None,
+        max_attempts: 1,
+        exposure_duration: 0.01,
+        ..CenterConfig::default()
+    };
+
+    execute_center(&config, &ctx, None).await;
+
+    // The solve is checked against the target it is handed as a hint.
+    let hints = ops.plate_solve_hints.lock().unwrap().clone();
+    let (ra_deg, dec) = *hints.first().expect("centering solves a frame");
+    let (ra_deg, dec) = (ra_deg.unwrap(), dec.unwrap());
+    assert!(
+        (ra_deg - 9.98 * 15.0).abs() < 1e-9 && (dec - 49.9).abs() < 1e-9,
+        "centered on ({ra_deg}, {dec}), not the J2000 place of the mount's position"
+    );
 }

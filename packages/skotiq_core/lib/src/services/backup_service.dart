@@ -1,14 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:path/path.dart' as path;
-import '../database/database.dart' hide Sequence, SequenceNode;
+import '../database/database.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/daos/equipment_profiles_dao.dart';
-import '../database/daos/targets_dao.dart';
-import '../providers/database_provider.dart';
-import '../providers/app_version_provider.dart';
 import '../models/sequence/sequence_models.dart';
 import 'logging_service.dart';
 import 'sequence_file_service.dart';
@@ -19,20 +16,18 @@ part 'backup_service/backup_models.dart';
 part 'backup_service/backup_value_codecs.dart';
 part 'backup_service/table_registry.dart';
 part 'backup_service/restore_validation.dart';
+part 'backup_service/schema_tables.dart';
 
-/// Comprehensive backup and restore service for Skotiq data
 class BackupService {
   final SkotiqDatabase database;
   final SequenceRepository sequenceRepository;
   final LoggingService _logger;
   final Future<Directory> Function()? _backupDirectoryProvider;
 
-  // Bumped from '2.0' to '2.1' when we broadened backup coverage to
-  // include dark_library, flat_history, defect_maps, polar_alignment_history,
-  // guide_rms_history, sequence_runs, observation_logs (notes journal),
-  // and the science_* tables. Restore is idempotent (insertOrIgnore) so
-  // older v2.0 backups remain restorable on the new code path.
-  static const String backupVersion = '2.1';
+  /// 3.0 holds every table of the schema in `tables` (see
+  /// [backupExcludedTables]); 2.x backups carry a hand-picked set under their
+  /// own keys and are still restored.
+  static const String backupVersion = '3.0';
 
   /// Fallback for isolated tests/embedders that do not inject package info.
   /// Production providers always supply appVersionProvider.
@@ -70,13 +65,9 @@ class BackupService {
        _backupDirectoryProvider = backupDirectoryProvider,
        _logger = logger;
 
-  /// Create a full backup of all application data
-  ///
-  /// Backs up:
-  /// - Application settings
-  /// - Equipment profiles
-  /// - Sequences (both regular and templates)
-  /// - Targets
+  /// Create a full backup of the database: the settings, the equipment
+  /// profiles, and every other table the schema has except
+  /// [backupExcludedTables].
   ///
   /// Returns [BackupResult] with backup file path if successful
   Future<BackupResult> createBackup({
@@ -93,21 +84,13 @@ class BackupService {
         return (
           settings: await _exportSettings(),
           profiles: await _exportProfiles(),
-          sequences: await _exportSequences(),
-          targets: await _exportTargets(),
-          extendedTables: await _exportExtendedTables(),
+          tables: await _exportTables(),
         );
       });
       final settings = snapshot.settings;
       final profiles = snapshot.profiles;
-      final sequences = snapshot.sequences;
-      final targets = snapshot.targets;
+      final tables = snapshot.tables;
 
-      // Extended coverage: each entry is the literal table name and a list of
-      // rows. Restore round-trips through `_genericTableImport`.
-      final extendedTables = snapshot.extendedTables;
-
-      // Build backup data structure
       final backup = <String, dynamic>{
         'version': backupVersion,
         'createdAt': DateTime.now().toIso8601String(),
@@ -116,24 +99,19 @@ class BackupService {
         'metadata': {
           'settingsCount': settings.length,
           'profilesCount': profiles.length,
-          'sequencesCount': sequences.length,
-          'targetsCount': targets.length,
-          // Per-extended-table row counts so an operator can spot
-          // a partial backup (a table with unexpected 0 rows) before
-          // committing to a restore.
-          for (final entry in extendedTables.entries)
-            '${entry.key}Count': entry.value.length,
+          'sequencesCount': tables['sequences']?.length ?? 0,
+          'targetsCount': tables['targets']?.length ?? 0,
+          // Rows per table, so an operator can spot a partial backup (a
+          // table with unexpected 0 rows) before committing to a restore.
+          'tableCounts': {
+            for (final entry in tables.entries) entry.key: entry.value.length,
+          },
         },
         'settings': settings,
         'equipmentProfiles': profiles,
-        'sequences': sequences,
-        'targets': targets,
-        // Flatten the extended tables into top-level keys so a JSON
-        // viewer surfaces the same structure as the original four keys.
-        for (final entry in extendedTables.entries) entry.key: entry.value,
+        'tables': tables,
       };
 
-      // Determine save location
       final filePath = customPath ?? await _getBackupFilePath();
       if (filePath == null) {
         return BackupResult(
@@ -175,26 +153,18 @@ class BackupService {
         if (await tempFile.exists()) await tempFile.delete();
       }
 
-      final extendedItems = extendedTables.values.fold<int>(
+      final tableRows = tables.values.fold<int>(
         0,
         (sum, rows) => sum + rows.length,
       );
-      final totalItems =
-          settings.length +
-          profiles.length +
-          sequences.length +
-          targets.length +
-          extendedItems;
+      final totalItems = settings.length + profiles.length + tableRows;
 
       _logger.info(
         'Backup completed successfully\n'
         '  File: $filePath\n'
         '  Settings: ${settings.length}\n'
         '  Profiles: ${profiles.length}\n'
-        '  Sequences: ${sequences.length}\n'
-        '  Targets: ${targets.length}\n'
-        '  Extended tables: ${extendedTables.length} '
-        '(rows: $extendedItems)\n'
+        '  Tables: ${tables.length} (rows: $tableRows)\n'
         '  Total items: $totalItems',
         source: 'BackupService',
       );
@@ -238,7 +208,6 @@ class BackupService {
     try {
       _logger.debug('Starting restore from: $filePath');
 
-      // Read and parse backup file
       final file = File(filePath);
       if (!await file.exists()) {
         return RestoreResult(
@@ -279,6 +248,7 @@ class BackupService {
       // extended-table row or write failure must roll back the earlier clear,
       // settings, profiles, and sequences instead of returning a plausible
       // partial restore.
+      final notRestored = <String, int>{};
       final categoryCounts = await database.transaction(() async {
         if (replaceExisting) {
           _logger.debug('Clearing existing data...');
@@ -303,10 +273,12 @@ class BackupService {
         // or inserts on its own terms. A replace-restore has already emptied
         // the table above, which is the state _importProfiles reads to decide
         // whether the bundle's default/active flags may be honoured.
+        var profileIds = const <int, int>{};
         if (staged.profiles != null) {
-          final count = await _importProfiles(staged.profiles!);
-          categoryCounts['profiles'] = count;
-          _logger.debug('Restored $count profiles');
+          final imported = await _importProfiles(staged.profiles!);
+          profileIds = imported.ids;
+          categoryCounts['profiles'] = imported.count;
+          _logger.debug('Restored ${imported.count} profiles');
         }
 
         // Restore sequences — the staged list holds fully-decoded sequences
@@ -321,7 +293,6 @@ class BackupService {
           _logger.debug('Restored $count sequences');
         }
 
-        // Restore targets
         if (staged.targets != null) {
           final count = await _importTargets(
             staged.targets!,
@@ -331,16 +302,19 @@ class BackupService {
           _logger.debug('Restored $count targets');
         }
 
-        // Restore the extended-coverage tables. Idempotent:
-        // insertOrIgnore on the row's primary key. We never overwrite
-        // existing rows, even when `replaceExisting` is true — the
-        // `_clearAllData` step that runs before this branch wipes the
-        // tables that the legacy backup pass owns, and the extended
-        // tables (calibration / science / forensics / notes / runs /
-        // alignments / guide history) are intentionally NOT cleared so
-        // a corrupted-payload restore can never destroy field-collected
-        // data.
-        for (final entry in _extendedTableImporters.entries) {
+        if (staged.tables != null) {
+          final tables = await _restoreTables(
+            staged.tables!,
+            replace: replaceExisting,
+            profileIds: profileIds,
+          );
+          categoryCounts.addAll(tables.written);
+          notRestored.addAll(tables.keptOut);
+        }
+
+        // A 2.x backup's per-table sections. Never cleared, never
+        // overwritten: insertOrIgnore on the row's primary key.
+        for (final entry in _legacyTableImporters.entries) {
           final key = entry.key;
           if (!backup.containsKey(key)) continue;
           final rows = backup[key];
@@ -372,6 +346,7 @@ class BackupService {
         timestamp: DateTime.now(),
         itemsRestored: totalItems,
         categoryCounts: categoryCounts,
+        notRestored: notRestored,
       );
     } catch (e, stackTrace) {
       _logger.error('Restore failed: $e\n$stackTrace', source: 'BackupService');
@@ -472,7 +447,7 @@ class BackupService {
     return createBackup(customPath: filePath, humanReadable: false);
   }
 
-  /// Rows read per `_dumpTable` page.
+  /// Rows read per `_dumpRows` page.
   static const int _dumpPageSize = 2000;
 
   /// Encode [archive] straight into [file] in chunks.
@@ -501,11 +476,11 @@ class BackupService {
     }
   }
 
-  /// Importer signature used by [_extendedTableImporters]. Returns the
-  /// number of rows that were successfully inserted (rejected duplicates
-  /// don't count).
+  /// The per-table sections of a 2.x backup, by their keys there. Frozen: a
+  /// 3.x backup holds every table in `tables`. Each importer returns the rows
+  /// it wrote (rejected duplicates do not count).
   late final Map<String, Future<int> Function(List<dynamic>)>
-  _extendedTableImporters = {
+  _legacyTableImporters = {
     'darkLibrary': (rows) => _importRows(
       rows,
       (json) => DarkLibraryEntry.fromJson(json),
@@ -601,10 +576,19 @@ class BackupService {
       (json) => FocusModelEntry.fromJson(json),
       database.focusModels,
     ),
-    'weatherSettings': _importWeatherSettings,
+    'weatherSettings': (rows) async {
+      if (rows.isEmpty) return 0;
+      final raw = rows.first;
+      if (raw is! Map) {
+        throw const FormatException(
+          'Extended table row 0 of "weatherSettings" is not an object',
+        );
+      }
+      return _importWeatherSettings(
+        WeatherSettingRow.fromJson(raw.cast<String, dynamic>()),
+      );
+    },
   };
-
-  // Private utility methods
 
   Future<String?> _getBackupFilePath() async {
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
@@ -657,18 +641,3 @@ class BackupService {
     await dao.setSetting(backupDirectorySettingKey, trimmed);
   }
 }
-
-/// Provider for BackupService
-final backupServiceProvider = Provider<BackupService>((ref) {
-  final database = ref.watch(databaseProvider);
-  final sequenceRepo = ref.watch(sequenceRepositoryProvider);
-  final logger = ref.watch(loggingServiceProvider);
-  final appVersion = ref.watch(appVersionProvider).version;
-
-  return BackupService(
-    database: database,
-    sequenceRepository: sequenceRepo,
-    logger: logger,
-    appVersion: appVersion,
-  );
-});

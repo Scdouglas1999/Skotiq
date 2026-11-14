@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _SettingsDao extends SettingsDao {
   _SettingsDao(super.db);
@@ -15,7 +17,10 @@ class _SettingsDao extends SettingsDao {
 
   @override
   Future<String?> getSetting(String key) {
+    // One delayed read: the hydration's. Later reads (a field merge, the
+    // re-read after a write) see the stored row.
     final pending = delayedRead;
+    delayedRead = null;
     if (pending != null) return pending.future;
     return Future<String?>.value(values[key]);
   }
@@ -153,7 +158,7 @@ void main() {
 
   test('manual edit wins over delayed hydration', () async {
     final dao = _SettingsDao(database);
-    dao.delayedRead = Completer<String?>();
+    final delayed = dao.delayedRead = Completer<String?>();
     dao.values['imaging_capture_settings_profile_1'] = jsonEncode({
       'exposureTime': 90,
       'gain': 900,
@@ -172,7 +177,7 @@ void main() {
         .update(
           container.read(exposureSettingsProvider).copyWith(exposureTime: 7),
         );
-    dao.delayedRead!.complete(dao.values['imaging_capture_settings_profile_1']);
+    delayed.complete(dao.values['imaging_capture_settings_profile_1']);
     await pumpEventQueue(times: 20);
 
     expect(container.read(exposureSettingsProvider).exposureTime, 7);

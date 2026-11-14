@@ -18,8 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_canvas.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/framing_keys.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -39,7 +40,7 @@ const _equipment = FramingEquipment(
 );
 
 const _equipmentResult = FramingEquipmentResult(
-  status: EquipmentStatus.ready,
+  status: FramingEquipmentStatus.ready,
   equipment: _equipment,
   profileName: 'Test Profile',
 );
@@ -201,6 +202,6 @@ void main() {
     // The FOV painter carries the dedicated tutorial key; its presence proves
     // the synthetic plate-scale fallback produced a renderable reticle with no
     // survey image loaded.
-    expect(find.byKey(FramingTutorialKeys.fovRect), findsOneWidget);
+    expect(find.byKey(TourTarget.framingFovRect.key), findsOneWidget);
   });
 }

@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
-import '../providers/framing_provider.dart' show SurveySource;
+import '../models/framing_models.dart' show SurveySource;
 import '../utils/skotiq_data_directory.dart';
+import 'logging_service.dart';
 
 /// Result of a [FramingImageCacheService.saveSurveyImage] call.
 class FramingImageCacheEntry {
@@ -184,10 +184,9 @@ class FramingImageCacheService {
     } catch (e, stack) {
       // Sidecar is best-effort: the image is the source of truth. Log the
       // failure but do not fail the save — the on-disk image is already good.
-      developer.log(
+      Log.warning(
         'FramingImageCacheService: failed to write sidecar metadata at $metaPath: $e',
-        name: 'FramingImageCache',
-        level: 900,
+        source: 'FramingImageCache',
         error: e,
         stackTrace: stack,
       );

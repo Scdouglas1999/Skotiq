@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   test('combines remote focus history and fitted model responses', () {
@@ -77,6 +79,9 @@ void main() {
       );
       addTearDown(container.dispose);
 
+      // Watched, as the focus model card watches it: a provider nobody
+      // listens to is disposed, and drops its answer.
+      container.listen(focusProfileDataProvider('7'), (_, _) {});
       var completed = false;
       final result = container.read(focusProfileDataProvider('7').future);
       unawaited(result.then((_) => completed = true));

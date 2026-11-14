@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+
+import 'recovered_database.dart';
 
 /// A daemon stopped mid-run — a cloud call at 2am, the updater, a power blip —
 /// left its `imaging_sessions` row `active` with nothing to close it, and
@@ -75,18 +78,18 @@ void main() {
       final start = DateTime.now().subtract(const Duration(hours: 6));
       final lastFrame = start.add(const Duration(hours: 2));
 
-      final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final first = RecoveredDatabase(NativeDatabase(dbFile));
       final sessionId = await addActiveSession(first, startTime: start);
       await addFrame(first, sessionId, start.add(const Duration(hours: 1)), 0);
       await addFrame(first, sessionId, lastFrame, 1);
       expect((await readSession(first, sessionId)).status, 'active');
       await first.close();
 
-      final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final second = RecoveredDatabase(NativeDatabase(dbFile));
       addTearDown(second.close);
       final after = await readSession(second, sessionId);
 
-      expect(after.status, kInterruptedSessionStatus);
+      expect(after.status, SessionStatus.interrupted.token);
       // Back-dated to the last frame, NOT to the recovery clock: a night
       // abandoned on Wednesday and found on Friday used to report a 60-hour
       // duration on its History card and in every efficiency figure built on
@@ -102,15 +105,15 @@ void main() {
   test('a session that captured nothing collapses to its start time', () async {
     final start = DateTime.now().subtract(const Duration(hours: 3));
 
-    final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final first = RecoveredDatabase(NativeDatabase(dbFile));
     final sessionId = await addActiveSession(first, startTime: start);
     await first.close();
 
-    final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final second = RecoveredDatabase(NativeDatabase(dbFile));
     addTearDown(second.close);
     final after = await readSession(second, sessionId);
 
-    expect(after.status, kInterruptedSessionStatus);
+    expect(after.status, SessionStatus.interrupted.token);
     // Zero duration rather than an invented end: the session produced nothing,
     // and stamping "now" would report three hours of imaging that never
     // happened.
@@ -123,7 +126,7 @@ void main() {
   test('a frame dated after the recovery cannot stretch the night', () async {
     final start = DateTime.now().subtract(const Duration(hours: 2));
 
-    final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final first = RecoveredDatabase(NativeDatabase(dbFile));
     final sessionId = await addActiveSession(first, startTime: start);
     // A rig whose clock jumped forward mid-night, or a frame carrying a header
     // time from the future. Clamped, so the row cannot report a night that is
@@ -136,7 +139,7 @@ void main() {
     );
     await first.close();
 
-    final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final second = RecoveredDatabase(NativeDatabase(dbFile));
     addTearDown(second.close);
     final after = await readSession(second, sessionId);
 
@@ -145,7 +148,7 @@ void main() {
   });
 
   test('the sweep appends to notes rather than replacing them', () async {
-    final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final first = RecoveredDatabase(NativeDatabase(dbFile));
     final sessionId = await addActiveSession(
       first,
       startTime: DateTime.now().subtract(const Duration(hours: 1)),
@@ -153,7 +156,7 @@ void main() {
     );
     await first.close();
 
-    final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final second = RecoveredDatabase(NativeDatabase(dbFile));
     addTearDown(second.close);
     final after = await readSession(second, sessionId);
 
@@ -167,7 +170,7 @@ void main() {
     final start = DateTime.now().subtract(const Duration(hours: 4));
     final end = start.add(const Duration(hours: 3));
 
-    final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final first = RecoveredDatabase(NativeDatabase(dbFile));
     final sessionId = await first.sessionsDao.createSession(
       ImagingSessionsCompanion.insert(
         startTime: start,
@@ -177,7 +180,7 @@ void main() {
     );
     await first.close();
 
-    final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final second = RecoveredDatabase(NativeDatabase(dbFile));
     addTearDown(second.close);
     final after = await readSession(second, sessionId);
 
@@ -192,7 +195,7 @@ void main() {
   test(
     'after the sweep a new session opens and the next night attaches',
     () async {
-      final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final first = RecoveredDatabase(NativeDatabase(dbFile));
       final orphan = await addActiveSession(
         first,
         startTime: DateTime.now().subtract(const Duration(hours: 5)),
@@ -209,7 +212,7 @@ void main() {
       // Before it, `startSession` threw ActiveImagingSessionException here and
       // every caller carried on with no session id, so every frame of this
       // night would have been written with `session_id` NULL.
-      final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final second = RecoveredDatabase(NativeDatabase(dbFile));
       addTearDown(second.close);
       final tonight = await second.sessionsDao.startSession(name: 'night two');
       expect(tonight, isNot(orphan));
@@ -229,7 +232,7 @@ void main() {
     'frames the old bug already stranded are left unattached, and stay listed '
     'as sessionless',
     () async {
-      final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final first = RecoveredDatabase(NativeDatabase(dbFile));
       final orphan = await addActiveSession(
         first,
         startTime: DateTime.now().subtract(const Duration(hours: 30)),
@@ -253,7 +256,7 @@ void main() {
       );
       await first.close();
 
-      final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      final second = RecoveredDatabase(NativeDatabase(dbFile));
       addTearDown(second.close);
 
       // The sweep does not adopt it. Every later night landed inside the stuck
@@ -267,7 +270,7 @@ void main() {
       expect(stranded.read<int>('n'), 1);
       expect(
         (await readSession(second, orphan)).status,
-        kInterruptedSessionStatus,
+        SessionStatus.interrupted.token,
       );
       expect(
         (await second.imagesDao.getImagesForSession(orphan)).length,
@@ -285,14 +288,14 @@ void main() {
 
   test('the interrupted night is what Continue Session offers, and resuming it '
       're-opens the row', () async {
-    final first = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final first = RecoveredDatabase(NativeDatabase(dbFile));
     final orphan = await addActiveSession(
       first,
       startTime: DateTime.now().subtract(const Duration(hours: 5)),
     );
     await first.close();
 
-    final second = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+    final second = RecoveredDatabase(NativeDatabase(dbFile));
     addTearDown(second.close);
     // The handoff dialog read `active` because nothing ever closed an
     // abandoned row; the sweep moved that set to `interrupted`, and the
@@ -316,7 +319,7 @@ void main() {
   test(
     'closeOrphanedSessions closes every stranded row and names them',
     () async {
-      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      final db = RecoveredDatabase(NativeDatabase.memory());
       addTearDown(db.close);
       final a = await addActiveSession(
         db,
@@ -334,8 +337,14 @@ void main() {
       );
 
       expect(closed, [a, b]);
-      expect((await readSession(db, a)).status, kInterruptedSessionStatus);
-      expect((await readSession(db, b)).status, kInterruptedSessionStatus);
+      expect(
+        (await readSession(db, a)).status,
+        SessionStatus.interrupted.token,
+      );
+      expect(
+        (await readSession(db, b)).status,
+        SessionStatus.interrupted.token,
+      );
       expect(
         (await readSession(db, b)).notes,
         contains('a new sequence started'),

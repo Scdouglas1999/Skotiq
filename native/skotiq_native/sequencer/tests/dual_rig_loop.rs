@@ -15,9 +15,8 @@ use skotiq_sequencer::dual_rig::{
     DitherBarrier, InFlightDitherPolicy, SecondaryFrameMeta, SecondaryRig, SecondaryRigConfig,
 };
 use skotiq_sequencer::scheduling::FrameContext;
-use skotiq_sequencer::{
-    DeviceResult, GuidingCalibration, GuidingStatus, ImageData, NullDeviceOps, PlateSolveResult,
-};
+use skotiq_sequencer::{CameraOps, FrameStoreOps};
+use skotiq_sequencer::{DeviceResult, ExposureRequest, ImageData, NullDeviceOps};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -56,16 +55,14 @@ impl RecordingOps {
 }
 
 #[async_trait]
-impl skotiq_sequencer::DeviceOps for RecordingOps {
-    async fn camera_start_exposure(
-        &self,
-        _camera_id: &str,
-        duration_secs: f64,
-        gain: Option<i32>,
-        offset: Option<i32>,
-        _bin_x: i32,
-        _bin_y: i32,
-    ) -> DeviceResult<ImageData> {
+impl CameraOps for RecordingOps {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            duration_secs,
+            gain,
+            offset,
+            ..
+        } = request;
         self.exposures.fetch_add(1, Ordering::SeqCst);
         tokio::time::sleep(self.exposure_wait).await;
         Ok(ImageData {
@@ -80,62 +77,14 @@ impl skotiq_sequencer::DeviceOps for RecordingOps {
             filter: None,
             timestamp: 0,
             sensor_type: Some("Monochrome".to_string()),
-            bayer_offset: None,
+            color_filter: None,
+            // As a DSLR delivers it; written only when the run keeps camera files.
+            camera_file: Some(skotiq_device::CameraFile {
+                file_name: "IMG_0001.NEF".to_string(),
+                bytes: Arc::new(b"nef bytes".to_vec()),
+            }),
+            readout_mode: None,
         })
-    }
-
-    async fn save_fits(
-        &self,
-        _image_data: &ImageData,
-        file_path: &str,
-        frame_ctx: &FrameContext,
-    ) -> DeviceResult<()> {
-        self.saved
-            .lock()
-            .unwrap()
-            .push((file_path.to_string(), frame_ctx.rig_label.clone()));
-        Ok(())
-    }
-
-    // Everything else delegates to NullDeviceOps
-    async fn mount_slew_to_coordinates(&self, m: &str, ra: f64, dec: f64) -> DeviceResult<()> {
-        self.inner.mount_slew_to_coordinates(m, ra, dec).await
-    }
-    async fn mount_abort_slew(&self, m: &str) -> DeviceResult<()> {
-        self.inner.mount_abort_slew(m).await
-    }
-    async fn mount_get_coordinates(&self, m: &str) -> DeviceResult<(f64, f64)> {
-        self.inner.mount_get_coordinates(m).await
-    }
-    async fn mount_sync(&self, m: &str, ra: f64, dec: f64) -> DeviceResult<()> {
-        self.inner.mount_sync(m, ra, dec).await
-    }
-    async fn mount_park(&self, m: &str) -> DeviceResult<()> {
-        self.inner.mount_park(m).await
-    }
-    async fn mount_unpark(&self, m: &str) -> DeviceResult<()> {
-        self.inner.mount_unpark(m).await
-    }
-    async fn mount_is_slewing(&self, m: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_slewing(m).await
-    }
-    async fn mount_is_parked(&self, m: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_parked(m).await
-    }
-    async fn mount_can_flip(&self, m: &str) -> DeviceResult<bool> {
-        self.inner.mount_can_flip(m).await
-    }
-    async fn mount_side_of_pier(
-        &self,
-        m: &str,
-    ) -> DeviceResult<skotiq_sequencer::meridian::PierSide> {
-        self.inner.mount_side_of_pier(m).await
-    }
-    async fn mount_is_tracking(&self, m: &str) -> DeviceResult<bool> {
-        self.inner.mount_is_tracking(m).await
-    }
-    async fn mount_set_tracking(&self, m: &str, e: bool) -> DeviceResult<()> {
-        self.inner.mount_set_tracking(m, e).await
     }
     async fn camera_abort_exposure(&self, c: &str) -> DeviceResult<()> {
         self.aborts.fetch_add(1, Ordering::SeqCst);
@@ -150,143 +99,31 @@ impl skotiq_sequencer::DeviceOps for RecordingOps {
     async fn camera_get_cooler_power(&self, c: &str) -> DeviceResult<f64> {
         self.inner.camera_get_cooler_power(c).await
     }
-    async fn focuser_move_to(&self, f: &str, p: i32) -> DeviceResult<()> {
-        self.inner.focuser_move_to(f, p).await
-    }
-    async fn focuser_get_position(&self, f: &str) -> DeviceResult<i32> {
-        self.inner.focuser_get_position(f).await
-    }
-    async fn focuser_is_moving(&self, f: &str) -> DeviceResult<bool> {
-        self.inner.focuser_is_moving(f).await
-    }
-    async fn focuser_get_temperature(&self, f: &str) -> DeviceResult<Option<f64>> {
-        self.inner.focuser_get_temperature(f).await
-    }
-    async fn focuser_halt(&self, f: &str) -> DeviceResult<()> {
-        self.inner.focuser_halt(f).await
-    }
-    async fn filterwheel_set_position(&self, w: &str, p: i32) -> DeviceResult<()> {
-        self.inner.filterwheel_set_position(w, p).await
-    }
-    async fn filterwheel_get_position(&self, w: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_get_position(w).await
-    }
-    async fn filterwheel_get_names(&self, w: &str) -> DeviceResult<Vec<String>> {
-        self.inner.filterwheel_get_names(w).await
-    }
-    async fn filterwheel_set_filter_by_name(&self, w: &str, n: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_set_filter_by_name(w, n).await
-    }
-    async fn rotator_move_to(&self, r: &str, a: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(r, a).await
-    }
-    async fn rotator_move_relative(&self, r: &str, d: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(r, d).await
-    }
-    async fn rotator_get_angle(&self, r: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(r).await
-    }
-    async fn rotator_halt(&self, r: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(r).await
-    }
-    async fn guider_dither(
+}
+
+#[async_trait]
+impl FrameStoreOps for RecordingOps {
+    async fn save_fits(
         &self,
-        p: f64,
-        sp: f64,
-        st: f64,
-        sto: f64,
-        ra: bool,
+        _image_data: &ImageData,
+        file_path: &str,
+        frame_ctx: &FrameContext,
     ) -> DeviceResult<()> {
-        self.inner.guider_dither(p, sp, st, sto, ra).await
+        self.saved
+            .lock()
+            .unwrap()
+            .push((file_path.to_string(), frame_ctx.rig_label.clone()));
+        Ok(())
     }
-    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
-        self.inner.guider_get_status().await
-    }
-    async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
-        self.inner.guider_get_calibration().await
-    }
-    async fn guider_start(&self, sp: f64, st: f64, sto: f64) -> DeviceResult<()> {
-        self.inner.guider_start(sp, st, sto).await
-    }
-    async fn guider_stop(&self) -> DeviceResult<()> {
-        self.inner.guider_stop().await
-    }
-    async fn plate_solve(
+    async fn measure_light_frame(
         &self,
         i: &ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<PlateSolveResult> {
-        self.inner.plate_solve(i, ra, dec, s).await
-    }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        e: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.inner.send_notification(l, t, m, e).await
-    }
-    fn calculate_altitude(&self, ra: f64, dec: f64, lat: f64, lon: f64) -> f64 {
-        self.inner.calculate_altitude(ra, dec, lat, lon)
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.inner.get_observer_location()
-    }
-    async fn polar_align_update(&self, r: &skotiq_sequencer::PolarAlignResult) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
-    }
-    async fn dome_open(&self, d: &str) -> DeviceResult<()> {
-        self.inner.dome_open(d).await
-    }
-    async fn dome_close(&self, d: &str) -> DeviceResult<()> {
-        self.inner.dome_close(d).await
-    }
-    async fn dome_park(&self, d: &str) -> DeviceResult<()> {
-        self.inner.dome_park(d).await
-    }
-    async fn dome_get_shutter_status(&self, d: &str) -> DeviceResult<String> {
-        self.inner.dome_get_shutter_status(d).await
-    }
-    async fn safety_is_safe(&self, s: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(s).await
-    }
-    async fn calculate_image_hfr(&self, i: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(i).await
-    }
-    async fn detect_stars_in_image(&self, i: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(i).await
-    }
-    async fn cover_calibrator_open_cover(&self, c: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_open_cover(c).await
-    }
-    async fn cover_calibrator_close_cover(&self, c: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_close_cover(c).await
-    }
-    async fn cover_calibrator_halt_cover(&self, c: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_halt_cover(c).await
-    }
-    async fn cover_calibrator_calibrator_on(&self, c: &str, b: i32) -> DeviceResult<()> {
-        self.inner.cover_calibrator_calibrator_on(c, b).await
-    }
-    async fn cover_calibrator_calibrator_off(&self, c: &str) -> DeviceResult<()> {
-        self.inner.cover_calibrator_calibrator_off(c).await
-    }
-    async fn cover_calibrator_get_cover_state(&self, c: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_cover_state(c).await
-    }
-    async fn cover_calibrator_get_calibrator_state(&self, c: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_calibrator_state(c).await
-    }
-    async fn cover_calibrator_get_brightness(&self, c: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_brightness(c).await
-    }
-    async fn cover_calibrator_get_max_brightness(&self, c: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_max_brightness(c).await
+    ) -> DeviceResult<skotiq_sequencer::LightFrameMeasurement> {
+        self.inner.measure_light_frame(i).await
     }
 }
+
+skotiq_sequencer::forward_device_ops!(RecordingOps => inner: MountOps, FocuserOps, FilterWheelOps, RotatorOps, GuiderOps, DomeOps, CoverCalibratorOps, SafetyOps, PlateSolveOps, OperatorNotifyOps, ConnectionOps, SiteOps);
 
 /// A scratch directory that deletes itself when the test ends.
 /// `Drop` rather than a cleanup call at the end of each test: the leak was
@@ -327,6 +164,63 @@ fn meta(base: &std::path::Path) -> SecondaryFrameMeta {
         save_base: Some(base.to_path_buf()),
         ..Default::default()
     }
+}
+
+/// Runs the secondary for `frames` frames and returns the paths it saved.
+async fn run_secondary(
+    config: SecondaryRigConfig,
+    frame_meta: SecondaryFrameMeta,
+    frames: u32,
+) -> Vec<String> {
+    let recorder = Arc::new(RecordingOps::new(Duration::from_millis(10)));
+    let ops: Arc<dyn skotiq_sequencer::DeviceOps> = recorder.clone();
+    let barrier = Arc::new(DitherBarrier::new(
+        30.0,
+        InFlightDitherPolicy::CompleteIfShort,
+    ));
+    let mut config = config;
+    config.frame_count = Some(frames);
+    let rig = SecondaryRig::start(config, ops, barrier, frame_meta);
+    for _ in 0..200 {
+        if rig.status().frames_captured >= frames {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    recorder
+        .saved_frames()
+        .into_iter()
+        .map(|(path, _)| path)
+        .collect()
+}
+
+/// The secondary names its frames by the template it is given, as a capture
+/// step does, and a second start continues the numbering from the disk
+/// instead of writing over the first start's frames.
+#[tokio::test]
+async fn secondary_frames_follow_the_naming_template_and_never_reuse_a_name() {
+    let tmp = temp_dir();
+    let mut config = SecondaryRigConfig::new("cam-secondary", 0.01);
+    config.rig_label = "WideField".to_string();
+    config.save_to = Some("${target.name}_wide_${frame:03}".to_string());
+
+    let first = run_secondary(config.clone(), meta(&tmp), 1).await;
+    assert_eq!(first.len(), 1);
+    let first = std::path::PathBuf::from(&first[0]);
+    assert_eq!(first, tmp.join("WideField").join("M31_wide_001.fits"));
+    // The frame writer would have put the file there.
+    std::fs::write(&first, b"frame").unwrap();
+
+    let second = run_secondary(config, meta(&tmp), 1).await;
+    assert_eq!(
+        second,
+        vec![tmp
+            .join("WideField")
+            .join("M31_wide_002.fits")
+            .to_string_lossy()
+            .to_string()]
+    );
 }
 
 #[tokio::test]
@@ -377,6 +271,36 @@ async fn fixed_frame_count_stops_loop_and_attributes_rig() {
             "frame name should carry target M31: {path}"
         );
     }
+}
+
+/// The secondary camera's frames are the run's frames: with camera files
+/// kept, each lands beside its FITS name with the camera's extension.
+#[tokio::test]
+async fn secondary_frames_keep_the_camera_file_when_the_run_does() {
+    let tmp = temp_dir();
+    let recorder = Arc::new(RecordingOps::new(Duration::from_millis(10)));
+    let ops: Arc<dyn skotiq_sequencer::DeviceOps> = recorder.clone();
+    let barrier = Arc::new(DitherBarrier::new(
+        30.0,
+        InFlightDitherPolicy::CompleteIfShort,
+    ));
+    let mut config = SecondaryRigConfig::new("cam-secondary", 0.01);
+    config.frame_count = Some(1);
+    config.rig_label = "WideField".to_string();
+    let mut frame_meta = meta(&tmp);
+    frame_meta.camera_file_saving = skotiq_sequencer::CameraFileSaving::Both;
+
+    let rig = SecondaryRig::start(config, ops, barrier, frame_meta);
+    for _ in 0..200 {
+        if rig.status().frames_captured >= 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let saved = recorder.saved_frames();
+    assert_eq!(saved.len(), 1);
+    let camera_path = std::path::Path::new(&saved[0].0).with_extension("NEF");
+    assert_eq!(std::fs::read(&camera_path).unwrap(), b"nef bytes");
 }
 
 #[tokio::test]

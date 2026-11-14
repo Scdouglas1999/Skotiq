@@ -6,11 +6,6 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_psf_model`, `deconvolve_preview_impl`, `ensure_parent_dir`, `extract_background_impl`, `psf_kind_str`, `read_pixel_f32`, `reduce_stars_preview_impl`, `to_f32`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BackgroundConfigArgs`, `DeconvConfigArgs`, `DeconvolvePreviewArgs`, `DeconvolvePreviewResult`, `ExtractBackgroundArgs`, `ExtractBackgroundResult`, `PsfArgs`, `PsfReport`, `ReduceStarsConfigArgs`, `ReduceStarsPreviewArgs`, `ReduceStarsPreviewResult`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`, `default`, `default`, `default`, `default`
-
 /// Fit a star-masked, low-order polynomial background model and write the
 /// background-subtracted (flattened) frame as a linear `F32` FITS master.
 ///

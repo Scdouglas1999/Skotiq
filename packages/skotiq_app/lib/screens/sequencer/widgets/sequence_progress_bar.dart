@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-
-import 'run_dashboard/run_dashboard_format.dart';
 
 class SequenceProgressBar extends ConsumerStatefulWidget {
   final SkotiqColors colors;
@@ -217,7 +217,6 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
               ),
               child: Row(
                 children: [
-                  // Current node indicator
                   Expanded(
                     flex: 2,
                     child: Row(
@@ -288,8 +287,6 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                       ],
                     ),
                   ),
-
-                  // Target and filter
                   if (progress.currentTarget != null ||
                       progress.currentFilter != null) ...[
                     Container(
@@ -343,15 +340,12 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                       ],
                     ),
                   ],
-
                   Container(
                     width: 1,
                     height: 30,
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     color: widget.colors.border,
                   ),
-
-                  // Progress bar with percentage
                   SizedBox(
                     width: 220,
                     child: Column(
@@ -371,7 +365,11 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  '${progress.completedExposures}/${progress.totalExposures}',
+                                  // No total for a run that loops until its
+                                  // window closes: count what it has taken.
+                                  progress.totalExposures > 0
+                                      ? '${progress.completedExposures}/${progress.totalExposures}'
+                                      : '${progress.completedExposures} taken',
                                   style: TextStyle(
                                     fontSize: SkotiqTypography.fontSize10,
                                     fontWeight: FontWeight.w600,
@@ -381,34 +379,35 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: SkotiqDecorations.statusChip(
-                                    widget.colors.primary,
-                                    borderRadius: BorderRadius.circular(
-                                        SkotiqTokens.radiusInline4),
-                                    bordered: false,
-                                  ),
-                                  child: Text(
-                                    '${(progress.progressPercent * 100).toStringAsFixed(0)}%',
-                                    style: TextStyle(
-                                      fontSize: SkotiqTypography.fontSize10,
-                                      fontWeight: FontWeight.w700,
-                                      color: widget.colors.primary,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures()
-                                      ],
+                                if (progress.totalExposures > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: SkotiqDecorations.statusChip(
+                                      widget.colors.primary,
+                                      borderRadius: BorderRadius.circular(
+                                          SkotiqTokens.radiusInline4),
+                                      bordered: false,
+                                    ),
+                                    child: Text(
+                                      '${(progress.progressPercent * 100).toStringAsFixed(0)}%',
+                                      style: TextStyle(
+                                        fontSize: SkotiqTypography.fontSize10,
+                                        fontWeight: FontWeight.w700,
+                                        color: widget.colors.primary,
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures()
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           ],
                         ),
                         const SizedBox(height: 6),
-                        // Overall progress bar
                         Stack(
                           children: [
                             Container(
@@ -431,7 +430,6 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                                 ),
                               ),
                             ),
-                            // Integration progress overlay
                             if (progress.totalIntegrationSecs > 0)
                               FractionallySizedBox(
                                 widthFactor:
@@ -454,15 +452,12 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                       ],
                     ),
                   ),
-
                   Container(
                     width: 1,
                     height: 30,
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     color: widget.colors.border,
                   ),
-
-                  // Time info
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisSize: MainAxisSize.min,
@@ -541,7 +536,7 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                               const SizedBox(width: 4),
                               Text(
                                 '~${DurationFormat.seconds(progress.estimatedRemainingSecs!, rounding: DurationRounding.truncate)}'
-                                ' · done ~${formatTimeOfDay(DateTime.now().add(Duration(seconds: progress.estimatedRemainingSecs!.round())))}',
+                                ' · done ~${ClockFormat.hms(DateTime.now().add(Duration(seconds: progress.estimatedRemainingSecs!.round())))}',
                                 style: TextStyle(
                                   fontSize: SkotiqTypography.fontSize11,
                                   color: widget.colors.textMuted,

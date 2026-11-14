@@ -1,6 +1,5 @@
-use super::*;
-
-// Mount capabilities
+use crate::device::{CalibratorState, CoverState, TrackingRate};
+use serde::{Deserialize, Serialize};
 
 /// Capabilities of a mount/telescope device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -62,8 +61,6 @@ pub struct MountCapabilities {
 
 // TrackingRate is imported from crate::device
 
-// Camera capabilities
-
 /// Capabilities of a camera device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CameraCapabilities {
@@ -95,6 +92,11 @@ pub struct CameraCapabilities {
     pub gain_min: Option<i32>,
     /// Maximum gain value
     pub gain_max: Option<i32>,
+    /// The ISO speeds a DSLR or mirrorless body offers, lowest first, Auto
+    /// excluded. Not empty means the camera's sensitivity is set in ISO: the
+    /// gain it takes and reports is the ISO number, and `gain_min`/`gain_max`
+    /// are the lowest and highest speed. Empty for a gain camera.
+    pub iso_speeds: Vec<i32>,
     /// Whether the camera supports offset adjustment
     pub can_set_offset: bool,
     /// Minimum offset value
@@ -183,8 +185,8 @@ pub struct CameraRecommendedSettings {
     pub notes: String,
 }
 
-impl From<skotiq_native::camera::CameraRecommendedSettings> for CameraRecommendedSettings {
-    fn from(src: skotiq_native::camera::CameraRecommendedSettings) -> Self {
+impl From<skotiq_device::CameraRecommendedSettings> for CameraRecommendedSettings {
+    fn from(src: skotiq_device::CameraRecommendedSettings) -> Self {
         Self {
             unity_gain: src.unity_gain,
             hcg_gain: src.hcg_gain,
@@ -194,8 +196,6 @@ impl From<skotiq_native::camera::CameraRecommendedSettings> for CameraRecommende
         }
     }
 }
-
-// Focuser capabilities
 
 /// Capabilities of a focuser device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -226,66 +226,6 @@ pub struct FocuserCapabilities {
     pub reverse: Option<bool>,
 }
 
-/// Every ASCOM focuser property needed to build a [`FocuserCapabilities`].
-///
-/// Mirrors `skotiq_ascom`'s `FocuserCapabilities` + `FocuserFullStatus`
-/// without naming those Windows-only types, so
-/// [`focuser_capabilities_from_ascom`] stays compilable and unit-testable on
-/// Linux. `None` on any field means the driver's property threw (typically
-/// `PropertyNotImplementedException`).
-#[derive(Debug, Clone, Default)]
-pub struct AscomFocuserReadings {
-    pub max_step: Option<i32>,
-    pub max_increment: Option<i32>,
-    pub step_size: Option<f64>,
-    pub absolute: Option<bool>,
-    pub temp_comp_available: Option<bool>,
-    pub temp_comp: Option<bool>,
-    pub temperature: Option<f64>,
-    pub position: Option<i32>,
-    pub is_moving: Option<bool>,
-}
-
-/// Build the wire-facing focuser capabilities from raw ASCOM property reads.
-///
-/// Every field is mapped from a driver read; none may fall back to
-/// `Default::default()`. Defaulted fields make
-/// `/api/equipment/focuser/capabilities` report `isMoving: false`,
-/// `position: null`, `temperature: null` and `canHalt: false` whatever the
-/// driver says — a focuser that is demonstrably travelling reported as idle,
-/// and a `canHalt: false` contradicted by a halt that works.
-///
-/// Separate from the Windows-only capability probe so the mapping has a
-/// regression test on every platform.
-pub fn focuser_capabilities_from_ascom(r: AscomFocuserReadings) -> FocuserCapabilities {
-    FocuserCapabilities {
-        // Why: ASCOM IFocuserV3.MaxStep — when the read returns None the
-        // property threw PropertyNotImplementedException. 0 means "no travel
-        // range advertised", which disables absolute-position UI.
-        max_position: r.max_step.unwrap_or(0),
-        max_increment: r.max_increment.unwrap_or(0), // IFocuserV3.MaxIncrement — same contract as MaxStep
-        step_size: r.step_size,
-        absolute: r.absolute.unwrap_or(false), // IFocuserV3.Absolute — assume relative if omitted (safer UX)
-        temp_comp_available: r.temp_comp_available.unwrap_or(false), // IFocuserV3.TempCompAvailable (optional)
-        temp_comp: r.temp_comp.unwrap_or(false),
-        temperature: r.temperature,
-        position: r.position,
-        is_moving: r.is_moving.unwrap_or(false),
-        // Why true: Halt() is a member of the IFocuserV2/V3 interface that every
-        // ASCOM focuser implements, and ASCOM exposes no `CanHalt` property to
-        // probe. Reporting false disabled the stop control for a focuser whose
-        // Halt demonstrably works. A driver that does not implement Halt raises
-        // its own error at call time — the same contract already used for ASCOM
-        // rotators, which hardcode `can_halt: true` for this reason.
-        can_halt: true,
-        // ASCOM focusers have no Reverse property (that belongs to IRotatorV3).
-        can_reverse: false,
-        reverse: None,
-    }
-}
-
-// Filter wheel capabilities
-
 /// Capabilities of a filter wheel device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FilterWheelCapabilities {
@@ -304,8 +244,6 @@ pub struct FilterWheelCapabilities {
     /// Whether focus offsets can be set
     pub can_set_focus_offsets: bool,
 }
-
-// Rotator capabilities
 
 /// Capabilities of a rotator device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -337,8 +275,6 @@ pub struct RotatorCapabilities {
     /// range. `None` means the range is implicit/unknown.
     pub max_angle_deg: Option<f64>,
 }
-
-// Dome capabilities
 
 /// Capabilities of a dome device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -392,8 +328,6 @@ impl Default for ShutterStatus {
     }
 }
 
-// Cover calibrator capabilities
-
 /// Capabilities of a cover calibrator device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CoverCalibratorCapabilities {
@@ -414,8 +348,6 @@ pub struct CoverCalibratorCapabilities {
 // CoverState is imported from crate::device
 
 // CalibratorState is imported from crate::device
-
-// Weather capabilities
 
 /// Capabilities of a weather/observing conditions device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -461,8 +393,6 @@ pub struct SafetyMonitorCapabilities {
     pub safety_description: Option<String>,
 }
 
-// Switch capabilities
-
 /// Capabilities of a switch device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SwitchCapabilities {
@@ -495,7 +425,9 @@ pub struct SwitchInfo {
     pub value: f64,
 }
 
-/// Unified device capabilities enum
+// One value per capability query, mirrored to Dart by value; boxing the
+// camera variant would change the bridged type for no runtime gain.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DeviceCapabilities {
     Mount(MountCapabilities),
@@ -508,88 +440,4 @@ pub enum DeviceCapabilities {
     Weather(WeatherCapabilities),
     SafetyMonitor(SafetyMonitorCapabilities),
     Switch(SwitchCapabilities),
-}
-
-#[cfg(test)]
-mod ascom_focuser_capability_tests {
-    use super::{focuser_capabilities_from_ascom, AscomFocuserReadings};
-
-    /// Readings matching the ASCOM Focuser Simulator on the rig, captured while
-    /// it was genuinely travelling.
-    fn moving_focuser() -> AscomFocuserReadings {
-        AscomFocuserReadings {
-            max_step: Some(50000),
-            max_increment: Some(50000),
-            step_size: Some(20.0),
-            absolute: Some(true),
-            temp_comp_available: Some(true),
-            temp_comp: Some(false),
-            temperature: Some(182.43),
-            position: Some(44880),
-            is_moving: Some(true),
-        }
-    }
-
-    #[test]
-    fn live_state_is_reported_not_defaulted() {
-        // These four must not come from `Default::default()`: that reports a
-        // moving focuser as isMoving false / position null / temperature null.
-        let caps = focuser_capabilities_from_ascom(moving_focuser());
-
-        assert!(caps.is_moving, "a travelling focuser must report is_moving");
-        assert_eq!(caps.position, Some(44880));
-        assert_eq!(caps.temperature, Some(182.43));
-        assert_eq!(caps.max_position, 50000);
-        assert_eq!(caps.step_size, Some(20.0));
-        assert!(caps.absolute);
-        assert!(caps.temp_comp_available);
-        assert!(!caps.temp_comp);
-    }
-
-    #[test]
-    fn halt_is_advertised_for_every_ascom_focuser() {
-        // Halt() is an IFocuserV2/V3 interface member and ASCOM has no CanHalt
-        // property; reporting false disabled the stop control for a focuser
-        // whose Halt was verified working on the rig.
-        assert!(focuser_capabilities_from_ascom(moving_focuser()).can_halt);
-        assert!(
-            focuser_capabilities_from_ascom(AscomFocuserReadings::default()).can_halt,
-            "can_halt must not depend on any property read succeeding"
-        );
-    }
-
-    #[test]
-    fn unreadable_properties_degrade_without_inventing_values() {
-        // Every property threw: report "unknown" rather than a fabricated
-        // number. 0 travel disables absolute-position UI, which is the intended
-        // signal for a driver whose MaxStep is not implemented.
-        let caps = focuser_capabilities_from_ascom(AscomFocuserReadings::default());
-
-        assert_eq!(caps.max_position, 0);
-        assert_eq!(caps.max_increment, 0);
-        assert_eq!(caps.step_size, None);
-        assert_eq!(caps.temperature, None);
-        assert_eq!(caps.position, None);
-        assert!(!caps.is_moving);
-        assert!(!caps.absolute);
-    }
-
-    #[test]
-    fn reverse_stays_unsupported_for_focusers() {
-        // Reverse belongs to IRotatorV3, not IFocuserV3.
-        let caps = focuser_capabilities_from_ascom(moving_focuser());
-        assert!(!caps.can_reverse);
-        assert_eq!(caps.reverse, None);
-    }
-
-    #[test]
-    fn a_settled_focuser_reports_not_moving() {
-        let caps = focuser_capabilities_from_ascom(AscomFocuserReadings {
-            is_moving: Some(false),
-            position: Some(50000),
-            ..moving_focuser()
-        });
-        assert!(!caps.is_moving);
-        assert_eq!(caps.position, Some(50000));
-    }
 }

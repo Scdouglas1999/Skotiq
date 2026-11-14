@@ -185,6 +185,23 @@ void main() {
     },
   );
 
+  test('an unreachable place search says so instead of "no match"', () async {
+    GeolocationService.clientFactory = () => MockClient((request) async {
+      throw http.ClientException('Network is unreachable');
+    });
+
+    await expectLater(
+      GeolocationService.searchPlaces('Cherry Springs'),
+      throwsA(
+        isA<PlaceSearchUnavailable>().having(
+          (e) => e.message,
+          'message',
+          startsWith('Could not reach geocoding-api.open-meteo.com'),
+        ),
+      ),
+    );
+  });
+
   test('an empty place query does not leave the machine', () async {
     var calls = 0;
     GeolocationService.clientFactory = () => MockClient((request) async {
@@ -400,6 +417,67 @@ void main() {
     );
     expect(attempt.fix!.source, PositioningSource.ipAddress);
   });
+
+  // ux walk-2 F6: offline, "Use my current location" offered to turn Wi-Fi on
+  // for a precise fix and never said there was no internet. A scan's networks
+  // are resolved by an online service, so offline the offer cannot work.
+  test(
+    'offline, the attempt says so and does not offer the Wi-Fi scan',
+    () async {
+      GeolocatorPlatform.instance = _FakeGeolocatorPlatform(enabled: false);
+      GeolocationService.scannerFactory = () => WifiScanner(
+        runner: (exe, args) async => switch (args) {
+          ['-t', '-f', 'TYPE', 'dev'] => _ok('ethernet\nwifi\n'),
+          ['radio', 'wifi'] => _ok('disabled\n'),
+          _ => _ok(''),
+        },
+        operatingSystem: 'linux',
+      );
+      GeolocationService.clientFactory = () => MockClient(
+        (request) async => throw http.ClientException(
+          'Connection failed (OS Error: Network is unreachable, errno = 101)',
+          request.url,
+        ),
+      );
+
+      final attempt = await GeolocationService.locate(
+        allowWifiScan: true,
+        allowIp: true,
+      );
+
+      expect(attempt.fix, isNull);
+      expect(attempt.wifiRadioOff, isTrue);
+      expect(attempt.noInternet, isTrue);
+      expect(attempt.canRetryWithWifi, isFalse);
+      expect(
+        attempt.failureMessage,
+        'There is no internet connection, so neither a Wi-Fi scan nor the '
+        'internet lookup can place this computer. This machine’s location '
+        'service is switched off.',
+      );
+    },
+  );
+
+  test(
+    'a lookup service that answers with an error is not "no internet"',
+    () async {
+      GeolocatorPlatform.instance = _FakeGeolocatorPlatform(enabled: false);
+      GeolocationService.scannerFactory = () => WifiScanner(
+        runner: (exe, args) async => _ok('ethernet\n'),
+        operatingSystem: 'linux',
+      );
+      GeolocationService.clientFactory = () =>
+          MockClient((request) async => http.Response('{}', 503));
+
+      final attempt = await GeolocationService.locate(
+        allowWifiScan: true,
+        allowIp: true,
+      );
+
+      expect(attempt.noInternet, isFalse);
+      expect(attempt.failureMessage, startsWith('No position from Wi-Fi'));
+    },
+  );
 
   test('the explicit retry switches the radio on, scans, and switches it back '
       'off', () async {

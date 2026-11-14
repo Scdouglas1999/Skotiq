@@ -7,7 +7,9 @@
 // camera state carries a default setpoint even when nobody set one.
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_header_provider.dart';
@@ -22,7 +24,16 @@ const double kNightAtSetpointTolerance = 0.5;
 /// The camera's own warm-up rate (`CameraWarmupController.start`), °C/min.
 const double kNightWarmUpRatePerMin = 2;
 
-enum NightCoolerState { notConnected, off, cooling, atSetpoint, warming }
+enum NightCoolerState {
+  notConnected,
+
+  /// Connected, and the camera does not say whether its cooler is on.
+  notReported,
+  off,
+  cooling,
+  atSetpoint,
+  warming,
+}
 
 /// Exposure values, from the manual settings or the run's step.
 @immutable
@@ -164,7 +175,6 @@ class NightCameraPanelVm {
   /// "4656 × 3520 · 3.80 µm"; null when the specs are unknown.
   final String? sensorSpecs;
 
-  /// The capture folder.
   final String? savesTo;
   final int? diskFreeBytes;
 
@@ -177,6 +187,7 @@ NightCoolerState nightCoolerState(CameraStateSnapshot camera) {
     return NightCoolerState.notConnected;
   }
   if (camera.isWarming) return NightCoolerState.warming;
+  if (camera.coolerOn == null) return NightCoolerState.notReported;
   if (!camera.isCooling) return NightCoolerState.off;
   final temp = camera.temperature;
   if (temp != null &&

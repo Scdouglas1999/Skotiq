@@ -56,7 +56,7 @@ fn decode_put_response_still_reads_a_present_value() {
 #[test]
 fn test_transaction_id_uniqueness_single_thread() {
     let device = AlpacaDevice {
-        device_type: AlpacaDeviceType::Camera,
+        device_type: AscomDeviceType::Camera,
         device_number: 0,
         server_name: String::new(),
         manufacturer: String::new(),
@@ -79,7 +79,7 @@ fn test_transaction_id_uniqueness_multi_thread() {
     use std::sync::Mutex;
 
     let device = AlpacaDevice {
-        device_type: AlpacaDeviceType::Camera,
+        device_type: AscomDeviceType::Camera,
         device_number: 0,
         server_name: String::new(),
         manufacturer: String::new(),
@@ -105,7 +105,6 @@ fn test_transaction_id_uniqueness_multi_thread() {
         handles.push(handle);
     }
 
-    // Collect all IDs from all threads
     for handle in handles {
         let local_ids = handle.join().unwrap();
         let mut ids_lock = ids.lock().unwrap();
@@ -131,7 +130,7 @@ fn test_transaction_id_uniqueness_multi_thread() {
 #[test]
 fn test_client_id_per_instance() {
     let device = AlpacaDevice {
-        device_type: AlpacaDeviceType::Camera,
+        device_type: AscomDeviceType::Camera,
         device_number: 0,
         server_name: String::new(),
         manufacturer: String::new(),
@@ -147,7 +146,7 @@ fn test_client_id_per_instance() {
 #[test]
 fn test_transaction_id_atomicity() {
     let device = AlpacaDevice {
-        device_type: AlpacaDeviceType::Camera,
+        device_type: AscomDeviceType::Camera,
         device_number: 0,
         server_name: String::new(),
         manufacturer: String::new(),
@@ -268,24 +267,50 @@ fn test_retry_config_prefers_retry_after_header() {
 }
 
 #[test]
-fn test_alpaca_error_conversion() {
-    let error = AlpacaError::timeout("test_operation", 5000);
-    let error_string: String = error.into();
-    assert!(error_string.contains("5000ms"));
-    assert!(error_string.contains("test_operation"));
+fn alpaca_errors_reach_drivers_as_the_failure_they_name() {
+    use skotiq_device::DriverError;
 
-    let error = AlpacaError::DeviceError {
-        code: 1031,
-        message: "Method unavailable".to_string(),
+    let not_connected = AlpacaError::DeviceError {
+        code: 0x407,
+        message: "Telescope is not connected".to_string(),
     };
-    let error_string: String = error.into();
-    assert!(error_string.contains("1031"));
-    assert!(error_string.contains("Method unavailable"));
+    assert!(matches!(
+        DriverError::from(not_connected),
+        DriverError::NotConnected
+    ));
+    let not_implemented = AlpacaError::DeviceError {
+        code: 0x400,
+        message: "PulseGuide is not implemented".to_string(),
+    };
+    assert!(matches!(
+        DriverError::from(not_implemented),
+        DriverError::NotSupported
+    ));
+    let invalid = AlpacaError::DeviceError {
+        code: 0x401,
+        message: "Gain 900 is out of range".to_string(),
+    };
+    assert!(matches!(
+        DriverError::from(invalid),
+        DriverError::InvalidParameter(message) if message == "Gain 900 is out of range"
+    ));
+    let timeout = DriverError::from(AlpacaError::timeout("test_operation", 5000));
+    assert!(
+        matches!(&timeout, DriverError::Timeout(text) if text.contains("5000ms") && text.contains("test_operation")),
+        "{timeout:?}"
+    );
+
+    // A failure of no particular kind keeps the protocol's wording.
+    let parked = DriverError::from(AlpacaError::DeviceError {
+        code: 0x408,
+        message: "Mount is parked".to_string(),
+    });
+    assert!(matches!(parked, DriverError::Backend(_)));
+    assert_eq!(parked.to_string(), "Device error 1032: Mount is parked");
 }
 
 #[test]
 fn test_alpaca_error_is_retryable() {
-    // Retryable errors
     assert!(AlpacaError::timeout("test", 5000).is_retryable());
     assert!(AlpacaError::connection_refused("http://localhost", "refused").is_retryable());
     assert!(AlpacaError::RequestFailed("network error".to_string()).is_retryable());
@@ -308,7 +333,6 @@ fn test_alpaca_error_is_retryable() {
     }
     .is_retryable());
 
-    // Non-retryable errors
     assert!(!AlpacaError::DeviceError {
         code: 1,
         message: "device error".to_string()

@@ -1,5 +1,4 @@
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors;
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -7,7 +6,12 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/skotiq_app.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/startup/app_overrides.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show kDefaultHeadlessPort;
 import 'package:skotiq_updater/skotiq_updater.dart'
     show setUpdateRelaunchArguments;
 import 'package:window_manager/window_manager.dart';
@@ -16,8 +20,12 @@ import 'desktop_app_bootstrap.dart';
 import 'desktop_last_gasp.dart';
 import 'desktop_shutdown_safing.dart';
 import 'desktop_logging_init.dart';
+import 'desktop_relaunch.dart';
 import 'frame_timing_probe.dart';
+import 'host/host_startup.dart';
+import 'host/host_steps.dart';
 import 'main_headless.dart' as headless;
+import 'startup_timeline.dart';
 
 /// A remote rig the desktop GUI should drive as a thin client instead of
 /// connecting local hardware. Populated from `--remote-host=` / `--remote-port=`
@@ -29,12 +37,20 @@ class _RemoteClientTarget {
   final int port;
   final String? token;
   final String scheme;
+  final String? name;
+  final String? fingerprint;
+
+  /// True when the target came from the rig the connect flow remembered.
+  final LinkedRig? rememberedRig;
 
   const _RemoteClientTarget({
     required this.host,
     required this.port,
     this.token,
     this.scheme = 'http',
+    this.name,
+    this.fingerprint,
+    this.rememberedRig,
   });
 }
 
@@ -86,17 +102,25 @@ _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
       _flagValue(args, 'remote-scheme', 'SKOTIQ_REMOTE_SCHEME') ?? 'http';
   return _RemoteClientTarget(
     host: host,
-    port: int.tryParse(portRaw ?? '') ?? 8080,
+    port: int.tryParse(portRaw ?? '') ?? kDefaultHeadlessPort,
     token: (token == null || token.isEmpty) ? null : token,
     scheme: scheme,
   );
 }
 
 void main(List<String> args) async {
+  startupTimeline.mark('main');
   WidgetsFlutterBinding.ensureInitialized();
+  // A role switch restarts the app with --relaunched-from=<pid>. It is about
+  // this one start only, so it is not part of how the app was "started".
+  final relaunchedFrom = relaunchedFromPid(args);
+  final launchArgs = [
+    for (final arg in args)
+      if (!arg.startsWith('$relaunchedFromFlag=')) arg,
+  ];
   // An update restarts the app through the updater, which needs to know how
   // it was started (for example --headless --port=...) to start it the same way.
-  setUpdateRelaunchArguments(args);
+  setUpdateRelaunchArguments(launchArgs);
 
   final isHeadless =
       args.contains('--headless') ||
@@ -107,13 +131,13 @@ void main(List<String> args) async {
     return;
   }
 
-  final remoteTarget = _parseRemoteTarget(args);
+  final explicitTarget = _parseRemoteTarget(args);
   final serveRequested = _parseServeFlag(args);
 
   // Single-owner invariant: one instance cannot both OWN the hardware (master)
   // and be a thin client of another rig (slave). Refuse the contradictory
   // combination loudly instead of silently picking one.
-  if (serveRequested && remoteTarget != null) {
+  if (serveRequested && explicitTarget != null) {
     stderr.writeln(
       'Skotiq: --serve/--master cannot be combined with --remote-host '
       '(an instance cannot be both a hardware-owning master and a remote '
@@ -121,6 +145,18 @@ void main(List<String> args) async {
     );
     exitCode = 64; // EX_USAGE
     return;
+  }
+
+  if (relaunchedFrom != null) {
+    // This start replaces process $relaunchedFrom, which is still closing. It
+    // must be gone before anything here opens a store: logging init already
+    // opens native stores that allow one process, and failed with "already
+    // open" when the restart raced the old window's teardown.
+    final databaseFile = await resolveDefaultDatabaseFile();
+    await waitForPreviousInstance(() async {
+      if (processStillRunning(relaunchedFrom)) return true;
+      return await SingleInstanceLock.probe(databaseFile) != null;
+    });
   }
 
   final bootPaths = await initialiseDesktopLogging();
@@ -135,17 +171,12 @@ void main(List<String> args) async {
   //
   // Advisory: the authoritative claim is taken when the database is actually
   // opened, so a launch that races past this still fails safely.
-  final contended = await SingleInstanceLock.probe(
-    await resolveDefaultDatabaseFile(),
-  );
-  if (contended != null) {
-    stderr.writeln('Skotiq: ${contended.message}');
-    developer.log(
-      contended.message,
-      name: 'desktop.main',
-      level: 1000,
-      error: contended,
-    );
+  final databaseFile = await resolveDefaultDatabaseFile();
+  final contended = await SingleInstanceLock.probe(databaseFile);
+  final heldBy = contended;
+  if (heldBy != null) {
+    stderr.writeln('Skotiq: ${heldBy.message}');
+    Log.error(heldBy.message, source: 'desktop.main', error: heldBy);
     // exit(), not `exitCode = …; return;`: the native bridge has already
     // started its hot-plug poll watcher and USB hotplug listener by the time
     // main() runs, and those keep the Dart isolate alive forever. Returning
@@ -154,10 +185,39 @@ void main(List<String> args) async {
     // indefinitely instead of exiting.
     exit(75); // EX_TEMPFAIL — try again once the other instance exits.
   }
+  startupTimeline.mark('single-instance probe');
+
+  // The role, decided once for the life of this process. Flags and variables
+  // win; without them, the rig the connect flow remembered makes this a linked
+  // client; otherwise this computer is its own host.
+  final linkedRigStore = LinkedRigStore(
+    dataDirectory: () async => Directory(bootPaths.dataDirectory),
+  );
+  var remoteTarget = explicitTarget;
+  if (remoteTarget == null && !serveRequested) {
+    final rig = await linkedRigStore.load();
+    if (rig != null && rig.active) {
+      remoteTarget = _RemoteClientTarget(
+        host: rig.host,
+        port: rig.port,
+        scheme: rig.scheme,
+        token: await linkedRigStore.readToken(),
+        name: rig.name,
+        fingerprint: rig.fingerprint,
+        rememberedRig: rig,
+      );
+    }
+  }
 
   final appVersion = await loadDesktopAppVersion();
+  startupTimeline.mark('role and version');
+
+  // Pointed at the app logger once it exists.
+  void Function(String message) relaunchLog = (message) =>
+      Log.debug(message, source: 'desktop.relaunch');
 
   await windowManager.ensureInitialized();
+  startupTimeline.mark('window manager');
 
   final initialSize = initialWindowSize(
     ui.PlatformDispatcher.instance.displays,
@@ -197,54 +257,40 @@ void main(List<String> args) async {
                 port: remoteTarget.port,
                 token: remoteTarget.token,
                 scheme: remoteTarget.scheme,
+                name: remoteTarget.name,
+                expectedFingerprint: remoteTarget.fingerprint,
+                remembered: remoteTarget.rememberedRig != null,
               ),
       ),
-      // Initialize backendProvider for the desktop GUI. Default: the local
-      // FfiBackend (this machine owns the hardware). With --remote-host, run as
-      // a thin client against a remote headless rig via NetworkBackend instead,
-      // so the GUI drives that rig as if its devices were attached locally.
-      backendProvider.overrideWith((ref) {
-        final notifier = BackendNotifier(ref);
-        // In remote mode we connect explicitly AFTER the container is built (see
-        // below) so we can await the handshake and then invalidate the
-        // host-backed providers — doing it here, fire-and-forget, lets profiles
-        // and settings cache an empty disconnected value that never refreshes.
-        if (remoteTarget == null) {
-          notifier.useLocalBackend();
-        }
-        return notifier;
-      }),
-      // Why: appVersionProvider throws by default to surface misconfiguration
-      // loudly (an unset version masks OTA update logic). The desktop entry
-      // is the canonical place to wire it.
-      appVersionProvider.overrideWithValue(appVersion),
-      pluginHostAppVersionOverride(appVersion.version),
-      // wire `pluginNodeDispatcherProvider` (defined in
-      // skotiq_core) to the real `PluginNodeExecutor` (defined in
-      // skotiq_plugins). Without this override the Rust executor would
-      // receive a structured "dispatcher not wired" failure for every
-      // PluginNode invocation.
-      pluginNodeDispatcherOverride(),
-      // surface plugin-contributed sequence nodes in the
-      // sequencer palette. Without this override the palette never shows
-      // plugin nodes even when the dispatcher above is fully wired (the
-      // user could not author a sequence containing a plugin node from
-      // the GUI).
-      pluginNodePaletteBlueprintsOverride(),
-      // C4 — make the bundled-plugin registration honour the user's
-      // persisted enable/disable choices. Without this override C3's
-      // `pluginEnablementStoreProvider` resolves to the default
-      // `AllEnabledPluginEnablementStore`, which reports every plugin
-      // enabled, so a plugin the user disabled on the Integrations page
-      // would silently come back ENABLED on the next launch. The
-      // settings-backed store reads the persisted `plugin_enablement`
-      // map so the registration-time decision matches the saved state.
-      pluginEnablementStoreOverride(),
+      linkedRigStoreProvider.overrideWithValue(linkedRigStore),
+      launchLinkedRigProvider.overrideWithValue(remoteTarget?.rememberedRig),
+      // Connecting to a rig, or "Use this computer instead", restarts the app
+      // so the role is chosen again from the top of main.
+      appRelauncherProvider.overrideWithValue(
+        DesktopAppRelauncher(
+          launchArguments: launchArgs,
+          log: (message) => relaunchLog(message),
+        ),
+      ),
+      // A host's backend is installed by the 'local backend' start-up step; a
+      // linked client connects below, once the container exists, so the
+      // handshake can be awaited.
+      ...appProviderOverrides(appVersion),
     ],
   );
 
   final logger = container.read(loggingServiceProvider);
   await logger.ensureInitialized();
+  startupTimeline.mark('logger');
+  relaunchLog = (message) => logger.info(message, source: 'desktop.relaunch');
+  if (remoteTarget?.rememberedRig != null) {
+    logger.info(
+      'Starting as the linked client of ${remoteTarget!.name} '
+      '(${remoteTarget.host}:${remoteTarget.port}), the rig remembered by '
+      'Connect to an imaging computer',
+      source: 'desktop.main',
+    );
+  }
 
   // A GUI that dies with devices connected must not leave nothing behind: no
   // shutdown record, no safing, a log whose last line is an unrelated warning.
@@ -327,95 +373,72 @@ void main(List<String> args) async {
   // when the operator's quit was accepted so a normal exit is never reported as
   // a silent death.
   ShellExit.register(lastGasp.recordCleanExit);
+  // An accepted close ends the process here, as the signal path above and
+  // the headless daemon do, on every desktop platform and in one order: the
+  // clean-exit record, the restart if one was asked for, the Darkroom
+  // hand-back, then exit. The window teardown instead shuts the Dart VM down
+  // with the stores' native finalizers still pending: under GTK
+  // sqlite3_finalize then crashed the process on every quit (a core dump each
+  // time, and a restart that raced a dying process). The Windows runner's
+  // engine teardown after window_manager's WM_QUIT and AppKit's terminate
+  // after the last window closes shut the VM down the same way, and neither
+  // waits for the hand-back.
+  ShellExit.registerEnd(() async {
+    await lastGasp.handOffDarkroomWork();
+    exit(0);
+  });
+  startupTimeline.mark('last-session record');
 
-  // Plugin nodes execute on the machine that owns the imaging hardware, so
-  // bundled plugins must be registered before the UI can start a sequence.
-  if (remoteTarget == null) {
-    try {
-      await initializeBundledPluginRuntime(container);
-      logger.info('Bundled plugin runtime initialized', source: 'desktop.main');
-    } catch (error, stackTrace) {
-      logger.error(
-        'Bundled plugin runtime failed to initialize: $error\n$stackTrace',
-        source: 'desktop.main',
-      );
-    }
-  }
+  // The window is prepared while the host start-up's core steps run, so
+  // neither waits for the other. It is NOT shown yet: showing a
+  // TitleBarStyle.hidden surface before runApp paints leaves a black,
+  // undraggable window on Linux (no Flutter chrome / DragToMoveArea yet). The
+  // GTK runner also defers gtk_widget_show until first-frame for the same
+  // reason.
+  final windowReady = windowManager.waitUntilReadyToShow(
+    windowOptions,
+    () async {},
+  );
 
-  await initialiseCatalogManager(logger);
-
-  final shouldMinimize = await shouldStartMinimized(container);
-
-  // Prepare the window but do NOT show it yet. Showing a TitleBarStyle.hidden
-  // surface before runApp paints leaves a black, undraggable window on Linux
-  // (no Flutter chrome / DragToMoveArea yet). The GTK runner also defers
-  // gtk_widget_show until first-frame for the same reason.
-  await windowManager.waitUntilReadyToShow(windowOptions, () async {});
-
-  // Remote-client mode: connect to the headless rig now that the container is
-  // live, then invalidate the host-backed providers so they re-fetch against
-  // the open NetworkBackend connection (equipment profiles, app settings, and
-  // anything else keyed on the backend). Without this refresh they keep the
-  // empty value they resolved while the backend was still DisconnectedBackend,
-  // which is why profiles/devices appeared missing. Mirrors the mobile
-  // post-connect sequence (invalidate appSettings + equipmentProfiles).
-  if (remoteTarget != null) {
-    // A failed connect is shown in the window (with Retry) by the shell's
-    // connection banner; the status notifier keeps retrying an unreachable
-    // host on its own.
-    final connected = await container
-        .read(remoteLaunchStatusProvider.notifier)
-        .connect();
-    if (!connected) {
-      final status = container.read(remoteLaunchStatusProvider);
-      logger.warning(
-        'Remote connect to ${remoteTarget.scheme}://'
-        '${remoteTarget.host}:${remoteTarget.port} failed '
-        '(${status.failure?.name}): ${status.detail}',
-        source: 'desktop.main',
-      );
-    }
-    container.invalidate(appSettingsProvider);
-    container.invalidate(equipmentProfilesProvider);
-    // The host's run, target, flip and device events become this window's
-    // in-app banners, as they do on the host. The router is in-app only on a
-    // NetworkBackend (external delivery stays with the host), and listening
-    // rather than reading keeps it re-attached when the connection is
-    // replaced.
-    container.listen(notificationRouterProvider, (_, _) {});
-  }
-
-  // In remote-client mode this GUI is a consumer of a remote rig, not a host,
-  // so it must NOT stand up its own embedded API server / discovery / host-side
-  // seed listeners (those belong to the machine that owns the hardware).
-  if (remoteTarget == null) {
-    // Automatic backups are host-owned and must start even when the Settings
-    // screen is never opened. Do NOT await this before first paint: a Riverpod
-    // future that transitively waits on the widget tree / first frame will
-    // hang main() forever and leave a blank frameless window (same class of
-    // bug as awaiting appSettingsProvider.future before runApp below).
-    // The Builder's unsaved plan survives a crash or a killed process.
-    container.read(editorDraftLifecycleProvider);
-    unawaited(() async {
-      try {
-        await container.read(autoSaveLifecycleProvider.future);
-      } catch (error, stackTrace) {
-        logger.error(
-          'Automatic backup service failed to start',
-          source: 'desktop.main',
-          fields: {'error': '$error', 'stack': '$stackTrace'},
+  // A host runs the shared host start-up; a linked client owns no hardware
+  // and needs only its catalogs.
+  final host = remoteTarget != null
+      ? null
+      : HostStartup(
+          kind: HostKind.gui,
+          container: container,
+          logger: logger,
+          logSource: 'desktop.main',
+          appVersion: appVersion,
+          args: launchArgs,
+          forceServe: serveRequested,
         );
-      }
-    }());
+  if (host != null) {
+    await runHostStartup(host, HostStartupPhase.core, hostStartupSteps);
+  } else {
+    // The window does not wait for the host: a host that is off or asleep
+    // takes the connect's whole timeout to answer. Until it does, the shell
+    // shows "Connecting to the imaging host…", then the reason with Retry,
+    // and the status notifier keeps retrying on its own.
+    unawaited(_connectToLinkedHost(container, remoteTarget!, logger));
+  }
+  final (shouldMinimize, _) = await (
+    shouldStartMinimized(container),
+    host == null ? initialiseCatalogManager(logger) : Future<void>.value(),
+  ).wait;
+  startupTimeline.mark('host core steps');
 
+  await windowReady;
+  startupTimeline.mark('window ready');
+
+  if (host != null) {
     // --serve/--master turns the embedded host server on for this run only;
     // the stored Remote Access setting stays as the user left it.
     container.read(remoteAccessForcedProvider.notifier).state = serveRequested;
-    startBackgroundServices(
-      container,
-      appVersion: appVersion.version,
-      appBuildNumber: appVersion.buildNumber,
-      forceServe: serveRequested,
+    // Not awaited: the window does not wait for the server, the update
+    // receiver or a device scan.
+    unawaited(
+      runHostStartup(host, HostStartupPhase.services, hostStartupSteps),
     );
   }
 
@@ -451,17 +474,43 @@ void main(List<String> args) async {
     appRoot = ExcludeSemantics(child: appRoot);
   }
 
+  startupTimeline.mark('runApp');
   runApp(UncontrolledProviderScope(container: container, child: appRoot));
+  unawaited(startupTimeline.reportWhenSettled(logger, 'desktop.main'));
 
   // Reveal the frameless window only after Flutter has built at least one
   // frame so the custom title bar (drag target) and scaffold are present.
   WidgetsBinding.instance.addPostFrameCallback((_) async {
+    startupTimeline.mark('first frame built');
     await windowManager.show();
+    startupTimeline.mark('window shown');
     await windowManager.focus();
     if (shouldMinimize) {
       await windowManager.minimize();
     }
   });
+}
+
+/// Connects a linked client to its host and logs why when it cannot.
+///
+/// A connect that succeeds re-reads the host-backed values resolved while
+/// disconnected (the status notifier does that).
+Future<void> _connectToLinkedHost(
+  ProviderContainer container,
+  _RemoteClientTarget target,
+  LoggingService logger,
+) async {
+  final connected = await container
+      .read(remoteLaunchStatusProvider.notifier)
+      .connect();
+  startupTimeline.mark('linked host connect');
+  if (connected) return;
+  final status = container.read(remoteLaunchStatusProvider);
+  logger.warning(
+    'Remote connect to ${target.scheme}://${target.host}:${target.port} '
+    'failed (${status.failure?.name}): ${status.detail}',
+    source: 'desktop.main',
+  );
 }
 
 /// The first window's size: 1600 x 900, shrunk to fit the display it opens on.

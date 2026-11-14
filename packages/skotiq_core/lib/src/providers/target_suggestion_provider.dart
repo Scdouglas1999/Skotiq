@@ -1,28 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
-import '../backend/network_backend.dart';
+import 'linked_host.dart';
 import '../database/database.dart' as db;
-import '../models/errors/server_error.dart';
 import '../models/planning/target_suggestion.dart';
 import '../services/logging_service.dart';
 import '../services/target_suggestion_service.dart';
-import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'profiles_provider.dart';
 import 'settings_provider.dart';
+import 'logging_service_provider.dart';
 
-// Service provider
-
-/// Provider for the target suggestion service.
 final targetSuggestionServiceProvider = Provider<TargetSuggestionService>((
   ref,
 ) {
   final logging = ref.watch(loggingServiceProvider);
   return TargetSuggestionService(loggingService: logging);
 });
-
-// Configuration provider
 
 /// Provider for target suggestion configuration.
 ///
@@ -40,19 +34,15 @@ final targetSuggestionConfigProvider = StateProvider<TargetSuggestionConfig>((
   );
 });
 
-// Refresh trigger provider
-
 /// Simple counter provider to trigger suggestion refresh.
 ///
 /// UI can call `ref.read(refreshSuggestionsProvider.notifier).state++` to
 /// force a rebuild of the suggestions list.
 final refreshSuggestionsProvider = StateProvider<int>((ref) => 0);
 
-// Tonight's Suggestions Provider
-
-String? _catalogTargetsCachePath;
-List<db.Target>? _catalogTargetsCache;
-Future<List<db.Target>>? _catalogTargetsLoadFuture;
+/// Catalog targets built from one OpenNGC reader. The catalog manager
+/// replaces the reader when the file changes, which retires this entry.
+final Expando<Future<List<db.DbTarget>>> _catalogTargets = Expando();
 
 /// Provider that generates target suggestions for tonight's imaging session.
 ///
@@ -67,32 +57,15 @@ Future<List<db.Target>>? _catalogTargetsLoadFuture;
 /// so both machines list the same candidates.
 final tonightSuggestionsProvider =
     FutureProvider.autoDispose<List<TargetSuggestion>>((ref) async {
-      // Watch configuration for filter/sort changes
       final config = ref.watch(targetSuggestionConfigProvider);
 
-      // Watch refresh trigger for manual refresh
       ref.watch(refreshSuggestionsProvider);
 
-      final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        try {
-          final suggestions = await backend.fetchRankedTonightSuggestions(
-            config,
-          );
-          ref.keepAlive();
-          return suggestions;
-        } on ServerError catch (error) {
-          // An older host without the ranking endpoint: rank here, as
-          // clients did before it existed.
-          if (error.httpStatus != 404) rethrow;
-          ref
-              .read(loggingServiceProvider)
-              .warning(
-                'The imaging host cannot rank tonight\'s targets; ranking '
-                'them on this computer instead',
-                source: 'TargetSuggestionProvider',
-              );
-        }
+      final remote = ref.watch(linkedHostPlanningProvider);
+      if (remote != null) {
+        final suggestions = await remote.fetchRankedTonightSuggestions(config);
+        ref.keepAlive();
+        return suggestions;
       }
 
       final suggestions = await ref.watch(
@@ -127,20 +100,18 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       final latitude = observerLocation.latitude;
       final longitude = observerLocation.longitude;
 
-      // Validate location is set
       if (latitude == 0.0 && longitude == 0.0) {
         // No location configured, return empty list
         // The UI should prompt user to set location in settings
         return [];
       }
 
-      // Get the suggestion service
       final service = ref.read(targetSuggestionServiceProvider);
       final logging = ref.read(loggingServiceProvider);
 
       try {
         // Fetch host-backed targets and sessions when connected remotely.
-        final List<db.Target> userTargets = await ref.watch(
+        final List<db.DbTarget> userTargets = await ref.watch(
           allDbTargetsProvider.future,
         );
         final List<db.ImagingSession> sessions = await ref.watch(
@@ -176,7 +147,6 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
         // Get custom horizon profile for obstruction filtering
         final horizonProfile = ref.read(horizonProfileProvider);
 
-        // Generate suggestions
         final suggestions = await service.getSuggestionsForTonight(
           config: config,
           latitude: latitude,
@@ -204,11 +174,10 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       }
     });
 
-/// Load targets from the OpenNGC catalog.
-///
-/// Converts OpenNgcData objects to db.Target format for scoring.
-/// Uses negative IDs to distinguish catalog objects from user targets.
-Future<List<db.Target>> _loadCatalogTargets(LoggingService logging) async {
+/// Suggestion candidates from the OpenNGC catalog: every object to
+/// magnitude 14 (which covers most imageable objects), as [db.DbTarget] rows
+/// with negative ids so they cannot be mistaken for the user's own targets.
+Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
   final manager = CatalogManager.instance;
 
   if (!manager.isInitialized) {
@@ -219,8 +188,7 @@ Future<List<db.Target>> _loadCatalogTargets(LoggingService logging) async {
     return [];
   }
 
-  final dsoStatus = await manager.getDsoCatalogStatus();
-  if (!dsoStatus.isInstalled || dsoStatus.installedPath == null) {
+  if (!(await manager.status(SkyCatalog.dso)).isInstalled) {
     logging.info(
       'OpenNGC catalog not installed - suggestions limited to user targets',
       source: 'TargetSuggestionProvider',
@@ -228,24 +196,12 @@ Future<List<db.Target>> _loadCatalogTargets(LoggingService logging) async {
     return [];
   }
 
-  final installedPath = dsoStatus.installedPath!;
-  if (_catalogTargetsCachePath == installedPath &&
-      _catalogTargetsCache != null) {
-    return _catalogTargetsCache!;
-  }
-
-  if (_catalogTargetsCachePath == installedPath &&
-      _catalogTargetsLoadFuture != null) {
-    return _catalogTargetsLoadFuture!;
-  }
-
-  _catalogTargetsCachePath = installedPath;
-  _catalogTargetsLoadFuture = _readCatalogTargets(installedPath, logging);
-
+  final reader = manager.dsos;
   try {
-    final targets = await _catalogTargetsLoadFuture!;
-    _catalogTargetsCache = List.unmodifiable(targets);
-    return _catalogTargetsCache!;
+    return await (_catalogTargets[reader] ??= _readCatalogTargets(
+      reader,
+      logging,
+    ));
   } catch (e, stackTrace) {
     logging.error(
       'Failed to load OpenNGC catalog: $e',
@@ -255,54 +211,36 @@ Future<List<db.Target>> _loadCatalogTargets(LoggingService logging) async {
       'Stack trace: $stackTrace',
       source: 'TargetSuggestionProvider',
     );
-    _catalogTargetsCachePath = null;
-    _catalogTargetsCache = null;
+    _catalogTargets[reader] = null;
     rethrow;
-  } finally {
-    _catalogTargetsLoadFuture = null;
   }
 }
 
-Future<List<db.Target>> _readCatalogTargets(
-  String installedPath,
+Future<List<db.DbTarget>> _readCatalogTargets(
+  OpenNgcDsoCatalog reader,
   LoggingService logging,
 ) async {
-  final loader = OpenNgcCatalogLoader(installedPath);
-
-  // Load all DSOs with reasonable magnitude limit for imaging
-  // (mag < 14 covers most imageable objects)
-  final dsos = await loader.loadByMagnitude(14.0);
-
-  logging.debug(
-    'Loaded ${dsos.length} DSOs from OpenNGC catalog (mag < 14)',
-    source: 'TargetSuggestionProvider',
-  );
-
-  // Convert to Target format
-  // Use negative IDs to distinguish from user-created targets
+  final dsos = await reader.load();
   var fakeId = -1;
-  final targets = <db.Target>[];
+  final targets = <db.DbTarget>[];
   final now = DateTime.now();
 
   for (final dso in dsos) {
-    // Skip non-existent and duplicate entries
-    if (dso.type == 'NonEx' || dso.type == 'Dup') continue;
-
-    // Skip objects with invalid coordinates
-    if (dso.ra == 0 && dso.dec == 0) continue;
+    // Brightest first: nothing after this is brighter than 14, and objects
+    // with no magnitude sort last.
+    if ((dso.magnitude ?? 99) > 14.0) break;
 
     targets.add(
-      db.Target(
+      db.DbTarget(
         id: fakeId--,
-        name: dso.displayName,
-        catalogId: dso.name,
-        objectType: dso.typeDescription,
-        // OpenNGC ra is in degrees, Target expects decimal hours
-        ra: dso.ra / 15.0,
-        dec: dso.dec,
+        name: dso.name,
+        catalogId: dso.id,
+        objectType: dso.type.displayName,
+        ra: dso.coordinates.ra,
+        dec: dso.coordinates.dec,
         magnitude: dso.magnitude,
         constellation: dso.constellation,
-        sizeArcmin: dso.majorAxis,
+        sizeArcmin: dso.sizeArcMin,
         positionAngle: dso.positionAngle,
         minAltitude: 30.0,
         priority: 5,
@@ -319,24 +257,9 @@ Future<List<db.Target>> _readCatalogTargets(
     );
   }
 
-  return targets;
+  logging.debug(
+    'Loaded ${targets.length} DSOs from OpenNGC catalog (mag < 14)',
+    source: 'TargetSuggestionProvider',
+  );
+  return List.unmodifiable(targets);
 }
-
-// Convenience providers
-
-/// Provider that returns the best single suggestion for tonight.
-final bestSuggestionProvider =
-    Provider.autoDispose<AsyncValue<TargetSuggestion?>>((ref) {
-      final suggestionsAsync = ref.watch(tonightSuggestionsProvider);
-
-      return suggestionsAsync.when(
-        data: (suggestions) {
-          if (suggestions.isEmpty) {
-            return const AsyncData(null);
-          }
-          return AsyncData(suggestions.first);
-        },
-        loading: () => const AsyncLoading(),
-        error: (error, stackTrace) => AsyncError(error, stackTrace),
-      );
-    });

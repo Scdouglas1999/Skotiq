@@ -1,3 +1,4 @@
+import '../errors/error_text.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,10 +8,11 @@ import '../backend/skotiq_exception.dart' show SkotiqException;
 import '../models/autofocus_progress.dart';
 import '../models/focuser_backlash_calibration.dart';
 import '../models/focuser_backlash_progress.dart';
-import '../services/device_service.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'focuser_backlash_provider.dart';
+import '../models/backend/backend_types.dart';
+import 'device_service_providers.dart';
 
 /// Live state of a focuser backlash calibration run.
 class FocuserBacklashCalibrationState {
@@ -234,7 +236,10 @@ class FocuserBacklashCalibrationNotifier
       if (!mounted) return;
       // A stale plan quotes travel and time for settings that are no longer
       // in force; without a fresh one there is nothing honest to quote.
-      state = state.copyWith(errorMessage: '$error', clearPlan: true);
+      state = state.copyWith(
+        errorMessage: userFacingError(error),
+        clearPlan: true,
+      );
     }
   }
 
@@ -269,7 +274,7 @@ class FocuserBacklashCalibrationNotifier
         phase: FocuserBacklashPhase.failed,
         progress: 0,
         status: 'The calibration could not finish',
-        errorMessage: '$error',
+        errorMessage: userFacingError(error),
       );
     }
   }
@@ -296,7 +301,7 @@ class FocuserBacklashCalibrationNotifier
       if (!mounted) return;
       state = state.copyWith(
         status: 'Cancellation failed — the calibration continues',
-        errorMessage: '$error',
+        errorMessage: userFacingError(error),
       );
     }
   }
@@ -319,7 +324,9 @@ class FocuserBacklashCalibrationNotifier
       state = state.copyWith(isSaved: true, clearErrorMessage: true);
     } catch (error) {
       if (!mounted) return;
-      state = state.copyWith(errorMessage: 'Could not save the figure: $error');
+      state = state.copyWith(
+        errorMessage: 'Could not save the figure: ${userFacingError(error)}',
+      );
     }
   }
 

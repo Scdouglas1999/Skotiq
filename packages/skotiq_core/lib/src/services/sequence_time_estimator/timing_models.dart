@@ -6,38 +6,42 @@ class _LocationContext {
   final double longitude;
   final DateTime date;
 
+  /// When the run is stopped whatever the plan says (the dawn park), or null
+  /// when nothing stops it.
+  final DateTime? runEndsBy;
+
   const _LocationContext({
     required this.latitude,
     required this.longitude,
     required this.date,
+    this.runEndsBy,
   });
 }
 
-/// Timing information for a single sequence node
 class NodeTiming {
-  /// Unique identifier of the node
   final String nodeId;
 
-  /// Display name of the node
   final String nodeName;
 
   /// Type identifier of the node (e.g., 'TakeExposure', 'Autofocus')
   final String nodeType;
 
-  /// Estimated start time of this node
   final DateTime estimatedStart;
 
-  /// Estimated end time of this node
   final DateTime estimatedEnd;
 
-  /// Estimated duration of this node
   final Duration duration;
 
   /// Warning messages for timing conflicts (e.g., target below horizon)
   final List<String>? warnings;
 
-  /// ID of the parent target header node, if any
   final String? targetHeaderId;
+
+  /// The node runs until it is stopped and nothing in the estimate bounds
+  /// it, so [duration] is one pass rather than its length: a "loop until
+  /// stopped" Smart Exposure with no budget and no target window the
+  /// estimate could solve.
+  final bool openEnded;
 
   NodeTiming({
     required this.nodeId,
@@ -48,6 +52,7 @@ class NodeTiming {
     required this.duration,
     this.warnings,
     this.targetHeaderId,
+    this.openEnded = false,
   });
 
   /// Create a copy with updated warnings
@@ -61,6 +66,7 @@ class NodeTiming {
       duration: duration,
       warnings: newWarnings.isNotEmpty ? newWarnings : null,
       targetHeaderId: targetHeaderId,
+      openEnded: openEnded,
     );
   }
 
@@ -72,12 +78,10 @@ class NodeTiming {
   }
 }
 
-/// Visibility window information for a target
 class TargetWindow {
   /// Database ID of the target (from TargetHeaderNode)
   final String targetId;
 
-  /// Display name of the target
   final String targetName;
 
   /// Time when the target rises above the minimum altitude

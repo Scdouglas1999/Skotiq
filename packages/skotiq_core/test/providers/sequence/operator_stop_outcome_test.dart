@@ -18,10 +18,14 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as backend_events;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as backend_events;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -68,10 +72,10 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.read(liveSequenceStatsProvider.notifier).state =
-        SequenceRunStats();
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container.read(runRecordProvider.notifier).setStats(SequenceRunStats());
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
     return (container, container.read(sequenceExecutorProvider));
   }
 
@@ -95,7 +99,7 @@ void main() {
       ).thenAnswer((_) async {
         scheduleMicrotask(() {
           executor.handleSequencerEventForTest(
-            event('Error', {'message': _slewCancelled}),
+            event('Error', {'kind': 'step_failed', 'message': _slewCancelled}),
           );
           executor.handleSequencerEventForTest(
             event('SequenceFailed', {'error': _slewCancelled}),
@@ -110,7 +114,7 @@ void main() {
       expect(result, isNotNull);
       expect(
         result!.runStatus,
-        'paused-stopped',
+        SequenceRunStatus.stoppedResumable,
         reason:
             'the operator pressed Stop; the instruction that happened to be in '
             'flight must not change the verdict on their action',
@@ -130,9 +134,7 @@ void main() {
       _,
     ) async {
       scheduleMicrotask(() {
-        executor.handleSequencerEventForTest(
-          event('SequenceStopped', const {}),
-        );
+        executor.handleSequencerEventForTest(event('Stopped', const {}));
       });
     });
 
@@ -140,7 +142,7 @@ void main() {
     await executor.terminalCleanupSettledForTest;
     expect(
       container.read(sequenceTerminalRunResultProvider)!.runStatus,
-      'paused-stopped',
+      SequenceRunStatus.stoppedResumable,
     );
 
     // ...and the node tree's own failure lands afterwards, once the stop's
@@ -153,7 +155,7 @@ void main() {
 
     expect(
       container.read(sequenceTerminalRunResultProvider)!.runStatus,
-      'paused-stopped',
+      SequenceRunStatus.stoppedResumable,
       reason:
           'the run is over and its verdict was the operator\'s stop — a late '
           'terminal for that same run must not re-open finalization and '
@@ -176,7 +178,7 @@ void main() {
     await executor.terminalCleanupSettledForTest;
 
     final result = container.read(sequenceTerminalRunResultProvider);
-    expect(result!.runStatus, 'failed');
+    expect(result!.runStatus, SequenceRunStatus.failed);
     expect(result.outcome, SequenceExecutionState.failed);
     expect(
       container.read(liveSequenceStatsProvider)!.errorMessages,
@@ -195,7 +197,7 @@ void main() {
     ) async {
       origins.add(invocation.namedArguments[#origin] as String?);
       scheduleMicrotask(() {
-        executor.handleSequencerEventForTest(event('SequenceStopped', {}));
+        executor.handleSequencerEventForTest(event('Stopped', {}));
       });
     });
 
@@ -225,7 +227,7 @@ void main() {
           throw StateError('native stop lost');
         }
         scheduleMicrotask(() {
-          executor.handleSequencerEventForTest(event('SequenceStopped', {}));
+          executor.handleSequencerEventForTest(event('Stopped', {}));
         });
       });
 
@@ -255,7 +257,7 @@ void main() {
         () => backend.sequencerStop(origin: any(named: 'origin')),
       ).thenAnswer((_) async {
         scheduleMicrotask(() {
-          executor.handleSequencerEventForTest(event('SequenceStopped', {}));
+          executor.handleSequencerEventForTest(event('Stopped', {}));
         });
       });
 
@@ -272,7 +274,7 @@ void main() {
     // 'safety' so the autopilot keeps the night alive.
     final (container, executor) = build();
 
-    executor.handleSequencerEventForTest(event('SequenceStopped', {}));
+    executor.handleSequencerEventForTest(event('Stopped', {}));
     await executor.terminalCleanupSettledForTest;
     expect(executor.lastRunEndOrigin, 'safety');
     expect(container, isNotNull);

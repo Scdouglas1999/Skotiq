@@ -17,7 +17,6 @@
 //! in [`crate::master_accumulation`], an unknown per-frame exposure contributes
 //! nothing rather than a guess.
 
-use std::collections::HashMap;
 use std::path::Path;
 
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
@@ -30,15 +29,17 @@ const DATE_OBS_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3f";
 
 /// What a frame's own header told the stacker, when it had one.
 ///
-/// Both fields are `Option` because the in-memory ingest path (`from_data`)
-/// genuinely has neither: a raw `u16` buffer has no keywords. `None` means
-/// "unknown", never "zero".
+/// Every field is `Option` because the in-memory ingest path (`from_data`)
+/// genuinely has none of them: a raw `u16` buffer has no keywords. `None`
+/// means "unknown", never "zero".
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FrameProvenance {
     /// The frame's `EXPTIME` in seconds.
     pub exposure_secs: Option<f64>,
     /// The frame's `DATE-OBS`, verbatim as the header carried it.
     pub date_obs: Option<String>,
+    /// The frame's `FILTER`, verbatim; `None` for a frame taken through none.
+    pub filter: Option<String>,
 }
 
 impl FrameProvenance {
@@ -47,21 +48,24 @@ impl FrameProvenance {
         Self::default()
     }
 
-    /// Read the two keywords out of the flattened header
-    /// [`crate::read_image`] returns. A keyword that is absent, blank or
-    /// unparseable stays `None` so it contributes nothing to the master.
-    pub fn from_header_map(header: &HashMap<String, String>) -> Self {
+    /// Read the keywords out of a frame's header. A keyword that is absent,
+    /// blank or not a positive exposure stays `None` so it contributes nothing
+    /// to the master.
+    pub fn from_header(header: &FitsHeader) -> Self {
+        let text = |key: &str| {
+            header
+                .get(key)
+                .map(|v| v.to_header_string().trim().to_string())
+                .filter(|v| !v.is_empty())
+        };
         let exposure_secs = header
-            .get("EXPTIME")
-            .and_then(|v| v.trim().parse::<f64>().ok())
+            .get_float("EXPTIME")
+            .or_else(|| text("EXPTIME").and_then(|v| v.parse::<f64>().ok()))
             .filter(|v| v.is_finite() && *v > 0.0);
-        let date_obs = header
-            .get("DATE-OBS")
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty());
         Self {
             exposure_secs,
-            date_obs,
+            date_obs: text("DATE-OBS"),
+            filter: text("FILTER"),
         }
     }
 }
@@ -253,6 +257,7 @@ mod tests {
         provenance.fold(&FrameProvenance {
             exposure_secs: Some(30.0),
             date_obs: None,
+            filter: None,
         });
 
         assert_eq!(provenance.total_integration_secs(), 30.0);
@@ -265,10 +270,12 @@ mod tests {
         provenance.fold(&FrameProvenance {
             exposure_secs: Some(f64::NAN),
             date_obs: None,
+            filter: None,
         });
         provenance.fold(&FrameProvenance {
             exposure_secs: Some(-5.0),
             date_obs: None,
+            filter: None,
         });
 
         assert_eq!(provenance.total_integration_secs(), 0.0);
@@ -286,10 +293,12 @@ mod tests {
         provenance.fold(&FrameProvenance {
             exposure_secs: None,
             date_obs: Some("2026-08-14T04:00:00".to_string()),
+            filter: None,
         });
         provenance.fold(&FrameProvenance {
             exposure_secs: None,
             date_obs: Some("2026-08-14T05:30:00+02:00".to_string()),
+            filter: None,
         });
 
         let header = provenance.to_fits_header();
@@ -309,6 +318,7 @@ mod tests {
         provenance.fold(&FrameProvenance {
             exposure_secs: None,
             date_obs: Some("14/08/26 04:00:00".to_string()),
+            filter: None,
         });
 
         let header = provenance.to_fits_header();

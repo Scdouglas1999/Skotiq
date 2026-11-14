@@ -4,30 +4,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/tutorial_keys/settings_keys.dart';
-import '../../../widgets/work_locally.dart';
-import '../../equipment/dialogs/indi_server_dialog.dart';
+import '../../../tours/tour_target.dart';
+import '../../connection/rig_connect_entry.dart';
+import '../../connection/work_locally.dart';
+import '../../../widgets/indi_server_dialog.dart';
 import 'connection_settings_alpaca_dialog.dart';
+import 'settings_scope_notice.dart';
 import 'settings_widgets.dart';
 
 class ConnectionSettings extends ConsumerWidget {
-  final bool isMobile;
-
-  const ConnectionSettings({super.key, this.isMobile = false});
+  const ConnectionSettings({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
-    final isNetwork = backend is NetworkBackend;
-    final isDisconnected = backend is DisconnectedBackend;
+    final hostLink = ref.watch(linkedHostLinkProvider);
+    final isNetwork = hostLink != null;
+    final isDisconnected = backend.hasNoHost;
     // Live connection state — the authoritative signal for whether a network
     // backend is actually connected, mid-handshake, or errored. Relying on
-    // `backend is NetworkBackend` alone would render a still-connecting (or a
+    // `backend.remoteHost != null` alone would render a still-connecting (or a
     // rolled-back/errored) session as "Connected".
     final connState =
         ref.watch(networkBackendConnectionStateProvider).valueOrNull;
@@ -46,8 +50,8 @@ class ConnectionSettings extends ConsumerWidget {
     String connectionStatus = 'Disconnected';
     Color statusColor = colors.textMuted;
 
-    if (isNetwork) {
-      serverAddress = '${backend.serverHost}:${backend.serverPort}';
+    if (hostLink != null) {
+      serverAddress = hostLink.address;
       if (isConnected) {
         connectionStatus = 'Connected';
         statusColor = colors.success;
@@ -66,15 +70,15 @@ class ConnectionSettings extends ConsumerWidget {
     }
 
     return SettingsPage(
-      key: SettingsTutorialKeys.connection,
+      key: TourTarget.settingsConnection.key,
       title: 'Connection',
       description: 'Server connection settings',
-      isMobile: isMobile,
-      hideHeader: isMobile,
       children: [
+        // This page keeps groups in both places: the link is this
+        // computer's, discovery is the imaging host's.
+        const SettingsScopeNotice(onHost: false, padding: _groupNoticePadding),
         SettingsSection(
           title: 'Server status',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.server,
@@ -94,7 +98,6 @@ class ConnectionSettings extends ConsumerWidget {
                   ),
                 ),
               ),
-              isMobile: isMobile,
             ),
             if (isNetwork)
               SettingRow(
@@ -107,7 +110,6 @@ class ConnectionSettings extends ConsumerWidget {
                     color: colors.textPrimary,
                   ),
                 ),
-                isMobile: isMobile,
               ),
             SettingRow(
               icon: isNetwork ? LucideIcons.logOut : LucideIcons.logIn,
@@ -120,12 +122,11 @@ class ConnectionSettings extends ConsumerWidget {
                 variant: isNetwork
                     ? ButtonVariant.destructive
                     : ButtonVariant.primary,
-                size: isMobile ? ButtonSize.small : ButtonSize.small,
+                size: ButtonSize.small,
                 onPressed: () =>
                     _handleConnectionAction(context, ref, isNetwork),
               ),
               isLast: !(isDisconnected && canWorkLocally),
-              isMobile: isMobile,
             ),
             // The only way out of a DisconnectedBackend was to relaunch:
             // `useLocalBackend()` had no UI caller anywhere in the app, so a
@@ -133,22 +134,22 @@ class ConnectionSettings extends ConsumerWidget {
             // all. Offer the way back on the platforms whose entry point runs
             // the rig locally — a phone has no local hardware to fall back to.
             if (isDisconnected && canWorkLocally)
-              SettingRow(
+              const SettingRow(
                 icon: LucideIcons.hardDrive,
                 title: 'Work locally',
                 subtitle:
                     'Drive the equipment attached to this computer instead of '
                     'a remote server',
-                trailing: const WorkLocallyButton(),
+                trailing: WorkLocallyButton(),
                 isLast: true,
-                isMobile: isMobile,
               ),
           ],
         ),
         if (settings != null)
+          const SettingsScopeNotice(onHost: true, padding: _groupNoticePadding),
+        if (settings != null)
           SettingsSection(
             title: 'Discovery',
-            isMobile: isMobile,
             children: [
               // INDI is a Linux/macOS device-protocol server; on Windows the
               // host/port knob is not applicable, so only offer it off-Windows.
@@ -168,7 +169,6 @@ class ConnectionSettings extends ConsumerWidget {
                       builder: (_) => const IndiServerDialog(),
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
               SettingRow(
                 icon: LucideIcons.radio,
@@ -179,7 +179,6 @@ class ConnectionSettings extends ConsumerWidget {
                   value: settings.indiAutoConnect,
                   onChanged: settingsNotifier.setIndiAutoConnect,
                 ),
-                isMobile: isMobile,
               ),
               // The address row the "configured Alpaca server" below it always
               // referred to. Without it the address was permanently the stored
@@ -200,7 +199,6 @@ class ConnectionSettings extends ConsumerWidget {
                     builder: (_) => const AlpacaServerDialog(),
                   ),
                 ),
-                isMobile: isMobile,
               ),
               SettingRow(
                 icon: LucideIcons.search,
@@ -211,25 +209,32 @@ class ConnectionSettings extends ConsumerWidget {
                   value: settings.alpacaAutoDiscover,
                   onChanged: settingsNotifier.setAlpacaAutoDiscover,
                 ),
+              ),
+              SettingRow(
+                icon: LucideIcons.camera,
+                title: 'Look for QHY cameras',
+                subtitle: _qhyDiscoverySubtitle(
+                  linked: isNetwork,
+                  sdkAvailable: ref.watch(qhySdkAvailableProvider).valueOrNull,
+                ),
+                trailing: SettingsSwitch(
+                  value: settings.qhyDiscoveryEnabled,
+                  onChanged: settingsNotifier.setQhyDiscoveryEnabled,
+                ),
                 isLast: true,
-                isMobile: isMobile,
               ),
             ],
           ),
         if (isConnected)
-          SettingsSection(
+          const SettingsSection(
             title: 'Remote features',
-            isMobile: isMobile,
             children: [
               SettingRow(
                 icon: LucideIcons.refreshCw,
                 title: 'Refresh host settings',
                 subtitle: 'Reload this screen from the connected Skotiq host',
-                trailing: _HostSettingsRefreshButton(
-                  isMobile: isMobile,
-                ),
+                trailing: _HostSettingsRefreshButton(),
                 isLast: true,
-                isMobile: isMobile,
               ),
             ],
           ),
@@ -241,11 +246,9 @@ class ConnectionSettings extends ConsumerWidget {
           title: isConnected
               ? 'This device capabilities'
               : 'Platform capabilities',
-          isMobile: isMobile,
           children: [
             _PlatformCapabilityMatrixView(
               report: platformCapabilities,
-              isMobile: isMobile,
               isRemote: isConnected,
             ),
           ],
@@ -310,7 +313,8 @@ class ConnectionSettings extends ConsumerWidget {
                           if (!ctx.mounted) return;
                           setDialogState(() {
                             disconnecting = false;
-                            disconnectError = 'Disconnect blocked: $e';
+                            disconnectError =
+                                'Disconnect blocked: ${userFacingError(e)}';
                           });
                         }
                       },
@@ -320,23 +324,33 @@ class ConnectionSettings extends ConsumerWidget {
         ),
       );
     } else {
-      // Show connection dialog
-      _showConnectDialog(context);
+      ref.read(openRigConnectProvider)(context);
     }
-  }
-
-  void _showConnectDialog(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (_) => const _ConnectToServerDialog(),
-    );
   }
 }
 
-class _HostSettingsRefreshButton extends ConsumerStatefulWidget {
-  const _HostSettingsRefreshButton({required this.isMobile});
+/// What the QHY switch does here. The QHY SDK runs on the computer that owns
+/// the rig, so on a linked client the switch is the host's.
+const _groupNoticePadding = EdgeInsets.only(bottom: SkotiqTokens.spaceSm);
 
-  final bool isMobile;
+String _qhyDiscoverySubtitle({
+  required bool linked,
+  required bool? sdkAvailable,
+}) {
+  if (linked) {
+    return 'Set on the imaging host. Turn off if its device scan crashes or '
+        'hangs in the QHY SDK.';
+  }
+  if (sdkAvailable == false) {
+    return 'The QHY SDK is not installed on this computer, so scans find no '
+        'QHY devices either way.';
+  }
+  return 'Turn off if a device scan crashes or hangs in the QHY SDK. QHY '
+      'cameras and filter wheels then stay out of scans.';
+}
+
+class _HostSettingsRefreshButton extends ConsumerStatefulWidget {
+  const _HostSettingsRefreshButton();
 
   @override
   ConsumerState<_HostSettingsRefreshButton> createState() =>
@@ -384,7 +398,7 @@ class _HostSettingsRefreshButtonState
       }
     } catch (e) {
       if (_isCurrent(generation, authority) && mounted) {
-        context.showErrorSnackBar('Refresh failed: $e');
+        context.showErrorSnackBar('Refresh failed: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrent(generation, authority)) {
@@ -397,7 +411,7 @@ class _HostSettingsRefreshButtonState
       mounted &&
       _refreshing &&
       generation == _generation &&
-      identical(ref.read(backendProvider), authority);
+      ref.backendScopeOver(authority).isCurrent;
 
   @override
   Widget build(BuildContext context) {
@@ -425,228 +439,12 @@ class _HostSettingsRefreshButtonState
   }
 }
 
-/// Manual "Connect to Skotiq Server" dialog.
-///
-/// A Skotiq server is a distinct authority from the Alpaca / INDI
-/// device-protocol servers, so this dialog seeds neutral defaults rather than
-/// borrowing an unrelated protocol's host/port (which conflated protocols and
-/// pre-filled the wrong endpoint). It validates input, awaits the backend
-/// connect behind a busy guard, and — because [BackendNotifier.connect] now
-/// throws when the handshake does not reach a live connection — stays open and
-/// shows the failure so a refused connection remains retryable.
-class _ConnectToServerDialog extends ConsumerStatefulWidget {
-  const _ConnectToServerDialog();
-
-  @override
-  ConsumerState<_ConnectToServerDialog> createState() =>
-      _ConnectToServerDialogState();
-}
-
-class _ConnectToServerDialogState
-    extends ConsumerState<_ConnectToServerDialog> {
-  // Neutral defaults — deliberately NOT derived from Alpaca/INDI settings.
-  // 8080 is the Skotiq headless server's default port.
-  final _hostController = TextEditingController(text: 'localhost');
-  final _portController = TextEditingController(text: '8080');
-  final _tokenController = TextEditingController();
-
-  bool _isConnecting = false;
-  String? _hostError;
-  String? _portError;
-  String? _statusMessage;
-
-  @override
-  void dispose() {
-    _hostController.dispose();
-    _portController.dispose();
-    _tokenController.dispose();
-    super.dispose();
-  }
-
-  ({String host, int port, String? token})? _validatedInputs() {
-    final host = _hostController.text.trim();
-    final portRaw = _portController.text.trim();
-    final token = _tokenController.text.trim();
-
-    String? hostError;
-    String? portError;
-    if (host.isEmpty) {
-      hostError = 'Enter a host name or IP address.';
-    }
-    final port = int.tryParse(portRaw);
-    if (port == null) {
-      portError = 'Port must be a whole number.';
-    } else if (port < 1 || port > 65535) {
-      portError = 'Port must be between 1 and 65535.';
-    }
-
-    setState(() {
-      _hostError = hostError;
-      _portError = portError;
-    });
-
-    if (hostError != null || portError != null || port == null) return null;
-    return (host: host, port: port, token: token.isEmpty ? null : token);
-  }
-
-  Future<void> _connect() async {
-    if (_isConnecting) return;
-    final inputs = _validatedInputs();
-    if (inputs == null) return;
-
-    // A local FfiBackend is the only backend that is neither remote nor an
-    // explicit "nothing installed" state. Remember whether we are about to
-    // displace one, because the failure path has to put it back.
-    final priorBackend = ref.read(backendProvider);
-    final hadLocalBackend =
-        priorBackend is! NetworkBackend && priorBackend is! DisconnectedBackend;
-
-    setState(() {
-      _isConnecting = true;
-      _statusMessage = null;
-    });
-
-    try {
-      await ref.read(backendProvider.notifier).connect(
-            inputs.host,
-            inputs.port,
-            authToken: inputs.token,
-          );
-      if (!mounted) return;
-      Navigator.pop(context);
-    } on BackendTransitionSupersededException {
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      // BackendNotifier.connect() rolls a failed handshake back to a
-      // DisconnectedBackend. That is right for a client that never had a rig
-      // of its own, but on the machine that OWNS the hardware it trades a
-      // working local session for a dead one: every role provider follows
-      // backendProvider, so the shell pins "Error: not connected to server"
-      // over an app that was driving the mount a second earlier. Reaching an
-      // OPTIONAL remote host must not cost the operator local mode.
-      final restoreError =
-          hadLocalBackend ? await _restoreLocalBackend() : null;
-      if (!mounted) return;
-      // Stay open so the operator can correct the address and retry.
-      setState(() {
-        _isConnecting = false;
-        _statusMessage = switch ((hadLocalBackend, restoreError)) {
-          (true, null) =>
-            'Connection failed: $e\nStill working locally on this computer.',
-          (true, final String problem) => 'Connection failed: $e\n'
-              'Could not return to local mode either: $problem',
-          _ => 'Connection failed: $e',
-        };
-      });
-    }
-  }
-
-  /// Put the displaced local backend back. Returns null on success, or a
-  /// description of why local mode could not be restored.
-  Future<String?> _restoreLocalBackend() async {
-    try {
-      await ref.read(backendProvider.notifier).useLocalBackend();
-      return null;
-    } on BackendTransitionSupersededException {
-      // A newer connect/disconnect owns the backend now; leave it alone.
-      return null;
-    } catch (error) {
-      return '$error';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    return AlertDialog(
-      title: const Text('Connect to Server'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            key: const ValueKey('connect-host-field'),
-            controller: _hostController,
-            enabled: !_isConnecting,
-            onChanged: (_) {
-              if (_hostError != null) setState(() => _hostError = null);
-            },
-            decoration: InputDecoration(
-              labelText: 'Host',
-              hintText: 'e.g., localhost or 192.168.1.100',
-              errorText: _hostError,
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            key: const ValueKey('connect-port-field'),
-            controller: _portController,
-            enabled: !_isConnecting,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            onChanged: (_) {
-              if (_portError != null) setState(() => _portError = null);
-            },
-            decoration: InputDecoration(
-              labelText: 'Port',
-              hintText: '8080',
-              errorText: _portError,
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _tokenController,
-            enabled: !_isConnecting,
-            decoration: const InputDecoration(
-              labelText: 'Access Token',
-              hintText: 'Optional unless the server requires pairing/auth',
-            ),
-          ),
-          if (_statusMessage != null) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(SkotiqIcons.error, size: 16, color: colors.error),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _statusMessage!,
-                    style: SkotiqTypography.captionSm.copyWith(
-                      color: colors.error,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-      actions: [
-        SkotiqButton(
-          label: 'Cancel',
-          variant: ButtonVariant.ghost,
-          size: ButtonSize.small,
-          onPressed: _isConnecting ? null : () => Navigator.pop(context),
-        ),
-        SkotiqButton(
-          label: _isConnecting ? 'Connecting...' : 'Connect',
-          variant: ButtonVariant.primary,
-          size: ButtonSize.small,
-          isLoading: _isConnecting,
-          onPressed: _isConnecting ? null : _connect,
-        ),
-      ],
-    );
-  }
-}
-
 class _PlatformCapabilityMatrixView extends StatelessWidget {
   final PlatformCapabilityReport report;
-  final bool isMobile;
   final bool isRemote;
 
   const _PlatformCapabilityMatrixView({
     required this.report,
-    required this.isMobile,
     this.isRemote = false,
   });
 
@@ -654,16 +452,17 @@ class _PlatformCapabilityMatrixView extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final platformLabel = _formatPlatform(report.platform);
+    final narrow = SettingsFormScope.narrowOf(context);
 
     return Padding(
-      padding: EdgeInsets.all(isMobile ? 12 : 16),
+      padding: EdgeInsets.all(narrow ? 12 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(LucideIcons.monitor,
-                  size: isMobile ? 16 : 18, color: colors.textSecondary),
+                  size: narrow ? 16 : 18, color: colors.textSecondary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -693,7 +492,6 @@ class _PlatformCapabilityMatrixView extends StatelessWidget {
             (driver) => _PlatformCapabilityRow(
               driver: driver,
               platform: report.platform,
-              isMobile: isMobile,
             ),
           ),
         ],
@@ -718,12 +516,9 @@ class _PlatformCapabilityMatrixView extends StatelessWidget {
 class _PlatformCapabilityRow extends StatelessWidget {
   final PlatformDriverCapability driver;
   final String platform;
-  final bool isMobile;
-
   const _PlatformCapabilityRow({
     required this.driver,
     required this.platform,
-    required this.isMobile,
   });
 
   @override
@@ -732,18 +527,20 @@ class _PlatformCapabilityRow extends StatelessWidget {
     final status = driver.statusFor(platform);
     final statusColor = _statusColor(colors, status);
     final statusLabel = _statusLabel(status);
+    // Label beside the details where there is room, above them where not.
+    final narrow = SettingsFormScope.narrowOf(context);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.all(isMobile ? 10 : 12),
+      padding: EdgeInsets.all(narrow ? 10 : 12),
       decoration: BoxDecoration(
         color: colors.well.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
         border: Border.all(color: colors.border.withValues(alpha: 0.6)),
       ),
-      child: isMobile
-          ? _buildMobile(statusColor, statusLabel)
-          : _buildDesktop(statusColor, statusLabel),
+      child: narrow
+          ? _buildStacked(statusColor, statusLabel)
+          : _buildSideBySide(statusColor, statusLabel),
     );
   }
 
@@ -769,7 +566,7 @@ class _PlatformCapabilityRow extends StatelessWidget {
     }
   }
 
-  Widget _buildDesktop(Color statusColor, String statusLabel) {
+  Widget _buildSideBySide(Color statusColor, String statusLabel) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -786,14 +583,13 @@ class _PlatformCapabilityRow extends StatelessWidget {
           child: _DriverDetails(
             driver: driver,
             platform: platform,
-            isMobile: false,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMobile(Color statusColor, String statusLabel) {
+  Widget _buildStacked(Color statusColor, String statusLabel) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -806,7 +602,6 @@ class _PlatformCapabilityRow extends StatelessWidget {
         _DriverDetails(
           driver: driver,
           platform: platform,
-          isMobile: true,
         ),
       ],
     );
@@ -856,12 +651,9 @@ class _DriverLabel extends StatelessWidget {
 class _DriverDetails extends StatelessWidget {
   final PlatformDriverCapability driver;
   final String platform;
-  final bool isMobile;
-
   const _DriverDetails({
     required this.driver,
     required this.platform,
-    required this.isMobile,
   });
 
   @override

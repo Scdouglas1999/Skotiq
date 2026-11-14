@@ -1,45 +1,30 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Value;
 
-import '../../backend/network_backend.dart';
 import '../../database/database.dart' as db;
 import '../../models/scheduler/target_constraint.dart';
-import '../../providers/backend_provider.dart';
-import '../../providers/database_provider.dart';
 import '../../utils/resilient_poll_stream.dart';
-import 'integration_goal_service.dart'
-    show targetConstraintsSchemaSql, targetConstraintsTargetIndexSql;
+import '../../backend/remote_host.dart';
 
 /// Persistence + change-notification for hard target constraints.
 ///
-/// The `target_constraints` table is created out-of-band with raw SQL
-/// (see `integration_goal_service.dart` for the shared DDL constants), so
-/// drift's reactive `watch()` machinery can't see it. We layer a simple
-/// broadcast `StreamController` on top so the scheduler provider can drive
-/// `requestReevaluation()` whenever the operator adds, edits, deletes, or
-/// toggles a constraint.
+/// A broadcast `StreamController` fires on every write made through this
+/// service, on the host and on a slave alike, so the scheduler provider can
+/// drive `requestReevaluation()` whenever the operator adds, edits, deletes,
+/// or toggles a constraint.
 class TargetConstraintService {
   final db.SkotiqDatabase _db;
-  bool _schemaEnsured = false;
   final StreamController<void> _mutations = StreamController<void>.broadcast();
 
   /// Non-null on a remote SLAVE: constraints live in the HOST DB, so reads and
   /// mutations route over `/api/target-constraints` instead of the slave's
   /// empty local table. Null on the host (FfiBackend) / tests — local path
   /// unchanged.
-  final NetworkBackend? _remote;
+  final HostPlanningData? _remote;
 
-  TargetConstraintService(this._db, {NetworkBackend? remote})
+  TargetConstraintService(this._db, {HostPlanningData? remote})
     : _remote = remote;
-
-  Future<void> _ensureSchema() async {
-    if (_schemaEnsured) return;
-    await _db.customStatement(targetConstraintsSchemaSql);
-    await _db.customStatement(targetConstraintsTargetIndexSql);
-    _schemaEnsured = true;
-  }
 
   void _notifyMutated() {
     if (!_mutations.isClosed) _mutations.add(null);
@@ -57,15 +42,13 @@ class TargetConstraintService {
       _notifyMutated();
       return id;
     }
-    await _ensureSchema();
-    final id = await _db.customInsert(
-      'INSERT INTO target_constraints (target_id, kind, payload_json, enabled) VALUES (?, ?, ?, ?)',
-      variables: [
-        Variable.withInt(constraint.targetId),
-        Variable.withString(constraint.kind.name),
-        Variable.withString(constraint.encodePayload()),
-        Variable.withInt(constraint.enabled ? 1 : 0),
-      ],
+    final id = await _db.planningDao.insertTargetConstraint(
+      db.TargetConstraintsCompanion.insert(
+        targetId: constraint.targetId,
+        kind: constraint.kind.name,
+        payloadJson: constraint.encodePayload(),
+        enabled: Value(constraint.enabled ? 1 : 0),
+      ),
     );
     _notifyMutated();
     return id;
@@ -85,15 +68,11 @@ class TargetConstraintService {
       _notifyMutated();
       return;
     }
-    await _ensureSchema();
-    await _db.customStatement(
-      'UPDATE target_constraints SET kind = ?, payload_json = ?, enabled = ? WHERE id = ?',
-      [
-        constraint.kind.name,
-        constraint.encodePayload(),
-        constraint.enabled ? 1 : 0,
-        constraint.id,
-      ],
+    await _db.planningDao.updateTargetConstraint(
+      constraint.id!,
+      kind: constraint.kind.name,
+      payloadJson: constraint.encodePayload(),
+      enabled: constraint.enabled,
     );
     _notifyMutated();
   }
@@ -105,11 +84,7 @@ class TargetConstraintService {
       _notifyMutated();
       return;
     }
-    await _ensureSchema();
-    await _db.customStatement(
-      'UPDATE target_constraints SET enabled = ? WHERE id = ?',
-      [enabled ? 1 : 0, constraintId],
-    );
+    await _db.planningDao.setTargetConstraintEnabled(constraintId, enabled);
     _notifyMutated();
   }
 
@@ -120,10 +95,7 @@ class TargetConstraintService {
       _notifyMutated();
       return;
     }
-    await _ensureSchema();
-    await _db.customStatement('DELETE FROM target_constraints WHERE id = ?', [
-      constraintId,
-    ]);
+    await _db.planningDao.deleteTargetConstraint(constraintId);
     _notifyMutated();
   }
 
@@ -137,11 +109,7 @@ class TargetConstraintService {
       _notifyMutated();
       return;
     }
-    await _ensureSchema();
-    await _db.customStatement(
-      'DELETE FROM target_constraints WHERE target_id = ?',
-      [targetId],
-    );
+    await _db.planningDao.deleteTargetConstraintsForTarget(targetId);
     _notifyMutated();
   }
 
@@ -154,8 +122,7 @@ class TargetConstraintService {
       _notifyMutated();
       return;
     }
-    await _ensureSchema();
-    await _db.customStatement('DELETE FROM target_constraints');
+    await _db.planningDao.deleteAllTargetConstraints();
     _notifyMutated();
   }
 
@@ -164,14 +131,8 @@ class TargetConstraintService {
     if (remote != null) {
       return remote.getTargetConstraints(targetId: targetId);
     }
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT id, target_id, kind, payload_json, enabled FROM target_constraints WHERE target_id = ?',
-          variables: [Variable.withInt(targetId)],
-        )
-        .get();
-    return rows.map(_rowToConstraint).toList();
+    final rows = await _db.planningDao.targetConstraintsForTarget(targetId);
+    return rows.map(targetConstraintFromRow).toList();
   }
 
   Future<List<TargetConstraint>> listAll() async {
@@ -179,13 +140,8 @@ class TargetConstraintService {
     if (remote != null) {
       return remote.getTargetConstraints();
     }
-    await _ensureSchema();
-    final rows = await _db
-        .customSelect(
-          'SELECT id, target_id, kind, payload_json, enabled FROM target_constraints',
-        )
-        .get();
-    return rows.map(_rowToConstraint).toList();
+    final rows = await _db.planningDao.allTargetConstraints();
+    return rows.map(targetConstraintFromRow).toList();
   }
 
   /// Live stream of every constraint. Emits an initial snapshot then a
@@ -194,9 +150,8 @@ class TargetConstraintService {
     final remote = _remote;
     if (remote != null) {
       // The host owns the constraints; poll it on a fixed tick with a
-      // change-guard (mirrors database_provider's _pollRemote). Host-side
-      // edits surface within the interval; our own mutations are picked up by
-      // the next poll.
+      // change-guard. Host-side edits surface within the interval; our own
+      // mutations are picked up by the next poll.
       yield* resilientDistinctPoll(
         fetch: remote.getTargetConstraints,
         unchanged: _constraintListEquals,
@@ -204,7 +159,6 @@ class TargetConstraintService {
       );
       return;
     }
-    await _ensureSchema();
     yield await listAll();
     await for (final _ in _mutations.stream) {
       yield await listAll();
@@ -221,26 +175,14 @@ class TargetConstraintService {
     }
     return true;
   }
-
-  TargetConstraint _rowToConstraint(QueryRow row) {
-    return TargetConstraint.fromRow(
-      id: row.read<int>('id'),
-      targetId: row.read<int>('target_id'),
-      kindName: row.read<String>('kind'),
-      payloadJson: row.read<String>('payload_json'),
-      enabled: row.read<int>('enabled') == 1,
-    );
-  }
 }
 
-final targetConstraintServiceProvider = Provider<TargetConstraintService>((
-  ref,
-) {
-  final backend = ref.watch(backendProvider);
-  final svc = TargetConstraintService(
-    ref.watch(databaseProvider),
-    remote: backend is NetworkBackend ? backend : null,
-  );
-  ref.onDispose(() => svc.dispose());
-  return svc;
-});
+/// The constraint a stored `target_constraints` row describes.
+TargetConstraint targetConstraintFromRow(db.TargetConstraintRow row) =>
+    TargetConstraint.fromRow(
+      id: row.id,
+      targetId: row.targetId,
+      kindName: row.kind,
+      payloadJson: row.payloadJson,
+      enabled: row.enabled == 1,
+    );

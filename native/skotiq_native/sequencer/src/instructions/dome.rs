@@ -62,7 +62,7 @@ pub(crate) async fn wait_for_dome_shutter_state(
             return Err(result);
         }
 
-        match ctx.device_ops.dome_get_shutter_status(dome_id).await {
+        match ctx.run.device_ops.dome_get_shutter_status(dome_id).await {
             Ok(status) => {
                 if status == target {
                     return Ok(DomeShutterWaitOutcome::Confirmed);
@@ -87,7 +87,8 @@ pub(crate) async fn wait_for_dome_shutter_state(
                 // case for a close.
                 return Err(InstructionResult::failure(format!(
                     "Failed to read dome shutter status while waiting for {target}: {e}"
-                )));
+                ))
+                .caused_by(&e));
             }
         }
 
@@ -110,8 +111,8 @@ pub(crate) async fn wait_for_dome_shutter_state(
                  (proceeding after issuing the command)"
             );
             tracing::warn!("{msg}");
-            if let Some(event_tx) = &ctx.event_tx {
-                let _ = event_tx.send(crate::executor::ExecutorEvent::Error { message: msg });
+            if let Some(event_tx) = &ctx.run.event_tx {
+                let _ = event_tx.send(crate::executor::ExecutorEvent::StepProblem { message: msg });
             }
             return Ok(DomeShutterWaitOutcome::Unconfirmed);
         }
@@ -121,7 +122,22 @@ pub(crate) async fn wait_for_dome_shutter_state(
     }
 }
 
-/// Execute open dome
+/// Tell the run whether the shutter should be open from here on, which is
+/// what the Dome Shutter Not Open trigger watches. An instruction run outside
+/// a sequence has no run to tell.
+async fn expect_shutter_open(ctx: &InstructionContext, open: bool) {
+    if let Some(state) = &ctx.run.trigger_state {
+        let mut state = state.write().await;
+        if open {
+            // The shutter was just read open. A reading left from before (the
+            // last run's close) must not fire the trigger ahead of the next
+            // poll.
+            state.update_dome_status("Open".to_string());
+        }
+        state.set_dome_shutter_expected(open);
+    }
+}
+
 pub async fn execute_open_dome(
     config: &DomeConfig,
     ctx: &InstructionContext,
@@ -132,7 +148,6 @@ pub async fn execute_open_dome(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Opening dome shutter".to_string());
     }
@@ -148,8 +163,8 @@ pub async fn execute_open_dome(
         cb(50.0, "Waiting for shutter to open".to_string());
     }
 
-    if let Err(e) = ctx.device_ops.dome_open(&dome_id).await {
-        return InstructionResult::failure(format!("Failed to open dome: {}", e));
+    if let Err(e) = ctx.run.device_ops.dome_open(&dome_id).await {
+        return InstructionResult::failure(format!("Failed to open dome: {}", e)).caused_by(&e);
     }
 
     if !config.shutter_only {
@@ -165,22 +180,24 @@ pub async fn execute_open_dome(
             Err(failure) => return failure,
         };
 
-    // Report completion
     if let Some(cb) = progress_callback {
         cb(100.0, "Dome shutter open".to_string());
     }
 
     match open_outcome {
         DomeShutterWaitOutcome::Confirmed => {
+            expect_shutter_open(ctx, true).await;
             InstructionResult::success_with_message("Dome shutter opened")
         }
+        // A dome that never reports its shutter would read as not open on
+        // every poll, so the run does not watch it.
         DomeShutterWaitOutcome::Unconfirmed => InstructionResult::success_with_message(
-            "Dome open command issued; shutter position could not be confirmed",
+            "Dome open command issued; shutter position could not be confirmed, so the run \
+             cannot watch it",
         ),
     }
 }
 
-/// Execute close dome
 pub async fn execute_close_dome(
     _config: &DomeConfig,
     ctx: &InstructionContext,
@@ -191,7 +208,6 @@ pub async fn execute_close_dome(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Closing dome shutter".to_string());
     }
@@ -207,8 +223,9 @@ pub async fn execute_close_dome(
         cb(50.0, "Waiting for shutter to close".to_string());
     }
 
-    if let Err(e) = ctx.device_ops.dome_close(&dome_id).await {
-        return InstructionResult::failure(format!("Failed to close dome: {}", e));
+    expect_shutter_open(ctx, false).await;
+    if let Err(e) = ctx.run.device_ops.dome_close(&dome_id).await {
+        return InstructionResult::failure(format!("Failed to close dome: {}", e)).caused_by(&e);
     }
 
     // Confirm the shutter actually reached Closed — a roof that reports
@@ -220,7 +237,6 @@ pub async fn execute_close_dome(
             Err(failure) => return failure,
         };
 
-    // Report completion
     if let Some(cb) = progress_callback {
         cb(100.0, "Dome shutter closed".to_string());
     }
@@ -235,7 +251,6 @@ pub async fn execute_close_dome(
     }
 }
 
-/// Execute park dome
 pub async fn execute_park_dome(
     config: &DomeConfig,
     ctx: &InstructionContext,
@@ -246,7 +261,6 @@ pub async fn execute_park_dome(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Parking dome".to_string());
     }
@@ -255,6 +269,7 @@ pub async fn execute_park_dome(
         return result;
     }
 
+    expect_shutter_open(ctx, false).await;
     if !config.shutter_only {
         // Report waiting progress BEFORE the async call
         if let Some(cb) = progress_callback {
@@ -262,8 +277,8 @@ pub async fn execute_park_dome(
         }
 
         tracing::info!("Parking dome...");
-        if let Err(e) = ctx.device_ops.dome_park(&dome_id).await {
-            return InstructionResult::failure(format!("Failed to park dome: {}", e));
+        if let Err(e) = ctx.run.device_ops.dome_park(&dome_id).await {
+            return InstructionResult::failure(format!("Failed to park dome: {}", e)).caused_by(&e);
         }
     }
 
@@ -276,11 +291,12 @@ pub async fn execute_park_dome(
     // exposed under an open shutter all night. Propagate it (mirrors
     // `execute_close_dome`) rather than discarding the Result.
     tracing::info!("Closing shutter (park sequence)...");
-    if let Err(e) = ctx.device_ops.dome_close(&dome_id).await {
+    if let Err(e) = ctx.run.device_ops.dome_close(&dome_id).await {
         return InstructionResult::failure(format!(
             "Dome parked but failed to close shutter: {}",
             e
-        ));
+        ))
+        .caused_by(&e);
     }
 
     // Confirm the shutter reached Closed before claiming the park succeeded.
@@ -290,7 +306,6 @@ pub async fn execute_park_dome(
         return failure;
     }
 
-    // Report completion
     if let Some(cb) = progress_callback {
         cb(100.0, "Dome parked".to_string());
     }

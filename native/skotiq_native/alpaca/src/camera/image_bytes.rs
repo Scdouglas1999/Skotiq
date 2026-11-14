@@ -2,8 +2,6 @@
 
 use super::*;
 
-// ImageBytes binary parser
-
 /// Fixed-size of the Alpaca v3 ImageBytes metadata header in bytes.
 ///
 /// Layout (all little-endian; see ASCOM Alpaca v3 spec):
@@ -68,7 +66,6 @@ fn read_i32_le(buf: &[u8], offset: usize) -> Result<i32, AlpacaError> {
     Ok(i32::from_le_bytes(arr))
 }
 
-/// Read a little-endian `u32` from `buf` at `offset`.
 fn read_u32_le(buf: &[u8], offset: usize) -> Result<u32, AlpacaError> {
     let end = offset
         .checked_add(4)
@@ -237,12 +234,9 @@ fn decode_wire_sample(
 
 /// Parse a complete Alpaca v3 ImageBytes payload (header + pixel bytes).
 ///
-/// Wire-side layout (after the 44-byte header) is column-major to match the
-/// JSON `imagearrayvariant` semantics: pixels are stored as `[NumX][NumY]`
-/// (rank 2) or `[NumX][NumY][NumPlanes]` (rank 3) flattened in that iteration
-/// order. We materialize the output into the same column-major flat layout
-/// already produced by `parse_image_array_json`, so downstream consumers see
-/// identical pixel ordering regardless of which transport returned the frame.
+/// After the 44-byte header the samples are the ASCOM array `[NumX][NumY]`
+/// (rank 2) or `[NumX][NumY][NumPlanes]` (rank 3), height changing fastest;
+/// the output has the planar row-major layout `parse_image_array_json` gives.
 pub(crate) fn parse_image_bytes(
     payload: &[u8],
     expected_width: u32,
@@ -394,29 +388,16 @@ pub(crate) fn parse_image_bytes(
     let mut planar: Vec<u16> = vec![0u16; total_samples];
     let mut linear: usize = 0;
 
-    // Wire ordering for `imagearrayvariant` matches JSON: column-major over
-    // (x, y), and for rank 3 the innermost varies plane index. We decode in
-    // that order and reshuffle into our planar output layout so plane p is a
-    // contiguous slice of `pixels_per_plane` samples starting at
-    // `p * pixels_per_plane`.
-    if planes_us == 1 {
-        // Why fast path: rank-2 does not need per-pixel plane indexing; the
-        // sample sequence directly fills the single output plane in order.
-        for (sample_idx, slot) in planar.iter_mut().enumerate().take(total_samples) {
-            let byte_off = sample_idx * elem_size;
-            *slot = decode_wire_sample(pixel_bytes, byte_off, element_type, sample_idx)?;
-            linear += 1;
-        }
-    } else {
-        for x in 0..width {
-            for y in 0..height {
-                for p in 0..planes_us {
-                    let byte_off = linear * elem_size;
-                    let v = decode_wire_sample(pixel_bytes, byte_off, element_type, linear)?;
-                    let dest = (p * pixels_per_plane) + (x * height) + y;
-                    planar[dest] = v;
-                    linear += 1;
-                }
+    // The wire holds the ASCOM array `[x][y]` (or `[x][y][plane]`) with the
+    // rightmost index changing fastest (AlpacaImageBytes 1.0, 8.1); each
+    // output plane is row-major.
+    for x in 0..width {
+        for y in 0..height {
+            for p in 0..planes_us {
+                let byte_off = linear * elem_size;
+                planar[p * pixels_per_plane + y * width + x] =
+                    decode_wire_sample(pixel_bytes, byte_off, element_type, linear)?;
+                linear += 1;
             }
         }
     }
@@ -441,7 +422,6 @@ pub(crate) fn parse_image_bytes(
         element_type: image_element_type,
     })
 }
-// ImageBytes binary protocol tests
 
 #[cfg(test)]
 mod image_bytes_tests {
@@ -502,7 +482,7 @@ mod image_bytes_tests {
 
     #[test]
     fn rank2_uint16_decodes_clean() {
-        // 2x3 mono UInt16 image. Wire order is column-major: x outer, y inner.
+        // 2x3 mono UInt16 image. Wire order: x outer, y inner.
         // Pixel values: (0,0)=10 (0,1)=20 (0,2)=30 (1,0)=40 (1,1)=50 (1,2)=60
         let pixels: [u16; 6] = [10, 20, 30, 40, 50, 60];
         let mut pixel_bytes: Vec<u8> = Vec::with_capacity(12);
@@ -526,7 +506,8 @@ mod image_bytes_tests {
         assert_eq!(r.width, 2);
         assert_eq!(r.height, 3);
         assert_eq!(r.planes, 1);
-        assert_eq!(r.pixels, vec![10u16, 20, 30, 40, 50, 60]);
+        // Row by row: (0,0) (1,0), (0,1) (1,1), (0,2) (1,2).
+        assert_eq!(r.pixels, vec![10u16, 40, 20, 50, 30, 60]);
         assert_eq!(r.element_type, ImageArrayElementType::UInt16);
     }
 
@@ -552,13 +533,14 @@ mod image_bytes_tests {
         );
 
         let r = parse_image_bytes(&payload, 2, 2).expect("rank-2 Int32 parse");
-        assert_eq!(r.pixels, vec![0u16, 0, u16::MAX, 12_345]);
+        // Wire (0,0) (0,1) (1,0) (1,1), delivered row by row.
+        assert_eq!(r.pixels, vec![0u16, u16::MAX, 0, 12_345]);
         assert_eq!(r.element_type, ImageArrayElementType::Int32);
     }
 
     #[test]
     fn rank3_color_image_planar_layout() {
-        // 2x2x3 image, UInt16 wire. Column-major over (x, y, p):
+        // 2x2x3 image, UInt16 wire, in (x, y, p) order:
         // (0,0,0..2)=10,20,30  (0,1,0..2)=11,21,31
         // (1,0,0..2)=12,22,32  (1,1,0..2)=13,23,33
         let samples: [u16; 12] = [10, 20, 30, 11, 21, 31, 12, 22, 32, 13, 23, 33];
@@ -583,12 +565,10 @@ mod image_bytes_tests {
         assert_eq!(r.width, 2);
         assert_eq!(r.height, 2);
         assert_eq!(r.planes, 3);
-        // Plane 0: [10, 11, 12, 13] (column-major over x,y)
-        // Plane 1: [20, 21, 22, 23]
-        // Plane 2: [30, 31, 32, 33]
+        // Each plane row by row: (0,0) (1,0) (0,1) (1,1).
         assert_eq!(
             r.pixels,
-            vec![10u16, 11, 12, 13, 20, 21, 22, 23, 30, 31, 32, 33]
+            vec![10u16, 12, 11, 13, 20, 22, 21, 23, 30, 32, 31, 33]
         );
     }
 

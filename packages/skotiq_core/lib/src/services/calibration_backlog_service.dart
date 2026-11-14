@@ -1,3 +1,4 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -6,19 +7,23 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../backend/network_backend.dart';
+import '../backend/roles/host_data/calibration_library.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
-import '../providers/backend_provider.dart';
+import '../models/imaging/imaging_models.dart'
+    show FrameType, frameFileFormatOf;
 import '../providers/dark_library_provider.dart';
 import '../providers/database_provider.dart';
-import 'calibration_library_service.dart';
 import 'calibration_master_builder.dart';
 import 'dark_library_service.dart';
 import 'darkroom_build_service.dart'
     show darkroomTemperatureGapC, observingNight, flatSetupKey;
 import 'flat_library_service.dart';
+import '../models/imaging/frame_gain.dart';
+import '../providers/calibration_library_service_providers.dart';
+import '../providers/calibration_master_builder_provider.dart';
+import '../providers/flat_library_service_provider.dart';
 
 /// The kinds of raw calibration frame the backlog builds masters from.
 enum CalibrationFrameKind {
@@ -69,7 +74,7 @@ class CalibrationBacklogGroup {
 
   /// Evening date of the observing night, `yyyy-mm-dd`.
   final String night;
-  final List<CapturedImage> frames;
+  final List<DbCapturedImage> frames;
   final double exposureSeconds;
   final int? gain;
   final int? offset;
@@ -109,7 +114,7 @@ class CalibrationBacklogGroup {
 
   /// The capture settings the master is matched on.
   String get settings => [
-    if (gain != null) 'gain $gain',
+    if (gain != null) frames.first.recordedGainKind.describe(gain!),
     if (offset != null) 'offset $offset',
     'bin ${binX}x$binY',
     if (temperature != null) '${temperature!.round()} °C',
@@ -179,7 +184,7 @@ class CalibrationBacklogException implements Exception {
 class CalibrationBacklogService {
   CalibrationBacklogService({
     required SkotiqDatabase db,
-    required CalibrationLibraryService library,
+    required CalibrationLibrary library,
     required DarkLibraryService darkLibrary,
     required FlatLibraryService flatLibrary,
     required CalibrationMasterBuild buildMaster,
@@ -196,7 +201,7 @@ class CalibrationBacklogService {
        _now = now ?? DateTime.now;
 
   final SkotiqDatabase _db;
-  final CalibrationLibraryService _library;
+  final CalibrationLibrary _library;
   final DarkLibraryService _darkLibrary;
   final FlatLibraryService _flatLibrary;
   final CalibrationMasterBuild _buildMaster;
@@ -275,7 +280,7 @@ class CalibrationBacklogService {
   /// Resolve selected raw batches independently of metadata-based library
   /// coverage. No different batch or master can stand in for this approval.
   Future<List<CalibrationBacklogGroup>> scheduledForLights(
-    List<CapturedImage> lights,
+    List<DbCapturedImage> lights,
   ) async {
     final entries = await _selections();
     final selected = entries.map(
@@ -285,7 +290,7 @@ class CalibrationBacklogService {
     final result = <CalibrationBacklogGroup>[];
     final rows = await (_db.select(
       _db.capturedImages,
-    )..where((t) => t.frameType.lower().equals('flat'))).get();
+    )..where((t) => t.frameTypeIs(FrameType.flat))).get();
     final dismissed = await dismissedKeys();
     for (final group in await groupFrames(rows)) {
       if (dismissed.contains(group.key)) continue;
@@ -298,7 +303,7 @@ class CalibrationBacklogService {
           !lights.any(
             (f) =>
                 f.isAccepted &&
-                f.frameType.toLowerCase() == 'light' &&
+                f.isLight &&
                 f.filter == group.filter &&
                 f.gain == group.gain &&
                 f.offset == group.offset &&
@@ -323,7 +328,7 @@ class CalibrationBacklogService {
           lights.any(
             (f) =>
                 f.isAccepted &&
-                f.frameType.toLowerCase() == 'light' &&
+                f.isLight &&
                 flatSetupKey(f.filter, f.gain, f.offset, f.binX, f.binY) ==
                     entry.value['setup'],
           )) {
@@ -369,9 +374,9 @@ class CalibrationBacklogService {
   /// Group raw frames by kind, observing night and capture setting; darks
   /// and bias are further split where sensor temperatures jump.
   Future<List<CalibrationBacklogGroup>> groupFrames(
-    List<CapturedImage> frames,
+    List<DbCapturedImage> frames,
   ) async {
-    final buckets = <String, List<CapturedImage>>{};
+    final buckets = <String, List<DbCapturedImage>>{};
     for (final f in frames) {
       final kind = CalibrationFrameKind.parse(f.frameType);
       if (kind == null) continue;
@@ -717,7 +722,8 @@ class CalibrationBacklogService {
           CapturedImagesCompanion.insert(
             filePath: filePath,
             fileName: p.basename(filePath),
-            frameType: const Value('flat'),
+            fileFormat: Value(frameFileFormatOf(filePath).recordName),
+            frameType: Value(FrameType.flat.record),
             exposureDuration: exposureSeconds,
             capturedAt: capturedAt,
             filter: Value(filter),
@@ -730,19 +736,19 @@ class CalibrationBacklogService {
         );
   }
 
-  static String? _filterOf(CapturedImage f) {
+  static String? _filterOf(DbCapturedImage f) {
     final name = f.filter?.trim();
     return name == null || name.isEmpty ? null : name;
   }
 
-  static List<List<CapturedImage>> _temperatureClusters(
-    List<CapturedImage> frames,
+  static List<List<DbCapturedImage>> _temperatureClusters(
+    List<DbCapturedImage> frames,
   ) {
     final known = frames.where((f) => f.sensorTemp != null).toList()
       ..sort((a, b) => a.sensorTemp!.compareTo(b.sensorTemp!));
     final unknown = frames.where((f) => f.sensorTemp == null).toList();
     if (known.isEmpty) return [frames];
-    final clusters = <List<CapturedImage>>[
+    final clusters = <List<DbCapturedImage>>[
       [known.first],
     ];
     for (final f in known.skip(1)) {
@@ -764,7 +770,7 @@ final calibrationBacklogServiceProvider = Provider<CalibrationBacklogService>((
 ) {
   return CalibrationBacklogService(
     db: ref.watch(databaseProvider),
-    library: ref.watch(calibrationLibraryServiceProvider),
+    library: ref.watch(calibrationLibraryProvider),
     darkLibrary: ref.watch(darkLibraryServiceProvider),
     flatLibrary: ref.watch(flatLibraryServiceProvider),
     buildMaster: ref.watch(calibrationMasterBuildProvider),
@@ -777,7 +783,6 @@ final calibrationBacklogServiceProvider = Provider<CalibrationBacklogService>((
 /// reload.
 final calibrationLibraryRevisionProvider = StateProvider<int>((ref) => 0);
 
-/// Progress of one backlog group's build.
 enum CalibrationBuildPhase { queued, building, built, failed }
 
 class CalibrationBuildStatus {
@@ -903,7 +908,7 @@ class CalibrationBacklogNotifier
   }
 
   Future<Map<String, String>> prepareForLights(
-    List<CapturedImage> lights,
+    List<DbCapturedImage> lights,
   ) async {
     if (state.remote) {
       throw StateError('Build calibration on the imaging computer.');
@@ -1001,11 +1006,3 @@ class CalibrationBacklogNotifier
     state = state.copyWith(builds: {...state.builds, key: status});
   }
 }
-
-final calibrationBacklogProvider =
-    StateNotifierProvider<CalibrationBacklogNotifier, CalibrationBacklogState>((
-      ref,
-    ) {
-      final remote = ref.watch(backendProvider) is NetworkBackend;
-      return CalibrationBacklogNotifier(ref, remote: remote);
-    });

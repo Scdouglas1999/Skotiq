@@ -24,6 +24,13 @@ ENVIRONMENT NOTES (each of these cost a debugging session to learn)
     developer's real observing data, and so each run starts from a known state.
   * The app takes a single-instance lock. A second launch exits silently and
     looks identical to a crash, so `start` refuses when one is already up.
+  * A SIGSEGV in `gtk_main_do_event` right after a `key` is not the app. It is
+    GTK 3's `_gtk_accessibility_key_snooper` (gtkaccessibilityutil.c:154)
+    walking a key-listener list the ATK bridge freed an entry of while an
+    AT-SPI client (`tree`, `act`, `click`) attached or detached. Reproduced
+    2026-11-12: Ctrl+K / Escape fifteen times survives; the same loop with a
+    `tree` between the keys crashes within five. Let a query finish before
+    sending keys. A SIGSEGV in libgallium's memcpy on a `resize` is softpipe.
 
 USAGE
   drive_linux.py start [--display :77] [--profile NAME] [--fresh]

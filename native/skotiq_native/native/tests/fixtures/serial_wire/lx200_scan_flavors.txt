@@ -1,0 +1,89 @@
+== port onstep ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :GU#
+< NpET250#
+> :GVP#
+< On-Step#
+> :GVN#
+< 4.2g#
+> :GVD#
+< Oct 10 2010#
+> :GVT#
+< 12:34:56#
+(scan over)
+== port nyx ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :GU#
+< NpET250#\r\n
+> :GVP#
+< NYX-101#\r\n
+> :GVN#
+< 4.2g#\r\n
+> :GVD#
+< Oct 10 2010#\r\n
+> :GVT#
+< 12:34:56#\r\n
+(scan over)
+== port meade ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+< LX200 Classic#
+> :GVN#
+< 4.2g#
+> :GVD#
+< Oct 10 2010#
+> :GVT#
+< 12:34:56#
+(scan over)
+== port losmandy ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+< Losmandy Gemini#
+> :GVN#
+< 4.2g#
+> :GVD#
+< Oct 10 2010#
+> :GVT#
+< 12:34:56#
+(scan over)
+== port tenmicron ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+< 10micron GM1000HPS#
+> :GVN#
+< 4.2g#
+> :GVD#
+< Oct 10 2010#
+> :GVT#
+< 12:34:56#
+(scan over)
+== port generic ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+< EQ Controller#
+> :GVN#
+< 4.2g#
+> :GVD#
+< Oct 10 2010#
+> :GVT#
+< 12:34:56#
+(scan over)
+== port coordinates-only ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+> :GR#
+< 05:30:00#
+(scan over)
+== found ==
+port=<onstep> name="OnStep: On-Step (<onstep>)" type=OnStep firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
+port=<nyx> name="Pegasus NYX-101 (<nyx>)" type=OnStep firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
+port=<meade> name="LX200 Classic (<meade>)" type=Meade firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
+port=<losmandy> name="Losmandy Gemini (<losmandy>)" type=Losmandy firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
+port=<tenmicron> name="10micron GM1000HPS (<tenmicron>)" type=TenMicron firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
+port=<generic> name="EQ Controller (<generic>)" type=Generic firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
+port=<coordinates-only> name="LX200 Compatible (<coordinates-only>)" type=Generic firmware=None baud=115200

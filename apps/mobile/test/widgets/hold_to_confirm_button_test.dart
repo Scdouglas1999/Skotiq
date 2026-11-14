@@ -92,9 +92,7 @@ void main() {
     final gesture = await tester.startGesture(
       tester.getCenter(find.byType(HoldToConfirmButton)),
     );
-    // Wait long enough to trigger the long-press recognizer (~500ms by
-    // default in Flutter), plus half of our hold duration.
-    await tester.pump(const Duration(milliseconds: 600));
+    // The hold counts from the press; release halfway.
     await tester.pump(_kHoldDuration ~/ 2);
     // Release before the ring completes.
     await gesture.up();
@@ -156,6 +154,44 @@ void main() {
     );
   });
 
+  testWidgets('the fill starts at the press, not half a second into it', (
+    tester,
+  ) async {
+    await _pumpButton(
+      tester,
+      onConfirmed: () {},
+      duration: const Duration(seconds: 2),
+    );
+    final hold = find.descendant(
+      of: find.byType(HoldToConfirmButton),
+      matching: find.byType(CustomPaint),
+    );
+    final before = hold.evaluate().length;
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(HoldToConfirmButton)),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(hold.evaluate().length, greaterThan(before));
+    // The tooltip opens the frame after the press.
+    await tester.pump();
+    expect(find.text('Hold to stop'), findsOneWidget);
+    await gesture.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a press too short to count says to hold', (tester) async {
+    var confirmed = 0;
+    await _pumpButton(tester, onConfirmed: () => confirmed++);
+
+    await tester.tap(find.byType(HoldToConfirmButton));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(confirmed, 0);
+    expect(find.text('Hold to stop'), findsOneWidget);
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
+
   testWidgets('disabled button never fires onConfirmed', (tester) async {
     var confirmed = 0;
     await _pumpButton(tester, onConfirmed: () => confirmed++, enabled: false);
@@ -207,7 +243,6 @@ void main() {
     final gesture = await tester.startGesture(
       tester.getCenter(find.byType(HoldToConfirmButton)),
     );
-    await tester.pump(const Duration(milliseconds: 600));
     await tester.pump(_kHoldDuration ~/ 2);
     await gesture.up();
     await tester.pumpAndSettle();
@@ -233,7 +268,6 @@ void main() {
     final gesture = await tester.startGesture(
       tester.getCenter(find.byType(HoldToConfirmButton)),
     );
-    await tester.pump(const Duration(milliseconds: 600));
     // Release early — should NOT fire even with animations disabled.
     await tester.pump(_kHoldDuration ~/ 4);
     await gesture.up();

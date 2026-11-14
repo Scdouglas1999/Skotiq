@@ -17,10 +17,9 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart' as dbm;
-import 'package:skotiq_core/src/services/imaging_records_repository.dart'
-    show firstLightScanWcs;
 
 /// Atlas fold seam that records the frame WCS the fold was dispatched with.
 class _RecordingFoldSeam implements SkyAtlasSeam {
@@ -97,7 +96,7 @@ void main() {
     await db.close();
   });
 
-  Future<dbm.CapturedImage> seedSolvedLight() async {
+  Future<dbm.DbCapturedImage> seedSolvedLight() async {
     final id = await imagesDao.createImage(
       CapturedImagesCompanion.insert(
         filePath: '/tmp/light_0001.fits',
@@ -120,12 +119,7 @@ void main() {
     () async {
       final image = await seedSolvedLight();
 
-      final wcs = firstLightScanWcs(
-        image: image,
-        imageWidth: 1000,
-        imageHeight: 800,
-        distortion: const SolvedWcsDistortion(),
-      );
+      final wcs = storedFrameWcs(image, imageWidth: 1000, imageHeight: 800)!;
 
       expect(
         wcs.raHours,
@@ -142,12 +136,7 @@ void main() {
       'same row', () async {
     final image = await seedSolvedLight();
 
-    final scanWcs = firstLightScanWcs(
-      image: image,
-      imageWidth: 1000,
-      imageHeight: 800,
-      distortion: const SolvedWcsDistortion(),
-    );
+    final scanWcs = storedFrameWcs(image, imageWidth: 1000, imageHeight: 800)!;
 
     await atlasService.autoFoldCapturedImage(
       image: image,

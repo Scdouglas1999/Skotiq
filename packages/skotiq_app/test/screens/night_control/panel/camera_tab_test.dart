@@ -7,7 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/camera/camera_panel_vm.dart';
 import 'package:skotiq_app/screens/night_control/panel/camera/camera_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../fixtures/night_fixtures.dart';
@@ -30,6 +31,37 @@ void main() {
     expect(find.text('20%'), findsOneWidget);
     expect(find.byType(SeriesChart), findsOneWidget);
     expect(find.text('Sensor temperature since 19:20'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a camera without a cooler or gain shows neither',
+      (tester) async {
+    final ops = FakePanelOps();
+    await pumpPanel(
+      tester,
+      child: const NightCameraTab(),
+      overrides: [
+        ...panelOverrides(
+          board: NightFixtures.ready(),
+          camera: PanelFixtures.cameraIdle,
+          ops: ops,
+        ),
+        cameraHasCoolerProvider.overrideWithValue(false),
+        cameraSensitivityProvider.overrideWithValue(
+          const GainSensitivity(hasGain: false, hasOffset: false),
+        ),
+      ],
+    );
+
+    expect(find.textContaining('Cooler'), findsNothing);
+    expect(find.text('Gain'), findsNothing);
+    expect(find.text('Offset'), findsNothing);
+
+    // The exposure still saves, and carries no gain or offset change.
+    await tester.enterText(find.widgetWithText(TextField, '5'), '10');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(ops.lastExposure?.exposureTime, 10);
     expect(tester.takeException(), isNull);
   });
 
@@ -198,7 +230,7 @@ void main() {
     );
 
     await tester.scrollUntilVisible(
-      find.text('639 GB free · ~11 nights'),
+      find.text('639 GiB free · ~11 nights'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
@@ -273,15 +305,23 @@ void main() {
         nightCoolerState(const CameraStateSnapshot()),
         NightCoolerState.notConnected,
       );
+      // A camera that does not report its cooler is not shown as off.
       expect(
         nightCoolerState(const CameraStateSnapshot(connectionState: connected)),
+        NightCoolerState.notReported,
+      );
+      expect(
+        nightCoolerState(
+          const CameraStateSnapshot(
+              connectionState: connected, coolerOn: false),
+        ),
         NightCoolerState.off,
       );
       expect(
         nightCoolerState(
           const CameraStateSnapshot(
             connectionState: connected,
-            isCooling: true,
+            coolerOn: true,
             temperature: -9.7,
           ),
         ),
@@ -291,7 +331,7 @@ void main() {
         nightCoolerState(
           const CameraStateSnapshot(
             connectionState: connected,
-            isCooling: true,
+            coolerOn: true,
             temperature: -7.4,
           ),
         ),
@@ -300,8 +340,7 @@ void main() {
       // Cooling with no temperature reading is not "at setpoint".
       expect(
         nightCoolerState(
-          const CameraStateSnapshot(
-              connectionState: connected, isCooling: true),
+          const CameraStateSnapshot(connectionState: connected, coolerOn: true),
         ),
         NightCoolerState.cooling,
       );
@@ -309,7 +348,7 @@ void main() {
         nightCoolerState(
           const CameraStateSnapshot(
             connectionState: connected,
-            isCooling: true,
+            coolerOn: true,
             isWarming: true,
           ),
         ),

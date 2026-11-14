@@ -11,7 +11,10 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/darkroom_delivery_handlers.dart';
 import 'package:skotiq_desktop/headless_api/request_context.dart';
@@ -19,6 +22,8 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+
+import '../support/route_policy.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -411,7 +416,7 @@ void main() {
     test('none of them is public', () {
       for (final path in paths) {
         expect(
-          HeadlessAuthPolicy.requiredCapabilityFor(
+          capabilityForPath(
             method: path.endsWith('<jobId>') && path.contains('/ack/')
                 ? 'POST'
                 : 'GET',
@@ -433,11 +438,11 @@ void main() {
       // reach either.
       for (final path in paths.take(2)) {
         expect(
-          HeadlessAuthPolicy.requiredScopeFor(method: 'GET', path: path),
+          scopeForPath(method: 'GET', path: path),
           HeadlessTokenScope.control,
         );
         expect(
-          HeadlessAuthPolicy.allows(
+          allowsPath(
             actual: HeadlessTokenScope.view,
             method: 'GET',
             path: path,
@@ -446,7 +451,7 @@ void main() {
           reason: 'a read-only credential cannot pull the published masters',
         );
         expect(
-          HeadlessAuthPolicy.allows(
+          allowsPath(
             actual: HeadlessTokenScope.control,
             method: 'GET',
             path: path,
@@ -461,15 +466,11 @@ void main() {
       const path = '/api/darkroom/delivery/ack/<jobId>';
 
       expect(
-        HeadlessAuthPolicy.requiredScopeFor(method: 'POST', path: path),
+        scopeForPath(method: 'POST', path: path),
         HeadlessTokenScope.control,
       );
       expect(
-        HeadlessAuthPolicy.allows(
-          actual: HeadlessTokenScope.view,
-          method: 'POST',
-          path: path,
-        ),
+        allowsPath(actual: HeadlessTokenScope.view, method: 'POST', path: path),
         isFalse,
         reason: 'a view-only phone cannot close a delivery it did not make',
       );

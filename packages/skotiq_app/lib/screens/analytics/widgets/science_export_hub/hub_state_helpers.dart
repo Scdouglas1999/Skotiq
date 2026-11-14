@@ -5,16 +5,14 @@ part of '../science_export_hub.dart';
 extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
   Widget _buildDateFilters(
     SkotiqColors colors,
-    DateFormat dateFormat,
   ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _DateButton(
           colors: colors,
-          label: _startDate != null
-              ? dateFormat.format(_startDate!)
-              : 'Start Date',
+          label:
+              _startDate != null ? ClockFormat.date(_startDate!) : 'Start Date',
           onTap: () => _pickDate(isStart: true),
         ),
         Padding(
@@ -24,7 +22,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         ),
         _DateButton(
           colors: colors,
-          label: _endDate != null ? dateFormat.format(_endDate!) : 'End Date',
+          label: _endDate != null ? ClockFormat.date(_endDate!) : 'End Date',
           onTap: () => _pickDate(isStart: false),
         ),
         if (_startDate != null || _endDate != null) ...[
@@ -47,7 +45,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
     final session = sessions.where((s) => s.id == id).firstOrNull;
     if (session == null) return 'Session $id';
     final name = session.name ?? 'Session $id';
-    final date = DateFormat('MMM d').format(session.startTime);
+    final date = ClockFormat.monthDay(session.startTime.toLocal());
     return '$name ($date)';
   }
 
@@ -64,7 +62,6 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         if (isStart) {
           _startDate = picked;
         } else {
-          // Set end date to end of day
           _endDate =
               DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
         }
@@ -152,8 +149,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
   }
 
   Future<void> _exportData(ScienceExportDataset dataType) async {
-    final backend = ref.read(backendProvider);
-    final generation = ++_authorityGeneration;
+    final scope = hostScopes.beginLatest(#export);
     _standaloneWindowed = false;
     setState(() {
       _isExporting = true;
@@ -162,7 +158,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
 
     try {
       final sessions = await ref.read(allSessionsProvider.future);
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (scope.isStale) return;
       final selectedSession = sessions
           .where((session) => session.id == _selectedSessionId)
           .firstOrNull;
@@ -246,10 +242,9 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
               'Transient report uses the dedicated panel, not CSV export.');
       }
 
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (scope.isStale) return;
 
       if (rows.length <= 1) {
-        // Only header row, no data
         if (mounted) {
           setState(() {
             _isExporting = false;
@@ -261,7 +256,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
 
       final csv = const ListToCsvConverter().convert(rows);
       final directory = await ref.read(scienceExportDirectoryProvider.future);
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (scope.isStale) return;
       final timestamp = DateTime.now()
           .toUtc()
           .toIso8601String()
@@ -275,7 +270,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         initialDirectory: directory.path,
         allowedExtensions: const ['csv'],
       );
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (scope.isStale) return;
       if (filePath == null) {
         if (!mounted) return;
         setState(() {
@@ -287,7 +282,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
       final file = File(filePath);
       await ref.read(scienceExportFileWriterProvider)(file, csv);
 
-      if (!_isCurrentAuthority(backend, generation) || !mounted) return;
+      if (scope.isStale || !mounted) return;
       setState(() {
         _isExporting = false;
         _lastExportResult = 'Exported ${rows.length - 1} rows to $filePath'
@@ -305,18 +300,17 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         subject: 'Skotiq science export',
       );
     } catch (e) {
-      if (!_isCurrentAuthority(backend, generation) || !mounted) return;
+      if (scope.isStale || !mounted) return;
       setState(() {
         _isExporting = false;
-        _lastExportResult = 'Export failed: $e';
+        _lastExportResult = 'Export failed: ${userFacingError(e)}';
       });
-      context.showErrorSnackBar('Export failed: $e');
+      context.showErrorSnackBar('Export failed: ${userFacingError(e)}');
     }
   }
 
   Future<void> _generateReport() async {
-    final backend = ref.read(backendProvider);
-    final generation = ++_authorityGeneration;
+    final scope = hostScopes.beginLatest(#export);
     setState(() {
       _isExporting = true;
       _lastExportResult = null;
@@ -324,7 +318,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
 
     try {
       final sessions = await ref.read(allSessionsProvider.future);
-      if (!_isCurrentAuthority(backend, generation)) return;
+      if (scope.isStale) return;
       final selectedSession = sessions
           .where((session) => session.id == _selectedSessionId)
           .firstOrNull;
@@ -344,33 +338,11 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         setState(() => _selectedSessionId = reportSessionId);
       }
 
-      late final String filePath;
-      if (backend is NetworkBackend) {
-        final bytes = await backend.generateObservationReport(reportSessionId);
-        if (!_isCurrentAuthority(backend, generation)) return;
-        final directory = await ref.read(scienceExportDirectoryProvider.future);
-        if (!_isCurrentAuthority(backend, generation)) return;
-        final timestamp = DateTime.now()
-            .toUtc()
-            .toIso8601String()
-            .replaceAll(':', '-')
-            .split('.')
-            .first;
-        filePath =
-            path.join(directory.path, 'observation_report_${timestamp}Z.pdf');
-        await File(filePath).writeAsBytes(bytes, flush: true);
-      } else {
-        final reportService = ObservationReportService(
-          sessionsDao: ref.read(sessionsDaoProvider),
-          imagesDao: ref.read(imagesDaoProvider),
-          scienceDao: ref.read(scienceDaoProvider),
-        );
-        filePath = await reportService.generateReport(
-          sessionId: reportSessionId,
-        );
-      }
+      final filePath = await ref
+          .read(analyticsExportsProvider)
+          .observationReport(reportSessionId);
 
-      if (!_isCurrentAuthority(backend, generation) || !mounted) return;
+      if (scope.isStale || !mounted) return;
       setState(() {
         _isExporting = false;
         _lastExportResult = 'Report generated: $filePath';
@@ -381,16 +353,15 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         subject: 'Skotiq observation report',
       );
     } catch (e) {
-      if (!_isCurrentAuthority(backend, generation) || !mounted) return;
+      if (scope.isStale || !mounted) return;
       setState(() {
         _isExporting = false;
-        _lastExportResult = 'Report generation failed: $e';
+        _lastExportResult = 'Report generation failed: ${userFacingError(e)}';
       });
-      context.showErrorSnackBar('Report generation failed: $e');
+      context
+          .showErrorSnackBar('Report generation failed: ${userFacingError(e)}');
     }
   }
-
-  // CSV row builders
 
   bool _withinDateRange(DateTime timestamp) {
     if (_startDate != null && timestamp.isBefore(_startDate!)) return false;
@@ -408,7 +379,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
   Future<List<T>> _standaloneRows<T>(
     ProviderListenable<Future<List<T>>> export,
   ) {
-    if (ref.read(backendProvider) is NetworkBackend) {
+    if (ref.read(isRemoteModeProvider)) {
       _standaloneWindowed = true;
     }
     return ref.read(export);

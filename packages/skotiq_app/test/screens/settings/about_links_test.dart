@@ -11,19 +11,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/widgets/about_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 Future<void> _pumpAbout(
   WidgetTester tester, {
-  required bool isMobile,
+  required bool narrow,
   required List<Uri> launched,
   bool launcherSucceeds = true,
 }) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize =
-      isMobile ? const Size(420, 1600) : const Size(1400, 1600);
+      narrow ? const Size(420, 1600) : const Size(1400, 1600);
   addTearDown(() {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
@@ -42,7 +43,11 @@ Future<void> _pumpAbout(
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
-        home: Scaffold(body: AboutSettings(isMobile: isMobile)),
+        home: Scaffold(
+            body: SettingsFormScope(
+          narrow: narrow,
+          child: const AboutSettings(),
+        )),
       ),
     ),
   );
@@ -70,7 +75,7 @@ void main() {
   testWidgets('desktop About buttons launch the real project URLs',
       (tester) async {
     final launched = <Uri>[];
-    await _pumpAbout(tester, isMobile: false, launched: launched);
+    await _pumpAbout(tester, narrow: false, launched: launched);
 
     await tester.tap(find.text('GitHub'));
     await tester.pumpAndSettle();
@@ -95,7 +100,7 @@ void main() {
   testWidgets('phone About buttons launch the same URLs as desktop',
       (tester) async {
     final launched = <Uri>[];
-    await _pumpAbout(tester, isMobile: true, launched: launched);
+    await _pumpAbout(tester, narrow: true, launched: launched);
 
     await tester.tap(find.text('GitHub'));
     await tester.pumpAndSettle();
@@ -119,7 +124,7 @@ void main() {
     final launched = <Uri>[];
     await _pumpAbout(
       tester,
-      isMobile: false,
+      narrow: false,
       launched: launched,
       launcherSucceeds: false,
     );

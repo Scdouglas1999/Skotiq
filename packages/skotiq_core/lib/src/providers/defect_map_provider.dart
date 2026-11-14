@@ -1,18 +1,25 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../models/backend/event_types.dart';
+import 'linked_host.dart';
+import 'async_scope.dart';
+import '../errors/error_text.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/defect_map.dart';
 import '../models/equipment/equipment_models.dart';
 import '../services/calibration/defect_map_service.dart';
-import '../services/logging_service.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'capability_provider.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart';
+import '../database/daos/settings_dao.dart';
+import 'logging_service_provider.dart';
+import '../services/logging_service.dart';
 
 const Object _defectMapSettingsSentinel = Object();
 const Object _defectMapUiSentinel = Object();
@@ -58,7 +65,8 @@ class DefectMapQuery {
 final defectMapStatusProvider =
     FutureProvider.family<DefectMapStatus?, DefectMapQuery>((ref, query) async {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = ref.watch(linkedHostCalibrationFramesProvider);
+      if (remote != null) {
         final subscription = backend.eventStream.listen((event) {
           if (event.eventType == hostStateChangedEventType &&
               event.data['entityType'] == HostMutationEntity.settings &&
@@ -189,110 +197,36 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
       state = state.copyWith(
         isBuilding: false,
         statusMessage: null,
-        errorMessage: 'Failed to build defect map: $e',
+        errorMessage: 'Failed to build defect map: ${userFacingError(e)}',
       );
     }
   }
 
-  /// Enable or disable defect-map application during capture.
-  ///
-  /// Persists the user preference AND, when the caller supplies the
-  /// camera dimensions + temperature, pushes the live state into the
-  /// running sequencer so per-frame correction starts (or stops) at
-  /// the next exposure. Callers that don't have the dimensions yet
-  /// (e.g. a settings-screen-level toggle with no camera connected)
-  /// can omit those parameters; the sequencer is then updated on the
-  /// next camera connect via [pushCurrentSettingsToSequencer].
+  /// Turn correction of [cameraId]'s lights during capture on (with the map
+  /// stored for this sensor size and temperature) or off. It applies from the
+  /// next exposure, including in a running sequence.
   Future<void> setApplyDuringCapture({
     required String cameraId,
     required bool apply,
-    int? width,
-    int? height,
-    double? sensorTemperatureCelsius,
+    required int width,
+    required int height,
+    required double sensorTemperatureCelsius,
   }) async {
     final generation = ++_applyGeneration;
     final authorityGeneration = _authorityGeneration;
     final authority = ref.read(backendProvider);
     try {
-      final canPush =
-          width != null && height != null && sensorTemperatureCelsius != null;
       final settings = ref.read(defectMapSettingsProvider);
-      if (apply && canPush) {
-        final status = await _service.getStatus(
-          cameraId: cameraId,
-          width: width,
-          height: height,
-          sensorTemperatureCelsius: sensorTemperatureCelsius,
-        );
-        if (status?.storedOnDisk != true) {
-          throw StateError(
-            'No defect map exists for the current camera, sensor size, and '
-            'temperature bucket.',
-          );
-        }
-
-        // Enabling is two-phase: validate first, persist the preference, then
-        // load the exact map into the runtime. If the live load fails, roll the
-        // preference back so a later map build cannot unexpectedly activate a
-        // toggle the operator saw fail.
-        await _service.apply(cameraId: cameraId, applyDuringCapture: true);
-        try {
-          await _service.applyToSequencer(
-            cameraId: cameraId,
-            width: width,
-            height: height,
-            sensorTemperatureCelsius: sensorTemperatureCelsius,
-            enabled: true,
-            method: settings.method,
-            kernel: settings.kernel,
-            saveOriginal: settings.saveOriginal,
-          );
-        } catch (error, stackTrace) {
-          try {
-            await _service.apply(cameraId: cameraId, applyDuringCapture: false);
-          } catch (rollbackError, rollbackStack) {
-            developer.log(
-              'Could not roll back defect-map preference: $rollbackError',
-              name: 'DefectMap',
-              level: 1000,
-              error: rollbackError,
-              stackTrace: rollbackStack,
-            );
-          }
-          try {
-            await _service.applyToSequencer(
-              cameraId: cameraId,
-              width: width,
-              height: height,
-              sensorTemperatureCelsius: sensorTemperatureCelsius,
-              enabled: false,
-              method: settings.method,
-              kernel: settings.kernel,
-              saveOriginal: settings.saveOriginal,
-            );
-          } catch (_) {
-            // The original runtime-load error remains the actionable failure.
-          }
-          Error.throwWithStackTrace(error, stackTrace);
-        }
-      } else if (!apply && canPush) {
-        // Disable the live runtime first. If persistence subsequently fails,
-        // correction is still safely off for the current run and the visible
-        // preference remains on so the operator can retry.
-        await _service.applyToSequencer(
-          cameraId: cameraId,
-          width: width,
-          height: height,
-          sensorTemperatureCelsius: sensorTemperatureCelsius,
-          enabled: false,
-          method: settings.method,
-          kernel: settings.kernel,
-          saveOriginal: settings.saveOriginal,
-        );
-        await _service.apply(cameraId: cameraId, applyDuringCapture: false);
-      } else {
-        await _service.apply(cameraId: cameraId, applyDuringCapture: apply);
-      }
+      await _service.applyToSequencer(
+        cameraId: cameraId,
+        width: width,
+        height: height,
+        sensorTemperatureCelsius: sensorTemperatureCelsius,
+        enabled: apply,
+        method: settings.method,
+        kernel: settings.kernel,
+        saveOriginal: settings.saveOriginal,
+      );
       if (!_isCurrent(authorityGeneration, authority) ||
           generation != _applyGeneration) {
         return;
@@ -311,7 +245,8 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
       }
       state = state.copyWith(
         statusMessage: null,
-        errorMessage: 'Failed to update defect-map toggle: $e',
+        errorMessage:
+            'Failed to update defect-map toggle: ${userFacingError(e)}',
       );
     }
   }
@@ -355,7 +290,8 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
       }
       state = state.copyWith(
         statusMessage: null,
-        errorMessage: 'Failed to push defect-map settings to sequencer: $e',
+        errorMessage:
+            'Failed to push defect-map settings to sequencer: ${userFacingError(e)}',
       );
     }
   }
@@ -430,7 +366,7 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
       state = state.copyWith(
         isClearing: false,
         statusMessage: null,
-        errorMessage: 'Failed to clear defect map: $e',
+        errorMessage: 'Failed to clear defect map: ${userFacingError(e)}',
       );
     }
   }
@@ -446,7 +382,7 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
   bool _isCurrent(int authorityGeneration, Object authority) {
     return mounted &&
         authorityGeneration == _authorityGeneration &&
-        identical(ref.read(backendProvider), authority);
+        ref.scopeOver<Object>(backendProvider, authority).isCurrent;
   }
 
   void _invalidateOperations() {
@@ -524,6 +460,27 @@ class DefectMapSettings {
     );
   }
 
+  /// What the stored [rows] hold.
+  factory DefectMapSettings.fromRows(Map<String, String> rows) =>
+      DefectMapSettings(
+        autoApply: StoreSettings.defectMapAutoApply.valueIn(rows),
+        method: DefectMapMethod.fromWire(
+          StoreSettings.defectMapMethod.valueIn(rows),
+        ),
+        kernel: DefectMapKernelSize.fromDiameter(
+          StoreSettings.defectMapKernelDiameter.valueIn(rows),
+        ),
+        saveOriginal: StoreSettings.defectMapSaveOriginal.valueIn(rows),
+      );
+
+  /// The snapshot `GET /api/calibration/defect-maps/settings` returns.
+  Map<String, dynamic> toRemoteJson() => {
+    'autoApply': autoApply,
+    'method': method.wireValue,
+    'kernelDiameter': kernel.diameter,
+    'saveOriginal': saveOriginal,
+  };
+
   factory DefectMapSettings.fromRemoteJson(Map<String, dynamic> json) {
     final autoApply = json['autoApply'];
     final methodRaw = json['method'];
@@ -581,32 +538,24 @@ class DefectMapSettings {
   );
 }
 
-/// Settings keys used by the defect-map subsystem. Centralised here so
-/// the test suite + the bridge can match against the same strings.
-class DefectMapSettingsKeys {
-  static const String autoApply = 'defectMap.autoApply';
-  static const String method = 'defectMap.method';
-  static const String kernel = 'defectMap.kernelDiameter';
-  static const String saveOriginal = 'defectMap.saveOriginal';
-
-  DefectMapSettingsKeys._();
-}
-
 /// StateNotifier managing [DefectMapSettings]. Loads from the
 /// `app_settings` table on construction; persists each setter.
 class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
   final Ref _ref;
-  final NetworkBackend? _remote;
+  final HostCalibrationFrames? _remote;
   ProviderSubscription? _settingsSub;
   StreamSubscription? _remoteEventSub;
   Future<void>? _remoteLoad;
   final Completer<void> _loadedCompleter = Completer<void>();
 
-  DefectMapSettingsNotifier(this._ref, {NetworkBackend? remote})
-    : _remote = remote,
-      super(const DefectMapSettings(isLoading: true)) {
-    if (remote != null) {
-      _remoteEventSub = remote.eventStream.listen(
+  DefectMapSettingsNotifier(
+    this._ref, {
+    HostCalibrationFrames? remote,
+    Stream<SkotiqEvent> Function()? hostEvents,
+  }) : _remote = remote,
+       super(const DefectMapSettings(isLoading: true)) {
+    if (hostEvents != null) {
+      _remoteEventSub = hostEvents().listen(
         (event) {
           if (event.eventType != hostStateChangedEventType ||
               event.data['entityType'] != HostMutationEntity.settings ||
@@ -616,10 +565,9 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
           _remoteLoad = _loadRemote(showLoading: false);
         },
         onError: (Object error, StackTrace stackTrace) {
-          developer.log(
+          Log.error(
             'Defect-map settings event stream failed: $error',
-            name: 'DefectMapSettings',
-            level: 1000,
+            source: 'DefectMapSettings',
             error: error,
             stackTrace: stackTrace,
           );
@@ -654,16 +602,7 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
   }
 
   void _applyLoaded(Map<String, String> kv) {
-    state = DefectMapSettings(
-      autoApply: kv[DefectMapSettingsKeys.autoApply] == 'true',
-      method: DefectMapMethod.fromWire(kv[DefectMapSettingsKeys.method]),
-      kernel: DefectMapKernelSize.fromDiameter(
-        int.tryParse(kv[DefectMapSettingsKeys.kernel] ?? '') ?? 3,
-      ),
-      saveOriginal: kv[DefectMapSettingsKeys.saveOriginal] == 'true',
-      isLoading: false,
-      loadError: null,
-    );
+    state = DefectMapSettings.fromRows(kv);
     if (!_loadedCompleter.isCompleted) {
       _loadedCompleter.complete();
     }
@@ -682,10 +621,9 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
     } catch (error, stackTrace) {
       if (!mounted) return;
       state = state.copyWith(isLoading: false, loadError: error);
-      developer.log(
+      Log.error(
         'Could not load defect-map settings from imaging host: $error',
-        name: 'DefectMapSettings',
-        level: 1000,
+        source: 'DefectMapSettings',
         error: error,
         stackTrace: stackTrace,
       );
@@ -703,7 +641,7 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
       }, (current) => current.copyWith(autoApply: value));
       return;
     }
-    await _saveLocal(DefectMapSettingsKeys.autoApply, value.toString());
+    await _saveLocal(StoreSettings.defectMapAutoApply, value);
     state = state.copyWith(autoApply: value, loadError: null);
   }
 
@@ -714,7 +652,7 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
       }, (current) => current.copyWith(method: value));
       return;
     }
-    await _saveLocal(DefectMapSettingsKeys.method, value.wireValue);
+    await _saveLocal(StoreSettings.defectMapMethod, value.wireValue);
     state = state.copyWith(method: value, loadError: null);
   }
 
@@ -725,7 +663,7 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
       }, (current) => current.copyWith(kernel: value));
       return;
     }
-    await _saveLocal(DefectMapSettingsKeys.kernel, value.diameter.toString());
+    await _saveLocal(StoreSettings.defectMapKernelDiameter, value.diameter);
     state = state.copyWith(kernel: value, loadError: null);
   }
 
@@ -736,13 +674,12 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
       }, (current) => current.copyWith(saveOriginal: value));
       return;
     }
-    await _saveLocal(DefectMapSettingsKeys.saveOriginal, value.toString());
+    await _saveLocal(StoreSettings.defectMapSaveOriginal, value);
     state = state.copyWith(saveOriginal: value, loadError: null);
   }
 
-  Future<void> _saveLocal(String key, String value) {
-    return _ref.read(settingsDaoProvider).setSetting(key, value);
-  }
+  Future<void> _saveLocal<T>(Setting<T> setting, T value) =>
+      _ref.read(settingsDaoProvider).write(setting, value);
 
   Future<void> _saveRemote(
     Map<String, dynamic> patch,
@@ -762,13 +699,12 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
   }
 }
 
-/// Provider for the defect-map settings notifier.
 final defectMapSettingsProvider =
     StateNotifierProvider<DefectMapSettingsNotifier, DefectMapSettings>((ref) {
-      final backend = ref.watch(backendProvider);
       return DefectMapSettingsNotifier(
         ref,
-        remote: backend is NetworkBackend ? backend : null,
+        remote: ref.watch(linkedHostCalibrationFramesProvider),
+        hostEvents: ref.watch(linkedHostEventsProvider),
       );
     });
 

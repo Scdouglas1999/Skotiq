@@ -138,6 +138,7 @@ class PositioningAttempt {
     required this.outcomes,
     this.wifiRadioOff = false,
     this.wifiRadioCanBeEnabled = false,
+    this.noInternet = false,
   });
 
   /// The best fix any tier produced — smallest accuracy radius wins — or null
@@ -153,11 +154,32 @@ class PositioningAttempt {
   /// Skotiq can switch that radio on itself on this platform.
   final bool wifiRadioCanBeEnabled;
 
-  /// True when the precise tier is one click away: the radio is off and this
-  /// platform lets the app switch it on.
-  bool get canRetryWithWifi => wifiRadioOff && wifiRadioCanBeEnabled;
+  /// The internet lookup could reach neither of its hosts.
+  final bool noInternet;
 
-  /// Every tier's detail line, joined — the body of a "no fix" message, so it
-  /// names causes instead of shrugging.
+  /// True when the precise tier is one click away: the radio is off and this
+  /// platform lets the app switch it on. Not offline: the networks a scan
+  /// finds are turned into a position by an online service.
+  bool get canRetryWithWifi =>
+      wifiRadioOff && wifiRadioCanBeEnabled && !noInternet;
+
+  /// Every tier's detail line, joined, so a "no fix" message names causes
+  /// instead of shrugging.
   String get failureDetail => outcomes.map((o) => o.detail).join(' ');
+
+  /// Why no tier produced a fix, for the operator. Offline, the missing
+  /// connection is the cause of both network tiers failing, so it is said
+  /// once, and only the tier that works without one keeps its own line.
+  String get failureMessage {
+    if (!noInternet) {
+      return 'No position from Wi-Fi, this machine, or the internet lookup. '
+          '$failureDetail';
+    }
+    return [
+      'There is no internet connection, so neither a Wi-Fi scan nor the '
+          'internet lookup can place this computer.',
+      for (final o in outcomes)
+        if (o.tier == PositioningTier.platformService) o.detail,
+    ].join(' ');
+  }
 }

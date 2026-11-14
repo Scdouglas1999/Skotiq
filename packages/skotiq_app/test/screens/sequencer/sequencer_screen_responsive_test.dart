@@ -20,8 +20,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_properties_panel.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/sequencer_keys.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -47,8 +48,6 @@ List<Override> _overrides() {
   return [
     currentSequenceProvider.overrideWith((_) => notifier),
     // Idle = editable; the builder shows its add/edit affordances.
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
   ];
 }
 
@@ -71,7 +70,7 @@ void main() {
     // AdaptiveTabBar collapses text labels to icon-only — that's by design,
     // so we don't assert on the literal "Builder" text here).
     expect(find.byType(AdaptiveTabBar), findsOneWidget);
-    expect(find.byKey(SequencerTutorialKeys.tabBuilder), findsOneWidget);
+    expect(find.byKey(TourTarget.sequencerTabBuilder.key), findsOneWidget);
 
     // The dominant region: the sequence tree.
     expect(find.byType(SequenceTree), findsOneWidget);
@@ -131,8 +130,6 @@ void main() {
       size: const Size(844, 390),
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => notifier),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.idle),
       ],
       settle: false,
     );

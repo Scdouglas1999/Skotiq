@@ -87,6 +87,8 @@ TransientAlert? _tryParseTransientAlertFromJson(Map<String, dynamic> json) {
       (json['notes'] != null && json['notes'] is! String)) {
     return null;
   }
+  final state = _alertState(json['state']);
+  if (state == null) return null;
   return TransientAlert(
     id: id,
     name: name,
@@ -104,17 +106,15 @@ TransientAlert? _tryParseTransientAlertFromJson(Map<String, dynamic> json) {
         ? json['classification'] as String
         : null,
     notes: json['notes'] is String ? json['notes'] as String : null,
-    // The state the host resolved, so a detection the host already reviewed
-    // does not count as new here. Older hosts send none: new.
-    state: _alertState(json['state']),
+    state: state,
   );
 }
 
-TransientAlertState _alertState(Object? value) {
+TransientAlertState? _alertState(Object? value) {
   for (final candidate in TransientAlertState.values) {
     if (candidate.name == value) return candidate;
   }
-  return TransientAlertState.newAlert;
+  return null;
 }
 
 double? _finiteJsonDouble(Object? value) {

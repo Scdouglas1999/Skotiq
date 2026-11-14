@@ -45,7 +45,6 @@
 // distinguishable from an empty one. Cancellations — the expected outcome of a
 // superseded pan/zoom generation — are dropped quietly.
 
-import 'dart:developer' as developer;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show VoidCallback;
@@ -57,9 +56,8 @@ import '../models/hips/hips_survey_registry.dart';
 import '../services/hips/hips_tile_cache.dart';
 import '../services/hips/hips_tile_fetcher.dart';
 import '../services/hips/hips_tile_loader.dart';
-import 'framing_provider.dart' show FramingTarget, SurveySource;
-
-// Tunable residency budget
+import '../models/framing_models.dart' show FramingTarget, SurveySource;
+import '../services/logging_service.dart';
 
 /// Default bounds for the framing tile [HipsTileCache].
 ///
@@ -78,8 +76,6 @@ const int kHipsFramingCacheMaxEntries = 256;
 /// layer.
 const int kHipsFramingCacheMaxBytes = 256 * 1024 * 1024;
 
-// C5 — fetcher provider
-
 /// Canonical DI handle for the HiPS [HipsTileFetcher] (component C5).
 ///
 /// Production resolves a real fetcher (its own [http.Client] + the default
@@ -95,8 +91,6 @@ const int kHipsFramingCacheMaxBytes = 256 * 1024 * 1024;
 final hipsTileFetcherProvider = Provider.autoDispose<HipsTileFetcher>(
   (ref) => HipsTileFetcher(),
 );
-
-// C4 — cache provider
 
 /// Canonical DI handle for the bounded LRU [HipsTileCache] (component C4).
 ///
@@ -132,8 +126,6 @@ final hipsLoaderClockProvider = Provider.autoDispose<HipsLoaderClock>(
   (ref) => const HipsRealLoaderClock(),
 );
 
-// C6 — loader provider
-
 /// Canonical DI handle for the HiPS tile orchestrator (component C6).
 ///
 /// Builds a [HipsTileLoader] from the C4 cache and C5 fetcher and registers an
@@ -165,8 +157,6 @@ final hipsTileLoaderProvider = Provider.autoDispose<HipsTileLoader>((ref) {
   ref.onDispose(loader.dispose);
   return loader;
 });
-
-// Shared survey `properties` resolution
 
 /// The single source of truth for a survey's HiPS `properties` document.
 ///
@@ -204,18 +194,15 @@ final framingHipsPropertiesProvider = FutureProvider.autoDispose
         // error state. Consumers treat an errored/absent properties value as "no
         // metadata" and fall back to the canvas snapshot. No silent blank, no
         // fabricated value.
-        developer.log(
+        Log.warning(
           'HiPS framing properties fetch failed for ${source.name}: ${e.message}',
-          name: 'HipsFramingProvider',
-          level: 900, // WARNING
+          source: 'HipsFramingProvider',
           error: e,
           stackTrace: st,
         );
         rethrow;
       }
     });
-
-// Feature flag
 
 /// User-facing feature flag for the HiPS framing tile layer, defaulting to
 /// **on** for tile-capable surveys.

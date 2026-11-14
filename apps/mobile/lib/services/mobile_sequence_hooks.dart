@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +7,10 @@ import 'package:skotiq_app/skotiq_app.dart'
         androidNotificationsAuthorizedProvider,
         iosBackgroundBannerProvider,
         iosCriticalAlertsAuthorizedProvider;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'foreground_service.dart';
@@ -31,6 +33,7 @@ class MobileSequenceHooks {
   StreamSubscription<Map<String, dynamic>>? _pushNotificationSubscription;
   MobileEventNotifier? _eventNotifier;
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  ProviderSubscription<HostNotifications?>? _hostNotificationsSubscription;
 
   // LAN UDP push notification receiver. Lifecycle is tied to the
   // backend — created when the mobile pairs (NetworkBackend with a saved
@@ -94,17 +97,14 @@ class MobileSequenceHooks {
       }
     }
 
-    // Set up battery warning callback
     _powerService.onCriticalBattery = _handleCriticalBattery;
     _powerService.onBatteryWarning = _handleBatteryWarning;
 
-    // Listen to sequence execution state changes
     _ref.listen<SequenceExecutionState>(
       sequenceExecutionStateProvider,
       (previous, next) => _handleExecutionStateChange(previous, next),
     );
 
-    // Listen to sequence progress for updates
     _ref.listen<SequenceProgress>(
       sequenceProgressProvider,
       (previous, next) => _handleProgressUpdate(previous, next),
@@ -120,11 +120,15 @@ class MobileSequenceHooks {
       next,
     ) {
       _setupEventNotifier();
-      _setupPushNotificationListener();
     });
+    // The host's pushes follow its notifications half: a backend listener
+    // runs before the half is rebuilt and would still see the old host.
+    _hostNotificationsSubscription = _ref.listen<HostNotifications?>(
+      linkedHostNotificationsProvider,
+      (_, next) => _setupPushNotificationListener(next),
+    );
 
-    // Listen for push notifications from the desktop via NetworkBackend
-    _setupPushNotificationListener();
+    _setupPushNotificationListener(_ref.read(linkedHostNotificationsProvider));
 
     // Mark fully wired so anything awaiting [waitUntilInitialized] can
     // safely proceed. Code that depends on the foreground service or
@@ -146,7 +150,7 @@ class MobileSequenceHooks {
   Future<void> _setupEventNotifier() async {
     await _eventNotifier?.stop();
     final backend = _ref.read(backendProvider);
-    if (backend is DisconnectedBackend) {
+    if (backend.hasNoHost) {
       _eventNotifier = null;
       return;
     }
@@ -164,45 +168,43 @@ class MobileSequenceHooks {
   ///
   /// Only activates when connected via NetworkBackend (i.e., mobile controlling
   /// a remote desktop). Push notifications are displayed as local notifications.
-  void _setupPushNotificationListener() {
+  void _setupPushNotificationListener(HostNotifications? hostNotifications) {
     _pushNotificationSubscription?.cancel();
     _pushNotificationSubscription = null;
-    final backend = _ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      _pushNotificationSubscription = backend.pushNotificationStream.listen(
-        (data) {
-          developer.log(
-            'Received push notification: ${data['title']}',
-            name: 'MobileSequenceHooks',
-            level: 800,
+    if (hostNotifications != null) {
+      _pushNotificationSubscription = hostNotifications.pushNotificationStream
+          .listen(
+            (data) {
+              Log.info(
+                'Received push notification: ${data['title']}',
+                source: 'MobileSequenceHooks',
+              );
+              // Inform the mobile-direct notifier so it can suppress a duplicate
+              // for the same eventType within its dedupe window.
+              final eventType = data['eventType'] as String?;
+              if (eventType != null) {
+                _eventNotifier?.recordPushReceived(eventType);
+              }
+              // record the WS-delivered frame id so the LAN UDP copy
+              // (which carries the same id) is suppressed. The desktop side
+              // generates the id during the broadcaster fan-out and stamps
+              // BOTH copies with it; without this dedup the user would see two
+              // OS notifications for every critical alert.
+              final id = data['id'] as String?;
+              if (id != null && id.isNotEmpty) {
+                _lanPushReceiver?.recordSeenFrameId(id);
+              }
+              _notificationService.notifyPush(data);
+            },
+            onError: (error) {
+              // Caught + degraded: stream errors mean we miss push notifications
+              // until the backend reconnects. Warn so the gap is visible.
+              Log.warning(
+                'Push notification stream error: $error',
+                source: 'MobileSequenceHooks',
+              );
+            },
           );
-          // Inform the mobile-direct notifier so it can suppress a duplicate
-          // for the same eventType within its dedupe window.
-          final eventType = data['eventType'] as String?;
-          if (eventType != null) {
-            _eventNotifier?.recordPushReceived(eventType);
-          }
-          // record the WS-delivered frame id so the LAN UDP copy
-          // (which carries the same id) is suppressed. The desktop side
-          // generates the id during the broadcaster fan-out and stamps
-          // BOTH copies with it; without this dedup the user would see two
-          // OS notifications for every critical alert.
-          final id = data['id'] as String?;
-          if (id != null && id.isNotEmpty) {
-            _lanPushReceiver?.recordSeenFrameId(id);
-          }
-          _notificationService.notifyPush(data);
-        },
-        onError: (error) {
-          // Caught + degraded: stream errors mean we miss push notifications
-          // until the backend reconnects. Warn so the gap is visible.
-          developer.log(
-            'Push notification stream error: $error',
-            name: 'MobileSequenceHooks',
-            level: 900,
-          );
-        },
-      );
     }
     // rebuild the LAN UDP receiver. Lifecycle follows the same
     // backend-change trigger as the WS listener — disconnect tears it
@@ -227,8 +229,7 @@ class MobileSequenceHooks {
       await existing.dispose();
     }
 
-    final backend = _ref.read(backendProvider);
-    if (backend is! NetworkBackend) {
+    if (!_ref.read(isRemoteModeProvider)) {
       // Local backend (FfiBackend) or DisconnectedBackend — no remote
       // server to listen to. Receiver stays null until the user pairs.
       return;
@@ -237,12 +238,11 @@ class MobileSequenceHooks {
     final saved = await EnhancedSkotiqDiscovery.loadLastServer();
     final fingerprint = saved?.fingerprint;
     if (fingerprint == null || fingerprint.isEmpty) {
-      developer.log(
+      Log.warning(
         '[LanPushReceiver] No saved-server fingerprint; LAN UDP push '
         'will not start. Re-pair to capture the fingerprint or fetch it '
         'via /api/info on the next connect.',
-        name: 'MobileSequenceHooks',
-        level: 900,
+        source: 'MobileSequenceHooks',
       );
       return;
     }
@@ -252,11 +252,10 @@ class MobileSequenceHooks {
     );
     _lanPushSubscription = receiver.incoming.listen(
       (frame) {
-        developer.log(
+        Log.info(
           '[LanPushReceiver] Frame ${frame.id} (${frame.severity}) — '
           '${frame.title}',
-          name: 'MobileSequenceHooks',
-          level: 800,
+          source: 'MobileSequenceHooks',
         );
         // Build the legacy data shape that notifyPush expects.
         final eventType = frame.data['eventType'] as String?;
@@ -290,10 +289,9 @@ class MobileSequenceHooks {
         });
       },
       onError: (Object e, StackTrace st) {
-        developer.log(
+        Log.error(
           '[LanPushReceiver] frame stream error: $e',
-          name: 'MobileSequenceHooks',
-          level: 1000,
+          source: 'MobileSequenceHooks',
           error: e,
           stackTrace: st,
         );
@@ -334,7 +332,6 @@ class MobileSequenceHooks {
 
       case SequenceExecutionState.running:
         if (previous == SequenceExecutionState.idle) {
-          // Sequence just started
           await _startImagingSession(sequence);
         } else if (previous == SequenceExecutionState.paused) {
           // Sequence resumed - ensure services are still active
@@ -429,10 +426,9 @@ class MobileSequenceHooks {
       // Don't swallow — surface so we know if the platform channel is
       // misbehaving. We still let the banner stay in its default (worst-
       // case "not authorized") state.
-      developer.log(
+      Log.error(
         'Failed to refresh iOS critical-alerts authorization: $e',
-        name: 'MobileSequenceHooks',
-        level: 1000,
+        source: 'MobileSequenceHooks',
         error: e,
         stackTrace: st,
       );
@@ -455,10 +451,9 @@ class MobileSequenceHooks {
         notifier.state = authorized;
       }
     } catch (e, st) {
-      developer.log(
+      Log.error(
         'Failed to refresh Android notifications authorization: $e',
-        name: 'MobileSequenceHooks',
-        level: 1000,
+        source: 'MobileSequenceHooks',
         error: e,
         stackTrace: st,
       );
@@ -469,7 +464,6 @@ class MobileSequenceHooks {
     SequenceProgress? previous,
     SequenceProgress next,
   ) async {
-    // Update foreground service notification with current progress
     if (_foregroundService.isRunning) {
       _foregroundService.updateProgress(
         completedExposures: next.completedExposures,
@@ -479,7 +473,6 @@ class MobileSequenceHooks {
       );
     }
 
-    // Check for meridian flip events
     if (next.message?.toLowerCase().contains('meridian flip') == true) {
       final prefs = await SharedPreferences.getInstance();
       if (!MobilePreferences(prefs).notifyMeridianFlip) return;
@@ -499,10 +492,9 @@ class MobileSequenceHooks {
   Future<void> _startImagingSession(Sequence? sequence) async {
     if (sequence == null) return;
 
-    developer.log(
+    Log.info(
       'Starting imaging session for ${sequence.name}',
-      name: 'MobileSequenceHooks',
-      level: 800,
+      source: 'MobileSequenceHooks',
     );
 
     // Start power management (wake lock + battery monitoring)
@@ -523,13 +515,11 @@ class MobileSequenceHooks {
     String? targetName,
     int? completedExposures,
   }) async {
-    developer.log(
+    Log.info(
       'Stopping imaging session (completed: $sequenceCompleted)',
-      name: 'MobileSequenceHooks',
-      level: 800,
+      source: 'MobileSequenceHooks',
     );
 
-    // Stop power management
     await _powerService.stopImagingSession();
 
     // Stop foreground service and show completion notification
@@ -564,21 +554,16 @@ class MobileSequenceHooks {
   /// desktop host's run watched over the network included. PowerService has
   /// already shown the low-battery notification.
   Future<void> _handleCriticalBattery() async {
-    developer.log(
+    Log.warning(
       'Critical phone battery; the run is left running',
-      name: 'MobileSequenceHooks',
-      level: 900,
+      source: 'MobileSequenceHooks',
     );
   }
 
   void _handleBatteryWarning(BatteryWarningLevel level) {
     // Warnings are already sent by PowerService via MobileNotificationService
     // This callback is for any additional handling
-    developer.log(
-      'Battery warning: $level',
-      name: 'MobileSequenceHooks',
-      level: 900,
-    );
+    Log.warning('Battery warning: $level', source: 'MobileSequenceHooks');
   }
 
   Future<void> dispose() async {
@@ -586,6 +571,8 @@ class MobileSequenceHooks {
     _pushNotificationSubscription = null;
     _backendSubscription?.close();
     _backendSubscription = null;
+    _hostNotificationsSubscription?.close();
+    _hostNotificationsSubscription = null;
     await _eventNotifier?.stop();
     _eventNotifier = null;
     // tear down the LAN UDP receiver. dispose() closes the
@@ -610,44 +597,23 @@ class MobileSequenceHooks {
 final mobileSequenceHooksProvider = Provider<MobileSequenceHooks>((ref) {
   final hooks = MobileSequenceHooks(ref);
 
-  // Initialise on creation. Errors are observed: we forward them to the
-  // shared LoggingService and `developer.log`, then propagate via the
+  // Initialise on creation. Errors are logged, then propagated via the
   // completer so anyone awaiting [waitUntilInitialized] sees them too.
   unawaited(
     hooks.initialize().then(
       (_) {
-        developer.log(
+        Log.debug(
           'MobileSequenceHooks initialized',
-          name: 'MobileSequenceHooks',
-          level: 700,
+          source: 'MobileSequenceHooks',
         );
       },
       onError: (error, stackTrace) {
-        developer.log(
+        Log.error(
           'MobileSequenceHooks initialize failed: $error',
-          name: 'MobileSequenceHooks',
-          level: 1000,
+          source: 'MobileSequenceHooks',
           error: error,
           stackTrace: stackTrace is StackTrace ? stackTrace : null,
         );
-        try {
-          ref
-              .read(loggingServiceProvider)
-              .error(
-                'MobileSequenceHooks initialize failed: $error',
-                source: 'MobileSequenceHooks',
-                fields: <String, Object?>{'error': error.toString()},
-              );
-        } catch (loggingError) {
-          // If even the LoggingService failed (e.g. the provider container
-          // was torn down between schedule and invocation), the developer.log
-          // call above is already the audit trail. Avoid an infinite loop.
-          developer.log(
-            'LoggingService unavailable while reporting init failure: $loggingError',
-            name: 'MobileSequenceHooks',
-            level: 1000,
-          );
-        }
         // Propagate to anyone awaiting the completer so they don't hang.
         if (!hooks._initializedCompleter.isCompleted) {
           hooks._initializedCompleter.completeError(
@@ -659,7 +625,6 @@ final mobileSequenceHooksProvider = Provider<MobileSequenceHooks>((ref) {
     ),
   );
 
-  // Clean up on disposal
   ref.onDispose(() {
     hooks.dispose();
   });

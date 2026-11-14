@@ -1,4 +1,3 @@
-// Delete-sequence dialog and the favourite toggle.
 part of '../sequence_library_tab.dart';
 
 class _DeleteSequenceDialog extends ConsumerStatefulWidget {
@@ -17,41 +16,30 @@ class _DeleteSequenceDialog extends ConsumerStatefulWidget {
       _DeleteSequenceDialogState();
 }
 
-class _DeleteSequenceDialogState extends ConsumerState<_DeleteSequenceDialog> {
-  late final SkotiqBackend _authority;
+class _DeleteSequenceDialogState extends ConsumerState<_DeleteSequenceDialog>
+    with HostBoundDialogState<_DeleteSequenceDialog> {
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. Sequence deletion canceled.';
+
+  @override
+  bool get hostChangeDiscardsInput => true;
+
   late final SequenceRepository _repository;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
   bool _isDeleting = false;
 
   @override
   void initState() {
     super.initState();
-    _authority = ref.read(backendProvider);
     _repository = ref.read(sequenceRepositoryProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        context.showWarningSnackBar(
-          'The connected host changed. Sequence deletion canceled.',
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _backendSubscription?.close();
-    super.dispose();
   }
 
   Future<void> _delete() async {
-    if (!identical(ref.read(backendProvider), _authority)) return;
+    if (host.isStale) return;
     setState(() => _isDeleting = true);
     try {
       await _repository.deleteSequence(widget.sequenceId);
-      if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+      if (!mounted || host.isStale) return;
 
       notifySequenceCatalogChanged(
         ref,
@@ -62,9 +50,9 @@ class _DeleteSequenceDialogState extends ConsumerState<_DeleteSequenceDialog> {
       context.showSuccessSnackBar('Deleted "${widget.sequenceName}"');
       Navigator.of(context).pop();
     } catch (e) {
-      if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+      if (!mounted || host.isStale) return;
       setState(() => _isDeleting = false);
-      context.showErrorSnackBar('Failed to delete: $e');
+      context.showErrorSnackBar('Failed to delete: ${userFacingError(e)}');
     }
   }
 

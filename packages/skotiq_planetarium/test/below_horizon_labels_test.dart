@@ -21,10 +21,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_planetarium/src/astronomy/astronomy_calculations.dart';
-import 'package:skotiq_planetarium/src/celestial_object.dart';
-import 'package:skotiq_planetarium/src/catalogs/constellation_data.dart';
-import 'package:skotiq_planetarium/src/coordinate_system.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_planetarium/src/rendering/render_quality.dart';
 import 'package:skotiq_planetarium/src/rendering/sky_renderer.dart';
 

@@ -205,17 +205,19 @@ class _IssueRow extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // The hint is advice, in the row's own tone: in the
+                      // accent it read as a second error under every note.
                       Icon(
                         SkotiqIcons.idea,
                         size: SkotiqTokens.iconXs,
-                        color: colors.primary,
+                        color: issueColor,
                       ),
                       const SizedBox(width: SkotiqTokens.spaceXs),
                       Expanded(
                         child: Text(
                           issue.resolutionHint!,
                           style: SkotiqTypography.caption
-                              .copyWith(color: colors.primary),
+                              .copyWith(color: colors.textSecondary),
                         ),
                       ),
                     ],

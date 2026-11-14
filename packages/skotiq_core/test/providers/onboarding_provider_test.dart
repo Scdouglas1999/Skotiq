@@ -4,7 +4,11 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
 import 'package:skotiq_core/src/models/settings/app_settings.dart'
@@ -222,7 +226,7 @@ void main() {
 
     // Default image directory persisted.
     final settingsDao = container.read(settingsDaoProvider);
-    final captureDir = await settingsDao.getDefaultImageDirectory();
+    final captureDir = await settingsDao.read(AppSettingDefs.imageOutputPath);
     expect(captureDir, 'C:/captures');
 
     // Tutorial progress is NOT yet completed — that waits for finishNextSteps.
@@ -237,9 +241,7 @@ void main() {
     );
 
     // Draft blob is still present (not wiped until finishNextSteps).
-    final draftRow = await settingsDao.getSetting(
-      OnboardingDraft.draftSettingsKey,
-    );
+    final draftRow = await settingsDao.getSetting('equipment_onboarding_draft');
     expect(draftRow, isNotNull);
   });
 
@@ -327,6 +329,43 @@ void main() {
   );
 
   test(
+    'complete() saves the guide camera chosen for the built-in guider',
+    () async {
+      final notifier = container.read(onboardingDraftProvider.notifier);
+      await notifier.loaded;
+      await notifier.setCamera(id: 'native:asi2600', name: 'ASI2600MM Pro');
+      await notifier.setGuider(
+        id: 'native:builtin_guider:multi_star',
+        name: 'Built-in Multi-Star Guider',
+      );
+      await notifier.setGuideCamera(id: 'native:asi120', name: 'ASI120MM Mini');
+      await notifier.setGuideFocalLength(162);
+
+      final profileId = await notifier.complete();
+      final profile = await container
+          .read(equipmentProfilesDaoProvider)
+          .getProfileById(profileId);
+      expect(profile!.guideCameraId, 'native:asi120');
+      expect(profile.guideCameraName, 'ASI120MM Mini');
+      expect(profile.guideFocalLength, 162);
+    },
+  );
+
+  test('choosing another guider drops the built-in guider\'s camera', () async {
+    final notifier = container.read(onboardingDraftProvider.notifier);
+    await notifier.loaded;
+    await notifier.setGuider(id: 'native:builtin_guider:multi_star');
+    await notifier.setGuideCamera(id: 'native:asi120', name: 'ASI120MM Mini');
+    await notifier.setGuideFocalLength(162);
+
+    await notifier.setGuider(id: 'phd2:localhost:4400', name: 'PHD2');
+
+    final draft = container.read(onboardingDraftProvider);
+    expect(draft.guideCameraId, isNull);
+    expect(draft.guideFocalLengthMm, isNull);
+  });
+
+  test(
     'finishNextSteps marks completed, wipes the draft, and flips the gate',
     () async {
       final notifier = container.read(onboardingDraftProvider.notifier);
@@ -353,7 +392,7 @@ void main() {
 
       final settingsDao = container.read(settingsDaoProvider);
       final draftRow = await settingsDao.getSetting(
-        OnboardingDraft.draftSettingsKey,
+        'equipment_onboarding_draft',
       );
       expect(draftRow, isNull);
 
@@ -604,8 +643,11 @@ void main() {
       when(
         () => backend.eventStream,
       ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-      when(() => backend.saveProfile(any())).thenAnswer((_) async {});
+      when(
+        () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
+      ).thenAnswer((_) async {});
       when(() => backend.lastSavedProfileId).thenReturn('42');
+      when(() => backend.getActiveProfile()).thenAnswer((_) async => null);
       when(() => backend.loadProfile(any())).thenAnswer((_) async {});
       when(
         () => backend.getSettings(),
@@ -641,7 +683,7 @@ void main() {
 
         final id = await notifier.complete();
         expect(id, 42);
-        verify(() => backend.saveProfile(any())).called(1);
+        verify(() => backend.saveProfileFields(any(), fields: null)).called(1);
         verify(() => backend.loadProfile('42')).called(1);
         // `.single`: the capture directory and the driver step's backend
         // choice go up in ONE read-modify-write, so a second round trip cannot
@@ -667,9 +709,16 @@ void main() {
       final replacementHost = _MockNetworkBackend();
       final saveProfile = Completer<void>();
       when(
-        () => firstHost.saveProfile(any()),
+        () => firstHost.saveProfileFields(any(), fields: any(named: 'fields')),
       ).thenAnswer((_) => saveProfile.future);
       when(() => firstHost.lastSavedProfileId).thenReturn('71');
+      for (final host in [firstHost, replacementHost]) {
+        when(
+          () => host.eventStream,
+        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+        when(() => host.getProfiles()).thenAnswer((_) async => const []);
+        when(() => host.getActiveProfile()).thenAnswer((_) async => null);
+      }
       late _SwappableBackendNotifier backendNotifier;
 
       final remoteContainer = ProviderContainer(
@@ -689,7 +738,9 @@ void main() {
       await notifier.setCaptureDirectory('/host-a/captures');
 
       final completion = notifier.complete();
-      await untilCalled(() => firstHost.saveProfile(any()));
+      await untilCalled(
+        () => firstHost.saveProfileFields(any(), fields: any(named: 'fields')),
+      );
       backendNotifier.swap(replacementHost);
       saveProfile.complete();
 
@@ -705,7 +756,12 @@ void main() {
       );
       verifyNever(() => firstHost.loadProfile(any()));
       verifyNever(() => firstHost.getSettings());
-      verifyNever(() => replacementHost.saveProfile(any()));
+      verifyNever(
+        () => replacementHost.saveProfileFields(
+          any(),
+          fields: any(named: 'fields'),
+        ),
+      );
       verifyNever(() => replacementHost.loadProfile(any()));
       verifyNever(() => replacementHost.getSettings());
       verifyNever(() => replacementHost.updateSettings(any()));

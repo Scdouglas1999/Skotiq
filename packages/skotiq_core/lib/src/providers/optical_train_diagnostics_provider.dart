@@ -10,7 +10,6 @@ import 'science_provider.dart'
         sessionlessPsfTilesProvider,
         sessionlessResidualVectorsProvider;
 
-/// Service provider for OpticalTrainDiagnosticsService.
 final opticalTrainDiagnosticsServiceProvider =
     Provider<OpticalTrainDiagnosticsService>((ref) {
       return const OpticalTrainDiagnosticsService();

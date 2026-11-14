@@ -1,10 +1,6 @@
-// ignore_for_file: unused_element
-
 part of '../quick_start_wizard_dialog.dart';
 
 extension _AutomationStep on _QuickStartWizardDialogState {
-  // STEP 3: AUTOMATION
-
   Widget _buildAutomationStep(SkotiqColors colors) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

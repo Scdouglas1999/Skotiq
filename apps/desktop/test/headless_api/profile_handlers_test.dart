@@ -5,8 +5,15 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/profile_handlers.dart';
+import 'package:skotiq_desktop/headless_api/request_context.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -433,6 +440,11 @@ void main() {
               'settings': {'webServerEnabled': true},
             }),
             headers: {'content-type': 'application/json'},
+            context: {
+              authGrantContextKey: HeadlessAuthGrant.fromCoarse(
+                HeadlessTokenScope.admin,
+              ),
+            },
           ),
         );
       } catch (e, st) {
@@ -462,6 +474,238 @@ void main() {
         isTrue,
         reason: 'a partial update must preserve keys it does not mention',
       );
+    });
+
+    group('credential settings', () {
+      Future<Response> postAs(
+        HeadlessTokenScope scope,
+        Map<String, dynamic> settings,
+      ) => translateHandlerErrors(
+        handlers.handleUpdateSettings(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/settings'),
+            body: jsonEncode({'settings': settings}),
+            headers: {'content-type': 'application/json'},
+            context: {authGrantContextKey: HeadlessAuthGrant.fromCoarse(scope)},
+          ),
+        ),
+      );
+
+      Future<AppSettingsState> stored() =>
+          container.read(appSettingsProvider.future);
+
+      setUp(() {
+        when(
+          () => profileBackend.updateSettings(any()),
+        ).thenAnswer((_) async {});
+      });
+
+      test('a link without admin access changes ordinary settings but not '
+          'a credential, and is told which and why', () async {
+        var response = await postAs(HeadlessTokenScope.control, {
+          'ditherEnabled': false,
+        });
+        expect(response.statusCode, HttpStatus.ok);
+        expect((await stored()).ditherEnabled, isFalse);
+
+        response = await postAs(HeadlessTokenScope.control, {
+          'ditherEnabled': true,
+          'discordWebhook': 'https://discord.com/api/webhooks/1/attacker',
+        });
+
+        expect(response.statusCode, HttpStatus.forbidden);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['code'], 'credential_setting');
+        expect(body['settings'], ['discordWebhook']);
+        expect(body['message'], contains('link with admin access'));
+        expect((await stored()).discordWebhook, isEmpty);
+        expect(
+          (await stored()).ditherEnabled,
+          isFalse,
+          reason: 'a refused write changes nothing',
+        );
+      });
+
+      test('a full document that carries the credentials back unchanged is '
+          'accepted from a link without admin access', () async {
+        await postAs(HeadlessTokenScope.admin, {
+          'pushoverKey': 'app-token',
+          'pushoverUser': 'user-key',
+        });
+        final full = container
+            .read(appSettingsProvider.notifier)
+            .exportRemoteSettings()
+            .copyWith(parkOnUnsafeWeather: false)
+            .toJson();
+
+        final response = await postAs(HeadlessTokenScope.control, full);
+
+        expect(response.statusCode, HttpStatus.ok);
+        final after = await stored();
+        expect(after.parkOnUnsafeWeather, isFalse);
+        expect(after.pushoverKey, 'app-token');
+      });
+
+      test('a link with admin access changes a credential', () async {
+        final response = await postAs(HeadlessTokenScope.admin, {
+          'discordWebhook': 'https://discord.com/api/webhooks/1/abc',
+        });
+        expect(response.statusCode, HttpStatus.ok);
+        expect(
+          (await stored()).discordWebhook,
+          'https://discord.com/api/webhooks/1/abc',
+        );
+      });
+
+      test('the path of a program the host runs changes only with admin '
+          'access', () async {
+        var response = await postAs(HeadlessTokenScope.control, {
+          'phd2Path': '/tmp/not-phd2',
+        });
+        expect(response.statusCode, HttpStatus.forbidden);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['code'], 'host_program_setting');
+        expect(body['settings'], ['phd2Path']);
+        expect(body['message'], contains('link with admin access'));
+        expect((await stored()).phd2Path, isEmpty);
+
+        response = await postAs(HeadlessTokenScope.admin, {
+          'phd2Path': '/usr/bin/phd2',
+        });
+        expect(response.statusCode, HttpStatus.ok);
+        expect((await stored()).phd2Path, '/usr/bin/phd2');
+
+        response = await postAs(HeadlessTokenScope.control, {
+          'phd2Path': '/usr/bin/phd2',
+          'phd2Port': 4401,
+        });
+        expect(
+          response.statusCode,
+          HttpStatus.ok,
+          reason: 'the path posted back unchanged is not a change',
+        );
+        expect((await stored()).phd2Port, 4401);
+      });
+
+      Future<Map<String, dynamic>> getAs(HeadlessTokenScope scope) async {
+        final response = await translateHandlerErrors(
+          handlers.handleGetSettings(
+            Request(
+              'GET',
+              Uri.parse('http://localhost/api/settings'),
+              context: {
+                authGrantContextKey: HeadlessAuthGrant.fromCoarse(scope),
+              },
+            ),
+          ),
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        return body['settings'] as Map<String, dynamic>;
+      }
+
+      test('a link without admin access reads whether a credential is set, '
+          'never its value', () async {
+        await postAs(HeadlessTokenScope.admin, {
+          'discordWebhook': 'https://discord.com/api/webhooks/1/abc',
+        });
+
+        final control = await getAs(HeadlessTokenScope.control);
+        expect(control['discordWebhook'], credentialSetMarker);
+        expect(control['pushoverKey'], '', reason: 'not set reads as empty');
+
+        final admin = await getAs(HeadlessTokenScope.admin);
+        expect(
+          admin['discordWebhook'],
+          'https://discord.com/api/webhooks/1/abc',
+        );
+        expect(
+          {...control}..remove('discordWebhook'),
+          {...admin}..remove('discordWebhook'),
+          reason: 'only the credential differs',
+        );
+      });
+
+      test('the settings a link without admin access read come back as a '
+          'save that keeps every credential', () async {
+        await postAs(HeadlessTokenScope.admin, {
+          'discordWebhook': 'https://discord.com/api/webhooks/1/abc',
+          'pushoverKey': 'app-token',
+        });
+        // This rig has no site, which a settings save cannot post back.
+        final read = (await getAs(HeadlessTokenScope.control))
+          ..removeWhere(
+            (key, _) => const {
+              'location',
+              'latitude',
+              'longitude',
+              'elevation',
+              'locationStatus',
+            }.contains(key),
+          );
+
+        final response = await postAs(HeadlessTokenScope.control, {
+          ...read,
+          'ditherEnabled': false,
+        });
+
+        expect(response.statusCode, HttpStatus.ok);
+        final after = await stored();
+        expect(after.ditherEnabled, isFalse);
+        expect(after.discordWebhook, 'https://discord.com/api/webhooks/1/abc');
+        expect(after.pushoverKey, 'app-token');
+      });
+    });
+
+    test('a profile save naming its fields keeps the other fields of the '
+        'host row', () async {
+      Future<Response> save(Map<String, dynamic> body) =>
+          translateHandlerErrors(
+            handlers.handleSaveProfile(
+              Request(
+                'POST',
+                Uri.parse('http://localhost/api/profiles'),
+                body: jsonEncode(body),
+              ),
+            ),
+          );
+
+      final created = await save({
+        'profile': const EquipmentProfile(
+          id: '',
+          name: 'Rig',
+          focalLength: 500,
+        ).toJson(),
+      });
+      expect(created.statusCode, HttpStatus.ok);
+      final id = (jsonDecode(await created.readAsString()) as Map)['id'];
+
+      // The host's screen changed the focal length since a client loaded the
+      // profile.
+      final row = (await db.equipmentProfilesDao.getProfileById(
+        int.parse(id as String),
+      ))!;
+      await db.equipmentProfilesDao.updateProfile(
+        row.copyWith(focalLength: 650),
+      );
+
+      // The client renames it, carrying its stale focal length.
+      final renamed = await save({
+        'profile': EquipmentProfile(
+          id: id,
+          name: 'Rig renamed',
+          focalLength: 500,
+        ).toJson(),
+        'fields': ['name'],
+      });
+      expect(renamed.statusCode, HttpStatus.ok);
+
+      final after = (await db.equipmentProfilesDao.getProfileById(
+        int.parse(id),
+      ))!;
+      expect(after.name, 'Rig renamed');
+      expect(after.focalLength, 650);
     });
 
     group('the observer site and the settings document', () {

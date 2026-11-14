@@ -4,9 +4,10 @@
 //! `255.255.255.255`). IPv6 discovery uses link-local all-nodes multicast (`ff02::1`)
 //! scoped per interface, per the ASCOM Alpaca discovery protocol.
 
-use crate::{AlpacaDevice, AlpacaDeviceType, AlpacaError, ApiVersion, ALPACA_DISCOVERY_PORT};
+use crate::{AlpacaDevice, AlpacaError, ApiVersion, ALPACA_DISCOVERY_PORT};
 use if_addrs::{get_if_addrs, IfAddr};
 use serde::Deserialize;
+use skotiq_device::ascom::AscomDeviceType;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::collections::HashSet;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -75,18 +76,14 @@ impl DiscoveredAlpacaServer {
     }
 }
 
-/// Discovery configuration
 #[derive(Debug, Clone)]
 pub struct DiscoveryConfig {
-    /// Total discovery timeout
     pub discovery_timeout: Duration,
     /// Time to wait for individual responses
     pub response_wait: Duration,
     /// Timeout for HTTP requests to get device info
     pub http_timeout: Duration,
-    /// Number of discovery broadcasts to send
     pub broadcast_count: u32,
-    /// Delay between broadcasts
     pub broadcast_delay: Duration,
     /// Send IPv4 subnet broadcasts (per network interface).
     pub use_ipv4: bool,
@@ -184,7 +181,6 @@ pub fn send_ipv6_discovery_probes(message: &[u8], port: u16) {
 }
 
 impl DiscoveryConfig {
-    /// Create a quick discovery config for fast scans
     pub fn quick() -> Self {
         Self {
             discovery_timeout: Duration::from_secs(2),
@@ -197,7 +193,6 @@ impl DiscoveryConfig {
         }
     }
 
-    /// Create a thorough discovery config for comprehensive scans
     pub fn thorough() -> Self {
         Self {
             discovery_timeout: Duration::from_secs(10),
@@ -209,24 +204,6 @@ impl DiscoveryConfig {
             use_ipv6: true,
         }
     }
-}
-
-/// Discover Alpaca servers on the local network using async UDP
-pub async fn discover_servers(timeout_duration: Duration) -> Vec<(String, u16)> {
-    discover_servers_with_config(DiscoveryConfig {
-        discovery_timeout: timeout_duration,
-        ..Default::default()
-    })
-    .await
-}
-
-/// Discover Alpaca servers with custom configuration (host, port tuples).
-pub async fn discover_servers_with_config(config: DiscoveryConfig) -> Vec<(String, u16)> {
-    discover_servers_detailed_with_config(config)
-        .await
-        .into_iter()
-        .map(|s| (s.host, s.alpaca_port))
-        .collect()
 }
 
 /// Discover Alpaca servers including supported management API versions.
@@ -278,7 +255,6 @@ pub async fn discover_servers_detailed_with_config(
         }
     }
 
-    // Receive responses with timeout
     let mut buf = [0u8; 1024];
     let deadline = tokio::time::Instant::now() + config.discovery_timeout;
 
@@ -288,7 +264,6 @@ pub async fn discover_servers_detailed_with_config(
             break;
         }
 
-        // Use the configured response wait time or remaining time, whichever is shorter
         let wait_time = remaining.min(config.response_wait);
 
         match timeout(wait_time, socket.recv_from(&mut buf)).await {
@@ -339,7 +314,6 @@ pub async fn discover_servers_detailed_with_config(
     discovered
 }
 
-/// Get configured devices from an Alpaca server
 pub async fn get_configured_devices(
     server_ip: &str,
     port: u16,
@@ -347,7 +321,6 @@ pub async fn get_configured_devices(
     get_configured_devices_with_timeout(server_ip, port, Duration::from_secs(10)).await
 }
 
-/// Get configured devices from an Alpaca server with custom timeout
 pub async fn get_configured_devices_with_timeout(
     server_ip: &str,
     port: u16,
@@ -386,22 +359,10 @@ pub async fn get_configured_devices_with_timeout(
         .value
         .into_iter()
         .filter_map(|d| {
-            let device_type = match d.device_type.to_lowercase().as_str() {
-                "camera" => Some(AlpacaDeviceType::Camera),
-                "telescope" => Some(AlpacaDeviceType::Telescope),
-                "focuser" => Some(AlpacaDeviceType::Focuser),
-                "filterwheel" => Some(AlpacaDeviceType::FilterWheel),
-                "dome" => Some(AlpacaDeviceType::Dome),
-                "rotator" => Some(AlpacaDeviceType::Rotator),
-                "safetymonitor" => Some(AlpacaDeviceType::SafetyMonitor),
-                "observingconditions" => Some(AlpacaDeviceType::ObservingConditions),
-                "switch" => Some(AlpacaDeviceType::Switch),
-                "covercalibrator" => Some(AlpacaDeviceType::CoverCalibrator),
-                _ => {
-                    debug!("Unknown device type: {}", d.device_type);
-                    None
-                }
-            }?;
+            let Some(device_type) = AscomDeviceType::from_name(&d.device_type) else {
+                debug!("Unknown device type: {}", d.device_type);
+                return None;
+            };
 
             Some(AlpacaDevice {
                 device_type,
@@ -418,7 +379,6 @@ pub async fn get_configured_devices_with_timeout(
     Ok(devices)
 }
 
-/// Discover all Alpaca devices on the network
 pub async fn discover_all_devices(timeout_duration: Duration) -> Vec<AlpacaDevice> {
     discover_all_devices_with_config(DiscoveryConfig {
         discovery_timeout: timeout_duration,
@@ -427,13 +387,11 @@ pub async fn discover_all_devices(timeout_duration: Duration) -> Vec<AlpacaDevic
     .await
 }
 
-/// Discover all Alpaca devices with custom configuration
 pub async fn discover_all_devices_with_config(config: DiscoveryConfig) -> Vec<AlpacaDevice> {
     let mut all_devices = Vec::new();
 
     let servers = discover_servers_detailed_with_config(config.clone()).await;
 
-    // Fetch devices from all servers in parallel
     let fetch_futures: Vec<_> = servers
         .iter()
         .filter_map(|server| {
@@ -467,7 +425,6 @@ pub async fn discover_all_devices_with_config(config: DiscoveryConfig) -> Vec<Al
         })
         .collect();
 
-    // Execute all fetches in parallel
     let results = futures::future::join_all(fetch_futures).await;
 
     for devices in results {
@@ -477,107 +434,6 @@ pub async fn discover_all_devices_with_config(config: DiscoveryConfig) -> Vec<Al
     all_devices
 }
 
-/// Discover a specific type of device on the network
-pub async fn discover_devices_of_type(
-    device_type: AlpacaDeviceType,
-    timeout_duration: Duration,
-) -> Vec<AlpacaDevice> {
-    discover_all_devices(timeout_duration)
-        .await
-        .into_iter()
-        .filter(|d| d.device_type == device_type)
-        .collect()
-}
-
-/// Check if a specific server is reachable
-pub async fn ping_server(server_ip: &str, port: u16) -> Result<Duration, AlpacaError> {
-    let url = format!("http://{}:{}/management/v1/description", server_ip, port);
-    let start = std::time::Instant::now();
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .map_err(|e| AlpacaError::RequestFailed(e.to_string()))?;
-
-    match client.get(&url).send().await {
-        Ok(response) => {
-            if response.status().is_success() {
-                Ok(start.elapsed())
-            } else {
-                Err(AlpacaError::HttpError {
-                    status: response.status().as_u16(),
-                    message: "Server not responding correctly".to_string(),
-                    retry_after: None,
-                })
-            }
-        }
-        Err(e) => {
-            if e.is_timeout() {
-                Err(AlpacaError::timeout("server configuration query", 5000))
-            } else if e.is_connect() {
-                Err(AlpacaError::connection_refused(url, e.to_string()))
-            } else {
-                Err(AlpacaError::RequestFailed(e.to_string()))
-            }
-        }
-    }
-}
-
-/// Get server description
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct ServerDescription {
-    pub server_name: String,
-    pub manufacturer: String,
-    pub manufacturer_version: String,
-    pub location: String,
-}
-
-/// Get the description of an Alpaca server
-pub async fn get_server_description(
-    server_ip: &str,
-    port: u16,
-) -> Result<ServerDescription, AlpacaError> {
-    let url = format!("http://{}:{}/management/v1/description", server_ip, port);
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-        .map_err(|e| AlpacaError::RequestFailed(e.to_string()))?;
-
-    let response = client.get(&url).send().await.map_err(|e| {
-        if e.is_timeout() {
-            AlpacaError::timeout("server description query", 10000)
-        } else if e.is_connect() {
-            AlpacaError::connection_refused(&url, e.to_string())
-        } else {
-            AlpacaError::RequestFailed(e.to_string())
-        }
-    })?;
-
-    if !response.status().is_success() {
-        return Err(AlpacaError::HttpError {
-            status: response.status().as_u16(),
-            message: "Failed to get server description".to_string(),
-            retry_after: None,
-        });
-    }
-
-    #[derive(Deserialize)]
-    #[serde(rename_all = "PascalCase")]
-    struct ApiResponse {
-        value: ServerDescription,
-    }
-
-    let api_response: ApiResponse = response
-        .json()
-        .await
-        .map_err(|e| AlpacaError::ParseError(e.to_string()))?;
-
-    Ok(api_response.value)
-}
-
-/// Get supported API versions from a server
 pub async fn get_api_versions(server_ip: &str, port: u16) -> Result<Vec<u32>, AlpacaError> {
     let url = format!("http://{}:{}/management/apiversions", server_ip, port);
 

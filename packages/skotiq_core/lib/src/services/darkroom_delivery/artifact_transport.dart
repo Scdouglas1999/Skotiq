@@ -47,7 +47,6 @@ class TransportDeliveryOutcome {
 
 /// A place artifacts are delivered to.
 abstract class ArtifactTransport {
-  /// The destination kind this transport serves.
   ArtifactDestinationKind get kind;
 
   /// Resolve configuration and credentials, prove the destination is

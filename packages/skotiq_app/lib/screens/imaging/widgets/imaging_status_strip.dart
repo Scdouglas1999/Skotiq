@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// The 28 px strip under the narrow page header (06 §Imaging, "Narrow").
@@ -47,7 +49,7 @@ class ImagingStatusStrip extends ConsumerWidget {
               icon: SkotiqIcons.camera,
               dotTone: _tone(cameraState.connectionState),
               value: cameraConnected && cameraState.temperature != null
-                  ? '${cameraState.temperature!.toStringAsFixed(1)} °C'
+                  ? formatCelsius(cameraState.temperature!)
                   : (cameraConnected ? 'Ready' : 'Not connected'),
               mono: cameraConnected && cameraState.temperature != null,
               semanticLabel:

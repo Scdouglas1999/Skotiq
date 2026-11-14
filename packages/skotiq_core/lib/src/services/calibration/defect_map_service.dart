@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
-import '../../backend/network_backend.dart';
+import '../../providers/linked_host.dart';
 import '../../models/defect_map.dart';
-import '../../providers/backend_provider.dart';
+import '../../backend/remote_host.dart';
 
 /// Service for the defect-map / bad-pixel cosmetic correction pipeline.
 ///
@@ -18,11 +18,9 @@ class DefectMapService {
 
   DefectMapService(this._ref);
 
-  /// The active [NetworkBackend] when running as a remote client, else null.
-  NetworkBackend? get _remote {
-    final backend = _ref.read(backendProvider);
-    return backend is NetworkBackend ? backend : null;
-  }
+  /// The linked host's defect maps, or null when the rig is this machine.
+  HostCalibrationTools? get _remote =>
+      _ref.read(linkedHostCalibrationToolsProvider);
 
   /// Build a defect map for `cameraId` from the supplied dark / bias
   /// frame paths. At least
@@ -56,40 +54,10 @@ class DefectMapService {
     return _fromBridge(result);
   }
 
-  /// Toggle whether the defect map for `cameraId` is applied to lights
-  /// at capture time.
-  Future<void> apply({
-    required String cameraId,
-    required bool applyDuringCapture,
-  }) {
-    final remote = _remote;
-    if (remote != null) {
-      return remote.applyDefectMap(
-        cameraId: cameraId,
-        applyDuringCapture: applyDuringCapture,
-      );
-    }
-    return bridge.apiDefectMapApply(
-      cameraId: cameraId,
-      applyDuringCapture: applyDuringCapture,
-    );
-  }
-
-  /// Push the active defect map (or clear it) into the running
-  /// sequencer.
-  ///
-  /// This is the "wire it up" call: persisting the preference via
-  /// [apply] is not enough — the sequencer reads its live
-  /// `defect_map_apply` state via a separate channel so the per-frame
-  /// capture path can apply the correction without per-frame disk
-  /// I/O. The Dart side calls this whenever the user toggles
-  /// apply-during-capture, changes the kernel / method / save-original
-  /// flag, or the connected camera changes.
-  ///
-  /// When `enabled = false` the bridge pushes `None` to the sequencer
-  /// (defect correction disabled). When `enabled = true` the bridge
-  /// loads the `.ndm` file from disk, validates the kernel/method,
-  /// and pushes the pre-loaded map state.
+  /// Turn correction of `cameraId`'s lights during capture on, with the map
+  /// stored for this sensor size and temperature and the given strategy, or
+  /// off. The status reports the change and the sequencer applies it from the
+  /// next exposure; enabling fails when no map is stored.
   Future<void> applyToSequencer({
     required String cameraId,
     required int width,
@@ -113,7 +81,7 @@ class DefectMapService {
         saveOriginal: saveOriginal,
       );
     }
-    return bridge.apiSequencerApplyDefectMap(
+    return bridge.apiDefectMapSetCorrection(
       cameraId: cameraId,
       width: width,
       height: height,
@@ -126,7 +94,8 @@ class DefectMapService {
   }
 
   /// Remove the stored defect map for `cameraId` at the sensor size and
-  /// temperature bucket implied by the inputs, and reset the apply flag.
+  /// temperature bucket implied by the inputs. Correction with that map, if
+  /// on, stops from the next exposure.
   Future<void> clear({
     required String cameraId,
     required int width,

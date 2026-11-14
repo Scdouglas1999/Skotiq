@@ -1,8 +1,6 @@
 part of '../device_handlers.dart';
 
 extension RotatorDeviceHandlers on DeviceHandlers {
-  // Rotator control
-
   Future<Response> handleRotatorMoveTo(Request request) async {
     _logInfo('[API] POST /api/rotator/move-to');
     final payload = await readJsonObject(request);
@@ -14,8 +12,10 @@ extension RotatorDeviceHandlers on DeviceHandlers {
       deviceId: deviceId,
     );
 
-    final backend = container.read(deviceBackendProvider);
-    await backend.rotatorMoveTo(deviceId, angle);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).rotatorMoveTo(deviceId, angle),
+    );
 
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
@@ -29,8 +29,10 @@ extension RotatorDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final delta = requireDouble(payload, 'delta');
 
-    final backend = container.read(deviceBackendProvider);
-    await backend.rotatorMoveRelative(deviceId, delta);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).rotatorMoveRelative(deviceId, delta),
+    );
 
     return jsonOk({'status': 'moving'});
   }
@@ -56,8 +58,10 @@ extension RotatorDeviceHandlers on DeviceHandlers {
     final payload = await readJsonObject(request);
     final deviceId = requireString(payload, 'deviceId');
 
-    final backend = container.read(deviceBackendProvider);
-    await backend.rotatorHalt(deviceId);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).rotatorHalt(deviceId),
+    );
 
     return jsonOk({'status': 'halted'});
   }
@@ -71,8 +75,10 @@ extension RotatorDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final reverse = requireBool(payload, 'reverse');
 
-    final backend = container.read(deviceBackendProvider);
-    await backend.rotatorSetReverse(deviceId, reverse);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).rotatorSetReverse(deviceId, reverse),
+    );
 
     return jsonOk({'status': 'ok', 'reverse': reverse});
   }
@@ -107,8 +113,10 @@ extension RotatorDeviceHandlers on DeviceHandlers {
       );
     }
 
-    final backend = container.read(deviceBackendProvider);
-    await backend.rotatorSyncToPa(deviceId, pa);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).rotatorSyncToPa(deviceId, pa),
+    );
 
     return jsonOk({'status': 'synced'});
   }

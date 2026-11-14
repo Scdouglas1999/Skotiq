@@ -1,3 +1,4 @@
+import '../../backend/roles/host_data/photometric_transforms.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -10,6 +11,7 @@ import '../../models/science/science_models.dart';
 import '../../providers/database_provider.dart';
 import '../../services/logging_service.dart';
 import 'photometric_bands.dart';
+import '../../providers/logging_service_provider.dart';
 
 /// Service for computing and applying photometric transformation coefficients.
 ///
@@ -24,7 +26,7 @@ import 'photometric_bands.dart';
 ///   T      = color transform coefficient
 ///   (B-V)  = color index
 ///   zp     = photometric zero point
-class PhotometricTransformService {
+class PhotometricTransformService implements PhotometricTransforms {
   final Ref _ref;
 
   PhotometricTransformService(this._ref);
@@ -178,7 +180,6 @@ class PhotometricTransformService {
     final extinctionCoefficient = -a1;
     final colorTerm = a2;
 
-    // Compute residuals
     var sumSqResidual = 0.0;
     final fitData = <TransformStarMatch>[];
     for (var i = 0; i < n; i++) {
@@ -341,7 +342,27 @@ class PhotometricTransformService {
   // (PhotometricTransformCoefficients.applyTransform) so there is exactly
   // one implementation; the science pipeline calls it directly.
 
-  /// Save computed coefficients to the database.
+  @override
+  Future<PhotometricTransformFit> fit({
+    required List<CatalogStarMatch> starMatches,
+    required String filterName,
+    int? equipmentProfileId,
+  }) async {
+    final coefficients = computeTransformCoefficients(
+      starMatches: starMatches,
+      filterName: filterName,
+      equipmentProfileId: equipmentProfileId,
+    );
+    return (
+      coefficients: coefficients,
+      refusal: coefficients == null ? lastRefusalReason : null,
+    );
+  }
+
+  @override
+  Future<void> save(PhotometricTransformCoefficients coefficients) =>
+      saveTransform(coefficients);
+
   Future<int> saveTransform(
     PhotometricTransformCoefficients coefficients,
   ) async {
@@ -364,7 +385,6 @@ class PhotometricTransformService {
     );
   }
 
-  /// Delete a saved transform.
   Future<void> deleteTransform(int id) {
     return _scienceDao.deletePhotometricTransform(id);
   }
@@ -384,7 +404,6 @@ class PhotometricTransformService {
     return _rowToCoefficients(row);
   }
 
-  /// Load all saved transforms.
   Future<List<PhotometricTransformCoefficients>> getAllTransforms() async {
     final rows = await _scienceDao.getAllTransforms();
     return rows.map(_rowToCoefficients).toList(growable: false);
@@ -426,8 +445,3 @@ class PhotometricTransformService {
     );
   }
 }
-
-final photometricTransformServiceProvider =
-    Provider<PhotometricTransformService>((ref) {
-      return PhotometricTransformService(ref);
-    });

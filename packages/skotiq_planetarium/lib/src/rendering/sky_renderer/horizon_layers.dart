@@ -345,7 +345,6 @@ extension _SkyCanvasPainterHorizonLayers on SkyCanvasPainter {
     );
     final (_, skyHorizonColor) = _getTwilightColors(sunAlt);
 
-    // Draw the fill
     if (qualityConfig.groundPlaneDetail <= 0.0) {
       // Low-detail: use a simple gradient that still fades smoothly
       var topY = size.height;
@@ -433,7 +432,6 @@ extension _SkyCanvasPainterHorizonLayers on SkyCanvasPainter {
     // Bortle 1-2 produces negligible light pollution
     if (bortleClass <= 2) return;
 
-    // Get the altitude of the view center
     final centerAlt = _viewCenterAltitudeDeg;
 
     // Scale factor based on Bortle class (0.0 at Bortle 2, 1.0 at Bortle 9)
@@ -453,7 +451,6 @@ extension _SkyCanvasPainterHorizonLayers on SkyCanvasPainter {
     final horizonY = _altitudeScreenY(size, scale, centerAlt);
     final domeTopY = _altitudeScreenY(size, scale, centerAlt, maxAlt);
 
-    // Skip if entirely off screen
     if (horizonY < -50 && domeTopY < -50) return;
     if (horizonY > size.height + 50 && domeTopY > size.height + 50) return;
 
@@ -490,7 +487,6 @@ extension _SkyCanvasPainterHorizonLayers on SkyCanvasPainter {
   /// uses a single vertical gradient rect that fades smoothly from the horizon
   /// upward, simulating the natural sky-brightening near the horizon.
   void _drawHorizonGlow(Canvas canvas, Size size, Offset center, double scale) {
-    // Get the altitude of the view center
     final centerAlt = _viewCenterAltitudeDeg;
 
     // Calculate sun altitude to determine glow color

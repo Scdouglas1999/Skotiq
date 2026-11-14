@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Skotiq
+GenericName=Astrophotography
+Comment=Plan, capture and process astrophotography nights
+# install.sh rewrites Exec, Path and Icon to the installed copy's absolute
+# paths. As shipped in the archive, Exec works when the launcher is on PATH.
+Exec=skotiq
+Icon=skotiq
+Terminal=false
+Categories=Science;Astronomy;
+Keywords=astrophotography;telescope;sequencer;astronomy;
+StartupWMClass=com.skotiq.desktop
+StartupNotify=true

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'narrator_card.dart';
@@ -57,7 +57,6 @@ class _NarratorDetailSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Grab handle.
             Center(
               child: Container(
                 width: 36,
@@ -69,8 +68,6 @@ class _NarratorDetailSheet extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Category + severity chip row.
             Row(
               children: [
                 Icon(icon, size: 18, color: accent),
@@ -94,8 +91,6 @@ class _NarratorDetailSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: SkotiqTokens.spaceMd),
-
-            // Headline.
             Text(
               event.headline,
               style: TextStyle(
@@ -105,8 +100,6 @@ class _NarratorDetailSheet extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-
-            // Body.
             if (event.body != null && event.body!.isNotEmpty) ...[
               const SizedBox(height: SkotiqTokens.spaceSm),
               Text(
@@ -117,8 +110,6 @@ class _NarratorDetailSheet extends StatelessWidget {
                 ),
               ),
             ],
-
-            // Enlarged evidence viz.
             if (event.evidence != null) ...[
               const SizedBox(height: SkotiqTokens.spaceLg),
               Container(
@@ -141,8 +132,6 @@ class _NarratorDetailSheet extends StatelessWidget {
                 ),
               ),
             ],
-
-            // "Why this matters" explainer.
             if (explainer != null) ...[
               const SizedBox(height: SkotiqTokens.spaceLg),
               Text(
@@ -163,8 +152,6 @@ class _NarratorDetailSheet extends StatelessWidget {
                 ),
               ),
             ],
-
-            // Action button.
             if (action != null) ...[
               const SizedBox(height: SkotiqTokens.spaceLg),
               SizedBox(

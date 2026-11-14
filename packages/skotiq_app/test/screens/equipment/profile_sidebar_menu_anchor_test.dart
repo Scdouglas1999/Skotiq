@@ -20,7 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/widgets/profile_sidebar.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// The width the Profiles tab gives the list, mirrored here so the overflow
@@ -40,9 +41,9 @@ ProfileConnectionStatus _emptyStatus(EquipmentProfileModel profile) {
   return ProfileConnectionStatus(
     profileId: profile.id,
     connections: [
-      for (final slot in ProfileDeviceSlot.values)
+      for (final slot in DeviceType.values)
         ProfileDeviceConnection(
-          slot: slot,
+          type: slot,
           profileId: null,
           connectedId: null,
           connectedState: DeviceConnectionState.disconnected,

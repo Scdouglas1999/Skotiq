@@ -4,7 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_palette.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -26,8 +27,6 @@ void main() {
       size: const Size(390, 844),
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => notifier),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.idle),
       ],
       settle: false,
     );
@@ -58,8 +57,6 @@ void main() {
       size: const Size(1400, 900),
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => notifier),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.idle),
       ],
       settle: false,
     );

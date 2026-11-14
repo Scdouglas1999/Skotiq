@@ -12,17 +12,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
-import '../darkroom_controller.dart' show DarkroomScope;
-import '../darkroom_route.dart' show DarkroomRouteScope;
 import 'channel_combine.dart';
 import 'darkroom_editor.dart';
 import '../darkroom_previews.dart';
 import 'darkroom_image_library.dart';
-import '../targets/nights_strip.dart' show darkroomShortDate;
+import '../../../router/darkroom_route.dart';
 
 /// Width at and above which the image list sits beside an open editor.
 const double kDarkroomEditListBreakpoint = 1100;
@@ -44,7 +45,6 @@ DarkroomScope darkroomEditScopeFromUri(Uri uri) {
   return const DarkroomScope.empty();
 }
 
-/// The Edit tab.
 class DarkroomEditTab extends ConsumerWidget {
   /// What to open. Null reads `master` and `recipe` from the enclosing
   /// Darkroom screen's route, or from the current location outside one.
@@ -136,7 +136,7 @@ class _DarkroomImageList extends ConsumerWidget {
       error: (error, _) => EmptyState(
         icon: SkotiqIcons.imageOff,
         title: 'The image library could not be read',
-        body: '$error',
+        body: userFacingError(error),
         action: SkotiqButton(
           label: 'Try again',
           icon: SkotiqIcons.refresh,
@@ -302,7 +302,7 @@ class _DarkroomImageRow extends StatelessWidget {
       if (master.frameCount > 0) '${master.frameCount} frames',
       if (master.totalIntegrationSeconds > 0) hours,
       // Two builds of one filter differ by when they were made.
-      'built ${darkroomShortDate(master.createdAt)}',
+      'built ${ClockFormat.monthDay(master.createdAt.toLocal())}',
     ].join(' · ');
     final status = recipes == 0
         ? 'No recipe yet'
@@ -386,7 +386,6 @@ class _DarkroomImageRow extends StatelessWidget {
 class _DarkroomImageThumb extends StatelessWidget {
   final DarkroomLibraryImage image;
 
-  /// Side of the thumbnail.
   static const double size = 48;
 
   const _DarkroomImageThumb({required this.image});

@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
+import '../../../utils/snackbar_helper.dart';
 
 /// Provides descriptions for each stretch method, used in tooltips.
 const Map<AutoStretchMethod, String> _methodDescriptions = {
@@ -17,7 +20,6 @@ const Map<AutoStretchMethod, String> _methodDescriptions = {
   AutoStretchMethod.gamma: 'Simple gamma correction',
 };
 
-/// Display names for each stretch method.
 const Map<AutoStretchMethod, String> _methodNames = {
   AutoStretchMethod.stf: 'STF',
   AutoStretchMethod.histogram: 'Histogram',
@@ -52,11 +54,7 @@ class _StretchControlsState extends ConsumerState<StretchControls> {
       return true;
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not save the auto-stretch settings.'),
-          ),
-        );
+        context.showErrorSnackBar('Could not save the auto-stretch settings.');
       }
       return false;
     }
@@ -117,7 +115,6 @@ class _CompactStretchControls extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Toggle switch with label
         SkotiqTooltip(
           message: rawLoading
               ? 'Loading HQ raw — stretch will apply when ready'
@@ -142,10 +139,7 @@ class _CompactStretchControls extends StatelessWidget {
             },
           ),
         ),
-
         const SizedBox(width: 12),
-
-        // Method dropdown
         if (settings.enabled) ...[
           SkotiqTooltip(
             message: _methodDescriptions[settings.method] ?? '',
@@ -166,10 +160,7 @@ class _CompactStretchControls extends StatelessWidget {
               },
             ),
           ),
-
           const SizedBox(width: 8),
-
-          // Settings button
           SkotiqTooltip(
             message: 'Advanced stretch settings',
             position: SkotiqTooltipPosition.bottom,
@@ -203,7 +194,6 @@ class _ExpandedStretchControls extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Enable toggle and method selection
         SkotiqSwitchRow(
           label: 'Auto-Stretch',
           value: settings.enabled,
@@ -213,10 +203,7 @@ class _ExpandedStretchControls extends StatelessWidget {
             onSettingsChanged(settings.copyWith(enabled: value));
           },
         ),
-
         const SizedBox(height: 16),
-
-        // Method selection
         _SettingRow(
           label: 'Method',
           tooltip: 'Select the stretch algorithm to use',
@@ -234,10 +221,7 @@ class _ExpandedStretchControls extends StatelessWidget {
                 : null,
           ),
         ),
-
         const SizedBox(height: 12),
-
-        // Shadow clip slider
         _SliderSetting(
           label: 'Shadow clip',
           tooltip:
@@ -254,10 +238,7 @@ class _ExpandedStretchControls extends StatelessWidget {
             onSettingsChanged(settings.copyWith(shadowClip: value));
           },
         ),
-
         const SizedBox(height: 12),
-
-        // Highlight clip slider
         _SliderSetting(
           label: 'Highlight clip',
           tooltip:
@@ -274,10 +255,7 @@ class _ExpandedStretchControls extends StatelessWidget {
             onSettingsChanged(settings.copyWith(highlightClip: value));
           },
         ),
-
         const SizedBox(height: 12),
-
-        // Target median slider
         _SliderSetting(
           label: 'Target median',
           tooltip: 'Target brightness level for the stretched image midtones. '
@@ -293,10 +271,7 @@ class _ExpandedStretchControls extends StatelessWidget {
             onSettingsChanged(settings.copyWith(targetMedian: value));
           },
         ),
-
         const SizedBox(height: 12),
-
-        // Linked channels toggle
         SkotiqSwitchRow(
           label: 'Linked channels',
           tooltip:
@@ -310,8 +285,6 @@ class _ExpandedStretchControls extends StatelessWidget {
                 }
               : null,
         ),
-
-        // Gamma value slider (only shown for gamma method)
         if (settings.method == AutoStretchMethod.gamma) ...[
           const SizedBox(height: 12),
           _SliderSetting(
@@ -330,10 +303,7 @@ class _ExpandedStretchControls extends StatelessWidget {
             },
           ),
         ],
-
         const SizedBox(height: 16),
-
-        // Reset to defaults button
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
@@ -721,7 +691,6 @@ class _SliderSetting extends StatelessWidget {
   }
 }
 
-/// A simple text button.
 class _TextButton extends StatefulWidget {
   final String label;
   final SkotiqColors colors;

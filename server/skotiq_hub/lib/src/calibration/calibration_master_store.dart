@@ -43,7 +43,6 @@ class CalibrationMasterStore {
     return dest;
   }
 
-  /// Read a stored master's bytes, or null when the file is gone.
   Uint8List? load(String path) {
     final file = File(path);
     if (!file.existsSync()) return null;

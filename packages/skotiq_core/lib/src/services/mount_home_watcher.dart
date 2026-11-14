@@ -1,6 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../backend/skotiq_backend.dart' show MountStatus;
+import '../models/backend/backend_types.dart';
 
 /// How a Home command ended when it did not fail.
 enum MountHomeOutcome {
@@ -194,11 +192,3 @@ typedef MountHomeWatcherFactory =
       required Future<MountStatus> Function() readStatus,
       bool Function()? isCancelled,
     });
-
-/// The watcher factory the device service homes with. Overridden in tests to
-/// shrink the motion window and poll cadence; production keeps the defaults.
-final mountHomeWatcherFactoryProvider = Provider<MountHomeWatcherFactory>(
-  (ref) =>
-      ({required readStatus, isCancelled}) =>
-          MountHomeWatcher(readStatus: readStatus, isCancelled: isCancelled),
-);

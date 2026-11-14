@@ -1,11 +1,11 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:convert';
 
-import '../utils/duration_format.dart';
+import 'package:skotiq_astro/format.dart';
 import '../utils/fwhm_conversion.dart';
 import '../database/daos/science_dao.dart';
-import '../database/daos/sequence_runs_dao.dart';
-import '../database/daos/targets_dao.dart';
-import 'imaging_records_repository.dart';
+import '../backend/roles/host_data/host_records.dart';
+import '../backend/roles/host_data/imaging_records.dart';
 import '../database/database.dart';
 import '../models/session_report.dart';
 
@@ -31,19 +31,19 @@ import '../models/session_report.dart';
 ///     non-sequencer path increments only that column.
 ///   * Errors: error message lists from the same `sequence_runs` rows.
 class SessionReportService {
-  final ImagingRecordsRepository _records;
-  final SequenceRunsDao _sequenceRunsDao;
-  final TargetsDao _targetsDao;
+  final ImagingRecords _records;
+  final RunHistory _runs;
+  final TargetLibrary _targets;
   final ScienceDao? _scienceDao;
 
   SessionReportService({
-    required ImagingRecordsRepository records,
-    required SequenceRunsDao sequenceRunsDao,
-    required TargetsDao targetsDao,
+    required ImagingRecords records,
+    required RunHistory runs,
+    required TargetLibrary targets,
     ScienceDao? scienceDao,
   }) : _records = records,
-       _sequenceRunsDao = sequenceRunsDao,
-       _targetsDao = targetsDao,
+       _runs = runs,
+       _targets = targets,
        _scienceDao = scienceDao;
 
   /// Per-frame REAL SNR from the science pipeline, keyed by captured-image
@@ -81,22 +81,11 @@ class SessionReportService {
     }
 
     final images = await _records.getImagesForSession(sessionId);
-    // Case-insensitive. The native sequencer emits "Light"/"Dark" capitalised
-    // and Dart lower-cases on the way into the row, but `images_dao`,
-    // `equipment_stats` and `session_chart` all normalise before comparing and
-    // this was the one place that did not — a row that reached the table with
-    // its original capitalisation was invisible to the report alone.
-    final lightFrames = images
-        .where((i) => i.frameType.toLowerCase() == 'light')
-        .toList(growable: false);
-    // Everything that is not a light. Previously discarded outright, which is
-    // how a dark-only session reported "Frames accepted 0/0" and "Integration
-    // 0s" while three dark FITS sat on disk, `imaging_sessions` recorded
-    // 3 exposures / 6.0 s, and the Sequencer showed "3 / 3 frames".
-    // Calibration frames do not belong in a target's integration, but they are
-    // frames, and the report has to say so.
+    final lightFrames = images.where((i) => i.isLight).toList(growable: false);
+    // Calibration frames do not belong in a target's integration, but they
+    // are frames, and the report lists them.
     final calibrationFrames = images
-        .where((i) => i.frameType.toLowerCase() != 'light')
+        .where((i) => !i.isLight)
         .toList(growable: false);
 
     final scienceSnrById = await _loadScienceSnr(sessionId);
@@ -182,14 +171,13 @@ class SessionReportService {
   /// Grouping is by the frame-type STRING — the row's own identity for this
   /// purpose — never by position in [frames].
   List<SessionCalibrationReport> _buildCalibrationReports(
-    List<CapturedImage> frames,
+    List<DbCapturedImage> frames,
   ) {
     if (frames.isEmpty) return const [];
 
-    final byType = <String, List<CapturedImage>>{};
+    final byType = <String, List<DbCapturedImage>>{};
     for (final frame in frames) {
-      final type = frame.frameType.toLowerCase();
-      byType.putIfAbsent(type, () => <CapturedImage>[]).add(frame);
+      byType.putIfAbsent(frame.frameType, () => <DbCapturedImage>[]).add(frame);
     }
 
     final types = byType.keys.toList()..sort();
@@ -218,20 +206,20 @@ class SessionReportService {
   /// pseudo-target so the report stays exhaustive even for quick-capture
   /// sessions.
   Future<List<SessionTargetReport>> _buildTargetReports(
-    List<CapturedImage> lightFrames,
+    List<DbCapturedImage> lightFrames,
     Map<int, double> scienceSnrById,
   ) async {
     if (lightFrames.isEmpty) return const [];
 
     // Two-level bucket: targetId? -> filter -> frames.
-    final byTarget = <int?, Map<String, List<CapturedImage>>>{};
+    final byTarget = <int?, Map<String, List<DbCapturedImage>>>{};
     for (final frame in lightFrames) {
       final tid = frame.targetId;
       final filter = (frame.filter == null || frame.filter!.isEmpty)
           ? 'Unfiltered'
           : frame.filter!;
       final byFilter = byTarget.putIfAbsent(tid, () => {});
-      byFilter.putIfAbsent(filter, () => <CapturedImage>[]).add(frame);
+      byFilter.putIfAbsent(filter, () => <DbCapturedImage>[]).add(frame);
     }
 
     // Resolve target names in one pass so we don't issue N queries inside
@@ -239,21 +227,10 @@ class SessionReportService {
     final targetNames = <int, String>{};
     final knownIds = byTarget.keys.whereType<int>().toList(growable: false);
     if (knownIds.isNotEmpty) {
-      // On a slave the local `targets` table is empty, so resolve names through
-      // the remote-aware records repository (host `/api/targets`); otherwise the
-      // report shows "Target N" for every imaged object.
-      if (_records.isRemote) {
-        final remoteNames = await _records.getTargetNamesRemote();
-        for (final id in knownIds) {
-          final name = remoteNames[id];
-          if (name != null) targetNames[id] = name;
-        }
-      } else {
-        final all = await _targetsDao.getAllTargets();
-        for (final t in all) {
-          if (knownIds.contains(t.id)) {
-            targetNames[t.id] = t.name;
-          }
+      final all = await _targets.getAllTargets();
+      for (final t in all) {
+        if (knownIds.contains(t.id)) {
+          targetNames[t.id] = t.name;
         }
       }
     }
@@ -295,7 +272,7 @@ class SessionReportService {
   /// Build the per-filter rollup for a single `(target, filter)` bucket.
   SessionFilterReport _filterReportFromFrames(
     String filter,
-    List<CapturedImage> frames,
+    List<DbCapturedImage> frames,
     Map<int, double> scienceSnrById,
   ) {
     final attempted = frames.length;
@@ -390,7 +367,7 @@ class SessionReportService {
     return sum / count;
   }
 
-  SessionGuideStats _buildGuideStats(List<CapturedImage> lightFrames) {
+  SessionGuideStats _buildGuideStats(List<DbCapturedImage> lightFrames) {
     if (lightFrames.isEmpty) {
       return const SessionGuideStats(
         meanRmsRaArcsec: null,
@@ -564,13 +541,7 @@ class SessionReportService {
   Future<List<SequenceRun>> _findRelatedSequenceRuns(
     ImagingSession session,
   ) async {
-    // On a slave the local `sequence_runs` table is never populated, so reading
-    // the DAO yields []  — the mount/op counts and error/warning sections would
-    // render a confident-but-false "no flips, no autofocus, no errors". Pull the
-    // master's real run history through the remote-aware records repository.
-    final allRuns = _records.isRemote
-        ? await _records.getAllSequenceRunsRemote()
-        : await _sequenceRunsDao.getAllRuns();
+    final allRuns = await _runs.getAllRuns();
     final start = session.startTime;
     final end = session.endTime ?? DateTime.now();
     return allRuns.where((r) {
@@ -628,7 +599,6 @@ class SessionReportService {
     );
     buf.writeln();
 
-    // Conditions.
     if (report.avgTemperatureC != null ||
         report.avgHumidityPercent != null ||
         report.avgSeeingArcsec != null) {
@@ -652,7 +622,6 @@ class SessionReportService {
       buf.writeln();
     }
 
-    // Mount + operations stats.
     buf.writeln('## Mount / operations');
     buf.writeln();
     buf.writeln('- Autofocus runs: ${report.mountStats.autofocusRuns}');
@@ -661,7 +630,6 @@ class SessionReportService {
     buf.writeln('- Trigger fires: ${report.mountStats.triggerFires}');
     buf.writeln();
 
-    // Guide stats.
     buf.writeln('## Guiding');
     buf.writeln();
     final gs = report.guideStats;
@@ -692,7 +660,6 @@ class SessionReportService {
     }
     buf.writeln();
 
-    // Per-target / per-filter breakdown.
     if (report.targets.isEmpty) {
       buf.writeln('## Targets');
       buf.writeln();

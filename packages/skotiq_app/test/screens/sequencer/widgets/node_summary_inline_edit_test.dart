@@ -20,9 +20,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/sequencer/widgets/node_property_widgets.dart'
+    show kNumberInputCommitDebounce;
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequencer_density.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -72,8 +75,7 @@ Future<void> _pumpTreeWithNode(
   // Optionally flip the sequence into a locked execution state AFTER seeding so
   // canEditSequenceProvider reads false for the lock-gate test.
   if (lockAfterSeed != null) {
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        lockAfterSeed;
+    container.read(runRecordProvider.notifier).setLifecycle(lockAfterSeed);
   }
 
   await tester.pumpWidget(
@@ -239,10 +241,11 @@ void main() {
       expect(find.text('Gain'), findsOneWidget);
       final field = find.byType(TextField);
       expect(field, findsOneWidget);
-      // Overtype the auto-selected text; the field commits clamped-on-change.
+      // Overtype the auto-selected text; the field commits once typing
+      // pauses, which re-arms the live-validation debounce.
       await tester.enterText(field, '220');
       await tester.pump();
-      // Advance past the re-armed live-validation debounce timer.
+      await tester.pump(kNumberInputCommitDebounce);
       await tester.pump(const Duration(milliseconds: 600));
 
       expect(_exposureFrom(container).gain, 220);

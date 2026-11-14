@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
+import 'logging_service.dart';
 
 /// Staggers the primary, its optional mirror, and the independent fallback.
 /// A slow mirror never extends the fallback's head start deadline. The first
@@ -34,18 +34,17 @@ Future<http.Response> fetchFramingSurvey({
         );
       }
       if (!result.isCompleted) {
-        developer.log(
+        Log.debug(
           'Survey image from ${uri.host} in ${clock.elapsedMilliseconds}ms',
-          name: 'FramingProvider',
+          source: 'FramingProvider',
         );
         result.complete(response);
       }
     } catch (error, stack) {
       if (result.isCompleted) return;
-      developer.log(
+      Log.warning(
         'Survey request to ${uri.host} failed: $error',
-        name: 'FramingProvider',
-        level: 900,
+        source: 'FramingProvider',
       );
       failures++;
       if (index + 1 < routes.length) start(index + 1);

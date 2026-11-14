@@ -35,9 +35,9 @@ extension _SequencerLifecycle on SequencerHandlers {
     final Map<String, dynamic>? runVitals = liveStats == null
         ? null
         : {
-            'startTime': liveStats.startTime.toIso8601String(),
+            'startTime': liveStats.startTime.toWireTime(),
             if (liveStats.endTime != null)
-              'endTime': liveStats.endTime!.toIso8601String(),
+              'endTime': liveStats.endTime!.toWireTime(),
             'framesCaptured': liveStats.framesCaptured,
             'framesRejected': liveStats.framesRejected,
             'integrationSecs': liveStats.integrationSecs,
@@ -114,43 +114,29 @@ extension _SequencerLifecycle on SequencerHandlers {
 
   /// GET /api/sequencer/editor-sequence.
   ///
-  /// G2 (remote hydration): return the master's currently-open editor sequence
-  /// in the SAME payload shape the live editor mirror broadcasts over the WS
-  /// `/events` stream (see `master_sequence_editor_mirror.dart` ->
-  /// `emitSnapshot`), so a slave connecting mid-session can seed its sequencer
-  /// canvas without waiting for the master's next edit. Returns
-  /// `{open: false}` when nothing is open in the editor.
+  /// The plan open in this host's editor, or `{open: false}`. Linked clients
+  /// follow the plan through the `openPlan` runtime channel; this is for the
+  /// dashboard, scripts and clients older than the channel.
   Future<Response> _handleSequencerEditorSequence(Request request) async {
     final sequence = container.read(currentSequenceProvider);
     if (sequence == null) {
       return jsonOk({'open': false});
     }
-    final Map<String, dynamic> sequenceMap;
+    final Map<String, dynamic> document;
     try {
-      sequenceMap = container
-          .read(sequenceFileServiceProvider)
-          .sequenceToMap(sequence);
+      document = openPlanDocument(
+        container.read(sequenceFileServiceProvider),
+        sequence,
+        unsaved: container.read(currentSequenceProvider.notifier).isDirty,
+        owner: container.read(activePlanOwnerProvider),
+      );
     } catch (e) {
-      // Mirror the live emitter's behavior: a serialization failure must not
-      // crash the GET — report "nothing to seed" and let the slave fall back to
-      // the next live mirror frame.
       _logInfo(
         '[API] GET /api/sequencer/editor-sequence: serialize failed: $e',
       );
       return jsonOk({'open': false});
     }
-    final isDirty = container.read(currentSequenceProvider.notifier).isDirty;
-    final owner = container.read(activePlanOwnerProvider);
-    return jsonOk({
-      'open': true,
-      'sequence': sequenceMap,
-      if (sequence.databaseId != null) 'databaseId': sequence.databaseId,
-      'isDirty': isDirty,
-      // Who owns the open plan (manual vs autopilot/Smart Night/mosaic). Lets a
-      // slave seeding mid-session learn the owner on connect. Additive; an older
-      // slave ignores it.
-      'activePlanOwner': owner.wireValue,
-    });
+    return jsonOk({'open': true, ...document});
   }
 
   /// PUT /api/sequencer/editor-sequence.
@@ -258,23 +244,6 @@ extension _SequencerLifecycle on SequencerHandlers {
     final continuesRestore = container
         .read(sequenceExecutorProvider)
         .hasRestoredCheckpoint;
-    // Set immediately before the native `sequencerStart()` await and nowhere
-    // else, so the catch below can tell a refusal raised BY the native
-    // pre-flight from a failure in the setup calls that precede it. Only the
-    // former is an operator-fixable rejection.
-    var nativeStartAttempted = false;
-    // True between opening this start's `imaging_sessions` row and the native
-    // executor accepting the run. A start the executor then REFUSES must not
-    // leave the row behind — a start that answers `409 no_sequence_loaded`
-    // would otherwise strand a session named after an earlier run, zero
-    // exposures, status completed, sitting in `GET /api/sessions` as a night
-    // that never happened. Cleared once `sequencerStart()` returns, because
-    // from then on the run owns the row and finalization closes it.
-    var openedSessionForThisStart = false;
-    // The `sequence_runs.id` this start opened, cleared once the native
-    // executor has accepted the run. Same contract as the session row above:
-    // a refused start must not leave a run in the history that never began.
-    int? openedRunForThisStart;
     try {
       if (hasInEditorSequence || continuesRestore) {
         final executor = container.read(sequenceExecutorProvider);
@@ -292,17 +261,6 @@ extension _SequencerLifecycle on SequencerHandlers {
         // Passing `false` is always permitted (only enabling simulation is
         // gated off in release builds).
         await backend.sequencerSetSimulationMode(false);
-        // Weather-safety-off gating: this bare path skips the Dart executor's
-        // runtime-config sync (which pushes the effective fail mode), so mirror
-        // it here. With weather safety disabled the always-armed Rust
-        // WeatherUnsafe trigger would otherwise fail-closed on a rig with no
-        // safety-monitor device and abort the run (see _startNativeExecution).
-        final weatherSafetyEnabled = container
-            .read(weatherSettingsProvider)
-            .weatherSafetyEnabled;
-        if (!weatherSafetyEnabled) {
-          await backend.sequencerSetSafetyFailMode('fail_open');
-        }
         // Wire the session's CONNECTED devices into the native executor. The
         // Dart-orchestrated start path does this from the device-state
         // providers; this bare path did not, so `executor.camera_id` stayed
@@ -314,46 +272,49 @@ extension _SequencerLifecycle on SequencerHandlers {
         // `GET /api/devices/connected` lists the camera the whole time.
         await _wireConnectedDevicesIntoNativeExecutor(backend);
         await _restoreNativeSavePath(backend);
-        // Seed the executor's RuntimeConfig from the operator's settings —
-        // the piece of `SequenceExecutor.start()` this branch never mirrored,
-        // and the third member of the same family as the session row and the
-        // run row above. See [_seedNativeRuntimeConfig].
-        final seedRefusal = await _seedNativeRuntimeConfig();
-        if (seedRefusal != null) return seedRefusal;
-        // Refuse, before anything is opened, a run that needs a guider, dome
-        // or cover calibrator this rig does not have. See
-        // [_refuseUnassignableRoles] — the native pre-flight cannot see these
-        // three, so this is the only gate they have.
-        final roleRefusal = await _refuseUnassignableRoles();
-        if (roleRefusal != null) return roleRefusal;
-        // Give the run the two host-side pieces `executor.start()` would have
-        // set up. Order matters: the session row must exist before the first
-        // frame event arrives, or that frame is stamped with a null
-        // `session_id`. See [_openSessionRowForNativeRun].
-        openedSessionForThisStart = await _openSessionRowForNativeRun(backend);
-        openedRunForThisStart = await _openRunRowForNativeRun();
-        await _attachHostListenersForNativeRun();
-        nativeStartAttempted = true;
-        await backend.sequencerStart();
-        // The run owns the rows from here; nothing below may close them.
-        openedSessionForThisStart = false;
-        openedRunForThisStart = null;
+        // The rest is the executor's one launch for a loaded tree: settings
+        // into the runtime config, the guider/dome/cover gate (the native
+        // pre-flight cannot see those three, so this is the only gate they
+        // have), the session and run rows, the event subscription, the start.
+        final summary = _lastLoadedWire;
+        if (summary == null) {
+          _logInfo(
+            '[API] POST /api/sequencer/start: no loaded-wire summary; the run '
+            'gets no session or run row',
+          );
+        }
+        await container
+            .read(sequenceExecutorProvider)
+            .startLoadedRun(
+              label: summary == null
+                  ? null
+                  : LoadedRunLabel(
+                      name: summary.name,
+                      targetRaHours: summary.singleTargetRaHours,
+                      targetDecDegrees: summary.singleTargetDecDegrees,
+                      totalExposures: summary.totalExposures,
+                    ),
+              admit: () async {
+                final refusal = await _refuseUnassignableRoles();
+                if (refusal != null) throw _StartRefused(refusal);
+              },
+            );
       }
+    } on _StartRefused catch (e) {
+      return e.response;
+    } on RunConfigSeedFailed catch (e) {
+      return _runConfigSeedRefusal(e.cause);
     } on SequenceValidationException catch (e) {
-      await _closeRecordsOpenedForRefusedStart(
-        openedSessionForThisStart,
-        openedRunForThisStart,
-      );
       _logInfo(
         '[API] POST /api/sequencer/start rejected: '
         '${e.result.errorCount} validation errors',
       );
       return jsonBadRequest(e.toJsonBody());
-    } catch (error) {
-      await _closeRecordsOpenedForRefusedStart(
-        openedSessionForThisStart,
-        openedRunForThisStart,
-      );
+    } catch (raised) {
+      // A refusal raised BY the native pre-flight, as opposed to a failure in
+      // the setup calls before it. Only the former is operator-fixable.
+      final nativeStartRefused = raised is NativeStartRefused;
+      final error = raised is NativeStartRefused ? raised.cause : raised;
       // Pressing Start with nothing loaded is an ordinary operator mistake, not
       // a server fault. Every other sequencer verb (pause/resume/stop/skip)
       // already answers cleanly when idle; this one surfaced a 500.
@@ -383,7 +344,7 @@ extension _SequencerLifecycle on SequencerHandlers {
               'or open a sequence in the editor) before starting.',
         });
       }
-      if (nativeStartAttempted) {
+      if (nativeStartRefused) {
         return _nativeStartRefusal(error);
       }
       rethrow;
@@ -462,18 +423,41 @@ extension _SequencerLifecycle on SequencerHandlers {
       operation: 'sequencer.stop',
     );
     final executor = container.read(sequenceExecutorProvider);
-    await executor.stop(preserveCheckpoint: preserveCheckpoint);
-    publishHostMutationFromContainer(
+    final stopped = executor.stop(preserveCheckpoint: preserveCheckpoint);
+    void published() => publishHostMutationFromContainer(
       container,
       entityType: HostMutationEntity.sequencer,
       action: HostMutationAction.stopped,
     );
+    if (!wasRunning) {
+      await stopped;
+      published();
+      return jsonOk({
+        if (commandId != null) 'commandId': commandId,
+        'status': 'stopped',
+        'preserveCheckpoint': preserveCheckpoint,
+        kWasRunningField: false,
+        'message': 'No sequence was running; nothing to stop.',
+      });
+    }
+    // The run's stopping phase (an exposure's abort, the shutdown steps a dawn
+    // park started) can take minutes. The caller is answered now and follows
+    // the run's state; a stop that fails leaves the run `stopFailed`, which
+    // status and the run record show.
+    unawaited(
+      stopped.then(
+        (_) => published(),
+        onError: (Object error, StackTrace stackTrace) => _logger.error(
+          'Stop did not complete: $error\n$stackTrace',
+          source: 'SequencerHandlers',
+        ),
+      ),
+    );
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
-      'status': 'stopped',
+      'status': 'stopping',
       'preserveCheckpoint': preserveCheckpoint,
-      kWasRunningField: wasRunning,
-      if (!wasRunning) 'message': 'No sequence was running; nothing to stop.',
+      kWasRunningField: true,
     });
   }
 
@@ -685,11 +669,20 @@ extension _SequencerLifecycle on SequencerHandlers {
     if (rejection != null) return rejection;
 
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerLoadJson(json);
+    await backend.sequencerLoadJson(
+      withFlatCalibrationAttempts(
+        json,
+        container
+                .read(appSettingsProvider)
+                .valueOrNull
+                ?.flatCalibrationAttempts ??
+            20,
+      ),
+    );
     // Keep what the start path needs to open a session row. The native
     // executor owns the tree from here on and exposes no way to ask it for the
     // sequence name or its targets, so if this is dropped the headless run has
-    // nothing to label a session with. See [_openSessionRowForNativeRun].
+    // nothing to label a session with. See `SequenceExecutor.startLoadedRun`.
     _lastLoadedWire = _WireSequenceSummary.parse(
       json,
       onError: (error) => _logWarning(
@@ -778,4 +771,38 @@ extension _SequencerLifecycle on SequencerHandlers {
       'sequenceId': sequenceId,
     });
   }
+}
+
+/// [wireJson] with every `FlatWizard` step that names no attempt limit given
+/// the host's "Exposure calibration attempts" setting, so a flat step in a
+/// loaded sequence obeys the same limit as the Flat Wizard. A step that sets
+/// its own `max_iterations` keeps it. JSON that will not decode is returned
+/// unchanged for the native loader to reject with its own error.
+String withFlatCalibrationAttempts(String wireJson, int attempts) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(wireJson);
+  } on FormatException {
+    return wireJson;
+  }
+  var changed = false;
+  void visit(Object? node) {
+    if (node is Map) {
+      final flat = node['FlatWizard'];
+      if (flat is Map && !flat.containsKey('max_iterations')) {
+        flat['max_iterations'] = attempts;
+        changed = true;
+      }
+      for (final value in node.values) {
+        visit(value);
+      }
+    } else if (node is List) {
+      for (final value in node) {
+        visit(value);
+      }
+    }
+  }
+
+  visit(decoded);
+  return changed ? jsonEncode(decoded) : wireJson;
 }

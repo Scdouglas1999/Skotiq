@@ -13,11 +13,11 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
-import 'package:skotiq_desktop/headless_api/route_metadata.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 
 import '../headless_api/handler_test_helpers.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import '../support/route_policy.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 void main() {
@@ -95,7 +95,7 @@ void main() {
     test('a valid legacy ?token= still upgrades the WebSocket', () async {
       final socket = await WebSocket.connect(
         'ws://127.0.0.1:${server.actualPort}/events'
-        '?token=admin-token&apiVersion=2.5.0',
+        '?token=admin-token',
       );
       try {
         expect(socket.readyState, WebSocket.open);

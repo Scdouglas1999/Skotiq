@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// Outside the core barrel by design (name collision with
-// `cameraPresetsProvider`); imported by source path, as the optics step does.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show
+        SkyCatalogInstallPhase,
+        catalogStateProvider,
+        skyCatalogInstallProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../widgets/catalogs/sky_catalog_download_panel.dart';
+
 import 'optical_train_step.dart';
+import '../../../router/settings_sections.dart';
+import '../../../router/app_routes.dart';
 
 /// Terminal "what's next" step shown after the equipment profile is created.
 ///
@@ -103,6 +108,21 @@ class OnboardingNextStepsStep extends ConsumerWidget {
               ],
             ),
           ),
+          // Until they are installed the planner has nothing to plan with.
+          // The download the user asked for on the review step shows its
+          // progress here; otherwise it is offered once more.
+          if (skyCatalogsMissing(ref.watch(catalogStateProvider)) ||
+              ref.watch(skyCatalogInstallProvider).phase ==
+                  SkyCatalogInstallPhase.done) ...[
+            const SizedBox(height: SkotiqTokens.spaceMd),
+            SkyCatalogDownloadPanel(
+              inline: true,
+              showSettingsLink: false,
+              title: 'Sky catalogs not installed',
+              body: 'The planner and planetarium need them. '
+                  '${skyCatalogDownloadContents()}',
+            ),
+          ],
           const SizedBox(height: SkotiqTokens.space2xl),
           const SectionTitle(title: 'Where to next?'),
           _NextStepCard(
@@ -110,7 +130,7 @@ class OnboardingNextStepsStep extends ConsumerWidget {
             title: 'Capture your first light',
             subtitle:
                 'Connect your camera and take your very first exposure, guided step by step.',
-            onTap: () => onNavigate('/imaging?firstLight=1'),
+            onTap: () => onNavigate(AppRoutes.imaging(firstLight: true)),
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           _NextStepCard(
@@ -118,7 +138,7 @@ class OnboardingNextStepsStep extends ConsumerWidget {
             title: 'Take the first-night walkthrough',
             subtitle:
                 'A short tour of the imaging, sequencing, and guiding workflow.',
-            onTap: () => onNavigate('/tutorial/first-night'),
+            onTap: () => onNavigate(AppRoute.firstNightWizard.path),
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
           _NextStepCard(
@@ -126,7 +146,7 @@ class OnboardingNextStepsStep extends ConsumerWidget {
             title: 'Review readiness checklist',
             subtitle:
                 'Confirm your gear connects and everything is configured before you head out.',
-            onTap: () => onNavigate('/equipment'),
+            onTap: () => onNavigate(AppRoute.equipment.path),
           ),
           // Only shown when the user skipped the site step. `/settings?section=
           // location` is the same deep link the weather screen uses to jump to
@@ -138,7 +158,8 @@ class OnboardingNextStepsStep extends ConsumerWidget {
               title: 'Set your observing site',
               subtitle:
                   'Your location powers Tonight, the planner, meridian flips, and the weather radar.',
-              onTap: () => onNavigate('/settings?section=location'),
+              onTap: () =>
+                  onNavigate(AppRoutes.settings(SettingsSectionId.location)),
             ),
           ],
         ],
@@ -163,7 +184,6 @@ class _SummaryLine extends StatelessWidget {
   /// True when the value is a measurement and takes the mono ramp.
   final bool mono;
 
-  /// Width of the key column.
   static const double _keyWidth = 132;
 
   @override

@@ -5,12 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../utils/exported_file_reveal.dart';
 import '../../utils/snackbar_helper.dart';
+import '../../router/settings_sections.dart';
+import '../../router/app_routes.dart';
 
 /// Directory the desktop save dialog should open in.
 ///
@@ -66,8 +71,8 @@ Future<String?> resolveDumpSaveDirectory({
 /// users can drop it directly into a GitHub issue without hunting through
 /// the app-data directory.
 ///
-/// The optical-train
-/// `DiagnosticsScreen` lives next to this file but covers a different scope;
+/// The optical-train diagnostics tab (`DiagnosticsTabContent`) lives next to
+/// this file but covers a different scope;
 /// keep them visually distinct (different titles, different icons).
 class DiagnosticDumpScreen extends ConsumerStatefulWidget {
   const DiagnosticDumpScreen({super.key});
@@ -106,7 +111,7 @@ class _DiagnosticDumpScreenState extends ConsumerState<DiagnosticDumpScreen> {
                     context.pop();
                   } else {
                     // Tooltip says "Back to help" — land on Help & Tutorials.
-                    context.go('/settings?section=help');
+                    openSettings(context, SettingsSectionId.help);
                   }
                 },
               ),
@@ -216,14 +221,15 @@ class _DiagnosticDumpScreenState extends ConsumerState<DiagnosticDumpScreen> {
         file.path,
         subject: 'Skotiq diagnostic dump',
         desktopMessage:
-            'Diagnostic dump written: ${file.path} (${_formatBytes(size)})',
+            'Diagnostic dump written: ${file.path} (${ByteFormat.size(size)})',
         desktopDuration: const Duration(seconds: 6),
       );
     } catch (e) {
       if (!mounted) return;
       // Surface the failure rather than swallowing it. The service has
       // already logged the structured stack trace via LoggingService.
-      context.showErrorSnackBar('Diagnostic dump failed: $e');
+      context
+          .showErrorSnackBar('Diagnostic dump failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() {
@@ -361,7 +367,7 @@ class _LastResultCard extends StatelessWidget {
                 if (bytes != null) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Size: ${_formatBytes(bytes!)}',
+                    'Size: ${ByteFormat.size(bytes!)}',
                     style: TextStyle(
                       fontSize: SkotiqTypography.fontSize12,
                       color: colors.textMuted,
@@ -375,10 +381,4 @@ class _LastResultCard extends StatelessWidget {
       ),
     );
   }
-}
-
-String _formatBytes(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KiB';
-  return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MiB';
 }

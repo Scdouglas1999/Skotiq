@@ -1,10 +1,6 @@
 // Header, night strip and left-column view models.
 part of '../night_control_contracts.dart';
 
-// ---------------------------------------------------------------------------
-// Header and timeline
-// ---------------------------------------------------------------------------
-
 /// Enabled state of one header control (Pause, Skip step, Start now...).
 /// Which controls exist is decided by [NightHeaderVm.phase]; this only says
 /// whether the shown one can be pressed.
@@ -43,6 +39,7 @@ class NightHeaderVm {
   const NightHeaderVm({
     required this.phase,
     this.pausedFor,
+    this.actionUnderWay,
     this.runStartedAt,
     this.armedStartAt,
     this.planName,
@@ -72,6 +69,11 @@ class NightHeaderVm {
   /// The manual action holding the run, for "Paused for autofocus". Set
   /// only in [NightRunPhase.pausedForAction].
   final ManualActionId? pausedFor;
+
+  /// A manual action under way while no run is live ("Autofocus is
+  /// running" in place of "Not set up"); null during a run, whose pill
+  /// already says what holds it.
+  final ManualActionId? actionUnderWay;
 
   /// When the run started; the widget ticks the "4 h 04 m" itself.
   final DateTime? runStartedAt;
@@ -115,6 +117,7 @@ class NightHeaderVm {
       other is NightHeaderVm &&
       other.phase == phase &&
       other.pausedFor == pausedFor &&
+      other.actionUnderWay == actionUnderWay &&
       other.runStartedAt == runStartedAt &&
       other.armedStartAt == armedStartAt &&
       other.planName == planName &&
@@ -139,6 +142,7 @@ class NightHeaderVm {
   int get hashCode => Object.hashAll(<Object?>[
         phase,
         pausedFor,
+        actionUnderWay,
         runStartedAt,
         armedStartAt,
         planName,
@@ -164,6 +168,7 @@ class NightHeaderVm {
   NightHeaderVm withEnding(NightRunEnding? ending) => NightHeaderVm(
         phase: phase,
         pausedFor: pausedFor,
+        actionUnderWay: actionUnderWay,
         runStartedAt: runStartedAt,
         armedStartAt: armedStartAt,
         planName: planName,
@@ -191,11 +196,13 @@ enum NightRunEnding {
   /// The run reached the end of its plan.
   completed,
 
-  /// The run failed.
   failed,
 
-  /// The run was stopped, or ended at dawn; it settles idle, which does not
-  /// say which.
+  /// The operator stopped the run, here, from a linked window or a phone.
+  stopped,
+
+  /// The run ended some other way (the dawn park, the weather, the
+  /// autopilot) or nothing on the wire said who ended it.
   ended,
 }
 
@@ -280,10 +287,6 @@ class NightTimelineVm {
         Object.hashAll(windows),
       );
 }
-
-// ---------------------------------------------------------------------------
-// Left column
-// ---------------------------------------------------------------------------
 
 /// One sample of a time series. A null [y] is a gap, never a zero.
 @immutable
@@ -479,6 +482,7 @@ class NightPlanVm {
     required this.integrated,
     this.planned,
     this.eta,
+    this.openEnded = false,
   });
 
   final List<PlanFilterRowVm> rows;
@@ -490,17 +494,22 @@ class NightPlanVm {
   /// Estimated end of the run ("≈").
   final DateTime? eta;
 
+  /// The plan runs until it is stopped: nothing bounds a loop or a "loop
+  /// until stopped" block, so it has no length or end to show.
+  final bool openEnded;
+
   @override
   bool operator ==(Object other) =>
       other is NightPlanVm &&
       listEquals(other.rows, rows) &&
       other.integrated == integrated &&
       other.planned == planned &&
-      other.eta == eta;
+      other.eta == eta &&
+      other.openEnded == openEnded;
 
   @override
   int get hashCode =>
-      Object.hash(Object.hashAll(rows), integrated, planned, eta);
+      Object.hash(Object.hashAll(rows), integrated, planned, eta, openEnded);
 }
 
 /// What the Steps list prints on the right of a step.
@@ -546,7 +555,9 @@ final class StepWhenProgress extends StepWhen {
   int get hashCode => Object.hash(done, total);
 }
 
-enum PlanStepStatus { done, active, pending, failed, skipped }
+/// [skipped] is a step the run passed over; [stopped] is one the operator's
+/// Stop ended part way, which ran and may have taken frames.
+enum PlanStepStatus { done, active, pending, failed, skipped, stopped }
 
 /// One row of the Steps list. The tree is flattened; [depth] is the nesting
 /// below the root, for an optional indent.
@@ -620,7 +631,8 @@ class UpcomingItemVm {
     this.moonIlluminationPct,
     this.moonRise,
     this.limitDeg,
-    this.tone = MetricTone.neutral,
+    this.tone = MetricGridTone.neutral,
+    this.paused = false,
   });
 
   final UpcomingKind kind;
@@ -654,8 +666,11 @@ class UpcomingItemVm {
   /// The altitude limit, for [UpcomingKind.targetLow].
   final double? limitDeg;
 
-  /// The meridian flip row is [MetricTone.warning] on the boards.
-  final MetricTone tone;
+  /// The meridian flip row is [MetricGridTone.warning] on the boards.
+  final MetricGridTone tone;
+
+  /// The run is paused, so the time cannot be known ("Plan ends · paused").
+  final bool paused;
 
   @override
   bool operator ==(Object other) =>
@@ -671,7 +686,8 @@ class UpcomingItemVm {
       other.moonIlluminationPct == moonIlluminationPct &&
       other.moonRise == moonRise &&
       other.limitDeg == limitDeg &&
-      other.tone == tone;
+      other.tone == tone &&
+      other.paused == paused;
 
   @override
   int get hashCode => Object.hash(
@@ -687,5 +703,6 @@ class UpcomingItemVm {
         moonRise,
         limitDeg,
         tone,
+        paused,
       );
 }

@@ -22,11 +22,17 @@ class _TagEditorDialog extends ConsumerStatefulWidget {
   ConsumerState<_TagEditorDialog> createState() => _TagEditorDialogState();
 }
 
-class _TagEditorDialogState extends ConsumerState<_TagEditorDialog> {
+class _TagEditorDialogState extends ConsumerState<_TagEditorDialog>
+    with HostBoundDialogState<_TagEditorDialog> {
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. Tag editing canceled.';
+
+  @override
+  bool get hostChangeDiscardsInput => true;
+
   late final List<String> _tags;
-  late final SkotiqBackend _authority;
   late final SequenceRepository _repository;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
   final _controller = TextEditingController();
   bool _saving = false;
 
@@ -34,24 +40,12 @@ class _TagEditorDialogState extends ConsumerState<_TagEditorDialog> {
   void initState() {
     super.initState();
     _tags = [...widget.initialTags];
-    _authority = ref.read(backendProvider);
     _repository = ref.read(sequenceRepositoryProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        context.showWarningSnackBar(
-          'The connected host changed. Tag editing canceled.',
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   @override
   void dispose() {
     _controller.dispose();
-    _backendSubscription?.close();
     super.dispose();
   }
 
@@ -65,19 +59,19 @@ class _TagEditorDialogState extends ConsumerState<_TagEditorDialog> {
   }
 
   Future<void> _save() async {
-    if (!identical(ref.read(backendProvider), _authority)) return;
+    if (host.isStale) return;
     _addTag();
     setState(() => _saving = true);
     try {
       await _repository.setTags(widget.sequenceId, _tags);
-      if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+      if (!mounted || host.isStale) return;
       ref.invalidate(savedSequenceSummariesProvider);
       Navigator.of(context).pop();
       context.showSuccessSnackBar('Updated tags for "${widget.sequenceName}"');
     } catch (e) {
-      if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+      if (!mounted || host.isStale) return;
       setState(() => _saving = false);
-      context.showErrorSnackBar('Failed to save tags: $e');
+      context.showErrorSnackBar('Failed to save tags: ${userFacingError(e)}');
     }
   }
 

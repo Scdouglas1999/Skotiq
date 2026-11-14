@@ -4,14 +4,13 @@
 //! HFR baseline updates, and the final structured ProgressUpdate that carries
 //! `completed_exposure_secs` for the executor's global counter.
 
-use crate::expressions::{interpolate, EvaluationFrame};
+use crate::frame_naming::{frame_namer, BurstNaming};
 use crate::instructions::{
-    autofocus_failure_continues_the_run, execute_autofocus, execute_exposure_with_renderer,
-    notify_autofocus_failed_continuing, read_autofocus_position, resolve_burst_filter, BurstFilter,
-    FrameSavePathRenderer, InstructionResult,
+    execute_autofocus, execute_exposure_with_renderer, notify_autofocus_failed_continuing,
+    resolve_burst_filter, AutofocusProgress, BurstFilter, InstructionResult, Setback,
 };
 use crate::node::context::ExecutionContext;
-use crate::node::instructions::autofocus::parse_autofocus_detail;
+use crate::node::instructions::autofocus::autofocus_detail;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
 use crate::scheduling::{
@@ -23,17 +22,12 @@ use crate::{
     TriggerCondition,
 };
 use async_trait::async_trait;
-use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
 pub struct ExposeInstruction;
 
 #[async_trait]
 impl InstructionNode for ExposeInstruction {
-    fn type_name(&self) -> &'static str {
-        "Exposure"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -101,7 +95,7 @@ impl InstructionNode for ExposeInstruction {
                 previous_binning,
                 config.binning
             );
-            if let Some(trigger_state_lock) = &context.trigger_state {
+            if let Some(trigger_state_lock) = &context.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 trigger_state.invalidate_autofocus(format!(
                     "binning changed from {:?} to {:?}",
@@ -112,12 +106,16 @@ impl InstructionNode for ExposeInstruction {
 
         let nominal_secs = config.duration_secs;
         let total_count = config.count;
+        // A resumed run continues the burst it stopped in.
+        let frames_taken = context.resume.frames_taken(node_id).min(total_count);
+        let frames_to_take = total_count - frames_taken;
         let progress_cb = context.progress_callback.as_ref();
+        let resume = context.resume.clone();
 
         // sky-brightness adaptive exposure decision.
         // Resolve the effective config (per-node wins, else runtime
         // global default) and consult the live sky-brightness reading
-        // pushed in via `ExecutorCommand::UpdateSkyBrightness`. The
+        // pushed in via `SequenceExecutor::update_sky_brightness`. The
         // decision is always produced even when the adapter is
         // disabled — the returned `adapted_secs` equals `nominal_secs`
         // in that case, and a structured event is only emitted when
@@ -132,7 +130,7 @@ impl InstructionNode for ExposeInstruction {
                 context.default_adaptive_exposure.read().await.clone()
             }
         };
-        let live_sky_mag = *context.current_sky_brightness_mag.read().await;
+        let live_sky_mag = *context.run.conditions.sky_brightness_mag.read().await;
         let decision = compute_adaptive_exposure(
             effective_adaptive_config.as_ref(),
             nominal_secs,
@@ -149,17 +147,6 @@ impl InstructionNode for ExposeInstruction {
         effective_config.duration_secs = duration_secs;
         let effective_config = effective_config;
 
-        // capture the rejected-frame counter BEFORE the
-        // burst so we can compute the per-burst rejection delta after the
-        // burst returns. `frames_rejected` is a session-wide atomic
-        // incremented from inside `execute_exposure` when grading marks a
-        // frame as Reject; we use the delta (after - before) to determine
-        // how many of *this* burst's frames were rejected so the budget
-        // credit can skip them.
-        let frames_rejected_before = context
-            .frames_rejected
-            .load(std::sync::atomic::Ordering::Relaxed);
-
         // build the save-path renderer. Captures a clone of the
         // ExecutionContext and the burst-config so the same per-frame
         // EvaluationFrame can resolve `${frame}`, `${exposure.duration}`,
@@ -171,11 +158,11 @@ impl InstructionNode for ExposeInstruction {
         // and the closure runs synchronously inside the exposure loop —
         // there is no concurrent-borrow concern.
         let path_renderer =
-            match build_save_path_renderer(context, &effective_config, duration_secs) {
+            match frame_namer(context, BurstNaming::of(&effective_config, duration_secs)) {
                 Ok(renderer) => renderer,
                 Err(message) => {
                     tracing::error!("{}", message);
-                    if let Some(event_tx) = &context.event_tx {
+                    if let Some(event_tx) = &context.run.event_tx {
                         let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
                             message: message.clone(),
                         });
@@ -190,6 +177,8 @@ impl InstructionNode for ExposeInstruction {
         // pixels gone. The lock is per-device, so separate cameras still run
         // concurrently.
         let camera_lock = ctx
+            .run
+            .rig
             .camera_id
             .as_deref()
             .map(|id| context.device_locks.handle(id));
@@ -212,8 +201,9 @@ impl InstructionNode for ExposeInstruction {
         let control = crate::instructions::BurstControl {
             pause: context.pause_gate(),
             status: Some(&status_fn),
+            frames_taken,
         };
-        let result = {
+        let burst = {
             let _camera_guard = match camera_lock.as_ref() {
                 Some(lock) => Some(lock.lock().await),
                 None => None,
@@ -225,6 +215,7 @@ impl InstructionNode for ExposeInstruction {
                 Some(path_renderer),
                 &control,
                 |current, total, recorded_secs| {
+                    resume.frame_taken(node_id, current);
                     if let Some(cb) = progress_cb {
                         let percent = if total > 0 {
                             100.0 * f64::from(current) / f64::from(total)
@@ -260,13 +251,17 @@ impl InstructionNode for ExposeInstruction {
             )
             .await
         };
+        let result = burst.result;
+        if result.status != NodeStatus::Cancelled {
+            context.resume.burst_ended(node_id);
+        }
 
         // Canonical integration accounting: the entire burst's exposure time
         // is added here in one shot. Per-frame updates would race with the
         // synchronous progress callbacks and double-count under contention.
         if result.status == NodeStatus::Success {
-            let total_exposure_time = duration_secs * f64::from(total_count);
-            context.record_scheduler_completed_exposures(u64::from(total_count));
+            let total_exposure_time = duration_secs * f64::from(frames_to_take);
+            context.record_scheduler_completed_exposures(u64::from(frames_to_take));
             {
                 let mut counter = context.completed_integration_secs.write().await;
                 *counter += total_exposure_time;
@@ -277,9 +272,8 @@ impl InstructionNode for ExposeInstruction {
             // the final stack, so crediting its exposure time against the
             // budget would over-promise progress: the dashboard would
             // show "60/60 L frames complete" while only e.g. 54 are
-            // usable. Compute the per-burst rejected count from the
-            // before/after atomic delta and subtract its time from the
-            // budget credit.
+            // usable. The burst's own rejected frames are subtracted from
+            // the budget credit.
             //
             // Why subtract instead of skipping `record_exposure` entirely
             // when there were rejects: a partial burst (e.g. 8 of 10
@@ -290,13 +284,8 @@ impl InstructionNode for ExposeInstruction {
             // wants to see even for rejected subs. The budget counter
             // measures "integration that contributes to the goal", which
             // is the passed-frames-only quantity.
-            let frames_rejected_after = context
-                .frames_rejected
-                .load(std::sync::atomic::Ordering::Relaxed);
-            let rejected_in_burst = frames_rejected_after
-                .saturating_sub(frames_rejected_before)
-                .min(total_count);
-            let passed_count = total_count.saturating_sub(rejected_in_burst);
+            let rejected_in_burst = burst.frames_rejected;
+            let passed_count = frames_to_take.saturating_sub(rejected_in_burst);
             let budget_credit_secs = duration_secs * f64::from(passed_count);
 
             // credit the active TargetHeader's
@@ -312,7 +301,9 @@ impl InstructionNode for ExposeInstruction {
             // no-op for the accounting math, but skipping keeps the
             // event flow consistent with "nothing useful happened, no
             // progress event emitted."
-            if budget_credit_secs > 0.0 {
+            // Only the night's data counts toward a target's integration
+            // goal: a snapshot or a dark taken under the target is not.
+            if budget_credit_secs > 0.0 && config.frame_type.is_science() {
                 let budget_filter = config
                     .filter
                     .clone()
@@ -331,7 +322,7 @@ impl InstructionNode for ExposeInstruction {
                 );
             }
 
-            if let Some(trigger_state_lock) = &context.trigger_state {
+            if let Some(trigger_state_lock) = &context.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 if let Some(median_hfr) = compute_hfr_median(&result.hfr_values) {
                     trigger_state.update_hfr(median_hfr);
@@ -340,14 +331,14 @@ impl InstructionNode for ExposeInstruction {
                 // AutofocusInterval / DitherInterval triggers fire every N
                 // star-field frames; a dark or bias burst neither blurs focus
                 // nor builds walking noise, so it does not advance them.
-                if counts_toward_frame_cadence(&config.frame_type) {
-                    for _ in 0..total_count {
+                if config.frame_type.is_sky_frame() {
+                    for _ in 0..frames_to_take {
                         trigger_state.increment_exposure_count();
                     }
                 }
                 tracing::debug!(
                     "Updated trigger state exposure count: {}",
-                    trigger_state.completed_exposures
+                    trigger_state.latches.completed_exposures
                 );
             }
 
@@ -358,7 +349,7 @@ impl InstructionNode for ExposeInstruction {
             // exactly once — per-frame events deliberately leave it None.
             let final_message = format!(
                 "Completed {} exposures ({:.0}s)",
-                total_count, total_exposure_time
+                frames_to_take, total_exposure_time
             );
             let mut final_upd =
                 ProgressUpdate::lifecycle(node_id.to_string(), NodeStatus::Success, final_message);
@@ -368,221 +359,8 @@ impl InstructionNode for ExposeInstruction {
             context.send_progress(final_upd);
         }
 
-        result.log_and_get_status_with_context("Exposure", &ctx)
+        result.settle("Exposure", &ctx).await
     }
-}
-
-/// Whether a frame of this type advances the frame-count triggers (dither and
-/// autofocus intervals): only star-field frames do.
-fn counts_toward_frame_cadence(frame_type: &str) -> bool {
-    frame_type.eq_ignore_ascii_case("light") || frame_type.eq_ignore_ascii_case("snapshot")
-}
-
-/// Stand-in target name for a target-less calibration frame, or `None` for a
-/// light frame (which must not have a target name invented for it).
-fn calibration_target_label(frame_type: &str) -> Option<String> {
-    match frame_type.trim().to_ascii_lowercase().as_str() {
-        "dark" => Some("Dark".to_string()),
-        "bias" => Some("Bias".to_string()),
-        "flat" => Some("Flat".to_string()),
-        "darkflat" => Some("DarkFlat".to_string()),
-        // `snapshot` and `light` are on-sky frames: no substitution.
-        _ => None,
-    }
-}
-
-/// The save path a burst uses when its node sets no `save_to`: a folder per
-/// target under the run's save path, as the imaging screen's naming pattern
-/// does (`$TARGET/...`). Without the folder every target landed in one
-/// directory, and the run wrote into whatever folder the save path named.
-pub(crate) const DEFAULT_SAVE_TO_TEMPLATE: &str =
-    "${target.name}/${target.name}_${filter}_${frame:04}.fits";
-
-/// Highest frame number the save-path renderer probes for. Far beyond any
-/// night; a folder past it gets suffixed names rather than a scan without end.
-const SAVE_PATH_FRAME_NUMBER_CEILING: u32 = 1 << 20;
-
-/// build the per-burst save-path renderer.
-///
-/// `save_to` semantics:
-/// * `None`: render [`DEFAULT_SAVE_TO_TEMPLATE`] under the context's base
-///   `save_path`.
-/// * `Some(template)`: interpolate `template` and treat the result as a
-///   relative path under the context's base `save_path` (or as absolute
-///   when the user typed an absolute path). The final component is the
-///   filename; any leading path segments are sub-directories that the
-///   FITS-save code creates on demand.
-///
-/// `${frame}` in a save path is the next frame number not yet on disk for
-/// that name, in the frame's folder or its Reject folder, not the frame's
-/// place in this burst. A burst counting its own frames named the first frame
-/// of every Smart Exposure visit `..._0001` and the files collected collision
-/// suffixes (`NGC0891_L_0001_025.fits`, rig 2026-10-20); counted from the
-/// disk, the number continues across visits, bursts, and a run restarted from
-/// its checkpoint.
-///
-/// Returns `Err` when the burst has no resolvable destination — no base
-/// `save_path` and no absolute `save_to`. The caller turns that into a node
-/// failure so the frames are never captured-then-dropped.
-pub(crate) fn build_save_path_renderer(
-    context: &ExecutionContext,
-    config: &ExposureConfig,
-    duration_secs: f64,
-) -> Result<FrameSavePathRenderer, String> {
-    let base_path = context.save_path.clone();
-    let template = config.save_to.clone();
-
-    let effective_template = template
-        .filter(|t| !t.trim().is_empty())
-        .unwrap_or_else(|| DEFAULT_SAVE_TO_TEMPLATE.to_string());
-
-    // With no base path the only complete destination is an absolute template.
-    // Anything else has nowhere to write, so the burst is refused rather than
-    // run to completion counting frames it drops: a run that cannot keep its
-    // data must not claim it succeeded.
-    if base_path.is_none() && !std::path::Path::new(&effective_template).is_absolute() {
-        return Err(format!(
-            "Exposure has no save location: the sequencer save path is not set and the node's \
-             save_to template (`{effective_template}`) is not an absolute path. Every frame this \
-             node captures would be discarded. Set the save path before starting the run."
-        ));
-    }
-
-    // Snapshot the per-burst exposure fields so the renderer closure does
-    // not need a reference back to `config`.
-    let exposure_gain = config.gain;
-    let exposure_offset = config.offset;
-    let exposure_binning = config.binning.as_str().to_string();
-    let filter_index = config.filter_index;
-    let reject_folder_override = context.reject_folder_path.clone();
-    // ExecutionContext is cheaply Clone-able (every field is `Arc`/`Copy`).
-    let mut ctx_snapshot = context.clone();
-    // A calibration frame has no target BY NATURE — the shutter is closed or the
-    // scope is on a flat panel — so `${target.name}` in the default template
-    // could not resolve and the renderer aborted the whole run on frame 1:
-    // "Variable `${target.name}` cannot be resolved: no active target". That made
-    // the natural shape of a darks/bias sequence (no TargetHeader) impossible to
-    // run. Substitute the frame type, so files land as `Dark_...` / `Bias_...`,
-    // which is what an astronomer expects a target-less calibration frame to be
-    // called.
-    //
-    // LIGHT frames still hard-fail here: inventing a target name for science
-    // data would mislabel the data itself, which is worse than refusing.
-    if ctx_snapshot.target_name.is_none() {
-        if let Some(label) = calibration_target_label(&config.frame_type) {
-            ctx_snapshot.target_name = Some(label);
-        }
-    }
-
-    Ok(Box::new(move |_frame_in_burst: u32, total: u32| {
-        let render = |frame_number: u32| -> Result<(PathBuf, String), String> {
-            let eval = EvaluationFrame {
-                frame: Some(frame_number),
-                frame_total: Some(total),
-                exposure_duration_secs: Some(duration_secs),
-                exposure_gain,
-                exposure_offset,
-                exposure_binning: Some(exposure_binning.clone()),
-                filter_position: filter_index,
-                session_start: None,
-                now_override: None,
-                moon_phase: None,
-                weather_temp_c: None,
-                weather_humidity: None,
-                sqm: None,
-            };
-            let rendered = interpolate(&effective_template, &ctx_snapshot, &eval)
-                .map_err(|e| e.to_string())?;
-            split_rendered_save_path(&rendered, base_path.as_ref())
-        };
-        let taken = |frame_number: u32| -> Result<bool, String> {
-            let (dir, name) = render(frame_number)?;
-            let reject_dir =
-                crate::instructions::resolve_reject_dir(&dir, reject_folder_override.as_deref());
-            Ok(dir.join(&name).exists() || reject_dir.join(&name).exists())
-        };
-
-        let first = render(1)?;
-        // A template that renders no frame number names every frame the
-        // same; there the FITS writer's collision suffix keeps them apart.
-        let (final_dir, filename) = if render(2)? == first {
-            first
-        } else {
-            render(first_free_frame_number(taken)?)?
-        };
-        // Pre-create the directory so the FITS writer downstream finds it.
-        // A failure here is fatal (the caller turns the Err into a hard
-        // node failure).
-        std::fs::create_dir_all(&final_dir).map_err(|e| {
-            format!(
-                "could not create save directory `{}`: {e}",
-                final_dir.display()
-            )
-        })?;
-        Ok((final_dir, filename))
-    }))
-}
-
-/// Split a rendered save path into its directory and filename, resolving a
-/// relative directory against the run's base save path. We accept both `/`
-/// and `\` separators (a Windows user may type either); absolute templates are
-/// honoured verbatim (a user explicitly typed `/mnt/captures/...`).
-fn split_rendered_save_path(
-    rendered: &str,
-    base_path: Option<&PathBuf>,
-) -> Result<(PathBuf, String), String> {
-    let rendered_path = std::path::PathBuf::from(rendered);
-    let Some(name) = rendered_path.file_name() else {
-        return Err(format!(
-            "rendered save path `{rendered}` has no filename component"
-        ));
-    };
-    let filename = name.to_string_lossy().into_owned();
-    let rel_dir = rendered_path
-        .parent()
-        .map(std::path::Path::to_path_buf)
-        .unwrap_or_default();
-    let final_dir = if rel_dir.is_absolute() {
-        rel_dir
-    } else if let Some(base) = base_path {
-        if rel_dir.as_os_str().is_empty() {
-            base.clone()
-        } else {
-            base.join(rel_dir)
-        }
-    } else {
-        rel_dir
-    };
-    Ok((final_dir, filename))
-}
-
-/// The lowest frame number from 1 up that `taken` reports free, assuming the
-/// numbers in use run from 1 without gaps (they do, written by this
-/// renderer). Doubling then bisecting keeps a folder of a thousand frames to
-/// about twenty probes. A gap left by a deleted file may be reused, which
-/// overwrites nothing.
-fn first_free_frame_number(taken: impl Fn(u32) -> Result<bool, String>) -> Result<u32, String> {
-    if !taken(1)? {
-        return Ok(1);
-    }
-    let mut used = 1;
-    let mut free = 2;
-    while taken(free)? {
-        used = free;
-        if free >= SAVE_PATH_FRAME_NUMBER_CEILING {
-            return Ok(free.saturating_add(1));
-        }
-        free = free.saturating_mul(2).min(SAVE_PATH_FRAME_NUMBER_CEILING);
-    }
-    while free - used > 1 {
-        let mid = used + (free - used) / 2;
-        if taken(mid)? {
-            used = mid;
-        } else {
-            free = mid;
-        }
-    }
-    Ok(free)
 }
 
 /// emit a structured `ExposureAdjusted` progress event
@@ -749,7 +527,7 @@ async fn emit_budget_progress(
     // to dedupe; the loud-fail policy is satisfied because every
     // milestone is recorded, not just the first.
     if budget_met {
-        context.emit_decision(
+        context.run.emit_decision(
             crate::decision::DecisionEvent::new(
                 crate::decision::DecisionCategory::BudgetMet,
                 format!(
@@ -843,17 +621,17 @@ fn notify_exposure_trigger(
         measured.map(|m| format!(": {m}")).unwrap_or_default(),
     );
     tracing::warn!("{}", message);
-    if let Some(event_tx) = &context.event_tx {
+    if let Some(event_tx) = &context.run.event_tx {
         let _ = event_tx.send(crate::executor::ExecutorEvent::TriggerFired {
             trigger_id: trigger_id.to_string(),
             trigger_name: trigger_name.clone(),
-            action: "Notify".to_string(),
+            action: crate::executor::TriggerFiredAction::Notify,
         });
         let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
             message: message.clone(),
         });
     }
-    context.emit_decision(
+    context.run.emit_decision(
         crate::decision::DecisionEvent::new(
             crate::decision::DecisionCategory::TriggerFired,
             EXPOSURE_TRIGGER_NOTIFY_SUMMARY.to_string(),
@@ -882,7 +660,7 @@ pub(crate) async fn check_exposure_triggers(
 
     let current_hfr = result.hfr_values.last().copied();
 
-    let trigger_state_lock = match &context.trigger_state {
+    let trigger_state_lock = match &context.run.trigger_state {
         Some(lock) => lock.clone(),
         None => return,
     };
@@ -892,6 +670,7 @@ pub(crate) async fn check_exposure_triggers(
         // guiding to judge.
         let trigger_state = trigger_state_lock.read().await;
         trigger_state
+            .latches
             .guiding_rms_history
             .as_ref()
             .filter(|_| !trigger_state.guiding.is_unguided())
@@ -942,15 +721,28 @@ pub(crate) async fn check_exposure_triggers(
         let episode_key = format!("{node_id}#{index}");
         if !should_fire {
             context
-                .exposure_trigger_episodes
+                .exposure_triggers
                 .lock()
+                .holding
                 .remove(&episode_key);
             continue;
         }
-        let new_episode = context
-            .exposure_trigger_episodes
-            .lock()
-            .insert(episode_key.clone());
+        let now = context.clock.now_utc();
+        {
+            let mut memory = context.exposure_triggers.lock();
+            let new_episode = memory.holding.insert(episode_key.clone());
+            // The trigger's debounce: after it acts, it stays quiet for
+            // `debounce_secs`, whatever the condition does meanwhile.
+            let quiet = trigger.debounce_secs > 0.0
+                && memory.last_acted.get(&episode_key).is_some_and(|at| {
+                    (now - *at).num_milliseconds() < (trigger.debounce_secs * 1000.0) as i64
+                });
+            let notify_again = !new_episode && matches!(trigger.action, TriggerAction::Notify);
+            if quiet || notify_again {
+                continue;
+            }
+            memory.last_acted.insert(episode_key.clone(), now);
+        }
 
         tracing::warn!(
             "Exposure trigger fired: {:?} - action: {:?}",
@@ -960,16 +752,14 @@ pub(crate) async fn check_exposure_triggers(
 
         match &trigger.action {
             TriggerAction::Notify => {
-                if new_episode {
-                    notify_exposure_trigger(
-                        node_id,
-                        &episode_key,
-                        &trigger.condition,
-                        current_hfr,
-                        latest_guiding_rms,
-                        context,
-                    );
-                }
+                notify_exposure_trigger(
+                    node_id,
+                    &episode_key,
+                    &trigger.condition,
+                    current_hfr,
+                    latest_guiding_rms,
+                    context,
+                );
             }
             TriggerAction::PauseAndRecalibrate => {
                 tracing::info!("Pausing sequence due to exposure trigger");
@@ -1012,26 +802,20 @@ pub(crate) async fn check_exposure_triggers(
                 let inst_ctx = context.to_instruction_context(node_id).await;
                 let progress_cb = context.progress_callback.clone();
                 let progress_node_id = node_id.to_string();
-                let total_steps = af_config.steps_out.saturating_mul(2).saturating_add(1);
-                let progress_fn = move |progress: f64, detail_str: String| {
+                let total_steps = af_config.sweep_point_count();
+                let progress_fn = move |percent: f64, progress: &AutofocusProgress| {
                     if let Some(cb) = progress_cb.as_ref() {
-                        let (step, hfr) = parse_autofocus_detail(&detail_str);
                         cb(ProgressUpdate::instruction_progress(
                             progress_node_id.clone(),
                             "Autofocus",
-                            progress,
-                            ProgressDetail::Autofocus {
-                                step: step.unwrap_or(0),
-                                total_steps,
-                                current_hfr: hfr,
-                            },
+                            percent,
+                            autofocus_detail(progress, total_steps),
                         ));
                     }
                 };
-                let position_before = read_autofocus_position(&inst_ctx).await;
                 let af_result = execute_autofocus(&af_config, &inst_ctx, Some(&progress_fn)).await;
 
-                if autofocus_failure_continues_the_run(&af_result) {
+                if let Some(Setback::FocusNotFound { focuser_before }) = af_result.setback() {
                     // The burst carries on either way; this is a notice, not
                     // an instruction failure, which the app would announce as
                     // a failed sequence.
@@ -1039,7 +823,7 @@ pub(crate) async fn check_exposure_triggers(
                         &inst_ctx,
                         "Exposure-triggered autofocus",
                         &af_result,
-                        position_before,
+                        focuser_before,
                     )
                     .await;
                 } else if af_result.status == NodeStatus::Success {
@@ -1052,7 +836,8 @@ pub(crate) async fn check_exposure_triggers(
                     }
                 } else {
                     let status = af_result
-                        .log_and_get_status_with_context("Exposure-triggered Autofocus", &inst_ctx);
+                        .settle("Exposure-triggered Autofocus", &inst_ctx)
+                        .await;
                     tracing::warn!("Autofocus triggered by exposure failed: {:?}", status);
                 }
             }
@@ -1075,6 +860,17 @@ pub(crate) async fn check_exposure_triggers(
 
 #[cfg(test)]
 mod tests {
+    use crate::frame_naming::{first_free_frame_number, frame_namer, path_segment, BurstNaming};
+
+    fn one_frame() -> crate::frame_naming::FrameToName {
+        crate::frame_naming::FrameToName {
+            index_in_burst: 1,
+            burst_total: 1,
+            started_at: chrono::Utc::now(),
+            sensor_temp_c: None,
+        }
+    }
+
     use super::*;
 
     /// The status line read "Trigger fired: HfrAbove(3.5) - Running autofocus".
@@ -1132,79 +928,6 @@ mod tests {
         );
     }
 
-    // budget x grading coordination.
-    //
-    // The `expose` instruction credits the active target's integration
-    // budget only for frames that passed grading. Rejected frames are
-    // subtracted from the credit so the dashboard's per-filter progress
-    // bar reflects "useful integration", not "shutter-open time".
-    //
-    // We test the coordination by directly exercising BudgetRegistry +
-    // an atomic counter — the same primitives `execute()` uses — so the
-    // test is independent of the camera / FITS-save machinery.
-
-    /// Helper: simulate the per-burst credit logic from `execute()`.
-    /// Returns the actual seconds credited.
-    fn compute_budget_credit_secs(
-        duration_secs: f64,
-        total_count: u32,
-        frames_rejected_before: u32,
-        frames_rejected_after: u32,
-    ) -> f64 {
-        let rejected_in_burst = frames_rejected_after
-            .saturating_sub(frames_rejected_before)
-            .min(total_count);
-        let passed_count = total_count.saturating_sub(rejected_in_burst);
-        duration_secs * f64::from(passed_count)
-    }
-
-    #[test]
-    fn all_frames_pass_credits_full_burst() {
-        // 10 frames × 60s each, 0 rejected → full 600s credit
-        let credit = compute_budget_credit_secs(60.0, 10, 5, 5);
-        assert!(
-            (credit - 600.0).abs() < f64::EPSILON,
-            "expected 600s credit, got {}",
-            credit
-        );
-    }
-
-    #[test]
-    fn partial_burst_rejection_credits_only_passed_frames() {
-        // 10 frames × 60s each, 3 rejected → 7 * 60 = 420s credit
-        let credit = compute_budget_credit_secs(60.0, 10, 12, 15);
-        assert!(
-            (credit - 420.0).abs() < f64::EPSILON,
-            "expected 420s credit (7 passed * 60s), got {}",
-            credit
-        );
-    }
-
-    #[test]
-    fn all_frames_rejected_credits_zero() {
-        // 5 frames × 90s each, all 5 rejected → 0s credit
-        let credit = compute_budget_credit_secs(90.0, 5, 0, 5);
-        assert!(
-            credit.abs() < f64::EPSILON,
-            "expected 0s credit when every frame rejected, got {}",
-            credit
-        );
-    }
-
-    #[test]
-    fn rejected_count_clamped_to_burst_size() {
-        // Defensive: if the atomic delta exceeds the burst total (e.g.
-        // overlapping bursts / counter rollover), the clamp prevents
-        // negative credit. 5-frame burst, atomic delta 8 → all rejected,
-        // 0 credit (not negative).
-        let credit = compute_budget_credit_secs(120.0, 5, 100, 108);
-        assert!(
-            credit.abs() < f64::EPSILON,
-            "expected 0s when delta > total_count (clamped), got {}",
-            credit
-        );
-    }
-
     /// End-to-end through BudgetRegistry: a rejected frame must NOT
     /// increment the budget counter for its filter.
     #[test]
@@ -1226,10 +949,9 @@ mod tests {
             };
             registry.enter_target("m42", Some(budget)).await;
 
-            // Pretend a 10-frame × 60s L burst happened with 3 frames
-            // rejected — `expose::execute` would compute 7 * 60 = 420
-            // seconds and call `record_exposure("L", 420.0)`.
-            let credit_secs = compute_budget_credit_secs(60.0, 10, 0, 3);
+            // A 10-frame × 60 s L burst with 3 frames rejected credits
+            // 7 * 60 = 420 s.
+            let credit_secs = 420.0;
             let state = registry
                 .record_exposure(Some("L"), credit_secs)
                 .await
@@ -1241,17 +963,8 @@ mod tests {
                 state.completed_by_filter.get("L")
             );
 
-            // Pretend a second 10-frame burst, this time ALL rejected.
-            // The expose path takes the "skip record_exposure" branch
-            // entirely (credit == 0.0), so the L counter is unchanged.
-            let credit_secs_2 = compute_budget_credit_secs(60.0, 10, 3, 13);
-            assert!(
-                credit_secs_2.abs() < f64::EPSILON,
-                "all-rejected burst should credit 0s"
-            );
-            // The expose path skips `record_exposure` when the credit
-            // is 0; we mirror that — the test would only call it when
-            // > 0. Re-read state to confirm the counter is still 420.
+            // A second burst with every frame rejected skips
+            // `record_exposure`, so the L counter is unchanged.
             let state2 = registry
                 .state_for("m42")
                 .await
@@ -1356,7 +1069,7 @@ mod tests {
 
     fn renderer_context(root: &std::path::Path) -> ExecutionContext {
         let mut ctx = ExecutionContext::new_for_test("expose-names".to_string());
-        ctx.save_path = Some(root.to_path_buf());
+        ctx.run.rig.save_path = Some(root.to_path_buf());
         ctx.target_name = Some("NGC0891".to_string());
         ctx.current_filter = Some("L".to_string());
         ctx
@@ -1382,9 +1095,9 @@ mod tests {
     fn the_default_save_path_is_a_folder_for_the_target() {
         let root = scratch_root();
         let ctx = renderer_context(&root);
-        let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
+        let render = frame_namer(&ctx, BurstNaming::of(&light_burst(1), 1.0)).unwrap();
 
-        let (dir, name) = render(1, 1).unwrap();
+        let (dir, name) = render(&one_frame()).unwrap();
 
         assert_eq!(dir, root.join("NGC0891"));
         assert_eq!(name, "NGC0891_L_0001.fits");
@@ -1400,8 +1113,8 @@ mod tests {
         let ctx = renderer_context(&root);
         let mut names = Vec::new();
         for _visit in 0..3 {
-            let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
-            let (dir, name) = render(1, 1).unwrap();
+            let render = frame_namer(&ctx, BurstNaming::of(&light_burst(1), 1.0)).unwrap();
+            let (dir, name) = render(&one_frame()).unwrap();
             std::fs::write(dir.join(&name), b"").unwrap();
             names.push(name);
         }
@@ -1426,9 +1139,9 @@ mod tests {
         std::fs::create_dir_all(target_dir.join("Reject")).unwrap();
         std::fs::write(target_dir.join("NGC0891_L_0001.fits"), b"").unwrap();
         std::fs::write(target_dir.join("Reject").join("NGC0891_L_0002.fits"), b"").unwrap();
-        let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
+        let render = frame_namer(&ctx, BurstNaming::of(&light_burst(1), 1.0)).unwrap();
 
-        let (_, name) = render(1, 1).unwrap();
+        let (_, name) = render(&one_frame()).unwrap();
 
         assert_eq!(name, "NGC0891_L_0003.fits");
         let _ = std::fs::remove_dir_all(&root);
@@ -1442,9 +1155,9 @@ mod tests {
         std::fs::create_dir_all(root.join("NGC0891")).unwrap();
         std::fs::write(root.join("NGC0891").join("NGC0891_L_0001.fits"), b"").unwrap();
         ctx.current_filter = Some("R".to_string());
-        let render = build_save_path_renderer(&ctx, &light_burst(1), 1.0).unwrap();
+        let render = frame_namer(&ctx, BurstNaming::of(&light_burst(1), 1.0)).unwrap();
 
-        let (_, name) = render(1, 1).unwrap();
+        let (_, name) = render(&one_frame()).unwrap();
 
         assert_eq!(name, "NGC0891_R_0001.fits");
         let _ = std::fs::remove_dir_all(&root);
@@ -1474,13 +1187,13 @@ mod tests {
     #[tokio::test]
     async fn exposure_with_no_save_location_fails_instead_of_discarding_frames() {
         let mut ctx = ExecutionContext::new_for_test("expose-nosave".to_string());
-        ctx.camera_id = Some("sim_camera_1".to_string());
-        ctx.save_path = None;
+        ctx.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx.run.rig.save_path = None;
 
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
             duration_secs: 0.01,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..Default::default()
         });
 
@@ -1502,13 +1215,13 @@ mod tests {
     async fn exposure_with_an_absolute_save_to_runs_without_a_base_path() {
         let dir = std::env::temp_dir().join(format!("sk-expose-abs-{}", uuid::Uuid::new_v4()));
         let mut ctx = ExecutionContext::new_for_test("expose-abs".to_string());
-        ctx.camera_id = Some("sim_camera_1".to_string());
-        ctx.save_path = None;
+        ctx.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx.run.rig.save_path = None;
 
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
             duration_secs: 0.01,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             save_to: Some(format!("{}/${{frame:04}}.fits", dir.display())),
             ..Default::default()
         });
@@ -1535,33 +1248,33 @@ mod tests {
     async fn calibration_frames_do_not_advance_the_frame_cadence() {
         let dir = std::env::temp_dir().join(format!("sk-expose-cadence-{}", uuid::Uuid::new_v4()));
         let mut ctx = ExecutionContext::new_for_test("expose-cadence".to_string());
-        ctx.camera_id = Some("sim_camera_1".to_string());
-        ctx.save_path = Some(dir.clone());
+        ctx.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx.run.rig.save_path = Some(dir.clone());
         let trigger_state = std::sync::Arc::new(tokio::sync::RwLock::new(
             crate::triggers::TriggerState::default(),
         ));
-        ctx.trigger_state = Some(trigger_state.clone());
+        ctx.run.trigger_state = Some(trigger_state.clone());
 
         let burst = |frame_type: &str, count: u32| {
             NodeType::TakeExposure(crate::ExposureConfig {
                 count,
                 duration_secs: 0.01,
-                frame_type: frame_type.to_string(),
+                frame_type: crate::FrameType::from_name(frame_type).expect("a frame type"),
                 dither_every: Some(0),
                 ..Default::default()
             })
         };
         let dark = ExposeInstruction
-            .execute("expose-dark", &burst("dark", 3), &mut ctx)
+            .execute("expose-dark", &burst("Dark", 3), &mut ctx)
             .await;
         let bias = ExposeInstruction
-            .execute("expose-bias", &burst("bias", 2), &mut ctx)
+            .execute("expose-bias", &burst("Bias", 2), &mut ctx)
             .await;
-        let after_calibration = trigger_state.read().await.completed_exposures;
+        let after_calibration = trigger_state.read().await.latches.completed_exposures;
         let light = ExposeInstruction
-            .execute("expose-light", &burst("light", 2), &mut ctx)
+            .execute("expose-light", &burst("Light", 2), &mut ctx)
             .await;
-        let after_light = trigger_state.read().await.completed_exposures;
+        let after_light = trigger_state.read().await.latches.completed_exposures;
         let _ = std::fs::remove_dir_all(&dir);
 
         assert_eq!(
@@ -1586,15 +1299,15 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("temp dir");
 
         let mut ctx_a = ExecutionContext::new_for_test("expose-a".to_string());
-        ctx_a.camera_id = Some("sim_camera_1".to_string());
-        ctx_a.save_path = Some(dir.clone());
+        ctx_a.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx_a.run.rig.save_path = Some(dir.clone());
         let mut ctx_b = ctx_a.clone();
         ctx_b.node_id = "expose-b".to_string();
 
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
             duration_secs: 0.4,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..Default::default()
         });
         let node_type_b = node_type.clone();
@@ -1624,6 +1337,99 @@ mod tests {
         );
     }
 
+    /// Two bursts naming frames at once (a second camera in a Parallel
+    /// branch) get two names: a name handed out and not yet written is taken.
+    #[test]
+    fn a_name_handed_out_is_not_handed_out_again() {
+        let dir = std::env::temp_dir().join(format!("sk-expose-claim-{}", uuid::Uuid::new_v4()));
+        let mut ctx_a = ExecutionContext::new_for_test("expose-a".to_string());
+        ctx_a.run.rig.save_path = Some(dir.clone());
+        let mut ctx_b = ctx_a.clone();
+        ctx_b.run.rig.camera_id = Some("sim_camera_2".to_string());
+        let dark = crate::ExposureConfig {
+            frame_type: crate::FrameType::Dark,
+            ..Default::default()
+        };
+        let camera_a = frame_namer(&ctx_a, BurstNaming::of(&dark, 1.0)).unwrap();
+        let camera_b = frame_namer(&ctx_b, BurstNaming::of(&dark, 1.0)).unwrap();
+        let first = camera_a(&one_frame()).unwrap();
+        let second = camera_b(&one_frame()).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(first.1, "Dark_nofilter_0001.fits");
+        assert_eq!(second.1, "Dark_nofilter_0002.fits");
+    }
+
+    /// A template without a frame number gives a taken name a suffix rather
+    /// than writing over it.
+    #[test]
+    fn a_template_without_a_number_suffixes_a_taken_name() {
+        let dir = std::env::temp_dir().join(format!("sk-expose-sfx-{}", uuid::Uuid::new_v4()));
+        let mut ctx = ExecutionContext::new_for_test("expose-sfx".to_string());
+        ctx.run.rig.save_path = Some(dir.clone());
+        ctx.target_name = Some("M42".to_string());
+        let config = crate::ExposureConfig {
+            save_to: Some("${target.name}".into()),
+            ..Default::default()
+        };
+        let render = frame_namer(&ctx, BurstNaming::of(&config, 1.0)).unwrap();
+        let first = render(&one_frame()).unwrap();
+        let second = render(&one_frame()).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(first.1, "M42.fits");
+        assert_eq!(second.1, "M42_001.fits");
+    }
+
+    /// The app's naming pattern and a run's save template keep a value in
+    /// one path segment by one rule.
+    #[test]
+    fn a_value_becomes_one_path_segment_as_the_app_makes_it() {
+        let fixture = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/path_segment/cases.json"
+        ))
+        .expect("fixture");
+        let cases: serde_json::Value = serde_json::from_str(&fixture).expect("json");
+        for case in cases["cases"].as_array().expect("cases") {
+            let value = case["value"].as_str().expect("value");
+            assert_eq!(
+                path_segment(value),
+                case["segment"].as_str().expect("segment"),
+                "{value:?}"
+            );
+        }
+    }
+
+    /// A frame's name carries the time its shutter opened and the sensor
+    /// temperature it reported, and a target name is one folder.
+    #[tokio::test]
+    async fn a_frame_is_named_from_its_own_time_and_temperature() {
+        let dir = std::env::temp_dir().join(format!("sk-expose-name-{}", uuid::Uuid::new_v4()));
+        let mut ctx = ExecutionContext::new_for_test("expose-name".to_string());
+        ctx.run.rig.save_path = Some(dir.clone());
+        ctx.target_name = Some("M31/Ha".to_string());
+        let config = crate::ExposureConfig {
+            save_to: Some(
+                "${target.name}/${time.date}_${time.clock}_${camera.temp_c:.0f}C_${frame:04}"
+                    .into(),
+            ),
+            ..Default::default()
+        };
+        let render = frame_namer(&ctx, BurstNaming::of(&config, 60.0)).unwrap();
+        let started_at = chrono::TimeZone::with_ymd_and_hms(&chrono::Utc, 2026, 11, 13, 1, 2, 3)
+            .single()
+            .unwrap();
+        let (dir_out, name) = render(&crate::frame_naming::FrameToName {
+            index_in_burst: 1,
+            burst_total: 1,
+            started_at,
+            sensor_temp_c: Some(-9.6),
+        })
+        .unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(dir_out, dir.join("M31_Ha"));
+        assert_eq!(name, "2026-11-13_01-02-03_-10C_0001.fits");
+    }
+
     /// Two different cameras must still expose in parallel — the lock is
     /// per-device, not global.
     #[tokio::test]
@@ -1632,16 +1438,16 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("temp dir");
 
         let mut ctx_a = ExecutionContext::new_for_test("expose-a".to_string());
-        ctx_a.camera_id = Some("sim_camera_1".to_string());
-        ctx_a.save_path = Some(dir.clone());
+        ctx_a.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx_a.run.rig.save_path = Some(dir.clone());
         let mut ctx_b = ctx_a.clone();
         ctx_b.node_id = "expose-b".to_string();
-        ctx_b.camera_id = Some("sim_camera_2".to_string());
+        ctx_b.run.rig.camera_id = Some("sim_camera_2".to_string());
 
         let node_type = NodeType::TakeExposure(crate::ExposureConfig {
             count: 1,
             duration_secs: 0.4,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..Default::default()
         });
         let node_type_b = node_type.clone();
@@ -1668,6 +1474,95 @@ mod tests {
             elapsed < std::time::Duration::from_millis(700),
             "separate cameras must still expose concurrently; took {elapsed:?}"
         );
+    }
+
+    /// A burst credits its target's budget with its own frames that passed.
+    /// Counting this burst's rejects as the change in the run's rejected
+    /// count across it charged it for frames rejected elsewhere meanwhile (a
+    /// Parallel branch, a second camera).
+    #[tokio::test]
+    async fn a_frame_rejected_elsewhere_during_a_burst_does_not_cost_its_budget_credit() {
+        let dir = std::env::temp_dir().join(format!("sk-expose-budget-{}", uuid::Uuid::new_v4()));
+        let mut ctx = ExecutionContext::new_for_test("expose-budget".to_string());
+        ctx.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx.current_filter = Some("L".to_string());
+        let budget = crate::IntegrationBudget {
+            total_secs: 3600.0,
+            ..crate::IntegrationBudget::default()
+        };
+        ctx.budget_registry.enter_target("m42", Some(budget)).await;
+        let rejected_elsewhere = ctx.run.grading.frames_rejected.clone();
+        ctx.progress_callback = Some(std::sync::Arc::new(move |update: ProgressUpdate| {
+            if update.current_frame.is_some() {
+                rejected_elsewhere.fetch_add(1, Ordering::Relaxed);
+            }
+        }));
+
+        let node_type = NodeType::TakeExposure(crate::ExposureConfig {
+            count: 3,
+            duration_secs: 0.01,
+            frame_type: crate::FrameType::Light,
+            save_to: Some(format!("{}/${{frame:04}}.fits", dir.display())),
+            dither_every: Some(0),
+            ..Default::default()
+        });
+        let status = ExposeInstruction
+            .execute("expose-budget", &node_type, &mut ctx)
+            .await;
+        let state = ctx.budget_registry.state_for("m42").await;
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert_eq!(status, NodeStatus::Success);
+        let credited = state
+            .and_then(|state| state.completed_by_filter.get("L").copied())
+            .unwrap_or(0.0);
+        assert!(
+            (credited - 0.03).abs() < 1e-9,
+            "three passed frames of 0.01 s, credited {credited} s"
+        );
+    }
+
+    /// A snapshot or a dark under a target is not part of the target's data,
+    /// so it does not count toward the target's integration goal. Both did.
+    #[tokio::test]
+    async fn only_lights_count_toward_the_targets_integration_goal() {
+        for (frame_type, credited_secs) in [
+            (crate::FrameType::Light, 0.02),
+            (crate::FrameType::Snapshot, 0.0),
+            (crate::FrameType::Dark, 0.0),
+        ] {
+            let dir = std::env::temp_dir().join(format!("sk-expose-goal-{}", uuid::Uuid::new_v4()));
+            let mut ctx = ExecutionContext::new_for_test("expose-goal".to_string());
+            ctx.run.rig.camera_id = Some("sim_camera_1".to_string());
+            ctx.current_filter = Some("L".to_string());
+            let budget = crate::IntegrationBudget {
+                total_secs: 3600.0,
+                ..crate::IntegrationBudget::default()
+            };
+            ctx.budget_registry.enter_target("m42", Some(budget)).await;
+            let node_type = NodeType::TakeExposure(crate::ExposureConfig {
+                count: 2,
+                duration_secs: 0.01,
+                frame_type,
+                save_to: Some(format!("{}/${{frame:04}}.fits", dir.display())),
+                dither_every: Some(0),
+                ..Default::default()
+            });
+            let status = ExposeInstruction
+                .execute("expose-goal", &node_type, &mut ctx)
+                .await;
+            let state = ctx.budget_registry.state_for("m42").await;
+            let _ = std::fs::remove_dir_all(&dir);
+
+            assert_eq!(status, NodeStatus::Success, "{frame_type:?}");
+            let credited = state
+                .and_then(|state| state.completed_by_filter.get("L").copied())
+                .unwrap_or(0.0);
+            assert!(
+                (credited - credited_secs).abs() < 1e-9,
+                "{frame_type:?}: credited {credited} s"
+            );
+        }
     }
 
     #[test]
@@ -1734,34 +1629,5 @@ mod tests {
             }
             other => panic!("unexpected R detail: {:?}", other),
         }
-    }
-}
-
-#[cfg(test)]
-mod calibration_label_tests {
-    use super::calibration_target_label;
-
-    /// A darks/bias sequence with no TargetHeader must not abort on frame 1 with
-    /// "Variable `${target.name}` cannot be resolved: no active target": the
-    /// default filename template requires a target that a calibration frame
-    /// cannot have, so those frames get a stand-in target name.
-    #[test]
-    fn calibration_frames_get_a_stand_in_target_name() {
-        assert_eq!(calibration_target_label("dark").as_deref(), Some("Dark"));
-        assert_eq!(calibration_target_label("BIAS").as_deref(), Some("Bias"));
-        assert_eq!(calibration_target_label(" flat ").as_deref(), Some("Flat"));
-        assert_eq!(
-            calibration_target_label("darkflat").as_deref(),
-            Some("DarkFlat")
-        );
-    }
-
-    /// On-sky frames must NOT get one: mislabelling science data with an invented
-    /// target is worse than refusing to name the file.
-    #[test]
-    fn on_sky_frames_get_no_substitute() {
-        assert!(calibration_target_label("light").is_none());
-        assert!(calibration_target_label("Light").is_none());
-        assert!(calibration_target_label("snapshot").is_none());
     }
 }

@@ -33,13 +33,17 @@
 
 use super::*;
 use crate::device_ops::{
-    park_and_close_safe_state, DeviceOps, DeviceResult, GuidingCalibration, GuidingStatus,
+    park_and_close_safe_state, DeviceResult, ExposureRequest, GuidingCalibration, GuidingStatus,
     ImageData, NullDeviceOps, PlateSolveResult, SharedDeviceOps,
+};
+use crate::device_ops::{
+    CameraOps, ConnectionOps, CoverCalibratorOps, DomeOps, FrameStoreOps, GuiderOps, MountOps,
+    OperatorNotifyOps, PlateSolveOps, SafetyOps, SiteOps,
 };
 use crate::recovery::{AttemptOutcome, RecoveryCause};
 use crate::{Trigger, TriggerManager, TriggerState, TriggerType};
 use async_trait::async_trait;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -138,6 +142,8 @@ pub(crate) struct ScriptedDeviceOps {
     /// Device ids currently reporting "connected". A disconnect removes the id;
     /// `connect_device` (or a scripted auto-reconnect) re-adds it.
     connected: Arc<Mutex<HashSet<String>>>,
+    /// Explicit connection replies, consumed before the live connected set.
+    connection_answers: Mutex<HashMap<String, VecDeque<DeviceResult<bool>>>>,
     /// When true, `connect_device` actually reconnects (re-adds to `connected`).
     /// When false it records the attempt but leaves the device disconnected —
     /// models a dead USB hub that no reconnect can revive (-> exhaustion).
@@ -160,7 +166,7 @@ pub(crate) struct ScriptedDeviceOps {
     /// dome). The hardened safe-state sweep VERIFIES this reaches "Closed", so a
     /// fire-and-forget mock that never updated it would (correctly) be flagged
     /// unsafe. When `close_fails` is set the shutter stays "Open" — the jam case.
-    shutter_state: Arc<Mutex<String>>,
+    pub(crate) shutter_state: Arc<Mutex<String>>,
     /// Mount tracking as the driver reports it. `mount_set_tracking` writes it
     /// and a successful `mount_park` clears it, like a real mount.
     mount_tracking: Arc<AtomicBool>,
@@ -223,6 +229,7 @@ impl ScriptedDeviceOps {
             inner: Arc::new(NullDeviceOps),
             calls: Arc::new(Mutex::new(Vec::new())),
             connected: Arc::new(Mutex::new(HashSet::new())),
+            connection_answers: Mutex::new(HashMap::new()),
             connect_succeeds: Arc::new(AtomicBool::new(true)),
             weather_safe: Arc::new(AtomicBool::new(true)),
             guiding: Arc::new(AtomicBool::new(true)),
@@ -264,7 +271,6 @@ impl ScriptedDeviceOps {
         *self.sim_mount.lock().unwrap() = Some(mount);
     }
 
-    /// The simulated mount as it is now.
     pub(crate) fn sim_mount(&self) -> Option<SimMount> {
         self.sim_mount.lock().unwrap().clone()
     }
@@ -309,120 +315,14 @@ impl ScriptedDeviceOps {
 }
 
 #[async_trait]
-impl DeviceOps for ScriptedDeviceOps {
-    // Scripted, recorded methods
-
-    async fn device_is_connected(&self, device_id: &str) -> DeviceResult<bool> {
-        self.record(format!("device_is_connected:{device_id}"));
-        Ok(self.connected.lock().unwrap().contains(device_id))
-    }
-
-    async fn connect_device(&self, device_id: &str) -> DeviceResult<()> {
-        self.record(format!("connect_device:{device_id}"));
-        if self.connect_succeeds.load(Ordering::SeqCst) {
-            self.set_connected(device_id, true);
-            Ok(())
-        } else {
-            Err(format!("simulated reconnect failure for {device_id}"))
-        }
-    }
-
-    async fn safety_is_safe(&self, _safety_id: Option<&str>) -> DeviceResult<bool> {
-        if self.safety_absent.load(Ordering::SeqCst) {
-            self.record("safety_is_safe->absent");
-            return Err(
-                "No safety monitor or weather device configured for sequencer safety checks"
-                    .to_string(),
-            );
-        }
-        let safe = self.weather_safe.load(Ordering::SeqCst);
-        self.record(format!("safety_is_safe->{safe}"));
-        Ok(safe)
-    }
-
-    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
-        let guiding = self.guiding.load(Ordering::SeqCst);
-        self.record(format!("guider_get_status->{guiding}"));
-        if self.guider_start_count.load(Ordering::SeqCst) > 0 {
-            let drag = *self.guide_drag_deg.lock().unwrap();
-            self.mount_position.lock().unwrap().1 += drag;
-        }
-        Ok(GuidingStatus {
-            is_guiding: guiding,
-            rms_ra: 0.5,
-            rms_dec: 0.4,
-            rms_total: 0.64,
-        })
-    }
-
-    async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
-        self.inner.guider_get_calibration().await
-    }
-
-    async fn guider_note_stop_reason(&self, reason: Option<crate::GuidingStopReason>) {
-        self.record(format!(
-            "guider_stop_reason:{}",
-            reason.map_or("none", |r| r.as_wire())
-        ));
-    }
-
-    async fn guider_start(&self, sp: f64, st: f64, sto: f64) -> DeviceResult<()> {
-        self.record("guider_start");
-        if self.guider_start_fails.load(Ordering::SeqCst) {
-            return Err("simulated guider start failure: no star".to_string());
-        }
-        let n = self.guider_start_count.fetch_add(1, Ordering::SeqCst) + 1;
-        let relock_after = self.relock_after_starts.load(Ordering::SeqCst);
-        if relock_after > 0 && n >= relock_after {
-            // PHD2 re-acquired a star — flip the lock so the post-start poll
-            // sees `is_guiding == true`.
-            self.guiding.store(true, Ordering::SeqCst);
-        }
-        // No real settle wait; keep the inner call for signature parity but it
-        // is a no-op against NullDeviceOps under tokio::time::pause.
-        let _ = (sp, st, sto);
-        Ok(())
-    }
-
-    async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
-        self.record("guider_select_fresh_star");
-        if self.no_guide_star.load(Ordering::SeqCst) {
-            return Err("simulated empty guide frame: no star found".to_string());
-        }
-        Ok(())
-    }
-
-    async fn guider_select_fresh_star_above(
-        &self,
-        floor: crate::GuideStarFloor,
-    ) -> DeviceResult<()> {
-        self.guider_select_fresh_star().await?;
-        match *self.guide_star.lock().unwrap() {
-            Some(star) if !floor.accepts(&star) => Err(format!(
-                "the star measures SNR {:.1}, mass {:.0}, below the floor",
-                star.snr, star.star_mass
-            )),
-            _ => Ok(()),
-        }
-    }
-
-    async fn guider_star_quality(&self) -> DeviceResult<Option<crate::GuideStarQuality>> {
-        Ok(*self.guide_star.lock().unwrap())
-    }
-
-    async fn guider_stop(&self) -> DeviceResult<()> {
-        self.record("guider_stop");
-        self.guider_start_count.store(0, Ordering::SeqCst);
-        Ok(())
-    }
-
+impl MountOps for ScriptedDeviceOps {
     async fn mount_park(&self, mount_id: &str) -> DeviceResult<()> {
         self.record(format!("mount_park:{mount_id}"));
         if self.stuck_at_limit.load(Ordering::SeqCst) {
             return Ok(());
         }
         if self.park_fails.load(Ordering::SeqCst) {
-            Err(format!("simulated park failure for {mount_id}"))
+            Err(format!("simulated park failure for {mount_id}").into())
         } else {
             self.mount_parked.store(true, Ordering::SeqCst);
             self.mount_tracking.store(false, Ordering::SeqCst);
@@ -450,28 +350,6 @@ impl DeviceOps for ScriptedDeviceOps {
             }
         }
         Ok(())
-    }
-
-    async fn cover_calibrator_close_cover(&self, device_id: &str) -> DeviceResult<()> {
-        self.record(format!("cover_close:{device_id}"));
-        if self.close_fails.load(Ordering::SeqCst) {
-            Err(format!("simulated cover-close failure for {device_id}"))
-        } else {
-            Ok(())
-        }
-    }
-
-    async fn dome_close(&self, dome_id: &str) -> DeviceResult<()> {
-        self.record(format!("dome_close:{dome_id}"));
-        if self.close_fails.load(Ordering::SeqCst) {
-            // A jammed shutter: the close fails AND the shutter stays Open, so
-            // the safe-state sweep's verification will (correctly) flag it.
-            Err(format!("simulated dome-close failure for {dome_id}"))
-        } else {
-            // A healthy dome: the shutter actually reaches Closed.
-            *self.shutter_state.lock().unwrap() = "Closed".to_string();
-            Ok(())
-        }
     }
 
     // Delegating methods (kept minimal; only those a scenario might hit)
@@ -545,23 +423,19 @@ impl DeviceOps for ScriptedDeviceOps {
         }
         self.inner.mount_side_of_pier(id).await
     }
-    async fn camera_start_exposure(
-        &self,
-        id: &str,
-        d: f64,
-        g: Option<i32>,
-        o: Option<i32>,
-        bx: i32,
-        by: i32,
-    ) -> DeviceResult<ImageData> {
+}
+
+#[async_trait]
+impl CameraOps for ScriptedDeviceOps {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
         self.exposure_calls.fetch_add(1, Ordering::SeqCst);
         if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
             mount.exposure_while_moving = mount.moving(tokio::time::Instant::now());
         }
         if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
-            return Err(error);
+            return Err(error.into());
         }
-        self.inner.camera_start_exposure(id, d, g, o, bx, by).await
+        self.inner.camera_start_exposure(request).await
     }
     async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
         self.inner.camera_abort_exposure(id).await
@@ -579,44 +453,85 @@ impl DeviceOps for ScriptedDeviceOps {
         }
         self.inner.camera_get_cooler_power(id).await
     }
-    async fn focuser_move_to(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.focuser_move_to(id, p).await
+}
+
+#[async_trait]
+impl GuiderOps for ScriptedDeviceOps {
+    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
+        let guiding = self.guiding.load(Ordering::SeqCst);
+        self.record(format!("guider_get_status->{guiding}"));
+        if self.guider_start_count.load(Ordering::SeqCst) > 0 {
+            let drag = *self.guide_drag_deg.lock().unwrap();
+            self.mount_position.lock().unwrap().1 += drag;
+        }
+        Ok(GuidingStatus {
+            is_guiding: guiding,
+            rms_ra: 0.5,
+            rms_dec: 0.4,
+            rms_total: 0.64,
+        })
     }
-    async fn focuser_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.focuser_get_position(id).await
+
+    async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
+        self.inner.guider_get_calibration().await
     }
-    async fn focuser_is_moving(&self, id: &str) -> DeviceResult<bool> {
-        self.inner.focuser_is_moving(id).await
+
+    async fn guider_note_stop_reason(&self, reason: Option<crate::GuidingStopReason>) {
+        self.record(format!(
+            "guider_stop_reason:{}",
+            reason.map_or("none", |r| r.as_wire())
+        ));
     }
-    async fn focuser_get_temperature(&self, id: &str) -> DeviceResult<Option<f64>> {
-        self.inner.focuser_get_temperature(id).await
+
+    async fn guider_start(&self, sp: f64, st: f64, sto: f64) -> DeviceResult<()> {
+        self.record("guider_start");
+        if self.guider_start_fails.load(Ordering::SeqCst) {
+            return Err("simulated guider start failure: no star".into());
+        }
+        let n = self.guider_start_count.fetch_add(1, Ordering::SeqCst) + 1;
+        let relock_after = self.relock_after_starts.load(Ordering::SeqCst);
+        if relock_after > 0 && n >= relock_after {
+            // PHD2 re-acquired a star — flip the lock so the post-start poll
+            // sees `is_guiding == true`.
+            self.guiding.store(true, Ordering::SeqCst);
+        }
+        // No real settle wait; keep the inner call for signature parity but it
+        // is a no-op against NullDeviceOps under tokio::time::pause.
+        let _ = (sp, st, sto);
+        Ok(())
     }
-    async fn focuser_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.focuser_halt(id).await
+
+    async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
+        self.record("guider_select_fresh_star");
+        if self.no_guide_star.load(Ordering::SeqCst) {
+            return Err("simulated empty guide frame: no star found".into());
+        }
+        Ok(())
     }
-    async fn filterwheel_set_position(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.filterwheel_set_position(id, p).await
+
+    async fn guider_select_fresh_star_above(
+        &self,
+        floor: crate::GuideStarFloor,
+    ) -> DeviceResult<()> {
+        self.guider_select_fresh_star().await?;
+        match *self.guide_star.lock().unwrap() {
+            Some(star) if !floor.accepts(&star) => Err(format!(
+                "the star measures SNR {:.1}, mass {:.0}, below the floor",
+                star.snr, star.star_mass
+            )
+            .into()),
+            _ => Ok(()),
+        }
     }
-    async fn filterwheel_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_get_position(id).await
+
+    async fn guider_star_quality(&self) -> DeviceResult<Option<crate::GuideStarQuality>> {
+        Ok(*self.guide_star.lock().unwrap())
     }
-    async fn filterwheel_get_names(&self, id: &str) -> DeviceResult<Vec<String>> {
-        self.inner.filterwheel_get_names(id).await
-    }
-    async fn filterwheel_set_filter_by_name(&self, id: &str, n: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_set_filter_by_name(id, n).await
-    }
-    async fn rotator_move_to(&self, id: &str, a: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(id, a).await
-    }
-    async fn rotator_move_relative(&self, id: &str, d: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(id, d).await
-    }
-    async fn rotator_get_angle(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(id).await
-    }
-    async fn rotator_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(id).await
+
+    async fn guider_stop(&self) -> DeviceResult<()> {
+        self.record("guider_stop");
+        self.guider_start_count.store(0, Ordering::SeqCst);
+        Ok(())
     }
     async fn guider_dither(
         &self,
@@ -628,62 +543,21 @@ impl DeviceOps for ScriptedDeviceOps {
     ) -> DeviceResult<()> {
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
-    async fn plate_solve(
-        &self,
-        d: &ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<PlateSolveResult> {
-        self.record("plate_solve");
-        if self.plate_solve_fails.load(Ordering::SeqCst) {
-            return Err("no solution: too few stars".to_string());
+}
+
+#[async_trait]
+impl DomeOps for ScriptedDeviceOps {
+    async fn dome_close(&self, dome_id: &str) -> DeviceResult<()> {
+        self.record(format!("dome_close:{dome_id}"));
+        if self.close_fails.load(Ordering::SeqCst) {
+            // A jammed shutter: the close fails AND the shutter stays Open, so
+            // the safe-state sweep's verification will (correctly) flag it.
+            Err(format!("simulated dome-close failure for {dome_id}").into())
+        } else {
+            // A healthy dome: the shutter actually reaches Closed.
+            *self.shutter_state.lock().unwrap() = "Closed".to_string();
+            Ok(())
         }
-        if self
-            .sim_mount
-            .lock()
-            .unwrap()
-            .as_ref()
-            .is_some_and(|mount| mount.exposure_while_moving)
-        {
-            // A frame taken while the mount swings in trails every star.
-            return Err("Only 1 stars found, minimum is 6".to_string());
-        }
-        self.inner.plate_solve(d, ra, dec, s).await
-    }
-    async fn save_fits(
-        &self,
-        d: &ImageData,
-        f: &str,
-        ctx: &crate::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.saved_frames.lock().unwrap().push(f.to_string());
-        self.inner.save_fits(d, f, ctx).await
-    }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        x: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.record(format!("notify:{l}:{m}"));
-        self.inner.send_notification(l, t, m, x).await
-    }
-    fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {
-        self.inner.calculate_altitude(r, d, la, lo)
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        if let Some(location) = *self.observer_location.lock().unwrap() {
-            return Some(location);
-        }
-        self.inner.get_observer_location()
-    }
-    async fn polar_align_update(
-        &self,
-        r: &crate::polar_align::PolarAlignResult,
-    ) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
     }
     async fn dome_open(&self, id: &str) -> DeviceResult<()> {
         self.inner.dome_open(id).await
@@ -694,11 +568,17 @@ impl DeviceOps for ScriptedDeviceOps {
     async fn dome_get_shutter_status(&self, _id: &str) -> DeviceResult<String> {
         Ok(self.shutter_state.lock().unwrap().clone())
     }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(d).await
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(d).await
+}
+
+#[async_trait]
+impl CoverCalibratorOps for ScriptedDeviceOps {
+    async fn cover_calibrator_close_cover(&self, device_id: &str) -> DeviceResult<()> {
+        self.record(format!("cover_close:{device_id}"));
+        if self.close_fails.load(Ordering::SeqCst) {
+            Err(format!("simulated cover-close failure for {device_id}").into())
+        } else {
+            Ok(())
+        }
     }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.inner.cover_calibrator_open_cover(id).await
@@ -725,6 +605,125 @@ impl DeviceOps for ScriptedDeviceOps {
         self.inner.cover_calibrator_get_max_brightness(id).await
     }
 }
+
+#[async_trait]
+impl SafetyOps for ScriptedDeviceOps {
+    async fn safety_is_safe(&self, _safety_id: Option<&str>) -> DeviceResult<bool> {
+        if self.safety_absent.load(Ordering::SeqCst) {
+            self.record("safety_is_safe->absent");
+            return Err(crate::device_ops::DeviceError::NO_SAFETY_DEVICE);
+        }
+        let safe = self.weather_safe.load(Ordering::SeqCst);
+        self.record(format!("safety_is_safe->{safe}"));
+        Ok(safe)
+    }
+}
+
+#[async_trait]
+impl PlateSolveOps for ScriptedDeviceOps {
+    async fn plate_solve(
+        &self,
+        d: &ImageData,
+        ra: Option<f64>,
+        dec: Option<f64>,
+        s: Option<f64>,
+    ) -> DeviceResult<PlateSolveResult> {
+        self.record("plate_solve");
+        if self.plate_solve_fails.load(Ordering::SeqCst) {
+            return Err("no solution: too few stars".into());
+        }
+        if self
+            .sim_mount
+            .lock()
+            .unwrap()
+            .as_ref()
+            .is_some_and(|mount| mount.exposure_while_moving)
+        {
+            // A frame taken while the mount swings in trails every star.
+            return Err("Only 1 stars found, minimum is 6".into());
+        }
+        self.inner.plate_solve(d, ra, dec, s).await
+    }
+}
+
+#[async_trait]
+impl FrameStoreOps for ScriptedDeviceOps {
+    async fn save_fits(
+        &self,
+        d: &ImageData,
+        f: &str,
+        ctx: &crate::scheduling::FrameContext,
+    ) -> DeviceResult<()> {
+        self.saved_frames.lock().unwrap().push(f.to_string());
+        self.inner.save_fits(d, f, ctx).await
+    }
+    async fn measure_light_frame(
+        &self,
+        d: &ImageData,
+    ) -> DeviceResult<crate::device_ops::LightFrameMeasurement> {
+        self.inner.measure_light_frame(d).await
+    }
+}
+
+#[async_trait]
+impl OperatorNotifyOps for ScriptedDeviceOps {
+    async fn send_notification(
+        &self,
+        l: &str,
+        t: &str,
+        m: &str,
+        x: Option<&[String]>,
+    ) -> DeviceResult<()> {
+        self.record(format!("notify:{l}:{m}"));
+        self.inner.send_notification(l, t, m, x).await
+    }
+    async fn polar_align_update(
+        &self,
+        r: &crate::polar_align::PolarAlignResult,
+    ) -> DeviceResult<()> {
+        self.inner.polar_align_update(r).await
+    }
+}
+
+#[async_trait]
+impl ConnectionOps for ScriptedDeviceOps {
+    // Scripted, recorded methods
+
+    async fn device_is_connected(&self, device_id: &str) -> DeviceResult<bool> {
+        self.record(format!("device_is_connected:{device_id}"));
+        if let Some(answer) = self
+            .connection_answers
+            .lock()
+            .unwrap()
+            .get_mut(device_id)
+            .and_then(VecDeque::pop_front)
+        {
+            return answer;
+        }
+        Ok(self.connected.lock().unwrap().contains(device_id))
+    }
+
+    async fn connect_device(&self, device_id: &str) -> DeviceResult<()> {
+        self.record(format!("connect_device:{device_id}"));
+        if self.connect_succeeds.load(Ordering::SeqCst) {
+            self.set_connected(device_id, true);
+            Ok(())
+        } else {
+            Err(format!("simulated reconnect failure for {device_id}").into())
+        }
+    }
+}
+
+impl SiteOps for ScriptedDeviceOps {
+    fn get_observer_location(&self) -> Option<(f64, f64)> {
+        if let Some(location) = *self.observer_location.lock().unwrap() {
+            return Some(location);
+        }
+        self.inner.get_observer_location()
+    }
+}
+
+crate::forward_device_ops!(ScriptedDeviceOps => inner: FocuserOps, FilterWheelOps, RotatorOps);
 
 /// Build a `TriggerManager` whose shared `TriggerState` we can mutate to push a
 /// Dart weather verdict — used by the WeatherUnsafe recovery-gate scenarios.
@@ -774,8 +773,9 @@ async fn scenario1_usb_disconnect_during_exposure_reconnects_and_resumes() {
     let connect_idx = ops_concrete
         .index_of(&format!("connect_device:{cam}"))
         .expect("recovery must actively call connect_device");
-    let verify_idx = ops_concrete
-        .index_of(&format!("device_is_connected:{cam}"))
+    let verify_idx = calls
+        .iter()
+        .rposition(|call| call == &format!("device_is_connected:{cam}"))
         .expect("recovery must verify the reconnect");
     assert!(
         connect_idx < verify_idx,
@@ -783,6 +783,101 @@ async fn scenario1_usb_disconnect_during_exposure_reconnects_and_resumes() {
     );
     // The device is connected again afterwards (the rig is whole, ready to resume).
     assert!(ops_concrete.connected.lock().unwrap().contains(cam));
+}
+
+#[tokio::test]
+async fn recovery_reconnects_a_lost_focuser_without_replacing_the_connected_camera() {
+    let devices = Arc::new(ScriptedDeviceOps::new());
+    let camera = "native:gphoto2:camera";
+    let focuser = "native:zwo:focuser";
+    devices.set_connected(camera, true);
+    devices.set_connected(focuser, false);
+    let ops: SharedDeviceOps = devices.clone();
+    let (manager, _) = manager_with_state().await;
+
+    let outcome = super::run_recovery_attempt(
+        &RecoveryCause::DeviceDisconnected,
+        &ops,
+        None,
+        &[camera.to_string(), focuser.to_string()],
+        &manager,
+    )
+    .await;
+
+    assert_eq!(outcome, AttemptOutcome::Succeeded);
+    assert_eq!(
+        devices.call_count(&format!("connect_device:{camera}")),
+        0,
+        "the connected camera's handle and retained files must stay intact"
+    );
+    assert_eq!(devices.call_count(&format!("connect_device:{focuser}")), 1);
+    assert_eq!(
+        devices.call_count(&format!("device_is_connected:{camera}")),
+        2
+    );
+    assert_eq!(
+        devices.call_count(&format!("device_is_connected:{focuser}")),
+        2
+    );
+    assert!(devices.connected.lock().unwrap().contains(focuser));
+}
+
+#[tokio::test]
+async fn recovery_attempts_reconnect_when_the_initial_connection_query_fails() {
+    let devices = Arc::new(ScriptedDeviceOps::new());
+    let id = "focuser";
+    devices.connection_answers.lock().unwrap().insert(
+        id.to_string(),
+        VecDeque::from([Err("connection query failed".into())]),
+    );
+    let ops: SharedDeviceOps = devices.clone();
+    let (manager, _) = manager_with_state().await;
+    let outcome = super::run_recovery_attempt(
+        &RecoveryCause::DeviceDisconnected,
+        &ops,
+        None,
+        &[id.to_string()],
+        &manager,
+    )
+    .await;
+    assert_eq!(outcome, AttemptOutcome::Succeeded);
+    assert_eq!(
+        devices.calls(),
+        [
+            "device_is_connected:focuser",
+            "connect_device:focuser",
+            "device_is_connected:focuser",
+        ]
+    );
+}
+
+#[tokio::test]
+async fn recovery_verifies_even_a_device_that_was_connected_before_the_attempt() {
+    for final_answer in [Ok(false), Err("connection query failed".into())] {
+        let devices = Arc::new(ScriptedDeviceOps::new());
+        let id = "camera";
+        devices
+            .connection_answers
+            .lock()
+            .unwrap()
+            .insert(id.to_string(), VecDeque::from([Ok(true), final_answer]));
+        let ops: SharedDeviceOps = devices.clone();
+        let (manager, _) = manager_with_state().await;
+        let outcome = super::run_recovery_attempt(
+            &RecoveryCause::DeviceDisconnected,
+            &ops,
+            None,
+            &[id.to_string()],
+            &manager,
+        )
+        .await;
+        assert!(
+            matches!(outcome, AttemptOutcome::Failed { .. }),
+            "{outcome:?}"
+        );
+        assert_eq!(devices.call_count("connect_device:"), 0);
+        assert_eq!(devices.call_count("device_is_connected:"), 2);
+    }
 }
 
 #[tokio::test]
@@ -839,7 +934,7 @@ async fn scenario2_weather_unsafe_trigger_fires_from_hardware_and_from_verdict()
 
     // (a) hardware safety monitor unsafe, no Dart verdict.
     let mut state = TriggerState::new();
-    state.weather_safe = false;
+    state.telemetry.weather_safe = false;
     assert!(
         trigger.check(&state).await,
         "hardware-unsafe must fire WeatherUnsafe"
@@ -847,7 +942,7 @@ async fn scenario2_weather_unsafe_trigger_fires_from_hardware_and_from_verdict()
 
     // (b) hardware safe, Dart verdict unsafe (rig with no safety device).
     let mut state = TriggerState::new();
-    state.weather_safe = true;
+    state.telemetry.weather_safe = true;
     state.update_weather_verdict(Some(true));
     assert!(
         trigger.check(&state).await,
@@ -856,7 +951,7 @@ async fn scenario2_weather_unsafe_trigger_fires_from_hardware_and_from_verdict()
 
     // (c) both clear -> must NOT fire (no false safe-state at the worst time).
     let mut state = TriggerState::new();
-    state.weather_safe = true;
+    state.telemetry.weather_safe = true;
     state.update_weather_verdict(Some(false));
     assert!(
         !trigger.check(&state).await,
@@ -991,7 +1086,7 @@ async fn scenario3_stale_unsafe_verdict_stays_paused_and_warns_never_resumes() {
     // 600s old yet ("overflow when subtracting duration from instant"), so
     // saturate to the oldest representable instant — runner uptime is always
     // well past the 60s staleness window asserted below.
-    state.write().await.weather_verdict_last_update = Some({
+    state.write().await.telemetry.weather_verdict_last_update = Some({
         let now = std::time::Instant::now();
         now.checked_sub(std::time::Duration::from_secs(600))
             .unwrap_or_else(|| {
@@ -1014,7 +1109,7 @@ async fn scenario3_stale_unsafe_verdict_stays_paused_and_warns_never_resumes() {
             "a 600s-old unsafe verdict with a 60s window must read stale"
         );
         assert_eq!(
-            guard.weather_verdict_unsafe,
+            guard.telemetry.weather_verdict_unsafe,
             Some(true),
             "staleness must NOT clear the unsafe verdict"
         );
@@ -1073,7 +1168,7 @@ async fn scenario4_dawn_approaching_fires_and_parks() {
     let mut state = TriggerState::new();
 
     // Dawn 15 min out -> fire.
-    state.dawn_time = Some(now + 15 * 60);
+    state.telemetry.dawn_time = Some(now + 15 * 60);
     assert!(
         trigger.check(&state).await,
         "dawn 15 min away must fire DawnApproaching(30)"
@@ -1089,7 +1184,7 @@ async fn scenario4_dawn_approaching_fires_and_parks() {
         crate::RecoveryAction::ParkAndAbort,
     );
     let mut past = TriggerState::new();
-    past.dawn_time = Some(now - 5 * 60);
+    past.telemetry.dawn_time = Some(now - 5 * 60);
     assert!(
         !trigger2.check(&past).await,
         "after dawn has passed the trigger must not fire through the day"
@@ -1227,8 +1322,8 @@ async fn trigger_manager_with_site() -> Arc<RwLock<TriggerManager>> {
         let guard = manager.read().await;
         let lock = guard.state();
         let mut state = lock.write().await;
-        state.observer_latitude = Some(43.0);
-        state.observer_longitude = Some(-79.0);
+        state.settings.observer_latitude = Some(43.0);
+        state.settings.observer_longitude = Some(-79.0);
     }
     manager
 }
@@ -1302,7 +1397,7 @@ async fn scenario5h_recovery_refuses_a_star_far_fainter_than_the_runs() {
     let manager = trigger_manager_with_site().await;
     {
         let guard = manager.read().await;
-        guard.state().write().await.guide_star_reference = Some(crate::GuideStarQuality {
+        guard.state().write().await.target.guide_star_reference = Some(crate::GuideStarQuality {
             snr: 230.0,
             star_mass: 750_000.0,
         });
@@ -1323,6 +1418,7 @@ async fn scenario5h_recovery_refuses_a_star_far_fainter_than_the_runs() {
     );
     let stall = trigger_state_of(&manager)
         .await
+        .latches
         .guide_recovery
         .expect("the failures are recorded");
     assert_eq!(stall.failed_attempts(), 2);
@@ -1375,13 +1471,21 @@ async fn scenario5j_a_settled_recovery_clears_its_record() {
 
     let failed = super::recover_guide_star(&ops, Some("mount-1"), Some(&manager)).await;
     assert!(matches!(failed, AttemptOutcome::Failed { .. }));
-    assert!(trigger_state_of(&manager).await.guide_recovery.is_some());
+    assert!(trigger_state_of(&manager)
+        .await
+        .latches
+        .guide_recovery
+        .is_some());
 
     ops_concrete.no_guide_star.store(false, Ordering::SeqCst);
     ops_concrete.relock_after_starts.store(1, Ordering::SeqCst);
     let recovered = super::recover_guide_star(&ops, Some("mount-1"), Some(&manager)).await;
     assert_eq!(recovered, AttemptOutcome::Succeeded);
-    assert!(trigger_state_of(&manager).await.guide_recovery.is_none());
+    assert!(trigger_state_of(&manager)
+        .await
+        .latches
+        .guide_recovery
+        .is_none());
 }
 
 // =============================================================================
@@ -1544,20 +1648,18 @@ async fn scenario6c_exhaustion_with_stuck_mount_still_closes_roof_and_reports_un
 /// clones the inline driver captures, so the extracted function mutates the
 /// real state and emits on the real event bus.
 struct EscalationFixture {
-    runtime: Arc<super::StdRwLock<super::RuntimeConfig>>,
-    state: Arc<RwLock<super::ExecutorState>>,
-    progress: Arc<super::StdRwLock<super::SequenceProgress>>,
+    runtime: super::RunConfigStore,
+    run_state: super::RunCell,
     current: Arc<super::StdRwLock<Option<crate::recovery::RecoveryContext>>>,
     is_cancelled: Arc<AtomicBool>,
     gave_up: Arc<AtomicBool>,
-    tx: super::broadcast::Sender<super::ExecutorEvent>,
     rx: super::broadcast::Receiver<super::ExecutorEvent>,
 }
 
 /// Build the fixture. `policy` chooses the disposition (`HoldForOperator` =
 /// PassivePause, `ParkAndClose` = SafeAbandon).
 fn escalation_fixture(policy: super::UnattendedEndPolicy) -> EscalationFixture {
-    let rc = super::RuntimeConfig {
+    let rc = super::RunConfig {
         // Recovery entry stops tracking by default — that is the precondition
         // the restore exists to undo. Keep it on so `stop_tracking == true`.
         recovery: crate::recovery::RecoveryRuntimeConfig {
@@ -1569,13 +1671,11 @@ fn escalation_fixture(policy: super::UnattendedEndPolicy) -> EscalationFixture {
     };
     let (tx, rx) = super::broadcast::channel(64);
     EscalationFixture {
-        runtime: Arc::new(super::StdRwLock::new(rc)),
-        state: Arc::new(RwLock::new(super::ExecutorState::Recovering)),
-        progress: Arc::new(super::StdRwLock::new(super::SequenceProgress::default())),
+        runtime: super::RunConfigStore::new(rc),
+        run_state: super::RunCell::starting_in(tx, super::ExecutorState::Recovering),
         current: Arc::new(super::StdRwLock::new(None)),
         is_cancelled: Arc::new(AtomicBool::new(false)),
         gave_up: Arc::new(AtomicBool::new(false)),
-        tx,
         rx,
     }
 }
@@ -1595,12 +1695,10 @@ async fn scenario7_attended_escalation_restores_tracking_before_pausing() {
 
     let EscalationFixture {
         runtime,
-        state,
-        progress,
+        run_state,
         current,
         is_cancelled,
         gave_up,
-        tx,
         mut rx,
     } = escalation_fixture(super::UnattendedEndPolicy::HoldForOperator);
 
@@ -1630,10 +1728,8 @@ async fn scenario7_attended_escalation_restores_tracking_before_pausing() {
 
     let escalation_state = super::RecoveryEscalationState {
         device_ops: &ops,
-        event_tx: &tx,
+        run_state: &run_state,
         runtime_config: &runtime,
-        state: &state,
-        progress: &progress,
         current_recovery: &current,
         is_cancelled: &is_cancelled,
         gave_up: &gave_up,
@@ -1684,7 +1780,7 @@ async fn scenario7_attended_escalation_restores_tracking_before_pausing() {
 
     // (4) Final state is a resumable Paused (tracking already restored), NOT
     // Failed, and the run was not cancelled/given-up.
-    assert_eq!(*state.read().await, super::ExecutorState::Paused);
+    assert_eq!(run_state.get(), super::ExecutorState::Paused);
     assert!(!is_cancelled.load(Ordering::Relaxed));
     assert!(!gave_up.load(Ordering::Relaxed));
 }
@@ -1700,12 +1796,10 @@ async fn scenario7b_park_and_close_policy_safe_abandons_no_resumable_paused() {
 
     let EscalationFixture {
         runtime,
-        state,
-        progress,
+        run_state,
         current,
         is_cancelled,
         gave_up,
-        tx,
         mut rx,
     } = escalation_fixture(super::UnattendedEndPolicy::ParkAndClose);
 
@@ -1721,10 +1815,8 @@ async fn scenario7b_park_and_close_policy_safe_abandons_no_resumable_paused() {
 
     let escalation_state = super::RecoveryEscalationState {
         device_ops: &ops,
-        event_tx: &tx,
+        run_state: &run_state,
         runtime_config: &runtime,
-        state: &state,
-        progress: &progress,
         current_recovery: &current,
         is_cancelled: &is_cancelled,
         gave_up: &gave_up,
@@ -1741,7 +1833,7 @@ async fn scenario7b_park_and_close_policy_safe_abandons_no_resumable_paused() {
     )
     .await;
 
-    drop(tx);
+    drainer.abort();
     let _ = drainer.await;
 
     let calls = ops_concrete.calls();
@@ -1770,7 +1862,7 @@ async fn scenario7b_park_and_close_policy_safe_abandons_no_resumable_paused() {
     // It must NOT have re-enabled tracking and parked into a resumable Paused —
     // the run is being ABANDONED, not handed back.
     assert_eq!(
-        *state.read().await,
+        run_state.get(),
         super::ExecutorState::Failed,
         "the park-and-close policy must FAIL the run, never leave a resumable Paused"
     );
@@ -1812,12 +1904,10 @@ async fn scenario7c_default_policy_never_parks_on_a_reject_storm() {
 
     let EscalationFixture {
         runtime,
-        state,
-        progress,
+        run_state,
         current,
         is_cancelled,
         gave_up,
-        tx,
         mut rx,
     } = escalation_fixture(super::UnattendedEndPolicy::default());
 
@@ -1833,10 +1923,8 @@ async fn scenario7c_default_policy_never_parks_on_a_reject_storm() {
 
     let escalation_state = super::RecoveryEscalationState {
         device_ops: &ops,
-        event_tx: &tx,
+        run_state: &run_state,
         runtime_config: &runtime,
-        state: &state,
-        progress: &progress,
         current_recovery: &current,
         is_cancelled: &is_cancelled,
         gave_up: &gave_up,
@@ -1855,7 +1943,7 @@ async fn scenario7c_default_policy_never_parks_on_a_reject_storm() {
     )
     .await;
 
-    drop(tx);
+    drainer.abort();
     let _ = drainer.await;
 
     let calls = ops_concrete.calls();
@@ -1883,7 +1971,7 @@ async fn scenario7c_default_policy_never_parks_on_a_reject_storm() {
 
     // Resumable, not terminal.
     assert_eq!(
-        *state.read().await,
+        run_state.get(),
         super::ExecutorState::Paused,
         "the default policy leaves a run the operator can resume"
     );
@@ -1916,14 +2004,14 @@ fn b19_not_yet_tracking_mount_never_self_cancels() {
         let (expected, just_lost) = super::mount_tracking_poll_verdict(
             state.tracking.is_expected(),
             is_tracking,
-            state.mount_is_tracking,
+            state.telemetry.mount_is_tracking,
             state.tracking.is_lost(),
         );
         state.set_mount_tracking_expected(expected);
         if just_lost {
             state.tracking.mark_lost();
         }
-        state.mount_is_tracking = Some(is_tracking);
+        state.telemetry.mount_is_tracking = Some(is_tracking);
         just_lost
     };
 
@@ -2138,16 +2226,24 @@ async fn stopping_during_recovery_is_a_stop_not_a_give_up() {
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     executor.set_dome(Some("dome-1".to_string()));
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 60.0,
-            max_duration_secs: 3600.0,
-            park_and_close_when_recovery_gives_up: true,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 60.0,
+                max_duration_secs: 3600.0,
+                park_and_close_when_recovery_gives_up: true,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
@@ -2225,15 +2321,27 @@ async fn weather_turning_unsafe_during_recovery_is_still_acted_on() {
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
-    executor.set_safety_check_interval_secs(5);
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 600.0,
-            max_duration_secs: 5400.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| config.safety_check_interval_secs = 5)
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 600.0,
+                max_duration_secs: 5400.0,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
@@ -2297,14 +2405,22 @@ pub(crate) async fn start_run_in_guide_star_recovery(
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // A lost guide star holds the run for its recovery only when the operator
     // asked quality problems to stop the run.
-    executor.set_stop_on_quality_problems(true).await;
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs,
-            max_duration_secs: 5400.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs,
+                max_duration_secs: 5400.0,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let executor = start_long_run(executor, ops.clone()).await;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while ops.call_count("guider_get_status") < 2 {
@@ -2352,7 +2468,8 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
         while let Ok(event) = events.try_recv() {
             match event {
                 super::ExecutorEvent::TriggerFired { trigger_id, .. } => fired.push(trigger_id),
-                super::ExecutorEvent::Warning { message } => warnings.push(message),
+                super::ExecutorEvent::Warning { message }
+                | super::ExecutorEvent::NoticedWarning { message, .. } => warnings.push(message),
                 _ => {}
             }
         }
@@ -2361,7 +2478,9 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
     // Long enough for a recovery to have frozen the run, as it did on the rig.
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
     while let Ok(event) = events.try_recv() {
-        if let super::ExecutorEvent::Warning { message } = event {
+        if let super::ExecutorEvent::Warning { message }
+        | super::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -2419,13 +2538,15 @@ async fn a_transparency_drop_with_no_backup_plan_notifies_and_keeps_imaging() {
     wait_for_monitor(&ops).await;
 
     executor
-        .update_trigger_state(|ts| ts.current_transparency = Some(0.3))
+        .update_trigger_state(|ts| ts.telemetry.current_transparency = Some(0.3))
         .await;
     let mut warnings = Vec::new();
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while warnings.is_empty() && tokio::time::Instant::now() < deadline {
         while let Ok(event) = events.try_recv() {
-            if let super::ExecutorEvent::Warning { message } = event {
+            if let super::ExecutorEvent::Warning { message }
+            | super::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 if message.starts_with("Transparency Dropped") {
                     warnings.push(message);
                 }
@@ -2512,14 +2633,22 @@ async fn a_guide_star_give_up_leaves_tracking_on_and_says_nothing_about_it() {
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
-    executor.set_stop_on_quality_problems(true).await;
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 1.0,
-            max_duration_secs: 2.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 1.0,
+                max_duration_secs: 2.0,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -2615,7 +2744,11 @@ async fn start_park_policy_run(
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
     if let Some(policy) = policy {
-        executor.set_park_policy(policy);
+        executor
+            .handle()
+            .update_run_config(|config| config.park_policy = policy)
+            .await
+            .unwrap();
     }
     start_long_run(executor, ops).await
 }
@@ -2629,7 +2762,7 @@ pub(crate) fn parked_or_closed(calls: &[String]) -> bool {
 /// Collect the trigger-fired actions and error messages sent so far.
 pub(crate) fn drain_fired_and_errors(
     events: &mut tokio::sync::broadcast::Receiver<super::ExecutorEvent>,
-) -> (Vec<(String, String)>, Vec<String>) {
+) -> (Vec<(String, super::TriggerFiredAction)>, Vec<String>) {
     let mut fired = Vec::new();
     let mut errors = Vec::new();
     while let Ok(event) = events.try_recv() {
@@ -2691,7 +2824,11 @@ async fn unsafe_weather_holds_without_parking_when_the_operator_turned_parking_o
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     let mut events = executor.subscribe();
-    executor.set_park_policy(WEATHER_OFF);
+    executor
+        .handle()
+        .update_run_config(|config| config.park_policy = WEATHER_OFF)
+        .await
+        .unwrap();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
@@ -2720,7 +2857,8 @@ async fn unsafe_weather_holds_without_parking_when_the_operator_turned_parking_o
     assert!(
         fired
             .iter()
-            .any(|(id, action)| id == "weather_unsafe" && action == "Pause"),
+            .any(|(id, action)| id == "weather_unsafe"
+                && *action == super::TriggerFiredAction::Pause),
         "the fired trigger must say what it did, not ParkAndAbort; fired={fired:?}"
     );
 }
@@ -2754,18 +2892,30 @@ async fn unsafe_weather_during_recovery_does_not_park_when_parking_is_off() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
-    executor.set_park_policy(WEATHER_OFF);
+    executor
+        .handle()
+        .update_run_config(|config| config.park_policy = WEATHER_OFF)
+        .await
+        .unwrap();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     executor.set_dome(Some("dome-1".to_string()));
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 600.0,
-            max_duration_secs: 5400.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 600.0,
+                max_duration_secs: 5400.0,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
     ops.guiding.store(false, Ordering::SeqCst);
@@ -2788,7 +2938,11 @@ async fn turning_weather_parking_off_mid_run_takes_effect() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_park_policy_run(ops.clone(), None).await;
     wait_for_monitor(&ops).await;
-    executor.set_park_policy(WEATHER_OFF);
+    executor
+        .handle()
+        .update_run_config(|config| config.park_policy = WEATHER_OFF)
+        .await
+        .unwrap();
 
     executor.update_weather_verdict(Some(true)).await;
     let _ = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
@@ -2806,7 +2960,7 @@ pub(crate) async fn bring_dawn_near(executor: &super::SequenceExecutor) {
     executor
         .update_trigger_state(|ts| {
             ts.set_observer_location(Some(45.0), Some(-75.0));
-            ts.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
+            ts.telemetry.dawn_time = Some(chrono::Utc::now().timestamp() + 600);
         })
         .await;
 }
@@ -2837,7 +2991,11 @@ async fn dawn_ends_the_run_without_parking_when_the_operator_turned_parking_off(
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     let mut events = executor.subscribe();
-    executor.set_park_policy(DAWN_OFF);
+    executor
+        .handle()
+        .update_run_config(|config| config.park_policy = DAWN_OFF)
+        .await
+        .unwrap();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
@@ -2870,7 +3028,8 @@ async fn dawn_ends_the_run_without_parking_when_the_operator_turned_parking_off(
     assert!(
         fired
             .iter()
-            .any(|(id, action)| id == "dawn_approaching" && action == "Abort"),
+            .any(|(id, action)| id == "dawn_approaching"
+                && *action == super::TriggerFiredAction::Abort),
         "fired={fired:?}"
     );
     assert!(
@@ -2902,7 +3061,11 @@ async fn start_capture_run(
     executor.set_devices(Some("cam-1".to_string()), None, None, None, None);
     executor.set_save_path(Some(dir.clone()));
     if let Some(policy) = policy {
-        executor.set_device_retry_policy(policy);
+        executor
+            .handle()
+            .update_run_config(|config| config.device_retry = policy)
+            .await
+            .unwrap();
     }
     executor.set_device_ops(ops as SharedDeviceOps);
     let mut sequence = SequenceDefinition::new("Retry run".to_string());
@@ -2912,7 +3075,7 @@ async fn start_capture_run(
         node_type: NodeType::TakeExposure(ExposureConfig {
             count: frames,
             duration_secs: 0.0,
-            frame_type: "dark".to_string(),
+            frame_type: crate::FrameType::Dark,
             ..ExposureConfig::default()
         }),
         enabled: true,
@@ -2930,7 +3093,9 @@ fn retry_warnings(
 ) -> Vec<String> {
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let super::ExecutorEvent::Warning { message } = event {
+        if let super::ExecutorEvent::Warning { message }
+        | super::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             if message.contains("Retrying in") {
                 warnings.push(message);
             }
@@ -2951,7 +3116,7 @@ async fn one_failed_download_is_retried_and_the_run_completes() {
     ]);
     let executor = super::SequenceExecutor::new();
     assert_eq!(
-        executor.device_retry_policy(),
+        executor.handle().run_config().device_retry,
         crate::instructions::DeviceRetryPolicy::default(),
         "an executor the app has not configured yet retries 3 times, the setting's default"
     );
@@ -3096,7 +3261,11 @@ async fn recovery_leaves_tracking_on_while_the_mount_slews() {
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
@@ -3136,11 +3305,23 @@ async fn start_weather_run(
 ) -> super::SequenceExecutor {
     ops.safety_absent.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
-    executor.set_safety_fail_mode(crate::SafetyFailMode::FailOpen);
+    executor
+        .handle()
+        .update_run_config(|config| config.safety_fail_mode = crate::SafetyFailMode::FailOpen)
+        .await
+        .unwrap();
     if let Some(policy) = policy {
-        executor.set_park_policy(policy);
+        executor
+            .handle()
+            .update_run_config(|config| config.park_policy = policy)
+            .await
+            .unwrap();
     }
-    executor.set_weather_resume_after_safe_secs(resume_after_secs);
+    executor
+        .handle()
+        .update_run_config(|config| config.weather_resume_after_safe_secs = Some(resume_after_secs))
+        .await
+        .unwrap();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
@@ -3214,7 +3395,8 @@ async fn a_forecast_cloud_holds_and_resumes_and_never_parks() {
     assert!(
         fired
             .iter()
-            .all(|(id, action)| id != "weather_unsafe" || action == "Pause"),
+            .all(|(id, action)| id != "weather_unsafe"
+                || *action == super::TriggerFiredAction::Pause),
         "fired={fired:?}"
     );
     assert_eq!(after, super::ExecutorState::Running, "calls={calls:?}");
@@ -3247,15 +3429,23 @@ async fn a_weather_hold_never_runs_out_and_fails_the_run() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.safety_absent.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
-    executor.set_safety_fail_mode(crate::SafetyFailMode::FailOpen);
+    executor
+        .handle()
+        .update_run_config(|config| config.safety_fail_mode = crate::SafetyFailMode::FailOpen)
+        .await
+        .unwrap();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 1.0,
-            max_duration_secs: 2.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 1.0,
+                max_duration_secs: 2.0,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
 
@@ -3307,10 +3497,9 @@ async fn the_operator_clear_sky_override_resumes_a_held_run_now() {
 async fn a_stale_unsafe_verdict_is_set_aside_under_fail_open() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_weather_run(ops.clone(), Some(WEATHER_OFF), 0).await;
-    executor
-        .runtime_config
-        .write()
-        .weather_verdict_staleness_secs = 30;
+    let mut config = executor.handle().run_config();
+    config.weather_verdict_staleness_secs = 30;
+    executor.handle().apply_run_config(config).await.unwrap();
     let mut events = executor.subscribe();
 
     executor.update_weather_verdict_from(Some(true), true).await;
@@ -3326,7 +3515,9 @@ async fn a_stale_unsafe_verdict_is_set_aside_under_fail_open() {
     let _ = executor.stop().await;
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let super::ExecutorEvent::Warning { message } = event {
+        if let super::ExecutorEvent::Warning { message }
+        | super::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -3359,19 +3550,27 @@ async fn a_cloud_that_loses_the_guide_star_holds_tracking_and_resumes_when_stars
     let mut events = executor.subscribe();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     // The shipped interval is 10 min; the hold looks for the star at least
     // every GUIDE_STAR_RECHECK_SECS. A short interval keeps the test short.
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 3.0,
-            max_duration_secs: 600.0,
-            // Even an operator who asked for tracking to stop during
-            // recovery keeps it for a lost guide star.
-            stop_tracking_during_recovery: true,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 3.0,
+                max_duration_secs: 600.0,
+                // Even an operator who asked for tracking to stop during
+                // recovery keeps it for a lost guide star.
+                stop_tracking_during_recovery: true,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
 
@@ -3457,7 +3656,7 @@ async fn a_calibration_run_is_not_parked_dithered_or_ended_by_the_standard_trigg
             node_type: NodeType::TakeExposure(ExposureConfig {
                 count: 6,
                 duration_secs: 0.0,
-                frame_type: "dark".to_string(),
+                frame_type: crate::FrameType::Dark,
                 dither_every: Some(1),
                 ..ExposureConfig::default()
             }),
@@ -3481,7 +3680,7 @@ async fn a_calibration_run_is_not_parked_dithered_or_ended_by_the_standard_trigg
     executor.update_weather_verdict(Some(true)).await;
     executor
         .update_trigger_state(|ts| {
-            ts.completed_exposures = 50;
+            ts.latches.completed_exposures = 50;
             ts.set_guide_star_lost(true);
         })
         .await;
@@ -3580,7 +3779,7 @@ async fn a_mount_stuck_at_its_limit_is_moved_off_it_and_parked() {
     ops.stuck_at_limit.store(true, Ordering::SeqCst);
     let shared: SharedDeviceOps = ops.clone();
 
-    let result = crate::device_ops::try_park_with_retry(&shared, "mount-1", 1, 0.0).await;
+    let result = crate::device_ops::try_park_with_retry(&*shared, "mount-1", 1, 0.0).await;
     let calls = ops.calls();
 
     assert!(result.success, "{result:?}");
@@ -3607,8 +3806,8 @@ async fn the_plans_park_step_frees_a_mount_stuck_at_its_limit() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.stuck_at_limit.store(true, Ordering::SeqCst);
     let mut ec = crate::node::context::ExecutionContext::new_for_test("park".to_string());
-    ec.device_ops = ops.clone();
-    ec.mount_id = Some("mount-1".to_string());
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.mount_id = Some("mount-1".to_string());
     let ctx = ec.to_instruction_context("park").await;
 
     let result = crate::instructions::execute_park(&ctx).await;
@@ -3633,7 +3832,7 @@ async fn a_mount_that_will_not_move_at_all_is_reported() {
     ops.stuck_at_limit.store(true, Ordering::SeqCst);
     ops.axis_frozen.store(true, Ordering::SeqCst);
     let shared: SharedDeviceOps = ops.clone();
-    let outcome = crate::limit_backoff::back_off_limit(&shared, "mount-1").await;
+    let outcome = crate::limit_backoff::back_off_limit(&*shared, "mount-1", None).await;
     assert!(outcome.is_err(), "{outcome:?}");
 }
 
@@ -3671,11 +3870,10 @@ async fn a_stopped_run_checkpoint_says_stopped_with_its_final_counts() {
     );
 
     // Frames land after that save; the next one is 30 s away.
-    {
-        let mut prog = executor.progress.write();
-        prog.completed_exposures = 7;
-        prog.completed_integration_secs = 70.0;
-    }
+    executor.run_state.update_progress(|progress| {
+        progress.completed_exposures = 7;
+        progress.completed_integration_secs = 70.0;
+    });
     executor.stop().await.expect("stop");
     let state = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
         matches!(

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../backend/roles/host_data/host_records.dart';
 import '../database.dart';
 import '../tables/sequences.dart';
 import '../tables/targets.dart';
@@ -45,7 +46,8 @@ class SequenceSummaryRow {
 
 @DriftAccessor(tables: [Sequences, SequenceNodes, Targets])
 class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$SequencesDaoMixin {
+    with _$SequencesDaoMixin
+    implements SequenceLibrary {
   SequencesDao(super.db);
 
   /// Wire string written into `sequence_nodes.node_type` for target-category
@@ -62,50 +64,44 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
     'SmartExposure',
   };
 
-  /// Get all sequences
-  Future<List<Sequence>> getAllSequences() {
+  Future<List<DbSequence>> getAllSequences() {
     return (select(sequences)
           ..where((s) => s.isTemplate.equals(false))
           ..orderBy([(s) => OrderingTerm.desc(s.updatedAt)]))
         .get();
   }
 
-  /// Watch all sequences
-  Stream<List<Sequence>> watchAllSequences() {
+  @override
+  Stream<List<DbSequence>> watchAllSequences() {
     return (select(sequences)
           ..where((s) => s.isTemplate.equals(false))
           ..orderBy([(s) => OrderingTerm.desc(s.updatedAt)]))
         .watch();
   }
 
-  /// Get all templates
-  Future<List<Sequence>> getAllTemplates() {
+  Future<List<DbSequence>> getAllTemplates() {
     return (select(sequences)
           ..where((s) => s.isTemplate.equals(true))
           ..orderBy([(s) => OrderingTerm.asc(s.name)]))
         .get();
   }
 
-  /// Watch all templates
-  Stream<List<Sequence>> watchAllTemplates() {
+  Stream<List<DbSequence>> watchAllTemplates() {
     return (select(sequences)
           ..where((s) => s.isTemplate.equals(true))
           ..orderBy([(s) => OrderingTerm.asc(s.name)]))
         .watch();
   }
 
-  /// Get sequence by ID
-  Future<Sequence?> getSequenceById(int id) {
+  Future<DbSequence?> getSequenceById(int id) {
     return (select(sequences)..where((s) => s.id.equals(id))).getSingleOrNull();
   }
 
-  /// Create a new sequence
   Future<int> createSequence(SequencesCompanion sequence) {
     return into(sequences).insert(sequence);
   }
 
-  /// Update a sequence
-  Future<bool> updateSequence(Sequence sequence) {
+  Future<bool> updateSequence(DbSequence sequence) {
     return update(sequences).replace(sequence);
   }
 
@@ -221,7 +217,7 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
   /// `targetName` stored in the node's properties JSON (what the catalog/target
   /// actually is) and falls back to the node's display `name` when the
   /// properties are absent or unparseable.
-  String _targetNameOf(SequenceNode node) {
+  String _targetNameOf(DbSequenceNode node) {
     try {
       final decoded = jsonDecode(node.properties);
       if (decoded is Map) {
@@ -237,9 +233,7 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
   /// Delete a sequence and its nodes
   Future<void> deleteSequence(int id) async {
     await transaction(() async {
-      // Delete all nodes
       await (delete(sequenceNodes)..where((n) => n.sequenceId.equals(id))).go();
-      // Delete the sequence
       await (delete(sequences)..where((s) => s.id.equals(id))).go();
     });
   }
@@ -257,19 +251,16 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
     final sourceNodes = await getNodesForSequence(sourceId);
     const uuid = Uuid();
 
-    // Build mapping from old nodeId → new nodeId
     final idMapping = <String, String>{};
     for (final node in sourceNodes) {
       idMapping[node.nodeId] = uuid.v4();
     }
 
-    // Remap rootNodeId
     final newRootNodeId = source.rootNodeId != null
         ? idMapping[source.rootNodeId!] ?? source.rootNodeId
         : null;
 
     return transaction(() async {
-      // Create new sequence with remapped root
       final newId = await into(sequences).insert(
         SequencesCompanion.insert(
           name: newName,
@@ -307,61 +298,50 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  // Node operations
-
-  /// Get all nodes for a sequence
-  Future<List<SequenceNode>> getNodesForSequence(int sequenceId) {
+  Future<List<DbSequenceNode>> getNodesForSequence(int sequenceId) {
     return (select(sequenceNodes)
           ..where((n) => n.sequenceId.equals(sequenceId))
           ..orderBy([(n) => OrderingTerm.asc(n.orderIndex)]))
         .get();
   }
 
-  /// Watch nodes for a sequence
-  Stream<List<SequenceNode>> watchNodesForSequence(int sequenceId) {
+  Stream<List<DbSequenceNode>> watchNodesForSequence(int sequenceId) {
     return (select(sequenceNodes)
           ..where((n) => n.sequenceId.equals(sequenceId))
           ..orderBy([(n) => OrderingTerm.asc(n.orderIndex)]))
         .watch();
   }
 
-  /// Get node by ID
-  Future<SequenceNode?> getNodeById(int id) {
+  Future<DbSequenceNode?> getNodeById(int id) {
     return (select(
       sequenceNodes,
     )..where((n) => n.id.equals(id))).getSingleOrNull();
   }
 
-  /// Get node by UUID
-  Future<SequenceNode?> getNodeByUuid(String nodeId) {
+  Future<DbSequenceNode?> getNodeByUuid(String nodeId) {
     return (select(
       sequenceNodes,
     )..where((n) => n.nodeId.equals(nodeId))).getSingleOrNull();
   }
 
-  /// Create a new node
   Future<int> createNode(SequenceNodesCompanion node) {
     return into(sequenceNodes).insert(node);
   }
 
-  /// Update a node
-  Future<bool> updateNode(SequenceNode node) {
+  Future<bool> updateNode(DbSequenceNode node) {
     return update(sequenceNodes).replace(node);
   }
 
-  /// Delete a node
   Future<int> deleteNode(int id) {
     return (delete(sequenceNodes)..where((n) => n.id.equals(id))).go();
   }
 
-  /// Enable/disable a node
   Future<void> setNodeEnabled(int id, bool enabled) {
     return (update(sequenceNodes)..where((n) => n.id.equals(id))).write(
       SequenceNodesCompanion(isEnabled: Value(enabled)),
     );
   }
 
-  /// Reorder nodes
   Future<void> reorderNodes(int sequenceId, List<String> nodeIds) async {
     await batch((batch) {
       for (var i = 0; i < nodeIds.length; i++) {
@@ -375,8 +355,7 @@ class SequencesDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Get children of a node
-  Future<List<SequenceNode>> getChildNodes(
+  Future<List<DbSequenceNode>> getChildNodes(
     int sequenceId,
     String parentNodeId,
   ) {

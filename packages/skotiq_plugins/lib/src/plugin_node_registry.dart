@@ -28,7 +28,6 @@ class PluginNodeRegistration {
   /// Human-readable plugin name, surfaced in tooltips / palette categories.
   final String pluginName;
 
-  /// The definition the plugin author authored.
   final SequenceNodeDefinition definition;
 
   /// Composite registry key: `"<pluginId>::<definition.id>"`.
@@ -40,7 +39,6 @@ class PluginNodeRegistration {
     required this.definition,
   });
 
-  /// Compose a stable lookup key from a plugin id + node-type id.
   static String composeKey(String pluginId, String nodeTypeId) =>
       '$pluginId::$nodeTypeId';
 
@@ -63,7 +61,6 @@ class PluginNodeRegistration {
 /// only sees pass/fail) and to the run dashboard / log (which surfaces the
 /// optional message).
 class PluginNodeExecutionResult {
-  /// True if the plugin reported success.
   final bool success;
 
   /// Optional structured message — e.g. a Pushover delivery id, a Discord
@@ -72,10 +69,8 @@ class PluginNodeExecutionResult {
 
   const PluginNodeExecutionResult({required this.success, this.message});
 
-  /// Convenience: build a success result with no payload.
   const PluginNodeExecutionResult.ok([this.message]) : success = true;
 
-  /// Convenience: build a failure result with the supplied diagnostic.
   const PluginNodeExecutionResult.failed(this.message) : success = false;
 }
 
@@ -86,7 +81,6 @@ class PluginNodeExecutionResult {
 /// code; declare them via `SequencePlugin.nodeDefinitions` and let the host
 /// scan + register them.
 class PluginNodeRegistry {
-  /// Internal table — composite key -> registration.
   final Map<String, PluginNodeRegistration> _registrations = {};
 
   final StreamController<List<PluginNodeRegistration>> _changes =
@@ -141,10 +135,8 @@ class PluginNodeRegistry {
     _emitChange();
   }
 
-  /// Look up a registration by composite key.
   PluginNodeRegistration? findByKey(String key) => _registrations[key];
 
-  /// Look up a registration by plugin id + node type id.
   PluginNodeRegistration? findDefinition(String pluginId, String nodeTypeId) =>
       _registrations[PluginNodeRegistration.composeKey(pluginId, nodeTypeId)];
 

@@ -13,6 +13,8 @@ library;
 /// cumulative integration time.
 ///
 /// Mirrors the native `CurvePointDto`.
+import '../../utils/json_validation.dart';
+
 class IntegrationCurvePoint {
   /// Number of subs in this weight-ranked prefix (`1..=N`).
   final int n;
@@ -37,10 +39,10 @@ class IntegrationCurvePoint {
   /// than throwing.
   factory IntegrationCurvePoint.fromJson(Map<String, dynamic> json) {
     return IntegrationCurvePoint(
-      n: _asInt(json['n']),
-      snr: _asDouble(json['snr']),
-      fwhm: _asDouble(json['fwhm']),
-      cumulativeIntegrationS: _asDouble(json['cumulativeIntegrationS']),
+      n: lenientInt(json['n']),
+      snr: lenientDouble(json['snr']),
+      fwhm: lenientDouble(json['fwhm']),
+      cumulativeIntegrationS: lenientDouble(json['cumulativeIntegrationS']),
     );
   }
 
@@ -88,9 +90,9 @@ class SubsetRecommendation {
 
   factory SubsetRecommendation.fromJson(Map<String, dynamic> json) {
     return SubsetRecommendation(
-      keepN: _asInt(json['keepN']),
-      keptIndices: _asIntList(json['keptIndices']),
-      predictedSnrGainPct: _asDouble(json['predictedSnrGainPct']),
+      keepN: lenientInt(json['keepN']),
+      keptIndices: lenientIntList(json['keptIndices']),
+      predictedSnrGainPct: lenientDouble(json['predictedSnrGainPct']),
       reason: json['reason'] is String ? json['reason'] as String : '',
     );
   }
@@ -130,7 +132,6 @@ class IntegrationCurve {
   /// The predicted integration curve over the weight-ranked prefixes.
   final List<IntegrationCurvePoint> points;
 
-  /// The keep/cull recommendation.
   final SubsetRecommendation recommendation;
 
   const IntegrationCurve({required this.points, required this.recommendation});
@@ -180,20 +181,6 @@ class IntegrationCurve {
 
   @override
   int get hashCode => Object.hash(Object.hashAll(points), recommendation);
-}
-
-double _asDouble(Object? v) => v is num ? v.toDouble() : 0.0;
-
-int _asInt(Object? v) => v is num ? v.toInt() : 0;
-
-List<int> _asIntList(Object? v) {
-  if (v is List) {
-    return [
-      for (final e in v)
-        if (e is num) e.toInt(),
-    ];
-  }
-  return const [];
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

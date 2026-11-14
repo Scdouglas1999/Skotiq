@@ -1,5 +1,4 @@
 // ignore_for_file: invalid_use_of_protected_member
-// Initialisation, target search, preset and estimate helpers of the quick-start wizard state.
 part of '../quick_start_wizard_dialog.dart';
 
 extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
@@ -9,20 +8,19 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
   /// need a stream subscription; reading once via `ref.read` keeps the
   /// state simple and consistent across the five steps.
   Future<void> _initializeWizard() async {
-    final authority = ref.read(backendProvider);
-    final generation = _authorityGeneration;
     try {
       final settingsFuture = ref.read(appSettingsProvider.future);
       final profilesFuture = ref.read(equipmentProfilesProvider.future);
       final settings = await settingsFuture;
       final profiles = await profilesFuture;
-      if (!_isCurrentAuthority(authority, generation)) return;
+      if (host.isStale) return;
 
       final activeProfile = profiles.activeProfile;
       _initializedProfile = activeProfile;
-      _hasConfiguredFilters = activeProfile?.filterNames.isNotEmpty ?? false;
+      final filters = ref.read(effectiveFiltersProvider);
+      _hasConfiguredFilters = filters.isNotEmpty;
       _applyUserDefaults(settings, activeProfile);
-      _initFilterConfigs(activeProfile?.filterNames ?? const []);
+      _initFilterConfigs(filters);
       _seedScalarControllers();
       setState(() {
         _initializationError = null;
@@ -30,7 +28,7 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
       });
       unawaited(_loadExposureContext());
     } catch (error) {
-      if (!_isCurrentAuthority(authority, generation)) return;
+      if (host.isStale) return;
       setState(() {
         _initializationError = error;
         _initializing = false;
@@ -105,15 +103,13 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
   }
 
   Future<void> _loadExposureContext() async {
-    final backend = ref.read(backendProvider);
-    final generation = _authorityGeneration;
     final SmartNightExposureContext? context;
     try {
       context = await ref.read(smartNightExposureContextProvider.future);
     } catch (_) {
       return;
     }
-    if (!_isCurrentAuthority(backend, generation) || context == null) return;
+    if (host.isStale || context == null) return;
     setState(() {
       _exposureContext = context;
       for (final config in _filterConfigs) {
@@ -180,13 +176,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     return _kWizardBroadbandFallbackSecs; // 2 minutes for broadband
   }
 
-  bool _isCurrentAuthority(SkotiqBackend backend, int generation) =>
-      mounted &&
-      generation == _authorityGeneration &&
-      identical(ref.read(backendProvider), backend);
-
-  // Target search
-
   void _onTargetSearch(String query) {
     _searchDebounce?.cancel();
     final revision = ++_searchRevision;
@@ -229,11 +218,7 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     String query,
     int revision,
   ) async {
-    final authority = ref.read(backendProvider);
-    final generation = _authorityGeneration;
-    bool current() =>
-        revision == _searchRevision &&
-        _isCurrentAuthority(authority, generation);
+    bool current() => revision == _searchRevision && host.isCurrent;
 
     Object? failure;
     var catalog = const <RankedTarget>[];
@@ -246,16 +231,8 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
 
     var library = const <DbTarget>[];
     try {
-      // On a remote-client slave the local targets table is never populated
-      // (targets only arrive over the wire), so the search goes to the host's
-      // `/api/targets/search`; the host searches its own DAO.
-      final backend = ref.read(backendProvider);
-      if (backend is NetworkBackend) {
-        final rows = await backend.searchTargets(query);
-        library = rows.map(DbTarget.fromJson).toList();
-      } else {
-        library = await ref.read(targetsDaoProvider).searchTargets(query);
-      }
+      library =
+          await ref.read(targetLibraryServiceProvider).searchTargets(query);
     } catch (e) {
       failure ??= e;
     }
@@ -307,8 +284,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
   /// object that merely contains the text in one of its identifiers.
   Future<void> _lookUpTargetOnline(String query) async {
     final revision = ++_searchRevision;
-    final authority = ref.read(backendProvider);
-    final generation = _authorityGeneration;
     setState(() {
       _isSearching = true;
       _onlineLookupMessage = null;
@@ -334,13 +309,10 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
       }
     } on TargetNameLookupUnavailable catch (e) {
       message = '"$query" is not in the installed catalog or your library, '
-          'and SIMBAD could not be reached to look it up (${e.message}). '
+          'and the SIMBAD lookup failed. ${e.message} '
           'Enter RA/Dec below instead.';
     }
-    if (revision != _searchRevision ||
-        !_isCurrentAuthority(authority, generation)) {
-      return;
-    }
+    if (revision != _searchRevision || host.isStale) return;
     if (found != null) {
       _selectTarget(found);
       return;
@@ -358,8 +330,8 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     final dropped = _selectedTarget;
     if (dropped == null) return;
     _selectedTarget = null;
-    if (_raController.text == _formatRa(dropped.ra) &&
-        _decController.text == _formatDec(dropped.dec)) {
+    if (_raController.text == CoordinateFormat.raReadout(dropped.ra) &&
+        _decController.text == CoordinateFormat.decReadout(dropped.dec)) {
       _raController.clear();
       _decController.clear();
     }
@@ -371,8 +343,8 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     setState(() {
       _selectedTarget = target;
       _targetNameController.text = target.name;
-      _raController.text = _formatRa(target.ra);
-      _decController.text = _formatDec(target.dec);
+      _raController.text = CoordinateFormat.raReadout(target.ra);
+      _decController.text = CoordinateFormat.decReadout(target.dec);
       _searchResults = [];
       _isSearching = false;
       // The list is collapsing because the user picked something, not
@@ -383,24 +355,11 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     });
   }
 
-  String _formatRa(double raHours) =>
-      CoordinateFormat.ra(raHours, style: SexagesimalStyle.plainLetters);
-
-  String _formatDec(double decDeg) {
-    final sign = decDeg >= 0 ? '+' : '-';
-    final abs = decDeg.abs();
-    final d = abs.floor();
-    final m = ((abs - d) * 60).floor();
-    final s = ((abs - d - m / 60) * 3600).toStringAsFixed(0);
-    return "$sign${d}d $m' $s\"";
-  }
-
   double? _parseRa(String text) {
     // Accept formats: "12.5", "12h 30m 0s", "12:30:00"
     text = text.trim();
     if (text.isEmpty) return null;
 
-    // Try simple decimal
     final decimal = double.tryParse(text);
     if (decimal != null) {
       return decimal.isFinite && decimal >= 0 && decimal < 24 ? decimal : null;
@@ -414,7 +373,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     text = text.trim();
     if (text.isEmpty) return null;
 
-    // Try simple decimal
     final decimal = double.tryParse(text);
     if (decimal != null) {
       return decimal.isFinite && decimal >= -90 && decimal <= 90
@@ -424,8 +382,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
 
     return CoordinateParser.parseDec(text);
   }
-
-  // Preset application
 
   void _applyPreset(_ExposurePreset preset) {
     setState(() {
@@ -511,7 +467,7 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
         activeProfile.id != null &&
         _coolingTemp.isFinite &&
         activeProfile.defaultCoolingTemp != _coolingTemp) {
-      await equipmentProfiles.updateProfile(
+      await equipmentProfiles.saveProfile(
         activeProfile.copyWith(defaultCoolingTemp: _coolingTemp),
       );
     }
@@ -529,8 +485,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
     if (_weatherAbort) features.add('weather safety');
     return '$filterSummary | ${features.join(", ")}';
   }
-
-  // Estimated time calculation
 
   double _estimatedTotalSecs() {
     final enabledFilters = _filterConfigs.where((f) => f.enabled).toList();
@@ -557,7 +511,7 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
 
   /// The wizard's "Estimated Duration" line, prefixed "~" because it is one.
   String _formatDuration(double totalSecs) =>
-      '~${DurationFormat.seconds(totalSecs, style: DurationStyle.compact, roundToMinute: true)}';
+      '~${DurationFormat.seconds(totalSecs, style: DurationStyle.coarse, roundToMinute: true)}';
 
   /// Per-iteration dither-settle estimate used by the duration preview.
   /// Reads the user's Sequencer-Defaults settle time so the wizard's
@@ -569,8 +523,6 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
         ? sequencerDefaults.ditherSettleTime
         : _kWizardDitherSettleSecondsFallback;
   }
-
-  // Validation
 
   bool _canAdvance() {
     switch (_currentStep) {

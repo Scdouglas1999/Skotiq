@@ -3,16 +3,20 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/database/database.dart'
-    hide Sequence, SequenceNode;
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
+import 'package:skotiq_core/src/models/site/altitude_floor.dart';
+import 'package:skotiq_core/src/models/site/site_horizon_profile.dart';
+import 'package:skotiq_core/src/models/site/learned_obstruction.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
+import 'package:skotiq_core/src/providers/scheduler_provider.dart';
 import 'package:skotiq_core/src/services/scheduler/horizon_profile.dart'
     as sched;
 import 'package:skotiq_core/src/providers/sequence/sequence_executor.dart';
 import 'package:skotiq_core/src/providers/sequence/sequencer_defaults.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 /// Forces appSettingsProvider into a known state without spinning up
 /// the real AsyncNotifier (which reads from SQLite).
@@ -30,11 +34,13 @@ ProviderContainer _container({
   required bool ditherEnabled,
   required int ditherEveryFrames,
   AppSettingsState? autofocusSettings,
+  AltitudeFloor? floor,
 }) {
   final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
   final container = ProviderContainer(
     overrides: [
       databaseProvider.overrideWithValue(db),
+      if (floor != null) altitudeFloorProvider.overrideWithValue(floor),
       appSettingsProvider.overrideWith(
         () => _FakeAppSettingsNotifier(
           autofocusSettings ??
@@ -347,6 +353,46 @@ void main() {
       expect(metadata['autofocus_on_filter_change'], 'true');
     });
 
+    // The executor compensates focus during a run with exactly the settings
+    // the idle compensator uses, and only when the operator turned it on.
+    Future<Map<String, String>> runMetadata(AppSettingsState settings) async {
+      final container = _container(
+        autoFocusOnFilterChange: false,
+        autoFocusEveryMinutes: 0,
+        ditherEnabled: false,
+        ditherEveryFrames: 1,
+        autofocusSettings: settings,
+      );
+      await container.read(appSettingsProvider.future);
+      final json = container
+          .read(sequenceExecutorProvider)
+          .sequenceToJsonForTest(_filterThenExposureSequence());
+      return ((jsonDecode(json) as Map<String, dynamic>)['metadata']
+              as Map<String, dynamic>)
+          .cast<String, String>();
+    }
+
+    test('metadata carries temperature compensation when it is on', () async {
+      final metadata = await runMetadata(
+        const AppSettingsState(
+          tempCompensation: true,
+          tempCoefficient: -12.5,
+          tempCompensationMinSteps: 5,
+        ),
+      );
+      expect(jsonDecode(metadata['temperature_compensation']!), {
+        'steps_per_degree': -12.5,
+        'min_steps': 5,
+      });
+    });
+
+    test('metadata has no temperature compensation when it is off', () async {
+      final metadata = await runMetadata(
+        const AppSettingsState(tempCoefficient: -12.5),
+      );
+      expect(metadata.containsKey('temperature_compensation'), isFalse);
+    });
+
     test('per-node dither_every wins over app-setting fallback', () async {
       // The user explicitly set ditherEvery=7 on this exposure; the
       // app-setting default of 3 must NOT override it.
@@ -510,13 +556,15 @@ void main() {
   group('SequenceExecutor._sequenceToJson wire contracts', () {
     Future<Map<String, dynamic>> nodeConfig(
       Sequence sequence,
-      String nodeId,
-    ) async {
+      String nodeId, {
+      AltitudeFloor? floor,
+    }) async {
       final container = _container(
         autoFocusOnFilterChange: false,
         autoFocusEveryMinutes: 0,
         ditherEnabled: false,
         ditherEveryFrames: 0,
+        floor: floor,
       );
       await container.read(appSettingsProvider.future);
       container.read(sequencerDefaultsProvider);
@@ -535,6 +583,56 @@ void main() {
       rootNodeId: node.id,
       nodes: {node.id: node},
     );
+
+    for (final node in <SequenceNode>[
+      TargetSchedulerNode(id: 'scheduler'),
+      LoopNode(
+        id: 'until',
+        conditionType: LoopConditionType.untilAltitude,
+        repeatUntilAltitude: 20,
+      ),
+      LoopNode(
+        id: 'above',
+        conditionType: LoopConditionType.altitudeAbove,
+        repeatUntilAltitude: 20,
+      ),
+    ]) {
+      test(
+        '${node.id} carries learned obstructions and the site minimum',
+        () async {
+          final floor = AltitudeFloor(
+            minimumDeg: 25,
+            horizon: SiteHorizonProfile.fromJson('{}').withLearnedObstructions([
+              LearnedObstructionPoint(
+                azimuthDeg: 90,
+                altitudeDeg: 40,
+                recordedAt: DateTime.utc(2026),
+              ),
+            ]),
+          );
+          expect(floor.followsHorizon, isFalse);
+          final config = await nodeConfig(
+            singleNodeSequence(node),
+            node.id,
+            floor: floor,
+          );
+          final mask = sched.HorizonProfile(
+            name: 'wire',
+            samples: ((config['horizon_profile'] as Map)['samples'] as List)
+                .map(
+                  (sample) => sched.HorizonSample.fromJson(
+                    sample as Map<String, dynamic>,
+                  ),
+                )
+                .toList(),
+          );
+          expect(mask.minAltitudeAt(90), 41);
+          expect(mask.minAltitudeAt(0), 25);
+          expect(mask.minAltitudeAt(84), 41);
+          expect(mask.minAltitudeAt(83.99), closeTo(25, 0.001));
+        },
+      );
+    }
 
     // The Rust executor compares every epoch field against
     // Utc::now().timestamp() — Unix SECONDS. Milliseconds on the wire made

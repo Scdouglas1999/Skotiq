@@ -228,7 +228,6 @@ class FramingSkyProjection {
   /// Dec in degrees the canvas center looks at.
   final double centerDecDegrees;
 
-  /// Current zoom factor.
   final double zoom;
 
   /// Accumulated pan, in logical pixels.

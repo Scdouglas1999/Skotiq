@@ -31,8 +31,8 @@ pub const MIN_MASTER_FRAMES: i64 = 8;
 /// header a re-solved reference might carry later.
 ///
 /// `crpix*` follow the FITS 1-based convention; the CD matrix is degrees per
-/// pixel. Only undistorted TAN projections are representable, which is all
-/// the estimator accepts.
+/// pixel. The geometry is the linear part of the reference's TAN solution
+/// ([`reference_wcs`] says why).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ReferenceGeometry {
@@ -131,21 +131,31 @@ fn numeric(header: &FitsHeader, key: &str) -> Result<f64, String> {
         .ok_or_else(|| format!("DepthLock requires a finite {key} FITS keyword"))
 }
 
-/// The undistorted celestial TAN solution a reference header must carry.
+/// The linear part of the celestial TAN solution a reference header carries:
+/// `CRVAL`, `CRPIX` and the CD matrix, with any SIP polynomials left out.
 ///
-/// SIP terms, non-TAN projections and unstated coordinate systems are refused:
-/// the estimator's aperture geometry is only correct for a plain gnomonic
-/// projection in ICRS (or FK5 at J2000, which is the same frame to far better
-/// than an aperture).
+/// A goal's regions are drawn in the reference's pixels and stored as
+/// tangent-plane rectangles through this map, and every later frame reaches
+/// those pixels through its registration onto the reference, never through
+/// its own solve. Under a linear map a rectangle drawn in pixels is a
+/// rectangle on the tangent plane and back, so the apertures land on exactly
+/// the pixels the operator drew; under the SIP polynomials it would be a
+/// curved quadrilateral that no stored rectangle reproduces. Leaving them
+/// out moves where on the sky the region is said to lie by the distortion at
+/// its position (about a pixel at the corners of an ASTAP solve), not which
+/// pixels are measured.
+///
+/// Other projections and unstated coordinate systems are refused: the
+/// aperture geometry is that of a gnomonic projection in ICRS (or FK5 at
+/// J2000, which is the same frame to far better than an aperture).
 pub fn reference_wcs(header: &FitsHeader) -> Result<SipWcs, String> {
-    if header.get_string("CTYPE1") != Some("RA---TAN")
-        || header.get_string("CTYPE2") != Some("DEC--TAN")
-        || header.get_int("A_ORDER").unwrap_or(0) != 0
-        || header.get_int("B_ORDER").unwrap_or(0) != 0
-        || header.get_int("AP_ORDER").unwrap_or(0) != 0
-        || header.get_int("BP_ORDER").unwrap_or(0) != 0
-    {
-        return Err("DepthLock requires an undistorted celestial TAN reference".into());
+    let projection = |key: &str, tan: &str| {
+        header
+            .get_string(key)
+            .is_some_and(|ctype| ctype == tan || ctype.strip_suffix("-SIP") == Some(tan))
+    };
+    if !projection("CTYPE1", "RA---TAN") || !projection("CTYPE2", "DEC--TAN") {
+        return Err("DepthLock requires a celestial TAN reference".into());
     }
     let system = header
         .get_string("RADESYS")
@@ -155,38 +165,25 @@ pub fn reference_wcs(header: &FitsHeader) -> Result<SipWcs, String> {
     {
         return Err("Reference must explicitly use ICRS or FK5/J2000 coordinates".into());
     }
-    let cd = if header.get_float("CD1_1").is_some() {
-        [
-            numeric(header, "CD1_1")?,
-            numeric(header, "CD1_2")?,
-            numeric(header, "CD2_1")?,
-            numeric(header, "CD2_2")?,
-        ]
+    // Every card of the form the header uses must be present and finite;
+    // nothing is defaulted.
+    let required: &[&str] = if header.get_float("CD1_1").is_some() {
+        &["CD1_1", "CD1_2", "CD2_1", "CD2_2"]
     } else {
-        let x = numeric(header, "CDELT1")?;
-        let y = numeric(header, "CDELT2")?;
-        let angle = numeric(header, "CROTA2")?.to_radians();
-        [
-            x * angle.cos(),
-            -y * angle.sin(),
-            x * angle.sin(),
-            y * angle.cos(),
-        ]
+        &["CDELT1", "CDELT2", "CROTA2"]
     };
-    let wcs = SipWcs::tan_only(
-        numeric(header, "CRVAL1")?,
-        numeric(header, "CRVAL2")?,
-        numeric(header, "CRPIX1")?,
-        numeric(header, "CRPIX2")?,
-        cd[0],
-        cd[1],
-        cd[2],
-        cd[3],
-    );
+    for key in required
+        .iter()
+        .chain(&["CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2"])
+    {
+        numeric(header, key)?;
+    }
+    let wcs = SipWcs::from_header(header)
+        .ok_or("Reference astrometry is singular or outside the supported sky field")?;
     if !wcs.is_invertible() || !(0.0..360.0).contains(&wcs.crval1) || wcs.crval2.abs() > 85.0 {
         return Err("Reference astrometry is singular or outside the supported sky field".into());
     }
-    Ok(wcs)
+    Ok(wcs.cd_only())
 }
 
 /// The WCS of a frame that was registered onto the reference.
@@ -264,24 +261,12 @@ pub fn light_pixels(image: &ImageData) -> Result<Vec<f64>, String> {
         .collect())
 }
 
-/// A master frame as f64, in whichever of Skotiq's two master encodings
+/// A master frame as f64 ADU, in whichever of Skotiq's two master encodings
 /// it was written.
 pub fn master_pixels(image: &ImageData) -> Result<Vec<f64>, String> {
     match image.pixel_type {
-        PixelType::U16 if geometry_ok(image, 2) => Ok(image
-            .data
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|v| f64::from(u16::from_le_bytes(*v)))
-            .collect()),
-        PixelType::F32 if geometry_ok(image, 4) => Ok(image
-            .data
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|v| f64::from(f32::from_le_bytes(*v)))
-            .collect()),
+        PixelType::U16 if geometry_ok(image, 2) => Ok(image.samples_f64()),
+        PixelType::F32 if geometry_ok(image, 4) => Ok(image.samples_f64()),
         _ => Err("Master frames must be monochrome U16 or F32 with matching geometry".into()),
     }
 }
@@ -314,7 +299,7 @@ pub fn calibrate_signed(
     if dark.iter().chain(&flat).any(|v| !v.is_finite()) {
         return Err("Calibration masters contain non-finite pixels".into());
     }
-    let norm = super::median(&flat);
+    let norm = crate::robust_stats::median_of(&flat);
     if !norm.is_finite() || norm <= 0.0 {
         return Err("Flat master has no positive response".into());
     }
@@ -393,12 +378,7 @@ pub fn source_mask(light: &ImageData) -> Result<Vec<bool>, String> {
 fn robust_level_and_noise(pixels: &[f64]) -> (f64, f64) {
     let stride = (pixels.len() / 250_000).max(1);
     let mut sample: Vec<f64> = pixels.iter().copied().step_by(stride).collect();
-    sample.sort_by(f64::total_cmp);
-    let median = sample[sample.len() / 2];
-    let mut deviations: Vec<f64> = sample.iter().map(|v| (v - median).abs()).collect();
-    deviations.sort_by(f64::total_cmp);
-    let mad = deviations[deviations.len() / 2];
-    (median, 1.4826 * mad)
+    crate::robust_stats::median_and_sigma_upper(&mut sample)
 }
 
 /// What identifies one exposure independently of where its file lives or how
@@ -776,11 +756,8 @@ fn neighbour_noise(pixels: &[f64], width: usize) -> f64 {
     if diffs.is_empty() {
         return f64::NAN;
     }
-    diffs.sort_by(f64::total_cmp);
-    let median = diffs[diffs.len() / 2];
-    let mut deviations: Vec<f64> = diffs.iter().map(|d| (d - median).abs()).collect();
-    deviations.sort_by(f64::total_cmp);
-    1.4826 * deviations[deviations.len() / 2] / std::f64::consts::SQRT_2
+    let (_, sigma) = crate::robust_stats::median_and_sigma_upper(&mut diffs);
+    sigma / std::f64::consts::SQRT_2
 }
 
 pub fn suggest_floor(
@@ -804,13 +781,13 @@ pub fn suggest_floor(
     let flat_pixels = master_pixels(flat)?;
     let light_pixels = light_pixels(light)?;
     let dark_noise = neighbour_noise(&dark_pixels, width);
-    let flat_level = super::median(&flat_pixels);
+    let flat_level = crate::robust_stats::median_of(&flat_pixels);
     if !flat_level.is_finite() || flat_level <= 0.0 {
         return Err("Flat master has no positive response".into());
     }
     let flat_relative_noise = neighbour_noise(&flat_pixels, width) / flat_level;
     let (light_level, _) = robust_level_and_noise(&light_pixels);
-    let dark_level = super::median(&dark_pixels);
+    let dark_level = crate::robust_stats::median_of(&dark_pixels);
     let sky = (light_level - dark_level).max(0.0);
     if ![dark_noise, flat_relative_noise, sky]
         .iter()

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:skotiq_core/src/models/weather/weather_models.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/models/site/location_settings.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';
 import 'package:skotiq_core/src/services/weather/cloud_motion_analyzer.dart';
 import 'package:skotiq_core/src/services/weather/weather_radar_service.dart';

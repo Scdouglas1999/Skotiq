@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
+import '../models/equipment/equipment_models.dart'
+    show DeviceConnectionState, DeviceSlotState;
 import '../services/equipment_health_service.dart';
 import 'database_provider.dart';
 import 'device_last_contact_provider.dart';
@@ -80,61 +81,34 @@ final connectedDeviceDescriptorsProvider = Provider<List<DeviceConnectionDescrip
     );
   }
 
-  final mount = ref.watch(mountStateProvider);
-  addBasic(
-    mount.deviceId,
-    mount.deviceName,
-    mount.connectionState,
-    mount.hasError,
-  );
-  final focuser = ref.watch(focuserStateProvider);
-  addBasic(
-    focuser.deviceId,
-    focuser.deviceName,
-    focuser.connectionState,
-    focuser.hasError,
-  );
-  final filterWheel = ref.watch(filterWheelStateProvider);
-  addBasic(
-    filterWheel.deviceId,
-    filterWheel.deviceName,
-    filterWheel.connectionState,
-    filterWheel.hasError,
-  );
-  final rotator = ref.watch(rotatorStateProvider);
-  addBasic(
-    rotator.deviceId,
-    rotator.deviceName,
-    rotator.connectionState,
-    rotator.hasError,
-  );
+  // The connection half of each slot only: telemetry polls (a mount's
+  // position every 2 s) must not recompute the heartbeat list.
+  void addSlot(ProviderBase<DeviceSlotState<Object?>> slot) {
+    final live = ref.watch(
+      slot.select(
+        (s) => (
+          id: s.deviceId,
+          name: s.deviceName,
+          state: s.connectionState,
+          hasError: s.lastError != null,
+        ),
+      ),
+    );
+    addBasic(live.id, live.name, live.state, live.hasError);
+  }
+
+  addSlot(mountStateProvider);
+  addSlot(focuserStateProvider);
+  addSlot(filterWheelStateProvider);
+  addSlot(rotatorStateProvider);
   // The guider and the auxiliary devices were missing entirely, so an errored
   // guider deducted NOTHING from the health score — the observed failure where a
   // profile guider that never came up still rendered "100 - Excellent" in green.
   // Every device the app tracks a connection state for belongs here.
-  final guider = ref.watch(guiderStateProvider);
-  addBasic(
-    guider.deviceId,
-    guider.deviceName,
-    guider.connectionState,
-    guider.hasError,
-  );
-  final dome = ref.watch(domeStateProvider);
-  addBasic(dome.deviceId, dome.deviceName, dome.connectionState, dome.hasError);
-  final weather = ref.watch(weatherStateProvider);
-  addBasic(
-    weather.deviceId,
-    weather.deviceName,
-    weather.connectionState,
-    weather.hasError,
-  );
-  final safetyMonitor = ref.watch(safetyMonitorStateProvider);
-  addBasic(
-    safetyMonitor.deviceId,
-    safetyMonitor.deviceName,
-    safetyMonitor.connectionState,
-    safetyMonitor.hasError,
-  );
+  addSlot(guiderStateProvider);
+  addSlot(domeStateProvider);
+  addSlot(weatherStateProvider);
+  addSlot(safetyMonitorStateProvider);
 
   return descriptors;
 });

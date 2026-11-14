@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../backend/roles/host_data/science_products.dart' show SettingRows;
 import '../../models/focuser_backlash_calibration.dart';
+import '../../settings/setting.dart';
 import '../database.dart';
 import '../tables/settings.dart';
 
@@ -218,10 +220,10 @@ class FocuserBacklashCalibrationRecord {
 
 @DriftAccessor(tables: [AppSettings])
 class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
-    with _$SettingsDaoMixin {
+    with _$SettingsDaoMixin
+    implements SettingRows {
   SettingsDao(super.db);
 
-  /// Get a setting by key
   Future<String?> getSetting(String key) async {
     final result = await (select(
       appSettings,
@@ -229,27 +231,60 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     return result?.value;
   }
 
-  /// Watch a setting by key
   Stream<String?> watchSetting(String key) {
     return (select(appSettings)..where((s) => s.key.equals(key)))
         .watchSingleOrNull()
         .map((s) => s?.value);
   }
 
-  /// Get all settings
+  @override
   Future<Map<String, String>> getAllSettings() async {
     final settings = await select(appSettings).get();
     return {for (var s in settings) s.key: s.value};
   }
 
-  /// Watch all settings
   Stream<Map<String, String>> watchAllSettings() {
     return select(appSettings).watch().map((settings) {
       return {for (var s in settings) s.key: s.value};
     });
   }
 
-  /// Set a setting
+  /// Lay [fields] over the JSON object stored under [key] and store the result,
+  /// in one transaction, so writers that changed different fields of the same
+  /// object keep each other's values. When no object is stored yet (or the row
+  /// is not a JSON object), [fields] are laid over [base]. Returns the stored
+  /// value.
+  Future<String> mergeJsonObjectSetting(
+    String key,
+    Map<String, Object?> fields, {
+    Map<String, Object?> base = const {},
+  }) {
+    return transaction(() async {
+      final merged = mergeJsonObject(await getSetting(key), fields, base: base);
+      await setSetting(key, merged);
+      return merged;
+    });
+  }
+
+  /// [fields] laid over the JSON object in [current], or over [base] when
+  /// [current] is missing or not a JSON object.
+  static String mergeJsonObject(
+    String? current,
+    Map<String, Object?> fields, {
+    Map<String, Object?> base = const {},
+  }) {
+    Map<String, Object?>? existing;
+    if (current != null && current.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(current);
+        if (decoded is Map) existing = Map<String, Object?>.from(decoded);
+      } on FormatException {
+        existing = null;
+      }
+    }
+    return jsonEncode({...(existing ?? base), ...fields});
+  }
+
   Future<void> setSetting(String key, String value) async {
     await into(appSettings).insert(
       AppSettingsCompanion.insert(key: key, value: value),
@@ -263,7 +298,7 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  /// Set multiple settings at once
+  @override
   Future<void> setSettings(Map<String, String> settings) async {
     await batch((batch) {
       for (final entry in settings.entries) {
@@ -282,86 +317,9 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Delete a setting
   Future<int> deleteSetting(String key) {
     return (delete(appSettings)..where((s) => s.key.equals(key))).go();
   }
-
-  // Typed getters for common settings
-
-  Future<String> getTheme() async {
-    return await getSetting('theme') ?? 'dark';
-  }
-
-  Future<void> setTheme(String theme) => setSetting('theme', theme);
-
-  Future<String> getDefaultImageDirectory() async {
-    return getImageOutputDirectory();
-  }
-
-  Future<void> setDefaultImageDirectory(String path) =>
-      setImageOutputDirectory(path);
-
-  /// Canonical capture output path with a read-through for pre-migration DBs.
-  Future<String> getImageOutputDirectory() async {
-    final current = await getSetting('image_output_path');
-    if (current != null && current.trim().isNotEmpty) return current;
-    return await getSetting('default_image_directory') ?? '';
-  }
-
-  /// Write both keys during the compatibility window so all app versions and
-  /// post-session services agree on where masters and captures belong.
-  Future<void> setImageOutputDirectory(String path) =>
-      setSettings({'image_output_path': path, 'default_image_directory': path});
-
-  Future<bool> getAutoConnectEquipment() async {
-    final value = await getSetting('auto_connect_equipment');
-    return value == 'true';
-  }
-
-  Future<void> setAutoConnectEquipment(bool enabled) =>
-      setSetting('auto_connect_equipment', enabled.toString());
-
-  Future<double> getObserverLatitude() async {
-    final value = await getSetting('observer_latitude');
-    return double.tryParse(value ?? '0') ?? 0.0;
-  }
-
-  Future<void> setObserverLatitude(double lat) =>
-      setSetting('observer_latitude', lat.toString());
-
-  Future<double> getObserverLongitude() async {
-    final value = await getSetting('observer_longitude');
-    return double.tryParse(value ?? '0') ?? 0.0;
-  }
-
-  Future<void> setObserverLongitude(double lon) =>
-      setSetting('observer_longitude', lon.toString());
-
-  Future<double> getObserverElevation() async {
-    final value = await getSetting('observer_elevation');
-    return double.tryParse(value ?? '0') ?? 0.0;
-  }
-
-  Future<void> setObserverElevation(double elevation) =>
-      setSetting('observer_elevation', elevation.toString());
-
-  // Auto-stretch settings
-  static const String _autoStretchKey = 'auto_stretch_settings';
-
-  /// Get auto-stretch settings as JSON string
-  Future<String?> getAutoStretchSettings() async {
-    return await getSetting(_autoStretchKey);
-  }
-
-  /// Watch auto-stretch settings
-  Stream<String?> watchAutoStretchSettings() {
-    return watchSetting(_autoStretchKey);
-  }
-
-  /// Save auto-stretch settings as JSON string
-  Future<void> setAutoStretchSettings(String jsonSettings) =>
-      setSetting(_autoStretchKey, jsonSettings);
 
   // Remembered camera sensor geometry ---------------------------------------
   //
@@ -524,5 +482,70 @@ class SettingsDao extends DatabaseAccessor<SkotiqDatabase>
         for (final entry in records.entries) entry.key: entry.value.toJson(),
       }),
     );
+  }
+}
+
+/// Typed access to the rows of declared settings, built on [SettingsDao]'s
+/// key/value calls so it reads and writes through whichever store the DAO
+/// routes a key to (this computer's database or a linked host's).
+extension StoredSettings on SettingsDao {
+  /// The stored value of [setting], or its default when no row holds it.
+  Future<T> read<T>(Setting<T> setting) async =>
+      setting.fromRows(await readRows([setting]), setting.fallback);
+
+  /// The stored rows of [settings], for reading several at once with
+  /// [Setting.fromRows]. A setting with no row has no entry.
+  Future<Map<String, String>> readRows(
+    Iterable<Setting<Object?>> settings,
+  ) async {
+    final rows = <String, String>{};
+    for (final setting in settings) {
+      for (final key in setting.keys) {
+        final value = await getSetting(key);
+        if (value != null) rows[key] = value;
+      }
+    }
+    return rows;
+  }
+
+  /// Store [value] for [setting], held to its bounds.
+  Future<void> write<T>(Setting<T> setting, T value) {
+    final rows = setting.toRows(setting.clean(value));
+    if (rows.length != 1) return setSettings(rows);
+    final row = rows.entries.single;
+    return setSetting(row.key, row.value);
+  }
+
+  /// Store several settings in one write.
+  Future<void> writeAll(Iterable<SettingValue<Object?>> values) =>
+      setSettings({for (final value in values) ...value.rows});
+
+  /// [setting]'s value now and whenever its row changes.
+  Stream<T> watch<T>(Setting<T> setting) => watchSetting(
+    setting.key,
+  ).map((raw) => setting.decode(raw, setting.fallback));
+
+  /// Remove [setting]'s rows, so it reads as its default.
+  Future<void> clear(Setting<Object?> setting) async {
+    for (final key in setting.keys) {
+      await deleteSetting(key);
+    }
+  }
+
+  /// Put [setting]'s rows back as [rows], read earlier with [readRows], held
+  /// them: a row that was not stored then is removed. For undoing a write
+  /// whose other half failed, without reinterpreting what was stored.
+  Future<void> restore(
+    Setting<Object?> setting,
+    Map<String, String> rows,
+  ) async {
+    for (final key in setting.keys) {
+      final value = rows[key];
+      if (value == null) {
+        await deleteSetting(key);
+      } else {
+        await setSetting(key, value);
+      }
+    }
   }
 }

@@ -3,11 +3,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart' show InterpolationVariable;
+import 'package:skotiq_core/models.dart' show InterpolationVariable;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/sequence/variable_picker.dart';
-import '../../accessible_dropdown.dart';
+import 'variable_picker.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 /// Finite upper/lower fallback used when only one of `min`/`max` is supplied to
 /// a numeric field. Clamping against `double.infinity` let pathological values
@@ -263,6 +263,21 @@ class NodeNumberInput extends StatefulWidget {
   /// set, a "Range: min–max" line is synthesised automatically.
   final String? helperText;
 
+  /// Reads what the user typed; a decimal number when null. Coordinate
+  /// fields pass a parser that also takes sexagesimal ("02 42 05").
+  final double? Function(String text)? parse;
+
+  /// Shown in the empty field.
+  final String? hintText;
+
+  /// The value is the equipment profile's default, not one the user set:
+  /// the text is muted and the field is marked "profile".
+  final bool isProfileDefault;
+
+  /// Take focus with the text selected on first build, so a field opened
+  /// for one edit can be typed over at once.
+  final bool autofocus;
+
   const NodeNumberInput({
     super.key,
     required this.colors,
@@ -273,6 +288,10 @@ class NodeNumberInput extends StatefulWidget {
     this.max,
     this.decimals = 0,
     this.helperText,
+    this.parse,
+    this.hintText,
+    this.isProfileDefault = false,
+    this.autofocus = false,
   });
 
   @override
@@ -286,12 +305,25 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
   bool _invalid = false;
   Timer? _debounce;
 
+  /// The typed value waiting for the debounce to commit it.
+  double? _pending;
+
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: _formatValue(widget.value));
     _focusNode = FocusNode();
     _focusNode.addListener(_onFocusChange);
+    if (widget.autofocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _focusNode.requestFocus();
+        _controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _controller.text.length,
+        );
+      });
+    }
   }
 
   String _formatValue(double value) => formatNodeNumber(value, widget.decimals);
@@ -300,12 +332,11 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
     final hadFocus = _hasFocus;
     _hasFocus = _focusNode.hasFocus;
 
-    // When losing focus, flush any pending debounce and snap the field back to
-    // the canonical value format so a half-typed/out-of-range string never
-    // lingers.
+    // Leaving the field commits what was typed and shows it in the canonical
+    // format, so a half-typed or out-of-range string never lingers.
     if (hadFocus && !_hasFocus) {
-      _flushDebounce();
-      final newText = _formatValue(widget.value);
+      final committed = _commitPending();
+      final newText = _formatValue(committed ?? widget.value);
       if (_controller.text != newText) {
         _controller.text = newText;
       }
@@ -313,15 +344,19 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
     }
   }
 
-  void _flushDebounce() {
-    if (_debounce?.isActive ?? false) {
-      _debounce!.cancel();
-    }
+  /// Commits the typed value now instead of when the debounce ends; returns
+  /// it, or null when nothing was waiting.
+  double? _commitPending() {
+    _debounce?.cancel();
     _debounce = null;
+    final value = _pending;
+    _pending = null;
+    if (value != null) widget.onChanged(value);
+    return value;
   }
 
   void _handleChanged(String value) {
-    final parsed = double.tryParse(value);
+    final parsed = (widget.parse ?? double.tryParse)(value);
     if (parsed == null) {
       if (!_invalid) setState(() => _invalid = true);
       return;
@@ -332,9 +367,10 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
     if (_invalid != outOfRange) {
       setState(() => _invalid = outOfRange);
     }
-    _flushDebounce();
+    _debounce?.cancel();
+    _pending = clamped;
     _debounce = Timer(kNumberInputCommitDebounce, () {
-      widget.onChanged(clamped);
+      _commitPending();
       // Reconcile the displayed text when clamping actually changed the value
       // (don't fight the user mid-type otherwise).
       if (outOfRange && mounted && _focusNode.hasFocus) {
@@ -362,7 +398,7 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
 
   @override
   void dispose() {
-    _flushDebounce();
+    _debounce?.cancel();
     _focusNode.removeListener(_onFocusChange);
     _focusNode.dispose();
     _controller.dispose();
@@ -403,7 +439,11 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
             color: widget.colors.surfaceAlt,
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
             border: Border.all(
-              color: _invalid ? widget.colors.error : widget.colors.border,
+              color: _invalid
+                  ? widget.colors.error
+                  : widget.isProfileDefault
+                      ? widget.colors.border.withValues(alpha: 0.5)
+                      : widget.colors.border,
             ),
           ),
           child: Row(
@@ -418,29 +458,45 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
                   ),
                   onChanged: _handleChanged,
                   style: SkotiqTypography.inputMono.copyWith(
-                    color: widget.colors.textPrimary,
+                    color: widget.isProfileDefault
+                        ? widget.colors.textSecondary
+                        : widget.colors.textPrimary,
                   ),
+                  // The unit rides inside the field. As a Flexible beside the
+                  // Expanded field it took half the row, so a 290 px inspector
+                  // showed "02" for an RA of 2.702.
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding:
                         EdgeInsets.symmetric(vertical: inputPaddingV),
+                    suffixText: widget.suffix,
+                    suffixStyle: SkotiqTypography.caption.copyWith(
+                      color: widget.colors.textMuted,
+                    ),
+                    hintText: widget.hintText,
+                    hintStyle: SkotiqTypography.inputMono.copyWith(
+                      color: widget.colors.textMuted,
+                    ),
                   ),
                 ),
               ),
-              // Flexible, not a bare Text: the unit is inflexible content in
-              // a Row whose other child is Expanded, so in a narrow column
-              // (a half-width field in the properties pane) a suffix wider
-              // than the whole box overflowed the row rather than giving way.
-              if (widget.suffix != null)
+              // Flexible, because the properties pane animates from 48 px up
+              // to its width and a fixed marker overflowed the row by a few px
+              // on the frames in between.
+              if (widget.isProfileDefault && widget.hintText != null)
                 Flexible(
-                  child: Text(
-                    widget.suffix!,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: SkotiqTypography.caption.copyWith(
-                      color: widget.colors.textMuted,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      'profile',
+                      maxLines: 1,
+                      overflow: TextOverflow.clip,
+                      softWrap: false,
+                      style: SkotiqTypography.caption.copyWith(
+                        color: widget.colors.textMuted,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
                 ),
@@ -476,188 +532,22 @@ double clampNumberField(double value, double? min, double? max) {
   return value.clamp(lo, hi).toDouble();
 }
 
-class NodeNumberInputWithHint extends StatefulWidget {
-  final SkotiqColors colors;
-  final double value;
-  final ValueChanged<double> onChanged;
-  final double? min;
-  final double? max;
-  final String? hintText;
-  final int decimals;
-
-  /// Whether the current value comes from a profile default rather than
-  /// an explicit user override. When true, the value text is rendered in
-  /// a muted color to visually distinguish it from user-set values.
-  final bool isProfileDefault;
-
-  const NodeNumberInputWithHint({
-    super.key,
-    required this.colors,
-    required this.value,
-    required this.onChanged,
-    this.min,
-    this.max,
-    this.hintText,
-    this.decimals = 0,
-    this.isProfileDefault = false,
-  });
-
-  @override
-  State<NodeNumberInputWithHint> createState() =>
-      _NodeNumberInputWithHintState();
-}
-
-class _NodeNumberInputWithHintState extends State<NodeNumberInputWithHint> {
-  late TextEditingController _controller;
-  late FocusNode _focusNode;
-  bool _hasFocus = false;
-  Timer? _debounce;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: _formatValue(widget.value));
-    _focusNode = FocusNode();
-    _focusNode.addListener(_onFocusChange);
-  }
-
-  String _formatValue(double value) => formatNodeNumber(value, widget.decimals);
-
-  void _flushDebounce() {
-    if (_debounce?.isActive ?? false) {
-      _debounce!.cancel();
-    }
-    _debounce = null;
-  }
-
-  void _onFocusChange() {
-    final hadFocus = _hasFocus;
-    _hasFocus = _focusNode.hasFocus;
-
-    // When losing focus, flush any pending commit and snap to canonical format.
-    if (hadFocus && !_hasFocus) {
-      _flushDebounce();
-      final newText = _formatValue(widget.value);
-      if (_controller.text != newText) {
-        _controller.text = newText;
-      }
-    }
-  }
-
-  void _handleChanged(String value) {
-    final parsed = double.tryParse(value);
-    if (parsed == null) return;
-    final clamped = clampNumberField(parsed, widget.min, widget.max);
-    _flushDebounce();
-    _debounce = Timer(kNumberInputCommitDebounce, () {
-      widget.onChanged(clamped);
-    });
-  }
-
-  @override
-  void didUpdateWidget(NodeNumberInputWithHint oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Only update text if the field doesn't have focus (user isn't typing)
-    if (!_hasFocus && oldWidget.value != widget.value) {
-      final newText = _formatValue(widget.value);
-      if (newText != _controller.text) {
-        _controller.text = newText;
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _flushDebounce();
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // When showing a profile default, use a muted text color to visually
-    // distinguish it from explicitly user-set values.
-    final textColor = widget.isProfileDefault
-        ? widget.colors.textSecondary
-        : widget.colors.textPrimary;
-
-    final inputPaddingH = Responsive.spacing(context, 12);
-    final inputPaddingV = Responsive.spacing(context, 10);
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: inputPaddingH),
-      decoration: BoxDecoration(
-        color: widget.colors.surfaceAlt,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-        border: Border.all(
-          color: widget.isProfileDefault
-              ? widget.colors.border.withValues(alpha: 0.5)
-              : widget.colors.border,
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              keyboardType: TextInputType.numberWithOptions(
-                decimal: widget.decimals > 0,
-                signed: (widget.min ?? 0) < 0,
-              ),
-              onChanged: _handleChanged,
-              style: SkotiqTypography.inputMono.copyWith(
-                color: textColor,
-              ),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: inputPaddingV),
-                hintText: widget.hintText,
-                hintStyle: SkotiqTypography.inputMono.copyWith(
-                  color: widget.colors.textMuted,
-                ),
-              ),
-            ),
-          ),
-          // Show profile indicator when using a profile default. Flexible,
-          // because the properties pane animates from 48 px up to its width
-          // and a fixed suffix overflowed the row by a few px on the frames
-          // in between (caught by the public-screenshot capture).
-          if (widget.isProfileDefault && widget.hintText != null)
-            Flexible(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Text(
-                  'profile',
-                  maxLines: 1,
-                  overflow: TextOverflow.clip,
-                  softWrap: false,
-                  style: SkotiqTypography.caption.copyWith(
-                    color: widget.colors.textMuted,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 class NodeToggleSwitch extends StatelessWidget {
   final SkotiqColors colors;
   final bool value;
   final ValueChanged<bool> onChanged;
+
+  /// The switch's accessible name: the label of the row it sits in. The row's
+  /// text is a separate node, so without it a screen reader or the keyboard
+  /// finds an unnamed toggle.
+  final String? label;
 
   const NodeToggleSwitch({
     super.key,
     required this.colors,
     required this.value,
     required this.onChanged,
+    this.label,
   });
 
   @override
@@ -667,9 +557,12 @@ class NodeToggleSwitch extends StatelessWidget {
     // whole 300 px column — a 200 px switch reads as a progress bar.
     return Align(
       alignment: Alignment.centerRight,
-      child: SkotiqSwitch(
-        value: value,
-        onChanged: onChanged,
+      child: Semantics(
+        label: label,
+        child: SkotiqSwitch(
+          value: value,
+          onChanged: onChanged,
+        ),
       ),
     );
   }

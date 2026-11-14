@@ -5,7 +5,6 @@
 use std::fmt;
 use std::time::Duration;
 
-/// INDI client errors
 #[derive(Debug, Clone)]
 pub enum IndiError {
     /// Connection to INDI server failed
@@ -49,22 +48,24 @@ pub enum IndiError {
     Timeout,
     /// XML parse error
     ParseError(String),
-    /// Property not found
-    PropertyNotFound { device: String, property: String },
+    PropertyNotFound {
+        device: String,
+        property: String,
+    },
     /// Permission denied (attempted to write to read-only property)
     PermissionDenied(String),
     /// Device alert state
     DeviceAlert(String),
-    /// Protocol error
     ProtocolError(String),
     /// Reader task died unexpectedly
     ReaderDied(String),
     /// Send channel closed
     ChannelClosed(String),
-    /// Not connected to server
     NotConnected,
-    /// BLOB format error
-    BlobFormatError { format: String, message: String },
+    BlobFormatError {
+        format: String,
+        message: String,
+    },
     /// Property value out of range
     ValueOutOfRange {
         device: String,
@@ -74,10 +75,23 @@ pub enum IndiError {
         min: f64,
         max: f64,
     },
-    /// Protocol version mismatch
-    VersionMismatch { required: String, server: String },
     /// Reconnection failed after max attempts
-    ReconnectionFailed { attempts: u32, last_error: String },
+    ReconnectionFailed {
+        attempts: u32,
+        last_error: String,
+    },
+    /// The device has not published the value, or has no property that
+    /// offers the control. Holds the whole sentence shown to the user.
+    Unavailable(String),
+    /// An operation the device accepted did not finish: it raised an alert,
+    /// ran past its deadline, or the event stream ended. Holds the whole
+    /// sentence shown to the user.
+    Incomplete(String),
+    /// `what` was started and then failed for `cause`.
+    Failed {
+        what: String,
+        cause: Box<crate::IndiTimeoutError>,
+    },
 }
 
 impl std::error::Error for IndiError {}
@@ -187,13 +201,10 @@ impl fmt::Display for IndiError {
                     value, min, max, device, property, element
                 )
             }
-            IndiError::VersionMismatch { required, server } => {
-                write!(
-                    f,
-                    "Protocol version mismatch: required {}, server {}",
-                    required, server
-                )
+            IndiError::Unavailable(sentence) | IndiError::Incomplete(sentence) => {
+                write!(f, "{}", sentence)
             }
+            IndiError::Failed { what, cause } => write!(f, "{} failed: {}", what, cause),
             IndiError::ReconnectionFailed {
                 attempts,
                 last_error,
@@ -208,14 +219,30 @@ impl fmt::Display for IndiError {
     }
 }
 
-impl From<IndiError> for String {
-    fn from(err: IndiError) -> String {
-        err.to_string()
+pub type IndiResult<T> = Result<T, IndiError>;
+
+/// The kind of failure an INDI error names. A failure of no particular kind
+/// stays the protocol's own error, for its wording.
+impl From<IndiError> for skotiq_device::DriverError {
+    fn from(err: IndiError) -> Self {
+        use skotiq_device::DriverError;
+        match &err {
+            IndiError::NotConnected => DriverError::NotConnected,
+            // The connection to the server is gone, and with it every device on it.
+            IndiError::ChannelClosed(_) | IndiError::ReaderDied(_) => DriverError::Disconnected,
+            IndiError::Timeout
+            | IndiError::ConnectionTimeout { .. }
+            | IndiError::OperationTimeout { .. }
+            | IndiError::MessageParseTimeout { .. }
+            | IndiError::BlobTimeout { .. }
+            | IndiError::PropertyTimeout { .. } => DriverError::Timeout(err.to_string()),
+            // A write to a read-only property: the device does not offer it.
+            IndiError::PermissionDenied(_) => DriverError::NotSupported,
+            IndiError::ValueOutOfRange { .. } => DriverError::InvalidParameter(err.to_string()),
+            _ => DriverError::Backend(Box::new(err)),
+        }
     }
 }
-
-/// Result type for INDI operations
-pub type IndiResult<T> = Result<T, IndiError>;
 
 #[cfg(test)]
 mod tests {
@@ -249,10 +276,47 @@ mod tests {
     }
 
     #[test]
-    fn test_error_to_string_conversion() {
-        let err = IndiError::Timeout;
-        let s: String = err.into();
-        assert_eq!(s, "Connection timeout");
+    fn indi_errors_reach_drivers_as_the_failure_they_name() {
+        use skotiq_device::DriverError;
+
+        assert!(matches!(
+            DriverError::from(IndiError::NotConnected),
+            DriverError::NotConnected
+        ));
+        assert!(matches!(
+            DriverError::from(IndiError::ChannelClosed(
+                "Failed to send INDI command to 127.0.0.1:7624: channel closed".to_string()
+            )),
+            DriverError::Disconnected
+        ));
+        let blob = DriverError::from(IndiError::BlobTimeout {
+            device: "CCD Simulator".to_string(),
+            property: "CCD1".to_string(),
+            expected_size: 4,
+            received_size: 1,
+            duration: Duration::from_secs(120),
+        });
+        assert!(
+            matches!(&blob, DriverError::Timeout(text) if text.contains("CCD1")),
+            "{blob:?}"
+        );
+        assert!(matches!(
+            DriverError::from(IndiError::PermissionDenied("CCD_TEMPERATURE".to_string())),
+            DriverError::NotSupported
+        ));
+        let range = DriverError::from(IndiError::ValueOutOfRange {
+            device: "Focuser".to_string(),
+            property: "ABS_FOCUS_POSITION".to_string(),
+            element: "FOCUS_ABSOLUTE_POSITION".to_string(),
+            value: 100000.0,
+            min: 0.0,
+            max: 50000.0,
+        });
+        assert!(matches!(&range, DriverError::InvalidParameter(text) if text.contains("100000")));
+
+        let alert = DriverError::from(IndiError::DeviceAlert("CCD_EXPOSURE".to_string()));
+        assert!(matches!(alert, DriverError::Backend(_)));
+        assert_eq!(alert.to_string(), "Device alert: CCD_EXPOSURE");
     }
 
     #[test]

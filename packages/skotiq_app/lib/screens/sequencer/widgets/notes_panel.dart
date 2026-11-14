@@ -1,15 +1,15 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-
-import '../../../utils/user_facing_error.dart';
+import '../../../utils/snackbar_helper.dart';
+import 'package:skotiq_core/services.dart';
 
 part 'notes_panel/target_notes_dialog.dart';
 part 'notes_panel/note_tile.dart';
@@ -74,13 +74,11 @@ Future<bool> confirmDeleteNote(
     ),
   );
   if (confirmed == true) {
-    await ref.read(notesRepositoryProvider).deleteNote(note.id);
+    await ref.read(notesJournalProvider).deleteNote(note.id);
     return true;
   }
   return false;
 }
-
-// Section widgets (embedded in TargetHeaderCard / SessionReportDialog / HistoryTab)
 
 /// Notes section for a specific target. Shows the two newest notes
 /// inline, plus a "View all" link that opens [TargetNotesDialog] with
@@ -128,7 +126,7 @@ class TargetNotesSection extends ConsumerWidget {
       error: (e, _) => Padding(
         padding: const EdgeInsets.all(8),
         child: Text(
-          'Notes unavailable: $e',
+          'Notes unavailable: ${userFacingError(e)}',
           style: TextStyle(
               fontSize: SkotiqTypography.fontSize11, color: colors.error),
         ),
@@ -238,12 +236,7 @@ class TargetNotesSection extends ConsumerWidget {
       ),
     );
     if (created != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Note saved'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      context.showInfoSnackBar('Note saved', duration: Duration(seconds: 2));
     }
   }
 
@@ -311,10 +304,9 @@ class RunNotesSection extends ConsumerWidget {
       // own, and telling the operator to wait for it hides the one fact that
       // would let them fix it.
       error: (e, stack) {
-        developer.log(
+        Log.error(
           '[NotesPanel] Journal notes query failed: $e',
-          name: 'NotesPanel',
-          level: 1000,
+          source: 'NotesPanel',
           error: e,
           stackTrace: stack,
         );
@@ -454,8 +446,6 @@ class _NotesPanelLayout extends StatelessWidget {
     );
   }
 }
-
-// "View all" dialog
 
 /// Modal that lists every note for a target chronologically with
 /// search + tag filter and an "Add note" affordance.

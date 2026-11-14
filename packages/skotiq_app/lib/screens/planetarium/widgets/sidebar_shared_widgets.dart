@@ -2,28 +2,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:intl/intl.dart';
-
-/// Shared DSO type name formatter used by Tonight and Catalog tabs.
-String dsoTypeName(DsoType type) {
-  switch (type) {
-    case DsoType.galaxy:
-      return 'Galaxy';
-    case DsoType.nebula:
-      return 'Nebula';
-    case DsoType.openCluster:
-      return 'Open Cluster';
-    case DsoType.globularCluster:
-      return 'Globular Cluster';
-    case DsoType.planetaryNebula:
-      return 'Planetary Nebula';
-    case DsoType.supernova:
-      return 'Supernova Remnant';
-    default:
-      return 'DSO';
-  }
-}
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 class InfoRow extends StatelessWidget {
   final String label;
@@ -253,13 +233,13 @@ class DarknessCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Astro Dusk: ${DateFormat('HH:mm').format(twilight.astronomicalDusk!.toLocal())}',
+                'Astro Dusk: ${ClockFormat.hm(twilight.astronomicalDusk!.toLocal())}',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize10,
                     color: colors.textMuted),
               ),
               Text(
-                'Astro Dawn: ${DateFormat('HH:mm').format(twilight.astronomicalDawn!.toLocal())}',
+                'Astro Dawn: ${ClockFormat.hm(twilight.astronomicalDawn!.toLocal())}',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize10,
                     color: colors.textMuted),

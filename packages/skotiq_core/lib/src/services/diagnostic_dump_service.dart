@@ -7,7 +7,7 @@ import 'package:archive/archive_io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../database/database.dart' show EquipmentProfile;
+import '../database/database.dart' show DbEquipmentProfile;
 import '../models/equipment/equipment_models.dart';
 import '../models/sequence/sequence_models.dart';
 import '../providers/app_version_provider.dart';
@@ -25,6 +25,7 @@ import '../providers/database_provider.dart';
 import '../providers/sequence_provider.dart';
 import 'logging_service.dart';
 import '../utils/skotiq_data_directory.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Snapshot of one device's contribution to the diagnostic-dump device list.
 ///
@@ -238,7 +239,6 @@ class DiagnosticDumpService {
       ),
     );
 
-    // Encode to disk
     final outFile = File(outputPath);
     final parent = outFile.parent;
     if (!await parent.exists()) {
@@ -429,7 +429,7 @@ Future<Map<String, Object?>?> _gatherActiveProfileJson(Ref ref) async {
   return _profileToJson(profile);
 }
 
-Map<String, Object?> _profileToJson(EquipmentProfile profile) {
+Map<String, Object?> _profileToJson(DbEquipmentProfile profile) {
   // ProfileExportData.toJson() is the canonical serialization but it lives
   // alongside the import/export workflow; using it here would couple the
   // dump to the import-validator. Inline the same fields explicitly.

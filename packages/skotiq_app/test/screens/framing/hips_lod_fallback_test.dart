@@ -31,22 +31,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/framing/painters/hips_tile_layer_painter.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/hips/hips_properties.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/hips/hips_tile_id.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/framing_provider.dart'
-    show FramingTarget;
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_cache.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_loader.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_selection.dart';
+import 'package:skotiq_app/widgets/hips/hips_tile_layer_painter.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../fixtures/hips/fixture_field.dart' as fixture;
 import 'support/hips_fixture_render.dart';

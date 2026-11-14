@@ -28,8 +28,9 @@ import 'package:skotiq_core/src/backend/ffi_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/hotplug_event_bridge_provider.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 class _MockFfiBackend extends Mock implements FfiBackend {}
 

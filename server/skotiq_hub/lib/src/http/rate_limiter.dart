@@ -107,7 +107,6 @@ class LoginThrottle {
   bool recordFailure(String accountKey, {DateTime? now}) {
     final at = now ?? DateTime.now();
     final state = _states.putIfAbsent(accountKey, _LoginState.new);
-    // Reset the failure window if the last failure was long enough ago.
     if (state.windowStart == null ||
         at.isAfter(state.windowStart!.add(window))) {
       state.windowStart = at;
@@ -121,7 +120,6 @@ class LoginThrottle {
     return false;
   }
 
-  /// Clear [accountKey]'s failure state after a successful authentication.
   void recordSuccess(String accountKey) {
     _states.remove(accountKey);
   }

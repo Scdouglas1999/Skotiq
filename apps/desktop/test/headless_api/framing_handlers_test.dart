@@ -1,9 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/framing_handlers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -152,4 +157,161 @@ void main() {
       expect(body['error'], isA<String>());
     });
   });
+
+  group('center-on-target job', () {
+    Future<Job> runCenteringJob(CenteringResult outcome) async {
+      final jobs = JobManager(emitEvent: (_) {});
+      addTearDown(jobs.dispose);
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWith((ref) {
+            final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+            ref.onDispose(db.close);
+            return db;
+          }),
+          centeringServiceProvider.overrideWith(
+            (ref) => _CenteringEndingWith(ref, outcome),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final handlers = FramingHandlers(container, jobManager: jobs);
+
+      final response = await handlers.handleCenterOnTarget(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/framing/center-on-target'),
+          body: jsonEncode({'ra': 22.14, 'dec': 45.0}),
+        ),
+      );
+      final jobId =
+          (jsonDecode(await response.readAsString()) as Map)['jobId'] as String;
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (!jobs.get(jobId)!.state.isTerminal) {
+        if (DateTime.now().isAfter(deadline)) fail('the job never ended');
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      return jobs.get(jobId)!;
+    }
+
+    test(
+      'a centering that gives up ends the job failed, with its attempts',
+      () async {
+        final job = await runCenteringJob(
+          CenteringResult(
+            success: false,
+            iterations: 5,
+            errorMessage:
+                'Plate solve failed after 5 attempts: No solution '
+                'found for this frame.',
+            iterationHistory: [
+              for (var n = 1; n <= 5; n++)
+                CenteringIteration(
+                  iterationNumber: n,
+                  plateSolveSuccess: false,
+                  errorMessage: 'No solution found for this frame.',
+                  timestamp: DateTime.utc(2026, 11, 11),
+                ),
+            ],
+          ),
+        );
+
+        expect(job.state, JobState.failed);
+        expect(job.result, isNull);
+        expect(job.error!['code'], 'centering_failed');
+        expect(
+          job.error!['message'],
+          'Plate solve failed after 5 attempts: No solution found for this '
+          'frame.',
+        );
+        final details = job.error!['details'] as Map;
+        expect(details['success'], isFalse);
+        expect(details['iterations'], 5);
+        expect(details['iterationHistory'], hasLength(5));
+      },
+    );
+
+    test("a center request without settings of its own runs the host's manual "
+        'centering', () async {
+      CenteringConfig? ranWith;
+      PlateSolverConfig? solvedWith;
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.settingsDao.setSettings({
+        'plate_solve_timeout': '90',
+        'plate_solve_search_radius': '12',
+        'centering_sync_mount': 'false',
+      });
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          centeringServiceProvider.overrideWith(
+            (ref) => _CenteringEndingWith(
+              ref,
+              const CenteringResult(
+                success: true,
+                iterations: 1,
+                iterationHistory: [],
+              ),
+              onRun: (config, solver) {
+                ranWith = config;
+                solvedWith = solver;
+              },
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final response = await FramingHandlers(container).handleCenterOnTarget(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/framing/center-on-target'),
+          body: jsonEncode({'ra': 22.14, 'dec': 45.0, 'binning': 3}),
+        ),
+      );
+
+      expect(response.statusCode, 200);
+      expect(solvedWith!.timeoutSeconds, 90);
+      expect(solvedWith!.searchRadius, 12);
+      expect(ranWith!.syncMount, isFalse);
+      expect(ranWith!.exposureTime, ManualCentering.defaultExposureSeconds);
+      expect(ranWith!.maxIterations, ManualCentering.maxIterations);
+      expect(ranWith!.binning, 3, reason: 'a field the request names wins');
+    });
+
+    test('a centering that converges ends the job succeeded', () async {
+      final job = await runCenteringJob(
+        const CenteringResult(
+          success: true,
+          iterations: 2,
+          finalOffsetArcsec: 4.2,
+          iterationHistory: [],
+        ),
+      );
+
+      expect(job.state, JobState.succeeded);
+      expect(job.result!['success'], isTrue);
+      expect(job.result!['finalOffsetArcsec'], 4.2);
+    });
+  });
+}
+
+class _CenteringEndingWith extends CenteringService {
+  _CenteringEndingWith(super.ref, this.outcome, {this.onRun});
+
+  final CenteringResult outcome;
+  final void Function(CenteringConfig config, PlateSolverConfig solver)? onRun;
+
+  @override
+  Future<CenteringResult> centerOnTarget({
+    required double targetRa,
+    required double targetDec,
+    required PlateSolverConfig solverConfig,
+    CenteringConfig config = const CenteringConfig(),
+    void Function(CenteringStatus)? onStatusUpdate,
+  }) async {
+    onRun?.call(config, solverConfig);
+    return outcome;
+  }
 }

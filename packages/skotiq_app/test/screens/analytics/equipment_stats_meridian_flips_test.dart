@@ -2,21 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
 
 SequenceRun _run(int id, String statsJson) => SequenceRun(
       id: id,
@@ -36,7 +24,6 @@ Widget _app(List<SequenceRun> runs) => ProviderScope(
         allSessionsProvider
             .overrideWith((ref) => Stream.value(const <ImagingSession>[])),
         sequenceRunsProvider.overrideWith((ref) => Stream.value(runs)),
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,

@@ -1,26 +1,26 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import '../backend/network_backend.dart';
-import '../database/daos/living_sky_retention_dao.dart';
+import 'database_provider.dart';
 import '../database/daos/transient_detections_dao.dart';
 import '../database/database.dart';
-import '../services/logging_service.dart';
-import '../services/science/photometric_catalog_service.dart';
 import '../services/sky_atlas/sky_atlas_service.dart' show defaultAtlasRoot;
-import '../services/transients/difference_image_seam.dart';
 import '../services/transients/first_light_service.dart';
 import '../services/transients/transient_submission_service.dart';
+import '../backend/skotiq_backend.dart';
 import 'backend_provider.dart';
-import 'database_provider.dart' show imagesDaoProvider;
 import 'remote_snapshot_stream.dart';
 import 'sky_atlas_provider.dart'
     show isAtlasChangingEvent, remoteAtlasRefetchMinInterval;
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'linked_host.dart';
+import 'logging_service_provider.dart';
+import 'science/photometric_catalog_service_provider.dart';
+import 'transients/difference_image_seam_provider.dart';
 
 /// Riverpod surface for Pillar B ("First Light") — difference-imaging transients.
 ///
@@ -87,14 +87,6 @@ final transientSubmissionServiceProvider = Provider<TransientSubmissionService>(
   },
 );
 
-/// Reactive newest-first transient detections for a session.
-final transientDetectionsProvider =
-    StreamProvider.family<List<TransientDetectionRow>, int>((ref, sessionId) {
-      return ref
-          .watch(transientDetectionsDaoProvider)
-          .watchDetectionsForSession(sessionId);
-    });
-
 /// Reactive newest-first transient detections across all sessions — backs the
 /// standalone gallery, the export hub's candidate snapshot and the alert bell.
 /// Bounded to the most-recent [kFirstLightFeedLimit] so the feed is an index
@@ -150,11 +142,12 @@ TransientDetectionRow transientDetectionFromWireJson(
 final firstLightCandidatesProvider =
     StreamProvider<List<TransientDetectionRow>>((ref) {
       final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = ref.watch(linkedHostTransientsProvider);
+      if (remote != null) {
         return _remoteFirstLightStream(
           ref,
           backend,
-          () => backend.getFirstLightCandidates(),
+          () => remote.getFirstLightCandidates(),
         );
       }
       return _liveDetectionsFeed(ref.watch(transientDetectionsDaoProvider));
@@ -216,11 +209,10 @@ Stream<List<TransientDetectionRow>> _liveDetectionsFeed(
 /// most once every [remoteAtlasRefetchMinInterval].
 Stream<List<TransientDetectionRow>> _remoteFirstLightStream(
   Ref ref,
-  NetworkBackend backend,
+  SkotiqBackend backend,
   Future<List<Map<String, dynamic>>> Function() fetch,
 ) {
   return remoteSnapshotStream<TransientDetectionRow>(
-    ref: ref,
     backend: backend,
     fetch: fetch,
     decode: transientDetectionFromWireJson,
@@ -249,10 +241,10 @@ typedef FirstLightCropQuery = ({
 /// captured, or a scan that produced none) so the UI falls back to the schematic.
 final firstLightCropProvider = FutureProvider.autoDispose
     .family<Uint8List?, FirstLightCropQuery>((ref, query) async {
-      final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
+      final remote = ref.watch(linkedHostTransientsProvider);
+      if (remote != null) {
         try {
-          final bytes = await backend.getFirstLightCrop(
+          final bytes = await remote.getFirstLightCrop(
             query.detectionId,
             query.stage,
           );
@@ -294,10 +286,10 @@ final firstLightHistoryProvider = FutureProvider.autoDispose
       ref,
       query,
     ) async {
-      final backend = ref.watch(backendProvider);
+      final remote = ref.watch(linkedHostTransientsProvider);
       final List<TransientDetectionRow> rows;
-      if (backend is NetworkBackend) {
-        final raw = await backend.getFirstLightHistory(
+      if (remote != null) {
+        final raw = await remote.getFirstLightHistory(
           raDeg: query.raDeg,
           decDeg: query.decDeg,
           radiusDeg: query.radiusDeg,
@@ -317,11 +309,11 @@ final firstLightHistoryProvider = FutureProvider.autoDispose
       final kept = rows
           .where(
             (r) =>
-                _angularSeparationDeg(
-                  query.raDeg,
-                  query.decDeg,
-                  r.raDeg,
-                  r.decDeg,
+                AstronomyCalculations.angularSeparation(
+                  ra1Deg: query.raDeg,
+                  dec1Deg: query.decDeg,
+                  ra2Deg: r.raDeg,
+                  dec2Deg: r.decDeg,
                 ) <=
                 query.radiusDeg,
           )
@@ -330,34 +322,13 @@ final firstLightHistoryProvider = FutureProvider.autoDispose
       return kept;
     });
 
-/// Great-circle angular separation between two equatorial points, in degrees.
-/// Uses the haversine form so it stays accurate for the small separations the
-/// cross-night grouping cares about.
-double _angularSeparationDeg(
-  double ra1Deg,
-  double dec1Deg,
-  double ra2Deg,
-  double dec2Deg,
-) {
-  const deg2rad = math.pi / 180.0;
-  final dRa = (ra2Deg - ra1Deg) * deg2rad;
-  final dDec = (dec2Deg - dec1Deg) * deg2rad;
-  final lat1 = dec1Deg * deg2rad;
-  final lat2 = dec2Deg * deg2rad;
-  final a =
-      math.sin(dDec / 2) * math.sin(dDec / 2) +
-      math.cos(lat1) * math.cos(lat2) * math.sin(dRa / 2) * math.sin(dRa / 2);
-  final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-  return c / deg2rad;
-}
-
 /// Triage a First Light candidate (mark reviewed/confirmed, or dismiss as an
 /// artefact). Routes to the host over REST in companion mode, else writes the
 /// local DB directly. Exposed as a callback the discovery surface invokes from
 /// a card action so both desktop and mobile share one triage path.
 final firstLightTriageProvider = Provider<FirstLightTriage>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
+  final remote = ref.watch(linkedHostTransientsProvider);
+  if (remote != null) {
     // Remote (slave) triage: the host applies the reviewed/dismissed flag, but
     // the remote feed is a debounced REST snapshot that otherwise only re-fetches
     // on an unrelated backend event — so the card's badge would stay stale until
@@ -367,11 +338,11 @@ final firstLightTriageProvider = Provider<FirstLightTriage>((ref) {
     // before invalidating so a FAILED triage doesn't wipe the current state.
     return FirstLightTriage(
       review: (id) async {
-        await backend.reviewFirstLightCandidate(id);
+        await remote.reviewFirstLightCandidate(id);
         ref.invalidate(firstLightCandidatesProvider);
       },
       dismiss: (id) async {
-        await backend.dismissFirstLightCandidate(id);
+        await remote.dismissFirstLightCandidate(id);
         ref.invalidate(firstLightCandidatesProvider);
       },
     );

@@ -11,6 +11,8 @@ import 'package:skotiq_core/src/models/science/science_models.dart';
 import 'package:skotiq_core/src/services/science/photometric_catalog_service.dart';
 import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
 import '../../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/providers/science/default_science_backend_provider.dart';
+import 'package:skotiq_core/src/providers/science/photometric_catalog_service_provider.dart';
 
 class _Native extends Mock implements RustLibApi {}
 
@@ -48,7 +50,22 @@ void main() {
   final native = _Native();
   setUpAll(() => RustLib.initMock(api: native));
   tearDownAll(RustLib.dispose);
-  setUp(() => reset(native));
+  setUp(() {
+    reset(native);
+    // Every frame of these tests is 100 x 80, as its header states.
+    when(
+      () => native.crateApiFrameFileApiReadFrameHeader(
+        filePath: any(named: 'filePath'),
+      ),
+    ).thenAnswer(
+      (_) async => const FrameHeaderRead(
+        cards: [
+          FrameCard(keyword: 'NAXIS1', text: '100', number: 100),
+          FrameCard(keyword: 'NAXIS2', text: '80', number: 80),
+        ],
+      ),
+    );
+  });
   test(
     'PSF maps read only image geometry, without generating a full display image',
     () async {
@@ -91,111 +108,150 @@ void main() {
     },
   );
 
-  test(
-    'catalog workers retain matched astrometric residuals without display pixels',
-    () async {
-      final directory = await Directory.systemTemp.createTemp(
-        'science-catalog-',
-      );
-      addTearDown(() => directory.delete(recursive: true));
-      String card(String key, String value) =>
-          '${key.padRight(8)}= ${value.padLeft(20)}'.padRight(80);
-      final path = '${directory.path}/frame.fits';
-      await File(path).writeAsString(
-        (card('SIMPLE', 'T') +
-                card('BITPIX', '16') +
-                card('NAXIS', '2') +
-                card('NAXIS1', '100') +
-                card('NAXIS2', '80') +
-                'END'.padRight(80))
-            .padRight(2880),
-      );
-      final projection = GnomonicProjection(
-        const SolvedWcs(
-          raHours: 2,
-          decDegrees: 42,
-          pixelScaleArcsec: 1.5,
-          rotationDeg: 0,
-          imageWidth: 100,
-          imageHeight: 80,
-        ),
-      );
-      final stars = <StarMeasurement>[];
-      final catalogStars = <PhotometricCatalogStar>[];
-      for (final x in [20.0, 50.0, 80.0]) {
-        for (final y in [15.0, 40.0, 65.0]) {
-          stars.add(
-            StarMeasurement(
-              x: x,
-              y: y,
-              flux: 1000,
-              hfr: 2,
-              fwhm: 4,
-              snr: 20,
-              eccentricity: .2,
-              sharpness: .4,
-              background: 100,
-              peak: 2000,
-            ),
-          );
-          final sky = projection.pixelToWorld(x: x + .5, y: y);
-          catalogStars.add(
-            PhotometricCatalogStar(
-              raDegrees: sky.raDegrees,
-              decDegrees: sky.decDegrees,
-              magV: 12,
+  for (final fromHeader in [false, true]) {
+    test(
+      'catalog workers retain residuals using ${fromHeader ? 'header CRPIX/CD' : 'stored WCS'}',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'science-catalog-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        String card(String key, String value) =>
+            '${key.padRight(8)}= ${value.padLeft(20)}'.padRight(80);
+        final path = '${directory.path}/frame.fits';
+        await File(path).writeAsString(
+          (card('SIMPLE', 'T') +
+                  card('BITPIX', '16') +
+                  card('NAXIS', '2') +
+                  card('NAXIS1', '100') +
+                  card('NAXIS2', '80') +
+                  'END'.padRight(80))
+              .padRight(2880),
+        );
+        final projection = GnomonicProjection(
+          SolvedWcs(
+            raHours: 2,
+            decDegrees: 42,
+            pixelScaleArcsec: 1.5,
+            rotationDeg: 0,
+            imageWidth: 100,
+            imageHeight: 80,
+            referenceX: fromHeader ? 29 : null,
+            referenceY: fromHeader ? 23 : null,
+            cd1_1: fromHeader ? 0.0004 : null,
+            cd1_2: fromHeader ? 0.0001 : null,
+            cd2_1: fromHeader ? -0.0001 : null,
+            cd2_2: fromHeader ? 0.0004 : null,
+          ),
+        );
+        if (fromHeader) {
+          final terms = projection.wcs.fitsTerms;
+          when(
+            () => native.crateApiFrameFileApiReadFrameHeader(filePath: path),
+          ).thenAnswer(
+            (_) async => FrameHeaderRead(
+              cards: const [
+                FrameCard(keyword: 'NAXIS1', text: '100', number: 100),
+                FrameCard(keyword: 'NAXIS2', text: '80', number: 80),
+              ],
+              wcs: FrameWcs(
+                crval1: terms.crval1,
+                crval2: terms.crval2,
+                crpix1: terms.crpix1,
+                crpix2: terms.crpix2,
+                cd11: terms.cd1_1,
+                cd12: terms.cd1_2,
+                cd21: terms.cd2_1,
+                cd22: terms.cd2_2,
+                aOrder: 0,
+                bOrder: 0,
+                aCoeffs: Float64List(0),
+                bCoeffs: Float64List(0),
+                apOrder: 0,
+                bpOrder: 0,
+                apCoeffs: Float64List(0),
+                bpCoeffs: Float64List(0),
+              ),
             ),
           );
         }
-      }
-      final catalog = _Catalog();
-      when(
-        () => catalog.coneSearch(
-          raDegrees: any(named: 'raDegrees'),
-          decDegrees: any(named: 'decDegrees'),
-          radiusDegrees: any(named: 'radiusDegrees'),
-          maxMagnitude: any(named: 'maxMagnitude'),
-        ),
-      ).thenAnswer(
-        (_) async => PhotometricConeResult(
-          source: PhotometricCatalogSource.localApass,
-          stars: catalogStars,
-        ),
-      );
-      final container = ProviderContainer(
-        overrides: [
-          scienceBackendProvider.overrideWith(
-            (ref) => _MeasuredBackend(ref, stars: stars),
+        final stars = <StarMeasurement>[];
+        final catalogStars = <PhotometricCatalogStar>[];
+        for (final x in [20.0, 50.0, 80.0]) {
+          for (final y in [15.0, 40.0, 65.0]) {
+            stars.add(
+              StarMeasurement(
+                x: x,
+                y: y,
+                flux: 1000,
+                hfr: 2,
+                fwhm: 4,
+                snr: 20,
+                eccentricity: .2,
+                sharpness: .4,
+                background: 100,
+                peak: 2000,
+              ),
+            );
+            final sky = projection.pixelToWorld(x: x + .5, y: y);
+            catalogStars.add(
+              PhotometricCatalogStar(
+                raDegrees: sky.raDegrees,
+                decDegrees: sky.decDegrees,
+                magV: 12,
+              ),
+            );
+          }
+        }
+        final catalog = _Catalog();
+        when(
+          () => catalog.coneSearch(
+            raDegrees: any(named: 'raDegrees'),
+            decDegrees: any(named: 'decDegrees'),
+            radiusDegrees: any(named: 'radiusDegrees'),
+            maxMagnitude: any(named: 'maxMagnitude'),
           ),
-          photometricCatalogServiceProvider.overrideWith((ref) => catalog),
-        ],
-      );
-      addTearDown(container.dispose);
-      final map = await container
-          .read(scienceBackendProvider)
-          .computeAstrometricResiduals(
-            path,
-            const WcsSolution(
-              raHours: 2,
-              decDegrees: 42,
-              pixelScaleArcsecPerPixel: 1.5,
-              rotationDegrees: 0,
-              fieldWidthDegrees: .05,
-              fieldHeightDegrees: .04,
-              solverId: 'fixture',
+        ).thenAnswer(
+          (_) async => PhotometricConeResult(
+            source: PhotometricCatalogSource.localApass,
+            stars: catalogStars,
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [
+            scienceBackendProvider.overrideWith(
+              (ref) => _MeasuredBackend(ref, stars: stars),
             ),
-            const AstrometryOptions(),
-          );
-      expect(map, isNotNull);
-      expect(map!.vectors, hasLength(9));
-      expect(map.rmsArcsec, closeTo(.75, 1e-6));
-      verifyNever(
-        () => native.crateApiImagingApiReadFitsFile(
-          filePath: any(named: 'filePath'),
-        ),
-      );
-    },
-  );
+            photometricCatalogServiceProvider.overrideWith((ref) => catalog),
+          ],
+        );
+        addTearDown(container.dispose);
+        final map = await container
+            .read(scienceBackendProvider)
+            .computeAstrometricResiduals(
+              path,
+              const WcsSolution(
+                raHours: 2,
+                decDegrees: 42,
+                pixelScaleArcsecPerPixel: 1.5,
+                rotationDegrees: 0,
+                fieldWidthDegrees: .05,
+                fieldHeightDegrees: .04,
+                solverId: 'fixture',
+              ),
+              const AstrometryOptions(),
+            );
+        expect(map, isNotNull);
+        expect(map!.vectors, hasLength(9));
+        expect(map.rmsArcsec, closeTo(.75, 1e-6));
+        verifyNever(
+          () => native.crateApiImagingApiReadFitsFile(
+            filePath: any(named: 'filePath'),
+          ),
+        );
+      },
+    );
+  }
 
   test(
     'line ratios keep the event loop responsive and retain physical ratios',

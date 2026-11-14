@@ -20,7 +20,6 @@ export 'phd2_status.dart';
 // PlateSolveResult comes from the FRB-canonical type
 // (`package:skotiq_bridge/src/api/plate_solve.dart`); re-exported through
 // `skotiq_core.dart`'s `skotiq_bridge` re-export.
-export 'remote_api_compatibility.dart';
 export 'sequencer_status.dart';
 export '../errors/skotiq_error.dart';
 // Error parsing: surface the headless-envelope ServerError so

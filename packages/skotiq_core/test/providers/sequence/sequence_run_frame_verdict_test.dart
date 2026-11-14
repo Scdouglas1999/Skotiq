@@ -4,10 +4,15 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as backend_events;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as backend_events;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -72,8 +77,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.read(liveSequenceStatsProvider.notifier).state =
-        SequenceRunStats();
+    container.read(runRecordProvider.notifier).setStats(SequenceRunStats());
     if (sequence != null) {
       container
           .read(currentSequenceProvider.notifier)
@@ -135,6 +139,8 @@ void main() {
     'node_id': 'expo1',
     'frame': frame,
     'total': 4,
+    'accepted_total': 0,
+    'rejected_total': 0,
     'exposure_secs': exposureSecs,
     'gain': gain,
     'offset': offset,
@@ -153,6 +159,7 @@ void main() {
       executor.handleSequencerEventForTest(
         sequencerEvent('FrameRejected', {
           ...frameData(frame: 1),
+          'consecutive_rejects': 1,
           'reason': 'HFR 6.2 above threshold 4.0',
           'reject_path': '/tmp/rejected_0001.fits',
         }),
@@ -195,6 +202,7 @@ void main() {
       executor.handleSequencerEventForTest(
         sequencerEvent('FrameRejected', {
           ...frameData(frame: 1),
+          'consecutive_rejects': 1,
           'reason': 'too few stars',
         }),
       );
@@ -276,6 +284,7 @@ void main() {
       executor.handleSequencerEventForTest(
         sequencerEvent('FrameRejected', {
           ...frameData(frame: 1),
+          'consecutive_rejects': 1,
           'reason': 'clouds',
         }),
       );
@@ -332,8 +341,10 @@ void main() {
             ...frameData(frame: frame),
             if (verdict == 'FrameAccepted')
               'save_path': '/tmp/light_000$frame.fits'
-            else
+            else ...{
               'reason': 'HFR 6.2 above threshold 4.0',
+              'consecutive_rejects': 1,
+            },
           }),
         );
         executor.handleSequencerEventForTest(
@@ -374,6 +385,7 @@ void main() {
       executor.handleSequencerEventForTest(
         sequencerEvent('FrameRejected', {
           ...frameData(frame: 1),
+          'consecutive_rejects': 1,
           'reason': 'clouds',
         }),
       );
@@ -541,6 +553,7 @@ void main() {
       executor.handleSequencerEventForTest(
         sequencerEvent('FrameRejected', {
           ...frameData(frame: 1),
+          'consecutive_rejects': 1,
           'reason': 'HFR',
           'reject_path': '/tmp/rejects/light_0002.fits',
         }),

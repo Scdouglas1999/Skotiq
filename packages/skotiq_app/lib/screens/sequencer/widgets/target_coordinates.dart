@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// A Target node is born at RA 0h / Dec +0° because [TargetHeaderNode] has no
 /// nullable coordinate to mean "the user has not chosen a pointing yet".

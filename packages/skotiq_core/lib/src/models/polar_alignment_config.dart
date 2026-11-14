@@ -16,7 +16,6 @@ double _wireDouble(Object? value, {double fallback = 0.0}) {
   return fallback;
 }
 
-/// Phase of the polar alignment process
 enum PolarAlignPhase {
   /// Not running - waiting to start
   idle,
@@ -27,10 +26,8 @@ enum PolarAlignPhase {
   /// Adjustment mode - showing live error updates
   adjusting,
 
-  /// Successfully completed
   complete,
 
-  /// Error occurred during alignment
   error,
 }
 
@@ -74,7 +71,6 @@ extension PolarAlignmentModeExtension on PolarAlignmentMode {
   }
 }
 
-/// Extension for PolarAlignPhase display
 extension PolarAlignPhaseExtension on PolarAlignPhase {
   String get displayName {
     switch (this) {
@@ -288,7 +284,6 @@ abstract class PolarAlignmentConfig with _$PolarAlignmentConfig {
     return errors;
   }
 
-  /// Create default configuration for quick start
   factory PolarAlignmentConfig.quickStart() => const PolarAlignmentConfig(
     exposureTime: 3.0,
     stepSize: 15.0,
@@ -299,7 +294,6 @@ abstract class PolarAlignmentConfig with _$PolarAlignmentConfig {
     solveTimeout: 60.0,
   );
 
-  /// Create configuration for high-precision alignment
   factory PolarAlignmentConfig.highPrecision() => const PolarAlignmentConfig(
     exposureTime: 10.0,
     stepSize: 30.0,
@@ -338,7 +332,6 @@ abstract class PolarAlignmentError with _$PolarAlignmentError {
     /// Target Dec for perfect alignment (degrees)
     required double targetDec,
 
-    /// When this measurement was taken
     required DateTime timestamp,
   }) = _PolarAlignmentError;
 
@@ -364,17 +357,14 @@ abstract class PolarAlignmentError with _$PolarAlignmentError {
     );
   }
 
-  /// Whether this error is within acceptable tolerance
   bool isWithinTolerance(double thresholdArcsec) =>
       totalError <= thresholdArcsec;
 
-  /// Get direction text for azimuth adjustment
   String get azimuthDirection {
     if (azimuthError.abs() < 1) return 'centered';
     return azimuthError > 0 ? 'east' : 'west';
   }
 
-  /// Get direction text for altitude adjustment
   String get altitudeDirection {
     if (altitudeError.abs() < 1) return 'centered';
     return altitudeError > 0 ? 'up' : 'down';
@@ -392,7 +382,6 @@ abstract class PolarAlignmentError with _$PolarAlignmentError {
   /// the true pole, corrected by lowering the bolt, hence 'Down'.
   String get altitudeAdjustment => altitudeError > 0 ? 'Down' : 'Up';
 
-  /// Format error as human-readable string
   String formatError() {
     final azDir = azimuthError > 0 ? 'E' : 'W';
     final altDir = altitudeError > 0 ? 'Up' : 'Dn';
@@ -402,19 +391,16 @@ abstract class PolarAlignmentError with _$PolarAlignmentError {
   }
 }
 
-/// Runtime state for polar alignment process
 @freezed
 abstract class PolarAlignmentState with _$PolarAlignmentState {
   const PolarAlignmentState._();
 
   const factory PolarAlignmentState({
-    /// Current phase of alignment
     @Default(PolarAlignPhase.idle) PolarAlignPhase phase,
 
     /// Current measurement point (1-3 during measuring, 0 during adjusting)
     @Default(0) int currentPoint,
 
-    /// Status message to display to user
     @Default('Ready to start polar alignment') String statusMessage,
 
     /// Current error measurements (null if not yet calculated)
@@ -426,10 +412,8 @@ abstract class PolarAlignmentState with _$PolarAlignmentState {
     /// Most recent captured image (JPEG bytes for display)
     @NullableUint8ListConverter() Uint8List? imageData,
 
-    /// Image width
     int? imageWidth,
 
-    /// Image height
     int? imageHeight,
 
     /// Solved RA from last image (degrees)
@@ -441,23 +425,18 @@ abstract class PolarAlignmentState with _$PolarAlignmentState {
     /// Error message if phase is error
     String? errorMessage,
 
-    /// Configuration used for this alignment run
     PolarAlignmentConfig? config,
 
-    /// When alignment started
     DateTime? startedAt,
   }) = _PolarAlignmentState;
 
   factory PolarAlignmentState.fromJson(Map<String, dynamic> json) =>
       _$PolarAlignmentStateFromJson(json);
 
-  /// Whether alignment is currently running
   bool get isRunning => phase.isActive;
 
-  /// Whether we have error data to display
   bool get hasError => currentError != null;
 
-  /// Whether we have an image to display
   bool get hasImage => imageData != null && imageData!.isNotEmpty;
 
   /// Calculate improvement percentage from initial error
@@ -471,7 +450,6 @@ abstract class PolarAlignmentState with _$PolarAlignmentState {
     return improvement.clamp(0.0, 100.0);
   }
 
-  /// Whether current error is below auto-complete threshold
   bool isWithinThreshold(double thresholdArcsec) {
     if (currentError == null) return false;
     return currentError!.totalError <= thresholdArcsec;
@@ -490,13 +468,10 @@ abstract class PolarAlignmentResult with _$PolarAlignmentResult {
     /// Final error when alignment completed or stopped
     required PolarAlignmentError finalError,
 
-    /// When alignment started
     required DateTime startedAt,
 
-    /// When alignment completed
     required DateTime completedAt,
 
-    /// Configuration used for this alignment
     required PolarAlignmentConfig config,
 
     /// Whether alignment was auto-completed (reached threshold)
@@ -513,7 +488,6 @@ abstract class PolarAlignmentResult with _$PolarAlignmentResult {
   double get improvementArcsec =>
       initialError.totalError - finalError.totalError;
 
-  /// Calculate improvement percentage
   double get improvementPercent {
     if (initialError.totalError == 0) return 100.0;
     return (improvementArcsec / initialError.totalError * 100).clamp(
@@ -522,7 +496,6 @@ abstract class PolarAlignmentResult with _$PolarAlignmentResult {
     );
   }
 
-  /// Duration of the alignment session
   Duration get duration => completedAt.difference(startedAt);
 
   /// Whether this was a successful alignment (significant improvement)
@@ -531,7 +504,6 @@ abstract class PolarAlignmentResult with _$PolarAlignmentResult {
       finalError.totalError < 60; // Less than 1 arcminute
 }
 
-/// Custom JSON converter for nullable Uint8List
 class NullableUint8ListConverter
     implements JsonConverter<Uint8List?, List<int>?> {
   const NullableUint8ListConverter();

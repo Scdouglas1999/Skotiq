@@ -125,7 +125,6 @@ class TileQualityGate {
   }
 }
 
-/// Outcome of a [TileQualityGate] evaluation.
 class TileQualityVerdict {
   const TileQualityVerdict({
     required this.accepted,

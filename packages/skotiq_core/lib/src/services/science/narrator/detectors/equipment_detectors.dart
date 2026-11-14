@@ -2,6 +2,7 @@
 /// higher band. Tilt, focus drift, edge gradients, and guiding degradation.
 library;
 
+import 'package:skotiq_astro/format.dart';
 import 'dart:math' as math;
 
 import '../narrator_context.dart';
@@ -209,7 +210,7 @@ class FocusDriftDetector extends NarratorDetector {
       if (delta.abs() >= 0.5) {
         tempNote =
             ' while temperature ${delta < 0 ? 'fell' : 'rose'} '
-            '${delta.abs().toStringAsFixed(1)} °C';
+            '${formatCelsius(delta.abs())}';
       }
     }
     return [

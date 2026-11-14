@@ -13,7 +13,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/widgets/phd2_connection_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -45,6 +49,7 @@ ProviderScope _testScope({
 void main() {
   setUpAll(() {
     registerFallbackValue(const AppSettings());
+    registerFallbackValue(<String, dynamic>{});
   });
 
   testWidgets('host and port remain reachable above a landscape keyboard',
@@ -151,10 +156,12 @@ void main() {
     when(() => backend.eventStream)
         .thenAnswer((_) => const Stream<SkotiqEvent>.empty());
     when(() => backend.getSettings()).thenAnswer(
-      (_) async => const AppSettings(phd2Host: 'bad-host', phd2Port: 4400),
+      // The host still holds the old endpoint; the dialog was opened on a new
+      // one, so Connect has a change to save before it connects.
+      (_) async => const AppSettings(phd2Host: 'localhost', phd2Port: 4400),
     );
     when(
-      () => backend.updateSettingsWithCommandId(
+      () => backend.updateSettingsPatchWithCommandId(
         any(),
         commandId: any(named: 'commandId'),
       ),
@@ -208,14 +215,21 @@ void main() {
     verify(
       () => backend.phd2Connect(host: 'bad-host', port: 4400),
     ).called(1);
-    final saved = verify(
-      () => backend.updateSettingsWithCommandId(
+    // A client save sends only the fields it changed, so the host keeps any
+    // other setting changed meanwhile on its own screen.
+    final patch = verify(
+      () => backend.updateSettingsPatchWithCommandId(
         captureAny(),
         commandId: any(named: 'commandId'),
       ),
-    ).captured.single as AppSettings;
-    expect(saved.phd2Host, 'bad-host');
-    expect(saved.phd2Port, 4400);
+    ).captured.single as Map<String, dynamic>;
+    expect(patch, {'phd2Host': 'bad-host'});
+    verifyNever(
+      () => backend.updateSettingsWithCommandId(
+        any(),
+        commandId: any(named: 'commandId'),
+      ),
+    );
   });
 
   testWidgets('invalid port is rejected instead of silently using 4400',

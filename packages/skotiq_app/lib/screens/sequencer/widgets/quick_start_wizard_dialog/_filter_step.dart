@@ -1,10 +1,6 @@
-// ignore_for_file: unused_element
-
 part of '../quick_start_wizard_dialog.dart';
 
 extension _FilterStep on _QuickStartWizardDialogState {
-  // STEP 2: FILTERS & EXPOSURES
-
   Widget _buildFiltersStep(SkotiqColors colors) {
     final hasFilters = _hasConfiguredFilters;
 
@@ -67,14 +63,11 @@ extension _FilterStep on _QuickStartWizardDialogState {
           ),
           const SizedBox(height: 20),
         ],
-
         Text(
           hasFilters ? 'Filter Exposures' : 'Exposure Settings',
           style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 8),
-
-        // Column headers
         Padding(
           padding: const EdgeInsets.only(left: 40),
           child: Row(
@@ -105,14 +98,11 @@ extension _FilterStep on _QuickStartWizardDialogState {
           ),
         ),
         const SizedBox(height: 4),
-
         ...List.generate(_filterConfigs.length, (index) {
           final config = _filterConfigs[index];
           return _buildFilterRow(config, colors);
         }),
-
         const SizedBox(height: 20),
-
         Text(
           'Frames per filter',
           style: SkotiqTypography.h5.copyWith(color: colors.textPrimary),

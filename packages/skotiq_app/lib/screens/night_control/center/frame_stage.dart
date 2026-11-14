@@ -15,17 +15,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/preview_transform.dart';
 import '../../../widgets/catalog_overlay_widget.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
+import '../../../widgets/frame_purpose_label.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
-import '../../imaging/widgets/image_display.dart';
-import '../../imaging/widgets/overlay_painters.dart';
-import '../../imaging/widgets/preview_display_scale.dart';
+import '../../../widgets/image_preview/image_display.dart';
+import '../../../widgets/image_preview/overlay_painters.dart';
+import '../../../widgets/image_preview/preview_display_scale.dart';
 import '../actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
 import '../data/plan/night_run_phase_provider.dart';
@@ -34,12 +39,9 @@ import '../data/session/camera_exposure_provider.dart';
 import '../data/session/session_frames_provider.dart';
 import '../night_control_contracts.dart';
 import 'center_format.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'frame_stage_overlays.dart';
-
-// ---------------------------------------------------------------------------
-// Inputs
-// ---------------------------------------------------------------------------
 
 /// The strip frame the operator tapped; null follows the newest frame.
 final nightStageSelectionProvider = StateProvider<int?>((ref) => null);
@@ -292,11 +294,11 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
         sip: sip,
         offTargetArcmin: target == null
             ? null
-            : nightSeparationDegrees(
-                  ra,
-                  dec,
-                  target.raHours * 15,
-                  target.decDegrees,
+            : AstronomyCalculations.angularSeparation(
+                  ra1Deg: ra,
+                  dec1Deg: dec,
+                  ra2Deg: target.raHours * 15,
+                  dec2Deg: target.decDegrees,
                 ) *
                 60,
       );
@@ -322,36 +324,10 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
     dec: result.dec,
     rotation: result.rotation,
     scale: result.pixelScale,
-    cd: frameSolveCdOf(result),
-    sip: encodeSolvedSip(
-      aOrder: result.sipAOrder,
-      bOrder: result.sipBOrder,
-      aCoeffs: result.sipACoeffs.toList(),
-      bCoeffs: result.sipBCoeffs.toList(),
-      apOrder: result.sipApOrder,
-      bpOrder: result.sipBpOrder,
-      apCoeffs: result.sipApCoeffs.toList(),
-      bpCoeffs: result.sipBpCoeffs.toList(),
-    ),
+    cd: result.cdMatrix,
+    sip: encodeSolvedSip(result.sipTerms),
   );
 });
-
-/// Angular distance in degrees between two J2000 positions in degrees.
-double nightSeparationDegrees(
-  double ra1Deg,
-  double dec1Deg,
-  double ra2Deg,
-  double dec2Deg,
-) {
-  const toRad = math.pi / 180;
-  final dRa = (ra2Deg - ra1Deg) * toRad;
-  final dDec = (dec2Deg - dec1Deg) * toRad;
-  final a = math.pow(math.sin(dDec / 2), 2) +
-      math.cos(dec1Deg * toRad) *
-          math.cos(dec2Deg * toRad) *
-          math.pow(math.sin(dRa / 2), 2);
-  return 2 * math.asin(math.min(1, math.sqrt(a))) / toRad;
-}
 
 /// Snapshots and loop frames that are not kept land on one reused scratch
 /// file per camera (`liveview_<camera>.fits`, see ImagingService); a frame
@@ -365,10 +341,6 @@ bool nightIsBeforeRun(NightRunPhase phase) =>
     phase == NightRunPhase.ready ||
     phase == NightRunPhase.armed;
 
-// ---------------------------------------------------------------------------
-// The stage
-// ---------------------------------------------------------------------------
-
 /// The latest frame with its pills, view buttons and exposure bar.
 class FrameStage extends ConsumerWidget {
   const FrameStage({super.key});
@@ -377,6 +349,9 @@ class FrameStage extends ConsumerWidget {
   static const double progressBarHeight = 3;
 
   static const double _inset = 10;
+
+  /// Below this stage width the star status gets its own line.
+  static const double _stackStatusBelow = 560;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -446,24 +421,46 @@ class FrameStage extends ConsumerWidget {
                       right: _inset,
                       bottom: _inset,
                       left: _inset,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: <Widget>[
-                          const Flexible(child: _OverlayStatus()),
-                          const SizedBox(width: SkotiqTokens.spaceSm),
-                          Flexible(
-                            flex: 2,
-                            child: Align(
-                              alignment: Alignment.bottomRight,
-                              child: _ViewButtons(
-                                image: image,
-                                viewport: viewport,
-                              ),
+                      // On a narrow stage the star count takes its own
+                      // line above the view buttons rather than a third of
+                      // one, which cut its HFR.
+                      child: viewport.width < _stackStatusBelow
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                const Align(
+                                  alignment: Alignment.bottomLeft,
+                                  child: _OverlayStatus(),
+                                ),
+                                const SizedBox(height: SkotiqTokens.spaceXs),
+                                Align(
+                                  alignment: Alignment.bottomRight,
+                                  child: _ViewButtons(
+                                    image: image,
+                                    viewport: viewport,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: <Widget>[
+                                const Flexible(child: _OverlayStatus()),
+                                const SizedBox(width: SkotiqTokens.spaceSm),
+                                Flexible(
+                                  flex: 2,
+                                  child: Align(
+                                    alignment: Alignment.bottomRight,
+                                    child: _ViewButtons(
+                                      image: image,
+                                      viewport: viewport,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                 ],
               );
@@ -556,19 +553,7 @@ class _LiveFrame extends ConsumerWidget {
     if (id != null) {
       final wcs = ref.watch(capturedImageWcsProvider(id)).valueOrNull;
       if (wcs != null && wcs.isPlateSolved) {
-        final stored = solvedWcsFromStored(
-          raHours: wcs.solvedRaHours,
-          decDegrees: wcs.solvedDecDegrees,
-          rotationDeg: wcs.solvedRotationDegrees,
-          pixelScaleArcsec: wcs.solvedPixelScaleArcsecPerPixel,
-          imageWidth: image.width,
-          imageHeight: image.height,
-          cd1_1: wcs.cd1_1,
-          cd1_2: wcs.cd1_2,
-          cd2_1: wcs.cd2_1,
-          cd2_2: wcs.cd2_2,
-          sip: wcs.sip,
-        );
+        final stored = wcs.solvedWcs(width: image.width, height: image.height);
         if (stored != null) return stored;
       }
     }
@@ -596,7 +581,7 @@ StripFrameVm? _stripFrameFor(
   final path = image?.filePath;
   if (path == null || path.isEmpty) return null;
   for (var i = frames.length - 1; i >= 0; i--) {
-    if (frames[i].filePath == path) return frames[i];
+    if ((frames[i].hostPath ?? frames[i].filePath) == path) return frames[i];
   }
   return null;
 }

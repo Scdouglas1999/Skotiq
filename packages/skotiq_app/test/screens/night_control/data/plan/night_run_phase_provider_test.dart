@@ -5,7 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import 'plan_test_support.dart';
 
@@ -71,8 +72,9 @@ void main() {
     container.listen(lastEndedRunProvider, (_, __) {});
     expect(container.read(nightRunPhaseProvider), NightRunPhase.running);
 
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.idle;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.idle);
     expect(container.read(nightRunPhaseProvider), NightRunPhase.finished);
 
     container.read(currentSequenceProvider.notifier).createSequence(
@@ -80,6 +82,38 @@ void main() {
         );
     expect(
         container.read(nightRunPhaseProvider), isNot(NightRunPhase.finished));
+  });
+
+  // A stopped one-tap night read "Not set up · No plan loaded" over the
+  // frames it had just taken: the planner's plan left the editor when the
+  // run ended, and with it everything that says a run happened.
+  test(
+      'a one-tap run started from an empty editor reads as finished, with '
+      'its plan, after it ends', () {
+    final plan = TwoTargetPlan().sequence;
+    for (final releaseFirst in [true, false]) {
+      final container = planContainer(now: evening);
+      addTearDown(container.dispose);
+      container.listen(lastEndedRunProvider, (_, __) {});
+      final editor = container.read(currentSequenceProvider.notifier);
+      final execution = container.read(runRecordProvider.notifier);
+
+      editor.takeOwnership(plan, ActivePlanOwner.smartNight);
+      execution.setLifecycle(SequenceExecutionState.running);
+      expect(container.read(nightRunPhaseProvider), NightRunPhase.running);
+
+      // The executor hands the editor back as the run ends.
+      if (releaseFirst) editor.releaseOwnership();
+      execution.setLifecycle(SequenceExecutionState.idle);
+      if (!releaseFirst) editor.releaseOwnership();
+
+      final header = container.read(nightHeaderProvider);
+      expect(header.phase, NightRunPhase.finished,
+          reason: 'released first: $releaseFirst');
+      expect(header.planName, plan.name);
+      expect(header.startNow, const NightControlVm.enabled(),
+          reason: 'the plan can be started again');
+    }
   });
 
   // SY-36: the header read "Finished" in gray for a run the host and the
@@ -102,10 +136,46 @@ void main() {
       expect(container.read(nightHeaderProvider).ending, isNull,
           reason: 'a live run has not ended');
 
-      container.read(sequenceExecutionStateProvider.notifier).state = state;
+      container.read(runRecordProvider.notifier).setLifecycle(state);
       final header = container.read(nightHeaderProvider);
       expect(header.phase, NightRunPhase.finished, reason: '$state');
       expect(header.ending, ending, reason: '$state');
+    }
+  });
+
+  test('a run the operator stopped reads as stopped; a dawn park does not', () {
+    final plan = TwoTargetPlan().sequence;
+    for (final (evidence, ending) in <(SequenceStopDecision?, NightRunEnding)>[
+      (
+        const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+        NightRunEnding.stopped,
+      ),
+      (
+        const SequenceStopDecision(
+          SequenceStopAuthor.system,
+          origin: 'dawn_approaching',
+          parked: true,
+        ),
+        NightRunEnding.ended,
+      ),
+      (null, NightRunEnding.ended),
+    ]) {
+      final container = planContainer(
+        now: evening,
+        sequence: plan,
+        execution: SequenceExecutionState.running,
+      );
+      addTearDown(container.dispose);
+      container.listen(lastEndedRunProvider, (_, __) {});
+      container.read(runRecordProvider.notifier).setStopEvidence(evidence);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.idle);
+      expect(
+        container.read(nightHeaderProvider).ending,
+        ending,
+        reason: '${evidence?.author}',
+      );
     }
   });
 
@@ -192,6 +262,31 @@ void main() {
     );
     expect(header.stop, const NightControlVm.enabled(),
         reason: 'Stop is never taken away from a paused run.');
+  });
+
+  test('an action under way with no run is named; during a run it is not', () {
+    const autofocus = ManualActionState(
+      phase: ManualActionPhase.running,
+      active: ManualActionId.autofocus,
+    );
+    final idle = planContainer(now: evening, action: autofocus);
+    addTearDown(idle.dispose);
+    expect(idle.read(nightRunPhaseProvider), NightRunPhase.notSetUp);
+    expect(idle.read(nightHeaderProvider).actionUnderWay,
+        ManualActionId.autofocus);
+
+    final running = planContainer(
+      now: evening,
+      sequence: TwoTargetPlan().sequence,
+      execution: SequenceExecutionState.running,
+      action: autofocus,
+    );
+    addTearDown(running.dispose);
+    expect(running.read(nightHeaderProvider).actionUnderWay, isNull);
+
+    final nothing = planContainer(now: evening);
+    addTearDown(nothing.dispose);
+    expect(nothing.read(nightHeaderProvider).actionUnderWay, isNull);
   });
 
   test('an action running while the operator had paused is still their pause',

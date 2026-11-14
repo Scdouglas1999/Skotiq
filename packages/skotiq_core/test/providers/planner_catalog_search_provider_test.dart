@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../harness/in_memory_database.dart';
 
 TargetSuggestion _suggestion({
@@ -48,7 +49,7 @@ void main() {
       });
 
       await CatalogManager.instance.initialize(tempDir.path);
-      await File(CatalogManager.instance.dsoCatalogPath).writeAsString(
+      await File(CatalogManager.instance.pathOf(SkyCatalog.dso)).writeAsString(
         [
           openNgcHeader,
           'NGC1976;Cl+N;05:35:16.48;-05:23:22.8;Ori;90.00;60.00;;4.00;4.00;;;;;;;1.670;-0.300;28;0.000093;;;;042;;;;LBN 974,MWSC 0582;Great Orion Nebula,Orion Nebula;;;test',
@@ -79,6 +80,47 @@ void main() {
   );
 
   test(
+    'a target already in tonight\'s list does not bring up the object its number extends',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'planner_catalog_search_prefix_',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      await CatalogManager.instance.initialize(tempDir.path);
+      await File(CatalogManager.instance.pathOf(SkyCatalog.dso)).writeAsString(
+        [
+          openNgcHeader,
+          'NGC5272;GCl;13:42:11.62;+28:22:38.2;CVn;16.20;16.20;;7.19;6.39;;;;;;;;;;;;;;003;;;;;;;;test',
+          'NGC0224;G;00:42:44.35;+41:16:08.6;And;177.83;69.66;35;4.29;3.44;;;;;;;;;;;;;;031;;;;;Andromeda Galaxy;;;test',
+        ].join('\n'),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          tonightSuggestionsProvider.overrideWith(
+            (ref) async => [
+              _suggestion(id: 1, name: 'M31', catalogId: 'NGC224'),
+            ],
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final provider = plannerInstalledCatalogSearchProvider('M31');
+      final sub = container.listen(provider, (_, __) {});
+      addTearDown(sub.close);
+
+      expect(await container.read(provider.future), isEmpty);
+    },
+  );
+
+  test(
     'planner installed-catalog search normalizes Messier NGC IC HIP and HD identifiers',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -91,7 +133,7 @@ void main() {
       });
 
       await CatalogManager.instance.initialize(tempDir.path);
-      await File(CatalogManager.instance.dsoCatalogPath).writeAsString(
+      await File(CatalogManager.instance.pathOf(SkyCatalog.dso)).writeAsString(
         [
           openNgcHeader,
           'NGC0001;G;00:07:15.84;+27:42:29.1;Peg;1.55;1.07;112;13.65;12.90;;;;;;;;;;;;;;;;;;;;;;;;;;test',
@@ -99,7 +141,9 @@ void main() {
           'NGC1976;Cl+N;05:35:16.48;-05:23:22.8;Ori;90.00;60.00;;4.00;4.00;;;;;;;1.670;-0.300;28;0.000093;;;;042;;;;LBN 974,MWSC 0582;Great Orion Nebula,Orion Nebula;;;test',
         ].join('\n'),
       );
-      await File(CatalogManager.instance.starCatalogPath).writeAsString(
+      await File(
+        CatalogManager.instance.pathOf(SkyCatalog.stars),
+      ).writeAsString(
         [
           'id,hip,hd,hr,gl,bf,proper,ra,dec,dist,pmra,pmdec,rv,mag,absmag,spect,ci,x,y,z,vx,vy,vz,rarad,decrad,pmrarad,pmdecrad,bayer,flam,con,comp,comp_primary,base,lum,var,var_min,var_max',
           '1,91262,172167,7001,,,"Vega",18.615649,38.783689,7.68,0,0,0,0.03,0.58,A0V,0.0,0,0,0,0,0,0,0,0,0,0,alp,3,Lyr,1,1,1,40,0,0,0',
@@ -122,10 +166,10 @@ void main() {
       }
 
       expect((await search('M 42')).single.name, 'M42');
-      expect((await search('NGC 1')).first.catalogId, 'NGC0001');
-      expect((await search('NGC0001')).first.catalogId, 'NGC0001');
-      expect((await search('IC 410')).single.catalogId, 'IC0410');
-      expect((await search('IC0410')).single.catalogId, 'IC0410');
+      expect((await search('NGC 1')).first.catalogId, 'NGC1');
+      expect((await search('NGC0001')).first.catalogId, 'NGC1');
+      expect((await search('IC 410')).single.catalogId, 'IC410');
+      expect((await search('IC0410')).single.catalogId, 'IC410');
       expect((await search('HIP 91262')).single.name, 'Vega');
       expect((await search('HD 172167')).single.name, 'Vega');
     },

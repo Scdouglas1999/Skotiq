@@ -3,21 +3,21 @@
 # This image does NOT compile anything. It consumes the release tarball that
 # scripts/docker_build_linux.sh produces (that script runs the full
 # rust + melos + `flutter build linux --release` pipeline inside the
-# ghcr.io/cirruslabs/flutter image and emits
+# Debian Bookworm image (with the pinned Flutter SDK) and emits
 # skotiq-linux-<arch>-<ver>.tar.gz). Two-step flow, from the repo root:
 #
 #   1. Build the release tarball (writes to ./dist-linux):
 #        docker run --rm \
 #          -v "$PWD":/host:ro \
 #          -v "$PWD/dist-linux":/out \
-#          ghcr.io/cirruslabs/flutter:stable \
+#          debian:bookworm-slim \
 #          bash /host/scripts/docker_build_linux.sh
 #
 #   2. Build this runtime image (BUNDLE_TARBALL is relative to the build
 #      context, which should be the repo root):
 #        docker build \
 #          -f packaging/appliance/docker/Dockerfile \
-#          --build-arg BUNDLE_TARBALL=dist-linux/skotiq-linux-x64-4.0.0.tar.gz \
+#          --build-arg BUNDLE_TARBALL=dist-linux/skotiq-linux-x64-9.0.0.tar.gz \
 #          -t skotiq-headless .
 #
 # Why no in-Dockerfile build stage: the build script intentionally snapshots
@@ -34,6 +34,8 @@ FROM debian:bookworm-slim
 # xvfb + xauth: the Flutter GTK embedder initialises a display even in
 # headless app mode, so the entrypoint wraps the daemon in xvfb-run — the
 # same trick the build script's smoke test uses.
+# Flutter loads GLES dynamically even in headless mode; Mesa supplies the
+# software renderer when Xvfb has no GPU. These are not all visible to ldd.
 # curl: healthcheck. ca-certificates: OTA update HTTPS + cloud push.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -44,6 +46,10 @@ RUN apt-get update \
     libudev1 \
     libusb-1.0-0 \
     libraw20 \
+    libgl1 \
+    libegl1 \
+    libgles2 \
+    libgl1-mesa-dri \
     xvfb \
     xauth \
     curl \
@@ -52,9 +58,13 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Path of the release tarball relative to the build context (repo root).
-ARG BUNDLE_TARBALL=dist-linux/skotiq-linux-x64-4.0.0.tar.gz
-# ADD auto-extracts local tarballs.
-ADD ${BUNDLE_TARBALL} /opt/skotiq/bundle/
+ARG BUNDLE_TARBALL=dist-linux/skotiq-linux-x64-9.0.0.tar.gz
+# ADD auto-extracts local tarballs. The build script emits a flat archive;
+# release.yml wraps the same files in skotiq-<version>-linux-<arch>/.
+ADD ${BUNDLE_TARBALL} /opt/skotiq/unpacked/
+COPY packaging/appliance/docker/normalize-bundle.sh /tmp/normalize-bundle.sh
+RUN sh /tmp/normalize-bundle.sh /opt/skotiq/unpacked /opt/skotiq/bundle \
+  && rm /tmp/normalize-bundle.sh
 
 COPY packaging/appliance/docker/healthcheck.sh /usr/local/bin/skotiq-healthcheck
 RUN chmod +x /usr/local/bin/skotiq-healthcheck \
@@ -79,7 +89,7 @@ WORKDIR /var/lib/skotiq
 # recommended mode, for mDNS/UDP discovery) these are informational.
 EXPOSE 8080/tcp 45679/udp 45680/tcp
 
-# GET /api/status is a public (unauthenticated) route, so the healthcheck
+# GET /api/info is a public (unauthenticated) route, so the healthcheck
 # works with auth enabled. The script falls back to https -k when TLS is on.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD ["/usr/local/bin/skotiq-healthcheck"]

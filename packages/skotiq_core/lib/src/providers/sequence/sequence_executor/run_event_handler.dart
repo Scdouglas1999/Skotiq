@@ -1,18 +1,23 @@
+import '../../../errors/error_text.dart';
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../backend/bridge_events.dart'
-    show depthGoalCompletedDetail, triggerActionText;
+import '../../../backend/bridge_events.dart';
+import '../../../backend/sequencer_error_kind.dart';
+import '../../../backend/sequencer_run_events.dart';
+import '../../../models/sequence/run_frame_assessment.dart';
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/replay_decision.dart' show DecisionCategory;
 import '../../../models/sequence/instruction_progress_detail.dart';
 import '../../../models/sequence/sequence_models.dart';
+import '../../../models/sequence/sequence_run_status.dart';
 import '../../../services/logging_service.dart';
 import '../../../utils/remote_path.dart';
 import '../../equipment_provider.dart';
 import '../../frame_watch_settings_provider.dart';
+import '../../../models/site/learned_obstruction.dart';
 import '../../settings_provider.dart' show appObserverLocationProvider;
 import '../../focuser_backlash_provider.dart'
     show focuserBacklashOfferSessionProvider;
@@ -20,37 +25,37 @@ import '../../plugin_node_dispatcher.dart';
 import '../../replay_debug_provider.dart';
 import '../../sequence_provider.dart'
     show
-        recordRunEventStopEvidence,
+        foldRunEvent,
+        runRecordProvider,
+        RunRecordNotifier,
         sequenceExecutionStateProvider,
         sequenceProgressProvider,
-        SequenceProgressNotifier,
         sequenceStopEvidenceProvider;
 import '../../sequence_stats_provider.dart';
 import '../../session_provider.dart';
-import '../exposure_progress_vocabulary.dart';
+import '../../../models/sequence/exposure_progress_vocabulary.dart';
 import '../log_rate_limiter.dart';
-import '../node_exposure_tally.dart';
-import '../run_stop_classification.dart';
+import '../../../models/sequence/run_stop_classification.dart';
 import '../sequencer_defaults.dart';
-import '../sequencer_run_event.dart';
-import '../target_end_when_notice.dart';
+import '../../../models/sequence/target_end_when_notice.dart';
 import 'eta_smoothing.dart';
 import 'live_stacking_feed.dart';
 import 'run_frame_recorder.dart';
 import 'run_stats_ledger.dart';
+import '../../../models/backend/backend_types.dart';
 
 /// Receives a terminal event's verdict; the executor's finalization claim.
 typedef RunTerminalSink =
     void Function(
       SequenceExecutionState uiState,
-      String runStatus, {
+      SequenceRunStatus runStatus, {
       String? error,
       String? warning,
     });
 
 /// Applies each native sequencer event to the run: progress and node state,
-/// run stats, frames, decisions, plugin dispatch. Events are decoded once
-/// ([SequencerRunEvent]) and switched over by type. The run's lifecycle is not
+/// run stats, frames, decisions, plugin dispatch. Each is the typed event the
+/// codec decoded ([sequencerEventOf]), switched over by type. The run's lifecycle is not
 /// decided here: lifecycle events go to [setExecutionState] and terminal
 /// events to the executor's finalization through [onTerminal].
 class RunEventHandler {
@@ -113,45 +118,51 @@ class RunEventHandler {
       _logger.debug(trace, source: 'SequenceExecutor');
     }
 
-    final event = SequencerRunEvent.fromSkotiqEvent(raw);
+    final event = sequencerEventOf(raw);
     if (event == null) return;
 
     // The one place a dither is counted: native reports each dither once,
     // whoever asked for it. It is a count, not node progress.
-    if (event is DitherPerformed) {
+    if (event case SequencerEvent_InstructionProgressStructured(
+      reportsDither: true,
+    )) {
       _stats.update((stats) => stats.recordDither());
       return;
     }
 
-    applyRunEventToNodeExposureTally(
-      _ref.read(nodeExposureTallyProvider.notifier),
-      event,
-    );
-    // Authorship rows precede the cause-neutral cancel notice, so they are
-    // folded as they arrive.
-    recordRunEventStopEvidence(_ref.read, event);
-
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    // The record's own fold first; what follows adds what only the executor
+    // knows and words the progress message for the run view.
+    final progressNotifier = _ref.read(runRecordProvider.notifier);
+    foldRunEvent(progressNotifier, event, executorDecidesLifecycle: true);
     switch (event) {
-      case NodeStarted():
-        _onNodeStarted(event, progressNotifier);
-      case NodeCompleted():
+      case SequencerEvent_NodeStarted():
+        // Frame indices restart at 1 for every node, so a verdict an aborted
+        // burst never completed must not survive into this node's frame 1.
+        _frames.clearVerdicts();
+      case SequencerEvent_NodeCompleted():
         _onNodeCompleted(event, progressNotifier);
-      case ExposureStarted():
+      case SequencerEvent_ExposureStarted():
         _onExposureStarted(event, progressNotifier);
-      case ExposureCompleted():
+      case SequencerEvent_ExposureCompleted():
         _onExposureCompleted(event, progressNotifier);
-      case ExposureCountProgress(:final current, :final total):
+      case SequencerEvent_Progress(:final current, :final total):
         progressNotifier.updateProgress(
-          completedExposures: current ?? 0,
-          message: 'Progress: ${current ?? 0}/${total ?? 0} exposures',
+          completedExposures: current,
+          // A run looping until its window closes has no total to show.
+          message: total > 0
+              ? 'Progress: $current/$total exposures'
+              : 'Progress: $current exposures',
         );
-      case TargetChanged(:final targetName, :final ra, :final dec):
+      case SequencerEvent_TargetChanged(
+        :final targetName,
+        :final ra,
+        :final dec,
+      ):
         progressNotifier.updateProgress(
           currentTarget: targetName,
-          message: targetName != null ? 'Started target: $targetName' : null,
+          message: 'Started target: $targetName',
         );
-        if (targetName != null && ra != null && dec != null) {
+        if (ra != null && dec != null) {
           _logger.debug(
             'Target changed: $targetName (RA=${ra.toStringAsFixed(4)}h, '
             'Dec=${dec.toStringAsFixed(4)}°)',
@@ -161,102 +172,91 @@ class RunEventHandler {
               .read(sessionStateProvider.notifier)
               .updateTargetCoordinates(ra: ra, dec: dec);
         }
-      case TargetCompleted(:final targetName):
+      case SequencerEvent_TargetCompleted(:final targetName):
         progressNotifier.updateProgress(
-          message: 'Completed target: ${targetName ?? 'unknown'}',
+          message: 'Completed target: $targetName',
         );
-      case SequencerError():
+      case SequencerEvent_Error():
         _onSequencerError(event, progressNotifier);
-      case StructuredInstructionProgress():
+      case SequencerEvent_InstructionProgressStructured(
+        :final frameAssessment?,
+      ):
+        _frames.recordAssessment(frameAssessment);
+      case SequencerEvent_InstructionProgressStructured(
+        :final horizonObstruction?,
+      ):
+        _onHorizonObstruction(
+          horizonObstruction,
+          raw.timestamp,
+          progressNotifier,
+        );
+      case SequencerEvent_InstructionProgressStructured():
         _onStructuredProgress(event, progressNotifier);
-      case InstructionProgress():
+      case SequencerEvent_InstructionProgress():
         _onInstructionProgress(event, progressNotifier);
-      case MeridianFlipOutcome():
+      case SequencerEvent_MeridianFlipOutcome():
         _handleMeridianFlipOutcome(event);
-      case TriggerFired():
+      case SequencerEvent_TriggerFired():
         _onTriggerFired(event, progressNotifier);
-      case RunStarted():
-        // A new run answers for itself: the previous run's stop cause must not
-        // be read as this one's.
-        _ref.read(sequenceStopEvidenceProvider.notifier).state = null;
+      case SequencerEvent_Started():
         _targetSkippedAtEntry = false;
         _setExecutionState(SequenceExecutionState.running);
-      case RunPaused():
+      case SequencerEvent_Paused():
         _setExecutionState(SequenceExecutionState.paused);
-      case RunResumed():
+      case SequencerEvent_Resumed():
         _setExecutionState(SequenceExecutionState.running);
-      case RunCompleted():
+      case SequencerEvent_Completed():
         _onCompleted();
-      case RunFailed(:final error):
+      case SequencerEvent_Failed(:final error):
         _onTerminal(
           SequenceExecutionState.failed,
-          'failed',
-          error: error ?? 'Unknown error',
+          SequenceRunStatus.failed,
+          error: error,
         );
-      case RunStopped():
+      case SequencerEvent_Stopped():
         _onNativeStopped();
-      case FrameAccepted():
-        _frames.recordGraded(event);
-        _frames.register(event, grade: 'pass');
+      case SequencerEvent_FrameAccepted():
+        final verdict = FrameVerdict.of(event)!;
+        _frames.recordGraded(verdict);
+        _frames.register(verdict, grade: 'pass');
         _liveStacking.feed(event);
-      case FrameRejected(:final rejectPath):
-        _frames.recordGraded(event);
+      case SequencerEvent_FrameRejected(:final rejectPath):
+        final verdict = FrameVerdict.of(event)!;
+        _frames.recordGraded(verdict);
         // The folder rejects pile up in is what an operator opens after a
         // reject storm, so the run record names the grader's own directory.
-        final rejectFolder = rejectPath == null
-            ? null
-            : parentDirectoryOf(rejectPath);
+        final rejectFolder = parentDirectoryOf(rejectPath);
         if (rejectFolder != null) {
           _stats.update((stats) => stats.recordRejectFolder(rejectFolder));
         }
-        _frames.register(event, grade: 'reject');
-      case PluginNodeRequested():
+        _frames.register(verdict, grade: 'reject');
+      case SequencerEvent_PluginNodeRequested():
         _dispatchPluginNode(event);
-      case PluginNodeProgress(:final pluginId, :final nodeTypeId):
+      case SequencerEvent_PluginNodeProgress(
+        :final pluginId,
+        :final nodeTypeId,
+        :final detailJson,
+      ):
         _logger.debug(
-          'PluginNodeProgress: ${pluginId ?? ''}/${nodeTypeId ?? ''} '
-          '${event.detailJson ?? ''}',
+          'PluginNodeProgress: $pluginId/$nodeTypeId $detailJson',
           source: 'SequenceExecutor',
         );
-      case DepthGoalCompleted():
-        _persistDepthGoalDecision(event);
-      case DecisionLogged():
+      case SequencerEvent_DepthGoalCompleted():
+        _persistDepthGoalDecision(event, raw.timestamp);
+      case SequencerEvent_DecisionLogged():
         _persistReplayDecision(event);
-      case FrameAssessed():
-        _frames.recordAssessment(event);
-      case HorizonObstructionDetected():
-        _onHorizonObstruction(event, progressNotifier);
-      case DitherPerformed() || RunCancelled() || UnrecognizedSequencerEvent():
+      default:
         break;
     }
   }
 
-  void _onNodeStarted(
-    NodeStarted event,
-    SequenceProgressNotifier progressNotifier,
-  ) {
-    final nodeId = event.nodeId;
-    if (nodeId != null) {
-      progressNotifier.updateProgress(
-        currentNodeId: nodeId,
-        currentNodeName: event.nodeType,
-        currentNodeStatus: NodeStatus.running,
-      );
-      progressNotifier.updateNodeStatus(nodeId, NodeStatus.running);
-    }
-    // Frame indices restart at 1 for every node, so a verdict an aborted burst
-    // never completed must not survive into this node's frame 1.
-    _frames.clearVerdicts();
-  }
-
   void _onNodeCompleted(
-    NodeCompleted event,
-    SequenceProgressNotifier progressNotifier,
+    SequencerEvent_NodeCompleted event,
+    RunRecordNotifier progressNotifier,
   ) {
     final nodeId = event.nodeId;
-    if (nodeId == null) return;
-    final status = event.status ?? 'failed';
-    final nodeStatus = event.nodeStatus ?? NodeStatus.failure;
+    final status = event.status;
+    final nodeStatus = event.nodeStatus;
     progressNotifier.updateNodeStatus(nodeId, nodeStatus);
     // An autofocus is counted by what the node did (its structured progress
     // was an Autofocus detail), never by its operator-editable name. The run
@@ -268,7 +268,7 @@ class RunEventHandler {
     }
     // A status Dart has not learned yet reads as a failure; carry the raw
     // string so the red node explains itself.
-    if (!NodeCompleted.knownStatuses.contains(status)) {
+    if (!knownNodeStatuses.contains(status)) {
       _logger.warning(
         'NodeCompleted with unknown status "$status" for node '
         '$nodeId; treating as failure.',
@@ -283,11 +283,11 @@ class RunEventHandler {
   }
 
   void _onExposureStarted(
-    ExposureStarted event,
-    SequenceProgressNotifier progressNotifier,
+    SequencerEvent_ExposureStarted event,
+    RunRecordNotifier progressNotifier,
   ) {
-    final frame = event.frame ?? 0;
-    final total = event.total ?? 0;
+    final frame = event.frame;
+    final total = event.total;
     final exposureDetail = formatExposureStartedDetail(
       frame,
       total,
@@ -309,22 +309,18 @@ class RunEventHandler {
   }
 
   void _onExposureCompleted(
-    ExposureCompleted event,
-    SequenceProgressNotifier progressNotifier,
+    SequencerEvent_ExposureCompleted event,
+    RunRecordNotifier progressNotifier,
   ) {
-    final frame = event.frame ?? 0;
-    final total = event.total ?? 1;
-    final durationSecs = event.durationSecs ?? 0.0;
+    final frame = event.frame;
+    final total = event.total;
+    final durationSecs = event.durationSecs;
     // A graded frame was already counted and shown when its verdict arrived
     // (see [RunFrameRecorder]); an ungraded one (no save path, so no grader) is
     // counted here as accepted.
     final graded = _frames.takeVerdict(frame);
     if (!graded) {
-      _frames.recordRunFrame(
-        exposureSecs: durationSecs,
-        filter: event.filter,
-        accepted: true,
-      );
+      _frames.recordRunFrame(exposureSecs: durationSecs, accepted: true);
     }
     // The ETA is fed shutter-open time plus a fixed download overhead, not the
     // wall clock between frames, so autofocus and slew stalls do not skew it.
@@ -333,12 +329,6 @@ class RunEventHandler {
       _eta.recordFrame(durationSecs + defaults.frameDownloadOverheadSecs);
     }
     progressNotifier.updateProgress(completedExposures: frame);
-    // Keyed on the originating event: the DeviceService pump sees the same
-    // event, and only one of the two may add its shutter time.
-    progressNotifier.recordCompletedFrameIntegration(
-      eventKey: '${event.timestamp}:$frame',
-      durationSecs: durationSecs,
-    );
     final nodeId = _ref.read(sequenceProgressProvider).currentNodeId;
     if (nodeId != null) {
       progressNotifier.updateNodeProgress(
@@ -353,26 +343,20 @@ class RunEventHandler {
   }
 
   void _onSequencerError(
-    SequencerError event,
-    SequenceProgressNotifier progressNotifier,
+    SequencerEvent_Error event,
+    RunRecordNotifier progressNotifier,
   ) {
-    final message = event.message ?? 'Unknown error';
-    // An advisory shares the Error payload; it is a warning on the run, never
-    // a fault on a node.
-    if (event.isAdvisory) {
+    final message = event.message;
+    // A note, or a problem the run carried on through, shares the Error
+    // payload; it is a warning on the run, never a fault on a node.
+    if (event.kind.runContinues) {
       _warn(message);
       progressNotifier.updateProgress(message: message);
       return;
     }
-    // Older native executors acknowledged SkipToNode through Error. It is an
-    // informational success.
-    if (message.startsWith('SkipToNode request accepted:')) {
-      progressNotifier.updateProgress(message: message);
-      return;
-    }
-    // Every cancellation path emits the same notice, so it is a stop whose
-    // cause comes from the run's authorship rows, not an error.
-    if (isSequenceCancelledNotice(message)) {
+    // A cancellation is a stop whose cause comes from the run's authorship
+    // rows, not an error.
+    if (event.kind == SequencerErrorKind.cancelled) {
       final stopped = sequenceStoppedMessage(
         _ref.read(sequenceStopEvidenceProvider),
       );
@@ -390,7 +374,10 @@ class RunEventHandler {
     if (nodeId != null) {
       progressNotifier.updateNodeProgress(nodeId, 0.0, 'Error: $message');
     }
-    _escalateRunningToRecovering();
+    // A run held for the operator is paused, which its own event says.
+    if (event.kind != SequencerErrorKind.runHeld) {
+      _escalateRunningToRecovering();
+    }
   }
 
   /// A mid-run fault is not terminal (recovery may still salvage the run), but
@@ -404,8 +391,8 @@ class RunEventHandler {
   }
 
   void _onStructuredProgress(
-    StructuredInstructionProgress event,
-    SequenceProgressNotifier progressNotifier,
+    SequencerEvent_InstructionProgressStructured event,
+    RunRecordNotifier progressNotifier,
   ) {
     // A Change Filter instruction is the only place the running filter is
     // named when the exposure node itself has none.
@@ -413,54 +400,44 @@ class RunEventHandler {
     if (filterName != null) {
       progressNotifier.updateProgress(currentFilter: filterName);
     }
-    final nodeId =
-        event.nodeId ?? _ref.read(sequenceProgressProvider).currentNodeId;
-    if (nodeId != null) {
-      progressNotifier.updateNodeStructuredProgress(
-        nodeId,
-        event.progressPercent ?? 0.0,
-        event.detail,
-      );
-      progressNotifier.updateProgress(
-        message: '${event.instruction ?? ''}: ${event.detailKind}',
-      );
-    }
+    // The run's line is the step's own text, which the plain progress event
+    // carrying the same update sets.
+    progressNotifier.updateNodeStructuredProgress(
+      event.nodeId,
+      event.progressPercent,
+      event.detail,
+    );
   }
 
   void _onInstructionProgress(
-    InstructionProgress event,
-    SequenceProgressNotifier progressNotifier,
+    SequencerEvent_InstructionProgress event,
+    RunRecordNotifier progressNotifier,
   ) {
-    final instruction = event.instruction ?? '';
-    final percent = event.progressPercent ?? 0.0;
-    final detail = event.detail ?? '';
+    final SequencerEvent_InstructionProgress(
+      :nodeId,
+      :instruction,
+      :progressPercent,
+      :detail,
+    ) = event;
     _logger.debug(
-      'InstructionProgress: nodeId=${event.nodeId}, instruction=$instruction, '
-      'progress=$percent%, detail=$detail',
+      'InstructionProgress: nodeId=$nodeId, instruction=$instruction, '
+      'progress=$progressPercent%, detail=$detail',
       source: 'SequenceExecutor',
     );
-    final nodeId =
-        event.nodeId ?? _ref.read(sequenceProgressProvider).currentNodeId;
-    _logger.debug(
-      'Updating node progress for: $nodeId',
-      source: 'SequenceExecutor',
-    );
-    if (nodeId != null) {
-      progressNotifier.updateNodeProgress(nodeId, percent, detail);
-      progressNotifier.updateProgress(message: '$instruction: $detail');
-    }
+    progressNotifier.updateNodeProgress(nodeId, progressPercent, detail);
+    progressNotifier.updateProgress(message: '$instruction: $detail');
   }
 
   void _onTriggerFired(
-    TriggerFired event,
-    SequenceProgressNotifier progressNotifier,
+    SequencerEvent_TriggerFired event,
+    RunRecordNotifier progressNotifier,
   ) {
-    final triggerName = event.triggerName ?? 'Unknown trigger';
-    final action = triggerActionText(event.action ?? '');
+    final triggerName = event.triggerName;
+    final action = triggerActionText(event.action);
     _stats.update((stats) => stats.recordTriggerFire());
     // A target dropped by its own end_when costs the operator a whole target,
     // so it goes on the run record, not only into the trigger feed.
-    if (isTargetEndWhenSkip(event.triggerId ?? '')) {
+    if (isTargetEndWhenSkip(event.triggerId)) {
       _targetSkippedAtEntry = true;
       final warning = targetEndWhenSkipWarning(triggerName);
       _logger.warning(warning, source: 'SequenceExecutor');
@@ -486,19 +463,20 @@ class RunEventHandler {
     if (skipped && framesCaptured == 0) {
       _onTerminal(
         SequenceExecutionState.failed,
-        'failed',
+        SequenceRunStatus.failed,
         error: kNothingImagedRunError,
       );
       return;
     }
-    _onTerminal(SequenceExecutionState.completed, 'completed');
+    _onTerminal(SequenceExecutionState.completed, SequenceRunStatus.completed);
   }
 
   /// Learn the obstruction the run met at this site, so planning keeps clear
   /// of it, and put the run's account of it on the run record.
   void _onHorizonObstruction(
-    HorizonObstructionDetected event,
-    SequenceProgressNotifier progressNotifier,
+    HorizonObstruction event,
+    int timestamp,
+    RunRecordNotifier progressNotifier,
   ) {
     final site = _ref.read(appObserverLocationProvider);
     final latitude = event.latitude ?? site?.latitude;
@@ -508,7 +486,7 @@ class RunEventHandler {
       altitudeDeg: event.altitudeDeg,
       latitude: latitude,
       longitude: longitude,
-      recordedAt: DateTime.fromMillisecondsSinceEpoch(event.timestamp).toUtc(),
+      recordedAt: DateTime.fromMillisecondsSinceEpoch(timestamp).toUtc(),
       targetName: event.targetName,
     );
     final logger = _logger;
@@ -554,7 +532,7 @@ class RunEventHandler {
         stopEvidence?.author == SequenceStopAuthor.operatorPress;
     _onTerminal(
       SequenceExecutionState.idle,
-      operatorStopped ? 'stopped' : 'aborted',
+      operatorStopped ? SequenceRunStatus.stopped : SequenceRunStatus.aborted,
       warning: operatorStopped || stopEvidence == null
           ? null
           : sequenceStoppedMessage(stopEvidence),
@@ -568,7 +546,10 @@ class RunEventHandler {
   /// bucket as "the plan stopped because it had enough". Fire-and-forget for
   /// the same reason as [_persistReplayDecision] — the executor's event loop
   /// must keep pumping.
-  void _persistDepthGoalDecision(DepthGoalCompleted event) {
+  void _persistDepthGoalDecision(
+    SequencerEvent_DepthGoalCompleted event,
+    int timestamp,
+  ) {
     final runId = _ref.read(currentRunIdProvider);
     if (runId == null) {
       _logger.debug(
@@ -578,11 +559,13 @@ class RunEventHandler {
       );
       return;
     }
-    final filterName = event.filterName ?? '';
-    final score = event.score ?? 0;
-    final threshold = event.threshold ?? 0;
-    final evidenceFrames = event.evidenceFrames ?? 0;
-    final confirmationFrames = event.confirmationFrames ?? 0;
+    final SequencerEvent_DepthGoalCompleted(
+      :filterName,
+      :score,
+      :threshold,
+      :evidenceFrames,
+      :confirmationFrames,
+    ) = event;
     final summary = depthGoalCompletedDetail(
       filterName: filterName,
       score: score,
@@ -596,13 +579,13 @@ class RunEventHandler {
       service
           .persistFromBridgeEvent(
             timestampIso: DateTime.fromMillisecondsSinceEpoch(
-              event.timestamp,
+              timestamp,
             ).toUtc().toIso8601String(),
             categoryWireKey: DecisionCategory.budgetMet.wireKey,
             summary: summary,
             detailsJson: jsonEncode({
               'goal_id': event.goalId,
-              'revision': event.revision,
+              'revision': event.revision.toInt(),
               'filter_name': filterName,
               'score': score,
               'threshold': threshold,
@@ -628,14 +611,16 @@ class RunEventHandler {
   /// the service handles its own change-notification, and a write
   /// failure is logged at warn-level (loud-fail policy without
   /// taking the executor down).
-  void _persistReplayDecision(DecisionLogged event) {
-    final timestampIso = event.timestampIso ?? '';
-    final category = event.category ?? '';
-    final summary = event.summary ?? '';
-    final detailsJson = event.detailsJson ?? '{}';
-    final nodeId = event.nodeId;
-    final rustRunId = event.sequenceRunId;
-    final effectiveRunId = rustRunId ?? _ref.read(currentRunIdProvider);
+  void _persistReplayDecision(SequencerEvent_DecisionLogged event) {
+    final SequencerEvent_DecisionLogged(
+      :timestampIso,
+      :category,
+      :summary,
+      :detailsJson,
+      :nodeId,
+    ) = event;
+    final effectiveRunId =
+        event.sequenceRunId?.toInt() ?? _ref.read(currentRunIdProvider);
     if (effectiveRunId == null) {
       // No active run id — the very first lifecycle "Sequence started"
       // decision falls into this window before the Dart row insert
@@ -673,13 +658,15 @@ class RunEventHandler {
   /// the verdict back. A dispatcher that throws still yields a failure
   /// verdict, so the native node unblocks instead of waiting out its timeout.
   /// Fire-and-forget, so other events keep flowing.
-  void _dispatchPluginNode(PluginNodeRequested event) {
-    final nodeId = event.nodeId ?? '';
-    final pluginId = event.pluginId ?? '';
-    final nodeTypeId = event.nodeTypeId ?? '';
-    final configJson = event.configJson ?? '';
-    final displayName = event.displayName;
-    final timeoutSecs = event.timeoutSecs ?? 600;
+  void _dispatchPluginNode(SequencerEvent_PluginNodeRequested event) {
+    final SequencerEvent_PluginNodeRequested(
+      :nodeId,
+      :pluginId,
+      :nodeTypeId,
+      :configJson,
+      :displayName,
+      :timeoutSecs,
+    ) = event;
 
     if (nodeId.isEmpty) {
       _logger.warning(
@@ -733,7 +720,7 @@ class RunEventHandler {
         );
         result = PluginNodeDispatchResult(
           success: false,
-          message: 'dispatcher threw: $e',
+          message: 'dispatcher threw: ${userFacingError(e)}',
         );
       }
 
@@ -761,20 +748,15 @@ class RunEventHandler {
   }
 
   /// Whether the node identified by [nodeId] ran an autofocus sweep, judged by
-  /// its most recent structured progress payload.
-  ///
-  /// `ProgressDetail::Autofocus` reaches Dart as an
-  /// [UnknownInstructionProgressDetail] with `kind == 'Autofocus'` (only
-  /// `Exposure` has a typed Dart counterpart today), and it is emitted by the
-  /// autofocus instruction alone — both for a tree `Autofocus` node and for a
+  /// its most recent structured progress. Only the autofocus instruction
+  /// reports an autofocus detail, both for a tree `Autofocus` node and for a
   /// trigger-fired refocus, which the executor publishes under the synthetic
   /// node id `trigger:<id>:autofocus`.
   bool _nodeRanAutofocus(String nodeId) {
     final detail = _ref
         .read(sequenceProgressProvider)
         .nodeProgressStructuredDetail[nodeId];
-    return detail is UnknownInstructionProgressDetail &&
-        detail.kind == 'Autofocus';
+    return detail is AutofocusInstructionProgressDetail;
   }
 
   /// Put a mid-run fault on the run record and offer backlash calibration
@@ -815,32 +797,34 @@ class RunEventHandler {
   /// and it is counted then: on 2026-11-03 the count stayed 0 through a
   /// twelve-minute recovery and after it, with the mount on the east side.
   /// The verdict that follows does not count it again.
-  void _handleMeridianFlipOutcome(MeridianFlipOutcome event) {
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
-    final outcome = event.outcome ?? 'unknown';
-    final targetName = event.targetName ?? 'target';
-    final attempts = event.attempts ?? 0;
-    final durationSecs = event.durationSecs ?? 0;
-    final error = event.error;
-    final actionTaken = event.actionTaken;
-    final failedSteps = event.failedSteps;
+  void _handleMeridianFlipOutcome(SequencerEvent_MeridianFlipOutcome event) {
+    final progressNotifier = _ref.read(runRecordProvider.notifier);
+    final SequencerEvent_MeridianFlipOutcome(
+      :targetName,
+      :attempts,
+      :durationSecs,
+      :error,
+      :actionTaken,
+    ) = event;
+    final failedSteps = [
+      for (final step in event.failedSteps) userFacingError(step),
+    ];
 
     final countedAtPierChange = _flipCountedAtPierChange;
     _flipCountedAtPierChange = false;
-    switch (outcome) {
-      case meridianFlipPierChangedOutcome:
+    switch (event.outcome) {
+      case FlipOutcome.pierChanged:
         _stats.update((stats) => stats.recordMeridianFlip());
         _flipCountedAtPierChange = true;
-        final side = event.newPierSide?.toLowerCase();
+        final side = event.newPierSide.toLowerCase();
         final message =
             'Meridian flip for "$targetName": the mount is on the '
-            '${side == null || side == 'unknown' ? 'new' : side} side of the '
-            'pier';
+            '${side == 'unknown' ? 'new' : side} side of the pier';
         _logger.info(message, source: 'SequenceExecutor');
         progressNotifier.updateProgress(message: message);
         break;
 
-      case 'success':
+      case FlipOutcome.success:
         if (!countedAtPierChange) {
           _stats.update((stats) => stats.recordMeridianFlip());
         }
@@ -862,18 +846,19 @@ class RunEventHandler {
         }
         break;
 
-      case 'aborted':
+      case FlipOutcome.aborted:
+        final reason = error?.trim().replaceFirst(RegExp(r'\.+$'), '');
         final message =
             'Meridian flip for "$targetName" was aborted after $attempts '
             'attempt${attempts == 1 ? "" : "s"}'
-            '${error != null ? ": $error" : ""}. The mount was NOT '
-            'flipped.';
+            '${reason == null || reason.isEmpty ? "" : ": $reason"}. The mount '
+            'was NOT flipped.';
         _logger.warning(message, source: 'SequenceExecutor');
         _stats.update((stats) => stats.recordWarning(message));
         progressNotifier.updateProgress(message: message);
         break;
 
-      default:
+      case FlipOutcome.failed:
         final message = countedAtPierChange
             ? 'Meridian flip for "$targetName" reached the new pier side, but '
                   'recovery failed after $attempts '

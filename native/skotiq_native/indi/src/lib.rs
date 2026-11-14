@@ -39,8 +39,83 @@
 //! - Protocol version negotiation support (1.7, 1.8, 1.9)
 //! - Exponential backoff with jitter for reconnection
 
-pub mod autofocus;
+/// The connection half of an INDI device wrapper with `client` and
+/// `device_name` fields: every wrapper reaches its device on the server's
+/// shared connection the same way.
+macro_rules! indi_device {
+    ($device:ty) => {
+        impl $device {
+            pub fn device_name(&self) -> &str {
+                &self.device_name
+            }
+
+            /// The shared server connection this device is reached through.
+            pub fn client(&self) -> &std::sync::Arc<tokio::sync::RwLock<$crate::IndiClient>> {
+                &self.client
+            }
+
+            /// Connects the device and returns once the driver confirms it.
+            pub async fn connect(&self) -> $crate::IndiResult<()> {
+                self.client
+                    .write()
+                    .await
+                    .connect_and_confirm(&self.device_name)
+                    .await
+            }
+
+            /// Disconnects the device and returns once the driver confirms it.
+            pub async fn disconnect(&self) -> $crate::IndiResult<()> {
+                self.client
+                    .write()
+                    .await
+                    .disconnect_and_confirm(&self.device_name)
+                    .await
+            }
+
+            pub async fn is_connected(&self) -> bool {
+                self.client
+                    .read()
+                    .await
+                    .is_device_connected(&self.device_name)
+                    .await
+            }
+
+            /// One heartbeat; see `IndiClient::check_device`.
+            pub async fn check(&self) -> $crate::IndiResult<bool> {
+                self.client
+                    .write()
+                    .await
+                    .check_device(&self.device_name)
+                    .await
+            }
+        }
+    };
+}
+
+/// [`indi_device`] plus the accessory lifecycle trait.
+macro_rules! indi_accessory {
+    ($device:ty) => {
+        indi_device!($device);
+
+        #[async_trait::async_trait]
+        impl skotiq_device::AccessoryDriver for $device {
+            async fn disconnect(&self) -> Result<(), skotiq_device::DriverError> {
+                Ok(<$device>::disconnect(self).await?)
+            }
+
+            async fn heartbeat(&self) -> Result<(), skotiq_device::DriverError> {
+                if self.check().await? {
+                    Ok(())
+                } else {
+                    Err(skotiq_device::DriverError::NotConnected)
+                }
+            }
+        }
+    };
+}
+
 mod camera;
+mod camera_driver;
 mod client;
 mod covercalibrator;
 pub mod discovery;
@@ -48,27 +123,32 @@ mod dome;
 mod error;
 mod filterwheel;
 mod focuser;
+mod frame;
+mod kind;
 mod mount;
+mod mount_driver;
 mod protocol;
+mod rig_drivers;
 mod rotator;
 mod safetymonitor;
 mod switch_device;
 mod weather;
 
-pub use autofocus::{AutofocusMethod, IndiAutofocus, IndiAutofocusConfig, IndiAutofocusResult};
-pub use camera::{IndiBayerPattern, IndiCamera, IndiReadoutMode};
+pub use camera::{IndiCamera, IndiReadoutMode};
 pub use client::*;
 pub use covercalibrator::{IndiCalibratorState, IndiCoverCalibrator, IndiCoverState};
 pub use discovery::{
     discover_common_hosts, discover_local_network, discover_localhost, discover_mdns,
-    discover_server, IndiDeviceInfo, IndiDeviceType, IndiServer,
+    discover_server, list_devices, wait_for_definitions, IndiDeviceInfo, IndiServer,
 };
 pub use dome::{IndiDome, IndiShutterStatus};
 pub use error::{IndiError, IndiResult};
 pub use filterwheel::IndiFilterWheel;
 pub use focuser::IndiFocuser;
-pub use mount::{IndiMount, IndiMountGuideDirection};
-pub use protocol::{standard_properties, CcdFrameType, INDI_PROTOCOL_VERSION};
+pub use frame::{decode_frame, IndiFrame};
+pub use kind::IndiDeviceDescription;
+pub use mount::IndiMount;
+pub use protocol::{names, CcdFrameType, INDI_PROTOCOL_VERSION};
 pub use rotator::IndiRotator;
 pub use safetymonitor::IndiSafetyMonitor;
 pub use switch_device::{IndiSwitchDevice, IndiSwitchInfo};
@@ -77,19 +157,11 @@ pub use weather::{IndiWeather, IndiWeatherStatus, DEFAULT_WEATHER_STALE_MS};
 /// Default INDI server port
 pub const INDI_DEFAULT_PORT: u16 = 7624;
 
-/// INDI device information
 #[derive(Debug, Clone)]
 pub struct IndiDevice {
     pub name: String,
-    pub driver: String,
 }
 
-/// Check if INDI is available on this platform
-pub fn is_available() -> bool {
-    !cfg!(target_os = "windows")
-}
-
-/// INDI property types
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IndiPropertyType {
     Text,
@@ -99,7 +171,6 @@ pub enum IndiPropertyType {
     Blob,
 }
 
-/// INDI property state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IndiPropertyState {
     Idle,
@@ -117,7 +188,6 @@ pub enum IndiSwitchRule {
     OneOfManyZeroOff,
 }
 
-/// An INDI property
 #[derive(Debug, Clone)]
 pub struct IndiProperty {
     pub device: String,
@@ -128,11 +198,13 @@ pub struct IndiProperty {
     pub state: IndiPropertyState,
     pub perm: IndiPermission,
     pub elements: Vec<String>,
+    /// Each element's label, in the order of `elements`; the element's name
+    /// where its definition gives no label (INDI 1.7: `label` is optional).
+    pub element_labels: Vec<String>,
     /// Switch rule from `defSwitchVector` / `setSwitchVector` (`rule="..."`).
     pub switch_rule: Option<IndiSwitchRule>,
 }
 
-/// INDI property permission
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IndiPermission {
     ReadOnly,
@@ -199,28 +271,19 @@ impl Default for IndiTimeoutConfig {
 }
 
 impl IndiTimeoutConfig {
-    /// Get the message timeout as a Duration
     pub fn message_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.message_timeout_secs)
     }
 
-    /// Get the BLOB timeout as a Duration
     pub fn blob_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.blob_timeout_secs)
     }
 
-    /// Get the property timeout as a Duration
-    pub fn property_timeout(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(self.property_timeout_secs)
-    }
-
-    /// Get the connection timeout as a Duration
     pub fn connection_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.connection_timeout_secs)
     }
 }
 
-/// Timeout error with context
 #[derive(Debug, Clone, thiserror::Error)]
 #[error("Operation timeout for device '{device}', property '{property}': {context}")]
 pub struct IndiTimeoutError {

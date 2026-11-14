@@ -24,6 +24,14 @@ import '../../models/sequence/interpolation_catalog.dart';
 /// stop decision on the wire.
 const String kStopCauseContextKey = 'stop.cause';
 
+/// Context key carrying why a run failed, as one or more sentences. The
+/// failure template interpolates it; the classifier fills it from the event.
+const String kFailureReasonContextKey = 'failure.reason';
+
+/// What [kFailureReasonContextKey] holds for a run that failed without
+/// naming a cause.
+const String kUnexplainedFailureReason = 'The log has the reason.';
+
 /// Context key carrying the run id a stop notification belongs to. Not for
 /// display — it is how the router tells one run's stop episode from the next.
 const String kStopRunIdContextKey = 'stop.run_id';
@@ -40,32 +48,43 @@ class NotificationContext {
   const NotificationContext(this.values);
 
   NotificationContext withDefaults({DateTime Function()? clock}) {
-    // Always populate clock fields. The router writes them too, but
-    // callers that build a context manually still get sensible values.
+    // The time variables mean what the catalog says, as in a frame name.
     final m = Map<String, String>.from(values);
     final now = (clock ?? DateTime.now)();
-    m.putIfAbsent('time.now', () => now.toUtc().toIso8601String());
-    m.putIfAbsent('time.local', () => now.toIso8601String());
-    m.putIfAbsent('time.clock', () => formatOperatorClock(now));
+    final utc = now.toUtc();
+    final local = now.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    String date(DateTime t) =>
+        '${t.year.toString().padLeft(4, '0')}-'
+        '${two(t.month)}-${two(t.day)}';
+    final offset = local.timeZoneOffset;
+    final offsetMinutes = offset.inMinutes.abs();
+    final zone =
+        '${offset.isNegative ? '-' : '+'}'
+        '${two(offsetMinutes ~/ 60)}:${two(offsetMinutes % 60)}';
     m.putIfAbsent(
-      'time.date',
+      'time.now',
       () =>
-          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+          '${date(utc)}T${two(utc.hour)}:${two(utc.minute)}:${two(utc.second)}Z',
     );
+    m.putIfAbsent(
+      'time.local',
+      () =>
+          '${date(local)} ${two(local.hour)}:${two(local.minute)}:'
+          '${two(local.second)} $zone',
+    );
+    m.putIfAbsent('time.date', () => date(utc));
+    m.putIfAbsent(
+      'time.clock',
+      () => '${two(utc.hour)}-${two(utc.minute)}-${two(utc.second)}',
+    );
+    m.putIfAbsent('time.local_clock', () => formatOperatorClock(now));
     return NotificationContext(m);
   }
 }
 
-/// Local wall-clock time as an operator reads it off a toast: `HH:mm`.
-///
-/// The built-in notification bodies interpolate `${time.clock}`, not
-/// `${time.local}`, whose ISO-8601 rendering is a wire format in operator copy.
-///
-/// This is deliberately NOT a new entry in `interpolationCatalog`: that catalog
-/// is Rust-canonical (`expressions/catalog.rs::variable_catalog`) with a
-/// CI-enforced drift test, and `time.local` keeps its documented ISO-8601
-/// meaning for user-authored templates. `time.clock` is populated by this
-/// resolver for the built-in defaults.
+/// Local wall-clock time as an operator reads it off a toast: `HH:mm`, the
+/// catalog's `${time.local_clock}`, which the built-in notification bodies use.
 ///
 /// 24-hour, matching every other clock rendering in the app (see
 /// `sequence_time_estimator/node_durations.dart`, `pre_session_simulator.dart`):

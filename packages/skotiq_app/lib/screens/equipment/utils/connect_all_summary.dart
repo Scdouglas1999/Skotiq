@@ -1,16 +1,22 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 import 'driver_error_pretty.dart';
 
 /// Per-device failure surfaced to snackbars / logs.
 class ConnectAllFailure {
   final String deviceType;
+
+  /// The reason, cut to fit a snackbar.
   final String message;
+
+  /// The whole reason, for a surface with room to wrap it.
+  final String detail;
 
   const ConnectAllFailure({
     required this.deviceType,
     required this.message,
-  });
+    String? detail,
+  }) : detail = detail ?? message;
 
   factory ConnectAllFailure.fromProgress(DeviceConnectProgress event) {
     final raw =
@@ -19,6 +25,7 @@ class ConnectAllFailure {
     return ConnectAllFailure(
       deviceType: event.deviceType,
       message: pretty.short,
+      detail: pretty.full,
     );
   }
 

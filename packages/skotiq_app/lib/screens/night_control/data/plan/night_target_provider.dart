@@ -3,12 +3,13 @@
 // keeps the name and coordinates and leaves the rest out.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations, airmassForTrueAltitude;
 
 import '../tonight_night.dart';
-import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
+import '../../../../services/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import '../session/session_events_provider.dart';
 import 'night_flip_provider.dart';
@@ -39,7 +40,6 @@ final _nightSkyCurvesProvider = Provider<_SkyCurves?>((ref) {
   if (night == null || target == null || site == null) return null;
 
   final clock = ref.watch(clockProvider);
-  final scheduler = ref.read(schedulerServiceProvider);
   final start = clock.toInstant(night.sunset);
   final span = clock.toInstant(night.sunrise).difference(start);
   if (span <= Duration.zero) return null;
@@ -48,12 +48,12 @@ final _nightSkyCurvesProvider = Provider<_SkyCurves?>((ref) {
   final moonCurve = <SeriesPoint>[];
   for (var i = 0; i < _curveSamples; i++) {
     final at = start.add(span * (i / (_curveSamples - 1)));
-    final (altitude, _) = scheduler.calculateAltAz(
-      raHours: target.raHours,
-      decDegrees: target.decDegrees,
-      time: at,
-      latitudeDegrees: site.latitude,
-      longitudeDegrees: site.longitude,
+    final (altitude, azimuth) = AstronomyCalculations.objectAltAz(
+      raDeg: target.raHours * 15.0,
+      decDeg: target.decDegrees,
+      dt: at,
+      latitudeDeg: site.latitude,
+      longitudeDeg: site.longitude,
     );
     final moonAltitude = AstronomyCalculations.moonAltitude(
       dt: at,
@@ -69,8 +69,9 @@ final _nightSkyCurvesProvider = Provider<_SkyCurves?>((ref) {
 
 /// The meridian transit of [raHours] (equinox of date) nearest [instant].
 DateTime _transitNear(DateTime instant, double raHours, double longitude) {
-  final lst = computeLocalSiderealTimeHours(instant.toUtc(), longitude);
-  final hourAngle = computeHourAngleHours(raHours, lst);
+  final lst =
+      AstronomyCalculations.localSiderealTime(instant.toUtc(), longitude);
+  final hourAngle = AstronomyCalculations.hourAngleHours(raHours, lst);
   return instant.subtract(
     Duration(seconds: (hourAngle * 3600 * _siderealToSolar).round()),
   );
@@ -92,7 +93,7 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
   final target = ref.watch(runDashboardActiveTargetProvider);
   if (target == null) return null;
 
-  final horizonDeg = ref.watch(effectiveHorizonDegProvider);
+  final floor = ref.watch(altitudeFloorProvider);
   final site = ref.watch(appObserverLocationProvider);
   final night = ref.watch(tonightNightProvider);
   final clock = ref.watch(clockProvider);
@@ -112,20 +113,19 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
       raHours: target.raHours,
       decDegrees: target.decDegrees,
       rotationDeg: target.rotation,
-      horizonLimitDeg: horizonDeg,
+      horizonLimitDeg: floor.lowestDeg,
       moonIlluminationPct: night?.moonIlluminationPercent,
       moonSet: moonSetTonight,
     );
   }
 
   final now = ref.watch(nightNowProvider);
-  final scheduler = ref.read(schedulerServiceProvider);
-  final (altitude, _) = scheduler.calculateAltAz(
-    raHours: target.raHours,
-    decDegrees: target.decDegrees,
-    time: now,
-    latitudeDegrees: site.latitude,
-    longitudeDegrees: site.longitude,
+  final (altitude, azimuth) = AstronomyCalculations.objectAltAz(
+    raDeg: target.raHours * 15.0,
+    decDeg: target.decDegrees,
+    dt: now,
+    latitudeDeg: site.latitude,
+    longitudeDeg: site.longitude,
   );
   // Hour angle and transit are measured from the equinox of date; the target's
   // coordinates are J2000.
@@ -135,9 +135,9 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
     dt: now,
   );
   final raOfDateHours = raOfDateDeg / 15.0;
-  final hourAngle = computeHourAngleHours(
+  final hourAngle = AstronomyCalculations.hourAngleHours(
     raOfDateHours,
-    computeLocalSiderealTimeHours(now, site.longitude),
+    AstronomyCalculations.localSiderealTime(now, site.longitude),
   );
 
   // Tonight's transit: the one nearest the middle of the night, kept only
@@ -155,23 +155,21 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
   final transitTonight = tonight(transit) ? transit : null;
   final transitAltitude = transitTonight == null
       ? null
-      : scheduler
-          .calculateAltAz(
-            raHours: target.raHours,
-            decDegrees: target.decDegrees,
-            time: transitTonight,
-            latitudeDegrees: site.latitude,
-            longitudeDegrees: site.longitude,
-          )
-          .$1;
+      : AstronomyCalculations.objectAltAz(
+          raDeg: target.raHours * 15.0,
+          decDeg: target.decDegrees,
+          dt: transitTonight,
+          latitudeDeg: site.latitude,
+          longitudeDeg: site.longitude,
+        ).$1;
 
-  final toLimit = scheduler.nextSetTime(
-    raHours: target.raHours,
-    decDegrees: target.decDegrees,
+  final horizonDeg = floor.atAzimuth(azimuth);
+  final toLimit = floor.timeUntilBelow(
+    raDeg: target.raHours * 15.0,
+    decDeg: target.decDegrees,
     now: now,
-    latitudeDegrees: site.latitude,
-    longitudeDegrees: site.longitude,
-    horizonDeg: horizonDeg,
+    latitudeDeg: site.latitude,
+    longitudeDeg: site.longitude,
   );
   // Null when it never drops below the limit, or already has.
   final belowLimit =
@@ -235,6 +233,10 @@ DateTime? _flipAt(
       enabled: true,
       nowUtc: now,
     );
+    // The mount already points from the post-flip side: this transit needs
+    // no flip, whatever the transit time predicts (a run that homed through
+    // the meridian and slewed back never flipped, and owes none).
+    if (countdown.onPostFlipSide) return null;
     final toFlip = countdown.timeToFlip;
     if (countdown.isArmed && toFlip != null) {
       // Past the threshold the countdown reads zero whether or not the flip

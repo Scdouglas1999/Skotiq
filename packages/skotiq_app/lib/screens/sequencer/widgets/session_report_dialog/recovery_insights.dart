@@ -93,7 +93,7 @@ class _RecoveryHistoryTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             '${entry.attempts} attempt${entry.attempts == 1 ? '' : 's'} · '
-            '${_formatDuration(entry.durationSecs)}',
+            '${DurationFormat.seconds(entry.durationSecs, style: DurationStyle.short)}',
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize11,
               color: colors.textSecondary,
@@ -116,14 +116,6 @@ class _RecoveryHistoryTile extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatDuration(double secs) {
-    if (secs < 60) return '${secs.toStringAsFixed(0)}s';
-    final mins = (secs / 60).floor();
-    final rem = (secs - mins * 60).round();
-    if (rem == 0) return '${mins}m';
-    return '${mins}m ${rem}s';
   }
 }
 
@@ -197,10 +189,8 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
       final notifier = ref.read(currentSequenceProvider.notifier);
       final sequence = ref.read(currentSequenceProvider);
       if (sequence == null) {
-        messenger?.showSnackBar(
-          const SnackBar(
-            content: Text('No sequence is open to apply the suggestion to.'),
-          ),
+        messenger?.showInfoSnackBar(
+          'No sequence is open to apply the suggestion to.',
         );
         return;
       }
@@ -228,25 +218,17 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
         match = headers.first;
       }
       if (match == null) {
-        messenger?.showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Could not resolve which target to apply altitude to.',
-            ),
-          ),
+        messenger?.showErrorSnackBar(
+          'Could not resolve which target to apply altitude to.',
         );
         return;
       }
       notifier.updateNode(match.copyWith(
         startWhen: AltitudeAboveTrigger(value),
       ));
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Applied: ${match.targetName} starts at '
-            '${value.toStringAsFixed(0)}° altitude.',
-          ),
-        ),
+      messenger?.showInfoSnackBar(
+        'Applied: ${match.targetName} starts at '
+        '${value.toStringAsFixed(0)}° altitude.',
       );
       return;
     }
@@ -257,7 +239,7 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
       // isn't left stranded beneath the dialog.
       final router = GoRouter.maybeOf(context);
       Navigator.of(context).pop();
-      router?.go('/settings?section=autofocus');
+      router?.goToSettings(SettingsSectionId.autofocus);
       return;
     }
   }
@@ -283,11 +265,8 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _dismissed = false);
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(
-          content: Text('Could not save dismissed suggestion: $error'),
-          backgroundColor: widget.colors.error,
-        ),
+      context.showErrorSnackBar(
+        'Could not save dismissed suggestion: ${userFacingError(error)}',
       );
     }
   }
@@ -434,8 +413,3 @@ class _SessionInsightTileState extends ConsumerState<_SessionInsightTile> {
     );
   }
 }
-
-/// Single diagnostic line in the session report's
-/// Diagnostics section. Mirrors the look of `_PreflightSection`'s
-/// issue rows but with the lighter post-session tone (everything is
-/// info-severity).

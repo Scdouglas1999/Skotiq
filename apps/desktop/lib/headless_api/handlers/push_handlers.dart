@@ -23,7 +23,7 @@
 /// server's private state (mirrors `PairingHandlers`).
 library;
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shelf/shelf.dart';
 
@@ -35,12 +35,23 @@ import '../validation.dart';
 // [PairingService] (and one Drift DB) — re-declaring it here would collide on
 // the `handlers.dart` barrel re-export.
 import 'pairing_handlers.dart' show EnsurePairingService;
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Recognised cellular-push platforms. Mirrors the `platform` column domain.
 const Set<String> _kPushPlatforms = {'fcm', 'apns'};
 
 /// HTTP handlers for the `/api/push/*` endpoints.
-class PushHandlers {
+class PushHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    PushApi.registerToken: handleRegisterToken,
+    PushApi.deleteToken: handleDeleteToken,
+    PushApi.getPreferences: handleGetPreferences,
+    PushApi.putPreferences: handlePutPreferences,
+    PushApi.getTargets: handleGetTargets,
+  };
+
   final EnsurePairingService ensurePairingService;
   final LoggingService logger;
 

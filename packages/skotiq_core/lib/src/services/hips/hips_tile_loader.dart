@@ -73,7 +73,6 @@
 // C5 fetcher, and a real C4 cache.
 
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show ChangeNotifier, immutable;
@@ -81,10 +80,11 @@ import 'package:flutter/foundation.dart' show ChangeNotifier, immutable;
 import '../../models/framing_plate_scale.dart';
 import '../../models/hips/hips_properties.dart';
 import '../../models/hips/hips_tile_id.dart';
-import '../../providers/framing_provider.dart' show FramingTarget;
+import '../../models/framing_models.dart' show FramingTarget;
 import 'hips_tile_cache.dart';
 import 'hips_tile_fetcher.dart';
 import 'hips_tile_selection.dart';
+import '../logging_service.dart';
 
 part 'hips_tile_loader/contracts.dart';
 
@@ -157,7 +157,6 @@ class HipsTileLoader extends ChangeNotifier {
   /// Monotonic snapshot version, surfaced via [HipsResidentSnapshot.version].
   int _snapshotVersion = 0;
 
-  /// The current published snapshot.
   HipsResidentSnapshot _snapshot = HipsResidentSnapshot.empty;
 
   /// Failures accumulated for the current generation (reset on a new recompute).
@@ -218,7 +217,6 @@ class HipsTileLoader extends ChangeNotifier {
   /// The current generation counter (diagnostics / tests).
   int get generation => _generation;
 
-  /// Whether a debounced recompute is currently pending.
   bool get hasPendingRecompute => _pendingTimer?.isActive ?? false;
 
   /// Requests tiles for [viewport], debouncing the recompute.
@@ -306,8 +304,6 @@ class HipsTileLoader extends ChangeNotifier {
     super.dispose();
   }
 
-  // Recompute orchestration
-
   /// Runs the recompute for [_pendingViewport]: opens a new generation,
   /// computes the visible set, republishes the resident snapshot
   /// immediately (so coarse fallbacks paint without waiting for the network),
@@ -327,7 +323,6 @@ class HipsTileLoader extends ChangeNotifier {
     final int gen = _generation;
     final HipsFetchToken token = _currentToken;
 
-    // Fresh failure ledger for this generation.
     _failures.clear();
 
     // C3: which tiles, where. This is pure/deterministic and cheap; any

@@ -10,8 +10,10 @@ import 'package:skotiq_core/src/providers/autofocus_progress_provider.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/guiding_provider.dart';
+import 'package:skotiq_core/src/utils/device_id.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class TestBackendNotifier extends BackendNotifier {
   TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -142,7 +144,7 @@ void main() {
     'calibration complete refreshes calibration data through public API',
     () async {
       var fetchCount = 0;
-      when(() => mockBackend.phd2GetCalibrationData()).thenAnswer((_) async {
+      when(() => mockBackend.guiderGetCalibration()).thenAnswer((_) async {
         fetchCount++;
         return const Phd2CalibrationData(
           isCalibrated: true,
@@ -182,9 +184,9 @@ void main() {
     'CalibrationDataFlipped',
     'GuidingStarted',
   ]) {
-    test('$eventType re-reads the calibration rates from PHD2', () async {
+    test('$eventType re-reads the calibration rates from the guider', () async {
       var reads = 0;
-      when(() => mockBackend.phd2GetCalibrationData()).thenAnswer((_) async {
+      when(() => mockBackend.guiderGetCalibration()).thenAnswer((_) async {
         reads++;
         return reads == 1
             ? const Phd2CalibrationData(
@@ -226,4 +228,28 @@ void main() {
       expect(state.isCalibrated, isTrue);
     });
   }
+
+  // The Guiding screen showed no calibration for the built-in guider: only
+  // PHD2's was ever read.
+  test('the built-in guider\'s calibration is read when it connects', () async {
+    when(() => mockBackend.guiderGetCalibration()).thenAnswer(
+      (_) async => const Phd2CalibrationData(
+        isCalibrated: true,
+        rotationAngle: 10.2,
+        raRate: 16.0,
+        decRate: 12.0,
+      ),
+    );
+
+    container.read(calibrationStateProvider);
+    final guiderNotifier = container.read(guiderStateProvider.notifier);
+    guiderNotifier.setConnecting(builtinGuiderDeviceId, 'Built-in guider');
+    guiderNotifier.setConnected();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    final state = container.read(calibrationStateProvider);
+    expect(state.isCalibrated, isTrue);
+    expect(state.rotationAngle, 10.2);
+    expect(state.raRate, 16.0);
+  });
 }

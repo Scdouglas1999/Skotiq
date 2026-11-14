@@ -1,22 +1,26 @@
 // The manual-action bar under the frame: Snapshot, Loop, Autofocus, Solve &
 // sync, Center, plus Dither and Flip during a run. The buttons and their
-// gating come from the action controller (P2). Pressing one only opens its
-// panel tab; the action itself starts from the button in that tab, and the
-// bar's hint says so.
+// gating come from the action controller (P2). Every one of them only opens
+// its panel tab, where the action itself starts. Each says which tab it
+// opens and is outlined while that tab is open, so none reads as a button
+// that did nothing.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart' show linkedManualActionProvider;
+import 'package:skotiq_core/providers.dart'
+    show linkedManualActionProvider, polarAlignmentStateProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
+import '../../polar_alignment/polar_alignment_activity.dart';
 import '../actions/manual_action_gating.dart' show manualActionKey;
 import '../actions/night_action_controller.dart';
 import '../data/plan/night_run_phase_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
+import '../night_control_shortcuts.dart' show kNightShortcutKeys;
 
 /// The action the window at the other end of the link is running, while it
 /// is current; null when there is none.
@@ -53,11 +57,25 @@ class ManualActionBar extends ConsumerWidget {
     final collapseHint = density?.collapseActionHint == true;
 
     final linked = state.isBusy ? null : _linkedAction(ref);
+    // Polar alignment runs outside the plan and the action controller, so
+    // neither knows about it; without this the bar said "Nothing is running"
+    // through every alignment exposure.
+    final polar = polarRunSummary(ref.watch(polarAlignmentStateProvider));
     final hint = linked != null
         ? '${l10n.text(manualActionKey('nightActBusy', linked))} · '
             '${l10n.text('nightActOtherWindow')}'
-        : l10n.text(_runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle');
+        : polar != null
+            ? l10n.text('nightActPolarRunning', params: {'status': polar})
+            // "Nothing is running" must not stand beside a running action.
+            : state.isBusy && state.active != null && !_runLoaded(phase)
+                ? l10n.text(manualActionKey('nightActBusy', state.active!))
+                : l10n.text(
+                    _runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle',
+                  );
     final error = state.error?.resolve(l10n);
+    final keys = <String>[
+      for (final (key, what) in kNightShortcutKeys) '$key ${l10n.text(what)}',
+    ].join(' · ');
 
     return Semantics(
       container: true,
@@ -102,8 +120,11 @@ class ManualActionBar extends ConsumerWidget {
             else
               _HintIcon(
                 message: hint,
+                detail: l10n.text('nightKeysTitle', params: {'keys': keys}),
                 icon: LucideIcons.info,
-                color: linked != null ? colors.warning : colors.textMuted,
+                color: linked != null || polar != null
+                    ? colors.warning
+                    : colors.textMuted,
                 collapsed: collapseHint,
               ),
           ],
@@ -130,6 +151,13 @@ class _ActionButton extends ConsumerWidget {
     final sub = hideSub ? null : action.sub?.resolve(l10n);
     final reason = action.enabled ? null : action.disabledReason?.resolve(l10n);
     final running = action.running;
+    // Outlined while its tab is the one open, so a press visibly lands
+    // somewhere: the button and the tab light up together.
+    final showing = ref.watch(nightPanelTabProvider) == action.id.panelTab;
+    final opens = l10n.text('nightActOpensTab', params: <String, String>{
+      'tab': l10n.text(action.id.panelTab.labelKey),
+    });
+    final note = reason == null ? opens : '$reason · $opens';
 
     final Color fill;
     final Color ink;
@@ -148,7 +176,7 @@ class _ActionButton extends ConsumerWidget {
       button: true,
       enabled: true,
       label: sub == null ? label : '$label, $sub',
-      hint: reason,
+      hint: note,
       excludeSemantics: true,
       onTap: () => _press(ref),
       child: Material(
@@ -161,7 +189,13 @@ class _ActionButton extends ConsumerWidget {
                     alpha: SkotiqTokens.opacityEmphasisBorder,
                   ),
                 )
-              : BorderSide.none,
+              : showing
+                  ? BorderSide(
+                      color: colors.primary.withValues(
+                        alpha: SkotiqTokens.opacityEmphasisBorder,
+                      ),
+                    )
+                  : BorderSide.none,
         ),
         child: InkWell(
           onTap: () => _press(ref),
@@ -193,13 +227,10 @@ class _ActionButton extends ConsumerWidget {
         ),
       ),
     );
-    if (reason == null) return button;
-    return Tooltip(message: reason, excludeFromSemantics: true, child: button);
+    return Tooltip(message: note, excludeFromSemantics: true, child: button);
   }
 
-  void _press(WidgetRef ref) {
-    ref.read(nightPanelTabProvider.notifier).state = action.id.panelTab;
-  }
+  void _press(WidgetRef ref) => nightOpenPanelTab(ref, action.id.panelTab);
 }
 
 class _CancelButton extends StatelessWidget {
@@ -254,18 +285,23 @@ class _HintIcon extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.collapsed,
+    this.detail,
   });
 
   final String message;
+
+  /// A second line for the tooltip only (the keyboard keys).
+  final String? detail;
   final IconData icon;
   final Color color;
   final bool collapsed;
 
   @override
   Widget build(BuildContext context) {
+    final tip = detail == null ? message : '$message\n$detail';
     if (collapsed) {
       return Tooltip(
-        message: message,
+        message: tip,
         child: Semantics(
           label: message,
           excludeSemantics: true,
@@ -280,11 +316,15 @@ class _HintIcon extends StatelessWidget {
       padding: const EdgeInsets.only(left: SkotiqTokens.spaceSm),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 280),
-        child: Text(
-          message,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: SkotiqTypography.captionSm.copyWith(color: color),
+        child: Tooltip(
+          message: tip,
+          excludeFromSemantics: true,
+          child: Text(
+            message,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: SkotiqTypography.captionSm.copyWith(color: color),
+          ),
         ),
       ),
     );

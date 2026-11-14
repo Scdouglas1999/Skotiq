@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../fakes/fakes.dart';
 
@@ -48,7 +49,7 @@ void main() {
       final backend = _backend(fake);
       addTearDown(backend.dispose);
 
-      final repository = SequenceRepository.remote(
+      final repository = RemoteSequenceRepository(
         backend,
         SequenceFileService(),
       );
@@ -74,7 +75,7 @@ void main() {
         );
       final backend = _backend(fake);
       addTearDown(backend.dispose);
-      final repository = SequenceRepository.remote(
+      final repository = RemoteSequenceRepository(
         backend,
         SequenceFileService(),
       );

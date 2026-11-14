@@ -1,10 +1,15 @@
-//! Dark and bias masters built straight from FITS files, one band of rows at a
-//! time.
+//! Dark and bias masters built straight from frame files, one band of rows at
+//! a time.
 //!
 //! Peak memory is one band of every frame plus the 16-bit output, never the
 //! whole stack: each band is read from disk with a seek, combined, and dropped.
 //! Fifty full-size bias frames therefore fit in the same few hundred megabytes
-//! as five.
+//! as five. A FITS frame is read in place; a frame in another format (XISF, a
+//! camera raw file) is decoded once into a FITS copy in the system's temporary
+//! folder ([`FitsCopy`]), read the same way, and removed when the build ends.
+//! Every frame's band is needed at once for the rejection, so the decoded
+//! frames are either all held in memory or all spilled to disk; the copies
+//! are that spill.
 //!
 //! The combine is a winsorized sigma-clipped mean (3σ low and high), the
 //! PixInsight default for calibration masters. The master is written as
@@ -17,11 +22,14 @@
 //! reads brighter than the first frames of its group. Such frames are left out
 //! of the master and reported.
 
-use crate::fits::{copy_header_cards, read_header, write_fits, FitsError, FitsHeader};
+use crate::fits::{copy_header_cards, write_fits, FitsError, FitsHeader};
+use crate::fits_reader::FitsReader;
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
+use crate::robust_stats::median_and_sigma_upper;
+use crate::{frame_format, FitsCopy, ImageFormat};
 use crate::{ImageData, PixelType};
 use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 /// Which calibration master is being built. Only the `IMAGETYP` card differs.
@@ -169,51 +177,29 @@ pub fn assess_light_leak(levels: &[f64], config: &LightLeakConfig) -> LightLeakA
     }
 }
 
-/// One input FITS file, opened for band reads.
+/// One input frame, opened for band reads.
 struct BandSource {
     path: PathBuf,
-    reader: BufReader<File>,
-    header: FitsHeader,
-    data_offset: u64,
-    bitpix: i64,
-    bzero: f64,
-    bscale: f64,
+    reader: FitsReader<BufReader<File>>,
     width: u32,
     height: u32,
     scratch: Vec<u8>,
-}
-
-struct CountingReader<R> {
-    inner: R,
-    count: u64,
-}
-
-impl<R: Read> Read for CountingReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let n = self.inner.read(buf)?;
-        self.count += n as u64;
-        Ok(n)
-    }
+    /// The FITS copy the reader reads when the frame is in another format.
+    /// Declared after `reader` so the file is closed before it is removed.
+    _copy: Option<FitsCopy>,
 }
 
 impl BandSource {
     fn open(path: &Path) -> Result<Self, String> {
         let describe = |e: FitsError| format!("{}: {e}", path.display());
-        let file = File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let mut counting = CountingReader {
-            inner: BufReader::new(file),
-            count: 0,
+        let copy = match frame_format(path).map_err(|e| format!("{}: {e}", path.display()))? {
+            ImageFormat::Fits => None,
+            _ => Some(FitsCopy::new(path).map_err(|e| format!("{}: {e}", path.display()))?),
         };
-        let header = read_header(&mut counting).map_err(describe)?;
-        // The data unit starts at the first 2880-byte block after END.
-        let data_offset = counting.count.div_ceil(2880) * 2880;
-        let reader = counting.inner;
-        let bitpix = header
-            .get_int("BITPIX")
-            .ok_or_else(|| format!("{}: no BITPIX", path.display()))?;
-        if !matches!(bitpix, 8 | 16 | 32 | -32 | -64) {
-            return Err(format!("{}: unsupported BITPIX {bitpix}", path.display()));
-        }
+        let fits = copy.as_ref().map_or(path, FitsCopy::path);
+        let file = File::open(fits).map_err(|e| format!("{}: {e}", path.display()))?;
+        let reader = FitsReader::open(BufReader::new(file)).map_err(describe)?;
+        let header = reader.header();
         let naxis = header.get_int("NAXIS").unwrap_or(0);
         if naxis != 2 && !(naxis == 3 && header.get_int("NAXIS3") == Some(1)) {
             return Err(format!(
@@ -221,100 +207,42 @@ impl BandSource {
                 path.display()
             ));
         }
-        let width = header.get_int("NAXIS1").unwrap_or(0);
-        let height = header.get_int("NAXIS2").unwrap_or(0);
-        if width <= 0 || height <= 0 {
-            return Err(format!("{}: empty image", path.display()));
-        }
-        let bzero = header.get_float("BZERO").unwrap_or(0.0);
-        let bscale = header.get_float("BSCALE").unwrap_or(1.0);
+        let (width, height) = reader
+            .shape()
+            .map(|shape| (shape.width, shape.height))
+            .filter(|(w, h)| *w > 0 && *h > 0)
+            .ok_or_else(|| format!("{}: empty image", path.display()))?;
         Ok(Self {
             path: path.to_path_buf(),
             reader,
-            header,
-            data_offset,
-            bitpix,
-            bzero,
-            bscale,
-            width: width as u32,
-            height: height as u32,
+            width,
+            height,
             scratch: Vec::new(),
+            _copy: copy,
         })
     }
 
-    fn bytes_per_sample(&self) -> usize {
-        (self.bitpix.unsigned_abs() / 8) as usize
+    fn header(&self) -> &FitsHeader {
+        self.reader.header()
     }
 
     /// Decode rows `row..row + rows` into `out` as physical `f64` values.
     fn read_rows(&mut self, row: usize, rows: usize, out: &mut Vec<f64>) -> Result<(), String> {
-        let bps = self.bytes_per_sample();
-        let row_bytes = self.width as usize * bps;
-        let start = self.data_offset + (row * row_bytes) as u64;
-        self.scratch.resize(rows * row_bytes, 0);
         self.reader
-            .seek(SeekFrom::Start(start))
-            .and_then(|_| self.reader.read_exact(&mut self.scratch))
+            .read_rows(row, rows, &mut self.scratch, out)
             .map_err(|e| {
                 format!(
                     "{}: reading rows {row}..{}: {e}",
                     self.path.display(),
                     row + rows
                 )
-            })?;
-        out.clear();
-        out.reserve(rows * self.width as usize);
-        let (bzero, bscale) = (self.bzero, self.bscale);
-        let physical = |stored: f64| stored * bscale + bzero;
-        match self.bitpix {
-            8 => out.extend(self.scratch.iter().map(|&v| physical(f64::from(v)))),
-            16 => out.extend(
-                self.scratch
-                    .as_chunks::<2>()
-                    .0
-                    .iter()
-                    .map(|c| physical(f64::from(i16::from_be_bytes(*c)))),
-            ),
-            32 => out.extend(
-                self.scratch
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|c| physical(f64::from(i32::from_be_bytes(*c)))),
-            ),
-            -32 => out.extend(
-                self.scratch
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|c| physical(f64::from(f32::from_be_bytes(*c)))),
-            ),
-            _ => out.extend(
-                self.scratch
-                    .as_chunks::<8>()
-                    .0
-                    .iter()
-                    .map(|c| physical(f64::from_be_bytes(*c))),
-            ),
-        }
-        Ok(())
+            })
     }
-}
-
-fn median_in_place(values: &mut [f64]) -> f64 {
-    if values.is_empty() {
-        return 0.0;
-    }
-    let mid = values.len() / 2;
-    let (_, m, _) = values.select_nth_unstable_by(mid, f64::total_cmp);
-    *m
 }
 
 /// Sigma-clipped mean and robust σ of `values` (reordered in place).
 fn clipped_level(values: &mut [f64]) -> (f64, f64) {
-    let median = median_in_place(values);
-    let mut deviations: Vec<f64> = values.iter().map(|v| (v - median).abs()).collect();
-    let sigma = 1.4826 * median_in_place(&mut deviations);
+    let (median, sigma) = median_and_sigma_upper(values);
     let bound = 3.0 * sigma.max(f64::EPSILON);
     let (sum, count) = values
         .iter()
@@ -348,14 +276,6 @@ fn measure_level(source: &mut BandSource) -> Result<FrameLevel, String> {
     })
 }
 
-/// Measure every frame's level without combining anything.
-pub fn measure_frame_levels(paths: &[PathBuf]) -> Result<Vec<FrameLevel>, String> {
-    paths
-        .iter()
-        .map(|p| BandSource::open(p).and_then(|mut s| measure_level(&mut s)))
-        .collect()
-}
-
 fn card_f64(header: &FitsHeader, keys: &[&str]) -> Option<f64> {
     keys.iter().find_map(|k| header.get_float(k))
 }
@@ -384,7 +304,7 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
             ));
         }
         let exposure = |h: &FitsHeader| card_f64(h, &["EXPTIME", "EXPOSURE"]);
-        if let (Some(a), Some(b)) = (exposure(&first.header), exposure(&source.header)) {
+        if let (Some(a), Some(b)) = (exposure(first.header()), exposure(source.header())) {
             if (a - b).abs() > 1e-3_f64.max(a.abs() * 1e-4) {
                 return Err(format!(
                     "{} was exposed {b} s but {} was exposed {a} s",
@@ -393,10 +313,20 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
                 ));
             }
         }
+        let mode = |h: &FitsHeader| h.get_string("READOUTM").map(str::to_string);
+        if let (Some(a), Some(b)) = (mode(first.header()), mode(source.header())) {
+            if a != b {
+                return Err(format!(
+                    "{} was read out in mode {b} but {} in mode {a}",
+                    source.path.display(),
+                    first.path.display()
+                ));
+            }
+        }
         for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
             if let (Some(a), Some(b)) = (
-                card_i64(&first.header, &[key]),
-                card_i64(&source.header, &[key]),
+                card_i64(first.header(), &[key]),
+                card_i64(source.header(), &[key]),
             ) {
                 if a != b {
                     return Err(format!(
@@ -411,32 +341,53 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
     Ok(())
 }
 
+/// Why no master was built.
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+pub enum MasterBuildError {
+    /// The frames cannot make one master: too few, unreadable, not a single
+    /// plane, disagreeing on how they were taken, or leaking light. Nothing
+    /// was written; other frames would do.
+    #[error("{0}")]
+    Refused(String),
+    /// The master could not be combined or written.
+    #[error("{0}")]
+    Failed(String),
+}
+
 /// Build a dark or bias master from `paths` and write it to `output`.
 ///
 /// Fails without writing anything when the frames disagree on size, exposure,
-/// gain, offset or binning, when more than half of them leak, or when fewer
+/// gain, offset, binning or read mode, when more than half of them leak, or when fewer
 /// than two frames are left after the leaking ones are dropped.
 pub fn build_streamed_master(
     paths: &[PathBuf],
     output: &Path,
     config: &StreamedMasterConfig,
-) -> Result<StreamedMasterResult, String> {
+) -> Result<StreamedMasterResult, MasterBuildError> {
+    use MasterBuildError::{Failed, Refused};
     if paths.len() < 2 {
-        return Err(format!(
+        return Err(Refused(format!(
             "a master needs at least 2 frames; {} given",
             paths.len()
-        ));
+        )));
+    }
+    let output_dir = output.parent().unwrap_or(Path::new(""));
+    if !output_dir.as_os_str().is_empty() {
+        std::fs::create_dir_all(output_dir)
+            .map_err(|e| Failed(format!("creating {}: {e}", output_dir.display())))?;
     }
     let mut sources: Vec<BandSource> = paths
         .iter()
         .map(|p| BandSource::open(p))
-        .collect::<Result<_, _>>()?;
-    check_agreement(&sources)?;
+        .collect::<Result<_, _>>()
+        .map_err(Refused)?;
+    check_agreement(&sources).map_err(Refused)?;
 
     let frame_levels: Vec<FrameLevel> = sources
         .iter_mut()
         .map(measure_level)
-        .collect::<Result<_, _>>()?;
+        .collect::<Result<_, _>>()
+        .map_err(Refused)?;
     let levels: Vec<f64> = frame_levels.iter().map(|l| l.level).collect();
     let leak = assess_light_leak(&levels, &config.leak);
     let leaking_frames: Vec<PathBuf> = leak
@@ -453,14 +404,14 @@ pub fn build_streamed_master(
     // When most of the group brightened, the opening frames are suspect too:
     // the light was already climbing when the baseline was taken.
     if kept.len() < 2 || leaking_frames.len() * 2 > paths.len() {
-        return Err(format!(
+        return Err(Refused(format!(
             "light leak: {} of {} frames read more than {:.1} ADU above the first frames \
              ({:.1} ADU); no master was written",
             leaking_frames.len(),
             paths.len(),
             leak.threshold,
             leak.baseline
-        ));
+        )));
     }
 
     let width = kept[0].width as usize;
@@ -485,7 +436,7 @@ pub fn build_streamed_master(
     while row < height {
         let rows = band_rows.min(height - row);
         for (band, source) in bands.iter_mut().zip(kept.iter_mut()) {
-            source.read_rows(row, rows, band)?;
+            source.read_rows(row, rows, band).map_err(Refused)?;
         }
         let frames: Vec<IntegrationFrame<'_>> = bands
             .iter()
@@ -503,7 +454,7 @@ pub fn build_streamed_master(
             &integration,
             Reject::MAX_ITERATIONS,
         )
-        .map_err(|e| format!("combining rows {row}..{}: {e}", row + rows))?;
+        .map_err(|e| Failed(format!("combining rows {row}..{}: {e}", row + rows)))?;
         considered += columns.stats.total_samples;
         rejected += columns.stats.total_rejected;
         for &v in &columns.master {
@@ -517,10 +468,10 @@ pub fn build_streamed_master(
         row += rows;
     }
 
-    let first = &kept[0].header;
+    let first = kept[0].header();
     let temps: Vec<f64> = kept
         .iter()
-        .filter_map(|s| card_f64(&s.header, &["CCD-TEMP", "CCD_TEMP"]))
+        .filter_map(|s| card_f64(s.header(), &["CCD-TEMP", "CCD_TEMP"]))
         .collect();
     let ccd_temp_mean = (!temps.is_empty()).then(|| temps.iter().sum::<f64>() / temps.len() as f64);
     let exposure_secs = card_f64(first, &["EXPTIME", "EXPOSURE"]);
@@ -587,15 +538,11 @@ pub fn build_streamed_master(
 
     let image = ImageData::from_u16(width as u32, height as u32, 1, &master);
     drop(master);
-    if let Some(parent) = output.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("creating {}: {e}", parent.display()))?;
-    }
     let partial = output.with_extension("partial.fits");
     write_fits(&partial, &image, &header)
-        .map_err(|e| format!("writing {}: {e}", partial.display()))?;
+        .map_err(|e| Failed(format!("writing {}: {e}", partial.display())))?;
     std::fs::rename(&partial, output)
-        .map_err(|e| format!("moving master into {}: {e}", output.display()))?;
+        .map_err(|e| Failed(format!("moving master into {}: {e}", output.display())))?;
 
     Ok(StreamedMasterResult {
         output_path: output.to_path_buf(),
@@ -666,7 +613,7 @@ mod tests {
             }
         }
         let path = dir.join(name);
-        write_fits(&path, &ImageData::from_u16(w, h, 1, pixels), &header).unwrap();
+        crate::write_frame(&path, &ImageData::from_u16(w, h, 1, pixels), &header).unwrap();
         path
     }
 
@@ -740,6 +687,57 @@ mod tests {
         assert_eq!(header.get_int("NCOMBINE"), Some(9));
         assert!(header.history.iter().any(|h| h.contains("Winsorized")));
         assert!(!dir.path().join("master.partial.fits").exists());
+    }
+
+    /// XISF darks build the same master as FITS darks of the same pixels, a
+    /// group may mix the two, and the FITS copies the band reader used are
+    /// gone afterwards, also when the build is refused.
+    #[test]
+    fn frames_in_any_format_build_the_same_master() {
+        let dir = tempdir();
+        let (w, h) = (19, 13);
+        let frames: Vec<Vec<u16>> = (0..5).map(|i| noisy(i + 40, w, h, 400.0)).collect();
+        let named = |ext: &dyn Fn(usize) -> &'static str| -> Vec<PathBuf> {
+            frames
+                .iter()
+                .enumerate()
+                .map(|(i, px)| {
+                    write_frame(dir.path(), &format!("f{i}.{}", ext(i)), px, w, h, CARDS)
+                })
+                .collect()
+        };
+        let fits = named(&|_| "fits");
+        let xisf = named(&|_| "xisf");
+        let mixed = named(&|i| if i % 2 == 0 { "xisf" } else { "fits" });
+        let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+        let master = |paths: &[PathBuf], name: &str| {
+            let out = dir.path().join("Masters").join(name);
+            let result = build_streamed_master(paths, &out, &config).unwrap();
+            assert_eq!(result.gain, Some(76), "{name}");
+            read_fits(&out).unwrap().0.data
+        };
+        let from_fits = master(&fits, "fits.fits");
+        assert_eq!(master(&xisf, "xisf.fits"), from_fits);
+        assert_eq!(master(&mixed, "mixed.fits"), from_fits);
+
+        let mut wrong = xisf.clone();
+        wrong.push(write_frame(
+            dir.path(),
+            "long.xisf",
+            &frames[0],
+            w,
+            h,
+            &[("EXPTIME", 300.0)],
+        ));
+        let refused = build_streamed_master(&wrong, &dir.path().join("Masters/no.fits"), &config);
+        assert!(matches!(refused, Err(MasterBuildError::Refused(m)) if m.contains("exposed")));
+
+        let left: Vec<_> = std::fs::read_dir(dir.path().join("Masters"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n.starts_with('.'))
+            .collect();
+        assert!(left.is_empty(), "{left:?}");
     }
 
     #[test]
@@ -827,7 +825,10 @@ mod tests {
             &StreamedMasterConfig::new(StreamedMasterKind::Dark),
         )
         .unwrap_err();
-        assert!(err.contains("light leak"), "{err}");
+        assert!(
+            matches!(&err, MasterBuildError::Refused(m) if m.contains("light leak")),
+            "{err}"
+        );
         assert!(!out.exists());
     }
 
@@ -844,7 +845,44 @@ mod tests {
             &StreamedMasterConfig::new(StreamedMasterKind::Dark),
         )
         .unwrap_err();
-        assert!(err.contains("exposed"), "{err}");
+        assert!(
+            matches!(&err, MasterBuildError::Refused(m) if m.contains("exposed")),
+            "{err}"
+        );
+    }
+
+    /// A QHY camera's darks taken in two read modes differ in read noise and
+    /// pedestal; one master of both calibrates neither.
+    #[test]
+    fn mixed_read_modes_are_refused_and_one_mode_is_carried() {
+        let dir = tempdir();
+        let in_mode = |name: &str, seed: u64, mode: &str| {
+            let path = write_frame(dir.path(), name, &noisy(seed, 4, 4, 300.0), 4, 4, CARDS);
+            crate::rewrite_frame_header(&path, |h| h.set_string("READOUTM", mode)).unwrap();
+            path
+        };
+        let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+        let photographic = in_mode("a.fits", 1, "Photographic DSO 16BIT");
+        let high_gain = in_mode("b.fits", 2, "High Gain Mode 16BIT");
+        let err = build_streamed_master(
+            &[photographic.clone(), high_gain],
+            &dir.path().join("m.fits"),
+            &config,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(&err, MasterBuildError::Refused(m) if m.contains("read out in mode")),
+            "{err}"
+        );
+
+        let same = in_mode("c.fits", 3, "Photographic DSO 16BIT");
+        let out = dir.path().join("one.fits");
+        build_streamed_master(&[photographic, same], &out, &config).unwrap();
+        let (_, header) = crate::read_frame(&out).unwrap();
+        assert_eq!(
+            header.get_string("READOUTM"),
+            Some("Photographic DSO 16BIT")
+        );
     }
 
     #[test]

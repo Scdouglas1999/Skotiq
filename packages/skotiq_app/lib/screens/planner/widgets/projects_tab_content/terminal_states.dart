@@ -1,7 +1,5 @@
 part of '../projects_tab_content.dart';
 
-// Empty / loading / error states.
-
 class _NoProjectsState extends StatelessWidget {
   final Future<void> Function() onCreate;
   final bool creating;
@@ -41,7 +39,7 @@ class _ProjectsError extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 420),
           child: SkotiqBanner(
               title: 'Failed to load projects',
-              message: error.toString(),
+              message: userFacingError(error),
               tone: BannerTone.error,
               action: SkotiqButton(
                 label: 'Retry',
@@ -96,13 +94,4 @@ class _ProjectsSkeleton extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Format a duration in seconds as a compact hour label, matching the
-/// progress-tab convention ('4.2h', '12h').
-String _formatHours(double seconds) {
-  final hours = seconds / 3600.0;
-  if (hours < 0.05) return '0h';
-  if (hours < 10) return '${hours.toStringAsFixed(1)}h';
-  return '${hours.toStringAsFixed(0)}h';
 }

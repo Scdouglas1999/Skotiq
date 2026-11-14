@@ -1,10 +1,6 @@
-// ignore_for_file: unused_element
-
 part of '../quick_start_wizard_dialog.dart';
 
 extension _ReviewStep on _QuickStartWizardDialogState {
-  // STEP 5: REVIEW
-
   Widget _buildReviewStep(SkotiqColors colors) {
     final enabledFilters = _filterConfigs.where((f) => f.enabled).toList();
     final totalSecs = _estimatedTotalSecs();
@@ -20,7 +16,6 @@ extension _ReviewStep on _QuickStartWizardDialogState {
         ),
         const SizedBox(height: 16),
 
-        // Target summary
         _buildReviewSection(
           colors: colors,
           icon: LucideIcons.target,
@@ -34,7 +29,6 @@ extension _ReviewStep on _QuickStartWizardDialogState {
 
         const SizedBox(height: 12),
 
-        // Filters summary
         _buildReviewSection(
           colors: colors,
           icon: LucideIcons.camera,
@@ -72,7 +66,6 @@ extension _ReviewStep on _QuickStartWizardDialogState {
 
         const SizedBox(height: 12),
 
-        // Capture count summary
         _buildReviewSection(
           colors: colors,
           icon: LucideIcons.repeat,
@@ -88,7 +81,6 @@ extension _ReviewStep on _QuickStartWizardDialogState {
 
         const SizedBox(height: 12),
 
-        // Automation summary
         _buildReviewSection(
           colors: colors,
           icon: LucideIcons.settings,
@@ -107,7 +99,6 @@ extension _ReviewStep on _QuickStartWizardDialogState {
 
         const SizedBox(height: 12),
 
-        // Safety summary
         _buildReviewSection(
           colors: colors,
           icon: LucideIcons.shield,
@@ -126,7 +117,6 @@ extension _ReviewStep on _QuickStartWizardDialogState {
 
         const SizedBox(height: 16),
 
-        // Estimated time
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(12),
@@ -190,7 +180,6 @@ extension _ReviewStep on _QuickStartWizardDialogState {
 
         const SizedBox(height: 12),
 
-        // Tree preview
         _buildTreePreview(colors, enabledFilters),
       ],
     );
@@ -276,7 +265,6 @@ extension _ReviewStep on _QuickStartWizardDialogState {
 
   Widget _buildTreePreview(
       SkotiqColors colors, List<_FilterExposureConfig> enabledFilters) {
-    // Build a visual tree preview of what will be created
     final treeLines = <_TreeLine>[];
 
     treeLines.add(_TreeLine(
@@ -325,7 +313,6 @@ extension _ReviewStep on _QuickStartWizardDialogState {
       treeLines.add(_TreeLine('Park Mount', LucideIcons.parkingCircle, 1));
     }
 
-    // Triggers
     if (_enableAutofocus) {
       treeLines
           .add(_TreeLine('HFR Refocus Trigger', LucideIcons.shieldCheck, 1));

@@ -17,7 +17,9 @@ import 'package:skotiq_app/screens/analytics/analytics_screen.dart'
     show dbSessionImagesProvider;
 import 'package:skotiq_app/screens/analytics/widgets/photometric_calibration_wizard.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 const _sessionId = 11;
@@ -100,7 +102,7 @@ Widget _tab({required bool populated}) {
   return ProviderScope(
     overrides: [
       allSessionsProvider.overrideWith((ref) => Stream.value([_session()])),
-      latestScienceSessionProvider.overrideWith((ref) async => _sessionId),
+      scienceDefaultSessionProvider.overrideWith((ref) async => _sessionId),
       sessionPhotometryProvider.overrideWith(
         (ref, id) => Stream.value(const <PhotometryMeasurementRow>[]),
       ),
@@ -127,8 +129,8 @@ Widget _tab({required bool populated}) {
           populated ? [_metrics()] : const <ScienceFrameQualityMetricsRow>[],
         ),
       ),
-      sessionTileMetricsProvider.overrideWith(
-        (ref, id) => Stream.value(const <ScienceTileMetricRow>[]),
+      frameTileMetricsProvider.overrideWith(
+        (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
       ),
       dbSessionImagesProvider.overrideWith(
         (ref, id) => Stream.value([_frame()]),

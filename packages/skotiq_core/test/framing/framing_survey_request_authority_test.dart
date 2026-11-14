@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:skotiq_core/src/providers/framing_image_cache_provider.dart';
 import 'package:skotiq_core/src/providers/framing_provider.dart';
+import 'package:skotiq_core/src/models/framing_models.dart';
 import 'package:skotiq_core/src/services/framing_image_cache_service.dart';
 
 class _DelayedCacheService extends FramingImageCacheService {
@@ -21,6 +22,7 @@ class _DelayedCacheService extends FramingImageCacheService {
   final double delayedRa;
   final started = Completer<void>();
   final release = Completer<void>();
+  final delayedLoadFinished = Completer<void>();
 
   @override
   Future<File?> loadCachedSurveyImage({
@@ -32,6 +34,16 @@ class _DelayedCacheService extends FramingImageCacheService {
     if (raHours == delayedRa) {
       if (!started.isCompleted) started.complete();
       await release.future;
+      try {
+        return await super.loadCachedSurveyImage(
+          raHours: raHours,
+          decDegrees: decDegrees,
+          source: source,
+          extension: extension,
+        );
+      } finally {
+        if (!delayedLoadFinished.isCompleted) delayedLoadFinished.complete();
+      }
     }
     return super.loadCachedSurveyImage(
       raHours: raHours,
@@ -115,7 +127,7 @@ void main() {
       container
           .read(framingProvider.notifier)
           .setTargetCoordinates(1.6117, 15.7836, name: 'M74');
-      await finished.future.timeout(const Duration(seconds: 4));
+      await finished.future.timeout(const Duration(seconds: 20));
       expect(requested.map((u) => u.host), [
         'alasky.cds.unistra.fr',
         'alaskybis.cds.unistra.fr',
@@ -167,10 +179,13 @@ void main() {
           .setTargetCoordinates(1.6117, 15.7836, name: 'M74');
       final loadedBeforePrimary = await Future.any([
         loaded.future,
-        Future.delayed(const Duration(seconds: 4), () => false),
+        // The primary's own timeout is 30 s; anything well under it proves
+        // the fallback did not wait on the primary, with headroom for a
+        // loaded test machine.
+        Future.delayed(const Duration(seconds: 15), () => false),
       ]);
       primary.complete(http.Response('Unavailable', 503));
-      await loaded.future.timeout(const Duration(seconds: 5));
+      await loaded.future.timeout(const Duration(seconds: 20));
       expect(
         loadedBeforePrimary,
         isTrue,
@@ -212,19 +227,31 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(framingProvider.notifier);
 
+      final latestShown = Completer<void>();
+      container.listen(framingProvider, (_, next) {
+        if (!next.isLoadingImage &&
+            next.surveyImage?.width == 64 &&
+            !latestShown.isCompleted) {
+          latestShown.complete();
+        }
+      });
+
       notifier.setTargetCoordinates(1, 10, name: 'Old target');
       await cache.started.future;
       notifier.setTargetCoordinates(2, 10, name: 'Latest target');
 
-      for (var attempt = 0; attempt < 100; attempt++) {
-        final state = container.read(framingProvider);
-        if (!state.isLoadingImage && state.surveyImage?.width == 64) break;
-        await Future<void>.delayed(Duration.zero);
-      }
+      // The latest load reads and decodes a real file, which takes wall-clock
+      // time under load; wait for the state, not a fixed number of turns.
+      await latestShown.future.timeout(const Duration(seconds: 20));
       expect(container.read(framingProvider).surveyImage?.width, 64);
 
+      // Let the stale load finish for real, then give its continuation a
+      // chance to (wrongly) publish before checking.
       cache.release.complete();
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await cache.delayedLoadFinished.future.timeout(
+        const Duration(seconds: 20),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
       final state = container.read(framingProvider);
       expect(state.target?.name, 'Latest target');

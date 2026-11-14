@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../utils/guide_distance.dart';
 import 'run_dashboard/observatory_format.dart';
 import 'run_dashboard/run_dashboard_format.dart';
 
@@ -157,7 +161,7 @@ class _HorizontalStrip extends StatelessWidget {
                       icon: LucideIcons.thermometer,
                       label: 'Cam',
                       value: camera.temperature != null
-                          ? '${camera.temperature!.toStringAsFixed(1)}°C'
+                          ? formatCelsius(camera.temperature!)
                           : '--',
                       valueColor: _tempColor(camera.temperature, colors),
                     ),
@@ -305,7 +309,7 @@ class _VerticalLayout extends StatelessWidget {
               _TelemetryRow(
                 colors: colors,
                 label: 'Sensor',
-                value: '${camera.temperature!.toStringAsFixed(1)}°C',
+                value: formatCelsius(camera.temperature!),
                 valueColor: _tempColor(camera.temperature, colors),
               ),
             if (camera.coolerPower != null)
@@ -348,12 +352,12 @@ class _VerticalLayout extends StatelessWidget {
               _TelemetryRow(
                 colors: colors,
                 label: 'RA',
-                value: formatRA(mount.ra!),
+                value: CoordinateFormat.raReadout(mount.ra!),
               ),
               _TelemetryRow(
                 colors: colors,
                 label: 'Dec',
-                value: formatDec(mount.dec!),
+                value: CoordinateFormat.decReadout(mount.dec!),
               ),
             ],
             if (mount.altitude != null)
@@ -389,7 +393,7 @@ class _VerticalLayout extends StatelessWidget {
               _TelemetryRow(
                 colors: colors,
                 label: 'Temp',
-                value: '${focuser.temperature!.toStringAsFixed(1)}°C',
+                value: formatCelsius(focuser.temperature!),
               ),
             if (afResult != null)
               _TelemetryRow(
@@ -605,16 +609,9 @@ Color? _tempColor(double? temp, SkotiqColors colors) {
   return null;
 }
 
-/// A guide residual, which the guider reports in guide-camera pixels: in
-/// arcseconds when the guider reports its pixel scale, in pixels otherwise.
-/// The same reading Tonight's Guide tab gives.
-String _guideRms(double px, GuiderState guider) {
-  final scale = guider.pixelScaleArcsecPerPixel;
-  if (scale != null && scale.isFinite && scale > 0) {
-    return '${(px * scale).toStringAsFixed(2)}″';
-  }
-  return '${px.toStringAsFixed(2)} px';
-}
+/// A guide residual of [px] pixels in the unit [guider]'s scale allows.
+String _guideRms(double px, GuiderState guider) =>
+    guideDistanceText(px, knownGuideScale(guider.pixelScaleArcsecPerPixel));
 
 Color? _guidingRmsColor(GuiderState state, SkotiqColors colors) {
   if (!state.isGuiding) return colors.textMuted;

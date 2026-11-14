@@ -17,13 +17,13 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
 import '../../../models/notification/notification_categories.dart';
 import '../../../models/notification/transport_configs.dart';
 import 'notification_transport.dart';
+import '../../logging_service.dart';
 
 /// Strategy hook so tests can substitute a fake socket.
 typedef MqttSocketOpener =
@@ -63,11 +63,10 @@ class MqttTransport extends NotificationTransport {
   MqttTransportConfig get config => _config;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final category = message.category;
+    final title = message.title;
+    final body = message.body;
     if (!isConfigured) {
       return NotificationResult.fail('MQTT not configured');
     }
@@ -78,10 +77,9 @@ class MqttTransport extends NotificationTransport {
         'MQTT session timed out after ${_timeout.inSeconds}s',
       );
     } catch (e) {
-      developer.log(
+      Log.error(
         '[Notifications/MQTT] Send failed: $e',
-        name: 'MqttTransport',
-        level: 1000,
+        source: 'MqttTransport',
         error: e,
       );
       return NotificationResult.fail(e.toString());
@@ -115,10 +113,9 @@ class MqttTransport extends NotificationTransport {
       final qos = (_config.qos < 0 || _config.qos > 2) ? 0 : _config.qos;
       final effectiveQos = qos == 2 ? 1 : qos;
       if (qos == 2) {
-        developer.log(
+        Log.info(
           '[Notifications/MQTT] QoS 2 downgraded to QoS 1 (PUBREC/PUBREL not implemented).',
-          name: 'MqttTransport',
-          level: 800,
+          source: 'MqttTransport',
         );
       }
 
@@ -170,8 +167,6 @@ class MqttTransport extends NotificationTransport {
     }
   }
 }
-
-// Frame builders + reader
 
 enum _MqttPacketType { connack, puback, unknown }
 

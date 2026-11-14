@@ -73,7 +73,7 @@ void main() {
         service: service,
         currentVersion: '2.0.0',
         currentBuildNumber: 1,
-        stateDirectory: tempRoot,
+        stateDirectory: () async => tempRoot,
         serverUrl: 'https://updates.example.invalid',
       );
       addTearDown(controller.dispose);

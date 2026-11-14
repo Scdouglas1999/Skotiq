@@ -1,11 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import '../models/imaging/frame_type_record.dart';
 import '../database/daos/images_dao.dart';
 import '../database/daos/sessions_dao.dart';
 import '../database/daos/targets_dao.dart';
 import '../database/database.dart';
 import '../models/imaging/stack_and_share_models.dart';
-import '../providers/database_provider.dart';
 
 /// Thrown by [StackLightSelector] when a selection run finds **zero** light
 /// frames that satisfy the [StackAndShareConfig] gates (frame-type, accepted,
@@ -89,7 +87,7 @@ extension StackExclusionReasonLabel on StackExclusionReason {
 /// the UI) consume.
 ///
 /// Selection rules (applied in order):
-///  1. Keep only `frameType == 'light'` frames.
+///  1. Keep only light frames.
 ///  2. If [StackAndShareConfig.rejectUnaccepted], drop `isAccepted == false`.
 ///  3. Drop frames whose `qualityScore` is non-null and below
 ///     [StackAndShareConfig.minQualityScore]. (A null score is admitted — the
@@ -133,7 +131,9 @@ class StackLightSelector {
       throw StateError('Imaging session $sessionId not found');
     }
     final frames = await _imagesDao.getImagesForSession(sessionId);
-    final targetName = await _resolveTargetName(session.targetId);
+    final targetName = await _resolveTargetName(
+      session.targetId ?? _soleLightTargetId(frames),
+    );
     return _select(
       frames: frames,
       config: config,
@@ -161,6 +161,17 @@ class StackLightSelector {
     );
   }
 
+  /// The one target every light frame of a session was taken on, or null when
+  /// they name none or several. Sessions a sequence starts carry no target of
+  /// their own; their frames do.
+  static int? _soleLightTargetId(List<DbCapturedImage> frames) {
+    final targets = {
+      for (final frame in frames)
+        if (frame.isLight) frame.targetId,
+    };
+    return targets.length == 1 ? targets.single : null;
+  }
+
   Future<String?> _resolveTargetName(int? targetId) async {
     if (targetId == null) return null;
     final target = await _targetsDao.getTargetById(targetId);
@@ -169,7 +180,7 @@ class StackLightSelector {
 
   /// Core, side-effect-free selection over an already-loaded frame list.
   StackSelectionSummary _select({
-    required List<CapturedImage> frames,
+    required List<DbCapturedImage> frames,
     required StackAndShareConfig config,
     required String scope,
     required String? targetName,
@@ -181,10 +192,10 @@ class StackLightSelector {
     var lightsExcluded = 0;
 
     // Track the running best reference candidate among accepted survivors.
-    CapturedImage? referenceRow;
+    DbCapturedImage? referenceRow;
 
     for (final frame in frames) {
-      if (frame.frameType != 'light') {
+      if (!frame.isLight) {
         continue;
       }
 
@@ -250,7 +261,7 @@ class StackLightSelector {
   }
 
   StackedFrameSelection _toSelection(
-    CapturedImage frame, {
+    DbCapturedImage frame, {
     required bool isReference,
   }) {
     return StackedFrameSelection(
@@ -279,8 +290,8 @@ class StackLightSelector {
   /// below any non-null hfr. Frames with neither metric fall through to the
   /// timestamp tie-break, so a usable reference is always chosen.
   bool _isBetterReference({
-    required CapturedImage candidate,
-    required CapturedImage current,
+    required DbCapturedImage candidate,
+    required DbCapturedImage current,
   }) {
     final cmpQuality = _compareNullableDesc(
       candidate.qualityScore,
@@ -327,10 +338,10 @@ class StackLightSelector {
   /// "excluded" doesn't apply). The check mirrors the gate order used by
   /// [_select] exactly: accepted first, then quality.
   static StackExclusionReason? exclusionReasonFor(
-    CapturedImage frame,
+    DbCapturedImage frame,
     StackAndShareConfig config,
   ) {
-    if (frame.frameType != 'light') return null;
+    if (!frame.isLight) return null;
     if (config.rejectUnaccepted && !frame.isAccepted) {
       return StackExclusionReason.rejected;
     }
@@ -341,14 +352,3 @@ class StackLightSelector {
     return null;
   }
 }
-
-/// Provider for the [StackLightSelector]. Reads the image / session / target
-/// DAOs from the shared database providers so it transparently follows the same
-/// Drift instance the rest of the app uses.
-final stackLightSelectorProvider = Provider<StackLightSelector>((ref) {
-  return StackLightSelector(
-    imagesDao: ref.watch(imagesDaoProvider),
-    sessionsDao: ref.watch(sessionsDaoProvider),
-    targetsDao: ref.watch(targetsDaoProvider),
-  );
-});

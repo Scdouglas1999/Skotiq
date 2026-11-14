@@ -1,4 +1,22 @@
-use super::*;
+use crate::api::connection::api_get_connected_devices;
+use crate::api::polar_alignment::events::{emit_polar_error, emit_polar_status};
+use crate::api::polar_alignment::run_control::{
+    get_polar_align_cancel, get_polar_align_flag, polar_control_lock, polar_generation,
+    polar_task_slot, release_polar_run_if_current, store_polar_task, try_admit_polar_run,
+    POLAR_STOP_ABORT_GRACE_SECS, POLAR_STOP_CLEAN_GRACE_SECS,
+};
+use crate::device::DeviceType;
+use crate::error::SkotiqError;
+use crate::event::bus::EventPayload;
+use crate::event::correlation::create_event_auto_id;
+use crate::event::equipment::{EventCategory, EventSeverity};
+use crate::event::imaging::PolarAlignmentImageEvent;
+use crate::state::get_state;
+use crate::unified_device_ops::create_unified_device_ops;
+
+use std::sync::atomic::{AtomicBool, Ordering, Ordering as PolarOrdering};
+use std::sync::Arc;
+use std::time::Duration;
 
 /// Stop the polar alignment process.
 ///
@@ -70,20 +88,6 @@ pub async fn api_stop_polar_alignment() -> Result<(), SkotiqError> {
 
 // All-sky polar alignment (SharpCap-style)
 
-/// Polar alignment mode selector.
-///
-/// The traditional `ThreePoint` mode (TPPA) requires a clear view of the
-/// celestial pole region. `AllSky` mode performs Sharpcap-style polar
-/// alignment from any point in the sky using a single solved frame plus
-/// live drift feedback.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PolarAlignmentMode {
-    /// Three-Point Polar Alignment — requires pole region visible.
-    ThreePoint,
-    /// Sharpcap-style all-sky polar alignment — works from any sky direction.
-    AllSky,
-}
-
 /// Start all-sky polar alignment.
 ///
 /// Unlike TPPA this routine does not require the celestial pole region to
@@ -113,13 +117,13 @@ pub async fn api_start_all_sky_polar_alignment(
     use skotiq_sequencer::all_sky_polar::{
         perform_all_sky_polar_alignment, AllSkyPolarAlignConfig, PolarAlignError,
     };
-    use skotiq_sequencer::{Binning, InstructionContext};
+    use skotiq_sequencer::InstructionContext;
 
     let _control = polar_control_lock().lock().await;
 
     // Fail loudly if the plate solver isn't installed — the all-sky
     // algorithm is plate-solve-only by design.
-    if !skotiq_imaging::is_solver_available() {
+    if !skotiq_platesolve::is_solver_available() {
         return Err(SkotiqError::OperationFailed(
             "Plate solver required — install ASTAP and re-run all-sky polar alignment".to_string(),
         ));
@@ -219,84 +223,13 @@ pub async fn api_start_all_sky_polar_alignment(
         crate::util::executor_event_bridge::spawn_executor_event_bridge(get_state().clone());
 
     let align_handle = tokio::spawn(async move {
-        let ctx = InstructionContext {
-            node_id: String::new(),
-            target_ra: None,
-            target_dec: None,
-            target_name: None,
-            target_rotation: None,
-            current_filter: None,
-            current_binning: Binning::One,
-            cancellation_token: cancel_flag,
-            camera_id: Some(camera_id.clone()),
-            mount_id: Some(mount_id.clone()),
-            focuser_id: None,
-            filterwheel_id: None,
-            rotator_id: None,
-            dome_id: None,
-            cover_calibrator_id: None,
-            save_path: None,
-            latitude: Some(location.latitude),
-            longitude: Some(location.longitude),
-            device_ops,
-            trigger_state: None,
-            filter_focus_offsets: std::collections::HashMap::new(),
-            event_tx: Some(event_tx_for_align),
-            recovery_request_tx: None,
-            // Image Grading: polar alignment does not write FITS
-            // frames into the sequencer's save_path; the alignment images
-            // go through a separate dedicated channel. Empty defaults
-            // satisfy the InstructionContext shape without lying.
-            session_id: String::new(),
-            target_id: None,
-            mosaic_panel: None,
-            current_filter_index: None,
-            set_temp_c: None,
-            bayer_pattern: None,
-            observer_name: None,
-            site_elevation_m: None,
-            camera_make: None,
-            camera_model: None,
-            telescope_name: None,
-            telescope_focal_length_mm: None,
-            telescope_aperture_mm: None,
-            last_plate_solve: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            hfr_baseline: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            hfr_baseline_samples: std::sync::Arc::new(tokio::sync::RwLock::new(Vec::new())),
-            star_count_baselines: Default::default(),
-            consecutive_rejects: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            frames_accepted: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            frames_rejected: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
-            default_quality_check: None,
-            reject_folder_path: None,
-            // defect map state. Polar alignment captures
-            // do not go through the sequencer save_path; defect maps are
-            // not applied here, so pass an empty slot.
-            defect_map_apply: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            // Forensics: polar alignment does not grade frames.
-            forensics_history: std::sync::Arc::new(tokio::sync::RwLock::new(
-                std::collections::VecDeque::new(),
-            )),
-            current_sky_brightness_mag: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            cloud_motion_snapshot: std::sync::Arc::new(tokio::sync::RwLock::new(
-                skotiq_sequencer::CloudMotionSnapshot::default(),
-            )),
-            current_wind_kph: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            current_sensor_temp_c: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            // Replay Debug — one-shot bridge API doesn't emit
-            // decisions (no associated sequence_runs row).
-            decision_tx: None,
-            active_sequence_run_id: std::sync::Arc::new(parking_lot::RwLock::new(None)),
-            // Polar alignment is not driven by the node-runtime disconnect-retry
-            // loop, so this one-shot context owns a fresh, unshared flag.
-            device_disconnect_recovery_pending: std::sync::Arc::new(
-                std::sync::atomic::AtomicBool::new(false),
-            ),
-            // Dual-rig — polar alignment runs standalone, no secondary coord.
-            dither_barrier: None,
-            device_retry: skotiq_sequencer::instructions::DeviceRetryHandle::single_attempt(),
-            target_light_filters: Vec::new(),
-        };
+        let mut run = skotiq_sequencer::instructions::RunShared::new(device_ops);
+        run.rig.camera_id = Some(camera_id.clone());
+        run.rig.mount_id = Some(mount_id.clone());
+        run.rig.latitude = Some(location.latitude);
+        run.rig.longitude = Some(location.longitude);
+        run.event_tx = Some(event_tx_for_align);
+        let ctx = InstructionContext::new(run, cancel_flag);
 
         let status_cb = |status: String, _progress: Option<f64>| {
             emit_polar_status(&status, "adjusting", 0);

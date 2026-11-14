@@ -3,14 +3,16 @@ import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/database/database.dart';
+import 'package:skotiq_core/src/database/database.dart' show SkotiqDatabase;
 import 'package:skotiq_core/src/models/onboarding/next_use_steps.dart';
 import 'package:skotiq_core/src/models/readiness/readiness_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/next_use_prompt_provider.dart';
 import 'package:skotiq_core/src/providers/readiness_provider.dart';
-import 'package:skotiq_core/src/providers/tutorial_provider.dart'
-    show tutorialProgressDaoProvider;
+import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
+import 'package:skotiq_core/src/providers/sequence/sequence_catalog_sync.dart';
+import 'package:skotiq_core/src/providers/sequence/sequence_selection.dart';
+import 'package:skotiq_core/src/services/sequence_summary.dart';
 
 // Helpers for building readiness reports of a known overall level.
 //
@@ -274,6 +276,110 @@ void main() {
       );
       final step = await resolvePrompt(container);
       expect(step?.id, NextUseActionId.frameTarget);
+    });
+  });
+
+  group('nextUseCompletedActionsProvider (planning the night)', () {
+    late SkotiqDatabase db;
+
+    setUp(() => db = SkotiqDatabase.forTesting(NativeDatabase.memory()));
+    tearDown(() => db.close());
+
+    ProviderContainer containerFor() {
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          readinessReportProvider.overrideWithValue(_readyReport()),
+          savedSequenceSummariesProvider.overrideWith((ref) async => const []),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    Sequence planFromLibrary() => Sequence.create(
+      id: 'library-plan',
+      name: 'M31 night',
+      rootNodeId: 'root',
+      nodes: {
+        'root': TargetHeaderNode(
+          id: 'root',
+          name: 'M31',
+          targetName: 'M31',
+          raHours: 0.7,
+          decDegrees: 41.3,
+          childIds: const ['exp'],
+        ),
+        'exp': ExposureNode(
+          id: 'exp',
+          parentId: 'root',
+          durationSecs: 120,
+          count: 30,
+        ),
+      },
+    );
+
+    test(
+      'a plan loaded from the library is not met with Smart Night',
+      () async {
+        final container = containerFor();
+        container.listen(nextUsePromptProvider, (_, __) {});
+        await container.read(nextUseDismissedActionsProvider.future);
+        await container.read(savedSequenceSummariesProvider.future);
+        expect(
+          container.read(nextUsePromptProvider)?.id,
+          NextUseActionId.buildSmartNight,
+        );
+
+        container
+            .read(currentSequenceProvider.notifier)
+            .loadSequence(planFromLibrary());
+
+        final completed = container.read(nextUseCompletedActionsProvider);
+        expect(completed, contains(NextUseActionId.buildSmartNight));
+        expect(completed, contains(NextUseActionId.frameTarget));
+        expect(
+          container.read(nextUsePromptProvider)?.id,
+          isNot(
+            anyOf(NextUseActionId.buildSmartNight, NextUseActionId.frameTarget),
+          ),
+        );
+      },
+    );
+
+    test('a saved sequence counts as a planned night', () async {
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          readinessReportProvider.overrideWithValue(_readyReport()),
+          savedSequenceSummariesProvider.overrideWith(
+            (ref) async => [
+              SequenceSummary(
+                id: 1,
+                name: 'Saved plan',
+                nodeCount: 3,
+                targetCount: 1,
+                exposureCount: 30,
+                totalIntegrationSecs: 3600,
+                primaryTargetName: 'M31',
+                lastRunAt: null,
+                runCount: 0,
+                tags: [],
+                isFavorite: false,
+                createdAt: DateTime.utc(2026, 11, 1),
+                modifiedAt: DateTime.utc(2026, 11, 1),
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(nextUseCompletedActionsProvider, (_, __) {});
+      await container.read(savedSequenceSummariesProvider.future);
+      expect(
+        container.read(nextUseCompletedActionsProvider),
+        contains(NextUseActionId.buildSmartNight),
+      );
     });
   });
 

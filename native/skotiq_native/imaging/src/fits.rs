@@ -24,7 +24,9 @@
 //!
 //! Sites with their own `Why:` comment override the module-level reasoning.
 
-use crate::{BayerPattern, ImageData, PixelType};
+#[cfg(test)]
+use crate::BayerPattern;
+use crate::{ColorFilterArray, ImageData, PixelType};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, Write};
@@ -107,7 +109,6 @@ impl FitsValue {
     /// Why this and not `format!("{:?}", value)`: Debug emits the Rust variant
     /// syntax (`Float(120.0)`), and any consumer that carries a flattened
     /// header back into a FITS file then ships `EXPTIME = 'Float(120.0)'`.
-    /// `FitsHeader::set_value_token` reads this form back into typed cards.
     pub fn to_header_string(&self) -> String {
         match self {
             FitsValue::String(s) => s.clone(),
@@ -157,42 +158,17 @@ impl FitsHeader {
         self.keywords.insert(key_upper, FitsValue::Boolean(value));
     }
 
-    /// Restore a keyword from plain header text — the form
-    /// `FitsValue::to_header_string` produces and `ImageReadResult::header`
-    /// carries.
-    ///
-    /// Why not `set_string`: a header flattened to text and put back with
-    /// `set_string` becomes a quoted string card, so a calibrated frame ships
-    /// `EXPTIME = '120.0'` and `get_float("EXPTIME")` — plus PixInsight, ASTAP
-    /// and Siril — read nothing. Recovering the type restores real numeric
-    /// cards.
-    ///
-    /// Limit of the flattened form: a *string* value that reads as a number or
-    /// as `T`/`F` (`OBJECT = '61'`) comes back typed. Carrying the typed
-    /// `FitsHeader` instead of a `HashMap<String, String>` is the only way to
-    /// remove that ambiguity.
-    pub fn set_value_token(&mut self, key: &str, token: &str) {
-        // Deliberately not `parse_fits_value`: that takes a whole card body and
-        // splits a trailing `/ comment` off, which would truncate an unquoted
-        // path value such as `/data/darks/master.fits` to nothing.
-        let text = token.trim();
-        let value = if text == "T" {
-            FitsValue::Boolean(true)
-        } else if text == "F" {
-            FitsValue::Boolean(false)
-        } else if let Ok(i) = text.parse::<i64>() {
-            FitsValue::Integer(i)
-        } else if let Ok(f) = text.replace('D', "E").replace('d', "e").parse::<f64>() {
-            FitsValue::Float(f)
-        } else {
-            FitsValue::String(token.to_string())
-        };
-
-        let key_upper = key.to_uppercase();
-        if !self.keyword_order.contains(&key_upper) {
-            self.keyword_order.push(key_upper.clone());
+    /// State the image size as a FITS file does: `NAXIS`, `NAXIS1` (width),
+    /// `NAXIS2` (height) and, for more than one channel, `NAXIS3`. Every
+    /// format's header read gives these, so a caller learns a frame's size
+    /// without decoding it.
+    pub fn set_image_size(&mut self, width: u32, height: u32, channels: u32) {
+        self.set_int("NAXIS", if channels > 1 { 3 } else { 2 });
+        self.set_int("NAXIS1", i64::from(width));
+        self.set_int("NAXIS2", i64::from(height));
+        if channels > 1 {
+            self.set_int("NAXIS3", i64::from(channels));
         }
-        self.keywords.insert(key_upper, value);
     }
 
     /// Attach an inline comment to an existing keyword. Emitted as
@@ -218,7 +194,7 @@ impl FitsHeader {
     }
 
     /// Remove a keyword (and any inline comment) from the header.
-    fn remove(&mut self, key: &str) {
+    pub(crate) fn remove(&mut self, key: &str) {
         let key_upper = key.to_uppercase();
         self.keywords.remove(&key_upper);
         self.keyword_comments.remove(&key_upper);
@@ -250,9 +226,41 @@ impl FitsHeader {
             .get(&key.to_uppercase())
             .map(|s| s.as_str())
     }
+
+    /// Every value card in header order: keyword, value, inline comment.
+    pub fn cards(&self) -> impl Iterator<Item = (&str, &FitsValue, Option<&str>)> {
+        self.keyword_order.iter().filter_map(|key| {
+            self.keywords
+                .get(key)
+                .map(|value| (key.as_str(), value, self.get_comment(key)))
+        })
+    }
 }
 
-/// FITS file reading errors
+/// The text of a value as it stands on a card: strings quoted with inner
+/// quotes doubled, numbers as `write_fits` writes them, `T`/`F`.
+pub(crate) fn value_card_text(value: &FitsValue) -> String {
+    match value {
+        FitsValue::String(s) | FitsValue::Comment(s) => format!("'{}'", s.replace('\'', "''")),
+        FitsValue::Integer(i) => i.to_string(),
+        FitsValue::Float(f) => format_fits_float(*f),
+        FitsValue::Boolean(b) => if *b { "T" } else { "F" }.to_string(),
+    }
+}
+
+/// Read value text as it stands on a card, without a comment.
+pub(crate) fn parse_value_card_text(text: &str) -> FitsValue {
+    let t = text.trim();
+    if let Some(body) = t.strip_prefix('\'') {
+        let body = body.strip_suffix('\'').unwrap_or(body);
+        return FitsValue::String(body.replace("''", "'").trim_end().to_string());
+    }
+    match parse_fits_value(t) {
+        Ok(value) if !t.contains('/') => value,
+        _ => FitsValue::String(t.to_string()),
+    }
+}
+
 #[derive(Debug)]
 pub enum FitsError {
     Io(std::io::Error),
@@ -301,14 +309,12 @@ impl From<std::io::Error> for FitsError {
     }
 }
 
-/// Read a FITS file from disk
 pub fn read_fits(path: &Path) -> Result<(ImageData, FitsHeader), FitsError> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     read_fits_from_reader(&mut reader)
 }
 
-/// Read FITS from memory buffer
 pub fn read_fits_from_bytes(bytes: &[u8]) -> Result<(ImageData, FitsHeader), FitsError> {
     let mut reader = std::io::Cursor::new(bytes);
     read_fits_from_reader(&mut reader)
@@ -328,6 +334,8 @@ pub fn read_fits_header(path: &Path) -> Result<FitsHeader, FitsError> {
     let mut header = read_header(&mut reader)?;
     header.remove("BZERO");
     header.remove("BSCALE");
+    header.remove(crate::fits_reader::RANGE_LOW_CARD);
+    header.remove(crate::fits_reader::RANGE_HIGH_CARD);
     Ok(header)
 }
 
@@ -338,7 +346,7 @@ pub fn read_fits_header(path: &Path) -> Result<FitsHeader, FitsError> {
 /// (`A_ORDER`/`B_ORDER`/`AP_ORDER`/`BP_ORDER` plus every `A_i_j`, `B_i_j`,
 /// `AP_i_j`, `BP_i_j` term, Shupe et al. 2005).
 ///
-/// The set is closed over what [`add_wcs_headers`] writes and what ASTAP /
+/// The set is closed over what [`crate::SipWcs::write_to_header`] writes and what ASTAP /
 /// astrometry.net stamp, so a solved frame's astrometry survives a copy in
 /// full — a partial copy (CD without CTYPE, or CRVAL without SIP) yields a
 /// header that reads as solved while projecting to the wrong sky position.
@@ -381,29 +389,44 @@ pub fn is_astrometry_keyword(key: &str) -> bool {
 
 /// True for a keyword that identifies *what was observed and with what*, and
 /// stays true of a frame that has been rescaled, rebalanced, or filtered in
-/// place: target, filter, timing, optics, sensor settings and site.
+/// place: target, filter, timing and pointing, plus the instrument
+/// ([`is_instrument_keyword`]).
 ///
 /// Deliberately excluded: `BAYERPAT`/`XBAYROFF`/`YBAYROFF`. A CFA pattern
 /// describes a raw mosaic; carrying it onto a debayered or integrated frame
 /// makes a downstream reader debayer an already-colour image.
 pub fn is_observation_keyword(key: &str) -> bool {
+    is_instrument_keyword(key)
+        || matches!(
+            key,
+            "OBJECT"
+                | "OBJCTRA"
+                | "OBJCTDEC"
+                | "RA"
+                | "DEC"
+                | "FILTER"
+                | "DATE-OBS"
+                | "DATE-END"
+                | "EXPTIME"
+                | "EXPOSURE"
+                | "AIRMASS"
+        )
+}
+
+/// True for a keyword that describes the instrument and site a frame was
+/// taken with: optics, sensor and its settings, observer and site. These stay
+/// true of a product combined from many exposures of one setup, which the
+/// rest of [`is_observation_keyword`] (one exposure's timing and pointing) do
+/// not.
+pub fn is_instrument_keyword(key: &str) -> bool {
     matches!(
         key,
-        "OBJECT"
-            | "OBJCTRA"
-            | "OBJCTDEC"
-            | "RA"
-            | "DEC"
-            | "FILTER"
-            | "DATE-OBS"
-            | "DATE-END"
-            | "EXPTIME"
-            | "EXPOSURE"
-            | "TELESCOP"
+        "TELESCOP"
             | "INSTRUME"
             | "OBSERVER"
             | "FOCALLEN"
             | "APTDIA"
+            | "APTAREA"
             | "XPIXSZ"
             | "YPIXSZ"
             | "PIXSIZE1"
@@ -419,7 +442,6 @@ pub fn is_observation_keyword(key: &str) -> bool {
             | "SITELAT"
             | "SITELONG"
             | "SITEELEV"
-            | "AIRMASS"
     )
 }
 
@@ -477,9 +499,30 @@ pub fn copy_astrometry_headers(dst: &mut FitsHeader, src: &FitsHeader) -> usize 
     copy_header_cards(dst, src, is_astrometry_keyword)
 }
 
+/// Give `dst` the astrometry of `src` in place of its own, returning the
+/// number of cards copied: every astrometry card `dst` held goes first, so no
+/// earlier `PC` matrix or SIP polynomial is read on top of `src`'s solution.
+pub fn replace_astrometry_headers(dst: &mut FitsHeader, src: &FitsHeader) -> usize {
+    remove_astrometry_headers(dst);
+    copy_astrometry_headers(dst, src)
+}
+
+/// Remove every astrometry card ([`is_astrometry_keyword`]) from `header`.
+pub fn remove_astrometry_headers(header: &mut FitsHeader) {
+    let astrometry: Vec<String> = header
+        .cards()
+        .map(|(key, _, _)| key)
+        .filter(|key| is_astrometry_keyword(key))
+        .map(str::to_string)
+        .collect();
+    for key in astrometry {
+        header.remove(&key);
+    }
+}
+
 /// Carry the source frame's observation identity ([`is_observation_keyword`])
 /// into `dst`, returning the number of cards copied.
-pub fn copy_observation_headers(dst: &mut FitsHeader, src: &FitsHeader) -> usize {
+fn copy_observation_headers(dst: &mut FitsHeader, src: &FitsHeader) -> usize {
     copy_header_cards(dst, src, is_observation_keyword)
 }
 
@@ -507,12 +550,6 @@ pub fn carry_source_header(dst: &mut FitsHeader, src: &FitsHeader) {
 
 /// The image geometry a FITS header describes, plus the pixel type its BITPIX
 /// selects.
-///
-/// Why one function: `read_fits_from_reader` and `MappedFitsReader::open` both
-/// derived this from the same five keywords, and the copies drifted. The mapped
-/// reader accepted the 4-D cubes `read_fits` refuses — reading only the NAXIS3
-/// planes and silently discarding the rest — and defaulted a missing NAXIS3 to
-/// one channel where `read_fits` reported the malformed header.
 ///
 /// `NAXIS = 0` (header-only HDU) is an error here; `read_fits_from_reader`
 /// answers it with an empty image before asking, which is its own documented
@@ -570,158 +607,26 @@ pub(crate) fn geometry_from_header(
     Ok((width, height, depth, pixel_type))
 }
 
-/// Internal function to read FITS from any reader
 fn read_fits_from_reader<R: Read>(reader: &mut R) -> Result<(ImageData, FitsHeader), FitsError> {
-    // Read header
-    let mut header = read_header(reader)?;
-
-    let bitpix = header
-        .get_int("BITPIX")
-        .ok_or_else(|| FitsError::MissingKeyword("BITPIX".to_string()))?;
-
-    if header.get_int("NAXIS") == Some(0) {
-        // No data, just header
-        return Ok((ImageData::new(0, 0, 1, PixelType::U16), header));
-    }
-
-    let (width, height, depth, _) = geometry_from_header(&header)?;
-
-    // Get scaling parameters. Why: per FITS 4.4.2.5, the in-memory data after applying
-    // BSCALE/BZERO is the "physical" value; storing the original BSCALE/BZERO in the
-    // returned header would cause a subsequent write_fits to apply a second scaling pass.
-    // Why: per FITS standard 4.4.2.5, BZERO and BSCALE are OPTIONAL
-    // header cards; when absent the convention is BZERO=0.0, BSCALE=1.0 (the identity
-    // transform). These are documented defaults, not silent error fallbacks.
-    let bzero = header.get_float("BZERO").unwrap_or(0.0);
-    let bscale = header.get_float("BSCALE").unwrap_or(1.0);
-
-    // Determine pixel type and read data
-    let (pixel_type, data) = match bitpix as i32 {
-        8 => {
-            let raw = read_u8_data(reader, width, height, depth)?;
-            // Apply scaling if needed
-            if bzero != 0.0 || bscale != 1.0 {
-                let scaled: Vec<u8> = raw
-                    .iter()
-                    .map(|&v| ((v as f64 * bscale + bzero) as i32).clamp(0, 255) as u8)
-                    .collect();
-                (PixelType::U8, scaled)
-            } else {
-                (PixelType::U8, raw)
-            }
-        }
-        16 => {
-            let raw = read_i16_data(reader, width, height, depth)?;
-            // Convert to u16 with BZERO=32768 for unsigned.
-            // NOTE: the codebase has no signed integer PixelType, so genuinely
-            // signed FITS (BZERO=0) with negative physical samples is clamped to
-            // zero here. That is acceptable in practice — cameras emit unsigned
-            // (BZERO=32768) and calibrated data that can go negative is written
-            // as float (BITPIX -32/-64), which is preserved exactly above.
-            let adjusted: Vec<u8> = if bzero == 32768.0 && bscale == 1.0 {
-                // Fast path: unsigned 16-bit stored as signed with BZERO=32768,
-                // no rescale. Guard on bscale too — a non-unit BSCALE must go
-                // through the general path below or the scaling is dropped.
-                raw.iter()
-                    .flat_map(|&v| {
-                        let unsigned = (v as i32 + 32768).clamp(0, 65535) as u16;
-                        unsigned.to_le_bytes()
-                    })
-                    .collect()
-            } else {
-                raw.iter()
-                    .flat_map(|&v| {
-                        let scaled = (v as f64 * bscale + bzero).clamp(0.0, 65535.0) as u16;
-                        scaled.to_le_bytes()
-                    })
-                    .collect()
-            };
-            (PixelType::U16, adjusted)
-        }
-        32 => {
-            let raw = read_i32_data(reader, width, height, depth)?;
-            // Convert to u32
-            let adjusted: Vec<u8> = raw
-                .iter()
-                .flat_map(|&v| {
-                    let scaled = (v as f64 * bscale + bzero).clamp(0.0, u32::MAX as f64) as u32;
-                    scaled.to_le_bytes()
-                })
-                .collect();
-            (PixelType::U32, adjusted)
-        }
-        -32 => {
-            let raw = read_f32_data(reader, width, height, depth)?;
-            // Keep as f32
-            let bytes: Vec<u8> = raw
-                .iter()
-                .flat_map(|&v| {
-                    let scaled = v * bscale as f32 + bzero as f32;
-                    scaled.to_le_bytes()
-                })
-                .collect();
-            (PixelType::F32, bytes)
-        }
-        -64 => {
-            let raw = read_f64_data(reader, width, height, depth)?;
-            let bytes: Vec<u8> = raw
-                .iter()
-                .flat_map(|&v| {
-                    let scaled = v * bscale + bzero;
-                    scaled.to_le_bytes()
-                })
-                .collect();
-            (PixelType::F64, bytes)
-        }
-        other => return Err(FitsError::UnsupportedBitpix(other)),
-    };
-
-    let data = if depth > 1 {
-        let channels = depth as usize;
-        let pixels = (width as usize) * (height as usize);
-        let layout = crate::fits_layout::layout_from_header(&header).unwrap_or_else(|| {
-            crate::fits_layout::detect_layout(width as usize, height as usize, channels, |k| {
-                crate::fits_layout::le_sample(&data, pixel_type, k)
-            })
-        });
-        match layout {
-            crate::fits_layout::PlaneLayout::Planar => crate::fits_layout::planar_to_interleaved(
-                &data,
-                pixels,
-                channels,
-                pixel_type.byte_size(),
-            ),
-            crate::fits_layout::PlaneLayout::Interleaved => data,
-        }
-    } else {
-        data
-    };
-    header.remove(crate::fits_layout::LAYOUT_KEYWORD);
-
-    let image = ImageData {
-        width,
-        height,
-        channels: depth,
-        pixel_type,
-        data,
-    };
-
-    // Why: after BSCALE/BZERO have been folded into the data buffer, the header
-    // entries are stale. Leaving them in `keyword_order` would cause write_fits
-    // to emit them, double-scaling on round-trip. Strip them now so the next
-    // write computes fresh values for the chosen output BITPIX.
-    header.remove("BZERO");
-    header.remove("BSCALE");
-
-    Ok((image, header))
+    crate::fits_reader::FitsReader::open(reader)?.into_image()
 }
 
 /// Read the FITS header (80-character records until END)
 pub(crate) fn read_header<R: Read>(reader: &mut R) -> Result<FitsHeader, FitsError> {
+    read_header_measured(reader).map(|(header, _)| header)
+}
+
+/// [`read_header`], also reporting how many bytes it consumed: the header
+/// records and their padding, so the data unit starts that far in.
+pub(crate) fn read_header_measured<R: Read>(
+    reader: &mut R,
+) -> Result<(FitsHeader, u64), FitsError> {
     let mut header = FitsHeader::new();
     let mut buffer = [0u8; 80];
     let mut total_records: usize = 0;
     const MAX_HEADER_RECORDS: usize = 65_536;
+    // The keyword whose string value ended in `&` on the card just read.
+    let mut open_long_string: Option<String> = None;
 
     loop {
         reader.read_exact(&mut buffer)?;
@@ -745,6 +650,8 @@ pub(crate) fn read_header<R: Read>(reader: &mut R) -> Result<FitsHeader, FitsErr
         if keyword == "END" {
             break;
         }
+        // Only the card right after a string ending in `&` carries it on.
+        let continued_key = open_long_string.take();
 
         if keyword.is_empty() || keyword.starts_with(' ') {
             continue; // Blank or comment
@@ -760,7 +667,12 @@ pub(crate) fn read_header<R: Read>(reader: &mut R) -> Result<FitsHeader, FitsErr
         // Parse the card. COMMENT/HISTORY cards have NO `=` separator per FITS 4.4.2.4
         // and their text occupies columns 9..80; route them to dedicated vectors so
         // they are never mistaken for value cards and re-emitted with `=`.
-        if keyword == "COMMENT" {
+        if keyword == CONTINUE_KEYWORD {
+            if let Some(key) = continued_key {
+                let raw_after = String::from_utf8_lossy(&buffer[10..]);
+                open_long_string = continue_long_string(&mut header, key, &raw_after);
+            }
+        } else if keyword == "COMMENT" {
             let text = String::from_utf8_lossy(&buffer[8..]).trim_end().to_string();
             header.comments.push(text);
         } else if keyword == "HISTORY" {
@@ -768,17 +680,14 @@ pub(crate) fn read_header<R: Read>(reader: &mut R) -> Result<FitsHeader, FitsErr
             header.history.push(text);
         } else if &buffer[8..10] == b"= " {
             let raw_after = String::from_utf8_lossy(&buffer[10..]);
-            let (value_part, comment_part) = split_value_and_comment(raw_after.as_ref());
-            let value = parse_fits_value(value_part)?;
-            let key_owned = keyword.to_string();
-            header.keywords.insert(key_owned.clone(), value);
-            if !header.keyword_order.contains(&key_owned) {
-                header.keyword_order.push(key_owned.clone());
-            }
-            if let Some(comment) = comment_part {
-                let trimmed = comment.trim().to_string();
-                if !trimmed.is_empty() {
-                    header.keyword_comments.insert(key_owned, trimmed);
+            open_long_string = insert_value_card(&mut header, keyword.to_string(), &raw_after)?;
+        } else if keyword == HIERARCH_KEYWORD {
+            let raw_after = String::from_utf8_lossy(&buffer[8..]);
+            if let Some((name, value_text)) = raw_after.split_once('=') {
+                let name = name.split_whitespace().collect::<Vec<_>>().join(" ");
+                if !name.is_empty() {
+                    open_long_string =
+                        insert_value_card(&mut header, name.to_ascii_uppercase(), value_text)?;
                 }
             }
         }
@@ -791,6 +700,9 @@ pub(crate) fn read_header<R: Read>(reader: &mut R) -> Result<FitsHeader, FitsErr
     // guess how to concatenate.
     header.comments = join_commentary_cards(std::mem::take(&mut header.comments));
     header.history = join_commentary_cards(std::mem::take(&mut header.history));
+    // It describes the CONTINUE cards just folded into whole values; a writer
+    // states it again when it needs to.
+    header.remove(LONG_STRING_KEYWORD);
 
     // Skip to next 2880-byte boundary
     // The header is padded with spaces to a multiple of 2880 bytes
@@ -803,7 +715,138 @@ pub(crate) fn read_header<R: Read>(reader: &mut R) -> Result<FitsHeader, FitsErr
         reader.read_exact(&mut skip)?;
     }
 
-    Ok(header)
+    Ok((header, (header_bytes + padding) as u64))
+}
+
+/// Store the value and inline comment of a card under `key`. Returns `key`
+/// when the value is a string ending in `&`, which the next CONTINUE card may
+/// carry on.
+fn insert_value_card(
+    header: &mut FitsHeader,
+    key: String,
+    raw_after: &str,
+) -> Result<Option<String>, FitsError> {
+    let (value_part, comment_part) = split_value_and_comment(raw_after);
+    let value = parse_fits_value(value_part)?;
+    let open = matches!(&value, FitsValue::String(s) if s.ends_with(LONG_STRING_CONTINUATION))
+        && value_part.starts_with('\'');
+    header.keywords.insert(key.clone(), value);
+    if !header.keyword_order.contains(&key) {
+        header.keyword_order.push(key.clone());
+    }
+    if let Some(comment) = comment_part.map(str::trim).filter(|c| !c.is_empty()) {
+        header
+            .keyword_comments
+            .insert(key.clone(), comment.to_string());
+    }
+    Ok(open.then_some(key))
+}
+
+/// Add one CONTINUE card's piece to the string value of `key`, whose text so
+/// far ends in the `&` that asked for it, and its comment to the key's
+/// comment. Returns `key` again when this piece ends in `&` too.
+///
+/// A CONTINUE card that is not a quoted string ends the value as it stands,
+/// `&` and all, as cfitsio reads it.
+fn continue_long_string(header: &mut FitsHeader, key: String, raw_after: &str) -> Option<String> {
+    let (value_part, comment_part) = split_value_and_comment(raw_after);
+    if !value_part.starts_with('\'') {
+        return None;
+    }
+    let piece = quoted_string_body(value_part).ok()?;
+    let Some(FitsValue::String(text)) = header.keywords.get_mut(&key) else {
+        return None;
+    };
+    text.pop();
+    text.push_str(&piece);
+    let open = piece.ends_with(LONG_STRING_CONTINUATION);
+    if !open {
+        let joined = text.trim().to_string();
+        *text = joined;
+    }
+    if let Some(comment) = comment_part.map(str::trim).filter(|c| !c.is_empty()) {
+        header
+            .keyword_comments
+            .entry(key.clone())
+            .and_modify(|text| {
+                text.push(' ');
+                text.push_str(comment);
+            })
+            .or_insert_with(|| comment.to_string());
+    }
+    open.then_some(key)
+}
+
+/// Length of one FITS header card, fixed by the standard.
+const CARD_LEN: usize = 80;
+
+/// Split header text into its cards.
+///
+/// A FITS header on disk is fixed-width 80-character cards packed end to end
+/// with **no line terminators**; iterating one with `str::lines()` yields the
+/// whole header as a single line, so only the first card is ever seen. Text
+/// that does carry newlines (some solvers write one card per line) is split
+/// on them first, and any segment longer than a card is split by width.
+pub fn header_text_cards(content: &str) -> Vec<&str> {
+    let mut cards = Vec::new();
+    for segment in content.lines() {
+        if segment.len() <= CARD_LEN {
+            cards.push(segment);
+            continue;
+        }
+        let bytes = segment.as_bytes();
+        let mut start = 0;
+        while start < bytes.len() {
+            let end = (start + CARD_LEN).min(bytes.len());
+            // A FITS header is ASCII, so every card boundary is a char
+            // boundary. Anything else is not a header that can be split by
+            // width; what is left is handed back in one piece.
+            match std::str::from_utf8(&bytes[start..end]) {
+                Ok(card) => cards.push(card),
+                Err(_) => {
+                    cards.push(&segment[start..]);
+                    break;
+                }
+            }
+            start = end;
+        }
+    }
+    cards
+}
+
+/// A header written out as text (a solver's `.wcs` sidecar), read by the
+/// same card rules as a file's header: [`header_text_cards`] splits it and
+/// each card is read as the reader reads records. An `END` card is not
+/// required.
+pub fn header_from_text(content: &str) -> Result<FitsHeader, FitsError> {
+    let mut records: Vec<u8> = Vec::new();
+    for card in header_text_cards(content) {
+        let bytes = &card.as_bytes()[..card.len().min(CARD_LEN)];
+        if bytes[..bytes.len().min(8)].trim_ascii_end() == b"END" {
+            break;
+        }
+        let mut record = [b' '; CARD_LEN];
+        record[..bytes.len()].copy_from_slice(bytes);
+        records.extend_from_slice(&record);
+    }
+    let mut end = [b' '; CARD_LEN];
+    end[..3].copy_from_slice(b"END");
+    records.extend_from_slice(&end);
+    records.resize(records.len().div_ceil(2880) * 2880, b' ');
+    read_header(&mut std::io::Cursor::new(records))
+}
+
+/// The keyword and raw value text of a value card (`KEYWORD = value /
+/// comment`), comment removed and both trimmed. `None` for a card with no
+/// value indicator (`COMMENT`, `HISTORY`, `END`, blanks).
+pub fn card_keyword_and_value(card: &str) -> Option<(&str, &str)> {
+    let keyword = card.get(..8)?.trim();
+    let rest = card.get(8..)?;
+    if card.len() < 10 || !rest.starts_with('=') {
+        return None;
+    }
+    let (value, _) = split_value_and_comment(card.get(10..)?);
+    Some((keyword, value.trim()))
 }
 
 /// Parse a FITS value from string. `s` may still contain a trailing `/ comment`;
@@ -812,17 +855,11 @@ fn parse_fits_value(s: &str) -> Result<FitsValue, FitsError> {
     let s = s.trim();
     let (value_part, _) = split_value_and_comment(s);
 
-    // Check for string (enclosed in single quotes)
-    if let Some(stripped) = value_part.strip_prefix('\'') {
-        if let Some(end) = stripped.find('\'') {
-            return Ok(FitsValue::String(stripped[..end].trim().to_string()));
-        }
-        return Err(FitsError::InvalidFormat(
-            "Unterminated FITS string literal".to_string(),
-        ));
+    if value_part.starts_with('\'') {
+        return quoted_string_body(value_part)
+            .map(|body| FitsValue::String(body.trim().to_string()));
     }
 
-    // Check for boolean
     if value_part == "T" {
         return Ok(FitsValue::Boolean(true));
     }
@@ -830,12 +867,10 @@ fn parse_fits_value(s: &str) -> Result<FitsValue, FitsError> {
         return Ok(FitsValue::Boolean(false));
     }
 
-    // Try to parse as integer
     if let Ok(i) = value_part.parse::<i64>() {
         return Ok(FitsValue::Integer(i));
     }
 
-    // Try to parse as float
     if let Ok(f) = value_part
         .replace('D', "E")
         .replace('d', "e")
@@ -844,8 +879,29 @@ fn parse_fits_value(s: &str) -> Result<FitsValue, FitsError> {
         return Ok(FitsValue::Float(f));
     }
 
-    // Default to string
     Ok(FitsValue::String(value_part.to_string()))
+}
+
+/// The text of a quoted FITS string, `''` read as one quote, trailing spaces
+/// dropped (FITS 4.2.1.1: they are not significant, leading ones are).
+fn quoted_string_body(value_part: &str) -> Result<String, FitsError> {
+    let mut body = String::new();
+    let mut chars = value_part.strip_prefix('\'').unwrap_or(value_part).chars();
+    loop {
+        match chars.next() {
+            Some('\'') if chars.clone().next() == Some('\'') => {
+                chars.next();
+                body.push('\'');
+            }
+            Some('\'') => return Ok(body.trim_end().to_string()),
+            Some(ch) => body.push(ch),
+            None => {
+                return Err(FitsError::InvalidFormat(
+                    "Unterminated FITS string literal".to_string(),
+                ))
+            }
+        }
+    }
 }
 
 fn split_value_and_comment(s: &str) -> (&str, Option<&str>) {
@@ -898,141 +954,6 @@ fn is_valid_keyword(keyword: &str) -> bool {
         })
 }
 
-/// Compute pixel count from FITS NAXIS dimensions, surfacing overflow as a
-/// structured error rather than a wrapping `as usize`.
-///
-/// Why: the previous `(width * height * depth) as usize`
-/// in u32 silently wraps for >4G-pixel images; promoting to u64 with
-/// checked_mul forces the failure to surface at the I/O boundary where the
-/// caller can map it to a structured FitsError.
-fn fits_pixel_count(width: u32, height: u32, depth: u32) -> Result<usize, FitsError> {
-    let product = u64::from(width)
-        .checked_mul(u64::from(height))
-        .and_then(|n| n.checked_mul(u64::from(depth)))
-        .ok_or_else(|| {
-            FitsError::InvalidFormat(format!(
-                "FITS NAXIS dimensions overflow: {}*{}*{}",
-                width, height, depth
-            ))
-        })?;
-    usize::try_from(product).map_err(|_| {
-        FitsError::InvalidFormat(format!("FITS pixel count {} exceeds usize::MAX", product))
-    })
-}
-
-/// Read unsigned 8-bit data
-fn read_u8_data<R: Read>(
-    reader: &mut R,
-    width: u32,
-    height: u32,
-    depth: u32,
-) -> Result<Vec<u8>, FitsError> {
-    let size = fits_pixel_count(width, height, depth)?;
-    let mut data = vec![0u8; size];
-    reader.read_exact(&mut data)?;
-    Ok(data)
-}
-
-/// Read signed 16-bit data (big-endian)
-fn read_i16_data<R: Read>(
-    reader: &mut R,
-    width: u32,
-    height: u32,
-    depth: u32,
-) -> Result<Vec<i16>, FitsError> {
-    let size = fits_pixel_count(width, height, depth)?;
-    let buffer_len = size.checked_mul(2).ok_or_else(|| {
-        FitsError::InvalidFormat(format!("FITS i16 buffer overflow for {} pixels", size))
-    })?;
-    let mut buffer = vec![0u8; buffer_len];
-    reader.read_exact(&mut buffer)?;
-
-    let data: Vec<i16> = buffer
-        .as_chunks::<2>()
-        .0
-        .iter()
-        .map(|chunk| i16::from_be_bytes([chunk[0], chunk[1]]))
-        .collect();
-
-    Ok(data)
-}
-
-/// Read signed 32-bit data (big-endian)
-fn read_i32_data<R: Read>(
-    reader: &mut R,
-    width: u32,
-    height: u32,
-    depth: u32,
-) -> Result<Vec<i32>, FitsError> {
-    let size = fits_pixel_count(width, height, depth)?;
-    let buffer_len = size.checked_mul(4).ok_or_else(|| {
-        FitsError::InvalidFormat(format!("FITS i32 buffer overflow for {} pixels", size))
-    })?;
-    let mut buffer = vec![0u8; buffer_len];
-    reader.read_exact(&mut buffer)?;
-
-    let data: Vec<i32> = buffer
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|chunk| i32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-        .collect();
-
-    Ok(data)
-}
-
-/// Read 32-bit float data (big-endian IEEE 754)
-fn read_f32_data<R: Read>(
-    reader: &mut R,
-    width: u32,
-    height: u32,
-    depth: u32,
-) -> Result<Vec<f32>, FitsError> {
-    let size = fits_pixel_count(width, height, depth)?;
-    let buffer_len = size.checked_mul(4).ok_or_else(|| {
-        FitsError::InvalidFormat(format!("FITS f32 buffer overflow for {} pixels", size))
-    })?;
-    let mut buffer = vec![0u8; buffer_len];
-    reader.read_exact(&mut buffer)?;
-
-    let data: Vec<f32> = buffer
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|chunk| f32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-        .collect();
-
-    Ok(data)
-}
-
-/// Read 64-bit float data (big-endian IEEE 754)
-fn read_f64_data<R: Read>(
-    reader: &mut R,
-    width: u32,
-    height: u32,
-    depth: u32,
-) -> Result<Vec<f64>, FitsError> {
-    let size = fits_pixel_count(width, height, depth)?;
-    let buffer_len = size.checked_mul(8).ok_or_else(|| {
-        FitsError::InvalidFormat(format!("FITS f64 buffer overflow for {} pixels", size))
-    })?;
-    let mut buffer = vec![0u8; buffer_len];
-    reader.read_exact(&mut buffer)?;
-
-    let data: Vec<f64> = buffer
-        .as_chunks::<8>()
-        .0
-        .iter()
-        .map(|chunk| {
-            f64::from_be_bytes([
-                chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5], chunk[6], chunk[7],
-            ])
-        })
-        .collect();
-
-    Ok(data)
-}
-
 /// Write a FITS file to disk.
 ///
 /// Why: this writer enforces three FITS-spec invariants that the prior version
@@ -1046,7 +967,6 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
     let file = File::create(path)?;
     let mut writer = BufWriter::new(file);
 
-    // Determine BITPIX based on pixel type
     let bitpix: i32 = match image.pixel_type {
         PixelType::U8 => 8,
         PixelType::U16 => 16,
@@ -1082,6 +1002,20 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
         // to negative i32 on disk and are clamped to zero when read back.
         write_value_card(&mut writer, "BZERO", "2147483648", None)?;
         write_value_card(&mut writer, "BSCALE", "1", None)?;
+    } else if matches!(image.pixel_type, PixelType::F32 | PixelType::F64) {
+        // A float file's numbers say nothing about their scale; state it.
+        write_value_card(
+            &mut writer,
+            crate::fits_reader::RANGE_LOW_CARD,
+            &format_fits_float(image.range.low),
+            Some("sample value of black"),
+        )?;
+        write_value_card(
+            &mut writer,
+            crate::fits_reader::RANGE_HIGH_CARD,
+            &format_fits_float(image.range.high),
+            Some("sample value of full scale"),
+        )?;
     }
     if image.channels > 1 {
         write_value_card(
@@ -1092,10 +1026,10 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
         )?;
     }
 
-    // Write additional header keywords. SIMPLE/BITPIX/NAXIS*/BZERO/BSCALE/END are
-    // skipped because they are owned by this writer.
-    for key in &header.keyword_order {
-        if [
+    // The cards this writer owns are written from the image above, never
+    // copied from the header.
+    let owned_by_writer = |key: &str| {
+        [
             "SIMPLE",
             "BITPIX",
             "NAXIS",
@@ -1105,20 +1039,42 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
             "BZERO",
             "BSCALE",
             "END",
+            LONG_STRING_KEYWORD,
             crate::fits_layout::LAYOUT_KEYWORD,
+            crate::fits_reader::RANGE_LOW_CARD,
+            crate::fits_reader::RANGE_HIGH_CARD,
         ]
-        .contains(&key.as_str())
-        {
+        .contains(&key)
+    };
+    let header_cards = || {
+        header
+            .keyword_order
+            .iter()
+            .filter(|key| !owned_by_writer(key))
+            .filter_map(|key| header.keywords.get(key).map(|value| (key.as_str(), value)))
+    };
+
+    if header_cards().any(|(key, value)| {
+        is_valid_keyword(key)
+            && matches!(value, FitsValue::String(s) if string_value_pieces(s).len() > 1)
+    }) {
+        write_value_card(
+            &mut writer,
+            LONG_STRING_KEYWORD,
+            &format_fits_string_value("OGIP 1.0"),
+            Some("Long strings continue on CONTINUE cards"),
+        )?;
+    }
+
+    for (key, value) in header_cards() {
+        let comment = header.keyword_comments.get(key).map(|s| s.as_str());
+        if !is_valid_keyword(key) {
+            write_foreign_name_card(&mut writer, key, value, comment)?;
             continue;
         }
-        let Some(value) = header.keywords.get(key) else {
-            continue;
-        };
-        let comment = header.keyword_comments.get(key).map(|s| s.as_str());
         match value {
             FitsValue::String(s) => {
-                let formatted = format_fits_string_value(s);
-                write_value_card(&mut writer, key, &formatted, comment)?;
+                write_string_cards(&mut writer, key, s, comment)?;
             }
             FitsValue::Integer(i) => {
                 write_value_card(&mut writer, key, &i.to_string(), comment)?;
@@ -1148,7 +1104,6 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
         write_text_card(&mut writer, "HISTORY", text)?;
     }
 
-    // Write END keyword
     write_end_card(&mut writer)?;
 
     // Pad header to 2880-byte boundary
@@ -1242,6 +1197,80 @@ fn write_be_samples<W: Write, const N: usize>(
 /// cards whose quoted body is shorter than 8 characters. The spec requires the
 /// quoted text to be space-padded out to at least 8 characters before the closing
 /// quote.
+/// `text` as the printable ASCII (32-126) every FITS header byte must be:
+/// a character with a clear ASCII spelling is written in it ("°" as "deg",
+/// "µ" as "u", typographic quotes and dashes as their plain forms, accented
+/// Latin letters without the accent), and any other one as `?`.
+fn fits_ascii(text: &str) -> std::borrow::Cow<'_, str> {
+    if text.bytes().all(|b| (0x20..0x7f).contains(&b)) {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len());
+    for ch in text.chars() {
+        let spelled: &str = match ch {
+            ' '..='~' => {
+                out.push(ch);
+                continue;
+            }
+            '\t' => " ",
+            '°' | 'º' => "deg",
+            '′' => "'",
+            '″' => "\"",
+            '‘' | '’' | '‚' => "'",
+            '“' | '”' | '„' => "\"",
+            '–' | '—' | '−' | '‐' => "-",
+            '…' => "...",
+            '·' | '•' => "-",
+            '×' => "x",
+            '±' => "+/-",
+            'µ' | 'μ' => "u",
+            'Å' => "A",
+            'å' => "a",
+            'Æ' => "AE",
+            'æ' => "ae",
+            'Ø' => "O",
+            'ø' => "o",
+            'ß' => "ss",
+            '\u{a0}' => " ",
+            _ => match unaccented(ch) {
+                Some(letter) => {
+                    out.push(letter);
+                    continue;
+                }
+                None => "?",
+            },
+        };
+        out.push_str(spelled);
+    }
+    std::borrow::Cow::Owned(out)
+}
+
+/// The plain letter an accented Latin-1 letter is written on.
+fn unaccented(ch: char) -> Option<char> {
+    const LETTERS: [(&str, char); 16] = [
+        ("ÀÁÂÃÄ", 'A'),
+        ("àáâãä", 'a'),
+        ("Ç", 'C'),
+        ("ç", 'c'),
+        ("ÈÉÊË", 'E'),
+        ("èéêë", 'e'),
+        ("ÌÍÎÏ", 'I'),
+        ("ìíîï", 'i'),
+        ("Ñ", 'N'),
+        ("ñ", 'n'),
+        ("ÒÓÔÕÖ", 'O'),
+        ("òóôõö", 'o'),
+        ("ÙÚÛÜ", 'U'),
+        ("ùúûü", 'u'),
+        ("Ý", 'Y'),
+        ("ýÿ", 'y'),
+    ];
+    LETTERS
+        .iter()
+        .find(|(accented, _)| accented.contains(ch))
+        .map(|(_, plain)| *plain)
+}
+
 fn format_fits_string_value(value: &str) -> String {
     // Why: a single-quote inside the string must be escaped as `''` per FITS 4.2.1.1.
     let escaped = value.replace('\'', "''");
@@ -1253,6 +1282,93 @@ fn format_fits_string_value(value: &str) -> String {
         escaped
     };
     format!("'{}'", body)
+}
+
+/// Bytes a value card holds from column 11 to column 80: the value and its
+/// inline comment.
+const VALUE_FIELD_LEN: usize = 70;
+
+/// Keyword of a card that carries on the string begun on the card before it
+/// (the long-string convention, FITS 4.0 section 4.2.1.2).
+const CONTINUE_KEYWORD: &str = "CONTINUE";
+
+/// Keyword announcing that a header uses the long-string convention. FITS 4.0
+/// does not require it; the OGIP convention the standard took it from asks for
+/// it, and older readers look for it before they join CONTINUE cards.
+const LONG_STRING_KEYWORD: &str = "LONGSTRN";
+
+/// Last character of a string piece that the next CONTINUE card carries on.
+const LONG_STRING_CONTINUATION: char = '&';
+
+/// The quoted pieces a string value is written as, one per card.
+///
+/// A value that fits one card is one piece. A longer one is split into pieces
+/// of at most 67 escaped bytes, each but the last ending in `&` inside its
+/// quotes, the way cfitsio and astropy write and read it. A split
+/// never falls inside a doubled quote or a multi-byte character. A value that
+/// itself ends in `&` gets an empty last piece, because astropy drops a
+/// trailing `&` from every piece of a long string, the last one included.
+fn string_value_pieces(value: &str) -> Vec<String> {
+    let single = format_fits_string_value(value);
+    if single.len() <= VALUE_FIELD_LEN {
+        return vec![single];
+    }
+    // Two quotes and the continuation marker around each piece.
+    let piece_len = VALUE_FIELD_LEN - 3;
+    let mut bodies = vec![String::new()];
+    for ch in value.chars() {
+        let mut unit = [0u8; 4];
+        let unit = if ch == '\'' {
+            "''"
+        } else {
+            ch.encode_utf8(&mut unit)
+        };
+        let body = bodies.last_mut().expect("bodies starts non-empty");
+        if body.len() + unit.len() > piece_len {
+            bodies.push(unit.to_string());
+        } else {
+            body.push_str(unit);
+        }
+    }
+    if value.ends_with(LONG_STRING_CONTINUATION) {
+        bodies.push(String::new());
+    }
+    let last = bodies.len() - 1;
+    bodies
+        .into_iter()
+        .enumerate()
+        .map(|(index, body)| {
+            if index == last {
+                format!("'{body}'")
+            } else {
+                format!("'{body}{LONG_STRING_CONTINUATION}'")
+            }
+        })
+        .collect()
+}
+
+/// Write a string value card, carried on over CONTINUE cards when it is too
+/// long for one. The inline comment goes on the last card.
+fn write_string_cards<W: Write>(
+    writer: &mut W,
+    keyword: &str,
+    value: &str,
+    comment: Option<&str>,
+) -> Result<(), FitsError> {
+    let pieces = string_value_pieces(&fits_ascii(value));
+    let last = pieces.len() - 1;
+    for (index, piece) in pieces.iter().enumerate() {
+        let comment = if index == last { comment } else { None };
+        if index == 0 {
+            write_value_card(writer, keyword, piece, comment)?;
+        } else {
+            let mut record = value_card_record(CONTINUE_KEYWORD, piece, comment)?;
+            // A CONTINUE card has no value indicator in columns 9 and 10.
+            record[8..10].copy_from_slice(b"  ");
+            writer.write_all(&record)?;
+        }
+    }
+    Ok(())
 }
 
 /// Format a float for a FITS value card. Why: FITS uses standard scientific
@@ -1290,7 +1406,7 @@ fn write_text_card<W: Write>(writer: &mut W, keyword: &str, text: &str) -> Resul
             keyword
         )));
     }
-    for body in commentary_cards(text) {
+    for body in commentary_cards(&fits_ascii(text)) {
         let mut record = [b' '; 80];
         let key_bytes = keyword.as_bytes();
         record[..key_bytes.len()].copy_from_slice(key_bytes);
@@ -1442,6 +1558,16 @@ fn write_value_card<W: Write>(
     value: &str,
     comment: Option<&str>,
 ) -> Result<(), FitsError> {
+    writer.write_all(&value_card_record(keyword, value, comment)?)?;
+    Ok(())
+}
+
+/// The 80 bytes of a value card; see [`write_value_card`].
+fn value_card_record(
+    keyword: &str,
+    value: &str,
+    comment: Option<&str>,
+) -> Result<[u8; 80], FitsError> {
     if !is_valid_keyword(keyword) {
         return Err(FitsError::InvalidFormat(format!(
             "Invalid FITS keyword for write: {}",
@@ -1457,8 +1583,7 @@ fn write_value_card<W: Write>(
     record[..keyword_len].copy_from_slice(&keyword_bytes[..keyword_len]);
 
     if value.is_empty() {
-        writer.write_all(&record)?;
-        return Ok(());
+        return Ok(record);
     }
 
     // "= " indicator at columns 9..10 (0-indexed 8..10).
@@ -1495,12 +1620,18 @@ fn write_value_card<W: Write>(
     }
     record[start..start + value_len].copy_from_slice(&value_bytes[..value_len]);
 
-    // Inline comment. Why: FITS 4.4.2.3 — the format is `value / comment` with at
-    // least one space on each side of the `/`. Truncate (never wrap) to fit 80 bytes.
+    put_inline_comment(&mut record, start + value_len, comment);
+    Ok(record)
+}
+
+/// Write `comment` after the value ending at `value_end`, as ` / comment`.
+///
+/// FITS 4.4.2.3 — the format is `value / comment` with at least one space on
+/// each side of the `/`. Truncated (never wrapped) to fit 80 bytes.
+fn put_inline_comment(record: &mut [u8; 80], value_end: usize, comment: Option<&str>) {
     if let Some(comment_text) = comment {
         let trimmed = comment_text.trim();
         if !trimmed.is_empty() {
-            let value_end = start + value_len;
             // Need " / " (3 bytes) plus at least one comment byte.
             if value_end + 4 <= 80 {
                 let separator = b" / ";
@@ -1509,6 +1640,7 @@ fn write_value_card<W: Write>(
                     record[sep_start..sep_start + 2].copy_from_slice(&separator[1..3]);
                     let comment_start = sep_start + 2;
                     let available = 80 - comment_start;
+                    let trimmed = fits_ascii(trimmed);
                     let comment_bytes = trimmed.as_bytes();
                     let copy_len = comment_bytes.len().min(available);
                     record[comment_start..comment_start + copy_len]
@@ -1517,266 +1649,58 @@ fn write_value_card<W: Write>(
             }
         }
     }
-
-    writer.write_all(&record)?;
-    Ok(())
 }
 
-/// Parsed Bayer geometry from a FITS header, accounting for subframe offsets.
+/// Keyword of a card whose name is not a FITS keyword (the ESO HIERARCH
+/// convention, read by astropy and cfitsio): `HIERARCH <name> = <value>`.
+const HIERARCH_KEYWORD: &str = "HIERARCH";
+
+/// Write a card whose name is no FITS keyword: longer than eight characters,
+/// or with spaces or other characters a keyword cannot hold, as a foreign XISF
+/// file or a HIERARCH header carries.
 ///
-/// Why: `BAYERPAT` describes the color pattern at the *full-sensor* origin.
-/// When a frame is captured with a subframe whose top-left pixel is at odd
-/// offsets relative to the sensor, the effective pattern at the in-memory
-/// origin (0,0) is shifted. `XBAYROFF`/`YBAYROFF` keywords (NINA, ASIAIR,
-/// SharpCap, ASTAP, INDI) record those offsets so the consumer can apply the
-/// correct pattern. Without this, every odd-offset subframe is debayered with
-/// the wrong color mapping.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BayerGeometry {
-    /// Effective Bayer pattern at the image origin (after applying offsets).
-    pub effective: BayerPattern,
-    /// Source pattern as stored in BAYERPAT.
-    pub source: BayerPattern,
-    /// X offset of the subframe top-left, relative to the sensor origin.
-    pub x_offset: i64,
-    /// Y offset of the subframe top-left, relative to the sensor origin.
-    pub y_offset: i64,
-}
-
-/// Compose a base Bayer pattern with subframe offsets, returning the effective
-/// pattern at the in-memory image origin (0,0).
-///
-/// Composition table — `effective_bayer_pattern(source, x % 2, y % 2)`:
-///
-/// | source | (0,0) | (1,0) | (0,1) | (1,1) |
-/// |--------|-------|-------|-------|-------|
-/// | RGGB   | RGGB  | GRBG  | GBRG  | BGGR  |
-/// | BGGR   | BGGR  | GBRG  | GRBG  | RGGB  |
-/// | GRBG   | GRBG  | RGGB  | BGGR  | GBRG  |
-/// | GBRG   | GBRG  | BGGR  | RGGB  | GRBG  |
-///
-/// Negative offsets are wrapped via Euclidean mod 2 to keep the table consistent.
-pub fn effective_bayer_pattern(source: BayerPattern, x_offset: i64, y_offset: i64) -> BayerPattern {
-    // Why: rust's `%` is sign-preserving; for offset composition we need a true
-    // modulo so a -1 offset behaves like a +1 offset (parity is what matters).
-    let xb = x_offset.rem_euclid(2) as usize;
-    let yb = y_offset.rem_euclid(2) as usize;
-    match (source, xb, yb) {
-        (BayerPattern::RGGB, 0, 0) => BayerPattern::RGGB,
-        (BayerPattern::RGGB, 1, 0) => BayerPattern::GRBG,
-        (BayerPattern::RGGB, 0, 1) => BayerPattern::GBRG,
-        (BayerPattern::RGGB, 1, 1) => BayerPattern::BGGR,
-
-        (BayerPattern::BGGR, 0, 0) => BayerPattern::BGGR,
-        (BayerPattern::BGGR, 1, 0) => BayerPattern::GBRG,
-        (BayerPattern::BGGR, 0, 1) => BayerPattern::GRBG,
-        (BayerPattern::BGGR, 1, 1) => BayerPattern::RGGB,
-
-        (BayerPattern::GRBG, 0, 0) => BayerPattern::GRBG,
-        (BayerPattern::GRBG, 1, 0) => BayerPattern::RGGB,
-        (BayerPattern::GRBG, 0, 1) => BayerPattern::BGGR,
-        (BayerPattern::GRBG, 1, 1) => BayerPattern::GBRG,
-
-        (BayerPattern::GBRG, 0, 0) => BayerPattern::GBRG,
-        (BayerPattern::GBRG, 1, 0) => BayerPattern::BGGR,
-        (BayerPattern::GBRG, 0, 1) => BayerPattern::RGGB,
-        (BayerPattern::GBRG, 1, 1) => BayerPattern::GRBG,
-
-        // Why: rem_euclid(2) only ever returns 0 or 1, but the match must be
-        // exhaustive in (BayerPattern, usize, usize); unreachable! signals the
-        // invariant rather than silently picking a wrong arm.
-        _ => unreachable!("rem_euclid(2) returned out-of-range value"),
+/// It is written `HIERARCH <name> = <value> / <comment>` when the name is
+/// printable ASCII without `=` and name and value fit one card. Otherwise it
+/// becomes a COMMENT line `<name> = <value> / <comment>`, which any length
+/// fits, so one foreign card never costs the file.
+fn write_foreign_name_card<W: Write>(
+    writer: &mut W,
+    name: &str,
+    value: &FitsValue,
+    comment: Option<&str>,
+) -> Result<(), FitsError> {
+    let value_text = match value {
+        FitsValue::Comment(text) => return write_text_card(writer, "COMMENT", text),
+        other => fits_ascii(&value_card_text(other)).into_owned(),
+    };
+    let name = name.trim();
+    let card = format!("{HIERARCH_KEYWORD} {name} = {value_text}");
+    let hierarch_name = !name.is_empty()
+        && name
+            .bytes()
+            .all(|byte| (0x20..0x7f).contains(&byte) && byte != b'=');
+    if hierarch_name && card.len() <= CARD_LEN {
+        let mut record = [b' '; 80];
+        record[..card.len()].copy_from_slice(card.as_bytes());
+        put_inline_comment(&mut record, card.len(), comment);
+        writer.write_all(&record)?;
+        return Ok(());
     }
+    let line = match comment.map(str::trim).filter(|c| !c.is_empty()) {
+        Some(comment) => format!("{name} = {value_text} / {comment}"),
+        None => format!("{name} = {value_text}"),
+    };
+    write_text_card(writer, "COMMENT", &line)
 }
 
-/// Read the Bayer geometry from a FITS header.
-///
-/// Returns `None` if `BAYERPAT` is absent or unrecognized. When present,
-/// `XBAYROFF`/`YBAYROFF` are read as integer keywords (default 0) and composed
-/// with the source pattern via [`effective_bayer_pattern`] so the caller's
-/// debayer step uses the correct origin.
-pub fn read_bayer_geometry(header: &FitsHeader) -> Option<BayerGeometry> {
-    let pat_str = header.get_string("BAYERPAT")?;
-    let source = BayerPattern::from_str(pat_str.trim())?;
-    // Why: per the doc-comment above, XBAYROFF/YBAYROFF default to 0
-    // (no Bayer-pattern shift) — documented convention.
+/// The color filter of a frame at its pixel (0, 0): `BAYERPAT` (4 letters for
+/// Bayer, 36 for X-Trans) moved by `XBAYROFF`/`YBAYROFF`. `None` for a mono
+/// frame or a `BAYERPAT` that names no filter the app knows.
+pub fn read_color_filter_array(header: &FitsHeader) -> Option<ColorFilterArray> {
+    let cfa = ColorFilterArray::parse(header.get_string("BAYERPAT")?)?;
     let x_offset = header.get_int("XBAYROFF").unwrap_or(0);
     let y_offset = header.get_int("YBAYROFF").unwrap_or(0);
-    let effective = effective_bayer_pattern(source, x_offset, y_offset);
-    Some(BayerGeometry {
-        effective,
-        source,
-        x_offset,
-        y_offset,
-    })
-}
-
-/// WCS (World Coordinate System) information from plate solving
-/// Used to add astrometric headers to FITS files
-#[derive(Debug, Clone)]
-pub struct WcsInfo {
-    /// Reference RA in degrees (CRVAL1)
-    pub crval1: f64,
-    /// Reference DEC in degrees (CRVAL2)
-    pub crval2: f64,
-    /// Reference pixel X coordinate (CRPIX1) - usually image center
-    pub crpix1: f64,
-    /// Reference pixel Y coordinate (CRPIX2) - usually image center
-    pub crpix2: f64,
-    /// CD matrix element 1,1 (scale and rotation)
-    pub cd1_1: f64,
-    /// CD matrix element 1,2 (scale and rotation)
-    pub cd1_2: f64,
-    /// CD matrix element 2,1 (scale and rotation)
-    pub cd2_1: f64,
-    /// CD matrix element 2,2 (scale and rotation)
-    pub cd2_2: f64,
-}
-
-impl WcsInfo {
-    /// Build WCS info from a plate solve: `ra`/`dec`/`rotation` in degrees,
-    /// `pixel_scale` in arcseconds per pixel, image size in pixels.
-    pub fn from_plate_solve(
-        ra: f64,
-        dec: f64,
-        rotation: f64,
-        pixel_scale: f64,
-        image_width: u32,
-        image_height: u32,
-    ) -> Self {
-        // Reference pixel is the image centre in 1-based FITS coordinates:
-        // the centre of an N-pixel axis is (N+1)/2, not N/2 (which is the
-        // boundary between the two central pixels). Matches SipWcs::from_plate_solve.
-        let crpix1 = (image_width as f64 + 1.0) / 2.0;
-        let crpix2 = (image_height as f64 + 1.0) / 2.0;
-
-        // Convert pixel scale from arcsec/pixel to deg/pixel
-        let scale_deg = pixel_scale / 3600.0;
-
-        // Convert rotation to radians
-        let rot_rad = rotation.to_radians();
-        let cos_rot = rot_rad.cos();
-        let sin_rot = rot_rad.sin();
-
-        // Build CD matrix incorporating rotation
-        let cd1_1 = -scale_deg * cos_rot; // Negative for RA increasing to the left
-        let cd1_2 = scale_deg * sin_rot;
-        let cd2_1 = scale_deg * sin_rot;
-        let cd2_2 = scale_deg * cos_rot;
-
-        Self {
-            crval1: ra,
-            crval2: dec,
-            crpix1,
-            crpix2,
-            cd1_1,
-            cd1_2,
-            cd2_1,
-            cd2_2,
-        }
-    }
-}
-
-/// Add the standard WCS (World Coordinate System) keywords to `header`, which
-/// is what lets other astronomical software map pixel coordinates to RA/Dec.
-pub fn add_wcs_headers(header: &mut FitsHeader, wcs: &WcsInfo) {
-    // Reference coordinates
-    header.set_float("CRVAL1", wcs.crval1);
-    header.set_float("CRVAL2", wcs.crval2);
-
-    // Reference pixels
-    header.set_float("CRPIX1", wcs.crpix1);
-    header.set_float("CRPIX2", wcs.crpix2);
-
-    // CD matrix (scale and rotation)
-    header.set_float("CD1_1", wcs.cd1_1);
-    header.set_float("CD1_2", wcs.cd1_2);
-    header.set_float("CD2_1", wcs.cd2_1);
-    header.set_float("CD2_2", wcs.cd2_2);
-
-    // Coordinate type (tangent plane projection)
-    header.set_string("CTYPE1", "RA---TAN");
-    header.set_string("CTYPE2", "DEC--TAN");
-
-    // Coordinate units
-    header.set_string("CUNIT1", "deg");
-    header.set_string("CUNIT2", "deg");
-
-    // Reference frame
-    header.set_float("EQUINOX", 2000.0);
-    header.set_string("RADESYS", "ICRS");
-}
-
-/// Write a plate solve's WCS into the FITS file at `path`, keeping its pixels
-/// and every other card. The file is rewritten beside itself and moved into
-/// place, so a reader never sees a half-written file.
-pub fn write_wcs_into_fits(path: &Path, wcs: &WcsInfo) -> Result<(), FitsError> {
-    let (image, mut header) = read_fits(path)?;
-    add_wcs_headers(&mut header, wcs);
-    let file_name = path
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "frame.fits".to_string());
-    let staged = path.with_file_name(format!(".{file_name}.wcs-tmp"));
-    if let Err(e) = write_fits(&staged, &image, &header) {
-        let _ = std::fs::remove_file(&staged);
-        return Err(e);
-    }
-    std::fs::rename(&staged, path).map_err(|e| {
-        let _ = std::fs::remove_file(&staged);
-        FitsError::from(e)
-    })
-}
-
-/// Standard FITS keywords for astrophotography
-pub struct StandardKeywords;
-
-impl StandardKeywords {
-    pub const BITPIX: &'static str = "BITPIX";
-    pub const NAXIS: &'static str = "NAXIS";
-    pub const NAXIS1: &'static str = "NAXIS1";
-    pub const NAXIS2: &'static str = "NAXIS2";
-    pub const BZERO: &'static str = "BZERO";
-    pub const BSCALE: &'static str = "BSCALE";
-    pub const OBJECT: &'static str = "OBJECT";
-    pub const TELESCOP: &'static str = "TELESCOP";
-    pub const INSTRUME: &'static str = "INSTRUME";
-    pub const OBSERVER: &'static str = "OBSERVER";
-    pub const DATE_OBS: &'static str = "DATE-OBS";
-    pub const EXPTIME: &'static str = "EXPTIME";
-    pub const CCD_TEMP: &'static str = "CCD-TEMP";
-    pub const GAIN: &'static str = "GAIN";
-    pub const OFFSET: &'static str = "OFFSET";
-    pub const XBINNING: &'static str = "XBINNING";
-    pub const YBINNING: &'static str = "YBINNING";
-    pub const FILTER: &'static str = "FILTER";
-    pub const RA: &'static str = "RA";
-    pub const DEC: &'static str = "DEC";
-    pub const FOCALLEN: &'static str = "FOCALLEN";
-    pub const APTDIA: &'static str = "APTDIA";
-    pub const IMAGETYP: &'static str = "IMAGETYP";
-    pub const SITELAT: &'static str = "SITELAT";
-    pub const SITELONG: &'static str = "SITELONG";
-    pub const SITEELEV: &'static str = "SITEELEV";
-    pub const AIRMASS: &'static str = "AIRMASS";
-    pub const PIXSIZE1: &'static str = "PIXSIZE1";
-    pub const PIXSIZE2: &'static str = "PIXSIZE2";
-    pub const XPIXSZ: &'static str = "XPIXSZ";
-    pub const YPIXSZ: &'static str = "YPIXSZ";
-
-    // WCS Keywords
-    pub const CRVAL1: &'static str = "CRVAL1";
-    pub const CRVAL2: &'static str = "CRVAL2";
-    pub const CRPIX1: &'static str = "CRPIX1";
-    pub const CRPIX2: &'static str = "CRPIX2";
-    pub const CD1_1: &'static str = "CD1_1";
-    pub const CD1_2: &'static str = "CD1_2";
-    pub const CD2_1: &'static str = "CD2_1";
-    pub const CD2_2: &'static str = "CD2_2";
-    pub const CTYPE1: &'static str = "CTYPE1";
-    pub const CTYPE2: &'static str = "CTYPE2";
-    pub const EQUINOX: &'static str = "EQUINOX";
-    pub const RADESYS: &'static str = "RADESYS";
+    Some(cfa.shifted(x_offset, y_offset))
 }
 
 /// Calculate airmass from true (geometric) altitude.
@@ -1850,7 +1774,6 @@ pub fn calculate_airmass(altitude_degrees: f64) -> Result<f64, FitsError> {
     Ok(airmass)
 }
 
-/// Image validation result
 #[derive(Debug, Clone)]
 pub struct ImageValidation {
     pub is_valid: bool,
@@ -1886,7 +1809,6 @@ pub fn validate_image(
 ) -> ImageValidation {
     let mut validation = ImageValidation::valid();
 
-    // Check dimensions match expected
     if let Some(width) = expected_width {
         if image.width != width {
             validation.add_error(format!(
@@ -1905,13 +1827,11 @@ pub fn validate_image(
         }
     }
 
-    // Check for zero dimensions
     if image.width == 0 || image.height == 0 {
         validation.add_error("Image has zero dimensions".to_string());
         return validation;
     }
 
-    // Check data size matches dimensions
     let pixel_size = match image.pixel_type {
         PixelType::U8 => 1,
         PixelType::U16 => 2,
@@ -2045,7 +1965,7 @@ const RIGHT_JUSTIFIED_FULL_SCALES: [u16; 4] = [255, 1023, 4095, 16383];
 /// container full scale, NOT `2^bit_depth - 1`. The two differ for every
 /// left-justified sub-16-bit sensor (a 12-bit ASI1600 has `bit_depth: 12` but
 /// `max_adu: 65520`), and conflating them has already shipped as a defect once;
-/// `skotiq_native::camera::SensorInfo` spells out the contract.
+/// `skotiq_device::SensorInfo` spells out the contract.
 ///
 /// `None` means "not usable as a ceiling, keep
 /// [`DEFAULT_SATURATION_THRESHOLD`]".
@@ -2068,9 +1988,7 @@ pub fn saturation_threshold_for_full_scale(full_scale: u32) -> Option<u16> {
 /// On a narrower container the same number means something else entirely — on
 /// the SVBony RAW8 fallback (`max_adu: 255`, samples handed over as 0..255;
 /// `native/src/vendor/svbony.rs`) 100 ADU is 39% of everything the sensor can
-/// produce, so an ordinary dim sub reads as "severely underexposed". That
-/// verdict is an *error*, and an error is not an annotation: the capture path
-/// returns Err on `!is_valid`, so the unscaled floor destroys the frame.
+/// produce, so an ordinary dim sub would read as "severely underexposed".
 ///
 /// The floor therefore scales with the container, exactly as the saturation
 /// ceiling does at the other end of the range.
@@ -2120,7 +2038,6 @@ fn infer_full_scale_from_frame(
     (count_at_max >= min_pile_up).then_some(full_scale)
 }
 
-/// Comprehensive image validation options
 #[derive(Debug, Clone)]
 pub struct ImageValidationOptions {
     /// Expected image width (None to skip check)
@@ -2129,11 +2046,10 @@ pub struct ImageValidationOptions {
     pub expected_height: Option<u32>,
     /// Whether this is a bias frame (allows uniform pixel values)
     pub is_bias_frame: bool,
-    /// Minimum acceptable max pixel value, stated against a full 16-bit
-    /// container (default: 100, i.e. 0.15% of full scale). It is rescaled to
-    /// whatever container the frame actually arrived in — see
-    /// [`signal_floor_for_full_scale`], and note that falling under it is an
-    /// error, which aborts the exposure.
+    /// Max pixel value under which a frame is called severely underexposed,
+    /// stated against a full 16-bit container (default: 100, i.e. 0.15% of
+    /// full scale) and rescaled to the container the frame arrived in (see
+    /// [`signal_floor_for_full_scale`]). A warning: the frame is kept.
     pub min_max_value: u16,
     /// Saturation threshold: pixels at/above this are considered saturated.
     /// Default 65024 = 4064 << 4, i.e. 99.2% of the 12-bit ADC ceiling scaled
@@ -2195,7 +2111,8 @@ impl ImageValidationOptions {
 /// Validate image data, checking the dimensions against `expected_width` /
 /// `expected_height` when they are given. `is_bias_frame` allows uniform pixel
 /// values, which a bias frame naturally has.
-pub fn validate_image_with_options(
+#[cfg(test)]
+fn validate_image_with_options(
     image: &ImageData,
     expected_width: Option<u32>,
     expected_height: Option<u32>,
@@ -2217,7 +2134,8 @@ pub fn validate_image_with_options(
 /// Performs the following validation checks:
 /// 1. Validates image data size matches dimensions (width * height)
 /// 2. Rejects images where ALL pixels are identical (unless it's a bias frame)
-/// 3. Rejects severely underexposed images (max pixel value < min_max_value)
+/// 3. Warns on underexposed images (max pixel value < min_max_value, and
+///    under five times it)
 /// 4. Warns on saturation, judged against the sensor's own ADU ceiling
 ///    (`sensor_max_adu`) rather than a fixed 16-bit constant
 /// 5. Logs validation results for debugging
@@ -2234,7 +2152,6 @@ pub fn validate_image_comprehensive(
 ) -> ImageValidation {
     let mut validation = ImageValidation::valid();
 
-    // Check dimensions match expected
     if let Some(width) = options.expected_width {
         if image.width != width {
             validation.add_error(format!(
@@ -2253,14 +2170,12 @@ pub fn validate_image_comprehensive(
         }
     }
 
-    // Check for zero dimensions
     if image.width == 0 || image.height == 0 {
         validation.add_error("Image has zero dimensions".to_string());
         tracing::error!("[IMAGE_VALIDATION] REJECTED: Image has zero dimensions");
         return validation;
     }
 
-    // Check data size matches dimensions
     let pixel_size = match image.pixel_type {
         PixelType::U8 => 1,
         PixelType::U16 => 2,
@@ -2283,7 +2198,6 @@ pub fn validate_image_comprehensive(
         );
     }
 
-    // For 16-bit images, perform comprehensive validation
     if image.pixel_type == PixelType::U16 && !image.data.is_empty() {
         let pixels: Vec<u16> = image
             .data
@@ -2424,9 +2338,11 @@ pub fn validate_image_comprehensive(
                 tracing::error!("[IMAGE_VALIDATION] REJECTED: All-zero image");
             }
 
-            // Check 3: Underexposure detection with tiered thresholds
-            // Severe underexposure (max < signal_floor) - error
-            // Moderate underexposure (max < signal_floor * 5) - warning
+            // Check 3: Underexposure, in two tiers (max < signal_floor, and
+            // max < signal_floor * 5). Both are warnings: a dim frame is real
+            // data (a short narrowband subframe off a right-justified 12-bit
+            // camera whose driver declares a 16-bit ceiling peaks under the
+            // floor), and a capture error throws the frame away.
             //
             // Both tiers are proportions of the container the frame actually
             // arrived in, not bare ADU counts. The unscaled 100/500 pair is
@@ -2440,13 +2356,13 @@ pub fn validate_image_comprehensive(
             });
             let moderate_threshold = signal_floor.saturating_mul(5);
             if max_value < signal_floor && !all_zero && !options.is_bias_frame {
-                validation.add_error(format!(
-                    "Image severely underexposed: max pixel value {} is below minimum threshold {} - \
-                    increase exposure time or check camera connection/shutter",
+                validation.add_warning(format!(
+                    "Image severely underexposed: max pixel value {} is below {} - \
+                    increase the exposure time, or check the shutter, cap and dome",
                     max_value, signal_floor
                 ));
-                tracing::error!(
-                    "[IMAGE_VALIDATION] REJECTED: Severely underexposed (max={} < {})",
+                tracing::warn!(
+                    "[IMAGE_VALIDATION] WARNING: Severely underexposed (max={} < {})",
                     max_value,
                     signal_floor
                 );
@@ -2528,7 +2444,6 @@ pub fn validate_image_comprehensive(
         }
     }
 
-    // Log final validation result
     if validation.is_valid {
         if validation.warnings.is_empty() {
             tracing::debug!("[IMAGE_VALIDATION] PASSED: Image validated successfully");
@@ -2570,7 +2485,6 @@ pub fn validate_image_comprehensive(
 pub fn validate_fits_header(header: &FitsHeader) -> ImageValidation {
     let mut validation = ImageValidation::valid();
 
-    // Required keywords
     let required = vec!["SIMPLE", "BITPIX", "NAXIS", "NAXIS1", "NAXIS2"];
     for keyword in required {
         if header.get(keyword).is_none() {
@@ -2578,7 +2492,6 @@ pub fn validate_fits_header(header: &FitsHeader) -> ImageValidation {
         }
     }
 
-    // Recommended for astrophotography
     let recommended = vec![
         "DATE-OBS", "EXPTIME", "IMAGETYP", "OBJECT", "TELESCOP", "INSTRUME", "OBSERVER",
     ];
@@ -2589,88 +2502,6 @@ pub fn validate_fits_header(header: &FitsHeader) -> ImageValidation {
     }
 
     validation
-}
-
-/// Score a frame 0-100 (100 is best) from three terms:
-/// - HFR (smaller is better, below 3.0 is excellent)
-/// - star count (more stars indicate better data)
-/// - background uniformity (lower `std_dev` relative to `mean` is better)
-pub fn calculate_quality_score(
-    hfr: Option<f64>,
-    star_count: Option<i32>,
-    mean: f64,
-    std_dev: f64,
-) -> f64 {
-    let mut score = 0.0;
-    let mut weight_sum = 0.0;
-
-    // HFR component (40% weight)
-    // Excellent: < 2.0, Good: 2-3, Fair: 3-5, Poor: > 5
-    if let Some(hfr_val) = hfr {
-        if hfr_val > 0.0 {
-            let hfr_score = if hfr_val < 2.0 {
-                100.0
-            } else if hfr_val < 3.0 {
-                100.0 - (hfr_val - 2.0) * 25.0
-            } else if hfr_val < 5.0 {
-                75.0 - (hfr_val - 3.0) * 25.0
-            } else {
-                (25.0 - (hfr_val - 5.0).min(5.0) * 5.0).max(0.0)
-            };
-            score += hfr_score * 0.4;
-            weight_sum += 0.4;
-        }
-    }
-
-    // Star count component (30% weight)
-    // Excellent: > 100, Good: 50-100, Fair: 20-50, Poor: < 20
-    if let Some(stars) = star_count {
-        let star_score = if stars >= 100 {
-            100.0
-        } else if stars >= 50 {
-            66.0 + (stars - 50) as f64 / 50.0 * 34.0
-        } else if stars >= 20 {
-            33.0 + (stars - 20) as f64 / 30.0 * 33.0
-        } else {
-            (stars as f64 / 20.0 * 33.0).max(0.0)
-        };
-        score += star_score * 0.3;
-        weight_sum += 0.3;
-    }
-
-    // Background uniformity component (30% weight)
-    // Lower noise is better - check coefficient of variation
-    if mean > 0.0 {
-        let cv = std_dev / mean; // Coefficient of variation
-        let uniformity_score = if cv < 0.1 {
-            100.0
-        } else if cv < 0.3 {
-            100.0 - (cv - 0.1) * 333.0
-        } else {
-            (33.0 - (cv - 0.3).min(0.33) * 100.0).max(0.0)
-        };
-        score += uniformity_score * 0.3;
-        weight_sum += 0.3;
-    }
-
-    if weight_sum <= 0.0 {
-        return 0.0;
-    }
-
-    let mut normalized_score = (score / weight_sum).clamp(0.0, 100.0);
-
-    // Apply an additional global penalty for severe focus issues.
-    // Extremely high HFR should reduce overall quality even when star count
-    // and background metrics still appear favorable.
-    if let Some(hfr_val) = hfr {
-        if hfr_val > 5.0 {
-            let hfr_excess = (hfr_val - 5.0).min(15.0);
-            let penalty_factor = 1.0 - (hfr_excess / 15.0) * 0.25;
-            normalized_score *= penalty_factor;
-        }
-    }
-
-    normalized_score.clamp(0.0, 100.0)
 }
 
 #[cfg(test)]
@@ -3289,8 +3120,7 @@ mod tests {
         // dim sub, not an empty frame.
         //
         // Judged against the unscaled 100-ADU floor it is "severely
-        // underexposed", which is an ERROR, and an error means the capture path
-        // returns Err and throws the frame away. Every sub off that camera.
+        // underexposed": every sub off that camera.
         let mut pixels = vec![24u16; 128 * 128];
         for (i, p) in pixels.iter_mut().enumerate().step_by(97) {
             *p = 60 + (i % 31) as u16;
@@ -3301,8 +3131,7 @@ mod tests {
         let v = validate_image_comprehensive(&image, ImageValidationOptions::for_sensor(255));
         assert!(
             v.is_valid,
-            "a third of an 8-bit container's full scale is a real frame; \
-             failing it aborts the exposure: {:?}",
+            "a third of an 8-bit container's full scale is a real frame: {:?}",
             v.errors
         );
         assert!(
@@ -3316,20 +3145,41 @@ mod tests {
     #[test]
     fn test_signal_floor_still_catches_a_frame_with_nothing_in_it() {
         // The counterweight: scaling the floor to the container must not retire
-        // the check. Four ADU out of a 4095 container is 0.1% — a blocked
-        // shutter or a dead link, and still an error.
+        // the check. Four ADU out of a 4095 container is 0.1%: a blocked
+        // shutter or a capped scope, which the frame is kept to show.
         let mut pixels = vec![1u16; 128 * 128];
         pixels[0] = 4;
         let image = ImageData::from_u16(128, 128, 1, &pixels);
 
         let v = validate_image_comprehensive(&image, ImageValidationOptions::for_sensor(4095));
-        assert!(!v.is_valid, "an empty frame is still an empty frame");
+        assert!(v.is_valid, "{:?}", v.errors);
         assert!(
-            v.errors
+            v.warnings
                 .iter()
-                .any(|e| e.to_lowercase().contains("underexposed")),
-            "expected a severe-underexposure error: {:?}",
-            v.errors
+                .any(|w| w.to_lowercase().contains("severely underexposed")),
+            "expected a severe-underexposure warning: {:?}",
+            v.warnings
+        );
+    }
+
+    #[test]
+    fn a_dim_frame_off_a_camera_that_declares_a_wider_ceiling_is_kept() {
+        // A right-justified 12-bit camera whose driver declares the 16-bit
+        // container (INDI's `(1 << CCD_BITSPERPIXEL) - 1`): a short
+        // narrowband subframe with no star sits at the black level plus read
+        // noise, far under 100 of 65535. That is a quality problem, not a
+        // broken capture; the frame is kept and the problem said.
+        let pixels: Vec<u16> = (0..64 * 64).map(|i| 20 + (i * 7 % 23) as u16).collect();
+        let image = ImageData::from_u16(64, 64, 1, &pixels);
+
+        let v = validate_image_comprehensive(&image, ImageValidationOptions::for_sensor(65535));
+        assert!(v.is_valid, "a dim frame was refused: {:?}", v.errors);
+        assert!(
+            v.warnings
+                .iter()
+                .any(|w| w.to_lowercase().contains("severely underexposed")),
+            "{:?}",
+            v.warnings
         );
     }
 
@@ -3498,47 +3348,6 @@ mod tests {
     }
 
     #[test]
-    fn test_quality_score_excellent() {
-        let score = calculate_quality_score(Some(1.8), Some(150), 5000.0, 500.0);
-        assert!(
-            score > 85.0,
-            "Excellent image (HFR=1.8, stars=150, CV=0.1) should score > 85, got {}",
-            score
-        );
-    }
-
-    #[test]
-    fn test_quality_score_good() {
-        let score = calculate_quality_score(Some(2.5), Some(75), 5000.0, 800.0);
-        // HFR 2.5 = 75/100, stars 75 = 83/100, CV 0.16 = ~70/100
-        // Weighted: 75*0.4 + 83*0.3 + 70*0.3 = 75.9
-        assert!(
-            score > 70.0 && score < 85.0,
-            "Good image should score 70-85, got {}",
-            score
-        );
-    }
-
-    #[test]
-    fn test_quality_score_poor() {
-        let score = calculate_quality_score(Some(6.0), Some(15), 5000.0, 2000.0);
-        assert!(
-            score < 40.0,
-            "Poor image (HFR=6.0, stars=15, CV=0.4) should score < 40, got {}",
-            score
-        );
-    }
-
-    #[test]
-    fn test_quality_score_no_data() {
-        let score = calculate_quality_score(None, None, 5000.0, 800.0);
-        assert!(
-            (0.0..=100.0).contains(&score),
-            "Score should be in valid range even with no HFR/star data"
-        );
-    }
-
-    #[test]
     fn test_fits_header_set_get() {
         let mut header = FitsHeader::new();
         header.set_string("OBJECT", "M31");
@@ -3553,13 +3362,11 @@ mod tests {
 
     #[test]
     fn test_fits_header_operations() {
-        // Create test image
         let width = 10;
         let height = 10;
         let data: Vec<u16> = (0..100).collect();
         let _image = ImageData::from_u16(width, height, 1, &data);
 
-        // Create header
         let mut header = FitsHeader::new();
         header.set_string("OBJECT", "Test");
         header.set_float("EXPTIME", 60.0);
@@ -3567,7 +3374,6 @@ mod tests {
         header.set_int("GAIN", 100);
         header.set_float("CCD-TEMP", -10.5);
 
-        // Test that header operations work
         assert_eq!(header.get_string("OBJECT"), Some("Test"));
         assert_eq!(header.get_float("EXPTIME"), Some(60.0));
         assert_eq!(header.get_string("IMAGETYP"), Some("Light"));
@@ -3577,7 +3383,6 @@ mod tests {
 
     #[test]
     fn test_fits_complete_metadata() {
-        // Create header with all astrophotography metadata
         let mut header = FitsHeader::new();
         header.set_bool("SIMPLE", true);
         header.set_int("BITPIX", 16);
@@ -3622,7 +3427,6 @@ mod tests {
         header.set_float("DEC", 41.27);
         header.set_float("AIRMASS", 1.15);
 
-        // Validate header completeness
         let validation = validate_fits_header(&header);
         assert!(validation.is_valid, "Complete header should be valid");
         assert!(
@@ -3630,7 +3434,6 @@ mod tests {
             "Complete header should have no warnings"
         );
 
-        // Verify all values
         assert_eq!(
             header.get_string("DATE-OBS"),
             Some("2025-01-15T22:30:45.123")
@@ -3644,13 +3447,11 @@ mod tests {
 
     #[test]
     fn test_fits_round_trip() {
-        // Create test image
         let width = 100;
         let height = 100;
         let data: Vec<u16> = (0..10000).map(|i| (i % 65535) as u16).collect();
         let _image = ImageData::from_u16(width, height, 1, &data);
 
-        // Create header with metadata
         let mut header = FitsHeader::new();
         header.set_bool("SIMPLE", true);
         header.set_int("BITPIX", 16);
@@ -3663,40 +3464,14 @@ mod tests {
         header.set_string("IMAGETYP", "Light");
         header.set_float("AIRMASS", 1.2);
 
-        // Validate the header
         let validation = validate_fits_header(&header);
         assert!(validation.is_valid, "Header should be valid");
 
-        // Verify specific keywords exist
         assert!(header.get("OBJECT").is_some());
         assert!(header.get("EXPTIME").is_some());
         assert!(header.get("DATE-OBS").is_some());
         assert!(header.get("IMAGETYP").is_some());
         assert!(header.get("AIRMASS").is_some());
-    }
-
-    #[test]
-    fn test_quality_score_edge_cases() {
-        // Test with zero values
-        let score = calculate_quality_score(Some(0.0), Some(0), 0.0, 0.0);
-        assert!(
-            (0.0..=100.0).contains(&score),
-            "Score should be valid even with zeros"
-        );
-
-        // Test with very high HFR
-        let score = calculate_quality_score(Some(20.0), Some(150), 5000.0, 500.0);
-        assert!(
-            score < 50.0,
-            "Very high HFR should lower score significantly"
-        );
-
-        // Test with perfect image
-        let score = calculate_quality_score(Some(1.5), Some(200), 10000.0, 500.0);
-        assert!(
-            score > 90.0,
-            "Perfect image (HFR=1.5, stars=200, CV=0.05) should score > 90"
-        );
     }
 
     #[test]
@@ -3876,8 +3651,6 @@ mod tests {
         bytes
     }
 
-    // BSCALE/BZERO round-trip
-
     #[test]
     fn test_decode_strips_bscale_bzero_from_header() {
         // Build a U16 file with explicit BSCALE=2.0/BZERO=1000.0 stored as i16
@@ -4012,6 +3785,7 @@ mod tests {
             channels: 1,
             pixel_type: PixelType::U32,
             data,
+            range: crate::SampleRange::of(PixelType::U32),
         };
         let path =
             std::env::temp_dir().join(format!("skotiq_u32_roundtrip_{}.fits", std::process::id()));
@@ -4309,78 +4083,57 @@ mod tests {
     #[test]
     fn test_effective_bayer_pattern_zero_offset_identity() {
         for src in [
-            BayerPattern::RGGB,
-            BayerPattern::BGGR,
-            BayerPattern::GRBG,
-            BayerPattern::GBRG,
+            BayerPattern::Rggb,
+            BayerPattern::Bggr,
+            BayerPattern::Grbg,
+            BayerPattern::Gbrg,
         ] {
-            assert_eq!(effective_bayer_pattern(src, 0, 0), src);
-            assert_eq!(effective_bayer_pattern(src, 2, 4), src);
+            assert_eq!(src.shifted(0, 0), src);
+            assert_eq!(src.shifted(2, 4), src);
         }
     }
 
     #[test]
     fn test_effective_bayer_pattern_rggb_x1_y0_yields_grbg() {
         //6 explicit case.
-        assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, 1, 0),
-            BayerPattern::GRBG
-        );
+        assert_eq!(BayerPattern::Rggb.shifted(1, 0), BayerPattern::Grbg);
     }
 
     #[test]
     fn test_effective_bayer_pattern_rggb_x0_y1_yields_gbrg() {
-        assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, 0, 1),
-            BayerPattern::GBRG
-        );
+        assert_eq!(BayerPattern::Rggb.shifted(0, 1), BayerPattern::Gbrg);
     }
 
     #[test]
     fn test_effective_bayer_pattern_rggb_x1_y1_yields_bggr() {
-        assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, 1, 1),
-            BayerPattern::BGGR
-        );
+        assert_eq!(BayerPattern::Rggb.shifted(1, 1), BayerPattern::Bggr);
     }
 
     #[test]
     fn test_effective_bayer_pattern_negative_offset_wraps() {
         // -1 has the same parity as +1, so result must match.
         assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, -1, 0),
-            effective_bayer_pattern(BayerPattern::RGGB, 1, 0),
+            BayerPattern::Rggb.shifted(-1, 0),
+            BayerPattern::Rggb.shifted(1, 0),
         );
     }
 
     #[test]
-    fn test_read_bayer_geometry_from_header() {
+    fn a_frame_s_filter_is_its_pattern_moved_by_its_offsets() {
         let mut header = FitsHeader::new();
+        assert_eq!(read_color_filter_array(&header), None);
+        header.set_string("BAYERPAT", "BGGR");
+        assert_eq!(
+            read_color_filter_array(&header),
+            Some(ColorFilterArray::Bayer(BayerPattern::Bggr))
+        );
         header.set_string("BAYERPAT", "RGGB");
         header.set_int("XBAYROFF", 1);
         header.set_int("YBAYROFF", 0);
-        let geo = read_bayer_geometry(&header).expect("geometry");
-        assert_eq!(geo.source, BayerPattern::RGGB);
-        assert_eq!(geo.effective, BayerPattern::GRBG);
-        assert_eq!(geo.x_offset, 1);
-        assert_eq!(geo.y_offset, 0);
-    }
-
-    #[test]
-    fn test_read_bayer_geometry_defaults_offsets_to_zero() {
-        let mut header = FitsHeader::new();
-        header.set_string("BAYERPAT", "BGGR");
-        let geo = read_bayer_geometry(&header).expect("geometry");
-        assert_eq!(geo.source, BayerPattern::BGGR);
-        assert_eq!(geo.effective, BayerPattern::BGGR);
-        assert_eq!(geo.x_offset, 0);
-        assert_eq!(geo.y_offset, 0);
-    }
-
-    #[test]
-    fn test_read_bayer_geometry_returns_none_without_bayerpat() {
-        let header = FitsHeader::new();
-        assert!(read_bayer_geometry(&header).is_none());
+        assert_eq!(
+            read_color_filter_array(&header),
+            Some(ColorFilterArray::Bayer(BayerPattern::Grbg))
+        );
     }
 
     // Header carry-over
@@ -4520,8 +4273,8 @@ mod write_wcs_tests {
         header.set_string("OBJECT", "M34");
         write_fits(&path, &image, &header).unwrap();
 
-        let wcs = WcsInfo::from_plate_solve(40.1, 42.3, 12.0, 1.46, 400, 300);
-        write_wcs_into_fits(&path, &wcs).unwrap();
+        let wcs = crate::SipWcs::from_pointing(40.1, 42.3, 12.0, 1.46, 400, 300);
+        crate::write_wcs_into_frame(&path, &wcs).unwrap();
 
         let (read_back, parsed) = read_fits(&path).unwrap();
         assert_eq!(parsed.get_float("CRVAL1"), Some(40.1));
@@ -4546,5 +4299,52 @@ mod write_wcs_tests {
             "no staging file is left behind: {leftovers:?}"
         );
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod ascii_header_tests {
+    use super::*;
+
+    /// Every header byte is printable ASCII, whatever text a card was given:
+    /// a mosaic name with a degree sign, an accented observer, a comment in
+    /// microns, a long HISTORY line with a dash.
+    #[test]
+    fn every_header_byte_is_printable_ascii() {
+        let path = std::env::temp_dir().join(format!("ascii-header-{}.fits", std::process::id()));
+        let mut header = FitsHeader::new();
+        header.set_string("OBJECT", "M31 Mosaic 2×2 at 41.27° · Panel 1");
+        header.set_string("OBSERVER", "Zoë Müller");
+        header.set_float("XPIXSZ", 3.76);
+        header.set_comment("XPIXSZ", "[µm] pixel size");
+        header.set_string("MOSNAME", &format!("{} 30′ steps ✓", "a".repeat(80)));
+        header.set_string("Field rotation °", "12°");
+        header.add_history("Stacked — 40 frames, σ-clipped");
+        write_fits(&path, &ImageData::from_u16(2, 2, 1, &[1, 2, 3, 4]), &header).unwrap();
+
+        let bytes = std::fs::read(&path).unwrap();
+        let end = bytes
+            .chunks(80)
+            .position(|card| card.starts_with(b"END "))
+            .unwrap();
+        assert!(
+            bytes[..(end + 1) * 80]
+                .iter()
+                .all(|b| (0x20..0x7f).contains(b)),
+            "{}",
+            String::from_utf8_lossy(&bytes[..(end + 1) * 80])
+        );
+        let (_, back) = read_fits(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        assert_eq!(
+            back.get_string("OBJECT"),
+            Some("M31 Mosaic 2x2 at 41.27deg - Panel 1")
+        );
+        assert_eq!(back.get_string("OBSERVER"), Some("Zoe Muller"));
+        assert_eq!(back.get_comment("XPIXSZ"), Some("[um] pixel size"));
+        assert!(back
+            .get_string("MOSNAME")
+            .is_some_and(|name| name.ends_with(" 30' steps ?")));
+        assert_eq!(back.history, ["Stacked - 40 frames, ?-clipped"]);
     }
 }

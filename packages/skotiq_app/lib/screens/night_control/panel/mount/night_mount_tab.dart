@@ -8,11 +8,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../../../models/command_action_result.dart';
+import '../../../../services/command_action_result.dart';
 import '../../../../services/mount_command_service.dart';
 import '../../../../utils/snackbar_helper.dart';
 import '../../actions/manual_action_gating.dart';
@@ -21,7 +24,11 @@ import '../../data/plan/night_plan_inputs.dart';
 import 'mount_actions_section.dart';
 import 'mount_go_to.dart';
 import 'mount_move_pad.dart';
-import 'night_panel_parts.dart';
+import '../panel_widgets.dart';
+import '../stale_readings_note.dart';
+import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
+import '../../../../utils/watch_while_shown.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// What every Mount-tab control gates on, read once per build.
 @immutable
@@ -31,6 +38,7 @@ class NightMountFacts {
     required this.inputs,
     required this.capabilities,
     required this.capabilitiesLoading,
+    this.guardBlockReason,
   });
 
   final MountState mount;
@@ -39,6 +47,10 @@ class NightMountFacts {
   /// Null while loading, or when the driver did not report them.
   final MountCapabilities? capabilities;
   final bool capabilitiesLoading;
+
+  /// Why the mount guard refuses automatic moves (the mount moved on its own
+  /// or its position is unknown), or null.
+  final String? guardBlockReason;
 
   bool get connected =>
       mount.connectionState == DeviceConnectionState.connected &&
@@ -49,14 +61,20 @@ class NightMountFacts {
   /// The first reason any mount command is refused, or null.
   ///
   /// [allowParked] for Unpark and the commands that work on a parked mount;
-  /// [allowDuringRun] for the ones a loaded run does not own.
+  /// [allowDuringRun] for the ones a loaded run does not own;
+  /// [allowWhileGuarded] for jogging, which stays open while the mount guard
+  /// refuses automatic moves.
   String? baseReason(
     SkotiqLocalizations l10n, {
     bool allowParked = false,
     bool allowDuringRun = false,
+    bool allowWhileGuarded = false,
   }) {
     if (!inputs.canCommand) return l10n.text('nightActWhyNoHost');
     if (!connected) return l10n.text('nightActWhyNoMount');
+    if (!allowWhileGuarded && guardBlockReason != null) {
+      return guardBlockReason;
+    }
     if (!allowDuringRun && runActive) return l10n.text('nightActWhyRunOwns');
     final action = inputs.action;
     if (action.isBusy) {
@@ -79,9 +97,10 @@ class NightMountFacts {
   }
 }
 
-/// Reads [NightMountFacts] for the current mount.
-NightMountFacts watchNightMountFacts(WidgetRef ref) {
-  final mount = ref.watch(mountStateProvider);
+/// The mount's facts, followed only while the tab is shown: its state changes
+/// with every position poll.
+NightMountFacts watchNightMountFacts(WidgetRef ref, BuildContext context) {
+  final mount = ref.watchWhileShown(context, mountStateProvider);
   final deviceId = mount.deviceId;
   // No mount, no capabilities to ask about.
   final caps =
@@ -91,6 +110,7 @@ NightMountFacts watchNightMountFacts(WidgetRef ref) {
     inputs: ref.watch(nightActionInputsProvider),
     capabilities: caps?.valueOrNull,
     capabilitiesLoading: caps?.isLoading == true,
+    guardBlockReason: ref.watch(mountGuardEntryProvider(deviceId))?.blockReason,
   );
 }
 
@@ -131,12 +151,19 @@ class _NightMountTabState extends ConsumerState<NightMountTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final mount = facts.mount;
 
-    final padReason = facts.baseReason(l10n);
-    return NightPanelScroll(
+    // Jogging stays open while the guard refuses automatic moves: moving the
+    // mount home by hand is one way to recover it.
+    final padReason = facts.baseReason(l10n, allowWhileGuarded: true);
+    return NightPanelBody(
       children: [
+        MountGuardBanner(deviceId: mount.deviceId),
+        NightStaleReadingsNote(
+          type: DeviceType.mount,
+          deviceId: facts.connected ? mount.deviceId : null,
+        ),
         const _PositionSection(),
         NightPanelSection(
           title: l10n.text('nightScopeMove'),
@@ -173,13 +200,12 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final mount = facts.mount;
     final connected = facts.connected;
     final site = ref.watch(appObserverLocationProvider);
-    final now = ref.watch(nightNowProvider);
-    final countdown = ref.watch(meridianCountdownProvider);
+    final now = ref.watchWhileShown(context, nightNowProvider);
+    final countdown = ref.watchWhileShown(context, meridianCountdownProvider);
     final slew = ref.watch(mountSlewProgressProvider);
     final slewing = mount.isSlewing || slew != null;
 
@@ -187,9 +213,10 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
     final dec = connected ? mount.dec : null;
     final lst = site == null
         ? null
-        : computeLocalSiderealTimeHours(now, site.longitude);
-    final hourAngle =
-        lst == null || ra == null ? null : computeHourAngleHours(ra, lst);
+        : AstronomyCalculations.localSiderealTime(now, site.longitude);
+    final hourAngle = lst == null || ra == null
+        ? null
+        : AstronomyCalculations.hourAngleHours(ra, lst);
     final toFlip = countdown.isArmed ? countdown.timeToFlip : null;
     final pierKey = switch (mount.sideOfPier?.trim().toLowerCase()) {
       'east' || 'pierside_east' => 'nightScopePierEast',
@@ -197,8 +224,8 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
       _ => null,
     };
 
-    final (status, statusColor) = !connected
-        ? (l10n.text('nightScopeNotConnected'), colors.textMuted)
+    final (status, statusTone) = !connected
+        ? (l10n.text('nightScopeNotConnected'), null)
         : slewing
             ? (
                 slew == null
@@ -209,10 +236,10 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
                           'distance': formatSlewDistance(slew.remainingDegrees),
                         },
                       ),
-                colors.warning,
+                MetricGridTone.warning,
               )
             : mount.isParked
-                ? (l10n.text('nightScopeParked'), colors.textMuted)
+                ? (l10n.text('nightScopeParked'), null)
                 : mount.isTracking
                     ? (
                         l10n.text(
@@ -221,38 +248,28 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
                             'rate': l10n.text(_rateKey(mount.trackingRate))
                           },
                         ),
-                        colors.success,
+                        MetricGridTone.good,
                       )
-                    : (l10n.text('nightScopeNotTracking'), colors.warning);
+                    : (
+                        l10n.text('nightScopeNotTracking'),
+                        MetricGridTone.warning
+                      );
 
     return NightPanelSection(
       title: l10n.text('nightScopePosition'),
       trailing: status,
-      trailingColor: statusColor,
+      trailingTone: statusTone,
       children: [
         NightPanelValues(
           columns: 2,
           items: [
             MetricGridItem(
               label: l10n.text('nightScopeRaJNow'),
-              value: ra == null
-                  ? null
-                  : CoordinateFormat.ra(
-                      ra,
-                      style: SexagesimalStyle.compactLetters,
-                      seconds: SecondsPrecision.integerRounded,
-                      wrapHours: true,
-                    ),
+              value: ra == null ? null : CoordinateFormat.raDense(ra),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeDecJNow'),
-              value: dec == null
-                  ? null
-                  : CoordinateFormat.dec(
-                      dec,
-                      style: SexagesimalStyle.compactLetters,
-                      seconds: SecondsPrecision.integerRounded,
-                    ),
+              value: dec == null ? null : CoordinateFormat.decDense(dec),
             ),
           ],
         ),
@@ -282,11 +299,14 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
               label: l10n.text('nightScopeFlipIn'),
               // Past the flip point the countdown is zero; "0m" read as a
               // flip about to happen at an hour angle of +4h45m.
-              value: toFlip == null
-                  ? null
-                  : toFlip == Duration.zero
-                      ? l10n.text('nightScopeFlipPastDue')
-                      : formatCountdown(toFlip),
+              // On the post-flip side no flip is pending at all.
+              value: countdown.onPostFlipSide && connected
+                  ? l10n.text('nightScopeFlipNotNeeded')
+                  : toFlip == null
+                      ? null
+                      : toFlip == Duration.zero
+                          ? l10n.text('nightScopeFlipPastDue')
+                          : formatCountdown(toFlip),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeSlewingLabel'),

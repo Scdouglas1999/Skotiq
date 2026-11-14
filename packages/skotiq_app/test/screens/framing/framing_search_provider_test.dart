@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/framing/framing_search_provider.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import 'package:skotiq_core/providers.dart';
 
 const _m42 = DeepSkyObject(
   id: 'M42',

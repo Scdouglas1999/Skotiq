@@ -1,4 +1,3 @@
-/// Alpaca API version
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApiVersion {
     V1,

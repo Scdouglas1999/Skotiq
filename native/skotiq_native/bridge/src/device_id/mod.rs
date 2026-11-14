@@ -25,22 +25,15 @@
 
 use crate::device::DriverType;
 use crate::error::SkotiqError;
-use lru::LruCache;
 use serde::{Deserialize, Serialize};
-use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
 
-pub(crate) mod cache;
-pub use cache::*;
+pub mod cache;
 #[cfg(test)]
 // `unwrap_or` policy: the test helpers in this module
 // use `unwrap_or_else(|e| panic!(...))` as a richer-message replacement
 // for `expect`. These are NOT silent fallbacks — they fail the test loud
 // with the vendor name and parse error embedded in the panic message.
 mod tests;
-
-// Parsed device ID
 
 /// A fully parsed and validated device ID
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,7 +42,6 @@ pub struct ParsedDeviceId {
     pub raw_id: String,
     /// The driver type this ID represents
     pub driver_type: DriverType,
-    /// The connection-specific information
     pub connection_info: ConnectionInfo,
 }
 
@@ -68,7 +60,6 @@ pub enum ConnectionInfo {
         protocol: String,
         /// Host address (IP or hostname)
         host: String,
-        /// Port number
         port: u16,
         /// Device type string (camera, telescope, focuser, etc.)
         device_type: String,
@@ -78,20 +69,16 @@ pub enum ConnectionInfo {
         base_url: String,
     },
 
-    /// INDI protocol
     Indi {
-        /// INDI server host
         host: String,
-        /// INDI server port
         port: u16,
-        /// INDI device name
         device_name: String,
     },
 
     /// Native SDK (ZWO, QHY, etc.)
     Native {
         /// Vendor name (zwo, qhy, playerone, etc.) lower-cased and
-        /// validated against `skotiq_native::SUPPORTED_NATIVE_VENDORS`.
+        /// validated against the vendor catalog (`skotiq_native::catalog`).
         vendor: String,
         /// Device identifier (index, serial, port, etc.). For
         /// multi-segment IDs this is the trailing payload AFTER any
@@ -112,11 +99,8 @@ pub enum ConnectionInfo {
         device_subtype: Option<String>,
     },
 
-    /// Simulator device
     Simulator {
-        /// Simulator device type
         device_type: String,
-        /// Instance index
         instance: u32,
     },
 }
@@ -133,7 +117,6 @@ impl ParsedDeviceId {
             ));
         }
 
-        // Determine the driver type from prefix
         if id.starts_with("ascom:") {
             Self::parse_ascom(id)
         } else if id.starts_with("alpaca:") {
@@ -351,12 +334,12 @@ impl ParsedDeviceId {
         // Validate vendor against the single source of truth. Composite
         // tokens (`zwo_eaf`, `qhy_cfw`, ...) live in the constant
         // because that is what `discovery.rs` emits.
-        if !skotiq_native::SUPPORTED_NATIVE_VENDORS.contains(&vendor.as_str()) {
+        if !native_id_tokens().contains(&vendor) {
             return Err(SkotiqError::invalid_device_id(
                 id,
                 format!(
-                    "Unknown native vendor '{}'. Allow-list lives in \
-                     skotiq_native::SUPPORTED_NATIVE_VENDORS",
+                    "Unknown native vendor '{}'. The known ones are the rows of \
+                     skotiq_native::catalog::FAMILIES",
                     vendor,
                 ),
             ));
@@ -402,10 +385,8 @@ impl ParsedDeviceId {
         // 3-part vendor IDs whose payload happens to contain colons
         // (e.g. `native:lx200:COM3:9600`) still take the default path.
         if segments.len() >= 3 {
-            if let Some((_, subtypes)) = skotiq_native::NATIVE_VENDOR_SUBTYPES
-                .iter()
-                .find(|(v, _)| *v == vendor.as_str())
-            {
+            let subtypes = skotiq_native::catalog::subtypes_of(&vendor);
+            if !subtypes.is_empty() {
                 let candidate = segments[1].to_lowercase();
                 if subtypes.contains(&candidate.as_str()) {
                     // Everything after the subtype is the device id —
@@ -524,171 +505,15 @@ impl ParsedDeviceId {
             "Unable to infer device type - use a prefix (ascom:, alpaca:, indi:, native:)",
         ))
     }
-
-    // Accessor methods
-
-    /// Get the raw device ID string
-    pub fn raw(&self) -> &str {
-        &self.raw_id
-    }
-
-    /// Get the ASCOM ProgID if this is an ASCOM device
-    pub fn ascom_prog_id(&self) -> Option<&str> {
-        match &self.connection_info {
-            ConnectionInfo::Ascom { prog_id } => Some(prog_id),
-            _ => None,
-        }
-    }
-
-    /// Get Alpaca connection info if this is an Alpaca device
-    pub fn alpaca_info(&self) -> Option<(&str, &str, u16, &str, u32)> {
-        match &self.connection_info {
-            ConnectionInfo::Alpaca {
-                protocol,
-                host,
-                port,
-                device_type,
-                device_num,
-                ..
-            } => Some((protocol, host, *port, device_type, *device_num)),
-            _ => None,
-        }
-    }
-
-    /// Get the Alpaca base URL if this is an Alpaca device
-    pub fn alpaca_base_url(&self) -> Option<&str> {
-        match &self.connection_info {
-            ConnectionInfo::Alpaca { base_url, .. } => Some(base_url),
-            _ => None,
-        }
-    }
-
-    /// Get INDI connection info if this is an INDI device
-    pub fn indi_info(&self) -> Option<(&str, u16, &str)> {
-        match &self.connection_info {
-            ConnectionInfo::Indi {
-                host,
-                port,
-                device_name,
-            } => Some((host, *port, device_name)),
-            _ => None,
-        }
-    }
-
-    /// Get native vendor and device ID if this is a native device.
-    ///
-    /// Returns `(vendor, device_id, device_index)`. For 4-part subtype
-    /// or Touptek-brand IDs, prefer the dedicated accessors below — the
-    /// `device_id` returned here is the trailing payload only (the
-    /// brand / subtype segment is already stripped).
-    pub fn native_info(&self) -> Option<(&str, &str, Option<i32>)> {
-        match &self.connection_info {
-            ConnectionInfo::Native {
-                vendor,
-                device_id,
-                device_index,
-                ..
-            } => Some((vendor, device_id, *device_index)),
-            _ => None,
-        }
-    }
-
-    /// Get the native vendor token, lower-cased and validated against
-    /// `SUPPORTED_NATIVE_VENDORS`. `None` for non-native IDs.
-    pub fn native_vendor(&self) -> Option<&str> {
-        match &self.connection_info {
-            ConnectionInfo::Native { vendor, .. } => Some(vendor.as_str()),
-            _ => None,
-        }
-    }
-
-    /// Get the Touptek brand and discovery index for IDs of the form
-    /// `native:touptek:{brand}:{idx}`. Returns `None` for non-Touptek
-    /// IDs and for malformed Touptek IDs whose index is non-numeric
-    /// (the parser already rejects the latter, but the accessor is
-    /// defensive against future encoding changes).
-    pub fn touptek_info(&self) -> Option<(&str, usize)> {
-        match &self.connection_info {
-            ConnectionInfo::Native {
-                vendor,
-                device_id,
-                vendor_brand: Some(brand),
-                ..
-            } if vendor == "touptek" => device_id
-                .parse::<usize>()
-                .ok()
-                .map(|idx| (brand.as_str(), idx)),
-            _ => None,
-        }
-    }
-
-    /// Get the ZWO accessory subtype (`eaf` or `efw`) and trailing
-    /// payload for 4-part ZWO IDs of the form `native:zwo:eaf:{n}`.
-    /// Returns `None` for the composite form `native:zwo_eaf:{n}` —
-    /// callers must check `native_vendor()` separately for that
-    /// encoding.
-    pub fn zwo_subtype(&self) -> Option<(&str, &str)> {
-        match &self.connection_info {
-            ConnectionInfo::Native {
-                vendor,
-                device_id,
-                device_subtype: Some(sub),
-                ..
-            } if vendor == "zwo" => Some((sub.as_str(), device_id.as_str())),
-            _ => None,
-        }
-    }
-
-    /// Get the QHY CFW subtype payload for 4-part QHY IDs
-    /// (`native:qhy:cfw:{camera_id}`). Returns `None` for the composite
-    /// form `native:qhy_cfw:{camera_id}`.
-    pub fn qhy_subtype(&self) -> Option<(&str, &str)> {
-        match &self.connection_info {
-            ConnectionInfo::Native {
-                vendor,
-                device_id,
-                device_subtype: Some(sub),
-                ..
-            } if vendor == "qhy" => Some((sub.as_str(), device_id.as_str())),
-            _ => None,
-        }
-    }
-
-    /// Get the FLI accessory subtype (`focuser` or `fw`) and trailing
-    /// payload for 4-part FLI IDs (`native:fli:focuser:{path}`).
-    /// Returns `None` for the composite form
-    /// (`native:fli_focuser:{path}`).
-    pub fn fli_subtype(&self) -> Option<(&str, &str)> {
-        match &self.connection_info {
-            ConnectionInfo::Native {
-                vendor,
-                device_id,
-                device_subtype: Some(sub),
-                ..
-            } if vendor == "fli" => Some((sub.as_str(), device_id.as_str())),
-            _ => None,
-        }
-    }
-
-    /// Check if this device uses a network connection
-    pub fn is_network_device(&self) -> bool {
-        matches!(
-            &self.connection_info,
-            ConnectionInfo::Alpaca { .. } | ConnectionInfo::Indi { .. }
-        )
-    }
-
-    /// Get the network address if this is a network device
-    pub fn network_address(&self) -> Option<String> {
-        match &self.connection_info {
-            ConnectionInfo::Alpaca { host, port, .. } => Some(format!("{}:{}", host, port)),
-            ConnectionInfo::Indi { host, port, .. } => Some(format!("{}:{}", host, port)),
-            _ => None,
-        }
-    }
 }
 
-// Helper functions
+/// The tokens that may follow `native:`: the vendor catalog's, plus the two
+/// devices the bridge itself serves under the native prefix.
+fn native_id_tokens() -> Vec<String> {
+    let mut tokens = skotiq_native::catalog::id_tokens();
+    tokens.extend(["ascom".to_string(), "builtin_guider".to_string()]);
+    tokens
+}
 
 /// Parse a base URL into protocol, host, and port
 fn parse_base_url(url: &str) -> Result<(String, String, u16), &'static str> {
@@ -727,8 +552,6 @@ fn parse_base_url(url: &str) -> Result<(String, String, u16), &'static str> {
 
     Ok((protocol, host, port))
 }
-
-// Display implementation
 
 impl std::fmt::Display for ParsedDeviceId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

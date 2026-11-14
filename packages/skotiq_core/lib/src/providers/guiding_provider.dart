@@ -1,15 +1,11 @@
+import 'async_scope.dart';
 import 'dart:async';
 import 'dart:collection';
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
-    hide
-        BuiltinGuiderConfig,
-        EventCategory,
-        Phd2StarImage,
-        Phd2CalibrationData,
-        SkotiqEvent;
-import '../backend/ffi_backend.dart';
+    hide BuiltinGuiderConfig, DeviceType, EventCategory, SkotiqEvent;
+import '../backend/remote_host.dart';
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart';
@@ -18,10 +14,17 @@ import '../services/device_exceptions.dart';
 import '../services/device_service.dart';
 import '../services/logging_service.dart';
 import '../services/phd2_status_poll.dart';
+import '../settings/app_settings_state.g.dart';
+import '../settings/guide_settle.dart';
 import '../utils/device_id.dart';
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
+import 'operation_progress_provider.dart';
+import 'settings_provider.dart';
 import 'ui_notification_provider.dart';
+import '../models/backend/backend_types.dart';
+import 'device_service_providers.dart';
+import 'logging_service_provider.dart';
 
 part 'guiding_provider/stats_and_graph.dart';
 part 'guiding_provider/controller.dart';

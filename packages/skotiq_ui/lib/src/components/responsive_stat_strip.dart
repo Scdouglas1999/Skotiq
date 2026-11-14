@@ -13,7 +13,6 @@ class ResponsiveStat {
   /// The value text (e.g. `0.62"`, `2.1px`, `34/120`).
   final String value;
 
-  /// Optional leading icon.
   final IconData? icon;
 
   /// Optional explicit value color (defaults to the theme's primary text).

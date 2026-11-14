@@ -27,12 +27,10 @@
 use rayon::prelude::*;
 use serde_json::{json, Value};
 
-use crate::color_composite::mix::{background_and_noise, gaussian_blur};
+use crate::recipe::composite::mix::{background_and_noise, gaussian_blur};
 use crate::recipe::{DarkroomOp, OpApplied, OpContext, OpError, OpImage, OpStage, Params};
 
-/// Registry id.
 const OP_ID: &str = "chroma_denoise";
-/// Registry version.
 const OP_VERSION: u32 = 1;
 
 /// Narrowest color smoothing, in full-resolution pixels.
@@ -51,7 +49,6 @@ const PROTECTION_DEFAULT: f64 = 8.0;
 
 /// Lowest amount; `0` is the identity.
 const AMOUNT_MIN: f64 = 0.0;
-/// Highest amount.
 const AMOUNT_MAX: f64 = 1.0;
 /// Amount when the parameter is absent.
 const AMOUNT_DEFAULT: f64 = 1.0;

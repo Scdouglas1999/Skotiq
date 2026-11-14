@@ -4,9 +4,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skotiq_app/screens/imaging/widgets/imaging_capture_bar.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_view_prefs.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_app/services/manual_capture_controller.dart';
 
 Future<void> _settle() =>
     Future<void>.delayed(const Duration(milliseconds: 20));

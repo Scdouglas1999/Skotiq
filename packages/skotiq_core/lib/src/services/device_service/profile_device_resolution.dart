@@ -9,6 +9,7 @@
 library;
 
 import '../../models/backend/device_info.dart';
+import '../../utils/device_id.dart';
 
 /// The outcome for one profile slot.
 class ProfileSlotResolution {
@@ -41,10 +42,25 @@ class ProfileSlotResolution {
 /// `native:<vendor>:<index>`: the ids whose number is an enumeration position.
 final RegExp _positionalNativeId = RegExp(r'^native:[a-z0-9_]+:\d+$');
 
-/// Whether [id] names a position on the bus rather than a device.
-bool isPositionalDeviceId(String id) => _positionalNativeId.hasMatch(id);
+/// `sim_<type>_<n>`: the simulators number their devices the same way, and
+/// the simulated cameras can trade numbers (the `unplug(reorder)` fault).
+final RegExp _positionalSimulatorId = RegExp(r'^sim_[a-z_]+_\d+$');
 
-String _vendorPrefix(String id) => id.substring(0, id.lastIndexOf(':') + 1);
+/// Whether [id] names a position on the bus rather than a device.
+bool isPositionalDeviceId(String id) =>
+    _positionalNativeId.hasMatch(id) || _positionalSimulatorId.hasMatch(id);
+
+/// The part of a positional id before its number: `native:zwo:` or
+/// `sim_camera_`. Two ids with the same prefix are positions on one bus.
+String _vendorPrefix(String id) {
+  final separator = id.startsWith('sim_') ? '_' : ':';
+  return id.substring(0, id.lastIndexOf(separator) + 1);
+}
+
+/// The serial a name carries as `Name (serial)`, as discovery labels a device
+/// whose SDK reports one.
+String? _serialIn(String name) =>
+    RegExp(r'\(([^)]+)\)\s*$').firstMatch(name.trim())?.group(1)?.trim();
 
 /// Discovery labels same-model devices "Name #2" or "Name (serial)"; the
 /// profile saves the bare model name, so both sides are compared without the
@@ -80,6 +96,19 @@ ProfileSlotResolution resolveProfileSlot({
       .where((d) => d.id.startsWith(prefix) && isPositionalDeviceId(d.id))
       .toList();
 
+  // A saved serial settles it, including between two bodies of one model.
+  final savedSerial = _serialIn(savedName);
+  if (savedSerial != null) {
+    final bySerial = sameVendor
+        .where((d) => _serialIn(d.name) == savedSerial)
+        .toList();
+    if (bySerial.length == 1) {
+      return bySerial.single.id == savedId
+          ? ProfileSlotResolution.keep(savedId)
+          : ProfileSlotResolution.moved(bySerial.single.id);
+    }
+  }
+
   DeviceInfo? atSaved;
   for (final d in sameVendor) {
     if (d.id == savedId) atSaved = d;
@@ -111,4 +140,80 @@ ProfileSlotResolution resolveProfileSlot({
     'The profile\'s $deviceLabel is $savedName, but $found $why. '
     'Choose the $deviceLabel again in the profile so the right one connects.',
   );
+}
+
+/// Whether [discovered] holds the device a profile slot means.
+///
+/// The answer [resolveProfileSlot] would act on: a positional id with a saved
+/// name is found when a device of that vendor carries the name (or the saved
+/// serial) at any position, since connect moves the slot to it; any other id
+/// is found when discovery lists it.
+bool discoveryHoldsProfileDevice({
+  required String savedId,
+  required String? savedName,
+  required Iterable<DeviceInfo> discovered,
+}) {
+  if (!isPositionalDeviceId(savedId) ||
+      savedName == null ||
+      savedName.trim().isEmpty) {
+    final saved = DeviceId.parse(savedId).canonical;
+    return discovered.any((d) => DeviceId.parse(d.id).canonical == saved);
+  }
+  final prefix = _vendorPrefix(savedId);
+  final wanted = _normalizedName(savedName);
+  final savedSerial = _serialIn(savedName);
+  return discovered.any(
+    (d) =>
+        d.id.startsWith(prefix) &&
+        isPositionalDeviceId(d.id) &&
+        ((savedSerial != null && _serialIn(d.name) == savedSerial) ||
+            _normalizedName(d.name) == wanted),
+  );
+}
+
+/// One profile slot to resolve: its label, saved id and saved name.
+typedef ProfileSlotRequest = ({
+  String label,
+  String savedId,
+  String? savedName,
+});
+
+/// Resolve several slots of one profile together, against one discovery list
+/// per slot.
+///
+/// Each slot resolves as [resolveProfileSlot] does. Then no two slots may end
+/// on the same device: the main camera and the guide camera are both
+/// cameras, and after the bus re-enumerates the guide camera's saved id can
+/// be where the main camera now is. A slot that would land on a device an
+/// earlier slot already took is refused instead, so the guide camera is never
+/// connected as the main camera (slots earlier in [slots] win).
+Map<String, ProfileSlotResolution> resolveProfileSlots(
+  List<ProfileSlotRequest> slots,
+  List<DeviceInfo> Function(String label) discoveredFor,
+) {
+  final out = <String, ProfileSlotResolution>{};
+  final taken = <String, String>{};
+  for (final slot in slots) {
+    var resolution = resolveProfileSlot(
+      savedId: slot.savedId,
+      savedName: slot.savedName,
+      deviceLabel: slot.label,
+      discovered: discoveredFor(slot.label),
+    );
+    final id = resolution.deviceId;
+    if (id != null) {
+      final holder = taken[id];
+      if (holder != null) {
+        resolution = ProfileSlotResolution.refused(
+          'The profile\'s ${slot.label} would connect $id, which is the '
+          '$holder. Choose the ${slot.label} again in the profile so the '
+          'right one connects.',
+        );
+      } else {
+        taken[id] = slot.label;
+      }
+    }
+    out[slot.label] = resolution;
+  }
+  return out;
 }

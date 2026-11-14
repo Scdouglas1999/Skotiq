@@ -14,7 +14,10 @@ import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree_shortcuts.dar
 import 'package:skotiq_app/screens/sequencer/widgets/sequencer_density.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/visual_timeline.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -80,7 +83,7 @@ Future<HarnessHandle> _pumpTree(
   WidgetTester tester,
   Sequence sequence, {
   Size size = const Size(1200, 900),
-  SequenceProgressNotifier? progressNotifier,
+  RunRecordNotifier? progressNotifier,
   PreSessionSimulationResult? simulation,
   ThemeData? theme,
 }) async {
@@ -99,14 +102,12 @@ Future<HarnessHandle> _pumpTree(
     settle: false,
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
       // The minute clock is a real periodic stream; in the fake-async zone
       // its timer outlives every pump and fails teardown. ETA anchoring is
       // exercised through ledgerEtasFor's fake-clock unit tests instead.
       ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),
       if (progressNotifier != null)
-        sequenceProgressProvider.overrideWith((_) => progressNotifier),
+        runRecordProvider.overrideWith((_) => progressNotifier),
       if (simulation != null)
         sequenceTimelineProvider.overrideWithValue(simulation),
       sequencerDensityProvider
@@ -483,7 +484,7 @@ void main() {
       count: 10,
     );
     final built = _threeLevelSequence([exposure]);
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     final handle = await _pumpTree(
       tester,
       built.sequence,
@@ -747,7 +748,7 @@ void main() {
       targetWindows: const {},
       issues: const [],
     );
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     await _pumpTree(
       tester,
       built.sequence,
@@ -763,7 +764,7 @@ void main() {
 
     final etaText = tester.widget<Text>(find.descendant(
       of: _rowShellOf(find.text('L subs')).first,
-      matching: find.text(formatLedgerClock(t0)),
+      matching: find.text(ClockFormat.hm(t0.toLocal())),
     ));
     expect(etaText.style?.color, colors.textMuted);
     await _drainValidationDebounce(tester);

@@ -10,16 +10,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart' show clockProvider;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart' show clockProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../../models/command_action_result.dart';
+import '../../../services/command_action_result.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../sequencer/sequencer_screen.dart' show kSequencerRoutePath;
 import '../../sequencer/widgets/preflight_validation_dialog.dart';
 import '../actions/armed_start_provider.dart';
+import '../actions/manual_action_gating.dart' show manualActionKey;
 import '../actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
 import '../data/plan/night_plan_inputs.dart' show NightClockTimes;
@@ -28,6 +29,7 @@ import '../data/plan/night_timeline_provider.dart';
 import '../left/night_time_format.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
+import '../../../router/app_routes.dart';
 
 /// The header slot of [NightControlLayout].
 ///
@@ -181,8 +183,6 @@ class NightHeaderBar extends ConsumerWidget {
     return total;
   }
 
-  // -- Night strip ------------------------------------------------------------
-
   Widget _strip(SkotiqLocalizations l10n, NightTimelineVm timeline) {
     final now = timeline.now;
     final labels = <(DateTime, NightTimelineLabel)>[
@@ -190,13 +190,13 @@ class NightHeaderBar extends ConsumerWidget {
         (
           dark,
           NightTimelineLabel(
-            l10n.text('nightCtlTlDark', params: {'time': nightHm(dark)}),
+            l10n.text('nightCtlTlDark', params: {'time': ClockFormat.hm(dark)}),
           ),
         ),
       (
         now,
         NightTimelineLabel(
-          l10n.text('nightCtlTlNow', params: {'time': nightHm(now)}),
+          l10n.text('nightCtlTlNow', params: {'time': ClockFormat.hm(now)}),
           emphasized: true,
         ),
       ),
@@ -217,7 +217,7 @@ class NightHeaderBar extends ConsumerWidget {
         (
           dawn,
           NightTimelineLabel(
-            l10n.text('nightCtlTlDawn', params: {'time': nightHm(dawn)}),
+            l10n.text('nightCtlTlDawn', params: {'time': ClockFormat.hm(dawn)}),
           ),
         ),
     ]..sort((a, b) => a.$1.compareTo(b.$1));
@@ -252,9 +252,9 @@ class NightHeaderBar extends ConsumerWidget {
     NightTimelineVm timeline,
   ) {
     final base = l10n.text('nightCtlTlSemantics', params: {
-      'sunset': nightHm(timeline.sunset),
-      'sunrise': nightHm(timeline.sunrise),
-      'now': nightHm(timeline.now),
+      'sunset': ClockFormat.hm(timeline.sunset),
+      'sunrise': ClockFormat.hm(timeline.sunrise),
+      'now': ClockFormat.hm(timeline.now),
     });
     if (timeline.windows.isEmpty) return base;
     final windows = timeline.windows
@@ -267,8 +267,6 @@ class NightHeaderBar extends ConsumerWidget {
         .join(', ${l10n.text('nightCtlTlSemThen')} ');
     return '$base; $windows';
   }
-
-  // -- Controls ---------------------------------------------------------------
 
   List<_Control> _controls(
     BuildContext context,
@@ -297,7 +295,7 @@ class NightHeaderBar extends ConsumerWidget {
         _ButtonControl(
           label: l10n.text('nightCtlEditPlan'),
           control: const NightControlVm.enabled(),
-          onPressed: () => context.go(kSequencerRoutePath),
+          onPressed: () => context.go(AppRoute.sequencer.path),
         ),
       );
     }
@@ -416,7 +414,7 @@ class NightHeaderBar extends ConsumerWidget {
             ? l10n.text('nightActStartAtDark')
             : l10n.text(
                 'nightScrArmButton',
-                params: {'time': nightHm(darkOnClock)},
+                params: {'time': ClockFormat.hm(darkOnClock)},
               ),
         onStartSequence: () async {
           final api = ref.read(nightActionApiProvider);
@@ -433,10 +431,6 @@ class NightHeaderBar extends ConsumerWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Pill, plan name and progress
-// ---------------------------------------------------------------------------
 
 class _InfoRow extends ConsumerWidget {
   const _InfoRow({
@@ -538,7 +532,8 @@ class _InfoRow extends ConsumerWidget {
       }
       final exposure = [
         if (header.currentFilter case final filter?) filter,
-        if (header.currentExposureSecs case final secs?) '${_secs(secs)} s',
+        if (header.currentExposureSecs case final secs?)
+          '${QuantityFormat.trimmed(secs)} s',
       ].join(' ');
       if (exposure.isNotEmpty) parts.add(exposure);
       if (header.framesDone case final done?) {
@@ -584,10 +579,6 @@ class _InfoRow extends ConsumerWidget {
     }
     return parts.isEmpty ? null : parts.join(' · ');
   }
-
-  static String _secs(double secs) => secs == secs.roundToDouble()
-      ? secs.toStringAsFixed(0)
-      : secs.toStringAsFixed(1);
 }
 
 /// "Running 4 h 04 m", "Ready · not started", "Paused for autofocus".
@@ -604,7 +595,10 @@ class _RunPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
-    final tone = _tone(header.phase, header.ending).resolve(colors);
+    final tone = (header.actionUnderWay != null
+            ? ChipTone.warning
+            : _tone(header.phase, header.ending))
+        .resolve(colors);
     final ink = tone ?? colors.textSecondary;
     final state = _label(l10n);
     final started = header.runStartedAt;
@@ -666,23 +660,29 @@ class _RunPill extends StatelessWidget {
     );
   }
 
-  String _label(SkotiqLocalizations l10n) => switch (header.phase) {
-        NightRunPhase.notSetUp => l10n.text('nightCtlPillNotSetUp'),
-        NightRunPhase.ready => l10n.text('nightCtlPillReady'),
-        NightRunPhase.armed => l10n.text('nightCtlPillArmed'),
-        NightRunPhase.running => l10n.text('nightCtlPillRunning'),
-        NightRunPhase.pausedByUser => l10n.text('nightCtlPillPaused'),
-        NightRunPhase.pausedForAction => switch (header.pausedFor) {
-            null => l10n.text('nightCtlPillPaused'),
-            final id => l10n.text(_pausedForKey(id)),
-          },
-        NightRunPhase.stopping => l10n.text('nightCtlPillStopping'),
-        NightRunPhase.finished => switch (header.ending) {
-            NightRunEnding.completed => l10n.text('nightCtlPillCompleted'),
-            NightRunEnding.failed => l10n.text('nightCtlPillFailed'),
-            NightRunEnding.ended || null => l10n.text('nightCtlPillFinished'),
-          },
-      };
+  String _label(SkotiqLocalizations l10n) {
+    if (header.actionUnderWay case final id?) {
+      return l10n.text(manualActionKey('nightActBusy', id));
+    }
+    return switch (header.phase) {
+      NightRunPhase.notSetUp => l10n.text('nightCtlPillNotSetUp'),
+      NightRunPhase.ready => l10n.text('nightCtlPillReady'),
+      NightRunPhase.armed => l10n.text('nightCtlPillArmed'),
+      NightRunPhase.running => l10n.text('nightCtlPillRunning'),
+      NightRunPhase.pausedByUser => l10n.text('nightCtlPillPaused'),
+      NightRunPhase.pausedForAction => switch (header.pausedFor) {
+          null => l10n.text('nightCtlPillPaused'),
+          final id => l10n.text(_pausedForKey(id)),
+        },
+      NightRunPhase.stopping => l10n.text('nightCtlPillStopping'),
+      NightRunPhase.finished => switch (header.ending) {
+          NightRunEnding.completed => l10n.text('nightCtlPillCompleted'),
+          NightRunEnding.failed => l10n.text('nightCtlPillFailed'),
+          NightRunEnding.stopped => l10n.text('nightCtlPillStopped'),
+          NightRunEnding.ended || null => l10n.text('nightCtlPillFinished'),
+        },
+    };
+  }
 
   static String _pausedForKey(ManualActionId id) => switch (id) {
         ManualActionId.snapshot => 'nightCtlPausedForSnapshot',
@@ -698,8 +698,8 @@ class _RunPill extends StatelessWidget {
         ManualActionId.cooler => 'nightCtlPausedForCooler',
       };
 
-  // The finished tones follow the rig chip: a completed run in the primary
-  // tone, a failed one in the error tone.
+  // A completed run reads as a success and a failed one as an error, like
+  // the rig chip; a stopped or otherwise ended run is neutral.
   static ChipTone _tone(NightRunPhase phase, NightRunEnding? ending) =>
       switch (phase) {
         NightRunPhase.running => ChipTone.success,
@@ -709,17 +709,16 @@ class _RunPill extends StatelessWidget {
         NightRunPhase.stopping =>
           ChipTone.warning,
         NightRunPhase.finished => switch (ending) {
-            NightRunEnding.completed => ChipTone.primary,
+            NightRunEnding.completed => ChipTone.success,
             NightRunEnding.failed => ChipTone.error,
-            NightRunEnding.ended || null => ChipTone.neutral,
+            NightRunEnding.stopped ||
+            NightRunEnding.ended ||
+            null =>
+              ChipTone.neutral,
           },
         NightRunPhase.notSetUp => ChipTone.neutral,
       };
 }
-
-// ---------------------------------------------------------------------------
-// Controls
-// ---------------------------------------------------------------------------
 
 /// One header control: the widget, and the width it needs so the header can
 /// choose its layout before building it.
@@ -832,8 +831,8 @@ class _ArmedControl extends _Control {
 
   static TextStyle get _style => SkotiqTypography.labelSm;
 
-  String _label(SkotiqLocalizations l10n) =>
-      l10n.text('nightActArmedStartsAt', params: {'time': nightHm(armedAt)});
+  String _label(SkotiqLocalizations l10n) => l10n
+      .text('nightActArmedStartsAt', params: {'time': ClockFormat.hm(armedAt)});
 
   @override
   double measure(BuildContext context) {

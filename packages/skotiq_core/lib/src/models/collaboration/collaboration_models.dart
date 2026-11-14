@@ -241,7 +241,6 @@ class ContributionConsent {
     this.consentedAt,
   });
 
-  /// The publish license.
   final ContributionLicense license;
 
   /// Whether the contributor consents to sharing raw subframes (not just the

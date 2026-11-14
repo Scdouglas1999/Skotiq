@@ -1,4 +1,32 @@
 use super::*;
+use crate::simulator::camera::{get_sim_camera, get_sim_camera_for};
+
+/// Connect a simulated camera under `device_id` the way the Equipment screen
+/// does: registered with the device manager, singleton marked connected.
+async fn attach_sim_camera(device_id: &str) {
+    crate::simulator::register_connected(
+        get_device_manager(),
+        crate::device::DeviceInfo {
+            id: device_id.to_string(),
+            name: "Simulated Camera".to_string(),
+            device_type: crate::device::DeviceType::Camera,
+            driver_type: crate::device::DriverType::Simulator,
+            description: "Simulated camera".to_string(),
+            driver_version: "1.0".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: "Simulated Camera".to_string(),
+        },
+    )
+    .await;
+    get_sim_camera_for(device_id).write().await.status.connected = true;
+}
+
+async fn detach_sim_camera(device_id: &str) {
+    get_device_manager().unregister_device(device_id).await;
+    get_sim_camera_for(device_id).write().await.status.connected = false;
+    let _ = api_clear_device_image(device_id.to_string()).await;
+}
 
 /// The Imaging screen's capture must paint the sky the mount is on.
 ///
@@ -20,11 +48,9 @@ use super::*;
 /// file and drives the real parser, index, projection and renderer.
 #[tokio::test]
 async fn the_manual_capture_path_renders_the_catalogue_sky() {
-    use crate::api::devices::simulation::{get_sim_camera, get_sim_mount};
+    use crate::simulator::mount::get_sim_mount;
 
-    let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-        .lock()
-        .await;
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
 
     // A grid of catalogue stars centred on the pointing, spaced ~90 px at
     // the simulated rig's 0.776"/px so the detector resolves them apart.
@@ -32,9 +58,9 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
     let dec_deg = -5.39_f64;
     let ra_deg = ra_hours * 15.0;
     let step_deg =
-        90.0 * crate::sim_capture::sim_plate_scale_arcsec_per_px(
+        90.0 * crate::simulator::capture::sim_plate_scale_arcsec_per_px(
             3.76,
-            crate::sim_capture::SIM_DEFAULT_FOCAL_LENGTH_MM,
+            crate::simulator::capture::SIM_DEFAULT_FOCAL_LENGTH_MM,
         ) / 3600.0;
     let mut stars = Vec::new();
     for row in -4i32..=4 {
@@ -47,7 +73,7 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
         }
     }
     let catalog = tempfile::TempDir::new().unwrap();
-    crate::sim_sky::astap_integration::write_synthetic_area(
+    crate::simulator::sky::astap_integration::write_synthetic_area(
         &catalog.path().join("d05_0001.1476"),
         &stars,
     );
@@ -55,7 +81,7 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
     // Exactly what the Plate Solving settings screen writes. The store is
     // shared and process-lifetime on purpose — see
     // `sim_capture::shared_platesolver_store`.
-    crate::sim_capture::shared_platesolver_store();
+    crate::simulator::capture::shared_platesolver_store();
     let previous = crate::state::get_platesolver_preference().unwrap_or_default();
     crate::state::save_platesolver_preference(&crate::storage::PlateSolverPreference {
         catalog_path: catalog.path().to_string_lossy().to_string(),
@@ -66,11 +92,10 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
     {
         // The simulated mount keeps coordinates of date; point it at the
         // grid's J2000 centre the way a slew would.
-        let (mount_ra, mount_dec) = crate::device_manager::epoch::j2000_to_mount_frame(
+        let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(
             crate::device::DriverType::Simulator,
-            ra_hours,
-            dec_deg,
-        );
+        )
+        .j2000_to_mount(ra_hours, dec_deg);
         let mut mount = get_sim_mount().write().await;
         mount.status.connected = true;
         mount.status.right_ascension = mount_ra;
@@ -78,10 +103,10 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
     }
     // So the field sits where the projection puts it rather than where an
     // earlier test's accumulated drift left it.
-    crate::api::devices::simulation::reset_sim_guide_offset().await;
-    get_sim_camera().write().await.status.connected = true;
+    crate::simulator::guiding::reset_sim_guide_offset().await;
 
     let device_id = "sim_manual_capture_sky".to_string();
+    attach_sim_camera(&device_id).await;
     let capture = camera_start_exposure_configured_opt(
         device_id.clone(),
         1.0,
@@ -90,23 +115,20 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
         1,
         1,
         None,
-        skotiq_native::camera::FrameType::Light,
+        skotiq_device::FrameType::Light,
     )
     .await;
 
-    let raw = get_last_raw_image_info(&device_id).await;
+    let raw = crate::last_frame::raw(&device_id).await;
 
     // Put the singletons back before asserting, so a failure here does not
     // leave a catalogue sky armed for every other simulator test.
     get_sim_mount().write().await.status.connected = false;
-    get_sim_camera().write().await.status.connected = false;
     let _ = crate::state::save_platesolver_preference(&previous);
-    let _ = api_clear_device_image(device_id).await;
+    detach_sim_camera(&device_id).await;
 
     capture.expect("simulated exposure should complete");
-    let raw = raw
-        .expect("raw image lookup should succeed")
-        .expect("a raw frame should be stored");
+    let raw = raw.expect("a raw frame should be stored");
 
     let data = skotiq_imaging::ImageData::from_u16(raw.width, raw.height, 1, &raw.data);
     let found = skotiq_imaging::detect_stars_with_stats(
@@ -146,12 +168,9 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
 /// come from the same `detect_stars` the real-camera branch uses.
 #[tokio::test]
 async fn simulated_frame_stats_track_focus_instead_of_a_random_draw() {
-    use crate::api::devices::simulation::{get_sim_camera, get_sim_focuser};
+    use crate::simulator::focuser::get_sim_focuser;
 
-    let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-        .lock()
-        .await;
-    get_sim_camera().write().await.status.connected = true;
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
 
     async fn hfr_at_focus(position: i32, device_id: &str) -> Option<f64> {
         {
@@ -167,7 +186,7 @@ async fn simulated_frame_stats_track_focus_instead_of_a_random_draw() {
             1,
             1,
             None,
-            skotiq_native::camera::FrameType::Light,
+            skotiq_device::FrameType::Light,
         )
         .await
         .expect("simulated exposure should complete");
@@ -178,12 +197,12 @@ async fn simulated_frame_stats_track_focus_instead_of_a_random_draw() {
     }
 
     let device_id = "sim_focus_stats_probe";
-    let sharp = hfr_at_focus(crate::sim_frame::SIM_TRUE_FOCUS, device_id).await;
-    let defocused = hfr_at_focus(crate::sim_frame::SIM_TRUE_FOCUS + 150, device_id).await;
+    attach_sim_camera(device_id).await;
+    let sharp = hfr_at_focus(crate::simulator::frame::SIM_TRUE_FOCUS, device_id).await;
+    let defocused = hfr_at_focus(crate::simulator::frame::SIM_TRUE_FOCUS + 150, device_id).await;
 
     get_sim_focuser().write().await.status.connected = false;
-    get_sim_camera().write().await.status.connected = false;
-    let _ = api_clear_device_image(device_id.to_string()).await;
+    detach_sim_camera(device_id).await;
 
     let sharp = sharp.expect("an in-focus frame should yield a measurable HFR");
     let defocused = defocused.expect("a defocused frame should yield a measurable HFR");
@@ -203,7 +222,9 @@ async fn simulated_frame_stats_track_focus_instead_of_a_random_draw() {
 /// advertised 1920x1080 and drew it 2.16x too narrow.
 #[tokio::test]
 async fn simulated_frame_matches_the_advertised_sensor() {
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
     let device_id = "sim_geometry_probe".to_string();
+    attach_sim_camera(&device_id).await;
 
     camera_start_exposure_configured_opt(
         device_id.clone(),
@@ -213,7 +234,7 @@ async fn simulated_frame_matches_the_advertised_sensor() {
         1,
         1,
         None,
-        skotiq_native::camera::FrameType::Light,
+        skotiq_device::FrameType::Light,
     )
     .await
     .expect("simulated exposure should complete");
@@ -222,9 +243,9 @@ async fn simulated_frame_matches_the_advertised_sensor() {
         let camera = get_sim_camera().read().await;
         (camera.status.sensor_width, camera.status.sensor_height)
     };
-    let frame = api_get_last_image(device_id)
-        .await
-        .expect("a frame should be stored");
+    let frame = api_get_last_image(device_id.clone()).await;
+    detach_sim_camera(&device_id).await;
+    let frame = frame.expect("a frame should be stored");
 
     assert_eq!(
         (frame.width, frame.height),
@@ -241,7 +262,9 @@ async fn simulated_frame_matches_the_advertised_sensor() {
 /// aborted at 24 s still "completed" 7 s later.
 #[tokio::test]
 async fn cancelling_a_simulated_exposure_stops_it_and_stores_nothing() {
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
     let device_id = "sim_cancel_probe".to_string();
+    attach_sim_camera(&device_id).await;
     api_clear_device_image(device_id.clone())
         .await
         .expect("clearing an empty slot is a no-op");
@@ -263,10 +286,12 @@ async fn cancelling_a_simulated_exposure_stops_it_and_stores_nothing() {
         1,
         1,
         None,
-        skotiq_native::camera::FrameType::Light,
+        skotiq_device::FrameType::Light,
     )
     .await;
     let elapsed = started.elapsed();
+    let stored = api_get_last_image(device_id.clone()).await;
+    detach_sim_camera(&device_id).await;
 
     assert!(
         result.is_err(),
@@ -278,7 +303,7 @@ async fn cancelling_a_simulated_exposure_stops_it_and_stores_nothing() {
         elapsed
     );
     assert!(
-        api_get_last_image(device_id).await.is_err(),
+        stored.is_err(),
         "an aborted exposure must not store a frame"
     );
 }
@@ -306,12 +331,10 @@ async fn cancelling_a_simulated_exposure_stops_it_and_stores_nothing() {
 #[tokio::test]
 #[ignore = "needs astap_cli and a star database; see the doc comment to run it"]
 async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
-    use crate::api::devices::simulation::{get_sim_camera, get_sim_mount};
-    use crate::sim_sky::astap_integration::{astap_dir, read_crval, write_fits, PIXEL_UM};
+    use crate::simulator::mount::get_sim_mount;
+    use crate::simulator::sky::astap_integration::{astap_dir, read_crval, write_fits, PIXEL_UM};
 
-    let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-        .lock()
-        .await;
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
     let dir = astap_dir();
     let binary = dir.join("astap_cli");
     assert!(
@@ -321,7 +344,7 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
 
     // Exactly what the Plate Solving settings screen writes, pointed at the
     // same database ASTAP will match against.
-    crate::sim_capture::shared_platesolver_store();
+    crate::simulator::capture::shared_platesolver_store();
     let previous = crate::state::get_platesolver_preference().unwrap_or_default();
     crate::state::save_platesolver_preference(&crate::storage::PlateSolverPreference {
         astap_path: binary.to_string_lossy().to_string(),
@@ -336,20 +359,19 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
     {
         // The simulated mount keeps coordinates of date; point it at the
         // grid's J2000 centre the way a slew would.
-        let (mount_ra, mount_dec) = crate::device_manager::epoch::j2000_to_mount_frame(
+        let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(
             crate::device::DriverType::Simulator,
-            ra_hours,
-            dec_deg,
-        );
+        )
+        .j2000_to_mount(ra_hours, dec_deg);
         let mut mount = get_sim_mount().write().await;
         mount.status.connected = true;
         mount.status.right_ascension = mount_ra;
         mount.status.declination = mount_dec;
     }
-    crate::api::devices::simulation::reset_sim_guide_offset().await;
-    get_sim_camera().write().await.status.connected = true;
+    crate::simulator::guiding::reset_sim_guide_offset().await;
 
     let device_id = "sim_manual_capture_solve".to_string();
+    attach_sim_camera(&device_id).await;
     let capture = camera_start_exposure_configured_opt(
         device_id.clone(),
         0.3,
@@ -358,22 +380,19 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
         1,
         1,
         None,
-        skotiq_native::camera::FrameType::Light,
+        skotiq_device::FrameType::Light,
     )
     .await;
-    let raw = get_last_raw_image_info(&device_id).await;
+    let raw = crate::last_frame::raw(&device_id).await;
 
     // Put the singletons back before asserting, so a failure here does not
     // leave a catalogue sky armed for every other simulator test.
     get_sim_mount().write().await.status.connected = false;
-    get_sim_camera().write().await.status.connected = false;
     let _ = crate::state::save_platesolver_preference(&previous);
-    let _ = api_clear_device_image(device_id).await;
+    detach_sim_camera(&device_id).await;
 
     capture.expect("simulated exposure should complete");
-    let raw = raw
-        .expect("raw image lookup should succeed")
-        .expect("a raw frame should be stored");
+    let raw = raw.expect("a raw frame should be stored");
 
     let scratch = tempfile::TempDir::new().unwrap();
     let path = scratch.path().join("manual_capture.fits");
@@ -382,12 +401,12 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
         &raw.data,
         ra_hours,
         dec_deg,
-        crate::sim_capture::SIM_DEFAULT_FOCAL_LENGTH_MM,
+        crate::simulator::capture::SIM_DEFAULT_FOCAL_LENGTH_MM,
     );
     let base = path.with_extension("");
-    let scale = crate::sim_capture::sim_plate_scale_arcsec_per_px(
+    let scale = crate::simulator::capture::sim_plate_scale_arcsec_per_px(
         PIXEL_UM,
-        crate::sim_capture::SIM_DEFAULT_FOCAL_LENGTH_MM,
+        crate::simulator::capture::SIM_DEFAULT_FOCAL_LENGTH_MM,
     );
     let fov_h_deg = scale * f64::from(raw.height) / 3600.0;
     let output = std::process::Command::new(&binary)

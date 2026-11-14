@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 /// Settings card for **live MPC orbital-element refresh** — fetching fresh
 /// minor-planet (MPCORB) and comet (CometEls) elements on a schedule.
@@ -99,7 +102,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
               Expanded(
                 child: Text(
                   status.lastUpdated != null
-                      ? 'Oldest source updated ${_fmt(status.lastUpdated!)} • '
+                      ? 'Oldest source updated ${ClockFormat.date(status.lastUpdated!.toLocal())} • '
                           '${status.asteroidCount} bright asteroids, '
                           '${status.cometCount} comets'
                       : 'Using bundled elements — never refreshed',
@@ -113,7 +116,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
           if (status.error != null) ...[
             const SizedBox(height: 8),
             Text(
-              'Last refresh failed: ${status.error}',
+              'Last refresh failed: ${_refreshFailureText(status.error!)}',
               style: SkotiqTypography.captionSm.copyWith(
                 color: colors.error,
               ),
@@ -140,7 +143,8 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
                       final result = ref.read(elementRefreshControllerProvider);
                       if (result.error case final failure?) {
                         context.showErrorSnackBar(
-                          'Element refresh failed: $failure',
+                          'Element refresh failed: '
+                          '${_refreshFailureText(failure)}',
                         );
                       } else {
                         context.showSuccessSnackBar(
@@ -264,7 +268,7 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
         ),
         const SizedBox(height: 6),
         Text(
-          '${error ?? 'Unknown error'}',
+          userFacingError(error),
           style: SkotiqTypography.captionSm.copyWith(
             color: colors.textSecondary,
           ),
@@ -340,14 +344,15 @@ class _ElementRefreshCardState extends ConsumerState<ElementRefreshCard> {
       // config provider) and surface the failure so the user can retry.
       setState(() {
         _savingSchedule = false;
-        _saveError = '$e';
+        _saveError = userFacingError(e);
       });
     }
   }
-
-  String _fmt(DateTime d) {
-    final local = d.toLocal();
-    return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-        '${local.day.toString().padLeft(2, '0')}';
-  }
 }
+
+String _refreshFailureText(Object failure) => switch (failure) {
+      ElementRefreshFailure() => failure.describe(userFacingError),
+      ElementRefreshConfigUnavailable(:final cause) =>
+        'Refresh configuration unavailable: ${userFacingError(cause)}',
+      _ => userFacingError(failure),
+    };

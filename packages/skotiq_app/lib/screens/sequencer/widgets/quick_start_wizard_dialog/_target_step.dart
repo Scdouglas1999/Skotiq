@@ -1,10 +1,6 @@
-// ignore_for_file: unused_element
-
 part of '../quick_start_wizard_dialog.dart';
 
 extension _TargetStep on _QuickStartWizardDialogState {
-  // STEP 1: TARGET
-
   Widget _buildTargetStep(SkotiqColors colors) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -17,7 +13,6 @@ extension _TargetStep on _QuickStartWizardDialogState {
         ),
         const SizedBox(height: 16),
 
-        // Target name / search
         TextField(
           controller: _targetNameController,
           style: TextStyle(color: colors.textPrimary),
@@ -57,7 +52,6 @@ extension _TargetStep on _QuickStartWizardDialogState {
           onSubmitted: _submitTargetSearch,
         ),
 
-        // Search results
         if (_searchResults.isNotEmpty)
           Container(
             margin: const EdgeInsets.only(top: 4),
@@ -91,8 +85,8 @@ extension _TargetStep on _QuickStartWizardDialogState {
                         if (target.catalogId case final id?
                             when id.isNotEmpty && id != target.name)
                           id,
-                        'RA ${_formatRa(target.ra)}',
-                        'Dec ${_formatDec(target.dec)}',
+                        'RA ${CoordinateFormat.raReadout(target.ra)}',
+                        'Dec ${CoordinateFormat.decReadout(target.dec)}',
                       ].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -129,7 +123,6 @@ extension _TargetStep on _QuickStartWizardDialogState {
 
         const SizedBox(height: 20),
 
-        // Coordinates
         Row(
           children: [
             Expanded(

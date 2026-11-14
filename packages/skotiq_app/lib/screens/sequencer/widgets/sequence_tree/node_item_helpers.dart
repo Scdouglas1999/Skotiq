@@ -173,12 +173,7 @@ void showSaveAsSnippetDialog(
             onPressed: () async {
               final name = nameController.text.trim();
               if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Please enter a template name'),
-                    backgroundColor: colors.error,
-                  ),
-                );
+                context.showErrorSnackBar('Please enter a template name');
                 return;
               }
 
@@ -209,11 +204,8 @@ void showSaveAsSnippetDialog(
                 }
 
                 if (context.mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Template "$name" created successfully'),
-                      backgroundColor: colors.success,
-                    ),
+                  messenger.showSuccessSnackBar(
+                    'Template "$name" created successfully',
                   );
                 }
               } catch (e) {
@@ -221,11 +213,8 @@ void showSaveAsSnippetDialog(
                   Navigator.of(dialogContext).pop();
                 }
                 if (context.mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to create template: $e'),
-                      backgroundColor: colors.error,
-                    ),
+                  messenger.showErrorSnackBar(
+                    'Failed to create template: ${userFacingError(e)}',
                   );
                 }
               }
@@ -238,63 +227,6 @@ void showSaveAsSnippetDialog(
       ),
     ),
   );
-}
-
-/// The glyph for a node, resolved from the node's own [SequenceNode.iconName]
-/// so the tree row, the palette entry and the drag feedback all show the same
-/// picture of the same instruction.
-IconData sequenceNodeIcon(String iconName) {
-  switch (iconName) {
-    case 'target':
-      return LucideIcons.target;
-    case 'camera':
-      return LucideIcons.camera;
-    case 'circle':
-      return LucideIcons.circle;
-    case 'shuffle':
-      return LucideIcons.shuffle;
-    case 'compass':
-      return LucideIcons.compass;
-    case 'crosshair':
-      return LucideIcons.crosshair;
-    case 'parking-circle':
-      return LucideIcons.parkingCircle;
-    case 'unlock':
-      return LucideIcons.unlock;
-    case 'home':
-      return LucideIcons.home;
-    case 'focus':
-      return LucideIcons.focus;
-    case 'snowflake':
-      return LucideIcons.snowflake;
-    case 'flame':
-      return LucideIcons.flame;
-    case 'rotate-cw':
-      return LucideIcons.rotateCw;
-    case 'repeat':
-      return LucideIcons.repeat;
-    case 'git-merge':
-      return LucideIcons.gitMerge;
-    case 'git-branch':
-      return LucideIcons.gitBranch;
-    case 'shield-check':
-      return LucideIcons.shieldCheck;
-    case 'clock':
-      return LucideIcons.clock;
-    case 'timer':
-      return LucideIcons.timer;
-    case 'bell':
-      return LucideIcons.bell;
-    case 'code':
-      return LucideIcons.code;
-    case 'list':
-      return LucideIcons.list;
-    // SmartExposure uses the layered-stack glyph.
-    case 'layers':
-      return LucideIcons.layers;
-    default:
-      return LucideIcons.box;
-  }
 }
 
 /// The one colour a run STATUS is allowed to paint on a row.
@@ -318,43 +250,7 @@ Color nodeStatusColor(NodeStatus? status, SkotiqColors colors) {
   }
 }
 
-/// Whether [node] is a container — one of the node types the tree lets hold
-/// children, and therefore the types that get a chevron, a children drop area
-/// and a subtree rollup even while they are empty.
-///
-/// A type test, not `childIds.isNotEmpty`: an empty Loop is still a Loop, and
-/// the tree has to offer somewhere to drop the first child into.
-bool isSequenceContainer(SequenceNode node) =>
-    node is TargetHeaderNode ||
-    node is LoopNode ||
-    node is InstructionSetNode ||
-    node is ParallelNode ||
-    node is ConditionalNode ||
-    node is RecoveryNode;
-
-/// A node's category tint, mirroring `NodeSummaryLine`'s `_categoryColor`
-/// exactly so a ledger row's glyph belongs to the same colour family as the
-/// summary chips of the same node.
-///
-/// A category is NOT a status: this tint only ever colours the node's own
-/// glyph, never the row's chrome (02 rule 2 — the row has one line, the
-/// selected ring, and one status colour).
-Color nodeCategoryTint(NodeCategory category, SkotiqColors colors) {
-  switch (category) {
-    case NodeCategory.instruction:
-      return colors.primary;
-    case NodeCategory.trigger:
-      return colors.warning;
-    case NodeCategory.logic:
-      return colors.accent;
-    case NodeCategory.target:
-      return colors.warning;
-  }
-}
-
 extension _NodeItemHelpers on _NodeItemState {
-  IconData _getIcon() => sequenceNodeIcon(widget.node.iconName);
-
   // _getCategoryColor is gone: a step's CATEGORY is not a status, and the
   // four-colour scheme it drove painted chrome in four hues that meant
   // nothing to the operator (02: "Not a colour-coded rainbow"). Colour on a

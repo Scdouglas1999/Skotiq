@@ -1,8 +1,8 @@
 //! WarmCamera instruction node.
 
-use crate::instructions::execute_warm_camera;
+use crate::instructions::{execute_warm_camera, ThermalReading};
 use crate::node::context::ExecutionContext;
-use crate::node::progress::{ProgressDetail, ProgressUpdate};
+use crate::node::progress::step_progress;
 use crate::node::registry::InstructionNode;
 use crate::{NodeStatus, NodeType};
 use async_trait::async_trait;
@@ -11,10 +11,6 @@ pub struct WarmCameraInstruction;
 
 #[async_trait]
 impl InstructionNode for WarmCameraInstruction {
-    fn type_name(&self) -> &'static str {
-        "Warm Camera"
-    }
-
     async fn execute(
         &self,
         node_id: &str,
@@ -27,26 +23,18 @@ impl InstructionNode for WarmCameraInstruction {
         };
 
         let ctx = context.to_instruction_context(node_id).await;
-        let progress_cb = context.progress_callback.as_ref();
         let target_temp = config.target_temp;
 
-        let progress_fn = |progress: f64, _detail: String| {
-            if let Some(cb) = progress_cb {
-                cb(ProgressUpdate::instruction_progress(
-                    node_id.to_string(),
-                    "Warm Camera",
-                    progress,
-                    ProgressDetail::Thermal {
-                        current_temp_c: None,
-                        target_temp_c: target_temp,
-                    },
-                ));
-            }
-        };
+        let progress_fn = step_progress::<ThermalReading>(
+            context.progress_callback.as_ref(),
+            node_id,
+            "Warm Camera",
+        );
 
         let status = execute_warm_camera(config, &ctx, Some(&progress_fn))
             .await
-            .log_and_get_status_with_context("Warm Camera", &ctx);
+            .settle("Warm Camera", &ctx)
+            .await;
 
         // clear the cooler set-point on the ExecutionContext so
         // subsequent FITS headers omit SET-TEMP (cooler is being warmed /

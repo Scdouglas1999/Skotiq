@@ -9,7 +9,9 @@
 // or eviction policy regresses (no tautologies).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_desktop/headless_api/route_metadata.dart';
+import 'package:skotiq_desktop/headless_api/rate_limiting.dart';
+
+import '../support/route_policy.dart';
 
 void main() {
   group('TokenBucketRateLimiter — refill + eviction contracts', () {
@@ -20,7 +22,7 @@ void main() {
       var now = DateTime.utc(2026, 1, 1);
       final limiter = TokenBucketRateLimiter(
         configByClass: const {
-          TokenRouteClass.read: TokenBucketConfig(
+          ApiBucket.read: TokenBucketConfig(
             capacity: 10,
             refillTokens: 10,
             refillPeriod: Duration(seconds: 1),
@@ -30,7 +32,7 @@ void main() {
       );
 
       RateLimitDecision consume() =>
-          limiter.tryConsume(tokenId: 'tok', routeClass: TokenRouteClass.read);
+          limiter.tryConsume(tokenId: 'tok', routeClass: ApiBucket.read);
 
       // Drain the full bucket at t0.
       for (var i = 0; i < 10; i++) {
@@ -60,7 +62,7 @@ void main() {
       final now = DateTime.utc(2026, 1, 1);
       final limiter = TokenBucketRateLimiter(
         configByClass: const {
-          TokenRouteClass.read: TokenBucketConfig(
+          ApiBucket.read: TokenBucketConfig(
             capacity: 2,
             refillTokens: 2,
             refillPeriod: Duration(seconds: 1),
@@ -71,7 +73,7 @@ void main() {
       );
 
       RateLimitDecision consume(String tok) =>
-          limiter.tryConsume(tokenId: tok, routeClass: TokenRouteClass.read);
+          limiter.tryConsume(tokenId: tok, routeClass: ApiBucket.read);
 
       // Drain tokA's bucket completely (it is now the coldest entry).
       expect(consume('tokA').allowed, isTrue);

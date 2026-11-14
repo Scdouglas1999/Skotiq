@@ -440,8 +440,6 @@ pub fn recommend_subset(
     })
 }
 
-// Internal helpers
-
 /// Indices of `weights`, sorted by weight **descending**, stable on ties (a tie
 /// keeps the lower original index first). This is the weight-rank order every
 /// public function shares so curve prefixes and `kept_indices` agree exactly.

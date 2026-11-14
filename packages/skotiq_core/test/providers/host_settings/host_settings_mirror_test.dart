@@ -2,11 +2,14 @@
 // writes edits back to it; only presentation preferences stay on the client.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
+import 'package:skotiq_core/src/backend/roles/host_data/host_rig_settings.dart'
+    show HostSettingsRows;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 import 'package:skotiq_core/src/models/backend/host_mutation_event.dart';
@@ -17,6 +20,7 @@ import 'package:skotiq_core/src/providers/host_settings/host_settings_providers.
 import 'package:skotiq_core/src/providers/sequence/sequencer_defaults.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import '../../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -28,20 +32,19 @@ class _FixedBackendNotifier extends BackendNotifier {
 
 /// The imaging host as the client sees it over the API.
 class _Host {
-  _Host({
-    required this.settings,
-    Map<String, String>? store,
-    this.servesStore = true,
-  }) : store = store ?? {};
+  _Host({required this.settings, Map<String, String>? store, this.adminAccess})
+    : store = store ?? {};
 
   models.AppSettings settings;
   final Map<String, String> store;
-  final bool servesStore;
+  final bool? adminAccess;
   final Map<String, String> science = {};
   final Map<String, String> smartNight = {};
   int storeFetches = 0;
   final List<Map<String, String>> storeWrites = [];
   final List<models.AppSettings> typedWrites = [];
+  final List<Map<String, dynamic>> typedPatches = [];
+  final List<Map<String, Map<String, Object?>>> storeMerges = [];
   final events = StreamController<SkotiqEvent>.broadcast();
 
   NetworkBackend backend() {
@@ -50,7 +53,7 @@ class _Host {
     when(() => backend.getSettings()).thenAnswer((_) async => settings);
     when(() => backend.getSettingsStore()).thenAnswer((_) async {
       storeFetches++;
-      return servesStore ? Map.of(store) : null;
+      return HostSettingsRows(Map.of(store), adminAccess: adminAccess);
     });
     when(
       () => backend.updateSettingsStore(any(), remove: any(named: 'remove')),
@@ -71,6 +74,44 @@ class _Host {
           invocation.positionalArguments.first as models.AppSettings;
       typedWrites.add(written);
       settings = written;
+    });
+    when(
+      () => backend.updateSettingsPatchWithCommandId(
+        any(),
+        commandId: any(named: 'commandId'),
+      ),
+    ).thenAnswer((invocation) async {
+      final patch =
+          invocation.positionalArguments.first as Map<String, dynamic>;
+      typedPatches.add(Map.of(patch));
+      final current =
+          jsonDecode(jsonEncode(settings.toJson())) as Map<String, dynamic>;
+      settings = models.AppSettings.fromJson({...current, ...patch});
+      typedWrites.add(settings);
+    });
+    when(
+      () => backend.mergeSettingsStore(
+        any(),
+        fallback: any(named: 'fallback'),
+        base: any(named: 'base'),
+      ),
+    ).thenAnswer((invocation) async {
+      final fields =
+          invocation.positionalArguments.first
+              as Map<String, Map<String, Object?>>;
+      final base =
+          invocation.namedArguments[#base] as Map<String, Map<String, Object?>>;
+      storeMerges.add(fields);
+      final merged = <String, String>{
+        for (final entry in fields.entries)
+          entry.key: SettingsDao.mergeJsonObject(
+            store[entry.key],
+            entry.value,
+            base: base[entry.key] ?? const {},
+          ),
+      };
+      store.addAll(merged);
+      return merged;
     });
     when(() => backend.getScienceSettings()).thenAnswer((_) async => science);
     when(
@@ -172,6 +213,22 @@ void main() {
       expect(host.store['sequencer_dither_pixels'], '4.0');
       expect(await dao.getSetting('sequencer_dither_pixels'), '4.0');
       expect(await localRows().getSetting('sequencer_dither_pixels'), '1.0');
+    },
+  );
+
+  test(
+    'the host says whether this link may change credential settings',
+    () async {
+      for (final access in const [true, false, null]) {
+        await connect(
+          _Host(settings: const models.AppSettings(), adminAccess: access),
+        );
+        expect(
+          await container.read(hostAdminAccessProvider.future),
+          access,
+          reason: '$access',
+        );
+      }
     },
   );
 
@@ -282,50 +339,6 @@ void main() {
     },
   );
 
-  group('a host too old to serve its key/value store', () {
-    test('science and Smart Night rows still mirror', () async {
-      final h = _Host(settings: const models.AppSettings(), servesStore: false)
-        ..science['science.overlay.opacity'] = '0.8';
-      await connect(h, localRowsBefore: {'science.overlay.opacity': '0.35'});
-
-      final dao = container.read(settingsDaoProvider);
-      expect(await dao.getSetting('science.overlay.opacity'), '0.8');
-      await dao.setSetting('science.overlay.opacity', '0.5');
-      expect(host.science['science.overlay.opacity'], '0.5');
-      expect(
-        await container.read(hostSettingsStoreSupportProvider.future),
-        HostSettingsStoreSupport.legacy,
-      );
-    });
-
-    test('other rows fall back to this computer and are reported', () async {
-      await connect(
-        _Host(settings: const models.AppSettings(), servesStore: false),
-        localRowsBefore: {'sequencer_dither_pixels': '1.0'},
-      );
-
-      final dao = container.read(settingsDaoProvider);
-      expect(await dao.getSetting('sequencer_dither_pixels'), '1.0');
-      expect(
-        container.read(hostSettingsStoreProvider)!.unsharedKeys,
-        contains('sequencer_dither_pixels'),
-      );
-    });
-
-    test('a row with no typed-model field refuses the edit', () async {
-      await connect(
-        _Host(settings: const models.AppSettings(), servesStore: false),
-      );
-
-      await expectLater(
-        container
-            .read(appSettingsProvider.notifier)
-            .setMountSiteSyncMode('never'),
-        throwsA(isA<HostSettingUnavailableError>()),
-      );
-    });
-  });
-
   test('refreshes coalesce to one request per interval', () async {
     await connect(_Host(settings: const models.AppSettings()));
     final store = container.read(hostSettingsStoreProvider)!;
@@ -338,5 +351,67 @@ void main() {
     await _settle();
 
     expect(host.storeFetches - before, lessThanOrEqualTo(1));
+  });
+
+  test('a change made on the host\'s own screen reaches this client\'s '
+      'settings without a re-fetch', () async {
+    await connect(
+      _Host(
+        settings: const models.AppSettings(autoConnect: true),
+        store: {'auto_connect_equipment': 'true'},
+      ),
+    );
+    expect(
+      container.read(appSettingsProvider).requireValue.autoConnectEquipment,
+      isTrue,
+    );
+
+    // The host's screen writes the row; the host announces the store key.
+    await Future<void>.delayed(const Duration(milliseconds: 2100));
+    host.store['auto_connect_equipment'] = 'false';
+    host.announceStoreChange();
+    await _settle();
+
+    expect(
+      container.read(appSettingsProvider).requireValue.autoConnectEquipment,
+      isFalse,
+    );
+  });
+
+  test('a save sends only the field it changed', () async {
+    await connect(_Host(settings: const models.AppSettings(autoConnect: true)));
+    // The host's screen turned auto-connect off; this client has not heard.
+    host.settings = host.settings.copyWith(autoConnect: false);
+
+    await container
+        .read(appSettingsProvider.notifier)
+        .setFileNamingPattern(r'$TARGET_X');
+
+    expect(host.typedPatches.single.keys, ['fileNamingPattern']);
+    expect(host.settings.autoConnect, isFalse);
+    expect(host.settings.fileNamingPattern, r'$TARGET_X');
+  });
+
+  test('a JSON-object row is merged on the host, field by field', () async {
+    const key = 'imaging_capture_settings_profile_1';
+    await connect(
+      _Host(
+        settings: const models.AppSettings(),
+        store: {key: '{"exposureTime":12.0,"gain":100}'},
+      ),
+    );
+
+    final stored = await container
+        .read(settingsDaoProvider)
+        .mergeJsonObjectSetting(key, {'gain': 222});
+
+    expect(host.storeMerges.single, {
+      key: {'gain': 222},
+    });
+    expect(jsonDecode(stored), {'exposureTime': 12.0, 'gain': 222});
+    expect(
+      jsonDecode((await container.read(settingsDaoProvider).getSetting(key))!),
+      {'exposureTime': 12.0, 'gain': 222},
+    );
   });
 }

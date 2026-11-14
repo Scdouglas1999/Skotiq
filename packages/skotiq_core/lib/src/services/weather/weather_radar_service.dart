@@ -1,11 +1,15 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/weather/weather_models.dart';
 import '../../providers/database_provider.dart';
 import 'radar_provider.dart';
 import 'radar_provider_factory.dart';
-import 'providers/providers.dart';
+import 'providers/goes_satellite_provider.dart';
+import 'providers/metno_cloud_provider.dart';
+import 'providers/noaa_radar_provider.dart';
+import 'providers/openmeteo_cloud_provider.dart';
+import 'providers/rainviewer_radar_provider.dart';
+import '../logging_service.dart';
 
 /// Central service for coordinating weather radar data fetching.
 ///
@@ -29,20 +33,20 @@ import 'providers/providers.dart';
 class WeatherRadarService {
   final Ref _ref;
 
-  /// Factory for managing and selecting radar providers.
   late final RadarProviderFactory _providerFactory;
 
-  /// Stream controller for broadcasting radar frame updates.
   final StreamController<List<RadarFrame>> _framesController =
       StreamController<List<RadarFrame>>.broadcast();
 
-  /// Cached fetch result from the last successful fetch.
+  /// The most recent fetch result, failed or not.
   RadarFetchResult? _cachedResult;
 
-  /// Timestamp of the last fetch operation.
+  /// The most recent fetch that returned frames. A failed fetch never replaces
+  /// it, so the UI can say how old the last real data is.
+  RadarFetchResult? _lastSuccessfulResult;
+
   DateTime? _lastFetchTime;
 
-  /// Whether the service has been initialized.
   bool _initialized = false;
 
   /// Creates a weather radar service instance.
@@ -78,9 +82,9 @@ class WeatherRadarService {
     _providerFactory.registerProvider(MetNoCloudProvider());
 
     _initialized = true;
-    developer.log(
+    Log.debug(
       'Initialized with ${_providerFactory.providerCount} providers',
-      name: 'WeatherRadarService',
+      source: 'WeatherRadarService',
     );
   }
 
@@ -130,30 +134,26 @@ class WeatherRadarService {
   }) async {
     _ensureInitialized();
 
-    // Get weather settings to determine refresh interval and provider preference
     final database = _ref.read(databaseProvider);
     final settingsRow = await database.weatherSettingsDao.getOrCreateSettings();
     final refreshInterval = Duration(
       seconds: settingsRow.refreshIntervalSeconds,
     );
 
-    // Check if we have fresh cached data
     if (!forceRefresh && !isCacheStale(refreshInterval)) {
       if (_cachedResult != null && _cachedResult!.isSuccess) {
-        developer.log(
+        Log.debug(
           'Returning cached data (${_cachedResult!.frames.length} frames)',
-          name: 'WeatherRadarService',
+          source: 'WeatherRadarService',
         );
         return _cachedResult!;
       }
     }
 
-    // Parse provider preference from settings
     final providerPreference = _parseProviderType(
       settingsRow.preferredProvider,
     );
 
-    // Select appropriate provider
     final provider = getCurrentProvider(
       latitude,
       longitude,
@@ -188,9 +188,9 @@ class WeatherRadarService {
 
     for (final candidate in candidates) {
       triedCount++;
-      developer.log(
+      Log.debug(
         'Fetching from ${candidate.name}',
-        name: 'WeatherRadarService',
+        source: 'WeatherRadarService',
       );
 
       RadarFetchResult fetched;
@@ -206,10 +206,9 @@ class WeatherRadarService {
         fetched = RadarFetchResult.error(
           'Unexpected error fetching radar data: $e',
         );
-        developer.log(
+        Log.error(
           'Exception during fetch from ${candidate.name} - $e',
-          name: 'WeatherRadarService',
-          level: 1000,
+          source: 'WeatherRadarService',
           error: e,
           stackTrace: stackTrace,
         );
@@ -219,21 +218,21 @@ class WeatherRadarService {
         // Tag with the producing provider's display name for UI attribution.
         final result = fetched.withProviderName(candidate.name);
         _cachedResult = result;
+        _lastSuccessfulResult = result;
         _lastFetchTime = DateTime.now();
         _framesController.add(result.frames);
-        developer.log(
+        Log.debug(
           'Fetched ${result.frames.length} frames from ${candidate.name}',
-          name: 'WeatherRadarService',
+          source: 'WeatherRadarService',
         );
         return result;
       }
 
       firstFailure ??= fetched;
-      developer.log(
+      Log.warning(
         'Provider ${candidate.name} failed - ${fetched.errorMessage}; '
         'failing over',
-        name: 'WeatherRadarService',
-        level: 900,
+        source: 'WeatherRadarService',
       );
     }
 
@@ -246,19 +245,16 @@ class WeatherRadarService {
     );
     _cachedResult = errorResult;
     _lastFetchTime = DateTime.now();
-    developer.log(
+    Log.warning(
       'All $triedCount providers failed - $baseMessage',
-      name: 'WeatherRadarService',
-      level: 900,
+      source: 'WeatherRadarService',
     );
     return errorResult;
   }
 
-  /// The most recent fetch result, including provider attribution and fetch
-  /// time. Null until the first fetch completes. Includes failed results (so
-  /// callers can inspect [RadarFetchResult.errorMessage]); use
-  /// [RadarFetchResult.isSuccess] to distinguish.
-  RadarFetchResult? get lastResult => _cachedResult;
+  /// The most recent fetch that returned frames, with its provider and fetch
+  /// time. Null until one succeeds; later failures leave it in place.
+  RadarFetchResult? get lastSuccessfulResult => _lastSuccessfulResult;
 
   /// Gets cached radar frames if available.
   ///
@@ -291,7 +287,7 @@ class WeatherRadarService {
   void clearCache() {
     _cachedResult = null;
     _lastFetchTime = null;
-    developer.log('Cache cleared', name: 'WeatherRadarService');
+    Log.debug('Cache cleared', source: 'WeatherRadarService');
   }
 
   /// Stream of radar frame updates for reactive UI.
@@ -314,7 +310,7 @@ class WeatherRadarService {
       _initialized = false;
     }
 
-    developer.log('Disposed', name: 'WeatherRadarService');
+    Log.debug('Disposed', source: 'WeatherRadarService');
   }
 
   /// Ensures the service has been initialized before use.
@@ -347,10 +343,9 @@ class WeatherRadarService {
       case 'metno':
         return RadarProviderType.metno;
       default:
-        developer.log(
+        Log.warning(
           'Unknown provider type: $providerString, defaulting to auto',
-          name: 'WeatherRadarService',
-          level: 900,
+          source: 'WeatherRadarService',
         );
         return RadarProviderType.auto;
     }

@@ -5,6 +5,7 @@
 // next timed event also says how far off it is.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
@@ -13,6 +14,7 @@ import '../data/plan/upcoming_provider.dart';
 import '../night_control_contracts.dart';
 import 'left_section_frame.dart';
 import 'night_time_format.dart';
+import '../night_tone_color.dart';
 
 class NightComingUpSection extends ConsumerWidget {
   const NightComingUpSection({super.key});
@@ -193,11 +195,12 @@ String? nightUpcomingValue(
     case UpcomingKind.moon:
       parts.add(
         at != null
-            ? l10n.text('nightCtlUpMoonSets', params: {'time': nightHm(at)})
+            ? l10n.text('nightCtlUpMoonSets',
+                params: {'time': ClockFormat.hm(at)})
             : item.moonRise != null
                 ? l10n.text(
                     'nightCtlUpMoonRises',
-                    params: {'time': nightHm(item.moonRise!)},
+                    params: {'time': ClockFormat.hm(item.moonRise!)},
                   )
                 : l10n.text('nightCtlUpMoonNoSet'),
       );
@@ -206,9 +209,11 @@ String? nightUpcomingValue(
           UpcomingKind.sunset ||
           UpcomingKind.astroDark ||
           UpcomingKind.astroDawn:
-      if (at != null) parts.add(nightHm(at));
+      if (at != null) parts.add(ClockFormat.hm(at));
   }
-  if (item.passed) {
+  if (item.paused) {
+    parts.add(l10n.text('nightCtlUpPaused'));
+  } else if (item.passed) {
     parts.add(l10n.text('nightCtlUpPassed'));
   } else if (inFor != null) {
     parts.add(

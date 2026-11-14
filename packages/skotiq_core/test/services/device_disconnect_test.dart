@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 
+import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 class TestBackendNotifier extends BackendNotifier {
   TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -42,6 +44,7 @@ void main() {
         backendProvider.overrideWith(
           (ref) => TestBackendNotifier(ref, mockBackend),
         ),
+        inMemoryDatabaseOverride(),
       ],
     );
 
@@ -679,59 +682,6 @@ void main() {
         DeviceConnectionState.disconnected,
       );
       expect(container.read(cameraStateProvider).deviceId, isNull);
-    });
-  });
-
-  group('Backend Integration', () {
-    test('startDeviceHeartbeat is called when camera connects', () async {
-      // Device ids must match a known driver prefix.
-      const cameraId = 'simulator:camera-1';
-
-      // Configure mock to succeed
-      when(
-        () => mockBackend.connectDevice(any(), any()),
-      ).thenAnswer((_) async {});
-      when(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: any(named: 'deviceType'),
-          deviceId: any(named: 'deviceId'),
-          intervalMs: any(named: 'intervalMs'),
-        ),
-      ).thenAnswer((_) async {});
-
-      final deviceService = container.read(deviceServiceProvider);
-
-      // Connect camera
-      await deviceService.connectCamera(cameraId);
-
-      // Verify heartbeat was started
-      verify(
-        () => mockBackend.startDeviceHeartbeat(
-          deviceType: DeviceType.camera,
-          deviceId: cameraId,
-          intervalMs: 10000,
-        ),
-      ).called(1);
-    });
-
-    test('stopDeviceHeartbeat is called when camera disconnects', () async {
-      // Configure mock
-      when(
-        () => mockBackend.stopDeviceHeartbeat(any()),
-      ).thenAnswer((_) async {});
-      when(
-        () => mockBackend.disconnectDevice(any(), any()),
-      ).thenAnswer((_) async {});
-
-      // Setup camera state with device ID
-      final cameraNotifier = container.read(cameraStateProvider.notifier);
-      cameraNotifier.setConnecting('camera-1', 'Test Camera');
-      cameraNotifier.setConnected();
-
-      // Disconnect is more complex as it requires profile data
-      // This test would need proper profile mocking
-      // For now, verify the mock setup works
-      verify(() => mockBackend.eventStream).called(greaterThan(0));
     });
   });
 }

@@ -11,7 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/target_header_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -190,15 +191,16 @@ void main() {
       // The run is live and pass 1 of 10 has finished: the loop has already
       // reset the exposure node, so its `success` status describes that pass
       // alone. Only the run-level frame counter distinguishes pass 1 from 10.
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       // ignore: invalid_use_of_protected_member
-      container.read(sequenceProgressProvider.notifier).state =
-          SequenceProgress(
-        nodeStatuses: {exposure.id: NodeStatus.success},
-        completedExposures: 1,
-        completedIntegrationSecs: 120,
-      );
+      container.read(runRecordProvider.notifier).seed((run) => run.copyWith(
+              progress: SequenceProgress(
+            nodeStatuses: {exposure.id: NodeStatus.success},
+            completedExposures: 1,
+            completedIntegrationSecs: 120,
+          )));
 
       await _pumpCard(
         tester,
@@ -236,14 +238,15 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       // ignore: invalid_use_of_protected_member
-      container.read(sequenceProgressProvider.notifier).state =
-          SequenceProgress(
-        nodeStatuses: {exposure.id: NodeStatus.success},
-        completedExposures: 7,
-      );
+      container.read(runRecordProvider.notifier).seed((run) => run.copyWith(
+              progress: SequenceProgress(
+            nodeStatuses: {exposure.id: NodeStatus.success},
+            completedExposures: 7,
+          )));
 
       await _pumpCard(
         tester,

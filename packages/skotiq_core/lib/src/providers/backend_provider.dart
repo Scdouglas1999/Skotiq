@@ -1,22 +1,26 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // skotiq_backend.dart re-exports every role interface
 // (DeviceBackend / GuidingBackend / ImagingBackend / SequencerBackend /
 // ProfileSettingsBackend / DiagnosticsBackend) via its `roles/roles.dart`
 // export, so role-typed providers below resolve without explicit imports.
+import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../backend/ffi_backend.dart';
 import '../backend/disconnected_backend.dart';
 import '../backend/network_backend.dart';
 import '../models/sequence/sequence_models.dart';
 import 'database_provider.dart';
-import 'equipment/equipment_state_reset.dart';
+import 'equipment/device_slots.dart';
+import 'sequence/run_record.dart';
 import 'sequence/sequence_progress.dart';
 import '../services/device_service_lifecycle.dart';
 import '../services/remote_sequence_editor_sync_lifecycle.dart';
 import 'thumbnail_sidecar_provider.dart';
+import '../models/backend/backend_types.dart';
+import '../models/backend/backend_connection_state.dart';
+import '../services/logging_service.dart';
 
 /// Factory seam for remote backends. Production uses [NetworkBackend.new];
 /// tests can provide controllable candidates without opening sockets.
@@ -40,7 +44,6 @@ class BackendTransitionSupersededException implements Exception {
   String toString() => 'Backend transition was superseded by a newer request.';
 }
 
-/// Notifier for the backend implementation
 class BackendNotifier extends StateNotifier<SkotiqBackend> {
   final Ref _ref;
   final NetworkBackendFactory _networkBackendFactory;
@@ -118,7 +121,7 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     // subscribes to its connectionStateStream). If the handshake does not
     // reach a live connection we roll this back to an authoritative
     // DisconnectedBackend below — a refused/failed connection must never be
-    // left installed where `backend is NetworkBackend` reads as "connected".
+    // left installed where a non-null `remoteHost` reads as "connected".
     try {
       await _swapBackend(backend, authorityGeneration: transitionGeneration);
     } catch (_) {
@@ -154,23 +157,21 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     _lastConnectTokenRejected = !connected && backend.isAuthTokenRejected;
 
     if (connected) {
-      developer.log(
+      Log.info(
         '[BackendNotifier] NetworkBackend connected to $scheme://$host:$port '
         '(auth=${authToken != null && authToken.isNotEmpty}, '
         'remote=${backend.isRemoteHost}, '
         'pinned=${pinnedFingerprint != null && pinnedFingerprint.isNotEmpty})',
-        name: 'BackendNotifier',
-        level: 800,
+        source: 'BackendNotifier',
       );
       return;
     }
 
-    developer.log(
+    Log.error(
       '[BackendNotifier] NetworkBackend connect to $scheme://$host:$port did '
       'not reach a live connection (state=${connectionState.name}); rolling '
       'back to disconnected',
-      name: 'BackendNotifier',
-      level: 1000,
+      source: 'BackendNotifier',
       error: failure,
       stackTrace: failureStack,
     );
@@ -188,6 +189,8 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     if (failure != null) {
       Error.throwWithStackTrace(failure, failureStack ?? StackTrace.current);
     }
+    final refusal = backend.connectRefusal;
+    if (refusal != null) throw refusal;
     throw SkotiqError(
       category: BackendErrorCategory.connection,
       message:
@@ -221,11 +224,10 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
       disconnected.dispose();
       return;
     } on Object catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[BackendNotifier] Rollback swap failed; forcing disconnected state: '
         '$e',
-        name: 'BackendNotifier',
-        level: 1000,
+        source: 'BackendNotifier',
         error: e,
         stackTrace: stackTrace,
       );
@@ -320,10 +322,14 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
 
     final executionState = _ref.read(sequenceExecutionStateProvider);
     final outgoingHostIsControllable =
-        oldBackend is! DisconnectedBackend &&
-        (oldBackend is! NetworkBackend ||
-            oldBackend.connectionState == BackendConnectionState.connected);
-    if (outgoingHostIsControllable && executionState.isBusy) {
+        !oldBackend.hasNoHost &&
+        (oldBackend.remoteHost?.link.connectionState ??
+                BackendConnectionState.connected) ==
+            BackendConnectionState.connected;
+    final leavingRemoteHost = oldBackend.linksToHost && newBackend.hasNoHost;
+    if (outgoingHostIsControllable &&
+        executionState.isBusy &&
+        !leavingRemoteHost) {
       throw StateError(
         'Cannot change imaging host while the sequencer is '
         '${executionState.name}. Stop the active sequence first so control '
@@ -341,10 +347,9 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     try {
       await DeviceServiceLifecycle.prepareForBackendSwap();
     } on Object catch (e, stackTrace) {
-      developer.log(
+      Log.error(
         '[BackendNotifier] DeviceService quiesce failed during backend swap: $e',
-        name: 'BackendNotifier',
-        level: 1000,
+        source: 'BackendNotifier',
         error: e,
         stackTrace: stackTrace,
       );
@@ -352,15 +357,13 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     }
     ensureAuthority();
 
-    resetAllEquipmentStateNotifiers(_ref);
+    resetAllEquipmentStateNotifiers(_ref.container);
 
     // Completed/failed progress belongs to the outgoing imaging host. When an
     // unreachable remote is explicitly abandoned we also clear its last known
     // live state; the remote rig may continue independently, but this client
     // must never offer run controls against the replacement backend.
-    _ref.read(sequenceProgressProvider.notifier).reset();
-    _ref.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.idle;
+    _ref.read(runRecordProvider.notifier).resetForHostChange();
 
     oldBackend.dispose();
     state = newBackend;
@@ -378,7 +381,6 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
 
   @override
   void dispose() {
-    // Dispose current backend when provider is disposed
     state.dispose();
     super.dispose();
   }
@@ -398,10 +400,9 @@ final backendProvider = StateNotifierProvider<BackendNotifier, SkotiqBackend>((
 
 /// Provider to check if we're in remote (network) mode
 /// When true, file paths refer to the server filesystem, not local
-final isRemoteModeProvider = Provider<bool>((ref) {
-  final backend = ref.watch(backendProvider);
-  return backend is NetworkBackend;
-});
+final isRemoteModeProvider = Provider<bool>(
+  (ref) => ref.watch(backendProvider).linksToHost,
+);
 
 /// True when this process was LAUNCHED as a thin client of a remote imaging
 /// host — the desktop's `--remote-host` flag — rather than as the machine that
@@ -480,8 +481,8 @@ final diagnosticsBackendProvider = Provider<DiagnosticsBackend>((ref) {
 /// on first build.
 final networkBackendConnectionStateProvider =
     StreamProvider<BackendConnectionState>((ref) {
-      final backend = ref.watch(backendProvider);
-      if (backend is! NetworkBackend) {
+      final link = ref.watch(backendProvider).remoteHost?.link;
+      if (link == null) {
         return Stream<BackendConnectionState>.value(
           BackendConnectionState.disconnected,
         );
@@ -489,8 +490,8 @@ final networkBackendConnectionStateProvider =
       // Prepend the current value so subscribers see the seed immediately
       // rather than waiting for the next transition.
       final controller = StreamController<BackendConnectionState>();
-      controller.add(backend.connectionState);
-      final sub = backend.connectionStateStream.listen(
+      controller.add(link.connectionState);
+      final sub = link.connectionStateStream.listen(
         controller.add,
         onError: controller.addError,
         onDone: controller.close,
@@ -514,8 +515,8 @@ final networkBackendConnectionStateProvider =
 /// unreachable host.
 final backendCanCommandProvider = Provider<bool>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is DisconnectedBackend) return false;
-  if (backend is NetworkBackend) {
+  if (backend.hasNoHost) return false;
+  if (backend.remoteHost != null) {
     return ref.watch(networkBackendConnectionStateProvider).valueOrNull ==
         BackendConnectionState.connected;
   }

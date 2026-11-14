@@ -1,9 +1,7 @@
 part of '../ffi_backend.dart';
 
 extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
-  dart_status.CameraStatus _fromBridgeCameraStatus(
-    bridge_device.CameraStatus s,
-  ) {
+  dart_status.CameraStatus _fromBridgeCameraStatus(bridge.CameraStatus s) {
     return dart_status.CameraStatus(
       connected: s.connected,
       state: _fromBridgeCameraState(s.state),
@@ -20,30 +18,31 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
       pixelSizeX: s.pixelSizeX,
       pixelSizeY: s.pixelSizeY,
       maxAdu: s.maxAdu,
+      saturationAdu: s.saturationAdu,
       canCool: s.canCool,
       canSetGain: s.canSetGain,
       canSetOffset: s.canSetOffset,
     );
   }
 
-  dart_types.CameraState _fromBridgeCameraState(bridge_device.CameraState s) {
+  dart_types.CameraState _fromBridgeCameraState(bridge.CameraState s) {
     switch (s) {
-      case bridge_device.CameraState.idle:
+      case bridge.CameraState.idle:
         return dart_types.CameraState.idle;
-      case bridge_device.CameraState.waiting:
+      case bridge.CameraState.waiting:
         return dart_types.CameraState.waiting;
-      case bridge_device.CameraState.exposing:
+      case bridge.CameraState.exposing:
         return dart_types.CameraState.exposing;
-      case bridge_device.CameraState.reading:
+      case bridge.CameraState.reading:
         return dart_types.CameraState.reading;
-      case bridge_device.CameraState.download:
+      case bridge.CameraState.download:
         return dart_types.CameraState.download;
-      case bridge_device.CameraState.error:
+      case bridge.CameraState.error:
         return dart_types.CameraState.error;
     }
   }
 
-  dart_status.MountStatus _fromBridgeMountStatus(bridge_device.MountStatus s) {
+  dart_status.MountStatus _fromBridgeMountStatus(bridge.MountStatus s) {
     return dart_status.MountStatus(
       connected: s.connected,
       tracking: s.tracking,
@@ -81,7 +80,7 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
   /// string the headless API and clients expect ('available' / 'unsupported' /
   /// `error: <reason>`). Using `.toString()` would leak the Dart class name
   /// ('FieldAvailability.available()') into the JSON contract.
-  String _fieldAvailabilityToWire(bridge_device.FieldAvailability v) {
+  String _fieldAvailabilityToWire(bridge.FieldAvailability v) {
     return v.when(
       available: () => 'available',
       unsupported: () => 'unsupported',
@@ -89,35 +88,33 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
     );
   }
 
-  dart_types.PierSide _fromBridgePierSide(bridge_device.PierSide s) {
+  dart_types.PierSide _fromBridgePierSide(bridge.PierSide s) {
     switch (s) {
-      case bridge_device.PierSide.east:
+      case bridge.PierSide.east:
         return dart_types.PierSide.east;
-      case bridge_device.PierSide.west:
+      case bridge.PierSide.west:
         return dart_types.PierSide.west;
-      case bridge_device.PierSide.unknown:
+      case bridge.PierSide.unknown:
         return dart_types.PierSide.unknown;
     }
   }
 
-  dart_caps.TrackingRate _fromBridgeTrackingRate(bridge_device.TrackingRate r) {
+  dart_caps.TrackingRate _fromBridgeTrackingRate(bridge.TrackingRate r) {
     switch (r) {
-      case bridge_device.TrackingRate.sidereal:
+      case bridge.TrackingRate.sidereal:
         return dart_caps.TrackingRate.sidereal;
-      case bridge_device.TrackingRate.lunar:
+      case bridge.TrackingRate.lunar:
         return dart_caps.TrackingRate.lunar;
-      case bridge_device.TrackingRate.solar:
+      case bridge.TrackingRate.solar:
         return dart_caps.TrackingRate.solar;
-      case bridge_device.TrackingRate.king:
+      case bridge.TrackingRate.king:
         return dart_caps.TrackingRate.king;
-      case bridge_device.TrackingRate.custom:
+      case bridge.TrackingRate.custom:
         return dart_caps.TrackingRate.custom;
     }
   }
 
-  dart_status.FocuserStatus _fromBridgeFocuserStatus(
-    bridge_device.FocuserStatus s,
-  ) {
+  dart_status.FocuserStatus _fromBridgeFocuserStatus(bridge.FocuserStatus s) {
     return dart_status.FocuserStatus(
       connected: s.connected,
       position: s.position,
@@ -131,7 +128,7 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
   }
 
   dart_status.FilterWheelStatus _fromBridgeFilterWheelStatus(
-    bridge_device.FilterWheelStatus s,
+    bridge.FilterWheelStatus s,
   ) {
     return dart_status.FilterWheelStatus(
       connected: s.connected,
@@ -142,9 +139,7 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
     );
   }
 
-  dart_status.RotatorStatus _fromBridgeRotatorStatus(
-    bridge_device.RotatorStatus s,
-  ) {
+  dart_status.RotatorStatus _fromBridgeRotatorStatus(bridge.RotatorStatus s) {
     return dart_status.RotatorStatus(
       connected: s.connected,
       position: s.position,
@@ -154,8 +149,6 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
       canReverse: s.canReverse,
     );
   }
-
-  // Type conversion helpers
 
   bridge.DeviceType _toBridgeDeviceType(DeviceType type) {
     switch (type) {
@@ -226,7 +219,6 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
     }
   }
 
-  // Mappers
   models.AppSettings _fromBridgeSettings(bridge.AppSettings s) {
     final loc = s.location != null ? _fromBridgeLocation(s.location!) : null;
     return models.AppSettings(
@@ -234,11 +226,9 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
       theme: s.theme,
       language: s.language,
       autoConnect: s.autoConnect,
-      // Map location fields to direct fields for compatibility
       latitude: loc?.latitude ?? 0.0,
       longitude: loc?.longitude ?? 0.0,
       elevation: loc?.elevation ?? 0.0,
-      // Keep defaults for other fields
       fileNamingPattern: '',
       meridianFlipMinutes: 5,
       autoFocusEveryMinutes: 60,
@@ -252,7 +242,6 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
   }
 
   bridge.AppSettings _toBridgeSettings(models.AppSettings s) {
-    // Use location if available, otherwise create from direct fields
     final loc =
         s.location ??
         (s.latitude != 0.0 || s.longitude != 0.0
@@ -344,7 +333,7 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
 /// Both collapse to `int` here — a revision that overflowed a Dart int would
 /// mean 2^63 edits of one goal.
 extension _FfiBackendDepthLockMappers on _FfiBackendBase {
-  SkyRectangle _fromBridgeSkyRectangle(bridge_api.ApiSkyRectangle r) =>
+  SkyRectangle _fromBridgeSkyRectangle(bridge.ApiSkyRectangle r) =>
       SkyRectangle(
         raDeg: r.raDeg,
         decDeg: r.decDeg,
@@ -353,8 +342,8 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
         rotationDeg: r.rotationDeg,
       );
 
-  bridge_api.ApiSkyRectangle _toBridgeSkyRectangle(SkyRectangle r) =>
-      bridge_api.ApiSkyRectangle(
+  bridge.ApiSkyRectangle _toBridgeSkyRectangle(SkyRectangle r) =>
+      bridge.ApiSkyRectangle(
         raDeg: r.raDeg,
         decDeg: r.decDeg,
         widthArcsec: r.widthArcsec,
@@ -365,7 +354,7 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
   // The generated geometry uses `cd11`-style names where the models keep the
   // FITS `CD1_1` spelling; this is the only place the two meet.
   ReferenceGeometry _fromBridgeReferenceGeometry(
-    bridge_api.ApiReferenceGeometry g,
+    bridge.ApiReferenceGeometry g,
   ) => ReferenceGeometry(
     width: g.width,
     height: g.height,
@@ -379,23 +368,22 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
     cd2_2: g.cd22,
   );
 
-  bridge_api.ApiReferenceGeometry _toBridgeReferenceGeometry(
-    ReferenceGeometry g,
-  ) => bridge_api.ApiReferenceGeometry(
-    width: g.width,
-    height: g.height,
-    crval1: g.crval1,
-    crval2: g.crval2,
-    crpix1: g.crpix1,
-    crpix2: g.crpix2,
-    cd11: g.cd1_1,
-    cd12: g.cd1_2,
-    cd21: g.cd2_1,
-    cd22: g.cd2_2,
-  );
+  bridge.ApiReferenceGeometry _toBridgeReferenceGeometry(ReferenceGeometry g) =>
+      bridge.ApiReferenceGeometry(
+        width: g.width,
+        height: g.height,
+        crval1: g.crval1,
+        crval2: g.crval2,
+        crpix1: g.crpix1,
+        crpix2: g.crpix2,
+        cd11: g.cd1_1,
+        cd12: g.cd1_2,
+        cd21: g.cd2_1,
+        cd22: g.cd2_2,
+      );
 
   AcquisitionSettings _fromBridgeAcquisitionSettings(
-    bridge_api.ApiAcquisitionSettings a,
+    bridge.ApiAcquisitionSettings a,
   ) => AcquisitionSettings(
     instrument: a.instrument,
     filter: a.filter,
@@ -407,9 +395,9 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
     ccdTempC: a.ccdTempC,
   );
 
-  bridge_api.ApiAcquisitionSettings _toBridgeAcquisitionSettings(
+  bridge.ApiAcquisitionSettings _toBridgeAcquisitionSettings(
     AcquisitionSettings a,
-  ) => bridge_api.ApiAcquisitionSettings(
+  ) => bridge.ApiAcquisitionSettings(
     instrument: a.instrument,
     filter: a.filter,
     exposureSecs: a.exposureSecs,
@@ -421,7 +409,7 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
   );
 
   DepthLockMeasurement _fromBridgeDepthMeasurement(
-    bridge_api.ApiDepthMeasurement m,
+    bridge.ApiDepthMeasurement m,
   ) => DepthLockMeasurement(
     region: _fromBridgeSkyRectangle(m.region),
     background: _fromBridgeSkyRectangle(m.background),
@@ -432,9 +420,9 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
     systematicFloorSource: m.systematicFloorSource,
   );
 
-  bridge_api.ApiDepthMeasurement _toBridgeDepthMeasurement(
+  bridge.ApiDepthMeasurement _toBridgeDepthMeasurement(
     DepthLockMeasurement m,
-  ) => bridge_api.ApiDepthMeasurement(
+  ) => bridge.ApiDepthMeasurement(
     region: _toBridgeSkyRectangle(m.region),
     background: _toBridgeSkyRectangle(m.background),
     scaleArcsec: m.scaleArcsec,
@@ -445,7 +433,7 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
   );
 
   DepthLockGoalDefinition _fromBridgeDepthGoalDefinition(
-    bridge_api.ApiDepthGoalDefinition d,
+    bridge.ApiDepthGoalDefinition d,
   ) => DepthLockGoalDefinition(
     label: d.label,
     projectId: d.projectId,
@@ -464,9 +452,9 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
     automaticCompletion: d.automaticCompletion,
   );
 
-  bridge_api.ApiDepthGoalDefinition _toBridgeDepthGoalDefinition(
+  bridge.ApiDepthGoalDefinition _toBridgeDepthGoalDefinition(
     DepthLockGoalDefinition d,
-  ) => bridge_api.ApiDepthGoalDefinition(
+  ) => bridge.ApiDepthGoalDefinition(
     label: d.label,
     projectId: d.projectId,
     targetId: d.targetId,
@@ -484,7 +472,7 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
     automaticCompletion: d.automaticCompletion,
   );
 
-  DepthLockForecast _fromBridgeDepthForecast(bridge_api.ApiDepthForecast f) =>
+  DepthLockForecast _fromBridgeDepthForecast(bridge.ApiDepthForecast f) =>
       DepthLockForecast(
         framesToThreshold: f.framesToThreshold,
         framesToConfirm: f.framesToConfirm,
@@ -495,16 +483,15 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
         bestFrameNoiseAdu: f.bestFrameNoiseAdu,
       );
 
-  DepthLockCurvePoint _fromBridgeDepthCurvePoint(
-    bridge_api.ApiDepthCurvePoint p,
-  ) => DepthLockCurvePoint(
-    frames: p.frames,
-    score: p.score,
-    conservativeScore: p.conservativeScore,
-    projected: p.projected,
-  );
+  DepthLockCurvePoint _fromBridgeDepthCurvePoint(bridge.ApiDepthCurvePoint p) =>
+      DepthLockCurvePoint(
+        frames: p.frames,
+        score: p.score,
+        conservativeScore: p.conservativeScore,
+        projected: p.projected,
+      );
 
-  DepthLockReport _fromBridgeDepthReport(bridge_api.ApiDepthReport r) =>
+  DepthLockReport _fromBridgeDepthReport(bridge.ApiDepthReport r) =>
       DepthLockReport(
         state: DepthLockState.fromWire(r.state),
         score: r.score,
@@ -519,24 +506,23 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
             : _fromBridgeDepthForecast(r.forecast!),
       );
 
-  DepthLockGoal _fromBridgeDepthGoal(bridge_api.ApiDepthGoal g) =>
-      DepthLockGoal(
-        id: g.id,
-        revision: g.revision.toInt(),
-        definition: _fromBridgeDepthGoalDefinition(g.definition),
-        selectedAtMs: g.selectedAtMs.toInt(),
-        evidenceFrames: g.evidenceFrames,
-        evidenceRevision: g.evidenceRevision.toInt(),
-        analysisCurrent: g.analysisCurrent,
-        report: g.report == null ? null : _fromBridgeDepthReport(g.report!),
-        candidateFrames: g.candidateFrames,
-        lastIssue: g.lastIssue,
-        archivedRevisions: g.archivedRevisions,
-        estimatorVersion: g.estimatorVersion,
-      );
+  DepthLockGoal _fromBridgeDepthGoal(bridge.ApiDepthGoal g) => DepthLockGoal(
+    id: g.id,
+    revision: g.revision.toInt(),
+    definition: _fromBridgeDepthGoalDefinition(g.definition),
+    selectedAtMs: g.selectedAtMs.toInt(),
+    evidenceFrames: g.evidenceFrames,
+    evidenceRevision: g.evidenceRevision.toInt(),
+    analysisCurrent: g.analysisCurrent,
+    report: g.report == null ? null : _fromBridgeDepthReport(g.report!),
+    candidateFrames: g.candidateFrames,
+    lastIssue: g.lastIssue,
+    archivedRevisions: g.archivedRevisions,
+    estimatorVersion: g.estimatorVersion,
+  );
 
   DepthLockReferenceInfo _fromBridgeDepthReferenceInfo(
-    bridge_api.ApiDepthReferenceInfo i,
+    bridge.ApiDepthReferenceInfo i,
   ) => DepthLockReferenceInfo(
     width: i.width,
     height: i.height,
@@ -554,7 +540,7 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
   );
 
   DepthLockFloorSuggestion _fromBridgeDepthFloorSuggestion(
-    bridge_api.ApiDepthFloorSuggestion s,
+    bridge.ApiDepthFloorSuggestion s,
   ) => DepthLockFloorSuggestion(
     floorAdu: s.floorAdu,
     darkNoiseAdu: s.darkNoiseAdu,
@@ -564,7 +550,7 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
     source: s.source,
   );
 
-  DepthLockStatus _fromBridgeDepthLockStatus(bridge_api.ApiDepthLockStatus s) =>
+  DepthLockStatus _fromBridgeDepthLockStatus(bridge.ApiDepthLockStatus s) =>
       DepthLockStatus(
         available: s.available,
         goals: s.goals,

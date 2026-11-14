@@ -7,14 +7,15 @@
 /// guided build keys its jobs by.
 library;
 
-import 'dart:convert';
-
 import 'package:flutter/widgets.dart' show TextStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqTypography;
 
 import '../darkroom_previews.dart' show darkroomDraftPreviewRevisionProvider;
+import '../targets/darkroom_targets_model.dart'
+    show darkroomFilterRank, darkroomMasterTargetName;
 
 /// One registered image and the recipes written over it.
 class DarkroomLibraryImage {
@@ -40,7 +41,6 @@ class DarkroomLibraryImage {
   /// True for an image with three channels.
   bool get isColor => master.channels >= 3;
 
-  /// The newest recipe over this image, or null when it has none.
   DarkroomRecipe? get newest => recipes.isEmpty ? null : recipes.first;
 }
 
@@ -74,22 +74,13 @@ class DarkroomLibraryTarget {
       .reduce((a, b) => a.isAfter(b) ? a : b);
 }
 
-/// Display order of image kinds within a target.
+/// Display order of image kinds within a target: composites first, then the
+/// filters in the Darkroom's order.
 int _kindRank(String kind) {
-  const order = [
-    'LRGB',
-    'RGB',
-    'Color',
-    'L',
-    'R',
-    'G',
-    'B',
-    'Ha',
-    'OIII',
-    'SII'
-  ];
-  final index = order.indexWhere((k) => k.toLowerCase() == kind.toLowerCase());
-  return index < 0 ? order.length : index;
+  const composites = ['LRGB', 'RGB', 'Color'];
+  final index =
+      composites.indexWhere((k) => k.toLowerCase() == kind.toLowerCase());
+  return index >= 0 ? index : composites.length + darkroomFilterRank(kind);
 }
 
 /// The short name of what [master] holds.
@@ -97,41 +88,6 @@ String darkroomMasterKind(IntegratedMaster master) {
   final filter = master.filter?.trim();
   if (filter != null && filter.isNotEmpty) return filter;
   return master.channels >= 3 ? 'Color' : 'Mono';
-}
-
-/// The target [master] belongs to.
-///
-/// The target row's name when the master carries one; otherwise the `target`
-/// the guided build recorded in the master's settings; otherwise the master's
-/// own name with its filter suffix taken off. The guided build keys its jobs by
-/// the same name, so an image lands under the target the Targets tab lists.
-String darkroomMasterTargetName(
-  IntegratedMaster master,
-  Map<int, String> targetNames,
-) {
-  final byId = master.targetId == null ? null : targetNames[master.targetId];
-  if (byId != null && byId.trim().isNotEmpty) return byId.trim();
-  try {
-    final settings = jsonDecode(master.settingsJson);
-    if (settings is Map && settings['target'] is String) {
-      final name = (settings['target'] as String).trim();
-      if (name.isNotEmpty) return name;
-    }
-  } on FormatException {
-    // Settings that are not JSON name no target; the master's name does.
-  }
-  var name = master.name.trim();
-  final filter = master.filter?.trim();
-  if (filter != null && filter.isNotEmpty) {
-    for (final separator in const [' · ', ' - ', ' ']) {
-      final suffix = '$separator$filter';
-      if (name.toLowerCase().endsWith(suffix.toLowerCase())) {
-        name = name.substring(0, name.length - suffix.length).trim();
-        break;
-      }
-    }
-  }
-  return name.isEmpty ? 'Unnamed target' : name;
 }
 
 /// Group [images] by target, newest target first and composites first within

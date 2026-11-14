@@ -5,20 +5,17 @@
 
 use super::*;
 
-// PARK/UNPARK instructions
-
 /// A park or home is the run's own move, and the stop in tracking it leaves
 /// behind is the run's own too: the loss baseline is disarmed for it, and the
 /// move keeps it from re-arming until the mount is seen tracking afterwards.
 async fn begin_move_that_stops_tracking(ctx: &InstructionContext, what: &str) -> MountMotion {
     let motion = MountMotion::begin(ctx, what).await;
-    if let Some(state) = &ctx.trigger_state {
+    if let Some(state) = &ctx.run.trigger_state {
         state.write().await.set_mount_tracking_expected(false);
     }
     motion
 }
 
-/// Execute park
 pub async fn execute_park(ctx: &InstructionContext) -> InstructionResult {
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),
@@ -37,17 +34,18 @@ pub async fn execute_park(ctx: &InstructionContext) -> InstructionResult {
 /// until someone noticed. Parking ends the guider's capture, guiding or
 /// looping, and the run no longer wants guiding.
 async fn stop_the_guider_for_park(ctx: &InstructionContext) {
-    ctx.device_ops
+    ctx.run
+        .device_ops
         .guider_note_stop_reason(Some(crate::GuidingStopReason::MountMove))
         .await;
-    match ctx.device_ops.guider_stop().await {
+    match ctx.run.device_ops.guider_stop().await {
         Ok(()) => {}
-        Err(error) if crate::device_ops::is_no_guider_configured(&error) => {}
+        Err(crate::device_ops::DeviceError::NO_GUIDER) => {}
         Err(error) => {
             tracing::warn!("[GUIDING] The guider did not stop for the park: {error}");
         }
     }
-    if let Some(trigger_state) = &ctx.trigger_state {
+    if let Some(trigger_state) = &ctx.run.trigger_state {
         let mut state = trigger_state.write().await;
         state.set_guiding_enabled(false);
         state.set_guide_star_lost(false);
@@ -61,14 +59,19 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
 
     tracing::info!("Parking mount");
 
-    let start = ctx.device_ops.mount_get_coordinates(&mount_id).await.ok();
-    if let Err(e) = ctx.device_ops.mount_park(&mount_id).await {
-        return InstructionResult::failure(format!("Park failed: {}", e));
+    let start = ctx
+        .run
+        .device_ops
+        .mount_get_coordinates(&mount_id)
+        .await
+        .ok();
+    if let Err(e) = ctx.run.device_ops.mount_park(&mount_id).await {
+        return InstructionResult::failure(format!("Park failed: {}", e)).caused_by(&e);
     }
     // A mount stuck at an axis limit takes the park and stays put: move it
     // off the limit and park again.
     if !crate::limit_backoff::mount_responds(
-        &ctx.device_ops,
+        &*ctx.run.device_ops,
         &mount_id,
         start,
         tokio::time::Instant::now(),
@@ -77,11 +80,16 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
     )
     .await
     {
-        let freed = crate::limit_backoff::back_off_limit(&ctx.device_ops, &mount_id).await;
-        crate::limit_backoff::notify(&ctx.device_ops, "park", &freed).await;
+        let freed = crate::limit_backoff::back_off_limit(
+            &*ctx.run.device_ops,
+            &mount_id,
+            ctx.run.rig.longitude,
+        )
+        .await;
+        crate::limit_backoff::notify(&*ctx.run.device_ops, "park", &freed).await;
         if freed.is_ok() {
-            if let Err(e) = ctx.device_ops.mount_park(&mount_id).await {
-                return InstructionResult::failure(format!("Park failed: {}", e));
+            if let Err(e) = ctx.run.device_ops.mount_park(&mount_id).await {
+                return InstructionResult::failure(format!("Park failed: {}", e)).caused_by(&e);
             }
         }
     }
@@ -100,7 +108,7 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
         if let Some(result) = ctx.check_cancelled() {
             return result;
         }
-        match ctx.device_ops.mount_is_parked(&mount_id).await {
+        match ctx.run.device_ops.mount_is_parked(&mount_id).await {
             Ok(true) => {
                 return InstructionResult::success_with_message("Mount parked");
             }
@@ -123,7 +131,6 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
     }
 }
 
-/// Execute unpark
 pub async fn execute_unpark(ctx: &InstructionContext) -> InstructionResult {
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),
@@ -141,7 +148,7 @@ pub async fn execute_unpark(ctx: &InstructionContext) -> InstructionResult {
     // A parked-state read that FAILS is not a licence to skip: an unpark on an
     // already-unparked mount is the milder outcome, so fall through and issue
     // it (this is the pre-decision behaviour).
-    match ctx.device_ops.mount_is_parked(&mount_id).await {
+    match ctx.run.device_ops.mount_is_parked(&mount_id).await {
         Ok(false) => {
             tracing::info!("Unpark: mount already reports unparked; nothing to do");
             return InstructionResult::success_with_message("Mount already unparked");
@@ -154,9 +161,9 @@ pub async fn execute_unpark(ctx: &InstructionContext) -> InstructionResult {
 
     tracing::info!("Unparking mount");
 
-    match ctx.device_ops.mount_unpark(&mount_id).await {
+    match ctx.run.device_ops.mount_unpark(&mount_id).await {
         Ok(_) => InstructionResult::success_with_message("Mount unparked"),
-        Err(e) => InstructionResult::failure(format!("Unpark failed: {}", e)),
+        Err(e) => InstructionResult::failure(format!("Unpark failed: {}", e)).caused_by(&e),
     }
 }
 
@@ -181,9 +188,6 @@ const HOME_POLL_INTERVAL: Duration = Duration::from_millis(500);
 /// Pointing change, in degrees, that counts as the mount moving.
 const HOME_MOTION_THRESHOLD_DEG: f64 = 0.1;
 
-/// Sidereal hours that pass per solar second.
-const SIDEREAL_HOURS_PER_SECOND: f64 = 1.002_737_909_35 / 3600.0;
-
 /// Timing for [`execute_home_mount_with`], separate so tests can shrink it.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct HomeTiming {
@@ -202,16 +206,6 @@ impl Default for HomeTiming {
     }
 }
 
-/// Wrap an hour difference into (-12, 12].
-fn wrap_hours(delta: f64) -> f64 {
-    let wrapped = delta.rem_euclid(24.0);
-    if wrapped > 12.0 {
-        wrapped - 24.0
-    } else {
-        wrapped
-    }
-}
-
 /// Whether the pointing changed in a way only a moving mount can produce.
 ///
 /// A stopped mount either tracks (RA fixed, hour angle advancing) or does not
@@ -223,9 +217,9 @@ pub(crate) fn pointing_moved(start: (f64, f64), now: (f64, f64), elapsed_secs: f
     if delta_dec_deg > HOME_MOTION_THRESHOLD_DEG {
         return true;
     }
-    let delta_ra_hours = wrap_hours(now.0 - start.0);
-    let elapsed_sidereal_hours = elapsed_secs * SIDEREAL_HOURS_PER_SECOND;
-    let delta_ha_hours = wrap_hours(elapsed_sidereal_hours - delta_ra_hours);
+    let delta_ra_hours = crate::meridian::wrap_hours(now.0 - start.0);
+    let elapsed_sidereal_hours = elapsed_secs / 3600.0 * crate::meridian::SIDEREAL_PER_SOLAR;
+    let delta_ha_hours = crate::meridian::wrap_hours(elapsed_sidereal_hours - delta_ra_hours);
     delta_ra_hours.abs() * 15.0 > HOME_MOTION_THRESHOLD_DEG
         && delta_ha_hours.abs() * 15.0 > HOME_MOTION_THRESHOLD_DEG
 }
@@ -258,8 +252,13 @@ pub(crate) async fn execute_home_mount_with(
             .as_deref()
             .is_some_and(|m| m.contains(HOME_DID_NOT_MOVE))
     {
-        let freed = crate::limit_backoff::back_off_limit(&ctx.device_ops, &mount_id).await;
-        crate::limit_backoff::notify(&ctx.device_ops, "home command", &freed).await;
+        let freed = crate::limit_backoff::back_off_limit(
+            &*ctx.run.device_ops,
+            &mount_id,
+            ctx.run.rig.longitude,
+        )
+        .await;
+        crate::limit_backoff::notify(&*ctx.run.device_ops, "home command", &freed).await;
         if freed.is_ok() {
             result = home_mount(ctx, &mount_id, timing).await;
         }
@@ -278,7 +277,7 @@ async fn home_mount(
 ) -> InstructionResult {
     let mount_id = mount_id.to_string();
 
-    match ctx.device_ops.mount_is_parked(&mount_id).await {
+    match ctx.run.device_ops.mount_is_parked(&mount_id).await {
         Ok(true) => {
             return InstructionResult::failure(
                 "Mount is parked. Unpark it before sending it home.".to_string(),
@@ -292,7 +291,7 @@ async fn home_mount(
         }
     }
 
-    let start_pointing = match ctx.device_ops.mount_get_coordinates(&mount_id).await {
+    let start_pointing = match ctx.run.device_ops.mount_get_coordinates(&mount_id).await {
         Ok(pointing) => Some(pointing),
         Err(e) => {
             tracing::warn!(
@@ -305,8 +304,8 @@ async fn home_mount(
 
     tracing::info!("Homing mount");
 
-    if let Err(e) = ctx.device_ops.mount_find_home(&mount_id).await {
-        return InstructionResult::failure(format!("Home failed: {}", e));
+    if let Err(e) = ctx.run.device_ops.mount_find_home(&mount_id).await {
+        return InstructionResult::failure(format!("Home failed: {}", e)).caused_by(&e);
     }
     let issued_at = tokio::time::Instant::now();
 
@@ -316,13 +315,13 @@ async fn home_mount(
     let mut motion_seen = false;
     loop {
         if let Some(result) = ctx.check_cancelled() {
-            if let Err(e) = ctx.device_ops.mount_abort_slew(&mount_id).await {
+            if let Err(e) = ctx.run.device_ops.mount_abort_slew(&mount_id).await {
                 tracing::warn!("Home: abort after cancellation failed: {}", e);
             }
             return result;
         }
 
-        let slewing = ctx.device_ops.mount_is_slewing(&mount_id).await;
+        let slewing = ctx.run.device_ops.mount_is_slewing(&mount_id).await;
         if let Err(e) = &slewing {
             tracing::warn!("Home: is_slewing read failed ({}); retrying", e);
         }
@@ -331,12 +330,12 @@ async fn home_mount(
             if matches!(slewing, Ok(true)) {
                 motion_seen = true;
             } else if let Some(start) = start_pointing {
-                if let Ok(now) = ctx.device_ops.mount_get_coordinates(&mount_id).await {
+                if let Ok(now) = ctx.run.device_ops.mount_get_coordinates(&mount_id).await {
                     motion_seen = pointing_moved(start, now, issued_at.elapsed().as_secs_f64());
                 }
             }
             if !motion_seen && issued_at.elapsed() > timing.motion_start_window {
-                if let Err(e) = ctx.device_ops.mount_abort_slew(&mount_id).await {
+                if let Err(e) = ctx.run.device_ops.mount_abort_slew(&mount_id).await {
                     tracing::warn!("Home: abort after a home that never started failed: {}", e);
                 }
                 return InstructionResult::failure(HOME_DID_NOT_MOVE.to_string());
@@ -344,7 +343,7 @@ async fn home_mount(
         }
 
         if motion_seen && matches!(slewing, Ok(false)) {
-            return match ctx.device_ops.mount_is_at_home(&mount_id).await {
+            return match ctx.run.device_ops.mount_is_at_home(&mount_id).await {
                 Ok(true) => InstructionResult::success_with_message("Mount at home"),
                 Ok(false) => InstructionResult::failure(
                     "The mount stopped but does not report being at home".to_string(),

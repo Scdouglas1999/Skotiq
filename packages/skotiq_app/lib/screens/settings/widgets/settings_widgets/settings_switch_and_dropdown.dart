@@ -1,5 +1,12 @@
 part of '../settings_widgets.dart';
 
+/// A toggle for a [SettingRow]'s trailing slot.
+///
+/// The switch flips at once; the write follows 300 ms later so rapid toggles
+/// collapse to the last one. A failed write flips it back and says so.
+///
+/// For a self-contained label + switch row use [SkotiqSwitchRow]; for a bare
+/// toggle with no stored setting behind it use [SkotiqSwitch].
 class SettingsSwitch extends StatefulWidget {
   final bool value;
 
@@ -15,231 +22,180 @@ class SettingsSwitch extends StatefulWidget {
     this.enabled = true,
   });
 
+  static const Duration writeDelay = Duration(milliseconds: 300);
+
   @override
   State<SettingsSwitch> createState() => _SettingsSwitchState();
 }
 
 class _SettingsSwitchState extends State<SettingsSwitch> {
-  Timer? _debounceTimer;
-
-  late bool _value;
-  int _editGeneration = 0;
-  int _activeWrites = 0;
-  Future<void> _writeTail = Future<void>.value();
+  final SettingsNoticeController _notice = SettingsNoticeController();
+  late bool _value = widget.value;
+  late final SettingWriter<bool> _writer = SettingWriter<bool>(
+    initial: widget.value,
+    onRollback: _onRollback,
+  );
 
   @override
-  void initState() {
-    super.initState();
-
-    _value = widget.value;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
   }
 
   @override
   void didUpdateWidget(SettingsSwitch oldWidget) {
     super.didUpdateWidget(oldWidget);
-
-    // Only adopt the parent's value when no local toggle is in flight, so an
-
-    // optimistic flip isn't clobbered by a stale rebuild before the write lands
-
-    if (!widget.enabled ||
-        (!(_debounceTimer?.isActive ?? false) && _activeWrites == 0)) {
-      _value = widget.value;
-    }
+    _sync();
   }
 
-  @override
-  void dispose() {
-    // If there's a pending write, fire it now so the last toggle isn't lost
+  void _sync() {
+    // The stored value is adopted only when no local toggle is pending, so an
+    // optimistic flip is not undone by a rebuild that predates the write.
+    final show = _writer.accept(
+      widget.value,
+      authority: SettingsFormScope.authorityOf(context),
+    );
+    if (show || !widget.enabled) _value = widget.value;
+  }
 
-    if (_debounceTimer?.isActive ?? false) {
-      _debounceTimer!.cancel();
-      _enqueueCommit(_value, _editGeneration);
-    }
-
-    super.dispose();
+  void _onRollback(bool restored, bool attempted, Object error) {
+    if (!mounted) return;
+    setState(() => _value = restored);
+    settingsReportRollback(context, _notice, error);
   }
 
   void _onTap() {
     if (!widget.enabled) return;
-    final generation = ++_editGeneration;
+    _notice.clear();
     setState(() => _value = !_value);
-
-    // Cancel any previous pending write
-
-    _debounceTimer?.cancel();
-
-    // A quick on/off that returns to the confirmed parent value should not
-    // generate a redundant database/network write.
-    if (_activeWrites == 0 && _value == widget.value) {
-      _debounceTimer = null;
-      return;
-    }
-
-    // Delay the DB write by 300ms; rapid toggles coalesce to the final value
-
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      _debounceTimer = null;
-      _enqueueCommit(_value, generation);
-    });
-  }
-
-  void _enqueueCommit(bool value, int generation) {
-    _activeWrites++;
-    final operation = _writeTail.then((_) => _commit(value, generation));
-    _writeTail = operation.then<void>(
-      (_) {},
-      onError: (Object _, StackTrace __) {},
+    _writer.submit(
+      _value,
+      widget.onChanged,
+      debounce: SettingsSwitch.writeDelay,
     );
-    unawaited(operation);
   }
 
-  Future<void> _commit(bool value, int generation) async {
-    try {
-      await Future<void>.sync(() => widget.onChanged(value));
-    } catch (_) {
-      // Roll back only if the failed write still represents the user's latest
-      // intent. A newer toggle may already be pending and must stay visible.
-      if (mounted && generation == _editGeneration) {
-        setState(() => _value = widget.value);
-      }
-    } finally {
-      _activeWrites--;
-    }
+  @override
+  void dispose() {
+    _writer.close();
+    _notice.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SkotiqSwitch(
-      value: _value,
-      enabled: widget.enabled,
-      onChanged: widget.enabled ? (_) => _onTap() : null,
+    return SettingsFieldNotice(
+      controller: _notice,
+      child: SkotiqSwitch(
+        value: _value,
+        enabled: widget.enabled,
+        onChanged: widget.enabled ? (_) => _onTap() : null,
+      ),
     );
   }
 }
 
-/// Dropdown selector for settings.
-
+/// A one-of-many settings control over typed values.
 ///
+/// The selection is a value of [T], never a display string: [labelOf] only
+/// says what the operator reads. The choice shows at once and is written in
+/// order; a failed write restores the stored selection and says so.
+class SettingsChoice<T> extends StatefulWidget {
+  const SettingsChoice({
+    super.key,
+    required this.value,
+    required this.values,
+    required this.labelOf,
+    required this.onChanged,
+    this.width,
+    this.narrowWidth,
+    this.flexible = false,
+  });
 
-/// Compact trailing control sized for [SettingRow]. Styling mirrors
+  final T value;
+  final List<T> values;
+  final String Function(T value) labelOf;
 
-/// [SkotiqDropdown] / theme [InputDecorationTheme] but uses fixed widths
-
-/// for settings layout — migrate to [SkotiqDropdown] when row sizing allows.
-
-/// Dropdown selector for settings rows.
-///
-/// Compact trailing control for [SettingRow]. Styling mirrors
-/// [SkotiqDropdown] (well fill, ring, chevron) with fixed widths
-/// and optional [itemLabels] for value/label pairs.
-class SettingsDropdown extends StatefulWidget {
-  final String value;
-
-  final List<String> items;
-
-  /// May be asynchronous so failed persistence can restore the last
-  /// confirmed selection without leaking an unhandled async error.
-  final FutureOr<void> Function(String) onChanged;
+  /// May be asynchronous; a failure restores the stored selection.
+  final FutureOr<void> Function(T value) onChanged;
 
   final double? width;
 
-  final bool isMobile;
+  /// [width] in the narrow layout, where it differs.
+  final double? narrowWidth;
 
-  /// If true, use flexible width (useful for stacked mobile layouts)
-
+  /// Let the control take the width its parent offers.
   final bool flexible;
 
-  /// Optional display labels for items. When provided, must have same length
-
-  /// as [items]. The dropdown shows these labels but emits the corresponding
-
-  /// value from [items].
-
-  final List<String>? itemLabels;
-
-  const SettingsDropdown({
-    super.key,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-    this.width,
-    this.isMobile = false,
-    this.flexible = false,
-    this.itemLabels,
-  });
-
   @override
-  State<SettingsDropdown> createState() => _SettingsDropdownState();
+  State<SettingsChoice<T>> createState() => _SettingsChoiceState<T>();
 }
 
-class _SettingsDropdownState extends State<SettingsDropdown> {
-  late String _value;
-  int _editGeneration = 0;
-  int _activeWrites = 0;
-  Future<void> _writeTail = Future<void>.value();
+class _SettingsChoiceState<T> extends State<SettingsChoice<T>> {
+  final SettingsNoticeController _notice = SettingsNoticeController();
+  late T _value = _storedValue;
+  late final SettingWriter<T> _writer = SettingWriter<T>(
+    initial: _storedValue,
+    onRollback: _onRollback,
+  );
 
-  String get _parentValue =>
-      widget.items.contains(widget.value) ? widget.value : widget.items.first;
+  T get _storedValue =>
+      widget.values.contains(widget.value) ? widget.value : widget.values.first;
 
   @override
-  void initState() {
-    super.initState();
-    _value = _parentValue;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
   }
 
   @override
-  void didUpdateWidget(covariant SettingsDropdown oldWidget) {
+  void didUpdateWidget(covariant SettingsChoice<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_activeWrites == 0) _value = _parentValue;
+    _sync();
   }
 
-  void _onChanged(String? value) {
-    if (value == null || value == _value) return;
-    final generation = ++_editGeneration;
-    final callback = widget.onChanged;
-    setState(() => _value = value);
-
-    _activeWrites++;
-    final operation = _writeTail.then((_) async {
-      try {
-        await Future<void>.sync(() => callback(value));
-      } catch (_) {
-        if (mounted && generation == _editGeneration) {
-          setState(() => _value = _parentValue);
-        }
-      } finally {
-        _activeWrites--;
-      }
-    });
-    _writeTail = operation.then<void>(
-      (_) {},
-      onError: (Object _, StackTrace __) {},
+  void _sync() {
+    final show = _writer.accept(
+      _storedValue,
+      authority: SettingsFormScope.authorityOf(context),
     );
-    unawaited(operation);
+    if (show) _value = _storedValue;
   }
 
-  /// Width the longest option needs, at the text scale in force right now.
+  void _onRollback(T restored, T attempted, Object error) {
+    if (!mounted) return;
+    setState(() => _value = restored);
+    settingsReportRollback(context, _notice, error);
+  }
+
+  void _select(T value) {
+    if (value == _value) return;
+    _notice.clear();
+    setState(() => _value = value);
+    _writer.submit(value, widget.onChanged);
+  }
+
+  // SkotiqDropdown speaks strings. String values pass straight through;
+  // anything else is addressed by position so two values with the same label
+  // stay distinct.
+  String _idOf(int index) {
+    final value = widget.values[index];
+    return value is String ? value : '$index';
+  }
+
+  /// Width the longest option needs at the text scale in force.
   ///
-  /// The design widths below are logical pixels, but "UI scale" is applied as a
-  /// TEXT scaler (see `_calculateUiScaleFactor` in app.dart): at Extra Large
-  /// (1.4x) every label grows 40% inside a box that does not, which is why the
-  /// UI scale row itself rendered "Extra Lar...". Measuring the labels — rather
-  /// than trusting a constant — is what keeps a dropdown able to show the value
-  /// it holds. The widest option is used, not the selected one, so the control
-  /// does not resize under the pointer when the selection changes.
-  double _widestLabelWidth(BuildContext context) {
-    final labels = widget.itemLabels ?? widget.items;
+  /// "UI scale" is applied as a text scaler, so at Extra Large every label
+  /// grows 40% inside a box that does not. Measuring the widest option, not
+  /// the selected one, keeps the control from resizing under the pointer.
+  double _widestLabelWidth(BuildContext context, List<String> labels) {
     final painter = TextPainter(
       textDirection: Directionality.of(context),
       textScaler: MediaQuery.textScalerOf(context),
     );
     var widest = 0.0;
     for (final label in labels) {
-      painter.text = TextSpan(
-        text: label,
-        style: SkotiqDropdown.labelStyle,
-      );
+      painter.text = TextSpan(text: label, style: SkotiqDropdown.labelStyle);
       painter.layout();
       if (painter.width > widest) widest = painter.width;
     }
@@ -249,29 +205,42 @@ class _SettingsDropdownState extends State<SettingsDropdown> {
 
   @override
   Widget build(BuildContext context) {
-    final designWidth = widget.width ?? (widget.isMobile ? 120.0 : 140.0);
+    final narrow = SettingsFormScope.narrowOf(context);
+    final designWidth = narrow
+        ? widget.narrowWidth ?? widget.width ?? 120.0
+        : widget.width ?? 140.0;
     final effectiveWidth = dialogMaxWidth(context, designWidth);
 
-    Widget dropdown = SkotiqDropdown(
-      value: widget.items.contains(_value) ? _value : _parentValue,
-      items: widget.items,
-      itemLabels: widget.itemLabels,
-      onChanged: _onChanged,
-      isExpanded: true,
-      isDense: true,
+    final values = widget.values;
+    final ids = [for (var i = 0; i < values.length; i++) _idOf(i)];
+    final labels = [for (final value in values) widget.labelOf(value)];
+    final shown = values.contains(_value) ? _value : _storedValue;
+
+    final Widget dropdown = SettingsFieldNotice(
+      controller: _notice,
+      child: SkotiqDropdown(
+        value: ids[values.indexOf(shown)],
+        items: ids,
+        itemLabels: labels,
+        onChanged: (id) {
+          if (id == null) return;
+          final index = ids.indexOf(id);
+          if (index >= 0) _select(values[index]);
+        },
+        isExpanded: true,
+        isDense: true,
+      ),
     );
 
-    if (widget.flexible) {
-      return dropdown;
-    }
+    if (widget.flexible) return dropdown;
 
-    final needed = _widestLabelWidth(context) + SkotiqDropdown.chromeWidth;
-
+    final needed =
+        _widestLabelWidth(context, labels) + SkotiqDropdown.chromeWidth;
     return LayoutBuilder(
       builder: (context, constraints) {
         var width = math.max(effectiveWidth, needed);
-        // Never take more than the row actually offers: growing past it would
-        // trade an ellipsis for a yellow overflow stripe.
+        // Never take more than the row offers: growing past it would trade an
+        // ellipsis for an overflow stripe.
         if (constraints.hasBoundedWidth && width > constraints.maxWidth) {
           width = constraints.maxWidth;
         }
@@ -279,12 +248,60 @@ class _SettingsDropdownState extends State<SettingsDropdown> {
       },
     );
   }
+
+  @override
+  void dispose() {
+    _writer.close();
+    _notice.dispose();
+    super.dispose();
+  }
 }
 
-/// Text input field for settings.
-
+/// A [SettingsChoice] over plain strings, with optional display labels.
 ///
+/// Prefer [SettingsChoice] for enums: this one exists for lists that really
+/// are strings (camera names, time zones).
+class SettingsDropdown extends StatelessWidget {
+  final String value;
+  final List<String> items;
+  final FutureOr<void> Function(String) onChanged;
+  final double? width;
 
-/// Compact trailing control for [SettingRow]. Styling mirrors
+  /// See [SettingsChoice.narrowWidth].
+  final double? narrowWidth;
 
-/// [SkotiqTextField] / theme [InputDecorationTheme] with fixed widths.
+  final bool flexible;
+
+  /// Display labels for [items], same length and order.
+  final List<String>? itemLabels;
+
+  const SettingsDropdown({
+    super.key,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.width,
+    this.narrowWidth,
+    this.flexible = false,
+    this.itemLabels,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = itemLabels;
+    return SettingsChoice<String>(
+      value: value,
+      values: items,
+      labelOf: labels == null
+          ? (item) => item
+          : (item) {
+              final index = items.indexOf(item);
+              return index >= 0 && index < labels.length ? labels[index] : item;
+            },
+      onChanged: onChanged,
+      width: width,
+      narrowWidth: narrowWidth,
+      flexible: flexible,
+    );
+  }
+}

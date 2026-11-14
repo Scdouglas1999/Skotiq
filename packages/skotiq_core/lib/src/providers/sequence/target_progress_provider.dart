@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/sequence/sequence_models.dart';
+import 'node_exposure_tally.dart';
 import '../sequence_provider.dart'
     show currentSequenceProvider, sequenceProgressProvider;
 
@@ -22,8 +23,8 @@ class TargetExecutionProgress {
   ///
   /// Comes from cross-referencing
   /// [SequenceProgress.completedExposures] against per-node statuses:
-  /// every [ExposureNode] under this target that is `success` contributes
-  /// its `count`; the currently-running exposure contributes the partial
+  /// every capturing step under this target that is `success` contributes
+  /// its frames; the currently-running exposure contributes the partial
   /// frame count derived from `nodeProgressPercent`.
   final int completedFrames;
 
@@ -94,34 +95,30 @@ final targetExecutionProgressProvider =
     Provider.family<TargetExecutionProgress, String>((ref, targetNodeId) {
       final sequence = ref.watch(currentSequenceProvider);
       final progress = ref.watch(sequenceProgressProvider);
+      final tally = ref.watch(nodeExposureTallyProvider);
 
       if (sequence == null) return TargetExecutionProgress.empty;
       final root = sequence.nodes[targetNodeId];
       if (root == null) return TargetExecutionProgress.empty;
 
-      int totalFrames = 0;
+      final planned = plannedCaptureUnder(sequence, targetNodeId);
+      final totalFrames = planned.frames;
       int completedFrames = 0;
-      double totalIntegrationSecs = 0;
       double completedIntegrationSecs = 0;
-      bool completionUnknown = false;
-      // True once an exposure is found under a loop with no fixed iteration
-      // count. For those, `totalFrames` is a ONE-PASS FLOOR, not a plan, so it
-      // must never become the denominator of a completion ratio.
-      bool hasUnboundedRepeat = false;
+      // A Smart Exposure looping until stopped has no planned count to be a
+      // fraction of.
+      bool completionUnknown = planned.hasOpenEndedLoop;
 
       // Defense in depth against import-malformed trees that contain cycles.
       final visited = <String>{targetNodeId};
 
-      /// [mult] is how many times this subtree runs (count-loop repeats
-      /// compounded), mirroring `Sequence._countExposures`. [repeats] is true
-      /// once a loop that runs its body more than once is an ancestor;
-      /// [unbounded] once one of those loops has no fixed iteration count.
-      void visit(SequenceNode node, int mult, bool repeats, bool unbounded) {
-        if (node is ExposureNode && node.isEnabled) {
-          totalFrames += node.count * mult;
-          totalIntegrationSecs += node.totalDurationSecs * mult;
-          if (unbounded) hasUnboundedRepeat = true;
-
+      /// [repeats] is true once a loop that runs its body more than once is
+      /// an ancestor.
+      void visit(SequenceNode node, bool repeats) {
+        if (!node.isEnabled) return;
+        final frames = node.framesPerPass;
+        if (frames > 0) {
+          final secsPerFrame = node.integrationSecsPerPass / frames;
           if (repeats) {
             // Per-node statuses are reset by the loop on every pass, so they
             // cannot be scaled into a run total. Say so instead of dividing a
@@ -130,52 +127,49 @@ final targetExecutionProgressProvider =
           } else {
             final status = progress.nodeStatuses[node.id];
             if (status == NodeStatus.success) {
-              // Fully completed: every frame counts.
-              completedFrames += node.count;
-              completedIntegrationSecs += node.totalDurationSecs;
+              completedFrames += frames;
+              completedIntegrationSecs += node.integrationSecsPerPass;
+            } else if (status == NodeStatus.cancelled) {
+              // Stopped part way: the frames it took are on disk. Its progress
+              // percent is not a count (the budget report after each burst
+              // resets it to 0), the per-node tally is.
+              final taken = (tally[node.id]?.captured ?? 0).clamp(0, frames);
+              completedFrames += taken;
+              completedIntegrationSecs += secsPerFrame * taken;
             } else if (status == NodeStatus.running) {
-              // Partial: derive how many frames have finished within this node
-              // from the per-node progress percent. The executor publishes
-              // 0..100; clamp defensively because some backends round above
-              // 100 on the final tick.
+              // The executor publishes 0..100; clamp because some backends
+              // round above 100 on the final tick.
               final pct = (progress.nodeProgressPercent[node.id] ?? 0).clamp(
                 0,
                 100,
               );
-              final partial = (node.count * pct / 100.0).floor();
+              final partial = (frames * pct / 100.0).floor();
               completedFrames += partial;
-              completedIntegrationSecs += node.durationSecs * partial;
+              completedIntegrationSecs += secsPerFrame * partial;
             }
-            // pending / failure / skipped / cancelled contribute 0.
+            // pending / failure / skipped contribute 0.
           }
         }
 
-        var childMult = mult;
         var childRepeats = repeats;
-        var childUnbounded = unbounded;
         if (node is LoopNode) {
-          if (node.conditionType == LoopConditionType.count) {
-            final iterations = node.repeatCount ?? 1;
-            childMult = mult * iterations;
-            if (iterations > 1) childRepeats = true;
-          } else {
-            // until-time / altitude / forever / while-dark: the body runs an
-            // unknown number of times, so the planned total is a one-pass
-            // floor and completion is not derivable.
-            childRepeats = true;
-            childUnbounded = true;
-          }
+          // A loop without a fixed count runs its body an unknown number of
+          // times.
+          childRepeats =
+              repeats ||
+              node.conditionType != LoopConditionType.count ||
+              (node.repeatCount ?? 1) > 1;
         }
 
         for (final childId in node.childIds) {
           if (!visited.add(childId)) continue;
           final child = sequence.nodes[childId];
           if (child == null) continue;
-          visit(child, childMult, childRepeats, childUnbounded);
+          visit(child, childRepeats);
         }
       }
 
-      visit(root, 1, false, false);
+      visit(root, false);
 
       // A repeat defeats the per-node reconstruction above, but it does not
       // always make completion unknowable. When every frame the RUN plans sits
@@ -192,10 +186,10 @@ final targetExecutionProgressProvider =
       //     added to kill, just sourced from the wire instead of node statuses.
       //   * the equality against the model's own total — any frame planned
       //     outside this target (a second target, a calibration block at the
-      //     root, or a Smart/photometry node this walk does not count but
-      //     `totalExposures` does) makes the run counter un-attributable.
+      //     root) makes the run counter un-attributable.
       if (completionUnknown &&
-          !hasUnboundedRepeat &&
+          !planned.hasUnboundedRepeat &&
+          !planned.hasOpenEndedLoop &&
           totalFrames > 0 &&
           totalFrames == sequence.totalExposures) {
         // Clamp: a plan edited mid-run can leave the counter past the total.
@@ -207,7 +201,7 @@ final targetExecutionProgressProvider =
       return TargetExecutionProgress(
         totalFrames: totalFrames,
         completedFrames: completedFrames,
-        totalIntegrationSecs: totalIntegrationSecs,
+        totalIntegrationSecs: planned.integrationSecs,
         completedIntegrationSecs: completedIntegrationSecs,
         completionUnknown: completionUnknown,
       );

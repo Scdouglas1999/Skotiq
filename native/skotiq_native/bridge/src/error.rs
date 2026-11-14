@@ -13,7 +13,6 @@
 //! - Operation errors: Invalid parameters, unsupported operations
 //! - System errors: I/O, internal failures
 
-use std::time::Duration;
 use thiserror::Error;
 
 /// Main error type for the Skotiq native library
@@ -107,7 +106,12 @@ pub enum SkotiqError {
         current_operation: String,
     },
 
-    // Imaging errors
+    /// The device cannot do this in the state it is in (a dither while
+    /// guiding is paused, say). The message is the whole sentence a person
+    /// reads, including what to do instead.
+    #[error("{0}")]
+    InvalidState(String),
+
     #[error("Image processing error: {0}")]
     ImageError(String),
 
@@ -136,7 +140,6 @@ pub enum SkotiqError {
     #[error("Plate solving failed: {0}")]
     PlateSolveError(String),
 
-    // Sequence errors
     #[error("Sequence error: {0}")]
     SequenceError(String),
 
@@ -196,19 +199,6 @@ pub enum SkotiqError {
 impl SkotiqError {
     // Constructor helpers
 
-    /// Create a device timeout error
-    pub fn device_timeout(
-        device_id: impl Into<String>,
-        operation: impl Into<String>,
-        timeout: Duration,
-    ) -> Self {
-        SkotiqError::DeviceTimeout {
-            device_id: device_id.into(),
-            operation: operation.into(),
-            timeout_secs: timeout.as_secs_f64(),
-        }
-    }
-
     /// Create a connection failed error
     pub fn connection_failed(device_id: impl Into<String>, reason: impl Into<String>) -> Self {
         SkotiqError::ConnectionFailed {
@@ -233,64 +223,6 @@ impl SkotiqError {
         }
     }
 
-    /// Create an ASCOM error
-    #[cfg(windows)]
-    pub fn ascom_error(
-        prog_id: impl Into<String>,
-        message: impl Into<String>,
-        error_code: i32,
-    ) -> Self {
-        SkotiqError::AscomError {
-            prog_id: prog_id.into(),
-            message: message.into(),
-            error_code,
-        }
-    }
-
-    /// Create an Alpaca error
-    pub fn alpaca_error(
-        base_url: impl Into<String>,
-        device_number: u32,
-        message: impl Into<String>,
-        error_code: i32,
-    ) -> Self {
-        SkotiqError::AlpacaError {
-            base_url: base_url.into(),
-            device_number,
-            message: message.into(),
-            error_code,
-        }
-    }
-
-    /// Create an INDI error
-    pub fn indi_error(
-        server: impl Into<String>,
-        port: u16,
-        device_name: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
-        SkotiqError::IndiError {
-            server: server.into(),
-            port,
-            device_name: device_name.into(),
-            message: message.into(),
-        }
-    }
-
-    /// Create a native SDK error
-    pub fn native_error(
-        vendor: impl Into<String>,
-        message: impl Into<String>,
-        error_code: i32,
-    ) -> Self {
-        SkotiqError::NativeError {
-            vendor: vendor.into(),
-            message: message.into(),
-            error_code,
-        }
-    }
-
-    /// Create a hardware error
     pub fn hardware_error(device_id: impl Into<String>, message: impl Into<String>) -> Self {
         SkotiqError::HardwareError {
             device_id: device_id.into(),
@@ -299,58 +231,10 @@ impl SkotiqError {
         }
     }
 
-    /// Create a hardware error with vendor-specific error code
-    pub fn hardware_error_with_code(
-        device_id: impl Into<String>,
-        message: impl Into<String>,
-        error_code: i32,
-    ) -> Self {
-        SkotiqError::HardwareError {
-            device_id: device_id.into(),
-            message: message.into(),
-            error_code: Some(error_code),
-        }
-    }
-
-    /// Create a communication error
-    pub fn communication_error(device_id: impl Into<String>, message: impl Into<String>) -> Self {
-        SkotiqError::CommunicationError {
-            device_id: device_id.into(),
-            message: message.into(),
-        }
-    }
-
-    /// Create a disconnected error
     pub fn device_disconnected(device_id: impl Into<String>, reason: impl Into<String>) -> Self {
         SkotiqError::DeviceDisconnected {
             device_id: device_id.into(),
             reason: reason.into(),
-        }
-    }
-
-    /// Create an operation not supported error
-    pub fn operation_not_supported(
-        device_id: impl Into<String>,
-        operation: impl Into<String>,
-    ) -> Self {
-        SkotiqError::NotSupported {
-            device_id: device_id.into(),
-            operation: operation.into(),
-        }
-    }
-
-    /// Create a parameter out of range error
-    pub fn parameter_out_of_range<T: std::fmt::Display>(
-        param_name: impl Into<String>,
-        value: T,
-        min: T,
-        max: T,
-    ) -> Self {
-        SkotiqError::ParameterOutOfRange {
-            param_name: param_name.into(),
-            value: value.to_string(),
-            min: min.to_string(),
-            max: max.to_string(),
         }
     }
 
@@ -425,51 +309,6 @@ impl SkotiqError {
     /// (Alias for `needs_reconnect()` for API clarity)
     pub fn should_reconnect(&self) -> bool {
         self.needs_reconnect()
-    }
-
-    /// Returns true if this is a hardware-level error
-    ///
-    /// Hardware errors typically require user attention:
-    /// - Check physical connections
-    /// - Restart device
-    /// - Check device health/status
-    pub fn is_hardware_error(&self) -> bool {
-        matches!(
-            self,
-            SkotiqError::HardwareError { .. }
-                | SkotiqError::CommunicationError { .. }
-                | SkotiqError::ExposureFailed { .. }
-                | SkotiqError::DownloadFailed { .. }
-        )
-    }
-
-    /// Returns true if this error indicates the operation is not supported
-    ///
-    /// Use this to disable UI elements or avoid retrying operations
-    /// that will never succeed on this device.
-    pub fn is_not_supported(&self) -> bool {
-        matches!(self, SkotiqError::NotSupported { .. })
-    }
-
-    /// Returns true if this error is due to invalid user input
-    ///
-    /// Use this to prompt user to correct their input.
-    pub fn is_invalid_input(&self) -> bool {
-        matches!(
-            self,
-            SkotiqError::InvalidParameter(_)
-                | SkotiqError::InvalidInput(_)
-                | SkotiqError::InvalidDeviceId { .. }
-                | SkotiqError::ParameterOutOfRange { .. }
-        )
-    }
-
-    /// Returns true if this is a user-initiated cancellation (not an error)
-    pub fn is_cancellation(&self) -> bool {
-        matches!(
-            self,
-            SkotiqError::Cancelled | SkotiqError::ExposureCancelled
-        )
     }
 
     /// Get the device ID if this error is device-related
@@ -599,7 +438,7 @@ impl SkotiqError {
 
             SkotiqError::NotSupported { .. } => "unsupported",
 
-            SkotiqError::DeviceBusy { .. } => "busy",
+            SkotiqError::DeviceBusy { .. } | SkotiqError::InvalidState(_) => "busy",
 
             SkotiqError::ImageError(_)
             | SkotiqError::CameraError(_)
@@ -699,7 +538,6 @@ impl From<&SkotiqError> for String {
 pub struct ErrorInfo {
     /// Error category (timeout, connection, hardware, validation, etc.)
     pub category: String,
-    /// Human-readable error message
     pub message: String,
     /// User-friendly message for UI display
     pub user_message: String,
@@ -707,7 +545,6 @@ pub struct ErrorInfo {
     pub is_recoverable: bool,
     /// Whether reconnection should be attempted
     pub should_reconnect: bool,
-    /// Whether this was a timeout
     pub is_timeout: bool,
     /// Device ID if error is device-related
     pub device_id: Option<String>,
@@ -745,71 +582,5 @@ impl SkotiqError {
     /// Serialize the error to JSON for FFI transfer
     pub fn to_json(&self) -> String {
         serde_json::to_string(&self.to_error_info()).unwrap_or_else(|_| self.to_string())
-    }
-}
-
-// Backward compatibility - legacy error conversion
-
-// Allow converting legacy string-based InvalidDeviceId to new format
-impl SkotiqError {
-    /// Convert from legacy InvalidDeviceId(String) format
-    pub fn from_legacy_invalid_device_id(msg: String) -> Self {
-        SkotiqError::InvalidDeviceId {
-            device_id: "unknown".to_string(),
-            reason: msg,
-        }
-    }
-
-    /// Convert from legacy ConnectionFailed(String) format
-    pub fn from_legacy_connection_failed(msg: String) -> Self {
-        SkotiqError::ConnectionFailed {
-            device_id: "unknown".to_string(),
-            reason: msg,
-        }
-    }
-}
-
-/// Result type alias for Skotiq operations
-pub type SkotiqResult<T> = Result<T, SkotiqError>;
-
-// Safe conversion traits
-
-/// Extension trait for safely converting Results with context
-pub trait ResultExt<T> {
-    /// Add context to an error
-    fn with_context<C: FnOnce() -> String>(self, context: C) -> SkotiqResult<T>;
-
-    /// Convert to SkotiqError with device context
-    fn with_device_context(self, device_id: &str, operation: &str) -> SkotiqResult<T>;
-}
-
-impl<T, E: std::fmt::Display> ResultExt<T> for Result<T, E> {
-    fn with_context<C: FnOnce() -> String>(self, context: C) -> SkotiqResult<T> {
-        self.map_err(|e| SkotiqError::Internal(format!("{}: {}", context(), e)))
-    }
-
-    fn with_device_context(self, device_id: &str, operation: &str) -> SkotiqResult<T> {
-        self.map_err(|e| {
-            SkotiqError::OperationFailed(format!("{} on {}: {}", operation, device_id, e))
-        })
-    }
-}
-
-/// Extension trait for safely converting Options
-pub trait OptionExt<T> {
-    /// Convert None to a device not found error
-    fn or_device_not_found(self, device_id: &str) -> SkotiqResult<T>;
-
-    /// Convert None to an internal error
-    fn or_internal(self, message: &str) -> SkotiqResult<T>;
-}
-
-impl<T> OptionExt<T> for Option<T> {
-    fn or_device_not_found(self, device_id: &str) -> SkotiqResult<T> {
-        self.ok_or_else(|| SkotiqError::DeviceNotFound(device_id.to_string()))
-    }
-
-    fn or_internal(self, message: &str) -> SkotiqResult<T> {
-        self.ok_or_else(|| SkotiqError::Internal(message.to_string()))
     }
 }

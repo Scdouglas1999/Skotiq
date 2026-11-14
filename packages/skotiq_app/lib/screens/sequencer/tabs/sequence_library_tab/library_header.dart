@@ -85,17 +85,14 @@ class _LibraryHeaderState extends ConsumerState<_LibraryHeader> {
 
         const SizedBox(width: 16),
 
-        // Sort dropdown
         _buildSortControl(sortOrder),
 
         const SizedBox(width: 16),
 
-        // Search
         SizedBox(width: _searchFieldWidth, child: _buildSearch()),
 
         const SizedBox(width: 16),
 
-        // Save current sequence button
         _ActionButton(
           colors: widget.colors,
           icon: LucideIcons.save,
@@ -253,13 +250,6 @@ class _LibraryHeaderState extends ConsumerState<_LibraryHeader> {
       context.showErrorSnackBar('No sequence to save');
       return;
     }
-
-    showDialog(
-      context: context,
-      builder: (context) => _SaveSequenceDialog(
-        colors: widget.colors,
-        sequence: currentSequence,
-      ),
-    );
+    showSaveSequenceDialog(context, sequence: currentSequence);
   }
 }

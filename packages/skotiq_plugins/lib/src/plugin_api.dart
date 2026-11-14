@@ -17,7 +17,6 @@ abstract class SkotiqPlugin {
   /// Plugin version following semantic versioning (e.g., '1.0.0')
   String get version;
 
-  /// Brief description of plugin functionality
   String get description;
 
   /// Plugin author name or organization
@@ -57,7 +56,6 @@ abstract class SkotiqPlugin {
 ///
 /// This is the main interface plugins use to interact with Skotiq.
 class PluginContext {
-  /// Logger for plugin diagnostic output
   final PluginLogger logger;
 
   /// Persistent storage for plugin data
@@ -66,7 +64,6 @@ class PluginContext {
   /// Event bus for inter-plugin and plugin-app communication
   final PluginEventBus eventBus;
 
-  /// Creates a plugin context with the specified services
   const PluginContext({
     required this.logger,
     required this.storage,
@@ -79,16 +76,13 @@ class PluginContext {
 /// Provides structured logging with different severity levels.
 /// Logs are written to the application log file and console.
 abstract class PluginLogger {
-  /// Log an informational message
   void info(String message);
 
   /// Log a debug message (only in debug builds)
   void debug(String message);
 
-  /// Log a warning message
   void warning(String message);
 
-  /// Log an error with optional exception and stack trace
   void error(String message, [Object? error, StackTrace? stackTrace]);
 }
 
@@ -102,7 +96,6 @@ abstract class PluginStorage {
   /// Returns null if key doesn't exist.
   Future<String?> getString(String key);
 
-  /// Set a string value for a key
   Future<void> setString(String key, String value);
 
   /// Get an integer value by key
@@ -110,7 +103,6 @@ abstract class PluginStorage {
   /// Returns null if key doesn't exist or value is not an integer.
   Future<int?> getInt(String key);
 
-  /// Set an integer value for a key
   Future<void> setInt(String key, int value);
 
   /// Get a boolean value by key
@@ -118,13 +110,10 @@ abstract class PluginStorage {
   /// Returns null if key doesn't exist or value is not a boolean.
   Future<bool?> getBool(String key);
 
-  /// Set a boolean value for a key
   Future<void> setBool(String key, bool value);
 
-  /// Remove a key-value pair
   Future<void> remove(String key);
 
-  /// Get all stored key-value pairs
   Future<Map<String, dynamic>> getAll();
 
   /// Clear all stored data for this plugin
@@ -154,29 +143,22 @@ abstract class PluginEventBus {
 
 /// Represents a plugin event
 class PluginEvent {
-  /// Event name
   final String name;
 
-  /// Event data payload
   final Map<String, dynamic> data;
 
-  /// Timestamp when event was emitted
   final DateTime timestamp;
 
-  /// Creates a plugin event
   PluginEvent({required this.name, required this.data, DateTime? timestamp})
     : timestamp = timestamp ?? DateTime.now();
 }
 
 /// Exception thrown by plugin system
 class PluginException implements Exception {
-  /// Error message
   final String message;
 
-  /// Optional underlying cause
   final Object? cause;
 
-  /// Creates a plugin exception
   PluginException(this.message, [this.cause]);
 
   @override
@@ -186,7 +168,6 @@ class PluginException implements Exception {
 
 /// Plugin that adds sequence instructions
 abstract class SequencePlugin extends SkotiqPlugin {
-  /// Get the sequence nodes this plugin provides
   List<SequenceNodeDefinition> get nodeDefinitions;
 }
 
@@ -209,7 +190,6 @@ abstract class PluginSequenceNode {
   String? validate();
 }
 
-/// Sequence node definition
 class SequenceNodeDefinition {
   final String id;
   final String name;

@@ -25,6 +25,7 @@
 /// throws on a missing stream or device.
 library;
 
+import '../../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 import 'dart:collection';
 
@@ -36,7 +37,6 @@ import '../../../database/database.dart' as db;
 import '../../../database/daos/narrator_events_dao.dart';
 import '../../../models/science/science_models.dart'
     show LightCurvePoint, MovingObjectCandidate, TransparencyTrendPoint;
-import '../../../backend/network_backend.dart';
 import '../../../providers/autofocus_progress_provider.dart';
 import '../../../providers/backend_provider.dart';
 import '../../../providers/database_provider.dart';
@@ -73,6 +73,7 @@ import 'narrator_context.dart';
 import 'narrator_detectors.dart';
 import 'narrator_engine.dart';
 import 'narrator_event.dart';
+import '../../../providers/logging_service_provider.dart';
 
 /// Caps on the rolling per-input history the service keeps in memory between
 /// context builds. Generous enough for every detector's window; bounded so a
@@ -139,7 +140,7 @@ class NarratorService {
   int? _lastObservedImageId;
 
   // Session light frames in capture order, as last emitted by the stream.
-  List<db.CapturedImage> _sessionLights = const [];
+  List<db.DbCapturedImage> _sessionLights = const [];
   // Solve outcomes of frames whose solve has finished, by image id. A row is
   // inserted before its solve runs, so its first unsolved state says nothing.
   final Map<int, bool> _solveOutcomes = <int, bool>{};
@@ -192,7 +193,7 @@ class NarratorService {
   Future<void> start() async {
     // On a companion the narrator runs on the imaging host, which owns the
     // frames and the events table; the companion reads the host's feed.
-    if (_ref.read(backendProvider) is NetworkBackend) return;
+    if (_ref.read(isRemoteModeProvider)) return;
     try {
       final seeded = await _dao.dedupeKeysForSession(_sessionId);
       if (!_disposed) _engine.seedDedupeKeys(seeded);
@@ -280,7 +281,7 @@ class NarratorService {
     // stats (HFR / star count / focuser temp), the auto-grader accept/reject
     // history, and the plate-solve history — all already written to the row.
     _subs.add(
-      _ref.listen<AsyncValue<List<db.CapturedImage>>>(
+      _ref.listen<AsyncValue<List<db.DbCapturedImage>>>(
         sessionImagesStreamProvider(sessionId),
         (_, next) => _onImagesChanged(next.valueOrNull ?? const []),
         fireImmediately: true,
@@ -320,8 +321,6 @@ class NarratorService {
     );
     _subs.add(_lightCurveSub!);
   }
-
-  // ── Pulled device streams ─────────────────────────────────────────────────
 
   void _bindGuiding() {
     _subs.add(
@@ -537,7 +536,7 @@ class NarratorService {
   /// session's captured-image stream. Drift re-emits the whole list on any
   /// image-table write, so we de-dupe by image id and only ingest genuinely new
   /// rows in capture order.
-  void _onImagesChanged(List<db.CapturedImage> images) {
+  void _onImagesChanged(List<db.DbCapturedImage> images) {
     if (_disposed) return;
     // The stream is ordered ascending by capturedAt. The pending FWHM comes
     // from `lastImageStatsProvider` and only plausibly corresponds to the
@@ -545,16 +544,16 @@ class NarratorService {
     // onto a backlog of older rows that arrive in the same emission.
     int? newestNewLightId;
     for (final img in images) {
-      if (img.frameType == 'light' && !_seenStatsImageIds.contains(img.id)) {
+      if (img.isLight && !_seenStatsImageIds.contains(img.id)) {
         newestNewLightId = img.id;
       }
     }
 
-    db.CapturedImage? newest;
-    final lights = <db.CapturedImage>[];
+    db.DbCapturedImage? newest;
+    final lights = <db.DbCapturedImage>[];
     for (final img in images) {
       newest = img;
-      if (img.frameType != 'light') continue;
+      if (!img.isLight) continue;
       lights.add(img);
 
       if (_seenStatsImageIds.add(img.id)) {
@@ -616,7 +615,7 @@ class NarratorService {
     _onUpdate(capturedImageId: _lastObservedImageId);
   }
 
-  NarratorImageStats _statsForRow(db.CapturedImage img, {double? fwhm}) {
+  NarratorImageStats _statsForRow(db.DbCapturedImage img, {double? fwhm}) {
     final background = img.background;
     final exposure = img.exposureDuration;
     return NarratorImageStats(
@@ -637,7 +636,7 @@ class NarratorService {
 
   /// Bring a frame's stored stats up to date with its row: the frame watch
   /// excludes frames and records their background after the row is inserted.
-  void _refreshStats(db.CapturedImage img) {
+  void _refreshStats(db.DbCapturedImage img) {
     for (var i = _imageStats.length - 1; i >= 0; i--) {
       final old = _imageStats[i];
       if (old.capturedImageId != img.id) continue;
@@ -791,8 +790,6 @@ class NarratorService {
       queue.removeFirst();
     }
   }
-
-  // ── Context assembly + evaluation ─────────────────────────────────────────
 
   /// Build a context from current state and persist any accepted drafts.
   Future<void> _onUpdate({int? capturedImageId}) async {

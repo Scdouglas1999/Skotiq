@@ -8,7 +8,8 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
 import 'session_format.dart';
@@ -47,7 +48,6 @@ class NightSafetyReading {
   /// Until when the operator has set the verdict aside; null when not.
   final DateTime? overrideUntil;
 
-  /// Why the operator set it aside.
   final String? overrideReason;
 
   /// What the run's own recent frames say about the sky.
@@ -173,7 +173,9 @@ const Duration nightSkyClearOverride = Duration(minutes: 30);
     notes.add(
       NightText(
         'nightWeatherOverrideActive',
-        params: <String, String>{'time': nightClockTime(clock, until)},
+        params: <String, String>{
+          'time': ClockFormat.hm(clock.fromUtc(until.toUtc()))
+        },
       ),
     );
     return (notes: notes, skyOverride: NightSkyOverride.active);

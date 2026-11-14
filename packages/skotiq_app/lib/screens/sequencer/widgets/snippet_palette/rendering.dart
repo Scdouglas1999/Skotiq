@@ -8,7 +8,6 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Handle bar
         Center(
           child: Container(
             margin: const EdgeInsets.only(top: 12, bottom: 8),
@@ -20,8 +19,6 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
             ),
           ),
         ),
-
-        // Header with search
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
@@ -72,15 +69,11 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
                 ],
               ),
               const SizedBox(height: 12),
-              // Search
               _buildSearchField(isMobile: true),
             ],
           ),
         ),
-
         Divider(color: widget.colors.border, height: 1),
-
-        // Categories list
         Expanded(
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(
@@ -135,7 +128,6 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -207,13 +199,10 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Search
                 _buildSearchField(isMobile: false),
               ],
             ),
           ),
-
-          // Categories
           Expanded(
             child: ScrollConfiguration(
               behavior: ScrollConfiguration.of(context).copyWith(
@@ -248,11 +237,7 @@ extension _SnippetPaletteRendering on _SnippetPaletteState {
               ),
             ),
           ),
-
-          // Create from selection button
           _buildCreateFromSelectionButton(isMobile: false),
-
-          // Help tip
           Container(
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.all(12),

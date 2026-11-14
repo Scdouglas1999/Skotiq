@@ -1,5 +1,5 @@
 // `/api/sessions` wire rows had TWO hand-maintained decoders — one on
-// `ImagingRecordsRepository`, one in `database_provider` — decoding the same
+// `ImagingRecords`, one in `database_provider` — decoding the same
 // endpoint into the same Drift row. Both coerced timestamps with
 // `DateTime.tryParse`, which reads an offset-less ISO-8601 string as LOCAL
 // time: a companion in a different timezone than the appliance rendered every
@@ -7,8 +7,7 @@
 // decoder, and it routes strings through the UTC-aware parser.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/imaging_records_repository.dart'
-    show imagingSessionFromWireJson, wireTimestamp;
+import 'package:skotiq_core/src/backend/network_backend/host_data/wire_rows.dart';
 
 void main() {
   group('wireTimestamp', () {

@@ -6,23 +6,29 @@
 // run, stops guiding, centers, restarts guiding and resumes. Slew and Sync
 // wait until the run is unloaded.
 import 'dart:async';
-import 'dart:math' as math;
+
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show catalogStateProvider, objectSearchProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../../../models/command_action_result.dart';
+import '../../../../services/command_action_result.dart';
 import '../../../../services/mount_command_service.dart';
 import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import 'night_mount_tab.dart';
-import 'night_panel_parts.dart';
+import '../panel_widgets.dart';
 
 /// An object the Go to field resolved, J2000.
 @immutable
@@ -59,14 +65,14 @@ final nightGoToResolverProvider = Provider<NightGoToResolver>(
 /// Two pointings closer than this are the same target (1 arcminute).
 const double _sameTargetDeg = 1 / 60;
 
-bool _sameTarget(double ra1, double dec1, double ra2, double dec2) {
-  const rad = math.pi / 180;
-  final a1 = ra1 * 15 * rad, a2 = ra2 * 15 * rad;
-  final d1 = dec1 * rad, d2 = dec2 * rad;
-  final cosSep = math.sin(d1) * math.sin(d2) +
-      math.cos(d1) * math.cos(d2) * math.cos(a1 - a2);
-  return math.acos(cosSep.clamp(-1.0, 1.0)) / rad <= _sameTargetDeg;
-}
+bool _sameTarget(double ra1, double dec1, double ra2, double dec2) =>
+    AstronomyCalculations.angularSeparation(
+      ra1Deg: ra1 * 15.0,
+      dec1Deg: dec1,
+      ra2Deg: ra2 * 15.0,
+      dec2Deg: dec2,
+    ) <=
+    _sameTargetDeg;
 
 class NightMountGoToSection extends ConsumerStatefulWidget {
   const NightMountGoToSection({super.key});
@@ -115,17 +121,8 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     } else {
       _name.text = name;
     }
-    _ra.text = CoordinateFormat.ra(
-      raHours,
-      style: SexagesimalStyle.compactLetters,
-      seconds: SecondsPrecision.integerRounded,
-      wrapHours: true,
-    );
-    _dec.text = CoordinateFormat.dec(
-      decDegrees,
-      style: SexagesimalStyle.compactLetters,
-      seconds: SecondsPrecision.integerRounded,
-    );
+    _ra.text = CoordinateFormat.raDense(raHours);
+    _dec.text = CoordinateFormat.decDense(decDegrees);
   }
 
   ({double ra, double dec})? get _coordinates {
@@ -158,8 +155,9 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
       _fill(found.name, found.raHours, found.decDegrees);
     } catch (e) {
       if (mounted) {
-        setState(() => _lookupError = context.l10n
-            .text('nightScopeGoToLookupFailed', params: {'error': '$e'}));
+        setState(() => _lookupError = context.l10n.text(
+            'nightScopeGoToLookupFailed',
+            params: {'error': userFacingError(e)}));
       }
     } finally {
       if (mounted) setState(() => _busy = null);
@@ -169,7 +167,7 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final runTarget = ref.watch(nightCenterTargetProvider);
     final coordinates = _coordinates;
     final isRunTarget = coordinates != null &&
@@ -295,7 +293,12 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
               busy: _busy == 'slew',
               disabledReason: slewReason,
               onPressed: slewReason == null
-                  ? () => _run('slew', () => _slew(coordinates!))
+                  ? () => _run(
+                        'slew',
+                        () => ref
+                            .read(mountCommandServiceProvider)
+                            .slewTo(coordinates!.ra, coordinates.dec),
+                      )
                   : null,
             ),
             NightPanelButtonSpec(
@@ -331,54 +334,22 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     }
   }
 
-  /// Guiding stops before any slew: a slew under guiding drags the guide
-  /// star off and reads as a lost star. It is not restarted, because no run
-  /// is waiting on it.
-  Future<CommandActionResult?> _stopGuidingFirst(
-    SkotiqLocalizations l10n,
-  ) async {
-    if (!ref.read(guiderStateProvider).isGuiding) return null;
-    try {
-      await ref.read(phd2ControllerProvider).stopGuiding();
-      return null;
-    } catch (e) {
-      return CommandActionResult.failure(
-        l10n.text('nightScopeErrStopGuiding', params: {'error': '$e'}),
-      );
-    }
-  }
-
-  Future<CommandActionResult> _slew(({double ra, double dec}) to) async {
-    final refused = await _stopGuidingFirst(context.l10n);
-    if (refused != null) return refused;
-    return ref.read(mountCommandServiceProvider).slewTo(to.ra, to.dec);
-  }
-
   /// Slew and center on coordinates that are not the run's target, with the
-  /// same solver and centering settings the action controller uses.
+  /// centering every manual Slew & center uses.
   Future<CommandActionResult> _center(({double ra, double dec}) to) async {
     final l10n = context.l10n;
-    final refused = await _stopGuidingFirst(l10n);
+    final refused =
+        await ref.read(mountCommandServiceProvider).stopGuidingForMove();
     if (refused != null) return refused;
-    final settings = await ref.read(appSettingsProvider.future);
-    final profile = ref.read(activeEquipmentProfileProvider);
-    final exposure = profile?.defaultCenteringExposure;
+    final centering = ManualCentering.of(
+      await ref.read(appSettingsProvider.future),
+      ref.read(activeEquipmentProfileProvider),
+    );
     final result = await ref.read(centeringServiceProvider).centerOnTarget(
           targetRa: to.ra,
           targetDec: to.dec,
-          solverConfig: PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: settings.astapPath,
-            timeoutSeconds: settings.plateSolveTimeout,
-            searchRadius: settings.plateSolveSearchRadius,
-          ),
-          config: CenteringConfig(
-            exposureTime: exposure != null && exposure > 0 ? exposure : 5.0,
-            binning: profile?.defaultBinX ?? 2,
-            gain: profile?.defaultGain,
-            offset: profile?.defaultOffset,
-            syncMount: settings.centeringSyncMount,
-          ),
+          solverConfig: centering.solver,
+          config: centering.config,
           onStatusUpdate: (status) =>
               ref.read(centeringStatusProvider.notifier).state = status,
         );

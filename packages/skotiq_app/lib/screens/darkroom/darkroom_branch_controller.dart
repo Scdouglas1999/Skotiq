@@ -23,7 +23,10 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Which branch graph a [DarkroomBranchController] describes.
 ///
@@ -125,7 +128,6 @@ class DarkroomBranch {
 /// wired to "whatever was last refused" is how the wrong subtree gets deleted.
 @immutable
 class DarkroomBranchDeleteRefusal {
-  /// The recipe that could not be deleted.
   final int recipeId;
 
   /// Its label, so the sentence names it the way the bar does.
@@ -211,7 +213,6 @@ class DarkroomBranchState {
   /// case where an A/B compare has two sides.
   bool get hasVariants => branches.length > 1;
 
-  /// The entry for [id], or null when the family holds no such recipe.
   DarkroomBranch? branchFor(int id) {
     for (final branch in branches) {
       if (branch.id == id) return branch;
@@ -253,7 +254,6 @@ class DarkroomBranchState {
   }
 }
 
-/// Drives the branch bar over one master.
 class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
   DarkroomBranchController(Ref ref, this._scope)
       : _recipes = ref.read(recipesDaoProvider),
@@ -264,7 +264,6 @@ class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
   final DarkroomBranchScope _scope;
   final RecipesDao _recipes;
 
-  /// Re-read the family and the open recipe's lineage.
   Future<void> refresh() async {
     if (_scope.masterPath.isEmpty) {
       state = state.copyWith(
@@ -286,7 +285,7 @@ class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
       state = state.copyWith(
         loading: false,
         loadError: 'The recipes written over this master could not be read: '
-            '$error',
+            '${userFacingError(error)}',
       );
       return;
     }
@@ -329,18 +328,21 @@ class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
       // failure on this screen names a next step and this one did not.
       state = state.copyWith(
         lineage: const [],
-        lineageError: '$error, so its ancestry could not be walked. Press '
+        lineageError:
+            '${userFacingError(error)}, so its ancestry could not be walked. Press '
             'Reload to re-read this master: a recipe deleted while it was open '
             'leaves the editor showing a stack that is no longer stored.',
       );
     } on RecipeGraphCycleException catch (error) {
       if (!mounted) return;
-      state = state.copyWith(lineage: const [], lineageError: '$error');
+      state = state
+          .copyWith(lineage: const [], lineageError: userFacingError(error));
     } catch (error) {
       if (!mounted) return;
       state = state.copyWith(
         lineage: const [],
-        lineageError: 'This recipe\'s ancestry could not be read: $error',
+        lineageError:
+            'This recipe\'s ancestry could not be read: ${userFacingError(error)}',
       );
     }
   }
@@ -409,7 +411,8 @@ class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
       if (!mounted) return null;
       state = state.copyWith(
         busy: false,
-        actionError: 'The variant could not be created: $error',
+        actionError:
+            'The variant could not be created: ${userFacingError(error)}',
       );
       return null;
     }
@@ -450,7 +453,8 @@ class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
       if (!mounted) return false;
       state = state.copyWith(
         busy: false,
-        actionError: 'The branch could not be renamed: $error',
+        actionError:
+            'The branch could not be renamed: ${userFacingError(error)}',
       );
       return false;
     }
@@ -502,7 +506,8 @@ class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
       if (!mounted) return false;
       state = state.copyWith(
         busy: false,
-        actionError: 'The branch could not be deleted: $error',
+        actionError:
+            'The branch could not be deleted: ${userFacingError(error)}',
       );
       return false;
     }
@@ -531,13 +536,13 @@ class DarkroomBranchController extends StateNotifier<DarkroomBranchState> {
       if (!mounted) return null;
       state = state.copyWith(
         busy: false,
-        actionError: 'The branch line could not be deleted: $error',
+        actionError:
+            'The branch line could not be deleted: ${userFacingError(error)}',
       );
       return null;
     }
   }
 
-  /// Put the refusal away without acting on it.
   void dismissRefusal() {
     state = state.copyWith(clearDeleteRefusal: true);
   }

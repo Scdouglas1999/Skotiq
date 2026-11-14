@@ -20,7 +20,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 class _MockFfiBackend extends Mock implements FfiBackend {}
 
@@ -33,14 +35,16 @@ class _FixedBackendNotifier extends BackendNotifier {
   void swapTo(SkotiqBackend backend) => state = backend;
 }
 
-/// The exact event the native executor's cancelled arm produces.
-SkotiqEvent _sequencerError(String message) => SkotiqEvent(
-  timestamp: DateTime.now().millisecondsSinceEpoch,
-  severity: EventSeverity.error,
-  category: EventCategory.sequencer,
-  eventType: 'Error',
-  data: {'message': message},
-);
+/// A sequencer `Error` of [kind]; by default the event the native executor's
+/// cancelled arm produces.
+SkotiqEvent _sequencerError(String message, {String kind = 'cancelled'}) =>
+    SkotiqEvent(
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: EventSeverity.error,
+      category: EventCategory.sequencer,
+      eventType: 'Error',
+      data: {'message': message, 'kind': kind},
+    );
 
 Future<(ProviderContainer, StreamController<SkotiqEvent>)> _bridge() async {
   final backend = _MockFfiBackend();
@@ -77,36 +81,116 @@ void main() {
     );
   });
 
-  test('the American spelling is the same notice', () async {
+  // A sequencer fault is the notification router's to tell, once per run and
+  // with the reason (run_failure_told_once_test.dart). This bridge used to add
+  // a "Sequence Error" card of its own for every one of them, so a single
+  // failed run raised three notices. The EXACT cancellation match that keeps a
+  // real fault from being read as a Stop is the classifier's
+  // (event_classifier_stop_vs_error_test.dart).
+  test('a sequencer fault raises no toast of its own here', () async {
     final (container, controller) = await _bridge();
     addTearDown(container.dispose);
     addTearDown(controller.close);
 
-    controller.add(_sequencerError('Sequence canceled'));
+    controller.add(
+      _sequencerError(
+        'Temperature compensation cancelled',
+        kind: 'step_failed',
+      ),
+    );
+    controller.add(
+      SkotiqEvent(
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        severity: EventSeverity.error,
+        category: EventCategory.sequencer,
+        eventType: 'SequenceFailed',
+        data: {'error': 'Sequence failed'},
+      ),
+    );
     await pumpEventQueue();
 
     expect(container.read(uiNotificationProvider), isEmpty);
   });
 
-  // The counter-inputs that make the match EXACT rather than a substring test.
-  // A real fault whose text merely contains "cancelled" must still reach the
-  // operator — swallowing it would be the worse bug.
-  test('a real fault that merely contains the word still toasts', () async {
+  // The host says what a sequencer error means for the run. A problem the run
+  // carried on through is the router's warning; a failed step is told by the
+  // run's end; why a run is paused, and an error of an operation started by
+  // hand, have no other notice that carries their text.
+  SkotiqEvent ofKind(SequencerErrorKind kind, String message) => SkotiqEvent(
+    timestamp: DateTime.now().millisecondsSinceEpoch,
+    severity: kind.runContinues ? EventSeverity.warning : EventSeverity.error,
+    category: EventCategory.sequencer,
+    eventType: 'Error',
+    data: {
+      'message': message,
+      kSequencerErrorKindKey: encodeSequencerErrorKind(kind),
+    },
+  );
+
+  test('only a pause reason and a hand-started operation toast here', () async {
     final (container, controller) = await _bridge();
     addTearDown(container.dispose);
     addTearDown(controller.close);
 
-    controller.add(_sequencerError('Temperature compensation cancelled'));
-    controller.add(_sequencerError('Focuser lost communication'));
+    controller
+      ..add(ofKind(SequencerErrorKind.stepProblem, 'Dither did not settle'))
+      ..add(ofKind(SequencerErrorKind.stepFailed, 'Exposure: disk full'))
+      ..add(ofKind(SequencerErrorKind.runHeld, 'DriftLimit recenter failed'))
+      ..add(ofKind(SequencerErrorKind.standalone, 'Autofocus frame not saved'));
+    await pumpEventQueue();
+
+    expect(
+      container
+          .read(uiNotificationProvider)
+          .map((n) => (n.level, n.title, n.message)),
+      [
+        (
+          UiNotificationLevel.error,
+          'Sequence paused',
+          'DriftLimit recenter failed',
+        ),
+        (
+          UiNotificationLevel.error,
+          'Operation failed',
+          'Autofocus frame not saved',
+        ),
+      ],
+    );
+  });
+
+  // A failed step is announced as `NodeCompleted` at warning severity with no
+  // sentence; its toast read "Sequence Warning / NodeCompleted".
+  test('an event without a sentence never toasts its type name', () async {
+    final (container, controller) = await _bridge();
+    addTearDown(container.dispose);
+    addTearDown(controller.close);
+
+    controller.add(
+      SkotiqEvent(
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        severity: EventSeverity.warning,
+        category: EventCategory.sequencer,
+        eventType: 'NodeCompleted',
+        data: {'node_id': 'expose-1', 'status': 'failed'},
+      ),
+    );
+    controller.add(
+      SkotiqEvent(
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        severity: EventSeverity.warning,
+        category: EventCategory.sequencer,
+        eventType: 'Error',
+        data: {
+          'message': 'No plate solver: the flip will not re-center',
+          'kind': 'advisory',
+        },
+      ),
+    );
     await pumpEventQueue();
 
     final shown = container.read(uiNotificationProvider);
-    expect(shown.length, 2);
-    expect(shown.every((n) => n.level == UiNotificationLevel.error), isTrue);
-    expect(shown.first.title, 'Sequence Error');
-    expect(shown.map((n) => n.message).toList(), [
-      'Temperature compensation cancelled',
-      'Focuser lost communication',
+    expect(shown.map((n) => (n.title, n.message)), [
+      ('Sequence Warning', 'No plate solver: the flip will not re-center'),
     ]);
   });
 

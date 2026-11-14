@@ -1,8 +1,5 @@
 part of '../planetarium_providers.dart';
 
-// Mount position provider
-
-/// Tracking status for the mount
 enum MountTrackingStatus { disconnected, parked, slewing, tracking, stopped }
 
 /// Mount position state for displaying on planetarium
@@ -19,7 +16,6 @@ class MountPositionState {
     this.isConnected = false,
   });
 
-  /// Get the mount position as celestial coordinates
   CelestialCoordinate? get coordinates {
     if (raHours == null || decDegrees == null) return null;
     return CelestialCoordinate(ra: raHours!, dec: decDegrees!);
@@ -67,8 +63,6 @@ final mountPositionProvider =
     StateNotifierProvider<MountPositionNotifier, MountPositionState>((ref) {
       return MountPositionNotifier();
     });
-
-// Selected object provider
 
 /// Currently selected celestial object.
 ///
@@ -156,8 +150,6 @@ final selectedObjectVisibilityProvider = Provider<ObjectVisibility?>((ref) {
   );
 });
 
-// Equipment FOV provider
-
 /// Equipment configuration for FOV display
 class EquipmentFOVState {
   final CameraSensorSpecs? camera;
@@ -172,13 +164,11 @@ class EquipmentFOVState {
     this.rotation = 0,
   });
 
-  /// Get effective focal length
   double? get effectiveFocalLength {
     if (telescope == null) return null;
     return telescope!.focalLengthMm * focalReducer;
   }
 
-  /// Get calculated FOV
   (double width, double height)? get fov {
     if (camera == null || effectiveFocalLength == null) return null;
 

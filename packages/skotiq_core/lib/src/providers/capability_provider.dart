@@ -1,16 +1,27 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/daos/settings_dao.dart';
 import '../models/backend/device_capabilities.dart';
+import '../models/equipment/equipment_models.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'equipment/camera_state_provider.dart';
+import 'equipment/mount_state_provider.dart';
+import '../services/logging_service.dart';
 
 /// Provider to fetch camera capabilities for a device
 /// Returns null if the device is not connected or doesn't support capabilities
 final cameraCapabilitiesProvider =
     FutureProvider.family<CameraCapabilities?, String>((ref, deviceId) async {
       if (deviceId.isEmpty) return null;
+      // A camera that is not connected has no capabilities to report, so the
+      // answer is read again when it connects.
+      ref.watch(
+        cameraStateProvider.select(
+          (state) =>
+              state.deviceId == deviceId &&
+              state.connectionState == DeviceConnectionState.connected,
+        ),
+      );
       final backend = ref.watch(deviceBackendProvider);
       final capabilities = await backend.getCameraCapabilities(deviceId);
       // Sensor geometry is a fixed property of the body, and this is the point
@@ -21,7 +32,10 @@ final cameraCapabilitiesProvider =
       if (capabilities != null) {
         final px = capabilities.pixelSizeX;
         final py = capabilities.pixelSizeY;
-        if (px != null && py != null) {
+        if (px != null &&
+            py != null &&
+            capabilities.maxWidth > 0 &&
+            capabilities.maxHeight > 0) {
           try {
             await ref
                 .read(settingsDaoProvider)
@@ -39,10 +53,9 @@ final cameraCapabilitiesProvider =
             // Remembering is a convenience for a later, offline session. It
             // must never be able to fail the capability read that device
             // connection and every camera control depend on.
-            developer.log(
+            Log.warning(
               'Could not remember sensor geometry for $deviceId.',
-              name: 'Capabilities',
-              level: 900,
+              source: 'Capabilities',
               error: error,
               stackTrace: stack,
             );
@@ -52,11 +65,59 @@ final cameraCapabilitiesProvider =
       return capabilities;
     });
 
+/// The exposure sensitivity of the connected imaging camera: the ISO speeds
+/// of a DSLR or mirrorless body, or a gain range. With no camera connected,
+/// or before its capabilities arrive, it reads as gain.
+///
+/// Every surface that offers or describes an exposure's gain reads this, so
+/// connecting a DSLR turns each of them to ISO at once.
+final cameraSensitivityProvider = Provider<ExposureSensitivity>((ref) {
+  final deviceId = ref.watch(
+    cameraStateProvider.select(
+      (state) => state.connectionState == DeviceConnectionState.connected
+          ? state.deviceId
+          : null,
+    ),
+  );
+  if (deviceId == null || deviceId.isEmpty) return const GainSensitivity();
+  return ExposureSensitivity.of(
+    ref.watch(cameraCapabilitiesProvider(deviceId)).valueOrNull,
+  );
+});
+
+/// Whether the connected imaging camera has a cooler. With no camera
+/// connected, or before its capabilities arrive, it reads as having one, so
+/// a cooler card shows its "not connected" state rather than vanishing.
+final cameraHasCoolerProvider = Provider<bool>((ref) {
+  final deviceId = ref.watch(
+    cameraStateProvider.select(
+      (state) => state.connectionState == DeviceConnectionState.connected
+          ? state.deviceId
+          : null,
+    ),
+  );
+  if (deviceId == null || deviceId.isEmpty) return true;
+  return ref
+          .watch(cameraCapabilitiesProvider(deviceId))
+          .valueOrNull
+          ?.canSetCooler ??
+      true;
+});
+
 /// Provider to fetch mount capabilities for a device
 /// Returns null if the device is not connected or doesn't support capabilities
 final mountCapabilitiesProvider =
     FutureProvider.family<MountCapabilities?, String>((ref, deviceId) async {
       if (deviceId.isEmpty) return null;
+      // A mount that is not connected has no capabilities to report, so the
+      // answer is read again when it connects.
+      ref.watch(
+        mountStateProvider.select(
+          (state) =>
+              state.deviceId == deviceId &&
+              state.connectionState == DeviceConnectionState.connected,
+        ),
+      );
       final backend = ref.watch(deviceBackendProvider);
       return backend.getMountCapabilities(deviceId);
     });
@@ -92,7 +153,6 @@ List<String> getBinningOptionsFromCapabilities(
   final options = <String>[];
 
   if (capabilities.canAsymmetricBin) {
-    // Generate all valid combinations
     for (var x = 1; x <= maxBinX; x++) {
       for (var y = 1; y <= maxBinY; y++) {
         options.add('${x}x$y');

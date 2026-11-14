@@ -1,8 +1,6 @@
 part of '../headless_api_server.dart';
 
 extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
-  // WebSocket handler
-
   /// Upgrade wrapper that captures the query parameters off the original
   /// request before shelf_web_socket strips them. The replay logic lives
   /// here so it runs BEFORE the socket is added to [_sockets] and starts
@@ -10,9 +8,11 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
   void _handleWebSocketWithQuery(
     WebSocketChannel socket,
     Map<String, String> query,
-    String? authIdentity,
-  ) {
+    String? authIdentity, {
+    required bool adminAccess,
+  }) {
     _socketAuthIdentities[socket] = authIdentity;
+    if (adminAccess) _adminSockets.add(socket);
     // replay on reconnect. Accept `?since=<int>&instance=<uuid>`. If
     // both are valid AND the instance matches AND the seq is within the
     // ring buffer's covered range, replay the missed events BEFORE
@@ -37,7 +37,10 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
           _sendResyncRequired(socket, reason: 'missed_too_many');
         } else {
           for (final ev in replay) {
-            final encoded = _encodeStampedEventForWire(ev, replay: true);
+            final encoded = _encodeStampedEventForWire(
+              _eventFor(socket, ev),
+              replay: true,
+            );
             if (encoded == null) continue;
             try {
               socket.sink.add(encoded);
@@ -131,6 +134,7 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
       _collaborationManager.removeViewer(viewerId);
     }
     _socketAuthIdentities.remove(socket);
+    _adminSockets.remove(socket);
     _socketLastSeenAt.remove(socket);
     _sockets.remove(socket);
     _publishConnectedClientCount();
@@ -432,7 +436,10 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
     }
     final grant = _grantForIdentity(authIdentity);
     if (grant != null &&
-        HeadlessAuthPolicy.permits(grant: grant, method: method, path: path)) {
+        HeadlessAuthPolicy.permits(
+          grant: grant,
+          route: _routeTable.index.policyFor(method, path),
+        )) {
       return true;
     }
     _logWarning(

@@ -8,8 +8,9 @@ import 'package:skotiq_bridge/skotiq_bridge.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/plate_solver.dart';
 import '../../models/science/science_models.dart';
-import '../wcs/fits_image_size.dart';
+import '../frame_header.dart';
 import '../wcs/gnomonic_projection.dart';
+import '../wcs/plate_solve_data_from_result.dart' show PlateSolveResultWcs;
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -25,6 +26,9 @@ import 'photometric_bands.dart';
 import 'photometric_catalog_service.dart';
 import 'science_backend.dart';
 import 'frame_camera_noise.dart';
+import '../../providers/logging_service_provider.dart';
+import '../../providers/plate_solve_service_provider.dart';
+import '../../providers/science/photometric_catalog_service_provider.dart';
 
 part 'default_science_backend/helpers.dart';
 part 'default_science_backend/cpu_measurements.dart';
@@ -88,7 +92,7 @@ class DefaultScienceBackend implements ScienceBackend {
       var fieldWidth = result.fieldWidth;
       var fieldHeight = result.fieldHeight;
       if (!(fieldWidth > 0 && fieldHeight > 0) && result.pixelScale > 0) {
-        final size = await readFitsImageSize(imagePath);
+        final size = await _imageSize(imagePath);
         if (size != null) {
           fieldWidth = size.width * result.pixelScale / 3600.0;
           fieldHeight = size.height * result.pixelScale / 3600.0;
@@ -106,14 +110,7 @@ class DefaultScienceBackend implements ScienceBackend {
         cd1_2: result.cd12,
         cd2_1: result.cd21,
         cd2_2: result.cd22,
-        aOrder: result.sipAOrder,
-        bOrder: result.sipBOrder,
-        aCoeffs: result.sipACoeffs.toList(),
-        bCoeffs: result.sipBCoeffs.toList(),
-        apOrder: result.sipApOrder,
-        bpOrder: result.sipBpOrder,
-        apCoeffs: result.sipApCoeffs.toList(),
-        bpCoeffs: result.sipBpCoeffs.toList(),
+        sip: result.sipTerms,
       );
     } catch (error, stack) {
       _logger.warning(
@@ -494,12 +491,12 @@ class DefaultScienceBackend implements ScienceBackend {
       );
     }
 
-    final fits = await readFitsImageSize(imagePath);
-    if (fits == null) {
-      throw StateError('FITS dimensions are unavailable: $imagePath');
+    final size = await _imageSize(imagePath);
+    if (size == null) {
+      throw StateError('Frame dimensions are unavailable: $imagePath');
     }
-    final tileW = fits.width / options.gridCols;
-    final tileH = fits.height / options.gridRows;
+    final tileW = size.width / options.gridCols;
+    final tileH = size.height / options.gridRows;
     final buckets = <(int, int), List<StarMeasurement>>{};
     for (final star in usable) {
       final col = (star.x / tileW).floor().clamp(0, options.gridCols - 1);
@@ -569,7 +566,7 @@ class DefaultScienceBackend implements ScienceBackend {
       maxCatalogMag: 15.0,
       maxMatchPx: _residualMatchPx,
     );
-    final size = await readFitsImageSize(imagePath);
+    final size = await _imageSize(imagePath);
     if (size == null) return null;
     return buildAstrometricResidualMap(
       pairs: [
@@ -585,7 +582,7 @@ class DefaultScienceBackend implements ScienceBackend {
       imageWidth: size.width,
       imageHeight: size.height,
       maxMatchPx: _residualMatchPx,
-      solveHasSip: wcs.aOrder > 0 && wcs.aCoeffs.isNotEmpty,
+      solveHasSip: wcs.sip.aOrder > 0 && wcs.sip.aCoeffs.isNotEmpty,
       sampleCount: options.sampleCount,
     );
   }
@@ -760,7 +757,7 @@ class DefaultScienceBackend implements ScienceBackend {
     final stopwatch = Stopwatch()..start();
     final linear = await apiReadFitsLinearData(filePath: filePath);
     if (linear.width <= 0 || linear.height <= 0) {
-      throw StateError('FITS dimensions are unavailable');
+      throw StateError('Frame dimensions are unavailable');
     }
     final expected = linear.width * linear.height;
     if (linear.linearData.length < expected) {

@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/upcoming_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import 'plan_test_support.dart';
 
@@ -123,6 +124,42 @@ void main() {
     expect(items[4].at, DateTime(2026, 10, 19, 23, 9));
     expect(items[4].moonIlluminationPct, 44);
     expect(items[5].passed, isFalse);
+  });
+
+  test('paused: the plan end has no time and reads as paused', () {
+    final now = DateTime(2026, 10, 19, 20, 2);
+    final container = planContainer(
+      now: now,
+      sequence: _planWithAutofocusTriggers(),
+      execution: SequenceExecutionState.paused,
+      session: SessionState(
+        isActive: true,
+        startTime: DateTime(2026, 10, 19, 19, 50),
+      ),
+      progress: const SequenceProgress(
+        state: SequenceExecutionState.paused,
+        currentNodeId: 'm74-l',
+        currentTarget: 'M74',
+        nodeStatuses: {'m74': NodeStatus.running, 'm74-l': NodeStatus.running},
+        nodeProgressStructuredDetail: {
+          'm74-l': ExposureInstructionProgressDetail(
+            frame: 0,
+            total: 3,
+            durationSecs: 60,
+          ),
+        },
+      ),
+      sessionFrames: [
+        lightFrame('1', 'L', DateTime(2026, 10, 19, 19, 55)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final items = container.read(nightUpcomingProvider);
+    final end = items.singleWhere((i) => i.kind == UpcomingKind.planEnd);
+    expect(end.paused, isTrue);
+    expect(end.at, isNull);
+    expect(items.last, end);
   });
 
   test('no dither left in the step: no dither row', () {

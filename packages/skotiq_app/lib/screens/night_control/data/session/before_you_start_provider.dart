@@ -14,21 +14,25 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../night_control_contracts.dart';
+import '../plan/night_plan_inputs.dart';
 import 'conditions_provider.dart';
 import 'equipment_summary_provider.dart';
 import 'session_format.dart';
 import 'session_stats_provider.dart';
+import '../../../../router/settings_sections.dart';
+import '../../../../router/app_routes.dart';
 
-const String _siteRoute = '/settings?section=location';
-const String _folderRoute = '/settings?section=files-storage';
-const String _solverRoute = '/settings/plate-solving';
-const String _weatherRoute = '/settings?section=weather-safety';
-
-/// The dawn rule's lead time, as `WeatherSafetyNotifier` applies it.
-const Duration kNightParkBeforeDawnLead = Duration(minutes: 30);
+final String _siteRoute = AppRoutes.settings(SettingsSectionId.location);
+final String _folderRoute = AppRoutes.settings(SettingsSectionId.filesStorage);
+final String _solverRoute = AppRoute.plateSolvingSettings.path;
+final String _weatherRoute =
+    AppRoutes.settings(SettingsSectionId.weatherSafety);
 
 /// The plate solver the operator picked, and whether it is installed.
 @immutable
@@ -65,29 +69,13 @@ final nightDiskProjectionProvider = Provider<DiskSpaceProjection?>((ref) {
   return ref.watch(sequenceDiskProjectionProvider).valueOrNull?.projection;
 });
 
-/// When the dawn rule parks a running run tonight: 30 minutes before the
-/// next astronomical dawn at the site. Null when the site has no
-/// astronomical dawn (a night that never gets fully dark).
-///
-/// "Next" the way the rule reads it: last night's dawn while it is still
-/// ahead (after midnight), otherwise tonight's.
+/// When the dawn rule parks a running run tonight (see [dawnParkTime]).
 DateTime? nightDawnParkTime({
   required DateTime now,
   required double latitude,
   required double longitude,
-}) {
-  for (final day in [now.subtract(const Duration(days: 1)), now]) {
-    final dawn = SkyCalculations.computeTwilight(
-      noonLocal: DateTime(day.year, day.month, day.day, 12),
-      latitudeDegrees: latitude,
-      longitudeDegrees: longitude,
-      kind: TwilightKind.astronomical,
-    ).morningStart;
-    if (dawn == null || now.isAfter(dawn)) continue;
-    return dawn.subtract(kNightParkBeforeDawnLead);
-  }
-  return null;
-}
+}) =>
+    dawnParkTime(now: now, latitude: latitude, longitude: longitude);
 
 ChecklistItemVm _row(
   ChecklistItemId id,
@@ -123,25 +111,102 @@ ChecklistItemVm _notConnected(
       connectsProfile: true,
     );
 
+/// Whether the loaded plan takes a parked mount out of park: it has an
+/// Unpark step, or a Slew, which unparks before it moves. Null without a
+/// plan that can run.
+final nightPlanUnparksMountProvider = Provider<bool?>((ref) {
+  final tree = ref.watch(nightPlanTreeProvider);
+  if (tree == null || !tree.launchable) return null;
+  return tree.steps.any(
+    (step) => step.node is UnparkNode || step.node is SlewNode,
+  );
+});
+
+NightText _cameraCheckDetail(CameraStateSnapshot camera) {
+  final temp = camera.temperature;
+  if (temp == null) return const NightText('nightSessionCheckConnected');
+  if (camera.isCooling && (temp - camera.targetTemp).abs() >= 0.5) {
+    return NightText(
+      'nightSessionCheckCameraCooling',
+      params: <String, String>{
+        'temp': nightFixed(temp, 1),
+        'target': nightFixed(camera.targetTemp, 0),
+      },
+    );
+  }
+  return NightText(
+    'nightSessionCheckCameraAt',
+    params: <String, String>{'temp': nightCelsius(temp)},
+  );
+}
+
+NightText _filterCheckDetail(FilterWheelState wheel) {
+  final slot = wheel.currentPosition;
+  final names = wheel.filterNames;
+  final name =
+      slot != null && slot >= 0 && slot < names.length ? names[slot] : null;
+  return NightText(
+    name == null || name.isEmpty
+        ? 'nightSessionCheckFilterSlots'
+        : 'nightSessionCheckFilterSlotsAt',
+    params: <String, String>{
+      'count': '${names.length}',
+      if (name != null) 'name': name,
+    },
+  );
+}
+
 final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
-  final camera = ref.watch(cameraStateProvider);
-  final wheel = ref.watch(filterWheelStateProvider);
-  final focuser = ref.watch(focuserStateProvider);
-  final mount = ref.watch(mountStateProvider);
-  final guider = ref.watch(guiderStateProvider);
+  // Each device through a select of what its row shows: a whole state changes
+  // with every telemetry poll, and each recompute costs a frame.
+  final camera = ref.watch(
+    cameraStateProvider.select(
+      (c) => (
+        connected: nightConnected(c.connectionState),
+        detail: _cameraCheckDetail(c),
+      ),
+    ),
+  );
+  final wheel = ref.watch(
+    filterWheelStateProvider.select(
+      (w) => (
+        connected: nightConnected(w.connectionState),
+        detail: _filterCheckDetail(w),
+      ),
+    ),
+  );
+  final focuser = ref.watch(
+    focuserStateProvider.select(
+      (f) =>
+          (connected: nightConnected(f.connectionState), position: f.position),
+    ),
+  );
+  final mount = ref.watch(
+    mountStateProvider.select(
+      (m) => (
+        connected: nightConnected(m.connectionState),
+        isParked: m.isParked,
+        isTracking: m.isTracking,
+      ),
+    ),
+  );
+  final guiderConnected = ref.watch(
+    guiderStateProvider.select((g) => nightConnected(g.connectionState)),
+  );
   final phd2 = ref.watch(phd2StateProvider);
-  final assigned = ref.watch(assignedProfileDeviceSlotsProvider).toSet();
+  final assigned = ref.watch(rigDevicesProvider).assigned.toSet();
   final settings = ref.watch(appSettingsProvider).valueOrNull;
   final solver = ref.watch(nightSolverStatusProvider);
   final projection = ref.watch(nightDiskProjectionProvider);
   final freeBytes = ref.watch(nightCaptureFreeBytesProvider);
   final conditions = ref.watch(nightConditionsSourceProvider);
   final safety = ref.watch(nightSafetyReadingProvider);
+  final planUnparks = ref.watch(nightPlanUnparksMountProvider);
 
   final rows = <ChecklistItemVm>[];
 
   // Camera: the one device a run cannot start without.
-  if (!nightConnected(camera.connectionState)) {
+  if (!camera.connected) {
     rows.add(
       _notConnected(
         ChecklistItemId.camera,
@@ -150,54 +215,28 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
       ),
     );
   } else {
-    final temp = camera.temperature;
     rows.add(
       _row(
         ChecklistItemId.camera,
         ChecklistItemState.ok,
         'nightSessionCheckCamera',
-        detail: temp == null
-            ? const NightText('nightSessionCheckConnected')
-            : camera.isCooling && (temp - camera.targetTemp).abs() >= 0.5
-                ? NightText(
-                    'nightSessionCheckCameraCooling',
-                    params: <String, String>{
-                      'temp': nightFixed(temp, 1),
-                      'target': nightFixed(camera.targetTemp, 0),
-                    },
-                  )
-                : NightText(
-                    'nightSessionCheckCameraAt',
-                    params: <String, String>{'temp': nightCelsius(temp)},
-                  ),
+        detail: camera.detail,
       ),
     );
   }
 
   // Filter wheel and focuser: checked when connected or when the profile
   // assigns one.
-  if (nightConnected(wheel.connectionState)) {
-    final slot = wheel.currentPosition;
-    final names = wheel.filterNames;
-    final name =
-        slot != null && slot >= 0 && slot < names.length ? names[slot] : null;
+  if (wheel.connected) {
     rows.add(
       _row(
         ChecklistItemId.filterWheel,
         ChecklistItemState.ok,
         'nightSessionCheckFilter',
-        detail: NightText(
-          name == null || name.isEmpty
-              ? 'nightSessionCheckFilterSlots'
-              : 'nightSessionCheckFilterSlotsAt',
-          params: <String, String>{
-            'count': '${names.length}',
-            if (name != null) 'name': name,
-          },
-        ),
+        detail: wheel.detail,
       ),
     );
-  } else if (assigned.contains(ProfileDeviceSlot.filterWheel)) {
+  } else if (assigned.contains(DeviceType.filterWheel)) {
     rows.add(
       _notConnected(
         ChecklistItemId.filterWheel,
@@ -207,7 +246,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
     );
   }
 
-  if (nightConnected(focuser.connectionState)) {
+  if (focuser.connected) {
     final position = focuser.position;
     rows.add(
       _row(
@@ -216,10 +255,10 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
         'nightSessionCheckFocuser',
         detail: position == null
             ? const NightText('nightSessionCheckConnected')
-            : NightText.literal(nightGrouped(position)),
+            : nightFocuserSteps(position),
       ),
     );
-  } else if (assigned.contains(ProfileDeviceSlot.focuser)) {
+  } else if (assigned.contains(DeviceType.focuser)) {
     rows.add(
       _notConnected(
         ChecklistItemId.focuser,
@@ -230,18 +269,25 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
   }
 
   // Mount: readiness treats it as desirable, not required, so a missing
-  // mount needs a look rather than blocking.
-  if (nightConnected(mount.connectionState)) {
+  // mount needs a look rather than blocking. Parked is where a mount rests
+  // between nights: it needs a look only under a plan that would leave it
+  // there.
+  if (mount.connected) {
+    final staysParked = mount.isParked && planUnparks == false;
     rows.add(
       _row(
         ChecklistItemId.mount,
-        mount.isParked ? ChecklistItemState.attention : ChecklistItemState.ok,
+        staysParked ? ChecklistItemState.attention : ChecklistItemState.ok,
         'nightSessionCheckMount',
         detail: NightText(
           mount.isParked
-              ? (mount.isTracking
-                  ? 'nightSessionCheckMountParkedTracking'
-                  : 'nightSessionCheckMountParked')
+              ? switch (planUnparks) {
+                  true => 'nightSessionCheckMountParkedUnparks',
+                  false => 'nightSessionCheckMountParkedStays',
+                  null => mount.isTracking
+                      ? 'nightSessionCheckMountParkedTracking'
+                      : 'nightSessionCheckMountParked',
+                }
               : (mount.isTracking
                   ? 'nightSessionCheckMountTracking'
                   : 'nightSessionCheckMountIdle'),
@@ -259,7 +305,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
   }
 
   // Guider: connected but idle is the board's "!" row with an in-place Loop.
-  if (nightConnected(guider.connectionState)) {
+  if (guiderConnected) {
     final working = phd2 == Phd2State.guiding ||
         phd2 == Phd2State.looping ||
         phd2 == Phd2State.calibrating ||
@@ -276,16 +322,12 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
               ChecklistItemId.guider,
               ChecklistItemState.attention,
               'nightSessionCheckGuider',
-              detail: guider.deviceName == null
-                  ? const NightText('nightSessionCheckGuiderIdleUnnamed')
-                  : NightText(
-                      'nightSessionCheckGuiderIdle',
-                      params: <String, String>{'name': guider.deviceName!},
-                    ),
+              // The guider's name is in Equipment; the row says its state.
+              detail: const NightText('nightSessionCheckGuiderIdle'),
               actionKey: 'nightSessionActionLoop',
             ),
     );
-  } else if (assigned.contains(ProfileDeviceSlot.guider)) {
+  } else if (assigned.contains(DeviceType.guider)) {
     rows.add(
       _notConnected(
         ChecklistItemId.guider,
@@ -342,8 +384,8 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
         detail: NightText(
           'nightSessionCheckDiskPlan',
           params: <String, String>{
-            'free': nightBytes(projection.freeBytes),
-            'need': nightBytes(projection.projectedBytes),
+            'free': ByteFormat.size(projection.freeBytes),
+            'need': ByteFormat.size(projection.projectedBytes),
           },
         ),
       ),
@@ -356,7 +398,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
         'nightSessionCheckDisk',
         detail: NightText(
           'nightSessionCheckDiskFree',
-          params: <String, String>{'free': nightBytes(freeBytes)},
+          params: <String, String>{'free': ByteFormat.size(freeBytes)},
         ),
       ),
     );
@@ -456,7 +498,8 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
                 detail: NightText(
                   'nightSessionCheckDawnPark',
                   params: <String, String>{
-                    'time': nightClockTime(ref.watch(clockProvider), park),
+                    'time': ClockFormat.hm(
+                        ref.watch(clockProvider).fromUtc(park.toUtc())),
                   },
                 ),
               ),

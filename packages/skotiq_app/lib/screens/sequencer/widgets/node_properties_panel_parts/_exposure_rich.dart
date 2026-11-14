@@ -1,11 +1,6 @@
-// Part of ../node_properties_panel.dart -- migrated from the former
-// instruction_node_properties library. The richer
-// exposure editor: duration + sky-brightness recommendation card, count,
-// frame type, filter, binning/gain/offset profile-default tracking, dither,
-// the adaptive-exposure sub-section, and a Run Test Exposure action.
 part of '../node_properties_panel.dart';
 
-/// Marker index for the synthetic "stored filter not in this profile" dropdown
+/// Marker index for the synthetic "stored filter not available" dropdown
 /// row. It is display-only — selecting it never rewrites the node.
 const int _kMissingFilterSentinel = -999;
 
@@ -95,8 +90,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     }
   }
 
-  /// Get the effective gain value: use the node's explicit value if set,
-  /// otherwise fall back to the profile default.
   int _effectiveGain(EquipmentProfileModel? profile) {
     if (_userOverrides.contains('gain') && widget.node.gain != null) {
       return widget.node.gain!;
@@ -104,8 +97,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     return profile?.defaultGain ?? widget.node.gain ?? 0;
   }
 
-  /// Get the effective offset value: use the node's explicit value if set,
-  /// otherwise fall back to the profile default.
   int _effectiveOffset(EquipmentProfileModel? profile) {
     if (_userOverrides.contains('offset') && widget.node.offset != null) {
       return widget.node.offset!;
@@ -159,21 +150,14 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            image == null ? 'Test exposure completed' : 'Test exposure saved',
-          ),
-          duration: const Duration(seconds: 2),
-        ),
+      context.showInfoSnackBar(
+        image == null ? 'Test exposure completed' : 'Test exposure saved',
+        duration: const Duration(seconds: 2),
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Test exposure failed: $error'),
-          backgroundColor: widget.colors.error,
-        ),
+      context.showErrorSnackBar(
+        'Test exposure failed: ${userFacingError(error)}',
       );
     } finally {
       if (mounted) {
@@ -187,6 +171,17 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     final colors = widget.colors;
     final node = widget.node;
     final profile = ref.watch(activeEquipmentProfileProvider);
+    final sensitivity = ref.watch(cameraSensitivityProvider);
+    void setGain(int gain) {
+      setState(() => _userOverrides.add('gain'));
+      ref.read(currentSequenceProvider.notifier).updateNode(
+            node.copyWith(gain: gain),
+          );
+      ref
+          .read(sequencerDefaultsProvider.notifier)
+          .updateExposureDefaults(gain: gain);
+    }
+
     final exposureContext =
         ref.watch(smartNightExposureContextProvider).valueOrNull;
     final exposureRecommendation =
@@ -212,8 +207,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               colors: colors,
               value: node.durationSecs,
               suffix: 's',
-              min: 0.001,
-              max: 3600,
+              min: ExposureFieldLimits.durationSecs.min,
+              max: ExposureFieldLimits.durationSecs.max,
               // 3 decimals to match the inline editor; sub-second exposures
               // matter for lucky imaging / fast photometry.
               decimals: 3,
@@ -221,7 +216,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(durationSecs: value),
                     );
-                // Save as default for future nodes
                 ref
                     .read(sequencerDefaultsProvider.notifier)
                     .updateExposureDefaults(
@@ -265,14 +259,13 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
             child: NodeNumberInput(
               colors: colors,
               value: node.count.toDouble(),
-              min: 1,
-              max: 9999,
+              min: ExposureFieldLimits.frameCount.min.toDouble(),
+              max: ExposureFieldLimits.frameCount.max.toDouble(),
               onChanged: (value) {
                 final count = value.toInt();
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(count: count),
                     );
-                // Save as default for future nodes
                 ref
                     .read(sequencerDefaultsProvider.notifier)
                     .updateExposureDefaults(
@@ -303,7 +296,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
 
           _buildFilterDropdown(context),
 
-          // Binning with profile default indicator
           NodePropertyField(
             colors: colors,
             label: _isBinningProfileDefault()
@@ -319,7 +311,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(binning: value),
                     );
-                // Save as default for future nodes
                 ref
                     .read(sequencerDefaultsProvider.notifier)
                     .updateExposureDefaults(
@@ -329,71 +320,68 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
             ),
           ),
 
-          // Gain and Offset with profile default indicators
           Row(
             children: [
-              Expanded(
-                child: NodePropertyField(
-                  colors: colors,
-                  label: _isGainProfileDefault() ? 'Gain (profile)' : 'Gain',
-                  child: NodeNumberInputWithHint(
+              if (sensitivity.hasGain)
+                Expanded(
+                  child: NodePropertyField(
                     colors: colors,
-                    value: _effectiveGain(profile).toDouble(),
-                    min: 0,
-                    max: 1000,
-                    isProfileDefault: _isGainProfileDefault(),
-                    hintText:
-                        _isGainProfileDefault() && profile?.defaultGain != null
+                    label: _isGainProfileDefault()
+                        ? '${sensitivity.label} (profile)'
+                        : sensitivity.label,
+                    child: SensitivityField(
+                      value: _effectiveGain(profile),
+                      sensitivity: sensitivity,
+                      onChanged: setGain,
+                      gainField: (_) => NodeNumberInput(
+                        colors: colors,
+                        value: _effectiveGain(profile).toDouble(),
+                        min: ExposureFieldLimits.gain.min.toDouble(),
+                        max: ExposureFieldLimits.gain.max.toDouble(),
+                        isProfileDefault: _isGainProfileDefault(),
+                        hintText: _isGainProfileDefault() &&
+                                profile?.defaultGain != null
                             ? 'Profile: ${profile!.defaultGain}'
                             : null,
-                    onChanged: (value) {
-                      final gain = value.toInt();
-                      setState(() => _userOverrides.add('gain'));
-                      ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(gain: gain),
-                          );
-                      // Save as default for future nodes
-                      ref
-                          .read(sequencerDefaultsProvider.notifier)
-                          .updateExposureDefaults(
-                            gain: gain,
-                          );
-                    },
+                        onChanged: (value) => setGain(value.toInt()),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: NodePropertyField(
-                  colors: colors,
-                  label:
-                      _isOffsetProfileDefault() ? 'Offset (profile)' : 'Offset',
-                  child: NodeNumberInputWithHint(
+              if (sensitivity.hasOffset) ...[
+                if (sensitivity.hasGain) const SizedBox(width: 12),
+                Expanded(
+                  child: NodePropertyField(
                     colors: colors,
-                    value: _effectiveOffset(profile).toDouble(),
-                    min: 0,
-                    max: 1000,
-                    isProfileDefault: _isOffsetProfileDefault(),
-                    hintText: _isOffsetProfileDefault() &&
-                            profile?.defaultOffset != null
-                        ? 'Profile: ${profile!.defaultOffset}'
-                        : null,
-                    onChanged: (value) {
-                      final offset = value.toInt();
-                      setState(() => _userOverrides.add('offset'));
-                      ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(offset: offset),
-                          );
-                      // Save as default for future nodes
-                      ref
-                          .read(sequencerDefaultsProvider.notifier)
-                          .updateExposureDefaults(
-                            offset: offset,
-                          );
-                    },
+                    label: _isOffsetProfileDefault()
+                        ? 'Offset (profile)'
+                        : 'Offset',
+                    child: NodeNumberInput(
+                      colors: colors,
+                      value: _effectiveOffset(profile).toDouble(),
+                      min: ExposureFieldLimits.offset.min.toDouble(),
+                      max: ExposureFieldLimits.offset.max.toDouble(),
+                      isProfileDefault: _isOffsetProfileDefault(),
+                      hintText: _isOffsetProfileDefault() &&
+                              profile?.defaultOffset != null
+                          ? 'Profile: ${profile!.defaultOffset}'
+                          : null,
+                      onChanged: (value) {
+                        final offset = value.toInt();
+                        setState(() => _userOverrides.add('offset'));
+                        ref.read(currentSequenceProvider.notifier).updateNode(
+                              node.copyWith(offset: offset),
+                            );
+                        ref
+                            .read(sequencerDefaultsProvider.notifier)
+                            .updateExposureDefaults(
+                              offset: offset,
+                            );
+                      },
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
 
@@ -404,14 +392,13 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               colors: colors,
               value: (node.ditherEvery ?? 0).toDouble(),
               suffix: ' frames',
-              min: 0,
-              max: 100,
+              min: ExposureFieldLimits.ditherEvery.min.toDouble(),
+              max: ExposureFieldLimits.ditherEvery.max.toDouble(),
               onChanged: (value) {
                 final ditherEvery = value.toInt();
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(ditherEvery: ditherEvery),
                     );
-                // Save as default for future nodes
                 ref
                     .read(sequencerDefaultsProvider.notifier)
                     .updateExposureDefaults(
@@ -428,7 +415,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
           _AdaptiveExposureSection(
             colors: colors,
             node: node,
-            profile: profile,
           ),
 
           const SizedBox(height: 12),
@@ -452,7 +438,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
             ),
           ),
 
-          // Summary
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -465,7 +450,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                 Icon(LucideIcons.clock, size: 14, color: colors.primary),
                 const SizedBox(width: 8),
                 Text(
-                  'Total: ${_formatDuration(node.totalDurationSecs)}',
+                  'Total: ${DurationFormat.seconds(node.totalDurationSecs, style: DurationStyle.short)}',
                   style: TextStyle(
                     fontSize: Responsive.fontSize(context, 13),
                     fontWeight: FontWeight.w500,
@@ -484,24 +469,19 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     final colors = widget.colors;
     final node = widget.node;
 
-    // The profile's filters, falling back to the connected wheel's — the
-    // builder must not deny a filter the capture path is already writing into
-    // the filenames.
-    final filterNames = builderFilterSource(ref).names;
+    final filterNames = ref.watch(effectiveFiltersProvider);
 
-    // Build list of filter options with their indices
     final filterOptions = <({int index, String name})>[
       (index: -1, name: ''), // No filter option
       for (int i = 0; i < filterNames.length; i++)
         (index: i, name: filterNames[i]),
     ];
 
-    // Find current selection
     if (kDebugMode) {
-      developer.log(
-          '_buildFilterDropdown: node.filter="${node.filter}" node.filterIndex=${node.filterIndex} filterNames=$filterNames',
-          name: 'InstructionNodeProperties',
-          level: 500);
+      Log.debug(
+        '_buildFilterDropdown: node.filter="${node.filter}" node.filterIndex=${node.filterIndex} filterNames=$filterNames',
+        source: 'InstructionNodeProperties',
+      );
     }
     final matched = filterOptions.firstWhereOrNull(
       (f) =>
@@ -509,27 +489,27 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
           (node.filterIndex == null && f.name == (node.filter ?? '')),
     );
 
-    // If the stored filter is no longer in the profile, surface it as an
-    // explicit "(not in profile)" option and select it, rather than silently
+    // If the stored filter is no longer available, surface it as an
+    // explicit "(not available)" option and select it, rather than silently
     // snapping to the first filter (which would quietly rewrite the node).
     // `_kMissingFilterSentinel` marks that synthetic row so the renderer and
     // onChanged handler can treat it specially.
     final storedFilterName = node.filter ?? '';
-    final bool missingFromProfile = matched == null &&
+    final bool missingFromList = matched == null &&
         (node.filterIndex != null || storedFilterName.isNotEmpty);
-    if (missingFromProfile) {
+    if (missingFromList) {
       final label = storedFilterName.isNotEmpty
-          ? '$storedFilterName (not in profile)'
-          : 'Filter #${node.filterIndex} (not in profile)';
+          ? '$storedFilterName (not available)'
+          : 'Filter #${node.filterIndex} (not available)';
       filterOptions.add((index: _kMissingFilterSentinel, name: label));
     }
-    final currentFilter = matched ??
-        (missingFromProfile ? filterOptions.last : filterOptions.first);
+    final currentFilter =
+        matched ?? (missingFromList ? filterOptions.last : filterOptions.first);
     if (kDebugMode) {
-      developer.log(
-          '_buildFilterDropdown: currentFilter=(index:${currentFilter.index}, name:"${currentFilter.name}")',
-          name: 'InstructionNodeProperties',
-          level: 500);
+      Log.debug(
+        '_buildFilterDropdown: currentFilter=(index:${currentFilter.index}, name:"${currentFilter.name}")',
+        source: 'InstructionNodeProperties',
+      );
     }
 
     return Column(
@@ -542,7 +522,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               ? NodeTextInput(
                   colors: colors,
                   value: node.filter ?? '',
-                  hint: BuilderFilterSource.emptyHint,
+                  hint: noFiltersToPickHint,
                   onChanged: (value) {
                     final filter = value.isEmpty ? null : value;
                     ref.read(currentSequenceProvider.notifier).updateNode(
@@ -594,7 +574,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                       }).toList(),
                       onChanged: (newValue) {
                         if (newValue != null) {
-                          // The synthetic "not in profile" row is display-only;
+                          // The synthetic "not available" row is display-only;
                           // re-selecting it must not rewrite the node.
                           if (newValue.index == _kMissingFilterSentinel) return;
                           final isNone = newValue.index < 0;
@@ -618,7 +598,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                   ),
                 ),
         ),
-        if (missingFromProfile) ...[
+        if (missingFromList) ...[
           const SizedBox(height: SkotiqTokens.spaceXs),
           // ONE inline line, not a paragraph: it says what is wrong and what
           // to do, and the button beside it is the doing.
@@ -628,7 +608,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               const SizedBox(width: SkotiqTokens.spaceXs),
               Expanded(
                 child: Text(
-                  'Filter is not in this profile.',
+                  'Filter is not on the wheel or in the profile.',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.warning,
                   ),
@@ -667,12 +647,6 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
         const SizedBox(height: 8),
       ],
     );
-  }
-
-  String _formatDuration(double secs) {
-    if (secs < 60) return '${secs.toStringAsFixed(1)}s';
-    if (secs < 3600) return '${(secs / 60).toStringAsFixed(1)}m';
-    return '${(secs / 3600).toStringAsFixed(1)}h';
   }
 }
 
@@ -727,7 +701,7 @@ class _ExposureRecommendationCard extends StatelessWidget {
                   color: differs ? colors.primary : colors.textMuted,
                 ),
                 label: Text(
-                  'Apply ${_formatSeconds(recommended)}',
+                  'Apply ${'${QuantityFormat.trimmed(recommended)}s'}',
                   style: TextStyle(
                     fontSize: Responsive.fontSize(context, 12),
                     color: differs ? colors.primary : colors.textMuted,
@@ -738,18 +712,18 @@ class _ExposureRecommendationCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${_formatSeconds(recommended)} · ${recommendation.limitingFactor.label}',
+            '${'${QuantityFormat.trimmed(recommended)}s'} · ${recommendation.limitingFactor.label}',
             style: TextStyle(
               fontSize: Responsive.fontSize(context, 12),
               color: colors.textSecondary,
             ),
           ),
+          // Whole sentences: the inspector scrolls, and the reason is the
+          // point of the card ("The sky alone wo…" said nothing).
           if (recommendation.rationale.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
               recommendation.rationale,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: Responsive.fontSize(context, 11),
                 color: colors.textMuted,
@@ -760,8 +734,6 @@ class _ExposureRecommendationCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               recommendation.caveats.first,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: Responsive.fontSize(context, 11),
                 color: colors.warning,
@@ -771,14 +743,6 @@ class _ExposureRecommendationCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _formatSeconds(double seconds) {
-    final rounded = seconds.roundToDouble();
-    if ((seconds - rounded).abs() < 0.05) {
-      return '${rounded.toInt()}s';
-    }
-    return '${seconds.toStringAsFixed(1)}s';
   }
 }
 
@@ -822,8 +786,3 @@ class _LongValueWarning extends StatelessWidget {
     );
   }
 }
-
-// Sky-brightness adaptive exposure UI block for the
-// _ExposureProperties panel. Off by default; expanding shows SNR / reference
-// / min / max + per-filter overrides + a live preview the user can glance
-// at to see what the next burst will actually capture at.

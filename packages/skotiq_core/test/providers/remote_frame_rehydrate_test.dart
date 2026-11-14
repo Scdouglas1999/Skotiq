@@ -6,7 +6,10 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../harness/in_memory_database.dart';
 
@@ -42,20 +45,22 @@ final _frame = CapturedImageResult(
   when(
     () => backend.sequencerGetStatus(),
   ).thenAnswer((_) async => const SequencerStatus(state: 'Idle', progress: 0));
-  when(() => backend.getConnectedDevices()).thenAnswer(
+  when(() => backend.getHostRuntimeState()).thenAnswer(
     (_) async => const [
-      DeviceInfo(
-        id: _cameraId,
-        name: 'ZWO ASI1600MM-Cool',
-        deviceType: DeviceType.camera,
-        driverType: DriverType.native,
-        description: '',
-        driverVersion: '1.0',
+      HostRuntimeUpdate(
+        channel: 'device.camera',
+        revision: 1,
+        value: {
+          'state': 'connected',
+          'deviceId': _cameraId,
+          'deviceName': 'ZWO ASI1600MM-Cool',
+        },
       ),
     ],
   );
   when(
-    () => backend.cameraGetLastImage(_cameraId),
+    () =>
+        backend.cameraGetLastImage(_cameraId, maxWidth: any(named: 'maxWidth')),
   ).thenAnswer((_) async => _frame);
   when(
     () => backend.getLastRawImageData(_cameraId),
@@ -101,7 +106,9 @@ void main() {
 
     await _hydrate(container, backend, refreshCurrentFrame: false);
 
-    verifyNever(() => backend.cameraGetLastImage(any()));
+    verifyNever(
+      () => backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
+    );
     verifyNever(() => backend.getLastRawImageData(any()));
   });
 
@@ -113,13 +120,23 @@ void main() {
       await _hydrate(container, backend, refreshCurrentFrame: true);
       final shown = container.read(currentImageProvider);
       expect(shown, isNotNull);
-      verify(() => backend.cameraGetLastImage(_cameraId)).called(1);
+      verify(
+        () => backend.cameraGetLastImage(
+          _cameraId,
+          maxWidth: any(named: 'maxWidth'),
+        ),
+      ).called(1);
       verify(() => backend.getLastRawImageData(_cameraId)).called(1);
 
       // A reconnect asks again; the host still has the same frame.
       await _hydrate(container, backend, refreshCurrentFrame: true);
 
-      verify(() => backend.cameraGetLastImage(_cameraId)).called(1);
+      verify(
+        () => backend.cameraGetLastImage(
+          _cameraId,
+          maxWidth: any(named: 'maxWidth'),
+        ),
+      ).called(1);
       verifyNever(() => backend.getLastRawImageData(any()));
       expect(
         container.read(currentImageProvider)?.capturedAt,

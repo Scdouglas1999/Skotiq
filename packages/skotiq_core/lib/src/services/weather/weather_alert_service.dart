@@ -1,10 +1,10 @@
 // ignore_for_file: unused_local_variable
 
+import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 
 import '../../models/weather/weather_models.dart';
 
-/// Service for generating weather alerts based on radar data and thresholds
 class WeatherAlertService {
   WeatherAlertService({Duration debounceDuration = const Duration(seconds: 30)})
     : _debounceDuration = debounceDuration;
@@ -16,15 +16,12 @@ class WeatherAlertService {
   WeatherAlert? _previousAlert;
   DateTime? _lastAlertChangeTime;
 
-  /// Stream of weather alerts for UI subscription
   Stream<WeatherAlert> get alertStream => _alertController.stream;
 
-  /// Dispose resources
   void dispose() {
     _alertController.close();
   }
 
-  /// Evaluate weather conditions and generate appropriate alert
   WeatherAlert evaluateConditions({
     required CloudMotion? motion,
     required double currentCloudDensity,
@@ -47,7 +44,6 @@ class WeatherAlertService {
     }
     final eta = motion?.etaToLocation;
 
-    // Determine alert level
     final level = determineAlertLevel(
       cloudDistanceKm: distanceKm,
       cloudDensityPercent: currentCloudDensity,
@@ -55,7 +51,6 @@ class WeatherAlertService {
       settings: settings,
     );
 
-    // Generate human-readable message
     final message = generateAlertMessage(
       level: level,
       distanceKm: distanceKm,
@@ -64,7 +59,6 @@ class WeatherAlertService {
       directionDegrees: motion?.directionDegrees,
     );
 
-    // Create alert
     final alert = WeatherAlert(
       level: level,
       message: message,
@@ -74,7 +68,6 @@ class WeatherAlertService {
       generatedAt: now,
     );
 
-    // Apply debouncing
     final debouncedAlert = debounceAlert(
       newAlert: alert,
       previousAlert: _previousAlert,
@@ -83,7 +76,6 @@ class WeatherAlertService {
       currentTime: now,
     );
 
-    // Emit alert if debouncing passed
     if (debouncedAlert != null) {
       emitAlert(debouncedAlert);
       _previousAlert = debouncedAlert;
@@ -93,7 +85,6 @@ class WeatherAlertService {
     return alert;
   }
 
-  /// Determine alert level based on conditions and thresholds
   AlertLevel determineAlertLevel({
     required double cloudDistanceKm,
     required double cloudDensityPercent,
@@ -136,11 +127,9 @@ class WeatherAlertService {
       return AlertLevel.warning;
     }
 
-    // Default to clear
     return AlertLevel.clear;
   }
 
-  /// Generate human-readable alert message
   String generateAlertMessage({
     required AlertLevel level,
     required double distanceKm,
@@ -150,11 +139,8 @@ class WeatherAlertService {
   }) {
     switch (level) {
       case AlertLevel.clear:
-        if (distanceKm.isInfinite) {
-          return 'No clouds detected in monitoring range';
-        }
-        final distance = distanceKm.toStringAsFixed(0);
-        return 'Skies clear within ${distance}km radius';
+        return 'Forecast cloud cover: ${densityPercent.toStringAsFixed(0)}%. '
+            'Local conditions may differ.';
 
       case AlertLevel.watch:
         final distance = distanceKm.toStringAsFixed(0);
@@ -167,7 +153,7 @@ class WeatherAlertService {
           // Clouds detected but ETA beyond lead time
           final etaMinutes = eta.inMinutes;
           final direction = directionDegrees != null
-              ? degreesToCardinal(directionDegrees)
+              ? AngleFormat.compass(directionDegrees, points: 8)
               : 'unknown direction';
           return 'Clouds detected ${distance}km away from $direction, ETA ~$etaMinutes minutes';
         }
@@ -177,7 +163,7 @@ class WeatherAlertService {
         final density = densityPercent.toStringAsFixed(0);
         final etaMinutes = eta?.inMinutes ?? 0;
         final direction = directionDegrees != null
-            ? degreesToCardinal(directionDegrees)
+            ? AngleFormat.compass(directionDegrees, points: 8)
             : 'unknown direction';
 
         if (densityPercent >= 80.0) {
@@ -231,30 +217,10 @@ class WeatherAlertService {
     return null;
   }
 
-  /// Emit new alert to stream
   void emitAlert(WeatherAlert alert) {
     if (!_alertController.isClosed) {
       _alertController.add(alert);
     }
-  }
-
-  /// Convert degrees to cardinal direction (N, NE, E, SE, S, SW, W, NW)
-  ///
-  /// Direction represents where clouds are coming FROM:
-  /// - 0° = North (clouds moving from north to south)
-  /// - 90° = East (clouds moving from east to west)
-  /// - 180° = South (clouds moving from south to north)
-  /// - 270° = West (clouds moving from west to east)
-  String degreesToCardinal(double degrees) {
-    // Normalize to 0-360 range
-    final normalized = degrees % 360;
-
-    // 8 cardinal directions, each covering 45 degrees
-    // Add 22.5 to center each direction on its cardinal point
-    final index = ((normalized + 22.5) / 45).floor() % 8;
-
-    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    return directions[index];
   }
 
   /// Get current alert state (for non-stream access)

@@ -10,7 +10,7 @@
 // The buffer is in-memory only — a server restart issues a new
 // `serverInstanceId` so clients know their cached `seq` is stale.
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Fixed-capacity FIFO ring buffer of stamped [SkotiqEvent]s.
 ///
@@ -78,10 +78,8 @@ class EventReplayBuffer {
     return result;
   }
 
-  /// Lowest retained seq, or null when empty.
   int? get oldestSeq => _entries.isEmpty ? null : _entries.first.seq;
 
-  /// Highest retained seq, or null when empty.
   int? get newestSeq => _entries.isEmpty ? null : _entries.last.seq;
 
   /// Current number of retained events (0..capacity).

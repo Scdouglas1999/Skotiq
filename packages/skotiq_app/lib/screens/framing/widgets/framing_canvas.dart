@@ -4,22 +4,10 @@ import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// FramingPlateScale is the C1 single-source-of-truth astrometric scale shared by
-// the framing painters and the gesture hit-tester. It lives in skotiq_core's
-// models layer and is not surfaced through the public barrel, matching the
-// app->core src-model convention used by the framing painters themselves.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
-// FramingSkyProjection is the shared sky<->screen mapping the gesture handlers
-// invert to turn a box-drag pixel position back into the aim's RA/Dec — the
-// exact inverse of the transform stack the overlays are drawn through, so the
-// dragged point lands on the sky point under the cursor. Same src-model import
-// convention as the plate scale above.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_hips_projection.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
-import '../../../widgets/tutorial_keys/framing_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../painters/framing_background_painters.dart';
 import '../painters/framing_painters.dart';
 import 'framing_overlays.dart';
@@ -28,10 +16,17 @@ import 'hips_tile_layer.dart';
 
 part 'framing_canvas_parts/_canvas_controls.dart';
 
+/// The survey notice sits above the scale bar (bottom left, about 40 px tall)
+/// and left of the zoom group (bottom right, about 44 px wide) at any canvas
+/// width, so it covers neither.
+const double _surveyNoticeBottom = 64;
+const double _surveyNoticeRightInset = 72;
+
 /// The main framing canvas: handles pan / rotate gestures, stacks the survey
 /// image (or starfield fallback), optional grid, equipment FOV overlays, the
 /// mosaic grid, and the on-canvas controls (top chips, zoom, scale, target
 /// info, error banner).
+
 class FramingCanvas extends ConsumerStatefulWidget {
   final SkotiqColors colors;
   final FramingState framingState;
@@ -465,7 +460,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
           color: widget.colors.background,
           child: Stack(
             children: [
-              // Survey image background
               if (widget.framingState.surveyImage != null)
                 Positioned.fill(
                   child: CustomPaint(
@@ -496,7 +490,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                   ),
                 )
               else
-                // Static star field backdrop
                 CustomPaint(
                   painter: FramingStarBackgroundPainter(colors: widget.colors),
                   size: Size.infinite,
@@ -516,7 +509,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
               // chrome) by FramingHipsLayerWiring.
               const Positioned.fill(child: HipsTileLayer()),
 
-              // Grid overlay
               if (widget.framingState.showGrid)
                 CustomPaint(
                   painter: FramingGridPainter(
@@ -581,7 +573,7 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                     child: Transform.translate(
                       offset: overlayOffset,
                       child: CustomPaint(
-                        key: FramingTutorialKeys.fovRect,
+                        key: TourTarget.framingFovRect.key,
                         painter: FramingFOVPainter(
                           fovWidth: _equipment!.fovWidthDeg,
                           fovHeight: _equipment!.fovHeightDeg,
@@ -655,7 +647,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                 );
               }(),
 
-              // Crosshairs
               if (ref.watch(imagingViewerStateProvider).showCrosshair)
                 Center(
                   child: CustomPaint(
@@ -731,7 +722,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                 ),
               ),
 
-              // Zoom controls
               Positioned(
                 bottom: 16,
                 right: 16,
@@ -748,7 +738,6 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                 ),
               ),
 
-              // Scale indicator
               Positioned(
                 bottom: 16,
                 left: 16,
@@ -760,22 +749,46 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                 ),
               ),
 
-              // Error overlay
-              if (widget.framingState.imageError != null)
-                Center(
-                  child: Container(
-                    padding: SkotiqTokens.paddingLg,
-                    margin: const EdgeInsets.all(SkotiqTokens.space3xl),
-                    decoration: BoxDecoration(
-                      color: widget.colors.error
-                          .withValues(alpha: SkotiqTokens.opacitySubtle),
-                      borderRadius: SkotiqTokens.borderRadiusMd,
-                      border: Border.all(color: widget.colors.error),
-                    ),
-                    child: Text(
-                      widget.framingState.imageError!,
-                      style: SkotiqTypography.body
-                          .copyWith(color: widget.colors.error),
+              // The sky behind still frames the target from the installed
+              // catalog, so a missing survey image is a note above the scale
+              // bar, not a box over the frame.
+              if (widget.framingState.imageError case final error?)
+                Positioned(
+                  left: SkotiqTokens.spaceLg,
+                  right: _surveyNoticeRightInset,
+                  bottom: _surveyNoticeBottom,
+                  child: Center(
+                    child: Glass(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            SkotiqIcons.warning,
+                            size: SkotiqTokens.iconSm,
+                            color: widget.colors.warning,
+                          ),
+                          const SizedBox(width: SkotiqTokens.spaceSm),
+                          Flexible(
+                            child: Text(
+                              error,
+                              style: SkotiqTypography.bodySm.copyWith(
+                                color: widget.colors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: SkotiqTokens.spaceSm),
+                          SkotiqButton(
+                            label: 'Retry',
+                            variant: ButtonVariant.ghost,
+                            size: ButtonSize.small,
+                            onPressed: widget.framingState.isLoadingImage
+                                ? null
+                                : () => ref
+                                    .read(framingProvider.notifier)
+                                    .loadSurveyImage(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

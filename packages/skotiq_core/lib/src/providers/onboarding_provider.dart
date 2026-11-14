@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/hardware_presets/hardware_preset_models.dart';
 import '../models/onboarding/onboarding_state.dart';
-import '../backend/network_backend.dart';
 import '../database/database.dart'
     show
         kSimGuideCameraId,
@@ -17,9 +16,13 @@ import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import '../providers/hardware_presets_provider.dart';
 import '../providers/profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import '../providers/settings_provider.dart';
-import '../providers/tutorial_provider.dart';
 import '../services/hardware_presets/hardware_presets_service.dart';
+import '../database/daos/settings_dao.dart';
+import '../models/backend/backend_types.dart';
+import '../settings/app_settings_state.g.dart';
+import '../settings/store_settings.dart';
 
 /// Bootstrap gate read by the `EquipmentOnboardingLauncher` widget on app
 /// launch. Resolves true only when there are zero equipment profiles AND the
@@ -33,7 +36,7 @@ final shouldRunEquipmentOnboardingProvider = FutureProvider<bool>((ref) async {
   // a companion that cannot reach its host must say so instead of offering to
   // configure this machine.
   if (ref.watch(isRemoteClientProvider)) return false;
-  if (ref.watch(backendProvider) is NetworkBackend) return false;
+  if (ref.watch(isRemoteModeProvider)) return false;
   final profilesDao = ref.read(equipmentProfilesDaoProvider);
   final profiles = await profilesDao.getAllProfiles();
   if (profiles.isNotEmpty) return false;
@@ -101,8 +104,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
   Future<void> _loadDraft() async {
     try {
       final settingsDao = _ref.read(settingsDaoProvider);
-      final raw = await settingsDao.getSetting(
-        OnboardingDraft.draftSettingsKey,
+      final raw = await settingsDao.read(
+        StoreSettings.equipmentOnboardingDraft,
       );
       final draft = OnboardingDraft.fromJsonStringOrEmpty(raw);
       // If the user has not selected any drivers yet (truly fresh start),
@@ -130,8 +133,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
 
   Future<void> _persistDraft() async {
     final settingsDao = _ref.read(settingsDaoProvider);
-    await settingsDao.setSetting(
-      OnboardingDraft.draftSettingsKey,
+    await settingsDao.write(
+      StoreSettings.equipmentOnboardingDraft,
       state.toJsonString(),
     );
   }
@@ -238,8 +241,41 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     if (id == null || id.isEmpty) {
       state = state.copyWith(clearGuider: true);
     } else {
-      state = state.copyWith(guiderId: id, guiderName: name);
+      // The guide camera answers a question only the built-in guider asks.
+      final keepsGuideCamera = id == state.guiderId;
+      state = state.copyWith(
+        guiderId: id,
+        guiderName: name,
+        clearGuideCamera: !keepsGuideCamera,
+        clearGuideFocalLength: !keepsGuideCamera,
+      );
     }
+    await _persistDraft();
+  }
+
+  /// The camera the built-in guider uses. Picking the simulator's guide camera
+  /// also fills in the simulator's guide scope when none is entered.
+  Future<void> setGuideCamera({String? id, String? name}) async {
+    if (id == null || id.isEmpty) {
+      state = state.copyWith(clearGuideCamera: true);
+    } else {
+      state = state.copyWith(
+        guideCameraId: id,
+        guideCameraName: name,
+        guideFocalLengthMm: id == kSimGuideCameraId
+            ? state.guideFocalLengthMm ?? kSimGuideFocalLengthMm
+            : null,
+      );
+    }
+    await _persistDraft();
+  }
+
+  /// Guide scope focal length in millimeters; null for an off-axis guider.
+  Future<void> setGuideFocalLength(double? millimeters) async {
+    state = state.copyWith(
+      guideFocalLengthMm: millimeters,
+      clearGuideFocalLength: millimeters == null,
+    );
     await _persistDraft();
   }
 
@@ -340,6 +376,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     await _persistDraft();
   }
 
+  Future<void> setDownloadSkyCatalogs(bool download) async {
+    state = state.copyWith(downloadSkyCatalogs: download);
+    await _persistDraft();
+  }
+
   Future<void> setProfileName(String name) async {
     state = state.copyWith(profileName: name);
     await _persistDraft();
@@ -368,15 +409,6 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
       }
     }
 
-    // Persist the new equipment profile. The DAO marks the first profile
-    // as default+active on insert so the user lands on the dashboard
-    // already pointed at their new rig.
-    final dao = backend is NetworkBackend
-        ? null
-        : _ref.read(equipmentProfilesDaoProvider);
-    final localProfiles = backend is NetworkBackend
-        ? null
-        : _ref.read(equipmentProfilesProvider.notifier);
     final focalRatio =
         (draft.focalLengthMm != null &&
             draft.apertureMm != null &&
@@ -384,12 +416,15 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
         ? (draft.focalLengthMm! * draft.reducerFactor) / draft.apertureMm!
         : null;
 
-    // A simulator rig guided by the built-in guider guides through the
+    // A simulator rig guided by the built-in guider, restored from a draft
+    // saved before the wizard asked for a guide camera, guides through the
     // simulator's own guide camera.
-    final simGuide = usesSimulatedGuideCamera(
-      cameraId: draft.cameraId,
-      guiderId: draft.guiderId,
-    );
+    final simGuide =
+        draft.guideCameraId == null &&
+        usesSimulatedGuideCamera(
+          cameraId: draft.cameraId,
+          guiderId: draft.guiderId,
+        );
     final profile = EquipmentProfileModel(
       name: (draft.profileName ?? '').trim().isNotEmpty
           ? draft.profileName!.trim()
@@ -405,9 +440,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
       filterWheelName: draft.filterWheelName,
       guiderId: draft.guiderId,
       guiderName: draft.guiderName,
-      guideCameraId: simGuide ? kSimGuideCameraId : null,
-      guideCameraName: simGuide ? kSimGuideCameraName : null,
-      guideFocalLength: simGuide ? kSimGuideFocalLengthMm : null,
+      guideCameraId: simGuide ? kSimGuideCameraId : draft.guideCameraId,
+      guideCameraName: simGuide ? kSimGuideCameraName : draft.guideCameraName,
+      guideFocalLength: simGuide
+          ? kSimGuideFocalLengthMm
+          : draft.guideFocalLengthMm,
       telescopeName: draft.telescopeName,
       focalLength: draft.focalLengthMm != null
           ? draft.focalLengthMm! * draft.reducerFactor
@@ -434,43 +471,15 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
       filterNames: draft.filterNames,
     );
 
-    final int id;
-    if (backend is NetworkBackend) {
-      await backend.saveProfile(profile.toRemoteProfile());
-      requireAuthority('creating the equipment profile');
-      _ref.invalidate(equipmentProfilesProvider);
-      final createdId = backend.lastSavedProfileId;
-      if (createdId == null || createdId.isEmpty) {
-        throw StateError(
-          'Host saved onboarding profile "${profile.name}" but did not '
-          'return its created id',
-        );
-      }
-      final parsedId = int.tryParse(createdId);
-      if (parsedId == null) {
-        throw StateError(
-          'Host saved onboarding profile "${profile.name}" with non-numeric id',
-        );
-      }
-      await backend.loadProfile(createdId);
-      requireAuthority('activating the equipment profile');
-      _ref.invalidate(equipmentProfilesProvider);
-      id = parsedId;
-    } else {
-      id = await dao!.createProfile(profile.toCompanion());
-      requireAuthority('creating the equipment profile');
-      // dao.createProfile only auto-activates the FIRST profile; when older
-      // profiles already exist the new row is inserted inactive. Re-running
-      // onboarding must still leave the user pointed at the rig they just
-      // built, so route activation through the remote-aware notifier — that
-      // flips SQLite AND write-throughs the active row to the native executor
-      // store, making the terminal "active & ready" screen truthful. Idempotent
-      // for the first-profile case (already active), and it performs the native
-      // write-through a bare DAO insert skips. Local-only: this is the
-      // non-NetworkBackend branch, so [setActiveProfile] never hits the host.
-      await localProfiles!.setActiveProfile(id);
-      requireAuthority('activating the equipment profile');
-    }
+    final id = await _ref
+        .read(equipmentProfilesProvider.notifier)
+        .saveProfile(profile);
+    requireAuthority('creating the equipment profile');
+    // Re-running onboarding leaves the user pointed at the rig they just
+    // built, also when older profiles exist and the new one was not made
+    // active as the first profile is.
+    await _ref.read(equipmentProfilesProvider.notifier).setActiveProfile(id);
+    requireAuthority('activating the equipment profile');
 
     await _persistAppSettings(draft, backend, requireAuthority);
 
@@ -514,7 +523,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     final indi = draft.selectedDrivers.contains(DriverType.indi);
     final alpaca = draft.selectedDrivers.contains(DriverType.alpaca);
 
-    if (backend is NetworkBackend) {
+    if (_ref.read(isRemoteModeProvider)) {
       final settings = await backend.getSettings();
       requireAuthority('loading the app settings');
       await backend.updateSettings(
@@ -527,16 +536,13 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
         ),
       );
     } else {
-      final dao = _ref.read(settingsDaoProvider);
-      if (hasCaptureDir) {
-        await dao.setImageOutputDirectory(captureDir);
-      }
-      if (hasDrivers) {
-        await dao.setSettings({
-          'indi_auto_connect': indi.toString(),
-          'alpaca_auto_discover': alpaca.toString(),
-        });
-      }
+      await _ref.read(settingsDaoProvider).writeAll([
+        if (hasCaptureDir) AppSettingDefs.imageOutputPath.to(captureDir),
+        if (hasDrivers) ...[
+          AppSettingDefs.indiAutoConnect.to(indi),
+          AppSettingDefs.alpacaAutoDiscover.to(alpaca),
+        ],
+      ]);
     }
     requireAuthority('saving the onboarding settings');
     _ref.invalidate(appSettingsProvider);
@@ -551,7 +557,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     final tutorialDao = _ref.read(tutorialProgressDaoProvider);
     await tutorialDao.markCompleted(OnboardingDraft.persistenceCategory);
     final settingsDao = _ref.read(settingsDaoProvider);
-    await settingsDao.deleteSetting(OnboardingDraft.draftSettingsKey);
+    await settingsDao.clear(StoreSettings.equipmentOnboardingDraft);
 
     // Invalidate the bootstrap gate so the next launch reads `false`.
     _ref.invalidate(shouldRunEquipmentOnboardingProvider);
@@ -573,8 +579,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     final defaults = available.where((d) => d != DriverType.simulator).toSet();
     final resetDraft = OnboardingDraft(selectedDrivers: defaults);
     final settingsDao = _ref.read(settingsDaoProvider);
-    await settingsDao.setSetting(
-      OnboardingDraft.draftSettingsKey,
+    await settingsDao.write(
+      StoreSettings.equipmentOnboardingDraft,
       resetDraft.toJsonString(),
     );
     if (mounted) state = resetDraft;

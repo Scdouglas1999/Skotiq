@@ -36,10 +36,10 @@
 //!
 //! The public entry point is [`register_frame`].
 
+use crate::numeric::{det3, solve_dense};
+pub use crate::resample::{kernel_inside, Interpolator};
 use crate::{detect_stars, DetectedStar, ImageData, PixelType, StarDetectionConfig};
 use rayon::prelude::*;
-
-// Public types
 
 /// Which transform family to fit between the two frames.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -77,7 +77,6 @@ pub struct TransformModel {
 }
 
 impl TransformModel {
-    /// The identity transform.
     pub fn identity() -> Self {
         Self {
             matrix: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
@@ -121,21 +120,6 @@ impl TransformModel {
     }
 }
 
-/// High-quality resampling kernels for the warp step.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Interpolator {
-    /// 2×2 bilinear — fastest, softest; matches the rigid `LiveStacker` path.
-    Bilinear,
-    /// 4×4 Catmull-Rom cubic — sharp, no ringing, mild overshoot. A good
-    /// default for noisy sub-frames where Lanczos ringing on bright stars is
-    /// undesirable.
-    CatmullRom,
-    /// 6×6 windowed-sinc (Lanczos, `a = 3`) — sharpest reconstruction, the
-    /// PixInsight default for high-SNR data; can ring around saturated stars.
-    #[default]
-    Lanczos3,
-}
-
 /// Per-frame registration quality report.
 #[derive(Debug, Clone)]
 pub struct RegistrationStats {
@@ -164,7 +148,6 @@ pub struct RegisteredFrame {
     /// channel count, and pixel type as the reference. Pixels with no valid
     /// source support (mapped outside the source frame) are zero-filled.
     pub aligned: ImageData,
-    /// Quality metrics for this registration.
     pub stats: RegistrationStats,
 }
 
@@ -183,7 +166,6 @@ pub struct RegistrationConfig {
     /// distortion at the cost of more spurious descriptor matches (which the
     /// vote step and RANSAC then filter).
     pub descriptor_tolerance: f64,
-    /// Transform family to fit.
     pub transform_kind: TransformKind,
     /// RANSAC inlier threshold in reference-frame pixels.
     pub ransac_threshold_px: f64,
@@ -192,7 +174,6 @@ pub struct RegistrationConfig {
     /// Minimum inlier correspondences required to accept a fit. Below this the
     /// registration fails closed rather than returning a garbage transform.
     pub min_inliers: usize,
-    /// Resampling kernel.
     pub interpolator: Interpolator,
     /// Optional plate scale (arcsec/pixel) to report `rms_residual_arcsec`.
     pub arcsec_per_pixel: Option<f64>,
@@ -246,13 +227,17 @@ pub enum RegistrationError {
     NoConsistentGeometry { found: usize, needed: usize },
 }
 
-// Public entry point
-
 /// The number of detected stars [`register_frame`] requires on BOTH the
 /// reference and the frame for `kind`: enough to form triangles and to fit the
 /// minimal model.
 pub fn min_registration_stars(kind: TransformKind) -> usize {
     3usize.max(min_correspondences(kind))
+}
+
+/// The sample types whose stars the geometry fit reads: 16-bit frames and
+/// float frames, whose sample range says where their ADU are.
+fn is_linear_type(pixel_type: PixelType) -> bool {
+    matches!(pixel_type, PixelType::U16 | PixelType::F32)
 }
 
 /// How many stars [`register_frame`] would actually detect on `image` with
@@ -266,10 +251,10 @@ pub fn min_registration_stars(kind: TransformKind) -> usize {
 /// looks for — and picking that frame as the reference fails EVERY other frame
 /// against it, silently discarding a whole night.
 pub fn registrable_star_count(image: &ImageData, config: &RegistrationConfig) -> usize {
-    if image.pixel_type != PixelType::U16 || !matches!(image.channels, 1 | 3) {
+    if !is_linear_type(image.pixel_type) || !matches!(image.channels, 1 | 3) {
         return 0;
     }
-    detect_stars(&detection_plane(image), &config.star_detection).len()
+    detect_stars(image, &config.star_detection).len()
 }
 
 /// Register `frame` (source) onto `reference`, returning the fitted transform,
@@ -325,7 +310,7 @@ impl ReferenceStars {
         reference: &ImageData,
         config: &RegistrationConfig,
     ) -> Result<Self, RegistrationError> {
-        if reference.pixel_type != PixelType::U16 {
+        if !is_linear_type(reference.pixel_type) {
             return Err(RegistrationError::UnsupportedReferencePixelType(
                 reference.pixel_type,
             ));
@@ -334,7 +319,7 @@ impl ReferenceStars {
             return Err(RegistrationError::UnsupportedChannels(reference.channels));
         }
         Ok(Self {
-            stars: detect_stars(&detection_plane(reference), &config.star_detection),
+            stars: detect_stars(reference, &config.star_detection),
             width: reference.width,
             height: reference.height,
             channels: reference.channels,
@@ -350,12 +335,10 @@ impl ReferenceStars {
         self.stars.is_empty()
     }
 
-    /// The reference grid's width and height.
     pub fn size(&self) -> (u32, u32) {
         (self.width, self.height)
     }
 
-    /// The reference's channel count.
     pub fn channels(&self) -> u32 {
         self.channels
     }
@@ -367,7 +350,7 @@ pub fn solve_registration_against(
     frame: &ImageData,
     config: &RegistrationConfig,
 ) -> Result<(TransformModel, RegistrationStats), RegistrationError> {
-    if frame.pixel_type != PixelType::U16 {
+    if !is_linear_type(frame.pixel_type) {
         return Err(RegistrationError::UnsupportedFramePixelType(
             frame.pixel_type,
         ));
@@ -381,9 +364,18 @@ pub fn solve_registration_against(
     if !matches!(frame.channels, 1 | 3) {
         return Err(RegistrationError::UnsupportedChannels(frame.channels));
     }
-    let ref_stars = &reference.stars;
-    let frame_stars = detect_stars(&detection_plane(frame), &config.star_detection);
+    let frame_stars = detect_stars(frame, &config.star_detection);
+    solve_registration_from_stars(&reference.stars, &frame_stars, config)
+}
 
+/// The geometry fit between two star lists the caller already holds, in the
+/// detector's order (brightest first): the source→reference transform and its
+/// residual statistics.
+pub fn solve_registration_from_stars(
+    ref_stars: &[DetectedStar],
+    frame_stars: &[DetectedStar],
+    config: &RegistrationConfig,
+) -> Result<(TransformModel, RegistrationStats), RegistrationError> {
     // We need at least enough stars to form triangles and a minimal fit.
     let min_stars = min_registration_stars(config.transform_kind);
     if ref_stars.len() < min_stars || frame_stars.len() < min_stars {
@@ -394,7 +386,7 @@ pub fn solve_registration_against(
         });
     }
 
-    let transform = solve_transform_from_stars(ref_stars, &frame_stars, config).ok_or(
+    let transform = solve_transform_from_stars(ref_stars, frame_stars, config).ok_or(
         RegistrationError::NoConsistentGeometry {
             found: 0,
             needed: config.min_inliers,
@@ -402,7 +394,7 @@ pub fn solve_registration_against(
     )?;
 
     // Recompute the correspondence/inlier statistics for the returned model.
-    let correspondences = correspondences_from_stars(ref_stars, &frame_stars, config);
+    let correspondences = correspondences_from_stars(ref_stars, frame_stars, config);
     let residuals: Vec<f64> = correspondences
         .iter()
         .map(|c| {
@@ -480,7 +472,7 @@ pub fn warp_to_grid(
             covered: vec![false; out_w * out_h],
         };
     };
-    let src = crate::calibration::samples_f64(frame);
+    let src = frame.samples_f64();
     let stride = src_w * channels;
     let rows: Vec<(Vec<f32>, Vec<bool>)> = (0..out_h)
         .into_par_iter()
@@ -489,13 +481,13 @@ pub fn warp_to_grid(
             let mut covered = vec![false; out_w];
             for x in 0..out_w {
                 let (sx, sy) = inverse.apply(x as f64, y as f64);
-                if !kernel_inside(sx, sy, src_w, src_h, interp) {
+                let Some(taps) = interp.taps(sx, sy, src_w, src_h) else {
                     continue;
-                }
+                };
                 covered[x] = true;
                 for c in 0..channels {
                     row[x * channels + c] =
-                        sample(&src, src_w, src_h, channels, stride, c, sx, sy, interp) as f32;
+                        taps.apply(|ix, iy| src[iy * stride + ix * channels + c]) as f32;
                 }
             }
             (row, covered)
@@ -509,23 +501,6 @@ pub fn warp_to_grid(
     }
     WarpedFrame { pixels, covered }
 }
-
-/// Whether every tap of `interp` around source position `(sx, sy)` lies inside
-/// a `w` × `h` frame.
-pub fn kernel_inside(sx: f64, sy: f64, w: usize, h: usize, interp: Interpolator) -> bool {
-    if !sx.is_finite() || !sy.is_finite() {
-        return false;
-    }
-    let (x0, y0) = (sx.floor(), sy.floor());
-    let (lo, hi) = match interp {
-        Interpolator::Bilinear => (0.0, 1.0),
-        Interpolator::CatmullRom => (-1.0, 2.0),
-        Interpolator::Lanczos3 => (-2.0, 3.0),
-    };
-    x0 + lo >= 0.0 && y0 + lo >= 0.0 && x0 + hi <= (w as f64 - 1.0) && y0 + hi <= (h as f64 - 1.0)
-}
-
-// Validation + detection-plane helpers
 
 fn validate_pair(reference: &ImageData, frame: &ImageData) -> Result<(), RegistrationError> {
     if reference.pixel_type != PixelType::U16 {
@@ -548,41 +523,6 @@ fn validate_pair(reference: &ImageData, frame: &ImageData) -> Result<(), Registr
         return Err(RegistrationError::UnsupportedChannels(reference.channels));
     }
     Ok(())
-}
-
-/// Single-channel plane that star detection runs on. Mono frames are borrowed
-/// unchanged; RGB frames are collapsed to a Rec. 601 luminance proxy so star
-/// centroids come from a coherent plane (mirrors `stacking::detection_plane`).
-fn detection_plane(frame: &ImageData) -> std::borrow::Cow<'_, ImageData> {
-    match frame.channels {
-        1 => std::borrow::Cow::Borrowed(frame),
-        3 => std::borrow::Cow::Owned(luminance_proxy(frame)),
-        other => unreachable!("validate_pair rejects channel count {other}"),
-    }
-}
-
-fn luminance_proxy(rgb: &ImageData) -> ImageData {
-    let width = rgb.width;
-    let height = rgb.height;
-    let pixel_count = (width as usize) * (height as usize);
-    let interleaved = rgb
-        .as_u16()
-        .expect("luminance_proxy requires a U16 RGB image");
-
-    let luma: Vec<u16> = (0..pixel_count)
-        .into_par_iter()
-        .map(|i| {
-            let base = i * 3;
-            let r = interleaved[base] as f64;
-            let g = interleaved[base + 1] as f64;
-            let b = interleaved[base + 2] as f64;
-            (0.299 * r + 0.587 * g + 0.114 * b)
-                .round()
-                .clamp(0.0, 65535.0) as u16
-        })
-        .collect();
-
-    ImageData::from_u16(width, height, 1, &luma)
 }
 
 // Geometric matching (triangle descriptors -> star correspondences)
@@ -829,8 +769,6 @@ fn lower_bound(slice: &[f64], value: f64) -> usize {
     lo
 }
 
-// RANSAC transform estimation
-
 struct FittedTransform {
     model: TransformModel,
 }
@@ -966,8 +904,6 @@ fn inliers_for(
         })
         .collect()
 }
-
-// Model fitting (least squares)
 
 /// Fit the requested model from `>= min` correspondences (source → reference).
 fn fit_model(pairs: &[Correspondence], kind: TransformKind) -> Option<TransformModel> {
@@ -1141,7 +1077,7 @@ fn fit_homography(pairs: &[Correspondence]) -> Option<TransformModel> {
         accumulate(&row_y, yp);
     }
 
-    let h = solve_linear_system(&mut ata, &mut atb)?;
+    let h = solve_dense(ata.concat(), atb.to_vec(), 1e-12)?;
 
     Some(TransformModel {
         matrix: [[h[0], h[1], h[2]], [h[3], h[4], h[5]], [h[6], h[7], 1.0]],
@@ -1159,8 +1095,6 @@ fn model_residual(pairs: &[Correspondence], model: &TransformModel) -> f64 {
         .collect();
     rms(&residuals)
 }
-
-// Resampling (warp source onto reference grid)
 
 /// Warp `frame` onto the `reference` grid using `model` (source → reference)
 /// and `interp`. Output matches the reference dimensions/channels/pixel type.
@@ -1207,11 +1141,11 @@ fn warp_frame(
             let mut row = vec![0u16; out_w * channels];
             for x in 0..out_w {
                 let (sx, sy) = inverse.apply(x as f64, y as f64);
-                if !sx.is_finite() || !sy.is_finite() {
+                let Some(taps) = interp.taps(sx, sy, src_w, src_h) else {
                     continue;
-                }
+                };
                 for c in 0..channels {
-                    let v = sample(&src, src_w, src_h, channels, stride, c, sx, sy, interp);
+                    let v = taps.apply(|ix, iy| src[iy * stride + ix * channels + c]);
                     row[x * channels + c] = v.round().clamp(0.0, 65535.0) as u16;
                 }
             }
@@ -1227,170 +1161,11 @@ fn warp_frame(
     )
 }
 
-/// Sample channel `c` at fractional source position `(sx, sy)` with `interp`.
-/// Returns 0.0 when any tap of the support window leaves the image (no edge
-/// replication, to avoid smearing the frame border into the stack).
-#[allow(clippy::too_many_arguments)]
-fn sample(
-    src: &[f64],
-    src_w: usize,
-    src_h: usize,
-    channels: usize,
-    stride: usize,
-    c: usize,
-    sx: f64,
-    sy: f64,
-    interp: Interpolator,
-) -> f64 {
-    let px = |ix: i64, iy: i64| -> f64 {
-        if ix < 0 || iy < 0 || ix as usize >= src_w || iy as usize >= src_h {
-            0.0
-        } else {
-            src[iy as usize * stride + ix as usize * channels + c]
-        }
-    };
-
-    match interp {
-        Interpolator::Bilinear => {
-            let x0 = sx.floor();
-            let y0 = sy.floor();
-            let ix = x0 as i64;
-            let iy = y0 as i64;
-            if ix < 0 || iy < 0 || (ix + 1) as usize >= src_w || (iy + 1) as usize >= src_h {
-                return 0.0;
-            }
-            let dx = sx - x0;
-            let dy = sy - y0;
-            let p00 = px(ix, iy);
-            let p10 = px(ix + 1, iy);
-            let p01 = px(ix, iy + 1);
-            let p11 = px(ix + 1, iy + 1);
-            (1.0 - dx) * (1.0 - dy) * p00
-                + dx * (1.0 - dy) * p10
-                + (1.0 - dx) * dy * p01
-                + dx * dy * p11
-        }
-        // A kernel reaching past the frame edge would weigh the missing taps as
-        // zero and attenuate the sample, so no sample is produced there.
-        _ if !kernel_inside(sx, sy, src_w, src_h, interp) => 0.0,
-        Interpolator::CatmullRom => separable_sample(&px, sx, sy, 2, catmull_rom),
-        Interpolator::Lanczos3 => separable_sample(&px, sx, sy, 3, lanczos3),
-    }
-}
-
-/// Sample channel `c` of a channel-interleaved `f64` plane at fractional source
-/// position `(sx, sy)` with `interp`, returning `0.0` when the kernel support
-/// leaves the image (no edge replication — identical semantics to the private
-/// warp sampler).
-///
-/// This is the public entry point the WCS-driven reprojectors
-/// ([`crate::mosaic_stitch`], [`crate::sky_atlas`]) share so they resample with
-/// exactly the same Lanczos-3 / Catmull-Rom / bilinear kernels the registration
-/// warp uses, rather than re-deriving them. `data` is interleaved
-/// (`data[y·stride + x·channels + c]`) with `stride == width·channels`.
-#[allow(clippy::too_many_arguments)]
-pub fn sample_interleaved(
-    data: &[f64],
-    width: usize,
-    height: usize,
-    channels: usize,
-    channel: usize,
-    sx: f64,
-    sy: f64,
-    interp: Interpolator,
-) -> f64 {
-    let stride = width * channels;
-    sample(
-        data, width, height, channels, stride, channel, sx, sy, interp,
-    )
-}
-
-/// Separable interpolation with a 1-D kernel of half-width `radius` (taps span
-/// `[-radius+1, radius]` around the floor). Used for both Catmull-Rom (radius 2)
-/// and Lanczos-3 (radius 3).
-fn separable_sample<F, K>(px: &F, sx: f64, sy: f64, radius: i64, kernel: K) -> f64
-where
-    F: Fn(i64, i64) -> f64,
-    K: Fn(f64) -> f64,
-{
-    let x0 = sx.floor() as i64;
-    let y0 = sy.floor() as i64;
-    let fx = sx - x0 as f64;
-    let fy = sy - y0 as f64;
-
-    // Precompute horizontal and vertical weights.
-    let mut wx = [0.0f64; 6];
-    let mut wy = [0.0f64; 6];
-    let taps = (2 * radius) as usize;
-    let start = -(radius - 1);
-
-    let mut sum_wx = 0.0;
-    let mut sum_wy = 0.0;
-    for t in 0..taps {
-        let offset = start + t as i64;
-        let kx = kernel(fx - offset as f64);
-        let ky = kernel(fy - offset as f64);
-        wx[t] = kx;
-        wy[t] = ky;
-        sum_wx += kx;
-        sum_wy += ky;
-    }
-
-    // Normalise so the kernel sums to unity (preserves flat-field / flux level
-    // even when the analytic kernel weights don't sum to exactly 1 at this
-    // fractional offset).
-    if sum_wx.abs() < f64::EPSILON || sum_wy.abs() < f64::EPSILON {
-        return 0.0;
-    }
-
-    let mut acc = 0.0;
-    for (ty, &w_y) in wy.iter().enumerate().take(taps) {
-        let iy = y0 + start + ty as i64;
-        let mut row_acc = 0.0;
-        for (tx, &w_x) in wx.iter().enumerate().take(taps) {
-            let ix = x0 + start + tx as i64;
-            row_acc += w_x * px(ix, iy);
-        }
-        acc += w_y * row_acc;
-    }
-
-    acc / (sum_wx * sum_wy)
-}
-
-/// Catmull-Rom cubic kernel (a = -0.5). Interpolating, C¹, mild sharpening.
-fn catmull_rom(x: f64) -> f64 {
-    let a = -0.5;
-    let x = x.abs();
-    if x < 1.0 {
-        (a + 2.0) * x.powi(3) - (a + 3.0) * x.powi(2) + 1.0
-    } else if x < 2.0 {
-        a * x.powi(3) - 5.0 * a * x.powi(2) + 8.0 * a * x - 4.0 * a
-    } else {
-        0.0
-    }
-}
-
-/// Lanczos kernel with `a = 3` (windowed sinc).
-fn lanczos3(x: f64) -> f64 {
-    const A: f64 = 3.0;
-    if x.abs() < f64::EPSILON {
-        1.0
-    } else if x.abs() < A {
-        let px = std::f64::consts::PI * x;
-        (A * px.sin() * (px / A).sin()) / (px * px)
-    } else {
-        0.0
-    }
-}
-
 // Small linear-algebra helpers (no nalgebra dependency)
 
 /// Invert a 3×3 matrix; `None` if singular.
 fn invert_3x3(m: &[[f64; 3]; 3]) -> Option<[[f64; 3]; 3]> {
-    let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
-        - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-        + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-
+    let det = det3(m);
     if det.abs() < 1e-12 {
         return None;
     }
@@ -1417,58 +1192,6 @@ fn mat3_vec3(m: &[[f64; 3]; 3], v: &[f64; 3]) -> [f64; 3] {
     ]
 }
 
-/// Solve `A x = b` for an 8×8 system by Gaussian elimination with partial
-/// pivoting. Mutates `a` and `b`. Returns `None` if the matrix is singular.
-///
-/// `needless_range_loop` is allowed here: this is textbook Gaussian
-/// elimination where each inner loop reads the *pivot* row `a[col]` while
-/// mutating row `a[r]`, and the outer loop swaps whole rows. Index arithmetic
-/// is the clearest, and the borrow-checker-friendliest, way to express
-/// simultaneous cross-row access; an `enumerate()` rewrite would obscure it.
-#[allow(clippy::needless_range_loop)]
-fn solve_linear_system(a: &mut [[f64; 8]; 8], b: &mut [f64; 8]) -> Option<[f64; 8]> {
-    const N: usize = 8;
-    for col in 0..N {
-        // Partial pivot.
-        let mut pivot = col;
-        let mut max_abs = a[col][col].abs();
-        for r in (col + 1)..N {
-            if a[r][col].abs() > max_abs {
-                max_abs = a[r][col].abs();
-                pivot = r;
-            }
-        }
-        if max_abs < 1e-12 {
-            return None;
-        }
-        a.swap(col, pivot);
-        b.swap(col, pivot);
-
-        // Eliminate below.
-        let pivot_val = a[col][col];
-        for r in (col + 1)..N {
-            let factor = a[r][col] / pivot_val;
-            if factor != 0.0 {
-                for c in col..N {
-                    a[r][c] -= factor * a[col][c];
-                }
-                b[r] -= factor * b[col];
-            }
-        }
-    }
-
-    // Back-substitution.
-    let mut x = [0.0f64; N];
-    for i in (0..N).rev() {
-        let mut sum = b[i];
-        for j in (i + 1)..N {
-            sum -= a[i][j] * x[j];
-        }
-        x[i] = sum / a[i][i];
-    }
-    Some(x)
-}
-
 fn rms(values: &[f64]) -> f64 {
     if values.is_empty() {
         return 0.0;
@@ -1476,8 +1199,6 @@ fn rms(values: &[f64]) -> f64 {
     let sum_sq: f64 = values.iter().map(|v| v * v).sum();
     (sum_sq / values.len() as f64).sqrt()
 }
-
-// Deterministic PRNG for RANSAC sampling
 
 /// SplitMix64 — a tiny, fast, deterministic PRNG. We use a fixed seed so
 /// registration is reproducible run-to-run (important for stack determinism and
@@ -1499,8 +1220,6 @@ impl Rng {
         z ^ (z >> 31)
     }
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {
@@ -2065,17 +1784,6 @@ mod tests {
                 "homography mismatch at ({x},{y}): expected ({ex},{ey}) got ({ax},{ay})"
             );
         }
-    }
-
-    #[test]
-    fn lanczos_kernel_partition_of_unity_at_integer_offsets() {
-        // At an exact integer sample location, Lanczos must return the sample
-        // itself: kernel(0) = 1, kernel(non-zero integer) = 0.
-        assert!((lanczos3(0.0) - 1.0).abs() < 1e-12);
-        for k in 1..=3 {
-            assert!(lanczos3(k as f64).abs() < 1e-9, "lanczos3({k}) not ~0");
-        }
-        assert!(lanczos3(3.5).abs() < 1e-12);
     }
 
     #[test]

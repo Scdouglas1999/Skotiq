@@ -25,7 +25,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/widgets/rig_card.dart';
 import 'package:skotiq_app/screens/shell/widgets/shell_clock.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -157,7 +158,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 50));
 
-      final progress = handle.container.read(sequenceProgressProvider.notifier);
+      final progress = handle.container.read(runRecordProvider.notifier);
       progress.setTotals(10, 100);
       progress.updateProgress(completedExposures: 3);
       await tester.pump();

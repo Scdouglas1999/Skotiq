@@ -3,11 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/network_service.dart';
+import '../services/rig_connection.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_app/utils/snackbar_helper.dart';
 
 /// How the active session reaches the headless server. Drives the LAN-vs-
 /// Tailscale badge + icon on the indicator so the operator can tell at a
@@ -87,14 +91,14 @@ class _NetworkStatusIndicatorState
     extends ConsumerState<NetworkStatusIndicator> {
   Duration? _latency;
   StreamSubscription<Duration>? _latencySubscription;
-  NetworkBackend? _trackedBackend;
+  HostLink? _trackedLink;
   int _backendGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     // Seed and subscribe against whatever backend is currently active.
-    _attachToBackend(ref.read(backendProvider));
+    _attachToLink(ref.read(linkedHostLinkProvider));
   }
 
   @override
@@ -104,26 +108,26 @@ class _NetworkStatusIndicatorState
     super.dispose();
   }
 
-  void _attachToBackend(SkotiqBackend backend) {
-    if (identical(backend, _trackedBackend)) return;
+  void _attachToLink(HostLink? hostLink) {
+    if (identical(hostLink, _trackedLink)) return;
     final generation = ++_backendGeneration;
     _latencySubscription?.cancel();
     _latencySubscription = null;
-    if (backend is NetworkBackend) {
-      _trackedBackend = backend;
+    if (hostLink != null) {
+      _trackedLink = hostLink;
       // Seed with the last observed value so the UI doesn't flash empty
       // immediately after a backend swap.
-      _latency = backend.lastLatency;
-      _latencySubscription = backend.latencyStream.listen((value) {
+      _latency = hostLink.lastLatency;
+      _latencySubscription = hostLink.latencyStream.listen((value) {
         if (!mounted ||
             generation != _backendGeneration ||
-            !identical(_trackedBackend, backend)) {
+            !identical(_trackedLink, hostLink)) {
           return;
         }
         setState(() => _latency = value);
       });
     } else {
-      _trackedBackend = null;
+      _trackedLink = null;
       if (_latency != null) {
         _latency = null;
       }
@@ -135,8 +139,8 @@ class _NetworkStatusIndicatorState
     // Rebuild + re-attach whenever the backend instance changes (connect,
     // disconnect, swap). `ref.listen` keeps the StreamSubscription scoped
     // to the live backend so we don't leak handlers across reconnects.
-    ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
-      _attachToBackend(next);
+    ref.listen<HostLink?>(linkedHostLinkProvider, (previous, next) {
+      _attachToLink(next);
     });
 
     final backend = ref.watch(backendProvider);
@@ -163,14 +167,19 @@ class _NetworkStatusIndicatorState
     // When the backend itself is a NetworkBackend we also want to rebuild
     // on every connectionState transition so the indicator follows the
     // grace-window UX. StreamBuilder handles that for us.
-    if (backend is NetworkBackend) {
+    if (ref.watch(linkedHostLinkProvider) case final hostLink?) {
       return StreamBuilder<BackendConnectionState>(
-        stream: backend.connectionStateStream,
-        initialData: backend.connectionState,
+        stream: hostLink.connectionStateStream,
+        initialData: hostLink.connectionState,
         builder: (context, wsSnap) {
-          final wsState = wsSnap.data ?? backend.connectionState;
+          final wsState = wsSnap.data ?? hostLink.connectionState;
           final combined = _combine(wsState, osState);
-          return _renderIndicator(context, combined, osState, backend: backend);
+          return _renderIndicator(
+            context,
+            combined,
+            osState,
+            backend: hostLink,
+          );
         },
       );
     }
@@ -178,7 +187,7 @@ class _NetworkStatusIndicatorState
     // (local-only) or DisconnectedBackend (skipped connect / dropped
     // session). On mobile the first is irrelevant, so collapse both
     // into `notConnected`.
-    final combined = backend is DisconnectedBackend
+    final combined = backend.hasNoHost
         ? _CombinedConnectionStatus.notConnected
         : _CombinedConnectionStatus.connected;
     return _renderIndicator(context, combined, osState, backend: null);
@@ -211,7 +220,7 @@ class _NetworkStatusIndicatorState
 
   /// Classify how the active backend reaches the server (LAN vs tailnet).
   /// Returns [_TransportTier.none] when there is no NetworkBackend.
-  static _TransportTier _transportTier(NetworkBackend? backend) {
+  static _TransportTier _transportTier(HostLink? backend) {
     if (backend == null) return _TransportTier.none;
     return backend.isRemoteHost ? _TransportTier.tailscale : _TransportTier.lan;
   }
@@ -220,7 +229,7 @@ class _NetworkStatusIndicatorState
     BuildContext context,
     _CombinedConnectionStatus status,
     NetworkServiceState osState, {
-    required NetworkBackend? backend,
+    required HostLink? backend,
   }) {
     final transport = _transportTier(backend);
     return GestureDetector(
@@ -256,9 +265,10 @@ class _NetworkStatusIndicatorState
     BuildContext context,
     _CombinedConnectionStatus status,
     NetworkServiceState osState,
-    NetworkBackend? backend,
+    HostLink? backend,
     _TransportTier transport,
   ) {
+    final rig = ref.watch(connectedRigProvider);
     final color = _statusColor(context, status);
     final icon = _statusIcon(status, transport);
     final theme = Theme.of(context);
@@ -285,19 +295,19 @@ class _NetworkStatusIndicatorState
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (osState.connectedServer != null || _shouldShowLatency(status))
+              if (rig != null || _shouldShowLatency(status))
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (osState.connectedServer != null)
+                    if (rig != null)
                       Text(
-                        osState.connectedServer!.name,
+                        rig.name,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: color.withValues(alpha: 0.8),
                         ),
                       ),
                     if (_shouldShowLatency(status) && _latency != null) ...[
-                      if (osState.connectedServer != null)
+                      if (rig != null)
                         Text(
                           ' · ',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -407,7 +417,7 @@ class _NetworkStatusIndicatorState
     BuildContext context,
     _CombinedConnectionStatus status,
     NetworkServiceState osState,
-    NetworkBackend? backend,
+    HostLink? backend,
   ) {
     final colors = SkotiqColors.of(context);
     showModalBottomSheet(
@@ -472,7 +482,7 @@ class _ConnectionDetailsSheet extends ConsumerStatefulWidget {
   final _CombinedConnectionStatus status;
   final NetworkServiceState osState;
   final Duration? latency;
-  final NetworkBackend? backend;
+  final HostLink? backend;
 
   const _ConnectionDetailsSheet({
     required this.status,
@@ -495,12 +505,11 @@ class _ConnectionDetailsSheetState
   Future<void> _handleReconnectNow() async {
     if (_reconnecting) return;
     final activeBackend = ref.read(backendProvider);
-    if (activeBackend is! NetworkBackend) {
+    final hostLink = ref.read(linkedHostLinkProvider);
+    if (hostLink == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No remote server is selected. Reconnect first.'),
-          ),
+        context.showInfoSnackBar(
+          'No remote server is selected. Reconnect first.',
         );
       }
       return;
@@ -508,12 +517,10 @@ class _ConnectionDetailsSheetState
     final backend = activeBackend;
     setState(() => _reconnecting = true);
     try {
-      await backend.reconnectNow();
+      await hostLink.reconnectNow();
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), backend)) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Reconnect failed: $e')));
+      if (mounted && ref.backendScopeOver(backend).isCurrent) {
+        context.showErrorSnackBar('Reconnect failed: $e');
       }
     } finally {
       if (mounted) {
@@ -522,11 +529,8 @@ class _ConnectionDetailsSheetState
     }
   }
 
-  /// Run the discovery cascade and, on a hit, connect the backend to the rig.
-  /// Stamping last-server and NetworkService status alone — what
-  /// `NetworkService().rediscoverServer()` does — leaves the WebSocket session
-  /// down, so the button would report success while the app still could not
-  /// drive the rig.
+  /// Run the discovery cascade and, on a hit, link to the rig through the
+  /// app's one connect flow.
   Future<void> _handleSearchForServers() async {
     setState(() => _searching = true);
     DiscoveredServer? server;
@@ -539,37 +543,21 @@ class _ConnectionDetailsSheetState
     if (!mounted) return;
     if (server == null) {
       setState(() => _searching = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            discoveryError == null
-                ? 'No servers found on this network.'
-                : 'Server discovery failed: $discoveryError',
-          ),
-        ),
+      context.showInfoSnackBar(
+        discoveryError == null
+            ? 'No servers found on this network.'
+            : 'Server discovery failed: $discoveryError',
       );
       return;
     }
-    try {
-      await ref
-          .read(backendProvider.notifier)
-          .connect(
-            server.host,
-            server.webPort,
-            authToken: server.authToken,
-            scheme: server.scheme,
-            pinnedFingerprint: server.fingerprint,
-          );
-      await EnhancedSkotiqDiscovery.saveLastServer(server);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _searching = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to connect: $e')));
+    final connect = ref.read(rigConnectProvider);
+    final linked = connect != null && await connect(server);
+    if (!mounted) return;
+    setState(() => _searching = false);
+    if (!linked) {
+      context.showErrorSnackBar('Could not connect to ${server.name}.');
       return;
     }
-    if (!mounted) return;
     Navigator.pop(context);
   }
 
@@ -578,14 +566,11 @@ class _ConnectionDetailsSheetState
     setState(() => _disconnecting = true);
     try {
       await ref.read(backendProvider.notifier).disconnect();
-      await NetworkService().disconnect();
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       setState(() => _disconnecting = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Disconnect blocked: $e')));
+      context.showErrorSnackBar('Disconnect blocked: $e');
     }
   }
 
@@ -595,6 +580,7 @@ class _ConnectionDetailsSheetState
     final colors = SkotiqColors.of(context);
     final status = widget.status;
     final osState = widget.osState;
+    final rig = ref.watch(connectedRigProvider);
 
     return Container(
       decoration: BoxDecoration(
@@ -632,7 +618,7 @@ class _ConnectionDetailsSheetState
                       ),
                     ),
                     Text(
-                      _statusDescription(status, osState),
+                      _statusDescription(status, rig),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colors.textSecondary,
                       ),
@@ -645,17 +631,12 @@ class _ConnectionDetailsSheetState
           const SizedBox(height: 24),
 
           // Connection Details
-          if (osState.connectedServer != null) ...[
-            _DetailRow(label: 'Server', value: osState.connectedServer!.name),
-            _DetailRow(label: 'Host', value: osState.connectedServer!.host),
-            _DetailRow(
-              label: 'Port',
-              value: osState.connectedServer!.webPort.toString(),
-            ),
-            _DetailRow(
-              label: 'Version',
-              value: osState.connectedServer!.version,
-            ),
+          if (rig != null) ...[
+            _DetailRow(label: 'Server', value: rig.name),
+            _DetailRow(label: 'Host', value: rig.host),
+            _DetailRow(label: 'Port', value: rig.webPort.toString()),
+            if (rig.version case final version?)
+              _DetailRow(label: 'Version', value: version),
           ],
 
           // Network Details
@@ -796,14 +777,14 @@ class _ConnectionDetailsSheetState
 
   String _statusDescription(
     _CombinedConnectionStatus status,
-    NetworkServiceState osState,
+    DiscoveredServer? rig,
   ) {
     switch (status) {
       case _CombinedConnectionStatus.connected:
-        return 'Connected to ${osState.connectedServer?.name ?? "server"}';
+        return 'Connected to ${rig?.name ?? "server"}';
       case _CombinedConnectionStatus.connecting:
         return 'Connecting to '
-            '${osState.connectedServer?.name ?? "the server"}...';
+            '${rig?.name ?? "the server"}...';
       case _CombinedConnectionStatus.reconnecting:
         return 'Attempting to reconnect...';
       case _CombinedConnectionStatus.serverOffline:
@@ -833,7 +814,6 @@ class _ConnectionDetailsSheetState
   }
 }
 
-/// Detail row widget
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;

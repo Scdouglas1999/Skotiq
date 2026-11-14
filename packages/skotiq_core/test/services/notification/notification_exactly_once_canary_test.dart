@@ -47,11 +47,8 @@ class _RecordingTransport extends NotificationTransport {
   bool get isConfigured => true;
 
   @override
-  Future<NotificationResult> send({
-    required NotificationCategory category,
-    required String title,
-    required String body,
-  }) async {
+  Future<NotificationResult> send(NotificationMessage message) async {
+    final category = message.category;
     sentCategories.add(category);
     return NotificationResult.ok();
   }
@@ -70,14 +67,17 @@ SkotiqEvent _evt(
   data: data,
 );
 
-/// The eight critical canary events, each as a core-typed [SkotiqEvent]
+/// The seven critical canary events, each as a core-typed [SkotiqEvent]
 /// paired with the [NotificationCategory] it must classify to.
 final _criticalCases =
     <String, ({SkotiqEvent event, NotificationCategory category})>{
       'sequenceFailed': (
-        event: _evt(EventCategory.sequencer, 'Error', EventSeverity.error, {
-          'message': 'boom',
-        }),
+        event: _evt(
+          EventCategory.sequencer,
+          'SequenceFailed',
+          EventSeverity.error,
+          {'error': 'boom'},
+        ),
         category: NotificationCategory.sequenceFailed,
       ),
       'weatherUnsafe': (
@@ -116,21 +116,22 @@ final _criticalCases =
           EventCategory.sequencer,
           'RecoveryGaveUp',
           EventSeverity.critical,
+          {
+            'started_at_iso': '2026-11-12T03:00:00Z',
+            'cause_kind': 'GuideStarLost',
+            'attempt_count': 3,
+            'max_attempts': 3,
+            'retry_interval_secs': 60.0,
+            'max_duration_secs': 900.0,
+            'phase': 'GaveUp',
+            'aborted_by_user': false,
+          },
         ),
         category: NotificationCategory.recoveryGaveUp,
       ),
       'diskSpaceLow': (
         event: _evt(EventCategory.system, 'DiskSpaceLow', EventSeverity.error),
         category: NotificationCategory.diskSpaceLow,
-      ),
-      'autofocusFailed': (
-        event: _evt(
-          EventCategory.sequencer,
-          'NodeCompleted',
-          EventSeverity.error,
-          {'node_type': 'autofocus', 'success': false},
-        ),
-        category: NotificationCategory.autofocusFailed,
       ),
     };
 
@@ -424,7 +425,7 @@ void main() {
     test('the dashboard-bridge explicit push and the classifier push for the '
         'SAME alert collapse to exactly one (cross-stream dedup)', () async {
       // The router has two converging systemPush inputs: its own classifier
-      // subscription (core stream) and routeBridgeCriticalPush (the dashboard
+      // subscription (core stream) and routeCriticalPush (the dashboard
       // bridge's bridge-stream path). For an event BOTH recognise, the
       // content-signature dedup must yield exactly one phone push.
       final push = PushNotificationService(
@@ -446,7 +447,7 @@ void main() {
       router.attachEventStream(
         Stream.value(_criticalCases['weatherUnsafe']!.event),
       );
-      router.routeBridgeCriticalPush(
+      router.routeCriticalPush(
         title: 'Weather unsafe',
         body: 'Safety monitor reports unsafe conditions.',
         eventType: 'WeatherUnsafe',
@@ -492,7 +493,7 @@ void main() {
           }),
         ),
       );
-      router.routeBridgeCriticalPush(
+      router.routeCriticalPush(
         title: 'Critical · System',
         body: 'FITS save failed',
         eventType: 'System error',
@@ -526,8 +527,10 @@ void main() {
       router.attachEventStream(
         Stream.value(
           _evt(EventCategory.imaging, 'ExposureCompleted', EventSeverity.info, {
-            'frame_number': 3,
-            'duration_secs': 120,
+            'frame': 3,
+            'total': 10,
+            'hfr': 2.1,
+            'stars_detected': 120,
           }),
         ),
       );

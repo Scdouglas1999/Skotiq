@@ -1,18 +1,15 @@
 // ignore_for_file: invalid_use_of_protected_member
-// Checkpoint probing, panel geometry, time estimates, sequence/project creation and validation dialogs.
 part of '../mosaic_wizard_dialog.dart';
 
 extension _MosaicWizardLogic on _MosaicWizardDialogState {
   Future<void> _probeForInterruptedMosaic() async {
-    final authority = ref.read(backendProvider);
-    final generation = _authorityGeneration;
     try {
       final backend = ref.read(sequencerBackendProvider);
       final hasCheckpoint = await backend.hasCheckpoint();
-      if (!_isCurrentAuthority(authority, generation)) return;
+      if (host.isStale) return;
       if (!hasCheckpoint) return;
       final info = await backend.getCheckpointInfo();
-      if (!_isCurrentAuthority(authority, generation)) return;
+      if (host.isStale) return;
       final isMosaic = info != null &&
           info.canResume &&
           info.sequenceName.startsWith('Mosaic ');
@@ -20,9 +17,9 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
         setState(() => _resumableMosaicCheckpoint = info);
       }
     } catch (e) {
-      if (mounted && _isCurrentAuthority(authority, generation)) {
+      if (mounted && host.isCurrent) {
         context.showErrorSnackBar(
-          'Could not check for interrupted mosaic: $e',
+          'Could not check for interrupted mosaic: ${userFacingError(e)}',
         );
       }
     }
@@ -46,7 +43,8 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     } catch (e) {
       if (mounted) {
         setState(() => _checkpointAction = null);
-        context.showErrorSnackBar('Failed to resume mosaic: $e');
+        context.showErrorSnackBar(
+            'Failed to resume mosaic: ${userFacingError(e)}');
       }
     }
   }
@@ -67,20 +65,14 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     } catch (e) {
       if (mounted) {
         setState(() => _checkpointAction = null);
-        context.showErrorSnackBar('Failed to discard checkpoint: $e');
+        context.showErrorSnackBar(
+            'Failed to discard checkpoint: ${userFacingError(e)}');
       }
     }
   }
 
-  /// Compute panel positions for the visual planner.
-  ///
-  /// Delegates to the planetarium's `MosaicPlanner.generateRectangularMosaic`
-  /// for the actual spherical geometry — that ensures the on-screen
-  /// preview matches the framing-view's mosaic overlay (the
-  /// planetarium uses the same planner to render its own mosaic
-  /// preview). The wizard then maps those panels into the local
-  /// `_PanelPosition` shape and overlays the user's enable/disable
-  /// toggles.
+  /// Panel positions for the visual planner: the panels the sequence will
+  /// have ([MosaicService.generatePanels]), numbered as Framing numbers them.
   ///
   /// The geometry is memoised on its inputs; the disabled-state overlay is a
   /// cheap per-call post-map (it can change every tap without recomputing the
@@ -91,34 +83,9 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
         '$_panelsVertical|$_panelsHorizontal';
     var geometry = _cachedGeometry;
     if (geometry == null || _cachedGeometryKey != key) {
-      final overlapFraction = _overlapPercent / 100.0;
-      final panelFovWidthDeg = _panelWidthArcmin / 60.0;
-      final panelFovHeightDeg = _panelHeightArcmin / 60.0;
-
-      final plan = planetarium.MosaicPlanner.generateRectangularMosaic(
-        center: planetarium.CelestialCoordinate(
-          ra: _centerRa,
-          dec: _centerDec,
-        ),
-        rows: _panelsVertical,
-        columns: _panelsHorizontal,
-        panelFovWidth: panelFovWidthDeg,
-        panelFovHeight: panelFovHeightDeg,
-        overlap: planetarium.MosaicOverlap(
-          horizontal: overlapFraction,
-          vertical: overlapFraction,
-        ),
-        rotation: _rotation,
-      );
-      geometry = plan.panels
-          .map((p) => _PanelPosition(
-                ra: p.center.ra,
-                dec: p.center.dec,
-                index: p.index,
-                row: p.row,
-                col: p.column,
-                enabled: true,
-              ))
+      geometry = const MosaicService()
+          .generatePanels(_config)
+          .map((p) => _PanelPosition(p, enabled: true))
           .toList();
       _cachedGeometry = geometry;
       _cachedGeometryKey = key;
@@ -127,11 +94,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     // Cheap disabled overlay — recomputed each call without touching the trig.
     return geometry
         .map((p) => _PanelPosition(
-              ra: p.ra,
-              dec: p.dec,
-              index: p.index,
-              row: p.row,
-              col: p.col,
+              p.panel,
               enabled: !_disabledPanels.contains((row: p.row, col: p.col)),
             ))
         .toList();
@@ -153,7 +116,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     final exposure = mosaicWizardExposureSettingsForContext(
       ref.read(smartNightExposureContextProvider).valueOrNull,
     );
-    final filters = ref.read(profileFiltersProvider);
+    final filters = ref.read(effectiveFiltersProvider);
     if (filters.isEmpty) {
       _filterRows.add(_MosaicFilterRow(
         filterName: exposure.filterName ?? 'Light',
@@ -211,31 +174,74 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     return total;
   }
 
-  // Per-panel overhead model. These reflect the [MosaicSequenceOptions] the
-  // generator actually emits in [_createSequence] (centerAfterSlew: true,
-  // autofocusPerPanel: false) so the preview's estimate agrees with the built
-  // sequence instead of using one opaque 60 s lump.
-  static const double _slewSecsPerPanel = 30.0;
-  static const double _centerSecsPerPanel = 30.0; // plate-solve + recenter
-  static const double _autofocusSecsPerPanel = 60.0;
+  MosaicConfig get _config => MosaicConfig(
+        centerRa: _centerRa,
+        centerDec: _centerDec,
+        panelWidthArcmin: _panelWidthArcmin,
+        panelHeightArcmin: _panelHeightArcmin,
+        overlapPercent: _overlapPercent,
+        rotation: _rotation,
+        panelsHorizontal: _panelsHorizontal,
+        panelsVertical: _panelsVertical,
+      );
 
-  double _perPanelOverheadSecs({
-    required bool centerAfterSlew,
-    required bool autofocusPerPanel,
-  }) {
-    var overhead = _slewSecsPerPanel;
-    if (centerAfterSlew) overhead += _centerSecsPerPanel;
-    if (autofocusPerPanel) overhead += _autofocusSecsPerPanel;
-    return overhead;
-  }
+  /// The mosaic's steps as they go into the sequence: every active panel,
+  /// under one root instruction set.
+  ({Map<String, SequenceNode> nodes, String rootId}) _mosaicNodes(
+    MosaicService mosaicService,
+    MosaicConfig config,
+  ) {
+    final exposure = _effectiveExposure(
+      mosaicWizardExposureSettingsForContext(
+        ref.read(smartNightExposureContextProvider).valueOrNull,
+      ),
+    );
 
-  double _calculateTotalTime(double exposureSecsPerPanel) {
-    // Mirror the options used by _createSequence so preview == built sequence.
-    final overheadPerPanel = _perPanelOverheadSecs(
+    final options = MosaicSequenceOptions(
       centerAfterSlew: true,
       autofocusPerPanel: false,
+      // W1 altitude gate: default each panel's minAltitude to the Smart Night
+      // floor so every panel TargetHeader carries a `start_when AltitudeAbove`
+      // wait (serialized as `min_altitude`) — matching the headless mosaic
+      // path. STRENGTHENS the no-daylight/altitude gate for wizard-built
+      // mosaics; never weakens the existing Dart Sun gate (W1) or W5.
+      minAltitude: const SmartNightSettings().minAltitudeDeg,
     );
-    return _activePanelCount * (exposureSecsPerPanel + overheadPerPanel);
+
+    final nodes = mosaicService.createMosaicSequence(
+      mosaicName: _mosaicName,
+      config: config,
+      exposure: exposure,
+      options: options,
+    );
+
+    final rootNode = nodes.values.firstWhere(
+      (node) => node is InstructionSetNode && node.parentId == null,
+    );
+
+    final disabledChildIds = _disabledTargetSubtreeIds(nodes, rootNode);
+    return (
+      nodes: Map<String, SequenceNode>.fromEntries(
+        nodes.entries.where((entry) => !disabledChildIds.contains(entry.key)),
+      ),
+      rootId: rootNode.id,
+    );
+  }
+
+  /// How long the mosaic takes from now, timed as the sequence it builds.
+  Duration _estimatedTime() {
+    final built = _mosaicNodes(const MosaicService(), _config);
+    return ref
+        .watch(planTimerProvider)
+        .time(
+          Sequence.create(
+            name: _mosaicName,
+            nodes: built.nodes,
+            rootNodeId: built.rootId,
+          ),
+          DateTime.now(),
+        )
+        .total;
   }
 
   void _generateMosaic() {
@@ -246,16 +252,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     _logWizardAction('load-into-sequencer requested');
     const mosaicService = MosaicService();
 
-    final config = MosaicConfig(
-      centerRa: _centerRa,
-      centerDec: _centerDec,
-      panelWidthArcmin: _panelWidthArcmin,
-      panelHeightArcmin: _panelHeightArcmin,
-      overlapPercent: _overlapPercent,
-      rotation: _rotation,
-      panelsHorizontal: _panelsHorizontal,
-      panelsVertical: _panelsVertical,
-    );
+    final config = _config;
 
     final validation = mosaicService.validateMosaic(config);
     if (!validation.isValid) {
@@ -276,42 +273,8 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
   }
 
   void _createSequence(MosaicService mosaicService, MosaicConfig config) {
-    final exposure = _effectiveExposure(
-      mosaicWizardExposureSettingsForContext(
-        ref.read(smartNightExposureContextProvider).valueOrNull,
-      ),
-    );
-
-    final options = MosaicSequenceOptions(
-      serpentineOrdering: true,
-      centerAfterSlew: true,
-      autofocusPerPanel: false,
-      // W1 altitude gate: default each panel's minAltitude to the Smart Night
-      // floor so every panel TargetHeader carries a `start_when AltitudeAbove`
-      // wait (serialized as `min_altitude`) — matching the headless mosaic
-      // path. STRENGTHENS the no-daylight/altitude gate for wizard-built
-      // mosaics; never weakens the existing Dart Sun gate (W1) or W5.
-      minAltitude: const SmartNightSettings().minAltitudeDeg,
-    );
-
-    final nodes = mosaicService.createMosaicSequence(
-      mosaicName:
-          'Mosaic ${_centerRa.toStringAsFixed(2)}h ${_centerDec.toStringAsFixed(1)}°',
-      config: config,
-      exposure: exposure,
-      options: options,
-    );
-
+    final built = _mosaicNodes(mosaicService, config);
     final sequenceNotifier = ref.read(currentSequenceProvider.notifier);
-
-    final rootNode = nodes.values.firstWhere(
-      (node) => node is InstructionSetNode && node.parentId == null,
-    );
-
-    final disabledChildIds = _disabledTargetSubtreeIds(nodes, rootNode);
-    final enabledNodes = Map<String, SequenceNode>.fromEntries(
-      nodes.entries.where((entry) => !disabledChildIds.contains(entry.key)),
-    );
 
     try {
       if (ref.read(currentSequenceProvider) == null) {
@@ -327,15 +290,16 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
       // of replaying addNode in that order (which attached children to the
       // current root and duplicated panel headers).
       sequenceNotifier.mergeTemplateNodes(
-        templateNodes: enabledNodes,
-        templateRootId: rootNode.id,
+        templateNodes: built.nodes,
+        templateRootId: built.rootId,
         targetId: currentRootId,
       );
     } on SequenceLockedException catch (error) {
       context.showErrorSnackBar(error.message);
       return;
     } catch (error) {
-      context.showErrorSnackBar('Could not load mosaic: $error');
+      context.showErrorSnackBar(
+          'Could not load mosaic: ${userFacingError(error)}');
       return;
     }
 
@@ -380,7 +344,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
   Future<void> _createMosaicProject() async {
     _logWizardAction('create-project requested');
     final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend || backend is DisconnectedBackend) {
+    if (!backend.runsRigHere) {
       _logWizardAction('create-project refused: not the imaging host');
       _showMosaicProjectHostOnlyMessage();
       return;
@@ -413,8 +377,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
 
   Future<void> _persistProject() async {
     if (_isCreatingProject) return;
-    final authority = ref.read(backendProvider);
-    if (authority is NetworkBackend || authority is DisconnectedBackend) {
+    if (!host.value.runsRigHere) {
       _showMosaicProjectHostOnlyMessage();
       return;
     }
@@ -425,17 +388,18 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
     try {
       final projectId = await controller.createProject(_currentDesign());
       if (!mounted) return;
-      if (!identical(ref.read(backendProvider), authority)) {
+      if (host.isStale) {
         setState(() => _isCreatingProject = false);
         return;
       }
       setState(() => _isCreatingProject = false);
       Navigator.of(context).pop();
-      unawaited(context.push('/mosaic/$projectId'));
+      unawaited(context.push(AppRoutes.mosaicProject(projectId)));
     } catch (e) {
       if (mounted) {
         setState(() => _isCreatingProject = false);
-        context.showErrorSnackBar('Could not create mosaic project: $e');
+        context.showErrorSnackBar(
+            'Could not create mosaic project: ${userFacingError(e)}');
       }
     }
   }
@@ -445,11 +409,11 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
   /// gating decision is made from — the field that decides whether the buttons
   /// are enabled at all.
   void _logWizardAction(String message) {
-    developer.log(
+    Log.debug(
       '[MosaicWizard] $message (panelSize='
       '${_panelSizeKnown ? '${_panelWidthArcmin.toStringAsFixed(1)}x'
           '${_panelHeightArcmin.toStringAsFixed(1)} arcmin' : 'unknown'})',
-      name: 'MosaicWizardDialog',
+      source: 'MosaicWizardDialog',
     );
   }
 

@@ -65,10 +65,15 @@ class _DesktopBuilderLayout extends ConsumerWidget {
   /// mid-string.
   static const double comfortableCenterWidth = 380.0;
 
+  /// The canvas width at which the ledger reads whole: step names like
+  /// "Luminance Loop (40 x 120s)" and the target's RA/Dec chips untruncated
+  /// at four levels of nesting. Measured on the M51 starter at 1280 x 800,
+  /// where the 652 px canvas cut them to "Luminance Lo…" and "13h…".
+  static const double readableCanvasWidth = 800.0;
+
   /// The palette column's width (06 §Sequencer: 264 / 1fr / 300).
   static const double paletteWidth = 264.0;
 
-  /// The properties column's width.
   static const double propertiesWidth = 300.0;
 
   /// Bucket the raw available width to the nearest 64px before computing
@@ -114,13 +119,15 @@ class _DesktopBuilderLayout extends ConsumerWidget {
     // An EMPTY properties column is 300 px of "Select a node"; below the
     // desktop breakpoint that width belongs to the document. See
     // autoCollapseEmptyProperties below.
-    final hasSelection = ref.watch(selectedNodeIdProvider) != null;
+    // A step of the open plan, not just an id: loading another plan leaves
+    // the old id behind, and the column stayed open on "Select a node".
+    final hasSelection =
+        ref.watch(selectedNodeProvider.select((node) => node != null));
 
     // Derive panel sizes from a bucketed width so a continuous resize
     // drag only steps the dimensions every ~64px instead of every frame.
     final dims = _panelDimensions(_bucketWidth(availableWidth));
 
-    // Calculate space needed for different configurations.
     final bothExpandedWidth =
         dims.leftExpanded + minCenterWidth + dims.rightExpanded;
     const bothCollapsedMinWidth =
@@ -132,7 +139,6 @@ class _DesktopBuilderLayout extends ConsumerWidget {
         // carries the live sequence's own name and actions. A second title
         // block here would be the app introducing itself twice.
 
-        // Equipment telemetry strip (visible during execution)
         Consumer(
           builder: (context, ref, child) {
             final executionState = ref.watch(sequenceExecutionStateProvider);
@@ -144,7 +150,6 @@ class _DesktopBuilderLayout extends ConsumerWidget {
           },
         ),
 
-        // Batch operations toolbar (visible during multi-select)
         Consumer(
           builder: (context, ref, child) {
             final isMultiSelect = ref.watch(isMultiSelectActiveProvider);
@@ -173,6 +178,25 @@ class _DesktopBuilderLayout extends ConsumerWidget {
               // window restores the saved expanded preference.
               final spaceTight = availableWidth < bothExpandedWidth;
 
+              // Derived widths. The columns are the spec's 264 / 300 whenever
+              // there is room for them; only a genuinely tight window packs
+              // them down to their floor. (They used to sit at the floor
+              // WHENEVER both were open and grow only when the other one
+              // collapsed, so the shipped default was a 220 px palette that
+              // clipped its own tab labels and its node descriptions.) A
+              // user-dragged width still overrides.
+              final leftDerived = spaceTight ? dims.leftMin : dims.leftExpanded;
+              final rightDerived =
+                  spaceTight ? dims.rightMin : dims.rightExpanded;
+              final leftWidth = (persistedLeftWidth ?? leftDerived).clamp(
+                dims.leftMin,
+                dims.leftMax,
+              );
+              final rightWidth = (persistedRightWidth ?? rightDerived).clamp(
+                dims.rightMin,
+                dims.rightMax,
+              );
+
               // Honor the explicit user collapse prefs; tight space packs both
               // panels to *Min instead of collapsing one — until even that
               // leaves the document pane below [comfortableCenterWidth], at
@@ -196,9 +220,18 @@ class _DesktopBuilderLayout extends ConsumerWidget {
               // node is. Derived only — the user-pref providers are never
               // written, so widening restores the saved state, and an explicit
               // force-open still wins.
-              final autoCollapseEmptyProperties =
-                  availableWidth < SkotiqTokens.breakpointDesktop &&
-                      !hasSelection;
+              //
+              // The same holds at any width where the open column would cut
+              // the step names: an empty inspector is not worth a truncated
+              // plan.
+              final canvasWithPropertiesOpen = availableWidth -
+                  (toolboxCollapsed || autoCollapseToolbox
+                      ? collapsedPanelWidth
+                      : leftWidth) -
+                  rightWidth;
+              final autoCollapseEmptyProperties = !hasSelection &&
+                  (availableWidth < SkotiqTokens.breakpointDesktop ||
+                      canvasWithPropertiesOpen < readableCanvasWidth);
               final autoCollapseProperties =
                   centerWithToolboxCollapsed < comfortableCenterWidth ||
                       autoCollapseEmptyProperties;
@@ -215,28 +248,8 @@ class _DesktopBuilderLayout extends ConsumerWidget {
               final effectivePropertiesCollapsed = propertiesCollapsed ||
                   (autoCollapseProperties && !propertiesForceOpen);
 
-              // Derived widths. The columns are the spec's 264 / 300 whenever
-              // there is room for them; only a genuinely tight window packs
-              // them down to their floor. (They used to sit at the floor
-              // WHENEVER both were open and grow only when the other one
-              // collapsed, so the shipped default was a 220 px palette that
-              // clipped its own tab labels and its node descriptions.) A
-              // user-dragged width still overrides.
-              final leftDerived = spaceTight ? dims.leftMin : dims.leftExpanded;
-              final rightDerived =
-                  spaceTight ? dims.rightMin : dims.rightExpanded;
-              final leftWidth = (persistedLeftWidth ?? leftDerived).clamp(
-                dims.leftMin,
-                dims.leftMax,
-              );
-              final rightWidth = (persistedRightWidth ?? rightDerived).clamp(
-                dims.rightMin,
-                dims.rightMax,
-              );
-
               return Row(
                 children: [
-                  // Left panel - Toolbox (Node Palette + Snippet Palette)
                   _CollapsiblePanel(
                     colors: colors,
                     isCollapsed: effectiveToolboxCollapsed,
@@ -265,7 +278,7 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                         .read(sequencerLeftPanelWidthProvider.notifier)
                         .state = w.clamp(dims.leftMin, dims.leftMax),
                     child: _ToolboxPanel(
-                      key: SequencerTutorialKeys.nodePalette,
+                      key: TourTarget.sequencerNodePalette.key,
                       colors: colors,
                       onCollapse: () {
                         ref
@@ -286,12 +299,12 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                       child: Column(
                         children: [
                           SequenceToolbar(
-                            key: SequencerTutorialKeys.toolbar,
+                            key: TourTarget.sequencerToolbar.key,
                             colors: colors,
                           ),
                           Expanded(
                             child: SequenceTree(
-                              key: SequencerTutorialKeys.canvas,
+                              key: TourTarget.sequencerCanvas.key,
                               colors: colors,
                             ),
                           ),
@@ -327,7 +340,7 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                         .read(sequencerRightPanelWidthProvider.notifier)
                         .state = w.clamp(dims.rightMin, dims.rightMax),
                     child: NodePropertiesPanel(
-                      key: SequencerTutorialKeys.propertiesPanel,
+                      key: TourTarget.sequencerPropertiesPanel.key,
                       colors: colors,
                       onCollapse: () {
                         ref
@@ -348,5 +361,3 @@ class _DesktopBuilderLayout extends ConsumerWidget {
     );
   }
 }
-
-/// Combined toolbox panel with Node Palette and Snippet Palette tabs

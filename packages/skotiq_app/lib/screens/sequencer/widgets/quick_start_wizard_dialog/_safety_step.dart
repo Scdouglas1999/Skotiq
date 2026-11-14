@@ -1,10 +1,6 @@
-// ignore_for_file: unused_element
-
 part of '../quick_start_wizard_dialog.dart';
 
 extension _SafetyStep on _QuickStartWizardDialogState {
-  // STEP 4: SAFETY
-
   Widget _buildSafetyStep(SkotiqColors colors) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

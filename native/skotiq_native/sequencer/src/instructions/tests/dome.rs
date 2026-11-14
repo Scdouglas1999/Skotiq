@@ -187,7 +187,7 @@ async fn open_dome_uses_connected_dome_when_context_has_no_role() {
     );
     let mut ctx = ctx_with_ops(ops.clone()).await;
     // Exactly what the executor hands every real run today.
-    ctx.dome_id = None;
+    ctx.run.rig.dome_id = None;
 
     let result = execute_open_dome(&DomeConfig { shutter_only: true }, &ctx, None).await;
 
@@ -208,7 +208,7 @@ async fn open_dome_uses_connected_dome_when_context_has_no_role() {
 async fn open_dome_still_fails_when_no_dome_is_connected() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.dome_id = None;
+    ctx.run.rig.dome_id = None;
 
     let result = execute_open_dome(&DomeConfig { shutter_only: true }, &ctx, None).await;
 
@@ -239,9 +239,9 @@ async fn a_retried_node_reports_its_failure_once_not_once_per_attempt() {
 
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("dup-error".to_string());
-    ec.device_ops = ops.clone();
+    ec.run.device_ops = ops.clone();
     let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
-    ec.event_tx = Some(event_tx);
+    ec.run.event_tx = Some(event_tx);
 
     // Stand in for a recovery driver that engages and completes a cycle:
     // the wrapper watches `recovery_generation` to decide the device came
@@ -289,7 +289,7 @@ async fn a_retried_node_reports_its_failure_once_not_once_per_attempt() {
 async fn open_cover_uses_connected_panel_when_context_has_no_role() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_active_cover_calibrator_id("sim_cc"));
     let mut ctx = ctx_with_ops(ops.clone()).await;
-    ctx.cover_calibrator_id = None;
+    ctx.run.rig.cover_calibrator_id = None;
 
     let result = execute_open_cover(
         &crate::CoverCalibratorConfig { timeout_secs: 5 },
@@ -309,4 +309,144 @@ async fn open_cover_uses_connected_panel_when_context_has_no_role() {
         ["sim_cc".to_string()],
         "the instruction must open the panel the device layer resolved"
     );
+}
+
+/// ASCOM: `Unknown` is for hardware that cannot tell its state, and clients
+/// carry on as normal. A panel that always says so must not time out the step.
+#[tokio::test(start_paused = true)]
+async fn calibrator_on_finishes_on_a_panel_that_cannot_tell_its_state() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_active_cover_calibrator_id("sim_cc")
+            .with_calibrator_state(4),
+    );
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.run.rig.cover_calibrator_id = None;
+
+    let result = crate::instructions::execute_calibrator_on(
+        &crate::CalibratorOnConfig {
+            brightness: 128,
+            timeout_secs: 5,
+        },
+        &ctx,
+        None,
+    )
+    .await;
+
+    assert_eq!(
+        result.status,
+        NodeStatus::Success,
+        "Calibrator On must finish on a panel reporting Unknown, got {:?}",
+        result.message
+    );
+}
+
+// What the Dome Shutter Not Open trigger watches: the run expects an open
+// shutter from the Open Dome step that saw it open until the next Close Dome
+// or Park Dome.
+
+async fn ctx_in_a_run(ops: Arc<ScriptedDomeRotatorOps>) -> InstructionContext {
+    let mut ctx = ctx_with_ops(ops).await;
+    ctx.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(
+        crate::triggers::TriggerState::new(),
+    )));
+    ctx
+}
+
+async fn shutter_watch(ctx: &InstructionContext) -> (bool, Option<String>) {
+    let state = ctx.run.trigger_state.as_ref().unwrap().read().await;
+    (
+        state.telemetry.dome_shutter_open_expected,
+        state.telemetry.dome_shutter_status.clone(),
+    )
+}
+
+#[tokio::test(start_paused = true)]
+async fn an_open_dome_that_reads_open_makes_the_run_expect_it_open() {
+    let ops =
+        Arc::new(ScriptedDomeRotatorOps::new().with_dome_shutter_states(&["Opening", "Open"]));
+    let ctx = ctx_in_a_run(ops).await;
+    // The last run closed the shutter; that reading must not count now.
+    ctx.run
+        .trigger_state
+        .as_ref()
+        .unwrap()
+        .write()
+        .await
+        .update_dome_status("Closed".to_string());
+
+    let result = execute_open_dome(&DomeConfig { shutter_only: true }, &ctx, None).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(shutter_watch(&ctx).await, (true, Some("Open".to_string())));
+}
+
+/// A roof that never reports its shutter would read as not open on every
+/// poll, so the run does not watch it, and says so.
+#[tokio::test(start_paused = true)]
+async fn an_open_dome_that_cannot_report_its_shutter_is_not_watched() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_dome_shutter_states(&["Unknown"]));
+    let ctx = ctx_in_a_run(ops).await;
+
+    let result = execute_open_dome(&DomeConfig { shutter_only: true }, &ctx, None).await;
+
+    assert_eq!(result.status, NodeStatus::Success);
+    assert!(
+        result
+            .message
+            .as_deref()
+            .is_some_and(|m| m.contains("the run cannot watch it")),
+        "{:?}",
+        result.message
+    );
+    assert!(!shutter_watch(&ctx).await.0);
+}
+
+/// Closing is the run's own doing, so the trigger must not read the shutter
+/// on its way down as a fault.
+#[tokio::test(start_paused = true)]
+async fn close_dome_and_park_dome_stop_expecting_an_open_shutter_before_closing() {
+    for park in [false, true] {
+        let ops = Arc::new(ScriptedDomeRotatorOps::new().with_dome_shutter_states(&["Closed"]));
+        let ctx = ctx_in_a_run(ops).await;
+        ctx.run
+            .trigger_state
+            .as_ref()
+            .unwrap()
+            .write()
+            .await
+            .set_dome_shutter_expected(true);
+
+        let config = DomeConfig {
+            shutter_only: false,
+        };
+        let result = if park {
+            execute_park_dome(&config, &ctx, None).await
+        } else {
+            execute_close_dome(&config, &ctx, None).await
+        };
+
+        assert_eq!(result.status, NodeStatus::Success, "park={park}");
+        assert!(!shutter_watch(&ctx).await.0, "park={park}");
+    }
+}
+
+/// A close that fails still leaves the run not expecting an open shutter:
+/// the run asked for it closed.
+#[tokio::test(start_paused = true)]
+async fn a_failed_close_still_stops_expecting_an_open_shutter() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_dome_close_error("shutter motor jammed"));
+    let ctx = ctx_in_a_run(ops).await;
+    ctx.run
+        .trigger_state
+        .as_ref()
+        .unwrap()
+        .write()
+        .await
+        .set_dome_shutter_expected(true);
+
+    let result = execute_close_dome(&DomeConfig::default(), &ctx, None).await;
+
+    assert_eq!(result.status, NodeStatus::Failure);
+    assert!(!shutter_watch(&ctx).await.0);
 }

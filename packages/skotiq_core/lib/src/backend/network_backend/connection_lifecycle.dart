@@ -45,59 +45,53 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     // terminal flags so this attempt actually reaches the wire.
     _authRejected = false;
     _rejectedAuthToken = null;
-    developer.log(
+    Log.info(
       '[NetworkBackend] Manual reconnect requested',
-      name: 'NetworkBackend',
-      level: 800,
+      source: 'NetworkBackend',
     );
     await connect();
   }
 
-  /// Update connection state and notify listeners
   void _updateConnectionState(BackendConnectionState newState) {
     if (_connectionState != newState) {
       _connectionState = newState;
       _connectionStateController.add(newState);
-      developer.log(
+      Log.info(
         '[NetworkBackend] Connection state changed to: $newState',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
     }
   }
 
-  /// Test connectivity to server
   Future<bool> _testConnection() async {
     try {
-      final compatibility = await _checkServerCompatibility();
-      if (!compatibility.isCompatible) {
-        developer.log(
-          'Connection rejected: ${compatibility.message}',
-          name: 'NetworkBackend',
-          level: 900,
+      final mismatch = await _readHostInfo();
+      if (mismatch != null) {
+        Log.warning(
+          'Connection rejected: ${mismatch.message}',
+          source: 'NetworkBackend',
         );
         return false;
       }
 
       return true;
     } catch (e) {
-      developer.log(
+      Log.warning(
         'Connection test failed: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
         error: e,
       );
       return false;
     }
   }
 
-  Future<RemoteApiCompatibilityResult> _checkServerCompatibility() async {
-    final uri = _apiUri('info');
+  /// Read the host's `/api/info` before linking. Returns why this client
+  /// cannot link to it (another Skotiq release), or null.
+  Future<LinkVersionMismatch?> _readHostInfo() async {
+    final uri = _apiUri(_endpointPath(SystemApi.info, ApiMethod.get));
     final headers = <String, String>{
-      RemoteApiCompatibility.apiVersionHeader: RemoteApiCompatibility
-          .clientApiVersion
-          .format(),
-      _NetworkBackendTransport._requestIdHeader: _nextRequestId('compat'),
+      LinkVersion.header: skotiqRelease,
+      _NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
     };
     // The handshake probe gets a fixed short ceiling regardless of the
     // request-timeout tuning: it runs before we commit to the connection, so a
@@ -126,6 +120,8 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     // propagates to [connect], which surfaces it as a terminal
     // [BackendConnectionState.error] rather than spinning on reconnect.
     _verifyPinnedFingerprint(info['fingerprint']);
+    final authRequired = info['authRequired'];
+    _hostRequiresPairing = authRequired is bool ? authRequired : null;
     // Surface the server instance UUID so the WS connect can decide
     // whether the seq cursor we cached on the previous attachment is still
     // valid against the server we're about to talk to. If the field is
@@ -134,9 +130,7 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     if (advertisedInstance is String && advertisedInstance.isNotEmpty) {
       _reconcileInstanceFromInfo(advertisedInstance);
     }
-    return RemoteApiCompatibility.check(
-      info['apiVersion'] as String? ?? info['version'] as String?,
-    );
+    return LinkVersion.check(host: info['version'] as String?);
   }
 
   /// Enforce the pinned-fingerprint contract against the value the server
@@ -193,11 +187,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
   void _reconcileInstanceFromInfo(String advertisedInstance) {
     final previous = _previousServerInstanceId;
     if (previous != null && previous != advertisedInstance) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] Server instance changed (old=$previous, '
         'new=$advertisedInstance); cached event seq invalidated.',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
       _lastSeenEventSeq = null;
       if (!_eventController.isClosed) {
@@ -220,7 +213,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     _previousServerInstanceId = advertisedInstance;
   }
 
-  /// Initialize the WebSocket connection for real-time events
   Future<void> _connect() async {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
@@ -256,43 +248,31 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
             : BackendConnectionState.connecting,
       );
 
-      final compatibility = await _checkServerCompatibility();
-      if (!compatibility.isCompatible) {
-        developer.log(
-          'Connection rejected: ${compatibility.message}',
-          name: 'NetworkBackend',
-          level: 900,
+      _connectRefusal = null;
+      final mismatch = await _readHostInfo();
+      if (mismatch != null) {
+        Log.warning(
+          'Connection rejected: ${mismatch.message}',
+          source: 'NetworkBackend',
         );
-        // Version mismatch is a terminal condition — the caller must
-        // upgrade or downgrade one side before retrying. Emit `error`
-        // rather than `disconnected` so the UI surfaces this as an
-        // unrecoverable failure (no spinning "reconnecting…" forever).
+        // Terminal until one side is updated: emit `error`, not
+        // `disconnected`, so the UI does not spin on "reconnecting…".
+        _connectRefusal = dart_error.HostVersionMismatchError(mismatch);
         _updateConnectionState(BackendConnectionState.error);
         return;
       }
 
       final queryParameters = <String, String>{};
-      if (authToken != null && authToken!.isNotEmpty) {
-        // Prefer the one-shot WS ticket so the bearer token stays out of the
-        // WebSocket URL (logs/proxies/history). Falls back to ?token= for
-        // servers that predate the ticket endpoint.
-        final wsTicket = await _mintWsTicket();
-        // The ticket mint is itself an authenticated request — if it just
-        // latched a rejection (dead token → 403), don't compound it with
-        // a doomed upgrade attempt.
-        if (_authRejected) {
-          _enterAuthRejectedState();
-          return;
-        }
-        if (wsTicket != null) {
-          queryParameters['ticket'] = wsTicket;
-          upgradeUsedTicket = true;
-        } else {
-          queryParameters['token'] = authToken!;
-        }
+      // A one-shot ticket keeps the bearer token out of the WebSocket URL
+      // (logs, proxies, history). The mint is itself an authenticated
+      // request: a dead token fails it, and the failure handling below
+      // latches the rejection instead of attempting a doomed upgrade.
+      final wsTicket = await _mintWsTicket();
+      if (wsTicket != null) {
+        queryParameters['ticket'] = wsTicket;
+        upgradeUsedTicket = true;
       }
-      queryParameters['apiVersion'] = RemoteApiCompatibility.clientApiVersion
-          .format();
+      queryParameters[LinkVersion.queryParameter] = skotiqRelease;
       // If we've previously attached to this server instance and have
       // a seq cursor to ask replay from, include both. The server-side
       // /events handler treats omitting either parameter as "fresh
@@ -303,11 +283,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         queryParameters['since'] = _lastSeenEventSeq!.toString();
         queryParameters['instance'] = _serverInstanceId!;
       }
-      final wsUri = _wsUri('/events', queryParameters);
+      final wsUri = _wsUri(WebSocketApi.eventsLegacyPath, queryParameters);
       _wsChannel = IOWebSocketChannel.connect(wsUri);
       _lastWebSocketMessageAt = DateTime.now();
 
-      // Cancel any existing subscription before creating a new one
       await _wsSubscription?.cancel();
       _wsSubscription = _wsChannel!.stream.listen(
         (message) {
@@ -349,7 +328,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
               return;
             }
 
-            // Route push notifications to the dedicated stream
             if (type == 'push_notification') {
               _pushNotificationController.add(json);
               return;
@@ -367,11 +345,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
               final reason = json['reason'] as String? ?? 'unknown';
               final currentSeq = json['currentSeq'];
               final currentInstance = json['currentInstance'] as String?;
-              developer.log(
+              Log.warning(
                 '[NetworkBackend] resync_required: reason=$reason '
                 'currentSeq=$currentSeq currentInstance=$currentInstance',
-                name: 'NetworkBackend',
-                level: 900,
+                source: 'NetworkBackend',
               );
               _lastSeenEventSeq = null;
               if (currentInstance != null && currentInstance.isNotEmpty) {
@@ -401,35 +378,28 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
             _handleEventSideEffects(event);
             _eventController.add(event);
 
-            // Route polar alignment events to the dedicated stream
             if (event.category == EventCategory.polarAlignment) {
               _polarAlignController.add(event.data);
             }
           } catch (e) {
-            developer.log(
+            Log.warning(
               'Error parsing WebSocket message: $e',
-              name: 'NetworkBackend',
-              level: 900,
+              source: 'NetworkBackend',
               error: e,
             );
           }
         },
         onError: (error) {
-          developer.log(
+          Log.error(
             'WebSocket error: $error',
-            name: 'NetworkBackend',
-            level: 1000,
+            source: 'NetworkBackend',
             error: error,
           );
           _eventController.addError(error);
           _handleConnectionFailure();
         },
         onDone: () {
-          developer.log(
-            'WebSocket connection closed',
-            name: 'NetworkBackend',
-            level: 900,
-          );
+          Log.warning('WebSocket connection closed', source: 'NetworkBackend');
           _handleConnectionFailure();
         },
       );
@@ -444,15 +414,13 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       // thrash loop on every retry.
       await _wsChannel!.ready.timeout(requestTimeout);
 
-      // Connection successful
       _updateConnectionState(BackendConnectionState.connected);
       _hasEverConnected = true;
       final wasReconnect = _reconnectAttempt > 0;
       _reconnectAttempt = 0; // Reset reconnect counter on success
-      developer.log(
+      Log.info(
         '[NetworkBackend] WebSocket connected successfully',
-        name: 'NetworkBackend',
-        level: 800,
+        source: 'NetworkBackend',
       );
       _startWebSocketHeartbeat();
 
@@ -486,15 +454,15 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       // an unrecoverable `error` state (mirroring the version-incompatibility
       // branch above) so the operator sees a clear identity mismatch instead
       // of a perpetual "reconnecting…".
-      developer.log(
+      Log.error(
         '[NetworkBackend] Server identity mismatch; refusing to connect: '
         '${e.message}',
-        name: 'NetworkBackend',
-        level: 1000,
+        source: 'NetworkBackend',
         error: e,
       );
       _reconnectTimer?.cancel();
       _reconnectTimer = null;
+      _connectRefusal = e;
       _updateConnectionState(BackendConnectionState.error);
       return;
     } catch (e) {
@@ -517,10 +485,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         _enterAuthRejectedState();
         return;
       }
-      developer.log(
+      Log.error(
         'Failed to connect WebSocket: $e',
-        name: 'NetworkBackend',
-        level: 1000,
+        source: 'NetworkBackend',
         error: e,
       );
       // An upgrade we stopped waiting for can still complete. Left attached,
@@ -561,11 +528,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       _rejectedAuthToken = presented;
     }
     _authRejected = true;
-    developer.log(
+    Log.error(
       '[NetworkBackend] Host rejected auth credentials ($via); '
       'failing fast until the token is replaced or reconnect is requested',
-      name: 'NetworkBackend',
-      level: 1000,
+      source: 'NetworkBackend',
     );
   }
 
@@ -605,7 +571,6 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     }
   }
 
-  /// Handle connection failures with exponential backoff
   void _handleConnectionFailure() {
     if (_disposed || _disconnecting) {
       return;
@@ -636,10 +601,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     );
 
     _reconnectAttempt++;
-    developer.log(
+    Log.info(
       '[NetworkBackend] Reconnecting in ${delay.inSeconds}s (attempt $_reconnectAttempt)',
-      name: 'NetworkBackend',
-      level: 800,
+      source: 'NetworkBackend',
     );
 
     _reconnectTimer = Timer(delay, () {
@@ -647,10 +611,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         return;
       }
       if (_connectionState != BackendConnectionState.connected) {
-        developer.log(
+        Log.info(
           '[NetworkBackend] Attempting reconnection...',
-          name: 'NetworkBackend',
-          level: 800,
+          source: 'NetworkBackend',
         );
         connect();
       }
@@ -671,10 +634,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       if (lastMessageAt != null &&
           DateTime.now().difference(lastMessageAt) >
               webSocketHeartbeatTimeout) {
-        developer.log(
+        Log.warning(
           '[NetworkBackend] WebSocket heartbeat timed out',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
         );
         _wsSubscription?.cancel();
         _wsSubscription = null;
@@ -704,10 +666,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         // a future successful ping would otherwise be computed against the
         // wrong sentAt and emit a wildly inflated latency.
         _pendingPingSentAt = null;
-        developer.log(
+        Log.warning(
           '[NetworkBackend] Failed to send WebSocket heartbeat: $e',
-          name: 'NetworkBackend',
-          level: 900,
+          source: 'NetworkBackend',
           error: e,
         );
         _handleConnectionFailure();
@@ -803,11 +764,10 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     final viewerId = _collaborationViewerId;
     final deviceName = _collaborationDeviceName;
     if (displayName == null || displayName.isEmpty) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] Skipping collaboration.join: no display name set '
         '(call setCollaborationIdentity before connect)',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
       );
       return;
     }
@@ -829,10 +789,9 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
         }),
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[NetworkBackend] Failed to send collaboration.join: $e',
-        name: 'NetworkBackend',
-        level: 900,
+        source: 'NetworkBackend',
         error: e,
       );
     }
@@ -853,16 +812,14 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
       );
     } catch (e) {
       // Closing-time failure is expected on a dead socket; log at FINE.
-      developer.log(
+      Log.debug(
         '[NetworkBackend] collaboration.leave send failed (socket likely '
         'already closed): $e',
-        name: 'NetworkBackend',
-        level: 700,
+        source: 'NetworkBackend',
       );
     }
   }
 
-  /// Dispose resources
   void _dispose() {
     _disposed = true;
     _disconnecting = true;

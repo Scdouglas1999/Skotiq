@@ -1,6 +1,12 @@
 import 'dart:math' as math;
 
-import '../database/database.dart' show CapturedImage;
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show
+        SequencerEvent,
+        SequencerEvent_FrameAccepted,
+        SequencerEvent_FrameRejected;
+
+import '../database/database.dart' show DbCapturedImage;
 
 /// Advisory quality level for a captured frame.
 ///
@@ -138,9 +144,10 @@ class FrameQualityAssessmentService {
 
   /// Assess a single frame with optional reference medians from the session.
   FrameQualityAssessment assessFrame(
-    CapturedImage image, {
+    DbCapturedImage image, {
     double? referenceHfr,
     double? referenceGuidingRms,
+    int? referenceStarCount,
   }) {
     var advisoryScore = image.qualityScore ?? 75.0;
     var severeIssue = false;
@@ -174,7 +181,27 @@ class FrameQualityAssessmentService {
     }
 
     final starCount = image.starCount;
-    if (starCount != null) {
+    if (starCount != null && referenceStarCount != null) {
+      // How many stars a frame shows depends on exposure, filter, binning and
+      // sky, so a frame is judged against the frames taken with it: a short
+      // sub with 45 stars is normal when every sub of the night has 45.
+      final ratio = starCount / referenceStarCount;
+      if (ratio < 0.5) {
+        advisoryScore -= 20;
+        severeIssue = true;
+        reasons.add(
+          'Star count ($starCount) under half the session median '
+          '($referenceStarCount)',
+        );
+      } else if (ratio < 0.75) {
+        advisoryScore -= 10;
+        moderateIssueCount++;
+        reasons.add(
+          'Fewer stars than the session median ($starCount vs '
+          '$referenceStarCount)',
+        );
+      }
+    } else if (starCount != null) {
       if (starCount < 20) {
         advisoryScore -= 20;
         severeIssue = true;
@@ -307,7 +334,9 @@ class FrameQualityAssessmentService {
   }
 
   /// Assess all frames in a set using session medians as reference points.
-  Map<int, FrameQualityAssessment> assessBatch(Iterable<CapturedImage> images) {
+  Map<int, FrameQualityAssessment> assessBatch(
+    Iterable<DbCapturedImage> images,
+  ) {
     final list = images.toList();
     final medianHfr = _median(
       list.map((i) => i.hfr).whereType<double>().where((v) => v > 0),
@@ -319,15 +348,30 @@ class FrameQualityAssessmentService {
           .where((v) => v > 0),
     );
 
+    final starCounts = list
+        .map((i) => i.starCount)
+        .whereType<int>()
+        .where((v) => v > 0)
+        .map((v) => v.toDouble())
+        .toList();
+    // A median of one or two frames is not a session norm; those frames are
+    // judged on their own star count.
+    final medianStarCount = starCounts.length >= _minFramesForStarNorm
+        ? _median(starCounts)?.round()
+        : null;
+
     return {
       for (final image in list)
         image.id: assessFrame(
           image,
           referenceHfr: medianHfr,
           referenceGuidingRms: medianGuidingRms,
+          referenceStarCount: medianStarCount,
         ),
     };
   }
+
+  static const int _minFramesForStarNorm = 3;
 
   /// Build counts for dashboard and session overview display.
   FrameQualitySummary summarize(Map<int, FrameQualityAssessment> assessments) {
@@ -395,7 +439,7 @@ class FrameQualityAssessmentService {
   /// Treat this as a sorting aid, not a verdict. Use [FrameGradingMode]
   /// to control whether the score is allowed to escalate disposition.
   double computeHeuristicScore(
-    CapturedImage image, {
+    DbCapturedImage image, {
     double? referenceHfr,
     double? referenceGuidingRms,
   }) {
@@ -442,7 +486,7 @@ enum FrameGradeDecision {
 /// frame is graded.
 ///
 /// Built from the typed `SequencerEvent_FrameAccepted` /
-/// `SequencerEvent_FrameRejected` payloads via [FrameGradeEvent.fromTypedData],
+/// `SequencerEvent_FrameRejected` payloads via [FrameGradeEvent.fromEvent],
 /// never by parsing `InstructionProgress.detail`, so HFR, eccentricity, star
 /// count and consecutive-rejects survive the boundary.
 class FrameGradeEvent {
@@ -480,7 +524,6 @@ class FrameGradeEvent {
   /// Running consecutive-rejects count. 0 after every accepted frame.
   final int consecutiveRejects;
 
-  /// Capture timestamp.
   final DateTime timestamp;
 
   const FrameGradeEvent({
@@ -504,90 +547,65 @@ class FrameGradeEvent {
   /// `FrameRejected` event's `data` map (`SkotiqEvent.eventType` +
   /// `data`). Returns `null` when the event type isn't one of the typed
   /// grade variants.
-  static FrameGradeEvent? fromTypedData(
-    String eventType,
-    Map<String, dynamic> data,
-  ) {
+  /// The verdict a sequencer frame event reports, or null for any other
+  /// event.
+  static FrameGradeEvent? fromEvent(SequencerEvent event) {
     final now = DateTime.now();
-    switch (eventType) {
-      case 'FrameAccepted':
-        return FrameGradeEvent(
-          frame: data['frame'] as int,
-          total: data['total'] as int,
-          decision: FrameGradeDecision.accepted,
-          reason: '',
-          // Surface the on-disk save_path for accepted
-          // frames the same way `reject_path` already worked for
-          // rejected frames. Empty or missing means null.
-          path: () {
-            final raw = data['save_path'] as String?;
-            return (raw == null || raw.isEmpty) ? null : raw;
-          }(),
-          hfr: (data['hfr'] as num?)?.toDouble(),
-          eccentricity: (data['eccentricity'] as num?)?.toDouble(),
-          starCount: data['star_count'] as int?,
-          acceptedTotal: data['accepted_total'] as int,
-          rejectedTotal: data['rejected_total'] as int,
-          consecutiveRejects: 0,
-          timestamp: now,
-        );
-      case 'FrameRejected':
-        return FrameGradeEvent(
-          frame: data['frame'] as int,
-          total: data['total'] as int,
-          decision: FrameGradeDecision.rejected,
-          reason: data['reason'] as String? ?? '',
-          path: data['reject_path'] as String?,
-          hfr: (data['hfr'] as num?)?.toDouble(),
-          eccentricity: (data['eccentricity'] as num?)?.toDouble(),
-          starCount: data['star_count'] as int?,
-          acceptedTotal: data['accepted_total'] as int,
-          rejectedTotal: data['rejected_total'] as int,
-          consecutiveRejects: data['consecutive_rejects'] as int,
-          timestamp: now,
-        );
-      default:
-        return null;
-    }
+    return switch (event) {
+      SequencerEvent_FrameAccepted() => FrameGradeEvent(
+        frame: event.frame,
+        total: event.total,
+        decision: FrameGradeDecision.accepted,
+        reason: '',
+        path: (event.savePath?.isEmpty ?? true) ? null : event.savePath,
+        hfr: event.hfr,
+        eccentricity: event.eccentricity,
+        starCount: event.starCount,
+        acceptedTotal: event.acceptedTotal,
+        rejectedTotal: event.rejectedTotal,
+        consecutiveRejects: 0,
+        timestamp: now,
+      ),
+      SequencerEvent_FrameRejected() => FrameGradeEvent(
+        frame: event.frame,
+        total: event.total,
+        decision: FrameGradeDecision.rejected,
+        reason: event.reason,
+        path: event.rejectPath,
+        hfr: event.hfr,
+        eccentricity: event.eccentricity,
+        starCount: event.starCount,
+        acceptedTotal: event.acceptedTotal,
+        rejectedTotal: event.rejectedTotal,
+        consecutiveRejects: event.consecutiveRejects,
+        timestamp: now,
+      ),
+      _ => null,
+    };
   }
 }
 
-/// Run-wide summary of grading decisions, suitable for the dashboard
-/// quality panel.
+/// The run grader's decisions so far: its counters, the current streak of
+/// rejected frames and the newest reject.
 class FrameGradeRunSummary {
   final int accepted;
   final int rejected;
 
-  /// Most-recent N decisions (chronological order, oldest first). The
-  /// dashboard renders this as a scrollable list.
-  final List<FrameGradeEvent> recent;
+  /// Frames rejected one after the other, up to the newest; 0 once a frame
+  /// is accepted.
+  final int consecutiveRejects;
 
-  /// HFR samples from ALL graded frames in chronological order; used for
-  /// the HFR sparkline on the dashboard. Rejected frames are included —
-  /// a focus-drift episode that causes rejections must remain visible in
-  /// the trend, not silently vanish from it.
-  final List<double> hfrSparkline;
-
-  /// Parallel to [hfrSparkline]: true when the sample came from an
-  /// accepted frame, false for a rejected one (rendered distinctly).
-  final List<bool> hfrSparklineAccepted;
+  /// The newest rejected frame, or null when none has been.
+  final FrameGradeEvent? lastReject;
 
   const FrameGradeRunSummary({
     required this.accepted,
     required this.rejected,
-    required this.recent,
-    required this.hfrSparkline,
-    this.hfrSparklineAccepted = const [],
+    this.consecutiveRejects = 0,
+    this.lastReject,
   });
 
-  static const empty = FrameGradeRunSummary(
-    accepted: 0,
-    rejected: 0,
-    recent: [],
-    hfrSparkline: [],
-    hfrSparklineAccepted: [],
-  );
+  static const empty = FrameGradeRunSummary(accepted: 0, rejected: 0);
 
   int get total => accepted + rejected;
-  double get rejectRate => total == 0 ? 0.0 : rejected / total;
 }

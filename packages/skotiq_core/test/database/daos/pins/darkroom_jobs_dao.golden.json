@@ -1,0 +1,838 @@
+{
+  "empty getById": null,
+  "empty nextQueued": null,
+  "empty listByState": [],
+  "enqueue a": 1,
+  "enqueue b tie": 2,
+  "enqueue c older": 3,
+  "enqueue d now": 4,
+  "after enqueue :: darkroom_jobs": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "kind": {
+        "v": "dawn",
+        "t": "text"
+      },
+      "state": {
+        "v": "queued",
+        "t": "text"
+      },
+      "progress": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "note": {
+        "v": "dawn pass",
+        "t": "text"
+      },
+      "error_text": {
+        "v": null,
+        "t": "null"
+      },
+      "attempts": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "started_at": {
+        "v": null,
+        "t": "null"
+      },
+      "finished_at": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "kind": {
+        "v": "manual",
+        "t": "text"
+      },
+      "state": {
+        "v": "queued",
+        "t": "text"
+      },
+      "progress": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "note": {
+        "v": null,
+        "t": "null"
+      },
+      "error_text": {
+        "v": null,
+        "t": "null"
+      },
+      "attempts": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "started_at": {
+        "v": null,
+        "t": "null"
+      },
+      "finished_at": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "kind": {
+        "v": "dawn",
+        "t": "text"
+      },
+      "state": {
+        "v": "queued",
+        "t": "text"
+      },
+      "progress": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "note": {
+        "v": null,
+        "t": "null"
+      },
+      "error_text": {
+        "v": null,
+        "t": "null"
+      },
+      "attempts": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740866700,
+        "t": "integer"
+      },
+      "started_at": {
+        "v": null,
+        "t": "null"
+      },
+      "finished_at": {
+        "v": null,
+        "t": "null"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "kind": {
+        "v": "dawn",
+        "t": "text"
+      },
+      "state": {
+        "v": "queued",
+        "t": "text"
+      },
+      "progress": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "note": {
+        "v": null,
+        "t": "null"
+      },
+      "error_text": {
+        "v": null,
+        "t": "null"
+      },
+      "attempts": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "started_at": {
+        "v": null,
+        "t": "null"
+      },
+      "finished_at": {
+        "v": null,
+        "t": "null"
+      }
+    }
+  ],
+  "nextQueued": {
+    "id": 3,
+    "sessionId": null,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.queued",
+    "progress": 0.0,
+    "note": null,
+    "errorText": null,
+    "attempts": 0,
+    "createdAt": "2025-03-01T22:05:00.000Z",
+    "startedAt": null,
+    "finishedAt": null
+  },
+  "listByState queued": [
+    {
+      "id": 3,
+      "sessionId": null,
+      "kind": "DarkroomJobKind.dawn",
+      "state": "DarkroomJobState.queued",
+      "progress": 0.0,
+      "note": null,
+      "errorText": null,
+      "attempts": 0,
+      "createdAt": "2025-03-01T22:05:00.000Z",
+      "startedAt": null,
+      "finishedAt": null
+    },
+    {
+      "id": 1,
+      "sessionId": 1,
+      "kind": "DarkroomJobKind.dawn",
+      "state": "DarkroomJobState.queued",
+      "progress": 0.0,
+      "note": "dawn pass",
+      "errorText": null,
+      "attempts": 0,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "startedAt": null,
+      "finishedAt": null
+    },
+    {
+      "id": 2,
+      "sessionId": 1,
+      "kind": "DarkroomJobKind.manual",
+      "state": "DarkroomJobState.queued",
+      "progress": 0.0,
+      "note": null,
+      "errorText": null,
+      "attempts": 0,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "startedAt": null,
+      "finishedAt": null
+    },
+    {
+      "id": 4,
+      "sessionId": 2,
+      "kind": "DarkroomJobKind.dawn",
+      "state": "DarkroomJobState.queued",
+      "progress": 0.0,
+      "note": null,
+      "errorText": null,
+      "attempts": 0,
+      "createdAt": "<now utc>",
+      "startedAt": null,
+      "finishedAt": null
+    }
+  ],
+  "listForSession s0": [
+    {
+      "id": 2,
+      "sessionId": 1,
+      "kind": "DarkroomJobKind.manual",
+      "state": "DarkroomJobState.queued",
+      "progress": 0.0,
+      "note": null,
+      "errorText": null,
+      "attempts": 0,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "startedAt": null,
+      "finishedAt": null
+    },
+    {
+      "id": 1,
+      "sessionId": 1,
+      "kind": "DarkroomJobKind.dawn",
+      "state": "DarkroomJobState.queued",
+      "progress": 0.0,
+      "note": "dawn pass",
+      "errorText": null,
+      "attempts": 0,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "startedAt": null,
+      "finishedAt": null
+    }
+  ],
+  "listForSession none": [],
+  "markRunning 1": {
+    "id": 1,
+    "sessionId": 1,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.running",
+    "progress": 0.0,
+    "note": "dawn pass",
+    "errorText": null,
+    "attempts": 1,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "startedAt": "2025-03-01T22:20:00.000Z",
+    "finishedAt": null
+  },
+  "markRunning 1 again": {
+    "threw": "DarkroomJobTransitionException",
+    "message": "Darkroom job 1 cannot go running -> running"
+  },
+  "markRunning missing": {
+    "threw": "DarkroomJobMissingException",
+    "message": "Darkroom job 99 does not exist"
+  },
+  "updateProgress 1": {
+    "id": 1,
+    "sessionId": 1,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.running",
+    "progress": 0.25,
+    "note": "dawn pass",
+    "errorText": null,
+    "attempts": 1,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "startedAt": "2025-03-01T22:20:00.000Z",
+    "finishedAt": null
+  },
+  "updateProgress 1 note": {
+    "id": 1,
+    "sessionId": 1,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.running",
+    "progress": 0.5,
+    "note": "stacking Ha",
+    "errorText": null,
+    "attempts": 1,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "startedAt": "2025-03-01T22:20:00.000Z",
+    "finishedAt": null
+  },
+  "updateProgress out of range": {
+    "threw": "ArgumentError",
+    "message": "Invalid argument (progress): a job progress fraction lies in 0.0 .. 1.0: 1.5"
+  },
+  "updateProgress queued": {
+    "threw": "DarkroomJobNotRunningException",
+    "message": "Darkroom job 2 is queued, so it has no progress to report"
+  },
+  "noteWhileQueued 2": true,
+  "noteWhileQueued running": false,
+  "noteWhileQueued missing": false,
+  "markDone 1": {
+    "id": 1,
+    "sessionId": 1,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.done",
+    "progress": 1.0,
+    "note": "stacking Ha",
+    "errorText": null,
+    "attempts": 1,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "startedAt": "2025-03-01T22:20:00.000Z",
+    "finishedAt": "2025-03-01T22:30:00.000Z"
+  },
+  "markDone 1 again": {
+    "threw": "DarkroomJobTransitionException",
+    "message": "Darkroom job 1 cannot go done -> done"
+  },
+  "markDone queued": {
+    "threw": "DarkroomJobTransitionException",
+    "message": "Darkroom job 2 cannot go queued -> done"
+  },
+  "markRunning 2": {
+    "id": 2,
+    "sessionId": 1,
+    "kind": "DarkroomJobKind.manual",
+    "state": "DarkroomJobState.running",
+    "progress": 0.0,
+    "note": "waiting",
+    "errorText": null,
+    "attempts": 1,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "startedAt": "2025-03-01T22:32:00.000Z",
+    "finishedAt": null
+  },
+  "markFailed 2": {
+    "id": 2,
+    "sessionId": 1,
+    "kind": "DarkroomJobKind.manual",
+    "state": "DarkroomJobState.failed",
+    "progress": 0.0,
+    "note": "waiting",
+    "errorText": "disk full",
+    "attempts": 1,
+    "createdAt": "2025-03-01T22:10:00.000Z",
+    "startedAt": "2025-03-01T22:32:00.000Z",
+    "finishedAt": "2025-03-01T22:33:00.000Z"
+  },
+  "markRunning 3": {
+    "id": 3,
+    "sessionId": null,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.running",
+    "progress": 0.0,
+    "note": null,
+    "errorText": null,
+    "attempts": 1,
+    "createdAt": "2025-03-01T22:05:00.000Z",
+    "startedAt": "2025-03-01T22:34:00.000Z",
+    "finishedAt": null
+  },
+  "releaseForOrderlyStop 3": {
+    "id": 3,
+    "sessionId": null,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.queued",
+    "progress": 0.0,
+    "note": "service stopping",
+    "errorText": null,
+    "attempts": 0,
+    "createdAt": "2025-03-01T22:05:00.000Z",
+    "startedAt": null,
+    "finishedAt": null
+  },
+  "releaseForOrderlyStop queued": {
+    "threw": "DarkroomJobNotRunningException",
+    "message": "Darkroom job 3 is queued, so it has no progress to report"
+  },
+  "releaseForOrderlyStop zero attempts": {
+    "id": 3,
+    "sessionId": null,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.queued",
+    "progress": 0.0,
+    "note": "service stopping",
+    "errorText": null,
+    "attempts": 0,
+    "createdAt": "2025-03-01T22:05:00.000Z",
+    "startedAt": null,
+    "finishedAt": null
+  },
+  "markCancelled 3 reason": {
+    "id": 3,
+    "sessionId": null,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.cancelled",
+    "progress": 0.0,
+    "note": "service stopping",
+    "errorText": "operator",
+    "attempts": 0,
+    "createdAt": "2025-03-01T22:05:00.000Z",
+    "startedAt": null,
+    "finishedAt": "2025-03-01T22:35:00.000Z"
+  },
+  "markRunning 4": {
+    "id": 4,
+    "sessionId": 2,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.running",
+    "progress": 0.0,
+    "note": null,
+    "errorText": null,
+    "attempts": 1,
+    "createdAt": "<now utc>",
+    "startedAt": "2025-03-01T22:36:00.000Z",
+    "finishedAt": null
+  },
+  "markDone 4 note": {
+    "id": 4,
+    "sessionId": 2,
+    "kind": "DarkroomJobKind.dawn",
+    "state": "DarkroomJobState.done",
+    "progress": 1.0,
+    "note": "all done",
+    "errorText": null,
+    "attempts": 1,
+    "createdAt": "<now utc>",
+    "startedAt": "2025-03-01T22:36:00.000Z",
+    "finishedAt": "2025-03-01T22:37:00.000Z"
+  },
+  "markCancelled done": {
+    "threw": "DarkroomJobTransitionException",
+    "message": "Darkroom job 4 cannot go done -> cancelled"
+  },
+  "after transitions :: darkroom_jobs": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "kind": {
+        "v": "dawn",
+        "t": "text"
+      },
+      "state": {
+        "v": "done",
+        "t": "text"
+      },
+      "progress": {
+        "v": 1.0,
+        "t": "real"
+      },
+      "note": {
+        "v": "stacking Ha",
+        "t": "text"
+      },
+      "error_text": {
+        "v": null,
+        "t": "null"
+      },
+      "attempts": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "started_at": {
+        "v": 1740867600,
+        "t": "integer"
+      },
+      "finished_at": {
+        "v": 1740868200,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "kind": {
+        "v": "manual",
+        "t": "text"
+      },
+      "state": {
+        "v": "failed",
+        "t": "text"
+      },
+      "progress": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "note": {
+        "v": "waiting",
+        "t": "text"
+      },
+      "error_text": {
+        "v": "disk full",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "started_at": {
+        "v": 1740868320,
+        "t": "integer"
+      },
+      "finished_at": {
+        "v": 1740868380,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "kind": {
+        "v": "dawn",
+        "t": "text"
+      },
+      "state": {
+        "v": "cancelled",
+        "t": "text"
+      },
+      "progress": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "note": {
+        "v": "service stopping",
+        "t": "text"
+      },
+      "error_text": {
+        "v": "operator",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740866700,
+        "t": "integer"
+      },
+      "started_at": {
+        "v": null,
+        "t": "null"
+      },
+      "finished_at": {
+        "v": 1740868500,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "kind": {
+        "v": "dawn",
+        "t": "text"
+      },
+      "state": {
+        "v": "done",
+        "t": "text"
+      },
+      "progress": {
+        "v": 1.0,
+        "t": "real"
+      },
+      "note": {
+        "v": "all done",
+        "t": "text"
+      },
+      "error_text": {
+        "v": null,
+        "t": "null"
+      },
+      "attempts": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      },
+      "started_at": {
+        "v": 1740868560,
+        "t": "integer"
+      },
+      "finished_at": {
+        "v": 1740868620,
+        "t": "integer"
+      }
+    }
+  ],
+  "listByState done": [
+    {
+      "id": 1,
+      "sessionId": 1,
+      "kind": "DarkroomJobKind.dawn",
+      "state": "DarkroomJobState.done",
+      "progress": 1.0,
+      "note": "stacking Ha",
+      "errorText": null,
+      "attempts": 1,
+      "createdAt": "2025-03-01T22:10:00.000Z",
+      "startedAt": "2025-03-01T22:20:00.000Z",
+      "finishedAt": "2025-03-01T22:30:00.000Z"
+    },
+    {
+      "id": 4,
+      "sessionId": 2,
+      "kind": "DarkroomJobKind.dawn",
+      "state": "DarkroomJobState.done",
+      "progress": 1.0,
+      "note": "all done",
+      "errorText": null,
+      "attempts": 1,
+      "createdAt": "<now utc>",
+      "startedAt": "2025-03-01T22:36:00.000Z",
+      "finishedAt": "2025-03-01T22:37:00.000Z"
+    }
+  ],
+  "deleteJob 4": 1,
+  "deleteJob missing": 0,
+  "after delete :: darkroom_jobs": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "kind": {
+        "v": "dawn",
+        "t": "text"
+      },
+      "state": {
+        "v": "done",
+        "t": "text"
+      },
+      "progress": {
+        "v": 1.0,
+        "t": "real"
+      },
+      "note": {
+        "v": "stacking Ha",
+        "t": "text"
+      },
+      "error_text": {
+        "v": null,
+        "t": "null"
+      },
+      "attempts": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "started_at": {
+        "v": 1740867600,
+        "t": "integer"
+      },
+      "finished_at": {
+        "v": 1740868200,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "kind": {
+        "v": "manual",
+        "t": "text"
+      },
+      "state": {
+        "v": "failed",
+        "t": "text"
+      },
+      "progress": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "note": {
+        "v": "waiting",
+        "t": "text"
+      },
+      "error_text": {
+        "v": "disk full",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 1,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      },
+      "started_at": {
+        "v": 1740868320,
+        "t": "integer"
+      },
+      "finished_at": {
+        "v": 1740868380,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "kind": {
+        "v": "dawn",
+        "t": "text"
+      },
+      "state": {
+        "v": "cancelled",
+        "t": "text"
+      },
+      "progress": {
+        "v": 0.0,
+        "t": "real"
+      },
+      "note": {
+        "v": "service stopping",
+        "t": "text"
+      },
+      "error_text": {
+        "v": "operator",
+        "t": "text"
+      },
+      "attempts": {
+        "v": 0,
+        "t": "integer"
+      },
+      "created_at": {
+        "v": 1740866700,
+        "t": "integer"
+      },
+      "started_at": {
+        "v": null,
+        "t": "null"
+      },
+      "finished_at": {
+        "v": 1740868500,
+        "t": "integer"
+      }
+    }
+  ]
+}

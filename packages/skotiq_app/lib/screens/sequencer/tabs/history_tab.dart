@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../run_status_presentation.dart';
+import '../../../widgets/run_status/run_status_presentation.dart';
 import '../sequencer_screen.dart';
 import 'sequence_library_tab.dart';
 import '../widgets/continue_run_button.dart';
@@ -14,6 +17,7 @@ import '../widgets/pending_session_reports_card.dart';
 import '../widgets/post_session_stats_dialog.dart';
 import '../widgets/replay_debug_screen.dart';
 import '../widgets/sequence_diff_dialog.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// One-shot "open this run on first paint" hint for the history tab.
 ///
@@ -29,7 +33,18 @@ final historyOpenRunIdProvider = StateProvider<int?>((ref) => null);
 /// Active status filter for the history list. Empty = no status filter
 /// (show all). Backed by a set so multiple statuses can be toggled on.
 final historyStatusFilterProvider =
-    StateProvider.autoDispose<Set<String>>((ref) => <String>{});
+    StateProvider.autoDispose<Set<SequenceRunStatus>>(
+        (ref) => <SequenceRunStatus>{});
+
+/// Whether a run with [status] passes the [selected] chips. A paused run is
+/// live and passes the Running chip.
+bool _matchesStatusFilter(
+  Set<SequenceRunStatus> selected,
+  SequenceRunStatus? status,
+) =>
+    status != null &&
+    (selected.contains(status) ||
+        (status.isLive && selected.contains(SequenceRunStatus.running)));
 
 /// Free-text search over `run.sequenceName` and the run's target
 /// breakdown keys.
@@ -54,7 +69,8 @@ final filteredRunsProvider =
     final out = <_RunRow>[];
     for (final run in runs) {
       if (sequenceId != null && run.sequenceId != sequenceId) continue;
-      if (statusFilter.isNotEmpty && !statusFilter.contains(run.status)) {
+      if (statusFilter.isNotEmpty &&
+          !_matchesStatusFilter(statusFilter, run.runStatus)) {
         continue;
       }
       ParsedRunStats? stats;
@@ -171,7 +187,6 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
 
           const SizedBox(height: 16),
 
-          // Content
           Expanded(
             child: ref.watch(filteredRunsProvider).when(
                   data: (rows) {
@@ -199,7 +214,7 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
                                   ref
                                       .read(
                                           historyStatusFilterProvider.notifier)
-                                      .state = <String>{};
+                                      .state = <SequenceRunStatus>{};
                                   ref
                                       .read(historySearchProvider.notifier)
                                       .state = '';
@@ -232,7 +247,7 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          err.toString(),
+                          userFacingError(err),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                               color: colors.textMuted,
@@ -261,23 +276,11 @@ class _HistoryFilterBar extends ConsumerStatefulWidget {
 
   const _HistoryFilterBar({required this.colors});
 
-  // 'interrupted' is what a run becomes when the process died mid-flight (a
-  // crash or a power cut) and the next startup reconciled the stale row. It
-  // needs a chip of its own: without one, the runs an operator most wants to
-  // find after a bad night are the only ones no filter can select.
-  // Every status the executor can durably write needs a chip, or the runs
-  // carrying it become unreachable by any filter. `stopped` /
-  // `paused-stopped` are what an operator Stop produces (the latter when a
-  // checkpoint was preserved, so the run is resumable) — on the live database
-  // that was 15 runs no filter could select.
-  static const _statuses = [
-    'completed',
-    'failed',
-    'aborted',
-    'stopped',
-    'paused-stopped',
-    'interrupted',
-    'running',
+  /// One chip per way a run can end, then the live one. A paused run is live
+  /// and is found under Running.
+  static final _statuses = [
+    ...SequenceRunStatus.values.where((status) => !status.isLive),
+    SequenceRunStatus.running,
   ];
 
   @override
@@ -434,8 +437,8 @@ class _HistoryFilterBarState extends ConsumerState<_HistoryFilterBar> {
 String observingNightLabel(DateTime night) {
   final evening = DateTime(night.year, night.month, night.day);
   final morning = evening.add(const Duration(days: 1));
-  return 'Night of ${DateFormat('EEE, MMM d').format(evening)} to '
-      '${DateFormat('EEE, MMM d, yyyy').format(morning)}';
+  return 'Night of ${ClockFormat.weekdayMonthDay(evening)} to '
+      '${ClockFormat.weekdayMonthDayYear(morning)}';
 }
 
 class _GroupedRunList extends StatelessWidget {
@@ -444,21 +447,13 @@ class _GroupedRunList extends StatelessWidget {
 
   const _GroupedRunList({required this.colors, required this.rows});
 
-  /// Bucket a run into an observing night. Runs after local midnight but
-  /// before ~midday are attributed to the previous calendar day so a
-  /// single overnight session groups together.
-  DateTime _observingNight(DateTime startedAt) {
-    final local = startedAt.toLocal();
-    final shifted =
-        local.hour < 12 ? local.subtract(const Duration(days: 1)) : local;
-    return DateTime(shifted.year, shifted.month, shifted.day);
-  }
-
   @override
   Widget build(BuildContext context) {
     final groups = <DateTime, List<_RunRow>>{};
     for (final row in rows) {
-      groups.putIfAbsent(_observingNight(row.run.startedAt), () => []).add(row);
+      groups
+          .putIfAbsent(observingNightOf(row.run.startedAt), () => [])
+          .add(row);
     }
     final nights = groups.keys.toList()..sort((a, b) => b.compareTo(a));
 
@@ -520,20 +515,20 @@ class _RunCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateFormat = DateFormat('MMM d, yyyy HH:mm');
-    final status = run.status;
-    final statusColor = _statusColor(status);
-    final statusIcon = _statusIcon(status);
+    final status = run.runStatus;
+    final statusLabel = runStatusTokenLabel(run.status);
+    final statusColor = runStatusColor(colors, status);
+    final statusIcon = runStatusIcon(status);
     // Promote to a local so the null-checks below flow-analyze correctly
     // (a public field can't be promoted).
     final stats = this.stats;
 
     final durationStr = run.endedAt != null
         ? DurationFormat.of(run.endedAt!.difference(run.startedAt),
-            style: DurationStyle.hoursMinutes)
-        // A run with no end that is not running was cut off (the app quit or
+            style: DurationStyle.short)
+        // A run with no end that is not live was cut off (the app quit or
         // crashed); its length is not known.
-        : status == 'running'
+        : status?.isLive ?? false
             ? 'In progress'
             : 'Unknown';
 
@@ -564,7 +559,6 @@ class _RunCard extends ConsumerWidget {
           borderRadius: SkotiqTokens.radiusLg,
           child: Row(
             children: [
-              // Status icon
               Container(
                 width: 40,
                 height: 40,
@@ -577,7 +571,6 @@ class _RunCard extends ConsumerWidget {
               ),
               const SizedBox(width: 16),
 
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,7 +582,7 @@ class _RunCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${dateFormat.format(run.startedAt)}  |  $durationStr',
+                      '${ClockFormat.monthDayYearHm(run.startedAt.toLocal())}  |  $durationStr',
                       style: TextStyle(
                           fontSize: SkotiqTypography.fontSize12,
                           color: colors.textMuted),
@@ -598,7 +591,6 @@ class _RunCard extends ConsumerWidget {
                 ),
               ),
 
-              // Quick stats
               if (stats != null) ...[
                 _StatChip(
                   colors: colors,
@@ -791,7 +783,7 @@ class _RunCard extends ConsumerWidget {
               Semantics(
                 container: true,
                 enabled: true,
-                label: 'Run status: ${runStatusLabel(status)}',
+                label: 'Run status: $statusLabel',
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -801,7 +793,7 @@ class _RunCard extends ConsumerWidget {
                         BorderRadius.circular(SkotiqTokens.radiusInline4),
                   ),
                   child: Text(
-                    runStatusLabel(status),
+                    statusLabel,
                     style: SkotiqTypography.labelStrongSm
                         .copyWith(color: statusColor),
                   ),
@@ -893,36 +885,6 @@ class _RunCard extends ConsumerWidget {
       ),
     );
   }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'completed':
-        return colors.success;
-      case 'failed':
-        return colors.error;
-      case 'aborted':
-        return colors.warning;
-      case 'running':
-        return colors.info;
-      default:
-        return colors.textMuted;
-    }
-  }
-
-  IconData _statusIcon(String status) {
-    switch (status) {
-      case 'completed':
-        return LucideIcons.checkCircle2;
-      case 'failed':
-        return LucideIcons.xCircle;
-      case 'aborted':
-        return LucideIcons.alertTriangle;
-      case 'running':
-        return LucideIcons.play;
-      default:
-        return LucideIcons.circle;
-    }
-  }
 }
 
 /// Per-run campaign rollup badge.
@@ -935,11 +897,6 @@ class _CampaignBadge extends ConsumerWidget {
 
   const _CampaignBadge({required this.targetName});
 
-  String _formatHours(double seconds) {
-    final hours = seconds / 3600.0;
-    return '${hours.toStringAsFixed(1)}h';
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
@@ -949,7 +906,8 @@ class _CampaignBadge extends ConsumerWidget {
         if (rollup == null || rollup.sessionCount <= 1) {
           return const SizedBox.shrink();
         }
-        final total = _formatHours(rollup.totalCapturedIntegrationSecs);
+        final total =
+            DurationFormat.decimalHours(rollup.totalCapturedIntegrationSecs);
         return Tooltip(
           message: 'Campaign: $total across ${rollup.sessionCount} sessions',
           child: Container(

@@ -9,6 +9,7 @@
 //     applied in-place.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,8 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/preflight_strictness.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -73,6 +76,29 @@ void main() {
     });
     when(() => backend.updateSettings(any())).thenAnswer((invocation) async {
       writes.add(invocation.positionalArguments.first as models.AppSettings);
+    });
+    // A save sends only the fields it changed; the host merges them onto what
+    // it holds. Record the host's document after each merge, so assertions
+    // read the settings as the host stores them.
+    var hostJson =
+        jsonDecode(jsonEncode(initial.toJson())) as Map<String, dynamic>;
+    when(
+      () => backend.updateSettingsPatchWithCommandId(
+        any(),
+        commandId: any(named: 'commandId'),
+      ),
+    ).thenAnswer((invocation) async {
+      final patch =
+          invocation.positionalArguments.first as Map<String, dynamic>;
+      final merged = {...hostJson, ...patch};
+      writes.add(models.AppSettings.fromJson(merged));
+      if (writes.length == 1 && firstWriteGate != null) {
+        await firstWriteGate.future;
+      }
+      if (writes.length == 1 && firstWriteError != null) {
+        throw firstWriteError;
+      }
+      hostJson = merged;
     });
     return (backend: backend, events: controller, writes: writes);
   }

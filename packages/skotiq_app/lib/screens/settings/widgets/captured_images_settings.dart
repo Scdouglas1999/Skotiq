@@ -4,9 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-// `ConnectionState` collides with Flutter's FutureBuilder enum; we only use
-// Flutter's here.
-import 'package:skotiq_core/skotiq_core.dart' hide ConnectionState;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
@@ -21,9 +21,7 @@ import '../../../utils/image_decode_size.dart';
 /// had shot. This grid fetches thumbnails on demand (cached) and shows frame
 /// metadata. Remote-only; the local desktop has its own image browser.
 class CapturedImagesSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const CapturedImagesSettings({super.key, this.isMobile = false});
+  const CapturedImagesSettings({super.key});
 
   @override
   ConsumerState<CapturedImagesSettings> createState() =>
@@ -36,29 +34,30 @@ class _CapturedImagesSettingsState
   bool _loading = false;
   String? _error;
   final Map<int, Uint8List> _thumbCache = {};
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _loadGeneration = 0;
+  ProviderSubscription<HostImagingRecords?>? _hostSubscription;
 
-  NetworkBackend? get _backend {
-    final b = ref.read(backendProvider);
-    return b is NetworkBackend ? b : null;
-  }
+  /// Frame list loads (the newest wins) and thumbnail reads; a host change
+  /// drops what the old host answers.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
+
+  HostImagingRecords? get _records =>
+      ref.read(linkedHostImagingRecordsProvider);
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    _hostSubscription = ref.listenManual<HostImagingRecords?>(
+      linkedHostImagingRecordsProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
-        _loadGeneration++;
+        _hostScopes.cancelAll();
         setState(() {
           _rows = const [];
           _thumbCache.clear();
           _error = null;
-          _loading = next is NetworkBackend;
+          _loading = next != null;
         });
-        if (next is NetworkBackend) unawaited(_refresh());
+        if (next != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -68,14 +67,14 @@ class _CapturedImagesSettingsState
 
   @override
   void dispose() {
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     super.dispose();
   }
 
   Future<void> _refresh() async {
-    final backend = _backend;
-    final generation = ++_loadGeneration;
-    if (backend == null) {
+    final load = _hostScopes.beginLatest();
+    final records = _records;
+    if (records == null) {
       if (!mounted) return;
       setState(() {
         _rows = const [];
@@ -90,26 +89,18 @@ class _CapturedImagesSettingsState
       _error = null;
     });
     try {
-      final rows = await backend.getAllImageRows();
-      if (!mounted ||
-          generation != _loadGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
-        return;
-      }
+      final rows = await records.getAllImageRows();
+      if (load.isStale) return;
       setState(() {
         _rows = rows;
         _thumbCache.clear();
         _loading = false;
       });
     } catch (e) {
-      if (!mounted ||
-          generation != _loadGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
-        return;
-      }
+      if (load.isStale) return;
       setState(() {
         _loading = false;
-        _error = '$e';
+        _error = userFacingError(e);
       });
     }
   }
@@ -145,12 +136,13 @@ class _CapturedImagesSettingsState
   Future<Uint8List> _thumb(int id) async {
     final cached = _thumbCache[id];
     if (cached != null) return cached;
-    final backend = _backend;
-    if (backend == null) {
+    final read = _hostScopes.begin();
+    final records = _records;
+    if (records == null) {
       throw StateError('No remote imaging host is connected');
     }
-    final bytes = await backend.getImageThumbnail(id);
-    if (!mounted || !identical(ref.read(backendProvider), backend)) {
+    final bytes = await records.getImageThumbnail(id);
+    if (read.isStale) {
       throw StateError('The imaging host changed while loading the thumbnail');
     }
     _thumbCache[id] = bytes;
@@ -160,15 +152,13 @@ class _CapturedImagesSettingsState
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final backend = _backend;
+    final records = ref.watch(linkedHostImagingRecordsProvider);
 
     return SettingsPage(
       title: 'Captured images',
       description: 'Browse frames captured on the connected appliance',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile,
       children: [
-        if (backend == null)
+        if (records == null)
           _info(colors, LucideIcons.info,
               'Connect to a remote appliance to browse its captured frames.')
         else ...[
@@ -201,7 +191,8 @@ class _CapturedImagesSettingsState
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: widget.isMobile ? 120 : 160,
+                maxCrossAxisExtent:
+                    SettingsFormScope.narrowOf(context) ? 120 : 160,
                 childAspectRatio: 1,
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,

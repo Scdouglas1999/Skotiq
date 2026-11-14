@@ -2,10 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/disconnected_backend.dart';
+import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_connection_state.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_executor.dart';
+import 'package:skotiq_core/src/providers/sequence/run_record.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_progress.dart';
 
 import '../mocks/mock_backend.dart';
@@ -19,8 +22,10 @@ class _TestBackendNotifier extends BackendNotifier {
   void replaceDirectly(SkotiqBackend backend) => state = backend;
 }
 
+class _RemoteBackend extends Mock implements NetworkBackend {}
+
 ProviderContainer _container(
-  MockBackend backend, {
+  SkotiqBackend backend, {
   void Function(_TestBackendNotifier notifier)? captureNotifier,
 }) {
   return ProviderContainer(
@@ -35,14 +40,61 @@ ProviderContainer _container(
 }
 
 void main() {
+  test('disconnecting a viewer leaves the remote run alone', () async {
+    final backend = _RemoteBackend();
+    when(
+      () => backend.connectionState,
+    ).thenReturn(BackendConnectionState.connected);
+    final container = _container(backend);
+    addTearDown(container.dispose);
+    container.read(runRecordProvider.notifier)
+      ..setLifecycle(SequenceExecutionState.running)
+      ..updateProgress(currentNodeId: 'host-node', completedExposures: 12);
+
+    await container.read(backendProvider.notifier).disconnect();
+
+    expect(container.read(backendProvider), isA<DisconnectedBackend>());
+    expect(
+      container.read(sequenceExecutionStateProvider),
+      SequenceExecutionState.idle,
+    );
+    expect(container.read(sequenceProgressProvider), const SequenceProgress());
+    verify(backend.dispose).called(1);
+    verifyNever(backend.sequencerStop);
+    verifyNever(backend.sequencerPause);
+  });
+
+  test(
+    'switching a viewer to a different host during a run is refused',
+    () async {
+      final backend = _RemoteBackend();
+      when(
+        () => backend.connectionState,
+      ).thenReturn(BackendConnectionState.connected);
+      final container = _container(backend);
+      addTearDown(container.dispose);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
+
+      await expectLater(
+        container.read(backendProvider.notifier).connect('other.invalid', 8080),
+        throwsA(isA<StateError>()),
+      );
+      expect(container.read(backendProvider), same(backend));
+      verifyNever(backend.dispose);
+    },
+  );
+
   test(
     'backend switch is rejected while a sequence owns the current host',
     () async {
       final backend = MockBackend();
       final container = _container(backend);
       addTearDown(container.dispose);
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
 
       await expectLater(
         container.read(backendProvider.notifier).disconnect(),
@@ -66,7 +118,7 @@ void main() {
       final backend = MockBackend();
       final container = _container(backend);
       addTearDown(container.dispose);
-      container.read(sequenceLaunchInFlightProvider.notifier).state = true;
+      container.read(runRecordProvider.notifier).setLaunching(true);
 
       await expectLater(
         container.read(backendProvider.notifier).disconnect(),
@@ -90,10 +142,8 @@ void main() {
       final backend = MockBackend();
       final container = _container(backend);
       addTearDown(container.dispose);
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.completed;
-      container.read(sequenceProgressProvider.notifier)
-        ..updateState(SequenceExecutionState.completed)
+      container.read(runRecordProvider.notifier)
+        ..setLifecycle(SequenceExecutionState.completed)
         ..updateProgress(currentNodeId: 'old-node', completedExposures: 12);
 
       await container.read(backendProvider.notifier).disconnect();

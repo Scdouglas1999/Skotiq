@@ -5,59 +5,11 @@
 
 use super::*;
 
-/// convert horizontal coordinates (altitude / azimuth in
-/// degrees) at the observer site to equatorial coordinates (RA in hours,
-/// Dec in degrees) referenced to the current epoch. Used by
-/// `RecoveryAction::SlewToGapAndContinue` to convert the cloud-motion
-/// analyzer's "clear sky direction" into a slew destination.
-///
-/// `latitude` is observer latitude in degrees (+N, -S). `longitude` is
-/// observer longitude in degrees (+E, -W).
-///
-/// References: Meeus, "Astronomical Algorithms", chapter 13 (horizontal
-/// to equatorial transform). Uses the same `julian_day` /
-/// `local_sidereal_time` primitives the rest of the crate uses so a
-/// future ephemeris swap covers every site.
-pub(crate) fn alt_az_to_ra_dec(
-    alt_deg: f64,
-    az_deg: f64,
-    latitude: f64,
-    longitude: f64,
-) -> (f64, f64) {
-    let alt_rad = alt_deg.to_radians();
-    let az_rad = az_deg.to_radians();
-    let lat_rad = latitude.to_radians();
-
-    // Inverse of the standard horizontal-to-equatorial transform:
-    //   sin(dec) = sin(alt) * sin(lat) + cos(alt) * cos(lat) * cos(az)
-    //   tan(H)   = sin(az) / (cos(az) * sin(lat) - tan(alt) * cos(lat))
-    let sin_dec = alt_rad.sin() * lat_rad.sin() + alt_rad.cos() * lat_rad.cos() * az_rad.cos();
-    let dec_rad = sin_dec.asin();
-
-    let y = -az_rad.sin();
-    let x = lat_rad.cos() * alt_rad.tan() - lat_rad.sin() * az_rad.cos();
-    let hour_angle_rad = y.atan2(x);
-    let hour_angle_hours = hour_angle_rad.to_degrees() / 15.0;
-
-    let now = chrono::Utc::now();
-    let jd = crate::meridian::julian_day(&now);
-    let lst_hours = crate::meridian::local_sidereal_time(jd, longitude);
-
-    // RA = LST - HA; normalise to [0, 24).
-    let mut ra_hours = lst_hours - hour_angle_hours;
-    ra_hours = ra_hours.rem_euclid(24.0);
-
-    (ra_hours, dec_rad.to_degrees())
-}
-
-/// Re-acquisition settle parameters. These mirror the conservative defaults
-/// used by the guiding settle path: lock within 2 px, hold for 10 s, give up
-/// after 120 s. A re-acquire that can't settle within 120 s is a genuine
-/// failure the operator's retry policy should handle, not something to wait on
-/// indefinitely while the target drifts.
-pub(crate) const REACQUIRE_SETTLE_PIXELS: f64 = 2.0;
-const REACQUIRE_SETTLE_TIME_SECS: f64 = 10.0;
-const REACQUIRE_SETTLE_TIMEOUT_SECS: f64 = 120.0;
+/// The guide error, in guide-camera pixels, inside which guiding counts as
+/// settled after a reacquire. See [`crate::GuiderSettle::REACQUIRE`].
+pub(crate) const REACQUIRE_SETTLE_PIXELS: f64 = crate::GuiderSettle::REACQUIRE.pixels;
+const REACQUIRE_SETTLE_TIME_SECS: f64 = crate::GuiderSettle::REACQUIRE.time_secs;
+const REACQUIRE_SETTLE_TIMEOUT_SECS: f64 = crate::GuiderSettle::REACQUIRE.timeout_secs;
 const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// Whether a guide status counts as GUIDING for recovery purposes: locked AND
@@ -121,11 +73,19 @@ async fn recovery_displacement_arcmin(
     .ok()?;
     let mut state = state.write().await;
     let origin = *state
+        .latches
         .guide_recovery
         .get_or_insert_with(Default::default)
         .origin
         .get_or_insert(position);
-    Some(crate::slew_arrival::separation_deg(origin, position) * 60.0)
+    Some(
+        crate::scheduling::astronomy::angular_separation(
+            origin.0 * 15.0,
+            origin.1,
+            position.0 * 15.0,
+            position.1,
+        ) * 60.0,
+    )
 }
 
 /// Record a failed attempt, with where the mount pointed, for the run and
@@ -149,11 +109,15 @@ async fn record_guide_recovery_failure(
     };
     let now = chrono::Utc::now();
     let mut state = state.write().await;
-    let site = state.observer_latitude.zip(state.observer_longitude);
+    let site = state
+        .settings
+        .observer_latitude
+        .zip(state.settings.observer_longitude);
     let alt_az_deg = position
         .zip(site)
         .map(|((ra, dec), (lat, lon))| crate::meridian::calculate_alt_az(ra, dec, lat, lon, now));
     state
+        .latches
         .guide_recovery
         .get_or_insert_with(Default::default)
         .failures
@@ -207,7 +171,9 @@ pub(crate) async fn recover_guide_star(
     let trigger_state = trigger_state.as_ref();
     let outcome = reacquire_guide_star(device_ops, mount_id, trigger_state).await;
     match (&outcome, trigger_state) {
-        (AttemptOutcome::Succeeded, Some(state)) => state.write().await.guide_recovery = None,
+        (AttemptOutcome::Succeeded, Some(state)) => {
+            state.write().await.latches.guide_recovery = None
+        }
         (AttemptOutcome::Failed { .. }, _) => {
             record_guide_recovery_failure(device_ops, mount_id, trigger_state).await;
         }
@@ -253,7 +219,7 @@ async fn reacquire_guide_star(
     }
 
     let reference = match trigger_state {
-        Some(state) => state.read().await.guide_star_reference,
+        Some(state) => state.read().await.target.guide_star_reference,
         None => None,
     };
     let floor = crate::GuideStarFloor::for_recovery(reference);
@@ -390,9 +356,9 @@ pub(crate) async fn weather_sky_check(
         let guard = state.read().await;
         (
             guard.weather_verdict_counts_unsafe(),
-            guard.weather_verdict_advisory,
-            guard.weather_safe,
-            guard.safety_fail_mode,
+            guard.telemetry.weather_verdict_advisory,
+            guard.telemetry.weather_safe,
+            guard.settings.safety_fail_mode,
         )
     };
     if verdict_unsafe {
@@ -455,20 +421,10 @@ pub(crate) async fn weather_hold_attempt(
     }
 }
 
-/// Recovery Mode — execute a single recovery attempt for the given
-/// cause and report the outcome. Stays out of the executor methods so the
-/// recovery driver task can call it without holding the executor lock.
-///
-/// The dispatch is intentionally conservative: for `GuideStarLost`,
-/// `MountTrackingLost`, and `WeatherUnsafe` we re-check the live device
-/// status; for `SlewFailed` / `PlateSolveFailed` we re-issue the original
-/// operation (the call site retains the necessary context). For now the
-/// majority of failure modes use a status re-check as the recovery — the
-/// underlying assumption is that the trigger only fired because the
-/// condition became unsafe, so polling once after the wait window is the
-/// right "try again" gesture. Future patches can expand each arm with
-/// fully-blown recovery flows (e.g. re-slew + re-solve + re-acquire) when
-/// the relevant context plumbing arrives.
+/// Run one recovery attempt for `cause` and report the outcome. What the
+/// attempt does is the cause's [`crate::recovery::AttemptKind`]. A free
+/// function so the recovery driver task can call it without holding the
+/// executor lock.
 pub(crate) async fn run_recovery_attempt(
     cause: &crate::recovery::RecoveryCause,
     device_ops: &SharedDeviceOps,
@@ -476,14 +432,14 @@ pub(crate) async fn run_recovery_attempt(
     device_ids: &[String],
     trigger_manager: &Arc<RwLock<TriggerManager>>,
 ) -> crate::recovery::AttemptOutcome {
+    use crate::recovery::AttemptKind;
     use crate::recovery::AttemptOutcome;
-    use crate::recovery::RecoveryCause;
 
-    match cause {
-        RecoveryCause::GuideStarLost => {
+    match cause.policy().attempt {
+        AttemptKind::ReacquireGuideStar => {
             recover_guide_star(device_ops, mount_id, Some(trigger_manager)).await
         }
-        RecoveryCause::MountTrackingLost => match mount_id {
+        AttemptKind::RestoreTracking => match mount_id {
             // Parking stops tracking, so an operator who parks mid-run trips
             // this cause too. A park is a safe state someone chose; switching
             // tracking back on under the park latch and calling the run
@@ -504,32 +460,16 @@ pub(crate) async fn run_recovery_attempt(
                 message: "No mount is configured; cannot recover tracking".to_string(),
             },
         },
-        RecoveryCause::WeatherUnsafe => {
-            match weather_sky_check(device_ops, trigger_manager).await {
-                Ok(()) => AttemptOutcome::Succeeded,
-                Err(message) => AttemptOutcome::Failed { message },
-            }
-        }
-        RecoveryCause::FocusDriftCritical => {
-            // Focus-drift recovery for now is "wait it out" — the next
-            // periodic autofocus (already managed by the AutofocusInterval
-            // trigger or the per-target Autofocus instruction) will lower
-            // HFR if a real autofocus is due. We declare success after the
-            // wait so the sequence resumes; the AutofocusInterval trigger
-            // remains armed and will fire again if HFR is still high.
-            AttemptOutcome::Succeeded
-        }
-        RecoveryCause::SlewFailed | RecoveryCause::PlateSolveFailed => {
-            // Slew / plate-solve recovery is best handled by re-entering
-            // the failed instruction. The driver releases `is_paused`
-            // when it sees `Recovered`, and the node tree resumes from
-            // where it stopped — the slew / center instruction will run
-            // again. We return `Succeeded` after the wait so the driver
-            // flips back to Running; the instruction's own retry logic
-            // takes over.
-            AttemptOutcome::Succeeded
-        }
-        RecoveryCause::ConsecutiveRejectsExceeded => {
+        AttemptKind::CheckSky => match weather_sky_check(device_ops, trigger_manager).await {
+            Ok(()) => AttemptOutcome::Succeeded,
+            Err(message) => AttemptOutcome::Failed { message },
+        },
+        // The driver releases the node tree when it sees `Recovered`, and
+        // the tree resumes where it stopped: a failed slew or center runs
+        // again under its own retry logic, and the autofocus triggers stay
+        // armed for a focus drift.
+        AttemptKind::ResumeAfterWait => AttemptOutcome::Succeeded,
+        AttemptKind::PauseForOperator => {
             // A consecutive-reject storm (clouds rolling in, dew, focus
             // lost, vibration) is NOT something a fixed wait can prove
             // cleared — auto-resuming oscillated fail → wait →
@@ -544,7 +484,7 @@ pub(crate) async fn run_recovery_attempt(
                     .to_string(),
             }
         }
-        RecoveryCause::DeviceDisconnected => {
+        AttemptKind::ReconnectDevices => {
             if device_ids.is_empty() {
                 // Terminal, not retryable. With no ids there is nothing to
                 // reconnect and nothing to poll, so attempt 2 through 9 would
@@ -559,15 +499,15 @@ pub(crate) async fn run_recovery_attempt(
                 };
             }
 
-            // Actively drive a reconnect for each device. Polling
-            // device_is_connected alone never recovers camera / focuser /
-            // filter-wheel disconnects: those devices default to
-            // auto_reconnect=false, so the background reconnection loop skips them
-            // and the recovery budget burns reporting "still disconnected".
-            // connect_device() flips auto_reconnect on AND issues an immediate
-            // connect. A failed attempt is non-fatal — the is_connected
-            // verification below decides the outcome.
+            // Reconnect only devices that are not known to be connected. A
+            // connect can replace a driver's live handle, including retained
+            // camera files, so an unrelated device fault must leave it alone.
+            // Disconnected or unreadable devices need an active attempt; the
+            // final state check below decides whether recovery succeeded.
             for device_id in device_ids {
+                if matches!(device_ops.device_is_connected(device_id).await, Ok(true)) {
+                    continue;
+                }
                 if let Err(e) = device_ops.connect_device(device_id).await {
                     tracing::warn!(
                         "[RECOVERY] connect_device('{}') attempt failed: {} (will verify state)",
@@ -596,14 +536,6 @@ pub(crate) async fn run_recovery_attempt(
                 }
             }
 
-            AttemptOutcome::Succeeded
-        }
-        RecoveryCause::Custom(_) => {
-            // Custom causes have no built-in recovery action — declare
-            // success after the wait so the sequence resumes. Plugins /
-            // scripts that surface custom causes are expected to handle
-            // their own recovery upstream; the unified state machine
-            // only provides the visible Recovering UX.
             AttemptOutcome::Succeeded
         }
     }
@@ -644,11 +576,11 @@ pub(crate) async fn hand_off_tracking_limit(
         return false;
     }
     let mut candidate = state.clone();
-    candidate.mount_is_tracking = Some(false);
-    candidate.mount_slewing = Some(false);
-    candidate.mount_parked = Some(false);
-    candidate.pier_side = Some(crate::PierSide::West);
-    candidate.mount_status_query_failed = false;
+    candidate.telemetry.mount_is_tracking = Some(false);
+    candidate.telemetry.mount_slewing = Some(false);
+    candidate.telemetry.mount_parked = Some(false);
+    candidate.telemetry.pier_side = Some(crate::PierSide::West);
+    candidate.telemetry.mount_status_query_failed = false;
     candidate
         .tracking
         .record_loss(chrono::Utc::now().timestamp());

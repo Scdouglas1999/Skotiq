@@ -4,10 +4,12 @@
 /// eliminating the dependency on the FRB bridge types.
 library;
 
-/// Mount tracking rates
+import 'dart:math' as math;
+
+import '../imaging/gain_kind.dart';
+
 enum TrackingRate { sidereal, lunar, solar, king, custom }
 
-/// Camera capabilities
 class CameraCapabilities {
   final int maxWidth;
   final int maxHeight;
@@ -23,6 +25,10 @@ class CameraCapabilities {
   final bool canSetGain;
   final int? gainMin;
   final int? gainMax;
+
+  /// The ISO speeds a DSLR or mirrorless body offers, lowest first, Auto
+  /// excluded; empty for a gain camera. Read [sensitivity] rather than this.
+  final List<int> isoSpeeds;
   final bool canSetOffset;
   final int? offsetMin;
   final int? offsetMax;
@@ -60,6 +66,7 @@ class CameraCapabilities {
     this.canSetGain = false,
     this.gainMin,
     this.gainMax,
+    this.isoSpeeds = const [],
     this.canSetOffset = false,
     this.offsetMin,
     this.offsetMax,
@@ -113,6 +120,9 @@ class CameraCapabilities {
           json['canSetGain'] as bool? ?? json['can_set_gain'] as bool? ?? false,
       gainMin: json['gainMin'] as int? ?? json['gain_min'] as int?,
       gainMax: json['gainMax'] as int? ?? json['gain_max'] as int?,
+      isoSpeeds:
+          (json['isoSpeeds'] as List? ?? json['iso_speeds'] as List? ?? [])
+              .cast<int>(),
       canSetOffset:
           json['canSetOffset'] as bool? ??
           json['can_set_offset'] as bool? ??
@@ -191,6 +201,7 @@ class CameraCapabilities {
     'canSetGain': canSetGain,
     'gainMin': gainMin,
     'gainMax': gainMax,
+    'isoSpeeds': isoSpeeds,
     'canSetOffset': canSetOffset,
     'offsetMin': offsetMin,
     'offsetMax': offsetMax,
@@ -213,9 +224,165 @@ class CameraCapabilities {
     'coolerMinTempC': coolerMinTempC,
     'coolerMaxTempC': coolerMaxTempC,
   };
+
+  /// What the camera's exposure-sensitivity control takes.
+  ExposureSensitivity get sensitivity => isoSpeeds.isNotEmpty
+      ? IsoSensitivity(isoSpeeds)
+      : GainSensitivity(
+          min: gainMin,
+          max: gainMax,
+          hasGain: canSetGain,
+          hasOffset: canSetOffset,
+        );
 }
 
-/// Mount capabilities
+/// What a camera's exposure-sensitivity control takes: a gain number
+/// (astronomy cameras) or one of the ISO speeds a DSLR or mirrorless body
+/// offers. The stored value is the same number either way (`GAIN` is the ISO
+/// speed for DSLR frames); this decides the word, the control and the text.
+sealed class ExposureSensitivity {
+  const ExposureSensitivity();
+
+  /// The sensitivity of a camera whose capabilities are [caps]; a camera not
+  /// yet known reads as gain.
+  static ExposureSensitivity of(CameraCapabilities? caps) =>
+      caps?.sensitivity ?? const GainSensitivity();
+
+  /// The field label: "Gain" or "ISO".
+  String get label;
+
+  /// [value] in a sentence: "gain 100" or "ISO 800".
+  String describe(int value);
+
+  /// [value] as a compact token, as in "g100 o50" or "ISO 800".
+  String abbreviate(int value);
+
+  /// Whether the camera has a gain (or ISO) control. Some CCDs (FLI, Atik)
+  /// have none.
+  bool get hasGain;
+
+  /// Whether the camera also has an offset control. DSLR and mirrorless
+  /// bodies have none.
+  bool get hasOffset;
+
+  /// The gain and offset an exposure command to this camera sets: null for a
+  /// control the camera does not have.
+  ({int? gain, int? offset}) commanded({
+    required int gain,
+    required int offset,
+  }) => (gain: hasGain ? gain : null, offset: hasOffset ? offset : null);
+
+  /// The value the camera takes for [requested].
+  int accept(int requested);
+
+  /// What a frame from this camera records its gain as.
+  GainKind get gainKind;
+}
+
+class GainSensitivity extends ExposureSensitivity {
+  /// A camera not yet known has both controls until it says otherwise.
+  const GainSensitivity({
+    this.min,
+    this.max,
+    this.hasGain = true,
+    this.hasOffset = true,
+  });
+
+  final int? min;
+  final int? max;
+
+  @override
+  final bool hasGain;
+
+  @override
+  final bool hasOffset;
+
+  @override
+  String get label => 'Gain';
+
+  @override
+  String describe(int value) => 'gain $value';
+
+  @override
+  String abbreviate(int value) => 'g$value';
+
+  @override
+  GainKind get gainKind => GainKind.gain;
+
+  @override
+  int accept(int requested) {
+    var value = requested;
+    if (min != null && value < min!) value = min!;
+    if (max != null && value > max!) value = max!;
+    return value;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GainSensitivity &&
+      other.min == min &&
+      other.max == max &&
+      other.hasGain == hasGain &&
+      other.hasOffset == hasOffset;
+
+  @override
+  int get hashCode => Object.hash(min, max, hasGain, hasOffset);
+}
+
+class IsoSensitivity extends ExposureSensitivity {
+  IsoSensitivity(List<int> speeds) : speeds = List.unmodifiable(speeds);
+
+  /// Lowest first.
+  final List<int> speeds;
+
+  @override
+  String get label => 'ISO';
+
+  @override
+  String describe(int value) => 'ISO $value';
+
+  @override
+  String abbreviate(int value) => 'ISO $value';
+
+  @override
+  bool get hasGain => true;
+
+  @override
+  bool get hasOffset => false;
+
+  @override
+  GainKind get gainKind => GainKind.iso;
+
+  /// The offered speed nearest to [requested] by ratio, the way the camera
+  /// drivers choose; a tie goes to the lower speed.
+  @override
+  int accept(int requested) {
+    final wanted = math.log(math.max(requested, 1));
+    var best = speeds.first;
+    for (final speed in speeds) {
+      if ((math.log(speed) - wanted).abs() < (math.log(best) - wanted).abs()) {
+        best = speed;
+      }
+    }
+    return best;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is IsoSensitivity && _sameList(other.speeds, speeds);
+
+  @override
+  int get hashCode => Object.hashAll(speeds);
+}
+
+bool _sameList(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
 class MountCapabilities {
   final bool canSlew;
   final bool canSlewAsync;
@@ -396,7 +563,6 @@ class MountCapabilities {
   };
 }
 
-/// Focuser capabilities
 class FocuserCapabilities {
   final int maxPosition;
   final int maxIncrement;
@@ -469,7 +635,6 @@ class FocuserCapabilities {
   };
 }
 
-/// Filter wheel capabilities
 class FilterWheelCapabilities {
   final int positionCount;
   final int? currentPosition;
@@ -527,7 +692,6 @@ class FilterWheelCapabilities {
   };
 }
 
-/// Rotator capabilities
 class RotatorCapabilities {
   final bool canReverse;
   final bool reverse;

@@ -1,28 +1,30 @@
-import 'dart:developer' as developer;
-
-import 'package:flutter/foundation.dart' show listEquals, setEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'host_role.dart';
 
+import '../backend/roles/host_data/observing_lists_store.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/network_backend.dart';
 import '../database/daos/observing_lists_dao.dart';
 import '../database/database.dart';
-import '../utils/resilient_poll_stream.dart';
+import '../errors/error_text.dart';
+import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import '../models/backend/backend_types.dart';
 
 const _observingListNotProvided = Object();
 
-/// DAO provider for ObservingListsDao.
 final observingListsDaoProvider = Provider<ObservingListsDao>((ref) {
   return ObservingListsDao(ref.watch(databaseProvider));
 });
 
+/// The observing lists of whichever machine is the imaging host: this
+/// process's database, or the linked host's.
+final observingListsStoreProvider = hostRoleProvider<ObservingListsStore>(
+  here: (ref) => ref.watch(observingListsDaoProvider),
+  linked: (ref, host) => host.observingLists,
+);
+
 /// Reactive stream of all observing lists.
-///
-/// On a remote SLAVE the local observing-lists tables are never populated — the
-/// curated lists live in the HOST DB — so this branches onto the host's
-/// `/api/observing-lists` instead of the empty local DAO stream.
 final observingListsProvider = StreamProvider<List<ObservingList>>((ref) {
   // The selected list id belongs to one host's database namespace. Clear it
   // as soon as this host-aware stream observes a backend switch, even if no
@@ -33,40 +35,20 @@ final observingListsProvider = StreamProvider<List<ObservingList>>((ref) {
       ref.read(activeObservingListIdProvider.notifier).state = null;
     }
   });
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteObservingLists(
-      () => backend.getObservingLists(),
-      listEquals,
-    );
-  }
-  return ref.watch(observingListsDaoProvider).watchAllLists();
+  return ref.watch(observingListsStoreProvider).watchAllLists();
 });
 
 /// Reactive stream of items in a specific list.
 final observingListItemsProvider =
-    StreamProvider.family<List<ObservingListItem>, int>((ref, listId) {
-      final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        return _pollRemoteObservingLists(
-          () => backend.getObservingListItems(listId),
-          listEquals,
-        );
-      }
-      return ref.watch(observingListsDaoProvider).watchItemsForList(listId);
-    });
+    StreamProvider.family<List<ObservingListItem>, int>(
+      (ref, listId) =>
+          ref.watch(observingListsStoreProvider).watchItemsForList(listId),
+    );
 
 /// Watch catalog IDs across all observing lists (for planetarium markers).
-final listedCatalogIdsProvider = StreamProvider<Set<String>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteObservingLists(
-      () => backend.getListedCatalogIds(),
-      setEquals,
-    );
-  }
-  return ref.watch(observingListsDaoProvider).watchAllListedCatalogIds();
-});
+final listedCatalogIdsProvider = StreamProvider<Set<String>>(
+  (ref) => ref.watch(observingListsStoreProvider).watchAllListedCatalogIds(),
+);
 
 /// Watch catalog IDs for the active list only.
 final activeListCatalogIdsProvider = StreamProvider<Set<String>>((ref) {
@@ -74,43 +56,13 @@ final activeListCatalogIdsProvider = StreamProvider<Set<String>>((ref) {
   if (activeId == null) {
     return const Stream.empty();
   }
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return _pollRemoteObservingLists(
-      () => backend.getListedCatalogIds(listId: activeId),
-      setEquals,
-    );
-  }
-  return ref.watch(observingListsDaoProvider).watchCatalogIdsForList(activeId);
+  return ref
+      .watch(observingListsStoreProvider)
+      .watchCatalogIdsForList(activeId);
 });
 
 /// Currently selected/active observing list ID for the planetarium sidebar.
 final activeObservingListIdProvider = StateProvider<int?>((ref) => null);
-
-/// Polls [fetch] every [interval], emitting the first value and thereafter ONLY
-/// when the value actually changes (per [unchanged]). The observing-lists
-/// tables are not pushed over the event stream, so the slave polls the host the
-/// same way `database_provider.dart` polls targets/sessions/images; the
-/// change-guard keeps a quiet host from re-emitting an identical payload every
-/// tick (which would thrash the planetarium markers and list views).
-Stream<T> _pollRemoteObservingLists<T>(
-  Future<T> Function() fetch,
-  bool Function(T a, T b) unchanged, {
-  Duration interval = const Duration(seconds: 10),
-}) => resilientDistinctPoll(
-  fetch: fetch,
-  unchanged: unchanged,
-  interval: interval,
-  onRetainedError: (error, stackTrace) {
-    developer.log(
-      'Remote observing-list poll failed; retaining last value',
-      name: 'ObservingListProvider',
-      level: 900,
-      error: error,
-      stackTrace: stackTrace,
-    );
-  },
-);
 
 /// StateNotifier for managing observing list UI interactions.
 final observingListNotifierProvider =
@@ -149,9 +101,17 @@ class ObservingListUiState {
 
 class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
   final Ref ref;
-  int _authorityRevision = 0;
   int _activeMutations = 0;
   final Map<int, Future<int?>> _duplicateInFlight = {};
+
+  /// A mutation belongs to the store it started on. The store changes when
+  /// the backend or the local database does, which makes every scope begun
+  /// before that stale.
+  late final AsyncScopes<ObservingListsStore> _scopes = AsyncScopes(
+    ref.read,
+    observingListsStoreProvider,
+    alive: () => mounted,
+  );
 
   ObservingListNotifier(this.ref) : super(const ObservingListUiState()) {
     ref.listen(backendProvider, (previous, next) {
@@ -165,10 +125,8 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     });
   }
 
-  ObservingListsDao get _dao => ref.read(observingListsDaoProvider);
-
   void _resetAuthority({required bool clearActiveList}) {
-    _authorityRevision++;
+    _scopes.cancelAll();
     _activeMutations = 0;
     _duplicateInFlight.clear();
     if (mounted) state = const ObservingListUiState();
@@ -177,78 +135,41 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     }
   }
 
-  ({int revision, SkotiqBackend backend, ObservingListsDao dao})
-  _captureAuthority() => (
-    revision: _authorityRevision,
-    backend: ref.read(backendProvider),
-    dao: _dao,
-  );
-
-  bool _isCurrentAuthority(
-    ({int revision, SkotiqBackend backend, ObservingListsDao dao}) authority,
-  ) {
-    return mounted &&
-        authority.revision == _authorityRevision &&
-        identical(authority.backend, ref.read(backendProvider)) &&
-        identical(authority.dao, _dao);
-  }
-
   Future<T> _mutate<T>(
     T staleResult,
-    Future<T> Function(
-      ({int revision, SkotiqBackend backend, ObservingListsDao dao}) authority,
-    )
-    operation,
+    Future<T> Function(AsyncScope<ObservingListsStore> scope) operation,
   ) {
-    final authority = _captureAuthority();
+    final scope = _scopes.begin();
     _activeMutations++;
     state = state.copyWith(
       isSaving: true,
       statusMessage: null,
       errorMessage: null,
     );
-    return operation(authority)
-        .then((result) {
-          return _isCurrentAuthority(authority) ? result : staleResult;
-        })
-        .whenComplete(() {
-          if (!_isCurrentAuthority(authority)) return;
-          _activeMutations--;
-          state = state.copyWith(isSaving: _activeMutations > 0);
-        });
+    return operation(
+      scope,
+    ).then((result) => scope.isCurrent ? result : staleResult).whenComplete(() {
+      if (scope.isStale) return;
+      _activeMutations--;
+      state = state.copyWith(isSaving: _activeMutations > 0);
+    });
   }
 
-  /// Force the remote-aware list/items/marker streams to re-poll the host
-  /// immediately after a slave mutation (otherwise the change is invisible
-  /// until the next 10s poll tick).
-  void _invalidateRemoteReads() {
-    ref.invalidate(observingListsProvider);
-    ref.invalidate(observingListItemsProvider);
-    ref.invalidate(listedCatalogIdsProvider);
-    ref.invalidate(activeListCatalogIdsProvider);
-  }
-
-  /// Create a new observing list.
   Future<int?> createList({required String name, String? description}) {
-    return _mutate<int?>(null, (authority) async {
+    return _mutate<int?>(null, (scope) async {
       try {
-        final backend = authority.backend;
-        final id = backend is NetworkBackend
-            ? await backend.createObservingList(
-                name: name,
-                description: description,
-              )
-            : await authority.dao.createList(
-                name: name,
-                description: description,
-              );
-        if (!_isCurrentAuthority(authority)) return null;
-        if (backend is NetworkBackend) _invalidateRemoteReads();
+        final id = await scope.value.createList(
+          name: name,
+          description: description,
+        );
+        if (scope.isStale) return null;
         state = state.copyWith(statusMessage: 'Created list "$name"');
         return id;
       } catch (e) {
-        if (_isCurrentAuthority(authority)) {
-          state = state.copyWith(errorMessage: 'Failed to create list: $e');
+        if (scope.isCurrent) {
+          state = state.copyWith(
+            errorMessage: 'Failed to create list: ${userFacingError(e)}',
+          );
         }
         return null;
       }
@@ -274,47 +195,28 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     double? sizeArcmin,
     String? notes,
   }) {
-    return _mutate<int?>(null, (authority) async {
-      final backend = authority.backend;
+    return _mutate<int?>(null, (scope) async {
       int? listId;
       try {
-        listId = backend is NetworkBackend
-            ? await backend.createObservingList(
-                name: name,
-                description: description,
-              )
-            : await authority.dao.createList(
-                name: name,
-                description: description,
-              );
-        if (!_isCurrentAuthority(authority)) {
+        listId = await scope.value.createList(
+          name: name,
+          description: description,
+        );
+        if (scope.isStale) {
           throw StateError('The imaging host changed while creating the list.');
         }
-        final itemId = backend is NetworkBackend
-            ? await backend.addObservingListItem(
-                listId: listId,
-                objectName: objectName,
-                catalogId: catalogId,
-                objectType: objectType,
-                ra: ra,
-                dec: dec,
-                magnitude: magnitude,
-                sizeArcmin: sizeArcmin,
-                notes: notes,
-              )
-            : await authority.dao.addItem(
-                listId: listId,
-                objectName: objectName,
-                catalogId: catalogId,
-                objectType: objectType,
-                ra: ra,
-                dec: dec,
-                magnitude: magnitude,
-                sizeArcmin: sizeArcmin,
-                notes: notes,
-              );
-        if (!_isCurrentAuthority(authority)) return null;
-        if (backend is NetworkBackend) _invalidateRemoteReads();
+        final itemId = await scope.value.addItem(
+          listId: listId,
+          objectName: objectName,
+          catalogId: catalogId,
+          objectType: objectType,
+          ra: ra,
+          dec: dec,
+          magnitude: magnitude,
+          sizeArcmin: sizeArcmin,
+          notes: notes,
+        );
+        if (scope.isStale) return null;
         state = state.copyWith(
           statusMessage: 'Created "$name" and added $objectName',
           errorMessage: null,
@@ -324,22 +226,17 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
         Object? rollbackError;
         if (listId != null) {
           try {
-            if (backend is NetworkBackend) {
-              await backend.deleteObservingList(listId);
-            } else {
-              await authority.dao.deleteList(listId);
-            }
+            await scope.value.deleteList(listId);
           } catch (error) {
             rollbackError = error;
           }
         }
-        if (!_isCurrentAuthority(authority)) return null;
-        if (backend is NetworkBackend) _invalidateRemoteReads();
+        if (scope.isStale) return null;
         state = state.copyWith(
           errorMessage: rollbackError == null
-              ? 'Failed to create list and add target: $error'
+              ? 'Failed to create list and add target: ${userFacingError(error)}'
               : 'The list was created, but the target could not be added and '
-                    'the empty list could not be removed: $error '
+                    'the empty list could not be removed: ${userFacingError(error)} '
                     '(cleanup failed: $rollbackError)',
         );
         return null;
@@ -347,54 +244,38 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     });
   }
 
-  /// Rename an observing list.
   Future<bool> renameList(int id, String newName) {
-    return _mutate<bool>(false, (authority) async {
+    return _mutate<bool>(false, (scope) async {
       try {
-        final backend = authority.backend;
-        if (backend is NetworkBackend) {
-          await backend.updateObservingList(id: id, name: newName);
-        } else {
-          await authority.dao.updateList(id: id, name: newName);
-        }
-        if (!_isCurrentAuthority(authority)) return false;
-        if (backend is NetworkBackend) _invalidateRemoteReads();
+        await scope.value.updateList(id: id, name: newName);
+        if (scope.isStale) return false;
         state = state.copyWith(statusMessage: 'Renamed list to "$newName"');
         return true;
       } catch (e) {
-        if (_isCurrentAuthority(authority)) {
-          state = state.copyWith(errorMessage: 'Failed to rename list: $e');
+        if (scope.isCurrent) {
+          state = state.copyWith(
+            errorMessage: 'Failed to rename list: ${userFacingError(e)}',
+          );
         }
         return false;
       }
     });
   }
 
-  /// Update a list's description.
   Future<bool> updateDescription(int id, String? description) {
-    return _mutate<bool>(false, (authority) async {
+    return _mutate<bool>(false, (scope) async {
       try {
-        final backend = authority.backend;
-        if (backend is NetworkBackend) {
-          await backend.updateObservingList(
-            id: id,
-            description: description,
-            setDescription: true,
-          );
-        } else {
-          await authority.dao.updateList(
-            id: id,
-            description: description,
-            clearDescription: description == null,
-          );
-        }
-        if (!_isCurrentAuthority(authority)) return false;
-        if (backend is NetworkBackend) _invalidateRemoteReads();
+        await scope.value.updateList(
+          id: id,
+          description: description,
+          clearDescription: description == null,
+        );
+        if (scope.isStale) return false;
         return true;
       } catch (e) {
-        if (_isCurrentAuthority(authority)) {
+        if (scope.isCurrent) {
           state = state.copyWith(
-            errorMessage: 'Failed to update description: $e',
+            errorMessage: 'Failed to update description: ${userFacingError(e)}',
           );
         }
         return false;
@@ -409,60 +290,46 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
   /// by a silently failed description write, and [setDescription] on the
   /// remote transport preserves an explicit `null` as "clear this field".
   Future<bool> updateList(int id, {required String name, String? description}) {
-    return _mutate<bool>(false, (authority) async {
+    return _mutate<bool>(false, (scope) async {
       try {
-        final backend = authority.backend;
-        if (backend is NetworkBackend) {
-          await backend.updateObservingList(
-            id: id,
-            name: name,
-            description: description,
-            setDescription: true,
-          );
-        } else {
-          await authority.dao.updateList(
-            id: id,
-            name: name,
-            description: description,
-            clearDescription: description == null,
-          );
-        }
-        if (!_isCurrentAuthority(authority)) return false;
-        if (backend is NetworkBackend) _invalidateRemoteReads();
+        await scope.value.updateList(
+          id: id,
+          name: name,
+          description: description,
+          clearDescription: description == null,
+        );
+        if (scope.isStale) return false;
         state = state.copyWith(
           statusMessage: 'Updated list "$name"',
           errorMessage: null,
         );
         return true;
       } catch (e) {
-        if (_isCurrentAuthority(authority)) {
-          state = state.copyWith(errorMessage: 'Failed to update list: $e');
+        if (scope.isCurrent) {
+          state = state.copyWith(
+            errorMessage: 'Failed to update list: ${userFacingError(e)}',
+          );
         }
         return false;
       }
     });
   }
 
-  /// Delete an observing list.
   Future<bool> deleteList(int id) {
-    return _mutate<bool>(false, (authority) async {
+    return _mutate<bool>(false, (scope) async {
       try {
-        final backend = authority.backend;
-        if (backend is NetworkBackend) {
-          await backend.deleteObservingList(id);
-        } else {
-          await authority.dao.deleteList(id);
-        }
-        if (!_isCurrentAuthority(authority)) return false;
-        if (backend is NetworkBackend) _invalidateRemoteReads();
+        await scope.value.deleteList(id);
+        if (scope.isStale) return false;
         if (ref.read(activeObservingListIdProvider) == id) {
           ref.read(activeObservingListIdProvider.notifier).state = null;
         }
         state = state.copyWith(statusMessage: 'List deleted.');
         return true;
       } catch (e) {
-        if (_isCurrentAuthority(authority)) {
-          state = state.copyWith(errorMessage: 'Failed to delete list: $e');
+        if (scope.isCurrent) {
+          state = state.copyWith(
+            errorMessage: 'Failed to delete list: ${userFacingError(e)}',
+          );
         }
         return false;
       }
@@ -475,20 +342,16 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     if (existing != null) return existing;
     late final Future<int?> operation;
     operation =
-        _mutate<int?>(null, (authority) async {
+        _mutate<int?>(null, (scope) async {
           try {
-            final backend = authority.backend;
-            final newId = backend is NetworkBackend
-                ? await backend.duplicateObservingList(sourceId)
-                : await authority.dao.duplicateList(sourceId);
-            if (!_isCurrentAuthority(authority)) return null;
-            if (backend is NetworkBackend) _invalidateRemoteReads();
+            final newId = await scope.value.duplicateList(sourceId);
+            if (scope.isStale) return null;
             state = state.copyWith(statusMessage: 'List duplicated.');
             return newId;
           } catch (e) {
-            if (_isCurrentAuthority(authority)) {
+            if (scope.isCurrent) {
               state = state.copyWith(
-                errorMessage: 'Failed to duplicate list: $e',
+                errorMessage: 'Failed to duplicate list: ${userFacingError(e)}',
               );
             }
             return null;
@@ -502,7 +365,6 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     return operation;
   }
 
-  /// Add an object to a list.
   Future<int?> addItem({
     required int listId,
     required String objectName,
@@ -514,38 +376,24 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     double? sizeArcmin,
     String? notes,
   }) {
-    return _mutate<int?>(null, (authority) async {
+    return _mutate<int?>(null, (scope) async {
       try {
-        final backend = authority.backend;
-        final id = backend is NetworkBackend
-            ? await backend.addObservingListItem(
-                listId: listId,
-                objectName: objectName,
-                catalogId: catalogId,
-                objectType: objectType,
-                ra: ra,
-                dec: dec,
-                magnitude: magnitude,
-                sizeArcmin: sizeArcmin,
-                notes: notes,
-              )
-            : await authority.dao.addItem(
-                listId: listId,
-                objectName: objectName,
-                catalogId: catalogId,
-                objectType: objectType,
-                ra: ra,
-                dec: dec,
-                magnitude: magnitude,
-                sizeArcmin: sizeArcmin,
-                notes: notes,
-              );
-        if (!_isCurrentAuthority(authority)) return null;
-        if (backend is NetworkBackend) _invalidateRemoteReads();
+        final id = await scope.value.addItem(
+          listId: listId,
+          objectName: objectName,
+          catalogId: catalogId,
+          objectType: objectType,
+          ra: ra,
+          dec: dec,
+          magnitude: magnitude,
+          sizeArcmin: sizeArcmin,
+          notes: notes,
+        );
+        if (scope.isStale) return null;
         state = state.copyWith(statusMessage: 'Added $objectName to list');
         return id;
       } catch (e) {
-        if (!_isCurrentAuthority(authority)) return null;
+        if (scope.isStale) return null;
         // A duplicate is not a failure: the object the user asked for is
         // already where they wanted it. Report it as a neutral STATUS (no
         // errorMessage) so the UI stops showing a red "Failed to add item:
@@ -557,7 +405,9 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
           state = state.copyWith(statusMessage: duplicate, errorMessage: null);
           return null;
         }
-        state = state.copyWith(errorMessage: 'Failed to add item: $e');
+        state = state.copyWith(
+          errorMessage: 'Failed to add item: ${userFacingError(e)}',
+        );
         return null;
       }
     });
@@ -576,65 +426,50 @@ class ObservingListNotifier extends StateNotifier<ObservingListUiState> {
     return null;
   }
 
-  /// Remove an item from a list.
   Future<bool> removeItem(int itemId) {
-    return _mutate<bool>(false, (authority) async {
+    return _mutate<bool>(false, (scope) async {
       try {
-        final backend = authority.backend;
-        if (backend is NetworkBackend) {
-          await backend.removeObservingListItem(itemId);
-        } else {
-          await authority.dao.removeItem(itemId);
-        }
-        if (!_isCurrentAuthority(authority)) return false;
-        if (backend is NetworkBackend) _invalidateRemoteReads();
+        await scope.value.removeItem(itemId);
+        if (scope.isStale) return false;
         state = state.copyWith(statusMessage: 'Item removed from list.');
         return true;
       } catch (e) {
-        if (_isCurrentAuthority(authority)) {
-          state = state.copyWith(errorMessage: 'Failed to remove item: $e');
+        if (scope.isCurrent) {
+          state = state.copyWith(
+            errorMessage: 'Failed to remove item: ${userFacingError(e)}',
+          );
         }
         return false;
       }
     });
   }
 
-  /// Update notes on an item.
   Future<bool> updateItemNotes(int itemId, String? notes) {
-    return _mutate<bool>(false, (authority) async {
+    return _mutate<bool>(false, (scope) async {
       try {
-        final backend = authority.backend;
-        if (backend is NetworkBackend) {
-          await backend.updateObservingListItemNotes(itemId, notes);
-        } else {
-          await authority.dao.updateItemNotes(itemId, notes);
-        }
-        if (!_isCurrentAuthority(authority)) return false;
-        if (backend is NetworkBackend) _invalidateRemoteReads();
+        await scope.value.updateItemNotes(itemId, notes);
+        if (scope.isStale) return false;
         return true;
       } catch (e) {
-        if (_isCurrentAuthority(authority)) {
-          state = state.copyWith(errorMessage: 'Failed to update notes: $e');
+        if (scope.isCurrent) {
+          state = state.copyWith(
+            errorMessage: 'Failed to update notes: ${userFacingError(e)}',
+          );
         }
         return false;
       }
     });
   }
 
-  /// Get which lists contain a given catalog ID.
   Future<List<ObservingList>> getListsContaining(String catalogId) async {
-    final authority = _captureAuthority();
-    final backend = authority.backend;
-    final lists = backend is NetworkBackend
-        ? await backend.getListsContaining(catalogId)
-        : await authority.dao.getListsContaining(catalogId);
-    if (!_isCurrentAuthority(authority)) {
+    final scope = _scopes.begin();
+    final lists = await scope.value.getListsContaining(catalogId);
+    if (scope.isStale) {
       throw StateError('The imaging host changed while loading list matches.');
     }
     return lists;
   }
 
-  /// Clear status/error messages.
   void clearMessages() {
     state = state.copyWith(statusMessage: null, errorMessage: null);
   }

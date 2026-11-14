@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 
 import '../fixtures/synthetic_old_profile_fixtures.dart';
@@ -801,10 +802,10 @@ CREATE TABLE captured_images (
     },
   );
 
-  test('fresh database is at schema 64 with stacked_results table', () async {
+  test('fresh database is at schema 70 with stacked_results table', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     try {
-      expect(db.schemaVersion, equals(64));
+      expect(db.schemaVersion, equals(70));
 
       // v48 (Night Narrator): the narrator_events table must exist on a
       // fresh install (drift createAll) just like on the upgrade path.
@@ -895,6 +896,84 @@ CREATE TABLE captured_images (
     }
   });
 
+  test(
+    'v66 libraries keep their rows and take masters without gain or offset',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp('skotiq_v66_');
+      final dbFile = File('${tempDir.path}/skotiq.db');
+      final setupDb = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      try {
+        // The v66 tables, gain and offset NOT NULL DEFAULT 0.
+        await setupDb.customStatement('DROP TABLE IF EXISTS dark_library');
+        await setupDb.customStatement(
+          'CREATE TABLE dark_library (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'file_path TEXT NOT NULL, exposure_time REAL NOT NULL, '
+          'temperature REAL, gain INTEGER NOT NULL DEFAULT 0, '
+          '"offset" INTEGER NOT NULL DEFAULT 0, '
+          'bin_x INTEGER NOT NULL DEFAULT 1, bin_y INTEGER NOT NULL DEFAULT 1, '
+          "frame_type TEXT NOT NULL DEFAULT 'dark', width INTEGER, "
+          'height INTEGER, master_dark_path TEXT, master_frame_count INTEGER, '
+          "created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER)))",
+        );
+        await setupDb.customStatement(
+          'INSERT INTO dark_library (file_path, exposure_time, gain, "offset") '
+          "VALUES ('/darks/d120.fits', 120.0, 139, 21)",
+        );
+        await setupDb.customStatement('DROP TABLE IF EXISTS flat_library');
+        await setupDb.customStatement(
+          'CREATE TABLE flat_library (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'file_path TEXT NOT NULL, "filter" TEXT, equipment_profile_id INTEGER '
+          'REFERENCES equipment_profiles(id) ON DELETE SET NULL, '
+          'optical_train_id TEXT, temperature REAL, '
+          'gain INTEGER NOT NULL DEFAULT 0, "offset" INTEGER NOT NULL DEFAULT 0, '
+          'bin_x INTEGER NOT NULL DEFAULT 1, bin_y INTEGER NOT NULL DEFAULT 1, '
+          "width INTEGER, height INTEGER, flat_kind TEXT NOT NULL DEFAULT 'sky', "
+          'master_frame_count INTEGER NOT NULL DEFAULT 0, '
+          'created_at INTEGER NOT NULL)',
+        );
+        await setupDb.customStatement(
+          'INSERT INTO flat_library (file_path, "filter", created_at) '
+          "VALUES ('/flats/l.fits', 'L', 1)",
+        );
+        await setupDb.customStatement('PRAGMA user_version = 66');
+      } finally {
+        await setupDb.close();
+      }
+
+      final db = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
+      try {
+        final dark = await db.select(db.darkLibrary).getSingle();
+        expect(
+          (dark.filePath, dark.gain, dark.offset),
+          ('/darks/d120.fits', 139, 21),
+        );
+        final flats = await FlatLibraryDao(db).getAllEntries();
+        expect(flats.single.gain, 0, reason: 'an old 0 stays 0');
+
+        await db
+            .into(db.darkLibrary)
+            .insert(
+              DarkLibraryCompanion.insert(
+                filePath: '/darks/fli.fits',
+                exposureTime: 300,
+              ),
+            );
+        final fli = await (db.select(
+          db.darkLibrary,
+        )..where((t) => t.filePath.equals('/darks/fli.fits'))).getSingle();
+        expect((fli.gain, fli.offset), (null, null));
+        await FlatLibraryDao(db).addEntry(filePath: '/flats/fli.fits');
+        final fliFlat = (await FlatLibraryDao(
+          db,
+        ).getAllEntries()).firstWhere((f) => f.filePath == '/flats/fli.fits');
+        expect((fliFlat.gain, fliFlat.offset), (null, null));
+      } finally {
+        await db.close();
+        await tempDir.delete(recursive: true);
+      }
+    },
+  );
+
   test('pre-v38 database upgrades to add stacked_results table', () async {
     final tempDir = await Directory.systemTemp.createTemp('skotiq_v37_to_v38_');
     final dbFile = File('${tempDir.path}/skotiq.db');
@@ -918,7 +997,7 @@ CREATE TABLE captured_images (
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(upgradedVersion.data['user_version'], equals(db.schemaVersion));
-      expect(db.schemaVersion, equals(64));
+      expect(db.schemaVersion, equals(70));
 
       final tableRow = await db
           .customSelect(

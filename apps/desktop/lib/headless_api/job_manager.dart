@@ -24,7 +24,8 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Lifecycle states for a [Job]. Transitions:
 ///   queued  -> running -> succeeded | failed | cancelled
@@ -140,19 +141,19 @@ class Job {
   }
 
   /// Wire-format JSON used by REST responses and WS event payloads.
-  Map<String, Object?> toJson() => {
-    'jobId': jobId,
-    'operation': operation,
-    if (deviceId != null) 'deviceId': deviceId,
-    if (commandId != null) 'commandId': commandId,
-    'state': state.wireName,
-    'createdAt': createdAt.toUtc().toIso8601String(),
-    'updatedAt': updatedAt.toUtc().toIso8601String(),
-    if (progress != null) 'progress': progress,
-    if (progressMessage != null) 'progressMessage': progressMessage,
-    if (result != null) 'result': result,
-    if (error != null) 'error': error,
-  };
+  Map<String, Object?> toJson() => RemoteJob(
+    jobId: jobId,
+    operation: operation,
+    deviceId: deviceId,
+    commandId: commandId,
+    state: state.wireName,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    progress: progress,
+    progressMessage: progressMessage,
+    result: result,
+    error: error,
+  ).toJson();
 }
 
 /// Caller-side sink the work callback writes progress updates to.
@@ -193,6 +194,25 @@ class JobCancelledException implements Exception {
   String toString() => reason == null
       ? 'JobCancelledException'
       : 'JobCancelledException($reason)';
+}
+
+/// Thrown by the work callback when the operation ran to its end and did not
+/// do what was asked (a centering that never reached the target). The job
+/// ends `failed` with [code] and [message]; [details] carries the operation's
+/// own account of what it tried.
+class JobFailedException implements Exception {
+  final String code;
+  final String message;
+  final Map<String, Object?>? details;
+
+  const JobFailedException({
+    required this.code,
+    required this.message,
+    this.details,
+  });
+
+  @override
+  String toString() => 'JobFailedException($code): $message';
 }
 
 class _JobProgressSink implements JobProgressSink {
@@ -281,7 +301,8 @@ class JobManager {
   ///
   /// Returning a non-null map transitions the job to `succeeded` with
   /// that map as `result`. Throwing [JobCancelledException] transitions
-  /// to `cancelled`. Any other exception transitions to `failed` with
+  /// to `cancelled`, and [JobFailedException] to `failed` with its code,
+  /// message and details. Any other exception transitions to `failed` with
   /// `error: {code: 'job_failed', message: e.toString()}`.
   Job start({
     required String operation,
@@ -362,6 +383,17 @@ class JobManager {
       _transitionSucceeded(jobId, result);
     } on JobCancelledException catch (e) {
       _transitionCancelled(jobId, reason: e.reason);
+    } on JobFailedException catch (e) {
+      if (cancellation.isCancelled) {
+        _transitionCancelled(jobId, reason: 'cancelled_during_completion');
+        return;
+      }
+      _transitionFailed(
+        jobId,
+        code: e.code,
+        message: e.message,
+        details: e.details,
+      );
     } catch (e) {
       _transitionFailed(
         jobId,
@@ -461,7 +493,6 @@ class JobManager {
     return filtered;
   }
 
-  /// Returns the current count of registered jobs (diagnostic).
   int get length => _jobs.length;
 
   /// Request cooperative cancellation. Returns the current snapshot when

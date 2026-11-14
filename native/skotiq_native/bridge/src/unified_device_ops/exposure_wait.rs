@@ -1,4 +1,11 @@
-use super::*;
+use crate::adaptive_polling::AdaptivePoller;
+use crate::event::equipment::EventSeverity;
+use crate::event::imaging::ImagingEvent;
+use crate::state::SharedAppState;
+use skotiq_sequencer::{DeviceError, DeviceResult};
+use std::collections::HashMap;
+use std::sync::{Arc, OnceLock};
+use tokio::sync::Mutex;
 
 pub(crate) const EXPOSURE_COMPLETION_MARGIN: std::time::Duration =
     std::time::Duration::from_secs(60);
@@ -49,10 +56,12 @@ pub(crate) async fn wait_for_camera_exposure_complete<F, Fut>(
 ) -> DeviceResult<()>
 where
     F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = Result<bool, String>>,
+    Fut: std::future::Future<Output = DeviceResult<bool>>,
 {
     let start_time = std::time::Instant::now();
-    let mut poller: AdaptivePoller<bool> = AdaptivePoller::from_preset(PollerPreset::Exposure);
+    let exposure = std::time::Duration::from_secs_f64(duration_secs.max(0.0));
+    let mut reading_out = false;
+    let mut poller: AdaptivePoller<bool> = AdaptivePoller::exposure();
 
     loop {
         if exposure_abort_generation(camera_id).await != acquisition_generation {
@@ -60,12 +69,12 @@ where
         }
         let elapsed_now = start_time.elapsed();
         if elapsed_now >= timeout_after {
-            return Err(format!(
+            return Err(DeviceError::Timeout(format!(
                 "Exposure on {} did not complete within {:.1}s timeout ({:.1}s requested exposure plus safety margin)",
                 camera_id,
                 timeout_after.as_secs_f64(),
                 duration_secs
-            ));
+            )));
         }
         let remaining = timeout_after - elapsed_now;
 
@@ -78,14 +87,19 @@ where
         match tokio::time::timeout(remaining, is_complete()).await {
             Ok(Ok(true)) => return Ok(()),
             Ok(Ok(false)) => {}
-            Ok(Err(e)) => return Err(format!("Failed to check exposure status: {}", e)),
+            Ok(Err(DeviceError::Failed(message))) => {
+                return Err(DeviceError::Failed(format!(
+                    "Failed to check exposure status: {message}"
+                )))
+            }
+            Ok(Err(other)) => return Err(other),
             Err(_) => {
-                return Err(format!(
+                return Err(DeviceError::Timeout(format!(
                     "Exposure status poll on {} did not return within the {:.1}s deadline ({:.1}s requested exposure plus safety margin)",
                     camera_id,
                     timeout_after.as_secs_f64(),
                     duration_secs
-                ));
+                )));
             }
         }
 
@@ -106,10 +120,23 @@ where
         );
 
         // Reaching this point means the current poll observed "not complete";
-        // a completed exposure returns immediately above.
-        let poll_interval = poller.tick(&false);
+        // a completed exposure returns immediately above. The backoff never
+        // sleeps past the end of the exposure: the poll lands when the shutter
+        // closes, and from there the readout is polled from the base interval
+        // again, so a frame is fetched when it is ready rather than up to a
+        // whole backed-off interval later.
+        let until_exposure_end = exposure.saturating_sub(start_time.elapsed());
+        let wait = if until_exposure_end.is_zero() {
+            if !reading_out {
+                reading_out = true;
+                poller.reset();
+            }
+            poller.tick(&false)
+        } else {
+            poller.tick(&false).min(until_exposure_end)
+        };
         let remaining_timeout = timeout_after.saturating_sub(start_time.elapsed());
-        tokio::time::sleep(poll_interval.min(remaining_timeout)).await;
+        tokio::time::sleep(wait.min(remaining_timeout)).await;
     }
 }
 
@@ -142,12 +169,72 @@ pub(crate) async fn claim_camera_acquisition(
             "Camera {} is busy acquiring or downloading another frame; wait for it to finish",
             camera_id
         )
+        .into()
     })
+}
+
+#[cfg(test)]
+mod wait_tests {
+    use super::*;
+
+    /// The poll backs off to 2 s during a long exposure; without the cap the
+    /// completion of a 2 s exposure was seen at 2.64 s.
+    #[tokio::test]
+    async fn an_exposure_is_collected_when_it_ends_not_a_backoff_later() {
+        let started = std::time::Instant::now();
+        let duration = 2.0;
+        wait_for_camera_exposure_complete(
+            "wait-test-camera",
+            duration,
+            exposure_completion_timeout(duration),
+            exposure_abort_generation("wait-test-camera").await,
+            crate::state::get_state(),
+            || async move { Ok(started.elapsed().as_secs_f64() >= duration) },
+        )
+        .await
+        .expect("exposure completes");
+        let seen = started.elapsed().as_secs_f64();
+        assert!(
+            seen < duration + 0.25,
+            "a {duration} s exposure was collected after {seen:.2} s"
+        );
+    }
+}
+
+#[cfg(test)]
+mod readout_tests {
+    use super::*;
+
+    /// A camera that reports its frame 0.3 s after the shutter closes: the
+    /// first poll at the end of the exposure sees "not ready", and the next
+    /// one must come from the base interval, not the 2 s backoff.
+    #[tokio::test]
+    async fn a_frame_ready_shortly_after_the_exposure_is_collected_within_the_base_polls() {
+        let started = std::time::Instant::now();
+        let (duration, readout) = (3.0, 0.3);
+        wait_for_camera_exposure_complete(
+            "readout-test-camera",
+            duration,
+            exposure_completion_timeout(duration),
+            exposure_abort_generation("readout-test-camera").await,
+            crate::state::get_state(),
+            || async move { Ok(started.elapsed().as_secs_f64() >= duration + readout) },
+        )
+        .await
+        .expect("exposure completes");
+        let seen = started.elapsed().as_secs_f64();
+        assert!(
+            seen < duration + readout + 0.5,
+            "a frame ready at {:.1} s was collected after {seen:.2} s",
+            duration + readout
+        );
+    }
 }
 
 #[cfg(test)]
 mod ownership_tests {
     use super::*;
+    use crate::unified_device_ops::create_unified_device_ops;
 
     #[tokio::test]
     async fn competing_consumer_cannot_claim_sensor_until_download_finishes() {
@@ -155,19 +242,14 @@ mod ownership_tests {
         assert!(claim_camera_acquisition("ownership-camera").await.is_err());
         let ops = create_unified_device_ops();
         let competing_capture = ops
-            .camera_start_exposure_configured(
+            .camera_start_exposure(skotiq_sequencer::ExposureRequest::new(
                 "ownership-camera",
                 5.0,
-                None,
-                None,
-                1,
-                1,
-                None,
-                "Light",
-            )
+            ))
             .await;
         assert!(competing_capture
             .unwrap_err()
+            .to_string()
             .contains("busy acquiring or downloading"));
         let other_camera = claim_camera_acquisition("other-camera").await.unwrap();
         assert!(camera_acquisition_in_progress("ownership-camera").await);

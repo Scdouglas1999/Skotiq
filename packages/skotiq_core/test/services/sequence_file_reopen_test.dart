@@ -6,7 +6,8 @@ import 'dart:io';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// The bundled "Mono LRGB M51" starter as the app exported it: it names its
 /// luminance filter "Lum".

@@ -204,7 +204,7 @@ fn a_channel_layout_the_curve_has_no_luminance_for_is_refused() {
             op_id: "curves",
             op_version: 1,
             channels: 2,
-            expected: "a mono master with 1 channel or a colour master with 3",
+            expected: "a mono master with 1 channel or a color master with 3",
         }
     );
 }

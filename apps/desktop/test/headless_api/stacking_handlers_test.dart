@@ -9,11 +9,12 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/stacking_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Records what the coordinator asks the stacker to do, without touching FFI.
 class _FakeStackingService extends LiveStackingService {
@@ -365,6 +366,33 @@ void main() {
       // The specific measurement has to survive: "did not align" without the
       // number is not actionable.
       expect(body['reason'], contains('24.34px'));
+    },
+  );
+
+  test(
+    'add-frame reports a frame of another filter as 422 frame_other_filter',
+    () async {
+      await handlers.handleStart(post('/api/stacking/start'));
+      await handlers.onImageSaved('/host/ref.fits');
+
+      fake.addError = Exception(
+        'Frame of another filter not stacked: the frame was taken through R '
+        'and this live stack is of frames taken through L.',
+      );
+      final response = await translateHandlerErrors(
+        handlers.handleAddFrame(
+          post('/api/stacking/add-frame', {'imagePath': '/host/red.fits'}),
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.unprocessableEntity);
+      final body = jsonDecode(await response.readAsString()) as Map;
+      expect(body['error'], 'frame_other_filter');
+      expect(
+        body['message'],
+        'Frame of another filter not stacked: the frame was taken through R '
+        'and this live stack is of frames taken through L.',
+      );
     },
   );
 

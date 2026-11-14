@@ -17,7 +17,6 @@ class _NoteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('MMM d, yyyy · HH:mm');
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -52,7 +51,7 @@ class _NoteTile extends StatelessWidget {
               else
                 Expanded(
                   child: Text(
-                    dateFormat.format(note.createdAt),
+                    ClockFormat.monthDayYearHm(note.createdAt.toLocal()),
                     style: SkotiqTypography.h6
                         .copyWith(color: colors.textSecondary),
                   ),
@@ -100,7 +99,7 @@ class _NoteTile extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(
-                dateFormat.format(note.createdAt),
+                ClockFormat.monthDayYearHm(note.createdAt.toLocal()),
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize11,
                     color: colors.textMuted),
@@ -130,11 +129,9 @@ class _NoteTile extends StatelessWidget {
                 // browser if they choose.
                 if (href != null && href.isNotEmpty) {
                   Clipboard.setData(ClipboardData(text: href));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Link copied: $href'),
-                      duration: const Duration(seconds: 2),
-                    ),
+                  context.showInfoSnackBar(
+                    'Link copied: $href',
+                    duration: const Duration(seconds: 2),
                   );
                 }
               },
@@ -195,8 +192,6 @@ class _NoteTile extends StatelessWidget {
     );
   }
 }
-
-// Markdown rendering helpers for _NoteTile
 
 /// Truncate the note body to ~`maxLines * 80` characters before passing
 /// it to [MarkdownBody], appending an ellipsis when we cut. We do this
@@ -286,8 +281,6 @@ MarkdownStyleSheet _noteBodyMarkdownStyle(
     tableBorder: TableBorder.all(color: colors.border, width: 0.5),
   );
 }
-
-// Note editor dialog (create + edit)
 
 /// Modal for creating or editing a [JournalNote]. Returns the saved
 /// note via `Navigator.pop`, or `null` when the user cancels.

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   group('SequenceTimeEstimator', () {
@@ -117,8 +118,9 @@ void main() {
 
         final afTiming = timings.firstWhere((t) => t.nodeType == 'Autofocus');
 
-        // (7 * 2 + 1) data points * 1 exposure * 3s = 15 * 1 * 3 = 45s
-        expect(afTiming.duration.inSeconds, equals(45));
+        // The step uses the Autofocus settings (default): 9 positions x
+        // (0.5 s settle + 1 x (4 s + 2 s download)) = 58.5 s.
+        expect(afTiming.duration.inMilliseconds, equals(58500));
       });
 
       test('estimates DitherNode duration correctly', () {

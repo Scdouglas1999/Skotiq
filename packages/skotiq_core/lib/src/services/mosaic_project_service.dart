@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show MosaicPanel, MosaicStartCorner, mosaicPanelName, mosaicPanelTargetName;
+
 import 'package:drift/drift.dart' show Value;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/daos/images_dao.dart';
 import '../database/daos/integrated_masters_dao.dart';
@@ -11,15 +12,15 @@ import '../database/daos/mosaic_panels_dao.dart';
 import '../database/daos/mosaic_projects_dao.dart';
 import '../database/daos/targets_dao.dart';
 import '../database/database.dart'
-    show CapturedImage, SkotiqDatabase, TargetsCompanion;
+    show DbCapturedImage, SkotiqDatabase, TargetsCompanion;
 import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_settings.dart';
 import '../models/imaging/mosaic_project.dart';
 import '../models/imaging/mosaic_stitch_result.dart';
-import '../providers/database_provider.dart';
 import 'mosaic_service.dart';
 import 'post_session_integration_service.dart';
 import 'post_session_seam.dart';
+import 'logging_service.dart';
 part 'mosaic_project_service/mosaic_models.dart';
 part 'mosaic_project_service/panel_integration.dart';
 part 'mosaic_project_service/stitching.dart';
@@ -37,7 +38,7 @@ part 'mosaic_project_service/path_helpers.dart';
 ///    [MosaicService.generatePanels] (the canonical spherical grid math with
 ///    cos(dec) RA compression + position-angle rotation). The panel dimensions
 ///    are derived once from the rig FOV (arcmin) and handed to that generator.
-///  * **Persistence** — [MosaicProjectsDao] / [MosaicPanelsDao] (raw-DDL v45).
+///  * **Persistence** — [MosaicProjectsDao] / [MosaicPanelsDao].
 ///  * **Per-panel targets** — [TargetsDao]: each panel is a DISTINCT capture
 ///    target row centered on the panel's RA/Dec, so the subs a panel captures
 ///    attribute to *that* panel (and [integratePanels] folds exactly that
@@ -91,8 +92,9 @@ class MosaicProjectService {
   /// Create a durable mosaic project: persist a `mosaic_projects` row, compute
   /// each panel's center RA/Dec from the grid geometry, create one DISTINCT
   /// per-panel capture `targets` row centered on that panel, and persist one
-  /// `mosaic_panels` row per `rows × cols` panel (0-based [MosaicProjectPanel]
-  /// index, row-major) carrying its per-panel `target_id`.
+  /// `mosaic_panels` row per `rows × cols` panel carrying its per-panel
+  /// `target_id`. A panel's index is its place in the capture order that
+  /// [startCorner] and [serpentine] give, which the project keeps.
   ///
   /// The per-panel centers are computed by [MosaicService.generatePanels] — the
   /// existing spherical-grid math — NOT re-derived here. The panel dimensions it
@@ -114,8 +116,8 @@ class MosaicProjectService {
   ///
   /// [disabledCells] holds grid cells (0-based row/col) the caller disabled
   /// (e.g. the wizard's tap-to-disable): those panels are NOT persisted, but the
-  /// grid geometry is unchanged so surviving panels keep their canonical
-  /// row-major `panelIndex` (the stored `panel_index` set is simply sparse).
+  /// grid geometry is unchanged so surviving panels keep their capture-order
+  /// `panelIndex` (the stored `panel_index` set is simply sparse).
   ///
   /// The whole insert (project + per-panel targets + panels) runs in ONE
   /// transaction: a failure midway leaves no half-built project.
@@ -130,6 +132,8 @@ class MosaicProjectService {
     int? targetId,
     double overlapPct = 15.0,
     double positionAngleDeg = 0.0,
+    MosaicStartCorner startCorner = MosaicStartCorner.topLeft,
+    bool serpentine = true,
     double? panelWidthArcmin,
     double? panelHeightArcmin,
     double? fovWidthDeg,
@@ -159,8 +163,8 @@ class MosaicProjectService {
 
     // Reuse the canonical spherical grid math (cos(dec) RA compression + PA
     // rotation). `MosaicConfig` uses `panelsHorizontal = cols`, `panelsVertical
-    // = rows`; its generated `MosaicPanel.panelIndex` is row-major 0-based,
-    // exactly the durable panel index.
+    // = rows`; a generated panel's capture-order `index` is the durable panel
+    // index.
     final config = MosaicConfig(
       centerRa: centerRa,
       centerDec: centerDec,
@@ -170,6 +174,8 @@ class MosaicProjectService {
       rotation: positionAngleDeg,
       panelsHorizontal: cols,
       panelsVertical: rows,
+      startCorner: startCorner,
+      serpentine: serpentine,
     );
     final panels = _geometry.generatePanels(config);
 
@@ -184,25 +190,27 @@ class MosaicProjectService {
         cols: cols,
         overlapPct: overlapPct,
         positionAngleDeg: positionAngleDeg,
+        startCorner: startCorner,
+        serpentine: serpentine,
       );
 
       for (final panel in panels) {
         // Skip cells the user disabled in the wizard (e.g. a corner occluded by
         // trees). The grid geometry is unchanged, so surviving panels keep their
-        // canonical row-major panelIndex — the persisted panel_index set is
+        // capture-order index — the persisted panel_index set is
         // simply sparse, which the capture/integrate paths already tolerate.
         if (disabledCells.contains((row: panel.row, col: panel.col))) continue;
 
         // Each panel is a DISTINCT capture target. Honor a caller override when
         // it returns a non-null id; otherwise create a fresh per-panel target
         // centered on the panel so its subs are isolated for integration.
-        final overrideId = panelTargetId?.call(panel.panelIndex);
+        final overrideId = panelTargetId?.call(panel.index);
         final panelTarget =
             overrideId ??
             await _createPanelTarget(projectName: name, panel: panel);
         await _panelsDao.upsert(
           projectId: projectId,
-          panelIndex: panel.panelIndex,
+          panelIndex: panel.index,
           centerRa: panel.raHours,
           centerDec: panel.decDegrees,
           targetId: panelTarget,
@@ -519,20 +527,3 @@ class MosaicProjectService {
     }
   }
 }
-
-/// Provider for [MosaicProjectService], wiring the v45 mosaic DAOs, the targets
-/// DAO (per-panel capture targets), the images DAO, the integrated-masters DAO,
-/// the post-session integration service, and the post-session seam (which
-/// carries `stitchMosaic`).
-final mosaicProjectServiceProvider = Provider<MosaicProjectService>((ref) {
-  return MosaicProjectService(
-    db: ref.watch(databaseProvider),
-    projectsDao: ref.watch(mosaicProjectsDaoProvider),
-    panelsDao: ref.watch(mosaicPanelsDaoProvider),
-    targetsDao: ref.watch(targetsDaoProvider),
-    imagesDao: ref.watch(imagesDaoProvider),
-    mastersDao: ref.watch(integratedMastersDaoProvider),
-    integrationService: ref.watch(postSessionIntegrationServiceProvider),
-    seam: ref.watch(postSessionSeamProvider),
-  );
-});

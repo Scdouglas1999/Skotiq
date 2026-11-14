@@ -22,8 +22,23 @@ enum Phd2State {
   /// or the process is in an indeterminate phase. Distinct from [stopped] so
   /// the UI never falsely offers "Start" over a possibly-live process — an
   /// unknown state is treated as potentially active (Stop is offered, Start is
-  /// not). See `Phd2Controller._updateStateFromString`.
+  /// not). See `phd2StateAfterEvent`.
   unknown,
+}
+
+extension Phd2StateSession on Phd2State {
+  /// The guider is in a guide session: calibrating, guiding, settling,
+  /// paused, or holding through a lost star. An unknown state counts, since
+  /// it may be any of those.
+  bool get inGuideSession => switch (this) {
+    Phd2State.calibrating ||
+    Phd2State.guiding ||
+    Phd2State.settling ||
+    Phd2State.paused ||
+    Phd2State.lostLock ||
+    Phd2State.unknown => true,
+    Phd2State.stopped || Phd2State.selected || Phd2State.looping => false,
+  };
 }
 
 /// PHD2 guiding state — canonical home for the guiding-screen state machine.
@@ -45,7 +60,6 @@ enum Phd2GuidingState {
   unknown,
 }
 
-/// Extension for Phd2GuidingState display
 extension Phd2GuidingStateExtension on Phd2GuidingState {
   String get displayName {
     switch (this) {
@@ -139,7 +153,6 @@ class GuidingCommandBusyException implements Exception {
 @freezed
 abstract class Phd2StarImage with _$Phd2StarImage {
   const factory Phd2StarImage({
-    /// Frame number
     required int frame,
 
     /// Image width in pixels
@@ -162,7 +175,6 @@ abstract class Phd2StarImage with _$Phd2StarImage {
   factory Phd2StarImage.fromJson(Map<String, dynamic> json) =>
       _$Phd2StarImageFromJson(json);
 
-  /// Create an empty star image model
   factory Phd2StarImage.empty() => Phd2StarImage(
     frame: 0,
     width: 0,
@@ -180,7 +192,6 @@ abstract class Phd2AlgoParam with _$Phd2AlgoParam {
     /// Parameter name (e.g., "Aggressiveness", "Hysteresis")
     required String name,
 
-    /// Parameter value
     required double value,
   }) = _Phd2AlgoParam;
 
@@ -192,10 +203,8 @@ abstract class Phd2AlgoParam with _$Phd2AlgoParam {
 @freezed
 abstract class Phd2BrainParams with _$Phd2BrainParams {
   const factory Phd2BrainParams({
-    /// RA axis parameter names
     required List<String> raParamNames,
 
-    /// Dec axis parameter names
     required List<String> decParamNames,
 
     /// RA axis parameters (name -> value)
@@ -208,7 +217,6 @@ abstract class Phd2BrainParams with _$Phd2BrainParams {
   factory Phd2BrainParams.fromJson(Map<String, dynamic> json) =>
       _$Phd2BrainParamsFromJson(json);
 
-  /// Create empty brain params
   factory Phd2BrainParams.empty() => const Phd2BrainParams(
     raParamNames: [],
     decParamNames: [],
@@ -231,7 +239,6 @@ abstract class GuideErrorPoint with _$GuideErrorPoint {
     /// Dec error (guide-camera pixels; see class docs)
     required double decError,
 
-    /// Timestamp when this error was recorded
     required DateTime timestamp,
   }) = _GuideErrorPoint;
 
@@ -246,12 +253,13 @@ abstract class GuideErrorPoint with _$GuideErrorPoint {
 /// residuals carried on `GuideStep` events (`RADistanceRaw`/`DECDistanceRaw`
 /// from PHD2, `ra_raw`/`dec_raw` from the built-in guider). Both report those
 /// in **guide-camera pixels**, so these fields are pixels, NOT arcseconds —
-/// they only become arcseconds after multiplying by [pixelScale], and
-/// [pixelScale] is 0 (unknown) unless something populates it.
+/// they only become arcseconds after multiplying by the guide camera's scale,
+/// which the guider reports separately (`GuiderState.pixelScaleArcsecPerPixel`)
+/// and which may be unknown.
 ///
 /// Do not relabel these as arcseconds to make a display read consistently: at
 /// a 0.78"/px guide scale a 0.53 px residual is 0.41", so the suffix change
-/// alone overstates the error by ~28%. Either convert with a real [pixelScale]
+/// alone overstates the error by ~28%. Either convert with a real scale
 /// or say px.
 @freezed
 abstract class Phd2GuideStats with _$Phd2GuideStats {
@@ -280,14 +288,9 @@ abstract class Phd2GuideStats with _$Phd2GuideStats {
     /// HFD (Half Flux Diameter)
     @Default(0.0) double hfd,
 
-    /// Guide star X position
     @Default(0.0) double starX,
 
-    /// Guide star Y position
     @Default(0.0) double starY,
-
-    /// Pixel scale (arcsec/pixel)
-    @Default(0.0) double pixelScale,
 
     /// Number of guide STEPS measured — corrections, not exposures.
     ///
@@ -311,14 +314,11 @@ abstract class Phd2GuideStats with _$Phd2GuideStats {
       _$Phd2GuideStatsFromJson(json);
 }
 
-/// PHD2 calibration data
 @freezed
 abstract class Phd2CalibrationData with _$Phd2CalibrationData {
   const factory Phd2CalibrationData({
-    /// Whether calibration is complete
     @Default(false) bool isCalibrated,
 
-    /// Calibration timestamp
     DateTime? calibratedAt,
 
     /// RA calibration rate (pixels/ms)
@@ -338,7 +338,6 @@ abstract class Phd2CalibrationData with _$Phd2CalibrationData {
       _$Phd2CalibrationDataFromJson(json);
 }
 
-/// Custom JSON converter for Uint8List
 class Uint8ListConverter implements JsonConverter<Uint8List, List<int>> {
   const Uint8ListConverter();
 

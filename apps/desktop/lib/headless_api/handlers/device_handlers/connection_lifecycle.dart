@@ -90,7 +90,7 @@ extension DeviceConnectionHandlers on DeviceHandlers {
       );
       throw HandlerFailure(
         code: 'device_connect_failed',
-        message: _sanitizeConnectErrorMessage(e),
+        message: connectFailureReason(e),
         statusCode: 409,
         details: {'deviceId': deviceId, 'deviceType': deviceType.name},
         cause: e,
@@ -194,7 +194,7 @@ extension DeviceConnectionHandlers on DeviceHandlers {
 
     final service = container.read(deviceServiceProvider);
     try {
-      await _dispatchDisconnect(service, deviceType);
+      await service.disconnect(deviceType);
     } catch (e, stackTrace) {
       _logWarning(
         '[API] POST /api/devices/disconnect failed for ${deviceType.name} '
@@ -202,7 +202,7 @@ extension DeviceConnectionHandlers on DeviceHandlers {
       );
       throw HandlerFailure(
         code: 'device_disconnect_failed',
-        message: _sanitizeConnectErrorMessage(e),
+        message: connectFailureReason(e),
         statusCode: 502,
         details: {'deviceId': deviceId, 'deviceType': deviceType.name},
         cause: e,
@@ -271,7 +271,7 @@ extension DeviceConnectionHandlers on DeviceHandlers {
     } catch (e, stackTrace) {
       throw HandlerFailure(
         code: 'device_disconnect_failed',
-        message: _sanitizeConnectErrorMessage(e),
+        message: connectFailureReason(e),
         statusCode: 502,
         details: {
           'deviceId': deviceId,
@@ -285,56 +285,24 @@ extension DeviceConnectionHandlers on DeviceHandlers {
     return true;
   }
 
-  /// Dispatches connect by [DeviceType] to the matching `DeviceService`
-  /// method. The DeviceService methods do all the bookkeeping (state
-  /// notifier transitions, cool-on-connect, recommended-gain auto-apply,
-  /// heartbeat start, filter-name sync, ...).
-  ///
-  /// brought switches in line with every other device type:
-  /// `DeviceService.connectSwitch` / `disconnectSwitch` drive the
-  /// `switchStateProvider` notifier and own the auto-reconnect loop, so
-  /// the dispatcher routes switches through the service like everything
-  /// else.
+  /// Connect through `DeviceService`, which owns the bookkeeping (slot state,
+  /// cool-on-connect, heartbeat, filter-name sync).
   Future<void> _dispatchConnect(
     DeviceService service,
     DeviceType type,
     String deviceId,
   ) async {
     try {
-      switch (type) {
-        case DeviceType.camera:
-          await service.connectCamera(deviceId);
-          break;
-        case DeviceType.mount:
-          await service.connectMount(deviceId);
-          break;
-        case DeviceType.focuser:
-          await service.connectFocuser(deviceId);
-          break;
-        case DeviceType.filterWheel:
-          await service.connectFilterWheel(deviceId);
-          break;
-        case DeviceType.guider:
-          await service.connectGuider(deviceId);
-          break;
-        case DeviceType.rotator:
-          await service.connectRotator(deviceId);
-          break;
-        case DeviceType.dome:
-          await service.connectDome(deviceId);
-          break;
-        case DeviceType.weather:
-          await service.connectWeather(deviceId);
-          break;
-        case DeviceType.safetyMonitor:
-          await service.connectSafetyMonitor(deviceId);
-          break;
-        case DeviceType.coverCalibrator:
-          await service.connectCoverCalibrator(deviceId);
-          break;
-        case DeviceType.switch_:
-          await service.connectSwitch(deviceId);
-          break;
+      // A linked client's sweep asks for the profile's guide camera as a
+      // camera; connected as one it would take the imaging camera's place.
+      if (type == DeviceType.camera &&
+          isProfileGuideCamera(
+            container.read(activeEquipmentProfileProvider),
+            deviceId,
+          )) {
+        await service.connectGuideCamera(deviceId);
+      } else {
+        await service.connect(type, deviceId);
       }
     } on Exception catch (e) {
       // DeviceService throws `Exception('<Kind> not found: <id>')` when
@@ -353,47 +321,6 @@ extension DeviceConnectionHandlers on DeviceHandlers {
     }
   }
 
-  Future<void> _dispatchDisconnect(
-    DeviceService service,
-    DeviceType type,
-  ) async {
-    switch (type) {
-      case DeviceType.camera:
-        await service.disconnectCamera();
-        break;
-      case DeviceType.mount:
-        await service.disconnectMount();
-        break;
-      case DeviceType.focuser:
-        await service.disconnectFocuser();
-        break;
-      case DeviceType.filterWheel:
-        await service.disconnectFilterWheel();
-        break;
-      case DeviceType.guider:
-        await service.disconnectGuider();
-        break;
-      case DeviceType.rotator:
-        await service.disconnectRotator();
-        break;
-      case DeviceType.dome:
-        await service.disconnectDome();
-        break;
-      case DeviceType.weather:
-        await service.disconnectWeather();
-        break;
-      case DeviceType.safetyMonitor:
-        await service.disconnectSafetyMonitor();
-        break;
-      case DeviceType.coverCalibrator:
-        await service.disconnectCoverCalibrator();
-        break;
-      case DeviceType.switch_:
-        await service.disconnectSwitch();
-        break;
-    }
-  }
-
   /// Reads the deviceId currently held by the matching equipment
   /// StateNotifier. Used by the disconnect endpoint to verify that the
   /// caller is asking to disconnect the device that is actually connected.
@@ -406,15 +333,4 @@ extension DeviceConnectionHandlers on DeviceHandlers {
   /// mid-connect.
   DeviceConnectionState _connectionStateFor(DeviceType type) =>
       readDeviceSlot(container, type).connectionState;
-
-  /// Strips the leading `Exception: ` Dart prepends so the wire message
-  /// reads cleanly to a remote operator. Internal type names and stacks
-  /// stay in the structured log via [HandlerFailure.cause].
-  String _sanitizeConnectErrorMessage(Object error) {
-    final raw = error.toString();
-    if (raw.startsWith('Exception: ')) {
-      return raw.substring('Exception: '.length);
-    }
-    return raw;
-  }
 }

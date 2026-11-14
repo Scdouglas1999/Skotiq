@@ -1,10 +1,10 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show WireTime, parseWireTime;
 
 part 'target_suggestion.freezed.dart';
 part 'target_suggestion.g.dart';
 
-/// How to sort target suggestions
 enum SuggestionSortMode {
   /// Sort by overall score (highest first)
   bestScore,
@@ -19,7 +19,7 @@ enum SuggestionSortMode {
   leastDataCollected,
 }
 
-/// JSON converter for TargetWarning from skotiq_planetarium
+/// JSON converter for TargetWarning from skotiq_astro
 class TargetWarningConverter
     implements JsonConverter<TargetWarning, Map<String, dynamic>> {
   const TargetWarningConverter();
@@ -65,7 +65,7 @@ class TargetWarningListConverter
   }
 }
 
-/// JSON converter for TargetVisibilityInfo from skotiq_planetarium
+/// JSON converter for TargetVisibilityInfo from skotiq_astro
 class TargetVisibilityInfoConverter
     implements JsonConverter<TargetVisibilityInfo, Map<String, dynamic>> {
   const TargetVisibilityInfoConverter();
@@ -79,13 +79,13 @@ class TargetVisibilityInfoConverter
           ? (json['transitAltitude'] as num).toDouble()
           : null,
       riseTime: json['riseTime'] != null
-          ? DateTime.parse(json['riseTime'] as String)
+          ? parseWireTime(json['riseTime'] as String)
           : null,
       transitTime: json['transitTime'] != null
-          ? DateTime.parse(json['transitTime'] as String)
+          ? parseWireTime(json['transitTime'] as String)
           : null,
       setTime: json['setTime'] != null
-          ? DateTime.parse(json['setTime'] as String)
+          ? parseWireTime(json['setTime'] as String)
           : null,
       isCircumpolar: json['isCircumpolar'] as bool? ?? false,
       neverRises: json['neverRises'] as bool? ?? false,
@@ -100,7 +100,7 @@ class TargetVisibilityInfoConverter
           ? (json['peakAzimuth'] as num).toDouble()
           : null,
       peakAltitudeTime: json['peakAltitudeTime'] != null
-          ? DateTime.parse(json['peakAltitudeTime'] as String)
+          ? parseWireTime(json['peakAltitudeTime'] as String)
           : null,
       hoursAboveMinAlt: json['hoursAboveMinAlt'] != null
           ? (json['hoursAboveMinAlt'] as num).toDouble()
@@ -114,16 +114,16 @@ class TargetVisibilityInfoConverter
       'currentAltitude': object.currentAltitude,
       'currentAzimuth': object.currentAzimuth,
       'transitAltitude': object.transitAltitude,
-      'riseTime': object.riseTime?.toIso8601String(),
-      'transitTime': object.transitTime?.toIso8601String(),
-      'setTime': object.setTime?.toIso8601String(),
+      'riseTime': object.riseTime?.toWireTime(),
+      'transitTime': object.transitTime?.toWireTime(),
+      'setTime': object.setTime?.toWireTime(),
       'isCircumpolar': object.isCircumpolar,
       'neverRises': object.neverRises,
       'airmass': object.airmass.isFinite ? object.airmass : null,
       'moonDistance': object.moonDistance,
       'peakAltitude': object.peakAltitude,
       'peakAzimuth': object.peakAzimuth,
-      'peakAltitudeTime': object.peakAltitudeTime?.toIso8601String(),
+      'peakAltitudeTime': object.peakAltitudeTime?.toWireTime(),
       'hoursAboveMinAlt': object.hoursAboveMinAlt,
     };
   }
@@ -133,10 +133,8 @@ class TargetVisibilityInfoConverter
 @freezed
 abstract class TargetSuggestion with _$TargetSuggestion {
   const factory TargetSuggestion({
-    /// Database target ID
     required int targetId,
 
-    /// Display name of the target
     required String targetName,
 
     /// Catalog identifier (e.g., "NGC 7000", "M31")
@@ -155,12 +153,10 @@ abstract class TargetSuggestion with _$TargetSuggestion {
     /// Keys: altitude, moonDistance, transitProximity, darkness, airmass
     @Default(<String, double>{}) Map<String, double> scoreBreakdown,
 
-    /// Warnings about target conditions
     @TargetWarningListConverter()
     @Default(<TargetWarning>[])
     List<TargetWarning> warnings,
 
-    /// Visibility information for this target
     @TargetVisibilityInfoConverter() required TargetVisibilityInfo visibility,
 
     /// Human-readable explanation of why this target is suggested
@@ -190,7 +186,6 @@ abstract class TargetSuggestion with _$TargetSuggestion {
       _$TargetSuggestionFromJson(json);
 }
 
-/// Configuration for target suggestion generation
 @freezed
 abstract class TargetSuggestionConfig with _$TargetSuggestionConfig {
   const factory TargetSuggestionConfig({
@@ -209,7 +204,6 @@ abstract class TargetSuggestionConfig with _$TargetSuggestionConfig {
     /// Minimum score (0-100) for a target to be suggested
     @Default(50.0) double minScore,
 
-    /// How to sort the suggestions
     @Default(SuggestionSortMode.bestScore) SuggestionSortMode sortMode,
   }) = _TargetSuggestionConfig;
 

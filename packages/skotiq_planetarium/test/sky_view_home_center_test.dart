@@ -7,7 +7,7 @@
 // aimed into the ground.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/src/astronomy/astronomy_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_planetarium/src/providers/planetarium_providers.dart';
 
 const _latitude = 40.0;

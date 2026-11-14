@@ -1,28 +1,43 @@
 // The Guide tab's lower sections: the guide star with its scatter plot,
-// PHD2's calibration, and the dither and settle values.
+// the guider's calibration, and the dither and settle values.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../../utils/confirm_dialog.dart';
+import '../../../../utils/guide_distance.dart';
+import '../../../../utils/snackbar_helper.dart';
 import '../../../../localization/skotiq_localizations.dart';
+import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/session/equipment_summary_provider.dart'
     show kNightGuideStopReasons;
 import '../../data/session/guide_series_provider.dart';
 import '../../data/session/session_events_provider.dart';
-import '../mount/night_panel_parts.dart';
+import '../../../../widgets/guide_star_view.dart';
+import '../panel_widgets.dart';
 import 'guide_metrics.dart';
 import 'guide_scatter.dart';
+import '../../../../router/settings_sections.dart';
+import '../../../../router/app_routes.dart';
 
 /// Where "Edit dither settings…" goes.
-const String kNightGuideSettingsRoute = '/settings?section=phd2-guiding';
+final String kNightGuideSettingsRoute =
+    AppRoutes.settings(SettingsSectionId.phd2Guiding);
 
 /// Edge of the star view and the scatter plot.
 const double _plotSize = 124;
 
-/// The guide star as PHD2 sees it, the recent steps as a scatter, and how
+/// The guide star as the guider sees it, the recent steps as a scatter, and how
 /// often the star was lost this session.
 class NightGuideStarSection extends ConsumerWidget {
   const NightGuideStarSection({super.key});
@@ -30,13 +45,12 @@ class NightGuideStarSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final state = ref.watch(phd2StateProvider);
     final stats = ref.watch(guideStatsProvider);
     final image = ref.watch(starImageProvider);
     final samples = ref.watch(nightGuideRecentSamplesProvider);
     final rms = ref.watch(nightGuideRmsProvider);
-    final scale = ref.watch(nightGuideScaleProvider);
+    final scale = ref.watch(guideScaleProvider);
     final lost = ref.watch(
       nightSessionEventsProvider.select((events) => events.starLost),
     );
@@ -44,6 +58,8 @@ class NightGuideStarSection extends ConsumerWidget {
     final clock = ref.watch(clockProvider);
     final stopReason = ref.watch(guidingStopReasonProvider);
     final settleTimeout = ref.watch(guiderSettleTimeoutProvider);
+    final guiderId = ref.watch(guiderStateProvider.select((g) => g.deviceId));
+    final isPhd2 = guiderId == null || isPhd2DeviceId(guiderId);
 
     final acquiring = state == Phd2State.looping ||
         state == Phd2State.guiding ||
@@ -90,10 +106,10 @@ class NightGuideStarSection extends ConsumerWidget {
             'nightScopeGuideLost',
             params: {
               'count': '${lost.length}',
-              'time': _clockTime(clock.toNightClock(lastLost)),
+              'time': ClockFormat.hm(clock.toNightClock(lastLost)),
             },
           );
-    final settle = settings?.settleThreshold;
+    final settle = settings == null ? null : GuideSettle.of(settings).pixels;
 
     // The star view's empty state is an icon over a sentence, so the square
     // grows with the text size rather than clipping it.
@@ -103,7 +119,9 @@ class NightGuideStarSection extends ConsumerWidget {
 
     return NightPanelSection(
       title: l10n.text('nightScopeGuideStar'),
-      trailing: l10n.text('nightScopeGuideLive'),
+      trailing: l10n.text(
+        isPhd2 ? 'nightScopeGuideLivePhd2' : 'nightScopeGuideLive',
+      ),
       children: [
         Row(
           children: [
@@ -131,7 +149,7 @@ class NightGuideStarSection extends ConsumerWidget {
               NightPanelNote(
                 key: const ValueKey<String>('nightGuide.stopReason'),
                 guideStopReasonLabel(l10n, stopReason),
-                color: colors.info,
+                tone: MetricGridTone.neutral,
               ),
             if (settleTimeout != null)
               NightPanelNote(
@@ -139,13 +157,14 @@ class NightGuideStarSection extends ConsumerWidget {
                 l10n.text(
                   'nightScopeGuideSettleTimedOut',
                   params: {
-                    'time': _clockTime(clock.toNightClock(settleTimeout.at)),
+                    'time':
+                        ClockFormat.hm(clock.toNightClock(settleTimeout.at)),
                   },
                 ),
               ),
             NightPanelNote(
               lostText,
-              color: lost.isEmpty ? null : colors.warning,
+              tone: lost.isEmpty ? null : MetricGridTone.warning,
             ),
             if (settle != null)
               NightPanelNote(
@@ -161,16 +180,29 @@ class NightGuideStarSection extends ConsumerWidget {
   }
 }
 
-/// PHD2's calibration: whether it is valid and its angle and rates.
-class NightGuideCalibrationSection extends ConsumerWidget {
+/// The guider's calibration: whether it is valid and its angle and rates;
+/// with PHD2, flipping or clearing it.
+class NightGuideCalibrationSection extends ConsumerStatefulWidget {
   const NightGuideCalibrationSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NightGuideCalibrationSection> createState() =>
+      _NightGuideCalibrationSectionState();
+}
+
+class _NightGuideCalibrationSectionState
+    extends ConsumerState<NightGuideCalibrationSection> {
+  /// The calibration command in flight.
+  String? _busy;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final calibration = ref.watch(calibrationStateProvider);
     final clock = ref.watch(clockProvider);
+    final inputs = ref.watch(nightActionInputsProvider);
+    final guiderId = ref.watch(guiderStateProvider.select((g) => g.deviceId));
+    final isPhd2 = guiderId == null || isPhd2DeviceId(guiderId);
     final at = calibration.calibratedAt;
     final status = !calibration.isCalibrated
         ? l10n.text('nightScopeGuideNotCalibrated')
@@ -178,15 +210,30 @@ class NightGuideCalibrationSection extends ConsumerWidget {
             ? l10n.text('nightScopeGuideCalibrated')
             : l10n.text(
                 'nightScopeGuideCalibratedAt',
-                params: {'time': _clockTime(clock.toNightClock(at))},
+                params: {'time': ClockFormat.hm(clock.toNightClock(at))},
               );
     String? rate(double? value) =>
         value == null || !value.isFinite ? null : value.toStringAsFixed(2);
     final angle = calibration.rotationAngle;
+
+    final reason = !inputs.canCommand
+        ? l10n.text('nightActWhyNoHost')
+        : inputs.runActive
+            ? l10n.text('nightActWhyRunOwns')
+            : _busy != null
+                ? l10n.text('nightScopeWhyGuiderBusy')
+                : null;
+    final flipReason = reason ??
+        (calibration.isCalibrated
+            ? null
+            : l10n.text('nightScopeWhyNotCalibrated'));
+
     return NightPanelSection(
       title: l10n.text('nightScopeGuideCalibration'),
       trailing: status,
-      trailingColor: calibration.isCalibrated ? colors.success : colors.warning,
+      trailingTone: calibration.isCalibrated
+          ? MetricGridTone.good
+          : MetricGridTone.warning,
       children: [
         NightPanelValues(
           items: [
@@ -206,8 +253,74 @@ class NightGuideCalibrationSection extends ConsumerWidget {
             ),
           ],
         ),
+        // Only PHD2 takes these; the built-in guider calibrates itself
+        // when guiding starts.
+        if (isPhd2)
+          NightPanelButtonGrid(
+            columns: 2,
+            buttons: [
+              NightPanelButtonSpec(
+                key: const ValueKey<String>('nightGuide.flipCal'),
+                label: l10n.text('nightScopeGuideFlipCal'),
+                busy: _busy == 'flipCal',
+                disabledReason: flipReason,
+                onPressed: flipReason == null
+                    ? () => _run(
+                          'flipCal',
+                          () => ref
+                              .read(calibrationStateProvider.notifier)
+                              .flipCalibration(),
+                        )
+                    : null,
+              ),
+              NightPanelButtonSpec(
+                key: const ValueKey<String>('nightGuide.clearCal'),
+                label: l10n.text('nightScopeGuideClearCal'),
+                busy: _busy == 'clearCal',
+                disabledReason: reason,
+                onPressed:
+                    reason == null ? () => unawaited(_confirmClear()) : null,
+              ),
+            ],
+          ),
       ],
     );
+  }
+
+  Future<void> _confirmClear() async {
+    final l10n = context.l10n;
+    final confirmed = await ConfirmDialog.show(
+      context: context,
+      title: l10n.text('nightScopeGuideClearTitle'),
+      message: l10n.text('nightScopeGuideClearBody'),
+      confirmLabel: l10n.text('nightScopeGuideClearCal'),
+      cancelLabel: l10n.text('cancel'),
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    await _run(
+      'clearCal',
+      () => ref.read(calibrationStateProvider.notifier).clearCalibration(),
+    );
+  }
+
+  Future<void> _run(String id, Future<void> Function() command) async {
+    final l10n = context.l10n;
+    setState(() => _busy = id);
+    try {
+      await command();
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar(
+          l10n.text(
+            'nightScopeGuideCommandFailed',
+            params: {'error': userFacingError(e)},
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
   }
 }
 
@@ -219,8 +332,10 @@ class NightGuideDitherSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final settings = ref.watch(appSettingsProvider).valueOrNull;
+    final settle = settings == null ? null : GuideSettle.of(settings);
     final every = ref.watch(nightDitherEveryProvider);
-    String? seconds(num? value) => value == null ? null : '$value s';
+    String? seconds(double? value) =>
+        value == null ? null : '${value.round()} s';
     return NightPanelSection(
       title: l10n.text('nightScopeGuideDither'),
       trailing: l10n.text('nightScopeGuideDitherUsedBy'),
@@ -229,41 +344,38 @@ class NightGuideDitherSection extends ConsumerWidget {
           items: [
             MetricGridItem(
               label: l10n.text('nightScopeGuideEvery'),
-              value: every == null
+              value: settings == null
                   ? null
-                  : l10n.text(
-                      'nightScopeGuideFrames',
-                      params: {'count': '$every'},
-                    ),
+                  : every == null
+                      ? l10n.text('nightScopeGuideDitherOff')
+                      : l10n.text(
+                          'nightScopeGuideFrames',
+                          params: {'count': '$every'},
+                        ),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideAmount'),
-              value: settings == null
-                  ? null
-                  : formatPx(
-                      ditherScalePixels(settings.ditherScale),
-                      decimals: 0,
-                    ),
+              value: formatPx(settle?.ditherPixels, decimals: 0),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideRaOnly'),
-              value: settings == null
+              value: settle == null
                   ? null
                   : l10n.text(
-                      settings.ditherRaOnly ? 'nightScopeYes' : 'nightScopeNo',
+                      settle.ditherRaOnly ? 'nightScopeYes' : 'nightScopeNo',
                     ),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideSettle'),
-              value: formatPx(settings?.settleThreshold, decimals: 1),
+              value: formatPx(settle?.pixels, decimals: 1),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideSettleFor'),
-              value: seconds(settings?.settleTime),
+              value: seconds(settle?.seconds),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeGuideTimeout'),
-              value: seconds(settings?.settleTimeout),
+              value: seconds(settle?.timeoutSeconds),
             ),
           ],
         ),
@@ -292,7 +404,3 @@ String guideStopReasonLabel(SkotiqLocalizations l10n, String reason) {
 
 String? _withUnit(String? value, String unit) =>
     value == null ? null : '$value $unit';
-
-/// `23:12`.
-String _clockTime(DateTime t) =>
-    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';

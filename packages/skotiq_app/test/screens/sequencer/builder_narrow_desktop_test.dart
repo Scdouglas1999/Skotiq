@@ -20,7 +20,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/pump_app_screen.dart';
 
@@ -46,8 +47,6 @@ List<Override> _overrides() {
   notifier.state = _seedSequence();
   return [
     currentSequenceProvider.overrideWith((_) => notifier),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
     // The ledger ETA clock is a real periodic stream; in the fake-async
     // zone its timer outlives every pump and fails teardown.
     ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),

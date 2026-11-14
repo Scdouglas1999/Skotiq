@@ -7,7 +7,9 @@ import 'package:skotiq_app/screens/equipment/equipment_screen.dart';
 import 'package:skotiq_app/screens/equipment/widgets/discovery_panel.dart';
 import 'package:skotiq_app/screens/shell/widgets/rig_card.dart';
 import 'package:flutter/widgets.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
 
@@ -103,6 +105,68 @@ void main() {
     await tester.pump();
     expect(find.bySemanticsLabel(RegExp(r'Equipment: 1 connected')),
         findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  // Collapsed, the card read 0/4 after Disconnect all beside a profile block
+  // that said "5 devices": it only listed the filter wheel while connected.
+  testWidgets('the rig card counts the devices the profile assigns',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    const profile = EquipmentProfileModel(
+      id: 1,
+      name: 'Sim Rig',
+      cameraId: 'sim_camera_1',
+      mountId: 'sim_mount_1',
+      focuserId: 'sim_focuser_1',
+      filterWheelId: 'sim_filterwheel_1',
+      guiderId: 'native:builtin_guider:multi_star',
+    );
+    final handle = await pumpAppScreen(
+      tester,
+      const Column(mainAxisSize: MainAxisSize.min, children: [
+        RigCard(isExpanded: false),
+      ]),
+      size: const Size(2600, 900),
+      settle: false,
+      extraOverrides: [
+        activeEquipmentProfileProvider.overrideWithValue(profile),
+      ],
+    );
+    await tester.pump();
+    expect(
+      find.bySemanticsLabel('Equipment: 0 connected, 5 disconnected'),
+      findsOneWidget,
+    );
+    expect(find.text('0/5'), findsOneWidget);
+    expect(handle.container.read(rigDevicesProvider).assigned.length, 5);
+
+    for (final type in DeviceType.values) {
+      final id = profile.deviceIdFor(type);
+      if (id == null) continue;
+      handle.container.read(type.slot.notifier)
+        ..setConnecting(id)
+        ..setConnected();
+    }
+    await tester.pump();
+    expect(find.text('5/5'), findsOneWidget);
+
+    // The list beside the rail names the filter wheel while it is down.
+    handle.container.read(filterWheelStateProvider.notifier).setDisconnected();
+    await tester.pump();
+    expect(find.text('4/5'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('rig.summary')));
+    await tester.pumpAndSettle();
+    expect(
+      find.bySemanticsLabel('Filter wheel, disconnected'),
+      findsOneWidget,
+    );
+    expect(find.text('No filter wheel'), findsOneWidget);
+
+    // A connected mount polls its position; stop that before the test ends.
+    resetAllEquipmentStateNotifiers(handle.container);
+    semantics.dispose();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });

@@ -1,14 +1,22 @@
 part of '../connected_device_card.dart';
 
+final _coefficientCodec = NumberCodec.of(
+  AppSettingDefs.tempCoefficient,
+  decimals: 1,
+  unit: 'steps/°C',
+);
+final _backlashCodec = IntCodec.of(AppSettingDefs.afBacklashIn);
+
 extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
   /// The mount's meridian flips are the run's: every run arms its own flip
   /// trigger from Settings > Sequencer > Meridian flip, so this dialog holds
   /// no flip settings of its own and points there.
   void _showMountSettingsDialog() async {
     final pageContext = context;
-    await _showEquipmentDialog(
+    await showHostBoundDialog(
       context: context,
-      builder: (ctx) {
+      ref: ref,
+      builder: (ctx, _) {
         final colors = SkotiqColors.of(ctx);
         return SkotiqDialog(
           title: 'Mount configuration',
@@ -42,21 +50,14 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     );
   }
 
-  // Canonical backlash-compensation bounds, mirroring the autofocus backlash
-  // IN/OUT fields and the driver step limit (0..10000 steps). The coefficient
-  // is only required to be finite: it is legitimately negative (default -12
-  // steps/°C) and zero is the documented "track but do not move" state, so no
-  // narrow range is imposed.
-  static const int _minBacklashSteps = 0;
-  static const int _maxBacklashSteps = 10000;
-
   void _showFocuserSettingsDialog() async {
     late final AppSettingsState settings;
     try {
       settings = await ref.read(appSettingsProvider.future);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not load focuser settings: $e');
+        context.showErrorSnackBar(
+            'Could not load focuser settings: ${userFacingError(e)}');
       }
       return;
     }
@@ -64,9 +65,6 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
 
     bool tempComp = settings.tempCompensation;
     var coefficientText = settings.tempCoefficient.toString();
-    // `afBacklashIn`, the figure every path to the focuser actually reads;
-    // `backlashCompensation` is persisted and displayed but operationally
-    // unread. See the note in `_BacklashSettingRow`.
     var backlashText = settings.afBacklashIn.toString();
     // Bumped when a measured figure is adopted, so the field's key changes and
     // it rebuilds showing the new `initialValue`. A controller would be the
@@ -79,9 +77,10 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     bool isSaving = false;
     String? errorText;
 
-    await _showEquipmentDialog(
+    await showHostBoundDialog(
         context: context,
-        builder: (ctx) {
+        ref: ref,
+        builder: (ctx, host) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
             return SkotiqDialog(
@@ -100,23 +99,24 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                       ? null
                       : () async {
                           if (isSaving) return;
-                          final coeff = double.tryParse(coefficientText.trim());
-                          if (coeff == null || !coeff.isFinite) {
-                            setState(() => errorText =
-                                'Temp coefficient must be a finite number.');
-                            return;
-                          }
-                          final backlash = int.tryParse(backlashText.trim());
-                          if (backlash == null) {
-                            setState(() => errorText =
-                                'Backlash must be a whole number of steps.');
-                            return;
-                          }
-                          if (backlash < _minBacklashSteps ||
-                              backlash > _maxBacklashSteps) {
-                            setState(() => errorText =
-                                'Backlash must be between $_minBacklashSteps '
-                                    'and $_maxBacklashSteps steps.');
+                          final coefficient =
+                              _coefficientCodec.parse(coefficientText);
+                          final backlash = _backlashCodec.parse(backlashText);
+                          // A number out of range is refused, not clamped:
+                          // the note says what the bound is.
+                          final refused = !coefficient.isOk
+                              ? 'Temperature coefficient: '
+                                  '${coefficient.invalid}'
+                              : !backlash.isOk
+                                  ? 'Backlash: ${backlash.invalid}'
+                                  : coefficient.note != null
+                                      ? 'Temperature coefficient: '
+                                          '${coefficient.note}'
+                                      : backlash.note != null
+                                          ? 'Backlash: ${backlash.note}'
+                                          : null;
+                          if (refused != null) {
+                            setState(() => errorText = refused);
                             return;
                           }
                           setState(() {
@@ -127,23 +127,23 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             final notifier = ref.read(
                               appSettingsProvider.notifier,
                             );
-                            await notifier.setAfBacklashIn(backlash);
                             await notifier.setFocuserCompensationConfig(
                               tempCompensation: tempComp,
-                              tempCoefficient: coeff,
-                              backlashCompensation: backlash,
+                              tempCoefficient: coefficient.value!,
+                              backlashIn: backlash.value!,
                             );
-                            if (!context.mounted) return;
+                            if (!context.mounted || host.isStale) return;
                             Navigator.pop(context);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
                                   'Focuser settings updated');
                             }
                           } catch (e) {
-                            if (!context.mounted) return;
+                            if (!context.mounted || host.isStale) return;
                             setState(() {
                               isSaving = false;
-                              errorText = 'Failed to save: $e';
+                              errorText =
+                                  'Failed to save: ${userFacingError(e)}';
                             });
                           }
                         },
@@ -210,8 +210,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                     style: SkotiqTypography.body
                         .copyWith(color: colors.textPrimary),
                     decoration: InputDecoration(
-                      labelText:
-                          'Backlash Compensation ($_minBacklashSteps - $_maxBacklashSteps steps)',
+                      labelText: 'Backlash Compensation '
+                          '(${_backlashCodec.min} - ${_backlashCodec.max} steps)',
                       labelStyle: SkotiqTypography.bodySm
                           .copyWith(color: colors.textMuted),
                       enabledBorder: OutlineInputBorder(
@@ -275,9 +275,10 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     }
     if (!mounted) return;
 
-    await _showEquipmentDialog(
+    await showHostBoundDialog(
         context: context,
-        builder: (ctx) {
+        ref: ref,
+        builder: (ctx, host) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
             return SkotiqDialog(
@@ -304,7 +305,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             await ref
                                 .read(deviceServiceProvider)
                                 .setRotatorReversed(reversed);
-                            if (!context.mounted) return;
+                            if (!context.mounted || host.isStale) return;
                             Navigator.pop(context);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
@@ -312,10 +313,10 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                               );
                             }
                           } catch (e) {
-                            if (!context.mounted) return;
+                            if (!context.mounted || host.isStale) return;
                             setState(() => isSaving = false);
                             context.showErrorSnackBar(
-                              'Failed to set reverse direction: $e',
+                              'Failed to set reverse direction: ${userFacingError(e)}',
                             );
                           }
                         },
@@ -367,9 +368,10 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     // snackbars must not use the dialog's (popped) context after the await.
     final pageContext = context;
 
-    await _showEquipmentDialog(
+    await showHostBoundDialog(
         context: context,
-        builder: (ctx) {
+        ref: ref,
+        builder: (ctx, host) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
             return SkotiqDialog(
@@ -399,12 +401,12 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                           setState(() => isSaving = true);
                           try {
                             await ref
-                                .read(backendProvider)
+                                .read(deviceCommandsProvider)
                                 .domeSetSlaved(deviceId, slaved);
                             ref
                                 .read(domeStateProvider.notifier)
                                 .setSlaved(slaved);
-                            if (!context.mounted) return;
+                            if (!context.mounted || host.isStale) return;
                             Navigator.pop(context);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
@@ -414,10 +416,10 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                               );
                             }
                           } catch (e) {
-                            if (!context.mounted) return;
+                            if (!context.mounted || host.isStale) return;
                             setState(() => isSaving = false);
                             context.showErrorSnackBar(
-                              'Dome slave failed: $e',
+                              'Dome slave failed: ${userFacingError(e)}',
                             );
                           }
                         },
@@ -469,7 +471,8 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
       );
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not read calibrator capabilities: $e');
+        context.showErrorSnackBar(
+            'Could not read calibrator capabilities: ${userFacingError(e)}');
       }
       return;
     }
@@ -495,9 +498,10 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     bool isSaving = false;
     String? errorText;
 
-    await _showEquipmentDialog(
+    await showHostBoundDialog(
         context: context,
-        builder: (ctx) {
+        ref: ref,
+        builder: (ctx, host) {
           return StatefulBuilder(builder: (context, setState) {
             final colors = SkotiqColors.of(context);
             return SkotiqDialog(
@@ -538,17 +542,18 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
                             // close. A failure keeps the typed value on screen
                             // and re-enables Save for a retry.
                             await _applyCalibratorBrightness(target);
-                            if (!context.mounted) return;
+                            if (!context.mounted || host.isStale) return;
                             Navigator.pop(context);
                             if (pageContext.mounted) {
                               pageContext.showSuccessSnackBar(
                                   'Calibrator brightness updated to $target');
                             }
                           } catch (e) {
-                            if (!context.mounted) return;
+                            if (!context.mounted || host.isStale) return;
                             setState(() {
                               isSaving = false;
-                              errorText = 'Failed to set brightness: $e';
+                              errorText =
+                                  'Failed to set brightness: ${userFacingError(e)}';
                             });
                           }
                         },
@@ -628,13 +633,13 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
     final backend = ref.read(backendProvider);
     await backend.calibratorOn(deviceId, brightness);
     if (!mounted ||
-        !identical(ref.read(backendProvider), backend) ||
+        ref.backendScopeOver(backend).isStale ||
         ref.read(coverCalibratorStateProvider).deviceId != deviceId) {
       return;
     }
     final notifier = ref.read(coverCalibratorStateProvider.notifier);
     notifier.updateBrightness(brightness);
     notifier.updateCalibratorStatus(CalibratorStatus.notReady);
-    ref.invalidate(equipmentCoverCalibratorCapabilitiesProvider(deviceId));
+    _refreshCoverCalibrator(deviceId);
   }
 }

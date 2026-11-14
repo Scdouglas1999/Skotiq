@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'dart:math' as math;
 
@@ -15,8 +14,7 @@ import '../services/imaging_service.dart';
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
 import 'imaging_provider.dart';
-
-// Stretched image provider
+import '../services/logging_service.dart';
 
 /// Provider that renders the current captured image for the screen.
 ///
@@ -45,7 +43,6 @@ final stretchedImageProvider = FutureProvider.autoDispose<Uint8List?>((
     return null;
   }
 
-  // Check if we have raw data available from the backend
   final backend = ref.watch(deviceBackendProvider);
   final cameraDeviceId = ref.read(connectedCameraIdProvider);
 
@@ -80,7 +77,6 @@ final stretchedImageProvider = FutureProvider.autoDispose<Uint8List?>((
       );
     }
 
-    // Apply stretch based on method
     return await _applyStretch(
       rawData: rawData,
       width: imageData.width,
@@ -90,10 +86,9 @@ final stretchedImageProvider = FutureProvider.autoDispose<Uint8List?>((
     );
   } catch (e) {
     // On error, fall back to the original display data (already stretched)
-    developer.log(
+    Log.error(
       '[AutoStretch] Error applying stretch: $e',
-      name: 'AutoStretch',
-      level: 1000,
+      source: 'AutoStretch',
       error: e,
     );
     return null;
@@ -183,14 +178,14 @@ Uint8List linearDisplayRgba(LinearDisplayParams params) {
 ///
 /// Separate from the equipment provider so raw image data has one source.
 final connectedCameraIdProvider = Provider<String?>((ref) {
-  final cameraState = ref.watch(cameraStateProvider);
-  if (cameraState.connectionState == DeviceConnectionState.connected) {
-    return cameraState.deviceId;
-  }
-  return null;
+  return ref.watch(
+    cameraStateProvider.select(
+      (c) => c.connectionState == DeviceConnectionState.connected
+          ? c.deviceId
+          : null,
+    ),
+  );
 });
-
-// Stretch implementation
 
 /// Applies stretch to raw image data based on settings.
 ///
@@ -263,7 +258,6 @@ Future<Uint8List> _applyStretch({
 /// Convert grayscale or RGB stretched data to RGBA (4 bytes per pixel).
 Uint8List _stretchedToRgba(Uint8List src, int width, int height, bool isColor) {
   final numPixels = width * height;
-  // If already RGBA, return as-is
   if (src.length == numPixels * 4) {
     return src;
   }
@@ -289,8 +283,6 @@ Uint8List _stretchedToRgba(Uint8List src, int width, int height, bool isColor) {
   }
   return rgba;
 }
-
-// STF (screen transfer function) stretch
 
 /// Applies PixInsight-style Screen Transfer Function stretch.
 ///
@@ -319,10 +311,9 @@ Future<Uint8List> _applyStfStretch({
     return result;
   } catch (e) {
     // Fall back to Dart implementation
-    developer.log(
+    Log.warning(
       '[AutoStretch] Rust STF failed, using Dart fallback: $e',
-      name: 'AutoStretch',
-      level: 900,
+      source: 'AutoStretch',
       error: e,
     );
     return compute(
@@ -437,7 +428,6 @@ Uint8List _stfStretchIsolate(_StretchParams params) {
   }
 }
 
-/// Calculated STF parameters
 class _StfParams {
   final double shadows;
   final double highlights;
@@ -446,7 +436,6 @@ class _StfParams {
   _StfParams(this.shadows, this.highlights, this.midtones);
 }
 
-/// Calculate STF parameters from pixel data.
 _StfParams _calculateStfParams(
   List<double> pixels,
   AutoStretchSettings settings,
@@ -536,14 +525,10 @@ int _applyMtf(double value, _StfParams params) {
   // Normalize to shadows/highlights range
   final normalized = ((value - params.shadows) / range).clamp(0.0, 1.0);
 
-  // Apply MTF
   final stretched = _mtf(normalized, params.midtones);
 
-  // Convert to 8-bit
   return (stretched * 255).round().clamp(0, 255);
 }
-
-// Histogram stretch
 
 /// Applies histogram equalization stretch.
 Future<Uint8List> _applyHistogramStretch({
@@ -580,7 +565,6 @@ Uint8List _histogramStretchIsolate(_StretchParams params) {
       histogram[lum.clamp(0, 65535)]++;
     }
 
-    // Calculate CDF
     final cdf = List<double>.filled(65536, 0);
     var sum = 0;
     for (var i = 0; i < 65536; i++) {
@@ -588,7 +572,6 @@ Uint8List _histogramStretchIsolate(_StretchParams params) {
       cdf[i] = sum / pixelCount;
     }
 
-    // Apply equalization
     for (var i = 0; i < pixelCount; i++) {
       final r = data[i * 3];
       final g = data[i * 3 + 1];
@@ -617,7 +600,6 @@ Uint8List _histogramStretchIsolate(_StretchParams params) {
       histogram[data[i]]++;
     }
 
-    // Calculate CDF
     final cdf = List<double>.filled(65536, 0);
     var sum = 0;
     for (var i = 0; i < 65536; i++) {
@@ -625,7 +607,6 @@ Uint8List _histogramStretchIsolate(_StretchParams params) {
       cdf[i] = sum / pixelCount;
     }
 
-    // Apply equalization
     final result = Uint8List(pixelCount);
     for (var i = 0; i < pixelCount; i++) {
       result[i] = (cdf[data[i]] * 255).round().clamp(0, 255);
@@ -634,8 +615,6 @@ Uint8List _histogramStretchIsolate(_StretchParams params) {
     return result;
   }
 }
-
-// Asinh stretch
 
 /// Applies arcsinh (inverse hyperbolic sine) stretch.
 ///
@@ -696,8 +675,6 @@ Uint8List _asinhStretchIsolate(_StretchParams params) {
 
 double _asinh(double x) => math.log(x + math.sqrt(x * x + 1));
 
-// Log stretch
-
 /// Applies logarithmic stretch.
 ///
 /// Compresses high values while expanding low values, useful for
@@ -752,8 +729,6 @@ Uint8List _logStretchIsolate(_StretchParams params) {
     return result;
   }
 }
-
-// Gamma stretch
 
 /// Applies simple gamma correction.
 ///

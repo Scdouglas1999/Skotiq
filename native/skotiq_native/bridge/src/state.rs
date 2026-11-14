@@ -3,31 +3,24 @@
 //! This module maintains the application state and provides
 //! thread-safe access to it from multiple components.
 
-use crate::device::*;
-use crate::event::*;
-use crate::storage::AppSettings;
-use crate::storage::ObserverLocation;
-use crate::storage::PlateSolverPreference;
-use crate::storage::PlateSolverStorage;
-use crate::storage::ProfileStorage;
-use crate::storage::SettingsStorage;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::OnceLock;
+use crate::device::DeviceType;
+use crate::event::bus::{EventBus, EventPayload, SkotiqEvent};
+use crate::event::correlation::SharedEventBus;
+use crate::event::equipment::{EquipmentEvent, EventCategory, EventSeverity};
+use crate::event::guiding::GuidingEvent;
+use crate::event::imaging::ImagingEvent;
+use crate::event::system::{SafetyEvent, SystemEvent};
+use crate::storage::{
+    AppSettings, ObserverLocation, PlateSolverPreference, PlateSolverStorage, ProfileStorage,
+    SettingsStorage,
+};
+use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
-/// Global application state
 pub struct AppState {
     /// Event bus for publishing/subscribing to events
     pub event_bus: SharedEventBus,
 
-    /// Connected devices by type and ID
-    devices: RwLock<HashMap<(DeviceType, String), DeviceConnection>>,
-
-    /// Current session state
-    session: RwLock<SessionState>,
-
-    /// Equipment profile
     profile: RwLock<Option<EquipmentProfile>>,
 
     /// Observer location (in-memory, synced from Dart on startup/change)
@@ -38,7 +31,6 @@ pub struct AppState {
     observer_location: std::sync::RwLock<Option<ObserverLocation>>,
 }
 
-/// Global profile storage
 static PROFILE_STORAGE: OnceLock<ProfileStorage> = OnceLock::new();
 
 /// Initialize profile storage
@@ -55,10 +47,8 @@ fn get_profile_storage() -> Result<&'static ProfileStorage, String> {
         .ok_or_else(|| "Profile storage not initialized".to_string())
 }
 
-/// Global settings storage
 static SETTINGS_STORAGE: OnceLock<SettingsStorage> = OnceLock::new();
 
-/// Initialize settings storage
 pub fn init_settings_storage(storage_dir: std::path::PathBuf) -> Result<(), String> {
     let storage = SettingsStorage::new(storage_dir)?;
     SETTINGS_STORAGE
@@ -97,29 +87,6 @@ pub fn save_platesolver_preference(pref: &PlateSolverPreference) -> Result<(), S
     get_platesolver_storage()?.save(pref)
 }
 
-/// A connected device with its current status
-pub struct DeviceConnection {
-    pub info: DeviceInfo,
-    pub state: ConnectionState,
-}
-
-/// Current imaging session state
-#[derive(Debug, Clone, Default)]
-pub struct SessionState {
-    pub is_active: bool,
-    pub start_time: Option<i64>,
-    pub target_name: Option<String>,
-    pub target_ra: Option<f64>,
-    pub target_dec: Option<f64>,
-    pub total_exposures: u32,
-    pub completed_exposures: u32,
-    pub total_integration_secs: f64,
-    pub current_filter: Option<String>,
-    pub is_guiding: bool,
-    pub is_capturing: bool,
-    pub is_dithering: bool,
-}
-
 /// Equipment profile containing device selections
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EquipmentProfile {
@@ -152,146 +119,16 @@ impl AppState {
     /// Create a new application state
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
-            event_bus: Arc::new(EventBus::new(crate::event::DEFAULT_EVENT_BUFFER_SIZE)),
-            devices: RwLock::new(HashMap::new()),
-            session: RwLock::new(SessionState::default()),
+            event_bus: Arc::new(EventBus::new(crate::event::bus::DEFAULT_EVENT_BUFFER_SIZE)),
             profile: RwLock::new(None),
             observer_location: std::sync::RwLock::new(None),
         })
     }
 
-    /// Create with profile storage (Legacy - storage is now global)
-    pub fn new_with_storage(storage_dir: std::path::PathBuf) -> Arc<Self> {
-        let _ = init_profile_storage(storage_dir);
-        Self::new()
-    }
-
-    /// Register a device connection
-    pub async fn register_device(&self, info: DeviceInfo, state: ConnectionState) {
-        let key = (info.device_type, info.id.clone());
-        let connection = DeviceConnection { info, state };
-
-        let mut devices = self.devices.write().await;
-        devices.insert(key, connection);
-    }
-
-    /// Update a device's connection state
-    pub async fn update_device_state(
-        &self,
-        device_type: DeviceType,
-        device_id: &str,
-        state: ConnectionState,
-    ) {
-        let key = (device_type, device_id.to_string());
-
-        let mut devices = self.devices.write().await;
-        if let Some(conn) = devices.get_mut(&key) {
-            conn.state = state;
-        }
-    }
-
-    /// Remove a device
-    pub async fn remove_device(&self, device_type: DeviceType, device_id: &str) {
-        let key = (device_type, device_id.to_string());
-
-        let mut devices = self.devices.write().await;
-        devices.remove(&key);
-    }
-
-    /// Get all devices of a specific type
-    pub async fn get_devices(&self, device_type: DeviceType) -> Vec<DeviceInfo> {
-        let devices = self.devices.read().await;
-        devices
-            .iter()
-            .filter(|((dt, _), _)| *dt == device_type)
-            .map(|(_, conn)| conn.info.clone())
-            .collect()
-    }
-
-    /// Get a specific device
-    pub async fn get_device(&self, device_type: DeviceType, device_id: &str) -> Option<DeviceInfo> {
-        let key = (device_type, device_id.to_string());
-        let devices = self.devices.read().await;
-        devices.get(&key).map(|conn| conn.info.clone())
-    }
-
-    /// Check if a device is connected
-    ///
-    /// # `unwrap_or` policy
-    ///
-    /// Device-not-registered → "not connected" is the correct semantic
-    /// answer to "is this device id connected?". A separate error path
-    /// would force every UI caller to handle a tri-state (yes/no/unknown)
-    /// that adds no value: the user-facing "Connect" button already
-    /// renders correctly for both "not present" and "present but
-    /// disconnected" by treating both as `false`.
-    pub async fn is_device_connected(&self, device_type: DeviceType, device_id: &str) -> bool {
-        let key = (device_type, device_id.to_string());
-        let devices = self.devices.read().await;
-        devices
-            .get(&key)
-            .map(|conn| conn.state == ConnectionState::Connected)
-            .unwrap_or(false)
-    }
-
-    /// Return a connected device id for the requested type, if one is known.
-    ///
-    /// This intentionally reads live connection state rather than the equipment
-    /// profile. Some device classes, notably safety monitors, are not yet stored
-    /// as first-class profile fields but are still connected and must be usable
-    /// by unattended sequencer safety checks.
-    pub async fn first_connected_device_id(&self, device_type: DeviceType) -> Option<String> {
-        let devices = self.devices.read().await;
-        devices
-            .iter()
-            .find(|((dt, _), conn)| *dt == device_type && conn.state == ConnectionState::Connected)
-            .map(|((_, id), _)| id.clone())
-    }
-
-    /// Get the current session state
-    pub async fn get_session(&self) -> SessionState {
-        self.session.read().await.clone()
-    }
-
-    /// Update the session state
-    pub async fn update_session<F>(&self, updater: F)
-    where
-        F: FnOnce(&mut SessionState),
-    {
-        let mut session = self.session.write().await;
-        updater(&mut session);
-    }
-
-    /// Start a new session
-    pub async fn start_session(
-        &self,
-        target_name: Option<String>,
-        ra: Option<f64>,
-        dec: Option<f64>,
-    ) {
-        let mut session = self.session.write().await;
-        *session = SessionState {
-            is_active: true,
-            start_time: Some(chrono::Utc::now().timestamp_millis()),
-            target_name,
-            target_ra: ra,
-            target_dec: dec,
-            ..Default::default()
-        };
-    }
-
-    /// End the current session
-    pub async fn end_session(&self) {
-        let mut session = self.session.write().await;
-        session.is_active = false;
-    }
-
-    /// Get the current equipment profile
     pub async fn get_profile(&self) -> Option<EquipmentProfile> {
         self.profile.read().await.clone()
     }
 
-    /// Set the equipment profile
     pub async fn set_profile(&self, profile: Option<EquipmentProfile>) {
         let mut p = self.profile.write().await;
         *p = profile;
@@ -302,12 +139,10 @@ impl AppState {
         get_profile_storage()?.load_profiles()
     }
 
-    /// Save a profile to storage
     pub fn save_profile_to_storage(&self, profile: &EquipmentProfile) -> Result<(), String> {
         get_profile_storage()?.save_profile(profile)
     }
 
-    /// Delete a profile from storage
     pub fn delete_profile_from_storage(&self, profile_id: &str) -> Result<(), String> {
         get_profile_storage()?.delete_profile(profile_id)
     }
@@ -320,12 +155,10 @@ impl AppState {
         Ok(())
     }
 
-    /// Get current settings
     pub fn get_settings(&self) -> Result<AppSettings, String> {
         get_settings_storage()?.load_settings()
     }
 
-    /// Update settings
     pub fn update_settings(&self, settings: &AppSettings) -> Result<(), String> {
         get_settings_storage()?.save_settings(settings)
     }
@@ -475,46 +308,13 @@ impl AppState {
     /// Create and publish an equipment event
     /// Returns the event ID
     pub fn publish_equipment_event(&self, event: EquipmentEvent, severity: EventSeverity) -> u64 {
-        // Extract device_id from the event for context
-        let device_id = match &event {
-            EquipmentEvent::Connecting { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::Connected { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::Disconnected { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::PropertyChanged { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::Error { device_id, .. } => Some(device_id.clone()),
-            _ => None,
-        };
-
-        if let Some(ref device_id) = device_id {
-            self.event_bus.publish_device_event(
-                severity,
-                EventCategory::Equipment,
-                EventPayload::Equipment(event),
-                device_id,
-                None,
-            )
-        } else {
-            self.event_bus.publish_with_tracking(
-                severity,
-                EventCategory::Equipment,
-                EventPayload::Equipment(event),
-                None,
-            )
-        }
-    }
-
-    /// Create and publish an equipment event with causality
-    pub fn publish_equipment_event_caused_by(
-        &self,
-        event: EquipmentEvent,
-        severity: EventSeverity,
-        caused_by: u64,
-    ) -> u64 {
-        self.event_bus.publish_with_tracking(
+        let device_id = event.device_id().to_string();
+        self.event_bus.publish_device_event(
             severity,
             EventCategory::Equipment,
             EventPayload::Equipment(event),
-            Some(caused_by),
+            &device_id,
+            None,
         )
     }
 
@@ -525,22 +325,6 @@ impl AppState {
             severity,
             EventCategory::Imaging,
             EventPayload::Imaging(event),
-            None,
-        )
-    }
-
-    /// Create and publish an imaging event with correlation ID (for grouping related events)
-    pub fn publish_imaging_event_correlated(
-        &self,
-        event: ImagingEvent,
-        severity: EventSeverity,
-        correlation_id: &str,
-    ) -> u64 {
-        self.event_bus.publish_correlated(
-            severity,
-            EventCategory::Imaging,
-            EventPayload::Imaging(event),
-            correlation_id,
             None,
         )
     }
@@ -567,68 +351,6 @@ impl AppState {
         )
     }
 
-    /// Create and publish a sequencer event
-    /// Returns the event ID
-    pub fn publish_sequencer_event(&self, event: SequencerEvent, severity: EventSeverity) -> u64 {
-        self.event_bus.publish_with_tracking(
-            severity,
-            EventCategory::Sequencer,
-            EventPayload::Sequencer(event),
-            None,
-        )
-    }
-
-    // Consolidated device state access
-
-    /// Get device state summary for all connected devices
-    /// This is the single source of truth for device state
-    pub async fn get_all_device_states(&self) -> Vec<DeviceStateSummary> {
-        let devices = self.devices.read().await;
-        devices
-            .values()
-            .map(|conn| DeviceStateSummary {
-                device_id: conn.info.id.clone(),
-                device_type: conn.info.device_type,
-                driver_type: conn.info.driver_type,
-                name: conn.info.name.clone(),
-                connection_state: conn.state,
-            })
-            .collect()
-    }
-
-    /// Get state for a specific device
-    pub async fn get_device_state(
-        &self,
-        device_type: DeviceType,
-        device_id: &str,
-    ) -> Option<DeviceStateSummary> {
-        let key = (device_type, device_id.to_string());
-        let devices = self.devices.read().await;
-        devices.get(&key).map(|conn| DeviceStateSummary {
-            device_id: conn.info.id.clone(),
-            device_type: conn.info.device_type,
-            driver_type: conn.info.driver_type,
-            name: conn.info.name.clone(),
-            connection_state: conn.state,
-        })
-    }
-
-    /// Get all devices of a specific type with their states
-    pub async fn get_devices_by_type(&self, device_type: DeviceType) -> Vec<DeviceStateSummary> {
-        let devices = self.devices.read().await;
-        devices
-            .iter()
-            .filter(|((dt, _), _)| *dt == device_type)
-            .map(|(_, conn)| DeviceStateSummary {
-                device_id: conn.info.id.clone(),
-                device_type: conn.info.device_type,
-                driver_type: conn.info.driver_type,
-                name: conn.info.name.clone(),
-                connection_state: conn.state,
-            })
-            .collect()
-    }
-
     /// Get the device ID from the current profile for a specific device type
     pub async fn get_profile_device_id(&self, device_type: DeviceType) -> Option<String> {
         let profile = self.profile.read().await;
@@ -645,33 +367,12 @@ impl AppState {
             _ => None,
         })
     }
-
-    /// Check if a device from the profile is connected
-    pub async fn is_profile_device_connected(&self, device_type: DeviceType) -> bool {
-        if let Some(device_id) = self.get_profile_device_id(device_type).await {
-            self.is_device_connected(device_type, &device_id).await
-        } else {
-            false
-        }
-    }
-}
-
-/// Summary of a device's current state
-#[derive(Debug, Clone)]
-pub struct DeviceStateSummary {
-    pub device_id: String,
-    pub device_type: DeviceType,
-    pub driver_type: DriverType,
-    pub name: String,
-    pub connection_state: ConnectionState,
 }
 
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            event_bus: Arc::new(EventBus::new(crate::event::DEFAULT_EVENT_BUFFER_SIZE)),
-            devices: RwLock::new(HashMap::new()),
-            session: RwLock::new(SessionState::default()),
+            event_bus: Arc::new(EventBus::new(crate::event::bus::DEFAULT_EVENT_BUFFER_SIZE)),
             profile: RwLock::new(None),
             observer_location: std::sync::RwLock::new(None),
         }
@@ -681,48 +382,16 @@ impl Default for AppState {
 /// Thread-safe shared application state
 pub type SharedAppState = Arc<AppState>;
 
+static APP_STATE: OnceLock<SharedAppState> = OnceLock::new();
+
+/// The process's one application state.
+pub(crate) fn get_state() -> &'static SharedAppState {
+    APP_STATE.get_or_init(AppState::new)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn device(id: &str, device_type: DeviceType) -> DeviceInfo {
-        DeviceInfo {
-            id: id.to_string(),
-            name: id.to_string(),
-            device_type,
-            driver_type: DriverType::Simulator,
-            description: String::new(),
-            driver_version: String::new(),
-            serial_number: None,
-            unique_id: None,
-            display_name: id.to_string(),
-        }
-    }
-
-    #[tokio::test]
-    async fn first_connected_device_id_ignores_disconnected_devices() {
-        let state = AppState::new();
-        state
-            .register_device(
-                device("unsafe-old", DeviceType::SafetyMonitor),
-                ConnectionState::Disconnected,
-            )
-            .await;
-        state
-            .register_device(
-                device("safe-live", DeviceType::SafetyMonitor),
-                ConnectionState::Connected,
-            )
-            .await;
-
-        assert_eq!(
-            state
-                .first_connected_device_id(DeviceType::SafetyMonitor)
-                .await
-                .as_deref(),
-            Some("safe-live")
-        );
-    }
 
     /// Guard for the "no observing site" representation the whole stack depends
     /// on. Absence has to survive as absence: a launch that has never had a

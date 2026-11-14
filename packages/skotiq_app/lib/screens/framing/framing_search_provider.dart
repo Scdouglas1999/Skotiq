@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_core/providers.dart';
 
-/// State for the target search in Framing tool
 class TargetSearchState {
   final String query;
   final List<FramingTarget> results;
@@ -187,7 +189,6 @@ class TargetSubmitOutcome {
         showList = false;
 }
 
-/// A catalog object as a framing target.
 FramingTarget framingTargetFromDso(DeepSkyObject dso) {
   final TargetType targetType;
   switch (dso.type) {

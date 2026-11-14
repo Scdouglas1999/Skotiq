@@ -1,9 +1,8 @@
+import 'focus_model_profile_data_provider.dart';
+import '../errors/error_text.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../backend/network_backend.dart';
-import '../services/focus_model_service.dart';
-import 'backend_provider.dart';
 import 'profiles_provider.dart';
 
 /// Filter offset state for the current profile
@@ -36,7 +35,6 @@ class FilterOffsetState {
   }
 }
 
-/// Notifier for managing filter offsets
 class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
   final Ref _ref;
   String? _currentProfileId;
@@ -47,13 +45,12 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
   FilterOffsetNotifier(this._ref)
     : super(const FilterOffsetState(isLoading: true)) {
     unawaited(_init());
-    // Reload offsets whenever the active equipment profile changes
     _ref.listen(activeEquipmentProfileProvider, (_, __) {
       if (!mounted) return;
       _mutationGeneration++;
       unawaited(_loadOffsetsForActiveProfile());
     });
-    _ref.listen(backendProvider, (previous, next) {
+    _ref.listen(focusHistoryProvider, (previous, next) {
       if (!mounted || identical(previous, next)) return;
       _authorityGeneration++;
       _mutationGeneration++;
@@ -70,12 +67,10 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
     super.dispose();
   }
 
-  /// Initialize by loading offsets for active profile
   Future<void> _init() async {
     await _loadOffsetsForActiveProfile();
   }
 
-  /// Load offsets for the currently active profile
   Future<void> _loadOffsetsForActiveProfile() async {
     if (!mounted) return;
     final generation = ++_loadGeneration;
@@ -94,45 +89,13 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       final profileId = activeProfile.id.toString();
       _currentProfileId = profileId;
 
-      // On a slave (NetworkBackend) the autofocus-derived focus model lives in
-      // local JSON files on the master's disk, never on this client. Fetch the
-      // rig's per-filter offsets over REST instead of reading the empty local
-      // store (which would render the "no filter offsets yet" empty-state even
-      // when the master has a full model).
-      final backend = _ref.read(backendProvider);
-      if (backend is NetworkBackend) {
-        await _loadOffsetsFromRemote(backend, generation);
-        return;
-      }
-
-      // Get focus data from service
-      final focusService = _ref.read(focusModelServiceProvider);
-      await focusService.initialize();
-      if (!_isCurrentLoad(generation)) return;
-
-      final focusData = focusService.getProfileData(profileId);
-
-      if (focusData == null) {
-        if (_isCurrentLoad(generation)) {
-          state = const FilterOffsetState(
-            offsets: {},
-            referenceFilter: null,
-            isLoading: false,
-          );
-        }
-        return;
-      }
-
-      final offsetMap = <String, int>{};
-
-      for (final entry in focusData.filterOffsets.entries) {
-        offsetMap[entry.key] = entry.value.offsetSteps;
-      }
-
+      final (:offsets, :referenceFilter) = await _ref
+          .read(focusHistoryProvider)
+          .filterOffsets(profileId);
       if (_isCurrentLoad(generation)) {
         state = FilterOffsetState(
-          offsets: offsetMap,
-          referenceFilter: focusData.referenceFilter,
+          offsets: offsets,
+          referenceFilter: referenceFilter,
           isLoading: false,
         );
       }
@@ -140,51 +103,17 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
       if (_isCurrentLoad(generation)) {
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to load filter offsets: $e',
+          error: 'Failed to load filter offsets: ${userFacingError(e)}',
         );
       }
     }
   }
 
-  /// Load offsets for the active profile from the connected rig over REST.
-  ///
-  /// Mirrors [_loadOffsetsForActiveProfile]'s offset-mode handling but sources
-  /// the relative per-filter model from the host (where autofocus runs and the
-  /// focus-model JSON store lives) instead of the empty local store. Absolute
-  /// mode still derives from the per-filter AF configs in AppSettings.
-  Future<void> _loadOffsetsFromRemote(
-    NetworkBackend backend,
-    int generation,
-  ) async {
-    final offsetMap = <String, int>{};
-    final response = await backend.getFilterFocusOffsets();
-    final referenceFilter = response['referenceFilter'] as String?;
-    final offsets = response['offsets'];
-    if (offsets is Map) {
-      for (final entry in offsets.entries) {
-        final value = entry.value;
-        if (value is Map && value['offsetSteps'] is num) {
-          offsetMap[entry.key.toString()] = (value['offsetSteps'] as num)
-              .toInt();
-        }
-      }
-    }
-
-    if (_isCurrentLoad(generation)) {
-      state = FilterOffsetState(
-        offsets: offsetMap,
-        referenceFilter: referenceFilter,
-        isLoading: false,
-      );
-    }
-  }
-
-  /// Set offset for a specific filter
   Future<void> setFilterOffset(String filterName, int offsetSteps) async {
     if (!mounted) return;
     final profileId = _currentProfileId;
     if (profileId == null) return;
-    final backend = _ref.read(backendProvider);
+    final history = _ref.read(focusHistoryProvider);
     final authority = _authorityGeneration;
     final mutation = ++_mutationGeneration;
     final previous = state;
@@ -200,26 +129,21 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
         clearError: true,
       );
 
-      if (backend is NetworkBackend) {
-        await backend.setFilterFocusOffsets(
-          referenceFilter: referenceFilter,
-          offsets: {filterName: offsetSteps},
-        );
-      } else {
-        await _saveOffsetsToService(
-          profileId: profileId,
-          offsets: newOffsets,
-          referenceFilter: referenceFilter,
-        );
-      }
+      await history.setFilterOffset(
+        profileId: profileId,
+        referenceFilter: referenceFilter,
+        changed: MapEntry(filterName, offsetSteps),
+        all: newOffsets,
+      );
     } catch (e) {
-      if (_isCurrentMutation(mutation, authority, backend, profileId)) {
-        state = previous.copyWith(error: 'Failed to save filter offset: $e');
+      if (_isCurrentMutation(mutation, authority, history, profileId)) {
+        state = previous.copyWith(
+          error: 'Failed to save filter offset: ${userFacingError(e)}',
+        );
       }
     }
   }
 
-  /// Adjust offset by a delta amount
   Future<void> adjustFilterOffset(String filterName, int delta) async {
     if (!mounted) return;
     final currentOffset = state.offsets[filterName] ?? 0;
@@ -231,60 +155,49 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
     if (!mounted) return;
     final profileId = _currentProfileId;
     if (profileId == null) return;
-    final backend = _ref.read(backendProvider);
+    final history = _ref.read(focusHistoryProvider);
     final authority = _authorityGeneration;
     final mutation = ++_mutationGeneration;
 
     try {
-      if (backend is NetworkBackend) {
-        await backend.setFilterFocusOffsets(
-          referenceFilter: filterName,
-          offsets: const {},
-        );
-      } else {
-        final focusService = _ref.read(focusModelServiceProvider);
-        await focusService.setReferenceFilter(profileId, filterName);
-      }
+      await history.setReferenceFilter(profileId, filterName);
 
-      if (!_isCurrentMutation(mutation, authority, backend, profileId)) return;
+      if (!_isCurrentMutation(mutation, authority, history, profileId)) return;
       state = state.copyWith(referenceFilter: filterName);
 
-      // Reload offsets after changing reference
       await _loadOffsetsForActiveProfile();
     } catch (e) {
-      if (_isCurrentMutation(mutation, authority, backend, profileId)) {
-        state = state.copyWith(error: 'Failed to set reference filter: $e');
+      if (_isCurrentMutation(mutation, authority, history, profileId)) {
+        state = state.copyWith(
+          error: 'Failed to set reference filter: ${userFacingError(e)}',
+        );
       }
     }
   }
 
-  /// Clear all offsets
   Future<void> clearAllOffsets() async {
     if (!mounted) return;
     final profileId = _currentProfileId;
     if (profileId == null) return;
-    final backend = _ref.read(backendProvider);
+    final history = _ref.read(focusHistoryProvider);
     final authority = _authorityGeneration;
     final mutation = ++_mutationGeneration;
     final previous = state;
 
     try {
-      if (backend is NetworkBackend) {
-        await backend.clearFocusModelData();
-      } else {
-        final focusService = _ref.read(focusModelServiceProvider);
-        await focusService.clearProfileData(profileId);
-      }
+      await history.clear(profileId);
 
-      if (!_isCurrentMutation(mutation, authority, backend, profileId)) return;
+      if (!_isCurrentMutation(mutation, authority, history, profileId)) return;
       state = FilterOffsetState(
         offsets: {},
         referenceFilter: state.referenceFilter,
         isLoading: false,
       );
     } catch (e) {
-      if (_isCurrentMutation(mutation, authority, backend, profileId)) {
-        state = previous.copyWith(error: 'Failed to clear offsets: $e');
+      if (_isCurrentMutation(mutation, authority, history, profileId)) {
+        state = previous.copyWith(
+          error: 'Failed to clear offsets: ${userFacingError(e)}',
+        );
       }
     }
   }
@@ -292,46 +205,18 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
   bool _isCurrentMutation(
     int mutation,
     int authority,
-    Object backend,
+    FocusHistory history,
     String profileId,
   ) {
     return mounted &&
         mutation == _mutationGeneration &&
         authority == _authorityGeneration &&
-        identical(backend, _ref.read(backendProvider)) &&
+        identical(history, _ref.read(focusHistoryProvider)) &&
         profileId == _currentProfileId;
   }
 
-  /// Get offset for a specific filter
   int getOffset(String filterName) {
     return state.offsets[filterName] ?? 0;
-  }
-
-  /// Save current offsets to focus model service and persist to disk
-  Future<void> _saveOffsetsToService({
-    required String profileId,
-    required Map<String, int> offsets,
-    required String? referenceFilter,
-  }) async {
-    final focusService = _ref.read(focusModelServiceProvider);
-
-    // Build FilterOffset map from current state
-    final updatedOffsets = <String, FilterOffset>{};
-    for (final entry in offsets.entries) {
-      updatedOffsets[entry.key] = FilterOffset(
-        filterName: entry.key,
-        referenceFilter: referenceFilter ?? 'L',
-        offsetSteps: entry.value,
-        measurementCount: 1,
-        confidence: 1.0,
-      );
-    }
-
-    await focusService.updateFilterOffsets(
-      profileId,
-      updatedOffsets,
-      referenceFilter: referenceFilter,
-    );
   }
 
   /// Reload offsets (call this when profile changes)
@@ -341,7 +226,6 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
   }
 }
 
-/// Provider for filter offsets
 final filterOffsetProvider =
     StateNotifierProvider<FilterOffsetNotifier, FilterOffsetState>((ref) {
       return FilterOffsetNotifier(ref);

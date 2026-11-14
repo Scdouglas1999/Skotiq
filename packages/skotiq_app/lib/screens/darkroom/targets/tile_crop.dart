@@ -2,7 +2,8 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'darkroom_image.dart';
@@ -21,7 +22,6 @@ const double _tileMargin = 1.4;
 class DarkroomTileCrop {
   const DarkroomTileCrop({required this.center, required this.span});
 
-  /// The whole image, centered.
   static const full = DarkroomTileCrop(center: Offset(.5, .5), span: 1);
 
   final Offset center;

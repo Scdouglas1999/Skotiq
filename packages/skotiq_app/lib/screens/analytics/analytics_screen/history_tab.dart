@@ -1,9 +1,7 @@
-// ignore_for_file: unused_element_parameter
-
 part of '../analytics_screen.dart';
 
 class _HistoryTab extends ConsumerStatefulWidget {
-  const _HistoryTab({super.key});
+  const _HistoryTab();
 
   @override
   ConsumerState<_HistoryTab> createState() => _HistoryTabState();
@@ -48,7 +46,7 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
     // for what they are.
     final quickCaptures = (ref.watch(standaloneImagesProvider).valueOrNull ??
             const <DbCapturedImage>[])
-        .where((image) => image.frameType.toLowerCase() == 'light')
+        .where((image) => image.isLight)
         .toList(growable: false);
     // Target names for the filter predicate: the dropdown lists real target
     // names, so matching a session needs its targetId resolved.
@@ -59,14 +57,12 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
     };
     final l10n = context.l10n;
 
-    // Get target list from sessions, fallback to default if loading/error
     final targetList = targetNamesAsync.when(
       data: (targets) => targets,
       loading: () => const [kAllTargetsFilter],
       error: (_, __) => const [kAllTargetsFilter],
     );
 
-    // Reset target filter if current selection no longer exists
     if (!targetList.contains(_targetFilter)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -133,7 +129,6 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
             children: [
               filters,
               const SizedBox(height: SkotiqTokens.space2xl),
-              // Session list
               Expanded(
                 child: sessionsAsyncValue.when(
                   data: (sessions) {
@@ -145,9 +140,7 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
                       );
                     }
 
-                    // Filter sessions based on search query and target filter
                     final filteredSessions = sessions.where((session) {
-                      // Search filter
                       final nameMatch = _searchQuery.isEmpty ||
                           (session.name
                                   ?.toLowerCase()
@@ -160,7 +153,6 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
                         _targetFilter,
                         targetNameById,
                       );
-                      // Time filter
                       final timeMatch = _matchesTimeFilter(session.startTime);
                       return nameMatch && targetMatch && timeMatch;
                     }).toList();
@@ -216,7 +208,7 @@ class _HistoryTabState extends ConsumerState<_HistoryTab> {
                     alignment: Alignment.topCenter,
                     child: _AnalyticsError(
                       title: 'Session history did not load',
-                      message: err.toString(),
+                      error: err,
                       onRetry: () => ref.invalidate(allSessionsProvider),
                     ),
                   ),
@@ -256,10 +248,9 @@ class _QuickCaptureHistoryCard extends StatelessWidget {
               ? sum + image.exposureDuration
               : sum,
     );
-    final format = DateFormat('MMM d, yyyy HH:mm');
     final span = times.first == times.last
-        ? format.format(times.first)
-        : '${format.format(times.first)} – ${DateFormat('HH:mm').format(times.last)}';
+        ? ClockFormat.monthDayYearHm(times.first.toLocal())
+        : '${ClockFormat.monthDayYearHm(times.first.toLocal())} – ${ClockFormat.hm(times.last.toLocal())}';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceMd),
@@ -278,8 +269,6 @@ class _QuickCaptureHistoryCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: SkotiqTokens.spaceMd),
-            // The two numbers were buried in a sentence. They are
-            // measurements, so they are Readouts.
             ReadoutRow(
               children: [
                 Readout(

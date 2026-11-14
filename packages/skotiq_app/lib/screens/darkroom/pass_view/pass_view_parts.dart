@@ -4,10 +4,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-
-import 'pass_view_charts.dart';
 
 final NumberFormat _grouped = NumberFormat('#,##0', 'en_US');
 
@@ -204,17 +203,17 @@ class PassHeader extends StatelessWidget {
     final clocks = <Widget>[
       _Clock(
         label: ended ? 'Took' : 'Elapsed',
-        value: passClock(snapshot.elapsed),
+        value: ClockFormat.stopwatch(snapshot.elapsed),
       ),
       if (ended)
         _Clock(
           label: 'Started',
-          value: DateFormat('MMM d HH:mm').format(tl.startedAt),
+          value: ClockFormat.monthDayHm(tl.startedAt.toLocal()),
         )
       else
         _Clock(
           label: complete ? 'Remaining' : 'Remaining, at least',
-          value: passClock(remaining),
+          value: ClockFormat.stopwatch(remaining),
         ),
     ];
     final stop = onStop == null || ended
@@ -460,7 +459,7 @@ class PassFilterKey extends StatelessWidget {
         Container(
           width: size,
           height: size,
-          color: passFilterColor(lane, colors),
+          color: FilterColors.forName(lane, colors: colors),
         ),
         const SizedBox(width: 5),
         Flexible(

@@ -5,7 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'device_action_finder.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/equipment/widgets/connected_device_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../../harness/harness.dart';
 
@@ -80,7 +83,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.focuser),
+      const ConnectedDeviceCard(type: DeviceType.focuser),
       extraOverrides: [
         backendProvider.overrideWith((ref) {
           notifier = _SwappableBackendNotifier(ref, hostA);
@@ -104,6 +107,50 @@ void main() {
   });
 
   testWidgets(
+      'a focuser move the old host finishes after a switch reports nothing',
+      (tester) async {
+    final hostA = mockBackend();
+    final service = _MockDeviceService();
+    final move = Completer<void>();
+    when(() => service.moveFocuserTo(123)).thenAnswer((_) => move.future);
+    late _SwappableBackendNotifier notifier;
+
+    await pumpAppScreen(
+      tester,
+      const ConnectedDeviceCard(type: DeviceType.focuser),
+      extraOverrides: [
+        backendProvider.overrideWith((ref) {
+          notifier = _SwappableBackendNotifier(ref, hostA);
+          return notifier;
+        }),
+        focuserStateProvider.overrideWith(
+          (ref) => _ConnectedFocuserNotifier(ref),
+        ),
+        deviceServiceProvider.overrideWithValue(service),
+      ],
+      settle: false,
+    );
+
+    await tapDeviceAction(tester, 'Move to…');
+    await _pumpFrames(tester);
+    await tester.enterText(find.byType(TextField), '123');
+    await tester.tap(find.text('Move'));
+    await tester.pump();
+    verify(() => service.moveFocuserTo(123)).called(1);
+
+    notifier.switchTo(mockBackend());
+    await _pumpFrames(tester);
+    expect(find.text('Move focuser'), findsNothing);
+
+    move.complete();
+    await _pumpFrames(tester);
+
+    expect(find.byType(ConnectedDeviceCard), findsOneWidget);
+    expect(find.textContaining('Focuser moved'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
       'focuser move shows an honest unknown maximum and remains retryable',
       (tester) async {
     final service = _MockDeviceService();
@@ -115,7 +162,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.focuser),
+      const ConnectedDeviceCard(type: DeviceType.focuser),
       extraOverrides: [
         focuserStateProvider.overrideWith(
           (ref) => _ConnectedFocuserNotifier(ref),
@@ -156,7 +203,7 @@ void main() {
     final service = _MockDeviceService();
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.focuser),
+      const ConnectedDeviceCard(type: DeviceType.focuser),
       extraOverrides: [
         focuserStateProvider.overrideWith(
           (ref) => _ConnectedFocuserNotifier(ref, maxPosition: 1000),
@@ -186,7 +233,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.focuser),
+      const ConnectedDeviceCard(type: DeviceType.focuser),
       extraOverrides: [
         focuserStateProvider.overrideWith(
           (ref) => _ConnectedFocuserNotifier(ref, maxPosition: 1000),
@@ -224,7 +271,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.rotator),
+      const ConnectedDeviceCard(type: DeviceType.rotator),
       extraOverrides: [
         rotatorStateProvider.overrideWith(_ConnectedRotatorNotifier.new),
         equipmentRotatorCapabilitiesProvider('rotator-1').overrideWith(
@@ -269,7 +316,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.dome),
+      const ConnectedDeviceCard(type: DeviceType.dome),
       backend: backend,
       extraOverrides: [
         domeStateProvider.overrideWith(_ConnectedDomeNotifier.new),

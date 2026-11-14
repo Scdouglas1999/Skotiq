@@ -1,4 +1,3 @@
-// Magnitude, size, altitude and moon-separation range controls plus sort/reset chips.
 part of '../planner_screen.dart';
 
 class _MagnitudeRangeControl extends ConsumerWidget {
@@ -277,7 +276,6 @@ class _MinAltitudeControl extends ConsumerWidget {
         final horizonProfile = ref.read(horizonProfileProvider);
         double seed = value ?? 0.0;
         if (!active && !horizonProfile.isFlat) {
-          // Pick the maximum horizon obstruction as a starting guess.
           double maxAlt = 0.0;
           for (int az = 0; az < 360; az += 15) {
             final h = horizonProfile.altitudeAtAzimuth(az.toDouble());

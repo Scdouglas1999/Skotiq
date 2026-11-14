@@ -1,7 +1,7 @@
 name: skotiq_desktop
 description: Skotiq Desktop - Cross-platform astrophotography suite
 publish_to: 'none'
-version: 8.2.1+36
+version: 9.0.0+37
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
 
   # Shared packages
+  skotiq_astro:
+    path: ../../packages/skotiq_astro
   skotiq_core:
     path: ../../packages/skotiq_core
   skotiq_ui:
@@ -23,6 +25,10 @@ dependencies:
     path: ../../packages/skotiq_plugins
   skotiq_remote_protocol:
     path: ../../packages/skotiq_remote_protocol
+  # The self-hostable relay tunnel. Pure Dart, under tools/ because it also
+  # ships as a standalone server.
+  skotiq_relay:
+    path: ../../tools/skotiq_relay
   skotiq_app:
     path: ../../packages/skotiq_app
   skotiq_updater:
@@ -136,9 +142,3 @@ flutter:
     - web_run_watch/css/
     - web_run_watch/js/
     - web_run_watch/icons/
-    # Planetarium v2 — core + stars-hyg catalog packs (see assets/planetarium/catalogs/README.md).
-    # Run build_opengnc / build_hyg_tiles before release builds so payloads exist beside pack.json.
-    - assets/planetarium/catalogs/README.md
-    - assets/planetarium/catalogs/core/
-    - assets/planetarium/catalogs/stars-hyg-v1/pack.json
-    - assets/planetarium/catalogs/stars-hyg-v1/tiles/

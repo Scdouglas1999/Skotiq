@@ -176,8 +176,9 @@ class IntegrationSettings {
 
   // Narrowband palette (channel combine; off by default)
   /// Narrowband palette mix. Default [NarrowbandPalette.none]. When `custom`,
-  /// [customWeights] supplies the per-input `[r, g, b]` triples. Routes through
-  /// native `api_combine_channels`.
+  /// [customWeights] supplies the per-input `[r, g, b]` triples. Nothing
+  /// native reads it: narrowband masters are combined by the Darkroom recipe's
+  /// Channel combine step.
   final NarrowbandPalette narrowbandPalette;
 
   /// Optional per-input `[r, g, b]` weight triples used only when
@@ -479,7 +480,7 @@ class IntegrationSettings {
       // Post-integration finishing knobs. Each sub-block carries the
       // enabled flag plus the native config field names (camelCase, matching
       // the `#[serde(rename_all = "camelCase")]` *Args DTOs in
-      // bridge/src/api/finishing_*.rs). They ride inside the integration JSON
+      // processing/src/finishing/*.rs). They ride inside the integration JSON
       // so a new knob never needs an FFI regen.
       'finishing': {
         // Drizzle config mirrors DrizzleConfigArgs (+ top-level `bayer`).
@@ -491,9 +492,10 @@ class IntegrationSettings {
           'bayer': bayerDrizzle,
         },
         // Deconvolution mirrors the native DeconvolvePreviewArgs shape
-        // (finishing_enhance.rs): a top-level `estimatePsf` bool, a nested
-        // `psf` (PsfArgs.kind) used only when estimatePsf is false, and a
-        // nested `config` (DeconvConfigArgs.iterations/regularization). The
+        // (processing/src/finishing/enhance.rs): a top-level `estimatePsf`
+        // bool, a nested `psf` (PsfArgs.kind) used only when estimatePsf is
+        // false, and a nested `config`
+        // (DeconvConfigArgs.iterations/regularization). The
         // empirical PSF can only be produced by the estimate-from-stars path,
         // so psfKind == empirical maps to estimatePsf: true; the analytic
         // kinds (gaussian/moffat) map to estimatePsf: false and route the kind
@@ -525,13 +527,8 @@ class IntegrationSettings {
           'enabled': colorCalibrate,
           'whiteRefBv': whiteRefBv,
         },
-        // Narrowband mirrors the native CombineChannelsArgs two-mode contract
-        // (finishing_combine.rs): `palette` is an Option<String> that the
-        // native parser accepts ONLY as "sho" or "hoo"; the custom path
-        // requires `palette` ABSENT with a non-empty `weights` table. So the
-        // 'palette' key is emitted only for the sho/hoo presets. `none` means
-        // the narrowband combine step is skipped entirely (no palette, no
-        // weights), and `custom` carries explicit weights with no palette.
+        // `palette` only for the sho/hoo presets; `custom` carries explicit
+        // weights with no palette, and `none` carries neither.
         'narrowband': {
           if (narrowbandPalette == NarrowbandPalette.sho ||
               narrowbandPalette == NarrowbandPalette.hoo)

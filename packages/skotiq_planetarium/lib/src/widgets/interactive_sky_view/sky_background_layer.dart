@@ -46,7 +46,6 @@ class SkyBackgroundLayer {
   /// while the layer has nothing to show.
   final bool occludesSkyGradient;
 
-  /// Creates a background slot value.
   const SkyBackgroundLayer({
     required this.child,
     this.occludesSkyGradient = false,

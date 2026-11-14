@@ -39,24 +39,6 @@ Future<void> apiDomeSlewToAzimuth({
 Future<void> apiDomePark({required String deviceId}) =>
     RustLib.instance.api.crateApiDevicesDomeApiDomePark(deviceId: deviceId);
 
-/// Get dome azimuth
-Future<double> apiDomeGetAzimuth({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesDomeApiDomeGetAzimuth(deviceId: deviceId);
-
-/// Get dome shutter status
-Future<int> apiDomeGetShutterStatus({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesDomeApiDomeGetShutterStatus(deviceId: deviceId);
-
-/// Check if dome is slewing
-Future<bool> apiDomeIsSlewing({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesDomeApiDomeIsSlewing(deviceId: deviceId);
-
 /// Enable or disable dome slaving to the mount
 Future<void> apiDomeSetSlaved({
   required String deviceId,

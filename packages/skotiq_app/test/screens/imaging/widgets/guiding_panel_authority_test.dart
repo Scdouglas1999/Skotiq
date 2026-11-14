@@ -4,12 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/imaging/widgets/guiding_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/harness.dart';
 
-class _MockDeviceService extends Mock implements DeviceService {}
+class _MockGuider extends Mock implements Phd2Controller {}
 
 class _ConnectedGuiderNotifier extends GuiderStateNotifier {
   _ConnectedGuiderNotifier(super.ref) {
@@ -21,38 +22,29 @@ class _ConnectedGuiderNotifier extends GuiderStateNotifier {
   }
 }
 
-final _serviceSlotProvider = StateProvider<DeviceService>(
+final _guiderSlotProvider = StateProvider<Phd2Controller>(
   (ref) => throw UnimplementedError(),
 );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('late start-guiding completion cannot mutate the new host',
+  testWidgets('a late start from the old host does not touch the new one',
       (tester) async {
-    final serviceA = _MockDeviceService();
-    final serviceB = _MockDeviceService();
+    final guiderA = _MockGuider();
+    final guiderB = _MockGuider();
     final resultA = Completer<void>();
-    when(
-      () => serviceA.startGuiding(
-        settlePixels: any(named: 'settlePixels'),
-        settleTime: any(named: 'settleTime'),
-      ),
-    ).thenAnswer((_) => resultA.future);
-    when(
-      () => serviceB.startGuiding(
-        settlePixels: any(named: 'settlePixels'),
-        settleTime: any(named: 'settleTime'),
-      ),
-    ).thenAnswer((_) async {});
+    final resultB = Completer<void>();
+    when(() => guiderA.startGuiding()).thenAnswer((_) => resultA.future);
+    when(() => guiderB.startGuiding()).thenAnswer((_) => resultB.future);
 
     final handle = await pumpAppScreen(
       tester,
       const GuidingPanel(colors: SkotiqColors.dark),
       extraOverrides: [
-        _serviceSlotProvider.overrideWith((ref) => serviceA),
-        deviceServiceProvider.overrideWith(
-          (ref) => ref.watch(_serviceSlotProvider),
+        _guiderSlotProvider.overrideWith((ref) => guiderA),
+        phd2ControllerProvider.overrideWith(
+          (ref) => ref.watch(_guiderSlotProvider),
         ),
         guiderStateProvider.overrideWith(_ConnectedGuiderNotifier.new),
       ],
@@ -64,28 +56,23 @@ void main() {
     await tester.pump();
     expect(find.text('Starting...'), findsOneWidget);
 
-    handle.container.read(_serviceSlotProvider.notifier).state = serviceB;
+    handle.container.read(_guiderSlotProvider.notifier).state = guiderB;
     await tester.pump();
     expect(find.text('Start'), findsOneWidget);
 
-    resultA.complete();
-    await tester.pump();
-    expect(handle.container.read(sessionStateProvider).isGuiding, isFalse);
-
     await tester.tap(find.text('Start'));
     await tester.pump();
-    expect(handle.container.read(sessionStateProvider).isGuiding, isTrue);
-    verify(
-      () => serviceA.startGuiding(
-        settlePixels: any(named: 'settlePixels'),
-        settleTime: any(named: 'settleTime'),
-      ),
-    ).called(1);
-    verify(
-      () => serviceB.startGuiding(
-        settlePixels: any(named: 'settlePixels'),
-        settleTime: any(named: 'settleTime'),
-      ),
-    ).called(1);
+    expect(find.text('Starting...'), findsOneWidget);
+
+    // The old host's start ending must not end the new host's.
+    resultA.complete();
+    await tester.pump();
+    expect(find.text('Starting...'), findsOneWidget);
+
+    resultB.complete();
+    await tester.pump();
+    expect(find.text('Start'), findsOneWidget);
+    verify(() => guiderA.startGuiding()).called(1);
+    verify(() => guiderB.startGuiding()).called(1);
   });
 }

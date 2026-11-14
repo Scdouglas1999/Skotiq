@@ -1,16 +1,16 @@
+import '../../models/imaging/session_status.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
+import '../linked_host.dart';
+import '../async_scope.dart';
+import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/sequence_models.dart';
-import '../../services/sequence_file_service.dart';
-import '../../services/sequence_repository.dart'
-    show sequenceRepositoryProvider;
-import '../../services/live_stacking_broadcast_service.dart';
+import '../../models/sequence/sequence_run_status.dart';
 import '../../services/safe_rig_service.dart';
 import '../../services/end_of_night_calibration/eon_deferral.dart';
 import '../../services/logging_service.dart';
@@ -24,24 +24,24 @@ import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // shared between flat-wizard and adaptive-exposure paths).
 import '../live_stacking_provider.dart';
 import '../meridian_flip_provider.dart';
-// Plugin-node dispatcher abstraction.
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
         currentSequenceProvider,
-        restoredCheckpointProvider,
+        runRecordProvider,
+        RunRecordNotifier,
         sequenceExecutionStateProvider,
-        sequenceLaunchInFlightProvider,
         sequenceProgressProvider;
 import '../sequence_stats_provider.dart';
+import '../../models/sequence/terminal_run_result.dart';
 import '../session_provider.dart';
 import '../settings_provider.dart';
 // Session-lifecycle hooks: optical-train baseline capture,
 // post-session diagnostics summary, NotificationRouter active-sequence
 // tracking, USB disconnect aggregation.
-import 'node_exposure_tally.dart';
-import 'run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 import 'sequence_validation.dart' as validation;
+import '../../models/sequence/validation/validation_issue.dart' as validation;
 import 'sequence_executor/eta_smoothing.dart';
 import 'sequence_executor/run_finalization.dart';
 import 'sequence_executor/run_lifecycle.dart';
@@ -55,6 +55,13 @@ import 'sequence_executor/run_frame_recorder.dart';
 import 'sequence_executor/run_event_handler.dart';
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequence_executor/stop_confirmation.dart';
+import '../../models/backend/backend_types.dart';
+import '../../settings/app_settings_state.g.dart';
+import '../end_of_night_calibration/eon_deferral_provider.dart';
+import '../live_stacking_broadcast_service_providers.dart';
+import '../logging_service_provider.dart';
+import '../sequence_file_service_provider.dart';
+import '../sequence_repository_provider.dart';
 
 export 'sequence_executor/eta_smoothing.dart'
     show EtaSmoother, kEtaEmaAlpha, kEtaWindowSize;
@@ -146,7 +153,7 @@ class SequenceExecutor {
   late final RunStatsLedger _stats = RunStatsLedger(
     readStats: () => _ref.read(liveSequenceStatsProvider),
     publishStats: (stats) =>
-        _ref.read(liveSequenceStatsProvider.notifier).state = stats,
+        _ref.read(runRecordProvider.notifier).setStats(stats),
     readRunId: () => _ref.read(currentRunIdProvider),
     runsDao: () => _ref.read(sequenceRunsDaoProvider),
     logger: () => _logger,
@@ -198,12 +205,11 @@ class SequenceExecutor {
   /// Per-frame cadence smoother backing the run's ETA.
   final EtaSmoother _eta = EtaSmoother();
 
-  /// Pushes the operator's settings into the native runtime config, before
-  /// launch and while the run is live.
+  /// The launch wiring, the run's settings (through [RunConfigSync]) and the
+  /// run's sky feed.
   late final RuntimeConfigSync _runtimeConfig = RuntimeConfigSync(
     ref: _ref,
     backend: _backend,
-    serializer: _serializer,
     logger: () => _logger,
     warn: _surfaceRunWarning,
     isDisposed: () => _disposed,
@@ -221,7 +227,7 @@ class SequenceExecutor {
     : _backend = backend ?? _ref.read(backendProvider);
 
   void _ensureBackendAuthority() {
-    if (_disposed || !identical(_ref.read(backendProvider), _backend)) {
+    if (_disposed || _ref.backendScopeOver(_backend).isStale) {
       throw StateError(
         'This sequence executor belongs to an imaging host that is no longer '
         'active. Retry the action against the current host.',
@@ -342,8 +348,9 @@ class SequenceExecutor {
     _acquireLaunchLatch();
     try {
       final backend = _backend;
-      if (backend is NetworkBackend) {
-        await _startOnHost(backend);
+      final host = _ref.read(linkedHostRunStateProvider);
+      if (host != null) {
+        await _startOnHost(backend, host);
         return;
       }
       final sequence = _ref.read(currentSequenceProvider);
@@ -447,8 +454,9 @@ class SequenceExecutor {
   /// sees into the host's editor and asks the host to start it, which runs the
   /// host's own pre-flight and records. A plan restored from the host's
   /// checkpoint is already in the host's executor and is started as it is.
-  Future<void> _startOnHost(NetworkBackend host) async {
+  Future<void> _startOnHost(SkotiqBackend backend, HostRunState host) async {
     if (!_hostRestoreAwaitingStart) {
+      _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
       final sequence = _ref.read(currentSequenceProvider);
       if (sequence == null) throw _noSequenceLoaded();
       await host.putOpenEditorSequence(
@@ -457,22 +465,24 @@ class SequenceExecutor {
         isDirty: _ref.read(currentSequenceProvider.notifier).isDirty,
       );
     }
-    await host.sequencerStart();
+    await backend.sequencerStart();
     if (_hostRestoreAwaitingStart) {
       _hostRestoreAwaitingStart = false;
-      _ref.read(restoredCheckpointProvider.notifier).state = null;
+      _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(null);
     }
     _logger.info(
-      'Started the run on the imaging host ${host.serverHost}',
+      'Started the run on the imaging host '
+      '${_ref.read(linkedHostLinkProvider)?.serverHost}',
       source: 'SequenceExecutor',
     );
-    await _reflectHostRunState(host);
+    await _reflectHostRunState(backend);
   }
 
   /// Stop the run on the imaging host through the host's own executor, which
   /// finalizes its run and session records.
   Future<void> _stopOnHost(
-    NetworkBackend host, {
+    SkotiqBackend backend,
+    HostRunState host, {
     required bool preserveCheckpoint,
   }) async {
     final before = _ref.read(sequenceExecutionStateProvider);
@@ -484,23 +494,15 @@ class SequenceExecutor {
       _setExecutionState(before);
       rethrow;
     }
-    await _reflectHostRunState(host);
+    await _reflectHostRunState(backend);
   }
 
   /// Show the host's run state at once rather than after the next mirrored
   /// event. A failed read leaves the state to the event mirror.
-  Future<void> _reflectHostRunState(NetworkBackend host) async {
+  Future<void> _reflectHostRunState(SkotiqBackend backend) async {
     try {
-      final status = await host.sequencerGetStatus();
-      final state = switch (status.state.toLowerCase()) {
-        'running' => SequenceExecutionState.running,
-        'paused' || 'recovering' => SequenceExecutionState.paused,
-        'stopping' => SequenceExecutionState.stopping,
-        'completed' => SequenceExecutionState.completed,
-        'failed' || 'error' => SequenceExecutionState.failed,
-        _ => SequenceExecutionState.idle,
-      };
-      _setExecutionState(state);
+      final status = await backend.sequencerGetStatus();
+      _ref.read(runRecordProvider.notifier).mirrorHostState(status.state);
     } catch (e) {
       _logger.debug(
         'Could not read the host run state after a command: $e',
@@ -511,12 +513,12 @@ class SequenceExecutor {
 
   void _acquireLaunchLatch() {
     _lifecycle.launch.acquire();
-    _ref.read(sequenceLaunchInFlightProvider.notifier).state = true;
+    _ref.read(runRecordProvider.notifier).setLaunching(true);
   }
 
   void _releaseLaunchLatch() {
     _lifecycle.launch.release();
-    _ref.read(sequenceLaunchInFlightProvider.notifier).state = false;
+    _ref.read(runRecordProvider.notifier).setLaunching(false);
   }
 
   /// Open the `imaging_sessions` row for this run.
@@ -572,7 +574,7 @@ class SequenceExecutor {
           .read(sequenceRepositoryProvider)
           .saveSequence(sequence);
       notifier.applyPersistedSave(
-        expectedSequenceId: sequence.id,
+        savedFrom: sequence,
         databaseId: databaseId,
         name: sequence.name,
         description: sequence.description,
@@ -617,8 +619,8 @@ class SequenceExecutor {
           sequenceName: sequenceName,
           sequenceSnapshotJson: snapshotJson,
         );
-    _ref.read(currentRunIdProvider.notifier).state = runId;
-    _ref.read(liveSequenceStatsProvider.notifier).state = SequenceRunStats();
+    _ref.read(runRecordProvider.notifier).setRunId(runId);
+    _ref.read(runRecordProvider.notifier).setStats(SequenceRunStats());
     _liveStacking.resetForRun();
     _frames.clearVerdicts();
 
@@ -641,22 +643,135 @@ class SequenceExecutor {
     return runId;
   }
 
-  /// Open the same durable run records for a native launch that does NOT come
-  /// through [start] / [resumeFromCheckpoint]: the headless
-  /// `POST /api/sequencer/load` -> `POST /api/sequencer/start` path.
+  /// Start the tree already loaded into the native executor: the headless
+  /// `POST /api/sequencer/load` -> `POST /api/sequencer/start` path, which has
+  /// no plan in the editor for [start] to run.
   ///
-  /// Without the row the run has no history entry and finalization has
-  /// nowhere to write its status and stats.
+  /// One launch, in the order [start] takes the same steps: the operator's
+  /// settings into the runtime config, [admit], the session row, the run row,
+  /// the event subscription, the native start.
+  ///
+  /// A failed settings push throws [RunConfigSeedFailed] and opens nothing: a
+  /// night run on library defaults (grading, the reject folder, the autofocus
+  /// cadence and the dither settings all ignored) produces frames nothing
+  /// downstream can tell from graded ones. [admit] may throw to refuse the run
+  /// before any record exists.
+  ///
+  /// The two rows and the subscription are bookkeeping. A failure there is
+  /// logged and the run still starts: frames on disk can be imported and a run
+  /// row reconstructed, a refused night cannot be recovered. Without the
+  /// session row frames register with no session; without the run row the run
+  /// has no history entry; without the subscription frames reach the disk and
+  /// not the image library.
+  ///
+  /// A start the native executor refuses throws [NativeStartRefused] after the
+  /// rows opened for it are closed, so a run that never began is not left in
+  /// the history as a night that happened or a run still running.
+  ///
+  /// [label] is null when nothing describes the loaded tree; the run then has
+  /// neither row.
+  Future<void> startLoadedRun({
+    LoadedRunLabel? label,
+    Future<void> Function()? admit,
+  }) async {
+    _ensureBackendAuthority();
+    try {
+      await _runtimeConfig.seedFromSettings();
+    } catch (e, st) {
+      Error.throwWithStackTrace(RunConfigSeedFailed(e), st);
+    }
+    await admit?.call();
+
+    // Clear the previous run's progress, as [_acquireAndStartRun] does: the
+    // integration total and the per-node badges accumulate otherwise. A run
+    // id already set means a run is under way, and its progress stands.
+    if (_ref.read(currentRunIdProvider) == null) {
+      _ref.read(runRecordProvider.notifier)
+        ..resetProgress()
+        ..resetTally()
+        ..setFramesDoneBeforeRun(const {});
+    }
+
+    // The session row first: it must exist before the first frame event
+    // arrives, or that frame is stamped with no session.
+    final openedSession =
+        label != null && await _openSessionForLoadedRun(label);
+    final runId = label == null ? null : await _openRunRowForLoadedRun(label);
+    try {
+      await _attachToNativeRun();
+    } catch (e) {
+      _logger.warning(
+        'Could not subscribe to the run\'s frame events ($e); frames will be '
+        'written to disk but not registered in the image library',
+        source: 'SequenceExecutor',
+      );
+    }
+    try {
+      await _backend.sequencerStart();
+    } catch (e, st) {
+      await _closeRecordsOfRefusedStart(
+        openedSession: openedSession,
+        runId: runId,
+      );
+      Error.throwWithStackTrace(NativeStartRefused(e), st);
+    }
+  }
+
+  /// Open the session row for a loaded run. Returns whether one was opened.
+  Future<bool> _openSessionForLoadedRun(LoadedRunLabel label) async {
+    try {
+      final sessions = _ref.read(sessionStateProvider.notifier);
+      if (_ref.read(sessionStateProvider).isActive) {
+        // A session the previous run left open would file this run's frames
+        // under that run's night. It is closed only once the native executor
+        // is idle, which is also the only case where this start can succeed:
+        // a busy executor refuses it, and ending a live run's session on the
+        // way to that refusal would corrupt the run still in progress.
+        final state = (await _backend.sequencerGetStatus()).state;
+        if (_nativeRunInProgressStates.contains(state)) {
+          _logger.warning(
+            'A session is open and the native executor reports "$state"; '
+            'leaving the session alone and letting the start be refused',
+            source: 'SequenceExecutor',
+          );
+          return false;
+        }
+        _logger.info(
+          'Closing the session left open by the previous run (native '
+          'executor is "$state")',
+          source: 'SequenceExecutor',
+        );
+        await sessions.endSession();
+      }
+      await sessions.startSession(
+        targetName: label.name,
+        // Only a single-target sequence has coordinates, as in
+        // [_startSessionRow].
+        targetRa: label.targetRaHours,
+        targetDec: label.targetDecDegrees,
+        profileId: _ref.read(activeEquipmentProfileProvider)?.id,
+      );
+      sessions.setTotalExposures(label.totalExposures);
+      return true;
+    } catch (e) {
+      _logger.warning(
+        'Could not open the session row ($e); frames will be captured but '
+        'not registered',
+        source: 'SequenceExecutor',
+      );
+      return false;
+    }
+  }
+
+  /// Open the run row for a loaded run. Returns its id, or null when the row
+  /// could not be written.
   ///
   /// No snapshot: the column holds the editor's sequence map, and the native
   /// wire JSON is a different document the run diff cannot compare.
   ///
   /// A run id already set means a run is under way; it is kept rather than
-  /// orphaned in `running`. Returns the run id in force.
-  Future<int> openRunRecordsForNativeStart({
-    required String sequenceName,
-    int? sequenceDatabaseId,
-  }) async {
+  /// orphaned in `running`.
+  Future<int?> _openRunRowForLoadedRun(LoadedRunLabel label) async {
     final existing = _ref.read(currentRunIdProvider);
     if (existing != null) {
       _logger.warning(
@@ -666,51 +781,63 @@ class SequenceExecutor {
       );
       return existing;
     }
-    // Clear the previous run's progress, as [_acquireAndStartRun] does: the
-    // integration total and the per-node badges accumulate otherwise.
-    _ref.read(sequenceProgressProvider.notifier).reset();
-    _ref.read(nodeExposureTallyProvider.notifier).reset();
-    return _openRunRecords(
-      sequenceName: sequenceName,
-      sequenceDatabaseId: sequenceDatabaseId,
-    );
-  }
-
-  /// Close out the records [openRunRecordsForNativeStart] opened for a start
-  /// the native executor then refused, so a run that never began does not sit
-  /// in the run history as `running` until the next launch reconciles it.
-  ///
-  /// `failed` rather than a delete: the attempt happened and the operator asked
-  /// for it. Errors are logged, not raised — the caller is already returning
-  /// the refusal that actually explains why the run did not start.
-  Future<void> discardRunRecordsForRefusedNativeStart(int runId) async {
     try {
-      final stats = _ref.read(liveSequenceStatsProvider) ?? SequenceRunStats();
-      stats.endTime = DateTime.now();
-      await _ref
-          .read(sequenceRunsDaoProvider)
-          .finishRun(runId, 'failed', stats.toJson());
+      return await _openRunRecords(sequenceName: label.name);
     } catch (e) {
       _logger.warning(
-        'The start was refused and run row $runId could not be closed: $e',
+        'Could not open the run row ($e); the run will not appear in the run '
+        'history',
+        source: 'SequenceExecutor',
+      );
+      return null;
+    }
+  }
+
+  /// Close the rows opened for a start the native executor then refused. The
+  /// run row ends `failed` rather than deleted: the attempt happened and the
+  /// operator asked for it. Errors are logged, not raised: the caller is
+  /// already raising the refusal that explains why the run did not start.
+  Future<void> _closeRecordsOfRefusedStart({
+    required bool openedSession,
+    required int? runId,
+  }) async {
+    if (runId != null) {
+      try {
+        final stats =
+            _ref.read(liveSequenceStatsProvider) ?? SequenceRunStats();
+        stats.endTime = DateTime.now();
+        await _ref
+            .read(sequenceRunsDaoProvider)
+            .finishRun(runId, SequenceRunStatus.failed, stats.toJson());
+      } catch (e) {
+        _logger.warning(
+          'The start was refused and run row $runId could not be closed: $e',
+          source: 'SequenceExecutor',
+        );
+      }
+      final run = _ref.read(runRecordProvider.notifier);
+      run.setRunId(null);
+      run.setStats(null);
+    }
+    if (!openedSession) return;
+    try {
+      await _ref
+          .read(sessionStateProvider.notifier)
+          .endSession(status: SessionStatus.failed);
+    } catch (e) {
+      _logger.warning(
+        'The start was refused and the session row opened for it could not '
+        'be closed ($e)',
         source: 'SequenceExecutor',
       );
     }
-    _ref.read(currentRunIdProvider.notifier).state = null;
-    _ref.read(liveSequenceStatsProvider.notifier).state = null;
   }
 
-  /// Push every user-controlled RuntimeConfig field into the already-loaded
-  /// native executor, for a launch that does NOT come through [start] /
-  /// [resumeFromCheckpoint]: the headless `POST /api/sequencer/load` ->
-  /// `POST /api/sequencer/start` path.
-  ///
-  /// The one seed site every launch path shares ([_startNativeExecution]
-  /// calls it too), so no path can run on the Rust defaults.
-  ///
-  /// Throws on a failed push, as [start] does: a start that refuses and says
-  /// why beats a night with the operator's grading silently inert.
-  Future<void> seedRuntimeConfigForNativeStart() async {
+  /// Push every user-controlled RuntimeConfig field into the loaded native
+  /// executor. The one seed every launch shares, so no path can run on the
+  /// Rust defaults. Throws on a failed push: a start that refuses and says why
+  /// beats a night with the operator's grading silently inert.
+  Future<void> _seedRuntimeConfig() async {
     _ensureBackendAuthority();
     await _runtimeConfig.seedFromSettings();
   }
@@ -728,7 +855,7 @@ class SequenceExecutor {
   void _publishElapsed(double elapsedSecs) {
     final progress = _ref.read(sequenceProgressProvider);
     _ref
-        .read(sequenceProgressProvider.notifier)
+        .read(runRecordProvider.notifier)
         .updateProgress(
           elapsedSecs: elapsedSecs,
           estimatedRemainingSecs: _eta.remainingSeconds(
@@ -749,22 +876,21 @@ class SequenceExecutor {
     // Before the editor is locked by the running-state flip below, so the
     // adopted database id lands on a document that still accepts it.
     sequence = await _ensureSequencePersisted(sequence);
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    final progressNotifier = _ref.read(runRecordProvider.notifier);
     // Clear the previous run's progress before seeding this one's: the
     // integration total and the per-node maps accumulate otherwise.
-    progressNotifier.reset();
+    progressNotifier.resetProgress();
     // The per-node frame tally is deliberately NOT cleared when a run ENDS:
     // clearing it there erases the frames the finished run captured before any
     // reader sees them. Run START is where the previous run's frames stop
     // being this node's story.
-    _ref.read(nodeExposureTallyProvider.notifier).reset();
+    _ref.read(runRecordProvider.notifier).resetTally();
+    _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
     progressNotifier.setTotals(
       sequence.totalExposures,
       sequence.totalIntegrationSecs,
     );
-    progressNotifier.updateState(SequenceExecutionState.running);
-    _ref.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    progressNotifier.setLifecycle(SequenceExecutionState.running);
 
     await _targets.bind(sequence);
     await _startSessionRow(sequence);
@@ -829,16 +955,15 @@ class SequenceExecutor {
 
     // The runtime config is seeded before start, so the trigger monitor's
     // first poll already runs on the operator's values; the settings watchers
-    // only fire on a later change. Through the public entry point the headless
-    // `load -> start` path shares.
-    await seedRuntimeConfigForNativeStart();
+    // only fire on a later change.
+    await _seedRuntimeConfig();
 
     // After the runtime seed, so the carry-over overrides any default it
     // re-stamps, and before start, so the executor consumes it.
     await _runtimeConfig.seedIntegrationCarryOver(sequence);
 
     _ensureStillLaunching();
-    await attachHostListenersForNativeRun();
+    await _attachToNativeRun();
     _runtimeConfig.startWatchers();
 
     _lifecycle.markNativeLaunchAttempted();
@@ -881,7 +1006,7 @@ class SequenceExecutor {
     _stats.reopen();
     // The sequencer screen must see a clean null -> result transition when
     // this run ends, never the previous run's report.
-    _ref.read(sequenceTerminalRunResultProvider.notifier).state = null;
+    _ref.read(runRecordProvider.notifier).publishTerminal(null);
   }
 
   /// Single rollback path for a failed [start] / [resumeFromCheckpoint], routed
@@ -924,7 +1049,7 @@ class SequenceExecutor {
     }
     final f = RunFinalization(
       generation: _lifecycle.nextGeneration(),
-      runStatus: 'failed',
+      runStatus: SequenceRunStatus.failed,
       finalUiState: SequenceExecutionState.failed,
       runId: _ref.read(currentRunIdProvider),
       dbSessionId: _ref.read(sessionStateProvider).dbSessionId,
@@ -1025,7 +1150,7 @@ class SequenceExecutor {
   /// succeeds, inside [_driveFinalization].
   void _onTerminalEvent(
     SequenceExecutionState uiState,
-    String runStatus, {
+    SequenceRunStatus runStatus, {
     String? error,
     String? warning,
   }) {
@@ -1072,8 +1197,9 @@ class SequenceExecutor {
     // SequenceFailed). Re-finalizing would republish a Stop as a failure.
     if (_lifecycle.phase case RunSettled(runStatus: final settled)) {
       _logger.info(
-        '[$kStopClassificationLogTag] sequence_executor: late "$runStatus" '
-        'terminal ignored — this run already settled as "$settled"'
+        '[$kStopClassificationLogTag] sequence_executor: late '
+        '"${runStatus.token}" terminal ignored — this run already settled as '
+        '"${settled.token}"'
         '${error == null ? '' : ' (reason: $error)'}',
         source: 'SequenceExecutor',
       );
@@ -1091,9 +1217,7 @@ class SequenceExecutor {
 
     if (error != null) {
       _recordTerminalRunError(error);
-      _ref
-          .read(sequenceProgressProvider.notifier)
-          .updateProgress(message: error);
+      _ref.read(runRecordProvider.notifier).updateProgress(message: error);
     }
 
     // Enter the busy finalization phase synchronously, then drive cleanup. The
@@ -1258,7 +1382,7 @@ class SequenceExecutor {
     try {
       await _ref
           .read(sessionStateProvider.notifier)
-          .endSession(status: f.runStatus);
+          .endSession(status: SessionStatus.endedBy(f.runStatus));
     } catch (e, st) {
       // endSession FAILED after a successful finishRun. Retain a retryable
       // cleanupFailed; a Stop retry re-runs ONLY endSession + the later steps
@@ -1272,7 +1396,7 @@ class SequenceExecutor {
 
     // 5. Clear identity, release ownership, handle the checkpoint.
     try {
-      _ref.read(currentRunIdProvider.notifier).state = null;
+      _ref.read(runRecordProvider.notifier).setRunId(null);
     } catch (e) {
       secondary('clear run id', e);
     }
@@ -1281,7 +1405,7 @@ class SequenceExecutor {
       // keep vitals for). A natural terminal / explicit stop deliberately KEEPS
       // the live stats so the post-run notes prompt can pre-fill from them.
       try {
-        _ref.read(liveSequenceStatsProvider.notifier).state = null;
+        _ref.read(runRecordProvider.notifier).setStats(null);
       } catch (e) {
         secondary('clear live stats', e);
       }
@@ -1313,9 +1437,7 @@ class SequenceExecutor {
     final String? endOrigin;
     if (f.nativeStopRequired) {
       endOrigin = f.stopOrigin ?? 'operator';
-    } else if (f.runStatus == 'stopped' ||
-        f.runStatus == 'paused-stopped' ||
-        f.runStatus == 'aborted') {
+    } else if (f.runStatus.endedByStop) {
       endOrigin = 'safety';
     } else {
       endOrigin = null;
@@ -1403,6 +1525,7 @@ class SequenceExecutor {
     // Dart allows cancelling the subscription from within its own handler.
     final subscription = _nativeEventSubscription;
     _nativeEventSubscription = null;
+    _releaseEventFold();
     if (subscription != null) {
       try {
         await subscription.cancel();
@@ -1433,13 +1556,15 @@ class SequenceExecutor {
       );
       if (!_isCalibrationRun) {
         _ref
-            .read(completedImagingRunProvider.notifier)
-            .state = CompletedImagingRun(
-          result,
-          _ref.read(liveSequenceStatsProvider)?.copy(),
-        );
+            .read(runRecordProvider.notifier)
+            .setCompletedImagingRun(
+              CompletedImagingRun(
+                result,
+                _ref.read(liveSequenceStatsProvider)?.copy(),
+              ),
+            );
       }
-      _ref.read(sequenceTerminalRunResultProvider.notifier).state = result;
+      _ref.read(runRecordProvider.notifier).publishTerminal(result);
     } catch (e) {
       _logger.warning(
         'Failed to publish terminal run result: $e',
@@ -1461,7 +1586,6 @@ class SequenceExecutor {
     SequenceExecutionState expectedState, {
     Duration timeout = const Duration(seconds: 5),
   }) async {
-    // Already there — no need to wait.
     if (_ref.read(sequenceExecutionStateProvider) == expectedState) {
       return true;
     }
@@ -1496,8 +1620,11 @@ class SequenceExecutor {
       throw Exception('Pause/Resume operation already in progress');
     }
 
+    // A run inside a recovery takes a pause too: the native executor holds
+    // it once the recovery ends instead of carrying on.
     final currentState = _ref.read(sequenceExecutionStateProvider);
-    if (currentState != SequenceExecutionState.running) {
+    if (currentState != SequenceExecutionState.running &&
+        currentState != SequenceExecutionState.recovering) {
       throw Exception('Cannot pause: sequence is not running');
     }
 
@@ -1513,15 +1640,11 @@ class SequenceExecutor {
         if (status.state.toLowerCase() != 'paused') {
           throw Exception('Pause operation timed out - state not confirmed');
         }
-        _ref
-            .read(sequenceProgressProvider.notifier)
-            .updateState(SequenceExecutionState.paused);
-        _ref.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.paused;
+        _setExecutionState(SequenceExecutionState.paused);
       }
 
       _notePausedByExecutor(true);
-      await _persistLiveRunStatus('paused');
+      await _persistLiveRunStatus(SequenceRunStatus.paused);
     } finally {
       _lifecycle.pauseResume.release();
     }
@@ -1546,19 +1669,18 @@ class SequenceExecutor {
 
       final confirmed = await _awaitStateChange(SequenceExecutionState.running);
       if (!confirmed) {
-        final status = await backend.sequencerGetStatus();
-        if (status.state.toLowerCase() != 'running') {
+        // A pause placed during a recovery that is still under way only
+        // withdraws: the run goes back to `recovering`, not `running`.
+        final state = (await backend.sequencerGetStatus()).state.toLowerCase();
+        if (state == 'running') {
+          _setExecutionState(SequenceExecutionState.running);
+        } else if (state != 'recovering') {
           throw Exception('Resume operation timed out - state not confirmed');
         }
-        _ref
-            .read(sequenceProgressProvider.notifier)
-            .updateState(SequenceExecutionState.running);
-        _ref.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
       }
 
       _notePausedByExecutor(false);
-      await _persistLiveRunStatus('running');
+      await _persistLiveRunStatus(SequenceRunStatus.running);
     } finally {
       _lifecycle.pauseResume.release();
     }
@@ -1577,14 +1699,14 @@ class SequenceExecutor {
   /// API, the web dashboard and the phone all read the database. Failure is
   /// logged and swallowed: a pause that succeeded on the hardware must not be
   /// reported as failed because a row could not be updated.
-  Future<void> _persistLiveRunStatus(String status) async {
+  Future<void> _persistLiveRunStatus(SequenceRunStatus status) async {
     final runId = _ref.read(currentRunIdProvider);
     if (runId == null) return;
     try {
       await _ref.read(sequenceRunsDaoProvider).setLiveStatus(runId, status);
     } catch (e) {
       _logger.warning(
-        'Could not persist run $runId status "$status": $e',
+        'Could not persist run $runId status "${status.token}": $e',
         source: 'SequenceExecutor',
       );
     }
@@ -1611,8 +1733,9 @@ class SequenceExecutor {
   Future<void> stop({bool preserveCheckpoint = false, String? origin}) {
     _ensureBackendAuthority();
     final backend = _backend;
-    if (backend is NetworkBackend) {
-      return _stopOnHost(backend, preserveCheckpoint: preserveCheckpoint);
+    final host = _ref.read(linkedHostRunStateProvider);
+    if (host != null) {
+      return _stopOnHost(backend, host, preserveCheckpoint: preserveCheckpoint);
     }
     // Join an in-flight finalization — a natural terminal, another stop(), or a
     // rollback: the caller observes the SAME outcome, and native stop + cleanup
@@ -1658,7 +1781,9 @@ class SequenceExecutor {
     _lifecycle.releaseSettled();
     final f = RunFinalization(
       generation: _lifecycle.nextGeneration(),
-      runStatus: preserveCheckpoint ? 'paused-stopped' : 'stopped',
+      runStatus: preserveCheckpoint
+          ? SequenceRunStatus.stoppedResumable
+          : SequenceRunStatus.stopped,
       finalUiState: SequenceExecutionState.idle,
       runId: _ref.read(currentRunIdProvider),
       dbSessionId: _ref.read(sessionStateProvider).dbSessionId,
@@ -1678,14 +1803,8 @@ class SequenceExecutor {
     return _launchDrive(f);
   }
 
-  /// Publish [state] to both the progress notifier and the execution-state
-  /// provider in lockstep. Every lifecycle transition must move the two
-  /// together; a surface that reads one and not the other must never observe a
-  /// split state.
-  void _setExecutionState(SequenceExecutionState state) {
-    _ref.read(sequenceProgressProvider.notifier).updateState(state);
-    _ref.read(sequenceExecutionStateProvider.notifier).state = state;
-  }
+  void _setExecutionState(SequenceExecutionState state) =>
+      _ref.read(runRecordProvider.notifier).setLifecycle(state);
 
   Future<void> skip() async {
     _ensureBackendAuthority();
@@ -1824,8 +1943,9 @@ class SequenceExecutor {
       await stop();
     }
 
-    _ref.read(sequenceProgressProvider.notifier).reset();
-    _ref.read(nodeExposureTallyProvider.notifier).reset();
+    _ref.read(runRecordProvider.notifier).resetProgress();
+    _ref.read(runRecordProvider.notifier).resetTally();
+    _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
 
     final backend = _backend;
     try {
@@ -1855,23 +1975,18 @@ class SequenceExecutor {
     );
   }
 
-  // Checkpoint / crash recovery.
-
-  /// Initialize checkpoint system with app's documents directory
   Future<void> initializeCheckpoints(String documentsPath) async {
     _ensureBackendAuthority();
     final backend = _backend;
     await backend.sequencerSetCheckpointDir(documentsPath);
   }
 
-  /// Check if there's a checkpoint available to resume
   Future<bool> hasCheckpoint() async {
     _ensureBackendAuthority();
     final backend = _backend;
     return await backend.hasCheckpoint();
   }
 
-  /// Get information about the current checkpoint
   Future<CheckpointInfo?> getCheckpointInfo() async {
     _ensureBackendAuthority();
     final backend = _backend;
@@ -1900,13 +2015,16 @@ class SequenceExecutor {
     _acquireLaunchLatch();
     try {
       final backend = _backend;
-      if (backend is NetworkBackend) {
+      if (_ref.read(isRemoteModeProvider)) {
         // The host restores its own checkpoint into its executor and editor;
         // the next start continues it there.
         await backend.resumeFromCheckpoint();
         _hostRestoreAwaitingStart = true;
-        _ref.read(restoredCheckpointProvider.notifier).state = await backend
-            .getCheckpointInfo();
+        final info = await backend.getCheckpointInfo();
+        _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(info);
+        _ref
+            .read(runRecordProvider.notifier)
+            .setFramesDoneBeforeRun(info?.framesDoneByStep ?? const {});
         return;
       }
       await _restoreFromCheckpointInner();
@@ -1932,7 +2050,7 @@ class SequenceExecutor {
 
   void _clearRestored() {
     _restored = null;
-    _ref.read(restoredCheckpointProvider.notifier).state = null;
+    _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(null);
   }
 
   /// Rehydrate [currentSequenceProvider] for a resumed run from the snapshot
@@ -2034,7 +2152,7 @@ class SequenceExecutor {
       info.sequenceName,
     );
 
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    final progressNotifier = _ref.read(runRecordProvider.notifier);
     progressNotifier.updateProgress(
       completedExposures: info.completedExposures,
       completedIntegrationSecs: info.completedIntegrationSecs,
@@ -2048,7 +2166,10 @@ class SequenceExecutor {
       snapshotJson: recoveredSnapshotJson,
       sequence: _ref.read(currentSequenceProvider),
     );
-    _ref.read(restoredCheckpointProvider.notifier).state = info;
+    _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(info);
+    _ref
+        .read(runRecordProvider.notifier)
+        .setFramesDoneBeforeRun(info.framesDoneByStep);
     _logger.info(
       'Restored "${info.sequenceName}" from its checkpoint '
       '(${info.completedExposures} frames, '
@@ -2071,7 +2192,7 @@ class SequenceExecutor {
     // The same ordered launch push the start path makes, with the two
     // resume-specific differences expressed inside it (see [RuntimeConfigSync.pushLaunchConfig]).
     await _runtimeConfig.pushLaunchConfig(settings, isResume: true);
-    await seedRuntimeConfigForNativeStart();
+    await _seedRuntimeConfig();
 
     final recoveredSnapshotJson = restored.snapshotJson;
 
@@ -2084,10 +2205,8 @@ class SequenceExecutor {
     // session and no native run.
     _beginLaunch();
     try {
-      final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
-      progressNotifier.updateState(SequenceExecutionState.running);
-      _ref.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      final progressNotifier = _ref.read(runRecordProvider.notifier);
+      progressNotifier.setLifecycle(SequenceExecutionState.running);
 
       progressNotifier.updateProgress(
         completedExposures: info.completedExposures,
@@ -2144,7 +2263,7 @@ class SequenceExecutor {
       _startPerRunTimers();
 
       _ensureStillLaunching();
-      await attachHostListenersForNativeRun();
+      await _attachToNativeRun();
 
       _runtimeConfig.startWatchers();
 
@@ -2170,11 +2289,8 @@ class SequenceExecutor {
 
   /// Subscribe the event handler to the backend event stream.
   ///
-  /// The ONE subscribe site. A Dart-orchestrated [start] and a checkpoint
-  /// [resumeFromCheckpoint] both route through here as part of their launch,
-  /// and the headless appliance calls it directly: its canonical flow is
-  /// `POST /api/sequencer/load` -> `POST /api/sequencer/start`, which never
-  /// calls [start].
+  /// The ONE subscribe site: [start], a continued checkpoint and
+  /// [startLoadedRun] all route through here as part of their launch.
   ///
   /// Without the subscription a night's frames land on disk and the database
   /// never hears about them.
@@ -2191,14 +2307,14 @@ class SequenceExecutor {
   /// and the second night would never finalize. A retained (stopFailed /
   /// cleanupFailed) finalization is kept: a retry or a late terminal resumes
   /// exactly that transaction.
-  Future<void> attachHostListenersForNativeRun() async {
+  Future<void> _attachToNativeRun() async {
     _ensureBackendAuthority();
     final backend = _backend;
     final settled = _lifecycle.phase;
     if (!_lifecycle.launch.isHeld && _lifecycle.attachNativeRun()) {
       _logger.info(
         'A new native run is starting on an executor whose previous run '
-        'settled as "${(settled as RunSettled).runStatus}"; releasing that '
+        'settled as "${(settled as RunSettled).runStatus.token}"; releasing that '
         'run\'s terminal state so this one can finalize',
         source: 'SequenceExecutor',
       );
@@ -2210,9 +2326,23 @@ class SequenceExecutor {
       onError: (e) =>
           _logger.error('Event stream error: $e', source: 'SequenceExecutor'),
     );
+    // From here this executor folds the run's events onto the record, and the
+    // always-on pump leaves them to it.
+    final run = _ref.read(runRecordProvider.notifier);
+    run.claimEventFold();
+    _foldClaim = run;
   }
 
-  /// The run's current [RunPhase].
+  /// The record notifier while this executor folds the run's events onto it.
+  /// Held so [dispose], which may not read providers, can hand the fold back.
+  RunRecordNotifier? _foldClaim;
+
+  void _releaseEventFold() {
+    final claim = _foldClaim;
+    _foldClaim = null;
+    if (claim != null && claim.mounted) claim.releaseEventFold();
+  }
+
   @visibleForTesting
   RunPhase get runPhaseForTest => _lifecycle.phase;
 
@@ -2222,7 +2352,6 @@ class SequenceExecutor {
   @visibleForTesting
   bool get isListeningToNativeEventsForTest => _nativeEventSubscription != null;
 
-  /// Discard the current checkpoint
   Future<void> discardCheckpoint() async {
     _ensureBackendAuthority();
     final backend = _backend;
@@ -2237,8 +2366,56 @@ class SequenceExecutor {
     _timers.dispose();
     _nativeEventSubscription?.cancel();
     _nativeEventSubscription = null;
+    _releaseEventFold();
     _runtimeConfig.dispose();
   }
+}
+
+/// Native executor states that mean a run is still under way, as
+/// `api/sequencer.rs` serializes them.
+const _nativeRunInProgressStates = <String>{
+  'running',
+  'paused',
+  'stopping',
+  'recovering',
+};
+
+/// What a run of a tree loaded straight into the native executor is filed
+/// under: the editor holds no plan to take a name, coordinates or a frame
+/// count from.
+class LoadedRunLabel {
+  const LoadedRunLabel({
+    required this.name,
+    this.targetRaHours,
+    this.targetDecDegrees,
+    this.totalExposures = 0,
+  });
+
+  final String name;
+
+  /// The target's coordinates when the tree has exactly one target.
+  final double? targetRaHours;
+  final double? targetDecDegrees;
+  final int totalExposures;
+}
+
+/// The operator's settings could not be pushed to the native executor, so the
+/// loaded run was not started.
+class RunConfigSeedFailed implements Exception {
+  const RunConfigSeedFailed(this.cause);
+  final Object cause;
+
+  @override
+  String toString() => 'RunConfigSeedFailed: $cause';
+}
+
+/// The native executor refused to start the loaded tree.
+class NativeStartRefused implements Exception {
+  const NativeStartRefused(this.cause);
+  final Object cause;
+
+  @override
+  String toString() => 'NativeStartRefused: $cause';
 }
 
 /// A checkpoint restored by [SequenceExecutor.restoreFromCheckpoint] and not

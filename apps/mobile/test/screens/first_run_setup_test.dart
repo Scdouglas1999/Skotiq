@@ -16,7 +16,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_mobile/screens/setup/first_run_setup_screen.dart';
 import 'package:skotiq_mobile/services/mobile_preferences.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -163,7 +165,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
-            theme: ThemeData(extensions: const [SkotiqColors.dark]),
+            theme: SkotiqTheme.dark,
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: true,
@@ -179,15 +181,11 @@ void main() {
 
       // The Stepper renders all three step titles regardless of which
       // step is active.
-      expect(find.text('Image output path'), findsOneWidget);
-      expect(find.text('Catalogs'), findsOneWidget);
+      expect(find.text('Capture folder'), findsOneWidget);
+      expect(find.text('Star catalogs'), findsOneWidget);
       expect(find.text('Equipment profile'), findsOneWidget);
 
-      // AppBar Skip button is visible. The Stepper's "Skip and continue"
-      // label on the catalogs step also contains the word, but it is not
-      // rendered on the active step on first build (active step is 0),
-      // so an exact match against 'Skip' is unambiguous.
-      expect(find.widgetWithText(TextButton, 'Skip'), findsOneWidget);
+      expect(find.widgetWithText(SkotiqButton, 'Skip'), findsOneWidget);
       // Wizard hasn't completed yet.
       expect(onCompletedFired, isFalse);
     });
@@ -204,7 +202,7 @@ void main() {
               ),
             ],
             child: MaterialApp(
-              theme: ThemeData(extensions: const [SkotiqColors.dark]),
+              theme: SkotiqTheme.dark,
               home: FirstRunSetupScreen(
                 needs: const FirstRunSetupNeeds(
                   missingImageOutputPath: false,
@@ -218,7 +216,10 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.textContaining('Could not list catalogs'), findsOneWidget);
+        expect(
+          find.textContaining('Could not list the catalogs'),
+          findsOneWidget,
+        );
         await tester.tap(find.text('Skip catalogs'));
         await tester.pumpAndSettle();
 
@@ -246,7 +247,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData(extensions: const [SkotiqColors.dark]),
+            theme: SkotiqTheme.dark,
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: true,
@@ -272,7 +273,7 @@ void main() {
         find.textContaining('Folder does not exist on the imaging host'),
         findsOneWidget,
       );
-      expect(find.text('Host capture directory'), findsOneWidget);
+      expect(find.text('Capture folder on the rig'), findsOneWidget);
     });
 
     testWidgets('persists the normalized host capture path', (tester) async {
@@ -292,7 +293,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData(extensions: const [SkotiqColors.dark]),
+            theme: SkotiqTheme.dark,
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: true,
@@ -312,7 +313,10 @@ void main() {
 
       expect(backend.validatedPath, '/host/captures/../data');
       expect(backend.updatedSettings?.imageOutputPath, '/srv/skotiq/captures');
-      expect(find.textContaining('Pick catalogs to install'), findsOneWidget);
+      expect(
+        find.textContaining('Plate solving needs at least one star catalog'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -341,7 +345,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData(extensions: const [SkotiqColors.dark]),
+            theme: SkotiqTheme.dark,
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: true,
@@ -390,7 +394,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData(extensions: const [SkotiqColors.dark]),
+            theme: SkotiqTheme.dark,
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: true,
@@ -427,7 +431,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData(extensions: const [SkotiqColors.dark]),
+            theme: SkotiqTheme.dark,
             home: FirstRunSetupScreen(
               needs: const FirstRunSetupNeeds(
                 missingImageOutputPath: false,
@@ -444,6 +448,180 @@ void main() {
       expect(statesOf(tester).last, StepState.complete);
     });
   });
+
+  group('FirstRunSetupScreen without admin access', () {
+    Future<void> pumpScreen(WidgetTester tester, SkotiqBackend backend) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            backendProvider.overrideWith(
+              (ref) => _TestBackendNotifier(ref, backend),
+            ),
+          ],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: FirstRunSetupScreen(
+              needs: const FirstRunSetupNeeds(
+                missingImageOutputPath: true,
+                missingProfiles: true,
+                missingCatalogs: true,
+              ),
+              onCompleted: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('says where to set the capture folder instead of failing', (
+      tester,
+    ) async {
+      await pumpScreen(tester, _NoAdminBackend());
+
+      expect(
+        find.textContaining(
+          'Set the capture folder on the imaging computer',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Save and continue'), findsNothing);
+
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Install and continue'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'Install catalogs on the imaging computer',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Token scope'), findsNothing);
+    });
+  });
+
+  group('FirstRunSetupGate', () {
+    Future<MobilePreferences> pumpGate(
+      WidgetTester tester, {
+      required SkotiqBackend backend,
+      bool completedBefore = false,
+    }) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        if (completedBefore) 'mobile.firstRunCompleted': true,
+      });
+      final prefs = MobilePreferences(await SharedPreferences.getInstance());
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            mobilePreferencesProvider.overrideWith((ref) async => prefs),
+            backendProvider.overrideWith(
+              (ref) => _TestBackendNotifier(ref, backend),
+            ),
+          ],
+          child: FirstRunSetupGate(
+            frame: (home) => MaterialApp(theme: SkotiqTheme.dark, home: home),
+            child: const MaterialApp(home: Text('the shell')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return prefs;
+    }
+
+    testWidgets('a new phone on an unconfigured rig sees setup once', (
+      tester,
+    ) async {
+      final prefs = await pumpGate(tester, backend: _SetupBackend());
+
+      expect(find.text('Set up your rig'), findsOneWidget);
+      expect(find.text('the shell'), findsNothing);
+
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Skip'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('the shell'), findsOneWidget);
+      expect(prefs.firstRunCompleted, isTrue);
+    });
+
+    testWidgets('a rig that needs nothing opens the app and ends setup', (
+      tester,
+    ) async {
+      final prefs = await pumpGate(
+        tester,
+        backend: _SetupBackend(
+          imageOutputPath: '/srv/captures',
+          profiles: const [EquipmentProfile(id: 'p', name: 'Observatory')],
+          catalogInstalled: true,
+        ),
+      );
+
+      expect(find.text('the shell'), findsOneWidget);
+      expect(prefs.firstRunCompleted, isTrue);
+    });
+
+    testWidgets('a phone that finished setup goes straight to the app', (
+      tester,
+    ) async {
+      final backend = _SetupBackend();
+      await pumpGate(tester, backend: backend, completedBefore: true);
+
+      expect(find.text('the shell'), findsOneWidget);
+      expect(backend.checks, 0);
+    });
+
+    testWidgets('without a linked rig the app opens and setup stays due', (
+      tester,
+    ) async {
+      final prefs = await pumpGate(tester, backend: DisconnectedBackend());
+
+      expect(find.text('the shell'), findsOneWidget);
+      expect(prefs.firstRunCompleted, isFalse);
+    });
+  });
+}
+
+class _SetupBackend extends NetworkBackend {
+  _SetupBackend({
+    this.imageOutputPath = '',
+    this.profiles = const [],
+    this.catalogInstalled = false,
+  }) : super(serverHost: '127.0.0.1', autoConnectWebSocket: false);
+
+  final String imageOutputPath;
+  final List<EquipmentProfile> profiles;
+  final bool catalogInstalled;
+  int checks = 0;
+
+  @override
+  Future<AppSettings> getSettings() async {
+    checks++;
+    return AppSettings(imageOutputPath: imageOutputPath);
+  }
+
+  @override
+  Future<List<EquipmentProfile>> getProfiles() async {
+    checks++;
+    return profiles;
+  }
+
+  @override
+  Future<RemoteCatalogStatusResponse> getCatalogStatus() async {
+    checks++;
+    return RemoteCatalogStatusResponse.fromJson({
+      'catalogs': [
+        {'name': 'hyg', 'status': catalogInstalled ? 'installed' : 'missing'},
+      ],
+    });
+  }
+
+  @override
+  Future<List<RemoteAvailableCatalog>> listAvailableCatalogs() async =>
+      const [];
 }
 
 class _PathValidationBackend extends NetworkBackend {
@@ -523,4 +701,39 @@ class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
+}
+
+class _NoAdminBackend extends NetworkBackend {
+  _NoAdminBackend()
+    : super(serverHost: '127.0.0.1', autoConnectWebSocket: false);
+
+  // What the transport throws for the host's scope-denial body.
+  static const ServerError _refused = ServerError(
+    code: 'insufficient_scope',
+    message:
+        'Token scope is not permitted for this endpoint: this credential '
+        'holds control on filesystem, and admin is required.',
+    httpStatus: 403,
+  );
+
+  @override
+  Future<RemoteDirectoryListing> browseRemoteDirectories({String? path}) =>
+      Future.error(_refused);
+
+  @override
+  Future<RemoteJob> downloadCatalog(String name) => Future.error(_refused);
+
+  @override
+  Future<List<RemoteAvailableCatalog>> listAvailableCatalogs() async => [
+    RemoteAvailableCatalog.fromJson({
+      'name': 'stars',
+      'displayName': 'HYG Star Database',
+      'description': 'Stars',
+      'sizeBytes': 1000,
+      'requiredForPlateSolve': true,
+    }),
+  ];
+
+  @override
+  Future<List<EquipmentProfile>> getProfiles() async => const [];
 }

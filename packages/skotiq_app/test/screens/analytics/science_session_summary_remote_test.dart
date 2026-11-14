@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_session_summary.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -37,7 +39,7 @@ void main() {
       createdAt: timestamp,
       isAccepted: true,
     );
-    when(() => backend.getSessionImageRows(7)).thenAnswer(
+    when(() => backend.getAllImageRows()).thenAnswer(
       (_) async => [hostImage.toJson()],
     );
     when(() => backend.getSessionById(7)).thenAnswer(
@@ -54,13 +56,15 @@ void main() {
     );
     addTearDown(container.dispose);
 
+    final rows = container.listen(dbSessionImagesProvider(7), (_, __) {});
+    addTearDown(rows.close);
     final images = await container.read(dbSessionImagesProvider(7).future);
     expect(images.single.id, 99);
     expect(
       await container.read(scienceSessionTargetIdProvider(7).future),
       42,
     );
-    verify(() => backend.getSessionImageRows(7)).called(1);
+    verify(() => backend.getAllImageRows()).called(1);
     verify(() => backend.getSessionById(7)).called(1);
   });
 }

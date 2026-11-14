@@ -7,7 +7,9 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Root -> container -> leaves, the smallest shape that exercises the
 /// container branch of [ledgerColumnsFor].
@@ -318,7 +320,7 @@ void main() {
   group('formatLedgerClock', () {
     test('local HH:mm, zero-padded', () {
       final time = DateTime(2026, 9, 13, 7, 5);
-      expect(formatLedgerClock(time), '07:05');
+      expect(ClockFormat.hm(time.toLocal()), '07:05');
     });
   });
 

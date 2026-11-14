@@ -29,7 +29,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequencer_density.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -98,8 +100,8 @@ SkotiqEvent _adaptiveExposure(String nodeId) =>
 
 /// Push one event through the SAME function production calls.
 void _pump(ProviderContainer container, SkotiqEvent event) {
-  applySequencerEventToNodeExposureTally(
-    container.read(nodeExposureTallyProvider.notifier),
+  _applyTally(
+    container.read(runRecordProvider.notifier),
     event,
   );
   applySequencerEventToSequenceProviders(container.read, event);
@@ -262,4 +264,9 @@ void main() {
       );
     },
   );
+}
+
+void _applyTally(RunRecordNotifier tally, SkotiqEvent event) {
+  final typed = sequencerEventOf(event);
+  if (typed != null) applyRunEventToNodeExposureTally(tally, typed);
 }

@@ -8,9 +8,13 @@
 // run, the host's active session.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
+import 'session_format.dart' show nightSessionNowProvider;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// The session whose frames Tonight shows; null when nothing is imaging.
 final nightSessionIdProvider = Provider<int?>((ref) {
@@ -27,50 +31,57 @@ final nightSessionIdProvider = Provider<int?>((ref) {
         ? ref.watch(completedImagingRunProvider)?.result.dbSessionId
         : terminal.dbSessionId;
   }
-  if (ref.watch(backendProvider) is! NetworkBackend) return null;
-  // Sorted newest first on both paths, so the first active row is the
-  // host's current session.
-  final sessions = ref.watch(allSessionsProvider).valueOrNull;
-  if (sessions == null) return null;
-  for (final session in sessions) {
-    if (session.status == 'active') return session.id;
-  }
-  // A host that does not share its run record: a run that ended here closed
-  // its session on the host, and the newest session is the one it ran.
-  if (sessions.isNotEmpty && ref.watch(lastEndedRunProvider) != null) {
-    return sessions.first.id;
-  }
-  return null;
+  return ref.watch(watchedHostSessionIdProvider);
 });
 
-final _hostSessionRowsProvider =
-    StreamProvider.autoDispose.family<List<DbCapturedImage>, int>(
-  (ref, sessionId) =>
-      ref.watch(imagesDaoProvider).watchImagesForSession(sessionId),
-);
+/// The observing night Tonight shows: local noon to the next local noon,
+/// the night Darkroom groups frames by. It is the night of the run Tonight
+/// shows (a finished run stays on screen the next morning and afternoon),
+/// else the night it is now.
+final nightWindowProvider = Provider<({DateTime start, DateTime end})>((ref) {
+  final run = ref.watch(nightRunRowsProvider);
+  return observingNightWindow(
+    run.isNotEmpty ? run.first.capturedAt : ref.watch(nightSessionNowProvider),
+  );
+});
 
-/// Every captured_images row of the session, oldest first. Empty without a
-/// session or while the rows load.
+/// Every captured_images row of the observing night, oldest first, across
+/// every run and session it held.
+///
+/// The frame strip, the HFR and star charts, the session counts and the
+/// integration read this. They followed one session, so a crash, an update
+/// or a restart mid-night (whose restored run opens a new session) started
+/// the night over on the host and on every linked client.
 final nightSessionRowsProvider = Provider<List<DbCapturedImage>>((ref) {
-  final sessionId = ref.watch(nightSessionIdProvider);
-  if (sessionId == null) return const <DbCapturedImage>[];
-  if (ref.watch(backendProvider) is NetworkBackend) {
-    // The host's rows arrive through the remote-aware poll of all images.
-    final rows = ref.watch(allDbImagesProvider).valueOrNull;
-    if (rows == null) return const <DbCapturedImage>[];
-    return rows.where((row) => row.sessionId == sessionId).toList()
-      ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-  }
-  return ref.watch(_hostSessionRowsProvider(sessionId)).valueOrNull ??
+  final window = ref.watch(nightWindowProvider);
+  return ref.watch(imageRowsCapturedBetweenProvider(window)).valueOrNull ??
       const <DbCapturedImage>[];
 });
 
-/// The session's light frames, oldest first. Darks, flats and snapshots
+/// Every captured_images row of the run's own session, oldest first: what
+/// the plan's progress counts. Empty without a session or while the rows
+/// load.
+final nightRunRowsProvider = Provider<List<DbCapturedImage>>((ref) {
+  final sessionId = ref.watch(nightSessionIdProvider);
+  if (sessionId == null) return const <DbCapturedImage>[];
+  return ref.watch(sessionImageRowsProvider(sessionId)).valueOrNull ??
+      const <DbCapturedImage>[];
+});
+
+/// The night's light frames, oldest first. Darks, flats and snapshots
 /// belong to other strips.
 final nightSessionLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
   return ref
       .watch(nightSessionRowsProvider)
-      .where((row) => row.frameType.toLowerCase() == 'light')
+      .where((row) => row.isLight)
+      .toList(growable: false);
+});
+
+/// The run's own light frames, oldest first.
+final nightRunLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
+  return ref
+      .watch(nightRunRowsProvider)
+      .where((row) => row.isLight)
       .toList(growable: false);
 });
 
@@ -83,7 +94,7 @@ final nightSessionLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
 /// strip loads thumbnails through the existing thumbnail service by file.
 final nightSessionFramesProvider = Provider<List<StripFrameVm>>((ref) {
   final rows = ref.watch(nightSessionLightRowsProvider);
-  final remote = ref.watch(backendProvider) is NetworkBackend;
+  final remote = ref.watch(isRemoteModeProvider);
   return <StripFrameVm>[
     for (var i = 0; i < rows.length; i++)
       StripFrameVm(
@@ -98,6 +109,7 @@ final nightSessionFramesProvider = Provider<List<StripFrameVm>>((ref) {
         exclusion: frameExclusionKindOf(rows[i].rejectionReason),
         // The path is the host's; a remote viewer has no file there.
         filePath: remote || rows[i].filePath.isEmpty ? null : rows[i].filePath,
+        hostPath: rows[i].filePath.isEmpty ? null : rows[i].filePath,
         isNewest: i == rows.length - 1,
       ),
   ];

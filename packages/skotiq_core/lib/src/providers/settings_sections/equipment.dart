@@ -5,7 +5,7 @@
 // Owns:
 //   * Camera: defaultGain, defaultOffset
 //   * Mount: enableMeridianFlip
-//   * Focuser: tempCompensation, tempCoefficient, backlashCompensation
+//   * Focuser: tempCompensation, tempCoefficient, tempCompensationMinSteps
 //   * Guider: ditherScale, settleThreshold, settleTimeout, settleTime,
 //     ditherRaOnly
 //
@@ -20,24 +20,17 @@
 //     to the plans it builds, and no run reads it.
 part of '../settings_provider.dart';
 
-/// Setters for per-device-type equipment-default knobs.
 extension EquipmentSettingsSection on AppSettingsNotifier {
   // Camera defaults
-  Future<void> setDefaultGain(int value) async {
-    await _saveSetting('default_gain', value.toString());
-    _patchState((s) => s.copyWith(defaultGain: value));
-  }
+  Future<void> setDefaultGain(int value) =>
+      _set(AppSettingDefs.defaultGain, value);
 
-  Future<void> setDefaultOffset(int value) async {
-    await _saveSetting('default_offset', value.toString());
-    _patchState((s) => s.copyWith(defaultOffset: value));
-  }
+  Future<void> setDefaultOffset(int value) =>
+      _set(AppSettingDefs.defaultOffset, value);
 
   // Mount defaults
-  Future<void> setEnableMeridianFlip(bool value) async {
-    await _saveSetting('enable_meridian_flip', value.toString());
-    _patchState((s) => s.copyWith(enableMeridianFlip: value));
-  }
+  Future<void> setEnableMeridianFlip(bool value) =>
+      _set(AppSettingDefs.enableMeridianFlip, value);
 
   /// Persist the mount meridian-flip configuration — the enable toggle plus
   /// the warning-window minutes — in ONE batched transaction so the mount
@@ -59,94 +52,55 @@ extension EquipmentSettingsSection on AppSettingsNotifier {
   Future<void> setMeridianFlipConfig({
     required bool enableFlip,
     required int minutes,
-  }) async {
-    await _saveSettings({
-      'enable_meridian_flip': enableFlip.toString(),
-      'meridian_flip_minutes': minutes.toString(),
-    });
-    _patchState(
-      (s) => s.copyWith(
-        enableMeridianFlip: enableFlip,
-        meridianFlipMinutes: minutes,
-      ),
-    );
-  }
+  }) => _setAll([
+    AppSettingDefs.enableMeridianFlip.to(enableFlip),
+    AppSettingDefs.meridianFlipMinutes.to(minutes),
+  ]);
 
   // Focuser defaults
-  Future<void> setTempCompensation(bool value) async {
-    await _saveSetting('temp_compensation', value.toString());
-    _patchState((s) => s.copyWith(tempCompensation: value));
-  }
+  Future<void> setTempCompensation(bool value) =>
+      _set(AppSettingDefs.tempCompensation, value);
 
-  Future<void> setTempCoefficient(double value) async {
-    await _saveSetting('temp_coefficient', value.toString());
-    _patchState((s) => s.copyWith(tempCoefficient: value));
-  }
+  Future<void> setTempCoefficient(double value) =>
+      _set(AppSettingDefs.tempCoefficient, value);
 
-  Future<void> setBacklashCompensation(int value) async {
-    await _saveSetting('backlash_compensation', value.toString());
-    _patchState((s) => s.copyWith(backlashCompensation: value));
-  }
+  Future<void> setTempCompensationMinSteps(int value) =>
+      _set(AppSettingDefs.tempCompensationMinSteps, value);
 
-  /// Persist the focuser temperature-compensation configuration — the enable
-  /// toggle, the steps/°C coefficient, and the backlash steps — in ONE batched
-  /// transaction so the focuser configuration dialog can never persist a
-  /// partial change.
+  /// The "Exposure calibration attempts" flat setting, 1..100.
+  Future<void> setFlatCalibrationAttempts(int value) =>
+      _set(AppSettingDefs.flatCalibrationAttempts, value);
+
+  /// Persist the focuser temperature-compensation configuration and the
+  /// backlash figure in force (`afBacklashIn`) in ONE batched transaction, so
+  /// the focuser configuration dialog never persists a partial change: the
+  /// in-memory state is patched only after the write resolves.
   ///
-  /// All three keys go through one [_saveSettings], and [_patchState] runs
-  /// only after that write resolves, so a mid-write failure leaves state
-  /// unchanged and the dialog retryable rather than persisting an
-  /// inconsistent trio.
-  ///
-  /// Callers validate `tempCoefficient` is finite (the continuous compensator
-  /// multiplies it by a temperature delta and rounds — a NaN/∞ coefficient
-  /// would throw there) and `backlashCompensation` is within 0..10000 (the
-  /// canonical device/backlash limit used by the autofocus settings) before
-  /// invoking. Negative and zero coefficients are intentionally allowed: zero
-  /// is the documented "track temperature but do not move" state and the
-  /// default is a negative -12 steps/°C.
+  /// Negative and zero coefficients are allowed: zero is the documented "track
+  /// temperature but do not move" state and the default is -12 steps/°C.
   Future<void> setFocuserCompensationConfig({
     required bool tempCompensation,
     required double tempCoefficient,
-    required int backlashCompensation,
-  }) async {
-    await _saveSettings({
-      'temp_compensation': tempCompensation.toString(),
-      'temp_coefficient': tempCoefficient.toString(),
-      'backlash_compensation': backlashCompensation.toString(),
-    });
-    _patchState(
-      (s) => s.copyWith(
-        tempCompensation: tempCompensation,
-        tempCoefficient: tempCoefficient,
-        backlashCompensation: backlashCompensation,
-      ),
-    );
-  }
+    required int backlashIn,
+  }) => _setAll([
+    AppSettingDefs.tempCompensation.to(tempCompensation),
+    AppSettingDefs.tempCoefficient.to(tempCoefficient),
+    AppSettingDefs.afBacklashIn.to(backlashIn),
+  ]);
 
   // Guider defaults
-  Future<void> setDitherScale(String value) async {
-    await _saveSetting('dither_scale', value);
-    _patchState((s) => s.copyWith(ditherScale: value));
-  }
+  Future<void> setDitherScale(String value) =>
+      _set(AppSettingDefs.ditherScale, value);
 
-  Future<void> setSettleThreshold(double value) async {
-    await _saveSetting('settle_threshold', value.toString());
-    _patchState((s) => s.copyWith(settleThreshold: value));
-  }
+  Future<void> setSettleThreshold(double value) =>
+      _set(AppSettingDefs.settleThreshold, value);
 
-  Future<void> setSettleTimeout(int value) async {
-    await _saveSetting('settle_timeout', value.toString());
-    _patchState((s) => s.copyWith(settleTimeout: value));
-  }
+  Future<void> setSettleTimeout(int value) =>
+      _set(AppSettingDefs.settleTimeout, value);
 
-  Future<void> setSettleTime(int value) async {
-    await _saveSetting('settle_time', value.toString());
-    _patchState((s) => s.copyWith(settleTime: value));
-  }
+  Future<void> setSettleTime(int value) =>
+      _set(AppSettingDefs.settleTime, value);
 
-  Future<void> setDitherRaOnly(bool value) async {
-    await _saveSetting('dither_ra_only', value.toString());
-    _patchState((s) => s.copyWith(ditherRaOnly: value));
-  }
+  Future<void> setDitherRaOnly(bool value) =>
+      _set(AppSettingDefs.ditherRaOnly, value);
 }

@@ -2,7 +2,11 @@ import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/snackbar_helper.dart';
@@ -68,32 +72,34 @@ class ImportSequenceFlow {
   }
 
   static Future<bool> _run(BuildContext context, WidgetRef ref) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final file_selector.XFile? file;
     try {
       file = await ref.read(sequenceImportFilePickerProvider)();
     } catch (e) {
       if (!context.mounted) return false;
-      if (!_requireCurrentAuthority(context, ref, authority)) return false;
-      context.showErrorSnackBar('Could not open the file picker: $e');
+      if (!_requireCurrentHost(context, host)) return false;
+      context.showErrorSnackBar(
+          'Could not open the file picker: ${userFacingError(e)}');
       return false;
     }
     // Dismissing a platform file picker is the conventional Cancel action.
     if (file == null) return false;
     if (!context.mounted) return false;
-    if (!_requireCurrentAuthority(context, ref, authority)) return false;
+    if (!_requireCurrentHost(context, host)) return false;
 
     final String content;
     try {
       content = await file.readAsString();
     } catch (e) {
       if (!context.mounted) return false;
-      if (!_requireCurrentAuthority(context, ref, authority)) return false;
-      context.showErrorSnackBar('Could not read "${file.name}": $e');
+      if (!_requireCurrentHost(context, host)) return false;
+      context.showErrorSnackBar(
+          'Could not read "${file.name}": ${userFacingError(e)}');
       return false;
     }
     if (!context.mounted) return false;
-    if (!_requireCurrentAuthority(context, ref, authority)) return false;
+    if (!_requireCurrentHost(context, host)) return false;
     final importer = ref.read(sequenceImporterProvider);
     final defaultName = _basename(file.name);
 
@@ -126,18 +132,19 @@ class ImportSequenceFlow {
       }
     } catch (e) {
       if (!context.mounted) return false;
-      if (!_requireCurrentAuthority(context, ref, authority)) return false;
-      context.showErrorSnackBar('Import failed unexpectedly: $e');
+      if (!_requireCurrentHost(context, host)) return false;
+      context.showErrorSnackBar(
+          'Import failed unexpectedly: ${userFacingError(e)}');
       return false;
     }
     if (result == null) return false;
     if (!context.mounted) return false;
-    if (!_requireCurrentAuthority(context, ref, authority)) return false;
+    if (!_requireCurrentHost(context, host)) return false;
 
     final decision = await ImportSummaryDialog.show(context, result: result);
     if (decision == null || decision.cancelled) return false;
     if (!context.mounted) return false;
-    if (!_requireCurrentAuthority(context, ref, authority)) return false;
+    if (!_requireCurrentHost(context, host)) return false;
 
     var sequence = result.sequence;
     final requestedName = decision.sequenceName.trim();
@@ -178,7 +185,7 @@ class ImportSequenceFlow {
           ),
         );
         if (confirmed != true || !context.mounted) return false;
-        if (!_requireCurrentAuthority(context, ref, authority)) return false;
+        if (!_requireCurrentHost(context, host)) return false;
         discardUnsaved = true;
       }
     }
@@ -186,14 +193,14 @@ class ImportSequenceFlow {
     // Persist to library. Both destinations save — the only difference is
     // whether we also load the imported sequence into the editor.
     if (!context.mounted) return false;
-    if (!_requireCurrentAuthority(context, ref, authority)) return false;
+    if (!_requireCurrentHost(context, host)) return false;
     final repo = ref.read(sequenceRepositoryProvider);
     final int dbId;
     try {
       dbId = await repo.saveSequence(sequence);
       sequence = sequence.copyWith(databaseId: dbId);
       if (!context.mounted) return true;
-      if (!identical(ref.read(backendProvider), authority)) {
+      if (host.isStale) {
         context.showWarningSnackBar(
           'The sequence was saved to the previous host, but the imaging host '
           'changed before the editor could be updated.',
@@ -208,8 +215,9 @@ class ImportSequenceFlow {
       );
     } catch (e) {
       if (!context.mounted) return false;
-      if (!_requireCurrentAuthority(context, ref, authority)) return false;
-      context.showErrorSnackBar('Failed to save imported sequence: $e');
+      if (!_requireCurrentHost(context, host)) return false;
+      context.showErrorSnackBar(
+          'Failed to save imported sequence: ${userFacingError(e)}');
       return false;
     }
 
@@ -222,7 +230,7 @@ class ImportSequenceFlow {
           ref,
           sequence,
           discardUnsaved: discardUnsaved,
-          authority: authority,
+          host: host,
         );
         if (!loaded) {
           if (context.mounted) {
@@ -575,7 +583,8 @@ class ImportSequenceFlow {
   /// `true` on success, `false` if the user cancelled.
   static Future<bool> _loadSequenceWithDirtyCheck(
       BuildContext context, WidgetRef ref, Sequence sequence,
-      {bool discardUnsaved = false, required SkotiqBackend authority}) async {
+      {bool discardUnsaved = false,
+      required AsyncScope<SkotiqBackend> host}) async {
     final editor = ref.read(currentSequenceProvider.notifier);
     try {
       editor.loadSequence(sequence, discardUnsaved: discardUnsaved);
@@ -585,7 +594,7 @@ class ImportSequenceFlow {
       final confirmed = await _confirmDiscardUnsaved(context, e);
       if (confirmed != true) return false;
       if (!context.mounted) return false;
-      if (!_requireCurrentAuthority(context, ref, authority)) return false;
+      if (!_requireCurrentHost(context, host)) return false;
       editor.loadSequence(sequence, discardUnsaved: true);
       return true;
     } on SequenceLockedException catch (e) {
@@ -669,13 +678,14 @@ class ImportSequenceFlow {
     return dot > 0 ? base.substring(0, dot) : base;
   }
 
-  static bool _requireCurrentAuthority(
+  /// False, after telling the user, when the imaging host changed since the
+  /// import started on [host].
+  static bool _requireCurrentHost(
     BuildContext context,
-    WidgetRef ref,
-    SkotiqBackend authority,
+    AsyncScope<SkotiqBackend> host,
   ) {
     if (!context.mounted) return false;
-    if (identical(ref.read(backendProvider), authority)) return true;
+    if (host.isCurrent) return true;
     context.showWarningSnackBar(
       'The imaging host changed while importing that sequence. Import it '
       'again for the current host.',

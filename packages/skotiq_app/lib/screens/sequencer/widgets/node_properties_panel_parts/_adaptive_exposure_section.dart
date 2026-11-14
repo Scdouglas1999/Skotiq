@@ -1,18 +1,13 @@
-// Part of ../node_properties_panel.dart -- migrated from the former
-// instruction_node_properties library.
-// Sky-brightness adaptive-exposure config block + per-filter override row.
 part of '../node_properties_panel.dart';
 
 class _AdaptiveExposureSection extends ConsumerStatefulWidget {
   const _AdaptiveExposureSection({
     required this.colors,
     required this.node,
-    required this.profile,
   });
 
   final SkotiqColors colors;
   final ExposureNode node;
-  final EquipmentProfileModel? profile;
 
   @override
   ConsumerState<_AdaptiveExposureSection> createState() =>
@@ -222,13 +217,13 @@ class _AdaptiveExposureSectionState
   Widget _buildPerFilterTable() {
     final cfg = _effective;
     final colors = widget.colors;
-    final filterNames = widget.profile?.filterNames ?? const <String>[];
+    final filterNames = ref.watch(effectiveFiltersProvider);
     if (filterNames.isEmpty) {
       return Padding(
         padding: const EdgeInsets.only(top: 4),
         child: Text(
-          'No filter wheel on active profile — adaptive applies to every '
-          'capture (mono camera assumption).',
+          'No filters on the wheel or in the profile — adaptive applies to '
+          'every capture (mono camera assumption).',
           style: TextStyle(
               fontSize: SkotiqTypography.fontSize11, color: colors.textMuted),
         ),

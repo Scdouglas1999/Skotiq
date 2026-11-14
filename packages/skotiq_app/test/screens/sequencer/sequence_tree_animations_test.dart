@@ -20,7 +20,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequencer_density.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -92,7 +93,7 @@ Future<HarnessHandle> _pumpTree(
   required Sequence sequence,
   bool disableAnimations = false,
   Size size = const Size(1200, 900),
-  SequenceProgressNotifier? progress,
+  RunRecordNotifier? progress,
   SequenceExecutionState executionState = SequenceExecutionState.idle,
   SequencerDensity density = SequencerDensity.ledger,
   double textScale = 1.0,
@@ -134,15 +135,16 @@ Future<HarnessHandle> _pumpTree(
     settle: false,
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider.overrideWith((ref) => executionState),
       // The minute clock is a real periodic stream; in the fake-async zone its
       // timer outlives every pump and fails teardown.
       ledgerClockProvider.overrideWith((ref) {
         _clockBodies += 1;
         return clock;
       }),
-      if (progress != null)
-        sequenceProgressProvider.overrideWith((_) => progress),
+      runRecordProvider.overrideWith(
+        (ref) =>
+            (progress ?? RunRecordNotifier(ref))..setLifecycle(executionState),
+      ),
       _testDensityProvider.overrideWith((ref) => density),
       sequencerDensityProvider
           .overrideWith((ref) => ref.watch(_testDensityProvider)),
@@ -295,7 +297,7 @@ void main() {
     });
     testWidgets('the running row breathes not at all', (tester) async {
       final built = _tree();
-      final progress = SequenceProgressNotifier();
+      final progress = RunRecordNotifier();
       await _pumpTree(
         tester,
         sequence: built.sequence,
@@ -362,7 +364,7 @@ void main() {
         'the running marker breathes inside a gate, with the '
         'RepaintBoundary OUTSIDE it', (tester) async {
       final built = _tree();
-      final progress = SequenceProgressNotifier();
+      final progress = RunRecordNotifier();
       await _pumpTree(
         tester,
         sequence: built.sequence,

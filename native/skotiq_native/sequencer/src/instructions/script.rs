@@ -39,7 +39,6 @@ pub async fn execute_script(
         return result;
     }
 
-    // Build the command
     let mut cmd = tokio::process::Command::new(&config.script_path);
     cmd.args(&config.arguments);
 
@@ -126,6 +125,7 @@ pub async fn execute_script(
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 tracing::info!("Script output: {}", stdout);
                 InstructionResult {
+                    setback: None,
                     status: NodeStatus::Success,
                     message: Some(format!("Script {} completed", config.script_path)),
                     data: Some(serde_json::json!({

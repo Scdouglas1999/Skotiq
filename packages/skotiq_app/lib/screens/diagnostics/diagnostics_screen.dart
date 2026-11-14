@@ -2,12 +2,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../localization/skotiq_localizations.dart';
-import '../accessible_dropdown.dart';
+import '../../widgets/accessible_dropdown.dart';
 import '../analytics/quick_capture_selection.dart';
 import '../analytics/widgets/analytics_empty_state.dart';
 import 'diagnostics_screen/psf_field_map_view.dart';
@@ -20,28 +22,6 @@ part 'diagnostics_screen/residual_vector.dart';
 part 'diagnostics_screen/issues_and_skeleton.dart';
 
 /// Session id standing for "the frames that belong to no session".
-///
-/// Local alias for the shared [kQuickCaptureSessionSelection] sentinel, which
-/// gives the session-less bucket a pickable identity; the content switches to
-/// the `sessionless*` providers when it is chosen.
-const int _kQuickCaptureSessionId = kQuickCaptureSessionSelection;
-
-/// Thin shell that hosts [DiagnosticsTabContent].
-///
-/// Diagnostics lives inside Analytics as a tab, and the `/diagnostics` route
-/// redirects to `/analytics?tab=diagnostics`, so this screen is unreachable
-/// through the router. It is kept so any direct embedding (tests, debug entry
-/// points) keeps working until the redirect is removed.
-class DiagnosticsScreen extends StatelessWidget {
-  const DiagnosticsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // Standalone route: nothing else on screen names the page, so this one
-    // surface keeps the title the Analytics tab drops.
-    return const DiagnosticsTabContent(showTitle: true);
-  }
-}
 
 /// Optical-train diagnostics surface, embedded inside the Analytics screen.
 class DiagnosticsTabContent extends ConsumerStatefulWidget {
@@ -58,8 +38,6 @@ class DiagnosticsTabContent extends ConsumerStatefulWidget {
 }
 
 class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
-  int? _selectedSessionId;
-
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
@@ -67,11 +45,9 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
     final sessionsAsync = ref.watch(allSessionsProvider);
     final l10n = context.l10n;
 
-    // Auto-select current session if none selected
     final sessionState = ref.watch(sessionStateProvider);
-    if (_selectedSessionId == null && sessionState.dbSessionId != null) {
-      _selectedSessionId = sessionState.dbSessionId;
-    }
+    var selectedSessionId =
+        ref.watch(analyticsSessionPickProvider) ?? sessionState.dbSessionId;
 
     // Quick captures own no session row, so they are offered as their own
     // bucket — but only when the science pipeline actually produced something
@@ -85,10 +61,16 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
                     ?.isNotEmpty ??
                 false);
     // A bucket that just went empty (frames cleared) must not stay selected.
-    if (_selectedSessionId == _kQuickCaptureSessionId &&
+    if (selectedSessionId == kQuickCaptureSessionSelection &&
         !hasQuickCaptureDiagnostics) {
-      _selectedSessionId = null;
+      selectedSessionId = null;
     }
+
+    final latestSession = sessionsAsync.valueOrNull?.fold<ImagingSession?>(
+      null,
+      (latest, s) =>
+          latest == null || s.startTime.isAfter(latest.startTime) ? s : latest,
+    );
 
     // Phone tier reflows the header: the session selector drops to its own
     // line under the title so the wide dropdown can't push the title into a
@@ -119,9 +101,10 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
     final sessionSelector = sessionsAsync.when(
       data: (sessions) => _SessionSelector(
         sessions: sessions,
-        selectedSessionId: _selectedSessionId,
+        selectedSessionId: selectedSessionId,
         offerQuickCaptures: hasQuickCaptureDiagnostics,
-        onChanged: (id) => setState(() => _selectedSessionId = id),
+        onChanged: (id) =>
+            ref.read(analyticsSessionPickProvider.notifier).state = id,
         colors: colors,
       ),
       // Small skeleton chip rather than a spinner so the header doesn't
@@ -141,7 +124,6 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           if (isPhone) ...[
             if (widget.showTitle) ...[
               titleRow,
@@ -180,9 +162,8 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
           // popover.
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // Main content
           Expanded(
-            child: _selectedSessionId == null
+            child: selectedSessionId == null
                 // Scroll-wrap so the centered empty state never overflows when
                 // a phone is short (landscape).
                 ? LayoutBuilder(
@@ -197,12 +178,22 @@ class _DiagnosticsTabContentState extends ConsumerState<DiagnosticsTabContent> {
                           icon: LucideIcons.stethoscope,
                           title: l10n.text('diagnosticsNoSessionTitle'),
                           body: l10n.text('diagnosticsNoSessionBody'),
+                          // With sessions on record the way forward is to
+                          // look at one, not to go and image another.
+                          actionLabel: latestSession == null
+                              ? 'Go to Imaging'
+                              : 'Open the latest session',
+                          onAction: latestSession == null
+                              ? null
+                              : () => ref
+                                  .read(analyticsSessionPickProvider.notifier)
+                                  .state = latestSession.id,
                         ),
                       ),
                     ),
                   )
                 : _DiagnosticsContent(
-                    sessionId: _selectedSessionId!,
+                    sessionId: selectedSessionId,
                     isMobile: isMobile,
                   ),
           ),

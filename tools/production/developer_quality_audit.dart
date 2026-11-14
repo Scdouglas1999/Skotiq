@@ -169,8 +169,6 @@ _QualityCheck _apiContractQuality(Directory root) {
     );
   }
 
-  final networkBackendMissingOnServer =
-      (data['networkBackendMissingOnServerCount'] as num?)?.toInt() ?? 0;
   final registeredNotAdvertised =
       (data['registeredNotAdvertisedCount'] as num?)?.toInt() ?? 0;
   final advertisedNotRegistered =
@@ -193,12 +191,10 @@ _QualityCheck _apiContractQuality(Directory root) {
   }
   if (registeredNotAdvertised != 0 ||
       advertisedNotRegistered != 0 ||
-      networkBackendMissingOnServer != 0 ||
       advertisedHttpMissingOpenApi != 0) {
     issues.add(
       'Headless API route drift detected: registeredNotAdvertised=$registeredNotAdvertised '
       'advertisedNotRegistered=$advertisedNotRegistered '
-      'networkBackendMissingOnServer=$networkBackendMissingOnServer '
       'advertisedHttpMissingOpenApi=$advertisedHttpMissingOpenApi.',
     );
   }
@@ -221,9 +217,6 @@ _QualityCheck _apiContractQuality(Directory root) {
           (data['advertisedRouteCount'] as num?)?.toInt() ?? 0,
       'openApiOperationCount':
           (data['openApiOperationCount'] as num?)?.toInt() ?? 0,
-      'networkBackendRouteCount':
-          (data['networkBackendRouteCount'] as num?)?.toInt() ?? 0,
-      'networkBackendMissingOnServer': networkBackendMissingOnServer,
       'openApiMetadataCoverage':
           '${openApiMetadata.values.where((present) => present == true).length}/${openApiMetadata.length}',
       'webSocketContractCoverage':
@@ -401,9 +394,9 @@ _QualityCheck _structuredLoggingQuality(Directory root) {
     ],
     _networkBackendPath: [
       "static const _requestIdHeader = 'x-request-id';",
-      "_NetworkBackendTransport._requestIdHeader: _nextRequestId('compat'),",
+      "_NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),",
       'headers[_NetworkBackendTransport._requestIdHeader] =',
-      'RemoteApiCompatibility.apiVersionHeader',
+      'headers[LinkVersion.header] = skotiqRelease;',
     ],
   };
 

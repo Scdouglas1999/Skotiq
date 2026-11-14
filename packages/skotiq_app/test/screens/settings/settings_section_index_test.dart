@@ -1,9 +1,7 @@
 // Guards the Settings navigation contract after the grouped/searchable
 // consolidation.
 //
-// The real contract is: a stable string KEY → the correct detail pane. The
-// integer `kSettingsSectionIndex` is now a DERIVED compatibility shim, so these
-// tests assert KEY → pane behaviour rather than pinning exact integers.
+// The contract is: a stable string KEY → the correct detail pane.
 //
 // Guarantees:
 //   1. integrations_deep_link_renders_the_page — deep-linking
@@ -18,9 +16,6 @@
 //   4. merged_away_keys_resolve_to_combined_section — `file-paths`/`auto-save`
 //      → files-storage, `predictive-af` → autofocus, `notification-routing`
 //      → notifications.
-//   5. derived_index_shim_is_consistent — `kSettingsSectionIndex` exposes every
-//      stable key with a non-negative index and aliases share their combined
-//      section's index.
 //
 // Plugin-provider overrides: the Integrations page reads C3's
 // `pluginRegistrationProvider` / activity tracker and C4's
@@ -36,11 +31,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/integrations_settings.dart';
-import 'package:skotiq_app/screens/settings/settings_catalog.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 // ignore: implementation_imports
 import 'package:skotiq_plugins/src/plugin_registration.dart';
@@ -140,7 +133,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const SettingsScreen(initialSection: 'integrations'),
+      SettingsScreen(initialSection: SettingsSectionId.resolve('integrations')),
       size: const Size(1280, 800),
       extraOverrides: _integrationsOverrides(host),
     );
@@ -163,7 +156,7 @@ void main() {
       'help',
       'location',
     ]) {
-      expect(resolveSectionKey(key), key,
+      expect(SettingsSectionId.resolve(key)?.key, key,
           reason: 'External deep-link key "$key" must resolve to a section.');
     }
   });
@@ -171,38 +164,16 @@ void main() {
   test(
       'merged_away_keys_resolve_to_combined_section: old single-function keys '
       'land on their merged section', () {
-    expect(resolveSectionKey('file-paths'), 'files-storage');
-    expect(resolveSectionKey('auto-save'), 'files-storage');
-    expect(resolveSectionKey('predictive-af'), 'autofocus');
-    expect(resolveSectionKey('focus-model'), 'autofocus');
-    expect(resolveSectionKey('notification-routing'), 'notifications');
-  });
-
-  test(
-      'derived_index_shim_is_consistent: every stable key resolves to a '
-      'non-negative index and aliases share their combined section index', () {
-    for (final key in _allContractKeys) {
-      final index = kSettingsSectionIndex[key];
-      expect(index, isNotNull,
-          reason: 'Key "$key" must exist in the derived index shim.');
-      expect(index! >= 0, isTrue,
-          reason: 'Key "$key" index must be non-negative.');
-    }
-    expect(kSettingsSectionIndex['file-paths'],
-        kSettingsSectionIndex['files-storage']);
-    expect(kSettingsSectionIndex['auto-save'],
-        kSettingsSectionIndex['files-storage']);
-    expect(kSettingsSectionIndex['predictive-af'],
-        kSettingsSectionIndex['autofocus']);
-    expect(kSettingsSectionIndex['focus-model'],
-        kSettingsSectionIndex['autofocus']);
-    expect(kSettingsSectionIndex['notification-routing'],
-        kSettingsSectionIndex['notifications']);
+    expect(SettingsSectionId.resolve('file-paths')?.key, 'files-storage');
+    expect(SettingsSectionId.resolve('auto-save')?.key, 'files-storage');
+    expect(SettingsSectionId.resolve('predictive-af')?.key, 'autofocus');
+    expect(SettingsSectionId.resolve('focus-model')?.key, 'autofocus');
+    expect(SettingsSectionId.resolve('notification-routing')?.key,
+        'notifications');
   });
 
   test('ai_assistant_section_is_hidden_from_settings_contract', () {
-    expect(resolveSectionKey('ai-assistant'), isNull);
-    expect(kSettingsSectionIndex.containsKey('ai-assistant'), isFalse);
+    expect(SettingsSectionId.resolve('ai-assistant')?.key, isNull);
   });
 
   testWidgets(
@@ -231,7 +202,7 @@ void main() {
         await tester.pumpWidget(const SizedBox());
         final handle = await pumpAppScreen(
           tester,
-          SettingsScreen(initialSection: key),
+          SettingsScreen(initialSection: SettingsSectionId.resolve(key)),
           size: const Size(1280, 800),
           extraOverrides: _integrationsOverrides(host),
           settle: false,

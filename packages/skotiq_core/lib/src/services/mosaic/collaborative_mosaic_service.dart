@@ -21,6 +21,8 @@
 // injectable client factory (so it is exercised with a `package:http/testing`
 // MockClient) + a logger, kept DB-agnostic via resolvers.
 
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show inferMosaicCaptureOrder, mosaicPanelTargetName;
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -39,7 +41,8 @@ import '../constellation/constellation_service.dart'
     show ConstellationClientFactory, ConstellationCredentials;
 import '../logging_service.dart';
 import '../mosaic_project_service.dart';
-import '../science/fits_header_writer.dart';
+import '../frame_header.dart';
+import '../wcs/master_wcs.dart';
 import 'mosaic_upload_consent.dart';
 
 /// Resolves the temp directory a collaborative mosaic's pulled panel masters +
@@ -67,6 +70,8 @@ class CollaborativeMosaicService {
     String? Function()? rigIdResolver,
     MosaicUploadConsentResolver? uploadConsentResolver,
     ConstellationClientFactory? clientFactory,
+    FrameHeaderReader readHeader = readFrameHeader,
+    FrameWcsWriter writeWcs = writeFrameWcs,
   }) : _credentialsResolver = credentialsResolver,
        _projectsDao = projectsDao,
        _panelsDao = panelsDao,
@@ -77,7 +82,9 @@ class CollaborativeMosaicService {
        _accountIdResolver = accountIdResolver,
        _rigIdResolver = rigIdResolver,
        _uploadConsentResolver = uploadConsentResolver,
-       _clientFactory = clientFactory ?? _defaultClientFactory;
+       _clientFactory = clientFactory ?? _defaultClientFactory,
+       _readHeader = readHeader,
+       _writeWcs = writeWcs;
 
   final Future<ConstellationCredentials?> Function() _credentialsResolver;
   final MosaicProjectsDao _projectsDao;
@@ -90,6 +97,8 @@ class CollaborativeMosaicService {
   final String? Function()? _rigIdResolver;
   final MosaicUploadConsentResolver? _uploadConsentResolver;
   final ConstellationClientFactory _clientFactory;
+  final FrameHeaderReader _readHeader;
+  final FrameWcsWriter _writeWcs;
 
   static const _logSource = 'CollaborativeMosaicService';
 
@@ -108,8 +117,6 @@ class CollaborativeMosaicService {
     }
     return _clientFactory(creds);
   }
-
-  // Publish
 
   /// Publish [projectId]'s panel grid to the hub as a collaborative mosaic.
   /// Persists `hub_mosaic_id` + `collab_role = owner` on the project. Returns the
@@ -213,7 +220,22 @@ class CollaborativeMosaicService {
         ? mosaic
         : await getMosaic(mosaic.mosaicId);
 
+    final order = inferMosaicCaptureOrder(
+      columns: detail.cols,
+      rows: detail.rows,
+      rotationDegrees: detail.positionAngleDeg,
+      panels: [
+        for (final panel in detail.panels)
+          (
+            index: panel.panelIndex,
+            raHours: panel.centerRaDeg / 15,
+            decDegrees: panel.centerDecDeg,
+          ),
+      ],
+    );
     final projectId = await _projectsDao.create(
+      startCorner: order.startCorner,
+      serpentine: order.serpentine,
       name: detail.name,
       rows: detail.rows,
       cols: detail.cols,
@@ -237,8 +259,6 @@ class CollaborativeMosaicService {
     );
     return projectId;
   }
-
-  // Claim
 
   /// Claim [indices] of [projectId]'s published mosaic via the hub baton.
   /// Persists each panel's claim token + assigned account/rig provenance.
@@ -339,8 +359,6 @@ class CollaborativeMosaicService {
       client.close();
     }
   }
-
-  // Upload
 
   /// Upload the locally-integrated master for [panelIndex] of [projectId] to the
   /// hub. Resolves the panel's `integrated_masters` master FITS (built by
@@ -508,7 +526,8 @@ class CollaborativeMosaicService {
         final (panelWidth, panelHeight) = await _fitsImageSize(outPath);
         final newMasterId = await _mastersDao.insertMaster(
           targetId: project.targetId,
-          name: '${project.name} Panel ${panel.panelIndex + 1} (hub)',
+          name:
+              '${mosaicPanelTargetName(project.name, panel.panelIndex)} (hub)',
           masterFitsPath: outPath,
           status: IntegratedMasterStatus.finalized,
           accumulationMode: AccumulationMode.batch,
@@ -542,8 +561,6 @@ class CollaborativeMosaicService {
       client.close();
     }
   }
-
-  // Read
 
   /// List open/claimable collaborative mosaics on the configured hub.
   Future<List<CollabMosaic>> listMosaics() async {
@@ -649,8 +666,6 @@ class CollaborativeMosaicService {
     }
   }
 
-  // Internals
-
   /// Resolve the consent a panel-master upload ships under, failing CLOSED.
   ///
   ///   * both [license] + [attributionConsent] given → an explicit interactive
@@ -717,80 +732,32 @@ class CollaborativeMosaicService {
     }
   }
 
-  /// Stamp the master's persisted CD-matrix WCS (the `integrated_masters.wcs_*`
-  /// columns the post-session plate-solve writes DB-only) into its FITS header
-  /// so the uploaded bytes self-describe their astrometry. Mirrors the native
-  /// `add_wcs_headers` card set exactly — the inverse of the stitcher's
-  /// `wcs_from_header` — so both the assembler's header probe and the native
-  /// stitch read it. CRPIX defaults to the geometric centre (1-based) when the
-  /// solve omitted it, matching the native reader's fallback.
+  /// Stamp the master's persisted WCS (the `integrated_masters.wcs_*` columns
+  /// the post-session plate-solve writes DB-only) into its file, in place of
+  /// any astrometry it held, so the uploaded bytes self-describe their
+  /// astrometry for the assembler's header probe and the native stitch.
   Future<void> _stampWcsHeader(IntegratedMaster master, String fitsPath) async {
-    final crval1 = master.wcsCrval1;
-    final crval2 = master.wcsCrval2;
-    final cd11 = master.wcsCd1_1;
-    final cd22 = master.wcsCd2_2;
-    if (crval1 == null || crval2 == null || cd11 == null || cd22 == null) {
+    final wcs = master.solvedWcs;
+    if (wcs == null) {
       throw StateError(
         'panel master ${master.id} has an incomplete persisted WCS (CRVAL/CD) '
         '— cannot stamp it into the FITS header for upload',
       );
     }
-    final crpix1 =
-        master.wcsCrpix1 ?? (master.width > 0 ? master.width / 2.0 + 0.5 : 0.5);
-    final crpix2 =
-        master.wcsCrpix2 ??
-        (master.height > 0 ? master.height / 2.0 + 0.5 : 0.5);
-    await FitsHeaderWriter().updateKeywords(fitsPath, <FitsKeywordWrite>[
-      FitsKeywordWrite.floating('CRVAL1', crval1),
-      FitsKeywordWrite.floating('CRVAL2', crval2),
-      FitsKeywordWrite.floating('CRPIX1', crpix1),
-      FitsKeywordWrite.floating('CRPIX2', crpix2),
-      FitsKeywordWrite.floating('CD1_1', cd11),
-      FitsKeywordWrite.floating('CD1_2', master.wcsCd1_2 ?? 0.0),
-      FitsKeywordWrite.floating('CD2_1', master.wcsCd2_1 ?? 0.0),
-      FitsKeywordWrite.floating('CD2_2', cd22),
-      FitsKeywordWrite.string('CTYPE1', 'RA---TAN'),
-      FitsKeywordWrite.string('CTYPE2', 'DEC--TAN'),
-      FitsKeywordWrite.string('CUNIT1', 'deg'),
-      FitsKeywordWrite.string('CUNIT2', 'deg'),
-      FitsKeywordWrite.floating('EQUINOX', 2000.0),
-      FitsKeywordWrite.string('RADESYS', 'ICRS'),
-    ]);
+    await _writeWcs(fitsPath, wcs);
     _logger.info(
-      'Stamped persisted CD-matrix WCS into panel master FITS header '
-      '($fitsPath) before upload.',
+      'Stamped persisted WCS into panel master file ($fitsPath) before upload.',
       source: _logSource,
     );
   }
 
-  /// Probe whether a FITS file's header carries a WCS solution. A plate-solved
-  /// FITS carries a `CD1_1` (or `CDELT1`) plus a celestial `CTYPE1`. FITS headers
-  /// are 80-char ASCII cards in 2880-byte blocks ending at the `END` card, so a
-  /// cheap prefix read suffices — no native dependency. A read error degrades to
-  /// false (treat as un-solved), never throws into the caller.
+  /// Whether a master file's header states a WCS. A file that cannot be read
+  /// counts as unsolved, never throws into the caller.
   Future<bool> _fitsHeaderHasWcs(String fitsPath) async {
     try {
-      final file = File(fitsPath);
-      if (!await file.exists()) return false;
-      final raf = await file.open();
-      try {
-        // Read up to the first 16 header blocks (45 KiB) — far more than any
-        // realistic primary header — and scan for the WCS keywords.
-        const maxHeaderBytes = 2880 * 16;
-        final len = await raf.length();
-        final toRead = len < maxHeaderBytes ? len : maxHeaderBytes;
-        final bytes = await raf.read(toRead);
-        final text = String.fromCharCodes(bytes);
-        final hasCtype =
-            text.contains('CTYPE1') &&
-            (text.contains('RA---') || text.contains('RA--'));
-        final hasScale = text.contains('CD1_1') || text.contains('CDELT1');
-        final hasRef = text.contains('CRVAL1') && text.contains('CRPIX1');
-        return hasRef && (hasScale || hasCtype);
-      } finally {
-        await raf.close();
-      }
-    } on Object catch (e) {
+      if (!await File(fitsPath).exists()) return false;
+      return (await _readHeader(fitsPath)).astrometry != null;
+    } on Exception catch (e) {
       _logger.debug(
         'fitsHeaderHasWcs($fitsPath) failed: $e',
         source: _logSource,
@@ -799,37 +766,20 @@ class CollaborativeMosaicService {
     }
   }
 
-  /// The `(width, height)` a FITS file declares in `NAXIS1`/`NAXIS2`, or
-  /// `(0, 0)` when the file is missing or the keywords cannot be read.
+  /// The `(width, height)` a master file's header states, or `(0, 0)` when the
+  /// file is missing or its size cannot be read.
   ///
   /// Hub-pulled masters (panel masters during assembly, and the finished mosaic
   /// a participant downloads) arrive as bare bytes with no accompanying row, so
-  /// their geometry has to come from the pixels themselves. Recording 0x0
-  /// instead makes every gallery, picker, and detail view report a real image as
-  /// having no dimensions.
+  /// their geometry has to come from the file itself. Recording 0x0 instead
+  /// makes every gallery, picker, and detail view report a real image as having
+  /// no dimensions.
   Future<(int, int)> _fitsImageSize(String fitsPath) async {
     try {
-      final file = File(fitsPath);
-      if (!await file.exists()) return (0, 0);
-      final raf = await file.open();
-      try {
-        const maxHeaderBytes = 2880 * 16;
-        final len = await raf.length();
-        final toRead = len < maxHeaderBytes ? len : maxHeaderBytes;
-        final text = String.fromCharCodes(await raf.read(toRead));
-        int axis(int n) {
-          // FITS cards are fixed 80 columns: `NAXISn   = <value>`.
-          final match = RegExp('NAXIS$n\\s*=\\s*(-?\\d+)').firstMatch(text);
-          return int.tryParse(match?.group(1) ?? '') ?? 0;
-        }
-
-        final w = axis(1);
-        final h = axis(2);
-        return (w > 0 ? w : 0, h > 0 ? h : 0);
-      } finally {
-        await raf.close();
-      }
-    } on Object catch (e) {
+      if (!await File(fitsPath).exists()) return (0, 0);
+      final size = (await _readHeader(fitsPath)).imageSize;
+      return size == null ? (0, 0) : (size.width, size.height);
+    } on Exception catch (e) {
       _logger.debug('fitsImageSize($fitsPath) failed: $e', source: _logSource);
       return (0, 0);
     }

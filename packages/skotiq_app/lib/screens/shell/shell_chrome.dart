@@ -14,7 +14,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 abstract final class ShellChrome {
   ShellChrome._();
 
-  /// True on phone/tablet native targets (not web).
   static bool get isNativeMobile {
     if (kIsWeb) return false;
     return Platform.isAndroid || Platform.isIOS;
@@ -47,19 +46,16 @@ abstract final class ShellChrome {
     );
   }
 
-  /// [usesSystemDecorations] for a given platform and environment.
   static bool usesSystemDecorationsFor({
     required bool isLinux,
     required Map<String, String> environment,
   }) =>
       isLinux && environment['SKOTIQ_SYSTEM_DECORATIONS'] == '1';
 
-  /// Whether the shell should render [SkotiqBottomNavigation].
   static bool useBottomNavigation(double width) {
     if (isNativeMobile) return true;
     return width < ShellChromeMetrics.shellLayoutBreakpoint;
   }
 
-  /// Whether the shell should render [SideNavigation].
   static bool useSideNavigation(double width) => !useBottomNavigation(width);
 }

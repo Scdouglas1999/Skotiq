@@ -3,7 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
@@ -17,7 +20,6 @@ part 'node_progress_panels/other_progress_panels.dart';
 part 'node_progress_panels/animated_progress_bar.dart';
 part 'node_progress_panels/last_known_node_progress.dart';
 
-/// Factory that returns the appropriate progress panel widget for a node type
 Widget getProgressPanelForNode({
   required SequenceNode node,
   required SkotiqColors colors,
@@ -28,14 +30,15 @@ Widget getProgressPanelForNode({
   String? runFilter,
   NodeExposureTally? exposureTally,
 }) {
-  // Parse progress detail to extract relevant info
   final detail = progressDetail ?? '';
 
   if (node is CoolCameraNode || node is WarmCameraNode) {
     return _CoolingProgressPanel(
       colors: colors,
       progressPercent: progressPercent,
-      detail: detail,
+      reading: structuredProgressDetail is ThermalInstructionProgressDetail
+          ? structuredProgressDetail
+          : null,
       isWarming: node is WarmCameraNode,
     );
   }
@@ -44,7 +47,9 @@ Widget getProgressPanelForNode({
     return _AutofocusProgressPanel(
       colors: colors,
       progressPercent: progressPercent,
-      detail: detail,
+      sweepPoint: structuredProgressDetail is AutofocusInstructionProgressDetail
+          ? structuredProgressDetail
+          : null,
     );
   }
 
@@ -66,7 +71,9 @@ Widget getProgressPanelForNode({
     return _SlewProgressPanel(
       colors: colors,
       progressPercent: progressPercent,
-      detail: detail,
+      centering: structuredProgressDetail is CenterInstructionProgressDetail
+          ? structuredProgressDetail
+          : null,
       isCentering: node is CenterNode,
     );
   }
@@ -79,7 +86,6 @@ Widget getProgressPanelForNode({
     );
   }
 
-  // Default panel for other node types
   return _DefaultProgressPanel(
     colors: colors,
     progressPercent: progressPercent,

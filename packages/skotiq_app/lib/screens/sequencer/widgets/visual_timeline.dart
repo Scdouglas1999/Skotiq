@@ -2,13 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' as planetarium;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Toggle for timeline view visibility.
 final timelineVisibleProvider = StateProvider<bool>((ref) => false);
 
 /// Timer-free twilight lookup for sequencer pre-session simulation.
@@ -29,30 +30,17 @@ final preSessionTwilightTimesProvider =
   );
 });
 
-/// Provider that computes the shared pre-session simulation timeline.
 final sequenceTimelineProvider = Provider<PreSessionSimulationResult?>((ref) {
   final sequence = ref.watch(currentSequenceProvider);
   if (sequence == null) return null;
 
-  final settings = ref.watch(appSettingsProvider).valueOrNull;
   final twilight = ref.watch(preSessionTwilightTimesProvider);
-  final hasLocation = settings != null && settings.hasObserverLocation;
-  // Shared overhead model — see the same construction in
-  // preflight_validation_dialog.dart. Two surfaces describing one sequence
-  // must not bill it differently.
-  return PreSessionSimulator(
-    estimator: SequenceTimeEstimator(
-      overhead: ref.watch(sequencerOverheadConfigProvider),
-    ),
-  ).simulate(
-    sequence,
-    start: DateTime.now(),
-    latitude: hasLocation ? settings.latitude : null,
-    longitude: hasLocation ? settings.longitude : null,
-    minAltitude: settings?.effectiveHorizonDeg ?? 20.0,
-    darkWindowStart: twilight?.astronomicalDusk,
-    darkWindowEnd: twilight?.astronomicalDawn,
-  );
+  return ref.watch(planTimerProvider).simulate(
+        sequence,
+        start: DateTime.now(),
+        darkWindowStart: twilight?.astronomicalDusk,
+        darkWindowEnd: twilight?.astronomicalDawn,
+      );
 });
 
 /// Horizontal timeline view showing each node as a colored bar.
@@ -171,7 +159,6 @@ class VisualTimeline extends ConsumerWidget {
       );
     }
 
-    // Calculate total duration
     final firstStart = simulation.start;
     final lastEnd = simulation.end;
     final totalDuration = simulation.duration;
@@ -211,7 +198,6 @@ class VisualTimeline extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Row(
@@ -228,13 +214,12 @@ class VisualTimeline extends ConsumerWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  _formatTotalDuration(totalDuration),
+                  '${DurationFormat.of(totalDuration, style: DurationStyle.coarse)} total',
                   style: TextStyle(
                       fontSize: SkotiqTypography.fontSize11,
                       color: colors.textMuted),
                 ),
                 const Spacer(),
-                // Close button
                 GestureDetector(
                   onTap: () {
                     ref.read(timelineVisibleProvider.notifier).state = false;
@@ -244,8 +229,6 @@ class VisualTimeline extends ConsumerWidget {
               ],
             ),
           ),
-
-          // Timeline bars - scrollable horizontally
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -279,21 +262,19 @@ class VisualTimeline extends ConsumerWidget {
               },
             ),
           ),
-
-          // Time axis labels
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  DateFormat('HH:mm').format(firstStart),
+                  ClockFormat.hm(firstStart),
                   style: TextStyle(
                       fontSize: SkotiqTypography.fontSize10,
                       color: colors.textMuted),
                 ),
                 Text(
-                  DateFormat('HH:mm').format(
+                  ClockFormat.hm(
                     firstStart.add(Duration(seconds: (totalSecs / 4).round())),
                   ),
                   style: TextStyle(
@@ -301,7 +282,7 @@ class VisualTimeline extends ConsumerWidget {
                       color: colors.textMuted),
                 ),
                 Text(
-                  DateFormat('HH:mm').format(
+                  ClockFormat.hm(
                     firstStart.add(Duration(seconds: (totalSecs / 2).round())),
                   ),
                   style: TextStyle(
@@ -309,7 +290,7 @@ class VisualTimeline extends ConsumerWidget {
                       color: colors.textMuted),
                 ),
                 Text(
-                  DateFormat('HH:mm').format(
+                  ClockFormat.hm(
                     firstStart
                         .add(Duration(seconds: (totalSecs * 3 / 4).round())),
                   ),
@@ -318,7 +299,7 @@ class VisualTimeline extends ConsumerWidget {
                       color: colors.textMuted),
                 ),
                 Text(
-                  DateFormat('HH:mm').format(lastEnd),
+                  ClockFormat.hm(lastEnd),
                   style: TextStyle(
                       fontSize: SkotiqTypography.fontSize10,
                       color: colors.textMuted),
@@ -329,13 +310,6 @@ class VisualTimeline extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  String _formatTotalDuration(Duration d) {
-    final hours = d.inHours;
-    final mins = d.inMinutes % 60;
-    if (hours > 0) return '${hours}h ${mins}m total';
-    return '${mins}m total';
   }
 }
 
@@ -361,8 +335,6 @@ class _TimelinePainter extends CustomPainter {
     const topMargin = 4.0;
     final barAreaHeight = size.height - topMargin;
 
-    // Group timings by target header for stacking
-    // Each target gets its own row
     final targetGroups = <String?, List<PreSessionSimulationSegment>>{};
     for (final segment in segments) {
       targetGroups.putIfAbsent(segment.targetHeaderId, () => []).add(segment);
@@ -372,10 +344,8 @@ class _TimelinePainter extends CustomPainter {
     final rowHeight = (barAreaHeight / rowCount).clamp(12.0, 30.0);
     const barGap = 1.0;
 
-    // Draw time grid lines
     _drawTimeGrid(canvas, size, topMargin);
 
-    // Draw bars for each target group
     int rowIndex = 0;
     for (final entry in targetGroups.entries) {
       final y = topMargin + rowIndex * rowHeight;
@@ -389,7 +359,6 @@ class _TimelinePainter extends CustomPainter {
         final w = ((durationSecs / totalSecs) * size.width)
             .clamp(2.0, double.infinity);
 
-        // Determine color from node category
         final node = sequence.nodes[segment.nodeId];
         Color barColor;
         if (node != null) {
@@ -411,7 +380,6 @@ class _TimelinePainter extends CustomPainter {
           barColor = colors.textMuted;
         }
 
-        // Highlight based on execution status
         final nodeStatus = progress.nodeStatuses[segment.nodeId];
         if (nodeStatus == NodeStatus.running) {
           barColor = colors.info;
@@ -430,7 +398,6 @@ class _TimelinePainter extends CustomPainter {
             ..style = PaintingStyle.fill,
         );
 
-        // Draw node name label if bar is wide enough
         if (w > 40) {
           final labelColor =
               ThemeData.estimateBrightnessForColor(barColor) == Brightness.dark
@@ -460,7 +427,6 @@ class _TimelinePainter extends CustomPainter {
       rowIndex++;
     }
 
-    // Draw current execution position line
     if (progress.currentNodeId != null) {
       final currentTiming =
           segments.where((t) => t.nodeId == progress.currentNodeId).firstOrNull;
@@ -479,7 +445,6 @@ class _TimelinePainter extends CustomPainter {
             ..strokeWidth = 2.0,
         );
 
-        // Draw small triangle at top
         final path = Path()
           ..moveTo(xPos - 4, 0)
           ..lineTo(xPos + 4, 0)
@@ -496,7 +461,6 @@ class _TimelinePainter extends CustomPainter {
   }
 
   void _drawTimeGrid(Canvas canvas, Size size, double topMargin) {
-    // Draw 4 evenly spaced grid lines
     final gridPaint = Paint()
       ..color = colors.border.withValues(alpha: 0.5)
       ..strokeWidth = 0.5;

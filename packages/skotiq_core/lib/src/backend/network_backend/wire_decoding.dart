@@ -1,8 +1,6 @@
 part of '../network_backend.dart';
 
 extension _NetworkBackendWireDecoding on _NetworkBackendTransport {
-  // Type conversion helpers
-
   DriverType _parseDriverType(String str) {
     switch (str.toLowerCase()) {
       case 'ascom':
@@ -26,4 +24,20 @@ extension _NetworkBackendWireDecoding on _NetworkBackendTransport {
   SkotiqEvent _eventFromJson(Map<String, dynamic> json) {
     return SkotiqEvent.fromWireJson(json);
   }
+}
+
+Future<List<int>> consolidateHttpClientResponseBytes(
+  HttpClientResponse response,
+) {
+  final completer = Completer<List<int>>();
+  final chunks = <List<int>>[];
+
+  response.listen(
+    (chunk) => chunks.add(chunk),
+    onDone: () => completer.complete(chunks.expand((x) => x).toList()),
+    onError: completer.completeError,
+    cancelOnError: true,
+  );
+
+  return completer.future;
 }

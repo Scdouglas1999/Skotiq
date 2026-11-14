@@ -83,7 +83,6 @@ class DeliveryManifestEntry {
     'targetId': targetId,
   };
 
-  /// Parse one wire object.
   static DeliveryManifestEntry fromJson(Object? value) {
     if (value is! Map) {
       throw const DeliveryManifestFormatException(
@@ -120,7 +119,6 @@ class UnavailableArtifact {
     'reason': reason,
   };
 
-  /// Parse one wire object.
   static UnavailableArtifact fromJson(Object? value) {
     if (value is! Map) {
       throw const DeliveryManifestFormatException(
@@ -171,7 +169,6 @@ class DeliveryManifest {
   /// Total bytes the desktop is about to pull.
   int get totalBytes => entries.fold<int>(0, (sum, e) => sum + e.bytes);
 
-  /// The wire object.
   Map<String, Object?> toJson() => <String, Object?>{
     'entries': entries.map((e) => e.toJson()).toList(growable: false),
     'generatedAt': generatedAt.toUtc().toIso8601String(),
@@ -181,7 +178,6 @@ class DeliveryManifest {
     'version': version,
   };
 
-  /// Parse a manifest document.
   static DeliveryManifest fromJson(Object? value) {
     if (value is! Map) {
       throw const DeliveryManifestFormatException(
@@ -226,7 +222,6 @@ class DeliveryManifest {
 
 /// A manifest plus the signature over it, or the reason there is none.
 class SignedDeliveryManifest {
-  /// The document.
   final DeliveryManifest manifest;
 
   /// Hex HMAC over the manifest's canonical bytes, or null when the server
@@ -267,7 +262,6 @@ class SignedDeliveryManifest {
     );
   }
 
-  /// The wire envelope.
   Map<String, Object?> toJson() => <String, Object?>{
     'manifest': manifest.toJson(),
     'signature': signature == null
@@ -280,7 +274,6 @@ class SignedDeliveryManifest {
       'signatureAbsentReason': signatureAbsentReason,
   };
 
-  /// Parse a wire envelope.
   static SignedDeliveryManifest fromJson(Object? value) {
     if (value is! Map) {
       throw const DeliveryManifestFormatException(

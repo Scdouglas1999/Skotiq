@@ -6,7 +6,10 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api/handlers/session_handlers.dart';
 import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:shelf/shelf.dart';
@@ -89,7 +92,7 @@ void main() {
       'polar Start awaits native admission even when jobs are wired',
       () async {
         final backend = _GatedPolarBackend();
-        final polarContainer = ProviderContainer(
+        final polarContainer = createHeadlessTestContainer(
           overrides: [
             backendProvider.overrideWith(
               (ref) => _TestBackendNotifier(ref, backend),
@@ -138,7 +141,7 @@ void main() {
 
     test('polar Start propagates native admission failure', () async {
       final backend = _GatedPolarBackend();
-      final polarContainer = ProviderContainer(
+      final polarContainer = createHeadlessTestContainer(
         overrides: [
           backendProvider.overrideWith(
             (ref) => _TestBackendNotifier(ref, backend),
@@ -374,6 +377,56 @@ void main() {
   // Range header shapes. The handler streams via `file.openRead(start,
   // end+1)` so the response body covers exactly the requested byte
   // slice; we drain the body to verify the bytes are correct.
+  group('SessionHandlers POST /api/images', () {
+    late ProviderContainer container;
+    late SessionHandlers handlers;
+    late SkotiqDatabase db;
+
+    setUp(() {
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      handlers = SessionHandlers(container);
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await db.close();
+    });
+
+    Future<Response> post(String frameType) => translateHandlerErrors(
+      handlers.handleCreateImage(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/images'),
+          body: jsonEncode({
+            'filePath': '/nowhere/frame.fits',
+            'fileName': 'frame.fits',
+            'frameType': frameType,
+            'exposureDuration': 60,
+            'capturedAt': DateTime.utc(2026, 11, 13).toIso8601String(),
+          }),
+        ),
+      ),
+    );
+
+    test('a frame type is stored as the record names it', () async {
+      final response = await post('darkflat');
+      expect(response.statusCode, HttpStatus.ok);
+      final rows = await db.select(db.capturedImages).get();
+      expect(rows.single.frameType, 'darkflat');
+    });
+
+    test('a name that is no frame type record is refused', () async {
+      for (final name in ['lights', 'Light', 'darkFlat']) {
+        final response = await post(name);
+        expect(response.statusCode, HttpStatus.badRequest, reason: name);
+      }
+      expect(await db.select(db.capturedImages).get(), isEmpty);
+    });
+  });
+
   group('SessionHandlers /api/images/{id}/download (Range)', () {
     late ProviderContainer container;
     late SessionHandlers handlers;

@@ -5,8 +5,7 @@ import '../../../services/live_stacking_broadcast_service.dart';
 import '../../../services/live_stacking_service.dart' show LiveStackingConfig;
 import '../../../services/logging_service.dart';
 import '../../live_stacking_provider.dart';
-import '../sequencer_run_event.dart' show FrameAccepted;
-import 'frame_attribution.dart';
+import '../../../backend/bridge_events.dart' show SequencerEvent_FrameAccepted;
 
 /// Feeds a run's accepted frames to the live stacker and its LAN broadcast.
 ///
@@ -56,7 +55,7 @@ class LiveStackingFeed {
 
   /// Queue [event]'s frame for the stack. A no-op when the running sequence
   /// does not live-stack.
-  void feed(FrameAccepted event) {
+  void feed(SequencerEvent_FrameAccepted event) {
     final node = _activeNode();
     if (node == null) return;
 
@@ -71,7 +70,9 @@ class LiveStackingFeed {
       return;
     }
 
-    final exposureSecs = _exposureSecs(event);
+    // The camera's reported exposure, which the frame's row records too, for
+    // the broadcast's integration counter.
+    final exposureSecs = event.capture.exposureSecs;
     final previous = _chain ?? Future<void>.value();
     _chain = previous.then(
       (_) => _feedFrame(
@@ -116,8 +117,8 @@ class LiveStackingFeed {
   LiveStackingNode? _activeNode() {
     final sequence = _sequence();
     if (sequence == null) return null;
-    for (final node in sequence.nodes.values) {
-      if (node is LiveStackingNode && node.isEnabled) return node;
+    for (final node in sequence.enabledNodes) {
+      if (node is LiveStackingNode) return node;
     }
     return null;
   }
@@ -127,23 +128,6 @@ class LiveStackingFeed {
   LiveStackingConfig _configFor(LiveStackingNode node) => LiveStackingConfig(
     sigmaClipEnabled: node.stackMethod != LiveStackingMethod.average,
   );
-
-  /// The producing node's exposure (the source the captured-images row uses),
-  /// else the event's own duration, for the broadcast's integration counter.
-  double _exposureSecs(FrameAccepted event) {
-    final nodeId = event.nodeId;
-    final sequence = _sequence();
-    if (nodeId != null && sequence != null) {
-      final attribution = resolveFrameAttribution(
-        sequence,
-        nodeId,
-        currentFilter: _progress().currentFilter,
-      );
-      final secs = attribution.exposureSecs;
-      if (secs != null) return secs;
-    }
-    return event.durationSecs ?? 0.0;
-  }
 
   Future<void> _feedFrame({
     required LiveStackingNode node,
@@ -172,8 +156,7 @@ class LiveStackingFeed {
         _armed = true;
         logger.info(
           'Live-stacking auto-feed armed: reference frame $savePath '
-          '(method=${node.stackMethod.label}, broadcast port '
-          '${node.broadcastPort})',
+          '(method=${node.stackMethod.label})',
           source: 'SequenceExecutor',
         );
       } else {

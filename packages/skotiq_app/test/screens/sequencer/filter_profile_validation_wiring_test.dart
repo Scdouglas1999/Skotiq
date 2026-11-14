@@ -14,7 +14,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/pump_app_screen.dart';
 
@@ -46,8 +47,6 @@ List<Override> _overrides() {
   editor.state = _sequenceWithFilter('Ha');
   return [
     currentSequenceProvider.overrideWith((_) => editor),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
     activeEquipmentProfileProvider.overrideWith(
       (ref) => EquipmentProfileModel(
         name: 'Test Rig',

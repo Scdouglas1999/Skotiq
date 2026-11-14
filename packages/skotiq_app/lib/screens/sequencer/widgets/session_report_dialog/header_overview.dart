@@ -3,14 +3,12 @@ part of '../session_report_dialog.dart';
 class _Header extends StatelessWidget {
   final SessionReport report;
   final SkotiqColors colors;
-  final DateFormat dateFormat;
   final VoidCallback onCopyMarkdown;
   final VoidCallback onExportTxt;
 
   const _Header({
     required this.report,
     required this.colors,
-    required this.dateFormat,
     required this.onCopyMarkdown,
     required this.onExportTxt,
   });
@@ -25,13 +23,14 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${report.sessionName} - ${runStatusLabel(report.status)}',
+                '${report.sessionName} - ${sessionStatusLabel(report.status)}',
                 style: SkotiqTypography.labelStrong
                     .copyWith(color: colors.textPrimary),
               ),
               if (report.endTime != null)
                 Text(
-                  '${dateFormat.format(report.startTime)} - ${dateFormat.format(report.endTime!)}',
+                  '${ClockFormat.monthDayYearHm(report.startTime)}–'
+                  '${ClockFormat.hmOrMonthDayHm(report.endTime!, report.startTime)}',
                   style: SkotiqTypography.captionSm
                       .copyWith(color: colors.textMuted),
                 ),
@@ -71,7 +70,7 @@ class _OverviewGrid extends StatelessWidget {
         _OverviewTile(
           label: 'Wall clock',
           value: DurationFormat.of(report.wallClockDuration,
-              style: DurationStyle.hoursMinutes),
+              style: DurationStyle.short),
           colors: colors,
         ),
         _OverviewTile(
@@ -82,14 +81,14 @@ class _OverviewGrid extends StatelessWidget {
           // time.
           label: 'Light integration',
           value: DurationFormat.of(report.totalIntegration,
-              style: DurationStyle.hoursMinutes),
+              style: DurationStyle.short),
           colors: colors,
         ),
         if (report.calibration.isNotEmpty)
           _OverviewTile(
             label: 'Calibration',
             value: '${report.calibrationFramesAccepted} frames · '
-                '${DurationFormat.of(Duration(milliseconds: (report.calibrationIntegrationSecs * 1000).round()), style: DurationStyle.hoursMinutes)}',
+                '${DurationFormat.of(Duration(milliseconds: (report.calibrationIntegrationSecs * 1000).round()), style: DurationStyle.short)}',
             colors: colors,
           ),
         _OverviewTile(
@@ -99,8 +98,7 @@ class _OverviewGrid extends StatelessWidget {
         ),
         _OverviewTile(
           label: 'Downtime',
-          value: DurationFormat.of(report.downtime,
-              style: DurationStyle.hoursMinutes),
+          value: DurationFormat.of(report.downtime, style: DurationStyle.short),
           colors: colors,
         ),
         _OverviewTile(

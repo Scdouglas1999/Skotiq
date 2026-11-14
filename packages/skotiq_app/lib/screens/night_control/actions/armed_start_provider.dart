@@ -1,13 +1,8 @@
-// "Start at dark": a timer in this app process that starts the loaded run at
-// astronomical dark.
-//
-// On the imaging host it lives only as long as the app does: a restart clears
-// it, and the screen says the app must stay open. A remote client holds no
-// timer: the host keeps the schedule, and the client mirrors it.
-import 'dart:async';
-
+// What Tonight shows about "Start at dark"; the schedule itself is
+// `nightArmedStartProvider` in skotiq_core, which the host also serves to
+// linked clients.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../services/observing_site.dart';
 
@@ -20,57 +15,7 @@ final nightAstroDarkProvider = Provider<DateTime?>((ref) {
 /// The note an armed start carries: on the imaging host the app must stay
 /// open; on a client the host starts the run whatever this computer does.
 final armedStartNoteKeyProvider = Provider<String>(
-  (ref) => ref.watch(backendProvider) is NetworkBackend
+  (ref) => ref.watch(isRemoteModeProvider)
       ? 'nightActArmedOnHost'
       : 'nightActArmedKeepOpen',
 );
-
-/// When the armed start fires (a UTC instant), or null when not armed.
-final nightArmedStartProvider =
-    NotifierProvider<ArmedStartController, DateTime?>(
-  ArmedStartController.new,
-);
-
-class ArmedStartController extends Notifier<DateTime?> {
-  Timer? _timer;
-
-  @override
-  DateTime? build() {
-    ref.onDispose(_cancelTimer);
-    // A client shows the host's schedule; arming and canceling go to the host
-    // (see NightActionController).
-    if (ref.watch(backendProvider) is NetworkBackend) {
-      return ref.watch(hostScheduledStartProvider);
-    }
-    // A run started some other way (the header's Start, a remote client)
-    // makes the armed start moot; leaving it armed would fire a second start
-    // into a finished run later.
-    ref.listen<SequenceExecutionState>(sequenceExecutionStateProvider,
-        (previous, next) {
-      if (state != null && next.isBusy) disarm();
-    });
-    return null;
-  }
-
-  /// Arms [fire] to run once at [at]. Replaces an earlier arming.
-  void arm(DateTime at, Future<void> Function() fire) {
-    _cancelTimer();
-    final delay = at.difference(DateTime.now().toUtc());
-    state = at.toUtc();
-    _timer = Timer(delay.isNegative ? Duration.zero : delay, () {
-      _timer = null;
-      state = null;
-      unawaited(fire());
-    });
-  }
-
-  void disarm() {
-    _cancelTimer();
-    state = null;
-  }
-
-  void _cancelTimer() {
-    _timer?.cancel();
-    _timer = null;
-  }
-}

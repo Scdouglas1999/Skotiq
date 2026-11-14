@@ -1,20 +1,16 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart' show TwilightTimes;
+import 'package:skotiq_astro/skotiq_astro.dart' show TwilightTimes;
 
-import '../backend/network_backend.dart';
-import '../backend/skotiq_backend.dart';
-import '../database/daos/guide_rms_history_dao.dart';
+import 'host_role.dart';
+import 'async_scope.dart';
 import '../models/planning/target_suggestion.dart';
-import '../services/scheduler/integration_goal_service.dart';
-import '../services/logging_service.dart';
 import '../services/science/science_camera_auto_config.dart';
 import '../services/smart_night/exposure_calculator.dart';
 import '../services/smart_night/hardware_specs_service.dart';
 import '../services/session_optimizer_service.dart';
 import '../services/smart_night_service.dart';
-import 'backend_provider.dart';
 import '../services/sensor_specs/camera_sensor_specs.dart';
 import 'camera_sensor_specs_provider.dart';
 import 'database_provider.dart';
@@ -23,6 +19,11 @@ import 'profiles_provider.dart';
 import 'session_report_provider.dart';
 import 'settings_provider.dart';
 import 'target_suggestion_provider.dart';
+import '../database/daos/settings_dao.dart';
+import '../settings/store_settings.dart';
+import 'logging_service_provider.dart';
+import 'scheduler/integration_goal_service_provider.dart';
+import 'scheduler_provider.dart' show altitudeFloorProvider;
 
 /// Service provider for SessionOptimizerService.
 ///
@@ -34,10 +35,6 @@ final sessionOptimizerServiceProvider = Provider<SessionOptimizerService>((
   final suggestionService = ref.watch(targetSuggestionServiceProvider);
   return SessionOptimizerService(suggestionService: suggestionService);
 });
-
-final hardwareSpecsServiceProvider = Provider<HardwareSpecsService>(
-  (_) => const HardwareSpecsService(),
-);
 
 /// Builds the Smart Night exposure context used by Plan Tonight and dashboard
 /// recommendations.
@@ -57,13 +54,9 @@ final smartNightExposureContextProvider = FutureProvider<SmartNightExposureConte
   final opticalConfig = ref.watch(opticalConfigProvider);
   final profile = ref.watch(activeEquipmentProfileProvider);
   final effectiveFilters = ref.watch(effectiveFiltersProvider);
-  final backend = ref.watch(backendProvider);
   final guideStats = await _weightedGuideRmsForMount(
     profile?.mountId,
-    backend: backend,
-    localDao: backend is NetworkBackend
-        ? null
-        : ref.watch(guideRmsHistoryDaoProvider),
+    recentSamples: ref.watch(_recentGuideRmsProvider),
   );
 
   final focalLength = opticalConfig?.focalLength ?? profile?.focalLength;
@@ -228,20 +221,15 @@ bool _cameraOverridesAreMalformed(Map<String, String> settings) {
   }
 }
 
-/// Dismissed insight ids (sticky "Don't suggest this again").
-///
-/// Persisted under `session_insights.dismissed` as a comma-joined list of
-/// insight ids. The DAO is the same `app_settings` table used elsewhere,
-/// so the lifecycle matches: cleared on a database wipe, otherwise
-/// survives app restarts.
+/// Dismissed insight ids (sticky "Don't suggest this again"), kept in
+/// [StoreSettings.dismissedSessionInsights].
 class _DismissedInsightsNotifier extends AsyncNotifier<Set<String>> {
-  static const _key = 'session_insights.dismissed';
   Future<void> _writeTail = Future<void>.value();
 
   @override
   Future<Set<String>> build() async {
     final dao = ref.watch(settingsDaoProvider);
-    final raw = await dao.getSetting(_key) ?? '';
+    final raw = await dao.read(StoreSettings.dismissedSessionInsights);
     if (raw.trim().isEmpty) return <String>{};
     return raw
         .split(',')
@@ -261,8 +249,11 @@ class _DismissedInsightsNotifier extends AsyncNotifier<Set<String>> {
       }
       final updated = Set<String>.unmodifiable(change(current));
       final dao = ref.read(settingsDaoProvider);
-      await dao.setSetting(_key, updated.join(','));
-      if (!identical(ref.read(settingsDaoProvider), dao)) {
+      await dao.write(
+        StoreSettings.dismissedSessionInsights,
+        updated.join(','),
+      );
+      if (ref.scopeOver(settingsDaoProvider, dao).isStale) {
         throw StateError(
           'The settings database changed while saving dismissed insights.',
         );
@@ -321,6 +312,33 @@ double? _readDoubleSetting(Map<String, String> settings, String key) {
   return parsed;
 }
 
+typedef _RecentGuideRms =
+    Future<List<({double totalRmsArcsec, DateTime recordedAt})>> Function(
+      String mountId,
+    );
+
+/// A mount's last 20 guiding runs, from the history of the machine that
+/// guided.
+final _recentGuideRmsProvider = hostRoleProvider<_RecentGuideRms>(
+  here: (ref) {
+    final dao = ref.watch(guideRmsHistoryDaoProvider);
+    return (mountId) async => [
+      for (final sample in await dao.recentForMount(mountId, limit: 20))
+        (totalRmsArcsec: sample.totalRmsArcsec, recordedAt: sample.recordedAt),
+    ];
+  },
+  linked: (_, host) => (mountId) async {
+    final page = await host.history.fetchGuideRmsHistory(
+      mountId: mountId,
+      limit: 20,
+    );
+    return [
+      for (final sample in page.items)
+        (totalRmsArcsec: sample.totalRmsArcsec, recordedAt: sample.recordedAt),
+    ];
+  },
+);
+
 class _GuideRmsStats {
   final double? rmsArcsec;
   final int sampleCount;
@@ -330,39 +348,14 @@ class _GuideRmsStats {
 
 Future<_GuideRmsStats> _weightedGuideRmsForMount(
   String? mountId, {
-  required SkotiqBackend backend,
-  required GuideRmsHistoryDao? localDao,
+  required _RecentGuideRms recentSamples,
 }) async {
   final trimmedMountId = mountId?.trim();
   if (trimmedMountId == null || trimmedMountId.isEmpty) {
     return const _GuideRmsStats();
   }
 
-  final List<({double totalRmsArcsec, DateTime recordedAt})> samples;
-  if (backend is NetworkBackend) {
-    final page = await backend.fetchGuideRmsHistory(
-      mountId: trimmedMountId,
-      limit: 20,
-    );
-    samples = page.items
-        .map(
-          (sample) => (
-            totalRmsArcsec: sample.totalRmsArcsec,
-            recordedAt: sample.recordedAt,
-          ),
-        )
-        .toList(growable: false);
-  } else {
-    final rows = await localDao!.recentForMount(trimmedMountId, limit: 20);
-    samples = rows
-        .map(
-          (sample) => (
-            totalRmsArcsec: sample.totalRmsArcsec,
-            recordedAt: sample.recordedAt,
-          ),
-        )
-        .toList(growable: false);
-  }
+  final samples = await recentSamples(trimmedMountId);
   if (samples.isEmpty) {
     return const _GuideRmsStats();
   }
@@ -442,6 +435,7 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
         targetSnr: settings.smartNightTargetSnr,
         subExposureCeilingSecs: settings.smartNightSubExposureCeilingSecs,
         subExposureFloorSecs: settings.smartNightSubExposureFloorSecs,
+        minAltitudeDeg: ref.read(altitudeFloorProvider).lowestDeg,
       );
 
       return SmartNightService(

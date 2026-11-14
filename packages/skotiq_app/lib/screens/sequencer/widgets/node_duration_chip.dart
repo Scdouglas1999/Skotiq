@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Small muted "~2h 14m" chip rendered next to container node rows
@@ -28,11 +29,14 @@ class NodeDurationChip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final duration = ref.watch(nodeRollupDurationProvider(nodeId));
+    final openEnd = ref.watch(nodeRollupOpenEndProvider(nodeId));
     // Don't draw anything for empty / zero-duration containers — the chip
     // would just read "<1s" which is noise.
-    if (duration.inSeconds <= 0) return const SizedBox.shrink();
+    if (openEnd == null && duration.inSeconds <= 0) {
+      return const SizedBox.shrink();
+    }
 
-    final text = formatRollupDuration(duration);
+    final text = formatNodeRollup(duration, openEnd);
     final fontSize = compact ? 10.0 : 11.0;
 
     return Row(

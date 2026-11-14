@@ -1,25 +1,24 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/roles/host_data/calibration_library.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/calibration_tags_dao.dart';
 import '../database/daos/flat_library_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
+import '../models/calibration/dark_library_match_tolerances.dart';
 import '../models/calibration/shared_calibration_models.dart';
 import '../models/collaboration/collaboration_models.dart';
-import '../providers/backend_provider.dart';
-import '../providers/constellation_provider.dart';
-import '../providers/database_provider.dart';
-import 'calibration/fits_header_reader.dart';
+import '../providers/async_scope.dart';
+import 'calibration/calibration_selection.dart';
+import 'frame_header.dart';
 import 'calibration/shared_calibration_library.dart';
-import '../utils/skotiq_data_directory.dart';
+import 'logging_service.dart';
 part 'calibration_library_service/remote_acceptance.dart';
 part 'calibration_library_service/matchers.dart';
 part 'calibration_library_service/sharing.dart';
@@ -43,33 +42,33 @@ part 'calibration_library_service/formatting.dart';
 ///  3. **Annotate / manage**: user tags + notes per master ([setTags] /
 ///     [setNotes]) and deletion of the artifact row + optional file
 ///     ([deleteMaster]).
-class CalibrationLibraryService {
+class CalibrationLibraryService implements CalibrationLibrary {
   CalibrationLibraryService({
     required SkotiqDatabase db,
     required FlatLibraryDao flatLibraryDao,
     required CalibrationTagsDao tagsDao,
     Ref? ref,
-    this.headerReader = const FitsHeaderReader(),
+    this.readHeader = readFrameHeader,
     this.thresholds = CalibrationStalenessThresholds.defaults,
     RemoteCalibrationLibrary? remoteLibrary,
-    SkotiqBackend? backend,
     Future<String> Function()? sharedMasterDirResolver,
+    DarkLibraryMatchTolerances Function()? darkTolerances,
     DateTime Function()? now,
   }) : _db = db,
        _flatDao = flatLibraryDao,
        _tagsDao = tagsDao,
-       _backend = backend ?? ref?.read(backendProvider),
-       _backendNotifier = ref?.read(backendProvider.notifier),
+       _host = ref?.providerBackendScope(),
        _remoteLibrary = remoteLibrary,
        _sharedMasterDirResolver = sharedMasterDirResolver,
+       _darkTolerances = darkTolerances,
        _now = now ?? DateTime.now;
 
   final SkotiqDatabase _db;
   final FlatLibraryDao _flatDao;
   final CalibrationTagsDao _tagsDao;
-  final SkotiqBackend? _backend;
-  final BackendNotifier? _backendNotifier;
-  bool _retired = false;
+
+  /// The host this service was built for; null in wirings without one.
+  final AsyncScope<SkotiqBackend>? _host;
 
   /// The hub-backed shared calibration library. When set, [match] folds
   /// ranked REMOTE candidates into the local ranking and [acceptRemoteMaster]
@@ -82,38 +81,16 @@ class CalibrationLibraryService {
   /// rather than guessing a path.
   final Future<String> Function()? _sharedMasterDirResolver;
 
-  final FitsHeaderReader headerReader;
+  /// The operator's dark tolerances, the ones live calibration matches with.
+  /// Null in wirings without settings, which match on the defaults.
+  final DarkLibraryMatchTolerances Function()? _darkTolerances;
+
+  final FrameHeaderReader readHeader;
   final CalibrationStalenessThresholds thresholds;
   final DateTime Function() _now;
 
-  /// The active [NetworkBackend] when this device is a remote client (a tablet
-  /// or desktop driving the headless appliance). When non-null, tag/note/
-  /// delete/match operations target the APPLIANCE's real calibration library
-  /// over `/api/calibration-library/*` instead of this device's local Drift
-  /// DB (which on a remote client is empty). Null on the host / local builds,
-  /// where the operations run against the local DB.
-  NetworkBackend? get _remote {
-    final backend = _backend;
-    return backend is NetworkBackend ? backend : null;
-  }
-
-  bool get _hasAuthority {
-    final backend = _backend;
-    if (backend == null) return true;
-    return !_retired && (_backendNotifier?.isCurrentBackend(backend) ?? false);
-  }
-
-  void retire() => _retired = true;
-
-  void _ensureAuthority() {
-    if (_hasAuthority) return;
-    throw StateError(
-      'The imaging host changed while the calibration library was loading. '
-      'The stale result was discarded; try again on the current host.',
-    );
-  }
-
-  // Listing + enrichment
+  void _ensureAuthority() =>
+      _host?.ensureCurrent('the calibration library was loading');
 
   /// All library records matching [filter], newest first.
   ///
@@ -123,87 +100,20 @@ class CalibrationLibraryService {
   /// `calibration_tags.camera_id` so each file is parsed at most once.
   /// Enrichment is best-effort — a missing or malformed file never breaks the
   /// listing.
+  @override
   Future<List<CalibrationMasterRecord>> listMasters({
     CalibrationLibraryFilter filter = const CalibrationLibraryFilter(),
     bool enrichFromHeaders = true,
   }) async {
     _ensureAuthority();
-    final remote = _remote;
-    var records = remote == null
-        ? await _loadAll()
-        : [
-            for (final row in await remote.getCalibrationMasters(
-              type: filter.type == null
-                  ? null
-                  : calibrationMasterTypeWireName(filter.type!),
-            ))
-              CalibrationMasterRecord.fromJson(row),
-          ];
+    var records = filter.whereStoredFieldsMatch(await _loadAll());
     _ensureAuthority();
 
-    if (filter.mastersOnly) {
-      records = records.where((r) => r.isMaster).toList();
-    }
-    if (filter.type != null) {
-      records = records.where((r) => r.type == filter.type).toList();
-    }
-    if (filter.gain != null) {
-      records = records.where((r) => r.gain == filter.gain).toList();
-    }
-    if (filter.binX != null) {
-      records = records.where((r) => r.binX == filter.binX).toList();
-    }
-    if (filter.binY != null) {
-      records = records.where((r) => r.binY == filter.binY).toList();
-    }
-    if (filter.exposureSeconds != null) {
-      records = records
-          .where(
-            (r) =>
-                r.exposureSeconds != null &&
-                (r.exposureSeconds! - filter.exposureSeconds!).abs() <=
-                    filter.exposureToleranceSecs,
-          )
-          .toList();
-    }
-    if (filter.temperatureMin != null) {
-      records = records
-          .where(
-            (r) =>
-                r.temperature != null &&
-                r.temperature! >= filter.temperatureMin!,
-          )
-          .toList();
-    }
-    if (filter.temperatureMax != null) {
-      records = records
-          .where(
-            (r) =>
-                r.temperature != null &&
-                r.temperature! <= filter.temperatureMax!,
-          )
-          .toList();
-    }
-    final filterName = filter.filter?.trim();
-    if (filterName != null && filterName.isNotEmpty) {
-      records = records
-          .where(
-            (r) =>
-                r.filter != null &&
-                r.filter!.trim().toLowerCase() == filterName.toLowerCase(),
-          )
-          .toList();
-    }
-
-    if (enrichFromHeaders && remote == null) {
+    if (enrichFromHeaders) {
       records = await _enrichAll(records);
       _ensureAuthority();
     }
-
-    final cameraId = filter.cameraId?.trim();
-    if (cameraId != null && cameraId.isNotEmpty) {
-      records = records.where((r) => r.cameraId == cameraId).toList();
-    }
+    records = filter.whereCameraMatches(records);
 
     records.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     _ensureAuthority();
@@ -211,24 +121,16 @@ class CalibrationLibraryService {
   }
 
   /// One record by identity, or null. Enriched from the FITS header.
+  @override
   Future<CalibrationMasterRecord?> getRecord(
     CalibrationMasterType type,
     int id,
   ) async {
     _ensureAuthority();
-    final remote = _remote;
-    final all = remote == null
-        ? await _loadAll()
-        : [
-            for (final row in await remote.getCalibrationMasters(
-              type: calibrationMasterTypeWireName(type),
-            ))
-              CalibrationMasterRecord.fromJson(row),
-          ];
+    final all = await _loadAll();
     _ensureAuthority();
     for (final record in all) {
       if (record.type == type && record.id == id) {
-        if (remote != null) return record;
         final enriched = await _enrich(record);
         _ensureAuthority();
         return enriched;
@@ -237,24 +139,23 @@ class CalibrationLibraryService {
     return null;
   }
 
-  // Matching
-
   /// Pick the best master per type for [context].
   ///
   /// Rules (each deviation is scored down and surfaced in `reasons` /
   /// `warnings` — the match is transparent by design):
-  ///  * **Darks**: gain, offset, and binning must match *exactly*. Exposure
-  ///    within ±[CalibrationMatchTolerances.dark]`.exposureSecs` is an exact
+  ///  * **Darks**: gain, offset, and binning must match *exactly*, and the
+  ///    read mode when the lights and the dark both state one. Exposure
+  ///    within the operator's exposure tolerance is an exact
   ///    match; otherwise the nearest-exposure dark is returned with
   ///    `exposureScaled = true` and a warning. Temperature within tolerance
   ///    preferred; out-of-tolerance candidates only win when nothing closer
   ///    exists (with a warning). Stacked masters beat raw frames. Older than
   ///    [CalibrationStalenessThresholds.darkStaleDays] warns.
   ///  * **Bias**: exact gain / offset / binning; newest wins.
-  ///  * **Flats**: matched by filter (exact, when the context has one) +
-  ///    recency; gain / offset / binning exact (mirrors
-  ///    [FlatLibraryDao.findBestMatch]). Older than `flatStaleDays` (7 d)
-  ///    warns — flats go bad with any dust or optical-train change. A flat
+  ///  * **Flats**: [selectFlat], the rule master accumulation also uses:
+  ///    filter (exact, when the context has one), the dark tuple rule,
+  ///    temperature within tolerance preferred, newest wins. Older than
+  ///    `flatStaleDays` (7 d) warns — flats go bad with any dust or optical-train change. A flat
   ///    without an optical-train tag matched against a context that has one
   ///    also warns.
   ///  * **Defect maps**: per camera id; nearest temperature bucket.
@@ -271,26 +172,21 @@ class CalibrationLibraryService {
   /// [includeRemote] is set, ranked remote candidates join the same per-type
   /// ranking, local-first on an exact tuple tie. The chosen master's provenance
   /// rides on the result; [acceptRemoteMaster] downloads and merges it.
+  @override
   Future<CalibrationMatchSet> match(
     LightFrameContext context, {
-    CalibrationMatchTolerances tolerances = CalibrationMatchTolerances.defaults,
     bool includeRemote = true,
   }) async {
-    final remote = _remote;
-    if (remote != null) {
-      // Remote client: the appliance owns the real master library, so the
-      // host runs the matcher against its own DB and returns the transparent
-      // per-type result.
-      final result = await remote.matchCalibrationMasters(context);
-      _ensureAuthority();
-      return result;
-    }
     // Enrich exactly as [listMasters] does. A master flat whose filter lives
     // only in its FITS header has a null `filter` column, so without this it is
     // visible and correctly labelled in the Calibration Library while this
     // matcher reports "No matching master flat for filter X" about the very
     // record on screen — and silently drops flat-field correction.
-    final all = await _enrichAll(await _loadAll());
+    var all = await _enrichAll(await _loadAll());
+    if (context.readoutMode != null) all = await _withReadoutModes(all);
+    final tolerances = CalibrationMatchTolerances(
+      dark: _darkTolerances?.call() ?? DarkLibraryMatchTolerances.defaults,
+    );
     String? remoteWarning;
     if (includeRemote && _remoteLibrary != null) {
       // Signed out is a NORMAL state, not a failure: no exception, no error log
@@ -311,10 +207,9 @@ class CalibrationLibraryService {
           // hub failure must never degrade local matching, but the operator
           // must see that shared masters were not consulted (offline != 'none
           // exist').
-          developer.log(
+          Log.warning(
             'Remote calibration candidates skipped: $e',
-            name: 'CalibrationLibraryService',
-            level: 900,
+            source: 'CalibrationLibraryService',
           );
           remoteWarning =
               'Shared calibration hub unreachable — shared masters were not '
@@ -332,8 +227,9 @@ class CalibrationLibraryService {
     );
     if (dark == null) {
       setWarnings.add(
-        'No matching master dark (gain ${context.gain ?? 'unrecorded'}, offset '
-        '${context.offset ?? 'unrecorded'}, bin ${context.binX}x${context.binY}'
+        'No matching master dark (${context.gain == null ? 'no gain' : 'gain ${context.gain}'}, '
+        '${context.offset == null ? 'no offset' : 'offset ${context.offset}'}, '
+        'bin ${context.binX}x${context.binY}'
         ', ${_fmtSecs(context.exposureSeconds)}) — dark subtraction will be '
         'skipped.',
       );
@@ -376,8 +272,6 @@ class CalibrationLibraryService {
       warnings: setWarnings,
     );
   }
-
-  // Shared calibration libraries
 
   /// Download a REMOTE master surfaced by [match] and merge it into the local
   /// library, applying the quality + consent gates and conflict resolution:
@@ -478,6 +372,7 @@ class CalibrationLibraryService {
   /// (consent-gated: refuses when the consent does not permit sharing). The
   /// trust signals (frame count, sensor dimensions, camera) are taken from the
   /// record; [provenance] supplies the rest (e.g. measured dark current).
+  @override
   Future<SharedCalibrationMaster> publishMaster(
     CalibrationMasterRecord record, {
     required ContributionConsent consent,
@@ -526,15 +421,8 @@ class CalibrationLibraryService {
   /// id recorded at publish time, calls the hub's owner-scoped delete, and clears
   /// the local retract handle so the master shows as un-shared again. Throws a
   /// [StateError] when the master was never published or no hub is configured.
+  @override
   Future<void> retractPublishedMaster(CalibrationMasterRecord record) async {
-    final remote = _remote;
-    if (remote != null) {
-      await remote.retractCalibrationMaster(
-        type: calibrationMasterTypeWireName(record.type),
-        id: record.id,
-      );
-      return;
-    }
     final library = _remoteLibrary;
     if (library == null) {
       throw StateError('no shared calibration library is configured');
@@ -552,9 +440,19 @@ class CalibrationLibraryService {
     await _tagsDao.upsert(record.type, record.id, clearPublishedRemoteId: true);
   }
 
-  // Tagging
+  @override
+  Future<SharedMasterAcceptOutcome> acceptSharedMaster(
+    CalibrationMasterRecord shared,
+  ) async {
+    final outcome = await acceptRemoteMaster(shared);
+    return (kind: outcome.kind.name, reason: outcome.reason);
+  }
+
+  @override
+  HostFileDownload? masterFileDownload(CalibrationMasterRecord record) => null;
 
   /// Replace the user tags of one master.
+  @override
   Future<void> setTags(
     CalibrationMasterType type,
     int id,
@@ -564,34 +462,17 @@ class CalibrationLibraryService {
       for (final t in tags)
         if (t.trim().isNotEmpty) t.trim(),
     ];
-    final remote = _remote;
-    if (remote != null) {
-      await remote.setCalibrationMasterTags(
-        type: calibrationMasterTypeWireName(type),
-        id: id,
-        tags: cleaned,
-      );
-      return;
-    }
     await _tagsDao.upsert(type, id, tags: cleaned);
   }
 
   /// Replace the notes of one master (null/empty clears them).
+  @override
   Future<void> setNotes(
     CalibrationMasterType type,
     int id,
     String? notes,
   ) async {
     final cleaned = notes?.trim();
-    final remote = _remote;
-    if (remote != null) {
-      await remote.setCalibrationMasterNotes(
-        type: calibrationMasterTypeWireName(type),
-        id: id,
-        notes: cleaned,
-      );
-      return;
-    }
     if (cleaned == null || cleaned.isEmpty) {
       await _tagsDao.upsert(type, id, clearNotes: true);
     } else {
@@ -599,28 +480,15 @@ class CalibrationLibraryService {
     }
   }
 
-  // Deletion
-
   /// Delete one master's DB row (plus its `calibration_tags` annotation) and,
   /// when [deleteFile] is set, the on-disk artifact(s). Returns false when no
   /// row with that identity exists.
+  @override
   Future<bool> deleteMaster(
     CalibrationMasterType type,
     int id, {
     bool deleteFile = false,
   }) async {
-    final remote = _remote;
-    if (remote != null) {
-      // The appliance owns the row + file. A 404 there surfaces as a thrown
-      // ServerError (no_calibration_master); the caller reloads either way, so
-      // success here means the host accepted the delete.
-      await remote.deleteCalibrationMaster(
-        type: calibrationMasterTypeWireName(type),
-        id: id,
-        deleteFile: deleteFile,
-      );
-      return true;
-    }
     var found = false;
     switch (type) {
       case CalibrationMasterType.dark:
@@ -670,35 +538,4 @@ class CalibrationLibraryService {
   }
 
   static double _clampScore(double score) => score.clamp(0.0, 100.0);
-
-  static String _fmtDate(DateTime when) =>
-      when.toLocal().toIso8601String().split('T').first;
 }
-
-/// Riverpod provider for the [CalibrationLibraryService].
-final calibrationLibraryServiceProvider = Provider<CalibrationLibraryService>((
-  ref,
-) {
-  final backend = ref.watch(backendProvider);
-  final settings = ref.watch(settingsDaoProvider);
-  final service = CalibrationLibraryService(
-    db: ref.watch(databaseProvider),
-    flatLibraryDao: ref.watch(flatLibraryDaoProvider),
-    tagsDao: ref.watch(calibrationTagsDaoProvider),
-    ref: ref,
-    backend: backend,
-    // Fold ranked masters shared on the configured Constellation hub into
-    // the local ranking, and download-on-accept. Reuses the same settings-backed
-    // hub credentials Pillar C resolves; a no-hub config simply yields no remote
-    // candidates.
-    remoteLibrary: HubCalibrationLibrary(
-      credentialsResolver: () => resolveConstellationCredentials(settings),
-    ),
-    sharedMasterDirResolver: () async {
-      final dir = await resolveSkotiqDataDirectory();
-      return p.join(dir.path, 'shared_calibration');
-    },
-  );
-  ref.onDispose(service.retire);
-  return service;
-});

@@ -53,12 +53,14 @@ class AutofocusProgressData {
     );
   }
 
-  /// Get the minimum HFR from the V-curve points
-  double get minHfr => vcurvePoints.isEmpty
-      ? 0.0
-      : vcurvePoints.map((p) => p.hfr).reduce((a, b) => a < b ? a : b);
+  /// Get the minimum HFR from the V-curve points the fit uses
+  double get minHfr {
+    final used = vcurvePoints.where((p) => !p.isRejected);
+    return used.isEmpty
+        ? 0.0
+        : used.map((p) => p.hfr).reduce((a, b) => a < b ? a : b);
+  }
 
-  /// Get the maximum HFR from the V-curve points
   double get maxHfr => vcurvePoints.isEmpty
       ? 0.0
       : vcurvePoints.map((p) => p.hfr).reduce((a, b) => a > b ? a : b);
@@ -85,17 +87,30 @@ class VCurvePoint {
   /// build that did not report it per point.
   final int? starCount;
 
+  /// Why the curve fit left this point out, or null when it used it. Set
+  /// once the sweep is measured, when the native side re-sends its points
+  /// with the verdict: far from focus a frame can find a few specks of donut
+  /// stars and read a falsely low HFR.
+  final String? rejectedReason;
+
   const VCurvePoint({
     required this.position,
     required this.hfr,
     this.starCount,
+    this.rejectedReason,
   });
 
+  bool get isRejected => rejectedReason != null;
+
   factory VCurvePoint.fromJson(Map<String, dynamic> json) {
+    final rejected = json['rejected'];
     return VCurvePoint(
       position: json['position'] as int,
       hfr: (json['hfr'] as num).toDouble(),
       starCount: (json['star_count'] as num?)?.toInt(),
+      rejectedReason: rejected is String && rejected.isNotEmpty
+          ? rejected
+          : null,
     );
   }
 }

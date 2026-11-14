@@ -29,12 +29,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_controller.dart';
 import 'package:skotiq_app/screens/darkroom/darkroom_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart' show TestBackendNotifier;
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
 
 const String _masterPath = '/tmp/skotiq-test/m31_G.fits';
 
@@ -321,14 +325,14 @@ void main() {
   }
 
   void open(DarkroomScope scope) {
-    container.listen<DarkroomState>(
+    container.listen<DarkroomViewState>(
       darkroomControllerProvider(scope),
       (_, __) {},
       fireImmediately: true,
     );
   }
 
-  Future<DarkroomState> settle(DarkroomScope scope) async {
+  Future<DarkroomViewState> settle(DarkroomScope scope) async {
     open(scope);
     for (var i = 0; i < 12; i++) {
       await Future<void>.delayed(Duration.zero);

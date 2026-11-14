@@ -56,6 +56,18 @@ Sequence _smallTree() {
 }
 
 void main() {
+  test('enabled steps inherit disabled ancestors and refresh on editing', () {
+    final original = _smallTree();
+    final nodes = {...original.nodes};
+    nodes['A'] = (nodes['A'] as InstructionSetNode).copyWith(isEnabled: false);
+    final disabled = original.copyWith(nodes: nodes);
+    // Ask about a descendant first to exercise the cached ancestry result.
+    expect(disabled.isNodeEnabled(nodes['A2']!), isFalse);
+    expect(disabled.enabledNodes.map((n) => n.id), ['root', 'B', 'B1']);
+    expect(original.enabledNodes, hasLength(6));
+    expect(disabled.treeIndex.isEnabled('missing'), isFalse);
+  });
+
   group('Sequence.childrenOf', () {
     test('returns children in canonical order', () {
       final s = _smallTree();

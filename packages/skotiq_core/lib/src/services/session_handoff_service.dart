@@ -1,9 +1,11 @@
+import '../models/imaging/frame_type_record.dart';
 import 'dart:convert';
 
 import '../database/daos/images_dao.dart';
 import '../database/daos/sessions_dao.dart';
 import '../database/daos/targets_dao.dart';
-import '../database/database.dart' show CapturedImage, ImagingSession, Target;
+import '../database/database.dart'
+    show DbCapturedImage, ImagingSession, DbTarget;
 import '../models/sequence/sequence_models.dart';
 import 'quick_start_service.dart';
 
@@ -242,8 +244,8 @@ class SessionHandoffService {
   /// service cannot make.
   Future<List<SessionCarryOver>> detectCarryOver({
     required Sequence sequence,
-    List<Target>? libraryTargets,
-    List<CapturedImage>? capturedImages,
+    List<DbTarget>? libraryTargets,
+    List<DbCapturedImage>? capturedImages,
     List<ImagingSession>? sessions,
     DateTime? now,
     int recentSessionWithinDays = 14,
@@ -262,8 +264,8 @@ class SessionHandoffService {
     if (headers.isEmpty) return const <SessionCarryOver>[];
 
     final allTargets = libraryTargets ?? await _targetsDao!.getAllTargets();
-    final byCatalog = <String, Target>{};
-    final byName = <String, Target>{};
+    final byCatalog = <String, DbTarget>{};
+    final byName = <String, DbTarget>{};
     for (final t in allTargets) {
       final catalog = t.catalogId;
       if (catalog != null && catalog.isNotEmpty) {
@@ -305,7 +307,7 @@ class SessionHandoffService {
                 .toList(growable: false)
           : await _imagesDao!.getImagesForTarget(target.id);
       final lightFrames = images
-          .where((i) => i.frameType == 'light' && i.isAccepted)
+          .where((i) => i.isLight && i.isAccepted)
           .toList(growable: false);
 
       // Per-filter integration across ALL prior sessions.

@@ -1,33 +1,111 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
-import 'package:skotiq_core/skotiq_core.dart';
+import '../database/database.dart';
+import '../models/autofocus_progress.dart';
+import '../models/backend/host_runtime_update.dart';
+import '../models/defect_map.dart';
+import '../models/depthlock/depthlock_models.dart';
+import '../models/equipment_profile.dart';
+import '../models/imaging/imaging_models.dart';
+import '../models/imaging/stack_and_share_models.dart';
+import '../models/live_view/live_view_frame.dart';
+import '../models/meridian_flip_settings.dart';
+import '../models/mount_guard.dart';
+import '../models/notification/transport_configs.dart';
+import '../models/phd2_models.dart';
+import '../models/planning/project.dart';
+import '../models/planning/project_progress.dart';
+import '../models/planning/target_suggestion.dart';
+import '../models/plate_solver.dart';
+import '../models/replay_decision.dart';
+import '../models/scheduler/integration_goal.dart';
+import '../models/scheduler/scheduler_decision.dart';
+import '../models/scheduler/target_constraint.dart';
+import '../models/science/science_models.dart';
+import '../models/sequence/sequence_models.dart';
+import '../models/sequencer/host_scheduled_start.dart';
+import '../models/site/location_settings.dart';
+import '../services/adaptive_swap_service.dart';
+import '../services/disk_space_service.dart';
+import '../services/science/period_analysis_service.dart' show PeriodFinding;
+import '../services/end_of_night_calibration/eon_service.dart';
+import '../services/home_assistant/home_assistant_discovery_config.dart';
+import '../services/home_assistant/home_assistant_host_settings.dart';
+import '../services/live_stacking_service.dart';
+import '../services/logging_service.dart';
+import '../services/phd2_probe.dart';
+import '../services/scheduler/horizon_profile.dart';
+import '../models/imaging/fits_keyword_write.dart';
+import '../services/sync/sync_service.dart';
+import 'roles/host_data/host_backups.dart';
+import 'roles/host_data/host_calibration_frames.dart';
+import 'roles/host_data/host_calibration_tools.dart';
+import 'roles/host_data/host_catalogs.dart';
+import 'roles/host_data/host_cloud_sync.dart';
+import 'roles/host_data/host_control_session.dart';
+import 'roles/host_data/host_device_control.dart';
+import 'roles/host_data/host_files.dart';
+import 'roles/host_data/host_focus_models.dart';
+import 'roles/host_data/host_history.dart';
+import 'roles/host_data/host_imaging_records.dart';
+import 'roles/host_data/host_jobs.dart';
+import 'roles/host_data/host_link.dart';
+import 'roles/host_data/host_live_stack.dart';
+import 'roles/host_data/host_logs.dart';
+import 'roles/host_data/host_night_control.dart';
+import 'roles/host_data/host_notes.dart';
+import 'roles/host_data/host_notifications.dart';
+import 'roles/host_data/host_planning_data.dart';
+import 'roles/host_data/host_pointing.dart';
+import 'roles/host_data/host_post_session.dart';
+import 'roles/host_data/host_profiles.dart';
+import 'roles/host_data/host_replay_debug.dart';
+import 'roles/host_data/host_rig_settings.dart';
+import 'roles/host_data/host_run_state.dart';
+import 'roles/host_data/host_runtime_mirror.dart';
+import 'roles/host_data/host_science.dart';
+import 'roles/host_data/host_secondary_rig.dart';
+import 'roles/host_data/host_sequence_library.dart';
+import 'roles/host_data/host_sky_atlas.dart';
+import 'roles/host_data/host_transients.dart';
+import 'roles/host_data/host_updates.dart';
+import 'roles/host_data/host_weather.dart';
+import 'skotiq_backend.dart';
 // TailnetDetector is the single source of truth for host reachability
 // classification (LAN vs Tailscale tailnet vs public). Reused here so the
 // scheme/timeout tuning matches the QR/pairing validator exactly.
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show PushDeliveryTargets, TailnetDetector, buildSkotiqServerUri;
+    show
+        PushDeliveryTargets,
+        TailnetDetector,
+        buildSkotiqServerUri,
+        kDefaultHeadlessPort;
+import 'package:skotiq_remote_protocol/wire.dart';
 import 'package:path/path.dart' as p;
 import '../models/settings/app_settings.dart' as models;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
 
-// Import pure Dart types from backend_types for return types
 import '../models/errors/skotiq_error.dart' as dart_error;
-// Error parsing: parse the headless server's structured error
-// envelope ({code, message, details}) into a typed [ServerError] so the
-// mobile companion can branch on the machine-readable `code` instead of
-// substring-matching the message text.
 import 'remote_display_jpeg.dart';
 import 'skotiq_exception.dart'
     show ImagingException, IoException, ValidationException;
-import '../providers/host_scheduled_start_provider.dart'
-    show parseHostScheduledStart;
-import '../services/end_of_night_calibration/eon_service.dart' show EonStatus;
+import '../models/calibration/calibration_library_models.dart';
+import '../models/notes/journal_note.dart';
+import '../models/backend/backend_types.dart';
+import '../models/backend/remote_catalog_models.dart';
+import '../models/backend/remote_session_status.dart';
+import '../models/imaging/session_status.dart';
+import '../models/backend/remote_stacked_result.dart';
+import '../models/backend/remote_update_models.dart';
+import '../models/backend/backend_connection_state.dart';
+
+// The rows the host writes and this client reads.
+export 'package:skotiq_remote_protocol/wire_models.dart';
 
 part 'network_backend/remote_operations.dart';
 part 'network_backend/remote_calibration_catalog_operations.dart';
@@ -46,11 +124,10 @@ part 'network_backend/replay_debug_operations.dart';
 part 'network_backend/stacking_operations.dart';
 part 'network_backend/post_session_operations.dart';
 part 'network_backend/depthlock_operations.dart';
+part 'network_backend/mount_guard_operations.dart';
 part 'network_backend/runtime_mirror_operations.dart';
 part 'network_backend/imaging_profile_operations.dart';
 part 'network_backend/webrtc_subscription.dart';
-part 'network_backend/wire_models.dart';
-part 'network_backend/wire_history_models.dart';
 part 'network_backend/connection_lifecycle.dart';
 part 'network_backend/event_tracking.dart';
 part 'network_backend/http_transport.dart';
@@ -150,7 +227,6 @@ abstract class _NetworkBackendTransport {
   /// caller owns its lifecycle.
   final bool _ownsHttpClient;
 
-  // Connection state management
   BackendConnectionState _connectionState = BackendConnectionState.disconnected;
   final StreamController<BackendConnectionState> _connectionStateController =
       StreamController<BackendConnectionState>.broadcast();
@@ -270,8 +346,9 @@ abstract class _NetworkBackendTransport {
 
   _NetworkBackendTransport({
     required this.serverHost,
-    this.serverPort = 8080,
-    this.webSocketPort = 8080, // WebSocket is on same port as HTTP
+    this.serverPort = kDefaultHeadlessPort,
+    // WebSocket is on same port as HTTP
+    this.webSocketPort = kDefaultHeadlessPort,
     String scheme = 'http',
     this.pinnedFingerprint,
     this.authToken,
@@ -302,7 +379,6 @@ abstract class _NetworkBackendTransport {
                : _lanRequestTimeout),
        _http = httpClient ?? http.Client(),
        _ownsHttpClient = httpClient == null {
-    // Initialize persistent HTTP client with connection pooling
     _httpClient = HttpClient()
       ..idleTimeout = const Duration(seconds: 30)
       ..connectionTimeout =
@@ -334,18 +410,15 @@ abstract class _NetworkBackendTransport {
   /// WebSocket scheme derived from [scheme]: `https` ⇒ `wss`, `http` ⇒ `ws`.
   String get _wsScheme => scheme == 'https' ? 'wss' : 'ws';
 
-  /// Build a REST API URI for [endpoint] (the path segment after `/api/`),
-  /// honouring the configured [scheme]. The [endpoint] may itself carry an
-  /// inline query string (e.g. `'calibration/darks/7?deleteFile=true'`); any
-  /// inline params are preserved and the optional [queryParameters] are merged
-  /// on top (explicit params win on key collision). Every REST URI is built
+  /// The URI of the request path [path] (from [_endpointPath]) with
+  /// [queryParameters], in the configured [scheme]. Every REST URI is built
   /// here, so the scheme is decided in one place.
-  Uri _apiUri(String endpoint, [Map<String, String>? queryParameters]) {
+  Uri _apiUri(String path, [Map<String, String>? queryParameters]) {
     final base = buildSkotiqServerUri(
       scheme: scheme,
       host: serverHost,
       port: serverPort,
-      pathAndQuery: '/api/$endpoint',
+      pathAndQuery: path,
     );
     if (queryParameters == null || queryParameters.isEmpty) {
       return base;
@@ -355,9 +428,13 @@ abstract class _NetworkBackendTransport {
     );
   }
 
-  /// Build a WebSocket URI for [path] (e.g. `/events`, `/ws/live-view`),
-  /// honouring the derived [_wsScheme]. [queryParameters] are merged on.
-  Uri _wsUri(String path, [Map<String, String>? queryParameters]) {
+  /// The WebSocket URI of [endpoint], with the scheme derived from [scheme].
+  Uri _wsUri(ApiEndpoint endpoint, [Map<String, String>? queryParameters]) {
+    final route = endpoint.route;
+    if (route.method != ApiMethod.ws) {
+      throw StateError('${route.signature} is not a WebSocket route');
+    }
+    final path = route.path;
     return Uri(
       scheme: _wsScheme,
       host: serverHost,
@@ -371,11 +448,9 @@ abstract class _NetworkBackendTransport {
 
   bool get dispatchPluginNodesLocally => false;
 
-  /// Stream of connection state changes
   Stream<BackendConnectionState> get connectionStateStream =>
       _connectionStateController.stream;
 
-  /// Current connection state
   BackendConnectionState get connectionState => _connectionState;
 
   /// True when the host definitively rejected the current credentials —
@@ -387,6 +462,20 @@ abstract class _NetworkBackendTransport {
   /// Cleared when the token is swapped or an explicit reconnect is
   /// requested.
   bool get isAuthTokenRejected => _authRejected;
+
+  /// Why the last handshake refused the host for good: it runs another
+  /// Skotiq release ([dart_error.HostVersionMismatchError]) or could not
+  /// prove it is the paired host ([dart_error.ServerIdentityMismatchError]).
+  /// Null while nothing was refused. Retrying cannot help, so the caller
+  /// shows its [dart_error.SkotiqError.userMessage].
+  dart_error.SkotiqError? get connectRefusal => _connectRefusal;
+  dart_error.SkotiqError? _connectRefusal;
+
+  /// What the host's `/api/info` said about itself at the last handshake:
+  /// every client has to present a pairing credential. Null before the first
+  /// handshake and for a host that does not say.
+  bool? get hostRequiresPairing => _hostRequiresPairing;
+  bool? _hostRequiresPairing;
 
   /// Stream of WebSocket ping/pong round-trip times. Emits a [Duration]
   /// every time the server's pong is received after we send a ping.
@@ -487,8 +576,47 @@ class NetworkBackend extends _NetworkBackendTransport
         _NetworkBackendPlanningDataOperations,
         _NetworkBackendObservingListOperations,
         _NetworkBackendDepthLockOperations,
-        _NetworkBackendRuntimeMirrorOperations
-    implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {
+        _NetworkBackendRuntimeMirrorOperations,
+        _NetworkBackendMountGuardOperations
+    implements
+        SkotiqBackend,
+        HostLink,
+        HostNightControl,
+        HostControlSession,
+        HostSkyAtlas,
+        HostTransients,
+        HostScience,
+        HostUpdates,
+        HostJobs,
+        HostNotifications,
+        HostLogs,
+        HostCloudSync,
+        HostCatalogs,
+        HostBackups,
+        HostProfiles,
+        HostFocusModels,
+        HostFiles,
+        HostDeviceControl,
+        HostCalibrationTools,
+        HostImagingRecords,
+        HostLiveStack,
+        HostPlanningData,
+        HostPostSession,
+        HostSequenceLibrary,
+        EnvironmentalStatusBackend,
+        DomeStatusBackend,
+        DeviceQuirksBackend,
+        MountGuardBackend,
+        HostWeather,
+        HostReplayDebug,
+        HostCalibrationFrames,
+        HostRunState,
+        HostNotes,
+        HostHistory,
+        HostRigSettings,
+        HostPointing,
+        HostSecondaryRig,
+        HostRuntimeMirror {
   static const _requestIdHeader = _NetworkBackendTransport._requestIdHeader;
 
   NetworkBackend({

@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
@@ -7,6 +6,7 @@ import '../radar_colormaps.dart';
 import '../radar_provider.dart';
 import '../radar_tile_decoder.dart';
 import '../../../models/weather/weather_models.dart';
+import '../../logging_service.dart';
 
 /// NOAA NEXRAD radar provider for US and southern Canada coverage.
 ///
@@ -23,7 +23,6 @@ import '../../../models/weather/weather_models.dart';
 /// - Resolution: Base reflectivity (N0Q product)
 /// - Coverage: CONUS + southern Canada (lat 24-55, lon -130 to -60)
 class NoaaRadarProvider extends RadarProvider {
-  /// HTTP client for fetching radar metadata and tiles.
   final http.Client _client;
 
   /// Base URL for the IEM NEXRAD WMS service.
@@ -84,7 +83,6 @@ class NoaaRadarProvider extends RadarProvider {
     required double longitude,
     double radiusKm = 100.0,
   }) async {
-    // Verify coverage
     if (!coversLocation(latitude, longitude)) {
       return RadarFetchResult.error(
         'Location ($latitude, $longitude) is outside NOAA NEXRAD coverage area',
@@ -92,7 +90,6 @@ class NoaaRadarProvider extends RadarProvider {
     }
 
     try {
-      // Fetch available timestamps from the time series endpoint
       final timestamps = await _fetchAvailableTimestamps();
 
       if (timestamps.isEmpty) {
@@ -111,11 +108,10 @@ class NoaaRadarProvider extends RadarProvider {
         frames.add(await _decodeFrame(timestamp, fov));
       }
 
-      developer.log(
+      Log.info(
         'NoaaRadarProvider: Built ${frames.length} frames '
         '(${frames.where((f) => !f.isNoData).length} with spatial data)',
-        name: 'NoaaRadarProvider',
-        level: 800,
+        source: 'NoaaRadarProvider',
       );
 
       return RadarFetchResult.success(frames);
@@ -143,18 +139,13 @@ class NoaaRadarProvider extends RadarProvider {
       if (response.statusCode == 200) {
         image = _decoder.decodePng(response.bodyBytes);
       } else {
-        developer.log(
+        Log.warning(
           'NOAA GetMap status ${response.statusCode}',
-          name: 'NoaaRadarProvider',
-          level: 900,
+          source: 'NoaaRadarProvider',
         );
       }
     } catch (e) {
-      developer.log(
-        'NOAA GetMap fetch failed: $e',
-        name: 'NoaaRadarProvider',
-        level: 900,
-      );
+      Log.warning('NOAA GetMap fetch failed: $e', source: 'NoaaRadarProvider');
     }
 
     if (image == null) {
@@ -269,7 +260,6 @@ class NoaaRadarProvider extends RadarProvider {
       );
     }
 
-    // Parse the XML response to extract time dimension
     final body = response.body;
     final timestamps = _parseTimestampsFromCapabilities(body);
 
@@ -308,10 +298,9 @@ class NoaaRadarProvider extends RadarProvider {
           final dateTime = DateTime.parse(ts.trim());
           timestamps.add(dateTime);
         } catch (e) {
-          developer.log(
+          Log.warning(
             'Failed to parse NOAA timestamp: $ts',
-            name: 'NoaaRadarProvider',
-            level: 900,
+            source: 'NoaaRadarProvider',
             error: e,
           );
         }
@@ -333,10 +322,9 @@ class NoaaRadarProvider extends RadarProvider {
             current = current.add(period);
           }
         } catch (e) {
-          developer.log(
+          Log.warning(
             'Failed to parse NOAA time period: $timeString',
-            name: 'NoaaRadarProvider',
-            level: 900,
+            source: 'NoaaRadarProvider',
             error: e,
           );
           return _generateFallbackTimestamps();
@@ -351,13 +339,13 @@ class NoaaRadarProvider extends RadarProvider {
 
   /// Generates fallback timestamps when GetCapabilities parsing fails.
   ///
-  /// Creates timestamps for the last 2 hours at 5-minute intervals,
-  /// rounded to the nearest 5-minute mark.
+  /// Creates timestamps for the last 2 hours at 5-minute intervals, starting
+  /// from the latest 5-minute mark at or before now.
   List<DateTime> _generateFallbackTimestamps() {
     final now = DateTime.now().toUtc();
     final timestamps = <DateTime>[];
 
-    // Round to nearest 5 minutes
+    // Down to the 5-minute mark: a frame from the future does not exist yet.
     final roundedMinutes = (now.minute ~/ 5) * 5;
     var current = DateTime.utc(
       now.year,
@@ -395,10 +383,8 @@ class NoaaRadarProvider extends RadarProvider {
 
   @override
   String buildTileUrl(RadarFrame frame, int z, int x, int y) {
-    // Calculate Web Mercator bounding box for this tile
     final bbox = _tileToBBox(x, y, z);
 
-    // Replace the {bbox} token in the template
     return frame.tileUrlTemplate.replaceAll(
       '{bbox}',
       '${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}',

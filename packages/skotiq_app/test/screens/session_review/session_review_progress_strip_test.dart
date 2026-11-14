@@ -6,8 +6,7 @@
 // event on the shared progress stream, and nothing ever cleared it — so a
 // "Preview… 100%" strip stayed pinned under the header indefinitely (it
 // survived a Narrative/Workbench round-trip and was still there 13 minutes
-// later), claiming a job was still running. `integrate()` cleared it; every
-// other seam-driven action did not.
+// later), claiming a job was still running.
 //
 // These drive the real screen against a real controller and a seam that emits
 // the same terminal event the native side does, and assert on what is rendered.
@@ -20,9 +19,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
 import 'package:skotiq_app/screens/session_review/session_review_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/post_session_seam.dart' as seam;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/services.dart' as seam;
 
 import '../../harness/mock_database.dart';
 

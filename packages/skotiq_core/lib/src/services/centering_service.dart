@@ -1,35 +1,29 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import 'package:skotiq_bridge/skotiq_bridge.dart' show PlateSolveResult;
 import '../backend/roles/device_backend.dart';
 import 'plate_solve_service.dart';
 import 'imaging_service.dart';
 import 'device_service.dart';
-import 'smart_notification_service.dart';
 import '../providers/backend_provider.dart';
 import '../providers/constellation_provider.dart'
     show coImagingSessionServiceProvider;
 import '../providers/equipment_provider.dart';
 import '../providers/imaging_provider.dart' show exposureSettingsProvider;
-import '../providers/current_screen_provider.dart';
-import 'logging_service.dart' show loggingServiceProvider;
+import '../models/app_screen.dart';
 import '../models/imaging/imaging_models.dart';
 import '../models/equipment/equipment_models.dart';
+import '../providers/device_service_providers.dart';
+import '../providers/imaging_service_providers.dart';
+import '../providers/logging_service_provider.dart';
+import 'logging_service.dart';
+import '../providers/plate_solve_service_provider.dart';
+import '../providers/smart_notification_service_provider.dart';
 part 'centering_service/centering_models.dart';
 part 'centering_service/centering_loop.dart';
 part 'centering_service/slew_settle.dart';
 part 'centering_service/centering_geometry.dart';
-
-/// PHD2 app states in which the guider does not move the mount.
-const Set<String> _idleGuiderStates = {
-  'Disconnected',
-  'Connected',
-  'Stopped',
-  'Selected',
-  'Looping',
-  'Paused',
-};
 
 /// Service for automated target centering using plate solving
 class CenteringService {
@@ -202,32 +196,3 @@ class CenteringService {
     }
   }
 }
-
-/// Provider for the centering service
-final centeringServiceProvider = Provider<CenteringService>((ref) {
-  final backend = ref.watch(deviceBackendProvider);
-  final service = CenteringService(
-    ref,
-    backend: backend,
-    slewPollInterval: ref.watch(centeringSlewPollIntervalProvider),
-    maxSlewPollTicks: ref.watch(centeringSlewMaxPollTicksProvider),
-  );
-  ref.onDispose(service.retire);
-  return service;
-});
-
-/// Timing seams used by deterministic centering lifecycle tests.
-final centeringSlewPollIntervalProvider = Provider<Duration>(
-  (ref) => const Duration(milliseconds: 500),
-);
-final centeringSlewMaxPollTicksProvider = Provider<int>((ref) => 120);
-
-/// Provider for centering status
-final centeringStatusProvider = StateProvider<CenteringStatus>((ref) {
-  return CenteringStatus.idle();
-});
-
-/// Provider for last centering result
-final lastCenteringResultProvider = StateProvider<CenteringResult?>(
-  (ref) => null,
-);

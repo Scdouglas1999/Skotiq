@@ -2,144 +2,10 @@ part of '../headless_api_server.dart';
 
 extension _HeadlessApiServerLifecycle on HeadlessApiServer {
   Future<void> _startServer() async {
-    final router = Router();
-
-    // Route table — per-domain declarative lists live under
-    // `headless_api/routes/`. Each handler class has a sibling
-    // `routes/<name>_routes.dart` exporting a top-level
-    // `build<Name>Routes(handler)`. The order below MIRRORS the
-    // legacy inline-`router.<verb>(...)` block exactly; shelf_router
-    // matches by registration order so any reordering across domain
-    // boundaries (e.g. moving `/api/sessions/*` (analytics) before
-    // `/api/sessions/<sessionId>/images` (sessions)) would change
-    // first-hit semantics. See `routes/headless_route.dart` for the
-    // typed primitives.
-    final allRoutes = <HeadlessRoute>[
-      ...buildSystemRoutes(_systemHandlers),
-      ...buildPairingRoutes(_pairingHandlers),
-      // Phase D — authenticated cellular-push token + preference routes.
-      ...buildPushRoutes(_pushHandlers),
-      ...buildAuthRoutes(_authHandlers),
-      ...buildCollaborationRoutes(_collaborationHandlers),
-      ...buildDeviceDiscoveryRoutes(_deviceDiscoveryHandlers),
-      ...buildDeviceRoutes(_deviceHandlers),
-      ...buildGuidingRoutes(_guidingHandlers),
-      ...buildImagingRoutes(_imagingHandlers),
-      ...buildSequencerRoutes(_sequencerHandlers),
-      ...buildReplayDebugRoutes(_replayDebugHandlers),
-      ...buildEquipmentRoutes(_equipmentHandlers),
-      ...buildProfileRoutes(_profileHandlers),
-      ...buildSessionRoutes(_sessionHandlers),
-      ...buildTargetRoutes(_targetHandlers),
-      ...buildSequenceManagementRoutes(_sequenceManagementHandlers),
-      ...buildFlatWizardRoutes(_flatWizardHandlers),
-      ...buildMosaicRoutes(_mosaicHandlers),
-      ...buildCoImagingRoutes(_coImagingHandlers),
-      ...buildAnalyticsRoutes(_analyticsHandlers),
-      ...buildWeatherRoutes(_weatherHandlers),
-      ...buildFileSystemRoutes(_fileSystemHandlers),
-      ...buildScienceRoutes(_scienceHandlers),
-      ...buildSuggestionRoutes(_suggestionHandlers),
-      ...buildTransientRoutes(_transientHandlers),
-      ...buildFirstLightRoutes(_firstLightHandlers),
-      ...buildAtlasRoutes(_atlasHandlers),
-      ...buildBackupRoutes(_backupHandlers),
-      ...buildSyncRoutes(_syncHandlers),
-      ...buildRuntimeStateRoutes(_runtimeStateHandlers),
-      ...buildFramingRoutes(_framingHandlers),
-      ...buildPlanetariumRoutes(_planetariumHandlers),
-      ...buildDomeRoutes(_domeHandlers),
-      ...buildNarratorRoutes(_narratorHandlers),
-      ...buildSafetyMonitorRoutes(_safetyMonitorHandlers),
-      ...buildAuxiliaryRoutes(_auxiliaryHandlers),
-      ...buildSchedulerRoutes(_schedulerHandlers),
-      ...buildPlanningDataRoutes(_planningDataHandlers),
-      ...buildFocusModelRoutes(_focusModelHandlers),
-      ...buildStackingRoutes(_stackingHandlers),
-      ...buildPostSessionRoutes(_postSessionHandlers),
-      ...buildDarkroomDeliveryRoutes(_darkroomDeliveryHandlers),
-      ...buildDepthLockRoutes(_depthLockHandlers),
-      ...buildJobRoutes(_jobHandlers),
-      ...buildSessionOwnershipRoutes(_sessionOwnershipHandlers),
-    ];
-
-    // OTA handlers are provisioned after the HTTP server starts in both GUI
-    // and headless bootstraps. Register dynamic routes now so a later
-    // setUpdateController() immediately activates the advertised surface.
-    allRoutes.addAll(buildUpdateRoutes(() => _updateHandlers));
-
-    // Continue appending the remaining per-domain route lists. These
-    // come AFTER the OTA block above so the relative declaration order
-    // of OTA routes vs. log / calibration / catalog routes is preserved
-    // exactly — shelf_router matches on registration order.
-    allRoutes
-      ..addAll(buildRunWatchRoutes(_runWatchHandlers))
-      ..addAll(buildBroadcastRoutes(_broadcastHandlers))
-      ..addAll(buildLogRoutes(_logHandlers))
-      ..addAll(buildCalibrationRoutes(_calibrationHandlers))
-      ..addAll(buildCalibrationLibraryRoutes(_calibrationLibraryHandlers))
-      ..addAll(buildCatalogRoutes(_catalogHandlers))
-      ..addAll(buildDbReadRoutes(_dbReadHandlers))
-      ..addAll(buildPluginRoutes(_pluginHandlers))
-      // WebRTC live-view signalling. Must register before
-      // the static-file catch-all so `/api/webrtc/live-view/*` is not
-      // shadowed by the SPA fallback.
-      ..addAll(buildWebRtcLiveViewRoutes(_webRtcLiveViewHandlers))
-      ..addAll(buildStaticFileRoutes(_staticFileHandlers));
-
-    // WebSocket-upgrade endpoints. Why these are NOT in
-    // [buildWebSocketRoutes] as method-tear-offs:
-    //
-    // 1. `shelf_web_socket`'s `webSocketHandler` strips the original
-    //    Request, so we capture it in an outer closure so the
-    //    replay handler can read `?since=` and `?instance=` query
-    //    parameters off the upgrade URL.
-    // 2. we also lift the auth identity (digest of the bearer
-    //    token that authenticated the upgrade) off the request context
-    //    that `_authMiddleware` stashed there. Passing it down means
-    //    the collaboration `viewerId` is always the authenticated
-    //    principal, regardless of what the client puts in the
-    //    `collaboration.join` payload.
-    //
-    // [buildWebSocketRoutes] accepts the pre-built Handler closures so
-    // the route table stays purely declarative; the closure body itself
-    // has to live here because it accesses private server state.
-    Handler eventsHandler() {
-      return (Request request) {
-        final query = request.url.queryParameters;
-        final authIdentity = _authIdentityFrom(request);
-        return webSocketHandler((socket, _) {
-          _handleWebSocketWithQuery(socket, query, authIdentity);
-        }).call(request);
-      };
-    }
-
-    // push-based live-view streaming. Distinct from the main
-    // event WS because (a) it carries binary JPEG frames, not JSON
-    // events, and (b) the message protocol is a per-socket
-    // subscribe/unsubscribe model rather than the always-on event
-    // broadcast.
-    Handler liveViewHandler() {
-      return (Request request) {
-        return webSocketHandler((socket, _) {
-          _liveViewStreamHandlers.handleSocket(socket);
-        }).call(request);
-      };
-    }
-
-    allRoutes.addAll(
-      buildWebSocketRoutes(
-        eventsHandler: eventsHandler(),
-        liveViewHandler: liveViewHandler(),
-      ),
-    );
-
-    // Single dispatch point — `registerRoutes` walks the list once and
-    // calls the right `router.<verb>(...)` for each entry. See
-    // `routes/headless_route.dart` for the typed-list design rationale.
-    registerRoutes(router, allRoutes);
-
     final handler = Pipeline()
+        // First, so every middleware below reads the request's policy from
+        // the route it matched.
+        .addMiddleware(_routeTable.resolveMiddleware)
         .addMiddleware(_requestTrackingMiddleware())
         // Inside request tracking, so a request answered by its budget is
         // still logged as completed with status 503.
@@ -161,14 +27,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
           errorTranslationMiddleware(
             logError: _logError,
             requestIdFor: _requestIdFrom,
-            shouldBypass: (request) {
-              final path = '/${request.url.path}';
-              // also bypass /ws/live-view so shelf does not try to
-              // wrap the WS upgrade response into a JSON error envelope.
-              return path == '/api/ws' ||
-                  path == '/events' ||
-                  path == '/ws/live-view';
-            },
+            shouldBypass: (request) => RouteTable.of(request).isWebSocket,
           ),
         )
         .addMiddleware(_corsMiddleware())
@@ -179,7 +38,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         // unauthenticated client cannot force the server to buffer a body up to
         // the per-path cap before its token is checked.
         .addMiddleware(_contentLengthLimitMiddleware())
-        .addMiddleware(_apiVersionMiddleware())
+        .addMiddleware(_linkVersionMiddleware())
         .addMiddleware(_pairedTokenHydrationGate())
         .addMiddleware(_authMiddleware())
         .addMiddleware(_chunkedBodyLimitMiddleware())
@@ -189,7 +48,8 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         // for requests that already presented a valid token. Placed
         // before the router so the 409 short-circuits the handler.
         .addMiddleware(_sessionOwnershipMiddleware())
-        .addHandler(router.call);
+        .addMiddleware(_statusShareMiddleware())
+        .addHandler(_routeTable.dispatch);
 
     // Paired session tokens load from the pairing database, whose file only
     // opens on the first query. Start that before binding and hold requests
@@ -320,12 +180,9 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     // every mode that owns the journal — including this daemon, which runs that
     // seam too — and `start()` is idempotent, so there is one timer either way.
 
-    // Subscribe to backend events and broadcast to WebSocket clients
     _subscribeToBackendEvents();
     _subscribeToSequenceCatalogUpdates();
     _subscribeToHostMutationEvents();
-    // Start publishing runtime channels; a headless host has no GUI to do it.
-    container.read(hostRuntimeMirrorProvider);
     _subscribeToCatalogManagerEvents();
     _collaborationSubscription = _collaborationManager.stream.listen(
       _broadcastCollaborationState,
@@ -591,6 +448,10 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     try {
       final backend = container.read(backendProvider);
       _eventSubscription = backend.eventStream.listen((event) {
+        // A device changed: a status read from before it is stale.
+        if (event.category == EventCategory.equipment) {
+          _equipmentHandlers.forgetSharedStatus();
+        }
         final stamped = broadcastEvent(event);
         // Host-side live-stacking auto-feed: every frame the host writes to
         // disk is offered to the stacker, which ignores it unless stacking is
@@ -755,7 +616,6 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     final tokenSweep = _tokenSweepFuture;
     if (tokenSweep != null) await tokenSweep;
     _tokenSweepFuture = null;
-    // stop the correlator eviction sweep.
     _commandCorrelatorSweepTimer?.cancel();
     _commandCorrelatorSweepTimer = null;
     _commandCorrelator.clear();
@@ -773,7 +633,6 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     // access off is not a decision to stop delivering the night's files. It is
     // closed with the provider container when the process ends.
     await _jobManager.dispose();
-    // tear down ownership state and broadcast controller.
     await _sessionOwnership.dispose();
     final pairingForListener = _pairingService;
     if (pairingForListener != null) {
@@ -802,6 +661,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     }
     _socketViewerIds.clear();
     _socketAuthIdentities.clear();
+    _adminSockets.clear();
     _socketLastSeenAt.clear();
     _sockets.clear();
     _publishConnectedClientCount();

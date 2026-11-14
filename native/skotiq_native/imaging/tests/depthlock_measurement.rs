@@ -164,16 +164,12 @@ fn a_frame_with_an_unmeasurable_background_is_excluded_not_fatal() {
     assert_eq!(baseline.evidence_frames, 40);
     assert_eq!(baseline.excluded_frames, 0);
 
-    for cell in 0..3 {
-        frames[5].background[cell] = None;
-    }
+    frames[5].background[..3].fill(None);
     let (tolerated, _) = evaluate(&s, &frames, 0, None);
     assert_eq!(tolerated.evidence_frames, 40, "{}", tolerated.reason);
     assert_eq!(tolerated.excluded_frames, 0);
 
-    for cell in 0..8 {
-        frames[5].background[cell] = None;
-    }
+    frames[5].background[..8].fill(None);
     let (excluded, _) = evaluate(&s, &frames, 0, None);
     assert_ne!(
         excluded.state,
@@ -364,6 +360,7 @@ fn malformed_calibration_dimensions_do_not_panic() {
         channels: 1,
         pixel_type: PixelType::U16,
         data: Vec::new(),
+        range: skotiq_imaging::SampleRange::of(PixelType::U16),
     };
     assert!(calibrate_signed(&image, &image, &image).is_err());
 }
@@ -503,6 +500,7 @@ fn signed_calibration_preserves_negative_samples() {
             .take(256)
             .flat_map(|v| v.to_le_bytes())
             .collect(),
+        range: skotiq_imaging::SampleRange::of(PixelType::U16),
     };
     let light = image(&[10, 30, 40, 50], 25);
     let dark = image(&[], 20);

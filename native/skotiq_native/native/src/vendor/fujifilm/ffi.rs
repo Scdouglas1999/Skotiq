@@ -2,9 +2,6 @@
 
 use super::*;
 
-// Type definitions from XAPI.h.
-
-/// Camera handle type
 pub(crate) type XsdkHandle = *mut c_void;
 
 /// Camera list for device detection (XAPI.h lines 52-60)
@@ -92,8 +89,6 @@ impl Default for XsdkImageInformation {
     }
 }
 
-// SDK constants from XAPI.h.
-
 // Return values (XAPI.h lines 2264-2267)
 pub(crate) const XSDK_COMPLETE: c_long = 0;
 #[allow(dead_code)]
@@ -151,7 +146,9 @@ pub(crate) const API_CODE_GET_LIVE_VIEW_STATUS: c_long = 0x332D;
 
 // Live view quality (XAPIOpt.h lines 574-579)
 pub(crate) const SDK_LIVEVIEW_QUALITY_FINE: c_long = 0x0001;
+#[allow(dead_code)]
 pub(crate) const SDK_LIVEVIEW_QUALITY_NORMAL: c_long = 0x0002;
+#[allow(dead_code)]
 pub(crate) const SDK_LIVEVIEW_QUALITY_BASIC: c_long = 0x0003;
 
 // Live view size (XAPIOpt.h lines 582-590)
@@ -161,14 +158,34 @@ pub(crate) const SDK_LIVEVIEW_SIZE_M: c_long = 0x0002; // 800px
 #[allow(dead_code)]
 pub(crate) const SDK_LIVEVIEW_SIZE_S: c_long = 0x0003; // 640px
 
-// Focus control API codes (XAPIOpt.h lines 265-275, 316)
+// Focus control (XAPIOpt.h: API codes 265-316, SDK_FOCUS_* 944-946).
+pub(crate) const API_CODE_SET_FOCUS_MODE: c_long = 0x2201;
+pub(crate) const API_CODE_GET_FOCUS_MODE: c_long = 0x2202;
 pub(crate) const API_CODE_SET_FOCUS_POS: c_long = 0x2207;
 pub(crate) const API_CODE_GET_FOCUS_POS: c_long = 0x2208;
 pub(crate) const API_CODE_CAP_FOCUS_POS: c_long = 0x2259;
-#[allow(dead_code)]
-pub(crate) const API_CODE_SET_FOCUS_MODE: c_long = 0x2201;
-#[allow(dead_code)]
-pub(crate) const API_CODE_GET_FOCUS_MODE: c_long = 0x2202;
+/// CapFocusPos passes two values: the structure's size and the structure.
+pub(crate) const API_PARAM_CAP_FOCUS_POS: c_long = 2;
+pub(crate) const SDK_FOCUS_MANUAL: c_long = 0x0001;
+pub(crate) const SDK_FOCUS_AFS: c_long = 0x8001;
+pub(crate) const SDK_FOCUS_AFC: c_long = 0x8002;
+
+/// `SDK_FOCUS_POS_CAP` (XAPIOpt.h lines 69-78), filled by CapFocusPos.
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct SdkFocusPosCap {
+    pub(crate) l_size_focus_pos_cap: c_long,
+    pub(crate) l_struct_ver: c_long,
+    pub(crate) l_focus_pls_inf: c_long,
+    pub(crate) l_focus_pls_mod: c_long,
+    pub(crate) l_focus_over_search_pls_inf: c_long,
+    pub(crate) l_focus_over_search_pls_mod: c_long,
+    pub(crate) l_focus_pls_fcs_depth_cap: c_long,
+    pub(crate) l_min_drive_step_mf_drive_end_thresh: c_long,
+}
+
+/// `lStructVer` of this structure version ("Fixed to 0x00010000").
+pub(crate) const SDK_FOCUS_POS_CAP_VERSION: c_long = 0x0001_0000;
 
 // RAW output depth (XAPIOpt.H lines 228-229 for the Set/Get API codes, line 263
 // for the capability code). GFX-class bodies can be switched between 14-bit and
@@ -184,13 +201,18 @@ pub(crate) const API_CODE_CAP_RAW_OUTPUT_DEPTH: c_long = 0x2193;
 pub(crate) const SDK_RAWOUTPUTDEPTH_14BIT: c_long = 0x0001;
 pub(crate) const SDK_RAWOUTPUTDEPTH_16BIT: c_long = 0x0002;
 
-// Focus mode constants
-#[allow(dead_code)]
-pub(crate) const SDK_FOCUS_MODE_MF: c_long = 0x0001;
-#[allow(dead_code)]
-pub(crate) const SDK_FOCUS_MODE_AFS: c_long = 0x0002;
-#[allow(dead_code)]
-pub(crate) const SDK_FOCUS_MODE_AFC: c_long = 0x0003;
+// Long exposure noise reduction (XAPIOpt.h): with it on, the body shoots a dark
+// of the same length after each frame and subtracts it before the frame is ready.
+pub(crate) const API_CODE_SET_LONG_EXPOSURE_NR: c_long = 0x2145;
+pub(crate) const API_CODE_GET_LONG_EXPOSURE_NR: c_long = 0x2146;
+pub(crate) const SDK_ON: c_long = 0x0001;
+pub(crate) const SDK_OFF: c_long = 0x0002;
+
+// The lAPIParam argument of XSDK_GetProp/XSDK_SetProp is the number of values
+// that follow it (SDK Programming Reference 4.1.14). Every model header gives
+// these counts for the codes above (API_PARAM_<name>).
+pub(crate) const API_PARAM_NONE: c_long = 0;
+pub(crate) const API_PARAM_ONE_VALUE: c_long = 1;
 
 // Dynamic range (XAPI.h lines 2087-2090)
 pub(crate) const XSDK_DR_100: c_long = 100;
@@ -201,32 +223,3 @@ pub(crate) const XSDK_DR_400: c_long = 400;
 
 // Shutter speed codes (XAPI.h lines 405-533)
 pub(crate) const XSDK_SHUTTER_BULB: c_long = -1;
-
-// Error codes (XAPI.h lines 2233-2261)
-pub(crate) const XSDK_ERRCODE_NOERR: c_long = 0x00000000;
-pub(crate) const XSDK_ERRCODE_SEQUENCE: c_long = 0x00001001;
-pub(crate) const XSDK_ERRCODE_PARAM: c_long = 0x00001002;
-pub(crate) const XSDK_ERRCODE_INVALID_CAMERA: c_long = 0x00001003;
-pub(crate) const XSDK_ERRCODE_LOADLIB: c_long = 0x00001004;
-pub(crate) const XSDK_ERRCODE_UNSUPPORTED: c_long = 0x00001005;
-pub(crate) const XSDK_ERRCODE_BUSY: c_long = 0x00001006;
-pub(crate) const XSDK_ERRCODE_AF_TIMEOUT: c_long = 0x00001007;
-pub(crate) const XSDK_ERRCODE_SHOOT_ERROR: c_long = 0x00001008;
-pub(crate) const XSDK_ERRCODE_FRAME_FULL: c_long = 0x00001009;
-pub(crate) const XSDK_ERRCODE_STANDBY: c_long = 0x00001010;
-pub(crate) const XSDK_ERRCODE_NODRIVER: c_long = 0x00001011;
-pub(crate) const XSDK_ERRCODE_NO_MODEL_MODULE: c_long = 0x00001012;
-pub(crate) const XSDK_ERRCODE_API_NOTFOUND: c_long = 0x00001013;
-pub(crate) const XSDK_ERRCODE_API_MISMATCH: c_long = 0x00001014;
-pub(crate) const XSDK_ERRCODE_INVALID_USBMODE: c_long = 0x00001015;
-pub(crate) const XSDK_ERRCODE_FORCEMODE_BUSY: c_long = 0x00001016;
-pub(crate) const XSDK_ERRCODE_RUNNING_OTHER_FUNCTION: c_long = 0x00001017;
-pub(crate) const XSDK_ERRCODE_COMMUNICATION: c_long = 0x00002001;
-pub(crate) const XSDK_ERRCODE_TIMEOUT: c_long = 0x00002002;
-pub(crate) const XSDK_ERRCODE_COMBINATION: c_long = 0x00002003;
-pub(crate) const XSDK_ERRCODE_WRITEERROR: c_long = 0x00002004;
-pub(crate) const XSDK_ERRCODE_CARDFULL: c_long = 0x00002005;
-pub(crate) const XSDK_ERRCODE_HARDWARE: c_long = 0x00003001;
-pub(crate) const XSDK_ERRCODE_INTERNAL: c_long = 0x00009001;
-pub(crate) const XSDK_ERRCODE_MEMFULL: c_long = 0x00009002;
-pub(crate) const XSDK_ERRCODE_UNKNOWN: c_long = 0x00009100;

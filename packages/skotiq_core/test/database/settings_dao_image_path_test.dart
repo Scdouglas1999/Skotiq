@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/database/daos/settings_dao.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 void main() {
   late SkotiqDatabase database;
@@ -20,14 +21,17 @@ void main() {
       await dao.setSetting('image_output_path', '');
       await dao.setSetting('default_image_directory', '/legacy/captures');
 
-      expect(await dao.getImageOutputDirectory(), '/legacy/captures');
+      expect(
+        await dao.read(AppSettingDefs.imageOutputPath),
+        '/legacy/captures',
+      );
     },
   );
 
   test(
     'setting image output path keeps both database keys synchronized',
     () async {
-      await dao.setImageOutputDirectory('/new/captures');
+      await dao.write(AppSettingDefs.imageOutputPath, '/new/captures');
 
       expect(await dao.getSetting('image_output_path'), '/new/captures');
       expect(await dao.getSetting('default_image_directory'), '/new/captures');

@@ -4,19 +4,20 @@
 //! contain the cross-driver lifecycle logic. Driver-specific `connect_*`
 //! helpers continue to live in `crate::dispatch::{ascom,alpaca,indi,native}`
 //! (also split-impl-block) and are invoked from `connect_device_internal`
-//! below. No behavior or signature has changed relative to the previous
-//! monolithic `devices.rs`.
+//! below.
 
-use crate::device::*;
+use crate::device::{ConnectionState, DeviceInfo, DeviceType, DriverType};
+use crate::device_manager::handle::{device_noun, protocol_label};
 use crate::device_manager::identity::{DeviceIdentity, IDENTITY_CONFLICT_MARKER};
+use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, ManagedDevice};
-use crate::event::*;
+use crate::event::equipment::{EquipmentEvent, EventSeverity};
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time::interval;
-// `NativeDevice` also backs the ASCOM wrapper guards on Windows; the identity
-// probe below needs it (and `NativeCamera`) on every platform.
-use skotiq_native::traits::{NativeCamera, NativeDevice};
+// `DeviceDriver` also backs the ASCOM wrapper guards on Windows; the identity
+// probe below needs it (and `CameraDriver`) on every platform.
+use skotiq_device::{CameraDriver, DeviceDriver};
 
 /// Error message returned by `connect_device_internal` when an in-flight
 /// reconnect attempt is aborted by a manual disconnect. The string is part
@@ -72,9 +73,8 @@ impl DeviceManager {
     /// Subscribe to the existing cancel token for `device_id`, if any.
     ///
     /// Unlike `install_reconnect_cancel_token`, this does NOT create a new
-    /// sender on miss — it only borrows an existing one. Used by
-    /// `connect_device_internal` to consult an in-flight reconnect's token
-    /// without accidentally arming a user-initiated connect path.
+    /// sender on miss, nor reset a tripped one: it only borrows the token the
+    /// caller of `connect_device_internal` installed for this attempt.
     async fn subscribe_existing_cancel_token(
         &self,
         device_id: &str,
@@ -90,16 +90,10 @@ impl DeviceManager {
         loop {
             check_interval.tick().await;
 
-            // Check if we should stop
-            if *self.stop_reconnect.read().await {
-                break;
-            }
-
             if !self.reconnect_config.enabled {
                 continue;
             }
 
-            // Find devices that need reconnection
             let devices_to_reconnect: Vec<(String, ManagedDevice)> = {
                 let devices = self.devices.read().await;
                 devices
@@ -150,53 +144,49 @@ impl DeviceManager {
                     continue;
                 }
 
-                // Attempt reconnection. `connect_device_internal` re-checks the
-                // cancel token at additional checkpoints inside the call.
-                match self.connect_device_internal(&device.info).await {
-                    Err(e) if e == RECONNECT_CANCELED_MSG => {
-                        // Reconnect was aborted by a concurrent disconnect.
-                        // Do NOT increment the attempt counter or emit a
-                        // "reconnection attempt failed" event — that would be
-                        // misleading because the user themselves stopped it.
-                        tracing::info!(
-                            "Reconnect for {} canceled mid-attempt (manual disconnect)",
-                            device_id
-                        );
-                        continue;
-                    }
-                    Err(e) => {
-                        tracing::warn!("Reconnection failed for {}: {}", device_id, e);
+                self.attempt_reconnect(&device_id, &device.info).await;
+            }
+        }
+    }
 
-                        // Update attempt counter
-                        let mut devices = self.devices.write().await;
-                        if let Some(dev) = devices.get_mut(&device_id) {
-                            dev.reconnect_attempts += 1;
-                            dev.last_error = Some(e.clone());
+    /// One reconnect attempt, after its backoff. A failed connect already
+    /// publishes the device's Error with the reason; the attempt only counts
+    /// it, so one failed attempt is one event.
+    pub(crate) async fn attempt_reconnect(&self, device_id: &str, info: &DeviceInfo) {
+        // Another recovery can restore the device during this attempt's backoff.
+        if self.is_connected(device_id).await {
+            return;
+        }
+        // `connect_device_internal` re-checks the cancel token at additional
+        // checkpoints inside the call.
+        match self.connect_device_internal(info).await {
+            Err(e) if e == RECONNECT_CANCELED_MSG => {
+                // The user stopped it with a disconnect: not a failed attempt.
+                tracing::info!(
+                    "Reconnect for {} canceled mid-attempt (manual disconnect)",
+                    device_id
+                );
+            }
+            Err(e) => {
+                let mut devices = self.devices.write().await;
+                if let Some(dev) = devices.get_mut(device_id) {
+                    dev.reconnect_attempts += 1;
+                    tracing::warn!(
+                        "Reconnection attempt {} failed for {}: {}",
+                        dev.reconnect_attempts,
+                        device_id,
+                        e
+                    );
+                    dev.last_error = Some(e);
+                }
+            }
+            Ok(()) => {
+                tracing::info!("Reconnection successful for {}", device_id);
 
-                            // Publish reconnection failed event
-                            self.app_state.publish_equipment_event(
-                                EquipmentEvent::Error {
-                                    device_type: dev.info.device_type.as_str().to_string(),
-                                    device_id: device_id.clone(),
-                                    message: format!(
-                                        "Reconnection attempt {} failed: {}",
-                                        dev.reconnect_attempts, e
-                                    ),
-                                },
-                                EventSeverity::Warning,
-                            );
-                        }
-                    }
-                    Ok(()) => {
-                        tracing::info!("Reconnection successful for {}", device_id);
-
-                        // Reset attempt counter on success
-                        let mut devices = self.devices.write().await;
-                        if let Some(dev) = devices.get_mut(&device_id) {
-                            dev.reconnect_attempts = 0;
-                            dev.last_error = None;
-                        }
-                    }
+                let mut devices = self.devices.write().await;
+                if let Some(dev) = devices.get_mut(device_id) {
+                    dev.reconnect_attempts = 0;
+                    dev.last_error = None;
                 }
             }
         }
@@ -229,7 +219,7 @@ impl DeviceManager {
     /// The normal lifecycle is `register_device` (as `Disconnected`) then
     /// `connect_device`, which dispatches to a driver and flips the state. A
     /// backend that owns its own out-of-band transport — PHD2 talks JSON-RPC
-    /// over its own TCP socket, opened by `api_phd2_connect`, not by any driver
+    /// over its own TCP socket, opened by `guider::phd2::connect`, not by any driver
     /// in `dispatch/` — has nothing for `connect_device` to dispatch to, so it
     /// records the already-live connection here instead. A backend that skips
     /// this is invisible to `is_device_connected` /
@@ -262,26 +252,26 @@ impl DeviceManager {
                 last_successful_comm: None,
                 heartbeat_deferred_at: None,
                 heartbeat_active: false,
-                api_version: None,
                 desired_cooler: None,
                 desired_tracking: None,
+                declared_mount_frame: None,
             },
         );
     }
 
-    /// Check if a device is registered
     pub async fn is_device_registered(&self, device_id: &str) -> bool {
         let devices = self.devices.read().await;
         devices.contains_key(device_id)
     }
 
-    /// Get the display name for a registered device, if it exists.
-    pub async fn get_device_display_name(&self, device_id: &str) -> Option<String> {
-        let devices = self.devices.read().await;
-        devices.get(device_id).map(|d| d.info.display_name.clone())
-    }
-
-    /// Connect to a device
+    /// Connect to a device on request (the user, a profile, the API).
+    ///
+    /// A requested connect starts with its own un-tripped cancel token. A
+    /// manual disconnect trips the device's token and leaves it tripped, so
+    /// borrowing the old one made every later connect fail at once with
+    /// "reconnect canceled by manual disconnect" until the app restarted. A
+    /// disconnect that arrives while this connect runs still trips the fresh
+    /// token and cancels it.
     pub async fn connect_device(&self, device_id: &str) -> Result<(), String> {
         let device_info = {
             let devices = self.devices.read().await;
@@ -291,16 +281,50 @@ impl DeviceManager {
                 .ok_or_else(|| format!("Device not found: {}", device_id))?
         };
 
+        let _cancel_rx = self.install_reconnect_cancel_token(device_id).await;
         self.connect_device_internal(&device_info).await
     }
 
-    /// Internal connection logic
+    /// Recovery may restore an unavailable device, but must preserve live
+    /// handles and any captures a driver has retained for manual retrieval.
+    pub(crate) async fn connect_device_automatically(&self, device_id: &str) -> Result<(), String> {
+        if self.is_connected(device_id).await {
+            return Ok(());
+        }
+        self.set_auto_reconnect(device_id, true).await;
+        self.connect_device(device_id).await
+    }
+
+    /// [`Self::connect_device`], naming the model the caller expects at the
+    /// id. The expectation stays with the id, so the reconnection loop checks
+    /// it too, until a later connect names another.
+    ///
+    /// Device ids such as `native:zwo:1` are positions on the bus. The
+    /// identity the id was last seen with is the wrong reference once the bus
+    /// re-enumerates: it then describes the device that moved away, and a
+    /// connect to where the wanted device now sits would be refused for not
+    /// being the device that left. The expectation is the reference that
+    /// survives that.
+    pub async fn connect_device_expecting(
+        &self,
+        device_id: &str,
+        expected_model: Option<&str>,
+    ) -> Result<(), String> {
+        if let Some(model) = expected_model.map(str::trim).filter(|m| !m.is_empty()) {
+            self.expected_models
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .insert(device_id.to_string(), model.to_string());
+        }
+        self.connect_device(device_id).await
+    }
+
     pub(crate) async fn connect_device_internal(&self, info: &DeviceInfo) -> Result<(), String> {
         let device_id = &info.id;
 
-        // Subscribe to the device's reconnect cancel token (if any). Only the
-        // reconnection loop installs these, so a user-initiated `connect_device`
-        // call usually sees `None` here and the cancel checks below are no-ops.
+        // Subscribe to the device's cancel token. The reconnection loop and
+        // `connect_device` each install a fresh one before calling here, so a
+        // `disconnect_device` during the attempt cancels it.
         let cancel_rx = self.subscribe_existing_cancel_token(device_id).await;
 
         // Pre-dispatch cancel check: a manual `disconnect_device` may have run
@@ -313,7 +337,7 @@ impl DeviceManager {
 
         // Update state to connecting. Capture the prior state first: a connect
         // arriving from `ConnectionState::Error` is an *unplanned reconnect*
-        // (heartbeat-lost or report_error path), and on success we must
+        // (the heartbeat-lost path), and on success we must
         // re-apply the essential device state the driver loses across a
         // physical reconnect (camera cooling setpoint, mount tracking). A
         // fresh user-initiated connect from Disconnected does NOT re-apply —
@@ -330,11 +354,11 @@ impl DeviceManager {
             }
         };
 
-        // Publish connecting event
         self.app_state.publish_equipment_event(
             EquipmentEvent::Connecting {
                 device_type: info.device_type.as_str().to_string(),
                 device_id: device_id.clone(),
+                device_name: info.shown_name(),
             },
             EventSeverity::Info,
         );
@@ -388,7 +412,6 @@ impl DeviceManager {
             }
         }
 
-        // Update state based on result
         {
             let mut devices = self.devices.write().await;
             if let Some(dev) = devices.get_mut(device_id) {
@@ -397,6 +420,7 @@ impl DeviceManager {
                         dev.connection_state = ConnectionState::Connected;
                         dev.last_error = None;
                         dev.reconnect_attempts = 0;
+                        self.status_reads.forget(device_id);
                     }
                     Err(e) => {
                         dev.connection_state = ConnectionState::Error;
@@ -425,30 +449,58 @@ impl DeviceManager {
                     device_id,
                     e
                 );
-                crate::api::api_invalidate_discovery_cache().await;
+                crate::discovery::forget().await;
             }
         }
 
-        // Publish result event
         match &result {
             Ok(_) => {
-                crate::device_capabilities::invalidate_capability_cache_for_device(device_id).await;
+                crate::device_capabilities::cache::invalidate_capability_cache_for_device(
+                    device_id,
+                )
+                .await;
 
+                // The name the identity check just read off the driver, not
+                // the one registered before the connect: after the bus
+                // re-enumerates, that one names the device that used to
+                // answer this id.
+                let device_name = self
+                    .devices
+                    .read()
+                    .await
+                    .get(device_id)
+                    .map(|d| d.info.shown_name())
+                    .unwrap_or_else(|| info.shown_name());
                 self.app_state.publish_equipment_event(
                     EquipmentEvent::Connected {
                         device_type: info.device_type.as_str().to_string(),
                         device_id: device_id.clone(),
+                        device_name,
                     },
                     EventSeverity::Info,
                 );
 
-                // Also register in app state
-                self.app_state
-                    .register_device(info.clone(), ConnectionState::Connected)
-                    .await;
+                // A client that links later learns the gain, offset and
+                // binning from this, not from a poll it may never run.
+                if info.device_type == DeviceType::Camera {
+                    self.publish_camera_settings(device_id).await;
+                    self.publish_unknown_pixel_size_notice(device_id).await;
+                }
+
+                // A focuser, wheel or rotator moved outside Skotiq is caught
+                // by the backstop poll (`ops::backstop`).
+                if policy(info.device_type).backstop_polled {
+                    self.ensure_backstop_poll();
+                }
+
+                // A mount that moves on its own or loses its position is
+                // caught by the motion guard (`motion_guard`).
+                if info.device_type == DeviceType::Mount {
+                    crate::device_manager::motion_guard::ensure_sampler();
+                }
 
                 // Auto-start heartbeat monitoring for the connected device
-                let heartbeat_config = Self::get_heartbeat_config(&info.device_type);
+                let heartbeat_config = policy(info.device_type).heartbeat;
                 if let Err(e) = self
                     .start_heartbeat_with_config(device_id, heartbeat_config)
                     .await
@@ -503,7 +555,7 @@ impl DeviceManager {
     /// device the SDK cannot enumerate is not, and the list is lying.
     ///
     /// Matched on the message because these strings cross a vendor boundary as
-    /// plain `String` (`NativeError::InvalidDevice` carries no code). The
+    /// plain `String` (`DriverError::InvalidDevice` carries no code). The
     /// phrases are the ones the vendor modules emit — `zwo.rs` for the first,
     /// and the generic form the shared enumeration helpers use.
     fn is_stale_enumeration_error(message: &str) -> bool {
@@ -525,17 +577,24 @@ impl DeviceManager {
     ///
     /// * driver reports nothing identifiable → `Ok`, nothing recorded. We do
     ///   not store an empty baseline, because it would later match anything.
+    /// * the caller named the model it expects (see
+    ///   [`Self::connect_device_expecting`]) and the driver named a model →
+    ///   that comparison decides; the id's baseline describes whatever
+    ///   answered it last, which after a re-enumeration is the device that
+    ///   moved away.
     /// * no baseline yet → record it, refresh the registered `DeviceInfo` so
     ///   the API stops reporting the id-derived placeholder name, `Ok`.
     /// * baseline agrees → refresh and `Ok`.
-    /// * baseline contradicted → tear the driver back down and `Err`.
+    /// * contradicted → tear the driver back down, drop the discovery cache
+    ///   (it describes the bus before the change), and `Err`.
     ///
     /// The teardown on conflict is the point: leaving the handle open would
     /// leave a live connection to the wrong sensor that every later command
     /// would happily address. `disconnect_device` also clears `auto_reconnect`,
-    /// so the manager stops re-opening the wrong camera in a loop. Recovering
-    /// from a genuine swap needs a human, and stopping is the safe answer for
-    /// an unattended run.
+    /// so the manager stops re-opening the wrong camera in a loop. Finding
+    /// where the wanted device went is the caller's: the app looks the
+    /// profile's device up by name in a fresh enumeration and connects it at
+    /// its new id with the model expected.
     pub(crate) async fn verify_identity_after_connect(
         &self,
         info: &DeviceInfo,
@@ -551,32 +610,86 @@ impl DeviceManager {
         }
 
         let previous = self.observed_identities.read().await.get(&info.id).cloned();
+        let expected = self
+            .expected_models
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&info.id)
+            .cloned();
 
-        if let Some(previous) = previous {
-            if let Some(reason) = observed.conflict_with(&previous) {
-                let message = format!(
-                    "Device id {} {}: {}. \
-                     Connected device reports {}; previously it was {}. \
+        let conflict = match (&expected, &observed.model) {
+            // The caller said which model it wants and the driver named one:
+            // that decides it. The id's last observation is not consulted for
+            // the model or sensor, because after a re-enumeration it describes
+            // the device that moved away.
+            (Some(expected), Some(_)) => match observed.conflict_with_expected(expected) {
+                // A driver can name itself differently from how discovery
+                // labels it (the profile saved discovery's name). Before
+                // refusing on the name alone, ask a fresh enumeration what is
+                // at this id.
+                Some(_) if self.enumeration_names(info, expected).await => {
+                    tracing::info!(
+                        "{} names itself {:?}; discovery lists it as {}, so it is the expected device",
+                        info.id,
+                        observed.model,
+                        expected
+                    );
+                    None
+                }
+                Some(reason) => Some(reason),
+                // Two identical bodies trading places: only a serial tells
+                // them apart, and only against the same model.
+                None => previous
+                    .as_ref()
+                    .filter(|p| {
+                        p.model.as_deref().is_some_and(|m| {
+                            crate::device_manager::identity::same_model(m, expected)
+                        })
+                    })
+                    .and_then(|p| match (&observed.serial_number, &p.serial_number) {
+                        (Some(now), Some(before)) if now != before => {
+                            Some(format!("serial number changed from {} to {}", before, now))
+                        }
+                        _ => None,
+                    }),
+            },
+            _ => previous.as_ref().and_then(|p| observed.conflict_with(p)),
+        };
+
+        if let Some(reason) = conflict {
+            let previously = match (&expected, &previous) {
+                (Some(expected), _) => format!("the caller expected {}", expected),
+                (None, Some(previous)) => format!("previously it was {}", previous.describe()),
+                (None, None) => "nothing was expected".to_string(),
+            };
+            let message = format!(
+                "Device id {} {}: {}. \
+                     Connected device reports {}; {}. \
                      This id is a position on the bus, not an identity, so it \
                      re-binds when devices are replugged or re-enumerated. \
                      Refusing the connection rather than using the wrong device.",
-                    info.id,
-                    IDENTITY_CONFLICT_MARKER,
-                    reason,
-                    observed.describe(),
-                    previous.describe(),
-                );
-                tracing::error!("{}", message);
+                info.id,
+                IDENTITY_CONFLICT_MARKER,
+                reason,
+                observed.describe(),
+                previously,
+            );
+            tracing::error!("{}", message);
 
-                if let Err(e) = self.disconnect_device(&info.id).await {
-                    tracing::warn!(
-                        "Failed to release the mismatched device {} after an identity conflict: {}",
-                        info.id,
-                        e
-                    );
-                }
-                return Err(message);
+            // The id answered as a different device, so the enumeration
+            // the discovery cache holds is out of date: drop it, so the
+            // caller's next look for the device it wanted sees where it
+            // went.
+            crate::discovery::forget().await;
+
+            if let Err(e) = self.disconnect_device(&info.id).await {
+                tracing::warn!(
+                    "Failed to release the mismatched device {} after an identity conflict: {}",
+                    info.id,
+                    e
+                );
             }
+            return Err(message);
         }
 
         tracing::info!("Device {} identified as {}", info.id, observed.describe());
@@ -598,72 +711,81 @@ impl DeviceManager {
         Ok(())
     }
 
+    /// Whether a fresh enumeration lists `expected_model` at `info.id`.
+    ///
+    /// The discovery cache is dropped first: after a re-enumeration it still
+    /// describes the bus as it was, which is exactly the question here.
+    async fn enumeration_names(&self, info: &DeviceInfo, expected_model: &str) -> bool {
+        crate::discovery::forget().await;
+        match crate::discovery::discover_devices(info.device_type.clone()).await {
+            Ok(devices) => devices.iter().any(|d| {
+                d.id == info.id
+                    && (crate::device_manager::identity::same_model(&d.name, expected_model)
+                        || crate::device_manager::identity::same_model(
+                            &d.display_name,
+                            expected_model,
+                        ))
+            }),
+            Err(e) => {
+                tracing::warn!(
+                    "Could not enumerate {} devices to check {}: {}",
+                    info.device_type.as_str(),
+                    info.id,
+                    e
+                );
+                false
+            }
+        }
+    }
+
     /// Read identity straight off the connected driver.
     ///
-    /// Cameras are the case that matters and the case that can answer: both the
-    /// vendor-SDK cameras and the ASCOM wrapper implement `NativeCamera`, so
-    /// model, serial and sensor geometry come from one code path. Non-camera
-    /// native devices contribute model and serial. Transports with no
-    /// post-connect identity surface return an empty identity, which the caller
+    /// A camera answers with model, serial and sensor geometry; any other
+    /// vendor device with model and serial. A transport that gives the
+    /// driver nothing to say returns an empty identity, which the caller
     /// treats as "no opinion" rather than as a match.
     pub(crate) async fn probe_device_identity(&self, info: &DeviceInfo) -> DeviceIdentity {
-        if let Some(camera) = self.native_cameras.read().await.get(&info.id) {
-            return Self::identity_from_camera(&info.id, camera.as_ref());
-        }
-
-        if let Some(identity) = self.probe_ascom_camera_identity(&info.id).await {
-            return identity;
+        if let Some(handle) = self.handles.get(&info.id) {
+            if let Some(identity) = handle.identity().await {
+                return identity;
+            }
         }
 
         if let Some(device) = self.native_devices.read().await.get(&info.id) {
             return Self::identity_from_device(&info.id, device.as_ref());
         }
 
+        if info.driver_type == DriverType::Simulator && info.device_type == DeviceType::Camera {
+            return Self::simulated_camera_identity(&info.id).await;
+        }
+
         DeviceIdentity::default()
     }
 
-    /// Identity of a connected ASCOM camera, when this platform has ASCOM.
-    ///
-    /// **Geometry only, deliberately.** `AscomCameraWrapper::name()` returns the
-    /// ProgID it was constructed with, not anything the driver said, so feeding
-    /// it in as `model` would compare a constant against itself and would also
-    /// overwrite the displayed name with `ASCOM.ASICamera2.Camera`. The sensor
-    /// cache, by contrast, is refreshed from the live driver during
-    /// `AscomCameraWrapper::connect` (which calls `get_capabilities` and fails
-    /// the connect if the driver cannot answer), so the geometry read here is
-    /// genuinely the connected camera's — and geometry is exactly what
-    /// distinguishes two bodies sharing one ProgID.
-    ///
-    /// Getting the real model over ASCOM needs a `Name` read *after*
-    /// `Connected = true`. Measured on the reference rig, an unconnected
-    /// `ASCOM.ASICamera2.Camera` answers `Name = "ASI Camera (1)"` and an empty
-    /// `SensorName`, so the existing `skotiq_ascom::probe_device_name`
-    /// helper — which reads `Name` without connecting — cannot supply it.
-    #[cfg(windows)]
-    async fn probe_ascom_camera_identity(&self, device_id: &str) -> Option<DeviceIdentity> {
-        let cameras = self.ascom_cameras.read().await;
-        let camera = cameras.get(device_id)?.clone();
-        drop(cameras);
-        let sensor = camera.read().await.get_sensor_info();
-        Some(DeviceIdentity {
-            model: None,
+    /// What a simulated camera says it is: the name and sensor of the body
+    /// at the id, which can change when the simulated bus re-enumerates
+    /// (the `unplug(reorder)` fault), so the identity check runs against the
+    /// simulators the same way it does against a ZWO pair.
+    async fn simulated_camera_identity(device_id: &str) -> DeviceIdentity {
+        let status = crate::simulator::camera::get_sim_camera_for(device_id)
+            .read()
+            .await
+            .status
+            .clone();
+        DeviceIdentity {
+            model: crate::discovery::simulator_display_name(device_id, DeviceType::Camera),
             serial_number: None,
             sensor: DeviceIdentity::sensor_fingerprint(
-                sensor.width,
-                sensor.height,
-                sensor.pixel_size_x,
+                status.sensor_width,
+                status.sensor_height,
+                status.pixel_size_x,
             ),
-        })
-    }
-
-    #[cfg(not(windows))]
-    async fn probe_ascom_camera_identity(&self, _device_id: &str) -> Option<DeviceIdentity> {
-        None
+        }
     }
 
     /// A driver-reported model, or `None` when the driver only echoed the id.
     ///
-    /// Some vendor wrappers implement `NativeDevice::name()` by handing back the
+    /// Some vendor wrappers implement `DeviceDriver::name()` by handing back the
     /// device id — `ZwoCamera` did exactly that until the model was cached, and
     /// `PlayerOneCamera` still does. That answer is worthless as identity (it is
     /// a pure function of the id, so it can never contradict itself across a
@@ -680,7 +802,10 @@ impl DeviceManager {
     }
 
     /// Model + serial from any connected native device.
-    fn identity_from_device(device_id: &str, device: &dyn NativeDevice) -> DeviceIdentity {
+    pub(crate) fn identity_from_device(
+        device_id: &str,
+        device: &dyn DeviceDriver,
+    ) -> DeviceIdentity {
         DeviceIdentity {
             model: Self::reported_model(device_id, device.name()),
             serial_number: device.serial_number().filter(|s| !s.trim().is_empty()),
@@ -692,7 +817,10 @@ impl DeviceManager {
     ///
     /// Geometry is what separates two bodies whose driver-reported names are
     /// identical, which is the normal case behind one ASCOM ProgID.
-    fn identity_from_camera(device_id: &str, camera: &dyn NativeCamera) -> DeviceIdentity {
+    pub(crate) fn identity_from_camera(
+        device_id: &str,
+        camera: &dyn CameraDriver,
+    ) -> DeviceIdentity {
         let sensor = camera.get_sensor_info();
         DeviceIdentity {
             model: Self::reported_model(device_id, camera.name()),
@@ -705,29 +833,24 @@ impl DeviceManager {
         }
     }
 
-    /// Connect to a simulator device.
-    ///
-    /// Sets the matching `simulation.rs` singleton's `connected = true` so
-    /// status accessors, heartbeat checks, and Dart-side `isConnected`
-    /// observers all see a consistent "real" connection state for the
-    /// simulator.
-    ///
-    /// # Behavior
-    ///
-    /// * Validates the device id has the `sim_` prefix (the established
-    ///   convention used by every `device_id.starts_with("sim_")` branch in
-    ///   `bridge::api::devices`). An unrecognized id returns `Err`: a silent
-    ///   fallback would let a typoed sim id appear "connected" with no
-    ///   backing state.
-    /// * Dispatches by `DeviceInfo.device_type`. Device types without a
-    ///   `simulation.rs` singleton (Guider) return
-    ///   `Err` so we never claim "connected"
-    ///   for a simulator backend that doesn't exist. The existing
-    ///   ops-level `DriverType::Simulator => Ok(...)` short-circuits in
-    ///   `device_manager/ops/*` are a separate, known inconsistency.
-    /// * Idempotent: if the singleton is already `connected`, returns `Ok`
-    ///   so the user can re-trigger "Connect" from the UI without spurious
-    ///   errors.
+    /// The fault-injection key prefix for a simulated device, as the
+    /// simulator's own gates name it.
+    pub(crate) fn sim_fault_prefix(info: &DeviceInfo) -> Option<&'static str> {
+        Some(match info.device_type {
+            DeviceType::Camera => crate::simulator::camera::sim_camera_fault_prefix(&info.id),
+            DeviceType::Mount => "mount",
+            DeviceType::Focuser => "focuser",
+            DeviceType::FilterWheel => "filterwheel",
+            DeviceType::Rotator => "rotator",
+            _ => return None,
+        })
+    }
+
+    /// Connects a simulated device: arms the faults `SKOTIQ_SIM_FAULTS` names,
+    /// lets a `<device>.connect` fault refuse or delay the open, and holds the
+    /// handle the simulator hands back. Connecting a connected simulator is
+    /// `Ok`; an id without the `sim_` prefix and a device type with no
+    /// simulator are errors, so neither ever reads as connected.
     pub(crate) async fn connect_simulator(&self, info: &DeviceInfo) -> Result<(), String> {
         if !info.id.starts_with("sim_") {
             return Err(format!(
@@ -736,61 +859,20 @@ impl DeviceManager {
             ));
         }
 
-        use crate::api::devices::simulation::{
-            get_sim_camera_for, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
-            get_sim_focuser, get_sim_mount, get_sim_rotator, get_sim_safety_monitor,
-            get_sim_switch, get_sim_weather,
-        };
-
-        // Arm any faults named by `SKOTIQ_SIM_FAULTS` before the device is
-        // usable, so a drive can inject hardware misbehaviour into a release
-        // build without a rebuild. Idempotent — re-arming the same spec on a
-        // second connect just resets its counters.
-        crate::device_manager::ops::sim_faults::arm_from_env();
-
-        match info.device_type {
-            DeviceType::Camera => {
-                let mut cam = get_sim_camera_for(&info.id).write().await;
-                cam.status.connected = true;
-            }
-            DeviceType::Mount => {
-                let mut mount = get_sim_mount().write().await;
-                mount.status.connected = true;
-            }
-            DeviceType::Focuser => {
-                let mut focuser = get_sim_focuser().write().await;
-                focuser.status.connected = true;
-            }
-            DeviceType::FilterWheel => {
-                let mut fw = get_sim_filterwheel().write().await;
-                fw.status.connected = true;
-            }
-            DeviceType::Rotator => {
-                let mut rot = get_sim_rotator().write().await;
-                rot.status.connected = true;
-            }
-            DeviceType::Dome => {
-                get_sim_dome().write().await.status.connected = true;
-            }
-            DeviceType::Weather => {
-                get_sim_weather().write().await.connected = true;
-            }
-            DeviceType::SafetyMonitor => {
-                get_sim_safety_monitor().write().await.status.connected = true;
-            }
-            DeviceType::Switch => {
-                get_sim_switch().write().await.connected = true;
-            }
-            DeviceType::CoverCalibrator => {
-                get_sim_cover_calibrator().write().await.connected = true;
-            }
-            other => {
-                return Err(format!(
-                    "connect_simulator: no simulator implementation for device type {:?} (id '{}')",
-                    other, info.id
-                ));
-            }
+        crate::simulator::faults::arm_from_env();
+        if let Some(prefix) = Self::sim_fault_prefix(info) {
+            crate::simulator::faults::check(&format!("{prefix}.connect")).await?;
         }
+
+        let handle = crate::simulator::driver::connect(info)
+            .await
+            .ok_or_else(|| {
+                format!(
+                    "connect_simulator: no simulator implementation for device type {:?} (id '{}')",
+                    info.device_type, info.id
+                )
+            })?;
+        self.handles.insert(&info.id, handle);
 
         tracing::info!(
             "Simulator connected: id={} type={:?}",
@@ -800,88 +882,10 @@ impl DeviceManager {
         Ok(())
     }
 
-    /// Disconnect a simulator device.
-    ///
-    /// Mirrors `connect_simulator`: sets the matching singleton's
-    /// `connected = false` so the heartbeat loop and any other consumer of
-    /// the singleton state agree that the device is no longer connected.
-    /// Idempotent — disconnecting an already-disconnected simulator returns
-    /// `Ok`.
-    ///
-    /// Unrecognized device types return `Err` (consistent with
-    /// `connect_simulator`): a silent no-op would hide bugs where the user
-    /// thinks a disconnect happened but no singleton was actually touched.
-    pub(crate) async fn disconnect_simulator(&self, info: &DeviceInfo) -> Result<(), String> {
-        if !info.id.starts_with("sim_") {
-            return Err(format!(
-                "disconnect_simulator: device id '{}' is not a simulator id (expected 'sim_' prefix)",
-                info.id
-            ));
-        }
-
-        use crate::api::devices::simulation::{
-            get_sim_camera_for, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
-            get_sim_focuser, get_sim_mount, get_sim_rotator, get_sim_safety_monitor,
-            get_sim_switch, get_sim_weather,
-        };
-
-        match info.device_type {
-            DeviceType::Camera => {
-                let mut cam = get_sim_camera_for(&info.id).write().await;
-                cam.status.connected = false;
-            }
-            DeviceType::Mount => {
-                let mut mount = get_sim_mount().write().await;
-                mount.status.connected = false;
-            }
-            DeviceType::Focuser => {
-                let mut focuser = get_sim_focuser().write().await;
-                focuser.status.connected = false;
-            }
-            DeviceType::FilterWheel => {
-                let mut fw = get_sim_filterwheel().write().await;
-                fw.status.connected = false;
-            }
-            DeviceType::Rotator => {
-                let mut rot = get_sim_rotator().write().await;
-                rot.status.connected = false;
-            }
-            DeviceType::Dome => {
-                get_sim_dome().write().await.status.connected = false;
-            }
-            DeviceType::Weather => {
-                get_sim_weather().write().await.connected = false;
-            }
-            DeviceType::SafetyMonitor => {
-                get_sim_safety_monitor().write().await.status.connected = false;
-            }
-            DeviceType::Switch => {
-                get_sim_switch().write().await.connected = false;
-            }
-            DeviceType::CoverCalibrator => {
-                get_sim_cover_calibrator().write().await.connected = false;
-            }
-            other => {
-                return Err(format!(
-                    "disconnect_simulator: no simulator implementation for device type {:?} (id '{}')",
-                    other, info.id
-                ));
-            }
-        }
-
-        tracing::info!(
-            "Simulator disconnected: id={} type={:?}",
-            info.id,
-            info.device_type
-        );
-        Ok(())
-    }
-
-    /// Disconnect a device
     pub async fn disconnect_device(&self, device_id: &str) -> Result<(), String> {
         // Stop heartbeat monitoring first to prevent false disconnect events
         let _ = self.stop_heartbeat(device_id).await;
-        crate::device_capabilities::invalidate_capability_cache_for_device(device_id).await;
+        crate::device_capabilities::cache::invalidate_capability_cache_for_device(device_id).await;
 
         let device_info = {
             let devices = self.devices.read().await;
@@ -891,7 +895,8 @@ impl DeviceManager {
                 .ok_or_else(|| format!("Device not found: {}", device_id))?
         };
 
-        // Update state
+        self.status_reads.forget(device_id);
+
         {
             let mut devices = self.devices.write().await;
             if let Some(dev) = devices.get_mut(device_id) {
@@ -927,8 +932,11 @@ impl DeviceManager {
             };
         }
 
-        if device_info.id == crate::builtin_guider::device_id() {
-            record_disconnect!("Built-in guider", crate::builtin_guider::disconnect().await);
+        if device_info.id == crate::builtin_guider::control::device_id() {
+            record_disconnect!(
+                "Built-in guider",
+                crate::builtin_guider::control::disconnect().await
+            );
         }
         // PHD2 has its own out-of-band disconnect path (the PHD2
         // client storage lives outside the per-driver maps below). If a user
@@ -937,8 +945,8 @@ impl DeviceManager {
         // actually torn down. Without this the PHD2 client was leaked: state
         // was reset but the TCP connection and event listener kept running,
         // so a subsequent reconnect attempted to talk through a stale client.
-        if crate::api::connection::is_phd2_device_id(&device_info.id) {
-            if let Err(e) = crate::api::phd2::api_phd2_disconnect().await {
+        if crate::guider::phd2::is_device_id(&device_info.id) {
+            if let Err(e) = crate::guider::phd2::disconnect().await {
                 // Log loudly so a stuck PHD2 client is never hidden, but
                 // continue with the generic cleanup either way: the device is
                 // already being released and a PHD2-side error must not block
@@ -950,252 +958,32 @@ impl DeviceManager {
                 );
             }
         }
-        match device_info.driver_type {
-            DriverType::Native => {
-                // Remove from generic native_devices map
-                let mut native_devices = self.native_devices.write().await;
-                if let Some(mut device) = native_devices.remove(device_id) {
-                    record_disconnect!("Native device", device.disconnect().await);
+        if let Some(handle) = self.handles.remove(device_id) {
+            let label = format!(
+                "{} {}",
+                protocol_label(device_info.driver_type),
+                device_noun(device_info.device_type)
+            );
+            record_disconnect!(label, handle.disconnect().await);
+        } else {
+            match device_info.driver_type {
+                DriverType::Native => {
+                    let mut native_devices = self.native_devices.write().await;
+                    if let Some(mut device) = native_devices.remove(device_id) {
+                        record_disconnect!("Native device", device.disconnect().await);
+                    }
                 }
-
-                // Also remove from typed native storage maps
-                match device_info.device_type {
-                    DeviceType::Camera => {
-                        let mut cameras = self.native_cameras.write().await;
-                        if let Some(mut camera) = cameras.remove(device_id) {
-                            record_disconnect!("Native camera", camera.disconnect().await);
-                        }
-                    }
-                    DeviceType::Mount => {
-                        let mut mounts = self.native_mounts.write().await;
-                        if let Some(mut mount) = mounts.remove(device_id) {
-                            record_disconnect!("Native mount", mount.disconnect().await);
-                        }
-                    }
-                    DeviceType::Focuser => {
-                        let mut focusers = self.native_focusers.write().await;
-                        if let Some(mut focuser) = focusers.remove(device_id) {
-                            record_disconnect!("Native focuser", focuser.disconnect().await);
-                        }
-                    }
-                    DeviceType::FilterWheel => {
-                        let mut fws = self.native_filter_wheels.write().await;
-                        if let Some(mut fw) = fws.remove(device_id) {
-                            record_disconnect!("Native filter wheel", fw.disconnect().await);
-                        }
-                    }
-                    // Rotator, dome, weather, safety monitor, switch and
-                    // cover calibrator have no native-SDK driver: the generic
-                    // `native_devices` removal above is the whole cleanup.
-                    DeviceType::Rotator
-                    | DeviceType::Dome
-                    | DeviceType::Weather
-                    | DeviceType::SafetyMonitor
-                    | DeviceType::Switch
-                    | DeviceType::CoverCalibrator
-                    | DeviceType::Guider => {}
-                }
-            }
-            DriverType::Alpaca => {
-                // Remove from Alpaca storage based on device type
-                match device_info.device_type {
-                    DeviceType::Camera => {
-                        let mut cameras = self.alpaca_cameras.write().await;
-                        if let Some(camera) = cameras.remove(device_id) {
-                            record_disconnect!("Alpaca camera", camera.disconnect().await);
-                        }
-                    }
-                    DeviceType::Mount => {
-                        let mut mounts = self.alpaca_mounts.write().await;
-                        if let Some(mount) = mounts.remove(device_id) {
-                            record_disconnect!("Alpaca mount", mount.disconnect().await);
-                        }
-                    }
-                    DeviceType::Focuser => {
-                        let mut focusers = self.alpaca_focusers.write().await;
-                        if let Some(focuser) = focusers.remove(device_id) {
-                            record_disconnect!("Alpaca focuser", focuser.disconnect().await);
-                        }
-                    }
-                    DeviceType::FilterWheel => {
-                        let mut fws = self.alpaca_filter_wheels.write().await;
-                        if let Some(fw) = fws.remove(device_id) {
-                            record_disconnect!("Alpaca filter wheel", fw.disconnect().await);
-                        }
-                    }
-                    DeviceType::Rotator => {
-                        let mut rotators = self.alpaca_rotators.write().await;
-                        if let Some(rotator) = rotators.remove(device_id) {
-                            record_disconnect!("Alpaca rotator", rotator.disconnect().await);
-                        }
-                    }
-                    DeviceType::Dome => {
-                        let mut domes = self.alpaca_domes.write().await;
-                        if let Some(dome) = domes.remove(device_id) {
-                            record_disconnect!("Alpaca dome", dome.disconnect().await);
-                        }
-                    }
-                    DeviceType::Weather => {
-                        let mut weather = self.alpaca_weather.write().await;
-                        if let Some(w) = weather.remove(device_id) {
-                            record_disconnect!("Alpaca weather", w.disconnect().await);
-                        }
-                    }
-                    DeviceType::SafetyMonitor => {
-                        let mut safety = self.alpaca_safety_monitors.write().await;
-                        if let Some(s) = safety.remove(device_id) {
-                            record_disconnect!("Alpaca safety monitor", s.disconnect().await);
-                        }
-                    }
-                    DeviceType::Switch => {
-                        let mut switches = self.alpaca_switches.write().await;
-                        if let Some(sw) = switches.remove(device_id) {
-                            record_disconnect!("Alpaca switch", sw.disconnect().await);
-                        }
-                    }
-                    DeviceType::CoverCalibrator => {
-                        let mut covers = self.alpaca_cover_calibrators.write().await;
-                        if let Some(cover) = covers.remove(device_id) {
-                            record_disconnect!("Alpaca cover calibrator", cover.disconnect().await);
-                        }
-                    }
-                    DeviceType::Guider => {} // Alpaca guider devices are not currently managed here
-                }
-            }
-            #[cfg(windows)]
-            DriverType::Ascom => {
-                // Remove from ASCOM storage based on device type
-                match device_info.device_type {
-                    DeviceType::Camera => {
-                        let mut cameras = self.ascom_cameras.write().await;
-                        if let Some(camera) = cameras.remove(device_id) {
-                            let mut cam = camera.write().await;
-                            record_disconnect!("ASCOM camera", cam.disconnect().await);
-                        }
-                    }
-                    DeviceType::Mount => {
-                        let mut mounts = self.ascom_mounts.write().await;
-                        if let Some(mount) = mounts.remove(device_id) {
-                            let mut m = mount.write().await;
-                            record_disconnect!("ASCOM mount", m.disconnect().await);
-                        }
-                    }
-                    DeviceType::Focuser => {
-                        let mut focusers = self.ascom_focusers.write().await;
-                        if let Some(focuser) = focusers.remove(device_id) {
-                            let mut f = focuser.write().await;
-                            record_disconnect!("ASCOM focuser", f.disconnect().await);
-                        }
-                    }
-                    DeviceType::FilterWheel => {
-                        let mut fws = self.ascom_filter_wheels.write().await;
-                        if let Some(fw) = fws.remove(device_id) {
-                            let mut f = fw.write().await;
-                            record_disconnect!("ASCOM filter wheel", f.disconnect().await);
-                        }
-                    }
-                    DeviceType::Rotator => {
-                        let mut rotators = self.ascom_rotators.write().await;
-                        if let Some(rotator) = rotators.remove(device_id) {
-                            let mut r = rotator.write().await;
-                            record_disconnect!("ASCOM rotator", r.disconnect().await);
-                        }
-                    }
-                    DeviceType::Dome => {
-                        let mut domes = self.ascom_domes.write().await;
-                        if let Some(dome) = domes.remove(device_id) {
-                            let mut d = dome.write().await;
-                            record_disconnect!("ASCOM dome", d.disconnect().await);
-                        }
-                    }
-                    DeviceType::Weather => {
-                        let mut weather = self.ascom_weather.write().await;
-                        if let Some(device) = weather.remove(device_id) {
-                            let mut w = device.write().await;
-                            record_disconnect!("ASCOM weather", w.disconnect().await);
-                        }
-                    }
-                    DeviceType::SafetyMonitor => {
-                        let mut safety_monitors = self.ascom_safety_monitors.write().await;
-                        if let Some(monitor) = safety_monitors.remove(device_id) {
-                            let mut sm = monitor.write().await;
-                            record_disconnect!("ASCOM safety monitor", sm.disconnect().await);
-                        }
-                    }
-                    DeviceType::Switch => {
-                        let mut switches = self.ascom_switches.write().await;
-                        if let Some(sw) = switches.remove(device_id) {
-                            let mut s = sw.write().await;
-                            record_disconnect!("ASCOM switch", s.disconnect().await);
-                        }
-                    }
-                    DeviceType::CoverCalibrator => {
-                        let mut covers = self.ascom_cover_calibrators.write().await;
-                        if let Some(cover) = covers.remove(device_id) {
-                            let mut c = cover.write().await;
-                            record_disconnect!("ASCOM cover calibrator", c.disconnect().await);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            #[cfg(not(windows))]
-            DriverType::Ascom => {
-                // ASCOM not available on non-Windows platforms
-            }
-            DriverType::Indi => {
-                let (host, port, device_name) = Self::parse_indi_device_id(device_id)?;
-                let server_key = format!("{host}:{port}");
-
-                let client = {
-                    let clients = self.indi_clients.read().await;
-                    clients.get(&server_key).cloned()
-                };
-
-                let Some(client) = client else {
-                    return Err(format!("INDI client not connected for {}", server_key));
-                };
-
-                let mut locked_client = client.write().await;
-                locked_client
-                    .disconnect_device(&device_name)
-                    .await
-                    .map_err(|e| {
-                        format!(
-                            "Failed to disconnect INDI device {} via {}: {}",
-                            device_name, server_key, e
-                        )
-                    })?;
-
-                // The command has only been written at this point. Wait for
-                // the driver's CONNECTION readback before allowing another
-                // backend to claim the same hardware; otherwise its connect
-                // can be undone milliseconds later by this pending disconnect.
-                let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
-                while locked_client.is_device_connected(&device_name).await {
-                    if tokio::time::Instant::now() >= deadline {
-                        return Err(format!(
-                            "Timed out waiting for INDI device {} to confirm disconnection",
-                            device_name
-                        ));
-                    }
-                    tokio::time::sleep(Duration::from_millis(50)).await;
-                }
-            }
-            DriverType::Simulator => {
-                // Flip the matching `simulation.rs` singleton's `connected`
-                // bit back to false so the heartbeat loop and any other
-                // observer agrees the simulator is offline. Errors here are
-                // logged but do not block the rest of disconnect cleanup —
-                // the user has already asked to release the device, and the
-                // managed-device state is being torn down regardless.
-                if let Err(e) = self.disconnect_simulator(&device_info).await {
-                    tracing::warn!("disconnect_simulator failed for {}: {}", device_info.id, e);
+                // Every Alpaca, ASCOM and simulated device is released
+                // through its handle above.
+                DriverType::Alpaca | DriverType::Ascom | DriverType::Simulator => {}
+                // A device type with no handle (a guider) is released on its
+                // server's shared connection.
+                DriverType::Indi => {
+                    record_disconnect!("INDI device", self.release_indi_device(device_id).await);
                 }
             }
         }
 
-        // Publish event
         self.app_state.publish_equipment_event(
             EquipmentEvent::Disconnected {
                 device_type: device_info.device_type.as_str().to_string(),
@@ -1203,11 +991,6 @@ impl DeviceManager {
             },
             EventSeverity::Info,
         );
-
-        // Update app state
-        self.app_state
-            .remove_device(device_info.device_type, device_id)
-            .await;
 
         if !disconnect_errors.is_empty() {
             return Err(format!(
@@ -1228,34 +1011,7 @@ impl DeviceManager {
         }
     }
 
-    /// Report a connection error (triggers auto-reconnect if enabled)
-    pub async fn report_error(&self, device_id: &str, error: String) {
-        crate::device_capabilities::invalidate_capability_cache_for_device(device_id).await;
-
-        let device_type = {
-            let mut devices = self.devices.write().await;
-            if let Some(dev) = devices.get_mut(device_id) {
-                dev.connection_state = ConnectionState::Error;
-                dev.last_error = Some(error.clone());
-                dev.info.device_type
-            } else {
-                return;
-            }
-        };
-
-        self.app_state.remove_device(device_type, device_id).await;
-
-        self.app_state.publish_equipment_event(
-            EquipmentEvent::Error {
-                device_type: device_type.as_str().to_string(),
-                device_id: device_id.to_string(),
-                message: error,
-            },
-            EventSeverity::Error,
-        );
-    }
-
-    /// Heartbeat threshold reached: mark the device unhealthy and mirror registry state.
+    /// Heartbeat threshold reached: mark the device unhealthy.
     ///
     /// Real reconnection is handled exclusively by `reconnection_loop` when
     /// `auto_reconnect` is enabled (FB-); the heartbeat task must not sleep
@@ -1280,10 +1036,6 @@ impl DeviceManager {
             }
             dev.info.clone()
         };
-
-        self.app_state
-            .remove_device(info.device_type, device_id)
-            .await;
 
         Some(info)
     }
@@ -1380,12 +1132,6 @@ impl DeviceManager {
         }
     }
 
-    /// Stop the reconnection background task
-    pub async fn shutdown(&self) {
-        *self.stop_reconnect.write().await = true;
-    }
-
-    /// Unregister a device
     pub async fn unregister_device(&self, device_id: &str) {
         let mut devices = self.devices.write().await;
         devices.remove(device_id);

@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mocktail/mocktail.dart' as mt;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import 'centering_service_test.mocks.dart';
 import '../harness/in_memory_database.dart';
@@ -168,15 +171,15 @@ void main() {
       test(
         'backend switch retires the run before a late solve can slew',
         () async {
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
           final solve = Completer<PlateSolveResult>();
           when(
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => _centeringImage());
           when(
@@ -226,10 +229,7 @@ void main() {
         const targetDec = 45.0; // degrees
         const toleranceArcsec = 30.0;
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         const config = CenteringConfig(
           maxIterations: 5,
@@ -282,6 +282,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => capturedImage);
 
@@ -318,10 +321,7 @@ void main() {
       test(
         'omitted gain and offset preserve current imaging settings',
         () async {
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
           container.read(exposureSettingsProvider.notifier).state =
               const ExposureSettings(exposureTime: 120, gain: 137, offset: 42);
           ExposureSettings? commandedSettings;
@@ -329,6 +329,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((invocation) async {
             commandedSettings =
@@ -396,15 +399,15 @@ void main() {
         const targetDecDeg = 45.0;
         const solvedRaDeg = targetRaHours * 15.0; // 150.0°
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         when(
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => raUnitFixture('/tmp/ra_unit_on.fits'));
 
@@ -486,15 +489,15 @@ void main() {
           const expectedArcsec = 180.0; // cos(60°) * 0.10° * 3600
           const solvedRaDeg = targetRaHours * 15.0 + deltaRaDeg; // 90.10°
 
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
 
           when(
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => raUnitFixture('/tmp/ra_unit_off.fits'));
 
@@ -577,16 +580,16 @@ void main() {
           const solvedRaDeg =
               targetRaHours * 15.0 + (120.0 / 3600.0); // degrees
 
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
 
           var iter = 0;
           when(
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => raUnitFixture('/tmp/ra_unit_sync.fits'));
           when(
@@ -697,10 +700,7 @@ void main() {
         const targetDecDeg = 30.0;
         const errorRaHours = 0.02; // 0.3 deg of RA
         const errorDecDeg = 0.2; // 720 arcsec, well outside tolerance
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         late double commandedRa;
         late double commandedDec;
@@ -723,6 +723,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => _centeringImage('/tmp/pointing.fits'));
           when(mockDeviceService.slewMountToCoordinates(any, any)).thenAnswer((
@@ -871,10 +874,7 @@ void main() {
         const targetDec = 45.0; // degrees
         const toleranceArcsec = 30.0;
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         const config = CenteringConfig(
           maxIterations: 5,
@@ -904,6 +904,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => capturedImage);
 
@@ -1002,10 +1005,7 @@ void main() {
         const toleranceArcsec = 30.0;
         const maxIterations = 3;
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         const config = CenteringConfig(
           maxIterations: maxIterations,
@@ -1033,6 +1033,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => capturedImage);
 
@@ -1113,10 +1116,7 @@ void main() {
           ],
         );
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         // Act
         final service = disconnectedContainer.read(centeringServiceProvider);
@@ -1135,10 +1135,7 @@ void main() {
       });
 
       test('missing selected solver fails before taking an exposure', () async {
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '',
-        );
+        const solverConfig = PlateSolverConfig();
         when(
           mockPlateSolveService.ensureSolverAvailable(),
         ).thenThrow(const SolverNotAvailableError('ASTAP is not configured'));
@@ -1157,6 +1154,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         );
         expect(service.isRunning, isFalse);
@@ -1165,10 +1165,7 @@ void main() {
       test(
         'timeout cancels the exposure and waits for its owner Future to settle',
         () async {
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
 
           // Signal when the exposure is actually in flight. The pre-capture
           // pipeline (validation, solver availability, initial-slew status)
@@ -1184,6 +1181,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) {
             if (!captureStarted.isCompleted) captureStarted.complete();
@@ -1238,10 +1238,7 @@ void main() {
               .centerOnTarget(
                 targetRa: 25,
                 targetDec: 45,
-                solverConfig: const PlateSolverConfig(
-                  type: PlateSolverType.astap,
-                  executablePath: '/usr/bin/astap',
-                ),
+                solverConfig: const PlateSolverConfig(),
                 config: const CenteringConfig(exposureTime: -1),
               );
 
@@ -1252,21 +1249,24 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           );
         },
       );
 
       test('abort during plate solve never commands a late slew', () async {
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
         final solveCompleter = Completer<PlateSolveResult>();
         when(
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => _centeringImage('/tmp/cancel-solve.fits'));
         when(
@@ -1308,15 +1308,15 @@ void main() {
       test(
         'a concurrent centering request is rejected without another capture',
         () async {
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
           final exposureCompleter = Completer<CapturedImageData?>();
           when(
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) => exposureCompleter.future);
 
@@ -1330,6 +1330,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           );
 
@@ -1344,6 +1347,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).called(1);
 
@@ -1370,10 +1376,7 @@ void main() {
           ],
         );
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         // Act
         final service = disconnectedContainer.read(centeringServiceProvider);
@@ -1393,10 +1396,7 @@ void main() {
 
       test('fails when plate solve fails', () async {
         // Arrange
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         final capturedImage = CapturedImageData(
           width: 1920,
@@ -1417,6 +1417,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => capturedImage);
 
@@ -1474,10 +1477,7 @@ void main() {
         const targetRa = 10.0;
         const targetDec = 45.0;
 
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         const config = CenteringConfig(maxIterations: 2);
 
@@ -1501,6 +1501,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => capturedImage);
 
@@ -1606,10 +1609,7 @@ void main() {
       test(
         'waits for an initial slew to settle before the first exposure',
         () async {
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
           final settleCompleter = Completer<MountStatus>();
           var statusCalls = 0;
           mt.when(() => pollBackend.getMountStatus(mt.any())).thenAnswer((_) {
@@ -1624,6 +1624,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => _centeringImage('/tmp/initial-slew.fits'));
           when(
@@ -1648,6 +1651,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           );
 
@@ -1658,6 +1664,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).called(1);
         },
@@ -1700,6 +1709,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => buildPollFixtureImage());
         when(
@@ -1774,10 +1786,7 @@ void main() {
         () async {
           const targetRa = 10.0;
           const targetDec = 45.0;
-          const solverConfig = PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: '/usr/bin/astap',
-          );
+          const solverConfig = PlateSolverConfig();
           stubTwoIterationPlateSolve(targetRa, targetDec);
           var statusCalls = 0;
           mt.when(() => pollBackend.getMountStatus(mt.any())).thenAnswer((
@@ -1805,6 +1814,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).called(1);
         },
@@ -1814,10 +1826,7 @@ void main() {
           'normally (regression)', () async {
         const targetRa = 10.0;
         const targetDec = 45.0;
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         stubTwoIterationPlateSolve(targetRa, targetDec);
         // Default setUp stub already returns a settled mount, but pin it
@@ -1847,10 +1856,7 @@ void main() {
           'escalate (regression — must not be over-aggressive)', () async {
         const targetRa = 10.0;
         const targetDec = 45.0;
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         stubTwoIterationPlateSolve(targetRa, targetDec);
 
@@ -1893,16 +1899,16 @@ void main() {
           'CenteringMountUnresponsiveException', () async {
         const targetRa = 10.0;
         const targetDec = 45.0;
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         // Only need the FIRST iteration to slew, then fail polling.
         when(
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => buildPollFixtureImage());
         when(
@@ -1992,10 +1998,7 @@ void main() {
           'continues', () async {
         const targetRa = 10.0;
         const targetDec = 45.0;
-        const solverConfig = PlateSolverConfig(
-          type: PlateSolverType.astap,
-          executablePath: '/usr/bin/astap',
-        );
+        const solverConfig = PlateSolverConfig();
 
         stubTwoIterationPlateSolve(targetRa, targetDec);
 
@@ -2078,10 +2081,7 @@ void main() {
       // light into the operator's light-frame folder and indexed it in
       // captured_images on EVERY iteration, inflating the night's frame and
       // integration totals with images nobody will ever stack.
-      const solverConfig = PlateSolverConfig(
-        type: PlateSolverType.astap,
-        executablePath: '/usr/bin/astap',
-      );
+      const solverConfig = PlateSolverConfig();
 
       PlateSolveResult onTarget(double raHours, double dec) => PlateSolveResult(
         success: true,
@@ -2123,6 +2123,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).thenAnswer((_) async => _centeringImage());
         stubSolve(10.0, 45.0);
@@ -2139,6 +2142,9 @@ void main() {
           mockImagingService.captureUtilityFrame(
             settings: anyNamed('settings'),
             targetName: anyNamed('targetName'),
+            purpose: anyNamed('purpose'),
+            purposeStep: anyNamed('purposeStep'),
+            purposeSteps: anyNamed('purposeSteps'),
           ),
         ).called(greaterThanOrEqualTo(1));
         verifyNever(
@@ -2168,6 +2174,9 @@ void main() {
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
           ).thenAnswer((_) async => _centeringImage());
           stubSolve(10.0, 45.0);
@@ -2182,39 +2191,157 @@ void main() {
 
         test('is stopped before the first centering frame', () async {
           connectGuider(guiding: true);
-          when(mockDeviceService.stopGuiding()).thenAnswer((_) async {});
-
-          final result = await center();
-
-          expect(result.success, isTrue);
-          verifyInOrder([
-            mockDeviceService.stopGuiding(),
+          var stoppedBeforeFrame = false;
+          mt.when(() => pollBackend.guiderStopGuiding()).thenAnswer((_) async {
+            stoppedBeforeFrame = true;
+          });
+          when(
             mockImagingService.captureUtilityFrame(
               settings: anyNamed('settings'),
               targetName: anyNamed('targetName'),
+              purpose: anyNamed('purpose'),
+              purposeStep: anyNamed('purposeStep'),
+              purposeSteps: anyNamed('purposeSteps'),
             ),
-          ]);
+          ).thenAnswer((_) async {
+            expect(stoppedBeforeFrame, isTrue);
+            return _centeringImage();
+          });
+          stubSolve(10.0, 45.0);
+
+          final result = await container
+              .read(centeringServiceProvider)
+              .centerOnTarget(
+                targetRa: 10.0,
+                targetDec: 45.0,
+                solverConfig: solverConfig,
+              );
+
+          expect(result.success, isTrue);
+          mt.verify(() => pollBackend.guiderStopGuiding()).called(1);
         });
 
         test('an idle guider is left alone', () async {
           connectGuider(guiding: false);
+          mt
+              .when(() => pollBackend.guiderGetStatus())
+              .thenAnswer(
+                (_) async =>
+                    const Phd2Status(state: 'Stopped', connected: true),
+              );
 
           final result = await center();
 
           expect(result.success, isTrue);
-          verifyNever(mockDeviceService.stopGuiding());
+          mt.verifyNever(() => pollBackend.guiderStopGuiding());
         });
 
-        test('a guider that will not stop does not stop centering', () async {
-          connectGuider(guiding: true);
-          when(
-            mockDeviceService.stopGuiding(),
-          ).thenThrow(Exception('PHD2 did not answer'));
+        for (final state in [
+          'LostLock',
+          'Paused',
+          'Calibrating',
+          'Settling',
+          'Unknown',
+        ]) {
+          test(
+            'stops a $state session before taking a centering frame',
+            () async {
+              connectGuider(guiding: false);
+              mt
+                  .when(() => pollBackend.guiderGetStatus())
+                  .thenAnswer(
+                    (_) async => Phd2Status(state: state, connected: true),
+                  );
+              mt
+                  .when(() => pollBackend.guiderStopGuiding())
+                  .thenAnswer((_) async {});
 
-          final result = await center();
+              final result = await center();
 
-          expect(result.success, isTrue);
-        });
+              expect(result.success, isTrue);
+              mt.verify(() => pollBackend.guiderStopGuiding()).called(1);
+            },
+          );
+        }
+
+        test(
+          'a host switch during the status probe cannot stop either host or move',
+          () async {
+            connectGuider(guiding: false);
+            final requested = Completer<void>();
+            final status = Completer<Phd2Status>();
+            mt.when(() => pollBackend.guiderGetStatus()).thenAnswer((_) {
+              requested.complete();
+              return status.future;
+            });
+            final run = center();
+            final refusal = expectLater(
+              run,
+              throwsA(isA<GuidingDidNotStopException>()),
+            );
+            await requested.future;
+            final replacement = _PollBackend();
+            backendNotifier.replaceBackend(replacement);
+            status.complete(
+              const Phd2Status(state: 'LostLock', connected: true),
+            );
+            await refusal;
+            mt.verifyNever(() => pollBackend.guiderStopGuiding());
+            mt.verifyNever(() => replacement.guiderStopGuiding());
+            verifyNever(mockDeviceService.slewMountToCoordinates(any, any));
+          },
+        );
+
+        test(
+          'refuses centering when the connected guider cannot report its state',
+          () async {
+            connectGuider(guiding: false);
+            mt
+                .when(() => pollBackend.guiderGetStatus())
+                .thenThrow(Exception('PHD2 did not answer'));
+
+            await expectLater(
+              center(),
+              throwsA(isA<GuidingDidNotStopException>()),
+            );
+
+            verifyNever(
+              mockImagingService.captureUtilityFrame(
+                settings: anyNamed('settings'),
+                targetName: anyNamed('targetName'),
+                purpose: anyNamed('purpose'),
+                purposeStep: anyNamed('purposeStep'),
+                purposeSteps: anyNamed('purposeSteps'),
+              ),
+            );
+            verifyNever(mockDeviceService.slewMountToCoordinates(any, any));
+          },
+        );
+
+        test(
+          'a guider that will not stop keeps the mount where it is',
+          () async {
+            connectGuider(guiding: true);
+            mt
+                .when(() => pollBackend.guiderStopGuiding())
+                .thenThrow(Exception('PHD2 did not answer'));
+
+            await expectLater(
+              center(),
+              throwsA(isA<GuidingDidNotStopException>()),
+            );
+            verifyNever(
+              mockImagingService.captureUtilityFrame(
+                settings: anyNamed('settings'),
+                targetName: anyNamed('targetName'),
+                purpose: anyNamed('purpose'),
+                purposeStep: anyNamed('purposeStep'),
+                purposeSteps: anyNamed('purposeSteps'),
+              ),
+            );
+            verifyNever(mockDeviceService.slewMountToCoordinates(any, any));
+          },
+        );
       });
     });
   });

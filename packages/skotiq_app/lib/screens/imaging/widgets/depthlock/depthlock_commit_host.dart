@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:path/path.dart' as p;
 
 import 'depthlock_geometry.dart';
@@ -163,7 +166,7 @@ class _DepthLockRegionCommitHostState
       if (!mounted) return;
       ref.read(depthLockRegionBusyProvider.notifier).state = false;
       ref.read(depthLockRegionErrorProvider.notifier).state =
-          depthLockErrorMessage(error);
+          userFacingError(error);
     }
   }
 
@@ -184,7 +187,8 @@ class _DepthLockRegionCommitHostState
       _matchMasters(DepthLockGoalDefinition definition) async {
     final acquisition = definition.acquisition;
     try {
-      final matches = await ref.read(calibrationLibraryServiceProvider).match(
+      final scope = ref.backendScope();
+      final matches = await ref.read(calibrationLibraryProvider).match(
             LightFrameContext(
               gain: acquisition.gain,
               offset: acquisition.offset,
@@ -195,6 +199,7 @@ class _DepthLockRegionCommitHostState
               binY: acquisition.binY,
             ),
           );
+      scope.ensureCurrent('the calibration library was matching');
       // The library's own warnings (a hub not consulted, an unverified
       // dimension) are context, not the reason a master is missing. The
       // reason the operator needs is which acquisition nothing matched.
@@ -206,7 +211,7 @@ class _DepthLockRegionCommitHostState
     } catch (error) {
       // A library that cannot answer is not a reason to refuse the goal — the
       // editor asks for the two files instead, and says why it is asking.
-      final reason = depthLockErrorMessage(error);
+      final reason = userFacingError(error);
       return (
         dark: DepthLockMasterChoice(path: '', unmatchedReason: reason),
         flat: DepthLockMasterChoice(path: '', unmatchedReason: reason),
@@ -220,7 +225,7 @@ class _DepthLockRegionCommitHostState
       '${acquisition.exposureSecs.toStringAsFixed(acquisition.exposureSecs % 1 == 0 ? 0 : 1)} s',
       if (acquisition.gain != null) 'gain ${acquisition.gain}',
       if (acquisition.ccdTempC != null)
-        '${acquisition.ccdTempC!.toStringAsFixed(0)} °C',
+        formatCelsius(acquisition.ccdTempC!, decimals: 0),
       'bin ${acquisition.binX}×${acquisition.binY}',
     ];
     return 'matches this sub (${parts.join(', ')}). Choose one.';

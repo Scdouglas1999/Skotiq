@@ -11,7 +11,6 @@ class PairedDevices extends Table {
   /// Secure session token (32 bytes, hex-encoded)
   TextColumn get sessionToken => text()();
 
-  /// Timestamp when this device was paired
   DateTimeColumn get pairedAt => dateTime()();
 
   /// Last time this device connected successfully
@@ -44,7 +43,6 @@ class PairedDevices extends Table {
 
 /// Table for tracking active pairing sessions
 class PairingSessions extends Table {
-  /// Unique session identifier
   IntColumn get id => integer().autoIncrement()();
 
   /// User-friendly pairing code (e.g., "STAR-1234")
@@ -53,12 +51,10 @@ class PairingSessions extends Table {
   /// Full session token that will be assigned when pairing completes
   TextColumn get sessionToken => text()();
 
-  /// Timestamp when this pairing session was created
   DateTimeColumn get createdAt => dateTime()();
 
   /// Timestamp when this pairing session expires (typically createdAt + 5 minutes)
   DateTimeColumn get expiresAt => dateTime()();
 
-  /// Whether this pairing session has been used
   BoolColumn get isUsed => boolean().withDefault(const Constant(false))();
 }

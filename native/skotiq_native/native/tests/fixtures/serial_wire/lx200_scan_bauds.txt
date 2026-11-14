@@ -1,0 +1,26 @@
+== port meade-at-9600 ==
+@ port baud=115200 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+> :GR#
+@ port baud=57600 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+> :GR#
+@ port baud=19200 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+> :GR#
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :GU#
+> :GVP#
+< LX200 Classic#
+> :GVN#
+< 4.2g#
+> :GVD#
+< Oct 10 2010#
+> :GVT#
+< 12:34:56#
+(scan over)
+== found ==
+port=<meade-at-9600> name="LX200 Classic (<meade-at-9600>)" type=Meade firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=9600

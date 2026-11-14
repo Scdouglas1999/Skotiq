@@ -10,9 +10,11 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/post_session_seam.dart' as seam;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/services.dart' as seam;
 
 import '../../harness/mock_database.dart';
 
@@ -82,16 +84,6 @@ class _FakeSeam implements PostSessionSeam {
           Map<String, dynamic> args) async =>
       throw UnimplementedError();
 
-  /// Records the combine request so the test can assert the controller wired
-  /// the palette + inputs correctly; returns a synthetic composite path.
-  Map<String, dynamic>? lastCombineArgs;
-
-  @override
-  Future<String> combineChannels(Map<String, dynamic> args) async {
-    lastCombineArgs = args;
-    return args['output'] as String;
-  }
-
   @override
   Future<MosaicStitchResult> stitchMosaic(Map<String, dynamic> args) async =>
       throw UnimplementedError();
@@ -109,7 +101,7 @@ class _ThrowingNightAnalysisService extends NightAnalysisService {
     required super.images,
     required super.science,
     required super.reports,
-  });
+  }) : super(site: () => null);
 
   @override
   Future<NightReport> computeReport({
@@ -251,13 +243,6 @@ void main() {
     expect(result.outcome, CullOutcome.staleCurve);
     expect(result.rejected, 0);
     expect(state().acceptedCount, 4);
-  });
-
-  test('narrowbandChannels lists only narrowband-filtered masters', () async {
-    controller();
-    await waitUntilLoaded();
-    // A luminance-only session exposes no narrowband channels.
-    expect(state().narrowbandChannels, isEmpty);
   });
 
   /// Record fold rows for [masterId] over this session's subs, exactly as the
@@ -415,16 +400,6 @@ void main() {
     expect(result.outcome, CullOutcome.staleCurve);
     expect(result.rejected, 0);
     expect(state().acceptedCount, 4);
-  });
-
-  test('runNarrowband errors when fewer than two channels are available',
-      () async {
-    final c = controller();
-    await waitUntilLoaded();
-    final out = await c.runNarrowband('sho', const []);
-    expect(out, isNull);
-    expect(state().error, isNotNull);
-    expect(fakeSeam.lastCombineArgs, isNull);
   });
 
   group('header title identifies the session, not "the night"', () {

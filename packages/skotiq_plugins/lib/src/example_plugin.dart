@@ -39,14 +39,12 @@ class ExamplePlugin extends SkotiqPlugin {
     _context = context;
     context.logger.info('Example plugin loading...');
 
-    // Load persistent counter value
     final savedCounter = await context.storage.getInt('counter');
     if (savedCounter != null) {
       _counter = savedCounter;
       context.logger.info('Restored counter value: $_counter');
     }
 
-    // Subscribe to events
     _eventSubscription = context.eventBus.on('app.ready').listen((data) {
       context.logger.info('Received app.ready event: $data');
     });
@@ -58,7 +56,6 @@ class ExamplePlugin extends SkotiqPlugin {
   Future<void> onEnable() async {
     _context?.logger.info('Example plugin enabled');
 
-    // Emit an event when enabled
     _context?.eventBus.emit('plugin.example.enabled', {
       'timestamp': DateTime.now().toIso8601String(),
     });
@@ -68,10 +65,8 @@ class ExamplePlugin extends SkotiqPlugin {
   Future<void> onDisable() async {
     _context?.logger.info('Example plugin disabled');
 
-    // Save state before disabling
     await _context?.storage.setInt('counter', _counter);
 
-    // Emit an event when disabled
     _context?.eventBus.emit('plugin.example.disabled', {
       'timestamp': DateTime.now().toIso8601String(),
     });
@@ -81,32 +76,26 @@ class ExamplePlugin extends SkotiqPlugin {
   Future<void> onUnload() async {
     _context?.logger.info('Example plugin unloading...');
 
-    // Cancel event subscription
     await _eventSubscription?.cancel();
     _eventSubscription = null;
 
-    // Save final state
     await _context?.storage.setInt('counter', _counter);
 
     _context?.logger.info('Example plugin unloaded');
     _context = null;
   }
 
-  /// Increment the internal counter and save to storage
   Future<void> incrementCounter() async {
     _counter++;
     _context?.logger.debug('Counter incremented to $_counter');
 
     await _context?.storage.setInt('counter', _counter);
 
-    // Emit event about counter change
     _context?.eventBus.emit('plugin.example.counter', {'value': _counter});
   }
 
-  /// Get the current counter value
   int get counter => _counter;
 
-  /// Reset the counter
   Future<void> resetCounter() async {
     _counter = 0;
     _context?.logger.info('Counter reset to 0');

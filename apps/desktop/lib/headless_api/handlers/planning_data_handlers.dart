@@ -1,9 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Host endpoints serving the planner/scheduler DATA tables to remote slaves.
 ///
@@ -15,7 +19,29 @@ import '../validation.dart';
 /// Planner's Projects tab is empty. These handlers read the same host-side
 /// services the desktop app uses (so the host path is unchanged) and serialize
 /// the rows over REST.
-class PlanningDataHandlers {
+class PlanningDataHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    PlanningDataApi.getIntegrationGoals: handleGetIntegrationGoals,
+    PlanningDataApi.getCapturedFrameCount: handleGetCapturedFrameCount,
+    PlanningDataApi.upsertIntegrationGoal: handleUpsertIntegrationGoal,
+    PlanningDataApi.deleteIntegrationGoal: handleDeleteIntegrationGoal,
+    PlanningDataApi.getTargetConstraints: handleGetTargetConstraints,
+    PlanningDataApi.insertTargetConstraint: handleInsertTargetConstraint,
+    PlanningDataApi.updateTargetConstraint: handleUpdateTargetConstraint,
+    PlanningDataApi.setTargetConstraintEnabled:
+        handleSetTargetConstraintEnabled,
+    PlanningDataApi.deleteTargetConstraint: handleDeleteTargetConstraint,
+    PlanningDataApi.getSchedulerRemovedTargets:
+        handleGetSchedulerRemovedTargets,
+    PlanningDataApi.removeSchedulerTarget: handleRemoveSchedulerTarget,
+    PlanningDataApi.readmitSchedulerTarget: handleReadmitSchedulerTarget,
+    PlanningDataApi.getHorizonProfiles: handleGetHorizonProfiles,
+    PlanningDataApi.getProjects: handleGetProjects,
+    PlanningDataApi.getProjectTargets: handleGetProjectTargets,
+    PlanningDataApi.getProjectProgress: handleGetProjectProgress,
+  };
+
   final ProviderContainer container;
 
   PlanningDataHandlers(this.container);
@@ -38,8 +64,6 @@ class PlanningDataHandlers {
 
   int? _intParam(Request request, String key) =>
       optionalQueryInt(request.url.queryParameters, key, min: 1);
-
-  // Integration goals
 
   /// GET /api/integration-goals?targetId=
   Future<Response> handleGetIntegrationGoals(Request request) async {
@@ -139,8 +163,6 @@ class PlanningDataHandlers {
     }
   }
 
-  // Scheduler queue membership
-
   /// GET /api/scheduler/removed-targets
   Future<Response> handleGetSchedulerRemovedTargets(Request request) async {
     try {
@@ -202,8 +224,6 @@ class PlanningDataHandlers {
       });
     }
   }
-
-  // Target constraints
 
   /// GET /api/target-constraints?targetId=
   Future<Response> handleGetTargetConstraints(Request request) async {
@@ -305,35 +325,12 @@ class PlanningDataHandlers {
     }
   }
 
-  // Horizon profiles
-
   /// GET /api/horizon-profiles
   Future<Response> handleGetHorizonProfiles(Request request) async {
     try {
-      final db = container.read(databaseProvider);
-      // Ensure the table exists before reading (mirrors the loader's defensive
-      // DDL — a host that has never opened the scheduler UI may not have it).
-      // DDL inlined because the canonical constant is hidden from the barrel;
-      // it is `CREATE TABLE IF NOT EXISTS`, so this is a no-op on an existing
-      // schema and stays identical to ProjectService/IntegrationGoalService.
-      await db.customStatement(
-        'CREATE TABLE IF NOT EXISTS horizon_profiles ('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-        'name TEXT NOT NULL, '
-        'samples_json TEXT NOT NULL)',
+      final profiles = await loadHorizonProfiles(
+        container.read(databaseProvider),
       );
-      final rows = await db
-          .customSelect('SELECT id, name, samples_json FROM horizon_profiles')
-          .get();
-      final profiles = rows
-          .map(
-            (row) => HorizonProfile.fromRow(
-              id: row.read<int>('id'),
-              name: row.read<String>('name'),
-              samplesJson: row.read<String>('samples_json'),
-            ),
-          )
-          .toList();
       return jsonOk({'profiles': profiles.map((p) => p.toJson()).toList()});
     } catch (e) {
       return jsonInternalServerError({
@@ -341,8 +338,6 @@ class PlanningDataHandlers {
       });
     }
   }
-
-  // Projects
 
   /// GET /api/projects
   Future<Response> handleGetProjects(Request request) async {

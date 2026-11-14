@@ -1,10 +1,13 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Modal that renders a [SequenceDiffResult] in a unified-diff layout
@@ -87,10 +90,9 @@ class SequenceDiffDialog extends StatelessWidget {
       // failures, transport errors, a repository fault. The dialog tells the
       // operator the comparison is unavailable; the log is the only place the
       // actual cause survives for a run whose snapshots will not load.
-      developer.log(
+      Log.warning(
         'Could not load run diff context for run ${run.id}: $e',
-        name: 'SequenceDiff',
-        level: 900,
+        source: 'SequenceDiff',
       );
       if (!context.mounted) return;
       await _showNoComparison(
@@ -142,8 +144,8 @@ class SequenceDiffDialog extends StatelessWidget {
       }
     } on FormatException catch (e) {
       if (!context.mounted) return;
-      await _showNoComparison(
-          context, colors, 'This run\'s snapshot could not be read: $e');
+      await _showNoComparison(context, colors,
+          'This run\'s snapshot could not be read: ${userFacingError(e)}');
       return;
     }
 
@@ -153,11 +155,15 @@ class SequenceDiffDialog extends StatelessWidget {
     } on FormatException catch (e) {
       if (!context.mounted) return;
       await _showNoComparison(context, colors,
-          'The previous run\'s snapshot could not be read: $e');
+          'The previous run\'s snapshot could not be read: ${userFacingError(e)}');
       return;
     }
 
-    final result = diffService.diff(previous: previous, current: current);
+    final result = diffService.diff(
+      previous: previous,
+      current: current,
+      sensitivity: ref.read(cameraSensitivityProvider),
+    );
     if (!context.mounted) return;
     await show(context, result);
   }

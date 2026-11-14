@@ -1,11 +1,15 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Headless API handlers for Collaborative Sky live co-imaging.
 ///
@@ -15,7 +19,23 @@ import '../validation.dart';
 /// accounting, and drive the longitude hand-off baton. The heavy fusion still
 /// flows through the existing tile-contribution path; these endpoints coordinate
 /// the session around it.
-class CoImagingHandlers {
+class CoImagingHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    CoImagingApi.listSessions: handleListSessions,
+    CoImagingApi.createSession: handleCreateSession,
+    CoImagingApi.getSession: handleGetSession,
+    CoImagingApi.joinSession: handleJoinSession,
+    CoImagingApi.leaveSession: handleLeaveSession,
+    CoImagingApi.closeSession: handleCloseSession,
+    CoImagingApi.contribute: handleContribute,
+    CoImagingApi.framingOffset: handleFramingOffset,
+    CoImagingApi.subComplete: handleSubComplete,
+    CoImagingApi.autoBaton: handleAutoBaton,
+    CoImagingApi.claimBaton: handleClaimBaton,
+    CoImagingApi.releaseBaton: handleReleaseBaton,
+  };
+
   final ProviderContainer container;
 
   CoImagingHandlers(this.container);

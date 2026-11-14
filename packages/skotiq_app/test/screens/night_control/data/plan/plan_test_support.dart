@@ -7,9 +7,12 @@ import 'package:skotiq_app/screens/night_control/data/tonight_night.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
-import 'package:skotiq_core/skotiq_core_events.dart' as sk;
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk;
 
 import '../../../../harness/harness.dart';
 
@@ -110,12 +113,6 @@ class _SeededSequence extends CurrentSequenceNotifier {
   }
 }
 
-class _FixedProgress extends SequenceProgressNotifier {
-  _FixedProgress(SequenceProgress seed) {
-    state = seed;
-  }
-}
-
 class _FixedSession extends SessionStateNotifier {
   _FixedSession(super.ref, SessionState seed) {
     state = seed;
@@ -161,6 +158,7 @@ ProviderContainer planContainer({
   Sequence? sequence,
   SequenceExecutionState execution = SequenceExecutionState.idle,
   SequenceProgress progress = const SequenceProgress(),
+  RunRecord run = const RunRecord(),
   SessionState session = const SessionState(),
   bool site = true,
   TonightNight? night,
@@ -186,7 +184,9 @@ ProviderContainer planContainer({
         site ? (night ?? bostonNight()) : null,
       ),
       appObserverLocationProvider.overrideWithValue(site ? boston : null),
-      effectiveHorizonDegProvider.overrideWithValue(30),
+      altitudeFloorProvider.overrideWithValue(
+        const AltitudeFloor(horizon: null, minimumDeg: 30),
+      ),
       sequencerOverheadConfigProvider.overrideWithValue(
         SequenceTimeEstimator.defaultEstimatorOverhead,
       ),
@@ -196,8 +196,12 @@ ProviderContainer planContainer({
             ? CurrentSequenceNotifier(ref: ref)
             : _SeededSequence(ref, sequence),
       ),
-      sequenceExecutionStateProvider.overrideWith((ref) => execution),
-      sequenceProgressProvider.overrideWith((ref) => _FixedProgress(progress)),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(
+          ref,
+          run.copyWith(lifecycle: execution, progress: progress),
+        ),
+      ),
       sessionStateProvider.overrideWith((ref) => _FixedSession(ref, session)),
       eventHistoryProvider.overrideWith((ref) => _FixedHistory(events)),
       recentSessionFramesProvider.overrideWithValue(sessionFrames),

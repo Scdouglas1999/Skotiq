@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 /// What to build: one dark or bias master from raw frames on disk.
@@ -78,7 +77,6 @@ class CalibrationMasterBuildResult {
   final int width;
   final int height;
 
-  /// Frames combined into the master.
   final int frameCount;
 
   /// Frames left out because they read brighter than the group's first ones.
@@ -138,14 +136,26 @@ typedef CalibrationMasterBuild =
 Future<CalibrationMasterBuildResult> buildCalibrationMasterNative(
   CalibrationMasterBuildRequest request,
 ) async {
-  final out = await bridge.apiBuildCalibrationMaster(
-    argsJson: jsonEncode(request.toJson()),
-  );
+  final String out;
+  try {
+    out = await bridge.apiBuildCalibrationMaster(
+      argsJson: jsonEncode(request.toJson()),
+    );
+  } on bridge.SkotiqError_InvalidInput catch (e) {
+    throw CalibrationMasterRefused(e.field0);
+  }
   return CalibrationMasterBuildResult.fromJson(
     Map<String, dynamic>.from(jsonDecode(out) as Map),
   );
 }
 
-final calibrationMasterBuildProvider = Provider<CalibrationMasterBuild>(
-  (ref) => buildCalibrationMasterNative,
-);
+/// The frames cannot make one master: too few, unreadable, disagreeing on how
+/// they were taken, or leaking light. Nothing was written; [reason] says which.
+class CalibrationMasterRefused implements Exception {
+  const CalibrationMasterRefused(this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => reason;
+}

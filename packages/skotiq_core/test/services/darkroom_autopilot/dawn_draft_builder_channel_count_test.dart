@@ -8,7 +8,7 @@
 // says it.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A Darkroom seam that answers the registry and nothing else.
 ///

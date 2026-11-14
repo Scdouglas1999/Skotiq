@@ -1,28 +1,9 @@
-// split from monolithic api.rs
-#![allow(unused_imports)]
-// Shared imports inherited from the monolithic api.rs.
-use crate::device::*;
-use crate::device_manager::DeviceManager;
-use crate::error::*;
-use crate::event::*;
-use crate::state::*;
-use crate::storage::{AppSettings, ObserverLocation};
-use crate::unified_device_ops::create_unified_device_ops;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use skotiq_imaging::{
-    calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
-    DebayerAlgorithm, FitsHeader, ImageData,
-};
+use crate::device::{ConnectionState, DeviceType};
+use crate::error::SkotiqError;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
-use tokio::sync::RwLock;
-// Sibling-module items via the parent's pub use re-exports.
-use super::*;
 
 /// Process-wide admission gate shared by UI, headless HTTP, sequencer, and
 /// recovery callers. External solvers write sibling `.ini`/`.wcs` artifacts;
@@ -271,22 +252,33 @@ static MEASURED_PLATE_SCALE: std::sync::LazyLock<
 > = std::sync::LazyLock::new(|| std::sync::RwLock::new(std::collections::HashMap::new()));
 
 impl SolveHints {
-    /// Stamp the scale cards onto a FITS header, using the same keywords and
-    /// the same binning convention as a saved capture
-    /// (`api::imaging::write_fits_with_header`), so a solver cannot tell a
-    /// solve frame from a light frame.
-    pub(crate) fn apply_to_fits_header(&self, header: &mut skotiq_imaging::FitsHeader) {
-        if let Some(focal) = self.focal_length_mm {
-            header.set_float("FOCALLEN", focal);
+    /// The header `frame` is written to the solver with: the exposure's own
+    /// facts and these scale cards, through the header a saved capture gets,
+    /// so a solver cannot tell a solve frame from a light frame. It names no
+    /// pointing; a caller that trusts a position sets `ra`/`dec`.
+    pub(crate) fn solve_frame_header(
+        &self,
+        frame: &skotiq_sequencer::ImageData,
+    ) -> crate::frame_header::FrameHeader {
+        let started_at =
+            chrono::DateTime::from_timestamp(frame.timestamp, 0).unwrap_or_else(chrono::Utc::now);
+        crate::frame_header::FrameHeader {
+            object_name: Some("Plate Solve".to_string()),
+            exposure_time: frame.exposure_secs,
+            capture_timestamp: started_at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            frame_type: "Light".to_string(),
+            filter: frame.filter.clone(),
+            gain: frame.gain,
+            offset: frame.offset,
+            ccd_temp: frame.temperature,
+            bin_x: self.binning.0,
+            bin_y: self.binning.1,
+            focal_length: self.focal_length_mm,
+            pixel_size_x: self.pixel_size_um.map(|(x, _)| x),
+            pixel_size_y: self.pixel_size_um.map(|(_, y)| y),
+            bayer_pattern: frame.color_filter.as_ref().map(|p| p.letters()),
+            ..Default::default()
         }
-        if let Some((pitch_x, pitch_y)) = self.pixel_size_um {
-            header.set_float("PIXSIZE1", pitch_x);
-            header.set_float("PIXSIZE2", pitch_y);
-            header.set_float("XPIXSZ", pitch_x * f64::from(self.binning.0));
-            header.set_float("YPIXSZ", pitch_y * f64::from(self.binning.1));
-        }
-        header.set_int("XBINNING", i64::from(self.binning.0));
-        header.set_int("YBINNING", i64::from(self.binning.1));
     }
 
     /// The plate scale these hints describe, in arcsec per pixel **of the
@@ -496,7 +488,7 @@ pub(crate) async fn gather_solve_hints_for_camera(camera_id: Option<&str>) -> So
     // looked at, so a rig with no saved profile reported "pixel pitch unknown"
     // about a sensor that was connected and answering every other caller in the
     // app. The pitch is the camera's to report, not the profile's.
-    let profile = crate::get_state().get_profile().await;
+    let profile = crate::state::get_state().get_profile().await;
 
     hints.focal_length_mm = profile
         .as_ref()
@@ -507,12 +499,9 @@ pub(crate) async fn gather_solve_hints_for_camera(camera_id: Option<&str>) -> So
     // it: the caller's own, then the profile's imaging camera, then the one
     // camera that is actually connected.
     //
-    // That last rung is not a nicety. `profile.camera_id` is unset on a rig
-    // whose devices were connected from the Equipment screen without being
-    // saved into the profile, and this function used to give up there — so on
-    // 2026-09-15 the owner's every solve was told "pixel pitch unknown" while
-    // the camera it was imaging through was reporting 3.8 um to every other
-    // caller in the app.
+    // That last rung matters: `profile.camera_id` is unset on a rig whose
+    // devices were connected from the Equipment screen without being saved
+    // into the profile, and the connected camera still knows its pixel pitch.
     //
     // Exactly one connected camera, though. Two means guessing which sensor
     // the frame came off, and the pitch of the WRONG sensor is a confidently
@@ -522,12 +511,12 @@ pub(crate) async fn gather_solve_hints_for_camera(camera_id: Option<&str>) -> So
         None => match profile.as_ref().and_then(|p| p.camera_id.clone()) {
             Some(id) => Some(id),
             None => {
-                let connected: Vec<String> = crate::get_state()
+                let connected: Vec<String> = crate::device_manager::get_device_manager()
                     .get_devices_by_type(DeviceType::Camera)
                     .await
                     .into_iter()
                     .filter(|d| d.connection_state == ConnectionState::Connected)
-                    .map(|d| d.device_id)
+                    .map(|d| d.info.id)
                     .collect();
                 match connected.as_slice() {
                     [only] => {
@@ -611,16 +600,66 @@ pub struct PlateSolveResult {
     pub sip_bp_coeffs: Vec<f64>,
 }
 
-/// Check if a plate solver is available
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_is_plate_solver_available() -> bool {
-    skotiq_imaging::is_solver_available()
+impl From<skotiq_imaging::PlateSolveResult> for PlateSolveResult {
+    fn from(r: skotiq_imaging::PlateSolveResult) -> Self {
+        Self {
+            success: r.success,
+            ra: r.ra,
+            dec: r.dec,
+            pixel_scale: r.pixel_scale,
+            rotation: r.rotation,
+            field_width: r.field_width,
+            field_height: r.field_height,
+            solve_time_secs: r.solve_time_secs,
+            error: r.error,
+            cd1_1: r.cd1_1,
+            cd1_2: r.cd1_2,
+            cd2_1: r.cd2_1,
+            cd2_2: r.cd2_2,
+            sip_a_order: r.a_order,
+            sip_b_order: r.b_order,
+            sip_a_coeffs: r.a_coeffs,
+            sip_b_coeffs: r.b_coeffs,
+            sip_ap_order: r.ap_order,
+            sip_bp_order: r.bp_order,
+            sip_ap_coeffs: r.ap_coeffs,
+            sip_bp_coeffs: r.bp_coeffs,
+        }
+    }
+}
+
+impl From<&PlateSolveResult> for skotiq_imaging::PlateSolveResult {
+    fn from(r: &PlateSolveResult) -> Self {
+        Self {
+            success: r.success,
+            ra: r.ra,
+            dec: r.dec,
+            pixel_scale: r.pixel_scale,
+            rotation: r.rotation,
+            field_width: r.field_width,
+            field_height: r.field_height,
+            solve_time_secs: r.solve_time_secs,
+            error: r.error.clone(),
+            cd1_1: r.cd1_1,
+            cd1_2: r.cd1_2,
+            cd2_1: r.cd2_1,
+            cd2_2: r.cd2_2,
+            a_order: r.sip_a_order,
+            b_order: r.sip_b_order,
+            a_coeffs: r.sip_a_coeffs.clone(),
+            b_coeffs: r.sip_b_coeffs.clone(),
+            ap_order: r.sip_ap_order,
+            bp_order: r.sip_bp_order,
+            ap_coeffs: r.sip_ap_coeffs.clone(),
+            bp_coeffs: r.sip_bp_coeffs.clone(),
+        }
+    }
 }
 
 /// Get the path to the installed plate solver
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_get_plate_solver_path() -> Option<String> {
-    skotiq_imaging::get_solver_path().map(|p| p.to_string_lossy().to_string())
+    skotiq_platesolve::get_solver_path().map(|p| p.to_string_lossy().to_string())
 }
 
 /// Apply the persisted plate-solver preference to the imaging crate's
@@ -644,7 +683,7 @@ fn apply_saved_preference_to_imaging() {
             return;
         }
     };
-    skotiq_imaging::set_solver_preference(
+    skotiq_platesolve::set_solver_preference(
         if pref.astap_path.is_empty() {
             None
         } else {
@@ -682,7 +721,7 @@ pub(crate) async fn resolve_solve_scale(
     if let Some(scale) = explicit.filter(|s| s.is_finite() && *s > 0.0) {
         return Some(scale);
     }
-    if let Some(scale) = skotiq_imaging::fits_scale_arcsec_per_px(path) {
+    if let Some(scale) = skotiq_platesolve::fits_scale_arcsec_per_px(path) {
         tracing::debug!(
             "Plate solve: field scale {:.2}\"/px read from the frame's own header",
             scale
@@ -763,34 +802,17 @@ async fn plate_solve_blind_inner(
     // runner, which kills and reaps the child on expiry.
     let owned_path = path.to_path_buf();
     let result = tokio::task::spawn_blocking(move || {
-        skotiq_imaging::blind_solve_with_timeout(&owned_path, timeout_secs, hint_scale, downsample)
+        skotiq_platesolve::blind_solve_with_timeout(
+            &owned_path,
+            timeout_secs,
+            hint_scale,
+            downsample,
+        )
     })
     .await
     .map_err(|error| SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}")))?;
 
-    Ok(PlateSolveResult {
-        success: result.success,
-        ra: result.ra,
-        dec: result.dec,
-        pixel_scale: result.pixel_scale,
-        rotation: result.rotation,
-        field_width: result.field_width,
-        field_height: result.field_height,
-        solve_time_secs: result.solve_time_secs,
-        error: result.error,
-        cd1_1: result.cd1_1,
-        cd1_2: result.cd1_2,
-        cd2_1: result.cd2_1,
-        cd2_2: result.cd2_2,
-        sip_a_order: result.a_order,
-        sip_b_order: result.b_order,
-        sip_a_coeffs: result.a_coeffs,
-        sip_b_coeffs: result.b_coeffs,
-        sip_ap_order: result.ap_order,
-        sip_bp_order: result.bp_order,
-        sip_ap_coeffs: result.ap_coeffs,
-        sip_bp_coeffs: result.bp_coeffs,
-    })
+    Ok(result.into())
 }
 
 /// Plate solve an image with hint coordinates
@@ -1140,7 +1162,7 @@ async fn plate_solve_near_inner(
 
     let owned_path = path.to_path_buf();
     let result = tokio::task::spawn_blocking(move || {
-        skotiq_imaging::solve_near_with_timeout(
+        skotiq_platesolve::solve_near_with_timeout(
             &owned_path,
             hint_ra,
             hint_dec,
@@ -1153,29 +1175,7 @@ async fn plate_solve_near_inner(
     .await
     .map_err(|error| SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}")))?;
 
-    Ok(PlateSolveResult {
-        success: result.success,
-        ra: result.ra,
-        dec: result.dec,
-        pixel_scale: result.pixel_scale,
-        rotation: result.rotation,
-        field_width: result.field_width,
-        field_height: result.field_height,
-        solve_time_secs: result.solve_time_secs,
-        error: result.error,
-        cd1_1: result.cd1_1,
-        cd1_2: result.cd1_2,
-        cd2_1: result.cd2_1,
-        cd2_2: result.cd2_2,
-        sip_a_order: result.a_order,
-        sip_b_order: result.b_order,
-        sip_a_coeffs: result.a_coeffs,
-        sip_b_coeffs: result.b_coeffs,
-        sip_ap_order: result.ap_order,
-        sip_bp_order: result.bp_order,
-        sip_ap_coeffs: result.ap_coeffs,
-        sip_bp_coeffs: result.bp_coeffs,
-    })
+    Ok(result.into())
 }
 
 // Plate solver UX (detection / verification / config)
@@ -1279,15 +1279,15 @@ pub fn api_platesolve_detect() -> Result<PlateSolverDetection, SkotiqError> {
     // Probing involves filesystem reads which are fast but blocking. The
     // function is sync — callers can wrap it if they need it off the UI
     // isolate.
-    skotiq_imaging::invalidate_solver_availability_cache();
+    skotiq_platesolve::invalidate_solver_availability_cache();
 
     let astap_path =
-        skotiq_imaging::find_astap_with_override(configured_astap.as_deref().map(Path::new));
-    let astrometry_path = skotiq_imaging::find_astrometry_with_override(
+        skotiq_platesolve::find_astap_with_override(configured_astap.as_deref().map(Path::new));
+    let astrometry_path = skotiq_platesolve::find_astrometry_with_override(
         configured_astrometry.as_deref().map(Path::new),
     );
 
-    let catalog = skotiq_imaging::detect_astap_catalog(
+    let catalog = skotiq_platesolve::detect_astap_catalog(
         astap_path.as_deref(),
         configured_catalog.as_deref().map(Path::new),
     );
@@ -1316,7 +1316,7 @@ pub fn api_platesolve_detect() -> Result<PlateSolverDetection, SkotiqError> {
 pub fn api_platesolve_verify(executable_path: String) -> Result<PlateSolverInfo, SkotiqError> {
     use std::path::Path;
     let path = Path::new(&executable_path);
-    match skotiq_imaging::verify_solver(path) {
+    match skotiq_platesolve::verify_solver(path) {
         Ok(info) => Ok(PlateSolverInfo {
             path: info.path.to_string_lossy().to_string(),
             flavour: info.flavour,
@@ -1345,7 +1345,7 @@ pub fn api_platesolve_set_config(config: PlateSolverConfigPayload) -> Result<(),
     // Push the new paths into the imaging crate before saving, so the
     // preference is live immediately even if the subsequent storage write
     // fails (the user just configured the paths; honour them in this session).
-    skotiq_imaging::set_solver_preference(
+    skotiq_platesolve::set_solver_preference(
         if config.astap_path.is_empty() {
             None
         } else {
@@ -1366,7 +1366,7 @@ pub fn api_platesolve_set_config(config: PlateSolverConfigPayload) -> Result<(),
 
     let pref = config.into_pref();
     crate::state::save_platesolver_preference(&pref).map_err(SkotiqError::OperationFailed)?;
-    skotiq_imaging::invalidate_solver_availability_cache();
+    skotiq_platesolve::invalidate_solver_availability_cache();
     Ok(())
 }
 
@@ -1564,7 +1564,25 @@ mod solve_coalescing_tests {
 #[cfg(test)]
 mod solve_hint_tests {
     use super::{SolveHints, SolveScale};
-    use skotiq_imaging::FitsHeader;
+
+    fn frame() -> skotiq_sequencer::ImageData {
+        skotiq_sequencer::ImageData {
+            width: 2,
+            height: 2,
+            data: vec![0; 4],
+            bits_per_pixel: 16,
+            exposure_secs: 2.0,
+            gain: None,
+            offset: None,
+            temperature: None,
+            filter: None,
+            timestamp: 1_789_000_000,
+            sensor_type: None,
+            color_filter: None,
+            camera_file: None,
+            readout_mode: None,
+        }
+    }
 
     /// `XPIXSZ` is the *binned* pitch — that is the number a solver turns into
     /// a plate scale. Stamping the unbinned pitch on a 2x2 frame would tell it
@@ -1576,8 +1594,7 @@ mod solve_hint_tests {
             pixel_size_um: Some((3.76, 3.76)),
             binning: (2, 2),
         };
-        let mut header = FitsHeader::new();
-        hints.apply_to_fits_header(&mut header);
+        let header = hints.solve_frame_header(&frame()).fits_header();
 
         assert_eq!(header.get_float("FOCALLEN"), Some(416.0));
         assert_eq!(header.get_float("PIXSIZE1"), Some(3.76));
@@ -1835,8 +1852,7 @@ mod solve_hint_tests {
         let hints = SolveHints::default();
         assert_eq!(hints.binning, (1, 1));
 
-        let mut header = FitsHeader::new();
-        hints.apply_to_fits_header(&mut header);
+        let header = hints.solve_frame_header(&frame()).fits_header();
         assert_eq!(header.get_float("FOCALLEN"), None);
         assert_eq!(header.get_float("XPIXSZ"), None);
     }

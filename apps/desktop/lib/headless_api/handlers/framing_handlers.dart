@@ -1,15 +1,34 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../job_manager.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'centering_request.dart';
 import 'device_handlers.dart' show requestPrefersLegacyBlocking;
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for framing assistant and centering operations
-class FramingHandlers {
+class FramingHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    FramingApi.slewToTarget: handleSlewToTarget,
+    FramingApi.centerOnTarget: handleCenterOnTarget,
+    FramingApi.syncMount: handleSyncMount,
+    FramingApi.getCurrentPosition: handleGetCurrentPosition,
+    FramingApi.rotateTo: handleRotateTo,
+    FramingApi.abortSlew: handleAbortSlew,
+    FramingApi.parkMount: handleParkMount,
+    FramingApi.unparkMount: handleUnparkMount,
+    FramingApi.setTarget: handleSetTarget,
+    FramingApi.saveFraming: handleSaveFraming,
+  };
+
   final ProviderContainer container;
 
   /// optional job manager. When wired, center-on-target
@@ -25,8 +44,6 @@ class FramingHandlers {
   void _logInfo(String message) =>
       _logger.info(message, source: 'FramingHandlers');
 
-  // Slew to target
-
   Future<Response> handleSlewToTarget(Request request) async {
     _logInfo('[API] POST /api/framing/slew-to-target');
     final payload = await readJsonObject(request);
@@ -36,7 +53,6 @@ class FramingHandlers {
 
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -51,32 +67,13 @@ class FramingHandlers {
     return jsonOk({'status': 'slewing', 'targetRa': ra, 'targetDec': dec});
   }
 
-  // Center on target
-
   Future<Response> handleCenterOnTarget(Request request) async {
     _logInfo('[API] POST /api/framing/center-on-target');
     final payload = await readJsonObject(request);
 
     final ra = requireDouble(payload, 'ra', min: 0, max: 24);
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
-    final maxIterations =
-        optionalInt(payload, 'maxIterations', min: 1, max: 20) ?? 5;
-    final toleranceArcsec =
-        optionalDouble(payload, 'toleranceArcsec', min: 0.1, max: 3600) ?? 30.0;
-    final exposureTime =
-        optionalDouble(payload, 'exposureTime', min: 0.01, max: 600) ?? 3.0;
-    final binning = optionalInt(payload, 'binning', min: 1, max: 16) ?? 2;
-    final gain = optionalInt(payload, 'gain', min: 0);
-    final offset = optionalInt(payload, 'offset', min: 0);
-    // Default from Settings -> Plate Solving -> "Sync mount when centering".
-    // Without the sync every correction re-issues the slew that produced the
-    // mis-pointed frame, so centering cannot converge.
-    final storedSyncMount = await container
-        .read(databaseProvider)
-        .settingsDao
-        .getSetting('centering_sync_mount');
-    final syncMount =
-        optionalBool(payload, 'syncMount') ?? storedSyncMount != 'false';
+    final centering = await centeringForRequest(container, payload);
 
     Map<String, Object?> resultToJson(CenteringResult result) => {
       'success': result.success,
@@ -101,42 +98,14 @@ class FramingHandlers {
           .toList(),
     };
 
-    Future<CenteringResult> runCentering() async {
-      final centeringService = container.read(centeringServiceProvider);
-      final config = CenteringConfig(
-        maxIterations: maxIterations,
-        toleranceArcsec: toleranceArcsec,
-        exposureTime: exposureTime,
-        binning: binning,
-        gain: gain,
-        offset: offset,
-        syncMount: syncMount,
-      );
-
-      final database = container.read(databaseProvider);
-      final solverName =
-          await database.settingsDao.getSetting('plate_solve_solver') ??
-          'ASTAP';
-      final solverPath =
-          await database.settingsDao.getSetting('plate_solve_path') ?? '';
-      final timeoutStr =
-          await database.settingsDao.getSetting('plate_solve_timeout') ?? '60';
-      final solverType = PlateSolverType.values.firstWhere(
-        (t) => t.name.toLowerCase() == solverName.toLowerCase(),
-        orElse: () => PlateSolverType.astap,
-      );
-      final solverConfig = PlateSolverConfig(
-        type: solverType,
-        executablePath: solverPath,
-        timeoutSeconds: int.tryParse(timeoutStr) ?? 60,
-      );
-      return centeringService.centerOnTarget(
-        targetRa: ra,
-        targetDec: dec,
-        solverConfig: solverConfig,
-        config: config,
-      );
-    }
+    Future<CenteringResult> runCentering() => container
+        .read(centeringServiceProvider)
+        .centerOnTarget(
+          targetRa: ra,
+          targetDec: dec,
+          solverConfig: centering.solver,
+          config: centering.config,
+        );
 
     final mgr = jobManager;
     final preferLegacy = requestPrefersLegacyBlocking(request);
@@ -169,6 +138,14 @@ class FramingHandlers {
             );
           }
           final result = raced as CenteringResult;
+          if (!result.success) {
+            throw JobFailedException(
+              code: 'centering_failed',
+              message:
+                  result.errorMessage ?? 'Centering did not reach the target.',
+              details: resultToJson(result),
+            );
+          }
           return resultToJson(result);
         },
       );
@@ -183,8 +160,6 @@ class FramingHandlers {
     return jsonOk(resultToJson(result));
   }
 
-  // Sync mount
-
   Future<Response> handleSyncMount(Request request) async {
     _logInfo('[API] POST /api/framing/sync');
     final payload = await readJsonObject(request);
@@ -194,7 +169,6 @@ class FramingHandlers {
 
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -209,12 +183,9 @@ class FramingHandlers {
     return jsonOk({'status': 'synced', 'ra': ra, 'dec': dec});
   }
 
-  // Get current position
-
   Future<Response> handleGetCurrentPosition(Request request) async {
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -240,8 +211,6 @@ class FramingHandlers {
     });
   }
 
-  // Rotate to angle
-
   Future<Response> handleRotateTo(Request request) async {
     _logInfo('[API] POST /api/framing/rotate-to');
     final payload = await readJsonObject(request);
@@ -250,7 +219,6 @@ class FramingHandlers {
 
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected rotator
     final connectedDevices = await backend.getConnectedDevices();
     final rotator = connectedDevices
         .where((d) => d.deviceType == DeviceType.rotator)
@@ -265,13 +233,10 @@ class FramingHandlers {
     return jsonOk({'status': 'rotating', 'targetAngle': angle});
   }
 
-  // Abort slew
-
   Future<Response> handleAbortSlew(Request request) async {
     _logInfo('[API] POST /api/framing/abort-slew');
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -316,13 +281,10 @@ class FramingHandlers {
     return jsonOk({'status': 'aborted', kWasRunningField: true});
   }
 
-  // Park mount
-
   Future<Response> handleParkMount(Request request) async {
     _logInfo('[API] POST /api/framing/park');
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -337,13 +299,10 @@ class FramingHandlers {
     return jsonOk({'status': 'parking'});
   }
 
-  // Unpark mount
-
   Future<Response> handleUnparkMount(Request request) async {
     _logInfo('[API] POST /api/framing/unpark');
     final backend = container.read(deviceBackendProvider);
 
-    // Get connected mount
     final connectedDevices = await backend.getConnectedDevices();
     final mount = connectedDevices
         .where((d) => d.deviceType == DeviceType.mount)
@@ -358,8 +317,6 @@ class FramingHandlers {
     return jsonOk({'status': 'unparking'});
   }
 
-  // Set framing target (remote handoff)
-
   /// POST /api/framing/set-target
   ///
   /// Updates the host framing assistant when a remote companion sends a target
@@ -371,20 +328,14 @@ class FramingHandlers {
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
     final name = requireString(payload, 'name');
 
+    // Linked clients get the target from the framingTarget runtime channel,
+    // as they do one picked on the host's own screen.
     container
         .read(framingProvider.notifier)
         .setTargetCoordinates(ra, dec, name: name);
 
-    publishHostMutationFromContainer(
-      container,
-      entityType: HostMutationEntity.framing,
-      action: HostMutationAction.updated,
-      extra: {'ra': ra, 'dec': dec, 'name': name},
-    );
     return jsonOk({'status': 'ok', 'ra': ra, 'dec': dec, 'name': name});
   }
-
-  // Save framing on a target row
 
   /// POST /api/framing/save
   ///

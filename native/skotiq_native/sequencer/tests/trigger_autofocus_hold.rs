@@ -8,10 +8,11 @@
 
 use async_trait::async_trait;
 use skotiq_sequencer::{
-    AutofocusConfig, DelayConfig, DeviceOps, DeviceResult, ExecutorEvent, ExecutorState,
-    GuidingStatus, ImageData, NodeDefinition, NodeType, NullDeviceOps, PlateSolveResult,
-    SequenceDefinition, SequenceExecutor, TriggerState,
+    AutofocusConfig, DelayConfig, DeviceResult, ExecutorEvent, ExecutorState, ExposureRequest,
+    GuidingStatus, ImageData, NodeDefinition, NodeType, NullDeviceOps, SequenceDefinition,
+    SequenceExecutor, TriggerState,
 };
+use skotiq_sequencer::{CameraOps, CoverCalibratorOps, DomeOps, FocuserOps, GuiderOps, MountOps};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -58,49 +59,10 @@ impl DeadGuiderRig {
 }
 
 #[async_trait]
-impl DeviceOps for DeadGuiderRig {
-    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
-        let guiding = self.guiding.load(Ordering::SeqCst);
-        self.record(format!("guider_get_status->{guiding}"));
-        Ok(GuidingStatus {
-            is_guiding: guiding,
-            rms_ra: 0.5,
-            rms_dec: 0.4,
-            rms_total: 0.64,
-        })
-    }
-    async fn guider_start(&self, _sp: f64, _st: f64, _sto: f64) -> DeviceResult<()> {
-        self.record("guider_start");
-        Ok(())
-    }
-    async fn guider_stop(&self) -> DeviceResult<()> {
-        self.record("guider_stop");
-        self.guiding.store(false, Ordering::SeqCst);
-        Ok(())
-    }
+impl MountOps for DeadGuiderRig {
     async fn mount_park(&self, id: &str) -> DeviceResult<()> {
         self.record(format!("mount_park:{id}"));
         Ok(())
-    }
-    async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
-        self.record(format!("cover_close:{id}"));
-        Ok(())
-    }
-    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
-        self.record(format!("dome_close:{id}"));
-        Ok(())
-    }
-    async fn camera_start_exposure(
-        &self,
-        id: &str,
-        d: f64,
-        g: Option<i32>,
-        o: Option<i32>,
-        bx: i32,
-        by: i32,
-    ) -> DeviceResult<ImageData> {
-        self.record(format!("camera_start_exposure:{id}:{d}"));
-        self.inner.camera_start_exposure(id, d, g, o, bx, by).await
     }
 
     // Everything below answers as `NullDeviceOps`.
@@ -141,6 +103,19 @@ impl DeviceOps for DeadGuiderRig {
     async fn mount_set_tracking(&self, id: &str, enabled: bool) -> DeviceResult<()> {
         self.inner.mount_set_tracking(id, enabled).await
     }
+}
+
+#[async_trait]
+impl CameraOps for DeadGuiderRig {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            camera_id: id,
+            duration_secs: d,
+            ..
+        } = request;
+        self.record(format!("camera_start_exposure:{id}:{d}"));
+        self.inner.camera_start_exposure(request).await
+    }
     async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
         self.inner.camera_abort_exposure(id).await
     }
@@ -153,6 +128,10 @@ impl DeviceOps for DeadGuiderRig {
     async fn camera_get_cooler_power(&self, id: &str) -> DeviceResult<f64> {
         self.inner.camera_get_cooler_power(id).await
     }
+}
+
+#[async_trait]
+impl FocuserOps for DeadGuiderRig {
     async fn focuser_move_to(&self, id: &str, p: i32) -> DeviceResult<()> {
         self.inner.focuser_move_to(id, p).await
     }
@@ -172,29 +151,28 @@ impl DeviceOps for DeadGuiderRig {
     async fn focuser_halt(&self, id: &str) -> DeviceResult<()> {
         self.inner.focuser_halt(id).await
     }
-    async fn filterwheel_set_position(&self, id: &str, p: i32) -> DeviceResult<()> {
-        self.inner.filterwheel_set_position(id, p).await
+}
+
+#[async_trait]
+impl GuiderOps for DeadGuiderRig {
+    async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
+        let guiding = self.guiding.load(Ordering::SeqCst);
+        self.record(format!("guider_get_status->{guiding}"));
+        Ok(GuidingStatus {
+            is_guiding: guiding,
+            rms_ra: 0.5,
+            rms_dec: 0.4,
+            rms_total: 0.64,
+        })
     }
-    async fn filterwheel_get_position(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_get_position(id).await
+    async fn guider_start(&self, _sp: f64, _st: f64, _sto: f64) -> DeviceResult<()> {
+        self.record("guider_start");
+        Ok(())
     }
-    async fn filterwheel_get_names(&self, id: &str) -> DeviceResult<Vec<String>> {
-        self.inner.filterwheel_get_names(id).await
-    }
-    async fn filterwheel_set_filter_by_name(&self, id: &str, n: &str) -> DeviceResult<i32> {
-        self.inner.filterwheel_set_filter_by_name(id, n).await
-    }
-    async fn rotator_move_to(&self, id: &str, a: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_to(id, a).await
-    }
-    async fn rotator_move_relative(&self, id: &str, d: f64) -> DeviceResult<()> {
-        self.inner.rotator_move_relative(id, d).await
-    }
-    async fn rotator_get_angle(&self, id: &str) -> DeviceResult<f64> {
-        self.inner.rotator_get_angle(id).await
-    }
-    async fn rotator_halt(&self, id: &str) -> DeviceResult<()> {
-        self.inner.rotator_halt(id).await
+    async fn guider_stop(&self) -> DeviceResult<()> {
+        self.record("guider_stop");
+        self.guiding.store(false, Ordering::SeqCst);
+        Ok(())
     }
     async fn guider_dither(
         &self,
@@ -206,40 +184,13 @@ impl DeviceOps for DeadGuiderRig {
     ) -> DeviceResult<()> {
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
-    async fn plate_solve(
-        &self,
-        d: &ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<PlateSolveResult> {
-        self.inner.plate_solve(d, ra, dec, s).await
-    }
-    async fn save_fits(
-        &self,
-        d: &ImageData,
-        f: &str,
-        ctx: &skotiq_sequencer::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.inner.save_fits(d, f, ctx).await
-    }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        x: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.inner.send_notification(l, t, m, x).await
-    }
-    fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {
-        self.inner.calculate_altitude(r, d, la, lo)
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.inner.get_observer_location()
-    }
-    async fn polar_align_update(&self, r: &skotiq_sequencer::PolarAlignResult) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
+}
+
+#[async_trait]
+impl DomeOps for DeadGuiderRig {
+    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
+        self.record(format!("dome_close:{id}"));
+        Ok(())
     }
     async fn dome_open(&self, id: &str) -> DeviceResult<()> {
         self.inner.dome_open(id).await
@@ -250,14 +201,13 @@ impl DeviceOps for DeadGuiderRig {
     async fn dome_get_shutter_status(&self, id: &str) -> DeviceResult<String> {
         self.inner.dome_get_shutter_status(id).await
     }
-    async fn safety_is_safe(&self, id: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(id).await
-    }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(d).await
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(d).await
+}
+
+#[async_trait]
+impl CoverCalibratorOps for DeadGuiderRig {
+    async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
+        self.record(format!("cover_close:{id}"));
+        Ok(())
     }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.inner.cover_calibrator_open_cover(id).await
@@ -284,6 +234,8 @@ impl DeviceOps for DeadGuiderRig {
         self.inner.cover_calibrator_get_max_brightness(id).await
     }
 }
+
+skotiq_sequencer::forward_device_ops!(DeadGuiderRig => inner: FilterWheelOps, RotatorOps, SafetyOps, PlateSolveOps, FrameStoreOps, OperatorNotifyOps, ConnectionOps, SiteOps);
 
 /// What the run looked like once the arm had acted on the sweep's verdict.
 struct Outcome {
@@ -330,15 +282,19 @@ impl Run {
         // stopped for the sweep (the owner's setting); the failure action and
         // the HFR tolerance stay at their shipped defaults.
         executor
-            .update_autofocus_config(AutofocusConfig {
-                disable_guiding_during_af: true,
-                number_of_attempts: 1,
-                steps_out: 2,
-                exposure_duration,
-                focuser_settle_time_ms: 0,
-                ..AutofocusConfig::default()
+            .handle()
+            .update_run_config(|config| {
+                config.autofocus = Some(AutofocusConfig {
+                    disable_guiding_during_af: true,
+                    number_of_attempts: 1,
+                    steps_out: 2,
+                    exposure_duration,
+                    focuser_settle_time_ms: 0,
+                    ..AutofocusConfig::default()
+                })
             })
-            .await;
+            .await
+            .unwrap();
         let mut sequence = SequenceDefinition::new("Trigger autofocus".to_string());
         sequence.nodes.push(NodeDefinition {
             id: "wait".to_string(),
@@ -366,7 +322,12 @@ impl Run {
                             judged.store(true, Ordering::SeqCst);
                         }
                         Ok(ExecutorEvent::Error { message })
-                        | Ok(ExecutorEvent::Warning { message }) => {
+                        | Ok(ExecutorEvent::RunHeld { message })
+                        | Ok(ExecutorEvent::StepProblem { message })
+                        | Ok(
+                            ExecutorEvent::Warning { message }
+                            | ExecutorEvent::NoticedWarning { message, .. },
+                        ) => {
                             messages.lock().unwrap().push(message);
                         }
                         Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
@@ -468,8 +429,8 @@ async fn a_dead_guider_after_trigger_autofocus_holds_the_run_even_when_focus_is_
         // firing has: frames 1.2x soft, well inside the 1.6x keep-imaging
         // tolerance. (Invalidation clears the baseline, so it goes first.)
         ts.invalidate_autofocus("test: force a refocus");
-        ts.baseline_hfr = Some(2.0);
-        ts.current_hfr = Some(2.4);
+        ts.latches.baseline_hfr = Some(2.0);
+        ts.latches.current_hfr = Some(2.4);
     })
     .await;
     let Outcome {
@@ -612,7 +573,7 @@ async fn no_light_starts_after_a_trigger_autofocus_leaves_the_guider_dead() {
         NodeType::TakeExposure(skotiq_sequencer::ExposureConfig {
             count: 500,
             duration_secs: 1.0,
-            frame_type: "light".to_string(),
+            frame_type: skotiq_sequencer::FrameType::Light,
             ..Default::default()
         }),
     )

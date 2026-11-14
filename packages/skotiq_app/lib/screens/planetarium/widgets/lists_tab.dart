@@ -6,10 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../utils/count_label.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class ListsTab extends ConsumerStatefulWidget {
   final SkotiqColors colors;
@@ -32,7 +36,6 @@ class _ListsTabState extends ConsumerState<ListsTab> {
           return _buildEmptyState();
         }
 
-        // If an active list is selected, show its items
         if (activeListId != null) {
           final activeList =
               lists.where((l) => l.id == activeListId).firstOrNull;
@@ -41,14 +44,14 @@ class _ListsTabState extends ConsumerState<ListsTab> {
           }
         }
 
-        // Show all lists
         return _buildListSelector(lists, activeListId);
       },
       loading: () => const Center(
         child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
       ),
       error: (e, _) => Center(
-        child: Text('Error: $e', style: TextStyle(color: widget.colors.error)),
+        child: Text('Error: ${userFacingError(e)}',
+            style: TextStyle(color: widget.colors.error)),
       ),
     );
   }
@@ -126,7 +129,6 @@ class _ListsTabState extends ConsumerState<ListsTab> {
 
     return Column(
       children: [
-        // Back button + list name header
         Container(
           padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
           decoration: BoxDecoration(
@@ -179,8 +181,6 @@ class _ListsTabState extends ConsumerState<ListsTab> {
             ],
           ),
         ),
-
-        // List items
         Expanded(
           child: itemsAsync.when(
             data: (items) {
@@ -234,7 +234,7 @@ class _ListsTabState extends ConsumerState<ListsTab> {
               child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
             ),
             error: (e, _) => Center(
-              child: Text('Error: $e',
+              child: Text('Error: ${userFacingError(e)}',
                   style: TextStyle(color: widget.colors.error)),
             ),
           ),
@@ -313,11 +313,14 @@ class _CreateObservingListDialog extends ConsumerStatefulWidget {
 }
 
 class _CreateObservingListDialogState
-    extends ConsumerState<_CreateObservingListDialog> {
+    extends ConsumerState<_CreateObservingListDialog>
+    with HostBoundDialogState<_CreateObservingListDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
-  late final SkotiqBackend _authority;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
+  @override
+  String get hostChangedMessage =>
+      'The connected host changed. List creation canceled.';
+
   bool _saving = false;
   String? _nameError;
 
@@ -326,25 +329,10 @@ class _CreateObservingListDialogState
     super.initState();
     _nameController = TextEditingController();
     _descriptionController = TextEditingController();
-    _authority = ref.read(backendProvider);
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (previous == null || identical(previous, next) || !mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('The connected host changed. List creation canceled.'),
-          ),
-        );
-        closeAuthorityBoundDialog(context);
-      },
-    );
   }
 
   @override
   void dispose() {
-    _backendSubscription?.close();
     _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -356,7 +344,7 @@ class _CreateObservingListDialogState
       setState(() => _nameError = 'Enter a list name');
       return;
     }
-    if (!identical(ref.read(backendProvider), _authority)) return;
+    if (host.isStale) return;
 
     setState(() {
       _saving = true;
@@ -369,14 +357,12 @@ class _CreateObservingListDialogState
               description: description.isEmpty ? null : description,
             );
 
-    if (!mounted || !identical(ref.read(backendProvider), _authority)) return;
+    if (!mounted || host.isStale) return;
     if (id == null) {
       setState(() => _saving = false);
       final message = ref.read(observingListNotifierProvider).errorMessage ??
           'Could not create the observing list';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      context.showInfoSnackBar(message);
       return;
     }
 
@@ -691,9 +677,9 @@ class _ExportToSequenceButtonState
 
   Future<void> _exportToSequence() async {
     setState(() => _exporting = true);
-    final backend = ref.read(backendProvider);
+    final hostSequences = ref.read(linkedHostSequencesProvider);
     final sequencesDao =
-        backend is NetworkBackend ? null : ref.read(sequencesDaoProvider);
+        hostSequences != null ? null : ref.read(sequencesDaoProvider);
     int? sequenceId;
     try {
       // Read items through the remote-aware provider so a slave exports the
@@ -703,15 +689,13 @@ class _ExportToSequenceButtonState
 
       if (items.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('List is empty, nothing to export.')),
-          );
+          context.showInfoSnackBar('List is empty, nothing to export.');
         }
         return;
       }
 
-      if (backend is NetworkBackend) {
-        sequenceId = await backend.createSequence({
+      if (hostSequences != null) {
+        sequenceId = await hostSequences.createSequence({
           'name': widget.listName,
           'isTemplate': false,
         });
@@ -733,8 +717,8 @@ class _ExportToSequenceButtonState
           'dec': item.dec,
           if (item.catalogId != null) 'catalogId': item.catalogId,
         });
-        if (backend is NetworkBackend) {
-          await backend.createSequenceNode(sequenceId, {
+        if (hostSequences != null) {
+          await hostSequences.createSequenceNode(sequenceId, {
             'nodeId': nodeId,
             'nodeType': 'target',
             'specificType': 'target',
@@ -758,21 +742,17 @@ class _ExportToSequenceButtonState
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Created sequence "${widget.listName}" with '
-              '${countLabel(items.length, 'target')}',
-            ),
-          ),
+        context.showInfoSnackBar(
+          'Created sequence "${widget.listName}" with '
+          '${countLabel(items.length, 'target')}',
         );
       }
     } catch (error) {
       Object? rollbackError;
       if (sequenceId != null) {
         try {
-          if (backend is NetworkBackend) {
-            await backend.deleteSequence(sequenceId);
+          if (hostSequences != null) {
+            await hostSequences.deleteSequence(sequenceId);
           } else {
             await sequencesDao!.deleteSequence(sequenceId);
           }
@@ -784,10 +764,8 @@ class _ExportToSequenceButtonState
         final cleanupDetail = rollbackError == null
             ? ''
             : ' The partial sequence could not be removed: $rollbackError';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not create sequence: $error.$cleanupDetail'),
-          ),
+        context.showErrorSnackBar(
+          'Could not create sequence: $error.$cleanupDetail',
         );
       }
     } finally {

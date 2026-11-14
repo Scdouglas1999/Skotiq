@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/weather/weather_screen.dart';
-import 'package:skotiq_app/widgets/weather/dashboard_weather_widget.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -35,34 +36,6 @@ Widget _app(ProviderContainer container, Widget child) {
 }
 
 void main() {
-  testWidgets('dashboard weather never labels failed settings as Clear', (
-    tester,
-  ) async {
-    final container = ProviderContainer(
-      overrides: [
-        inMemoryDatabaseOverride(),
-        appSettingsProvider.overrideWith(_FailingSettingsNotifier.new),
-        weatherStatusProvider.overrideWithValue(_status()),
-      ],
-    );
-
-    await tester.pumpWidget(
-      _app(
-        container,
-        const SizedBox(width: 280, child: DashboardWeatherWidget()),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Unknown'), findsOneWidget);
-    expect(find.text('Settings unavailable'), findsOneWidget);
-    expect(find.text('Clear'), findsNothing);
-    expect(find.text('Location not set'), findsNothing);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    container.dispose();
-  });
-
   testWidgets('Weather screen distinguishes settings failure from no location',
       (
     tester,

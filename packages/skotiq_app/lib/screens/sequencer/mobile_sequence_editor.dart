@@ -34,14 +34,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'widgets/node_palette.dart';
 import 'widgets/node_properties_panel.dart';
-import 'widgets/run_dashboard/recovery_banner.dart';
-
-// MOBILE SEQUENCE EDITOR
+import '../../widgets/run_status/recovery_banner.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// Touch-friendly sequence authoring surface for the mobile companion app.
 ///
@@ -199,13 +201,9 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
       // instead of guessing — the desktop editor's `moveNode` API is
       // available, but invoking it from a drag-drop without confirmation
       // would change the tree shape silently.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Drag within the same group only. Cross-group moves are not '
-            'supported on phone yet — tap to edit instead.',
-          ),
-        ),
+      context.showInfoSnackBar(
+        'Drag within the same group only. Cross-group moves are not '
+        'supported on phone yet — tap to edit instead.',
       );
       return;
     }
@@ -221,9 +219,7 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
           .read(currentSequenceProvider.notifier)
           .reorderNodes(src.parentId, oldChildIndex, newChildIndex);
     } on SequenceLockedException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot reorder while running: ${e.message}')),
-      );
+      context.showErrorSnackBar('Cannot reorder while running: ${e.message}');
     }
   }
 
@@ -244,22 +240,18 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
     try {
       ref.read(currentSequenceProvider.notifier).removeNode(node.id);
     } on SequenceLockedException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot delete while running: ${e.message}')),
-      );
+      context.showErrorSnackBar('Cannot delete while running: ${e.message}');
       return;
     }
 
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
-    messenger.showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 8),
-        content: Text('Deleted "${node.name}"'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () => _restoreSubtree(snapshot),
-        ),
+    messenger.showInfoSnackBar(
+      'Deleted "${node.name}"',
+      duration: const Duration(seconds: 8),
+      action: SnackBarAction(
+        label: 'Undo',
+        onPressed: () => _restoreSubtree(snapshot),
       ),
     );
   }
@@ -312,9 +304,7 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
         notifier.addNode(child, parentId: parentId);
       }
     } on SequenceLockedException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot undo while running: ${e.message}')),
-      );
+      context.showErrorSnackBar('Cannot undo while running: ${e.message}');
     }
   }
 
@@ -384,8 +374,6 @@ class _MobileSequenceEditorState extends ConsumerState<MobileSequenceEditor> {
   }
 }
 
-// ROW MODEL + WIDGET
-
 class _NodeRow {
   final SequenceNode node;
   final int depth;
@@ -448,9 +436,7 @@ class _MobileNodeRow extends StatelessWidget {
       confirmDismiss: canEdit
           ? null
           : (_) async {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Cannot delete while running')),
-              );
+              context.showErrorSnackBar('Cannot delete while running');
               return false;
             },
       background: Container(
@@ -564,7 +550,7 @@ class _StatusBadge extends StatelessWidget {
       NodeStatus.failure => ('Failed', colors.error),
       NodeStatus.running => ('Running', colors.primary),
       NodeStatus.skipped => ('Skipped', colors.textMuted),
-      NodeStatus.cancelled => ('Canceled', colors.warning),
+      NodeStatus.cancelled => ('Stopped', colors.warning),
       NodeStatus.pending => ('Pending', colors.textMuted),
     };
     return Container(
@@ -601,8 +587,6 @@ class _AddNodeFab extends StatelessWidget {
     );
   }
 }
-
-// SEQUENCER RECOVERY ACTIONS BANNER (phone variant)
 
 /// Compact phone variant of [RunDashboardRecoveryBanner].
 ///
@@ -715,7 +699,7 @@ class _SequencerRecoveryActionsBannerState
               const SizedBox(width: 6),
               _RecoveryChip(
                 label: ctx.isWaiting
-                    ? 'Retry in ${_formatSecs(nextAttemptSecs)}'
+                    ? 'Retry in ${DurationFormat.seconds(nextAttemptSecs, style: DurationStyle.short)}'
                     : ctx.isAttempting
                         ? 'Attempting…'
                         : ctx.isRecovered
@@ -730,14 +714,6 @@ class _SequencerRecoveryActionsBannerState
         ),
       ),
     );
-  }
-
-  String _formatSecs(double s) {
-    if (s.isNaN || s.isInfinite || s <= 0) return '0s';
-    if (s < 60) return '${s.round()}s';
-    final mins = (s / 60).floor();
-    final secs = (s - mins * 60).round();
-    return secs == 0 ? '${mins}m' : '${mins}m ${secs}s';
   }
 }
 
@@ -785,9 +761,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    context.showInfoSnackBar(message);
   }
 
   Future<void> _tryNow() async {
@@ -796,7 +770,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
     try {
       await widget.control.tryNow();
     } catch (e) {
-      _showError(extractRecoveryActionError('Retry failed', e));
+      _showError(failureText('Retry failed', e));
     } finally {
       if (mounted) setState(() => _tryNowBusy = false);
     }
@@ -808,7 +782,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
     try {
       await widget.control.skipNode();
     } catch (e) {
-      _showError(extractRecoveryActionError('Skip failed', e));
+      _showError(failureText('Skip failed', e));
     } finally {
       if (mounted) setState(() => _skipBusy = false);
     }
@@ -820,7 +794,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
     try {
       await widget.control.abort();
     } catch (e) {
-      _showError(extractRecoveryActionError('Abort failed', e));
+      _showError(failureText('Abort failed', e));
     } finally {
       if (mounted) setState(() => _abortBusy = false);
     }
@@ -858,7 +832,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
           enabled: !_abortBusy,
           holdColor: widget.errorColor,
           confirmText: 'Hold to abort',
-          semanticsLabel: 'Press and hold to abort recovery',
+          semanticsLabel: 'Abort recovery',
           onConfirmed: _abort,
           child: IgnorePointer(
             child: SkotiqButton(

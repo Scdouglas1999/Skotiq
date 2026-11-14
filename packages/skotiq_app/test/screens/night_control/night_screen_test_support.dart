@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
+import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_rig_ops.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
@@ -28,6 +29,7 @@ import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provide
 import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/upcoming_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
+import 'package:skotiq_app/screens/night_control/panel/overview/after_run_section.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
@@ -45,8 +47,13 @@ import 'package:skotiq_app/screens/night_control/panel/panel_ops.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:skotiq_app/screens/shell/widgets/side_navigation.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
-import 'package:skotiq_app/widgets/startup_splash_gate.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/screens/shell/widgets/startup_splash_gate.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_backend.dart';
@@ -258,6 +265,13 @@ List<Override> nightScreenOverrides(
     nightConditionsProvider.overrideWithValue(board.conditions),
     nightLogProvider.overrideWithValue(board.log),
     nightBeforeYouStartProvider.overrideWithValue(board.checklist),
+    nightAfterRunProvider.overrideWithValue(
+      const NightAfterRunVm(
+        sessionId: 7,
+        mountUnparked: true,
+        coolerOn: true,
+      ),
+    ),
     nightCameraPanelProvider.overrideWithValue(
       running ? PanelFixtures.cameraRunning : PanelFixtures.cameraIdle,
     ),
@@ -289,7 +303,9 @@ List<Override> nightScreenOverrides(
     // Stopped, so the guide-star poll does not start in a widget test.
     phd2StateProvider.overrideWith((ref) => Phd2State.stopped),
     nightGuideSamplesProvider.overrideWith(_GuideSamples.new),
-    sequenceExecutionStateProvider.overrideWith((ref) => runState),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: runState)),
+    ),
   ];
 }
 
@@ -357,13 +373,13 @@ Future<void> pumpNightShell(
   addTearDown(db.close);
 
   final router = GoRouter(
-    initialLocation: kTonightRoutePath,
+    initialLocation: AppRoute.tonight.path,
     routes: <RouteBase>[
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: <RouteBase>[
           GoRoute(
-            path: kTonightRoutePath,
+            path: AppRoute.tonight.path,
             builder: (context, state) => const NightControlScreen(),
           ),
           for (final path in const <String>[

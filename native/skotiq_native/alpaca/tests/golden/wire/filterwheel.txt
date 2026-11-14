@@ -1,0 +1,532 @@
+## filterwheel.connect [ok]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=1]
+= Ok(())
+
+## filterwheel.connect [ascom 0x400]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.connect [ascom 0x4FF without Value]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.connect [http 400]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.connect [http 500]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.connect [malformed json]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=true]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.connect [connected reads false x1]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=3]
+= Ok(())
+
+## filterwheel.connect [connected reads false x99]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=true]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=3]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=4&Connected=true]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=5]
+= Err(Connection validation failed: Connected=true succeeded, but the device still reports disconnected after 3 attempts)
+
+## filterwheel.disconnect [ok]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Ok(())
+
+## filterwheel.disconnect [ascom 0x400]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.disconnect [ascom 0x4FF without Value]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.disconnect [http 400]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.disconnect [http 500]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.disconnect [malformed json]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=false]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=1&Connected=false]
+> PUT /api/v1/filterwheel/#/connected query[] form[ClientID=<id>&ClientTransactionID=2&Connected=false]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.is_connected [ok]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## filterwheel.is_connected [ascom 0x400]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.is_connected [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.is_connected [http 400]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.is_connected [http 500]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.is_connected [malformed json]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.validate_connection [ok]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok(true)
+
+## filterwheel.validate_connection [ascom 0x400]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: Property or method is not implemented)
+
+## filterwheel.validate_connection [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## filterwheel.validate_connection [http 400]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: HTTP status: 400 Bad Request)
+
+## filterwheel.validate_connection [http 500]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: HTTP status: 500 Internal Server Error)
+
+## filterwheel.validate_connection [malformed json]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Connection validation failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.heartbeat [ok]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok("<ms>")
+
+## filterwheel.heartbeat [ascom 0x400]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Ok("<ms>")
+
+## filterwheel.heartbeat [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## filterwheel.heartbeat [http 400]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Heartbeat failed)
+
+## filterwheel.heartbeat [http 500]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Heartbeat failed)
+
+## filterwheel.heartbeat [malformed json]
+> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.name [ok]
+> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Name")
+
+## filterwheel.name [ascom 0x400]
+> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.name [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.name [http 400]
+> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.name [http 500]
+> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.name [malformed json]
+> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.description [ok]
+> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Description")
+
+## filterwheel.description [ascom 0x400]
+> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.description [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.description [http 400]
+> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.description [http 500]
+> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.description [malformed json]
+> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.driver_version [ok]
+> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok("1.2.3")
+
+## filterwheel.driver_version [ascom 0x400]
+> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.driver_version [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.driver_version [http 400]
+> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.driver_version [http 500]
+> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.driver_version [malformed json]
+> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.driver_info [ok]
+> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Ok("Sim Driver Info")
+
+## filterwheel.driver_info [ascom 0x400]
+> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.driver_info [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.driver_info [http 400]
+> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.driver_info [http 500]
+> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.driver_info [malformed json]
+> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.interface_version [ok]
+> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3)
+
+## filterwheel.interface_version [ascom 0x400]
+> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.interface_version [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.interface_version [http 400]
+> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.interface_version [http 500]
+> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.interface_version [malformed json]
+> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.supported_actions [ok]
+> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["ActionA", "ActionB"])
+
+## filterwheel.supported_actions [ascom 0x400]
+> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.supported_actions [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.supported_actions [http 400]
+> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.supported_actions [http 500]
+> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.supported_actions [malformed json]
+> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.position [ok]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Ok(2)
+
+## filterwheel.position [ascom 0x400]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.position [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.position [http 400]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.position [http 500]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.position [malformed json]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.position [ascom 0x401]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1025: Invalid value)
+
+## filterwheel.position [ascom 0x402]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1026: Value not set)
+
+## filterwheel.position [ascom 0x407]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1031: Not connected)
+
+## filterwheel.position [ascom 0x408]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1032: Invalid while parked)
+
+## filterwheel.position [ascom 0x409]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1033: Invalid while slaved)
+
+## filterwheel.position [ascom 0x40B]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1035: Invalid operation)
+
+## filterwheel.position [ascom 0x40C without Value]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1036: Action not implemented)
+
+## filterwheel.position [ascom 0x500]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1280: Driver specific error)
+
+## filterwheel.position [http 404]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 404: Not Found)
+
+## filterwheel.position [http 429 retry-after 0]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## filterwheel.position [http 503]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## filterwheel.position [wrong value type]
+> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
+= Err(Parse error: invalid type: map, expected i32)
+
+## filterwheel.set_position [ok]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Ok(())
+
+## filterwheel.set_position [ascom 0x400]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.set_position [ascom 0x4FF without Value]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.set_position [http 400]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.set_position [http 500]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=1&Position=3]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=2&Position=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.set_position [malformed json]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=1&Position=3]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=2&Position=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.set_position [ascom 0x401]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(Device error 1025: Invalid value)
+
+## filterwheel.set_position [ascom 0x402]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(Device error 1026: Value not set)
+
+## filterwheel.set_position [ascom 0x407]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(Device error 1031: Not connected)
+
+## filterwheel.set_position [ascom 0x408]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(Device error 1032: Invalid while parked)
+
+## filterwheel.set_position [ascom 0x409]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(Device error 1033: Invalid while slaved)
+
+## filterwheel.set_position [ascom 0x40B]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(Device error 1035: Invalid operation)
+
+## filterwheel.set_position [ascom 0x40C without Value]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(Device error 1036: Action not implemented)
+
+## filterwheel.set_position [ascom 0x500]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(Device error 1280: Driver specific error)
+
+## filterwheel.set_position [http 404]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Err(HTTP error 404: Not Found)
+
+## filterwheel.set_position [http 429 retry-after 0]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=1&Position=3]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=2&Position=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+
+## filterwheel.set_position [http 503]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=1&Position=3]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=2&Position=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+
+## filterwheel.set_position [wrong value type]
+> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
+= Ok(())
+
+## filterwheel.names [ok]
+> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["L", "R", "G", "B"])
+
+## filterwheel.names [ascom 0x400]
+> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.names [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.names [http 400]
+> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.names [http 500]
+> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.names [malformed json]
+> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## filterwheel.focus_offsets [ok]
+> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
+= Ok([0, 10, 20, 30])
+
+## filterwheel.focus_offsets [ascom 0x400]
+> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## filterwheel.focus_offsets [ascom 0x4FF without Value]
+> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## filterwheel.focus_offsets [http 400]
+> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## filterwheel.focus_offsets [http 500]
+> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## filterwheel.focus_offsets [malformed json]
+> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)

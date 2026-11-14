@@ -1,20 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
-import '../provider_reader.dart';
+import '../../backend/skotiq_backend.dart';
 
 /// Where a channel's value is being applied.
 class RuntimeApplyContext {
-  const RuntimeApplyContext(this.reader, {this.networkBackend});
+  const RuntimeApplyContext(this.container, {this.networkBackend});
 
   /// A `Ref`, `ProviderContainer` or `WidgetRef` (see [readProvider]).
-  final Object reader;
+  final ProviderContainer container;
 
   /// The connection to the host when applying on a linked client; null when
   /// the host applies a client's report to its own providers.
-  final NetworkBackend? networkBackend;
+  final SkotiqBackend? networkBackend;
 
-  T read<T>(ProviderListenable<T> provider) => readProvider(reader, provider);
+  T read<T>(ProviderListenable<T> provider) => container.read(provider);
 }
 
 /// One piece of runtime state the imaging host shares with linked clients.
@@ -51,11 +50,53 @@ abstract class RuntimeMirrorChannel<T> {
   /// Whether a linked client sends the values it computes itself to the host.
   bool get clientReports => false;
 
-  T readSource(Object reader) => readProvider(reader, source);
+  /// Whether the periodic re-read of the host's values applies this channel
+  /// again when the host's value has not changed. A channel sets it when
+  /// something on the client can move the provider away from the host's value
+  /// (a button that showed its result before the host refused the command),
+  /// or when the re-read itself is news (the host still holds the device).
+  /// Its [apply] must leave a provider that already matches untouched.
+  bool get reappliesOnReread => false;
 
-  Map<String, dynamic>? encodeCurrent(Object reader) =>
-      encode(readSource(reader));
+  /// Providers besides [source] that [encodeCurrent] reads; the host
+  /// publishes the channel again when one of them changes.
+  Iterable<ProviderListenable<Object?>> get alsoEncodes => const [];
+
+  T readSource(ProviderContainer container) => container.read(source);
+
+  Map<String, dynamic>? encodeCurrent(ProviderContainer container) =>
+      encode(readSource(container));
 
   ProviderSubscription<T> listen(Ref ref, void Function(T value) onChange) =>
       ref.listen<T>(source, (_, next) => onChange(next));
+}
+
+/// UI state both ends of a link hold as one value, which either end may
+/// change: a change made on the host reaches every client, and one made on a
+/// client reaches the host and, through it, the other clients.
+///
+/// A new piece of shared state is one subclass naming the [key], the
+/// [source] both screens read, the JSON form ([encode] and [decode]) and how
+/// a received value is written ([write]). A received value equal to the one
+/// already shown is not written again, so the echo of a change never
+/// re-runs the work the change started.
+abstract class SharedStateChannel<T> extends RuntimeMirrorChannel<T> {
+  const SharedStateChannel();
+
+  /// The value [json] describes. Throws [FormatException] for a value the
+  /// two ends disagree about.
+  T decode(Map<String, dynamic>? json);
+
+  /// Write [value] into the providers the screens read.
+  void write(RuntimeApplyContext context, T value);
+
+  @override
+  bool get clientReports => true;
+
+  @override
+  void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
+    final next = decode(value);
+    if (readSource(context.container) == next) return;
+    write(context, next);
+  }
 }

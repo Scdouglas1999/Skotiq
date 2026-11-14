@@ -4,16 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../services/smart_night_plan_launcher.dart';
+import '../smart_night_plan_launcher.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../widgets/camera_sensor_specs_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';
+import '../../../router/app_routes.dart';
 
 part 'smart_night_dialog/inline_widgets.dart';
 part 'smart_night_dialog/safety_watchdogs.dart';
@@ -105,10 +109,19 @@ Future<void> showSmartNightDialog(
   );
 }
 
-class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
+class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
+    with HostBoundDialogState<SmartNightDialog> {
+  @override
+  String? get hostChangedMessage => null;
+
+  @override
+  void onHostChanged() {
+    _countDraftDebounce?.cancel();
+    super.onHostChanged();
+  }
+
   int _step = 0;
 
-  // Step 1: window
   DateTime? _windowStart;
   DateTime? _windowEnd;
   bool _windowInitialised = false;
@@ -120,26 +133,23 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
   DateTime? _twilightStart;
   DateTime? _twilightEnd;
 
-  // Step 3: targets
+  /// Start of the whole night the window belongs to. Drafts are filed under
+  /// it, so a draft saved at dusk is found again after midnight, when the
+  /// remaining window starts on the next calendar day.
+  DateTime? _nightStart;
+
+  /// Set once the operator has answered the saved-draft offer, or built a
+  /// plan of their own in this dialog.
+  bool _draftOfferAnswered = false;
+
   /// User-selected target IDs. Empty → auto-pick top N by score.
   final Set<int> _selectedTargetIds = <int>{};
   bool _autoSelect = true;
   int _autoSelectCount = 2;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _authorityGeneration = 0;
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
-      (previous, next) {
-        if (identical(previous, next) || !mounted) return;
-        _authorityGeneration++;
-        _countDraftDebounce?.cancel();
-        closeAuthorityBoundDialog(context);
-      },
-    );
     // C11 handoff: when the dialog is opened seeded from an active project,
     // start in hand-pick mode with the project's incomplete targets selected.
     final seed = widget.seedTargetIds;
@@ -153,20 +163,12 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
 
   @override
   void dispose() {
-    _backendSubscription?.close();
     _countDraftDebounce?.cancel();
     super.dispose();
   }
 
-  bool _isCurrentAuthority(SkotiqBackend backend, int generation) =>
-      mounted &&
-      generation == _authorityGeneration &&
-      identical(ref.read(backendProvider), backend);
-
-  // Step 4: strategy
   SmartNightStrategy _strategy = SmartNightStrategy.autoLrgb;
 
-  // Step 5: preview
   SmartNightPlan? _preview;
   String? _previewError;
   String? _previewDraftId;
@@ -313,7 +315,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$error',
+                  userFacingError(error),
                   textAlign: TextAlign.center,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
@@ -338,8 +340,6 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
     );
   }
 
-  // Header / stepper / footer
-
   void _ensureWindowInitialised() {
     if (_windowInitialised) return;
     final location = ref.read(appObserverLocationProvider);
@@ -348,8 +348,15 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       return;
     }
     try {
+      final service = _buildService();
+      _nightStart = service
+          .calculateWindow(
+            latitudeDeg: location.latitude,
+            longitudeDeg: location.longitude,
+          )
+          .start;
       // A plan built once the night is under way schedules from now.
-      final window = _buildService().calculateRemainingWindow(
+      final window = service.calculateRemainingWindow(
         latitudeDeg: location.latitude,
         longitudeDeg: location.longitude,
       );
@@ -406,8 +413,6 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
   /// Ordinary build failures return true after populating [_previewError] so
   /// the Preview step can show its actionable error and Back affordance.
   Future<bool> _buildPreview() async {
-    final backend = ref.read(backendProvider);
-    final generation = _authorityGeneration;
     setState(() {
       _preview = null;
       _previewError = null;
@@ -438,7 +443,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       // Resolve the ranked candidate set; the service does NOT re-rank
       // when given a hand-picked list.
       final ranked = await ref.read(tonightSuggestionsProvider.future);
-      if (!_isCurrentAuthority(backend, generation)) return false;
+      if (host.isStale) return false;
       List<TargetSuggestion> selected;
       if (_autoSelect) {
         selected = ranked.take(_autoSelectCount).toList();
@@ -465,12 +470,11 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       // resolve them best-effort and fall back to null when not
       // available.
       final settings = await ref.read(appSettingsProvider.future);
-      if (!_isCurrentAuthority(backend, generation)) return false;
+      if (host.isStale) return false;
       final bortle = settings.bortleClass;
       final cloudCover = ref.read(cloudCoverPercentageProvider).valueOrNull;
       final cloudProb = cloudCover == null ? null : cloudCover / 100.0;
 
-      // Polar alignment freshness.
       final lastPolarAlign =
           ref.read(lastPolarAlignmentProvider(activeProfile.id)).valueOrNull;
       int? daysSinceLastPolar;
@@ -485,24 +489,24 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       );
       var exposureContext =
           await ref.read(smartNightExposureContextProvider.future);
-      if (!_isCurrentAuthority(backend, generation)) return false;
+      if (host.isStale) return false;
       final sensorSpecs = await ref.read(
         activeCameraSensorSpecsProvider.future,
       );
-      if (!_isCurrentAuthority(backend, generation)) return false;
+      if (host.isStale) return false;
       if (_shouldPromptForCameraSpecs(sensorSpecs)) {
-        if (!mounted || !_isCurrentAuthority(backend, generation)) return false;
+        if (!mounted || host.isStale) return false;
         _askedForCameraSpecs = true;
         final saved = await CameraSensorSpecsDialog.show(
           this.context,
           sensorSpecs,
         );
-        if (!_isCurrentAuthority(backend, generation)) return false;
+        if (host.isStale) return false;
         if (saved) {
           ref.invalidate(smartNightExposureContextProvider);
           exposureContext =
               await ref.read(smartNightExposureContextProvider.future);
-          if (!_isCurrentAuthority(backend, generation)) return false;
+          if (host.isStale) return false;
         }
       }
 
@@ -514,7 +518,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
       // (the plan's exposures/timing/targets come from synced settings +
       // profile and are unaffected). Browse the rig's darks via the
       // Calibration Library screen instead.
-      final isRemoteBackend = ref.read(backendProvider) is NetworkBackend;
+      final isRemoteBackend = ref.read(isRemoteModeProvider);
       final SmartNightDarkLibraryMissing darkLibraryMissing;
       if (exposureContext == null || isRemoteBackend) {
         darkLibraryMissing = const SmartNightDarkLibraryMissing.empty();
@@ -523,18 +527,19 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
           darkLibraryService: ref.read(darkLibraryServiceProvider),
         ).missing(
           profile: activeProfile,
+          availableFilters: ref.read(effectiveFiltersProvider),
           strategy: _strategy,
           settings: effectiveSettings,
           exposureContext: exposureContext,
           minCoverage: settings.darkLibraryMinCoverage,
         );
-        if (!_isCurrentAuthority(backend, generation)) return false;
+        if (host.isStale) return false;
       }
 
       // The site's horizon with the obstructions runs have learned there, so
       // the plan's scheduler keeps targets clear of them.
       await ref.read(frameWatchSettingsProvider.future);
-      if (!_isCurrentAuthority(backend, generation)) return false;
+      if (host.isStale) return false;
       final siteHorizon = ref.read(horizonProfileProvider);
 
       final context = SmartNightContext(
@@ -545,42 +550,53 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog> {
         daysSinceLastPolarAlignment: daysSinceLastPolar,
         missingDarkLibraryNotes: darkLibraryMissing.notes,
         missingDarkRequirements: darkLibraryMissing.requirements,
+        sensitivity: ref.read(cameraSensitivityProvider),
         horizonProfile:
             siteHorizon.isFlat ? null : siteHorizon.toSchedulerProfile(),
       );
+
+      final goalService = ref.read(integrationGoalServiceProvider);
+      final integrationGoals = {
+        for (final suggestion in selected)
+          suggestion.targetId:
+              await goalService.progressForTarget(suggestion.targetId),
+      };
+      if (host.isStale) return false;
 
       await ref.read(hardwarePresetsServiceProvider.notifier).loaded;
       if (!mounted) return false;
       final plan = _buildService().build(
         profile: activeProfile,
+        availableFilters: ref.read(effectiveFiltersProvider),
         latitudeDeg: location.latitude,
         longitudeDeg: location.longitude,
         context: context,
         selectedSuggestions: selected,
         strategy: _strategy,
         settings: effectiveSettings,
+        planTimer: ref.read(planTimerProvider),
         exposureContext: exposureContext,
+        integrationGoals: integrationGoals,
       );
-      final draft = await SmartNightDraftService(
-        settingsDao: ref.read(settingsDaoProvider),
-      ).savePending(
-        profileId: activeProfile.id.toString(),
-        astronomicalDay: context.windowStart,
-        plan: plan,
-      );
-      if (!_isCurrentAuthority(backend, generation)) return false;
+      final draft = await ref.read(smartNightDraftServiceProvider).savePending(
+            profileId: activeProfile.id.toString(),
+            astronomicalDay: _nightStart!,
+            plan: plan,
+          );
+      if (host.isStale) return false;
       setState(() {
         _preview = plan;
         _previewDraftId = draft.id;
+        _draftOfferAnswered = true;
       });
       return true;
     } on SmartNightBuildException catch (e) {
-      if (!_isCurrentAuthority(backend, generation)) return false;
+      if (host.isStale) return false;
       setState(() => _previewError = e.message);
       return true;
     } catch (e) {
-      if (!_isCurrentAuthority(backend, generation)) return false;
-      setState(() => _previewError = 'Unexpected error: $e');
+      if (host.isStale) return false;
+      setState(() => _previewError = 'Unexpected error: ${userFacingError(e)}');
       return true;
     }
   }

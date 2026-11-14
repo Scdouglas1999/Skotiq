@@ -3,7 +3,9 @@ import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/src/providers/science/photometric_transform_service_provider.dart';
 
 /// Stars matched to APASS on the first and last M67 frames of 2026-10-26 in
 /// B and G (60 s): airmass 1.39 → 1.31 over 26 minutes while thin cloud or

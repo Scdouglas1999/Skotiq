@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Multi-night carry-over banner / dialog.
@@ -79,17 +80,7 @@ class _SessionHandoffDialogState extends ConsumerState<SessionHandoffDialog> {
     };
   }
 
-  /// Carry-over integration, in the one h/m/s shape the rest of the app uses
-  /// (see `formatIntegrationSeconds`).
-  ///
-  /// Rounding to whole minutes renders a real 12-second prior session as "0m",
-  /// beside its own non-zero accepted-frame count. Sub-minute carry-overs are
-  /// exactly the ones a handoff decision is least obvious for, so they must not
-  /// read as zero.
-  String _formatHours(double seconds) => formatIntegrationSeconds(seconds);
-
-  String _formatDate(DateTime dt) =>
-      DateFormat('MMM d, yyyy').format(dt.toLocal());
+  String _formatDate(DateTime dt) => ClockFormat.monthDayYear(dt.toLocal());
 
   void _applyAll(SessionHandoffDecision decision) {
     setState(() {
@@ -251,7 +242,7 @@ class _SessionHandoffDialogState extends ConsumerState<SessionHandoffDialog> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _formatHours(totalCampaignSecs),
+                  DurationFormat.seconds(totalCampaignSecs),
                   style: TextStyle(
                     fontSize: SkotiqTypography.fontSize18,
                     fontWeight: FontWeight.w700,
@@ -273,7 +264,7 @@ class _SessionHandoffDialogState extends ConsumerState<SessionHandoffDialog> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _formatHours(totalPrevSecs),
+                  DurationFormat.seconds(totalPrevSecs),
                   style: TextStyle(
                     fontSize: SkotiqTypography.fontSize18,
                     fontWeight: FontWeight.w700,
@@ -296,7 +287,7 @@ class _SessionHandoffDialogState extends ConsumerState<SessionHandoffDialog> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _formatHours((totalBudgetSecs - totalCampaignSecs)
+                    DurationFormat.seconds((totalBudgetSecs - totalCampaignSecs)
                         .clamp(0, double.infinity)),
                     style: TextStyle(
                       fontSize: SkotiqTypography.fontSize18,
@@ -325,7 +316,7 @@ class _SessionHandoffDialogState extends ConsumerState<SessionHandoffDialog> {
             borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline4),
           ),
           child: Text(
-            '${e.key}: ${_formatHours(e.value)}',
+            '${e.key}: ${DurationFormat.seconds(e.value)}',
             style: TextStyle(
                 fontSize: SkotiqTypography.fontSize10,
                 color: colors.textSecondary),
@@ -367,10 +358,10 @@ class _SessionHandoffDialogState extends ConsumerState<SessionHandoffDialog> {
           const SizedBox(height: 4),
           Text(
             'Carry-over: ${co.targetName} has '
-            '${_formatHours(co.previousIntegrationSecs)} from the most '
+            '${DurationFormat.seconds(co.previousIntegrationSecs)} from the most '
             'recent session '
             '(${co.previousAcceptedFrames} accepted frames). '
-            'Campaign total: ${_formatHours(co.campaignIntegrationSecs)}.',
+            'Campaign total: ${DurationFormat.seconds(co.campaignIntegrationSecs)}.',
             style: TextStyle(
                 fontSize: SkotiqTypography.fontSize12,
                 color: colors.textSecondary),
@@ -378,8 +369,8 @@ class _SessionHandoffDialogState extends ConsumerState<SessionHandoffDialog> {
           if (co.budgetSecs != null) ...[
             const SizedBox(height: 4),
             Text(
-              'Budget ${_formatHours(co.budgetSecs!)}; '
-              '${_formatHours(co.remainingSecs ?? 0)} remaining.',
+              'Budget ${DurationFormat.seconds(co.budgetSecs!)}; '
+              '${DurationFormat.seconds(co.remainingSecs ?? 0)} remaining.',
               style: TextStyle(
                   fontSize: SkotiqTypography.fontSize11,
                   color: colors.textMuted),

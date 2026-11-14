@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../equipment/dialogs/profile_editor_dialog.dart';
+import '../../../utils/snackbar_helper.dart';
 
 const _kDefaultManualFilter = 'Unfiltered';
 
@@ -122,15 +126,8 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
         ...wheel.filterNames,
       ].join('|');
 
-  List<String> _availableFilters(
-    FilterWheelState wheel,
-    List<String> profileFilters,
-  ) {
-    if (wheel.connectionState == DeviceConnectionState.connected &&
-        wheel.filterNames.isNotEmpty) {
-      return wheel.filterNames;
-    }
-    if (profileFilters.isNotEmpty) return profileFilters;
+  List<String> _availableFilters(List<String> filters) {
+    if (filters.isNotEmpty) return filters;
     final manualFilter = _manualFilterController.text.trim();
     return manualFilter.isEmpty ? const [] : [manualFilter];
   }
@@ -223,10 +220,8 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
     }
 
     final wheel = ref.read(filterWheelStateProvider);
-    final profileFilters = ref.read(profileFiltersProvider);
-    final filters = _orderedSelectedFilters(
-      _availableFilters(wheel, profileFilters),
-    );
+    final available = _availableFilters(ref.read(effectiveFiltersProvider));
+    final filters = _orderedSelectedFilters(available);
     if (filters.length > 1 &&
         (wheel.connectionState != DeviceConnectionState.connected ||
             wheel.deviceId == null)) {
@@ -239,8 +234,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
     }
     if (wheel.connectionState == DeviceConnectionState.connected &&
         wheel.deviceId != null) {
-      final missing =
-          filters.where((filter) => !wheel.filterNames.contains(filter));
+      final missing = filters.where((filter) => !available.contains(filter));
       if (missing.isNotEmpty) {
         setState(() {
           _errorMessage = 'The connected filter wheel does not report: '
@@ -307,7 +301,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
 
         if (liveWheel.connectionState == DeviceConnectionState.connected &&
             liveWheel.deviceId != null) {
-          final position = liveWheel.filterNames.indexOf(filter);
+          final position = available.indexOf(filter);
           final moveError = await ref
               .read(flatWizardProvider.notifier)
               .moveFilterWheelAndWait(position, token);
@@ -395,7 +389,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
       if (_isActiveRun(generation, token)) {
         setState(() {
           _snapshot = null;
-          _errorMessage = 'Calibration failed: $error';
+          _errorMessage = 'Calibration failed: ${userFacingError(error)}';
         });
       }
     } finally {
@@ -411,9 +405,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
   void _generateFlatSequence() {
     final snapshot = _snapshot;
     if (snapshot == null || !_allCalibrated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Run calibration successfully first.')),
-      );
+      context.showInfoSnackBar('Run calibration successfully first.');
       return;
     }
     if (!_snapshotContextIsCurrent(snapshot)) {
@@ -440,9 +432,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
         );
 
     if (nodes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No flat nodes were generated.')),
-      );
+      context.showInfoSnackBar('No flat nodes were generated.');
       return;
     }
 
@@ -454,20 +444,16 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
         }
       });
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not add flat nodes: $error')),
+      context.showErrorSnackBar(
+        'Could not add flat nodes: ${userFacingError(error)}',
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Added ${nodes.length} calibrated flat capture '
-          'node${nodes.length == 1 ? '' : 's'}. '
-          'Save the sequence to persist them.',
-        ),
-      ),
+    context.showInfoSnackBar(
+      'Added ${nodes.length} calibrated flat capture '
+      'node${nodes.length == 1 ? '' : 's'}. '
+      'Save the sequence to persist them.',
     );
     Navigator.of(context).pop();
   }
@@ -493,10 +479,8 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
               ? null
               : () {
                   if (_currentStep == 1 && !_allCalibrated) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Run calibration successfully first.'),
-                      ),
+                    context.showInfoSnackBar(
+                      'Run calibration successfully first.',
                     );
                     return;
                   }
@@ -708,11 +692,9 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
   }
 
   Widget _buildFilterSelector(SkotiqColors colors) {
-    final profileFilters = ref.watch(profileFiltersProvider);
-    final wheel = ref.watch(filterWheelStateProvider);
-    final availableFilters = _availableFilters(wheel, profileFilters);
-    final usesManualFilter =
-        wheel.filterNames.isEmpty && profileFilters.isEmpty;
+    final filters = ref.watch(effectiveFiltersProvider);
+    final availableFilters = _availableFilters(filters);
+    final usesManualFilter = filters.isEmpty;
 
     final hasStaleSelection =
         _selectedFilters.any((filter) => !availableFilters.contains(filter));

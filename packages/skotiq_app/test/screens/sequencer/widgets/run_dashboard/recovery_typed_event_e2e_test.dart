@@ -18,9 +18,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/recovery_banner.dart';
+import 'package:skotiq_app/widgets/run_status/recovery_banner.dart';
+import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -108,21 +111,43 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Recovery typed-event end-to-end', () {
-    // Nothing else in the app watches the bridge: the banner itself must keep
-    // it running, or a recovery never reaches the screen.
-    testWidgets('the banner alone shows a recovery from the event stream',
-        (tester) async {
+    // The bridge is an always-on service: a recovery that begins while no
+    // screen showing it is open is still recorded, and the banner shows it
+    // when it is mounted afterwards.
+    testWidgets(
+        'a recovery that starts with no banner mounted is shown when '
+        'one is', (tester) async {
       final backend = _SpyBackend();
       final controller = StreamController<bridge_event.SkotiqEvent>.broadcast();
       addTearDown(controller.close);
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider
+              .overrideWith((ref) => _StubBackendNotifier(ref, backend)),
+          skotiqEventsProvider.overrideWith((ref) => controller.stream),
+        ],
+      );
+      addTearDown(container.dispose);
+      final services = startAlwaysOnServices(
+        container,
+        AppRole.hostGui,
+        services: [
+          alwaysOnServices.singleWhere(
+            (s) => identical(s.provider, recoveryEventBridgeProvider),
+          ),
+        ],
+      );
+      addTearDown(services.stop);
+
+      controller.add(_recoveryStartedEvent(id: 1, causeKind: 'WeatherUnsafe'));
+      await tester.pump();
+      await tester.pump();
+      expect(container.read(currentRecoveryProvider), isNotNull);
+
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            inMemoryDatabaseOverride(),
-            backendProvider
-                .overrideWith((ref) => _StubBackendNotifier(ref, backend)),
-            skotiqEventsProvider.overrideWith((ref) => controller.stream),
-          ],
+        UncontrolledProviderScope(
+          container: container,
           child: MaterialApp(
             theme: ThemeData.dark()
                 .copyWith(extensions: const [SkotiqColors.dark]),
@@ -130,11 +155,6 @@ void main() {
           ),
         ),
       );
-      await tester.pump();
-      expect(find.text('WEATHER HOLD'), findsNothing);
-
-      controller.add(_recoveryStartedEvent(id: 1, causeKind: 'WeatherUnsafe'));
-      await tester.pump();
       await tester.pump();
       expect(find.text('WEATHER HOLD'), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());

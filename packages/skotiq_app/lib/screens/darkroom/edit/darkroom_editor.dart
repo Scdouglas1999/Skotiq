@@ -13,7 +13,6 @@
 library;
 
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io' show Directory;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -27,7 +26,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
@@ -39,6 +44,9 @@ import '../darkroom_branch_controller.dart';
 import '../darkroom_controller.dart';
 import '../darkroom_measured_values.dart';
 import 'darkroom_image_library.dart';
+import '../../../router/app_routes.dart';
+import '../../../router/darkroom_route.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'editor_parts/_image_surface.dart';
 part 'editor_parts/_viewport.dart';
@@ -49,8 +57,8 @@ part 'editor_parts/_branch_bar.dart';
 part 'editor_parts/_compare.dart';
 part 'editor_parts/_export_sheet.dart';
 part 'editor_parts/_histogram.dart';
+part 'editor_parts/_channel_mix.dart';
 
-/// The recipe editor over one registered image.
 class DarkroomEditor extends ConsumerStatefulWidget {
   /// What the route asked to open. Never empty: the Edit tab shows its image
   /// list instead of an editor when nothing is named.
@@ -174,7 +182,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
 
   /// The registered image this editor is on, from the Edit tab's library, or
   /// null while the library is loading or when the image is not in it.
-  DarkroomLibraryImage? _openImage(DarkroomState state) {
+  DarkroomLibraryImage? _openImage(DarkroomViewState state) {
     final masterId = state.masterId ?? widget.scope.masterId;
     if (masterId == null) return null;
     final library = ref.watch(darkroomImageLibraryProvider).valueOrNull;
@@ -226,11 +234,16 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   void _toast(String message, SkotiqAlertSeverity severity) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      SkotiqToastHelper.show(
-        context: context,
-        message: message,
-        severity: severity,
-      );
+      switch (severity) {
+        case SkotiqAlertSeverity.error:
+          context.showErrorSnackBar(message);
+        case SkotiqAlertSeverity.warning:
+          context.showWarningSnackBar(message);
+        case SkotiqAlertSeverity.success:
+          context.showSuccessSnackBar(message);
+        case SkotiqAlertSeverity.info:
+          context.showInfoSnackBar(message);
+      }
     });
   }
 
@@ -239,7 +252,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   /// While a render is in the engine it becomes the stop, following the flat
   /// wizard: the stop is cooperative, so the button says "Stopping…" until the
   /// render answers rather than pretending the request was instant.
-  Widget? _headerAction(DarkroomState state) {
+  Widget? _headerAction(DarkroomViewState state) {
     if (!state.hasRecipe && state.offer == null) return null;
     if (state.rendering) {
       return SkotiqButton(
@@ -262,7 +275,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   Widget _body(
     BuildContext context,
     SkotiqColors colors,
-    DarkroomState state,
+    DarkroomViewState state,
   ) {
     if (state.loading) {
       return const Center(
@@ -366,7 +379,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   Widget _editorOrCompare(
     BuildContext context,
     SkotiqColors colors,
-    DarkroomState state,
+    DarkroomViewState state,
   ) {
     final compareId = _compareRecipeId;
     final aLabel = state.recipeName.isEmpty
@@ -432,6 +445,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
             state: state,
             onToggle: _controller.toggleStep,
             onParamChanged: _controller.setParam,
+            onParamsChanged: _controller.setParams,
             onRemove: _controller.removeStep,
             onReorder: _controller.reorderStep,
             onInsert: _controller.insertStep,
@@ -512,7 +526,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   /// The steps handed over are the EDITED ones, unsaved changes included, so
   /// the file matches the picture the operator is looking at rather than the
   /// last state that reached the recipe row.
-  void _openExportSheet(DarkroomState state) {
+  void _openExportSheet(DarkroomViewState state) {
     final recipeId = state.recipeId;
     if (recipeId == null) return;
     // What the viewport is showing, when what it is showing is that the base
@@ -602,11 +616,10 @@ class _DarkroomFailureExitState extends ConsumerState<_DarkroomFailureExit> {
       // The image list is the honest fallback: a database that cannot answer
       // which night this master came from has not proved there is no night, so
       // the button stops claiming to know which one and says what it will open.
-      developer.log(
+      Log.warning(
         'The Darkroom could not resolve the session behind master $masterId, '
         'so its way out offers the image list instead',
-        name: 'DarkroomScreen',
-        level: 900,
+        source: 'DarkroomScreen',
         error: error,
       );
       sessionId = null;
@@ -640,7 +653,7 @@ class _DarkroomFailureExitState extends ConsumerState<_DarkroomFailureExit> {
       icon: SkotiqIcons.history,
       variant: ButtonVariant.secondary,
       size: ButtonSize.small,
-      onPressed: () => context.go(sessionReviewLocation(sessionId)),
+      onPressed: () => context.go(AppRoutes.sessionReviewOfSession(sessionId)),
     );
   }
 }
@@ -659,7 +672,6 @@ class _DarkroomStartOfferView extends StatelessWidget {
   /// more than the one master this route resolved to.
   final List<DarkroomSiblingDraft> siblings;
 
-  /// Why the night's other masters could not be listed.
   final String? siblingsError;
 
   final VoidCallback onStartFromLinear;

@@ -20,12 +20,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/equipment/widgets/connected_device_card.dart';
 import 'package:skotiq_app/widgets/troubleshooter/connection_troubleshooter_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The connection-troubleshooter knowledge base is deliberately kept out of the
-// skotiq_core barrel; import the source path directly (mirroring the
-// widget under test and connection_troubleshooter_dialog.dart).
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/troubleshooter/connection_diagnostic.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -44,7 +40,7 @@ Future<void> _pumpCard(
         localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
         supportedLocales: SkotiqLocalizations.supportedLocales,
         home: const Scaffold(
-          body: ConnectedDeviceCard(type: ConnectedDeviceType.safetyMonitor),
+          body: ConnectedDeviceCard(type: DeviceType.safetyMonitor),
         ),
       ),
     ),

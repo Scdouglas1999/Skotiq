@@ -10,7 +10,6 @@ class _StatsBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
 
-    // Get current filter info
     final currentFilter = state.filterSettings.isNotEmpty &&
             state.currentFilterIndex < state.filterSettings.length
         ? state.filterSettings[state.currentFilterIndex]
@@ -217,31 +216,40 @@ class _ExposureCountdownState extends State<_ExposureCountdown> {
       return const SizedBox.shrink();
     }
 
+    final exposure = widget.state.currentExposureDuration!;
     final elapsed = DateTime.now()
             .difference(widget.state.exposureStartTime!)
             .inMilliseconds /
         1000.0;
-    final remaining = (widget.state.currentExposureDuration! - elapsed)
-        .clamp(0.0, widget.state.currentExposureDuration!);
-    final progress = elapsed / widget.state.currentExposureDuration!;
+    final remaining = (exposure - elapsed).clamp(0.0, exposure);
+    final progress = elapsed / exposure;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: SkotiqDecorations.emphasisSurface(
-        colors.primary,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+      decoration: BoxDecoration(
+        color: colors.well,
+        borderRadius: SkotiqTokens.borderRadiusInline8,
       ),
       child: Row(
         children: [
-          Icon(LucideIcons.timer, size: 18, color: colors.primary),
+          Icon(LucideIcons.timer, size: 18, color: colors.textSecondary),
           const SizedBox(width: 12),
-          Text(
-            'CAPTURING: ${remaining.toStringAsFixed(1)}s remaining',
-            style: SkotiqTypography.labelStrong.copyWith(color: colors.primary),
+          Flexible(
+            child: Text(
+              flatExposureProgressLine(widget.state, remaining),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: SkotiqTypography.withTabular(
+                SkotiqTypography.labelStrong.copyWith(
+                  color: colors.textPrimary,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 16),
-          Expanded(
+          SizedBox(
+            width: 96,
             child: SkotiqProgressBar(
               value: progress.clamp(0.0, 1.0),
               height: 6,
@@ -251,6 +259,30 @@ class _ExposureCountdownState extends State<_ExposureCountdown> {
       ),
     );
   }
+}
+
+/// What the countdown says: the frame being taken and roughly how long the
+/// filter has left while frames are captured, or that the exposure is still
+/// being found.
+@visibleForTesting
+String flatExposureProgressLine(FlatWizardState state, double remainingSecs) {
+  final left = '${remainingSecs.toStringAsFixed(1)} s left';
+  final filter = state.filterSettings.isNotEmpty &&
+          state.currentFilterIndex < state.filterSettings.length
+      ? state.filterSettings[state.currentFilterIndex]
+      : null;
+  if (filter == null || filter.status != FilterCalibrationStatus.capturing) {
+    return 'Finding the exposure · $left';
+  }
+  final target = filter.frameCountOverride ?? state.globalSettings.frameCount;
+  final frame = (filter.capturedCount + 1).clamp(1, target);
+  final exposure = state.currentExposureDuration ?? 0;
+  final rest = remainingSecs + (target - frame) * exposure;
+  final eta = target > frame
+      ? ' · ≈${DurationFormat.seconds(rest, style: DurationStyle.coarse)}'
+          ' to go'
+      : '';
+  return 'Frame $frame of $target · $left$eta';
 }
 
 class _VisualizationsSection extends ConsumerWidget {
@@ -263,7 +295,6 @@ class _VisualizationsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Count visible visualizations
     final visibleCount = [
       state.showAduGraph,
       state.showFilterCards,

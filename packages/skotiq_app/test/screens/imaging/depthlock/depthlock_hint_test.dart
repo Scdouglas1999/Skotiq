@@ -8,7 +8,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/depthlock/depthlock_hint.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'depthlock_test_doubles.dart';
@@ -18,7 +22,7 @@ import 'depthlock_test_doubles.dart';
 class _RecordingSettingsDao implements SettingsDao {
   _RecordingSettingsDao([Map<String, String>? seed])
       : store = <String, String>{...?seed} {
-    _controller.add(store[kDepthLockHintDismissedKey]);
+    _controller.add(store[StoreSettings.depthLockHintDismissed.key]);
   }
 
   final Map<String, String> store;
@@ -37,7 +41,7 @@ class _RecordingSettingsDao implements SettingsDao {
   @override
   Future<void> setSetting(String key, String value) async {
     store[key] = value;
-    if (key == kDepthLockHintDismissedKey) _controller.add(value);
+    if (key == StoreSettings.depthLockHintDismissed.key) _controller.add(value);
   }
 
   @override
@@ -143,7 +147,7 @@ void main() {
     await tester.tap(find.byTooltip('Dismiss'));
     await tester.pumpAndSettle();
 
-    expect(dao.store[kDepthLockHintDismissedKey], 'true');
+    expect(dao.store[StoreSettings.depthLockHintDismissed.key], 'true');
     expect(find.textContaining('Chasing something faint?'), findsNothing);
   });
 
@@ -154,7 +158,7 @@ void main() {
       tester,
       backend: FakeDepthLockBackend(),
       frame: _solvedFrame(),
-      seed: <String, String>{kDepthLockHintDismissedKey: 'true'},
+      seed: <String, String>{StoreSettings.depthLockHintDismissed.key: 'true'},
     );
 
     expect(find.textContaining('Chasing something faint?'), findsNothing);
@@ -173,7 +177,50 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(marked, isTrue);
-    expect(dao.store[kDepthLockHintDismissedKey], 'true');
+    expect(dao.store[StoreSettings.depthLockHintDismissed.key], 'true');
     expect(find.textContaining('Chasing something faint?'), findsNothing);
+  });
+
+  testWidgets('a dismissal reaches the other end of a link', (tester) async {
+    await _pumpHint(
+      tester,
+      backend: FakeDepthLockBackend(),
+      frame: _solvedFrame(),
+    );
+
+    await tester.tap(find.byTooltip('Dismiss'));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Scaffold)),
+    );
+    expect(
+      container
+          .read(noticeAcknowledgmentsProvider)
+          .tipDismissed(depthLockHintTipId),
+      isTrue,
+    );
+  });
+
+  testWidgets('a dismissal made in the other window hides it and sticks', (
+    tester,
+  ) async {
+    final dao = await _pumpHint(
+      tester,
+      backend: FakeDepthLockBackend(),
+      frame: _solvedFrame(),
+    );
+    expect(find.textContaining('Chasing something faint?'), findsOneWidget);
+
+    // What the runtime mirror writes when the other window dismisses it.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Scaffold)),
+    );
+    final acks = container.read(noticeAcknowledgmentsProvider.notifier);
+    acks.state = acks.state.dismissingTip(depthLockHintTipId);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Chasing something faint?'), findsNothing);
+    expect(dao.store[StoreSettings.depthLockHintDismissed.key], 'true');
   });
 }

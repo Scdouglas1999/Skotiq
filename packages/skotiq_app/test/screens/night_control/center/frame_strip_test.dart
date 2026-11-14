@@ -6,11 +6,11 @@ import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_strip.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/widgets/frame_exclusion_badge.dart';
-import 'package:skotiq_core/skotiq_core.dart' show FrameExclusionKind;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../fixtures/night_fixtures.dart';
 import 'center_test_support.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   testWidgets('each frame shows its HFR; the rejected one is marked',
@@ -29,7 +29,7 @@ void main() {
     // error tone.
     expect(
       find.bySemanticsLabel(
-          RegExp(r'^Frame #37, Ha 180 s, HFR 3\.05, Rejected')),
+          RegExp(r'^Frame #37, Ha 180 s, HFR 3\.05 px, Rejected')),
       findsOneWidget,
     );
     final hfr = tester.widget<Text>(find.text('3.05'));
@@ -71,7 +71,7 @@ void main() {
       size: const Size(1000, FrameStrip.height),
     );
     expect(
-      find.bySemanticsLabel(RegExp(r'^Frame #40, Ha 180 s, HFR [0-9.]+, '
+      find.bySemanticsLabel(RegExp(r'^Frame #40, Ha 180 s, HFR [0-9.]+ px, '
           r'Obstructed')),
       findsOneWidget,
     );
@@ -83,7 +83,7 @@ void main() {
     // The ordinary reject keeps its plain label and no badge.
     expect(
       find.bySemanticsLabel(
-          RegExp(r'^Frame #37, Ha 180 s, HFR 3\.05, Rejected')),
+          RegExp(r'^Frame #37, Ha 180 s, HFR 3\.05 px, Rejected')),
       findsOneWidget,
     );
     handle.dispose();

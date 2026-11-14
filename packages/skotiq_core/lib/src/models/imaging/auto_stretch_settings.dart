@@ -56,7 +56,6 @@ abstract class AutoStretchSettings with _$AutoStretchSettings {
     /// brightest pixel.
     @Default(true) bool enabled,
 
-    /// The stretch method to use.
     @Default(AutoStretchMethod.stf) AutoStretchMethod method,
 
     /// Shadow clipping parameter (in standard deviations from median).

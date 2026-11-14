@@ -21,7 +21,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
 
 void main() {
   late Directory tempRoot;
@@ -735,6 +735,30 @@ void main() {
 
       expect(backing['skotiq.notif.v1.email.password'], 'new-secret');
       expect(backing['ns.notif.v1.email.password'], isNull);
+    });
+
+    // A desktop with no Secret Service running refuses every key; asking
+    // once per field logged an error per field on every start.
+    test('an unavailable store is asked once and nothing is lost', () async {
+      var reads = 0;
+      Future<String?> read(String k) async {
+        reads++;
+        throw StateError('Failed to unlock the keyring');
+      }
+
+      Future<void> write(String k, String v) async {}
+      Future<void> delete(String k) async {}
+
+      final moved = await migrateLegacySecretsNamespace(
+        read,
+        write,
+        delete,
+        const ['email.password', 'mqtt.password', 'telegram.bot_token'],
+        'skotiq.notif.v1.',
+      );
+
+      expect(moved, 0);
+      expect(reads, 1);
     });
   });
 }

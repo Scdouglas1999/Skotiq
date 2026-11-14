@@ -6,11 +6,6 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_drizzle_config`, `combine_channels_impl`, `decode_image_f64`, `drizzle_integrate_impl`, `ensure_parent_dir`, `is_active`, `kernel_name`, `load_optional_flat_raw`, `load_optional_master`, `non_empty`, `transform_from_row_major`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CalibrationArgs`, `CombineChannelsArgs`, `CombineChannelsResult`, `DrizzleConfigArgs`, `DrizzleFrameArgs`, `DrizzleIntegrateArgs`, `DrizzleIntegrateResult`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`, `default`, `default`
-
 /// Drizzle (variable-pixel linear reconstruction) a population of registered
 /// frames onto a `scale`× output grid.
 ///
@@ -28,17 +23,3 @@ Future<String> apiDrizzleIntegrate({required String argsJson}) => RustLib
     .instance
     .api
     .crateApiFinishingCombineApiDrizzleIntegrate(argsJson: argsJson);
-
-/// Linearly combine single-channel narrowband masters into a 3-channel `F32`
-/// RGB composite, wrapping [`combine_channels`].
-///
-/// When `palette` is `"sho"`/`"hoo"` the canonical weight table
-/// ([`sho_palette`]/[`hoo_palette`]) is used; otherwise the explicit per-input
-/// `[r, g, b]` `weights` are applied. The composite is written to `output_fits`.
-///
-/// `args_json` is a [`CombineChannelsArgs`]; the result is a
-/// [`CombineChannelsResult`].
-Future<String> apiCombineChannels({required String argsJson}) => RustLib
-    .instance
-    .api
-    .crateApiFinishingCombineApiCombineChannels(argsJson: argsJson);

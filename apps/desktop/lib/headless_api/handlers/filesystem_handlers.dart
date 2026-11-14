@@ -1,14 +1,24 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-class FileSystemHandlers {
+class FileSystemHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    FileSystemApi.browseDirectories: handleBrowseDirectories,
+    FileSystemApi.validateDirectory: handleValidateDirectory,
+  };
+
   final ProviderContainer container;
   final Map<String, String> _environment;
 
@@ -48,13 +58,19 @@ class FileSystemHandlers {
       if (requestedPath == null || requestedPath.trim().isEmpty) {
         // Top-level listing: return only the allow-listed roots so the caller
         // cannot enumerate the full filesystem via a single empty-path request.
-        return jsonOk({
-          'currentPath': null,
-          'parentPath': null,
-          'directories': roots
-              .map((r) => {'name': r.label, 'path': r.canonicalPath})
-              .toList(),
-        });
+        return jsonOk(
+          RemoteDirectoryListing(
+            currentPath: null,
+            parentPath: null,
+            directories: [
+              for (final root in roots)
+                RemoteDirectoryEntry(
+                  name: root.label,
+                  path: root.canonicalPath,
+                ),
+            ],
+          ).toJson(),
+        );
       }
 
       final directory = Directory(requestedPath);
@@ -107,20 +123,27 @@ class FileSystemHandlers {
           _isPathUnderAnyRoot(parentCanonical, roots);
       // Listed children must each be canonicalized + checked. A symlink in an
       // allowed root that targets /etc must not let the caller hop out.
-      final children = <Map<String, dynamic>>[];
+      final children = <RemoteDirectoryEntry>[];
       for (final entry in entries) {
         final childCanonical = await _canonicalize(entry.path);
         if (!_isPathUnderAnyRoot(childCanonical, roots)) {
           continue;
         }
-        children.add({'name': p.basename(entry.path), 'path': childCanonical});
+        children.add(
+          RemoteDirectoryEntry(
+            name: p.basename(entry.path),
+            path: childCanonical,
+          ),
+        );
       }
 
-      return jsonOk({
-        'currentPath': normalizedPath,
-        'parentPath': parentAllowed ? parentCanonical : null,
-        'directories': children,
-      });
+      return jsonOk(
+        RemoteDirectoryListing(
+          currentPath: normalizedPath,
+          parentPath: parentAllowed ? parentCanonical : null,
+          directories: children,
+        ).toJson(),
+      );
     } catch (e) {
       _logError('[API] Browse directories error: $e');
       return jsonInternalServerError({'error': 'internal_error'});
@@ -155,23 +178,30 @@ class FileSystemHandlers {
     // root canonicalize to a normalized absolute path that still resolves under
     // the root, so in-root validation (including new sub-directories) is
     // unaffected.
-    final roots = await _resolveBrowseRoots();
+    // The host's own configured folders are answerable even before they
+    // exist: a linked client asks whether this host's capture folder is there,
+    // and "not there yet" is the answer, not a refusal.
+    final roots = [
+      ...await _resolveBrowseRoots(),
+      ...await _configuredFolders(),
+    ];
     final canonicalRequested = await _canonicalize(directory.path);
     if (!_isPathUnderAnyRoot(canonicalRequested, roots)) {
       _logError(
         '[API] Validate rejected: $canonicalRequested is not under any '
         'allow-listed root (${roots.map((r) => r.canonicalPath).join(", ")})',
       );
+      // Unlike browse, the refusal does not list the roots: validate answers
+      // about the one folder it was asked about.
       return jsonForbidden({
         'error': 'path_not_allowed',
         'message':
-            'The requested path is not under an allow-listed browse root',
+            'The imaging host lets a linked computer use only folders inside '
+            'its Documents, backup, capture, sequence and log folders, and '
+            'any its setup adds (SKOTIQ_BROWSE_ROOTS).',
         'valid': false,
         'exists': false,
         'writable': false,
-        'allowedRoots': roots
-            .map((r) => {'name': r.label, 'path': r.canonicalPath})
-            .toList(),
       });
     }
 
@@ -264,6 +294,21 @@ class FileSystemHandlers {
     }
 
     return roots;
+  }
+
+  /// The folders this host's settings name (captures, sequences, logs),
+  /// whether or not they exist yet.
+  Future<List<_BrowseRoot>> _configuredFolders() async {
+    final settings = container.read(appSettingsProvider).valueOrNull;
+    return [
+      for (final (label, path) in [
+        ('Image Output', settings?.imageOutputPath),
+        ('Sequences', settings?.sequencesPath),
+        ('Logs', settings?.logsPath),
+      ])
+        if (path != null && path.trim().isNotEmpty)
+          _BrowseRoot(label: label, canonicalPath: await _canonicalize(path)),
+    ];
   }
 
   List<_ConfiguredBrowseRoot> _parseBrowseRootsEnv(

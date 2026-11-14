@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/image_grader_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   test('companion grader loads and groups PSF metrics from the host', () async {
@@ -12,8 +15,7 @@ void main() {
     ]);
 
     final metrics = await loadImageGraderPsfMetrics(
-      backend: backend,
-      localScienceDao: null,
+      products: backend.remoteHost!.scienceProducts(),
       frames: [frame],
       sessionId: 42,
     );

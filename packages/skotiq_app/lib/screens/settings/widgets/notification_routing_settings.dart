@@ -1,7 +1,7 @@
 // Notification routing settings panel.
 //
-// Lives alongside `notification_settings.dart` (the legacy push toggles)
-// and is embedded inside that page. Exposes:
+// Embedded inside the Notifications page (`notification_settings.dart`).
+// Exposes:
 //   * Master "Routing enabled" switch
 //   * One row per NotificationCategory showing the current transports +
 //     an "Edit" pencil that opens the per-category editor dialog.
@@ -19,12 +19,16 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/user_facing_error.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
+import 'admin_only.dart';
 import 'settings_widgets.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'notification_routing_settings/category_editor_dialog.dart';
 part 'notification_routing_settings/transport_controls.dart';
@@ -37,22 +41,18 @@ part 'notification_routing_settings/mqtt_transport_section.dart';
 part 'notification_routing_settings/home_assistant_section.dart';
 
 class NotificationRoutingSettings extends ConsumerWidget {
-  final bool isMobile;
-
   const NotificationRoutingSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
-    final backend = ref.watch(backendProvider);
 
-    if (backend is NetworkBackend) {
-      return Column(
+    if (ref.watch(isRemoteModeProvider)) {
+      return const Column(
         children: [
-          const SettingsSection(
+          SettingsSection(
             title: 'Notification routing',
             children: [
               SettingRow(
@@ -71,7 +71,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
           // Home Assistant already has strict remote host API parity, so it
           // remains editable from a controller while the other transports are
           // intentionally host-only.
-          _HomeAssistantSection(isMobile: isMobile),
+          _HomeAssistantSection(),
         ],
       );
     }
@@ -135,8 +135,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
             SettingRow(
               icon: LucideIcons.share2,
               title: 'Notification routing enabled',
-              subtitle:
-                  'When off, no per-category routing fires (legacy push still works)',
+              subtitle: 'When off, nothing is sent to any transport',
               trailing: SettingsSwitch(
                 value: matrix.enabled,
                 onChanged: (v) {
@@ -163,7 +162,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
               ),
           ],
         ),
-        _TransportsSection(isMobile: isMobile),
+        const _TransportsSection(),
       ],
     );
   }
@@ -249,6 +248,8 @@ class NotificationRoutingSettings extends ConsumerWidget {
       case NotificationCategory.weatherUnsafe:
       case NotificationCategory.weatherSafeAgain:
         return LucideIcons.cloudRain;
+      case NotificationCategory.mountFault:
+        return LucideIcons.octagon;
       case NotificationCategory.cloudArriving:
       case NotificationCategory.cloudOpening:
         return LucideIcons.cloud;

@@ -1,7 +1,5 @@
 part of '../smart_night_dialog.dart';
 
-// Inline widgets
-
 class _StepChip extends StatelessWidget {
   final String label;
   final SkotiqColors colors;
@@ -912,6 +910,99 @@ class _SummaryRow extends StatelessWidget {
           Text(
             value,
             style: SkotiqTypography.labelSm.copyWith(color: colors.textPrimary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Offers the plan saved earlier tonight: pick it up where it was left, or
+/// throw it away and plan afresh.
+class _DraftOfferCard extends StatelessWidget {
+  final SmartNightDraft draft;
+  final SkotiqColors colors;
+  final VoidCallback onContinue;
+  final VoidCallback onStartOver;
+
+  const _DraftOfferCard({
+    required this.draft,
+    required this.colors,
+    required this.onContinue,
+    required this.onStartOver,
+  });
+
+  static const int _namedTargets = 3;
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = draft.plan;
+    final savedAt = ClockFormat.hm(draft.updatedAt.toLocal());
+    final names = plan.plannedTargets.map((t) => t.suggestion.targetName);
+    final named = names.take(_namedTargets).join(', ');
+    final more = plan.plannedTargets.length - _namedTargets;
+    final targets = more > 0 ? '$named and $more more' : named;
+    final light = DurationFormat.of(
+      Duration(seconds: plan.totalIntegrationSecs.round()),
+      style: DurationStyle.coarse,
+    );
+    return Container(
+      padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
+      decoration: SkotiqDecorations.emphasisSurface(
+        colors.primary,
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              LucideIcons.history,
+              color: colors.primary,
+              size: SkotiqTokens.iconSm,
+            ),
+          ),
+          const SizedBox(width: SkotiqTokens.spaceMd),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'You have a plan saved from $savedAt',
+                  style: SkotiqTypography.labelStrong
+                      .copyWith(color: colors.textPrimary),
+                ),
+                const SizedBox(height: SkotiqTokens.spaceXs),
+                Text(
+                  '$targets · $light of light. Continue it, or start over and '
+                  'the saved plan is deleted.',
+                  style: SkotiqTypography.bodySm
+                      .copyWith(color: colors.textSecondary),
+                ),
+                const SizedBox(height: SkotiqTokens.spaceSm),
+                Wrap(
+                  spacing: SkotiqTokens.spaceSm,
+                  runSpacing: SkotiqTokens.spaceSm,
+                  children: [
+                    SkotiqButton(
+                      label: 'Continue the draft from $savedAt',
+                      icon: LucideIcons.arrowRight,
+                      variant: ButtonVariant.secondary,
+                      size: ButtonSize.small,
+                      onPressed: onContinue,
+                    ),
+                    SkotiqButton(
+                      label: 'Start over',
+                      icon: LucideIcons.rotateCcw,
+                      variant: ButtonVariant.ghost,
+                      size: ButtonSize.small,
+                      onPressed: onStartOver,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

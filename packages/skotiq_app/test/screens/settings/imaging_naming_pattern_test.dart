@@ -1,109 +1,17 @@
-// The settings field used to persist any string, so an unknown $TOKEN or an
-// unsafe path segment was only reported when the first exposure of the night
-// failed inside ImagingService.buildImageFilePath. Two things are pinned here:
-//
-//  1. the settings field refuses the same patterns the capture pipeline
-//     refuses (drift guard: every case is run through BOTH implementations);
-//  2. the Imaging page rejects the edit, keeps the stored value, and shows the
-//     resolved example filename for a good one.
+// The settings field refuses a pattern the capture pipeline would refuse
+// (`NamingPattern.problem`, the rule both share), keeps the stored value, and
+// shows the example filename for a good one and every token it may use.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/settings/widgets/imaging_naming_pattern.dart';
 import 'package:skotiq_app/screens/settings/widgets/imaging_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:path/path.dart' as p;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
 
-/// Patterns exercised against both implementations. Mix of good, unknown
-/// token, traversal, absolute, empty and unsafe-character cases.
-const _corpus = <String>[
-  r'$TARGET_$FILTER_$DATE_$SEQ',
-  r'$TARGET/$FRAMETYPE/$TARGET_$FILTER_$EXPTIME_$FRAMENUM',
-  r'$SESSION/$CAMERA/$TELESCOPE_$BINNING_$GAIN_$OFFSET_$TEMP_$FRAMENUM',
-  r'$DATETIME_$TIME_$EXPOSURE',
-  'literal_name',
-  r'$TARGET_$BANANA',
-  r'$NOPE',
-  r'../../../pwned/$NOPE',
-  r'../$TARGET',
-  r'$TARGET/../$FILTER',
-  r'/abs/$TARGET',
-  '',
-  '   ',
-  r'$TARGET//$FILTER',
-  r'$TARGET:$FILTER',
-  r'$TARGET\$FILTER',
-  r'$target',
-  r'$TARGET$',
-];
-
-bool _pipelineAccepts(String pattern, Map<String, String> substitutions) {
-  try {
-    ImagingService.buildImageFilePath(
-      pattern: pattern,
-      basePath: '/base',
-      extension: 'fits',
-      substitutions: substitutions,
-    );
-    return true;
-  } catch (_) {
-    // ValidationException is not exported from the skotiq_core barrel;
-    // any throw at all is a failed capture, which is what matters here.
-    return false;
-  }
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  group('validator matches the capture pipeline', () {
-    final now = DateTime.utc(2026, 8, 3, 21, 34, 56);
-    final substitutions = namingPatternExampleSubstitutions(now: now);
-
-    for (final pattern in _corpus) {
-      test('accept/reject agree for "$pattern"', () {
-        final check = checkNamingPattern(pattern, now: now);
-        expect(
-          check.isValid,
-          _pipelineAccepts(pattern, substitutions),
-          reason:
-              'settings validation diverged from ImagingService for "$pattern"',
-        );
-      });
-    }
-
-    test('the preview is the path the pipeline would actually write', () {
-      for (final pattern in _corpus) {
-        final check = checkNamingPattern(pattern, now: now);
-        if (!check.isValid) continue;
-        final real = ImagingService.buildImageFilePath(
-          pattern: pattern,
-          basePath: '/base',
-          extension: 'fits',
-          substitutions: substitutions,
-        );
-        expect(
-          check.preview,
-          p.relative(real, from: '/base'),
-          reason: 'preview for "$pattern" is not what would be captured',
-        );
-      }
-    });
-
-    test('every token the pipeline knows is offered by the validator', () {
-      // ImagingService._patternVariables is private; probe it by round-tripping
-      // each token the validator claims to support through the real path.
-      for (final token in kNamingPatternVariables) {
-        expect(
-          _pipelineAccepts(token, substitutions),
-          isTrue,
-          reason: '$token is advertised in settings but rejected at capture',
-        );
-      }
-    });
-  });
 
   group('Imaging settings page', () {
     Future<HarnessHandle> pump(
@@ -222,6 +130,21 @@ void main() {
         find.byKey(const Key('imaging.namingPattern.preview')),
         findsNothing,
       );
+    });
+
+    testWidgets('the field lists every token the pattern may use',
+        (tester) async {
+      await pump(tester);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 25));
+      }
+
+      final subtitle = find.textContaining('Variables: ');
+      expect(subtitle, findsOneWidget);
+      final text = tester.widget<Text>(subtitle).data!;
+      for (final token in NamingToken.values) {
+        expect(text, contains(token.text));
+      }
     });
   });
 }

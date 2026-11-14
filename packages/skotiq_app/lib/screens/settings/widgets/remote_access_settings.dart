@@ -5,15 +5,20 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../localization/skotiq_localizations.dart';
+import '../../connection/linked_rig_panel.dart';
 import '../pairing_screen.dart' show pairingProvider;
+import 'admin_only.dart';
 import 'settings_widgets.dart';
+import '../../../router/app_routes.dart';
+import '../../../utils/snackbar_helper.dart';
 
 part 'remote_access_settings/shared_controls.dart';
 part 'remote_access_settings/lan_pairing_panel.dart';
@@ -21,11 +26,8 @@ part 'remote_access_settings/tailscale_panel.dart';
 part 'remote_access_settings/status_rows.dart';
 
 class RemoteAccessSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
   const RemoteAccessSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -92,11 +94,9 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
             text: restored,
             selection: TextSelection.collapsed(offset: restored.length),
           );
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.text('remoteAccessSavePortFailed')),
-              duration: const Duration(seconds: 2),
-            ),
+          context.showInfoSnackBar(
+            context.l10n.text('remoteAccessSavePortFailed'),
+            duration: const Duration(seconds: 2),
           );
         } finally {
           _pendingPortWrites--;
@@ -117,11 +117,9 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     ++_portEditGeneration;
     _portController.text = confirmed.toString();
     if (showFeedback && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.text('remoteAccessInvalidPort')),
-          duration: const Duration(seconds: 2),
-        ),
+      context.showInfoSnackBar(
+        context.l10n.text('remoteAccessInvalidPort'),
+        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -131,16 +129,12 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.l10n.text(
-            'remoteAccessCopiedUrl',
-            params: {'url': url},
-          ),
-        ),
-        duration: const Duration(seconds: 2),
+    context.showInfoSnackBar(
+      context.l10n.text(
+        'remoteAccessCopiedUrl',
+        params: {'url': url},
       ),
+      duration: const Duration(seconds: 2),
     );
   }
 
@@ -154,11 +148,9 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.text('remoteAccessOpenFailed')),
-          duration: const Duration(seconds: 2),
-        ),
+      context.showInfoSnackBar(
+        context.l10n.text('remoteAccessOpenFailed'),
+        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -198,12 +190,12 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     // HOST's setting — without this the pane shows "Starting remote access"
     // forever. Being connected at all proves the host's server is up.
     final isRemote = ref.watch(isRemoteModeProvider);
+    final hostLink = ref.watch(linkedHostLinkProvider);
     final l10n = context.l10n;
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(isMobile: widget.isMobile),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -221,82 +213,85 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
         return SettingsPage(
           title: l10n.text('remoteAccessTitle'),
           description: l10n.text('remoteAccessDescription'),
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
+            // Which computer runs the rig comes first: on a linked desktop
+            // everything below describes the imaging computer, not this one.
+            const LinkedRigPanel(),
             SettingsSection(
               title: l10n.text('remoteAccessWebServer'),
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.globe,
                   title: l10n.text('remoteAccessEnableTitle'),
                   subtitle: l10n.text('remoteAccessEnableDesc'),
-                  trailing: SettingsSwitch(
-                    value: settings.webServerEnabled,
-                    onChanged: (value) {
-                      return ref
-                          .read(appSettingsProvider.notifier)
-                          .setWebServerEnabled(value);
-                    },
+                  trailing: AdminOnlyControl(
+                    child: SettingsSwitch(
+                      value: settings.webServerEnabled,
+                      onChanged: (value) {
+                        return ref
+                            .read(appSettingsProvider.notifier)
+                            .setWebServerEnabled(value);
+                      },
+                    ),
                   ),
-                  isMobile: widget.isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.hash,
                   title: l10n.text('remoteAccessPortTitle'),
                   subtitle: l10n.text('remoteAccessPortDesc'),
-                  trailing: SizedBox(
-                    width: 100,
-                    child: TextField(
-                      key: const ValueKey('remote-access-port'),
-                      controller: _portController,
-                      focusNode: _portFocusNode,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        _PortRangeFormatter(),
-                      ],
-                      style: SkotiqTypography.bodySm.copyWith(
-                        color: SkotiqColors.of(context).textPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
+                  trailing: AdminOnlyControl(
+                    text: 'Port ${settings.webServerPort}. $adminOnlyAdvice',
+                    child: SizedBox(
+                      width: 100,
+                      child: TextField(
+                        key: const ValueKey('remote-access-port'),
+                        controller: _portController,
+                        focusNode: _portFocusNode,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          _PortRangeFormatter(),
+                        ],
+                        style: SkotiqTypography.bodySm.copyWith(
+                          color: SkotiqColors.of(context).textPrimary,
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(SkotiqTokens.radiusMd),
-                          borderSide: BorderSide(
-                              color: SkotiqColors.of(context).border),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(SkotiqTokens.radiusMd),
-                          borderSide: BorderSide(
-                              color: SkotiqColors.of(context).border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(SkotiqTokens.radiusMd),
-                          borderSide: BorderSide(
-                            color: SkotiqColors.of(context).primary,
-                            width: 2,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
                           ),
+                          border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(SkotiqTokens.radiusMd),
+                            borderSide: BorderSide(
+                                color: SkotiqColors.of(context).border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(SkotiqTokens.radiusMd),
+                            borderSide: BorderSide(
+                                color: SkotiqColors.of(context).border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(SkotiqTokens.radiusMd),
+                            borderSide: BorderSide(
+                              color: SkotiqColors.of(context).primary,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: SkotiqColors.of(context).well,
                         ),
-                        filled: true,
-                        fillColor: SkotiqColors.of(context).well,
+                        onTapOutside: (_) =>
+                            _commitPort(settings, showFeedback: true),
+                        onSubmitted: (_) =>
+                            _commitPort(settings, showFeedback: true),
                       ),
-                      onTapOutside: (_) =>
-                          _commitPort(settings, showFeedback: true),
-                      onSubmitted: (_) =>
-                          _commitPort(settings, showFeedback: true),
                     ),
                   ),
                   isLast: true,
-                  isMobile: widget.isMobile,
                 ),
               ],
             ),
@@ -372,7 +367,7 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
               // Routed, not `Navigator.push`ed: a page pushed straight onto
               // the shell's navigator survives every rail destination the
               // operator picks afterwards.
-              onPressed: () => context.push('/pairing'),
+              onPressed: () => context.push(AppRoute.pairing.path),
             ),
             if (webState.isRunning &&
                 webState.serverFingerprint.isNotEmpty) ...[
@@ -418,6 +413,8 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                     child: Text(
                       describeRemoteAccessPairing(
                         requiresAuthentication: webState.requiresAuthentication,
+                        linkedHost: hostLink?.serverHost,
+                        hostRequiresPairing: hostLink?.hostRequiresPairing,
                       ),
                       style: SkotiqTypography.caption.copyWith(
                         color: SkotiqColors.of(context).textSecondary,

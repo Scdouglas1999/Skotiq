@@ -1,11 +1,14 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skotiq_core/skotiq_core.dart' show darkroomRouteForPayload;
+import 'package:skotiq_app/router/app_routes.dart';
+import 'package:skotiq_app/utils/darkroom_navigation.dart'
+    show darkroomEditLocation;
+import 'package:skotiq_core/models.dart' show darkroomRouteForPayload;
 
 import 'mobile_preferences.dart';
+import 'package:skotiq_core/services.dart';
 
 part 'notification_service/contracts.dart';
 
@@ -152,48 +155,48 @@ String? routeForNotificationPayload(String payload) {
 
   switch (type) {
     case 'image_ready':
-      if (arg == null || arg.isEmpty) return '/imaging';
-      return '/imaging/preview/${Uri.encodeComponent(arg)}';
+      if (arg == null || arg.isEmpty) return AppRoute.imaging.path;
+      return AppRoutes.imagingPreview(arg);
     case 'sequence_complete':
     case 'sequence_failed':
     case 'meridian_flip':
     case 'target_completed':
     case 'autofocus_failed':
-      return '/sequencer';
+      return AppRoute.sequencer.path;
     case 'exposure_failed':
-      return '/imaging';
+      return AppRoute.imaging.path;
     case 'plate_solve_failed':
     case 'centering_failed':
       // Both job-failure paths land on the imaging viewport because that
       // screen exposes the "solve again" / "re-center" actions.
-      return '/imaging';
+      return AppRoute.imaging.path;
     case 'polar_alignment_failed':
       // Polar align has its own dedicated screen; route there directly.
-      return '/polar-alignment';
+      return AppRoute.polarAlignment.path;
     case 'guiding_lost':
-      return '/guiding';
+      return AppRoute.guiding.path;
     case 'safety':
-    case 'mount_parked':
-      return '/weather';
+      return AppRoute.weather.path;
     case 'equipment_disconnected':
-      return '/equipment';
+      return AppRoute.equipment.path;
     case 'low_battery':
     case 'low_disk_space':
-      return '/dashboard';
+      return AppRoute.tonight.path;
     case 'ownership_taken_over':
     case 'ownership_auto_released':
       // Session ownership state lives on the dashboard banner; that's
       // where the user resolves the take-over.
-      return '/dashboard';
+      return AppRoute.tonight.path;
     case 'darkroom_draft':
       // The dawn autopilot's morning message. The argument is the recipe row
       // the pass saved; without one there is nothing specific to open, so the
       // tap lands on the Darkroom's own empty/most-recent state rather than on
       // a query for a recipe that does not exist.
-      if (arg == null || arg.isEmpty) return '/darkroom';
-      return '/darkroom?recipe=${Uri.encodeComponent(arg)}';
+      final recipeId = int.tryParse(arg ?? '');
+      if (recipeId == null) return AppRoute.darkroom.path;
+      return darkroomEditLocation(recipeId: recipeId);
     case 'push':
-      return '/dashboard';
+      return AppRoute.tonight.path;
     default:
       return null;
   }
@@ -270,14 +273,12 @@ class MobileNotificationService implements MobileNotificationSink {
   static const int _autofocusFailedId = 108;
   static const int _equipmentDisconnectedId = 109;
   static const int _targetCompletedId = 110;
-  static const int _mountParkedId = 111;
   // job-failure notifications. Distinct IDs so a plate-solve
   // failure during a center-on-target sequence doesn't replace the
   // higher-level centering failure (the user wants to see both).
   static const int _plateSolveFailedId = 112;
   static const int _centeringFailedId = 113;
   static const int _polarAlignmentFailedId = 114;
-  // session ownership notifications.
   static const int _ownershipTakenOverId = 115;
   static const int _ownershipAutoReleasedId = 116;
 
@@ -302,11 +303,10 @@ class MobileNotificationService implements MobileNotificationSink {
       // A preferences outage must not prevent safety-critical notification
       // channels and OS permissions from initializing. Keep the fail-open
       // first-run notification default and make the storage problem visible.
-      developer.log(
+      Log.error(
         '[MobileNotificationService] Could not load the sequence '
         'notification preference; keeping notifications enabled: $error',
-        name: 'MobileNotificationService',
-        level: 1000,
+        source: 'MobileNotificationService',
         error: error,
         stackTrace: stackTrace,
       );
@@ -341,7 +341,6 @@ class MobileNotificationService implements MobileNotificationSink {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    // Create notification channels for Android
     if (Platform.isAndroid) {
       await _createNotificationChannels();
       // Android 13+ (API 33) requires a runtime POST_NOTIFICATIONS grant
@@ -352,7 +351,6 @@ class MobileNotificationService implements MobileNotificationSink {
       await _requestAndroidNotificationPermission();
     }
 
-    // Request permissions for iOS
     if (Platform.isIOS) {
       final ios = _notifications
           .resolvePlatformSpecificImplementation<
@@ -396,34 +394,31 @@ class MobileNotificationService implements MobileNotificationSink {
     if (android == null) {
       // Plugin not registered on Android — would only happen if the
       // package was installed wrong. Surface loudly.
-      developer.log(
+      Log.error(
         '[MobileNotificationService] AndroidFlutterLocalNotificationsPlugin '
         'unavailable; POST_NOTIFICATIONS cannot be requested.',
-        name: 'MobileNotificationService',
-        level: 1000,
+        source: 'MobileNotificationService',
       );
       _androidNotificationsAuthorized = false;
       return false;
     }
     final granted = await android.requestNotificationsPermission();
     if (granted == null) {
-      developer.log(
+      Log.error(
         '[MobileNotificationService] requestNotificationsPermission '
         'returned null — treating as denied.',
-        name: 'MobileNotificationService',
-        level: 1000,
+        source: 'MobileNotificationService',
       );
       _androidNotificationsAuthorized = false;
       return false;
     }
     _androidNotificationsAuthorized = granted;
     if (!granted) {
-      developer.log(
+      Log.warning(
         '[MobileNotificationService] POST_NOTIFICATIONS was denied by '
         'the user. Sequence/safety alerts will be silenced until the '
         'user enables notifications in system settings.',
-        name: 'MobileNotificationService',
-        level: 900,
+        source: 'MobileNotificationService',
       );
     }
     return granted;
@@ -582,11 +577,10 @@ class MobileNotificationService implements MobileNotificationSink {
     } catch (error, stackTrace) {
       // Do not latch the once-only guard on a platform-channel failure. A
       // subsequent rebuild/retry can still route the cold-start tap.
-      developer.log(
+      Log.error(
         '[MobileNotificationService] Could not inspect launch notification: '
         '$error',
-        name: 'MobileNotificationService',
-        level: 1000,
+        source: 'MobileNotificationService',
         error: error,
         stackTrace: stackTrace,
       );
@@ -605,10 +599,9 @@ class MobileNotificationService implements MobileNotificationSink {
     final route = routeForNotificationPayload(payload);
     if (route == null) {
       // Unknown payload shape — surfacing it loudly beats silent fallback.
-      developer.log(
+      Log.warning(
         '[MobileNotificationService] Notification payload has no route: $payload',
-        name: 'MobileNotificationService',
-        level: 900,
+        source: 'MobileNotificationService',
       );
       return NotificationTapOutcome.unknownPayload;
     }
@@ -617,10 +610,9 @@ class MobileNotificationService implements MobileNotificationSink {
     if (navigator == null) {
       // The app hasn't wired up the router yet (cold start path). Record
       // the route so we don't pretend the tap did something.
-      developer.log(
+      Log.warning(
         '[MobileNotificationService] No navigator installed; dropped tap to $route ($payload)',
-        name: 'MobileNotificationService',
-        level: 900,
+        source: 'MobileNotificationService',
       );
       return NotificationTapOutcome.noNavigator;
     }
@@ -681,13 +673,13 @@ class MobileNotificationService implements MobileNotificationSink {
   }
 
   @override
-  Future<void> notifyLowDiskSpace(double remainingGB) async {
+  Future<void> notifyLowDiskSpace(String message) async {
     if (!enableWarningNotifications) return;
 
     await _notifications.show(
       _lowDiskSpaceId,
       'Low Disk Space',
-      'Only ${remainingGB.toStringAsFixed(1)} GB remaining. Consider freeing up space.',
+      message,
       _warningDetails,
       payload: 'low_disk_space',
     );
@@ -721,25 +713,13 @@ class MobileNotificationService implements MobileNotificationSink {
   Future<void> notifySafety({
     required String title,
     required String body,
-    String? eventType,
   }) async {
     await _notifications.show(
       _safetyId,
       title,
       body,
       _criticalAlarmDetails,
-      payload: eventType == 'mount_parked' ? 'mount_parked' : 'safety',
-    );
-  }
-
-  @override
-  Future<void> notifyMountParked(String reason) async {
-    await _notifications.show(
-      _mountParkedId,
-      'Mount Parked',
-      'Mount has been parked: $reason',
-      _criticalDetails,
-      payload: 'mount_parked',
+      payload: 'safety',
     );
   }
 
@@ -900,8 +880,6 @@ class MobileNotificationService implements MobileNotificationSink {
       payload: 'polar_alignment_failed',
     );
   }
-
-  // Session ownership notifications
 
   @override
   Future<void> notifyOwnershipTakenOver({

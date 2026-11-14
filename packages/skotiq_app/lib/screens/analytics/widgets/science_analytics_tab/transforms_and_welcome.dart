@@ -1,7 +1,5 @@
 part of '../science_analytics_tab.dart';
 
-// Photometric transforms card
-
 class _PhotometricTransformsCard extends ConsumerWidget {
   final SkotiqColors colors;
 
@@ -45,7 +43,7 @@ class _PhotometricTransformsCard extends ConsumerWidget {
               ),
             ),
             error: (error, _) => Text(
-              'Failed to load transforms: $error',
+              'Failed to load transforms: ${userFacingError(error)}',
               style: SkotiqTypography.caption.copyWith(
                 color: colors.error,
               ),

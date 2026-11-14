@@ -23,10 +23,13 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -234,7 +237,7 @@ void main() {
       final stats = SequenceRunStats()
         ..recordWarning('No focuser connected — autofocus was skipped.')
         ..recordWarning('Filter "Ha" could not be matched.');
-      container.read(liveSequenceStatsProvider.notifier).state = stats;
+      container.read(runRecordProvider.notifier).setStats(stats);
 
       executor.captureSessionEndHooksForTest();
 
@@ -382,15 +385,19 @@ void main() {
         // 1. Session start hooks fire.
         executor.captureSessionStartHooksForTest('seq-full-run');
 
-        // 2. Simulate a real disconnect event flowing through the
+        // 2. A device lost mid-run, as the heartbeat reports it on the
         // backend event stream (this is the production path).
         eventController.add(
           bridge_event.SkotiqEvent(
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: bridge_event.EventSeverity.warning,
+            severity: bridge_event.EventSeverity.error,
             category: bridge_event.EventCategory.equipment,
-            eventType: 'Disconnected',
-            data: const {'device_type': 'camera', 'device_id': 'lifecycle-cam'},
+            eventType: 'Error',
+            data: const {
+              'device_type': 'camera',
+              'device_id': 'lifecycle-cam',
+              'message': 'Device unresponsive after 3 heartbeat failures',
+            },
           ),
         );
         // Let the stream listener inside the bridge run.

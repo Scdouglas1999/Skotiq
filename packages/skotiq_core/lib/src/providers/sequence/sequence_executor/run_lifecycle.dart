@@ -1,3 +1,4 @@
+import '../../../models/sequence/sequence_run_status.dart';
 import 'run_finalization.dart';
 
 /// Where the run this executor owns is in its life.
@@ -45,7 +46,6 @@ final class RunLaunching extends RunPhase {
   String get name => nativeLaunchAttempted ? 'launching(native)' : 'launching';
 }
 
-/// The run is live.
 final class RunLive extends RunPhase {
   const RunLive({this.paused = false});
 
@@ -79,10 +79,10 @@ final class RunSettled extends RunPhase {
   const RunSettled(this.runStatus);
 
   /// The `sequence_runs.status` the run settled with.
-  final String runStatus;
+  final SequenceRunStatus runStatus;
 
   @override
-  String get name => 'settled($runStatus)';
+  String get name => 'settled(${runStatus.token})';
 }
 
 /// A transition the current phase does not allow.

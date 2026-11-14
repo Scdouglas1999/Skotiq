@@ -34,8 +34,7 @@ class _FakePairingServer {
           request.response.write(
             jsonEncode({
               'name': 'Fake',
-              'version': '2.6.0',
-              'apiVersion': '2.6.0',
+              'version': skotiqRelease,
               'authRequired': true,
               'pairingSupported': true,
               if (fingerprint != null) 'fingerprint': fingerprint,
@@ -88,6 +87,25 @@ void main() {
       expect(data.pairingCode, 'STAR-LYRA-1234');
       expect(data.toJson()['pairingCode'], 'STAR-LYRA-1234');
     });
+  });
+
+  test('a pairing start answer says where the host put the code', () {
+    final result = RemotePairingStartResult.fromJson({
+      'expiresAt': '2026-11-11T21:05:00Z',
+      'expiresInSeconds': 300,
+      'codeDelivery': {
+        'operatorFile': true,
+        'operatorFileName': 'pairing-code.txt',
+        'console': false,
+      },
+    });
+    expect(result.delivery!.operatorFile, isTrue);
+    expect(result.delivery!.operatorFileName, 'pairing-code.txt');
+    expect(result.delivery!.console, isFalse);
+    expect(
+      RemotePairingStartResult.fromJson({'expiresInSeconds': 300}).delivery,
+      isNull,
+    );
   });
 
   group('RemotePairingClient scheme', () {

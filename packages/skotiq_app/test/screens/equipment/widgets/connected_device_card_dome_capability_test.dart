@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'device_action_finder.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/equipment/widgets/connected_device_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../harness/harness.dart';
 
@@ -31,7 +33,7 @@ Future<void> pumpDome(
 }) async {
   await pumpAppScreen(
     tester,
-    const ConnectedDeviceCard(type: ConnectedDeviceType.dome),
+    const ConnectedDeviceCard(type: DeviceType.dome),
     extraOverrides: [
       domeStateProvider.overrideWith((ref) => _DomeNotifier(ref, state)),
       domeCapabilityFetcherProvider.overrideWithValue(
@@ -125,7 +127,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.dome),
+      const ConnectedDeviceCard(type: DeviceType.dome),
       extraOverrides: [
         backendProvider.overrideWith((ref) {
           backendNotifier = _SwappableBackendNotifier(ref, hostA);
@@ -164,7 +166,7 @@ void main() {
 
     await pumpAppScreen(
       tester,
-      const ConnectedDeviceCard(type: ConnectedDeviceType.dome),
+      const ConnectedDeviceCard(type: DeviceType.dome),
       extraOverrides: [
         backendProvider.overrideWith((ref) {
           backendNotifier = _SwappableBackendNotifier(ref, hostA);

@@ -39,7 +39,6 @@ class DarkroomRenderedPreview {
   /// Height of the rendered level in pixels.
   final int height;
 
-  /// Whether the render carried colour channels.
   final bool isColor;
 
   /// Row-major RGBA8 samples, four bytes per pixel.
@@ -130,6 +129,69 @@ class DarkroomCancelledOutcome implements Exception {
       'DarkroomCancelledOutcome(id=$id, stopped during $phase)';
 }
 
+/// The `kind` of the error payload a render carries when one of its steps
+/// failed.
+const String kDarkroomStepFailedKind = 'step_failed';
+
+/// The step a render stopped at, as the engine names it.
+class DarkroomFailedStep {
+  /// Index of the step in the recipe the render was handed, counted from 0.
+  final int index;
+  final String opId;
+  final int opVersion;
+
+  /// The operation's fault, without the step and operation it names.
+  final String reason;
+
+  /// The engine's whole sentence.
+  final String message;
+
+  const DarkroomFailedStep({
+    required this.index,
+    required this.opId,
+    required this.opVersion,
+    required this.reason,
+    required this.message,
+  });
+
+  /// Decode [error] as a failed-step payload, or return null when it is not
+  /// one. The JSON object is located inside the text for the same reason as
+  /// in [DarkroomCancelledOutcome.tryDecode].
+  static DarkroomFailedStep? tryDecode(Object error) {
+    final text = error is String ? error : '$error';
+    final start = text.indexOf('{');
+    final end = text.lastIndexOf('}');
+    if (start < 0 || end <= start) return null;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(text.substring(start, end + 1));
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map<String, dynamic>) return null;
+    if (decoded['kind'] != kDarkroomStepFailedKind) return null;
+    final index = decoded['index'];
+    final opId = decoded['opId'];
+    final opVersion = decoded['opVersion'];
+    final reason = decoded['reason'];
+    final message = decoded['message'];
+    if (index is! int ||
+        opId is! String ||
+        opVersion is! int ||
+        reason is! String ||
+        message is! String) {
+      return null;
+    }
+    return DarkroomFailedStep(
+      index: index,
+      opId: opId,
+      opVersion: opVersion,
+      reason: reason,
+      message: message,
+    );
+  }
+}
+
 /// A Darkroom native call failed for a reason that is not cancellation.
 ///
 /// The bridge raises an untyped error carrying the engine's message; this wraps
@@ -144,7 +206,15 @@ class DarkroomSeamException implements Exception {
   /// The object the bridge raised.
   final Object cause;
 
-  const DarkroomSeamException(this.call, this.message, this.cause);
+  /// The step a render stopped at, when the failure is a step's.
+  final DarkroomFailedStep? failedStep;
+
+  const DarkroomSeamException(
+    this.call,
+    this.message,
+    this.cause, {
+    this.failedStep,
+  });
 
   @override
   String toString() => 'Darkroom $call failed: $message';
@@ -264,6 +334,15 @@ class BridgeDarkroomSeam implements DarkroomSeam {
     } catch (error) {
       final cancelled = DarkroomCancelledOutcome.tryDecode(error);
       if (cancelled != null) throw cancelled;
+      final failedStep = DarkroomFailedStep.tryDecode(error);
+      if (failedStep != null) {
+        throw DarkroomSeamException(
+          call,
+          failedStep.message,
+          error,
+          failedStep: failedStep,
+        );
+      }
       throw DarkroomSeamException(call, '$error', error);
     }
   }

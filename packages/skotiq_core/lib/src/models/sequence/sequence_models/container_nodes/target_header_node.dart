@@ -89,18 +89,6 @@ class TargetHeaderNode extends SequenceNode {
     this.catalogTargetId,
   });
 
-  @override
-  String get nodeType => 'TargetHeader';
-
-  @override
-  String get iconName => 'target';
-
-  @override
-  NodeCategory get category => NodeCategory.target;
-
-  @override
-  Set<DeviceType> get requiredDevices => {DeviceType.mount};
-
   /// Get display name including mosaic panel info if applicable
   String get displayName {
     if (mosaicPanel != null) {
@@ -109,10 +97,8 @@ class TargetHeaderNode extends SequenceNode {
     return targetName;
   }
 
-  /// Check if this target has time constraints
   bool get hasTimeConstraints => startAfter != null || endBefore != null;
 
-  /// Check if this target has altitude constraints
   bool get hasAltitudeConstraints => minAltitude != null || maxAltitude != null;
 
   /// True iff the integration budget is configured and
@@ -136,6 +122,9 @@ class TargetHeaderNode extends SequenceNode {
     if (endWhen != null) parts.add('ends when ${endWhen!.label}');
     return parts.join(' · ');
   }
+
+  @override
+  NodeKind<TargetHeaderNode> get kind => NodeKinds.targetHeader;
 
   @override
   TargetHeaderNode copyWith({

@@ -3,41 +3,39 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import '../../device.dart';
 import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+/// Get filter wheel status
+Future<FilterWheelStatus> apiGetFilterwheelStatus({required String deviceId}) =>
+    RustLib.instance.api.crateApiDevicesFilterWheelApiGetFilterwheelStatus(
+      deviceId: deviceId,
+    );
+
 /// Set filter wheel position
-Future<void> filterWheelSetPosition({
+Future<void> apiFilterwheelSetPosition({
   required String deviceId,
   required int position,
-}) => RustLib.instance.api.crateApiDevicesFilterWheelFilterWheelSetPosition(
+}) => RustLib.instance.api.crateApiDevicesFilterWheelApiFilterwheelSetPosition(
   deviceId: deviceId,
   position: position,
 );
 
-/// Get filter wheel position
-Future<int> filterWheelGetPosition({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesFilterWheelFilterWheelGetPosition(deviceId: deviceId);
-
-/// Get filter wheel configuration (count, names)
-Future<(int, List<String>)> filterWheelGetConfig({required String deviceId}) =>
-    RustLib.instance.api.crateApiDevicesFilterWheelFilterWheelGetConfig(
+/// Get filter names
+Future<List<String>> apiFilterwheelGetNames({required String deviceId}) =>
+    RustLib.instance.api.crateApiDevicesFilterWheelApiFilterwheelGetNames(
       deviceId: deviceId,
     );
 
-/// Set camera gain
-Future<void> setCameraGain({required String deviceId, required int gain}) =>
-    RustLib.instance.api.crateApiDevicesFilterWheelSetCameraGain(
+/// Set filter names on a filter wheel
+/// This pushes user-defined filter names from the equipment profile to the hardware driver.
+Future<void> apiFilterwheelSetFilterNames({
+  required String deviceId,
+  required List<String> names,
+}) =>
+    RustLib.instance.api.crateApiDevicesFilterWheelApiFilterwheelSetFilterNames(
       deviceId: deviceId,
-      gain: gain,
-    );
-
-/// Set camera offset
-Future<void> setCameraOffset({required String deviceId, required int offset}) =>
-    RustLib.instance.api.crateApiDevicesFilterWheelSetCameraOffset(
-      deviceId: deviceId,
-      offset: offset,
+      names: names,
     );

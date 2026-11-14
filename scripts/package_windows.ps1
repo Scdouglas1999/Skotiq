@@ -145,7 +145,7 @@ $vendorDlls = @(
     }
     # Core - LibRaw (MUST be 64-bit RELEASE build - Debug builds require VS installed)
     @{
-        Source = Join-Path $repoRoot "apps/desktop/windows/runner/Release/libraw.dll"
+        Source = Join-Path $repoRoot "lib/libraw/libraw.dll"
         Dest   = Join-Path $releaseDir "libraw.dll"
         Verify64Bit = $true
         VerifyReleaseBuild = $true
@@ -251,19 +251,14 @@ $vendorDlls = @(
 )
 
 Invoke-Step "Build Rust bridge (release)" {
-    Push-Location $rustDir
-    cargo build --release --manifest-path bridge/Cargo.toml
-    Pop-Location
+    dart (Join-Path $PSScriptRoot "build.dart") bridge
 }
 
 Invoke-Step "Build Rust updater (release)" {
-    Push-Location $rustDir
-    cargo build --release --package skotiq_updater
-    Pop-Location
+    dart (Join-Path $PSScriptRoot "build.dart") updater
 }
 
 Invoke-Step "Build Flutter Windows app (release)" {
-    Push-Location $desktopDir
     # The app includes the production verification key. Supply an override
     # only when explicitly configured; an empty define would disable trust.
     $updatePublicKey = $env:SKOTIQ_UPDATE_PUBLIC_KEY
@@ -271,8 +266,7 @@ Invoke-Step "Build Flutter Windows app (release)" {
     if (-not [string]::IsNullOrWhiteSpace($updatePublicKey)) {
         $updateDefines += "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=$updatePublicKey"
     }
-    flutter build windows --release @updateDefines
-    Pop-Location
+    dart (Join-Path $PSScriptRoot "build.dart") flutter windows -- @updateDefines
 }
 
 Invoke-Step "Copy native DLL and updater next to exe" {

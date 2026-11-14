@@ -36,14 +36,20 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// bridge-boundary: run_watch_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../display_buffer_jpeg.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'frame_measurement_headers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for the Run-Watch web monitoring surface.
 ///
@@ -51,10 +57,14 @@ import 'frame_measurement_headers.dart';
 /// /api/sequencer/* mutators. The handlers here exist so a phone client
 /// can fetch a coherent monitoring snapshot in a single round-trip
 /// instead of stitching ten endpoints together.
-class RunWatchHandlers {
-  /// The provider container that backs the headless server. We pull the
-  /// backend, services, and providers via this container exactly like the
-  /// other handler files do.
+class RunWatchHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    RunWatchApi.snapshot: handleSnapshot,
+    RunWatchApi.frameThumbnail: handleFrameThumbnail,
+    RunWatchApi.eventStream: handleEventStream,
+  };
+
   final ProviderContainer container;
 
   /// Broadcast of the server's single subscription on `backend.eventStream`.
@@ -106,8 +116,6 @@ class RunWatchHandlers {
   void _logWarning(String message) =>
       _logger.warning(message, source: 'RunWatchHandlers');
 
-  // Snapshot
-
   /// GET /api/run-watch/snapshot
   ///
   /// One-shot bundle of every panel on the phone client. The handler
@@ -118,7 +126,7 @@ class RunWatchHandlers {
   /// not blank out the rest of the dashboard.
   Future<Response> handleSnapshot(Request request) async {
     // A-12: legitimately multi-role — snapshot aggregates sequencer status,
-    // PHD2 guiding status, device list, and recovery context for the
+    // guider status, device list, and recovery context for the
     // run-watch dashboard. Stays on backendProvider rather than threading
     // four role refs through one method.
     final backend = container.read(backendProvider);
@@ -173,11 +181,12 @@ class RunWatchHandlers {
       activeTargetBlock = _unavailableTargetJson(e);
     }
 
-    // Guide stats: pulled from the backend's phd2 status (the GuideStats
-    // notifier is GUI-only and not always running in headless mode).
+    // Guide stats: pulled from the host's guider, PHD2 or the built-in
+    // guider (the GuideStats notifier is GUI-only and not always running in
+    // headless mode).
     Map<String, Object?> guidingBlock;
     try {
-      final status = await backend.phd2GetStatus();
+      final status = await backend.guiderGetStatus();
       guidingBlock = {
         'state': status.state,
         'connected': status.connected,
@@ -189,7 +198,7 @@ class RunWatchHandlers {
         'avgDistance': status.avgDistance,
       };
     } catch (e) {
-      _logWarning('snapshot: phd2 status fetch failed: $e');
+      _logWarning('snapshot: guider status fetch failed: $e');
       guidingBlock = {
         'state': 'disconnected',
         'connected': false,
@@ -221,7 +230,7 @@ class RunWatchHandlers {
         'alertLevel': alert?.level.name ?? safety.currentAlertLevel.name,
         'message': message,
         'dataSource': safety.dataSource.name,
-        'lastEvaluation': safety.lastEvaluation?.toIso8601String(),
+        'lastEvaluation': safety.lastEvaluation?.toWireTime(),
       };
     } catch (e) {
       _logWarning('snapshot: weather service read failed: $e');
@@ -274,7 +283,7 @@ class RunWatchHandlers {
     // carry a BigInt today.
     return jsonOk(
       _jsonSafe(<String, Object?>{
-            'serverTime': DateTime.now().toUtc().toIso8601String(),
+            'serverTime': DateTime.now().toWireTime(),
             'sequencer': {...sequencerStatus, 'progress': progressBlock},
             'activeTarget': activeTargetBlock,
             'guiding': guidingBlock,
@@ -497,37 +506,35 @@ class RunWatchHandlers {
     try {
       final location = container.read(appObserverLocationProvider);
       if (location != null) {
-        final scheduler = container.read(schedulerServiceProvider);
         final now = DateTime.now();
-        final (alt, az) = scheduler.calculateAltAz(
-          raHours: target.raHours,
-          decDegrees: target.decDegrees,
-          time: now,
-          latitudeDegrees: location.latitude,
-          longitudeDegrees: location.longitude,
+        final (alt, az) = AstronomyCalculations.objectAltAz(
+          raDeg: target.raHours * 15.0,
+          decDeg: target.decDegrees,
+          dt: now,
+          latitudeDeg: location.latitude,
+          longitudeDeg: location.longitude,
         );
         altitude = alt;
         azimuth = az;
 
-        final transit = scheduler.calculateTransitTime(
-          raHours: target.raHours,
-          decDegrees: target.decDegrees,
+        final transit = AstronomyCalculations.transitOnUtcDate(
+          raDeg: target.raHours * 15.0,
+          decDeg: target.decDegrees,
           date: now.toUtc(),
-          longitudeDegrees: location.longitude,
+          longitudeDeg: location.longitude,
         );
         if (transit.isAfter(now)) {
           timeToTransitSecs = transit.difference(now).inSeconds;
         }
 
-        final hDeg = container.read(effectiveHorizonDegProvider);
-        horizonDeg = hDeg;
-        final timeToSet = scheduler.nextSetTime(
-          raHours: target.raHours,
-          decDegrees: target.decDegrees,
+        final floor = container.read(altitudeFloorProvider);
+        horizonDeg = floor.atAzimuth(az);
+        final timeToSet = floor.timeUntilBelow(
+          raDeg: target.raHours * 15.0,
+          decDeg: target.decDegrees,
           now: now,
-          latitudeDegrees: location.latitude,
-          longitudeDegrees: location.longitude,
-          horizonDeg: hDeg,
+          latitudeDeg: location.latitude,
+          longitudeDeg: location.longitude,
         );
         if (timeToSet != null) {
           timeToSetSecs = timeToSet.inSeconds;
@@ -579,8 +586,6 @@ class RunWatchHandlers {
       return raw;
     }
   }
-
-  // Frame thumbnail (JPEG)
 
   /// Where the frames already on disk are listed, named in the empty-buffer
   /// body so a client can say what the rig actually holds.
@@ -722,8 +727,6 @@ class RunWatchHandlers {
     );
   }
 
-  // Server-Sent Events
-
   /// GET /api/run-watch/events
   ///
   /// Server-Sent Events stream. Browsers expose EventSource which
@@ -813,8 +816,6 @@ class RunWatchHandlers {
       context: {'shelf.io.buffer_output': false},
     );
   }
-
-  // Internal helpers
 
   /// Encode a SkotiqEvent the way the SSE/snapshot path expects.
   Map<String, Object?> _eventToJson(SkotiqEvent event) {

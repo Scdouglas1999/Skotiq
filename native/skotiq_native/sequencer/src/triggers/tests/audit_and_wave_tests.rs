@@ -263,7 +263,7 @@ async fn trust_patch_6_focus_drift_window_uses_vecdeque_and_is_bounded() {
     // Feed monotonically increasing HFR values to force a trip:
     // window will hold the last 5 of these.
     for hfr in [1.0_f64, 1.2, 1.4, 1.6, 1.9, 2.3, 2.7] {
-        state.current_hfr = Some(hfr);
+        state.latches.current_hfr = Some(hfr);
         // No assertion on intermediate state — the trigger may or may
         // not have fired by now; what matters is the window cap.
         let _ = trigger.check(&state).await;
@@ -378,7 +378,7 @@ async fn audit_1_21_guiding_rms_retention_propagates_via_sync() {
     let state = manager.state();
     let guard = state.read().await;
     assert_eq!(
-        guard.guiding_rms_retention_secs, 600,
+        guard.trigger_config.guiding_rms_retention_secs, 600,
         "sync_state_from_config must push rms_retention_secs into TriggerState"
     );
 }
@@ -595,16 +595,16 @@ async fn wave_5_cloud_arriving_respects_cooldown() {
 async fn wave_5_update_cloud_motion_sanitises_inputs() {
     let mut state = TriggerState::new();
     state.update_cloud_motion(Some(150.0), Some(-5.0), None, None, None);
-    assert_eq!(state.current_cloud_coverage_percent, Some(100.0));
-    assert_eq!(state.predicted_cloud_arrival_minutes, Some(0.0));
+    assert_eq!(state.telemetry.current_cloud_coverage_percent, Some(100.0));
+    assert_eq!(state.telemetry.predicted_cloud_arrival_minutes, Some(0.0));
 
     state.update_cloud_motion(Some(f64::NAN), Some(f64::INFINITY), None, None, None);
     assert_eq!(
-        state.current_cloud_coverage_percent, None,
+        state.telemetry.current_cloud_coverage_percent, None,
         "NaN cover must produce None"
     );
     assert_eq!(
-        state.predicted_cloud_arrival_minutes, None,
+        state.telemetry.predicted_cloud_arrival_minutes, None,
         "Inf arrival must produce None"
     );
 }
@@ -727,10 +727,10 @@ async fn wave_7_transparency_dropped_handles_missing_data() {
 fn wave_7_update_transparency_drops_non_finite() {
     let mut state = TriggerState::new();
     state.update_transparency(Some(f64::NAN));
-    assert_eq!(state.current_transparency, None);
+    assert_eq!(state.telemetry.current_transparency, None);
     state.update_transparency(Some(f64::INFINITY));
-    assert_eq!(state.current_transparency, None);
+    assert_eq!(state.telemetry.current_transparency, None);
     // Valid values flow through.
     state.update_transparency(Some(0.6));
-    assert_eq!(state.current_transparency, Some(0.6));
+    assert_eq!(state.telemetry.current_transparency, Some(0.6));
 }

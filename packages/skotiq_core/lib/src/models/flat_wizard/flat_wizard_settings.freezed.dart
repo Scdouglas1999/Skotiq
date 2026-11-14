@@ -20,21 +20,10 @@ mixin _$FlatWizardGlobalSettings {
  double get tolerancePercent;/// Minimum exposure in seconds
  double get minExposure;/// Maximum exposure in seconds
  double get maxExposure;/// Number of frames to capture per filter
- int get frameCount;/// Default gain for flats
- int get gain;/// Default binning for flats
- int get binning;/// Save path for flat frames
- String? get savePath;/// Create date subfolder
- bool get createDateSubfolder;/// Create filter subfolders
- bool get createFilterSubfolders;// Magic-number defaults promoted from
-// hardcoded constants in flat_wizard_service.dart.
-/// Per-frame download timeout (seconds). Was hardcoded
+ int get frameCount; int get gain; int get binning; String? get savePath; bool get createDateSubfolder; bool get createFilterSubfolders;/// Per-frame download timeout (seconds). Was hardcoded
 /// `_imageDownloadTimeout = Duration(seconds: 60)`. Increase for very
 /// large sensors or slow USB hubs.
- int get imageDownloadTimeoutSeconds;/// Max binary-search iterations for the calibration solver. Was a
-/// `int maxIterations = 8` default parameter in the service. Fewer
-/// iterations exits faster on stubborn filters but risks missing the
-/// target ADU; more iterations is slower but more accurate.
- int get maxIterations;
+ int get imageDownloadTimeoutSeconds;
 /// Create a copy of FlatWizardGlobalSettings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -47,16 +36,16 @@ $FlatWizardGlobalSettingsCopyWith<FlatWizardGlobalSettings> get copyWith => _$Fl
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FlatWizardGlobalSettings&&(identical(other.histogramTarget, histogramTarget) || other.histogramTarget == histogramTarget)&&(identical(other.tolerancePercent, tolerancePercent) || other.tolerancePercent == tolerancePercent)&&(identical(other.minExposure, minExposure) || other.minExposure == minExposure)&&(identical(other.maxExposure, maxExposure) || other.maxExposure == maxExposure)&&(identical(other.frameCount, frameCount) || other.frameCount == frameCount)&&(identical(other.gain, gain) || other.gain == gain)&&(identical(other.binning, binning) || other.binning == binning)&&(identical(other.savePath, savePath) || other.savePath == savePath)&&(identical(other.createDateSubfolder, createDateSubfolder) || other.createDateSubfolder == createDateSubfolder)&&(identical(other.createFilterSubfolders, createFilterSubfolders) || other.createFilterSubfolders == createFilterSubfolders)&&(identical(other.imageDownloadTimeoutSeconds, imageDownloadTimeoutSeconds) || other.imageDownloadTimeoutSeconds == imageDownloadTimeoutSeconds)&&(identical(other.maxIterations, maxIterations) || other.maxIterations == maxIterations));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FlatWizardGlobalSettings&&(identical(other.histogramTarget, histogramTarget) || other.histogramTarget == histogramTarget)&&(identical(other.tolerancePercent, tolerancePercent) || other.tolerancePercent == tolerancePercent)&&(identical(other.minExposure, minExposure) || other.minExposure == minExposure)&&(identical(other.maxExposure, maxExposure) || other.maxExposure == maxExposure)&&(identical(other.frameCount, frameCount) || other.frameCount == frameCount)&&(identical(other.gain, gain) || other.gain == gain)&&(identical(other.binning, binning) || other.binning == binning)&&(identical(other.savePath, savePath) || other.savePath == savePath)&&(identical(other.createDateSubfolder, createDateSubfolder) || other.createDateSubfolder == createDateSubfolder)&&(identical(other.createFilterSubfolders, createFilterSubfolders) || other.createFilterSubfolders == createFilterSubfolders)&&(identical(other.imageDownloadTimeoutSeconds, imageDownloadTimeoutSeconds) || other.imageDownloadTimeoutSeconds == imageDownloadTimeoutSeconds));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,histogramTarget,tolerancePercent,minExposure,maxExposure,frameCount,gain,binning,savePath,createDateSubfolder,createFilterSubfolders,imageDownloadTimeoutSeconds,maxIterations);
+int get hashCode => Object.hash(runtimeType,histogramTarget,tolerancePercent,minExposure,maxExposure,frameCount,gain,binning,savePath,createDateSubfolder,createFilterSubfolders,imageDownloadTimeoutSeconds);
 
 @override
 String toString() {
-  return 'FlatWizardGlobalSettings(histogramTarget: $histogramTarget, tolerancePercent: $tolerancePercent, minExposure: $minExposure, maxExposure: $maxExposure, frameCount: $frameCount, gain: $gain, binning: $binning, savePath: $savePath, createDateSubfolder: $createDateSubfolder, createFilterSubfolders: $createFilterSubfolders, imageDownloadTimeoutSeconds: $imageDownloadTimeoutSeconds, maxIterations: $maxIterations)';
+  return 'FlatWizardGlobalSettings(histogramTarget: $histogramTarget, tolerancePercent: $tolerancePercent, minExposure: $minExposure, maxExposure: $maxExposure, frameCount: $frameCount, gain: $gain, binning: $binning, savePath: $savePath, createDateSubfolder: $createDateSubfolder, createFilterSubfolders: $createFilterSubfolders, imageDownloadTimeoutSeconds: $imageDownloadTimeoutSeconds)';
 }
 
 
@@ -67,7 +56,7 @@ abstract mixin class $FlatWizardGlobalSettingsCopyWith<$Res>  {
   factory $FlatWizardGlobalSettingsCopyWith(FlatWizardGlobalSettings value, $Res Function(FlatWizardGlobalSettings) _then) = _$FlatWizardGlobalSettingsCopyWithImpl;
 @useResult
 $Res call({
- double histogramTarget, double tolerancePercent, double minExposure, double maxExposure, int frameCount, int gain, int binning, String? savePath, bool createDateSubfolder, bool createFilterSubfolders, int imageDownloadTimeoutSeconds, int maxIterations
+ double histogramTarget, double tolerancePercent, double minExposure, double maxExposure, int frameCount, int gain, int binning, String? savePath, bool createDateSubfolder, bool createFilterSubfolders, int imageDownloadTimeoutSeconds
 });
 
 
@@ -84,7 +73,7 @@ class _$FlatWizardGlobalSettingsCopyWithImpl<$Res>
 
 /// Create a copy of FlatWizardGlobalSettings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? histogramTarget = null,Object? tolerancePercent = null,Object? minExposure = null,Object? maxExposure = null,Object? frameCount = null,Object? gain = null,Object? binning = null,Object? savePath = freezed,Object? createDateSubfolder = null,Object? createFilterSubfolders = null,Object? imageDownloadTimeoutSeconds = null,Object? maxIterations = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? histogramTarget = null,Object? tolerancePercent = null,Object? minExposure = null,Object? maxExposure = null,Object? frameCount = null,Object? gain = null,Object? binning = null,Object? savePath = freezed,Object? createDateSubfolder = null,Object? createFilterSubfolders = null,Object? imageDownloadTimeoutSeconds = null,}) {
   return _then(_self.copyWith(
 histogramTarget: null == histogramTarget ? _self.histogramTarget : histogramTarget // ignore: cast_nullable_to_non_nullable
 as double,tolerancePercent: null == tolerancePercent ? _self.tolerancePercent : tolerancePercent // ignore: cast_nullable_to_non_nullable
@@ -97,7 +86,6 @@ as int,savePath: freezed == savePath ? _self.savePath : savePath // ignore: cast
 as String?,createDateSubfolder: null == createDateSubfolder ? _self.createDateSubfolder : createDateSubfolder // ignore: cast_nullable_to_non_nullable
 as bool,createFilterSubfolders: null == createFilterSubfolders ? _self.createFilterSubfolders : createFilterSubfolders // ignore: cast_nullable_to_non_nullable
 as bool,imageDownloadTimeoutSeconds: null == imageDownloadTimeoutSeconds ? _self.imageDownloadTimeoutSeconds : imageDownloadTimeoutSeconds // ignore: cast_nullable_to_non_nullable
-as int,maxIterations: null == maxIterations ? _self.maxIterations : maxIterations // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }
@@ -183,10 +171,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double histogramTarget,  double tolerancePercent,  double minExposure,  double maxExposure,  int frameCount,  int gain,  int binning,  String? savePath,  bool createDateSubfolder,  bool createFilterSubfolders,  int imageDownloadTimeoutSeconds,  int maxIterations)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double histogramTarget,  double tolerancePercent,  double minExposure,  double maxExposure,  int frameCount,  int gain,  int binning,  String? savePath,  bool createDateSubfolder,  bool createFilterSubfolders,  int imageDownloadTimeoutSeconds)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _FlatWizardGlobalSettings() when $default != null:
-return $default(_that.histogramTarget,_that.tolerancePercent,_that.minExposure,_that.maxExposure,_that.frameCount,_that.gain,_that.binning,_that.savePath,_that.createDateSubfolder,_that.createFilterSubfolders,_that.imageDownloadTimeoutSeconds,_that.maxIterations);case _:
+return $default(_that.histogramTarget,_that.tolerancePercent,_that.minExposure,_that.maxExposure,_that.frameCount,_that.gain,_that.binning,_that.savePath,_that.createDateSubfolder,_that.createFilterSubfolders,_that.imageDownloadTimeoutSeconds);case _:
   return orElse();
 
 }
@@ -204,10 +192,10 @@ return $default(_that.histogramTarget,_that.tolerancePercent,_that.minExposure,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double histogramTarget,  double tolerancePercent,  double minExposure,  double maxExposure,  int frameCount,  int gain,  int binning,  String? savePath,  bool createDateSubfolder,  bool createFilterSubfolders,  int imageDownloadTimeoutSeconds,  int maxIterations)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double histogramTarget,  double tolerancePercent,  double minExposure,  double maxExposure,  int frameCount,  int gain,  int binning,  String? savePath,  bool createDateSubfolder,  bool createFilterSubfolders,  int imageDownloadTimeoutSeconds)  $default,) {final _that = this;
 switch (_that) {
 case _FlatWizardGlobalSettings():
-return $default(_that.histogramTarget,_that.tolerancePercent,_that.minExposure,_that.maxExposure,_that.frameCount,_that.gain,_that.binning,_that.savePath,_that.createDateSubfolder,_that.createFilterSubfolders,_that.imageDownloadTimeoutSeconds,_that.maxIterations);case _:
+return $default(_that.histogramTarget,_that.tolerancePercent,_that.minExposure,_that.maxExposure,_that.frameCount,_that.gain,_that.binning,_that.savePath,_that.createDateSubfolder,_that.createFilterSubfolders,_that.imageDownloadTimeoutSeconds);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -224,10 +212,10 @@ return $default(_that.histogramTarget,_that.tolerancePercent,_that.minExposure,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double histogramTarget,  double tolerancePercent,  double minExposure,  double maxExposure,  int frameCount,  int gain,  int binning,  String? savePath,  bool createDateSubfolder,  bool createFilterSubfolders,  int imageDownloadTimeoutSeconds,  int maxIterations)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double histogramTarget,  double tolerancePercent,  double minExposure,  double maxExposure,  int frameCount,  int gain,  int binning,  String? savePath,  bool createDateSubfolder,  bool createFilterSubfolders,  int imageDownloadTimeoutSeconds)?  $default,) {final _that = this;
 switch (_that) {
 case _FlatWizardGlobalSettings() when $default != null:
-return $default(_that.histogramTarget,_that.tolerancePercent,_that.minExposure,_that.maxExposure,_that.frameCount,_that.gain,_that.binning,_that.savePath,_that.createDateSubfolder,_that.createFilterSubfolders,_that.imageDownloadTimeoutSeconds,_that.maxIterations);case _:
+return $default(_that.histogramTarget,_that.tolerancePercent,_that.minExposure,_that.maxExposure,_that.frameCount,_that.gain,_that.binning,_that.savePath,_that.createDateSubfolder,_that.createFilterSubfolders,_that.imageDownloadTimeoutSeconds);case _:
   return null;
 
 }
@@ -239,7 +227,7 @@ return $default(_that.histogramTarget,_that.tolerancePercent,_that.minExposure,_
 @JsonSerializable()
 
 class _FlatWizardGlobalSettings implements FlatWizardGlobalSettings {
-  const _FlatWizardGlobalSettings({this.histogramTarget = 50.0, this.tolerancePercent = 10.0, this.minExposure = 0.001, this.maxExposure = 30.0, this.frameCount = 30, this.gain = 0, this.binning = 1, this.savePath, this.createDateSubfolder = true, this.createFilterSubfolders = true, this.imageDownloadTimeoutSeconds = 60, this.maxIterations = 8});
+  const _FlatWizardGlobalSettings({this.histogramTarget = 50.0, this.tolerancePercent = 10.0, this.minExposure = 0.001, this.maxExposure = 30.0, this.frameCount = 30, this.gain = 0, this.binning = 1, this.savePath, this.createDateSubfolder = true, this.createFilterSubfolders = true, this.imageDownloadTimeoutSeconds = 60});
   factory _FlatWizardGlobalSettings.fromJson(Map<String, dynamic> json) => _$FlatWizardGlobalSettingsFromJson(json);
 
 /// Target histogram percentage (0-100), default 50%
@@ -252,27 +240,15 @@ class _FlatWizardGlobalSettings implements FlatWizardGlobalSettings {
 @override@JsonKey() final  double maxExposure;
 /// Number of frames to capture per filter
 @override@JsonKey() final  int frameCount;
-/// Default gain for flats
 @override@JsonKey() final  int gain;
-/// Default binning for flats
 @override@JsonKey() final  int binning;
-/// Save path for flat frames
 @override final  String? savePath;
-/// Create date subfolder
 @override@JsonKey() final  bool createDateSubfolder;
-/// Create filter subfolders
 @override@JsonKey() final  bool createFilterSubfolders;
-// Magic-number defaults promoted from
-// hardcoded constants in flat_wizard_service.dart.
 /// Per-frame download timeout (seconds). Was hardcoded
 /// `_imageDownloadTimeout = Duration(seconds: 60)`. Increase for very
 /// large sensors or slow USB hubs.
 @override@JsonKey() final  int imageDownloadTimeoutSeconds;
-/// Max binary-search iterations for the calibration solver. Was a
-/// `int maxIterations = 8` default parameter in the service. Fewer
-/// iterations exits faster on stubborn filters but risks missing the
-/// target ADU; more iterations is slower but more accurate.
-@override@JsonKey() final  int maxIterations;
 
 /// Create a copy of FlatWizardGlobalSettings
 /// with the given fields replaced by the non-null parameter values.
@@ -287,16 +263,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FlatWizardGlobalSettings&&(identical(other.histogramTarget, histogramTarget) || other.histogramTarget == histogramTarget)&&(identical(other.tolerancePercent, tolerancePercent) || other.tolerancePercent == tolerancePercent)&&(identical(other.minExposure, minExposure) || other.minExposure == minExposure)&&(identical(other.maxExposure, maxExposure) || other.maxExposure == maxExposure)&&(identical(other.frameCount, frameCount) || other.frameCount == frameCount)&&(identical(other.gain, gain) || other.gain == gain)&&(identical(other.binning, binning) || other.binning == binning)&&(identical(other.savePath, savePath) || other.savePath == savePath)&&(identical(other.createDateSubfolder, createDateSubfolder) || other.createDateSubfolder == createDateSubfolder)&&(identical(other.createFilterSubfolders, createFilterSubfolders) || other.createFilterSubfolders == createFilterSubfolders)&&(identical(other.imageDownloadTimeoutSeconds, imageDownloadTimeoutSeconds) || other.imageDownloadTimeoutSeconds == imageDownloadTimeoutSeconds)&&(identical(other.maxIterations, maxIterations) || other.maxIterations == maxIterations));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FlatWizardGlobalSettings&&(identical(other.histogramTarget, histogramTarget) || other.histogramTarget == histogramTarget)&&(identical(other.tolerancePercent, tolerancePercent) || other.tolerancePercent == tolerancePercent)&&(identical(other.minExposure, minExposure) || other.minExposure == minExposure)&&(identical(other.maxExposure, maxExposure) || other.maxExposure == maxExposure)&&(identical(other.frameCount, frameCount) || other.frameCount == frameCount)&&(identical(other.gain, gain) || other.gain == gain)&&(identical(other.binning, binning) || other.binning == binning)&&(identical(other.savePath, savePath) || other.savePath == savePath)&&(identical(other.createDateSubfolder, createDateSubfolder) || other.createDateSubfolder == createDateSubfolder)&&(identical(other.createFilterSubfolders, createFilterSubfolders) || other.createFilterSubfolders == createFilterSubfolders)&&(identical(other.imageDownloadTimeoutSeconds, imageDownloadTimeoutSeconds) || other.imageDownloadTimeoutSeconds == imageDownloadTimeoutSeconds));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,histogramTarget,tolerancePercent,minExposure,maxExposure,frameCount,gain,binning,savePath,createDateSubfolder,createFilterSubfolders,imageDownloadTimeoutSeconds,maxIterations);
+int get hashCode => Object.hash(runtimeType,histogramTarget,tolerancePercent,minExposure,maxExposure,frameCount,gain,binning,savePath,createDateSubfolder,createFilterSubfolders,imageDownloadTimeoutSeconds);
 
 @override
 String toString() {
-  return 'FlatWizardGlobalSettings(histogramTarget: $histogramTarget, tolerancePercent: $tolerancePercent, minExposure: $minExposure, maxExposure: $maxExposure, frameCount: $frameCount, gain: $gain, binning: $binning, savePath: $savePath, createDateSubfolder: $createDateSubfolder, createFilterSubfolders: $createFilterSubfolders, imageDownloadTimeoutSeconds: $imageDownloadTimeoutSeconds, maxIterations: $maxIterations)';
+  return 'FlatWizardGlobalSettings(histogramTarget: $histogramTarget, tolerancePercent: $tolerancePercent, minExposure: $minExposure, maxExposure: $maxExposure, frameCount: $frameCount, gain: $gain, binning: $binning, savePath: $savePath, createDateSubfolder: $createDateSubfolder, createFilterSubfolders: $createFilterSubfolders, imageDownloadTimeoutSeconds: $imageDownloadTimeoutSeconds)';
 }
 
 
@@ -307,7 +283,7 @@ abstract mixin class _$FlatWizardGlobalSettingsCopyWith<$Res> implements $FlatWi
   factory _$FlatWizardGlobalSettingsCopyWith(_FlatWizardGlobalSettings value, $Res Function(_FlatWizardGlobalSettings) _then) = __$FlatWizardGlobalSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- double histogramTarget, double tolerancePercent, double minExposure, double maxExposure, int frameCount, int gain, int binning, String? savePath, bool createDateSubfolder, bool createFilterSubfolders, int imageDownloadTimeoutSeconds, int maxIterations
+ double histogramTarget, double tolerancePercent, double minExposure, double maxExposure, int frameCount, int gain, int binning, String? savePath, bool createDateSubfolder, bool createFilterSubfolders, int imageDownloadTimeoutSeconds
 });
 
 
@@ -324,7 +300,7 @@ class __$FlatWizardGlobalSettingsCopyWithImpl<$Res>
 
 /// Create a copy of FlatWizardGlobalSettings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? histogramTarget = null,Object? tolerancePercent = null,Object? minExposure = null,Object? maxExposure = null,Object? frameCount = null,Object? gain = null,Object? binning = null,Object? savePath = freezed,Object? createDateSubfolder = null,Object? createFilterSubfolders = null,Object? imageDownloadTimeoutSeconds = null,Object? maxIterations = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? histogramTarget = null,Object? tolerancePercent = null,Object? minExposure = null,Object? maxExposure = null,Object? frameCount = null,Object? gain = null,Object? binning = null,Object? savePath = freezed,Object? createDateSubfolder = null,Object? createFilterSubfolders = null,Object? imageDownloadTimeoutSeconds = null,}) {
   return _then(_FlatWizardGlobalSettings(
 histogramTarget: null == histogramTarget ? _self.histogramTarget : histogramTarget // ignore: cast_nullable_to_non_nullable
 as double,tolerancePercent: null == tolerancePercent ? _self.tolerancePercent : tolerancePercent // ignore: cast_nullable_to_non_nullable
@@ -337,7 +313,6 @@ as int,savePath: freezed == savePath ? _self.savePath : savePath // ignore: cast
 as String?,createDateSubfolder: null == createDateSubfolder ? _self.createDateSubfolder : createDateSubfolder // ignore: cast_nullable_to_non_nullable
 as bool,createFilterSubfolders: null == createFilterSubfolders ? _self.createFilterSubfolders : createFilterSubfolders // ignore: cast_nullable_to_non_nullable
 as bool,imageDownloadTimeoutSeconds: null == imageDownloadTimeoutSeconds ? _self.imageDownloadTimeoutSeconds : imageDownloadTimeoutSeconds // ignore: cast_nullable_to_non_nullable
-as int,maxIterations: null == maxIterations ? _self.maxIterations : maxIterations // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }
@@ -350,8 +325,7 @@ as int,
 mixin _$FlatFilterSettings {
 
  String get filterName;/// Filter position in wheel (0-indexed)
- int get filterPosition;/// Whether this filter is enabled for capture
- bool get enabled;/// Null inherits the resolved camera/profile setting; zero is explicit.
+ int get filterPosition; bool get enabled;/// Null inherits the resolved camera/profile setting; zero is explicit.
  int? get gainOverride; int? get offsetOverride;/// Override histogram target (null = use global)
  double? get histogramTargetOverride;/// Override tolerance (null = use global)
  double? get toleranceOverride;/// Override min exposure (null = use global)
@@ -359,10 +333,7 @@ mixin _$FlatFilterSettings {
  double? get maxExposureOverride;/// Override frame count (null = use global)
  int? get frameCountOverride;/// Suggested exposure from history (informational)
  double? get suggestedExposure;/// Current calibrated exposure (set after tuning)
- double? get calibratedExposure;/// Frames captured so far
- int get capturedCount;/// Current measured ADU
- double? get currentAdu;/// Calibration status
- FilterCalibrationStatus get status;
+ double? get calibratedExposure; int get capturedCount; double? get currentAdu; FilterCalibrationStatus get status;
 /// Create a copy of FlatFilterSettings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -576,7 +547,6 @@ class _FlatFilterSettings implements FlatFilterSettings {
 @override final  String filterName;
 /// Filter position in wheel (0-indexed)
 @override final  int filterPosition;
-/// Whether this filter is enabled for capture
 @override@JsonKey() final  bool enabled;
 /// Null inherits the resolved camera/profile setting; zero is explicit.
 @override final  int? gainOverride;
@@ -595,11 +565,8 @@ class _FlatFilterSettings implements FlatFilterSettings {
 @override final  double? suggestedExposure;
 /// Current calibrated exposure (set after tuning)
 @override final  double? calibratedExposure;
-/// Frames captured so far
 @override@JsonKey() final  int capturedCount;
-/// Current measured ADU
 @override final  double? currentAdu;
-/// Calibration status
 @override@JsonKey() final  FilterCalibrationStatus status;
 
 /// Create a copy of FlatFilterSettings

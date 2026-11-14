@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart'
     show standaloneImagesProvider;
 import 'package:skotiq_app/screens/analytics/widgets/science_session_summary.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
@@ -52,9 +53,10 @@ void main() {
 
       expect(find.textContaining('Science summary incomplete'), findsOneWidget);
       expect(
-        find.textContaining('Bad state: calibration store unavailable'),
+        find.textContaining('calibration store unavailable'),
         findsOneWidget,
       );
+      expect(find.textContaining('Bad state'), findsNothing);
       expect(find.text('PLATE SOLVES'), findsOneWidget);
       expect(find.text('ZERO POINT'), findsOneWidget);
       expect(find.text('TRANSPARENCY'), findsOneWidget);

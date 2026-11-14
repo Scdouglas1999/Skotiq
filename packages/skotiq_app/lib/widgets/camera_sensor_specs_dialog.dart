@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Correct the sensor values the app resolved for a camera.
@@ -459,7 +461,7 @@ class _CameraSensorSpecsDialogState
       // Locally the chain rides the settings stream and refreshes itself; on a
       // paired remote client the settings live on the host and are fetched, so
       // the fetch has to be dropped by hand.
-      if (ref.read(backendProvider) is NetworkBackend) {
+      if (ref.read(isRemoteModeProvider)) {
         ref.invalidate(rigCameraSettingsProvider);
       }
       if (mounted) Navigator.of(context).pop(true);
@@ -467,7 +469,7 @@ class _CameraSensorSpecsDialogState
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = 'Could not save camera specs: $error';
+        _error = 'Could not save camera specs: ${userFacingError(error)}';
       });
     }
   }
@@ -478,9 +480,9 @@ class _CameraSensorSpecsDialogState
   static const int _profileGainFallback = 100;
 
   Future<List<CameraHardwareSpec>> _loadExisting() async {
-    final backend = ref.read(backendProvider);
-    final raw = backend is NetworkBackend
-        ? (await backend.getSmartNightSettings())[
+    final hostPlanning = ref.read(linkedHostPlanningProvider);
+    final raw = hostPlanning != null
+        ? (await hostPlanning.getSmartNightSettings())[
             HardwareSpecsService.cameraOverridesSettingKey]
         : await ref
             .read(settingsDaoProvider)
@@ -493,9 +495,8 @@ class _CameraSensorSpecsDialogState
 
   Future<void> _persist(List<CameraHardwareSpec> specs) async {
     final encoded = jsonEncode(specs.map((spec) => spec.toJson()).toList());
-    final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      await backend.updateSmartNightSettings({
+    if (ref.read(linkedHostPlanningProvider) case final hostPlanning?) {
+      await hostPlanning.updateSmartNightSettings({
         HardwareSpecsService.cameraOverridesSettingKey: encoded,
       });
       return;

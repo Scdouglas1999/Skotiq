@@ -29,11 +29,10 @@
 //! See PixInsight reference documentation:
 //!   <https://pixinsight.com/doc/tools/ScreenTransferFunction/ScreenTransferFunction.html>
 
-use crate::robust_stats::{percentile_floor as percentile_sorted, MAD_TO_SIGMA as MAD_SIGMA_SCALE};
+use crate::robust_stats::{LevelCounts, MAD_TO_SIGMA};
 use crate::ImageData;
 use rayon::prelude::*;
 
-/// Stretch parameters
 #[derive(Debug, Clone)]
 pub struct StretchParams {
     pub shadows: f64,    // Black point (0-1)
@@ -51,17 +50,6 @@ impl Default for StretchParams {
     }
 }
 
-/// Auto stretch method
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AutoStretchMethod {
-    /// Screen Transfer Function (similar to PixInsight STF)
-    Stf,
-    /// Histogram based stretch
-    Histogram,
-    /// Asinh stretch (preserves star colors)
-    Asinh,
-}
-
 /// Per-channel mode for RGB auto-stretch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RgbStretchMode {
@@ -75,7 +63,7 @@ pub enum RgbStretchMode {
     Linked,
 }
 
-// Why: PixInsight STF constants. `MAD_SIGMA_SCALE` (the crate's
+// Why: PixInsight STF constants. `MAD_TO_SIGMA` (the crate's
 // `MAD_TO_SIGMA`) rescales the median absolute deviation into a
 // Gaussian-equivalent standard deviation. `SHADOW_CLIP_SIGMA = -2.8` is the
 // default PixInsight AutoStretch shadow-clipping point (2.8σ below the
@@ -94,43 +82,93 @@ pub fn auto_stretch_stf(image: &ImageData) -> StretchParams {
     if image.is_empty() {
         return StretchParams::default();
     }
-
-    // Why: Existing single-channel callers pass U16 ImageData with raw
-    // little-endian bytes. Decode in parallel — for 60 MP images this is
-    // measurably faster than serial decode.
-    let pixels: Vec<f64> = image
-        .data
-        .par_chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]) as f64 / 65535.0)
-        .collect();
-
-    if pixels.is_empty() {
-        return StretchParams::default();
+    match display_levels(image) {
+        None => stf_params_from_levels(&LevelCounts::of_le_bytes(&image.data)),
+        Some(levels) => stf_params_from_levels(&LevelCounts::of_channel(&levels, 0, 1)),
     }
-
-    stf_params_from_normalized(&pixels)
 }
 
 /// Apply stretch to an image, returning 8-bit output for display
 pub fn apply_stretch(image: &ImageData, params: &StretchParams) -> Vec<u8> {
-    let range = params.highlights - params.shadows;
-    if range <= 0.0 {
+    let Some(table) = StretchTable::new(params) else {
         return vec![0u8; image.width as usize * image.height as usize];
+    };
+    match display_levels(image) {
+        None => image
+            .data
+            .par_chunks_exact(2)
+            .map(|chunk| table.at(u16::from_le_bytes([chunk[0], chunk[1]])))
+            .collect(),
+        Some(levels) => levels.par_iter().map(|&level| table.at(level)).collect(),
     }
-
-    image
-        .data
-        .par_chunks_exact(2)
-        .map(|chunk| {
-            let val = u16::from_le_bytes([chunk[0], chunk[1]]);
-            let normalized = val as f64 / 65535.0;
-
-            let stretched = ((normalized - params.shadows) / range).clamp(0.0, 1.0);
-            let curved = mtf(stretched, params.midtones);
-            (curved * 255.0) as u8
-        })
-        .collect()
 }
+
+/// The samples of an image that is not 16-bit, on the 16-bit level scale the
+/// stretch works in; `None` for a 16-bit image, whose bytes are the levels.
+///
+/// The levels are the samples in 16-bit ADU, as the image's sample range gives
+/// them, so a float frame shows as its 16-bit twin does. Two things keep an
+/// image from being flattened by that:
+/// * samples outside the scale (a background-subtracted master below zero, a
+///   sum above full scale) widen the span that is spread over the levels;
+/// * samples that would all land on fewer than [`MIN_DISPLAY_LEVELS`] levels
+///   (a file that uses a sliver of its range) are spread from their own span.
+///
+/// A sample that is not finite (NaN marks a pixel with no data in some
+/// masters) shows as level 0.
+pub(crate) fn display_levels(image: &ImageData) -> Option<Vec<u16>> {
+    let pixel_type = image.pixel_type;
+    if pixel_type == crate::PixelType::U16 {
+        return None;
+    }
+    let size = pixel_type.byte_size();
+    let (range_low, gain) = image.adu_mapping().unwrap_or((0.0, 1.0));
+    let adu = |bytes: &[u8]| (crate::samples::sample_from_le(bytes, pixel_type) - range_low) * gain;
+
+    let (low, high) = image
+        .data
+        .par_chunks_exact(size)
+        .map(adu)
+        .filter(|v| v.is_finite())
+        .fold(
+            || (f64::INFINITY, f64::NEG_INFINITY),
+            |(low, high), v| (low.min(v), high.max(v)),
+        )
+        .reduce(
+            || (f64::INFINITY, f64::NEG_INFINITY),
+            |a, b| (a.0.min(b.0), a.1.max(b.1)),
+        );
+    const FULL_SCALE: f64 = crate::ADU_FULL_SCALE;
+    let (offset, scale) = if low > high {
+        // No finite sample at all.
+        (0.0, 0.0)
+    } else if high > low && high - low < MIN_DISPLAY_LEVELS {
+        (low, FULL_SCALE / (high - low))
+    } else if low >= 0.0 && high <= FULL_SCALE {
+        (0.0, 1.0)
+    } else if high > low {
+        let (low, high) = (low.min(0.0), high.max(FULL_SCALE));
+        (low, FULL_SCALE / (high - low))
+    } else {
+        (low, 0.0)
+    };
+
+    Some(
+        image
+            .data
+            .par_chunks_exact(size)
+            .map(|bytes| {
+                let level = (adu(bytes) - offset) * scale;
+                // `as` saturates and maps NaN to 0.
+                level.round() as u16
+            })
+            .collect(),
+    )
+}
+
+/// The fewest levels an image's samples may span before the display spreads
+/// them from their own range: as many as an 8-bit image has.
+const MIN_DISPLAY_LEVELS: f64 = 256.0;
 
 /// Apply stretch to RGB image (3 channels), returning 8-bit RGB output for display
 /// Input: RGB16 data (width * height * 3 u16 values)
@@ -141,21 +179,10 @@ pub fn apply_stretch_rgb(
     height: u32,
     params: &StretchParams,
 ) -> Vec<u8> {
-    let range = params.highlights - params.shadows;
-    if range <= 0.0 {
+    let Some(table) = StretchTable::new(params) else {
         return vec![0u8; (width * height * 3) as usize];
-    }
-
-    rgb_data
-        .par_iter()
-        .map(|&val| {
-            let normalized = val as f64 / 65535.0;
-
-            let stretched = ((normalized - params.shadows) / range).clamp(0.0, 1.0);
-            let curved = mtf(stretched, params.midtones);
-            (curved * 255.0) as u8
-        })
-        .collect()
+    };
+    rgb_data.par_iter().map(|&val| table.at(val)).collect()
 }
 
 /// Apply per-channel stretch to RGB image, returning 8-bit interleaved RGB.
@@ -195,43 +222,26 @@ pub fn apply_stretch_rgb_per_channel(
         return vec![0u8; pixel_count * 3];
     }
 
-    let r_range = r_params.highlights - r_params.shadows;
-    let g_range = g_params.highlights - g_params.shadows;
-    let b_range = b_params.highlights - b_params.shadows;
-
-    rgb_data
-        .par_chunks_exact(3)
-        .flat_map(|rgb| {
-            let r_val = rgb[0] as f64 / 65535.0;
-            let g_val = rgb[1] as f64 / 65535.0;
-            let b_val = rgb[2] as f64 / 65535.0;
-
-            let r_out = if r_range <= 0.0 {
-                0.0
-            } else {
-                let s = ((r_val - r_params.shadows) / r_range).clamp(0.0, 1.0);
-                mtf(s, r_params.midtones)
-            };
-            let g_out = if g_range <= 0.0 {
-                0.0
-            } else {
-                let s = ((g_val - g_params.shadows) / g_range).clamp(0.0, 1.0);
-                mtf(s, g_params.midtones)
-            };
-            let b_out = if b_range <= 0.0 {
-                0.0
-            } else {
-                let s = ((b_val - b_params.shadows) / b_range).clamp(0.0, 1.0);
-                mtf(s, b_params.midtones)
-            };
-
-            [
-                (r_out * 255.0) as u8,
-                (g_out * 255.0) as u8,
-                (b_out * 255.0) as u8,
-            ]
-        })
-        .collect()
+    // A channel whose stretch has no range renders black.
+    let tables = [r_params, g_params, b_params].map(StretchTable::new);
+    let mut out = vec![0u8; pixel_count * 3];
+    out.par_chunks_mut(3 << 12)
+        .zip(rgb_data.par_chunks(3 << 12))
+        .for_each(|(out, rgb)| {
+            for (out, rgb) in out
+                .as_chunks_mut::<3>()
+                .0
+                .iter_mut()
+                .zip(rgb.as_chunks::<3>().0)
+            {
+                for (channel, table) in tables.iter().enumerate() {
+                    if let Some(table) = table {
+                        out[channel] = table.at(rgb[channel]);
+                    }
+                }
+            }
+        });
+    out
 }
 
 /// Calculate auto stretch parameters for RGB image (per-channel, "Unlinked").
@@ -270,28 +280,13 @@ pub fn auto_stretch_rgb_with_mode(
         );
     }
 
-    // Why: Deinterleave into per-channel buffers so the median/MAD passes
-    // operate on contiguous memory. The cost (O(N)) is dominated by the
-    // sort that follows.
-    let mut r_channel = Vec::with_capacity(pixel_count);
-    let mut g_channel = Vec::with_capacity(pixel_count);
-    let mut b_channel = Vec::with_capacity(pixel_count);
-
-    for i in 0..pixel_count {
-        r_channel.push(rgb_data[i * 3]);
-        g_channel.push(rgb_data[i * 3 + 1]);
-        b_channel.push(rgb_data[i * 3 + 2]);
-    }
-
-    let r_norm = normalize_u16(&r_channel);
-    let g_norm = normalize_u16(&g_channel);
-    let b_norm = normalize_u16(&b_channel);
+    let [r, g, b] = [0, 1, 2].map(|channel| LevelCounts::of_channel(rgb_data, channel, 3));
 
     match mode {
         RgbStretchMode::Unlinked => (
-            stf_params_from_normalized(&r_norm),
-            stf_params_from_normalized(&g_norm),
-            stf_params_from_normalized(&b_norm),
+            stf_params_from_levels(&r),
+            stf_params_from_levels(&g),
+            stf_params_from_levels(&b),
         ),
         RgbStretchMode::Linked => {
             // Why: A "linked" STF preserves color ratios across channels —
@@ -303,11 +298,7 @@ pub fn auto_stretch_rgb_with_mode(
             // shared. PixInsight's Linked STF uses the channel with the
             // most representative background as a reference; selecting by
             // max-MAD is the standard approximation.
-            let r_stats = robust_stats(&r_norm);
-            let g_stats = robust_stats(&g_norm);
-            let b_stats = robust_stats(&b_norm);
-
-            let reference = match (r_stats, g_stats, b_stats) {
+            let reference = match (robust_stats(&r), robust_stats(&g), robust_stats(&b)) {
                 (Some(r), Some(g), Some(b)) => {
                     if r.mad >= g.mad && r.mad >= b.mad {
                         stf_from_stats(r)
@@ -335,29 +326,21 @@ struct RobustStats {
     mad: f64,
 }
 
-/// Compute median and MAD for a normalized [0,1] sample.
+/// Median and MAD of 16-bit samples normalized to [0,1], by PixInsight's
+/// integer-indexed order statistic (see `robust_stats::percentile_floor`).
 ///
-/// Returns `None` if the input is empty. A zero MAD (perfectly flat data)
+/// Returns `None` if there are no samples. A zero MAD (perfectly flat data)
 /// is returned as `Some` with `mad = 0.0` — callers must handle the
 /// degenerate case explicitly.
-fn robust_stats(pixels: &[f64]) -> Option<RobustStats> {
-    if pixels.is_empty() {
+fn robust_stats(levels: &LevelCounts) -> Option<RobustStats> {
+    if levels.total() == 0 {
         return None;
     }
-
-    // Why: parallel unstable sort — we only need order statistics, the
-    // sort's instability is irrelevant.
-    let mut sorted = pixels.to_vec();
-    sorted.par_sort_unstable_by(|a, b| a.total_cmp(b));
-    let median = percentile_sorted(&sorted, 0.5);
-
-    // Why: MAD = median(|x - median|). We compute deviations in parallel
-    // then sort again — two O(N log N) passes is acceptable for image
-    // sizes up to 100 MP and matches PixInsight's reference.
-    let mut deviations: Vec<f64> = pixels.par_iter().map(|&x| (x - median).abs()).collect();
-    deviations.par_sort_unstable_by(|a, b| a.total_cmp(b));
-    let mad = percentile_sorted(&deviations, 0.5);
-
+    let normalized = |level: u16| f64::from(level) / 65535.0;
+    let median = levels.mapped(normalized).percentile_floor(0.5);
+    let mad = levels
+        .mapped(|level| (normalized(level) - median).abs())
+        .percentile_floor(0.5);
     Some(RobustStats { median, mad })
 }
 
@@ -373,7 +356,7 @@ fn stf_from_stats(stats: RobustStats) -> StretchParams {
         return StretchParams::default();
     }
 
-    let sigma = MAD_SIGMA_SCALE * mad;
+    let sigma = MAD_TO_SIGMA * mad;
 
     // Shadow clip: c0 = median - 2.8 σ, clamped to [0, 1].
     let shadows = (median + SHADOW_CLIP_SIGMA * sigma).clamp(0.0, 1.0);
@@ -448,16 +431,41 @@ fn midtone_for_target(x: f64, target: f64) -> f64 {
     m.clamp(0.0, 1.0)
 }
 
-/// Convert a u16 sample to normalized [0,1] doubles.
-fn normalize_u16(values: &[u16]) -> Vec<f64> {
-    values.par_iter().map(|&v| v as f64 / 65535.0).collect()
-}
-
-/// Compute STF parameters from already-normalized [0,1] samples.
-fn stf_params_from_normalized(pixels: &[f64]) -> StretchParams {
-    match robust_stats(pixels) {
+/// STF parameters for the counted 16-bit samples.
+fn stf_params_from_levels(levels: &LevelCounts) -> StretchParams {
+    match robust_stats(levels) {
         Some(stats) => stf_from_stats(stats),
         None => StretchParams::default(),
+    }
+}
+
+/// The 8-bit display value of every 16-bit level under one stretch.
+///
+/// A stretch of 16-bit data is a function of 65,536 inputs, so it is evaluated
+/// once per level rather than once per pixel.
+struct StretchTable(Vec<u8>);
+
+impl StretchTable {
+    /// `None` when the stretch has no range between shadows and highlights.
+    fn new(params: &StretchParams) -> Option<Self> {
+        let range = params.highlights - params.shadows;
+        if range <= 0.0 {
+            return None;
+        }
+        Some(Self(
+            (0..=u16::MAX)
+                .map(|level| {
+                    let normalized = f64::from(level) / 65535.0;
+                    let stretched = ((normalized - params.shadows) / range).clamp(0.0, 1.0);
+                    (mtf(stretched, params.midtones) * 255.0) as u8
+                })
+                .collect(),
+        ))
+    }
+
+    #[inline]
+    fn at(&self, level: u16) -> u8 {
+        self.0[level as usize]
     }
 }
 
@@ -563,7 +571,7 @@ mod tests {
 
         // Shadow clip should sit near `median - 2.8 * 1.4826 * MAD`.
         let expected_shadow =
-            (true_median + SHADOW_CLIP_SIGMA * MAD_SIGMA_SCALE * true_mad).clamp(0.0, 1.0);
+            (true_median + SHADOW_CLIP_SIGMA * MAD_TO_SIGMA * true_mad).clamp(0.0, 1.0);
 
         // Tolerance: the synthetic generator is triangular not Gaussian
         // so we allow a generous 0.01 (≈655 ADU @ 16-bit) slop.
@@ -901,5 +909,115 @@ mod tests {
             "highlight {} must stay in [0, 1]",
             params.highlights
         );
+    }
+
+    /// An integration master saved as 32-bit float (ADU values) shows the
+    /// same picture as the same master saved as 16-bit: one display byte per
+    /// pixel, the same STF.
+    #[test]
+    fn float_master_stretches_like_its_16_bit_twin() {
+        let (u16_image, _, _) = synthetic_frame_with_stars(64, 48, 6553, 1500, 20);
+        let levels = u16_image.as_u16().unwrap();
+        let adu: Vec<f32> = levels.iter().map(|&v| f32::from(v)).collect();
+        let float_image = ImageData::from_f32(64, 48, 1, &adu);
+
+        let params = auto_stretch_stf(&float_image);
+        let expected = auto_stretch_stf(&u16_image);
+        assert_eq!(params.shadows, expected.shadows);
+        assert_eq!(params.midtones, expected.midtones);
+
+        let display = apply_stretch(&float_image, &params);
+        assert_eq!(display.len(), 64 * 48);
+        assert_eq!(display, apply_stretch(&u16_image, &expected));
+    }
+
+    /// A master with samples below zero (background subtracted, or a pedestal
+    /// removed) and holes marked NaN keeps its faint end: the stretch sees the
+    /// same picture as the 16-bit frame it is an offset copy of.
+    #[test]
+    fn float_master_below_zero_with_nan_holes_keeps_its_faint_end() {
+        let (u16_image, _, _) = synthetic_frame_with_stars(64, 48, 6553, 1500, 20);
+        let levels = u16_image.as_u16().unwrap();
+        let low = f32::from(*levels.iter().min().unwrap());
+        let high = f32::from(*levels.iter().max().unwrap());
+        // The background sits below zero; the range keeps its width.
+        let mut shifted: Vec<f32> = levels.iter().map(|&v| f32::from(v) - 7000.0).collect();
+        assert!(low - 7000.0 < 0.0 && high > low);
+        shifted[5] = f32::NAN;
+        let float_image = ImageData::from_f32(64, 48, 1, &shifted);
+
+        let params = auto_stretch_stf(&float_image);
+        let display = apply_stretch(&float_image, &params);
+        assert_eq!(display.len(), 64 * 48);
+        assert_eq!(display[5], 0, "a NaN hole is black");
+
+        // Clamped at zero, most of the background would be one level and the
+        // display two-tone. The stretched picture has the spread of the
+        // 16-bit frame's.
+        let reference = apply_stretch(&u16_image, &auto_stretch_stf(&u16_image));
+        let distinct = |bytes: &[u8]| {
+            let mut seen = [false; 256];
+            bytes.iter().for_each(|&b| seen[b as usize] = true);
+            seen.iter().filter(|&&s| s).count()
+        };
+        assert!(
+            distinct(&display) * 10 >= distinct(&reference) * 8,
+            "{} display levels against {} for the 16-bit frame",
+            distinct(&display),
+            distinct(&reference)
+        );
+    }
+
+    /// Samples on a scale beyond 16 bits (a 32-bit integer file, a float
+    /// master in electrons) are spread over the display range instead of
+    /// saturating.
+    #[test]
+    fn samples_beyond_16_bits_do_not_saturate() {
+        let (u16_image, _, _) = synthetic_frame_with_stars(64, 48, 6553, 1500, 20);
+        let scaled: Vec<f32> = u16_image
+            .as_u16()
+            .unwrap()
+            .iter()
+            .map(|&v| f32::from(v) * 4096.0)
+            .collect();
+        let float_image = ImageData::from_f32(64, 48, 1, &scaled);
+
+        let display = apply_stretch(&float_image, &auto_stretch_stf(&float_image));
+        let white = display.iter().filter(|&&b| b == 255).count();
+        assert!(
+            white * 4 < display.len(),
+            "{white} of {} white",
+            display.len()
+        );
+    }
+
+    /// A float image with no finite sample at all displays black rather than
+    /// failing.
+    #[test]
+    fn all_nan_float_image_is_black() {
+        let float_image = ImageData::from_f32(8, 8, 1, &[f32::NAN; 64]);
+        let display = apply_stretch(&float_image, &auto_stretch_stf(&float_image));
+        assert_eq!(display.len(), 64);
+    }
+
+    /// Float data in [0, 1] is spread over the full scale rather than read as
+    /// a black frame of one-ADU values.
+    #[test]
+    fn unit_range_float_is_spread_over_the_full_scale() {
+        let (u16_image, _, _) = synthetic_frame_with_stars(64, 48, 6553, 1500, 20);
+        let unit: Vec<f32> = u16_image
+            .as_u16()
+            .unwrap()
+            .iter()
+            .map(|&v| f32::from(v) / 65535.0)
+            .collect();
+        let float_image =
+            ImageData::from_f32(64, 48, 1, &unit).with_range(crate::SampleRange::UNIT);
+
+        let params = auto_stretch_stf(&float_image);
+        let expected = auto_stretch_stf(&u16_image);
+        assert!((params.shadows - expected.shadows).abs() < 1e-4);
+        assert!((params.midtones - expected.midtones).abs() < 1e-3);
+        assert_eq!(apply_stretch(&float_image, &params).len(), 64 * 48);
     }
 }

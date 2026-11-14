@@ -6,7 +6,6 @@ import '../theme/skotiq_decorations.dart';
 import '../theme/skotiq_tokens.dart';
 import '../theme/skotiq_typography.dart';
 
-/// Position of the tooltip relative to the target widget
 enum SkotiqTooltipPosition { top, bottom, left, right }
 
 /// A styled tooltip with animations and accent shadow.
@@ -20,13 +19,11 @@ class SkotiqTooltip extends StatefulWidget {
   /// The widget that triggers the tooltip
   final Widget child;
 
-  /// The message to display in the tooltip
   final String message;
 
   /// Rich content for the tooltip (overrides message)
   final Widget? richMessage;
 
-  /// Position of the tooltip relative to the child
   final SkotiqTooltipPosition position;
 
   /// Delay before showing the tooltip
@@ -35,10 +32,8 @@ class SkotiqTooltip extends StatefulWidget {
   /// Duration of the show/hide animation
   final Duration animationDuration;
 
-  /// Whether to show the arrow pointer
   final bool showArrow;
 
-  /// Maximum width of the tooltip
   final double maxWidth;
 
   const SkotiqTooltip({

@@ -5,6 +5,7 @@
 // Owns:
 //   * indiServerHost, indiServerPort, indiAutoConnect
 //   * alpacaServerHost, alpacaServerPort, alpacaAutoDiscover
+//   * qhyDiscoveryEnabled (the QHY SDK enumeration switch)
 //
 // Does NOT own:
 //   * Per-device connection state (that's runtime, not settings) → see
@@ -16,35 +17,25 @@
 //     the bottom of the main settings_provider.dart (legacy compat).
 part of '../settings_provider.dart';
 
-/// Setters for INDI and Alpaca server connection settings.
 extension ProtocolSettingsSection on AppSettingsNotifier {
-  Future<void> setIndiServerHost(String value) async {
-    await _saveSetting('indi_server_host', value);
-    _patchState((s) => s.copyWith(indiServerHost: value));
-  }
+  Future<void> setIndiServerHost(String value) =>
+      _set(AppSettingDefs.indiServerHost, value);
 
-  Future<void> setIndiServerPort(int value) async {
-    await _saveSetting('indi_server_port', value.toString());
-    _patchState((s) => s.copyWith(indiServerPort: value));
-  }
+  Future<void> setIndiServerPort(int value) =>
+      _set(AppSettingDefs.indiServerPort, value);
 
-  Future<void> setIndiAutoConnect(bool value) async {
-    await _saveSetting('indi_auto_connect', value.toString());
-    _patchState((s) => s.copyWith(indiAutoConnect: value));
-  }
+  Future<void> setIndiAutoConnect(bool value) =>
+      _set(AppSettingDefs.indiAutoConnect, value);
 
-  Future<void> setAlpacaServerHost(String value) async {
-    await _saveSetting('alpaca_server_host', value);
-    _patchState((s) => s.copyWith(alpacaServerHost: value));
-  }
+  Future<void> setAlpacaServerHost(String value) =>
+      _set(AppSettingDefs.alpacaServerHost, value);
 
-  Future<void> setAlpacaServerPort(int value) async {
-    await _saveSetting('alpaca_server_port', value.toString());
-    _patchState((s) => s.copyWith(alpacaServerPort: value));
-  }
+  Future<void> setAlpacaServerPort(int value) =>
+      _set(AppSettingDefs.alpacaServerPort, value);
 
-  Future<void> setAlpacaAutoDiscover(bool value) async {
-    await _saveSetting('alpaca_auto_discover', value.toString());
-    _patchState((s) => s.copyWith(alpacaAutoDiscover: value));
-  }
+  Future<void> setAlpacaAutoDiscover(bool value) =>
+      _set(AppSettingDefs.alpacaAutoDiscover, value);
+
+  Future<void> setQhyDiscoveryEnabled(bool value) =>
+      _set(AppSettingDefs.qhyDiscoveryEnabled, value);
 }

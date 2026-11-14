@@ -104,40 +104,27 @@ class _TargetEditorOverlay extends ConsumerWidget {
                                         targetId: targetId,
                                         targetName: name,
                                         onChanged: () {
-                                          final backend =
-                                              ref.read(backendProvider);
-                                          if (backend is NetworkBackend) {
-                                            unawaited(() async {
-                                              try {
-                                                await backend.controlScheduler(
-                                                  'evaluate',
-                                                );
-                                                if (!context.mounted) return;
-                                                ref.invalidate(
-                                                  schedulerRemoteSnapshotProvider,
-                                                );
-                                                ref.invalidate(
-                                                  schedulerPreviewDecisionProvider,
-                                                );
-                                              } catch (error) {
-                                                if (!context.mounted) return;
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Could not re-evaluate scheduler: $error',
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            }());
-                                          } else {
-                                            ref
-                                                .read(schedulerEngineProvider)
-                                                .evaluateNow(
-                                                  reason: 'constraint edit',
-                                                );
-                                          }
+                                          final scheduler = ref
+                                              .read(schedulerControlProvider);
+                                          unawaited(() async {
+                                            try {
+                                              await scheduler.evaluate(
+                                                reason: 'constraint edit',
+                                              );
+                                              if (!context.mounted) return;
+                                              ref.invalidate(
+                                                schedulerRemoteSnapshotProvider,
+                                              );
+                                              ref.invalidate(
+                                                schedulerPreviewDecisionProvider,
+                                              );
+                                            } catch (error) {
+                                              if (!context.mounted) return;
+                                              context.showErrorSnackBar(
+                                                'Could not re-evaluate scheduler: ${userFacingError(error)}',
+                                              );
+                                            }
+                                          }());
                                         },
                                       ),
                                     ],
@@ -159,11 +146,3 @@ class _TargetEditorOverlay extends ConsumerWidget {
     );
   }
 }
-
-/// Empty-state placeholder shown in the queue table when the scheduler has
-/// no candidate targets to score (either because the database is empty or
-/// because the engine has not produced a first decision yet).
-///
-/// Tells the user what the scheduler does, points at the next concrete
-/// action (open the planner / target catalog), and exposes an inline
-/// "Learn more" expander explaining the scoring inputs.

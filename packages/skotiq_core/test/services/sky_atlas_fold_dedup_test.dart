@@ -5,7 +5,7 @@
 // is plausible in the master/slave sync architecture). Without a dedup marker
 // the second fire double-counts that frame's photons into the atlas.
 //
-// The production guard is `applyAtlasFoldDedup` in imaging_records_repository.dart
+// The production guard is `applyAtlasFoldDedup` in local_imaging_records.dart
 // (the SAME function the local solve-persist hook calls): only fold when
 // `image.atlasFoldedAt == null`, then `stampAtlasFolded(id)` after a fold that
 // actually ran. This test drives that REAL gate against the REAL ImagesDao +
@@ -18,7 +18,8 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Seam that returns a one-frame fold result so a fold increments the tile total
 /// by exactly one. Records every `fold` dispatch so the test can assert it ran

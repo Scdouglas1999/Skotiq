@@ -6,9 +6,14 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 
-import '../../../models/command_action_result.dart';
+import '../../../services/command_action_result.dart';
 import '../../../services/manual_capture_controller.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../services/sequence_action_service.dart';
@@ -94,35 +99,6 @@ abstract interface class NightRigOps {
 }
 
 final nightRigOpsProvider = Provider<NightRigOps>(ServiceNightRigOps.new);
-
-/// The centering Center runs, from the settings and the active profile, so
-/// the Solve tab shows the tolerance and attempts Center really uses.
-CenteringConfig nightCenteringConfig({
-  required AppSettingsState settings,
-  required EquipmentProfileModel? profile,
-}) {
-  final exposure = profile?.defaultCenteringExposure;
-  // As the slew-and-center dialog builds it.
-  return CenteringConfig(
-    maxIterations: 5,
-    toleranceArcsec: 30.0,
-    exposureTime: exposure != null && exposure > 0 ? exposure : 5.0,
-    binning: profile?.defaultBinX ?? 2,
-    gain: profile?.defaultGain,
-    offset: profile?.defaultOffset,
-    syncMount: settings.centeringSyncMount,
-  );
-}
-
-/// [nightCenteringConfig] for the current settings; null until they load.
-final nightCenteringConfigProvider = Provider<CenteringConfig?>((ref) {
-  final settings = ref.watch(appSettingsProvider).valueOrNull;
-  if (settings == null) return null;
-  return nightCenteringConfig(
-    settings: settings,
-    profile: ref.watch(activeEquipmentProfileProvider),
-  );
-});
 
 class ServiceNightRigOps implements NightRigOps {
   ServiceNightRigOps(this._ref);
@@ -213,6 +189,7 @@ class ServiceNightRigOps implements NightRigOps {
               profile: _ref.read(activeEquipmentProfileProvider),
             ),
             targetName: _ref.read(sessionStateProvider).targetName,
+            purpose: FramePurpose.plateSolve,
           );
         } finally {
           _solveCapture = null;
@@ -246,20 +223,15 @@ class ServiceNightRigOps implements NightRigOps {
 
   @override
   Future<CenteringResult> center(NightCenterTarget target) async {
-    final settings = await _ref.read(appSettingsProvider.future);
+    final centering = ManualCentering.of(
+      await _ref.read(appSettingsProvider.future),
+      _ref.read(activeEquipmentProfileProvider),
+    );
     final result = await _ref.read(centeringServiceProvider).centerOnTarget(
           targetRa: target.raHours,
           targetDec: target.decDegrees,
-          solverConfig: PlateSolverConfig(
-            type: PlateSolverType.astap,
-            executablePath: settings.astapPath,
-            timeoutSeconds: settings.plateSolveTimeout,
-            searchRadius: settings.plateSolveSearchRadius,
-          ),
-          config: nightCenteringConfig(
-            settings: settings,
-            profile: _ref.read(activeEquipmentProfileProvider),
-          ),
+          solverConfig: centering.solver,
+          config: centering.config,
           onStatusUpdate: (status) =>
               _ref.read(centeringStatusProvider.notifier).state = status,
         );
@@ -287,15 +259,8 @@ class ServiceNightRigOps implements NightRigOps {
   @override
   Future<void> stopGuiding() => _guider.stopGuiding();
 
-  ({double pixels, double time, double timeout}) get _settle {
-    final s = _settings;
-    // The Guiding screen's own clamps (guiding_screen_parts/actions.dart).
-    return (
-      pixels: (s?.settleThreshold ?? 1.5).clamp(0.5, 5.0).toDouble(),
-      time: (s?.settleTime ?? 10).toDouble().clamp(5.0, 60.0),
-      timeout: (s?.settleTimeout ?? 60).toDouble().clamp(30.0, 180.0),
-    );
-  }
+  GuideSettle get _settle =>
+      GuideSettle.of(_settings ?? const AppSettingsState());
 
   @override
   Future<void> startGuidingAndSettle() async {
@@ -305,29 +270,27 @@ class ServiceNightRigOps implements NightRigOps {
     // Subscribed before the start command so an early SettleDone is not
     // missed. A failed settle reaches the app as StarLost.
     final subscription = backend.eventStream.listen((event) {
-      if (event.category != EventCategory.guiding || settled.isCompleted) {
+      final payload = typedEventFromWire(event)?.payload;
+      if (payload is! sk_events.EventPayload_Guiding || settled.isCompleted) {
         return;
       }
-      switch (event.eventType) {
-        case 'SettleDone':
+      switch (payload.field0) {
+        case sk_events.GuidingEvent_Settled():
           settled.complete();
-        case 'StarLost':
+        case sk_events.GuidingEvent_LostStar():
           settled.completeError(
               StateError('Guiding lost the star while settling'));
-        case 'GuidingStopped':
+        case sk_events.GuidingEvent_GuidingStopped():
           settled.completeError(StateError('Guiding stopped while settling'));
+        default:
       }
     });
     try {
-      await _guider.startGuiding(
-        settlePixels: settle.pixels,
-        settleTime: settle.time,
-        settleTimeout: settle.timeout,
-      );
+      await _guider.startGuiding();
       // Calibration can precede the first settle, so allow it a few minutes
       // on top of PHD2's own settle timeout.
       await settled.future.timeout(
-        Duration(seconds: settle.timeout.round() + 300),
+        Duration(seconds: settle.timeoutSeconds.round() + 300),
         onTimeout: () =>
             throw TimeoutException('Guiding did not report settled'),
       );
@@ -337,24 +300,7 @@ class ServiceNightRigOps implements NightRigOps {
   }
 
   @override
-  Future<void> dither() {
-    final settle = _settle;
-    final s = _settings;
-    return _guider.dither(
-      amount: _ditherPixels(s?.ditherScale),
-      raOnly: s?.ditherRaOnly == true,
-      settlePixels: settle.pixels,
-      settleTime: settle.time,
-      settleTimeout: settle.timeout,
-    );
-  }
-
-  /// The Guiding screen's scale-to-pixels mapping.
-  static double _ditherPixels(String? scale) => switch (scale) {
-        'Small' => 2.0,
-        'Large' => 10.0,
-        _ => 5.0,
-      };
+  Future<void> dither() => _guider.dither();
 
   @override
   Future<String?> flip() async {

@@ -8,8 +8,8 @@
 //   event/sequencer.rs:118             `detail_json: String`
 //   ffi_backend/event_mapping.dart:534 'detail_json': sequencerEvent.detailJson
 //
-// — so every consumer must decode it first (sequencer_run_event.dart's
-// `decodeStructuredProgressJson`). A consumer that reads it as a Map sees `{}`
+// — so every consumer must decode it first (`decodeStructuredProgressJson`
+// beside the event codec). A consumer that reads it as a Map sees `{}`
 // and counts nothing.
 //
 // The second half of this file pins the id-less boundary: `ExposureCompleted`
@@ -22,7 +22,9 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 SkotiqEvent _seq(String type, Map<String, dynamic> data) => SkotiqEvent(
   timestamp: DateTime.now().microsecondsSinceEpoch,
@@ -52,42 +54,22 @@ void main() {
   const node2 = '9617e5f0-node-two';
 
   test('the wire shape — detail_json as a JSON String — reaches the tally', () {
-    final tally = NodeExposureTallyNotifier();
-    applySequencerEventToNodeExposureTally(
-      tally,
-      _seq('NodeStarted', {'node_id': node1}),
-    );
+    final tally = RunRecordNotifier();
+    _applyTally(tally, _seq('NodeStarted', {'node_id': node1}));
     for (var frame = 1; frame <= 4; frame++) {
-      applySequencerEventToNodeExposureTally(
-        tally,
-        _exposureProgress(node1, frame, 4),
-      );
+      _applyTally(tally, _exposureProgress(node1, frame, 4));
     }
 
     expect(
-      tally.state[node1],
+      tally.state.tally[node1],
       const NodeExposureTally(captured: 4, planned: 4),
       reason: 'the node-addressed source must reach the tally on the real path',
     );
   });
 
-  test('an already-decoded Map payload is still accepted', () {
-    final tally = NodeExposureTallyNotifier();
-    applySequencerEventToNodeExposureTally(
-      tally,
-      _seq('InstructionProgressStructured', {
-        'node_id': node1,
-        'detail_kind': 'Exposure',
-        'detail_json': {'frame': 4, 'total': 4},
-      }),
-    );
-
-    expect(tally.state[node1]?.captured, 4);
-  });
-
   test('a malformed detail_json payload is ignored, not counted', () {
-    final tally = NodeExposureTallyNotifier();
-    applySequencerEventToNodeExposureTally(
+    final tally = RunRecordNotifier();
+    _applyTally(
       tally,
       _seq('InstructionProgressStructured', {
         'node_id': node1,
@@ -96,21 +78,15 @@ void main() {
       }),
     );
 
-    expect(tally.state, isEmpty);
+    expect(tally.state.tally, isEmpty);
   });
 
   test('the node boundary cannot credit node 2 with node 1 frames', () {
-    final tally = NodeExposureTallyNotifier();
-    applySequencerEventToNodeExposureTally(
-      tally,
-      _seq('NodeStarted', {'node_id': node1}),
-    );
+    final tally = RunRecordNotifier();
+    _applyTally(tally, _seq('NodeStarted', {'node_id': node1}));
     for (var frame = 1; frame <= 3; frame++) {
-      applySequencerEventToNodeExposureTally(
-        tally,
-        _exposureProgress(node1, frame, 4),
-      );
-      applySequencerEventToNodeExposureTally(
+      _applyTally(tally, _exposureProgress(node1, frame, 4));
+      _applyTally(
         tally,
         _seq('ExposureCompleted', {
           'frame': frame,
@@ -122,15 +98,9 @@ void main() {
 
     // The waveF ordering: NodeStarted for node 2 is emitted 53 us BEFORE
     // node 1's final frame, so the run's "current node" has already advanced.
-    applySequencerEventToNodeExposureTally(
-      tally,
-      _seq('NodeStarted', {'node_id': node2}),
-    );
-    applySequencerEventToNodeExposureTally(
-      tally,
-      _exposureProgress(node1, 4, 4),
-    );
-    applySequencerEventToNodeExposureTally(
+    _applyTally(tally, _seq('NodeStarted', {'node_id': node2}));
+    _applyTally(tally, _exposureProgress(node1, 4, 4));
+    _applyTally(
       tally,
       _seq('ExposureCompleted', {
         'frame': 4,
@@ -140,24 +110,21 @@ void main() {
     );
 
     expect(
-      tally.state[node1],
+      tally.state.tally[node1],
       const NodeExposureTally(captured: 4, planned: 4),
       reason: 'the finished node captured four frames and must read 4 / 4',
     );
     expect(
-      tally.state[node2],
+      tally.state.tally[node2],
       isNull,
       reason: 'node 2 has captured nothing; crediting it is join-by-position',
     );
   });
 
   test('structured progress with no node id is not attributed to anyone', () {
-    final tally = NodeExposureTallyNotifier();
-    applySequencerEventToNodeExposureTally(
-      tally,
-      _seq('NodeStarted', {'node_id': node1}),
-    );
-    applySequencerEventToNodeExposureTally(
+    final tally = RunRecordNotifier();
+    _applyTally(tally, _seq('NodeStarted', {'node_id': node1}));
+    _applyTally(
       tally,
       _seq('InstructionProgressStructured', {
         'instruction': 'Exposure',
@@ -166,22 +133,21 @@ void main() {
       }),
     );
 
-    expect(tally.state, isEmpty);
+    expect(tally.state.tally, isEmpty);
   });
 
   test('a fresh pass over a node clears the previous pass frames', () {
-    final tally = NodeExposureTallyNotifier();
+    final tally = RunRecordNotifier();
     for (var frame = 1; frame <= 4; frame++) {
-      applySequencerEventToNodeExposureTally(
-        tally,
-        _exposureProgress(node1, frame, 4),
-      );
+      _applyTally(tally, _exposureProgress(node1, frame, 4));
     }
-    applySequencerEventToNodeExposureTally(
-      tally,
-      _seq('NodeStarted', {'node_id': node1}),
-    );
+    _applyTally(tally, _seq('NodeStarted', {'node_id': node1}));
 
-    expect(tally.state[node1], isNull);
+    expect(tally.state.tally[node1], isNull);
   });
+}
+
+void _applyTally(RunRecordNotifier tally, SkotiqEvent event) {
+  final typed = sequencerEventOf(event);
+  if (typed != null) applyRunEventToNodeExposureTally(tally, typed);
 }

@@ -1,0 +1,406 @@
+call connect
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :e1\r
+< =030700\r
+> :a1\r
+< =00B289\r
+> :b1\r
+< =A7FD00\r
+> :a2\r
+< =00B289\r
+> :b2\r
+< =A7FD00\r
+> :f1\r
+< =100\r
+> :f2\r
+< =100\r
+> :j1\r
+< =000080\r
+> :j2\r
+< =000080\r
+> :F1\r
+< =\r
+> :F2\r
+< =\r
+> :E2806CA2\r
+< =\r
+> :f1\r
+< =101\r
+  -> Ok(())
+  id=native:skywatcher:<PORT_ID> name=Sky-Watcher EQ6 (<PORT>) vendor=SkyWatcher connected=true
+  can_slew=true can_sync=true can_pulse_guide=true can_set_tracking_rate=true can_find_home=true can_set_park=false
+call get_coordinates
+> :j1\r
+< =000080\r
+> :j2\r
+< =806CA2\r
+  -> Ok((7.3910359092406, 90.0))
+call slew_to_coordinates(5.5, 20.0)
+> :K1\r
+< =\r
+> :f1\r
+< =101\r
+> :K2\r
+< =\r
+> :f2\r
+< =101\r
+> :j1\r
+< =000080\r
+> :j2\r
+< =806CA2\r
+> :G100\r
+< =\r
+> :I1060000\r
+< =\r
+> :H176D90A\r
+< =\r
+> :M1800C00\r
+< =\r
+> :J1\r
+< =\r
+> :G201\r
+< =\r
+> :I2060000\r
+< =\r
+> :H22BC61A\r
+< =\r
+> :M2800C00\r
+< =\r
+> :J2\r
+< =\r
+  -> Ok(())
+call is_slewing
+> :f1\r
+< =411\r
+> :f2\r
+< =611\r
+  -> Ok(true)
+call is_slewing
+> :f1\r
+< =401\r
+> :f2\r
+< =601\r
+> :j1\r
+< =76D98A\r
+> :j2\r
+< =55A687\r
+  -> Ok(false)
+call is_slewing
+> :f1\r
+< =401\r
+> :f2\r
+< =601\r
+  -> Ok(false)
+call slew_to_coordinates(1.25, -85.5) [mount refuses]
+> :K1\r
+< =\r
+> :f1\r
+< =401\r
+> :K2\r
+< =\r
+> :f2\r
+< =601\r
+> :j1\r
+< =76D98A\r
+> :j2\r
+< =55A687\r
+> :G101\r
+< =\r
+> :I1060000\r
+< =\r
+> :H1D0762C\r
+< =\r
+> :M1800C00\r
+< =\r
+> :J1\r
+< !2\r
+> :K1\r
+< =\r
+> :K2\r
+< =\r
+  -> Err(SdkError("Sky-Watcher mount refused :J1: motor not stopped (!2)"))
+call is_slewing
+> :f1\r
+< =601\r
+> :f2\r
+< =601\r
+  -> Ok(false)
+call sync_to_coordinates(5.5123, -20.2512)
+> :j1\r
+< =76D98A\r
+> :j2\r
+< =55A687\r
+  -> Ok(())
+call set_tracking(false)
+> :K1\r
+< =\r
+  -> Ok(())
+call get_tracking
+> :f1\r
+< =601\r
+  -> Ok(false)
+call set_tracking(true)
+> :f1\r
+< =601\r
+> :G110\r
+< =\r
+> :I16C0200\r
+< =\r
+> :J1\r
+< =\r
+  -> Ok(())
+call get_tracking
+> :f1\r
+< =111\r
+  -> Ok(true)
+call set_tracking_rate(Sidereal)
+> :f1\r
+< =111\r
+> :I16C0200\r
+< =\r
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(Sidereal)
+call set_tracking_rate(Lunar)
+> :f1\r
+< =111\r
+> :I1820200\r
+< =\r
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(Lunar)
+call set_tracking_rate(Solar)
+> :f1\r
+< =111\r
+> :I16D0200\r
+< =\r
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(Solar)
+call set_tracking_rate(King)
+> :f1\r
+< =111\r
+> :I16C0200\r
+< =\r
+  -> Ok(())
+call get_tracking_rate
+  -> Ok(King)
+call set_tracking_rate(Custom)
+  -> Err(NotSupported)
+call get_tracking_rate
+  -> Ok(King)
+call set_tracking_rate(Sidereal)
+> :f1\r
+< =111\r
+> :I16C0200\r
+< =\r
+  -> Ok(())
+call pulse_guide(North, 40)
+> :j2\r
+< =55A687\r
+> :f2\r
+< =601\r
+> :G210\r
+< =\r
+> :I2D80400\r
+< =\r
+> :J2\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+call pulse_guide(South, 40)
+> :j2\r
+< =55A687\r
+> :f2\r
+< =101\r
+> :G211\r
+< =\r
+> :I2D80400\r
+< =\r
+> :J2\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+call pulse_guide(East, 40)
+> :f1\r
+< =111\r
+> :I1D80400\r
+< =\r
+> :I16C0200\r
+< =\r
+  -> Ok(())
+call pulse_guide(West, 40)
+> :f1\r
+< =111\r
+> :I19D0100\r
+< =\r
+> :I16C0200\r
+< =\r
+  -> Ok(())
+call pulse_guide(North, 5)
+> :j2\r
+< =55A687\r
+> :f2\r
+< =301\r
+> :G210\r
+< =\r
+> :I2D80400\r
+< =\r
+> :J2\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+call abort_slew
+> :K1\r
+< =\r
+> :f1\r
+< =101\r
+> :K2\r
+< =\r
+> :f2\r
+< =101\r
+> :f1\r
+< =101\r
+> :G110\r
+< =\r
+> :I16C0200\r
+< =\r
+> :J1\r
+< =\r
+  -> Ok(())
+call get_side_of_pier
+> :j1\r
+< =76D98A\r
+> :j2\r
+< =55A687\r
+  -> Ok(West)
+call get_alt_az
+> :j1\r
+< =76D98A\r
+> :j2\r
+< =55A687\r
+  -> Ok((6.709867706177735, 123.62549450890192))
+call get_sidereal_time
+  -> Ok(1.3910359092405997)
+call get_site
+  -> Err(NotSupported)
+call set_site(40.007714, -75.397448)
+  -> Err(NotSupported)
+call get_clock
+  -> Err(NotSupported)
+call set_clock(1788921000, -4.0)
+  -> Err(NotSupported)
+call find_home
+> :K1\r
+< =\r
+> :f1\r
+< =101\r
+> :K2\r
+< =\r
+> :f2\r
+< =101\r
+> :j1\r
+< =76D98A\r
+> :j2\r
+< =55A687\r
+> :G101\r
+< =\r
+> :I1060000\r
+< =\r
+> :H176D90A\r
+< =\r
+> :M1800C00\r
+< =\r
+> :J1\r
+< =\r
+> :G200\r
+< =\r
+> :I2060000\r
+< =\r
+> :H22BC61A\r
+< =\r
+> :M2800C00\r
+< =\r
+> :J2\r
+< =\r
+  -> Ok(())
+call is_slewing
+> :f1\r
+< =611\r
+> :f2\r
+< =411\r
+  -> Ok(true)
+call is_slewing
+> :f1\r
+< =601\r
+> :f2\r
+< =401\r
+  -> Ok(false)
+call at_home
+> :j1\r
+< =000080\r
+> :j2\r
+< =806CA2\r
+  -> Ok(true)
+call set_park
+  -> Err(NotSupported)
+call park
+> :K1\r
+< =\r
+> :f1\r
+< =601\r
+> :K2\r
+< =\r
+> :f2\r
+< =401\r
+> :j1\r
+< =000080\r
+> :j2\r
+< =806CA2\r
+> :f1\r
+< =601\r
+> :f2\r
+< =401\r
+  -> Ok(())
+call is_parked
+  -> Ok(true)
+call is_slewing
+> :f1\r
+< =601\r
+> :f2\r
+< =401\r
+  -> Ok(false)
+call get_coordinates
+> :j1\r
+< =000080\r
+> :j2\r
+< =806CA2\r
+  -> Ok((7.403337234042553, 49.74881329787234))
+call unpark
+> :f1\r
+< =601\r
+> :G110\r
+< =\r
+> :I16C0200\r
+< =\r
+> :J1\r
+< =\r
+  -> Ok(())
+call is_parked
+  -> Ok(false)
+call get_tracking
+> :f1\r
+< =111\r
+  -> Ok(true)
+call disconnect
+> :K1\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+  connected=false
+call get_coordinates [disconnected]
+  -> Err(NotConnected)

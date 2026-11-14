@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
-import '../darkroom_route.dart';
+import '../../../router/darkroom_route.dart';
 import 'darkroom_image.dart';
 import 'darkroom_status_chip.dart';
 import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 import 'framing_check.dart';
 import 'target_detail.dart';
+import 'package:skotiq_core/providers.dart';
 
-/// Width of the target list beside the detail.
 const double _listWidth = 300;
 const double _listWidthNarrow = 248;
 
 /// Below this width the list narrows.
 const double _narrowWidth = 1100;
 
-/// Thumbnail edge in the target list.
 const double _thumbSize = 56;
 
 /// The Targets tab: every imaged target, and the selected one's detail or its
@@ -49,7 +49,7 @@ class _DarkroomTargetsTabState extends ConsumerState<DarkroomTargetsTab> {
         child: EmptyState(
           icon: SkotiqIcons.imageOff,
           title: 'The captured lights could not be read',
-          body: '$error',
+          body: userFacingError(error),
           action: SkotiqButton(
             label: 'Try again',
             icon: SkotiqIcons.refresh,

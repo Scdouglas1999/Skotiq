@@ -5,23 +5,19 @@
 //!
 //! ## Thread Safety
 //!
-//! The POA SDK is NOT thread-safe. All SDK operations are protected by
-//! `player_one_mutex()` from `crate::sync` to prevent concurrent access.
-//!
-//! ## Timeout Handling
-//!
-//! All SDK operations that can potentially hang (exposure polling, image download)
-//! have configurable timeouts via `NativeTimeoutConfig`.
+//! The POA SDK is NOT thread-safe. The camera and filter-wheel function
+//! tables are only reachable through an `SdkGuard`, and both guards hold the
+//! one `PLAYER_ONE_SDK_LOCK`, so no two Player One calls run concurrently.
 //!
 //! ## `unwrap_or` policy
 //!
 //! POA SDK property reads (`get_control_int`, `get_control_bool`, etc.)
-//! return `Result<T, NativeError>` and may fail with `POA_ERROR_OPERATION_FAILED`
+//! return `Result<T, DriverError>` and may fail with `POA_ERROR_OPERATION_FAILED`
 //! when the camera is mid-exposure or the control hasn't been initialised
 //! yet. The cooler/gain/offset paths here default to the same "fall back to
 //! cached value or zero" semantics as the other vendor crates:
 //!
-//! * `get_control_int(GAIN/OFFSET).unwrap_or(self.current_gain/offset)` — a
+//! * `get_control_int(GAIN/OFFSET).unwrap_or(self.core.gain/offset)` — a
 //!   failed read reports the value this driver last applied: the same two
 //!   numbers become the FITS GAIN/OFFSET cards in `download_image`. The status
 //!   poll stays non-fatal; the next tick retries the live read. `connect` seeds
@@ -48,17 +44,14 @@
 #![allow(clippy::unnecessary_cast)]
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
-use crate::camera::*;
-use crate::sync::player_one_mutex;
-use crate::traits::*;
-use crate::utils::{
-    calculate_buffer_size_i32, safe_cstr_to_string, wait_for_exposure, CleanupGuard,
-};
-use crate::NativeVendor;
+use crate::camera_core::{bayer_from_asi_index, raw16_container_max_adu, CameraCore};
+use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
 use async_trait::async_trait;
+use skotiq_device::camera::*;
+use skotiq_device::Vendor;
+use skotiq_device::*;
 use skotiq_imaging::buffer_pool::global_u8_pool;
 use std::ffi::{c_char, c_int, c_long, CStr};
-use std::sync::Mutex;
 
 mod camera;
 mod camera_ops;
@@ -74,28 +67,3 @@ pub use discovery::*;
 use ffi::*;
 pub use filter_wheel::*;
 pub use sdk::*;
-
-// Cooler state tracking
-
-/// Cooler state tracked at the driver level.
-///
-/// The POA SDK does not provide a guaranteed-to-succeed read-back for the
-/// `POA_COOLER` register on every camera/firmware. We mirror the Atik pattern
-/// (see `vendor/atik.rs`) and remember the last successfully written state so
-/// `get_status` can report it accurately even when the SDK read-back path is
-/// unavailable. When `POAGetConfig(POA_COOLER)` succeeds, that authoritative
-/// value wins and the cached state is refreshed to match.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct CoolerState {
-    pub(crate) enabled: bool,
-    pub(crate) target_c: f64,
-}
-
-impl Default for CoolerState {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            target_c: 0.0,
-        }
-    }
-}

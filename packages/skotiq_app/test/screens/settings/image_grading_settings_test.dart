@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/session_review/auto_integration_service.dart';
 import 'package:skotiq_app/screens/settings/widgets/image_grading_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../harness/harness.dart';
 
@@ -15,7 +16,7 @@ Future<HarnessHandle> _pumpSettings(
     'image_grading_enabled': 'true',
     'image_grading_hfr_threshold_px': '3.5',
     'image_grading_max_consecutive_rejects': '3',
-    kAutoIntegrateSettingKey: 'false',
+    NightEndAutomationSettings.buildKey: 'false',
     ...extraSettings,
   });
   addTearDown(database.close);
@@ -90,7 +91,8 @@ void main() {
     await tester.pump();
 
     expect(tester.widget<TextField>(field).controller!.text, '3');
-    expect(find.text('A value is required.'), findsOneWidget);
+    expect(find.text('Enter a number from 1 to 100 frames.'), findsOneWidget);
+    await tester.pump(SettingsFieldNotice.visibleFor);
     expect(
       handle.container
           .read(appSettingsProvider)

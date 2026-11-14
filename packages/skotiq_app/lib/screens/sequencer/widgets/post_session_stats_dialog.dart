@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import '../run_status_presentation.dart';
+import '../../../widgets/run_status/run_status_presentation.dart';
 
-/// Dialog showing detailed post-session statistics for a sequence run.
 class PostSessionStatsDialog extends StatelessWidget {
   final SkotiqColors colors;
   final String sequenceName;
@@ -26,7 +25,11 @@ class PostSessionStatsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('MMM d, yyyy HH:mm:ss');
+    String stamp(DateTime instant) {
+      final t = instant.toLocal();
+      return '${ClockFormat.monthDayYear(t)} ${ClockFormat.hms(t)}';
+    }
+
     return SkotiqDialog(
       title: 'Session summary',
       icon: LucideIcons.barChart3,
@@ -45,21 +48,16 @@ class PostSessionStatsDialog extends StatelessWidget {
               style: SkotiqTypography.bodyStrong
                   .copyWith(color: colors.textPrimary)),
           const SizedBox(height: SkotiqTokens.spaceLg),
-          // Time info
           _Section(
             colors: colors,
             title: 'Timing',
             icon: LucideIcons.clock,
             children: [
               _StatRow(
-                  colors: colors,
-                  label: 'Started',
-                  value: dateFormat.format(startedAt)),
+                  colors: colors, label: 'Started', value: stamp(startedAt)),
               if (endedAt != null)
                 _StatRow(
-                    colors: colors,
-                    label: 'Ended',
-                    value: dateFormat.format(endedAt!)),
+                    colors: colors, label: 'Ended', value: stamp(endedAt!)),
               _StatRow(
                   colors: colors,
                   label: 'Wall clock',
@@ -81,10 +79,7 @@ class PostSessionStatsDialog extends StatelessWidget {
                 ),
             ],
           ),
-
           const SizedBox(height: 20),
-
-          // Frames
           _Section(
             colors: colors,
             title: 'Frames',
@@ -105,10 +100,7 @@ class PostSessionStatsDialog extends StatelessWidget {
                   value: '${stats.framesCaptured - stats.framesRejected}'),
             ],
           ),
-
           const SizedBox(height: 20),
-
-          // Operations
           _Section(
             colors: colors,
             title: 'Operations',
@@ -132,8 +124,6 @@ class PostSessionStatsDialog extends StatelessWidget {
                   value: '${stats.triggerFires}'),
             ],
           ),
-
-          // Target/Filter Breakdown
           if (stats.targetBreakdown.isNotEmpty) ...[
             const SizedBox(height: 20),
             _Section(
@@ -162,8 +152,6 @@ class PostSessionStatsDialog extends StatelessWidget {
               ],
             ),
           ],
-
-          // Errors
           if (stats.errorMessages.isNotEmpty) ...[
             const SizedBox(height: 20),
             _Section(
@@ -185,7 +173,6 @@ class PostSessionStatsDialog extends StatelessWidget {
               ],
             ),
           ],
-
           if (stats.errorMessages
               .any((message) => runFailureMessage(message) != message))
             ExpansionTile(

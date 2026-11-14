@@ -13,7 +13,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/widgets/discovery_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_backend.dart';
@@ -69,11 +71,17 @@ class _FakeDeviceService extends DeviceService {
   final _FakeCameraNotifier camera;
 
   @override
-  Future<void> connectCamera(String deviceId) async =>
+  Future<void> connect(
+    DeviceType type,
+    String deviceId, {
+    String? host,
+    int? port,
+  }) async =>
       camera._apply(connected: true);
 
   @override
-  Future<void> disconnectCamera() async => camera._apply(connected: false);
+  Future<void> disconnect(DeviceType type) async =>
+      camera._apply(connected: false);
 }
 
 /// `SkotiqIconButton` carries its tooltip through `Semantics` and

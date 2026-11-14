@@ -362,7 +362,6 @@ class SessionReport {
   /// anything was rejected. What an operator opens next after a reject storm.
   final String? rejectFolder;
 
-  /// When the report was generated.
   final DateTime generatedAt;
 
   const SessionReport({

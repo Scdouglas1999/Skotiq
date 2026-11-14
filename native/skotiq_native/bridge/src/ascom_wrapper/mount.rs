@@ -15,8 +15,7 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomMount;
-use skotiq_native::traits::{GuideDirection, NativeDevice, NativeError, NativeMount, TrackingRate};
-use skotiq_native::NativeVendor;
+use skotiq_device::{DeviceDriver, DriverError, GuideDirection, MountDriver, TrackingRate, Vendor};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -39,59 +38,52 @@ pub struct AscomMountCapabilities {
     pub is_equatorial: bool,
 }
 
-/// Worker reply for a `FindHome` the driver says it cannot perform
-/// (`CanFindHome` false). [`AscomMountWrapper::find_home`] turns it into
-/// [`NativeError::NotSupported`] so the refusal reaches the caller as
-/// "unsupported" rather than as a driver fault.
-const FIND_HOME_UNSUPPORTED: &str = "Mount does not support FindHome";
-
-/// Worker reply for a `SetPark` the driver says it cannot perform
-/// (`CanSetPark` false); [`AscomMountWrapper::set_park`] turns it into
-/// [`NativeError::NotSupported`].
-const SET_PARK_UNSUPPORTED: &str = "Mount does not support SetPark";
-
 /// Command sent to the ASCOM worker thread
 enum AscomMountCommand {
-    Connect(oneshot::Sender<Result<(), String>>),
-    Disconnect(oneshot::Sender<Result<(), String>>),
-    SlewToCoordinates(f64, f64, oneshot::Sender<Result<(), String>>),
-    SyncToCoordinates(f64, f64, oneshot::Sender<Result<(), String>>),
-    Park(oneshot::Sender<Result<(), String>>),
-    Unpark(oneshot::Sender<Result<(), String>>),
-    GetCoordinates(oneshot::Sender<Result<(f64, f64), String>>),
-    IsSlewing(oneshot::Sender<Result<bool, String>>),
-    IsParked(oneshot::Sender<Result<bool, String>>),
-    CanPark(oneshot::Sender<Result<bool, String>>),
-    GetCapabilities(oneshot::Sender<Result<AscomMountCapabilities, String>>),
-    Stop(oneshot::Sender<Result<(), String>>),
-    AbortSlew(oneshot::Sender<Result<(), String>>),
-    SetTracking(bool, oneshot::Sender<Result<(), String>>),
-    GetTracking(oneshot::Sender<Result<bool, String>>),
-    PulseGuide(GuideDirection, u32, oneshot::Sender<Result<(), String>>),
-    GetSideOfPier(oneshot::Sender<Result<skotiq_native::traits::PierSide, String>>),
-    GetAltAz(oneshot::Sender<Result<(f64, f64), String>>),
-    GetSiderealTime(oneshot::Sender<Result<f64, String>>),
+    Connect(oneshot::Sender<Result<(), DriverError>>),
+    Disconnect(oneshot::Sender<Result<(), DriverError>>),
+    SlewToCoordinates(f64, f64, oneshot::Sender<Result<(), DriverError>>),
+    SyncToCoordinates(f64, f64, oneshot::Sender<Result<(), DriverError>>),
+    Park(oneshot::Sender<Result<(), DriverError>>),
+    Unpark(oneshot::Sender<Result<(), DriverError>>),
+    GetCoordinates(oneshot::Sender<Result<(f64, f64), DriverError>>),
+    IsSlewing(oneshot::Sender<Result<bool, DriverError>>),
+    IsParked(oneshot::Sender<Result<bool, DriverError>>),
+    CanPark(oneshot::Sender<Result<bool, DriverError>>),
+    GetCapabilities(oneshot::Sender<Result<AscomMountCapabilities, DriverError>>),
+    AbortSlew(oneshot::Sender<Result<(), DriverError>>),
+    SetTracking(bool, oneshot::Sender<Result<(), DriverError>>),
+    GetTracking(oneshot::Sender<Result<bool, DriverError>>),
+    PulseGuide(
+        GuideDirection,
+        u32,
+        oneshot::Sender<Result<(), DriverError>>,
+    ),
+    GetSideOfPier(oneshot::Sender<Result<skotiq_device::PierSide, DriverError>>),
+    GetAltAz(oneshot::Sender<Result<(f64, f64), DriverError>>),
+    GetSiderealTime(oneshot::Sender<Result<f64, DriverError>>),
     // Tracking rate commands
-    SetTrackingRate(i32, oneshot::Sender<Result<(), String>>),
-    GetTrackingRate(oneshot::Sender<Result<i32, String>>),
+    SetTrackingRate(i32, oneshot::Sender<Result<(), DriverError>>),
+    GetTrackingRate(oneshot::Sender<Result<i32, DriverError>>),
     // Axis movement commands (for jogging)
-    MoveAxis(i32, f64, oneshot::Sender<Result<(), String>>),
-    // Alt/Az slew
-    SlewToAltAz(f64, f64, oneshot::Sender<Result<(), String>>),
-    // Find home
-    FindHome(oneshot::Sender<Result<(), String>>),
-    AtHome(oneshot::Sender<Result<bool, String>>),
+    MoveAxis(i32, f64, oneshot::Sender<Result<(), DriverError>>),
+    SlewToAltAz(f64, f64, oneshot::Sender<Result<(), DriverError>>),
+    FindHome(oneshot::Sender<Result<(), DriverError>>),
+    AtHome(oneshot::Sender<Result<bool, DriverError>>),
     // Store the current position as the park position
-    SetPark(oneshot::Sender<Result<(), String>>),
-    GetSite(oneshot::Sender<Result<(f64, f64, Option<f64>), String>>),
-    SetSite(f64, f64, Option<f64>, oneshot::Sender<Result<(), String>>),
-    GetUtcDate(oneshot::Sender<Result<f64, String>>),
-    SetUtcDate(f64, oneshot::Sender<Result<(), String>>),
+    SetPark(oneshot::Sender<Result<(), DriverError>>),
+    GetSite(oneshot::Sender<Result<(f64, f64, Option<f64>), DriverError>>),
+    SetSite(
+        f64,
+        f64,
+        Option<f64>,
+        oneshot::Sender<Result<(), DriverError>>,
+    ),
+    GetUtcDate(oneshot::Sender<Result<f64, DriverError>>),
+    GetEquatorialSystem(oneshot::Sender<Result<i32, DriverError>>),
+    IsPulseGuiding(oneshot::Sender<Result<bool, DriverError>>),
+    SetUtcDate(f64, oneshot::Sender<Result<(), DriverError>>),
     // Version query commands
-    GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
-    GetDriverVersion(oneshot::Sender<Result<String, String>>),
-    GetDriverInfo(oneshot::Sender<Result<String, String>>),
-    GetSupportedActions(oneshot::Sender<Result<Vec<String>, String>>),
 }
 
 impl AscomMountCommand {
@@ -135,13 +127,13 @@ impl AscomMountWrapper {
     /// holding whatever device locks its caller holds: on the rig that froze
     /// every device request in the app behind one stuck mount. Give up after
     /// the write timeout instead, as every reply wait already does.
-    async fn enqueue(&self, command: AscomMountCommand) -> Result<(), NativeError> {
+    async fn enqueue(&self, command: AscomMountCommand) -> Result<(), DriverError> {
         match tokio::time::timeout(Timeouts::property_write(), self.sender.send(command)).await {
             Ok(Ok(())) => Ok(()),
-            Ok(Err(_)) => Err(NativeError::Unknown(
+            Ok(Err(_)) => Err(DriverError::Unknown(
                 "ASCOM mount worker thread is not running".to_string(),
             )),
-            Err(_) => Err(NativeError::Timeout(format!(
+            Err(_) => Err(DriverError::Timeout(format!(
                 "ASCOM mount {} is not taking commands: an earlier driver call has not returned",
                 self.id
             ))),
@@ -200,26 +192,29 @@ impl AscomMountWrapper {
                 match cmd {
                     AscomMountCommand::Connect(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.connect().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.connect().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::Disconnect(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.disconnect().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.disconnect().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::SlewToCoordinates(ra, dec, reply) => {
                         if let Some(m) = &mut mount {
                             let _ = reply.send(
                                 m.slew_to_coordinates_async(ra, dec)
-                                    .map_err(|e| e.to_string()),
+                                    .map_err(super::ascom_error),
                             );
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::SyncToCoordinates(ra, dec, reply) => {
@@ -227,46 +222,51 @@ impl AscomMountWrapper {
                             match m.can_sync() {
                                 Ok(true) => {
                                     let _ = reply.send(
-                                        m.sync_to_coordinates(ra, dec).map_err(|e| e.to_string()),
+                                        m.sync_to_coordinates(ra, dec).map_err(super::ascom_error),
                                     );
                                 }
                                 Ok(false) => {
-                                    let _ =
-                                        reply.send(Err("Mount does not support Sync".to_string()));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
-                                    let _ =
-                                        reply.send(Err(format!("Failed to check CanSync: {}", e)));
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
+                                        "Failed to check CanSync: {}",
+                                        e
+                                    ))));
                                 }
                             }
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::Park(reply) => {
                         if let Some(m) = &mut mount {
                             match m.can_park() {
                                 Ok(true) => {
-                                    let _ = reply.send(m.park().map_err(|e| e.to_string()));
+                                    let _ = reply.send(m.park().map_err(super::ascom_error));
                                 }
                                 Ok(false) => {
-                                    let _ =
-                                        reply.send(Err("Mount does not support Park".to_string()));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
-                                    let _ =
-                                        reply.send(Err(format!("Failed to check CanPark: {}", e)));
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
+                                        "Failed to check CanPark: {}",
+                                        e
+                                    ))));
                                 }
                             }
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::Unpark(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.unpark().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.unpark().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::GetCoordinates(reply) => {
@@ -278,35 +278,45 @@ impl AscomMountWrapper {
                                     let _ = reply.send(Ok((ra, dec)));
                                 }
                                 (Err(e), _) => {
-                                    let _ = reply.send(Err(format!("Failed to get RA: {}", e)));
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
+                                        "Failed to get RA: {}",
+                                        e
+                                    ))));
                                 }
                                 (_, Err(e)) => {
-                                    let _ = reply.send(Err(format!("Failed to get DEC: {}", e)));
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
+                                        "Failed to get DEC: {}",
+                                        e
+                                    ))));
                                 }
                             }
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::IsSlewing(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.slewing().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.slewing().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::IsParked(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.at_park().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.at_park().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::CanPark(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.can_park().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.can_park().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::GetCapabilities(reply) => {
@@ -329,32 +339,38 @@ impl AscomMountWrapper {
                                 can_move_axis_secondary: ascom_caps
                                     .can_move_axis_secondary
                                     .unwrap_or(false),
-                                is_equatorial: m.alignment_mode().map(|m| m > 0).unwrap_or(false),
+                                is_equatorial: m.alignment_mode().is_ok_and(|mode| {
+                                    skotiq_device::ascom::AlignmentMode::from(mode).is_equatorial()
+                                }),
                             };
                             let _ = reply.send(Ok(caps));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::AbortSlew(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.abort_slew().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.abort_slew().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::SetTracking(enabled, reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.set_tracking(enabled).map_err(|e| e.to_string()));
+                            let _ = reply.send(m.set_tracking(enabled).map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::GetTracking(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.tracking().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.tracking().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::PulseGuide(dir, duration, reply) => {
@@ -367,30 +383,31 @@ impl AscomMountWrapper {
                                 GuideDirection::West => 3,
                             };
                             let _ =
-                                reply.send(m.pulse_guide(d, duration).map_err(|e| e.to_string()));
+                                reply.send(m.pulse_guide(d, duration).map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::GetSideOfPier(reply) => {
                         if let Some(m) = &mut mount {
                             match m.side_of_pier() {
                                 Ok(0) => {
-                                    let _ = reply.send(Ok(skotiq_native::traits::PierSide::East));
+                                    let _ = reply.send(Ok(skotiq_device::PierSide::East));
                                 }
                                 Ok(1) => {
-                                    let _ = reply.send(Ok(skotiq_native::traits::PierSide::West));
+                                    let _ = reply.send(Ok(skotiq_device::PierSide::West));
                                 }
                                 Ok(_) => {
-                                    let _ =
-                                        reply.send(Ok(skotiq_native::traits::PierSide::Unknown));
+                                    let _ = reply.send(Ok(skotiq_device::PierSide::Unknown));
                                 }
                                 Err(e) => {
-                                    let _ = reply.send(Err(e.to_string()));
+                                    let _ = reply.send(Err(DriverError::SdkError(e.to_string())));
                                 }
                             }
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::GetAltAz(reply) => {
@@ -402,86 +419,63 @@ impl AscomMountWrapper {
                                     let _ = reply.send(Ok((alt, az)));
                                 }
                                 (Err(e), _) => {
-                                    let _ = reply.send(Err(format!("Failed to get Alt: {}", e)));
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
+                                        "Failed to get Alt: {}",
+                                        e
+                                    ))));
                                 }
                                 (_, Err(e)) => {
-                                    let _ = reply.send(Err(format!("Failed to get Az: {}", e)));
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
+                                        "Failed to get Az: {}",
+                                        e
+                                    ))));
                                 }
                             }
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::GetSiderealTime(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.sidereal_time().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.sidereal_time().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::SetTrackingRate(rate, reply) => {
                         if let Some(m) = &mut mount {
                             let _ =
-                                reply.send(m.set_tracking_rate(rate).map_err(|e| e.to_string()));
+                                reply.send(m.set_tracking_rate(rate).map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::GetTrackingRate(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.tracking_rate().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.tracking_rate().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::MoveAxis(axis, rate, reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.move_axis(axis, rate).map_err(|e| e.to_string()));
+                            let _ = reply.send(m.move_axis(axis, rate).map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
-                        }
-                    }
-                    AscomMountCommand::GetInterfaceVersion(reply) => {
-                        if let Some(ref m) = mount {
-                            let _ = reply.send(m.interface_version());
-                        } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
-                        }
-                    }
-                    AscomMountCommand::GetDriverVersion(reply) => {
-                        if let Some(ref m) = mount {
-                            let _ = reply.send(m.driver_version());
-                        } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
-                        }
-                    }
-                    AscomMountCommand::GetDriverInfo(reply) => {
-                        if let Some(ref m) = mount {
-                            let _ = reply.send(m.driver_info());
-                        } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
-                        }
-                    }
-                    AscomMountCommand::GetSupportedActions(reply) => {
-                        if let Some(ref m) = mount {
-                            let _ = reply.send(m.supported_actions());
-                        } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
-                        }
-                    }
-                    AscomMountCommand::Stop(reply) => {
-                        if let Some(m) = &mut mount {
-                            let _ = reply.send(m.abort_slew().map_err(|e| e.to_string()));
-                        } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::SlewToAltAz(alt, az, reply) => {
                         if let Some(m) = &mut mount {
                             let _ = reply
-                                .send(m.slew_to_alt_az_async(alt, az).map_err(|e| e.to_string()));
+                                .send(m.slew_to_alt_az_async(alt, az).map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::GetSite(reply) => {
@@ -493,9 +487,10 @@ impl AscomMountWrapper {
                                     (lat, lon, m.site_elevation().ok())
                                 })
                             });
-                            let _ = reply.send(site);
+                            let _ = reply.send(site.map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::SetSite(lat, lon, elevation, reply) => {
@@ -514,66 +509,92 @@ impl AscomMountWrapper {
                                     }
                                 })
                             });
-                            let _ = reply.send(result);
+                            let _ = reply.send(result.map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::GetUtcDate(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.utc_date());
+                            let _ = reply.send(m.utc_date().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
+                        }
+                    }
+                    AscomMountCommand::IsPulseGuiding(reply) => {
+                        if let Some(m) = &mut mount {
+                            let _ = reply.send(m.is_pulse_guiding().map_err(super::ascom_error));
+                        } else {
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
+                        }
+                    }
+                    AscomMountCommand::GetEquatorialSystem(reply) => {
+                        if let Some(m) = &mut mount {
+                            let _ = reply.send(m.equatorial_system().map_err(super::ascom_error));
+                        } else {
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::SetUtcDate(value, reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.set_utc_date(value));
+                            let _ = reply.send(m.set_utc_date(value).map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::FindHome(reply) => {
                         if let Some(m) = &mut mount {
                             match m.can_find_home() {
                                 Ok(true) => {
-                                    let _ = reply.send(m.find_home().map_err(|e| e.to_string()));
+                                    let _ = reply.send(m.find_home().map_err(super::ascom_error));
                                 }
                                 Ok(false) => {
-                                    let _ = reply.send(Err(FIND_HOME_UNSUPPORTED.to_string()));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
-                                    let _ = reply
-                                        .send(Err(format!("Failed to check CanFindHome: {}", e)));
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
+                                        "Failed to check CanFindHome: {}",
+                                        e
+                                    ))));
                                 }
                             }
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::AtHome(reply) => {
                         if let Some(m) = &mut mount {
-                            let _ = reply.send(m.at_home().map_err(|e| e.to_string()));
+                            let _ = reply.send(m.at_home().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                     AscomMountCommand::SetPark(reply) => {
                         if let Some(m) = &mut mount {
                             match m.can_set_park() {
                                 Ok(true) => {
-                                    let _ = reply.send(m.set_park().map_err(|e| e.to_string()));
+                                    let _ = reply.send(m.set_park().map_err(super::ascom_error));
                                 }
                                 Ok(false) => {
-                                    let _ = reply.send(Err(SET_PARK_UNSUPPORTED.to_string()));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
-                                    let _ = reply
-                                        .send(Err(format!("Failed to check CanSetPark: {}", e)));
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
+                                        "Failed to check CanSetPark: {}",
+                                        e
+                                    ))));
                                 }
                             }
                         } else {
-                            let _ = reply.send(Err("Mount not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
                 }
@@ -590,35 +611,17 @@ impl AscomMountWrapper {
         })
     }
 
-    /// Helper to receive a response with a timeout
-    async fn recv_with_timeout<T>(
-        rx: oneshot::Receiver<Result<T, String>>,
-        timeout: Duration,
-        operation: &str,
-    ) -> Result<T, NativeError> {
-        match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result.map_err(|e| NativeError::SdkError(e)),
-            Ok(Err(_recv_err)) => Err(NativeError::Unknown(format!(
-                "Worker thread dead during {}",
-                operation
-            ))),
-            Err(_elapsed) => Err(NativeError::Timeout(format!(
-                "Mount {} timed out after {:?}",
-                operation, timeout
-            ))),
-        }
-    }
-
     /// Get the mount's capabilities by querying the ASCOM device
     ///
     /// This queries all capability-related properties from the mount and returns
     /// a comprehensive capabilities struct. The device should be connected before
     /// calling this method.
-    pub async fn get_capabilities(&self) -> Result<AscomMountCapabilities, NativeError> {
+    pub async fn get_capabilities(&self) -> Result<AscomMountCapabilities, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetCapabilities(tx)).await?;
         let mut caps =
-            Self::recv_with_timeout(rx, Timeouts::property_read(), "get_capabilities").await?;
+            super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_capabilities")
+                .await?;
         match self.can_park().await {
             Ok(can_park) => {
                 caps.can_park = can_park;
@@ -630,23 +633,23 @@ impl AscomMountWrapper {
         Ok(caps)
     }
 
-    pub async fn can_park(&self) -> Result<bool, NativeError> {
+    pub async fn can_park(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::CanPark(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "can_park").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "can_park").await
     }
 
-    pub async fn slew_to_alt_az(&self, alt: f64, az: f64) -> Result<(), NativeError> {
+    pub async fn slew_to_alt_az(&self, alt: f64, az: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SlewToAltAz(alt, az, tx))
             .await?;
-        Self::recv_with_timeout(rx, Timeouts::long_slew(), "slew_to_alt_az").await
+        super::recv_with_timeout("Mount", rx, Timeouts::long_slew(), "slew_to_alt_az").await
     }
 
-    pub async fn get_site(&self) -> Result<(f64, f64, Option<f64>), NativeError> {
+    pub async fn get_site(&self) -> Result<(f64, f64, Option<f64>), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetSite(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_site").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_site").await
     }
 
     pub async fn set_site(
@@ -654,7 +657,7 @@ impl AscomMountWrapper {
         latitude_deg: f64,
         longitude_deg: f64,
         elevation_m: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetSite(
             latitude_deg,
@@ -663,21 +666,36 @@ impl AscomMountWrapper {
             tx,
         ))
         .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_site").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_site").await
     }
 
     /// UTCDate as an OLE Automation date (days since 1899-12-30).
-    pub async fn get_utc_date(&self) -> Result<f64, NativeError> {
+    pub async fn get_utc_date(&self) -> Result<f64, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetUtcDate(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_utc_date").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_utc_date").await
     }
 
-    pub async fn set_utc_date(&self, utc_date: f64) -> Result<(), NativeError> {
+    /// `IsPulseGuiding`: whether a guide pulse is still running.
+    pub async fn is_pulse_guiding(&self) -> Result<bool, DriverError> {
+        let (tx, rx) = oneshot::channel();
+        self.enqueue(AscomMountCommand::IsPulseGuiding(tx)).await?;
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "is_pulse_guiding").await
+    }
+
+    /// `EquatorialSystem`: the frame the driver takes and reports RA/Dec in.
+    pub async fn equatorial_system(&self) -> Result<i32, DriverError> {
+        let (tx, rx) = oneshot::channel();
+        self.enqueue(AscomMountCommand::GetEquatorialSystem(tx))
+            .await?;
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "equatorial_system").await
+    }
+
+    pub async fn set_utc_date(&self, utc_date: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetUtcDate(utc_date, tx))
             .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_utc_date").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_utc_date").await
     }
 
     /// Send the mount to its home position through the COM worker.
@@ -685,49 +703,33 @@ impl AscomMountWrapper {
     /// ITelescopeV3 drivers implement `FindHome` synchronously and hand the
     /// call back when the mount arrives, so the wait is bounded by the
     /// find-home timeout rather than a property-read one. A driver whose
-    /// `CanFindHome` is false answers [`NativeError::NotSupported`].
-    pub async fn find_home(&self) -> Result<(), NativeError> {
+    /// `CanFindHome` is false answers [`DriverError::NotSupported`].
+    pub async fn find_home(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::FindHome(tx)).await?;
-        match Self::recv_with_timeout(rx, Timeouts::find_home(), "find_home").await {
-            Err(NativeError::SdkError(message)) if message == FIND_HOME_UNSUPPORTED => {
-                Err(NativeError::NotSupported)
-            }
-            other => other,
-        }
+        super::recv_with_timeout("Mount", rx, Timeouts::find_home(), "find_home").await
     }
 
     /// Store the current position as the park position through the COM
     /// worker. A driver whose `CanSetPark` is false answers
-    /// [`NativeError::NotSupported`].
-    pub async fn set_park(&self) -> Result<(), NativeError> {
+    /// [`DriverError::NotSupported`].
+    pub async fn set_park(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetPark(tx)).await?;
-        match Self::recv_with_timeout(rx, Timeouts::property_write(), "set_park").await {
-            Err(NativeError::SdkError(message)) if message == SET_PARK_UNSUPPORTED => {
-                Err(NativeError::NotSupported)
-            }
-            other => other,
-        }
+        super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_park").await
     }
 
     /// `AtHome`: whether the mount is stopped at its home position. ASCOM sets
     /// it only after a `FindHome` and clears it on the next slew.
-    pub async fn at_home(&self) -> Result<bool, NativeError> {
+    pub async fn at_home(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::AtHome(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "at_home").await
-    }
-
-    pub async fn stop(&self) -> Result<(), NativeError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::Stop(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::connection(), "stop").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "at_home").await
     }
 }
 
 #[async_trait::async_trait]
-impl NativeDevice for AscomMountWrapper {
+impl DeviceDriver for AscomMountWrapper {
     fn id(&self) -> &str {
         &self.id
     }
@@ -736,43 +738,33 @@ impl NativeDevice for AscomMountWrapper {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Ascom
+    fn vendor(&self) -> Vendor {
+        Vendor::Ascom
     }
 
     fn is_connected(&self) -> bool {
         self.connected.load(Ordering::SeqCst)
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::Connect(tx)).await?;
-        let result = Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await;
+        let result = super::recv_with_timeout("Mount", rx, Timeouts::connection(), "connect").await;
         if result.is_ok() {
             self.connected.store(true, Ordering::SeqCst);
         }
         result
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
-        // Best-effort: halt any in-progress slew before disconnecting. A PARKED
-        // mount cannot be slewing, and some drivers (e.g. PegasusAstro NYX)
-        // raise "Mount is parked" from AbortSlew — that is an expected benign
-        // state, not a failure, so don't alarm the user with a WARN over it.
-        if let Err(err) = self.stop().await {
-            if err.to_string().to_lowercase().contains("parked") {
-                tracing::debug!(
-                    "Skipping slew-abort before disconnect (mount parked): {}",
-                    err
-                );
-            } else {
-                tracing::warn!("Failed to stop mount before disconnect: {}", err);
-            }
-        }
+    /// Releases the driver without commanding the mount, as the Alpaca path
+    /// does: a slew still running belongs to whoever started it (the user in
+    /// the driver's own app or the hand controller, often), and the driver
+    /// keeps the hardware for its other clients.
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::Disconnect(tx)).await?;
         let disconnect_result =
-            Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
+            super::recv_with_timeout("Mount", rx, Timeouts::connection(), "disconnect").await;
         match disconnect_result {
             Err(err) => Err(err),
             Ok(()) => {
@@ -784,57 +776,63 @@ impl NativeDevice for AscomMountWrapper {
 }
 
 #[async_trait::async_trait]
-impl NativeMount for AscomMountWrapper {
-    async fn slew_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), NativeError> {
+impl MountDriver for AscomMountWrapper {
+    async fn slew_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SlewToCoordinates(ra, dec, tx))
             .await?;
         // Slews can take a long time
-        Self::recv_with_timeout(rx, Timeouts::long_slew(), "slew_to_coordinates").await
+        super::recv_with_timeout("Mount", rx, Timeouts::long_slew(), "slew_to_coordinates").await
     }
 
-    async fn sync_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), NativeError> {
+    async fn sync_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SyncToCoordinates(ra, dec, tx))
             .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "sync_to_coordinates").await
+        super::recv_with_timeout(
+            "Mount",
+            rx,
+            Timeouts::property_write(),
+            "sync_to_coordinates",
+        )
+        .await
     }
 
-    async fn park(&mut self) -> Result<(), NativeError> {
+    async fn park(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::Park(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::park(), "park").await
+        super::recv_with_timeout("Mount", rx, Timeouts::park(), "park").await
     }
 
-    async fn unpark(&mut self) -> Result<(), NativeError> {
+    async fn unpark(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::Unpark(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::park(), "unpark").await
+        super::recv_with_timeout("Mount", rx, Timeouts::park(), "unpark").await
     }
 
-    async fn get_coordinates(&self) -> Result<(f64, f64), NativeError> {
+    async fn get_coordinates(&self) -> Result<(f64, f64), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetCoordinates(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_coordinates").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_coordinates").await
     }
 
-    async fn is_slewing(&self) -> Result<bool, NativeError> {
+    async fn is_slewing(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::IsSlewing(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "is_slewing").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "is_slewing").await
     }
 
-    async fn is_parked(&self) -> Result<bool, NativeError> {
+    async fn is_parked(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::IsParked(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "is_parked").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "is_parked").await
     }
 
     async fn pulse_guide(
         &mut self,
         direction: GuideDirection,
         duration_ms: u32,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::PulseGuide(direction, duration_ms, tx))
             .await?;
@@ -843,65 +841,66 @@ impl NativeMount for AscomMountWrapper {
         // milliseconds (≤ a few thousand for real guiding); u32 → u64
         // widening, exact.
         let timeout = Duration::from_millis(u64::from(duration_ms)) + Timeouts::short_slew();
-        Self::recv_with_timeout(rx, timeout, "pulse_guide").await
+        super::recv_with_timeout("Mount", rx, timeout, "pulse_guide").await
     }
 
-    async fn abort_slew(&mut self) -> Result<(), NativeError> {
+    async fn abort_slew(&mut self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::AbortSlew(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "abort_slew").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "abort_slew").await
     }
 
-    async fn set_tracking(&mut self, enabled: bool) -> Result<(), NativeError> {
+    async fn set_tracking(&mut self, enabled: bool) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetTracking(enabled, tx))
             .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_tracking").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_tracking").await
     }
 
-    async fn get_tracking(&self) -> Result<bool, NativeError> {
+    async fn get_tracking(&self) -> Result<bool, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetTracking(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_tracking").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_tracking").await
     }
 
-    async fn get_side_of_pier(&self) -> Result<skotiq_native::traits::PierSide, NativeError> {
+    async fn get_side_of_pier(&self) -> Result<skotiq_device::PierSide, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetSideOfPier(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_side_of_pier").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_side_of_pier").await
     }
 
-    async fn get_alt_az(&self) -> Result<(f64, f64), NativeError> {
+    async fn get_alt_az(&self) -> Result<(f64, f64), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetAltAz(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_alt_az").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_alt_az").await
     }
 
-    async fn get_sidereal_time(&self) -> Result<f64, NativeError> {
+    async fn get_sidereal_time(&self) -> Result<f64, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetSiderealTime(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_sidereal_time").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_sidereal_time").await
     }
 
-    async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), NativeError> {
+    async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError> {
         let rate_int = match rate {
             TrackingRate::Sidereal => 0,
             TrackingRate::Lunar => 1,
             TrackingRate::Solar => 2,
             TrackingRate::King => 3,
-            TrackingRate::Custom => return Err(NativeError::NotSupported),
+            TrackingRate::Custom => return Err(DriverError::NotSupported),
         };
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetTrackingRate(rate_int, tx))
             .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_tracking_rate").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_tracking_rate").await
     }
 
-    async fn get_tracking_rate(&self) -> Result<TrackingRate, NativeError> {
+    async fn get_tracking_rate(&self) -> Result<TrackingRate, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetTrackingRate(tx)).await?;
         let rate_int =
-            Self::recv_with_timeout(rx, Timeouts::property_read(), "get_tracking_rate").await?;
+            super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_tracking_rate")
+                .await?;
         match rate_int {
             0 => Ok(TrackingRate::Sidereal),
             1 => Ok(TrackingRate::Lunar),
@@ -911,79 +910,37 @@ impl NativeMount for AscomMountWrapper {
         }
     }
 
-    fn can_slew(&self) -> bool {
+    async fn can_slew(&self) -> bool {
         true
     }
 
-    fn can_sync(&self) -> bool {
+    async fn can_sync(&self) -> bool {
         true
     }
 
-    fn can_pulse_guide(&self) -> bool {
+    async fn can_pulse_guide(&self) -> bool {
         true
-    }
-
-    fn can_set_tracking_rate(&self) -> bool {
-        false
     }
 }
 
-// Additional mount control methods (not in NativeMount trait)
+// Additional mount control methods (not in MountDriver trait)
 impl AscomMountWrapper {
     /// Set the tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
-    pub async fn set_tracking_rate_raw(&mut self, rate: i32) -> Result<(), NativeError> {
+    pub async fn set_tracking_rate_raw(&mut self, rate: i32) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetTrackingRate(rate, tx))
             .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_tracking_rate").await
-    }
-
-    /// Get the current tracking rate (0=Sidereal, 1=Lunar, 2=Solar, 3=King)
-    pub async fn get_tracking_rate_raw(&self) -> Result<i32, NativeError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::GetTrackingRate(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_tracking_rate").await
+        super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_tracking_rate").await
     }
 
     /// Move an axis at the specified rate (degrees/second)
     /// axis: 0=RA/Azimuth (primary), 1=Dec/Altitude (secondary)
     /// rate: degrees per second (positive = N/E, negative = S/W), 0 to stop
-    pub async fn move_axis(&mut self, axis: i32, rate: f64) -> Result<(), NativeError> {
+    pub async fn move_axis(&mut self, axis: i32, rate: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::MoveAxis(axis, rate, tx))
             .await?;
-        Self::recv_with_timeout(rx, Timeouts::short_slew(), "move_axis").await
-    }
-
-    /// Get the ASCOM interface version number
-    pub async fn interface_version(&self) -> Result<i32, NativeError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::GetInterfaceVersion(tx))
-            .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
-    }
-
-    /// Get the driver version string
-    pub async fn driver_version(&self) -> Result<String, NativeError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::GetDriverVersion(tx))
-            .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_version").await
-    }
-
-    /// Get the driver info/description
-    pub async fn driver_info(&self) -> Result<String, NativeError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::GetDriverInfo(tx)).await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
-    }
-
-    /// Get the list of supported actions
-    pub async fn supported_actions(&self) -> Result<Vec<String>, NativeError> {
-        let (tx, rx) = oneshot::channel();
-        self.enqueue(AscomMountCommand::GetSupportedActions(tx))
-            .await?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "supported_actions").await
+        super::recv_with_timeout("Mount", rx, Timeouts::short_slew(), "move_axis").await
     }
 }
 
@@ -999,7 +956,7 @@ pub(crate) mod test_support {
         pub tracking: bool,
         pub slewing: bool,
         pub parked: bool,
-        pub side_of_pier: skotiq_native::traits::PierSide,
+        pub side_of_pier: skotiq_device::PierSide,
         pub sidereal_time: f64,
         pub can_park: bool,
     }
@@ -1012,7 +969,7 @@ pub(crate) mod test_support {
                 tracking: false,
                 slewing: false,
                 parked: false,
-                side_of_pier: skotiq_native::traits::PierSide::Unknown,
+                side_of_pier: skotiq_device::PierSide::Unknown,
                 sidereal_time: 0.0,
                 can_park: false,
             }
@@ -1048,9 +1005,6 @@ pub(crate) mod test_support {
                     AscomMountCommand::CanPark(reply) => {
                         let _ = reply.send(Ok(responses.can_park));
                     }
-                    AscomMountCommand::Stop(reply) => {
-                        let _ = reply.send(Ok(()));
-                    }
                     _ => {}
                 }
             }
@@ -1061,6 +1015,178 @@ pub(crate) mod test_support {
             name: "Test Mount".to_string(),
             sender: tx,
             connected: std::sync::atomic::AtomicBool::new(false),
+        }
+    }
+
+    /// A connected wrapper whose worker answers every command, keeps the
+    /// state the commands change (tracking, parked, position, tracking rate)
+    /// and hands each command's name and arguments to `saw` before answering.
+    /// The mount starts parked, not tracking, at RA 5.5 h / Dec 22 degrees.
+    pub fn build_recording_mount_wrapper(
+        saw: impl Fn(String) + Send + 'static,
+    ) -> AscomMountWrapper {
+        let (tx, mut rx) = mpsc::channel(8);
+        let _handle = thread::spawn(move || {
+            let (mut tracking, mut parked, mut rate) = (false, true, 0);
+            let mut position = (5.5, 22.0);
+            while let Some(cmd) = crate::ascom_wrapper::pump_blocking_recv(&mut rx) {
+                use AscomMountCommand::*;
+                match cmd {
+                    Connect(reply) => {
+                        saw("Connect".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    Disconnect(reply) => {
+                        saw("Disconnect".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    SlewToCoordinates(ra, dec, reply) => {
+                        saw(format!("SlewToCoordinates {ra:.1} {dec:.1}"));
+                        position = (ra, dec);
+                        let _ = reply.send(Ok(()));
+                    }
+                    SyncToCoordinates(ra, dec, reply) => {
+                        saw(format!("SyncToCoordinates {ra:.1} {dec:.1}"));
+                        position = (ra, dec);
+                        let _ = reply.send(Ok(()));
+                    }
+                    Park(reply) => {
+                        saw("Park".into());
+                        parked = true;
+                        tracking = false;
+                        let _ = reply.send(Ok(()));
+                    }
+                    Unpark(reply) => {
+                        saw("Unpark".into());
+                        parked = false;
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetCoordinates(reply) => {
+                        saw("GetCoordinates".into());
+                        let _ = reply.send(Ok(position));
+                    }
+                    IsSlewing(reply) => {
+                        saw("IsSlewing".into());
+                        let _ = reply.send(Ok(false));
+                    }
+                    IsParked(reply) => {
+                        saw("IsParked".into());
+                        let _ = reply.send(Ok(parked));
+                    }
+                    CanPark(reply) => {
+                        saw("CanPark".into());
+                        let _ = reply.send(Ok(true));
+                    }
+                    GetCapabilities(reply) => {
+                        saw("GetCapabilities".into());
+                        let _ = reply.send(Ok(AscomMountCapabilities {
+                            can_slew: true,
+                            can_slew_async: true,
+                            can_sync: true,
+                            can_park: true,
+                            can_unpark: true,
+                            can_set_park: true,
+                            can_pulse_guide: true,
+                            can_set_tracking: true,
+                            can_find_home: true,
+                            can_move_axis_primary: true,
+                            can_move_axis_secondary: true,
+                            is_equatorial: true,
+                        }));
+                    }
+                    AbortSlew(reply) => {
+                        saw("AbortSlew".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    SetTracking(on, reply) => {
+                        saw(format!("SetTracking {on}"));
+                        tracking = on;
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetTracking(reply) => {
+                        saw("GetTracking".into());
+                        let _ = reply.send(Ok(tracking));
+                    }
+                    PulseGuide(direction, ms, reply) => {
+                        saw(format!("PulseGuide {direction:?} {ms}"));
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetSideOfPier(reply) => {
+                        saw("GetSideOfPier".into());
+                        let _ = reply.send(Ok(skotiq_device::PierSide::East));
+                    }
+                    GetAltAz(reply) => {
+                        saw("GetAltAz".into());
+                        let _ = reply.send(Ok((45.0, 180.0)));
+                    }
+                    GetSiderealTime(reply) => {
+                        saw("GetSiderealTime".into());
+                        let _ = reply.send(Ok(5.0));
+                    }
+                    SetTrackingRate(value, reply) => {
+                        saw(format!("SetTrackingRate {value}"));
+                        rate = value;
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetTrackingRate(reply) => {
+                        saw("GetTrackingRate".into());
+                        let _ = reply.send(Ok(rate));
+                    }
+                    MoveAxis(axis, speed, reply) => {
+                        saw(format!("MoveAxis {axis} {speed}"));
+                        let _ = reply.send(Ok(()));
+                    }
+                    SlewToAltAz(alt, az, reply) => {
+                        saw(format!("SlewToAltAz {alt:.4} {az:.4}"));
+                        let _ = reply.send(Ok(()));
+                    }
+                    FindHome(reply) => {
+                        saw("FindHome".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    AtHome(reply) => {
+                        saw("AtHome".into());
+                        let _ = reply.send(Ok(false));
+                    }
+                    SetPark(reply) => {
+                        saw("SetPark".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetSite(reply) => {
+                        saw("GetSite".into());
+                        let _ = reply.send(Ok((40.0, -75.0, Some(100.0))));
+                    }
+                    SetSite(latitude, longitude, elevation, reply) => {
+                        saw(format!(
+                            "SetSite {latitude:.4} {longitude:.4} {elevation:?}"
+                        ));
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetUtcDate(reply) => {
+                        saw("GetUtcDate".into());
+                        let _ = reply.send(Ok(46338.125));
+                    }
+                    GetEquatorialSystem(reply) => {
+                        saw("GetEquatorialSystem".into());
+                        let _ = reply.send(Ok(1));
+                    }
+                    IsPulseGuiding(reply) => {
+                        saw("IsPulseGuiding".into());
+                        let _ = reply.send(Ok(false));
+                    }
+                    SetUtcDate(days, reply) => {
+                        saw(format!("SetUtcDate {days:.6}"));
+                        let _ = reply.send(Ok(()));
+                    }
+                }
+            }
+        });
+
+        AscomMountWrapper {
+            id: "test-mount".to_string(),
+            name: "Test Mount".to_string(),
+            sender: tx,
+            connected: std::sync::atomic::AtomicBool::new(true),
         }
     }
 }
@@ -1120,7 +1246,7 @@ mod tests {
         assert_eq!(results.len(), 10);
         assert!(results
             .iter()
-            .all(|r| matches!(r, Err(NativeError::Timeout(_)))));
+            .all(|r| matches!(r, Err(DriverError::Timeout(_)))));
         drop(release_tx);
     }
 
@@ -1205,14 +1331,14 @@ mod tests {
     async fn find_home_on_a_driver_without_home_is_not_supported() {
         let wrapper = build_test_wrapper(|cmd| {
             if let AscomMountCommand::FindHome(reply) = cmd {
-                let _ = reply.send(Err(FIND_HOME_UNSUPPORTED.to_string()));
+                let _ = reply.send(Err(DriverError::NotSupported));
             }
             false
         });
 
         assert!(matches!(
             wrapper.find_home().await,
-            Err(NativeError::NotSupported)
+            Err(DriverError::NotSupported)
         ));
     }
 
@@ -1220,14 +1346,14 @@ mod tests {
     async fn set_park_on_a_driver_without_set_park_is_not_supported() {
         let wrapper = build_test_wrapper(|cmd| {
             if let AscomMountCommand::SetPark(reply) = cmd {
-                let _ = reply.send(Err(SET_PARK_UNSUPPORTED.to_string()));
+                let _ = reply.send(Err(DriverError::NotSupported));
             }
             false
         });
 
         assert!(matches!(
             wrapper.set_park().await,
-            Err(NativeError::NotSupported)
+            Err(DriverError::NotSupported)
         ));
     }
 
@@ -1243,47 +1369,27 @@ mod tests {
         assert!(wrapper.at_home().await.expect("at_home"));
     }
 
+    /// Disconnecting is not a motion command: a slew someone else started
+    /// keeps going, as it does when an Alpaca mount is released.
     #[tokio::test]
-    async fn test_disconnect_stops_before_disconnect() {
-        let order = Arc::new(Mutex::new(Vec::new()));
-        let order_flag = Arc::clone(&order);
-        let mut wrapper = build_test_wrapper(move |cmd| {
-            match cmd {
-                AscomMountCommand::Disconnect(reply) => {
-                    order_flag.lock().expect("lock order").push("disconnect");
-                    let _ = reply.send(Ok(()));
-                }
-                AscomMountCommand::Stop(reply) => {
-                    order_flag.lock().expect("lock order").push("stop");
-                    let _ = reply.send(Ok(()));
-                }
-                _ => {}
+    async fn disconnect_sends_no_motion_command() {
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let sent_log = Arc::clone(&sent);
+        let mut wrapper = build_test_wrapper(move |cmd| match cmd {
+            AscomMountCommand::Disconnect(reply) => {
+                sent_log.lock().expect("lock sent").push("disconnect");
+                let _ = reply.send(Ok(()));
+                true
             }
-            let done = order_flag.lock().expect("lock order").len() >= 2;
-            done
+            AscomMountCommand::AbortSlew(reply) => {
+                sent_log.lock().expect("lock sent").push("abort");
+                let _ = reply.send(Ok(()));
+                false
+            }
+            _ => false,
         });
         wrapper.disconnect().await.expect("disconnect");
-        let order = order.lock().expect("lock order");
-        assert_eq!(order.as_slice(), ["stop", "disconnect"]);
-    }
-
-    #[tokio::test]
-    async fn test_disconnect_returns_ok_when_stop_fails_but_disconnect_succeeds() {
-        let mut wrapper = build_test_wrapper(|cmd| {
-            match cmd {
-                AscomMountCommand::Stop(reply) => {
-                    let _ = reply.send(Err("stop failed".to_string()));
-                }
-                AscomMountCommand::Disconnect(reply) => {
-                    let _ = reply.send(Ok(()));
-                    return true;
-                }
-                _ => {}
-            }
-            false
-        });
-
-        wrapper.disconnect().await.expect("disconnect");
+        assert_eq!(sent.lock().expect("lock sent").as_slice(), ["disconnect"]);
         assert!(!wrapper.is_connected());
     }
 }

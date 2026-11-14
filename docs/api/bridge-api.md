@@ -30,22 +30,6 @@ Get the version of the native library.
 String apiGetVersion()
 ```
 
-### `getState`
-
-Get or initialize the global application state.
-
-```dart
-Future<void> getState()
-```
-
-### `getDeviceManager`
-
-Get or initialize the global device manager.
-
-```dart
-Future<void> getDeviceManager()
-```
-
 ## Device Discovery
 
 ### `apiDiscoverDevices`
@@ -62,14 +46,6 @@ Future<List<DeviceInfo>> apiDiscoverDevices({required DeviceType deviceType})
 **Example:**
 ```dart
 final cameras = await bridge.apiDiscoverDevices(deviceType: bridge.DeviceType.camera);
-```
-
-### `apiDiscoverAlpacaDevices`
-
-Discover available Alpaca devices on the network.
-
-```dart
-Future<List<DeviceInfo>> apiDiscoverAlpacaDevices()
 ```
 
 ### `apiDiscoverAlpacaAtAddress`
@@ -139,6 +115,8 @@ Future<List<DeviceInfo>> apiGetConnectedDevices()
 
 ## Camera Control
 
+Gain, offset and binning are set with each exposure rather than by separate calls.
+
 ### `apiCameraStartExposure`
 
 Start a camera exposure. Returns progress updates via events, final image available via `apiGetLastImage`.
@@ -167,55 +145,7 @@ Future<void> apiCameraCancelExposure({required String deviceId})
 Get the last captured image.
 
 ```dart
-Future<CapturedImageResult> apiGetLastImage()
-```
-
-### `apiGetCameraStatus`
-
-Get camera status.
-
-```dart
-Future<CameraStatus> apiGetCameraStatus({required String deviceId})
-```
-
-### `apiSetCameraCooler`
-
-Set camera cooling target.
-
-```dart
-Future<void> apiSetCameraCooler({
-  required String deviceId,
-  required bool enabled,
-  double? targetTemp,
-})
-```
-
-### `apiSetCameraGain`
-
-Set camera gain.
-
-```dart
-Future<void> apiSetCameraGain({required String deviceId, required int gain})
-```
-
-### `apiSetCameraOffset`
-
-Set camera offset.
-
-```dart
-Future<void> apiSetCameraOffset({required String deviceId, required int offset})
-```
-
-### `apiSetCameraBinning`
-
-Set camera binning.
-
-```dart
-Future<void> apiSetCameraBinning({
-  required String deviceId,
-  required int binX,
-  required int binY,
-})
+Future<CapturedImageResult> apiGetLastImage({required String deviceId})
 ```
 
 ## Mount Control
@@ -352,17 +282,6 @@ Get filter names.
 Future<List<String>> apiFilterwheelGetNames({required String deviceId})
 ```
 
-### `apiFilterwheelSetByName`
-
-Set filter by name.
-
-```dart
-Future<void> apiFilterwheelSetByName({
-  required String deviceId,
-  required String name,
-})
-```
-
 ## Rotator Control
 
 ### `apiGetRotatorStatus`
@@ -413,39 +332,20 @@ Read a FITS file from disk.
 Future<FitsReadResult> apiReadFitsFile({required String filePath})
 ```
 
-### `apiReadXisfFile`
+### `apiSaveFitsFromLastCapture`
 
-Read an XISF file.
-
-```dart
-Future<XisfReadResult> apiReadXisfFile({required String filePath})
-```
-
-### `apiSaveFitsFile`
-
-Save image data to FITS file.
+Save the camera's last frame as FITS. The pixels stay on the Rust side. The
+header is the one a sequence's frame gets, without the cards that tie a frame
+to a run: `headerData` carries what was commanded, the observer, site and
+optics, and the ids of the rig's devices, and the devices are read when the
+file is written.
 
 ```dart
-Future<void> apiSaveFitsFile({
+Future<String> apiSaveFitsFromLastCapture({
+  required String deviceId,
   required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
   required FitsWriteHeader headerData,
-})
-```
-
-### `apiSaveXisfFile`
-
-Save image as XISF.
-
-```dart
-Future<void> apiSaveXisfFile({
-  required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-  required List<(String, String)> properties,
+  required bool keepCameraFile,
 })
 ```
 
@@ -457,26 +357,6 @@ Detect stars in a FITS file.
 Future<StarDetectionResultApi> apiDetectStarsInFile({
   required String filePath,
   StarDetectionConfigApi? config,
-})
-```
-
-### `apiCalculateHfr`
-
-Calculate HFR for a FITS file.
-
-```dart
-Future<double?> apiCalculateHfr({required String filePath})
-```
-
-### `apiCalculateHistogram`
-
-Calculate histogram for a FITS file.
-
-```dart
-Future<Float32List> apiCalculateHistogram({
-  required String filePath,
-  required int bins,
-  required bool logarithmic,
 })
 ```
 
@@ -499,65 +379,78 @@ Future<Uint8List> apiApplyStretch({
 })
 ```
 
-### `apiDebayerFitsFile`
-
-Debayer a raw FITS file and return RGB display data.
-
-```dart
-Future<Uint8List> apiDebayerFitsFile({
-  required String filePath,
-  required BayerPatternApi pattern,
-  required DebayerAlgorithmApi algorithm,
-})
-```
-
-### `apiGetImageStats`
-
-Calculate image statistics.
-
-```dart
-Future<ImageStats> apiGetImageStats({
-  required int width,
-  required int height,
-  required List<int> data,
-})
-```
-
 ### `apiAutoStretchImage`
 
 Auto-stretch image for display.
 
 ```dart
-Future<Uint8List> apiAutoStretchImage({
+Uint8List apiAutoStretchImage({
   required int width,
   required int height,
   required List<int> data,
 })
 ```
 
-### `apiDebayerImage`
+## Calibration and Live Stacking
 
-Debayer image.
+### `apiCalibrateImageFile`
+
+Calibrate a light frame file with the masters at the given paths and write the result to `outputPath`. A master flat is used as it is; a raw flat has the bias taken out first (PixInsight's defaults). An absent or empty path skips that correction.
 
 ```dart
-Future<Uint8List> apiDebayerImage({
+Future<void> apiCalibrateImageFile({
+  required String lightPath,
+  String? darkPath,
+  String? flatPath,
+  String? biasPath,
+  required String outputPath,
+})
+```
+
+### `apiCalibrateImageData`
+
+Calibrate a single-plane u16 light in memory by the same rule as `apiCalibrateImageFile`.
+
+```dart
+Future<Uint16List> apiCalibrateImageData({
   required int width,
   required int height,
-  required List<int> data,
-  required String patternStr,
-  required String algoStr,
+  required List<int> lightData,
+  String? darkPath,
+  String? flatPath,
+  String? biasPath,
+})
+```
+
+### `apiStackingStart` / `apiStackingStartFromData`
+
+Start the process-wide live stack from a reference frame file or a u16 frame in memory. `ApiLiveStackingConfig` carries the alignment, rejection and color settings; `apiStackingAddFrame`, `apiStackingAddFrameFromData`, `apiStackingGetResult`, `apiStackingGetStats`, `apiStackingSaveMasterFits`, `apiStackingReset` and `apiStackingStop` work on the running stack.
+
+```dart
+Future<ApiLiveStackingStats> apiStackingStart({
+  required String referenceImagePath,
+  required ApiLiveStackingConfig config,
+})
+```
+
+### `apiDefectMapBuild` / `apiDefectMapSetCorrection` / `apiDefectMapClear`
+
+Build a defect map from dark frames, turn correction of a camera's lights during capture on or off, and delete a map. Each change applies to a running sequence from its next exposure; `apiDefectMapGetStatus` reports the stored map and whether correction is on.
+
+```dart
+Future<void> apiDefectMapSetCorrection({
+  required String cameraId,
+  required int width,
+  required int height,
+  required double sensorTemperatureCelsius,
+  required bool enabled,
+  required String method,
+  required int kernelDiameter,
+  required bool saveOriginal,
 })
 ```
 
 ## Plate Solving
-
-### `apiIsPlateSolverAvailable`
-
-Check if a plate solver is available.
-
-```dart
-bool apiIsPlateSolverAvailable()
-```
 
 ### `apiGetPlateSolverPath`
 
@@ -572,7 +465,10 @@ String? apiGetPlateSolverPath()
 Plate solve an image file (blind solve).
 
 ```dart
-Future<PlateSolveResult> apiPlateSolveBlind({required String filePath})
+Future<PlateSolveResult> apiPlateSolveBlind({
+  required String filePath,
+  int? timeoutSecs,
+})
 ```
 
 ### `apiPlateSolveNear`
@@ -585,26 +481,11 @@ Future<PlateSolveResult> apiPlateSolveNear({
   required double hintRa,
   required double hintDec,
   required double searchRadius,
+  int? timeoutSecs,
 })
 ```
 
-## PHD2 Guiding
-
-### `apiIsPhd2Running`
-
-Check if PHD2 is running.
-
-```dart
-bool apiIsPhd2Running()
-```
-
-### `getPhd2Storage`
-
-Get PHD2 storage.
-
-```dart
-Future<void> getPhd2Storage()
-```
+## Guiding
 
 ### `apiPhd2Connect`
 
@@ -622,32 +503,32 @@ Disconnect from PHD2.
 Future<void> apiPhd2Disconnect()
 ```
 
-### `apiPhd2StartGuiding`
+### `apiGuiderStartGuiding`
 
-Start guiding in PHD2.
+Start guiding with the active guider (PHD2 or the built-in guider) and wait for it to settle.
 
 ```dart
-Future<void> apiPhd2StartGuiding({
+Future<void> apiGuiderStartGuiding({
   required double settlePixels,
   required double settleTime,
   required double settleTimeout,
 })
 ```
 
-### `apiPhd2StopGuiding`
+### `apiGuiderStop`
 
-Stop guiding in PHD2.
+Stop guiding.
 
 ```dart
-Future<void> apiPhd2StopGuiding()
+Future<void> apiGuiderStop()
 ```
 
-### `apiPhd2Dither`
+### `apiGuiderDither`
 
-Dither in PHD2.
+Dither and wait for the guider to settle.
 
 ```dart
-Future<void> apiPhd2Dither({
+Future<void> apiGuiderDither({
   required double amount,
   required bool raOnly,
   required double settlePixels,
@@ -656,12 +537,12 @@ Future<void> apiPhd2Dither({
 })
 ```
 
-### `apiPhd2GetStatus`
+### `apiGuiderGetStatus`
 
-Get PHD2 status.
+The active guider's status.
 
 ```dart
-Future<Phd2Status> apiPhd2GetStatus()
+Future<GuiderStatus> apiGuiderGetStatus()
 ```
 
 ## Sequencer Control
@@ -672,14 +553,6 @@ Load a sequence from JSON.
 
 ```dart
 Future<void> apiSequencerLoadJson({required String json})
-```
-
-### `apiSequencerLoad`
-
-Load a sequence from a definition struct.
-
-```dart
-Future<void> apiSequencerLoad({required SequenceDefinitionApi definition})
 ```
 
 ### `apiSequencerStart`
@@ -711,7 +584,7 @@ Future<void> apiSequencerResume()
 Stop the sequence executor.
 
 ```dart
-Future<void> apiSequencerStop()
+Future<void> apiSequencerStop({String? origin})
 ```
 
 ### `apiSequencerSkip`
@@ -746,112 +619,6 @@ Subscribe to sequencer events and forward them to the main event stream.
 Future<void> apiSequencerSubscribeEvents()
 ```
 
-## Sequence Node Creation
-
-The Bridge API provides helper functions to create sequence node configurations:
-
-- `apiCreateExposureNode` - Create exposure node
-- `apiCreateSlewNode` - Create slew node
-- `apiCreateCenterNode` - Create center node
-- `apiCreateAutofocusNode` - Create autofocus node
-- `apiCreateFilterNode` - Create filter change node
-- `apiCreateTargetGroupNode` - Create target group node
-- `apiCreateLoopNode` - Create loop node
-- `apiCreateDelayNode` - Create delay node
-- `apiCreateParkNode` - Create park node
-- `apiCreateUnparkNode` - Create unpark node
-- `apiCreateCoolCameraNode` - Create cool camera node
-- `apiCreateWarmCameraNode` - Create warm camera node
-- `apiCreateDitherNode` - Create dither node
-- `apiCreateWaitTimeNode` - Create wait time node
-- `apiCreateNotificationNode` - Create notification node
-- `apiCreateScriptNode` - Create script node
-- `apiCreateRotatorNode` - Create rotator node
-
-### `apiBuildSequence`
-
-Build a complete sequence definition from nodes.
-
-```dart
-String apiBuildSequence({
-  required String id,
-  required String name,
-  String? description,
-  required List<String> nodeJsons,
-  String? rootNodeId,
-})
-```
-
-## Session Management
-
-### `apiGetSessionState`
-
-Get current session state.
-
-```dart
-Future<SessionState> apiGetSessionState()
-```
-
-### `apiStartSession`
-
-Start a new imaging session.
-
-```dart
-Future<void> apiStartSession({
-  String? targetName,
-  double? ra,
-  double? dec,
-})
-```
-
-### `apiEndSession`
-
-End the current session.
-
-```dart
-Future<void> apiEndSession()
-```
-
-## File Naming
-
-### `apiGenerateFilename`
-
-Generate a filename from pattern and context.
-
-```dart
-Future<String> apiGenerateFilename({
-  required String pattern,
-  required String baseDir,
-  String? target,
-  String? filter,
-  required double exposureTime,
-  required FrameTypeApi frameType,
-  required int frameNumber,
-  int? gain,
-  int? offset,
-  double? temperature,
-  required int binningX,
-  required int binningY,
-  String? camera,
-  String? telescope,
-  required String extension_,
-})
-```
-
-### `apiGetNextFrameNumber`
-
-Get the next frame number for a directory.
-
-```dart
-Future<int> apiGetNextFrameNumber({
-  required String baseDir,
-  required String pattern,
-  String? target,
-  String? filter,
-  required FrameTypeApi frameType,
-})
-```
-
 ## Profile Management
 
 ### `apiInitProfileStorage`
@@ -859,7 +626,7 @@ Future<int> apiGetNextFrameNumber({
 Initialize profile storage.
 
 ```dart
-Future<void> apiInitProfileStorage({required String storagePath})
+void apiInitProfileStorage({required String storagePath})
 ```
 
 ### `apiGetProfiles`
@@ -867,7 +634,7 @@ Future<void> apiInitProfileStorage({required String storagePath})
 Get all equipment profiles.
 
 ```dart
-Future<List<EquipmentProfile>> apiGetProfiles()
+List<EquipmentProfile> apiGetProfiles()
 ```
 
 ### `apiSaveProfile`
@@ -875,7 +642,7 @@ Future<List<EquipmentProfile>> apiGetProfiles()
 Save an equipment profile.
 
 ```dart
-Future<void> apiSaveProfile({required EquipmentProfile profile})
+void apiSaveProfile({required EquipmentProfile profile})
 ```
 
 ### `apiDeleteProfile`
@@ -883,7 +650,7 @@ Future<void> apiSaveProfile({required EquipmentProfile profile})
 Delete an equipment profile.
 
 ```dart
-Future<void> apiDeleteProfile({required String profileId})
+void apiDeleteProfile({required String profileId})
 ```
 
 ### `apiLoadProfile`
@@ -909,7 +676,7 @@ Future<EquipmentProfile?> apiGetActiveProfile()
 Initialize settings storage.
 
 ```dart
-Future<void> apiInitSettingsStorage({required String storagePath})
+void apiInitSettingsStorage({required String storagePath})
 ```
 
 ### `apiGetSettings`
@@ -917,7 +684,7 @@ Future<void> apiInitSettingsStorage({required String storagePath})
 Get application settings.
 
 ```dart
-Future<AppSettings> apiGetSettings()
+AppSettings apiGetSettings()
 ```
 
 ### `apiUpdateSettings`
@@ -925,7 +692,7 @@ Future<AppSettings> apiGetSettings()
 Update application settings.
 
 ```dart
-Future<void> apiUpdateSettings({required AppSettings settings})
+void apiUpdateSettings({required AppSettings settings})
 ```
 
 ### `apiGetLocation`
@@ -933,7 +700,7 @@ Future<void> apiUpdateSettings({required AppSettings settings})
 Get observer location.
 
 ```dart
-Future<ObserverLocation?> apiGetLocation()
+ObserverLocation? apiGetLocation()
 ```
 
 ### `apiSetLocation`
@@ -941,7 +708,7 @@ Future<ObserverLocation?> apiGetLocation()
 Set observer location.
 
 ```dart
-Future<void> apiSetLocation({ObserverLocation? location})
+void apiSetLocation({ObserverLocation? location})
 ```
 
 ## Error Handling

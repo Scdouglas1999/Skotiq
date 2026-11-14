@@ -13,6 +13,7 @@
 import 'dart:math' as math;
 
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone, SeriesChartTone;
 
 /// Every view model one board needs.
 class NightBoard {
@@ -424,7 +425,7 @@ abstract final class NightFixtures {
         UpcomingItemVm(
           kind: UpcomingKind.meridianFlip,
           at: at(1, 58),
-          tone: MetricTone.warning,
+          tone: MetricGridTone.warning,
         ),
         UpcomingItemVm(
           kind: UpcomingKind.targetSwitch,
@@ -445,7 +446,7 @@ abstract final class NightFixtures {
         UpcomingItemVm(
           kind: UpcomingKind.meridianFlip,
           at: at(1, 58),
-          tone: MetricTone.warning,
+          tone: MetricGridTone.warning,
         ),
         UpcomingItemVm(kind: UpcomingKind.astroDawn, at: at(5, 44)),
       ];
@@ -501,11 +502,11 @@ abstract final class NightFixtures {
     return NightSeriesVm(
       lines: <SeriesLineVm>[
         SeriesLineVm(
-            id: NightSeriesId.hfr, points: hfr, tone: SeriesTone.primary),
+            id: NightSeriesId.hfr, points: hfr, tone: SeriesChartTone.primary),
         SeriesLineVm(
           id: NightSeriesId.stars,
           points: stars,
-          tone: SeriesTone.secondary,
+          tone: SeriesChartTone.secondary,
           secondaryAxis: true,
         ),
       ],
@@ -540,11 +541,13 @@ abstract final class NightFixtures {
     return NightSeriesVm(
       lines: <SeriesLineVm>[
         SeriesLineVm(
-            id: NightSeriesId.guideRa, points: ra, tone: SeriesTone.primary),
+            id: NightSeriesId.guideRa,
+            points: ra,
+            tone: SeriesChartTone.primary),
         SeriesLineVm(
           id: NightSeriesId.guideDec,
           points: dec,
-          tone: SeriesTone.tertiary,
+          tone: SeriesChartTone.tertiary,
         ),
       ],
       markers: <SeriesMarker>[
@@ -596,19 +599,19 @@ abstract final class NightFixtures {
         SeriesLineVm(
           id: NightSeriesId.focuserTemp,
           points: focuserTemp,
-          tone: SeriesTone.muted,
+          tone: SeriesChartTone.muted,
         ),
         SeriesLineVm(
           id: NightSeriesId.focuserPosition,
           points: position,
-          tone: SeriesTone.primary,
+          tone: SeriesChartTone.primary,
           secondaryAxis: true,
           stepped: true,
         ),
         SeriesLineVm(
           id: NightSeriesId.sensorTemp,
           points: sensor,
-          tone: SeriesTone.secondary,
+          tone: SeriesChartTone.secondary,
           dashed: true,
         ),
       ],
@@ -640,33 +643,33 @@ abstract final class NightFixtures {
             label: _t('HFR'),
             value: '2.13',
             delta: '−0.04',
-            deltaTone: MetricTone.good,
+            deltaTone: MetricGridTone.good,
           ),
           MetricVm(
             label: _t('FWHM'),
             value: '3.4"',
             delta: '−0.1',
-            deltaTone: MetricTone.good,
+            deltaTone: MetricGridTone.good,
           ),
           MetricVm(label: _t('Ecc'), value: '0.31', delta: '+0.02'),
           MetricVm(
             label: _t('Stars'),
             value: '1184',
             delta: '+36',
-            deltaTone: MetricTone.good,
+            deltaTone: MetricGridTone.good,
           ),
           MetricVm(label: _t('Median'), value: '528', delta: '+4'),
           MetricVm(
             label: _t('Bg noise'),
             value: '11.2',
             delta: '−0.3',
-            deltaTone: MetricTone.good,
+            deltaTone: MetricGridTone.good,
           ),
           MetricVm(
             label: _t('SNR'),
             value: '38.6',
             delta: '+1.2',
-            deltaTone: MetricTone.good,
+            deltaTone: MetricGridTone.good,
           ),
           MetricVm(label: _t('Solve'), value: '0.8"', delta: 'off'),
         ],
@@ -684,7 +687,7 @@ abstract final class NightFixtures {
           MetricVm(
             label: _t('Rejected'),
             value: '3',
-            valueTone: MetricTone.bad,
+            valueTone: MetricGridTone.bad,
           ),
           MetricVm(label: _t('Integration'), value: '4h12'),
           MetricVm(label: _t('Remaining'), value: '1h50'),
@@ -810,7 +813,7 @@ abstract final class NightFixtures {
         NightLogEntryVm(
           at: at(23, 40),
           message: _t('#41 Ha rejected · HFR 3.05'),
-          tone: MetricTone.bad,
+          tone: MetricGridTone.bad,
         ),
         NightLogEntryVm(
           at: at(23, 10),
@@ -820,7 +823,7 @@ abstract final class NightFixtures {
         NightLogEntryVm(
           at: at(22, 58),
           message: _t('Guide star lost 4 s · recovered'),
-          tone: MetricTone.warning,
+          tone: MetricGridTone.warning,
         ),
         NightLogEntryVm(
           at: at(21, 40),
@@ -878,7 +881,7 @@ abstract final class NightFixtures {
           id: ChecklistItemId.guider,
           state: ChecklistItemState.attention,
           title: _t('Guider'),
-          detail: _t('PHD2 connected, not looping'),
+          detail: _t('connected · not looping'),
           actionLabel: _t('Loop'),
         ),
         ChecklistItemVm(

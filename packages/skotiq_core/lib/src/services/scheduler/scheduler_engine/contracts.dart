@@ -24,7 +24,6 @@ class SchedulerCandidate {
   /// User-set priority on the target row (higher = better).
   final int userPriority;
 
-  /// Integration goals attached to this target.
   final List<IntegrationGoal> goals;
 
   /// Per-(goal) captured-frame counts, in the same order as `goals`.
@@ -97,10 +96,15 @@ class SchedulerSite {
   /// in the operator's clock rather than UTC.
   final Duration localOffset;
 
+  /// The site's horizon with learned obstructions; null for none. With the
+  /// minimum altitude it makes the site's [AltitudeFloor].
+  final SiteHorizonProfile? horizon;
+
   const SchedulerSite({
     required this.latitudeDegrees,
     required this.longitudeDegrees,
     required this.localOffset,
+    this.horizon,
   });
 }
 

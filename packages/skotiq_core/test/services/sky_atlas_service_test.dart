@@ -5,7 +5,8 @@ import 'dart:math' as math;
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
 /// A recording fake [SkyAtlasSeam] that returns canned bridge results so the
@@ -467,6 +468,7 @@ void main() {
         solvedRa: 5.575,
         solvedDec: -5.39,
         solvedPixelScale: 1.5,
+        solvedRotation: 0.0,
         capturedAt: DateTime.utc(2026, 6, 11, 22),
         createdAt: DateTime.utc(2026, 6, 11, 22),
         isAccepted: true,
@@ -977,6 +979,7 @@ void main() {
       solvedRa: 2.37,
       solvedDec: 42.35,
       solvedPixelScale: 0.79,
+      solvedRotation: 0.0,
       capturedAt: DateTime.utc(2026, 10, 24, 1, id),
       createdAt: DateTime.utc(2026, 10, 24, 1, id),
       isAccepted: accepted,

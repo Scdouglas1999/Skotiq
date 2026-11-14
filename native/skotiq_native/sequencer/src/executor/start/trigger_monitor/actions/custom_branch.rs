@@ -22,8 +22,8 @@ pub(in super::super) async fn run(
             "Trigger '{}' fired CustomBranch but no recovery branch was registered",
             trigger_name
         );
-        run.pause(None).await;
-        run.error(format!(
+        run.pause(None);
+        run.held(format!(
             "Trigger '{}' requested Custom Branch recovery, but no branch was registered. Sequence paused.",
             trigger_name
         ));
@@ -34,8 +34,8 @@ pub(in super::super) async fn run(
             "Trigger '{}' fired CustomBranch but no loaded sequence snapshot is available",
             trigger_name
         );
-        run.pause(None).await;
-        run.error(format!(
+        run.pause(None);
+        run.held(format!(
             "Trigger '{}' requested Custom Branch recovery, but the sequence snapshot was unavailable. Sequence paused.",
             trigger_name
         ));
@@ -49,8 +49,8 @@ pub(in super::super) async fn run(
             trigger_name,
             recovery_node_id
         );
-        run.pause(None).await;
-        run.error(format!(
+        run.pause(None);
+        run.held(format!(
             "Trigger '{}' requested Custom Branch node '{}', but it was not found. Sequence paused.",
             trigger_name, recovery_node_id
         ));
@@ -90,8 +90,8 @@ pub(in super::super) async fn run(
                 recovery_node_id,
                 result
             );
-            run.pause(None).await;
-            run.error(format!(
+            run.pause(None);
+            run.held(format!(
                 "Custom Branch recovery '{}' failed after trigger '{}'. Sequence paused.",
                 recovery_node_id, trigger_name
             ));

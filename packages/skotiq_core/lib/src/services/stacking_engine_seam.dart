@@ -145,9 +145,9 @@ class BridgeStackingEngineSeam implements StackingEngineSeam {
   }) async {
     final stats = await bridge.apiStackingStart(
       referenceImagePath: referenceImagePath,
-      config: _bridgeConfig(config),
+      config: config.toBridge(),
     );
-    return _toStats(stats);
+    return LiveStackingStats.fromBridge(stats);
   }
 
   @override
@@ -161,9 +161,9 @@ class BridgeStackingEngineSeam implements StackingEngineSeam {
       width: width,
       height: height,
       data: data,
-      config: _bridgeConfig(config),
+      config: config.toBridge(),
     );
-    return _toStats(stats);
+    return LiveStackingStats.fromBridge(stats);
   }
 
   @override
@@ -209,29 +209,4 @@ class BridgeStackingEngineSeam implements StackingEngineSeam {
 
   @override
   Future<void> stop() => bridge.apiStackingStop();
-
-  bridge.ApiLiveStackingConfig _bridgeConfig(LiveStackingConfig config) {
-    return bridge.ApiLiveStackingConfig(
-      sigmaClipEnabled: config.sigmaClipEnabled,
-      sigmaClipThreshold: config.sigmaClipThreshold,
-      maxMatchStars: config.maxMatchStars,
-      matchRadiusPx: config.matchRadiusPx,
-      matchFluxTolerance: config.matchFluxTolerance,
-      minMatchedPairs: config.minMatchedPairs,
-      sensorMode: config.sensorMode,
-      bayerPattern: config.bayerPattern,
-      demosaicQuality: config.demosaicQuality,
-    );
-  }
-
-  LiveStackingStats _toStats(bridge.ApiLiveStackingStats s) {
-    return LiveStackingStats(
-      stackedFrameCount: s.stackedFrameCount,
-      totalFramesAttempted: s.totalFramesAttempted,
-      rejectedAlignmentFailures: s.rejectedAlignmentFailures,
-      avgMatchedPairs: s.avgMatchedPairs,
-      avgAlignmentResidual: s.avgAlignmentResidual,
-      totalSigmaRejectedPixels: s.totalSigmaRejectedPixels.toInt(),
-    );
-  }
 }

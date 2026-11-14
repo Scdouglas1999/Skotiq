@@ -1,4 +1,26 @@
-use super::*;
+use crate::builtin_guider::config::{
+    guiding_failure_reason, GuiderConfig, Vec2, BUILTIN_GUIDER_ID, GUIDE_MAX_MATCH_DISTANCE_PX,
+};
+use crate::builtin_guider::loop_runner::{
+    capture_and_store_loop_frame, capture_guide_frame, ensure_connected, ensure_frame_available,
+    resolve_devices, resolve_unbinned_guide_pixel_scale, run_guiding_loop,
+};
+use crate::builtin_guider::metrics::{
+    choose_lock_star, nearest_star, select_reference_stars, update_snapshot_from_frame, PulseDebt,
+};
+use crate::builtin_guider::state::{
+    binned_guide_pixel_scale, build_tracked_stars, op_lock, state, BuiltinGuideStatus,
+    BuiltinGuiderState, GuideCalibration,
+};
+use crate::error::SkotiqError;
+use crate::event::equipment::EventSeverity;
+use crate::event::guiding::GuidingEvent;
+use crate::event::system::SystemEvent;
+use crate::guider::{GuideStarImage, GuiderCalibration, GuiderStatus};
+use crate::state::get_state;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
 
 /// Set the guider configuration. Must be called before `connect()` or will apply
 /// to subsequent operations. Calling while guiding is active will update the config
@@ -12,7 +34,6 @@ pub async fn set_config(config: GuiderConfig) {
     guard.config = config;
 }
 
-/// Get the current guider configuration.
 pub async fn get_config() -> GuiderConfig {
     state().read().await.config.clone()
 }
@@ -212,11 +233,26 @@ pub async fn stop() -> Result<(), SkotiqError> {
 /// shared body used by `stop`, `start_guiding`, `loop_exposures`, and `disconnect`
 /// so the lifecycle entry points cannot interleave.
 pub(crate) async fn stop_locked() -> Result<(), SkotiqError> {
+    // The loop is stopped and joined before the state is reset: an iteration
+    // already past its stop check wrote "Guiding" back over a reset made
+    // first, and the guider then read as guiding with nothing running.
     let (stop_flag, task) = {
+        let mut guard = state().write().await;
+        (guard.stop_flag.take(), guard.task.take())
+    };
+    if let Some(flag) = stop_flag {
+        flag.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    if let Some(handle) = task {
+        let _ = handle.await;
+    }
+
+    {
         let mut guard = state().write().await;
         guard.guiding = false;
         guard.looping = false;
         guard.calibrating = false;
+        guard.paused = false;
         guard.reference_stars.clear();
         guard.desired_offset = Vec2::default();
         guard.settle_deadline = None;
@@ -245,14 +281,6 @@ pub(crate) async fn stop_locked() -> Result<(), SkotiqError> {
         } else {
             "Disconnected".to_string()
         };
-        (guard.stop_flag.take(), guard.task.take())
-    };
-
-    if let Some(flag) = stop_flag {
-        flag.store(true, std::sync::atomic::Ordering::Relaxed);
-    }
-    if let Some(handle) = task {
-        let _ = handle.await;
     }
 
     get_state().publish_guiding_event(GuidingEvent::GuidingStopped, EventSeverity::Info);
@@ -385,7 +413,7 @@ pub async fn get_lock_position() -> Result<(f64, f64), SkotiqError> {
     ))
 }
 
-pub async fn get_star_image(size: u32) -> Result<Phd2StarImage, SkotiqError> {
+pub async fn get_star_image(size: u32) -> Result<GuideStarImage, SkotiqError> {
     // If there is no snapshot yet we must capture a fresh guide frame. That
     // capture MUST happen without holding the state lock: capture_guide_frame
     // re-acquires state().read(), and a tokio RwLock is not reentrant, so
@@ -411,7 +439,7 @@ pub async fn get_star_image(size: u32) -> Result<Phd2StarImage, SkotiqError> {
         .clone()
         .ok_or_else(|| SkotiqError::OperationFailed("No guide frame available".to_string()))?;
 
-    Ok(Phd2StarImage {
+    Ok(GuideStarImage {
         frame: snapshot.frame,
         width: snapshot.width,
         height: snapshot.height,
@@ -421,10 +449,11 @@ pub async fn get_star_image(size: u32) -> Result<Phd2StarImage, SkotiqError> {
     })
 }
 
-pub async fn get_status() -> Result<Phd2Status, SkotiqError> {
+pub async fn get_status() -> GuiderStatus {
     let guard = state().read().await;
     let status = &guard.last_status;
-    Ok(Phd2Status {
+    GuiderStatus {
+        device_id: BUILTIN_GUIDER_ID.to_string(),
         connected: status.connected,
         state: status.state.clone(),
         rms_ra: status.rms_ra,
@@ -435,48 +464,65 @@ pub async fn get_status() -> Result<Phd2Status, SkotiqError> {
         // The guider keeps 0 until a camera and binning give it a scale.
         pixel_scale: Some(status.pixel_scale).filter(|scale| scale.is_finite() && *scale > 0.0),
         stop_reason: None,
-    })
+        tracked_stars: build_tracked_stars(&guard),
+    }
 }
 
-/// Convert the built-in guider's `east`/`north` calibration vectors into the
-/// PHD2-shaped `Phd2CalibrationData` (degrees, possibly None) so the unified
-/// `api_guider_get_calibration` can return one type across backends.
-pub async fn get_calibration_data() -> Result<crate::api::phd2::Phd2CalibrationData, SkotiqError> {
-    let guard = state().read().await;
-    let calib = match guard.calibration {
-        Some(c) => c,
-        None => {
-            return Ok(crate::api::phd2::Phd2CalibrationData {
-                is_calibrated: false,
-                ra_angle: None,
-                dec_angle: None,
-                ra_rate: None,
-                dec_rate: None,
-            });
+/// Hold guide corrections while the loop keeps taking frames and measuring
+/// its star, or resume them. Only a guider that is guiding can pause.
+pub async fn set_paused(paused: bool) -> Result<(), SkotiqError> {
+    ensure_connected().await?;
+    {
+        let mut guard = state().write().await;
+        if !guard.guiding {
+            return Err(SkotiqError::InvalidState(
+                "The built-in guider is not guiding, so there is nothing to pause or resume."
+                    .to_string(),
+            ));
         }
+        if guard.paused == paused {
+            return Ok(());
+        }
+        guard.paused = paused;
+        if !guard.calibrating {
+            guard.last_status.state = if paused { "Paused" } else { "Guiding" }.to_string();
+        }
+    }
+    get_state().publish_guiding_event(
+        if paused {
+            GuidingEvent::Paused
+        } else {
+            GuidingEvent::Resumed
+        },
+        EventSeverity::Info,
+    );
+    Ok(())
+}
+
+pub async fn get_calibration_data() -> GuiderCalibration {
+    calibration_data(state().read().await.calibration)
+}
+
+/// Angles in degrees in (-180, 180] from the `east`/`north` vectors, and rates
+/// in pixels per second, the unit PHD2's `get_calibration_data` uses.
+pub(crate) fn calibration_data(calibration: Option<GuideCalibration>) -> GuiderCalibration {
+    let Some(calib) = calibration else {
+        return GuiderCalibration {
+            is_calibrated: false,
+            ra_angle: None,
+            dec_angle: None,
+            ra_rate: None,
+            dec_rate: None,
+        };
     };
-    // atan2 returns radians in (-π, π]; convert to degrees in (-180, 180].
-    let ra_angle = calib.east.y.atan2(calib.east.x).to_degrees();
-    let dec_angle = calib.north.y.atan2(calib.north.x).to_degrees();
-    // Pulse magnitude divided by configured calibration_ms gives pixels/ms,
-    // which we surface in the same shape PHD2 uses (rate as pixels/ms).
-    let ra_rate = if calib.pulse_ms > 0.0 {
-        Some(calib.ra_rate())
-    } else {
-        None
-    };
-    let dec_rate = if calib.pulse_ms > 0.0 {
-        Some(calib.dec_rate())
-    } else {
-        None
-    };
-    Ok(crate::api::phd2::Phd2CalibrationData {
+    let per_second = |px_per_ms: f64| (calib.pulse_ms > 0.0).then_some(px_per_ms * 1000.0);
+    GuiderCalibration {
         is_calibrated: true,
-        ra_angle: Some(ra_angle),
-        dec_angle: Some(dec_angle),
-        ra_rate,
-        dec_rate,
-    })
+        ra_angle: Some(calib.east.y.atan2(calib.east.x).to_degrees()),
+        dec_angle: Some(calib.north.y.atan2(calib.north.x).to_degrees()),
+        ra_rate: per_second(calib.ra_rate()),
+        dec_rate: per_second(calib.dec_rate()),
+    }
 }
 
 pub fn device_id() -> &'static str {

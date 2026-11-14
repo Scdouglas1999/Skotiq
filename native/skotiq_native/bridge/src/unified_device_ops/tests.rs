@@ -1,24 +1,33 @@
 use super::*;
-use crate::api::get_device_manager;
 use crate::device::{DeviceInfo, DeviceType, DriverType};
-use crate::device_manager::DeviceManager;
-use skotiq_native::{
-    CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ImageMetadata,
-    NativeCamera, NativeDevice, NativeError, NativeVendor, ReadoutMode, SensorInfo, SubFrame,
+use crate::device_manager::{get_device_manager, DeviceManager};
+use crate::event::imaging::ImagingEvent;
+use crate::unified_device_ops::exposure_wait::{
+    exposure_abort_generation, wait_for_camera_exposure_complete,
+};
+use crate::unified_device_ops::rich_header::build_rich_header;
+use skotiq_device::{
+    CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver, DriverError,
+    ExposureParams, ImageData, ImageMetadata, ReadoutMode, SensorInfo, SubFrame, Vendor,
     VendorFeatures,
 };
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
+use skotiq_sequencer::{CameraOps, ConnectionOps, MountOps};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct InstantCompleteCamera {
     id: String,
     name: String,
-    vendor: NativeVendor,
+    vendor: Vendor,
     exposure_checked: Arc<AtomicUsize>,
     connected: bool,
+    completes: bool,
+    /// Whether the camera has gain and offset controls; its frames report
+    /// gain 0 and offset 0 either way, as the FLI and Atik CCD drivers do.
+    controls_gain: bool,
+    /// The read mode its frames say they were read out in.
+    readout_mode: Option<String>,
 }
 
 impl InstantCompleteCamera {
@@ -26,15 +35,25 @@ impl InstantCompleteCamera {
         Self {
             id: id.clone(),
             name: "Instant Complete Camera".to_string(),
-            vendor: NativeVendor::Other("Test".to_string()),
+            vendor: Vendor::Other("Test".to_string()),
             exposure_checked,
             connected: true,
+            completes: true,
+            controls_gain: false,
+            readout_mode: None,
+        }
+    }
+
+    fn never_completing(id: String) -> Self {
+        Self {
+            completes: false,
+            ..Self::new(id, Arc::new(AtomicUsize::new(0)))
         }
     }
 }
 
 #[async_trait::async_trait]
-impl NativeDevice for InstantCompleteCamera {
+impl DeviceDriver for InstantCompleteCamera {
     fn id(&self) -> &str {
         &self.id
     }
@@ -43,7 +62,7 @@ impl NativeDevice for InstantCompleteCamera {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
+    fn vendor(&self) -> Vendor {
         self.vendor.clone()
     }
 
@@ -51,30 +70,34 @@ impl NativeDevice for InstantCompleteCamera {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         self.connected = true;
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         self.connected = false;
         Ok(())
     }
 }
 
 #[async_trait::async_trait]
-impl NativeCamera for InstantCompleteCamera {
+impl CameraDriver for InstantCompleteCamera {
     fn capabilities(&self) -> CameraCapabilities {
-        CameraCapabilities::default()
+        CameraCapabilities {
+            can_set_gain: self.controls_gain,
+            can_set_offset: self.controls_gain,
+            ..CameraCapabilities::default()
+        }
     }
 
-    async fn get_status(&self) -> Result<CameraStatus, NativeError> {
+    async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         Ok(CameraStatus {
             state: CameraState::Idle,
             sensor_temp: None,
             cooler_power: None,
             target_temp: None,
-            cooler_on: false,
+            cooler_on: Some(false),
             gain: 0,
             offset: 0,
             bin_x: 1,
@@ -83,20 +106,20 @@ impl NativeCamera for InstantCompleteCamera {
         })
     }
 
-    async fn start_exposure(&mut self, _params: ExposureParams) -> Result<(), NativeError> {
+    async fn start_exposure(&mut self, _params: ExposureParams) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn abort_exposure(&mut self) -> Result<(), NativeError> {
+    async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn is_exposure_complete(&self) -> Result<bool, NativeError> {
+    async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         self.exposure_checked.fetch_add(1, Ordering::SeqCst);
-        Ok(true)
+        Ok(self.completes)
     }
 
-    async fn download_image(&mut self) -> Result<ImageData, NativeError> {
+    async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         Ok(ImageData {
             width: 2,
             height: 2,
@@ -112,8 +135,9 @@ impl NativeCamera for InstantCompleteCamera {
                 temperature: None,
                 timestamp: chrono::Utc::now(),
                 subframe: None,
-                readout_mode: None,
+                readout_mode: self.readout_mode.clone(),
                 vendor_data: VendorFeatures::default(),
+                camera_file: None,
             },
         })
     }
@@ -122,43 +146,43 @@ impl NativeCamera for InstantCompleteCamera {
         &mut self,
         _enabled: bool,
         _target_temp: Option<f64>,
-    ) -> Result<(), NativeError> {
+    ) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_temperature(&self) -> Result<f64, NativeError> {
+    async fn get_temperature(&self) -> Result<f64, DriverError> {
         Ok(0.0)
     }
 
-    async fn get_cooler_power(&self) -> Result<f64, NativeError> {
+    async fn get_cooler_power(&self) -> Result<f64, DriverError> {
         Ok(0.0)
     }
 
-    async fn set_gain(&mut self, _gain: i32) -> Result<(), NativeError> {
+    async fn set_gain(&mut self, _gain: i32) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_gain(&self) -> Result<i32, NativeError> {
+    async fn get_gain(&self) -> Result<i32, DriverError> {
         Ok(0)
     }
 
-    async fn set_offset(&mut self, _offset: i32) -> Result<(), NativeError> {
+    async fn set_offset(&mut self, _offset: i32) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_offset(&self) -> Result<i32, NativeError> {
+    async fn get_offset(&self) -> Result<i32, DriverError> {
         Ok(0)
     }
 
-    async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), NativeError> {
+    async fn set_binning(&mut self, _bin_x: i32, _bin_y: i32) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_binning(&self) -> Result<(i32, i32), NativeError> {
+    async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
         Ok((1, 1))
     }
 
-    async fn set_subframe(&mut self, _subframe: Option<SubFrame>) -> Result<(), NativeError> {
+    async fn set_subframe(&mut self, _subframe: Option<SubFrame>) -> Result<(), DriverError> {
         Ok(())
     }
 
@@ -172,34 +196,34 @@ impl NativeCamera for InstantCompleteCamera {
             bit_depth: 16,
             color: false,
             bayer_pattern: None,
+            saturation_adu: None,
         }
     }
 
-    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, NativeError> {
+    async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         Ok(Vec::new())
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), NativeError> {
+    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
         Ok(())
     }
 
-    async fn get_vendor_features(&self) -> Result<VendorFeatures, NativeError> {
+    async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         Ok(VendorFeatures::default())
     }
 
-    async fn get_gain_range(&self) -> Result<(i32, i32), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
+        Err(DriverError::NotSupported)
     }
 
-    async fn get_offset_range(&self) -> Result<(i32, i32), NativeError> {
-        Err(NativeError::NotSupported)
+    async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
+        Err(DriverError::NotSupported)
     }
 }
 
 async fn cleanup_test_camera(mgr: &Arc<DeviceManager>, device_id: &str) {
     mgr.unregister_device(device_id).await;
-    let mut native_cameras = mgr.native_cameras.write().await;
-    native_cameras.remove(device_id);
+    mgr.handles.remove(device_id);
 }
 
 #[tokio::test]
@@ -221,22 +245,22 @@ async fn exposure_polling_short_circuits_when_complete() {
     };
 
     mgr.register_device(info, false).await;
-    {
-        let mut native_cameras = mgr.native_cameras.write().await;
-        native_cameras.insert(
+    mgr.hold_vendor_camera(
+        &device_id,
+        Box::new(InstantCompleteCamera::new(
             device_id.clone(),
-            Box::new(InstantCompleteCamera::new(
-                device_id.clone(),
-                Arc::clone(&exposure_checked),
-            )),
-        );
-    }
+            Arc::clone(&exposure_checked),
+        )),
+    );
 
-    let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
     let device_id_for_exposure = device_id.clone();
     let timed_result = tokio::time::timeout(std::time::Duration::from_millis(100), async move {
-        ops.camera_start_exposure(&device_id_for_exposure, 0.5, None, None, 1, 1)
-            .await
+        ops.camera_start_exposure(skotiq_sequencer::ExposureRequest::new(
+            &device_id_for_exposure,
+            0.5,
+        ))
+        .await
     })
     .await;
     cleanup_test_camera(mgr, &device_id).await;
@@ -258,6 +282,179 @@ async fn exposure_polling_short_circuits_when_complete() {
     );
 }
 
+/// The frame of a camera without gain and offset controls records neither,
+/// whatever its driver reports and whatever the capture asked for, so its file
+/// has no GAIN or OFFSET card. A camera with the controls records its own report.
+#[tokio::test]
+async fn a_camera_without_gain_control_writes_no_gain_or_offset_card() {
+    let mgr = get_device_manager();
+    for (device_id, controls_gain, expected) in [
+        ("native:test_camera_gainless", false, (None, None)),
+        ("native:test_camera_with_gain", true, (Some(0), Some(0))),
+    ] {
+        let device_id = device_id.to_string();
+        mgr.register_device(
+            DeviceInfo {
+                id: device_id.clone(),
+                name: "Test Camera".to_string(),
+                device_type: DeviceType::Camera,
+                driver_type: DriverType::Native,
+                description: "Test camera".to_string(),
+                driver_version: "test".to_string(),
+                serial_number: None,
+                unique_id: None,
+                display_name: "Test Camera".to_string(),
+            },
+            false,
+        )
+        .await;
+        mgr.hold_vendor_camera(
+            &device_id,
+            Box::new(InstantCompleteCamera {
+                controls_gain,
+                ..InstantCompleteCamera::new(device_id.clone(), Arc::new(AtomicUsize::new(0)))
+            }),
+        );
+
+        let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
+        let image = ops
+            .camera_start_exposure(
+                skotiq_sequencer::ExposureRequest::new(&device_id, 0.5)
+                    .gain(Some(120))
+                    .offset(Some(30)),
+            )
+            .await;
+        cleanup_test_camera(mgr, &device_id).await;
+        let image = image.expect("exposure");
+        assert_eq!((image.gain, image.offset), expected, "{device_id}");
+
+        let rig = skotiq_sequencer::RunRig::default();
+        let identity = skotiq_sequencer::FrameIdentity::default();
+        let ctx = skotiq_sequencer::sample_frame_context(
+            &ops,
+            &skotiq_sequencer::CaptureFacts {
+                rig: &rig,
+                identity: &identity,
+                commanded_secs: 0.5,
+                binning: (1, 1),
+                frame_type: "Light",
+                exposure_started_at: chrono::Utc::now(),
+                filter: (None, None),
+                target_name: None,
+                set_temp_c: None,
+                bayer_pattern: None,
+            },
+            &image,
+        )
+        .await;
+        let header = build_rich_header(&image, &ctx, None).fits_header();
+        assert_eq!(
+            header.get_int("GAIN"),
+            expected.0.map(i64::from),
+            "{device_id}"
+        );
+        assert_eq!(
+            header.get_int("OFFSET"),
+            expected.1.map(i64::from),
+            "{device_id}"
+        );
+        let row = skotiq_sequencer::scheduling::FrameCaptureMetadata::from(&ctx);
+        assert_eq!((row.gain, row.offset), expected, "{device_id}");
+    }
+}
+
+/// A frame records the read mode its camera read it out in, whether a run
+/// saves it or the operator saves the last capture, so darks taken in two
+/// modes can be told apart.
+#[tokio::test]
+async fn a_frame_records_the_read_mode_it_was_read_out_in() {
+    let mgr = get_device_manager();
+    let device_id = "native:test_camera_read_mode".to_string();
+    mgr.register_device(
+        DeviceInfo {
+            id: device_id.clone(),
+            name: "Test Camera".to_string(),
+            device_type: DeviceType::Camera,
+            driver_type: DriverType::Native,
+            description: "Test camera".to_string(),
+            driver_version: "test".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: "Test Camera".to_string(),
+        },
+        false,
+    )
+    .await;
+    mgr.hold_vendor_camera(
+        &device_id,
+        Box::new(InstantCompleteCamera {
+            readout_mode: Some("High Gain Mode 16BIT".to_string()),
+            ..InstantCompleteCamera::new(device_id.clone(), Arc::new(AtomicUsize::new(0)))
+        }),
+    );
+
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
+    let image = ops
+        .camera_start_exposure(skotiq_sequencer::ExposureRequest::new(&device_id, 0.5))
+        .await;
+    let last = crate::last_frame::raw(&device_id).await;
+    cleanup_test_camera(mgr, &device_id).await;
+    let image = image.expect("exposure");
+    let saved_by_hand = last.expect("the frame is kept").into_image_data();
+
+    let ctx = skotiq_sequencer::scheduling::FrameContext::default();
+    for frame in [&image, &saved_by_hand] {
+        let header = build_rich_header(frame, &ctx, None).fits_header();
+        assert_eq!(header.get_string("READOUTM"), Some("High Gain Mode 16BIT"));
+    }
+}
+
+#[tokio::test]
+async fn an_exposure_given_up_mid_frame_announces_that_it_ended() {
+    let mgr = get_device_manager();
+    let device_id = "native:test_camera_given_up".to_string();
+    mgr.register_device(
+        DeviceInfo {
+            id: device_id.clone(),
+            name: "Test Camera".to_string(),
+            device_type: DeviceType::Camera,
+            driver_type: DriverType::Native,
+            description: "Test camera".to_string(),
+            driver_version: "test".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: "Test Camera".to_string(),
+        },
+        false,
+    )
+    .await;
+    mgr.hold_vendor_camera(
+        &device_id.clone(),
+        Box::new(InstantCompleteCamera::never_completing(device_id.clone())),
+    );
+    let mut events = crate::state::get_state().event_bus.subscribe();
+
+    // A stopped run drops its exposure future while the camera is exposing.
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
+    let given_up = tokio::time::timeout(
+        std::time::Duration::from_millis(300),
+        ops.camera_start_exposure(skotiq_sequencer::ExposureRequest::new(&device_id, 30.0)),
+    )
+    .await;
+    cleanup_test_camera(mgr, &device_id).await;
+    assert!(given_up.is_err(), "the exposure should still be running");
+
+    let mut ended = false;
+    while let Ok(event) = events.try_recv() {
+        if let crate::event::bus::EventPayload::Imaging(ImagingEvent::ExposureCancelled) =
+            event.payload
+        {
+            ended = true;
+        }
+    }
+    assert!(ended, "the exposure was announced but its end never was");
+}
+
 #[tokio::test]
 async fn exposure_polling_times_out_when_driver_never_completes() {
     let poll_count = Arc::new(AtomicUsize::new(0));
@@ -266,7 +463,7 @@ async fn exposure_polling_times_out_when_driver_never_completes() {
         300.0,
         std::time::Duration::from_millis(20),
         exposure_abort_generation("native:test_hung_camera").await,
-        crate::api::get_state(),
+        crate::state::get_state(),
         || {
             let poll_count = Arc::clone(&poll_count);
             async move {
@@ -277,7 +474,9 @@ async fn exposure_polling_times_out_when_driver_never_completes() {
     )
     .await;
 
-    let err = result.expect_err("hung exposure polling should time out");
+    let err = result
+        .expect_err("hung exposure polling should time out")
+        .to_string();
     assert!(
         err.contains("did not complete within"),
         "unexpected timeout error: {err}"
@@ -296,7 +495,7 @@ async fn exposure_polling_times_out_when_driver_never_completes() {
 /// delegate to the `DeviceManager` rather than inheriting the defaults.
 #[tokio::test]
 async fn reconnect_overrides_are_wired_not_trait_default() {
-    let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
 
     // Unknown device: the override consults the DeviceManager and reports
     // Ok(false). The trait default would instead return Err("not
@@ -317,7 +516,7 @@ async fn reconnect_overrides_are_wired_not_trait_default() {
         connect.is_err(),
         "connecting an unknown device should error"
     );
-    let msg = connect.unwrap_err();
+    let msg = connect.unwrap_err().to_string();
     assert!(
         !msg.contains("not supported by this driver"),
         "connect_device must be overridden; got the trait-default error: {msg}"
@@ -352,7 +551,7 @@ async fn slew_targets_are_compared_in_the_frame_each_mount_reports() {
         .await;
     mgr.register_device(mount(sim_id, DriverType::Simulator), false)
         .await;
-    let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+    let ops = UnifiedDeviceOps::new(crate::state::get_state().clone());
 
     // NGC 7380, the target of the 2026-09-14 failure.
     let (ra, dec) = (22.7892, 58.1324);
@@ -360,9 +559,7 @@ async fn slew_targets_are_compared_in_the_frame_each_mount_reports() {
     // The simulator's frame is process-wide; pin each one under the
     // simulator lock, as the frame tests do.
     let (sim_of_date, sim_j2000) = {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let of_date = {
             let _frame = crate::device_manager::epoch::SimFrameGuard::pin(
                 crate::device_manager::epoch::SimMountFrame::OfDate,

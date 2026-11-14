@@ -119,7 +119,6 @@ class _ExposureProgressPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             children: [
               Icon(SkotiqIcons.camera, size: 16, color: colors.success),
@@ -150,8 +149,6 @@ class _ExposureProgressPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-
-          // Frame grid
           _FrameGrid(
             colors: colors,
             totalFrames: totalFrames,
@@ -159,8 +156,6 @@ class _ExposureProgressPanel extends StatelessWidget {
             currentFrame: currentFrame,
           ),
           const SizedBox(height: 12),
-
-          // Duration info
           Row(
             children: [
               _StatBox(

@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   group('SmartNightDarkLibraryCoverage', () {
@@ -57,6 +59,7 @@ void main() {
 
         final notes = await coverage.missingNotes(
           profile: profile,
+          availableFilters: profile.filterNames,
           strategy: SmartNightStrategy.oscOneShot,
           settings: const SmartNightSettings(),
           exposureContext: exposureContext,
@@ -64,9 +67,9 @@ void main() {
         );
 
         expect(notes, isNotEmpty);
-        expect(notes.first, contains('duration=${expectedDuration}s'));
+        expect(notes.first, startsWith('$expectedDuration s darks at '));
         if (expectedDuration != '120') {
-          expect(notes.first, isNot(contains('duration=120s')));
+          expect(notes.first, isNot(startsWith('120 s darks')));
         }
       },
     );
@@ -103,6 +106,7 @@ void main() {
 
       final notes = await coverage.missingNotes(
         profile: profile,
+        availableFilters: profile.filterNames,
         strategy: SmartNightStrategy.autoLrgb,
         settings: const SmartNightSettings(),
         exposureContext: exposureContext,
@@ -136,6 +140,7 @@ void main() {
 
       final result = await coverage.missing(
         profile: profileWithDifferentDefault,
+        availableFilters: profileWithDifferentDefault.filterNames,
         strategy: SmartNightStrategy.autoLrgb,
         settings: const SmartNightSettings(coolDownTargetC: -10),
         exposureContext: exposureContext,

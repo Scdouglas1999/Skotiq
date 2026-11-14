@@ -5,8 +5,7 @@ import 'package:skotiq_core/src/models/planning/target_suggestion.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/services/smart_night/smart_night_draft_service.dart';
 import 'package:skotiq_core/src/services/smart_night_service.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show TargetVisibilityInfo;
+import 'package:skotiq_astro/skotiq_astro.dart' show TargetVisibilityInfo;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -74,6 +73,43 @@ void main() {
       (await service.loadById(draft.id))!.status,
       SmartNightDraftStatus.started,
     );
+  });
+
+  test('discard deletes only that draft', () async {
+    final kept = await service.savePending(
+      profileId: 'rig-a',
+      astronomicalDay: DateTime.utc(2026, 5, 20),
+      plan: testSmartNightPlan('M51'),
+    );
+    final dropped = await service.savePending(
+      profileId: 'rig-a',
+      astronomicalDay: DateTime.utc(2026, 5, 21),
+      plan: testSmartNightPlan('M101'),
+    );
+
+    await service.discard(dropped.id);
+    await service.discard('no-such-draft');
+
+    expect(await service.loadById(dropped.id), isNull);
+    expect(await service.loadById(kept.id), isNotNull);
+  });
+
+  test('watchAll emits the store again after each change', () async {
+    final seen = <int>[];
+    final sub = service.watchAll().listen((drafts) => seen.add(drafts.length));
+    addTearDown(sub.cancel);
+    await pumpEventQueue();
+
+    final draft = await service.savePending(
+      profileId: 'rig-a',
+      astronomicalDay: DateTime.utc(2026, 5, 21),
+      plan: testSmartNightPlan('M51'),
+    );
+    await pumpEventQueue();
+    await service.discard(draft.id);
+    await pumpEventQueue();
+
+    expect(seen, [0, 1, 0]);
   });
 
   test('cleanupExpiredPending removes stale pending drafts only', () async {

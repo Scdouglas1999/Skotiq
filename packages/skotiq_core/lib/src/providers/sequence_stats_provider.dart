@@ -2,19 +2,19 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'host_role.dart';
 
-import '../backend/network_backend.dart';
 import '../database/database.dart';
 import '../models/backend/sequencer_status.dart';
-import '../models/sequence/sequence_models.dart';
+import '../models/sequence/terminal_run_result.dart';
 import '../database/daos/sequence_runs_dao.dart';
 import '../database/daos/sequence_versions_dao.dart';
 import '../database/daos/session_diagnostics_dao.dart';
-import '../utils/duration_format.dart';
-import 'backend_provider.dart';
+import 'package:skotiq_astro/format.dart';
+import '../backend/roles/host_data/host_records.dart';
 import 'database_provider.dart';
-
-// Post-session statistics model
+import 'sequence/run_record.dart';
+import '../models/sequence/run_stop_classification.dart';
 
 /// Statistics collected during a sequence execution run.
 class SequenceRunStats {
@@ -56,7 +56,6 @@ class SequenceRunStats {
   /// Per-target, per-filter breakdown: targetName -> filterName -> stats
   final Map<String, Map<String, FilterStats>> targetBreakdown;
 
-  /// Error messages accumulated during the run
   final List<String> errorMessages;
 
   /// Non-fatal warnings accumulated during the run. Used by the executor to
@@ -261,7 +260,7 @@ class SequenceRunStats {
   /// event handler substitutes for a missing field) are not causes, so they
   /// leave [terminalCause] unset rather than being headlined as one.
   void recordTerminalError(String message) {
-    if (!_terminalPlaceholders.contains(message.trim())) {
+    if (!isUnexplainedRunFailure(message)) {
       terminalCause = message;
     }
     if (errorMessages.contains(message)) {
@@ -269,11 +268,6 @@ class SequenceRunStats {
     }
     errorMessages.add(message);
   }
-
-  static const Set<String> _terminalPlaceholders = {
-    'Sequence failed',
-    'Unknown error',
-  };
 
   /// Record a non-fatal warning surfaced during execution. Idempotent on
   /// exact-duplicate consecutive messages so a per-frame warning (e.g.
@@ -369,8 +363,6 @@ class FilterStats {
   double integrationSecs = 0.0;
 }
 
-// Parsed stats for UI display
-
 /// Parsed stats from a SequenceRun for easy UI consumption.
 class ParsedRunStats {
   final double wallClockSecs;
@@ -450,24 +442,19 @@ class ParsedRunStats {
 
   /// Delegates to the shared formatter so the run cards, the history tab and
   /// the Continue Session dialog all describe one run identically.
-  String formatDuration(double secs) => formatIntegrationSeconds(secs);
+  String formatDuration(double secs) => DurationFormat.seconds(secs);
 }
 
-// Providers
-
-/// Provider for accessing the sequence runs DAO.
 final sequenceRunsDaoProvider = Provider<SequenceRunsDao>((ref) {
   final db = ref.watch(databaseProvider);
   return db.sequenceRunsDao;
 });
 
-/// Provider for accessing the sequence version-history DAO.
 final sequenceVersionsDaoProvider = Provider<SequenceVersionsDao>((ref) {
   final db = ref.watch(databaseProvider);
   return db.sequenceVersionsDao;
 });
 
-/// Provider for accessing the per-session diagnostics DAO.
 final sessionDiagnosticsDaoProvider = Provider<SessionDiagnosticsDao>((ref) {
   final db = ref.watch(databaseProvider);
   return db.sessionDiagnosticsDao;
@@ -475,81 +462,24 @@ final sessionDiagnosticsDaoProvider = Provider<SessionDiagnosticsDao>((ref) {
 
 /// Live stats tracker for the currently running sequence.
 /// Null when no sequence is running.
-final liveSequenceStatsProvider = StateProvider<SequenceRunStats?>(
-  (ref) => null,
-);
+final liveSequenceStatsProvider = runRecordProvider.select((run) => run.stats);
 
 /// The database row ID of the current run (for updating on completion).
-final currentRunIdProvider = StateProvider<int?>((ref) => null);
+final currentRunIdProvider = runRecordProvider.select((run) => run.runId);
 
-/// Immutable, one-shot result of a fully-finalized sequence run.
-///
-/// The executor publishes exactly one of these to
-/// [sequenceTerminalRunResultProvider] AFTER durable finalization (finishRun +
-/// endSession) succeeds — i.e. after [currentRunIdProvider] and the durable
-/// session have already been cleared. It carries a SNAPSHOT of the ids the
-/// finished run owned so the auto-opening Session Report and its run-scoped
-/// Journal resolve against the completed run instead of racing the live
-/// providers that finalization has (correctly) just cleared.
-///
-/// [generation] is unique and monotonic per terminal event, giving consumers
-/// event-consumption semantics: a screen reacts to the transition into a new
-/// result, so a fresh mount (which only observes subsequent changes) never
-/// reopens an already-consumed report.
-class SequenceTerminalRunResult {
-  const SequenceTerminalRunResult({
-    required this.generation,
-    required this.outcome,
-    required this.runStatus,
-    required this.runId,
-    required this.dbSessionId,
-    this.isCalibration = false,
-  });
-
-  final bool isCalibration;
-
-  /// Unique, monotonically increasing id for this terminal event.
-  final int generation;
-
-  /// The settled UI state the run ended in: `completed`, `failed`, or `idle`
-  /// (a stop / abort).
-  final SequenceExecutionState outcome;
-
-  /// The durable run-row status recorded for this run (`completed`, `failed`,
-  /// `stopped`, `paused-stopped`).
-  final String runStatus;
-
-  /// The finished run's `sequence_runs.id`, captured before finalization
-  /// cleared [currentRunIdProvider]. Null when the run never got a row.
-  final int? runId;
-
-  /// The finished run's `sessions.id`, captured before finalization ended the
-  /// durable session. Null when the run never opened a session.
-  final int? dbSessionId;
-}
-
-/// The most recent fully-finalized run result, or null before any run has
-/// terminated this session. Published exactly once per terminal run by the
-/// executor; the sequencer screen reacts to it to open the Session Report with
-/// the correct, immutable run/session ids.
-final sequenceTerminalRunResultProvider =
-    StateProvider<SequenceTerminalRunResult?>((ref) => null);
-
-/// The imaging host's last terminal run result, on a linked client; null on
-/// the host and before the host has reported one. Kept apart from
-/// [sequenceTerminalRunResultProvider] because a change of that one opens the
-/// Session Report and starts end-of-night work, which a client joining after
-/// the run must not do.
-final hostTerminalRunResultProvider = StateProvider<SequenceTerminalRunResult?>(
-  (ref) => null,
+/// The result of the last run this app finalized, or null before any run has
+/// terminated this session and on a linked client. Published exactly once per
+/// terminal run by the executor; a change opens the Session Report and starts
+/// end-of-night work, which a client joining after the host's run must not do,
+/// so the host's result is not shown here (see [shownTerminalRunResultProvider]).
+final sequenceTerminalRunResultProvider = runRecordProvider.select(
+  (run) => run.terminalFromHost ? null : run.terminal,
 );
 
 /// The last terminal run result the screens describe: this app's own run, or
 /// on a linked client the host's.
-final shownTerminalRunResultProvider = Provider<SequenceTerminalRunResult?>(
-  (ref) =>
-      ref.watch(sequenceTerminalRunResultProvider) ??
-      ref.watch(hostTerminalRunResultProvider),
+final shownTerminalRunResultProvider = runRecordProvider.select(
+  (run) => run.terminal,
 );
 
 /// The last imaging run, retained when automatic calibration replaces the live
@@ -560,66 +490,20 @@ class CompletedImagingRun {
   final SequenceRunStats? stats;
 }
 
-final completedImagingRunProvider = StateProvider<CompletedImagingRun?>(
-  (ref) => null,
+final completedImagingRunProvider = runRecordProvider.select(
+  (run) => run.completedImagingRun,
 );
 
-/// Watch all sequence runs from the database.
-///
-/// On a slave (NetworkBackend) the local `sequence_runs` table is never
-/// populated, so this polls the host's `/api/sequence-runs` instead — without
-/// the branch the dashboard recap, cockpit Morning Report, and History tab all
-/// render empty even after the master imaged all night.
+/// The recorded sequence runs of whichever machine is the imaging host.
+final runHistoryProvider = hostRoleProvider<RunHistory>(
+  here: (ref) => ref.watch(sequenceRunsDaoProvider),
+  linked: (ref, host) => host.records,
+);
+
+/// Every sequence run on the imaging host, newest first. The dashboard recap,
+/// the Morning Report and the History tab read this.
 final sequenceRunsProvider = StreamProvider<List<SequenceRun>>((ref) {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    return pollRemoteSequenceRuns(backend);
-  }
-  final dao = ref.watch(sequenceRunsDaoProvider);
-  return dao.watchAllRuns();
-});
-
-/// Resolve the imaging session created for a sequence run.
-///
-/// New sequence executions intentionally create one session per run, but the
-/// historical schema does not store a direct `sequence_runs -> sessions`
-/// foreign key. Captured frames do carry both identities, so they are the
-/// authoritative join whenever the run produced at least one frame. A
-/// zero-frame run falls back to the session whose start is nearest to the run
-/// start within the executor's small start-up window.
-final sequenceRunSessionIdProvider = FutureProvider.family<int?, int>((
-  ref,
-  runId,
-) async {
-  if (runId <= 0) {
-    throw ArgumentError.value(runId, 'runId', 'must be positive');
-  }
-
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final page = await backend.fetchSequenceRunFrames(runId, limit: 1);
-    final frameSessionId = page.items.firstOrNull?.sessionId;
-    if (frameSessionId != null) return frameSessionId;
-  } else {
-    final frames = await ref
-        .watch(imagesDaoProvider)
-        .getImagesByProducingRun(producingRunId: runId.toString(), limit: 1);
-    final frameSessionId = frames.firstOrNull?.sessionId;
-    if (frameSessionId != null) return frameSessionId;
-  }
-
-  final runs = await ref.watch(sequenceRunsProvider.future);
-  SequenceRun? run;
-  for (final candidate in runs) {
-    if (candidate.id == runId) {
-      run = candidate;
-      break;
-    }
-  }
-  if (run == null) return null;
-
-  final sessions = await ref.watch(allSessionsProvider.future);
-  return resolveSessionIdForSequenceRun(run, sessions);
+  return ref.watch(runHistoryProvider).watchAllRuns();
 });
 
 /// Best-effort legacy join for a run that has no captured frame provenance.
@@ -666,13 +550,7 @@ int? resolveSessionIdForSequenceRun(
   return best?.id;
 }
 
-/// Watch runs for a specific sequence.
 final sequenceRunsForSequenceProvider =
     StreamProvider.family<List<SequenceRun>, int>((ref, sequenceId) {
-      final backend = ref.watch(backendProvider);
-      if (backend is NetworkBackend) {
-        return pollRemoteSequenceRuns(backend, sequenceId: sequenceId);
-      }
-      final dao = ref.watch(sequenceRunsDaoProvider);
-      return dao.watchRunsForSequence(sequenceId);
+      return ref.watch(runHistoryProvider).watchRunsForSequence(sequenceId);
     });

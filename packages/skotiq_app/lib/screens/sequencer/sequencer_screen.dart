@@ -4,23 +4,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
-import '../../models/command_action_result.dart';
+import '../../services/command_action_result.dart';
 import '../../services/sequence_action_service.dart';
 import '../../utils/count_label.dart';
-import '../../utils/sequence_mutator_helper.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../widgets/animated_tab_bar_view.dart';
-import '../../widgets/tutorial_keys/sequencer_keys.dart';
-import 'run_status_presentation.dart';
+import 'widgets/animated_tab_bar_view.dart';
+import '../../tours/tour_target.dart';
+import '../../widgets/run_status/run_status_presentation.dart';
 import 'widgets/batch_operations_toolbar.dart';
 import 'widgets/delete_node_confirmation.dart';
 import 'widgets/palette_copy.dart';
-import 'widgets/palette_icon_map.dart';
+import 'widgets/node_appearance.dart';
+import 'widgets/palette_category_color.dart';
 import 'widgets/preflight_validation_dialog.dart';
+import 'widgets/save_sequence.dart';
 import 'widgets/sequence_toolbar.dart';
 import 'widgets/node_palette.dart';
 import 'widgets/node_palette_empty_state.dart';
@@ -38,6 +43,11 @@ import 'widgets/target_queue_panel.dart';
 import 'tabs/history_tab.dart';
 import 'tabs/sequence_library_tab.dart';
 import 'tabs/templates_tab.dart';
+import '../../router/sequencer_route.dart';
+import '../../utils/guide_distance.dart';
+import 'widgets/tree_insert.dart';
+
+export '../../router/sequencer_route.dart' show SequencerTab;
 
 part 'sequencer_screen_parts/tab_bar.dart';
 part 'sequencer_screen_parts/builder_layout.dart';
@@ -48,58 +58,12 @@ part 'sequencer_screen_parts/collapsible_panel.dart';
 part 'sequencer_screen_parts/narrow_layout.dart';
 part 'sequencer_screen_parts/mobile_layout.dart';
 
-/// Canonical route path for the sequencer screen.
-///
-/// Referenced by the router's [GoRoute] and the shell's run-overlay-visibility
-/// check so the two cannot drift via a copy-pasted `'/sequencer'` string
-/// literal.
-const String kSequencerRoutePath = '/sequencer';
-
-/// The top-level sequencer tabs, in display order.
-///
-/// Single source of truth for both the [TabController] length and the
-/// [AdaptiveTabBar] strip — adding a tab here updates the controller, the
-/// strip and the keyboard accelerator hints in one edit.
-enum SequencerTab {
-  builder('Builder', LucideIcons.workflow),
-  templates('Templates', LucideIcons.fileStack),
-  sequences('Saved', LucideIcons.folderOpen),
-  history('History', LucideIcons.history);
-
-  const SequencerTab(this.label, this.icon);
-
-  /// Visible tab label.
-  final String label;
-
-  /// Leading icon used in the strip + collapsed (icon-only) phone mode.
-  final IconData icon;
-}
-
-/// Map a sequencer `?tab=` deep link to the canonical tab enum.
-SequencerTab? sequencerTabFromQuery(String? value) {
-  if (value == null) return null;
-  switch (value.toLowerCase()) {
-    case 'builder':
-      return SequencerTab.builder;
-    case 'templates':
-      return SequencerTab.templates;
-    case 'sequences':
-    case 'library':
-      return SequencerTab.sequences;
-    case 'history':
-    case 'runs':
-      return SequencerTab.history;
-  }
-  return null;
-}
-
 /// The tabs inside the desktop toolbox panel, in display order.
 ///
 /// A tab selection rather than a visibility flag, so Ctrl+T always has a
 /// visible effect even when the user is on the Targets tab.
 enum SequencerToolboxTab { nodes, snippets, targets }
 
-/// Currently selected sequencer tab.
 final sequencerTabProvider =
     StateProvider<int>((ref) => SequencerTab.builder.index);
 
@@ -179,10 +143,10 @@ final flatNodePaletteProvider =
 // user-initiated delete must share one policy.
 
 class SequencerScreen extends ConsumerStatefulWidget {
-  const SequencerScreen({super.key, this.initialTabQuery});
+  const SequencerScreen({super.key, this.initialTab});
 
-  /// Raw router `?tab=` value. Unknown values preserve the last in-session tab.
-  final String? initialTabQuery;
+  /// The tab a link asked for; null keeps the last in-session tab.
+  final SequencerTab? initialTab;
 
   @override
   ConsumerState<SequencerScreen> createState() => _SequencerScreenState();
@@ -200,8 +164,7 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
         persistedIndex >= 0 && persistedIndex < SequencerTab.values.length
             ? persistedIndex
             : SequencerTab.builder.index;
-    final initialIndex = sequencerTabFromQuery(widget.initialTabQuery)?.index ??
-        safePersistedIndex;
+    final initialIndex = widget.initialTab?.index ?? safePersistedIndex;
     _tabController = TabController(
       length: SequencerTab.values.length,
       initialIndex: initialIndex,
@@ -388,8 +351,10 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
     // The inspector's session memory of last-known per-node progress must
     // fold every progress update whether or not the panel is open — the
     // Activity tab only watches it when built, and a lazily-created
-    // notifier would open on the post-reset empty maps.
-    ref.watch(lastKnownNodeActivityProvider);
+    // notifier would open on the post-reset empty maps. Listened to, not
+    // watched: it changes on every progress event, and watching it rebuilt
+    // the whole screen each time.
+    ref.listen(lastKnownNodeActivityProvider, (_, __) {});
 
     return CallbackShortcuts(
       bindings: {
@@ -439,6 +404,11 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                 .read(currentSequenceProvider.notifier)
                 .duplicateNode(selectedId);
           }
+        },
+        // Saving writes the library, not the tree, so it stays available
+        // during a run and on every tab.
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
+          saveOpenSequence(context, ref);
         },
         const SingleActivator(LogicalKeyboardKey.escape): () {
           if (currentTab == 0) {
@@ -554,10 +524,9 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                     ),
                   ),
 
-                // Progress bar (when running)
                 if (isRunning)
                   SequenceProgressBar(
-                      key: SequencerTutorialKeys.progressBar, colors: colors),
+                      key: TourTarget.sequencerProgressBar.key, colors: colors),
 
                 // Tab content. Each tab is lazily gated so Templates /
                 // Sequences / History are not constructed (and their async
@@ -592,7 +561,6 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                         index: SequencerTab.sequences.index,
                         builder: (_) => const SequenceLibraryTab(),
                       ),
-                      // History tab.
                       _LazyTab(
                         controller: _tabController,
                         index: SequencerTab.history.index,

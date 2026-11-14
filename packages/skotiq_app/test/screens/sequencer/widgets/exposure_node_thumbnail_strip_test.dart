@@ -20,7 +20,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/exposure_node_thumbnail_strip.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/thumbnail_strip_prefs.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_backend.dart' show mockBackend;

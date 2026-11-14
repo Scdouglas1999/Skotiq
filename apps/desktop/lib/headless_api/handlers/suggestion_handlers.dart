@@ -1,12 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for target suggestion service
-class SuggestionHandlers {
+class SuggestionHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    SuggestionApi.getSuggestionsForTonight: handleGetSuggestionsForTonight,
+    SuggestionApi.getRankedSuggestions: handleGetRankedSuggestions,
+    SuggestionApi.getConfig: handleGetConfig,
+    SuggestionApi.getTargetScore: handleGetTargetScore,
+  };
+
   final ProviderContainer container;
 
   SuggestionHandlers(this.container);
@@ -26,8 +39,6 @@ class SuggestionHandlers {
     }
     return parsed;
   }
-
-  // Get suggestions for tonight
 
   Future<Response> handleGetSuggestionsForTonight(Request request) async {
     // Validate every query parameter BEFORE touching the database so a
@@ -64,25 +75,21 @@ class SuggestionHandlers {
 
     final database = container.read(databaseProvider);
 
-    // Get location from settings
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({
         "error": "No location configured. Set location in settings first.",
       });
     }
 
-    // Get all targets
     final targets = await database.targetsDao.getAllTargets();
     if (targets.isEmpty) {
       return jsonOk({"suggestions": []});
     }
 
-    // Get all sessions for progress calculation
     final sessions = await database.sessionsDao.getAllSessions();
 
-    // Create suggestion config
     final config = TargetSuggestionConfig(
       minAltitude: minAltitude,
       minScore: minScore,
@@ -91,7 +98,6 @@ class SuggestionHandlers {
       preferredObjectTypes: preferredObjectTypes,
     );
 
-    // Generate suggestions
     final loggingService = container.read(loggingServiceProvider);
     final suggestionService = TargetSuggestionService(
       loggingService: loggingService,
@@ -105,7 +111,6 @@ class SuggestionHandlers {
       sessions: sessions,
     );
 
-    // Limit results
     final limited = suggestions.take(maxResults).toList();
 
     return jsonOk({
@@ -137,8 +142,6 @@ class SuggestionHandlers {
   List<String> _parseObjectTypes(String? raw) => raw == null
       ? <String>[]
       : raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
-
-  // Tonight's ranking as this host's own Plan screen computes it
 
   /// `GET /api/suggestions/ranked`: the list a linked client shows on Plan >
   /// Tonight. It is the host's own ranking (catalog candidates, the active
@@ -185,10 +188,7 @@ class SuggestionHandlers {
     }
   }
 
-  // Get suggestion config
-
   Future<Response> handleGetConfig(Request request) async {
-    // Return default configuration
     const config = TargetSuggestionConfig();
 
     return jsonOk({
@@ -203,8 +203,6 @@ class SuggestionHandlers {
     });
   }
 
-  // Get target score
-
   Future<Response> handleGetTargetScore(
     Request request,
     String targetId,
@@ -212,23 +210,19 @@ class SuggestionHandlers {
     final tid = _parsePathId(targetId, 'targetId');
     final database = container.read(databaseProvider);
 
-    // Get target
     final target = await database.targetsDao.getTargetById(tid);
     if (target == null) {
       return jsonNotFound({"error": "Target not found: $targetId"});
     }
 
-    // Get location
-    final latitude = await database.settingsDao.getObserverLatitude();
-    final longitude = await database.settingsDao.getObserverLongitude();
+    final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
+    final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
     if (latitude == 0.0 && longitude == 0.0) {
       return jsonBadRequest({"error": "No location configured"});
     }
 
-    // Get sessions for progress calculation
     final sessions = await database.sessionsDao.getSessionsForTarget(tid);
 
-    // Generate suggestion for this target
     final loggingService = container.read(loggingServiceProvider);
     final suggestionService = TargetSuggestionService(
       loggingService: loggingService,
@@ -265,8 +259,6 @@ class SuggestionHandlers {
       "suggestion": _suggestionToJson(suggestion),
     });
   }
-
-  // Helpers
 
   Map<String, dynamic> _suggestionToJson(TargetSuggestion s) {
     return {

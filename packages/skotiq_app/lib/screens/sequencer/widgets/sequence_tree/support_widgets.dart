@@ -735,63 +735,15 @@ class _DropZone extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DragTarget<Object>(
-      onWillAcceptWithDetails: (data) =>
-          data.data is String ||
-          data.data is FoldDragPayload ||
-          data.data is NodePaletteItem ||
-          data.data is TemplateSnippet ||
-          data.data is TargetQueueDragPayload,
+      onWillAcceptWithDetails: (data) => isTreeDropPayload(data.data),
       onAcceptWithDetails: (details) {
-        final data = details.data;
-        if (data is String) {
-          ref.read(currentSequenceProvider.notifier).moveNode(
-                data,
-                parentId,
-                index,
-              );
-        } else if (data is FoldDragPayload) {
-          // A folded run lands here as one contiguous block, in one undo step
-          // — see [moveFoldGroup] for why the members chase each other rather
-          // than take index + k.
-          moveFoldGroup(
-            context,
-            ref,
-            memberIds: data.memberIds,
-            parentId: parentId,
-            index: index,
-          );
-        } else if (data is NodePaletteItem) {
-          final node = data.createNode();
-          final notifier = ref.read(currentSequenceProvider.notifier);
-          notifier.addNode(
-            node,
-            parentId: parentId,
-            index: index,
-          );
-          final children = data.createChildren?.call();
-          if (children != null) {
-            for (final child in children) {
-              notifier.addNode(child, parentId: node.id);
-            }
-          }
-          ref.read(selectedNodeIdProvider.notifier).state = node.id;
-        } else if (data is TemplateSnippet) {
-          // Route through the guarded helper so a locked-state /
-          // unknown-node-type insert surfaces a snackbar, matching the
-          // tap path.
-          insertSnippetGuarded(context, ref, data,
-              parentId: parentId, index: index);
-        } else if (data is TargetQueueDragPayload) {
-          // Precise-position drop: insert the prebuilt
-          // TargetHeaderNode at the exact index where the dashed
-          // drop-zone lives. Mirrors the NodePaletteItem branch above
-          // so the queue payload feels like any other dragged
-          // toolbox item.
-          final notifier = ref.read(currentSequenceProvider.notifier);
-          notifier.addNode(data.node, parentId: parentId, index: index);
-          ref.read(selectedNodeIdProvider.notifier).state = data.node.id;
-        }
-        // Reset drag state after drop
+        insertIntoTree(
+          context,
+          ref,
+          details.data,
+          parentId: parentId,
+          index: index,
+        );
         ref.read(isDraggingNodeProvider.notifier).state = false;
       },
       builder: (context, candidateData, rejectedData) {
@@ -899,7 +851,6 @@ class _DropZone extends ConsumerWidget {
   }
 }
 
-/// Creates a dashed-border-style decoration for drop zone indicators.
 BoxDecoration _dashedDropDecoration(SkotiqColors colors) {
   return SkotiqDecorations.tintedBadge(
     colors.primary,
@@ -924,7 +875,6 @@ class _DashedLinePainter extends CustomPainter {
     const dashSpace = 4.0;
     final y = size.height / 2;
 
-    // Draw left dashes (up to center minus icon space)
     final leftEnd = size.width / 2 - 12;
     var x = 4.0;
     while (x < leftEnd) {
@@ -936,7 +886,6 @@ class _DashedLinePainter extends CustomPainter {
       x += dashWidth + dashSpace;
     }
 
-    // Draw right dashes (from center plus icon space)
     final rightStart = size.width / 2 + 12;
     x = rightStart;
     while (x < size.width - 4) {

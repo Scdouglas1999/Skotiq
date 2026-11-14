@@ -10,8 +10,11 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart' show StepReport;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';
@@ -20,12 +23,6 @@ import 'night_run_phase_provider.dart';
 /// The run's progress node for its meridian flip (the native
 /// `MERIDIAN_FLIP_RUN_PROGRESS_NODE_ID`).
 const String kMeridianFlipProgressNodeId = 'trigger:meridian_flip';
-
-/// "attempt 2/4 failed, retrying in 60s", the run's retry notice.
-final RegExp _attemptFailed = RegExp(
-  r'attempt\s+(\d+)\s*/\s*(\d+)\s+failed(?:,\s*retrying in\s+(\d+(?:\.\d+)?)\s*s)?',
-  caseSensitive: false,
-);
 
 /// Where the run's meridian flip stands.
 @immutable
@@ -59,7 +56,6 @@ class NightFlipState {
   /// flip moved it, whatever happened after.
   final bool pierChanged;
 
-  /// The flip reported success.
   final bool succeeded;
 
   /// When the flip gave up, and after how many attempts; null unless the
@@ -193,24 +189,22 @@ class NightFlipTracker extends Notifier<NightFlipState> {
             :final action,
           )
           when triggerId == 'meridian_flip' ||
-              action.startsWith('MeridianFlip'):
+              action == sk_events.SequencerTriggerAction.meridianFlip:
         _start(at);
-      case sk_events.SequencerEvent_InstructionProgress(
-            :final nodeId,
-            :final detail,
-          )
+      case sk_events.SequencerEvent_InstructionProgress(:final nodeId)
           when nodeId == kMeridianFlipProgressNodeId:
         if (!state.inProgress) _start(at);
-        final match = _attemptFailed.firstMatch(detail);
-        if (match == null) return;
-        final wait = match.group(3);
-        final delay = wait == null ? null : double.tryParse(wait);
+      case final sk_events.SequencerEvent_InstructionProgressStructured step
+          when step.nodeId == kMeridianFlipProgressNodeId:
+        if (!state.inProgress) _start(at);
+        final retry = step.detail;
+        if (retry is! MeridianFlipRetryProgressDetail) return;
         state = state.copyWith(
-          failedAttempts: () => int.tryParse(match.group(1)!),
-          maxAttempts: () => int.tryParse(match.group(2)!),
-          nextTryAt: () => delay == null
-              ? null
-              : at.add(Duration(milliseconds: (delay * 1000).round())),
+          failedAttempts: () => retry.failedAttempt,
+          maxAttempts: () => retry.maxAttempts,
+          nextTryAt: () => at.add(
+            Duration(milliseconds: (retry.retryInSecs * 1000).round()),
+          ),
         );
       case sk_events.SequencerEvent_MeridianFlipOutcome(
           :final outcome,
@@ -218,18 +212,19 @@ class NightFlipTracker extends Notifier<NightFlipState> {
         ):
         // The mount reached its new side; centering and guiding are still
         // being restored, and the verdict follows.
-        if (outcome == meridianFlipPierChangedOutcome) {
+        if (outcome == sk_events.FlipOutcome.pierChanged) {
           if (!state.inProgress) _start(at);
           state = state.copyWith(pierChanged: true);
           return;
         }
-        final success = outcome == 'success';
+        final success = outcome == sk_events.FlipOutcome.success;
         state = state.copyWith(
           startedAt: () => null,
           nextTryAt: () => null,
           succeeded: success,
-          failure: () =>
-              outcome == 'failed' ? (at: at, attempts: attempts) : null,
+          failure: () => outcome == sk_events.FlipOutcome.failed
+              ? (at: at, attempts: attempts)
+              : null,
         );
       case sk_events.SequencerEvent_Resumed():
         // The operator has seen the failure; the Steps list moves on.
@@ -293,11 +288,6 @@ final nightFlipStepProvider = Provider<NightFlipStepVm?>((ref) {
   if (!ref.watch(nightRunPhaseProvider).isRunLive) return null;
   final flip = ref.watch(nightFlipProvider);
   final clock = ref.watch(clockProvider);
-  String hm(DateTime at) {
-    final t = clock.toNightClock(at);
-    return '${t.hour.toString().padLeft(2, '0')}:'
-        '${t.minute.toString().padLeft(2, '0')}';
-  }
 
   final failure = flip.failure;
   if (!flip.inProgress) {
@@ -308,7 +298,7 @@ final nightFlipStepProvider = Provider<NightFlipStepVm?>((ref) {
         flip.pierChanged ? 'nightCtlFlipFailedMoved' : 'nightCtlFlipFailed',
         params: <String, String>{
           'attempts': '${failure.attempts}',
-          'time': hm(failure.at),
+          'time': ClockFormat.hm(clock.toNightClock(failure.at)),
         },
       ),
     );
@@ -327,7 +317,7 @@ final nightFlipStepProvider = Provider<NightFlipStepVm?>((ref) {
           params: <String, String>{
             'attempt': '$failed',
             'max': '$max',
-            'time': hm(nextTry),
+            'time': ClockFormat.hm(clock.toNightClock(nextTry)),
           },
         ),
       );

@@ -24,10 +24,6 @@
 // (not the empty local DAO/seam). The complementary HOST-mode branch is covered
 // by sky_atlas_service_test.dart / the First Light service tests; the
 // remote-triage refresh path is covered by first_light_remote_triage_refresh_test.dart.
-//
-// The wire-route safety net (every NetworkBackend Living-Sky call maps to a
-// registered + advertised headless route) lives in the contract test at
-// apps/desktop/test/headless_api/network_backend_contract_test.dart.
 
 import 'dart:async';
 import 'dart:typed_data';
@@ -40,6 +36,7 @@ import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/sky_atlas_provider.dart';
 import 'package:skotiq_core/src/providers/transient_detections_provider.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -185,7 +182,7 @@ void main() {
       verify(() => backend.getAtlasRegions()).called(1);
     });
 
-    test('skyAtlasRegionWriterProvider creates metadata on the host', () async {
+    test('yourSkyAtlasProvider creates metadata on the host', () async {
       final backend = slaveBackend();
       when(
         () => backend.createAtlasRegion(
@@ -200,7 +197,7 @@ void main() {
       final container = containerFor(backend);
 
       final id = await container
-          .read(skyAtlasRegionWriterProvider)
+          .read(yourSkyAtlasProvider)
           .ensureRegion(
             name: 'M31 core',
             centerRaDeg: 10.68,

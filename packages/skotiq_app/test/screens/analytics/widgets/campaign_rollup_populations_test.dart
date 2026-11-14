@@ -12,7 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/campaign_rollup_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 CampaignRollup _rollup({required DateTime? endTime}) => CampaignRollup(
@@ -36,6 +37,7 @@ CampaignRollup _rollup({required DateTime? endTime}) => CampaignRollup(
       firstSessionAt: DateTime.utc(2026, 7, 31, 23),
       lastSessionAt: DateTime.utc(2026, 7, 31, 23),
       totalCapturedIntegrationSecs: 0,
+      goalDoneSecs: 0,
       meanSessionHfr: 2.20,
       meanSessionSeeing: null,
       meanEffectiveImagingFraction: 0.0,
@@ -84,6 +86,7 @@ CampaignRollup _partlyRejectedRollup() => CampaignRollup(
       firstSessionAt: DateTime.utc(2026, 7, 31, 23),
       lastSessionAt: DateTime.utc(2026, 7, 31, 23),
       totalCapturedIntegrationSecs: 8400,
+      goalDoneSecs: 6000,
       meanSessionHfr: 2.20,
       meanSessionSeeing: null,
       meanEffectiveImagingFraction: 0.66,
@@ -127,7 +130,7 @@ void main() {
       reason: '0.17h was captured; it was rejected, which is a different thing',
     );
     expect(find.textContaining('No accepted frames yet'), findsOneWidget);
-    expect(find.textContaining('0.2h captured'), findsWidgets);
+    expect(find.textContaining('10m captured'), findsWidgets);
   });
 
   testWidgets('accepted and captured integration are named separately',
@@ -191,10 +194,11 @@ void main() {
     expect(find.text('8 frames accepted (no goal)'), findsOneWidget);
     expect(find.text('20/50 frames accepted'), findsOneWidget);
 
-    // The goal bar's number is the accepted total (2.3h), not the 3.3h the
-    // session row below it reports as captured.
-    expect(find.textContaining('Accepted 2.3h of'), findsOneWidget);
-    expect(find.textContaining('Captured 2.3h of'), findsNothing);
-    expect(find.textContaining('3.33h captured'), findsOneWidget);
+    // The goal bar's number is the accepted time in the goal's filter (L,
+    // 1.7h), as Plan counts it: not the 2.3h accepted over every filter, nor
+    // the 3.3h the session row below it reports as captured.
+    expect(find.textContaining('Accepted 1.7h of'), findsOneWidget);
+    expect(find.textContaining('Captured 1.7h of'), findsNothing);
+    expect(find.textContaining('3.3h captured'), findsOneWidget);
   });
 }

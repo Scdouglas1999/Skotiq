@@ -97,7 +97,6 @@ void main() {
   test(
     'end-to-end: two contributors upload, fused result == local co-add',
     () async {
-      // Two contributor accounts.
       final aliceToken =
           (await jsonOf(
                 await req(
@@ -1687,7 +1686,6 @@ void main() {
         )).statusCode,
         403,
       );
-      // The owner closes it.
       final closed = await jsonOf(
         await req(
           'POST',

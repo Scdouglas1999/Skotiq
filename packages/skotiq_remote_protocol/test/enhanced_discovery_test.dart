@@ -401,31 +401,36 @@ void main() {
       );
     });
 
-    test('prefers compatible apiVersion over a newer app version', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      addTearDown(() => server.close(force: true));
-      server.listen((request) async {
-        request.response
-          ..statusCode = HttpStatus.ok
-          ..headers.contentType = ContentType.json
-          ..write(
-            jsonEncode({
-              'version': '3.0.0',
-              'apiVersion': '2.6.0',
-              'authRequired': false,
-            }),
-          );
-        await request.response.close();
-      });
+    for (final (hostVersion, linkable) in [
+      (skotiqRelease, true),
+      ('0.0.1', false),
+      (null, false),
+    ]) {
+      test('a host of release $hostVersion is linkable: $linkable', () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => server.close(force: true));
+        server.listen((request) async {
+          request.response
+            ..statusCode = HttpStatus.ok
+            ..headers.contentType = ContentType.json
+            ..write(
+              jsonEncode({
+                if (hostVersion != null) 'version': hostVersion,
+                'authRequired': false,
+              }),
+            );
+          await request.response.close();
+        });
 
-      expect(
-        await EnhancedSkotiqDiscovery.testServerConnection(
-          InternetAddress.loopbackIPv4.address,
-          server.port,
-        ),
-        isTrue,
-      );
-    });
+        expect(
+          await EnhancedSkotiqDiscovery.testServerConnection(
+            InternetAddress.loopbackIPv4.address,
+            server.port,
+          ),
+          linkable,
+        );
+      });
+    }
   });
 
   // A live host that REJECTS the credential must not be reported as
@@ -475,11 +480,7 @@ void main() {
         () async {
           final port = await serveStatus(
             code,
-            info: {
-              'version': '3.0.0',
-              'apiVersion': '2.6.0',
-              'authRequired': true,
-            },
+            info: {'version': skotiqRelease, 'authRequired': true},
           );
           expect(
             await EnhancedSkotiqDiscovery.probeServer(

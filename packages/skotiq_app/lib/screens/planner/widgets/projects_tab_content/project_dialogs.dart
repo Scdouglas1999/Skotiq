@@ -1,7 +1,5 @@
 part of '../projects_tab_content.dart';
 
-// Create / edit project dialog.
-
 class _ProjectFormDialog extends StatefulWidget {
   final Project? existing;
 
@@ -104,8 +102,6 @@ class _ProjectFormDialogState extends State<_ProjectFormDialog> {
   }
 }
 
-// Add-target dialog: searchable catalog picker.
-
 class _AddTargetDialog extends ConsumerStatefulWidget {
   final Set<int> attachedTargetIds;
 
@@ -153,7 +149,7 @@ class _AddTargetDialogState extends ConsumerState<_AddTargetDialog> {
       if (!mounted) return;
       setState(() {
         _adding = null;
-        _addError = 'Could not add ${match.name}: $error';
+        _addError = 'Could not add ${match.name}: ${userFacingError(error)}';
       });
     }
   }
@@ -199,7 +195,7 @@ class _AddTargetDialogState extends ConsumerState<_AddTargetDialog> {
               ),
               error: (err, _) => SkotiqBanner(
                   title: 'Failed to load targets',
-                  message: err.toString(),
+                  message: userFacingError(err),
                   tone: BannerTone.error),
               data: (targets) {
                 final query = _query.toLowerCase();
@@ -259,7 +255,7 @@ class _AddTargetDialogState extends ConsumerState<_AddTargetDialog> {
                         onPressed: () {
                           final router = GoRouter.of(context);
                           Navigator.of(context).pop();
-                          router.go('/settings/plate-solving');
+                          router.go(AppRoute.plateSolvingSettings.path);
                         },
                       ),
                     );

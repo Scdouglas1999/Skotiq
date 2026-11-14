@@ -1,13 +1,12 @@
 import 'dart:math' as math;
 
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'adaptive_chart_container.dart';
-import 'chart_axis.dart';
+import '../../../widgets/adaptive_chart_container.dart';
 
 /// Card: Zero-Point trend across the current session.
 ///
@@ -69,13 +68,6 @@ class ZeroPointTrendCard extends StatelessWidget {
   }
 }
 
-/// Card: rolling plate-solve success rate across the current session.
-///
-/// Computed as a sliding window (default 8 frames) over the captured-image
-/// stream — at frame N the value is the fraction of the last 8 frames
-/// that returned a WCS. This is much more diagnostic than the raw cumulative
-/// rate because it shows *when* solving started failing, which is usually
-/// the moment clouds appeared or guiding drifted past tolerance.
 /// HFR trend from accepted light frames (classic session quality metric).
 class HfrTrendCard extends StatelessWidget {
   final SkotiqColors colors;
@@ -148,13 +140,14 @@ class UniformityTrendCard extends StatelessWidget {
     final sorted = frameMetrics.toList(growable: false)
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     for (final m in sorted) {
-      if (!m.uniformityCv.isFinite) continue;
+      final cv = m.measuredUniformityCv;
+      if (cv == null) continue;
       final imageId = m.capturedImageId;
       if (imageId != null && rejectedImageIds.contains(imageId)) {
         excluded++;
         continue;
       }
-      points.add(_TrendPoint(m.timestamp, m.uniformityCv));
+      points.add(_TrendPoint(m.timestamp, cv));
     }
 
     return _TrendCardShell(
@@ -313,113 +306,35 @@ class _TrendCardShell extends StatelessWidget {
 
   Widget _buildChart() {
     final firstTs = points.first.timestamp;
-    final spots = points
-        .map((p) => FlSpot(
-              p.timestamp.difference(firstTs).inSeconds.toDouble(),
-              p.value,
-            ))
-        .toList();
-
-    final values = points.map((p) => p.value);
-    final dataMin = values.reduce(math.min);
-    final dataMax = values.reduce(math.max);
-    // Snap the axis to tick multiples: with bounds at data +/- 10% and ticks at
-    // range/4, fl_chart's boundary label landed a sliver from the outermost
-    // tick and the two drew on top of each other ("21.21" over "21.20" on the
-    // zero-point card).
-    final axis =
-        NiceAxis.forRange(minY ?? dataMin, maxY ?? dataMax, padFraction: 0.1);
-    final effectiveMinY = minY ?? axis.min;
-    final effectiveMaxY = maxY ?? axis.max;
-    final yInterval = axis.interval;
-    final lastX = spots.last.x == 0 ? 1.0 : spots.last.x;
-    // Exact division puts the final tick on the axis end.
-    final xInterval = lastX / 4;
-
-    return LineChart(
-      LineChartData(
-        minX: 0,
-        maxX: lastX,
-        minY: effectiveMinY,
-        maxY: effectiveMaxY,
-        borderData: FlBorderData(
-          show: true,
-          border: Border.all(color: colors.border),
+    final samples = [
+      for (final p in points)
+        Offset(
+          p.timestamp.difference(firstTs).inSeconds.toDouble(),
+          p.value,
         ),
-        gridData: FlGridData(
-          horizontalInterval: yInterval,
-          verticalInterval: xInterval,
-          getDrawingHorizontalLine: (_) =>
-              FlLine(color: colors.border.withValues(alpha: 0.3)),
-          getDrawingVerticalLine: (_) =>
-              FlLine(color: colors.border.withValues(alpha: 0.2)),
+    ];
+    return SkotiqChart(
+      semanticLabel: '$title: latest ${formatY(points.last.value)} over '
+          '${points.length} samples',
+      series: <ChartSeries>[
+        ChartSeries(
+          points: samples,
+          label: title,
+          color: lineColor,
+          strokeWidth: 2,
+          filled: true,
         ),
-        titlesData: FlTitlesData(
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 22,
-              interval: xInterval,
-              getTitlesWidget: (value, meta) {
-                return Text(
-                  elapsedAxisLabel(value),
-                  style: SkotiqTypography.caption
-                      .copyWith(color: colors.textSecondary),
-                );
-              },
-            ),
-          ),
-          leftTitles: AxisTitles(
-            axisNameWidget: Text(
-              yLabel,
-              style: SkotiqTypography.caption
-                  .copyWith(color: colors.textSecondary),
-            ),
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 42,
-              interval: yInterval,
-              getTitlesWidget: (value, meta) => Text(
-                formatY(value),
-                style: SkotiqTypography.caption
-                    .copyWith(color: colors.textSecondary),
-              ),
-            ),
-          ),
-        ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            color: lineColor,
-            barWidth: 2,
-            isCurved: false,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: lineColor.withValues(alpha: 0.12),
-            ),
-          ),
-        ],
-        lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => colors.surface,
-            getTooltipItems: (touched) => touched.map((spot) {
-              final mins = (spot.x / 60).round();
-              return LineTooltipItem(
-                '${formatY(spot.y)}\n${mins}m into session',
-                SkotiqTypography.labelQuiet.copyWith(
-                  color: colors.textPrimary,
-                ),
-              );
-            }).toList(),
-          ),
-        ),
+      ],
+      x: ChartAxis(
+        kind: ChartAxisKind.elapsed,
+        readout: (secs) => '${(secs / 60).round()}m into session',
+      ),
+      y: ChartAxis(
+        min: minY,
+        max: maxY,
+        title: yLabel,
+        format: formatY,
+        readout: formatY,
       ),
     );
   }

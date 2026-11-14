@@ -3,16 +3,15 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../backend_provider.dart';
 import '../../../backend/frame_capture_metadata.dart';
-import '../../../backend/network_backend.dart' show NetworkBackend;
 import '../../../backend/skotiq_backend.dart';
-import '../../../database/daos/campaigns_dao.dart' show campaignsDaoProvider;
+import '../../database_provider.dart' show campaignsDaoProvider;
+import '../../../models/imaging/gain_kind.dart';
 import '../../../models/imaging/imaging_models.dart';
 import '../../../services/capture_preview_loader.dart';
 import '../../../services/frame_quality_score.dart';
 import '../../../services/logging_service.dart';
-import '../../../services/science/science_processing_service.dart'
-    show scienceProcessingServiceProvider;
 import '../../dark_library_provider.dart' show darkLibraryServiceProvider;
 import '../../database_provider.dart' show imagesDaoProvider;
 import '../../equipment_provider.dart';
@@ -22,12 +21,16 @@ import '../../sequence_stats_provider.dart';
 import '../../session_provider.dart';
 import '../../thumbnail_sidecar_provider.dart';
 import '../sequence_progress.dart' show sequenceProgressProvider;
-import '../sequencer_run_event.dart';
+import '../../../backend/bridge_events.dart' show FrameCaptureMetadata;
+import '../../../backend/sequencer_run_events.dart';
+import '../../../models/sequence/run_frame_assessment.dart';
 import '../../sequence_provider.dart' show currentSequenceProvider;
 import 'frame_attribution.dart';
 import 'run_frame_science.dart';
 import 'run_stats_ledger.dart';
 import 'run_target_binding.dart';
+import '../../capture_preview_loader_provider.dart';
+import '../../science/science_processing_service_provider.dart';
 
 /// Everything a run records about a frame it captured: the run-stats frame
 /// counters, the `captured_images` row, the imaging-session counters, the
@@ -69,8 +72,8 @@ class RunFrameRecorder {
 
   /// Verdicts already counted, by frame index, awaiting their
   /// `ExposureCompleted`.
-  final Map<int, ({bool accepted, FrameCapture capture})> _graded =
-      <int, ({bool accepted, FrameCapture capture})>{};
+  final Map<int, ({bool accepted, FrameCaptureMetadata capture})> _graded =
+      <int, ({bool accepted, FrameCaptureMetadata capture})>{};
 
   /// Frame persistence still in flight.
   final Set<Future<void>> _inFlight = <Future<void>>{};
@@ -91,12 +94,11 @@ class RunFrameRecorder {
   /// Count a graded frame, show it, and hold its verdict for its
   /// `ExposureCompleted`. The exposure credited is the one the camera
   /// reported, the value the FITS header and the row are written from.
-  void recordGraded(FrameGraded event) {
+  void recordGraded(FrameVerdict event) {
     final capture = event.capture;
-    final exposureSecs = capture.exposureSecs ?? 0.0;
+    final exposureSecs = capture.exposureSecs;
     final bucket = recordRunFrame(
       exposureSecs: exposureSecs,
-      filter: event.filter,
       accepted: event.accepted,
     );
     // The saved file travels with the preview so the background solve and the
@@ -116,12 +118,10 @@ class RunFrameRecorder {
       }
     }
     showPreview(
-      previewSettingsFor(capture, capture.exposureSecs ?? 0.0),
+      previewSettingsFor(capture, exposureSecs),
       filePath: path == null || path.isEmpty ? null : path,
     );
-    final frame = event.frame;
-    if (frame == null) return;
-    _graded[frame] = (accepted: event.accepted, capture: capture);
+    _graded[event.frame] = (accepted: event.accepted, capture: capture);
   }
 
   /// Consume the held verdict for [frame]; false when the frame was never
@@ -133,11 +133,8 @@ class RunFrameRecorder {
   ({String target, String filter}) recordRunFrame({
     required double exposureSecs,
     required bool accepted,
-    String? filter,
   }) {
-    final resolvedFilter = (filter != null && filter.isNotEmpty)
-        ? filter
-        : activeFilter();
+    final resolvedFilter = activeFilter();
     final bucket = (
       target: _activeTargetName(),
       filter: (resolvedFilter != null && resolvedFilter.isNotEmpty)
@@ -162,7 +159,7 @@ class RunFrameRecorder {
   /// its solve, sky background, guide RMS and exclusion. The row update waits
   /// for the row's own insert; a frame with no row is logged, never dropped
   /// silently.
-  void recordAssessment(FrameAssessed event) {
+  void recordAssessment(FrameAssessment event) {
     final path = event.savePath;
     if (path == null || path.isEmpty) {
       _logger.warning(
@@ -271,36 +268,39 @@ class RunFrameRecorder {
     return sequence?.name ?? 'Sequence';
   }
 
-  /// The settings stamped on a frame's preview: the camera's reported values,
-  /// else the producing node's configuration (a host with no capture
-  /// payload), never literals.
+  /// The settings stamped on a frame's preview: the capture record of a
+  /// graded frame, else (a frame with no saved file, so no grader) the
+  /// producing node's configuration; never literals.
   ExposureSettings previewSettingsFor(
-    FrameCapture? capture,
+    FrameCaptureMetadata? capture,
     double durationSecs,
   ) {
     final filter = activeFilter();
+    if (capture != null) {
+      return ExposureSettings(
+        exposureTime: capture.exposureSecs,
+        gain: capture.gain ?? 0,
+        offset: capture.offset ?? 0,
+        binningX: capture.binX,
+        binningY: capture.binY,
+        filter: filter,
+        frameType:
+            FrameType.fromImageType(capture.frameType) ?? FrameType.light,
+      );
+    }
     final sequence = _ref.read(currentSequenceProvider);
     final nodeId = _ref.read(sequenceProgressProvider).currentNodeId;
     final attribution = (sequence == null || nodeId == null)
         ? const FrameAttribution()
         : resolveFrameAttribution(sequence, nodeId, currentFilter: filter);
     return ExposureSettings(
-      exposureTime:
-          capture?.exposureSecs ?? attribution.exposureSecs ?? durationSecs,
-      gain: capture?.gain ?? attribution.gain ?? 0,
-      offset: capture?.offset ?? attribution.offset ?? 0,
-      binningX: capture?.binX ?? attribution.binX,
-      binningY: capture?.binY ?? attribution.binY,
+      exposureTime: attribution.exposureSecs ?? durationSecs,
+      gain: attribution.gain ?? 0,
+      offset: attribution.offset ?? 0,
+      binningX: attribution.binX,
+      binningY: attribution.binY,
       filter: filter,
-      frameType: switch (capture?.frameType?.toLowerCase() ??
-          attribution.frameType) {
-        'dark' => FrameType.dark,
-        'flat' => FrameType.flat,
-        'bias' => FrameType.bias,
-        'darkflat' => FrameType.darkFlat,
-        'snapshot' => FrameType.snapshot,
-        _ => FrameType.light,
-      },
+      frameType: attribution.frameType,
     );
   }
 
@@ -348,10 +348,10 @@ class RunFrameRecorder {
   /// the science pipeline (see [RunFrameScience]). Fire-and-forget;
   /// failures are logged and never block the run. A frame with no producing
   /// node (a wizard capture) has nothing to hang a row off and is skipped.
-  void register(FrameGraded event, {required String grade}) {
+  void register(FrameVerdict event, {required String grade}) {
     final isAccepted = event.accepted;
     final nodeId = event.nodeId;
-    if (nodeId == null || nodeId.isEmpty) return;
+    if (nodeId.isEmpty) return;
     final hfr = event.hfr;
     final eccentricity = event.eccentricity;
     final starCount = event.starCount;
@@ -369,10 +369,7 @@ class RunFrameRecorder {
     // row.
     final filePath = event.filePath ?? '';
     final fileName = filePath.isEmpty ? '' : p.basename(filePath);
-    final rejectionReason = switch (event) {
-      FrameRejected(:final reason) => reason,
-      FrameAccepted() => null,
-    };
+    final rejectionReason = event.reason;
     final filter = activeFilter();
     final runIdString = _ref.read(currentRunIdProvider)?.toString();
     // No open session row means a NULL column, not a dangling id.
@@ -384,10 +381,9 @@ class RunFrameRecorder {
     final sidecarService = _ref.read(thumbnailSidecarServiceProvider);
 
     // Resolved now, from the tree as it was when the frame was produced. The
-    // `capture.x ?? attribution.x` fallbacks serve only a client paired with
-    // an appliance older than the capture payload; on the FFI path the
-    // capture value is the stronger source. The target id is a `targets.id`
-    // resolved here, never the event's own `target_id` (a node id).
+    // target id is a `targets.id` resolved here, never the event's own
+    // `target_id` (a node id). In the capture record a null gain or offset is
+    // a camera without that control.
     final loadedSequence = _ref.read(currentSequenceProvider);
     final attribution = loadedSequence == null
         ? const FrameAttribution()
@@ -403,15 +399,7 @@ class RunFrameRecorder {
             : _targets.targetIdFor(loadedSequence, nodeId));
     // The shutter time the camera reported, bounded natively against the
     // commanded duration.
-    final exposureSecs = capture.exposureSecs ?? attribution.exposureSecs;
-    if (exposureSecs == null) {
-      _logger.warning(
-        'Sequence frame from node $nodeId has no resolvable exposure duration '
-        '(producing node is not an ExposureNode); recording 0s rather than a '
-        'fabricated value.',
-        source: 'SequenceExecutor',
-      );
-    }
+    final exposureSecs = capture.exposureSecs;
 
     // The frame is on disk whether or not the insert below succeeds, so the
     // session counters move now. A rejected frame counts as a capture but not
@@ -419,7 +407,7 @@ class RunFrameRecorder {
     _ref
         .read(sessionStateProvider.notifier)
         .recordExposureComplete(
-          exposureTime: exposureSecs ?? 0.0,
+          exposureTime: exposureSecs,
           hfr: hfr,
           accepted: isAccepted,
         );
@@ -427,14 +415,15 @@ class RunFrameRecorder {
     // Captured before the await: the insert outlives the handler, and reading
     // a provider from a disposed container throws.
     final logger = _logger;
-    final frameType = capture.frameType?.toLowerCase() ?? attribution.frameType;
-    final darkLibrary = frameType == 'dark' || frameType == 'bias'
+    final frameType = _recordedFrameType(capture.frameType, attribution);
+    final darkLibrary =
+        frameType == FrameType.dark || frameType == FrameType.bias
         ? _ref.read(darkLibraryServiceProvider)
         : null;
     // A linked client has no access to the host's files; the host processes
     // its own frames.
     final scienceAssessment =
-        _backend is! NetworkBackend &&
+        !_ref.read(isRemoteModeProvider) &&
             RunFrameScience.appliesTo(frameType, filePath)
         ? _science.expectAssessment(filePath, exposureSecs)
         : null;
@@ -449,10 +438,10 @@ class RunFrameRecorder {
                 sessionId,
                 FrameCapture(
                   exposureSecs: exposureSecs,
-                  gain: capture.gain ?? attribution.gain,
-                  offset: capture.offset ?? attribution.offset,
-                  binX: capture.binX ?? attribution.binX,
-                  binY: capture.binY ?? attribution.binY,
+                  gain: capture.gain,
+                  offset: capture.offset,
+                  binX: capture.binX,
+                  binY: capture.binY,
                   focuserPosition: capture.focuserPosition,
                 ),
               );
@@ -462,10 +451,8 @@ class RunFrameRecorder {
         final rowId = await dao.insertSequenceFrame(
           filePath: filePath,
           fileName: fileName,
-          fileFormat: filePath.toLowerCase().endsWith('.xisf')
-              ? 'xisf'
-              : 'fits',
-          exposureDuration: exposureSecs ?? 0.0,
+          fileFormat: frameFileFormatOf(filePath).recordName,
+          exposureDuration: exposureSecs,
           targetId: targetId,
           capturedAt: DateTime.now(),
           isAccepted: isAccepted,
@@ -474,12 +461,12 @@ class RunFrameRecorder {
           runtimeGrade: grade,
           rejectionReason: rejectionReason,
           filter: filter,
-          // FITS IMAGETYP, in the images DB's lowercase spelling.
           frameType: frameType,
-          gain: capture.gain ?? attribution.gain,
-          offset: capture.offset ?? attribution.offset,
-          binX: capture.binX ?? attribution.binX,
-          binY: capture.binY ?? attribution.binY,
+          gain: capture.gain,
+          gainKind: capture.gainIsIso ? GainKind.iso : GainKind.gain,
+          offset: capture.offset,
+          binX: capture.binX,
+          binY: capture.binY,
           sensorTemp: capture.sensorTempC,
           coolerPower: capture.coolerPowerPercent,
           mountRa: capture.mountRaHours,
@@ -515,17 +502,17 @@ class RunFrameRecorder {
           try {
             await darkLibrary.addDarkFrame(
               filePath: filePath,
-              exposureTime: exposureSecs ?? 0.0,
-              frameType: frameType,
+              exposureTime: exposureSecs,
+              frameType: frameType.record,
               temperature: capture.sensorTempC,
-              gain: capture.gain ?? attribution.gain ?? 0,
-              offset: capture.offset ?? attribution.offset ?? 0,
-              binX: capture.binX ?? attribution.binX,
-              binY: capture.binY ?? attribution.binY,
+              gain: capture.gain,
+              offset: capture.offset,
+              binX: capture.binX,
+              binY: capture.binY,
             );
           } catch (e) {
             logger.warning(
-              'Recorded $frameType frame $filePath but could not add it to the '
+              'Recorded ${frameType.record} frame $filePath but could not add it to the '
               'dark library: $e',
               source: 'SequenceExecutor',
             );
@@ -599,3 +586,9 @@ class _CountedFrame {
   final double exposureSecs;
   final bool accepted;
 }
+
+/// The type of a frame the executor reported: what its capture record says
+/// (the `IMAGETYP` spelling), else the producing node's.
+FrameType _recordedFrameType(String? captured, FrameAttribution attribution) =>
+    (captured == null ? null : FrameType.fromImageType(captured)) ??
+    attribution.frameType;

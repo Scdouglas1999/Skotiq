@@ -66,12 +66,10 @@ class _DestinationRow extends ConsumerWidget {
   const _DestinationRow({
     super.key,
     required this.view,
-    required this.isMobile,
     required this.isLast,
   });
 
   final DeliveryDestinationView view;
-  final bool isMobile;
   final bool isLast;
 
   @override
@@ -85,138 +83,97 @@ class _DestinationRow extends ConsumerWidget {
       color: colors.textMuted,
     );
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 12.0 : SkotiqTokens.spaceLg,
-        vertical: isMobile ? 12.0 : 14.0,
-      ),
-      decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : Border(
-                bottom: BorderSide(
-                  color: colors.border.withValues(alpha: 0.5),
-                ),
-              ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return SettingsItem(
+      icon: deliveryKindIcon(destination.kind),
+      divider: !isLast,
+      trailing: Wrap(
+        spacing: SkotiqTokens.spaceSm,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Container(
-            width: isMobile ? 32.0 : 36.0,
-            height: isMobile ? 32.0 : 36.0,
-            decoration: BoxDecoration(
-              color: colors.well,
-              borderRadius: SkotiqTokens.borderRadiusMd,
-            ),
-            child: Icon(
-              deliveryKindIcon(destination.kind),
-              size: isMobile ? 14.0 : SkotiqTokens.iconSm,
-              color: colors.textSecondary,
+          // container, not a bare annotation: without a node of its own
+          // the switch's toggle state and tap action are absorbed by
+          // whatever node encloses it, which is how the whole row
+          // became one control carrying [ON].
+          Semantics(
+            container: true,
+            label: 'Deliver to ${destination.name}',
+            child: SkotiqSwitch(
+              value: destination.enabled,
+              onChanged: id == null
+                  ? null
+                  : (value) => _setEnabled(context, ref, id, value: value),
             ),
           ),
-          SizedBox(width: isMobile ? 10 : 14),
-          Expanded(
+          SkotiqIconButton(
+            icon: LucideIcons.settings2,
+            tooltip: 'Edit ${destination.name}',
+            onPressed: id == null
+                ? null
+                : () => _DestinationEditorDialog.edit(
+                      context,
+                      ref,
+                      view: view,
+                    ),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // The description reads as ONE node — name, transport and
+          // endpoint, what the journal says, what it sends — because six
+          // fragments in a row is not how anyone reads a destination.
+          // The merge stops here, at the text. A row-wide MergeSemantics
+          // swallowed the switch's toggle state and the Edit button's tap
+          // into the same node, so a screen reader was handed a single
+          // checkable button named with the whole card, ending in "Edit
+          // <name>", that did nothing when activated and offered no way
+          // to reach either control.
+          MergeSemantics(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // The description reads as ONE node — name, transport and
-                // endpoint, what the journal says, what it sends — because six
-                // fragments in a row is not how anyone reads a destination.
-                // The merge stops here, at the text. A row-wide MergeSemantics
-                // swallowed the switch's toggle state and the Edit button's tap
-                // into the same node, so a screen reader was handed a single
-                // checkable button named with the whole card, ending in "Edit
-                // <name>", that did nothing when activated and offered no way
-                // to reach either control.
-                MergeSemantics(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        destination.name,
-                        style: (isMobile
-                                ? SkotiqTypography.labelSm
-                                : SkotiqTypography.label)
-                            .copyWith(color: colors.textPrimary),
-                      ),
-                      const SizedBox(height: 2),
-                      // A remote directory or a deep mount path is long and has
-                      // few break opportunities, so it is clipped rather than
-                      // allowed to push the row past the card edge. The full
-                      // value is in the editor, which is where it is changed.
-                      Text(
-                        '${deliveryKindLabel(destination.kind)} · '
-                        '${deliveryEndpointSummary(destination)}',
-                        style: detailStyle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: SkotiqTokens.spaceXs),
-                      _StatusLine(status: status),
-                      if (destination.kind == ArtifactDestinationKind.peer) ...[
-                        const SizedBox(height: 2),
-                        _PeerPairingLine(destination: destination),
-                      ],
-                      const SizedBox(height: 2),
-                      Text(
-                        deliveryContentSummary(destination.content),
-                        style: detailStyle,
-                      ),
-                      if (destination.kind == ArtifactDestinationKind.sftp) ...[
-                        const SizedBox(height: 2),
-                        Text(_secretIndicator(view), style: detailStyle),
-                      ],
-                    ],
-                  ),
+                Text(
+                  destination.name,
+                  style: SettingsItem.titleStyle(context),
                 ),
-                // The one state an operator can act on from here: every
-                // attempt is spent, so nothing on the rig will look at those
-                // files again until somebody says to. It follows the
-                // description rather than interrupting it, the way a step
-                // card's controls follow its text.
-                if (status.kind == DeliveryStatusKind.failed && id != null)
-                  _RetryNowButton(destination: destination, id: id),
+                const SizedBox(height: 2),
+                // A remote directory or a deep mount path is long and has
+                // few break opportunities, so it is clipped rather than
+                // allowed to push the row past the card edge. The full
+                // value is in the editor, which is where it is changed.
+                Text(
+                  '${deliveryKindLabel(destination.kind)} · '
+                  '${deliveryEndpointSummary(destination)}',
+                  style: detailStyle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: SkotiqTokens.spaceXs),
+                _StatusLine(status: status),
+                if (destination.kind == ArtifactDestinationKind.peer) ...[
+                  const SizedBox(height: 2),
+                  _PeerPairingLine(destination: destination),
+                ],
+                const SizedBox(height: 2),
+                Text(
+                  deliveryContentSummary(destination.content),
+                  style: detailStyle,
+                ),
+                if (destination.kind == ArtifactDestinationKind.sftp) ...[
+                  const SizedBox(height: 2),
+                  Text(_secretIndicator(view), style: detailStyle),
+                ],
               ],
             ),
           ),
-          Flexible(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Wrap(
-                spacing: SkotiqTokens.spaceSm,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  // container, not a bare annotation: without a node of its own
-                  // the switch's toggle state and tap action are absorbed by
-                  // whatever node encloses it, which is how the whole row
-                  // became one control carrying [ON].
-                  Semantics(
-                    container: true,
-                    label: 'Deliver to ${destination.name}',
-                    child: SkotiqSwitch(
-                      value: destination.enabled,
-                      onChanged: id == null
-                          ? null
-                          : (value) =>
-                              _setEnabled(context, ref, id, value: value),
-                    ),
-                  ),
-                  SkotiqIconButton(
-                    icon: LucideIcons.settings2,
-                    tooltip: 'Edit ${destination.name}',
-                    onPressed: id == null
-                        ? null
-                        : () => _DestinationEditorDialog.edit(
-                              context,
-                              ref,
-                              view: view,
-                            ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // The one state an operator can act on from here: every
+          // attempt is spent, so nothing on the rig will look at those
+          // files again until somebody says to. It follows the
+          // description rather than interrupting it, the way a step
+          // card's controls follow its text.
+          if (status.kind == DeliveryStatusKind.failed && id != null)
+            _RetryNowButton(destination: destination, id: id),
         ],
       ),
     );
@@ -270,12 +227,9 @@ class _UnreadableDestinationRow extends ConsumerStatefulWidget {
   const _UnreadableDestinationRow({
     super.key,
     required this.row,
-    required this.isMobile,
   });
 
   final UndecodableDeliveryTarget row;
-  final bool isMobile;
-
   @override
   ConsumerState<_UnreadableDestinationRow> createState() =>
       _UnreadableDestinationRowState();
@@ -290,85 +244,51 @@ class _UnreadableDestinationRowState
     final colors = SkotiqColors.of(context);
     final row = widget.row;
     final id = row.id;
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: widget.isMobile ? 12.0 : SkotiqTokens.spaceLg,
-        vertical: widget.isMobile ? 12.0 : 14.0,
-      ),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: colors.border.withValues(alpha: 0.5)),
+    return SettingsItem(
+      icon: LucideIcons.fileWarning,
+      iconColor: colors.error,
+      divider: true,
+      trailing: id == null
+          ? null
+          : SkotiqButton(
+              label: 'Delete',
+              icon: LucideIcons.trash2,
+              variant: ButtonVariant.destructive,
+              size: ButtonSize.small,
+              isLoading: _deleting,
+              onPressed: _deleting ? null : () => _delete(id),
+            ),
+      // Same split as a readable row: the description is one node, and
+      // Delete — the only thing this row can do — keeps its own. Merged
+      // together, the single destructive control on the page arrived as a
+      // 4-line name ending in "Delete".
+      child: MergeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              row.label,
+              style: SettingsItem.titleStyle(context),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceXs),
+            _StatusLine(
+              status: DeliveryStatusLine(
+                DeliveryStatusKind.failed,
+                'This row cannot be read, so nothing is sent here: '
+                '${row.reason}.',
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Every other destination delivers normally. Deleting this '
+              'row removes it and its delivery journal; files already '
+              'delivered are left alone.',
+              style: SkotiqTypography.captionSm.copyWith(
+                color: colors.textMuted,
+              ),
+            ),
+          ],
         ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: widget.isMobile ? 32.0 : 36.0,
-            height: widget.isMobile ? 32.0 : 36.0,
-            decoration: BoxDecoration(
-              color: colors.well,
-              borderRadius: SkotiqTokens.borderRadiusMd,
-            ),
-            child: Icon(
-              LucideIcons.fileWarning,
-              size: widget.isMobile ? 14.0 : SkotiqTokens.iconSm,
-              color: colors.error,
-            ),
-          ),
-          SizedBox(width: widget.isMobile ? 10 : 14),
-          Expanded(
-            // Same split as a readable row: the description is one node, and
-            // Delete — the only thing this row can do — keeps its own. Merged
-            // together, the single destructive control on the page arrived as a
-            // 4-line name ending in "Delete".
-            child: MergeSemantics(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    row.label,
-                    style: (widget.isMobile
-                            ? SkotiqTypography.labelSm
-                            : SkotiqTypography.label)
-                        .copyWith(color: colors.textPrimary),
-                  ),
-                  const SizedBox(height: SkotiqTokens.spaceXs),
-                  _StatusLine(
-                    status: DeliveryStatusLine(
-                      DeliveryStatusKind.failed,
-                      'This row cannot be read, so nothing is sent here: '
-                      '${row.reason}.',
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Every other destination delivers normally. Deleting this '
-                    'row removes it and its delivery journal; files already '
-                    'delivered are left alone.',
-                    style: SkotiqTypography.captionSm.copyWith(
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (id != null)
-            Flexible(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: SkotiqButton(
-                  label: 'Delete',
-                  icon: LucideIcons.trash2,
-                  variant: ButtonVariant.destructive,
-                  size: ButtonSize.small,
-                  isLoading: _deleting,
-                  onPressed: _deleting ? null : () => _delete(id),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -612,7 +532,7 @@ class _PeerPairingLine extends ConsumerWidget {
         final seen = lastSeen == null
             ? 'not connected since pairing'
             : 'last connected '
-                '${DateFormat('d MMM HH:mm').format(lastSeen.toLocal())}';
+                '${ClockFormat.monthDayHm(lastSeen.toLocal())}';
         return Text(
           'Pairing: ${match.deviceName} ($seen). $_peerPullAuthSentence',
           style: style,
@@ -662,17 +582,11 @@ class _NoDestinationsRow extends StatelessWidget {
 
 /// The two add buttons, in the card's last row.
 class _AddDestinationRow extends ConsumerWidget {
-  const _AddDestinationRow({required this.isMobile});
-
-  final bool isMobile;
+  const _AddDestinationRow();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 12.0 : SkotiqTokens.spaceLg,
-        vertical: isMobile ? 12.0 : 14.0,
-      ),
+    return SettingsItem(
       child: Wrap(
         spacing: SkotiqTokens.spaceSm,
         runSpacing: SkotiqTokens.spaceSm,

@@ -9,7 +9,8 @@
 // connected and keeps its own live events from then on.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../panel/solve/recent_solves_provider.dart';
 import 'guide_series_provider.dart';
@@ -68,6 +69,7 @@ Map<String, dynamic> encodeNightHistory({
           'offsetArcsec': finite(s.offsetArcsec),
           'iterations': s.iterations,
           'durationMs': s.duration?.inMilliseconds,
+          if (s.byRun) 'byRun': true,
         },
     ],
   };
@@ -165,6 +167,7 @@ class NightHistory {
               offsetArcsec: number(s['offsetArcsec']),
               iterations: (s['iterations'] as num?)?.toInt(),
               duration: duration(s['durationMs']),
+              byRun: s['byRun'] == true,
             ),
       ],
     );
@@ -185,9 +188,10 @@ class NightHistory {
 /// (the charts then start from the first live event, as before).
 final hostNightHistoryProvider = FutureProvider<NightHistory?>((ref) async {
   final backend = ref.watch(backendProvider);
-  if (backend is! NetworkBackend) return null;
+  final linkedHost = backend.remoteHost;
+  if (linkedHost == null) return null;
   try {
-    final json = await backend.getHostNightHistory();
+    final json = await linkedHost.night.getHostNightHistory();
     if (json == null) return null;
     final history = NightHistory.fromJson(json);
     // The cooler history lives in the camera poller, which every screen

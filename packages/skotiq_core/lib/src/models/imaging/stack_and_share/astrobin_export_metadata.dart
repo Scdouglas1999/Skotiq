@@ -21,7 +21,6 @@ class AstroBinExportMetadata {
   /// Telescope / optical train description.
   final String? telescope;
 
-  /// Camera description.
   final String? camera;
 
   /// Filter used, if single-filter.
@@ -123,7 +122,9 @@ class AstroBinExportMetadata {
     final acquired = dateIso;
     if (acquired != null) buf.writeln('**Date:** $acquired');
     buf.writeln('**Subject type:** $subjectType');
-    buf.writeln('**Frames:** $frames x ${_trimNum(perFrameExposureSecs)}s');
+    buf.writeln(
+      '**Frames:** $frames x ${QuantityFormat.trimmed(perFrameExposureSecs)}s',
+    );
     buf.writeln('**Integration:** $integrationHms');
 
     final tele = telescope?.trim();
@@ -139,10 +140,12 @@ class AstroBinExportMetadata {
       buf.writeln('**Filter:** $filt');
     }
     if (focalLength != null) {
-      buf.writeln('**Focal length:** ${_trimNum(focalLength!)} mm');
+      buf.writeln(
+        '**Focal length:** ${QuantityFormat.trimmed(focalLength!)} mm',
+      );
     }
     if (aperture != null) {
-      buf.writeln('**Aperture:** ${_trimNum(aperture!)} mm');
+      buf.writeln('**Aperture:** ${QuantityFormat.trimmed(aperture!)} mm');
     }
     final fRatio = focalRatio;
     if (fRatio != null) {
@@ -236,7 +239,7 @@ class AstroBinExportMetadata {
   String? toAstroBinCsv() {
     final acquired = dateIso;
     if (acquired == null) return null;
-    final duration = _trimNum(perFrameExposureSecs);
+    final duration = QuantityFormat.trimmed(perFrameExposureSecs);
     return 'date,number,duration\n$acquired,$frames,$duration\n';
   }
 }
@@ -252,15 +255,6 @@ String formatHms(double seconds) {
   final s = total % 60;
   String two(int v) => v.toString().padLeft(2, '0');
   return '${two(h)}:${two(m)}:${two(s)}';
-}
-
-/// Formats a number without a trailing `.0` for whole values, otherwise with a
-/// single decimal place (e.g. `120` → `'120'`, `2.5` → `'2.5'`).
-String _trimNum(double value) {
-  if (value == value.roundToDouble()) {
-    return value.round().toString();
-  }
-  return value.toStringAsFixed(1);
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

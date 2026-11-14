@@ -16,6 +16,7 @@ import 'package:skotiq_core/src/providers/weather_providers.dart';
 import 'package:skotiq_core/src/services/safe_rig_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
@@ -56,8 +57,9 @@ class _GatedRepeatSafeRigService extends SafeRigService {
   }) async {
     calls++;
     if (calls > 1) await repeatGate.future;
-    testRef.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.paused;
+    testRef
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.paused);
     if (park) {
       testRef.read(mountStateProvider.notifier).setParked(true);
     }
@@ -149,8 +151,9 @@ void main() {
         container.dispose();
       });
 
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       final mount = container.read(mountStateProvider.notifier);
       mount.setConnecting('mount-1');
       mount.setConnected();

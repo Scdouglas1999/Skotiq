@@ -1,13 +1,11 @@
 import 'dart:async';
-import 'dart:math' as math;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/imaging/color_calibration_result.dart';
 import '../models/imaging/star_photometry.dart';
 import 'post_session_seam.dart';
-import 'wcs_overlay.dart';
+import 'wcs/gnomonic_projection.dart';
 
 /// A cone search over a photometric star catalog: returns the catalog [Star]s
 /// within [radiusDegrees] of [center], optionally magnitude-limited.
@@ -56,7 +54,7 @@ class MatchedColorStar {
 ///     [PostSessionSeam.detectStarsPhotometry] — each detection carries its
 ///     centroid, SNR, shape, and per-channel aperture flux.
 ///  2. **Project** each detection's pixel centroid to (RA, Dec) with the
-///     supplied [WcsOverlay].
+///     supplied [SolvedWcs].
 ///  3. **Cone-search** the photometric catalog over the master's field and
 ///     **cross-match** each detection to the nearest catalog star within an
 ///     arcsecond tolerance, keeping only well-measured, unsaturated, single
@@ -141,7 +139,7 @@ class ColorCalibrationService {
   Future<ColorCalibrationResult> calibrate({
     required String masterFits,
     required String outputFits,
-    required WcsOverlay? wcs,
+    required SolvedWcs? wcs,
     required int channels,
     double? whiteRefBv,
     double matchToleranceArcsec = defaultMatchToleranceArcsec,
@@ -149,7 +147,7 @@ class ColorCalibrationService {
     int? aperture,
   }) async {
     // No WCS → we cannot place detections on the sky. Skip, keep the master.
-    if (wcs == null) return skipped(outputFits);
+    if (wcs == null || !wcs.isValid) return skipped(outputFits);
 
     final photometry = await _seam.detectStarsPhotometry(
       inputFits: masterFits,
@@ -161,7 +159,7 @@ class ColorCalibrationService {
     final matched = crossMatch(
       photometry: photometry,
       wcs: wcs,
-      catalog: await _coneSearchForField(photometry, wcs),
+      catalog: await _coneSearchForField(wcs),
       matchToleranceArcsec: matchToleranceArcsec,
       channels: channels,
     );
@@ -177,23 +175,13 @@ class ColorCalibrationService {
     );
   }
 
-  /// Cone-search the catalog over the master's field: centre on the WCS
-  /// reference, radius = half the frame diagonal (with a small margin).
-  Future<List<Star>> _coneSearchForField(
-    StarPhotometryResult photometry,
-    WcsOverlay wcs,
-  ) {
-    final halfDiagDeg =
-        0.5 *
-        math.sqrt(
-          math.pow(photometry.width * wcs.cdelt1, 2) +
-              math.pow(photometry.height * wcs.cdelt2, 2),
-        );
-    final radiusDeg = (halfDiagDeg.abs() * 1.1).clamp(0.05, 30.0);
-    // `getStarsNear` takes RA in *hours* on its `CelestialCoordinate`; the WCS
-    // reference RA (`crval1`) is in degrees.
-    final center = CelestialCoordinate(ra: wcs.crval1 / 15.0, dec: wcs.crval2);
-    return _starSearch(center, radiusDeg);
+  /// Cone-search the catalog over the master's field.
+  Future<List<Star>> _coneSearchForField(SolvedWcs wcs) {
+    final centre = GnomonicProjection(wcs).imageCentre;
+    return _starSearch(
+      CelestialCoordinate(ra: centre.raDegrees / 15.0, dec: centre.decDegrees),
+      wcs.coneSearchRadiusDegrees,
+    );
   }
 
   /// Cross-match detected stars to [catalog] stars with a known colour index.
@@ -218,7 +206,7 @@ class ColorCalibrationService {
   /// Exposed for testing.
   List<MatchedColorStar> crossMatch({
     required StarPhotometryResult photometry,
-    required WcsOverlay wcs,
+    required SolvedWcs wcs,
     required List<Star> catalog,
     required int channels,
     double matchToleranceArcsec = defaultMatchToleranceArcsec,
@@ -231,12 +219,18 @@ class ColorCalibrationService {
 
     // Usable detections, paired with their projected sky position and a stable
     // index. Order-independence below relies on these indices, not list order.
+    final projection = GnomonicProjection(wcs);
     final detections =
         <({int idx, DetectedStarPhotometry star, double ra, double dec})>[];
     for (final star in photometry.stars) {
       if (!_isUsableDetection(star, channels)) continue;
-      final (ra, dec) = wcs.pixelToCelestial(star.x, star.y);
-      detections.add((idx: detections.length, star: star, ra: ra, dec: dec));
+      final sky = projection.pixelToWorld(x: star.x, y: star.y);
+      detections.add((
+        idx: detections.length,
+        star: star,
+        ra: sky.raDegrees,
+        dec: sky.decDegrees,
+      ));
     }
     if (detections.isEmpty) return const [];
 
@@ -248,12 +242,14 @@ class ColorCalibrationService {
     for (final d in detections) {
       for (var c = 0; c < colored.length; c++) {
         final cat = colored[c];
-        final sep = _angularSeparationArcsec(
-          d.ra,
-          d.dec,
-          cat.coordinates.raDegrees,
-          cat.coordinates.dec,
-        );
+        final sep =
+            AstronomyCalculations.angularSeparation(
+              ra1Deg: d.ra,
+              dec1Deg: d.dec,
+              ra2Deg: cat.coordinates.raDegrees,
+              dec2Deg: cat.coordinates.dec,
+            ) *
+            3600.0;
         if (sep <= matchToleranceArcsec) {
           candidates.add((detIdx: d.idx, catIdx: c, sep: sep));
           detPartnerCount[d.idx]++;
@@ -340,37 +336,4 @@ class ColorCalibrationService {
     }
     return false;
   }
-
-  /// Great-circle separation between two (RA, Dec) points in degrees, returned
-  /// in arcseconds. Uses the haversine formula for stability at small angles.
-  static double _angularSeparationArcsec(
-    double ra1Deg,
-    double dec1Deg,
-    double ra2Deg,
-    double dec2Deg,
-  ) {
-    const deg2rad = math.pi / 180.0;
-    final dRa = (ra2Deg - ra1Deg) * deg2rad;
-    final dDec = (dec2Deg - dec1Deg) * deg2rad;
-    final lat1 = dec1Deg * deg2rad;
-    final lat2 = dec2Deg * deg2rad;
-    final a =
-        math.sin(dDec / 2) * math.sin(dDec / 2) +
-        math.cos(lat1) * math.cos(lat2) * math.sin(dRa / 2) * math.sin(dRa / 2);
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return c / deg2rad * 3600.0;
-  }
 }
-
-/// Provider for the [ColorCalibrationService]. The star cone search binds the
-/// real on-disk HYG catalog; tests override [postSessionSeamProvider] and may
-/// construct the service directly with an in-memory [StarConeSearch] stub.
-final colorCalibrationServiceProvider = Provider<ColorCalibrationService>((
-  ref,
-) {
-  final catalog = HygStarCatalog();
-  return ColorCalibrationService(
-    seam: ref.watch(postSessionSeamProvider),
-    starSearch: catalog.getStarsNear,
-  );
-});

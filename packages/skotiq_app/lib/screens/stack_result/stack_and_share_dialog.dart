@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../imaging/widgets/osc_stacking_controls.dart';
+import '../../widgets/osc_stacking_controls.dart';
+import '../../router/app_routes.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// A run failure split into what the operator reads and what a developer needs.
 class StackShareFailure {
@@ -29,44 +34,13 @@ class StackShareFailure {
   });
 }
 
-/// Matches a freezed / flutter_rust_bridge stringified union, e.g.
-/// `SkotiqError.imageError(field0: Reference frame has only 0 stars)`.
-/// The name must be followed immediately by `(`, so a real sentence that merely
-/// ends in a parenthetical ("… 10.34px (max 10.00px)") is left alone.
-final RegExp _bridgeWrapper = RegExp(
-  r'^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\(\s*(?:field0:\s*)?(.*)\)$',
-  dotAll: true,
-);
-
-/// Matches a Dart exception's `toString()` type prefix, e.g.
-/// `LiveStackBusyException: …` or `Exception: …`.
-final RegExp _exceptionPrefix = RegExp(
-  r'^[A-Za-z_$][\w$]*(?:Exception|Error|Failure)?:\s+',
-);
-
 /// Turn the orchestrator's raw exception string into something an imager can
 /// act on.
 ///
-/// `e.toString()` renders the Rust union's Dart wrapper —
-/// `SkotiqError.imageError(field0: …)`, positional-field label and all —
-/// rather than the sentence inside it. This unwraps the payload (nested
-/// wrappers included), keeps the raw text for the technical-details disclosure,
-/// and attaches a next step for the causes that have one.
+/// Keeps the raw text for the technical-details disclosure and attaches a next
+/// step for the causes that have one.
 StackShareFailure describeStackShareFailure(String raw) {
-  var message = raw.trim();
-  // Peel layer by layer: an app exception can carry a bridge union, which can
-  // carry another. Bounded so a pathological string cannot spin here.
-  for (var i = 0; i < 4; i++) {
-    final before = message;
-    final prefix = _exceptionPrefix.firstMatch(message);
-    if (prefix != null && prefix.end < message.length) {
-      message = message.substring(prefix.end).trim();
-    }
-    final match = _bridgeWrapper.firstMatch(message);
-    final inner = match?.group(1)?.trim();
-    if (inner != null && inner.isNotEmpty) message = inner;
-    if (message == before) break;
-  }
+  var message = userFacingError(raw);
   if (message.isEmpty) message = raw.trim();
 
   final lower = message.toLowerCase();
@@ -111,7 +85,6 @@ StackShareFailure describeStackShareFailure(String raw) {
 /// Show it with [StackAndShareDialog.show], which wires the dialog into a
 /// [SkotiqDialog] scaffold via `showDialog`.
 class StackAndShareDialog extends ConsumerStatefulWidget {
-  /// Imaging session whose lights are stacked.
   final int sessionId;
 
   /// Pre-computed selection summary for [sessionId], used to render the summary
@@ -126,8 +99,6 @@ class StackAndShareDialog extends ConsumerStatefulWidget {
     required this.selection,
   });
 
-  /// Show the Stack-and-Share launcher for [sessionId] with its [selection]
-  /// preview. Resolves when the dialog is dismissed.
   static Future<void> show(
     BuildContext context, {
     required int sessionId,
@@ -177,7 +148,6 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
   /// once (e.g. a rebuild after the post-frame callback is already scheduled).
   bool _navigated = false;
 
-  /// Whether the raw exception text is expanded under the failure alert.
   bool _showTechnicalDetail = false;
 
   @override
@@ -192,7 +162,7 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
     _demosaicQuality = defaults.demosaicQuality.toLowerCase();
     _qualityController = TextEditingController(
       text: defaults.minQualityScore > 0
-          ? _trimNum(defaults.minQualityScore)
+          ? QuantityFormat.trimmed(defaults.minQualityScore)
           : '',
     );
   }
@@ -291,7 +261,7 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       Navigator.of(context).pop();
-      context.push('/stack-result?id=$id');
+      context.push(AppRoutes.stackResult(id));
     });
   }
 
@@ -299,7 +269,6 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
   Widget build(BuildContext context) {
     final state = ref.watch(stackAndShareProvider);
 
-    // Navigate to the result viewer as soon as a run completes successfully.
     ref.listen<StackAndShareState>(stackAndShareProvider, (prev, next) {
       if (next.isComplete && next.result != null) {
         _onComplete(next.result!);
@@ -431,9 +400,8 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
       ref.read(stackAndShareProvider.notifier).reset();
     } catch (e) {
       if (!mounted) return;
-      // Surface the stop failure rather than leaving the user stuck.
-      messenger?.showSnackBar(
-        SnackBar(content: Text('Could not stop live stacking: $e')),
+      messenger?.showErrorSnackBar(
+        'Could not stop live stacking: ${userFacingError(e)}',
       );
     }
   }
@@ -532,8 +500,6 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
         toggle,
         const SizedBox(height: SkotiqTokens.spaceMd),
         if (detected != null) ...[
-          // Live colour camera detected: surface the auto-detection read-only,
-          // with the manual override behind an expander.
           SkotiqBanner(
             title: 'Color camera detected',
             message: 'Auto-detected: OSC $detected',
@@ -577,8 +543,6 @@ class _StackAndShareDialogState extends ConsumerState<StackAndShareDialog> {
   }
 }
 
-/// The selection-summary well: target name, per-filter pill rows, total
-/// integration, and frame count.
 class _SelectionSummary extends StatelessWidget {
   final StackSelectionSummary selection;
 
@@ -650,7 +614,6 @@ class _SelectionSummary extends StatelessWidget {
   }
 }
 
-/// A label-over-value metric using tabular telemetry type for the value.
 class _MetricColumn extends StatelessWidget {
   final String label;
   final String value;
@@ -682,9 +645,6 @@ class _MetricColumn extends StatelessWidget {
   }
 }
 
-/// Live progress display while a run is in flight: a bar bound to
-/// [StackAndShareProgress.fraction], the current phase label, and the
-/// `frame X/Y, Z rejected` counter.
 class _RunProgress extends StatelessWidget {
   final StackAndShareProgress progress;
 
@@ -741,15 +701,6 @@ class _RunProgress extends StatelessWidget {
       StackAndSharePhase.error => 'Failed',
     };
   }
-}
-
-/// Formats a number without a trailing `.0` for whole values, otherwise with a
-/// single decimal place (mirrors the model helper, kept private to the UI).
-String _trimNum(double value) {
-  if (value == value.roundToDouble()) {
-    return value.round().toString();
-  }
-  return value.toStringAsFixed(1);
 }
 
 /// The "Override auto-detection" disclosure row that expands the manual OSC

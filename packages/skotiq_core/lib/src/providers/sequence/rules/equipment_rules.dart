@@ -4,6 +4,7 @@ import '../../../models/sequence/sequence_models.dart';
 import '../../../utils/device_id.dart';
 import '../../equipment_provider.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 /// Cross-checks the device types required by enabled nodes against the
 /// currently-connected equipment.
@@ -24,8 +25,7 @@ class EquipmentConnectionRule implements RefAwareSequenceValidator {
   @override
   List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
     final required = <DeviceType>{};
-    for (final node in sequence.nodes.values) {
-      if (!node.isEnabled) continue;
+    for (final node in sequence.enabledNodes) {
       required.addAll(node.requiredDevices);
     }
     if (required.isEmpty) return const [];
@@ -115,8 +115,7 @@ class EquipmentConnectionRule implements RefAwareSequenceValidator {
         // Connect button for it.
         final hint = _guiderResolutionHint(gs);
         final perNode = <ValidationIssue>[];
-        for (final node in sequence.nodes.values) {
-          if (!node.isEnabled) continue;
+        for (final node in sequence.enabledNodes) {
           if (!node.requiredDevices.contains(DeviceType.guider)) continue;
           perNode.add(
             ValidationIssue(

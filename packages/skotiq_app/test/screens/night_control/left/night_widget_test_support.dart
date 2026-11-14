@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
-import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
@@ -20,7 +20,7 @@ import 'package:skotiq_app/screens/night_control/data/plan/upcoming_provider.dar
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/night_control_layout.dart';
 import 'package:skotiq_app/services/sequence_action_service.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../fixtures/night_fixtures.dart';
@@ -192,7 +192,8 @@ class NightHarness {
       ];
 
   /// Pumps [child] at [size], with the text scaled by [textScale]. The
-  /// child sits at the top of a page that also has a Sequencer route.
+  /// child sits at the top of a page that also has Sequencer and one-tap
+  /// routes.
   Future<void> pump(
     WidgetTester tester,
     Widget child, {
@@ -221,6 +222,10 @@ class NightHarness {
         GoRoute(
           path: '/sequencer',
           builder: (context, state) => const Scaffold(body: Text('sequencer')),
+        ),
+        GoRoute(
+          path: '/tonight',
+          builder: (context, state) => const Scaffold(body: Text('one tap')),
         ),
       ],
     );

@@ -8,13 +8,14 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
-import 'package:skotiq_core/src/database/daos/stacked_results_dao.dart';
+import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/models/imaging/stack_and_share_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
-import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/stack_and_share_provider.dart';
 import 'package:skotiq_core/src/services/live_stacking_service.dart';
 import 'package:skotiq_core/src/services/stack_and_share_service.dart';
+import 'package:skotiq_core/src/providers/stack_and_share_service_provider.dart';
+import 'package:skotiq_core/src/models/backend/remote_stacked_result.dart';
 
 /// A controllable stand-in for [StackAndShareService] that drives the notifier
 /// through a scripted sequence of progress events and a terminal outcome,
@@ -50,9 +51,6 @@ class _FakeStackAndShareService implements StackAndShareService {
 
   @override
   StackedRgbaResult? get lastRgbaResult => _lastRgba;
-
-  @override
-  void retire() {}
 
   @override
   Future<StackAndShareResult> run({

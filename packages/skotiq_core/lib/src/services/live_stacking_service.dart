@@ -4,12 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as p;
 
-import '../backend/network_backend.dart';
-import '../backend/skotiq_backend.dart';
-import '../providers/backend_provider.dart';
 import '../services/logging_service.dart';
+import '../backend/roles/host_data/host_live_stack.dart';
+import '../providers/logging_service_provider.dart';
 
-/// Configuration for the live stacking engine.
 class LiveStackingConfig {
   /// Whether sigma clipping is enabled for pixel rejection.
   final bool sigmaClipEnabled;
@@ -64,6 +62,19 @@ class LiveStackingConfig {
     this.bayerPattern,
     this.demosaicQuality = 'bilinear',
   });
+
+  /// The same settings as the native stacker takes them.
+  bridge.ApiLiveStackingConfig toBridge() => bridge.ApiLiveStackingConfig(
+    sigmaClipEnabled: sigmaClipEnabled,
+    sigmaClipThreshold: sigmaClipThreshold,
+    maxMatchStars: maxMatchStars,
+    matchRadiusPx: matchRadiusPx,
+    matchFluxTolerance: matchFluxTolerance,
+    minMatchedPairs: minMatchedPairs,
+    sensorMode: sensorMode,
+    bayerPattern: bayerPattern,
+    demosaicQuality: demosaicQuality,
+  );
 
   LiveStackingConfig copyWith({
     bool? sigmaClipEnabled,
@@ -121,7 +132,6 @@ class LiveStackingConfig {
   );
 }
 
-/// Statistics about the current stacking session.
 class LiveStackingStats {
   final int stackedFrameCount;
   final int totalFramesAttempted;
@@ -130,6 +140,17 @@ class LiveStackingStats {
   final double avgAlignmentResidual;
   final int totalSigmaRejectedPixels;
 
+  /// The filter the stack is of: its reference frame's. Null when that frame
+  /// named none, and from a host that does not report it.
+  final String? filter;
+
+  /// Frames left out because they were taken through another filter than
+  /// [filter]. They are not attempts: nothing was aligned.
+  final int otherFilterFrames;
+
+  /// The filter of the most recent such frame; null when it had none.
+  final String? lastOtherFilter;
+
   const LiveStackingStats({
     this.stackedFrameCount = 0,
     this.totalFramesAttempted = 0,
@@ -137,7 +158,38 @@ class LiveStackingStats {
     this.avgMatchedPairs = 0.0,
     this.avgAlignmentResidual = 0.0,
     this.totalSigmaRejectedPixels = 0,
+    this.filter,
+    this.otherFilterFrames = 0,
+    this.lastOtherFilter,
   });
+
+  /// The native stacker's tally.
+  LiveStackingStats.fromBridge(bridge.ApiLiveStackingStats s)
+    : stackedFrameCount = s.stackedFrameCount,
+      totalFramesAttempted = s.totalFramesAttempted,
+      rejectedAlignmentFailures = s.rejectedAlignmentFailures,
+      avgMatchedPairs = s.avgMatchedPairs,
+      avgAlignmentResidual = s.avgAlignmentResidual,
+      totalSigmaRejectedPixels = s.totalSigmaRejectedPixels.toInt(),
+      filter = s.filter,
+      otherFilterFrames = s.otherFilterFrames,
+      lastOtherFilter = s.lastOtherFilter;
+
+  /// Why frames were left out of the stack for their filter and what to do
+  /// about it; null when none were.
+  String? get otherFilterNote {
+    if (otherFilterFrames == 0) return null;
+    final stack = filter == null ? 'unfiltered frames' : '$filter frames';
+    final latest = lastOtherFilter == null
+        ? 'no filter'
+        : 'the $lastOtherFilter filter';
+    return otherFilterFrames == 1
+        ? 'It was taken with $latest and this stack is of $stack. To stack '
+              'it, stop and start a new live stack.'
+        : 'They were taken with another filter (most recently $latest) and '
+              'this stack is of $stack. To stack them, stop and start a new '
+              'live stack.';
+  }
 }
 
 /// Thrown when the stacker refuses the frame it was handed.
@@ -166,7 +218,6 @@ class LiveStackingFrameRejected implements Exception {
   String toString() => reason;
 }
 
-/// Result from adding a frame to the live stack.
 class LiveStackingResult {
   final int width;
   final int height;
@@ -185,6 +236,14 @@ class LiveStackingResult {
     required this.data,
     required this.stats,
   });
+
+  /// The native stacker's current stack.
+  LiveStackingResult.fromBridge(bridge.ApiLiveStackingResult r)
+    : width = r.width,
+      height = r.height,
+      channels = r.channels,
+      data = r.data,
+      stats = LiveStackingStats.fromBridge(r.stats);
 }
 
 /// Format a stacked master was written in.
@@ -265,26 +324,21 @@ typedef SaveStackMasterFits =
 /// The live stacking engine aligns and averages incoming frames in real time,
 /// providing a continuously improving preview for EAA and outreach.
 class LiveStackingService {
-  final SkotiqBackend _backend;
   final LoggingService _logger;
   final SaveStackMasterFits _saveFitsMaster;
 
+  /// The linked host's stacker, or null where the stacker is this process's.
+  /// When set every operation routes over `/api/stacking/*`: the local FFI
+  /// bridge's stacker is empty on a linked client.
+  final HostLiveStack? _remote;
+
   LiveStackingService(
     Ref ref, {
-    SkotiqBackend? backend,
+    HostLiveStack? host,
     SaveStackMasterFits? saveFitsMaster,
-  }) : _backend = backend ?? ref.read(backendProvider),
+  }) : _remote = host,
        _logger = ref.read(loggingServiceProvider),
        _saveFitsMaster = saveFitsMaster ?? bridge.apiStackingSaveMasterFits;
-
-  /// The active NetworkBackend when running as a remote client (tablet talking
-  /// to a headless appliance), else null. When non-null the stacker runs on the
-  /// HOST and every operation routes over `/api/stacking/*` rather than the
-  /// local FFI bridge (whose stacker is empty on a remote client).
-  NetworkBackend? get _remote {
-    final backend = _backend;
-    return backend is NetworkBackend ? backend : null;
-  }
 
   /// Arm host-side live stacking without a local reference frame: the next
   /// frame the host captures becomes the reference and subsequent frames are
@@ -330,24 +384,12 @@ class LiveStackingService {
       );
     }
 
-    final bridgeConfig = bridge.ApiLiveStackingConfig(
-      sigmaClipEnabled: config.sigmaClipEnabled,
-      sigmaClipThreshold: config.sigmaClipThreshold,
-      maxMatchStars: config.maxMatchStars,
-      matchRadiusPx: config.matchRadiusPx,
-      matchFluxTolerance: config.matchFluxTolerance,
-      minMatchedPairs: config.minMatchedPairs,
-      sensorMode: config.sensorMode,
-      bayerPattern: config.bayerPattern,
-      demosaicQuality: config.demosaicQuality,
-    );
-
     final result = await bridge.apiStackingStart(
       referenceImagePath: referenceImagePath,
-      config: bridgeConfig,
+      config: config.toBridge(),
     );
 
-    return _convertStats(result);
+    return LiveStackingStats.fromBridge(result);
   }
 
   /// Start live stacking from raw pixel data in memory.
@@ -374,26 +416,14 @@ class LiveStackingService {
       );
     }
 
-    final bridgeConfig = bridge.ApiLiveStackingConfig(
-      sigmaClipEnabled: config.sigmaClipEnabled,
-      sigmaClipThreshold: config.sigmaClipThreshold,
-      maxMatchStars: config.maxMatchStars,
-      matchRadiusPx: config.matchRadiusPx,
-      matchFluxTolerance: config.matchFluxTolerance,
-      minMatchedPairs: config.minMatchedPairs,
-      sensorMode: config.sensorMode,
-      bayerPattern: config.bayerPattern,
-      demosaicQuality: config.demosaicQuality,
-    );
-
     final result = await bridge.apiStackingStartFromData(
       width: width,
       height: height,
       data: data,
-      config: bridgeConfig,
+      config: config.toBridge(),
     );
 
-    return _convertStats(result);
+    return LiveStackingStats.fromBridge(result);
   }
 
   /// Add a frame to the stack from a file path.
@@ -416,7 +446,7 @@ class LiveStackingService {
       }
 
       final result = await bridge.apiStackingAddFrame(imagePath: imagePath);
-      return _convertResult(result);
+      return LiveStackingResult.fromBridge(result);
     });
   }
 
@@ -438,7 +468,7 @@ class LiveStackingService {
         height: height,
         data: data,
       );
-      return _convertResult(result);
+      return LiveStackingResult.fromBridge(result);
     });
   }
 
@@ -471,7 +501,7 @@ class LiveStackingService {
       return remote.stackingGetResult();
     }
     final result = await bridge.apiStackingGetResult();
-    return _convertResult(result);
+    return LiveStackingResult.fromBridge(result);
   }
 
   /// Display-ready RGBA8 render of a stacked buffer.
@@ -644,14 +674,13 @@ class LiveStackingService {
     );
   }
 
-  /// Get the current stacking statistics.
   Future<LiveStackingStats> getStats() async {
     final remote = _remote;
     if (remote != null) {
       return remote.stackingGetStats();
     }
     final result = await bridge.apiStackingGetStats();
-    return _convertStats(result);
+    return LiveStackingStats.fromBridge(result);
   }
 
   /// Reset the stacker, clearing accumulated data but keeping the reference.
@@ -676,36 +705,7 @@ class LiveStackingService {
     await bridge.apiStackingStop();
   }
 
-  /// Check if live stacking is currently active.
   bool get isActive => bridge.apiStackingIsActive();
 
-  /// Get the current frame count.
   int get frameCount => bridge.apiStackingFrameCount();
-
-  LiveStackingStats _convertStats(bridge.ApiLiveStackingStats bridgeStats) {
-    return LiveStackingStats(
-      stackedFrameCount: bridgeStats.stackedFrameCount,
-      totalFramesAttempted: bridgeStats.totalFramesAttempted,
-      rejectedAlignmentFailures: bridgeStats.rejectedAlignmentFailures,
-      avgMatchedPairs: bridgeStats.avgMatchedPairs,
-      avgAlignmentResidual: bridgeStats.avgAlignmentResidual,
-      totalSigmaRejectedPixels: bridgeStats.totalSigmaRejectedPixels.toInt(),
-    );
-  }
-
-  LiveStackingResult _convertResult(bridge.ApiLiveStackingResult bridgeResult) {
-    return LiveStackingResult(
-      width: bridgeResult.width,
-      height: bridgeResult.height,
-      channels: bridgeResult.channels,
-      data: bridgeResult.data,
-      stats: _convertStats(bridgeResult.stats),
-    );
-  }
 }
-
-/// Provider for the LiveStackingService.
-final liveStackingServiceProvider = Provider<LiveStackingService>((ref) {
-  final backend = ref.watch(backendProvider);
-  return LiveStackingService(ref, backend: backend);
-});

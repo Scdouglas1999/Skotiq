@@ -16,7 +16,6 @@ class _FirstTimeOnboarding extends StatelessWidget {
     required this.onManualSetup,
   });
 
-  /// Width of the centred first-run column.
   static const double columnWidth = 480.0;
 
   @override

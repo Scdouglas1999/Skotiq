@@ -1,11 +1,10 @@
-// End-to-end smoke test for the critical-event escalation
-// path. Verifies that a critical bridge event:
+// End-to-end test of the critical-event escalation path as the always-on
+// services run it, with no screen open. Verifies that a critical bridge event:
 //   * Appears in `runDashboardCriticalEventsProvider` (banner data)
-//   * Routes through `uiNotificationProvider` (toast queue)
 //   * Triggers `criticalAlertPlayerProvider.play` (audible alert, gated by
 //     `audibleAlertsOnCritical` and `criticalAlertSound`)
-//   * Enqueues a `PushNotification` (mobile push, gated by
-//     `pushCriticalAlerts`)
+//   * Enqueues one `PushNotification` (mobile push, gated by
+//     `pushCriticalAlerts`), on a host only
 //
 // Also pins the cooldown behaviour so a storm of critical events doesn't
 // trigger the system bell more than once per 5 seconds, and confirms
@@ -17,11 +16,17 @@ import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
-import 'package:skotiq_app/services/location_sync_service.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
+import 'package:skotiq_app/startup/location_sync_service.dart';
+import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Capture-fake for the audio path so the test can assert how many times
 /// the alert was fired without touching the platform audio channel.
@@ -65,10 +70,28 @@ bridge_event.SkotiqEvent _criticalSystemErrorEvent({
   );
 }
 
+/// Starts the critical-alert services [role] runs, as the app does at launch.
+void _startCriticalAlerts(ProviderContainer container, AppRole role) {
+  final providers = <ProviderListenable<Object?>>[
+    runCriticalAlertsProvider,
+    runCriticalAlertSoundProvider,
+    runCriticalAlertPushProvider,
+  ];
+  final services = startAlwaysOnServices(
+    container,
+    role,
+    services: [
+      for (final service in alwaysOnServices)
+        if (providers.any((p) => identical(p, service.provider))) service,
+    ],
+  );
+  addTearDown(services.stop);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('runDashboardCriticalEventsBridgeProvider', () {
+  group('critical run alerts', () {
     late _FakeCriticalAlertPlayer player;
     late SkotiqDatabase db;
 
@@ -138,9 +161,7 @@ void main() {
       });
       addTearDown(pushSub.cancel);
 
-      // Wire the bridge so the listen() fires. fireImmediately=true means
-      // we'll get the current (empty) state first, then subsequent updates.
-      container.read(runDashboardCriticalEventsBridgeProvider);
+      _startCriticalAlerts(container, AppRole.hostGui);
 
       // Inject a critical event into the history. The bridge listens to
       // `eventHistoryProvider`; pushing through its notifier is the same
@@ -169,6 +190,133 @@ void main() {
       expect(push.category, EventCategory.system);
     });
 
+    Future<List<PushNotification>> pushesFor(
+      ProviderContainer container,
+      AppRole role,
+    ) async {
+      await container.read(appSettingsProvider.future);
+      final pushService = container.read(pushNotificationServiceProvider);
+      await container.read(pushNotificationConfigProvider.future);
+      await Future<void>.delayed(Duration.zero);
+      final received = <PushNotification>[];
+      final pushSub = pushService.notifications.listen(received.add);
+      addTearDown(pushSub.cancel);
+
+      _startCriticalAlerts(container, role);
+      container
+          .read(eventHistoryProvider.notifier)
+          .addEvent(_criticalSystemErrorEvent(id: 21));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      return received;
+    }
+
+    // The host says what a sequencer error means for the run. A problem the
+    // run carried on through is the router's warning and never an alarm; a
+    // failed step is an alarm here and is paged by the router as the run's
+    // failure when the run ends; why a run is paused has no router notice
+    // that carries its text, so this bridge pages it.
+    test('sequencer errors alarm and page by what they mean for the run',
+        () async {
+      bridge_event.SkotiqEvent sequencerError(
+        int id,
+        bridge_event.SequencerErrorKind kind,
+        String message,
+      ) {
+        final continues = kind == bridge_event.SequencerErrorKind.stepProblem ||
+            kind == bridge_event.SequencerErrorKind.advisory;
+        return bridge_event.SkotiqEvent(
+          eventId: BigInt.from(id),
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: continues
+              ? bridge_event.EventSeverity.warning
+              : bridge_event.EventSeverity.error,
+          category: bridge_event.EventCategory.sequencer,
+          payload: bridge_event.EventPayload.sequencer(
+            bridge_event.SequencerEvent.error(message: message, kind: kind),
+          ),
+        );
+      }
+
+      final container = makeContainer(
+        audibleAlertsOnCritical: false,
+        pushCriticalAlerts: true,
+      );
+      await container.read(appSettingsProvider.future);
+      final pushService = container.read(pushNotificationServiceProvider);
+      await container.read(pushNotificationConfigProvider.future);
+      await Future<void>.delayed(Duration.zero);
+      final received = <PushNotification>[];
+      final pushSub = pushService.notifications.listen(received.add);
+      addTearDown(pushSub.cancel);
+      _startCriticalAlerts(container, AppRole.hostDaemon);
+
+      final history = container.read(eventHistoryProvider.notifier);
+      history.addEvent(
+        sequencerError(
+          31,
+          bridge_event.SequencerErrorKind.stepProblem,
+          'Dome shutter status unavailable; cannot confirm Open',
+        ),
+      );
+      history.addEvent(
+        sequencerError(
+          32,
+          bridge_event.SequencerErrorKind.stepFailed,
+          'Exposure: FITS save failed',
+        ),
+      );
+      history.addEvent(
+        sequencerError(
+          33,
+          bridge_event.SequencerErrorKind.runHeld,
+          'DriftLimit recenter failed: no stars',
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(
+        container
+            .read(runDashboardCriticalEventsProvider)
+            .map((row) => row.message)
+            .toSet(),
+        {'Exposure: FITS save failed', 'DriftLimit recenter failed: no stars'},
+      );
+      expect(received, hasLength(1));
+      expect(received.single.body, contains('DriftLimit recenter failed'));
+    });
+
+    test('with no screen open, a host pages the phone once and sounds once',
+        () async {
+      final container = makeContainer(
+        audibleAlertsOnCritical: true,
+        pushCriticalAlerts: true,
+      );
+      final pushes = await pushesFor(container, AppRole.hostGui);
+      expect(pushes, hasLength(1));
+      expect(player.playCalls, ['systemBell']);
+    });
+
+    test('the daemon pages the phone and makes no sound', () async {
+      final container = makeContainer(
+        audibleAlertsOnCritical: true,
+        pushCriticalAlerts: true,
+      );
+      final pushes = await pushesFor(container, AppRole.hostDaemon);
+      expect(pushes, hasLength(1));
+      expect(player.playCalls, isEmpty);
+    });
+
+    test('a linked client sounds and leaves the page to its host', () async {
+      final container = makeContainer(
+        audibleAlertsOnCritical: true,
+        pushCriticalAlerts: true,
+      );
+      final pushes = await pushesFor(container, AppRole.linkedClient);
+      expect(pushes, isEmpty);
+      expect(player.playCalls, ['systemBell']);
+      expect(container.read(runDashboardCriticalEventsProvider), hasLength(1));
+    });
+
     test('audible alert respects 5-second cooldown across a burst', () async {
       final container = makeContainer(
         audibleAlertsOnCritical: true,
@@ -176,7 +324,7 @@ void main() {
       );
       await container.read(appSettingsProvider.future);
 
-      container.read(runDashboardCriticalEventsBridgeProvider);
+      _startCriticalAlerts(container, AppRole.hostGui);
 
       // Fire 5 critical events in rapid succession.
       for (var i = 1; i <= 5; i++) {
@@ -192,7 +340,7 @@ void main() {
       expect(container.read(runDashboardCriticalEventsProvider), hasLength(5));
     });
 
-    test('"none" sound suppresses audio but keeps banner + toast', () async {
+    test('"none" sound suppresses audio but keeps the banner', () async {
       final container = makeContainer(
         audibleAlertsOnCritical: true,
         pushCriticalAlerts: false,
@@ -200,7 +348,7 @@ void main() {
       );
       await container.read(appSettingsProvider.future);
 
-      container.read(runDashboardCriticalEventsBridgeProvider);
+      _startCriticalAlerts(container, AppRole.hostGui);
       container
           .read(eventHistoryProvider.notifier)
           .addEvent(_criticalSystemErrorEvent(id: 7));
@@ -230,7 +378,7 @@ void main() {
       final pushSub = pushService.notifications.listen(received.add);
       addTearDown(pushSub.cancel);
 
-      container.read(runDashboardCriticalEventsBridgeProvider);
+      _startCriticalAlerts(container, AppRole.hostGui);
       container
           .read(eventHistoryProvider.notifier)
           .addEvent(_criticalSystemErrorEvent(id: 11));
@@ -260,7 +408,7 @@ void main() {
       });
       addTearDown(pushSub.cancel);
 
-      container.read(runDashboardCriticalEventsBridgeProvider);
+      _startCriticalAlerts(container, AppRole.hostGui);
       container
           .read(eventHistoryProvider.notifier)
           .addEvent(_criticalSystemErrorEvent(id: 13));
@@ -275,8 +423,8 @@ void main() {
 
   group('horizon-aware time-to-set agreement', () {
     test(
-        'planetariumEffectiveHorizonDegProvider receives the user value '
-        'after locationSyncProvider fires', () async {
+        'planetariumEffectiveHorizonDegProvider receives the site horizon '
+        'after its sync fires', () async {
       final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
@@ -287,7 +435,8 @@ void main() {
           appSettingsProvider.overrideWith(
             () => _FakeAppSettingsNotifier(
               const AppSettingsState(
-                effectiveHorizonDeg: horizon,
+                horizonProfileJson: '{"N":18,"NE":18,"E":18,"SE":18,"S":18,'
+                    '"SW":18,"W":18,"NW":18}',
                 // Provide a sensible location so the sync provider's
                 // location-gated branch executes too.
                 latitude: 30.0,
@@ -301,7 +450,7 @@ void main() {
 
       // Drain the AsyncNotifier and wire the listener.
       await container.read(appSettingsProvider.future);
-      container.read(locationSyncProvider);
+      container.read(planetariumAltitudeFloorSyncProvider);
 
       // The sync provider schedules Future.microtask updates; flush them.
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -313,37 +462,28 @@ void main() {
     });
 
     test(
-        'schedulerService.nextSetTime differs between horizonDeg=0 and '
+        'timeUntilBelow differs between horizonDeg=0 and '
         'horizonDeg=18 for a non-circumpolar target', () {
       // Why this assertion: the user's complaint is "set time should
       // respect the trees". Pin the differential here so a refactor that
       // accidentally hard-codes horizonDeg=0 fires a red test.
-      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-
-      final container = ProviderContainer(
-        overrides: [databaseProvider.overrideWithValue(db)],
-      );
-      addTearDown(container.dispose);
-
-      final scheduler = container.read(schedulerServiceProvider);
       // Use a target at +30° dec from a +30° latitude, currently 30 min
       // past transit, so it is still high in the sky.
       final now = DateTime.utc(2026, 5, 18, 6, 0); // arbitrary fixed time
-      final tToSet0 = scheduler.nextSetTime(
-        raHours: 6.5, // 30 min west of meridian at LST=6.0
-        decDegrees: 30.0,
+      final tToSet0 = AstronomyCalculations.timeUntilBelow(
+        raDeg: 6.5 * 15.0, // 30 min west of meridian at LST=6.0
+        decDeg: 30.0,
         now: now,
-        latitudeDegrees: 30.0,
-        longitudeDegrees: 0.0,
+        latitudeDeg: 30.0,
+        longitudeDeg: 0.0,
         horizonDeg: 0.0,
       );
-      final tToSet18 = scheduler.nextSetTime(
-        raHours: 6.5,
-        decDegrees: 30.0,
+      final tToSet18 = AstronomyCalculations.timeUntilBelow(
+        raDeg: 6.5 * 15.0,
+        decDeg: 30.0,
         now: now,
-        latitudeDegrees: 30.0,
-        longitudeDegrees: 0.0,
+        latitudeDeg: 30.0,
+        longitudeDeg: 0.0,
         horizonDeg: 18.0,
       );
 

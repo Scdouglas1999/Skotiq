@@ -20,20 +20,17 @@ class _TiltDirectionPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 8;
 
-    // Draw outer ring
     final ringPaint = Paint()
       ..color = ringColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(center, radius, ringPaint);
 
-    // Draw inner dot (center reference)
     final dotPaint = Paint()
       ..color = ringColor
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, 3, dotPaint);
 
-    // Draw cardinal labels
     final textStyle =
         TextStyle(fontSize: SkotiqTypography.fontSize9, color: textColor);
     _drawLabel(
@@ -45,7 +42,6 @@ class _TiltDirectionPainter extends CustomPainter {
     _drawLabel(
         canvas, 'R', Offset(center.dx + radius + 2, center.dy), textStyle);
 
-    // Draw arrow toward dominant direction
     if (direction == 'unknown') return;
 
     final angle = _directionToAngle(direction);
@@ -62,7 +58,6 @@ class _TiltDirectionPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(center, arrowEnd, arrowPaint);
 
-    // Arrowhead
     const headLength = 8.0;
     final headAngle1 = angle + math.pi * 0.8;
     final headAngle2 = angle - math.pi * 0.8;
@@ -118,8 +113,6 @@ class _TiltDirectionPainter extends CustomPainter {
       magnitude != old.magnitude ||
       arrowColor != old.arrowColor;
 }
-
-// Collimation card
 
 class _CollimationCard extends StatelessWidget {
   final OpticalTrainDiagnostics diagnostics;
@@ -190,7 +183,6 @@ class _CollimationCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          // Collimation visualizer: concentric rings with off-center indicator
           Center(
             child: SizedBox(
               width: 100,
@@ -260,12 +252,10 @@ class _CollimationPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
-    // Draw concentric rings
     for (int i = 1; i <= 4; i++) {
       canvas.drawCircle(center, maxRadius * i / 4, ringPaint);
     }
 
-    // Draw crosshair
     final crossPaint = Paint()
       ..color = ringColor.withValues(alpha: 0.5)
       ..strokeWidth = 0.5;
@@ -296,5 +286,3 @@ class _CollimationPainter extends CustomPainter {
   bool shouldRepaint(covariant _CollimationPainter old) =>
       score != old.score || statusColor != old.statusColor;
 }
-
-// PSF field map card

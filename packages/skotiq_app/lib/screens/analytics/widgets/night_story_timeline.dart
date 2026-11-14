@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/narrator/narrator_card.dart';
@@ -148,7 +149,6 @@ class NightStorySummary {
   /// `warning` + `critical` severity events, across all categories.
   final int warnings;
 
-  /// Total events in the session.
   final int total;
 
   const NightStorySummary({
@@ -199,13 +199,11 @@ NightStorySummary summarizeNightStory(List<NarratorEvent> events) {
   );
 }
 
-/// Two-digit-padded "HH:00" label for a local hour-start.
 String _hourLabel(DateTime hour) {
   final hh = hour.hour.toString().padLeft(2, '0');
   return '$hh:00';
 }
 
-/// Two-digit-padded "HH:MM" label for a local timestamp.
 String _timeLabel(DateTime local) {
   final hh = local.hour.toString().padLeft(2, '0');
   final mm = local.minute.toString().padLeft(2, '0');
@@ -666,7 +664,6 @@ class _Rail extends StatelessWidget {
               ],
             ),
           ),
-          // The node.
           Container(
             width: nodeSize,
             height: nodeSize,

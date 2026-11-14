@@ -1,6 +1,69 @@
 part of '../connected_device_card.dart';
 
 extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
+  /// The actions of a card whose device failed: try it again, or take it off
+  /// the screen. A device that is still connecting has none.
+  Widget _buildFailedActionsRow() {
+    final canRetry = _slot.retryDeviceId != null;
+    return Row(
+      children: [
+        if (canRetry)
+          SkotiqButton(
+            label: 'Retry',
+            icon: LucideIcons.refreshCw,
+            size: ButtonSize.small,
+            variant: ButtonVariant.secondary,
+            isLoading: _deviceCommandInFlight,
+            onPressed: _anyCommandInFlight ? null : _retryConnect,
+          ),
+        const Spacer(),
+        SkotiqButton(
+          label: 'Remove',
+          size: ButtonSize.small,
+          variant: ButtonVariant.ghost,
+          onPressed: _anyCommandInFlight ? null : _removeFailedDevice,
+        ),
+      ],
+    );
+  }
+
+  /// One attempt, no loop: a second failure shows on the card again and the
+  /// user decides what to do next.
+  Future<void> _retryConnect() async {
+    final command = _beginDeviceCommand();
+    if (command == null) return;
+    try {
+      await ref.read(deviceServiceProvider).retryConnect(widget.type);
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar(
+          'The ${widget.type.noun} still did not connect: '
+          '${connectFailureReason(e)}',
+        );
+      }
+    } finally {
+      _finishCommand(command);
+    }
+  }
+
+  /// Let go of a device that failed. A slot the driver no longer holds is
+  /// simply cleared; a driver that will not let go is reported and the card
+  /// stays, because the device may still be held open.
+  Future<void> _removeFailedDevice() async {
+    try {
+      await ref.read(deviceServiceProvider).disconnect(widget.type);
+    } on DeviceNotConnectedException {
+      ref.read(widget.type.slot.notifier).setDisconnected();
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar(
+          'Could not release the ${widget.type.noun}: '
+          '${connectFailureReason(e)}',
+        );
+      }
+    }
+  }
+
   Widget _buildActionsRow(SkotiqColors colors) {
     final settingsAction = _resolveSettingsAction();
     final actions =
@@ -126,20 +189,20 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
       return injected;
     }
     switch (widget.type) {
-      case ConnectedDeviceType.camera:
+      case DeviceType.camera:
         return () {
           final targetTemp = ref.read(cameraStateProvider).targetTemp;
           _showCoolingTempDialog(targetTemp);
         };
-      case ConnectedDeviceType.mount:
+      case DeviceType.mount:
         return _showMountSettingsDialog;
-      case ConnectedDeviceType.focuser:
+      case DeviceType.focuser:
         return _showFocuserSettingsDialog;
-      case ConnectedDeviceType.rotator:
+      case DeviceType.rotator:
         return _showRotatorSettingsDialog;
-      case ConnectedDeviceType.dome:
+      case DeviceType.dome:
         return _showDomeSettingsDialog;
-      case ConnectedDeviceType.coverCalibrator:
+      case DeviceType.coverCalibrator:
         final state = ref.watch(coverCalibratorStateProvider);
         final capabilities = ref.watch(
           equipmentCoverCalibratorCapabilitiesProvider(state.deviceId ?? ''),
@@ -150,19 +213,30 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
         )
             ? _showCoverCalibratorSettingsDialog
             : null;
-      case ConnectedDeviceType.filterWheel:
+      case DeviceType.filterWheel:
       // Read-only / no per-card settings.
-      case ConnectedDeviceType.guider:
-      case ConnectedDeviceType.weather:
-      case ConnectedDeviceType.safetyMonitor:
+      case DeviceType.guider:
+      case DeviceType.weather:
+      case DeviceType.switch_:
+      case DeviceType.safetyMonitor:
         return null;
     }
   }
 
+  /// Whether the camera at [deviceId] has a cooler Skotiq can drive; false
+  /// while its capabilities are unknown.
+  bool _cameraCanCool(String? deviceId) => gateCapability<CameraCapabilities>(
+        ref.watch(equipmentCameraCapabilitiesProvider(deviceId ?? '')),
+        (caps) => caps.canSetCooler,
+      );
+
   List<Widget> _buildDeviceActions(SkotiqColors colors) {
     switch (widget.type) {
-      case ConnectedDeviceType.camera:
+      case DeviceType.camera:
         final state = ref.watch(cameraStateProvider);
+        // A camera without a cooler (a DSLR or mirrorless body, most guide
+        // cameras) gets no cooling buttons.
+        if (!_cameraCanCool(state.deviceId)) return const [];
         final coolTo = ref.watch(cameraCoolToTargetProvider);
         return [
           _ActionButton(
@@ -190,7 +264,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.mount:
+      case DeviceType.mount:
         final state = ref.watch(mountStateProvider);
         final capabilities = ref.watch(
           equipmentMountCapabilitiesProvider(state.deviceId ?? ''),
@@ -286,7 +360,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.focuser:
+      case DeviceType.focuser:
         final state = ref.watch(focuserStateProvider);
         final autofocusRunning = ref.watch(
           sessionStateProvider.select((session) => session.isAutofocusing),
@@ -301,7 +375,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.filterWheel:
+      case DeviceType.filterWheel:
         final state = ref.watch(filterWheelStateProvider);
         final autofocusRunning = ref.watch(
           sessionStateProvider.select((session) => session.isAutofocusing),
@@ -319,7 +393,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.guider:
+      case DeviceType.guider:
         final state = ref.watch(guiderStateProvider);
         return [
           _ActionButton(
@@ -335,7 +409,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.rotator:
+      case DeviceType.rotator:
         // Keep the rotator's capability future warm so the "Rotate To Angle"
         // dialog observes the resolved min/maxAngleDeg window (it reads them
         // synchronously on open). capabilityRefreshOnConnectProvider only
@@ -362,7 +436,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.dome:
+      case DeviceType.dome:
         final state = ref.watch(domeStateProvider);
         final capabilities = ref.watch(
           equipmentDomeCapabilitiesProvider(state.deviceId ?? ''),
@@ -453,10 +527,10 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.weather:
+      case DeviceType.weather:
         return [];
 
-      case ConnectedDeviceType.safetyMonitor:
+      case DeviceType.safetyMonitor:
         final state = ref.watch(safetyMonitorStateProvider);
         final safetyStatus = ref.watch(equipmentSafetySnoozeStatusProvider);
         return [
@@ -474,7 +548,10 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
             ),
         ];
 
-      case ConnectedDeviceType.coverCalibrator:
+      // The switch has its own card, [SwitchControlCard].
+      case DeviceType.switch_:
+        return const [];
+      case DeviceType.coverCalibrator:
         final state = ref.watch(coverCalibratorStateProvider);
         final capabilities = ref.watch(
           equipmentCoverCalibratorCapabilitiesProvider(state.deviceId ?? ''),
@@ -535,25 +612,58 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
       child: Container(
         padding: SkotiqTokens.paddingMd,
         decoration: SkotiqDecorations.well(colors),
-        child: KeyValueList(rows: _buildExpandedTelemetry(colors)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KeyValueList(rows: _buildExpandedTelemetry(colors)),
+            // Asked for only while the details are open: on a linked client
+            // each card's answer is a request to the host.
+            if (_isExpanded)
+              if (_slot.deviceId case final deviceId?
+                  when deviceId.isNotEmpty) ...[
+                const SizedBox(height: SkotiqTokens.spaceMd),
+                _DeviceQuirksSection(deviceId: deviceId),
+              ],
+          ],
+        ),
       ),
     );
   }
 
   List<(String, String)> _buildExpandedTelemetry(SkotiqColors colors) {
     switch (widget.type) {
-      case ConnectedDeviceType.camera:
+      case DeviceType.camera:
         final state = ref.watch(cameraStateProvider);
+        final canCool = _cameraCanCool(state.deviceId);
+        final canSetOffset = gateCapability<CameraCapabilities>(
+          ref.watch(equipmentCameraCapabilitiesProvider(state.deviceId ?? '')),
+          (caps) => caps.canSetOffset,
+          loadingDefault: true,
+        );
         return [
           ('Device id', state.deviceId ?? 'Unknown'),
-          ('Gain', state.gain?.toString() ?? kReadoutUnknown),
-          ('Offset', state.offset?.toString() ?? kReadoutUnknown),
+          (
+            ref.watch(cameraSensitivityProvider).label,
+            state.gain?.toString() ?? kReadoutUnknown,
+          ),
+          if (canSetOffset)
+            ('Offset', state.offset?.toString() ?? kReadoutUnknown),
           ('Binning', state.binning ?? kReadoutUnknown),
-          ('Cooling', state.isCooling ? 'Active' : 'Off'),
-          ('Target temp', formatCelsius(state.targetTemp)),
+          if (canCool) ...[
+            (
+              'Cooling',
+              switch (state.coolerOn) {
+                true => 'Active',
+                false => 'Off',
+                null => 'Not reported',
+              },
+            ),
+            ('Target temp', formatCelsius(state.targetTemp)),
+          ],
         ];
 
-      case ConnectedDeviceType.mount:
+      case DeviceType.mount:
         final state = ref.watch(mountStateProvider);
         return [
           ('Device id', state.deviceId ?? 'Unknown'),
@@ -575,7 +685,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ('Tracking rate', state.trackingRate.name.toUpperCase()),
         ];
 
-      case ConnectedDeviceType.focuser:
+      case DeviceType.focuser:
         final state = ref.watch(focuserStateProvider);
         final reportedMax = state.maxPosition;
         return [
@@ -588,33 +698,41 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ),
         ];
 
-      case ConnectedDeviceType.filterWheel:
+      case DeviceType.filterWheel:
         final state = ref.watch(filterWheelStateProvider);
         return [
           ('Device id', state.deviceId ?? 'Unknown'),
           ('Filters', state.filterNames.join(', ')),
         ];
 
-      case ConnectedDeviceType.guider:
+      case DeviceType.guider:
         final state = ref.watch(guiderStateProvider);
         return [
           ('Device id', state.deviceId ?? 'Unknown'),
           (
             'RA RMS',
             state.rmsRa != null
-                ? '${state.rmsRa!.toStringAsFixed(3)}"'
+                ? guideDistanceText(
+                    state.rmsRa!,
+                    ref.watch(guideScaleProvider),
+                    decimals: 3,
+                  )
                 : kReadoutUnknown
           ),
           (
             'Dec RMS',
             state.rmsDec != null
-                ? '${state.rmsDec!.toStringAsFixed(3)}"'
+                ? guideDistanceText(
+                    state.rmsDec!,
+                    ref.watch(guideScaleProvider),
+                    decimals: 3,
+                  )
                 : kReadoutUnknown
           ),
           ('Calibrating', state.isCalibrating ? 'Yes' : 'No'),
         ];
 
-      case ConnectedDeviceType.rotator:
+      case DeviceType.rotator:
         final state = ref.watch(rotatorStateProvider);
         return [
           ('Device id', state.deviceId ?? 'Unknown'),
@@ -627,7 +745,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ('Reversed', state.isReversed ? 'Yes' : 'No'),
         ];
 
-      case ConnectedDeviceType.dome:
+      case DeviceType.dome:
         final state = ref.watch(domeStateProvider);
         return [
           ('Device id', state.deviceId ?? 'Unknown'),
@@ -643,7 +761,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ('Slaved', state.isSlaved ? 'Yes' : 'No'),
         ];
 
-      case ConnectedDeviceType.weather:
+      case DeviceType.weather:
         final state = ref.watch(weatherStateProvider);
         return [
           ('Device id', state.deviceId ?? 'Unknown'),
@@ -710,12 +828,12 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           if (state.lastUpdated != null)
             (
               'Last Updated',
-              '${_formatAge(_tickNow().difference(state.lastUpdated!))} '
+              '${RelativeTime.age(_tickNow().difference(state.lastUpdated!))} '
                   'ago'
             ),
         ];
 
-      case ConnectedDeviceType.safetyMonitor:
+      case DeviceType.safetyMonitor:
         final state = ref.watch(safetyMonitorStateProvider);
         final lastChecked = state.lastChecked;
         final age =
@@ -733,10 +851,12 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
                         ? 'Yes'
                         : 'No'
           ),
-          if (age != null) ('Last Checked', '${_formatAge(age)} ago'),
+          if (age != null) ('Last Checked', '${RelativeTime.age(age)} ago'),
         ];
 
-      case ConnectedDeviceType.coverCalibrator:
+      case DeviceType.switch_:
+        return const [];
+      case DeviceType.coverCalibrator:
         final state = ref.watch(coverCalibratorStateProvider);
         final capabilities = ref.watch(
           equipmentCoverCalibratorCapabilitiesProvider(state.deviceId ?? ''),

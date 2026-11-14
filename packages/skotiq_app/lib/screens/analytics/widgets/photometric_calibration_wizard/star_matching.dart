@@ -140,6 +140,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     }
 
     final authority = ref.read(backendProvider);
+    final hostTools = ref.read(linkedHostCalibrationToolsProvider);
     final generation = ++_operationGeneration;
     final imageIds = List<int>.unmodifiable(_selectedImageIds);
 
@@ -152,9 +153,9 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     try {
       final matches = <CatalogStarMatch>[];
       for (final imageId in imageIds) {
-        if (authority is NetworkBackend) {
+        if (hostTools != null) {
           matches.addAll(
-            await authority.matchPhotometricCalibrationStars(imageId),
+            await hostTools.matchPhotometricCalibrationStars(imageId),
           );
         } else {
           matches.addAll(
@@ -202,7 +203,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
       if (!_isCurrentOperation(generation, authority)) return;
       _update(() {
         _isComputing = false;
-        _statusMessage = 'Star matching failed: $error';
+        _statusMessage = 'Star matching failed: ${userFacingError(error)}';
       });
       ref.read(loggingServiceProvider).error(
             'Calibration wizard star matching failed: $error\n$stack',
@@ -247,7 +248,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     }
 
     // Airmass for this frame, from the product's one airmass model
-    // (skotiq_core .../services/science/airmass.dart) applied to the same
+    // (`airmassForTrueAltitude` in skotiq_astro) applied to the same
     // recorded mount altitude the AAVSO exporter reads, so the extinction
     // coefficient fitted here and the AMASS column of a submission built from
     // these frames describe one atmosphere. (The FITS AIRMASS card of the same
@@ -289,7 +290,6 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     if (!_isCurrentOperation(generation, authority)) return const [];
     final distortion = await imagesDao.getStoredWcsDistortion(image.id);
     if (!_isCurrentOperation(generation, authority)) return const [];
-    final sip = decodeSolvedSip(distortion?.sip);
     final wcs = WcsSolution(
       raHours: image.solvedRa!,
       decDegrees: image.solvedDec!,
@@ -302,14 +302,7 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
       cd1_2: distortion?.cd1_2,
       cd2_1: distortion?.cd2_1,
       cd2_2: distortion?.cd2_2,
-      aOrder: sip?.aOrder ?? 0,
-      bOrder: sip?.bOrder ?? 0,
-      aCoeffs: sip?.aCoeffs ?? const [],
-      bCoeffs: sip?.bCoeffs ?? const [],
-      apOrder: sip?.apOrder ?? 0,
-      bpOrder: sip?.bpOrder ?? 0,
-      apCoeffs: sip?.apCoeffs ?? const [],
-      bpCoeffs: sip?.bpCoeffs ?? const [],
+      sip: decodeSolvedSip(distortion?.sip) ?? noSipTerms,
     );
 
     // calibrateFramePhotometry requires a real frame context (it refuses a
@@ -364,37 +357,18 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
     if (!_isCurrentOperation(generation, authority)) return const [];
     final catalogStars = cone.stars;
 
-    // Build a spatial index of catalog stars projected to pixel coords
-    // for matching to detected stars.
     final imageSize = await _resolveImagePixelSize(
       filePath: image.filePath,
-      stars: stars,
-      pixelScale: image.solvedPixelScale,
       authority: authority,
       generation: generation,
     );
     if (!_isCurrentOperation(generation, authority)) return const [];
     // Canonical TAN projection (services/wcs in skotiq_core) — the
     // same implementation the science pipeline and catalog overlay use.
-    final solvedWcs = SolvedWcs(
-      raHours: wcs.raHours,
-      decDegrees: wcs.decDegrees,
-      rotationDeg: wcs.rotationDegrees,
-      pixelScaleArcsec: wcs.pixelScaleArcsecPerPixel,
+    final solvedWcs = SolvedWcs.ofSolution(
+      wcs,
       imageWidth: imageSize.width.round(),
       imageHeight: imageSize.height.round(),
-      cd1_1: wcs.cd1_1,
-      cd1_2: wcs.cd1_2,
-      cd2_1: wcs.cd2_1,
-      cd2_2: wcs.cd2_2,
-      aOrder: wcs.aOrder,
-      bOrder: wcs.bOrder,
-      aCoeffs: wcs.aCoeffs,
-      bCoeffs: wcs.bCoeffs,
-      apOrder: wcs.apOrder,
-      bpOrder: wcs.bpOrder,
-      apCoeffs: wcs.apCoeffs,
-      bpCoeffs: wcs.bpCoeffs,
     );
     if (!solvedWcs.isValid) {
       throw StateError(
@@ -445,7 +419,6 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
           math.log(normalizedFlux.clamp(1e-30, double.infinity)) /
           math.ln10;
 
-      // Find the closest unclaimed catalog star within 10 pixels.
       double bestDist = 10.0;
       int? bestIdx;
       for (int i = 0; i < projectedCatalog.length; i++) {
@@ -572,52 +545,14 @@ extension _PhotometricWizardStarMatching on _PhotometricCalibrationWizardState {
 
   Future<({double width, double height})> _resolveImagePixelSize({
     required String filePath,
-    required List<StarMeasurement> stars,
-    double? pixelScale,
     required SkotiqBackend authority,
     required int generation,
   }) async {
     if (!_isCurrentOperation(generation, authority)) {
       throw StateError('Photometric calibration operation was retired.');
     }
-    if (authority is! NetworkBackend) {
-      final fits = await ref
-          .read(imagingBackendProvider)
-          .readFitsFile(filePath: filePath);
-      return (width: fits.width.toDouble(), height: fits.height.toDouble());
-    }
-
-    // Remote: ask the host for the TRUE dimensions (it reads the real FITS
-    // header) rather than estimating from the star bounding box. The estimate
-    // below remains only as a last resort if the host can't read the file.
-    final dims = await authority.getFitsDimensions(filePath);
-    if (dims != null) {
-      return (width: dims.width.toDouble(), height: dims.height.toDouble());
-    }
-
-    if (stars.isNotEmpty) {
-      final maxX = stars.map((s) => s.x).reduce(math.max);
-      final maxY = stars.map((s) => s.y).reduce(math.max);
-      final minX = stars.map((s) => s.x).reduce(math.min);
-      final minY = stars.map((s) => s.y).reduce(math.min);
-      const margin = 64.0;
-      return (
-        width: (maxX - minX) + margin * 2,
-        height: (maxY - minY) + margin * 2,
-      );
-    }
-
-    final scale = pixelScale;
-    if (scale != null && scale > 0) {
-      const fieldDeg = 1.0;
-      final px = fieldDeg * 3600.0 / scale;
-      return (width: px, height: px);
-    }
-
-    throw StateError(
-      'Cannot determine image dimensions for remote catalog matching',
-    );
+    final fits =
+        await ref.read(imagingBackendProvider).readFitsFile(filePath: filePath);
+    return (width: fits.width.toDouble(), height: fits.height.toDouble());
   }
-
-  // Step 3: compute fit
 }

@@ -6,10 +6,15 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart'
+    as bridge_event;
 
 /// A backend whose unstubbed members answer with a completed `Future<void>`.
 ///
@@ -95,7 +100,7 @@ void main() {
         sequenceName: 'CLAUDE BIN2 GAIN TEST',
         sequenceSnapshotJson: snapshotJson,
       );
-      await runsDao.finishRun(interrupted, 'stopped', '{}');
+      await runsDao.finishRun(interrupted, SequenceRunStatus.stopped, '{}');
 
       final found = await runsDao.latestSnapshotForSequenceName(
         'CLAUDE BIN2 GAIN TEST',
@@ -121,7 +126,7 @@ void main() {
         sequenceName: 'NIGHT ONE',
         sequenceSnapshotJson: snapshotJson,
       );
-      await runsDao.finishRun(withTree, 'stopped', '{}');
+      await runsDao.finishRun(withTree, SequenceRunStatus.stopped, '{}');
       await runsDao.startRun(sequenceId: null, sequenceName: 'NIGHT ONE');
 
       final found = await runsDao.latestSnapshotForSequenceName('NIGHT ONE');
@@ -142,8 +147,9 @@ void main() {
       jsonDecode(snapshotJson) as Map<String, dynamic>,
     );
 
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     expect(
       () => container
@@ -153,8 +159,9 @@ void main() {
     );
 
     // Idle is editable, which is the window the resume path now uses.
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.idle;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.idle);
     container
         .read(currentSequenceProvider.notifier)
         .loadSequence(sequence, discardUnsaved: true);

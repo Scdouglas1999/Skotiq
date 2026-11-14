@@ -7,17 +7,14 @@
 library;
 
 import 'dart:convert';
-import 'dart:developer' as developer;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import '../database/daos/integrated_masters_dao.dart';
 import '../models/imaging/integrated_master.dart';
-import 'calibration/fits_header_reader.dart';
-import 'darkroom_build_service.dart' show DarkroomHeaderReader;
+import 'frame_header.dart';
 import 'live_stacking_service.dart';
+import 'logging_service.dart';
 
 /// Writes a stretched PNG of [result] to [path].
 typedef LiveStackPreviewWriter =
@@ -47,7 +44,7 @@ class LiveStackMasterLibrary {
   final Future<LiveStackingMasterSave> Function(String filePath) _saveMaster;
   final LiveStackPreviewWriter _writePreview;
   final IntegratedMastersDao _masters;
-  final DarkroomHeaderReader _readHeader;
+  final FrameHeaderReader _readHeader;
 
   LiveStackMasterLibrary({
     required Future<LiveStackingResult> Function() currentResult,
@@ -55,14 +52,12 @@ class LiveStackMasterLibrary {
     saveMaster,
     required LiveStackPreviewWriter writePreview,
     required IntegratedMastersDao masters,
-    DarkroomHeaderReader? readHeader,
+    FrameHeaderReader readHeader = readFrameHeader,
   }) : _currentResult = currentResult,
        _saveMaster = saveMaster,
        _writePreview = writePreview,
        _masters = masters,
-       _readHeader =
-           readHeader ??
-           ((path) => const FitsHeaderReader().readPrimaryHeader(path));
+       _readHeader = readHeader;
 
   /// Write the stack to [filePath] and, for a FITS master, register it with a
   /// stretched thumbnail beside it.
@@ -92,31 +87,30 @@ class LiveStackMasterLibrary {
     try {
       await _writePreview(preview, result);
     } catch (error) {
-      developer.log(
+      Log.warning(
         'Live stack: the thumbnail for ${saved.filePath} was not written: '
         '$error',
-        name: 'LiveStackMasterLibrary',
-        level: 900,
+        source: 'LiveStackMasterLibrary',
       );
       preview = null;
     }
-    final header = <String, String>{};
-    for (final path in [?sourceFramePath, saved.filePath]) {
+    // The master's own cards win over its source frame's.
+    final headers = <FrameHeader>[];
+    for (final path in [saved.filePath, ?sourceFramePath]) {
       try {
-        header.addAll(await _readHeader(path));
+        headers.add(await _readHeader(path));
       } catch (error) {
-        developer.log(
+        Log.warning(
           'Live stack: the header of $path could not be read, so the master '
           'may name no target or filter: $error',
-          name: 'LiveStackMasterLibrary',
-          level: 900,
+          source: 'LiveStackMasterLibrary',
         );
       }
     }
-    final object = FitsHeaderReader.stringValue(header, 'OBJECT')?.trim();
-    final filter = FitsHeaderReader.stringValue(header, 'FILTER')?.trim();
-    final target = object == null || object.isEmpty ? null : object;
-    final band = filter == null || filter.isEmpty ? null : filter;
+    String? card(String keyword) =>
+        headers.map((h) => h.string(keyword)).nonNulls.firstOrNull;
+    final target = card('OBJECT');
+    final band = card('FILTER');
     final name = [
       target ?? 'Live stack',
       if (band != null) band,
@@ -149,23 +143,3 @@ class LiveStackMasterLibrary {
     );
   }
 }
-
-final liveStackMasterLibraryProvider = Provider<LiveStackMasterLibrary>((ref) {
-  final stacking = ref.watch(liveStackingServiceProvider);
-  return LiveStackMasterLibrary(
-    currentResult: stacking.getCurrentResult,
-    saveMaster: (path) => stacking.saveMaster(filePath: path),
-    writePreview: (path, result) => bridge.apiSaveRgbaPngFile(
-      filePath: path,
-      width: result.width,
-      height: result.height,
-      rgba: stacking.autoStretchPreview(
-        width: result.width,
-        height: result.height,
-        data: result.data,
-        channels: result.channels,
-      ),
-    ),
-    masters: ref.watch(integratedMastersDaoProvider),
-  );
-});

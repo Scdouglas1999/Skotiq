@@ -11,7 +11,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 import 'sequence_fold_model.dart';
 import 'widgets/sequence_tree_shortcuts.dart';
@@ -36,13 +36,11 @@ class UnfoldedGroupIdsNotifier extends StateNotifier<Set<String>> {
 
   bool isUnfolded(String groupId) => state.contains(groupId);
 
-  /// Expand a folded group into its member rows.
   void unfold(String groupId) {
     if (state.contains(groupId)) return;
     state = {...state, groupId};
   }
 
-  /// Collapse an expanded group back into its folded row.
   void fold(String groupId) {
     if (!state.contains(groupId)) return;
     state = Set<String>.from(state)..remove(groupId);

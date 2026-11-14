@@ -158,7 +158,7 @@ async fn run_target_body(
     // the trigger state. The state stores RA in degrees so it matches
     // plate-solve outputs directly; convert hours -> degrees at this
     // boundary.
-    if let Some(trigger_state_lock) = &context.trigger_state {
+    if let Some(trigger_state_lock) = &context.run.trigger_state {
         let mut trigger_state = trigger_state_lock.write().await;
         let target_ra_degrees = config.ra_hours * 15.0;
         trigger_state.set_target(target_ra_degrees, config.dec_degrees);
@@ -168,25 +168,6 @@ async fn run_target_body(
             target_ra_degrees,
             config.dec_degrees
         );
-    }
-
-    // Pre-compute the meridian-crossing timestamp once per target. The
-    // MeridianFlip trigger compares now() against this stored value; doing
-    // the math here avoids each trigger evaluation recomputing it.
-    if let (Some(_lat), Some(lon)) = (context.latitude, context.longitude) {
-        let now = context.clock.now_utc();
-        let meridian_crossing =
-            crate::meridian::calculate_meridian_crossing(config.ra_hours, lon, now);
-
-        tracing::debug!(
-            "Target {} meridian crossing at {}",
-            display_name,
-            meridian_crossing
-        );
-
-        context
-            .set_next_meridian_flip_time(Some(meridian_crossing.timestamp()))
-            .await;
     }
 
     // integration budget setup.
@@ -577,7 +558,8 @@ fn trigger_observer_ctx(
     trigger: &TargetTrigger,
     role: TriggerRole,
 ) -> Result<TriggerObserverContext, String> {
-    let (latitude_deg, longitude_deg) = match (context.latitude, context.longitude) {
+    let (latitude_deg, longitude_deg) = match (context.run.rig.latitude, context.run.rig.longitude)
+    {
         (Some(lat), Some(lon)) => (lat, lon),
         _ if needs_observer_site(trigger) => return Err(no_observer_site_reason(trigger, role)),
         // Reached only for a trigger `needs_observer_site` rejected, i.e. one
@@ -615,7 +597,7 @@ fn refuse_unevaluable_trigger(
     reason: String,
 ) -> NodeStatus {
     tracing::error!("Target {}: {}", target_label, reason);
-    if let Some(event_tx) = context.event_tx.as_ref() {
+    if let Some(event_tx) = context.run.event_tx.as_ref() {
         let _ = event_tx.send(crate::executor::ExecutorEvent::InstructionFailed {
             node_name: target_label.to_string(),
             message: reason,
@@ -742,11 +724,11 @@ fn emit_end_when_skipped_at_entry(
         "{} was already satisfied at entry; skipping the target without imaging",
         trigger_name
     );
-    if let Some(event_tx) = context.event_tx.as_ref() {
+    if let Some(event_tx) = context.run.event_tx.as_ref() {
         let _ = event_tx.send(crate::executor::ExecutorEvent::TriggerFired {
             trigger_id: TARGET_END_WHEN_TRIGGER_ID.to_string(),
             trigger_name: trigger_name.clone(),
-            action: "SkipTarget".to_string(),
+            action: crate::executor::TriggerFiredAction::SkipTarget,
         });
     }
     // Paint the reason onto the target node itself as well, so the tree shows
@@ -1247,8 +1229,8 @@ mod tests {
         ));
 
         let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock);
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         let config = match &node.definition.node_type {
             NodeType::TargetHeader(c) => c.clone(),
@@ -1284,8 +1266,8 @@ mod tests {
         ));
 
         let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock);
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         let config = match &node.definition.node_type {
             NodeType::TargetHeader(c) => c.clone(),
@@ -1312,8 +1294,8 @@ mod tests {
             ..TargetHeaderConfig::default()
         };
         let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock.clone());
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         // Spawn a task that advances the mock clock past the target after
         // a short real-time delay. The wait_for_trigger polls every 1s
@@ -1344,8 +1326,8 @@ mod tests {
             ..TargetHeaderConfig::default()
         };
         let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock.clone());
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         let cancel = ctx.is_cancelled.clone();
         let canceller = tokio::spawn(async move {
@@ -1404,8 +1386,8 @@ mod tests {
         ));
 
         let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock);
-        ctx.latitude = Some(40.0);
-        ctx.longitude = Some(-74.0);
+        ctx.run.rig.latitude = Some(40.0);
+        ctx.run.rig.longitude = Some(-74.0);
 
         // Record whenever the walker is about to execute a child (the
         // "Step N/total" lifecycle update carries current_child).
@@ -1587,7 +1569,7 @@ mod tests {
         let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock);
         // No latitude / longitude → fail closed.
         let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
-        ctx.event_tx = Some(event_tx);
+        ctx.run.event_tx = Some(event_tx);
 
         let config = match &node.definition.node_type {
             NodeType::TargetHeader(c) => c.clone(),
@@ -1657,7 +1639,7 @@ mod tests {
         let mut node = crate::node::runtime::RuntimeNode::from_definition(header_def);
         let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock);
         let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
-        ctx.event_tx = Some(event_tx);
+        ctx.run.event_tx = Some(event_tx);
 
         let config = match &node.definition.node_type {
             NodeType::TargetHeader(c) => c.clone(),
@@ -1690,7 +1672,7 @@ mod tests {
             trigger_id, TARGET_END_WHEN_TRIGGER_ID,
             "the Dart run-stats layer keys on this id"
         );
-        assert_eq!(action, "SkipTarget");
+        assert_eq!(action, crate::executor::TriggerFiredAction::SkipTarget);
         assert!(
             trigger_name.contains("Dusk Field"),
             "the reason must name the target that was dropped, got: {trigger_name}"
@@ -1762,7 +1744,7 @@ mod tests {
         // No latitude / longitude → fail closed.
         let mut ctx = ExecutionContext::new_for_test("root".into()).with_clock(clock);
         let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
-        ctx.event_tx = Some(event_tx);
+        ctx.run.event_tx = Some(event_tx);
 
         let config = match &node.definition.node_type {
             NodeType::TargetHeader(c) => c.clone(),

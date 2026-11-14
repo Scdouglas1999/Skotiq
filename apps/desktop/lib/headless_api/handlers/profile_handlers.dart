@@ -1,19 +1,44 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/database_entities.dart' as settings_models;
-// `SkotiqEvent` / `EventCategory` / `EventSeverity` /
-// `settingsChangedEventType` are re-exported through
-// `skotiq_backend.dart` → `backend_types.dart` → `event_types.dart`,
-// so the public barrel below is enough.
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart' as settings_models;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
+import '../admin_only_settings.dart';
+import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for profile and settings endpoints
-class ProfileHandlers {
+class ProfileHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    ProfileApi.getProfiles: handleGetProfiles,
+    ProfileApi.saveProfile: handleSaveProfile,
+    ProfileApi.reorderProfiles: handleReorderProfiles,
+    ProfileApi.clearDefaultProfile: handleClearDefaultProfile,
+    ProfileApi.deleteProfile: handleDeleteProfile,
+    ProfileApi.loadProfile: handleLoadProfile,
+    ProfileApi.setDefaultProfile: handleSetDefaultProfile,
+    ProfileApi.getActiveProfile: handleGetActiveProfile,
+    ProfileApi.getSettings: handleGetSettings,
+    ProfileApi.updateSettings: handleUpdateSettings,
+    ProfileApi.getSettingsStore: handleGetSettingsStore,
+    ProfileApi.updateSettingsStore: handleUpdateSettingsStore,
+    ProfileApi.getMeridianFlipSettings: handleGetMeridianFlipSettings,
+    ProfileApi.updateMeridianFlipSettings: handleUpdateMeridianFlipSettings,
+    ProfileApi.getHomeAssistantSettings: handleGetHomeAssistantSettings,
+    ProfileApi.updateHomeAssistantSettings: handleUpdateHomeAssistantSettings,
+    ProfileApi.getLocation: handleGetLocation,
+    ProfileApi.setLocation: handleSetLocation,
+    ProfileApi.getLocationFromInternet: handleGetLocationFromInternet,
+  };
+
   final ProviderContainer container;
 
   /// Emit `settings.changed` events for each individual
@@ -35,8 +60,6 @@ class ProfileHandlers {
 
   void _logInfo(String message) =>
       _logger.info(message, source: 'ProfileHandlers');
-
-  // Profiles
 
   EquipmentProfilesDao get _profilesDao =>
       container.read(equipmentProfilesDaoProvider);
@@ -75,7 +98,26 @@ class ProfileHandlers {
   Future<Response> handleSaveProfile(Request request) async {
     _logInfo('[API] POST /api/profiles');
     final payload = await readJsonObject(request);
-    final profileJson = requireObject(payload, 'profile');
+    final postedJson = requireObject(payload, 'profile');
+    final fields = _profileFieldsOf(payload);
+    // `fields` names the fields the caller changed. They are laid over the
+    // host's current row, so an edit made elsewhere to another field since the
+    // caller loaded the profile is kept instead of reverted by a stale copy.
+    var profileJson = postedJson;
+    if (fields != null) {
+      final postedId = int.tryParse(postedJson['id']?.toString() ?? '');
+      final current = postedId == null || postedId <= 0
+          ? null
+          : await _profilesDao.getProfileById(postedId);
+      if (current != null) {
+        profileJson = {
+          ...dbProfileToRemote(current).toJson(),
+          for (final field in fields)
+            if (postedJson.containsKey(field)) field: postedJson[field],
+          'id': postedJson['id'],
+        };
+      }
+    }
 
     // Parse the wire model defensively: a malformed shape (missing required
     // field, wrong type) becomes a structured 400 instead of letting a
@@ -160,6 +202,19 @@ class ProfileHandlers {
     // Return the resulting id so the slave's saveProfile can resolve the row
     // deterministically instead of by (racy) name.
     return jsonOk({"status": "saved", "id": resultId.toString()});
+  }
+
+  /// The optional `fields` list of a profile save, or null when absent.
+  static List<String>? _profileFieldsOf(Map<String, dynamic> payload) {
+    final raw = payload['fields'];
+    if (raw == null) return null;
+    if (raw is! List || raw.any((field) => field is! String)) {
+      throw BadRequestError(
+        field: 'fields',
+        expected: 'array of profile field names',
+      );
+    }
+    return raw.cast<String>();
   }
 
   Future<Response> handleDeleteProfile(
@@ -296,8 +351,6 @@ class ProfileHandlers {
     });
   }
 
-  // Settings
-
   /// The settings-document keys that mirror the observer site.
   ///
   /// The site's canonical store is the one `GET /api/settings/location`, the
@@ -310,6 +363,10 @@ class ProfileHandlers {
     'elevation',
     'location',
   };
+
+  /// Keys of the settings document that are not app settings: the site
+  /// mirror, and what `GET /api/settings` says about it.
+  static const _documentOnlyKeys = <String>{..._siteKeys, 'locationStatus'};
 
   Future<Response> handleGetSettings(Request request) async {
     // Read from the DB-backed settings notifier (the desktop's source of
@@ -344,13 +401,19 @@ class ProfileHandlers {
     settings['elevation'] = site?.elevation;
     settings['locationStatus'] = site == null ? 'not configured' : 'configured';
 
-    return jsonOk({"settings": settings});
+    return jsonOk({
+      "settings": requestHasAdminAccess(request)
+          ? settings
+          : withCredentialsHidden(settings),
+    });
   }
 
   /// The host's `app_settings` key/value rows that linked clients mirror:
   /// every row except the presentation preferences of this computer's own
   /// screen. The rows the settings notifier owns are served from its state, so
   /// a value it holds but has not persisted yet is not reported as missing.
+  /// A request without admin access reads whether each credential is set,
+  /// not its value.
   Future<Response> handleGetSettingsStore(Request request) async {
     final rows = await container.read(settingsDaoProvider).getAllSettings();
     final current = await container.read(appSettingsProvider.future);
@@ -363,7 +426,11 @@ class ProfileHandlers {
       for (final key in AppSettingsNotifier.hostStoreKeys)
         if (owned[key] != null) key: owned[key]!,
     };
-    return jsonOk({'settings': settings});
+    final adminAccess = requestHasAdminAccess(request);
+    return jsonOk({
+      'settings': adminAccess ? settings : rowsWithCredentialsHidden(settings),
+      'adminAccess': adminAccess,
+    });
   }
 
   /// Write host-owned key/value rows for a linked client.
@@ -373,7 +440,9 @@ class ProfileHandlers {
   /// [AppSettingsNotifier.hostStoreKeys], which the notifier applies itself;
   /// writing either kind straight to the database would leave the host's
   /// in-memory copy stale and the next settings save would revert it.
-  /// Presentation preferences of this computer's screen are refused too.
+  /// Presentation preferences of this computer's screen are refused too, and
+  /// so are rows the settings catalog keeps for admin links ([adminOnlyRow])
+  /// unless the request has admin access.
   Future<Response> handleUpdateSettingsStore(Request request) async {
     _logInfo('[API] POST /api/settings/store');
     final payload = await readJsonObject(request);
@@ -401,14 +470,24 @@ class ProfileHandlers {
       }
       settings[entry.key] = value.toString();
     }
-    if (settings.isEmpty && remove.isEmpty) {
+    // `merge: {key: {field: value}}` lays those fields over the JSON object
+    // the row holds now, so two writers that changed different fields of the
+    // same object (the capture settings, for one) both keep their change. A
+    // client also sends its own whole value under `settings` for hosts that
+    // predate merging; for a merged key that copy is ignored here.
+    final merge = _jsonObjectsOf(payload, 'merge');
+    final mergeBase = _jsonObjectsOf(payload, 'mergeBase');
+    for (final key in merge.keys) {
+      settings.remove(key);
+    }
+    if (settings.isEmpty && remove.isEmpty && merge.isEmpty) {
       throw BadRequestError(
         field: 'settings',
         expected: 'at least one setting to change or remove',
       );
     }
 
-    for (final key in {...settings.keys, ...remove}) {
+    for (final key in {...settings.keys, ...remove, ...merge.keys}) {
       if (key.isEmpty) {
         throw BadRequestError(field: 'settings', expected: 'non-empty keys');
       }
@@ -440,6 +519,11 @@ class ProfileHandlers {
       }
     }
 
+    refuseAdminOnlyChange(request, {
+      for (final key in {...settings.keys, ...remove, ...merge.keys})
+        if (adminOnlyRow(key) case final reason?) key: reason,
+    });
+
     final notifierRows = {
       for (final entry in settings.entries)
         if (AppSettingsNotifier.hostStoreKeys.contains(entry.key))
@@ -458,17 +542,55 @@ class ProfileHandlers {
     }
     final dao = container.read(settingsDaoProvider);
     if (rows.isNotEmpty) await dao.setSettings(rows);
+    final merged = <String, String>{};
+    for (final entry in merge.entries) {
+      merged[entry.key] = await dao.mergeJsonObjectSetting(
+        entry.key,
+        entry.value,
+        base: mergeBase[entry.key] ?? const {},
+      );
+    }
     for (final key in remove) {
       await dao.deleteSetting(key);
     }
     // Providers on this machine that read these rows reload them.
     container.read(settingsStoreRevisionProvider.notifier).state++;
+    container.read(settingsRowChangesProvider).announce({
+      ...settings.keys,
+      ...merge.keys,
+      ...remove,
+    });
 
     return jsonOk({
       'status': 'updated',
-      'applied': settings.keys.toList(),
+      'applied': [...settings.keys, ...merge.keys],
       'removed': remove,
+      if (merged.isNotEmpty) 'merged': merged,
     });
+  }
+
+  /// `payload[field]` as a map of key to JSON object, or empty when absent.
+  static Map<String, Map<String, Object?>> _jsonObjectsOf(
+    Map<String, dynamic> payload,
+    String field,
+  ) {
+    final raw = payload[field];
+    if (raw == null) return const {};
+    if (raw is! Map) {
+      throw BadRequestError(field: field, expected: 'object of key: object');
+    }
+    final objects = <String, Map<String, Object?>>{};
+    for (final entry in raw.entries) {
+      final value = entry.value;
+      if (value is! Map) {
+        throw BadRequestError(
+          field: '$field.${entry.key}',
+          expected: 'an object of fields',
+        );
+      }
+      objects[entry.key.toString()] = Map<String, Object?>.from(value);
+    }
+    return objects;
   }
 
   /// Global meridian-flip defaults are stored separately from the generated
@@ -663,7 +785,11 @@ class ProfileHandlers {
     // just wrote.
     final commandId = request.headers['x-skotiq-command-id'];
     final payload = await readJsonObject(request);
-    final settingsJson = requireObject(payload, 'settings');
+    // A caller without admin access read each set credential as the marker;
+    // posted back, it is not a change.
+    final settingsJson = withoutCredentialMarkers(
+      requireObject(payload, 'settings'),
+    );
 
     final backend = container.read(profileSettingsBackendProvider);
     final settingsNotifier = container.read(appSettingsProvider.notifier);
@@ -703,11 +829,45 @@ class ProfileHandlers {
     // The jsonDecode(jsonEncode(...)) round-trip flattens nested freezed
     // values (e.g. ObserverLocation) into plain maps — freezed `toJson` is
     // shallow, and `fromJson` requires pure JSON.
-    final mergedJson = <String, dynamic>{
-      if (previous != null)
-        ...jsonDecode(jsonEncode(previous.toJson())) as Map<String, dynamic>,
-      ...settingsJson,
-    };
+    final previousJson = previous == null
+        ? const <String, dynamic>{}
+        : jsonDecode(jsonEncode(previous.toJson())) as Map<String, dynamic>;
+    bool changes(String key) =>
+        settingsJson.containsKey(key) &&
+        !(previousJson.containsKey(key) &&
+            _settingsValueEquals(settingsJson[key], previousJson[key]));
+    // A full snapshot carries every admin-only field back unchanged; only a
+    // field whose value would change counts as changing it.
+    refuseAdminOnlyChange(request, {
+      for (final MapEntry(:key, :value)
+          in AppSettingsNotifier.adminOnlyWireFields.entries)
+        if (changes(key)) key: value,
+    });
+    // The settings document also carries fields no setting stands behind
+    // (the update channel, for one). Sent back as they were read they mean
+    // nothing; a changed one would be dropped, so it is refused.
+    final unkeptAsRead = previous == null
+        ? const settings_models.AppSettings().toJson()
+        : previousJson;
+    final unkept = [
+      for (final MapEntry(:key, :value) in settingsJson.entries)
+        if (!AppSettingsNotifier.wireFields.contains(key) &&
+            !_documentOnlyKeys.contains(key) &&
+            !_settingsValueEquals(value, unkeptAsRead[key]))
+          key,
+    ]..sort();
+    if (unkept.isNotEmpty) {
+      final single = unkept.length == 1;
+      throw BadRequestError(
+        field: 'settings.${unkept.first}',
+        expected: 'a setting the imaging computer keeps',
+        message:
+            '${unkept.join(', ')} ${single ? 'is not a setting' : 'are not '
+                      'settings'} the imaging computer keeps here, so '
+            'nothing was changed.',
+      );
+    }
+    final mergedJson = <String, dynamic>{...previousJson, ...settingsJson};
 
     // WHAT THIS SAVE MAY DO TO THE OBSERVER SITE.
     //
@@ -941,7 +1101,7 @@ class ProfileHandlers {
   /// Fan out one `settings.changed` event per
   /// changed field between [previous] and [next]. When [previous] is
   /// null, the entire `next` snapshot is emitted as a single event with
-  /// key `__snapshot__` so the client can still rehydrate.
+  /// key [settingsSnapshotKey] so the client can still rehydrate.
   ///
   /// `commandId` is stamped onto `correlatingCommandId` so the
   /// originating client can filter its own echo.
@@ -970,7 +1130,7 @@ class ProfileHandlers {
     if (previous == null) {
       // First-write or recovery path: emit a full snapshot so the
       // remote applies the entire object at once.
-      emit(buildEvent(key: '__snapshot__', value: next.toJson()));
+      emit(buildEvent(key: settingsSnapshotKey, value: next.toJson()));
       return;
     }
 
@@ -1010,10 +1170,31 @@ class ProfileHandlers {
   Future<Response> handleSetLocation(Request request) async {
     _logInfo('[API] POST /api/settings/location');
     final payload = await readJsonObject(request);
+    // The site goes in a `location` object, and `"location": null` clears it.
+    // A body without the key is not a request to clear the site: refuse it
+    // rather than wipe the rig's location over a malformed call.
+    if (!payload.containsKey('location')) {
+      throw BadRequestError(
+        field: 'location',
+        expected: 'an object with latitude, longitude and elevation, or null',
+        message:
+            'Send the site as {"location": {"latitude": ..., "longitude": '
+            '..., "elevation": ...}}, or {"location": null} to clear it.',
+      );
+    }
     final locationJson = optionalObject(payload, 'location');
-    final location = locationJson != null
-        ? settings_models.ObserverLocation.fromJson(locationJson)
-        : null;
+    final settings_models.ObserverLocation? location;
+    try {
+      location = locationJson != null
+          ? settings_models.ObserverLocation.fromJson(locationJson)
+          : null;
+    } on Object catch (error) {
+      throw BadRequestError(
+        field: 'location',
+        expected: 'an object with latitude, longitude and elevation',
+        message: 'The observer location could not be read: $error',
+      );
+    }
 
     final backend = container.read(profileSettingsBackendProvider);
     await backend.setLocation(location);

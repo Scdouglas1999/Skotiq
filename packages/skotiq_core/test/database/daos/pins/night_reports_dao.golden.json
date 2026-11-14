@@ -1,0 +1,414 @@
+{
+  "empty getById": null,
+  "empty getForSession": [],
+  "empty latestForSession": null,
+  "insert full": 1,
+  "insert tie": 2,
+  "insert nulls": 3,
+  "insert other target": 4,
+  "insert default time": 5,
+  "after inserts :: night_reports": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "score": {
+        "v": 71,
+        "t": "integer"
+      },
+      "headline": {
+        "v": "Guiding drifted after midnight",
+        "t": "text"
+      },
+      "findings_json": {
+        "v": "[{\"id\":\"guide\",\"severity\":\"warn\",\"title\":\"Guiding\",\"explanation\":\"RMS doubled\",\"evidenceSubIds\":[3,4],\"advice\":\"Balance the mount\",\"metricSeries\":[0.5,1.25]}]",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "score": {
+        "v": 40,
+        "t": "integer"
+      },
+      "headline": {
+        "v": "Same minute",
+        "t": "text"
+      },
+      "findings_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "score": {
+        "v": 0,
+        "t": "integer"
+      },
+      "headline": {
+        "v": "",
+        "t": "text"
+      },
+      "findings_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740866700,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "score": {
+        "v": 90,
+        "t": "integer"
+      },
+      "headline": {
+        "v": "Clean",
+        "t": "text"
+      },
+      "findings_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867600,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "score": {
+        "v": 1,
+        "t": "integer"
+      },
+      "headline": {
+        "v": "x",
+        "t": "text"
+      },
+      "findings_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    }
+  ],
+  "getById 1": {
+    "sessionId": 1,
+    "targetId": 1,
+    "score": 71,
+    "headline": "Guiding drifted after midnight",
+    "findings": [
+      {
+        "id": "guide",
+        "severity": "NightFindingSeverity.warn",
+        "title": "Guiding",
+        "explanation": "RMS doubled",
+        "evidenceSubIds": [
+          3,
+          4
+        ],
+        "advice": "Balance the mount",
+        "metricSeries": [
+          0.5,
+          1.25
+        ]
+      }
+    ],
+    "createdAt": "2025-03-01T22:10:00.000Z"
+  },
+  "getById 3 nulls": {
+    "sessionId": null,
+    "targetId": null,
+    "score": 0,
+    "headline": "",
+    "findings": [],
+    "createdAt": "2025-03-01T22:05:00.000Z"
+  },
+  "getById missing": null,
+  "getForSession s0": [
+    {
+      "sessionId": 1,
+      "targetId": null,
+      "score": 40,
+      "headline": "Same minute",
+      "findings": [],
+      "createdAt": "2025-03-01T22:10:00.000Z"
+    },
+    {
+      "sessionId": 1,
+      "targetId": 1,
+      "score": 71,
+      "headline": "Guiding drifted after midnight",
+      "findings": [
+        {
+          "id": "guide",
+          "severity": "NightFindingSeverity.warn",
+          "title": "Guiding",
+          "explanation": "RMS doubled",
+          "evidenceSubIds": [
+            3,
+            4
+          ],
+          "advice": "Balance the mount",
+          "metricSeries": [
+            0.5,
+            1.25
+          ]
+        }
+      ],
+      "createdAt": "2025-03-01T22:10:00.000Z"
+    }
+  ],
+  "getForSession s1": [
+    {
+      "sessionId": 2,
+      "targetId": 1,
+      "score": 90,
+      "headline": "Clean",
+      "findings": [],
+      "createdAt": "2025-03-01T22:20:00.000Z"
+    }
+  ],
+  "getForTarget t0": [
+    {
+      "sessionId": 2,
+      "targetId": 1,
+      "score": 90,
+      "headline": "Clean",
+      "findings": [],
+      "createdAt": "2025-03-01T22:20:00.000Z"
+    },
+    {
+      "sessionId": 1,
+      "targetId": 1,
+      "score": 71,
+      "headline": "Guiding drifted after midnight",
+      "findings": [
+        {
+          "id": "guide",
+          "severity": "NightFindingSeverity.warn",
+          "title": "Guiding",
+          "explanation": "RMS doubled",
+          "evidenceSubIds": [
+            3,
+            4
+          ],
+          "advice": "Balance the mount",
+          "metricSeries": [
+            0.5,
+            1.25
+          ]
+        }
+      ],
+      "createdAt": "2025-03-01T22:10:00.000Z"
+    }
+  ],
+  "getForTarget t2": [],
+  "latestForSession s0": {
+    "sessionId": 1,
+    "targetId": null,
+    "score": 40,
+    "headline": "Same minute",
+    "findings": [],
+    "createdAt": "2025-03-01T22:10:00.000Z"
+  },
+  "delete 2": 1,
+  "delete missing": 0,
+  "after delete :: night_reports": [
+    {
+      "id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "score": {
+        "v": 71,
+        "t": "integer"
+      },
+      "headline": {
+        "v": "Guiding drifted after midnight",
+        "t": "text"
+      },
+      "findings_json": {
+        "v": "[{\"id\":\"guide\",\"severity\":\"warn\",\"title\":\"Guiding\",\"explanation\":\"RMS doubled\",\"evidenceSubIds\":[3,4],\"advice\":\"Balance the mount\",\"metricSeries\":[0.5,1.25]}]",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867000,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 3,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_id": {
+        "v": null,
+        "t": "null"
+      },
+      "score": {
+        "v": 0,
+        "t": "integer"
+      },
+      "headline": {
+        "v": "",
+        "t": "text"
+      },
+      "findings_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740866700,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 4,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "target_id": {
+        "v": 1,
+        "t": "integer"
+      },
+      "score": {
+        "v": 90,
+        "t": "integer"
+      },
+      "headline": {
+        "v": "Clean",
+        "t": "text"
+      },
+      "findings_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_at": {
+        "v": 1740867600,
+        "t": "integer"
+      }
+    },
+    {
+      "id": {
+        "v": 5,
+        "t": "integer"
+      },
+      "session_id": {
+        "v": null,
+        "t": "null"
+      },
+      "target_id": {
+        "v": 2,
+        "t": "integer"
+      },
+      "score": {
+        "v": 1,
+        "t": "integer"
+      },
+      "headline": {
+        "v": "x",
+        "t": "text"
+      },
+      "findings_json": {
+        "v": "[]",
+        "t": "text"
+      },
+      "created_at": {
+        "v": "<now s>",
+        "t": "integer"
+      }
+    }
+  ],
+  "getById corrupt findings": {
+    "sessionId": 1,
+    "targetId": 1,
+    "score": 71,
+    "headline": "Guiding drifted after midnight",
+    "findings": [],
+    "createdAt": "2025-03-01T22:10:00.000Z"
+  }
+}

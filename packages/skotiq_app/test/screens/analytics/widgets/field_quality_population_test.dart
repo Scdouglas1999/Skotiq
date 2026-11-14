@@ -13,7 +13,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart'
     show dbSessionImagesProvider;
 import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 const _sessionId = 5;
@@ -87,7 +89,7 @@ Widget _tab({required bool accepted}) {
   return ProviderScope(
     overrides: [
       allSessionsProvider.overrideWith((ref) => Stream.value([_session()])),
-      latestScienceSessionProvider.overrideWith((ref) async => _sessionId),
+      scienceDefaultSessionProvider.overrideWith((ref) async => _sessionId),
       sessionPhotometryProvider.overrideWith(
         (ref, id) => Stream.value(const <PhotometryMeasurementRow>[]),
       ),
@@ -115,8 +117,8 @@ Widget _tab({required bool accepted}) {
           _metrics(imageId: 2, cv: 0.240),
         ]),
       ),
-      sessionTileMetricsProvider.overrideWith(
-        (ref, id) => Stream.value(const <ScienceTileMetricRow>[]),
+      frameTileMetricsProvider.overrideWith(
+        (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
       ),
       dbSessionImagesProvider.overrideWith((ref, id) => Stream.value(frames)),
       sciencePhotometrySelectionProvider.overrideWith(_NoSelectionNotifier.new),

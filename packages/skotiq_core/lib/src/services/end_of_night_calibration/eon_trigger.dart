@@ -1,26 +1,29 @@
+import '../../models/imaging/frame_type_record.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/equipment_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/sequence/sequence_executor.dart';
-import '../../providers/sequence/run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 import '../../providers/sequence/sequence_progress.dart';
 import '../../providers/sequence/sequence_selection.dart';
 import '../../models/sequence/sequence_models.dart'
     show SequenceExecutionStateCapabilities;
 import '../../providers/sequence_stats_provider.dart';
+import '../../models/sequence/sequence_run_status.dart';
+import '../../models/sequence/terminal_run_result.dart';
 import '../../providers/settings_provider.dart';
 import '../logging_service.dart';
-import '../scheduler/sky_calculations.dart';
-import 'eon_deferral.dart';
-import 'eon_providers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../providers/end_of_night_calibration/eon_providers.dart';
 import 'eon_service.dart' show EonReport;
 import 'eon_settings.dart';
+import '../../providers/end_of_night_calibration/eon_deferral_provider.dart';
+import '../../providers/logging_service_provider.dart';
 
 /// Why the night's imaging ended.
 enum EonEndReason {
@@ -54,15 +57,15 @@ bool isNightEnding({
   required double latitude,
   required double longitude,
 }) {
-  final (now, _) = SkyCalculations.sunAltAz(
-    time: time.toUtc(),
-    latitudeDegrees: latitude,
-    longitudeDegrees: longitude,
+  final (now, _) = AstronomyCalculations.sunAltAz(
+    dt: time.toUtc(),
+    latitudeDeg: latitude,
+    longitudeDeg: longitude,
   );
-  final (later, _) = SkyCalculations.sunAltAz(
-    time: time.toUtc().add(const Duration(minutes: 10)),
-    latitudeDegrees: latitude,
-    longitudeDegrees: longitude,
+  final (later, _) = AstronomyCalculations.sunAltAz(
+    dt: time.toUtc().add(const Duration(minutes: 10)),
+    latitudeDeg: latitude,
+    longitudeDeg: longitude,
   );
   return now >= eonDawnSunAltitudeDeg && later > now;
 }
@@ -72,28 +75,25 @@ bool isNightEnding({
 const eonDawnStopOrigin = 'dawn_approaching';
 const eonObstructionStopOrigin = 'obstruction';
 
-/// Run statuses a run ended by a stop is filed under: an operator stop is
-/// `stopped` or `paused-stopped`, a stop the native side made itself (a
-/// trigger's park) is `aborted`.
-const _stoppedRunStatuses = {'stopped', 'paused-stopped', 'aborted'};
-
 /// Whether a finished imaging run ended the night, and why. Null when it did
 /// not: an operator stop, a failure, or a weather stop in the middle of the
 /// night leave the night open.
 EonEndReason? classifyRunEnd({
-  required String runStatus,
+  required SequenceRunStatus runStatus,
   required String? stopOrigin,
   required bool nightEnding,
   bool parked = false,
 }) {
-  if (runStatus == 'completed') return EonEndReason.targetsComplete;
+  if (runStatus == SequenceRunStatus.completed) {
+    return EonEndReason.targetsComplete;
+  }
   // A recovered failure cause remains the run's verdict even when dawn
   // subsequently parks it. That verdict must not suppress night-end work.
-  if (runStatus == 'failed' && parked) {
+  if (runStatus == SequenceRunStatus.failed && parked) {
     if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
     if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
   }
-  if (!_stoppedRunStatuses.contains(runStatus)) return null;
+  if (!runStatus.endedByStop) return null;
   if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
   if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
   final safetyStop =
@@ -149,7 +149,7 @@ class EndOfNightCalibrationCoordinator {
         SequenceStopAuthor.autopilot => 'autopilot',
         SequenceStopAuthor.system => evidence?.origin,
         null =>
-          next.runStatus == 'completed'
+          next.runStatus == SequenceRunStatus.completed
               ? null
               : _ref.read(sequenceExecutorProvider).lastRunEndOrigin,
       };
@@ -239,7 +239,7 @@ class EndOfNightCalibrationCoordinator {
           longitude: settings.longitude,
         );
     var parked = false;
-    if (result.runStatus == 'failed' &&
+    if (result.runStatus == SequenceRunStatus.failed &&
         (stopOrigin == eonDawnStopOrigin ||
             stopOrigin == eonObstructionStopOrigin)) {
       final mountId = _ref.read(mountStateProvider).deviceId;
@@ -287,7 +287,7 @@ class EndOfNightCalibrationCoordinator {
     final frames = await _ref
         .read(imagesDaoProvider)
         .getImagesByProducingRun(producingRunId: '$runId');
-    if (!frames.any((f) => f.frameType.toLowerCase() == 'light')) return false;
+    if (!frames.any((f) => f.isLight)) return false;
     return _start(reason, waitForCompletion: true, forceWarmUp: deferredWarmUp);
   }
 
@@ -321,7 +321,7 @@ class EndOfNightCalibrationCoordinator {
     bool waitForCompletion = false,
     bool forceWarmUp = false,
   }) async {
-    if (_ref.read(backendProvider) is NetworkBackend) return false;
+    if (_ref.read(isRemoteModeProvider)) return false;
     final settings = await EonSettings.load(_ref.read(settingsDaoProvider));
     if (!settings.enabled) {
       _log.info(
@@ -359,8 +359,3 @@ class EndOfNightCalibrationCoordinator {
     return true;
   }
 }
-
-final endOfNightCalibrationCoordinatorProvider =
-    Provider<EndOfNightCalibrationCoordinator>(
-      EndOfNightCalibrationCoordinator.new,
-    );

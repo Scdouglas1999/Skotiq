@@ -2,10 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_core/src/database/database.dart'
-    show Target, ImagingSession;
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+    show DbTarget, ImagingSession;
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../fakes/fake_network_client.dart';
 
@@ -74,7 +78,7 @@ void main() {
 
   tearDown(() => backend.dispose());
 
-  ProviderContainer containerFor({List<Target> localTargets = const []}) {
+  ProviderContainer containerFor({List<DbTarget> localTargets = const []}) {
     final container = ProviderContainer(
       overrides: [
         backendProvider.overrideWith(
@@ -135,40 +139,20 @@ void main() {
     });
   });
 
-  test('an older host without the endpoint is ranked on the client', () async {
+  test('a host that cannot rank says so; the client does not rank its own '
+      'catalog instead', () async {
     fake.setResponse(
       '/api/suggestions/ranked',
       status: 404,
       body: '{"error":"Not found"}',
     );
-    final now = DateTime.now();
-    final container = containerFor(
-      localTargets: [
-        Target(
-          id: 1,
-          name: 'Polaris field',
-          catalogId: 'POLARIS',
-          ra: 2.53,
-          dec: 89.26,
-          minAltitude: 0,
-          priority: 5,
-          totalPlannedSubs: 0,
-          capturedSubs: 0,
-          totalIntegrationSecs: 0,
-          goalIntegrationSecs: 0,
-          createdAt: now,
-          updatedAt: now,
-          isFavorite: false,
-        ),
-      ],
-    );
-    container.read(targetSuggestionConfigProvider.notifier).state =
-        const TargetSuggestionConfig(minAltitude: 0, minScore: 0);
+    final container = containerFor(localTargets: const []);
     await container.read(appSettingsProvider.future);
 
-    final suggestions = await container.read(tonightSuggestionsProvider.future);
-
-    expect(suggestions.map((s) => s.targetName), ['Polaris field']);
+    await expectLater(
+      container.read(tonightSuggestionsProvider.future),
+      throwsA(isA<ServerError>()),
+    );
   });
 
   test('any other host failure is shown, not replaced by a local list', () {

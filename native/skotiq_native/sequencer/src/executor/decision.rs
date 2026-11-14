@@ -25,7 +25,6 @@
 //! single entry point for everything else.
 
 use super::SequenceExecutor;
-use std::sync::atomic::Ordering;
 
 impl SequenceExecutor {
     /// Subscribe to the structured decision channel. Used by the bridge
@@ -68,20 +67,6 @@ impl SequenceExecutor {
         *self.active_sequence_run_id.read()
     }
 
-    /// Runtime toggle for decision emission. When `false`, every emit
-    /// site short-circuits before allocating an event. Wired to the
-    /// `decisionLoggingEnabled` app setting.
-    pub fn set_decision_logging_enabled(&self, enabled: bool) {
-        self.decision_logging_enabled
-            .store(enabled, Ordering::Relaxed);
-    }
-
-    /// Read the runtime toggle. Cheap atomic load — safe to call from
-    /// every emit site.
-    pub fn decision_logging_enabled(&self) -> bool {
-        self.decision_logging_enabled.load(Ordering::Relaxed)
-    }
-
     /// Emit a decision into the broadcast channel. Stamps the active
     /// run id (if any) so persistence can write the FK without
     /// recomputing.
@@ -92,8 +77,12 @@ impl SequenceExecutor {
     /// check the return value — the persistence subscriber is the
     /// source of truth and a lost broadcast slot is recovered on the
     /// next emit.
+    ///
+    /// A row with a notice goes out with logging off too: the app raises the
+    /// operator's notification from it, and the warning that goes with it is
+    /// never toasted on its own.
     pub fn emit_decision(&self, mut event: crate::decision::DecisionEvent) -> bool {
-        if !self.decision_logging_enabled() {
+        if event.notice.is_none() && !self.decision_logging_enabled() {
             return false;
         }
         if event.sequence_run_id.is_none() {

@@ -1,76 +1,65 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
-    show apiEventStream, SkotiqEvent, EventCategory, EventSeverity;
-import '../backend/bridge_event_mapper.dart';
-import '../backend/ffi_backend.dart';
-import '../backend/network_backend.dart';
+    show
+        SkotiqEvent,
+        EventCategory,
+        EventSeverity,
+        EventPayload_Guiding,
+        GuidingEvent,
+        GuidingEvent_Calibrating,
+        GuidingEvent_CalibrationComplete,
+        GuidingEvent_Connected,
+        GuidingEvent_Disconnected,
+        GuidingEvent_GuidingStarted,
+        GuidingEvent_GuidingStopped,
+        GuidingEvent_LostStar,
+        GuidingEvent_Paused,
+        GuidingEvent_Resumed,
+        GuidingEvent_Settled,
+        SequencerErrorKind;
+import '../backend/bridge_event_codec.dart';
+import '../backend/sequencer_error_kind.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
+import '../services/logging_service.dart';
+import '../services/notification/event_classifier.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
-import 'sequence/run_stop_classification.dart';
 import 'ui_notification_provider.dart';
 
-/// Provider for the global event stream from the Rust native layer
+/// The typed event stream: every sequencer, device, imaging, guiding and
+/// safety event the rig's host reports, on the host itself and on a linked
+/// client alike. A host also sees the notices it raises in Dart.
 ///
-/// Every sequencer, device, imaging, guiding and safety event arrives here.
-/// UI components subscribe to this stream to react to backend state changes.
+/// Sync envelopes (`HostStateChanged`, the runtime mirror) are applied by
+/// their own providers and are not events of the night.
 final skotiqEventsProvider = StreamProvider<SkotiqEvent>((ref) {
   final backend = ref.watch(backendProvider);
-
-  // Remote clients receive the same typed bridge events as local FFI
-  // backends by reconstructing `EventPayload_*` variants from the
-  // collapsed envelope on `NetworkBackend.eventStream` (WebSocket).
-  if (backend is NetworkBackend) {
-    // `HostStateChanged` is a host-mutation SYNC envelope (applied separately
-    // by applyRemoteSyncEvent), NOT a Rust telemetry event. The typed bridge
-    // mapper has no case for it, so its `default` arm turns every one into a
-    // `SystemEvent.error` — which the dashboard flags critical and shows as a
-    // "Critical · System" toast. Since the master emits HostStateChanged
-    // constantly (the mirror mechanism), that produced a flood of bogus
-    // critical errors on the slave. Drop it from the typed/telemetry stream.
-    return backend.eventStream
-        .where((event) => !isHostSyncEnvelope(event))
-        .map(tryBridgeEventFromCoreEvent)
-        .where((event) => event != null)
-        .cast<SkotiqEvent>();
-  }
-
-  // Local desktop/headless: FRB stream plus host REST mutation events so the
-  // GUI EventBus sees remote companion writes while the embedded API server
-  // is enabled.
-  final nativeStream = apiEventStream();
-  if (backend is! FfiBackend) {
-    return nativeStream;
-  }
-
-  // Same guard as the NetworkBackend branch above: `HostStateChanged` is a
-  // host-mutation SYNC envelope (applied by host_local_sync_provider), NOT a
-  // telemetry event. Every event on the mutation hub is a HostStateChanged, so
-  // without this filter bridgeEventFromCoreEvent's default arm turned each one
-  // into a `SystemEvent.error` — meaning any local settings write or companion
-  // client mutation flashed a red "System error: HostStateChanged" banner on
-  // the desktop (the embedded server's whole purpose is companion writes, so
-  // this fired constantly).
-  final mutationStream = ref
-      .watch(hostMutationEventStreamProvider)
+  final events = backend.ownsDeviceBridge
+      ? _mergeEventStreams(
+          backend.eventStream,
+          ref.watch(hostMutationEventStreamProvider),
+        )
+      : backend.eventStream;
+  return events
       .where((event) => !isHostSyncEnvelope(event))
-      .map(bridgeEventFromCoreEvent);
-  return _mergeEventStreams(nativeStream, mutationStream);
+      .map(typedEventFromWire)
+      .where((event) => event != null)
+      .cast<SkotiqEvent>();
 });
 
-Stream<SkotiqEvent> _mergeEventStreams(
-  Stream<SkotiqEvent> primary,
-  Stream<SkotiqEvent> secondary,
+Stream<core.SkotiqEvent> _mergeEventStreams(
+  Stream<core.SkotiqEvent> primary,
+  Stream<core.SkotiqEvent> secondary,
 ) {
-  late final StreamController<SkotiqEvent> controller;
-  StreamSubscription<SkotiqEvent>? primarySub;
-  StreamSubscription<SkotiqEvent>? secondarySub;
+  late final StreamController<core.SkotiqEvent> controller;
+  StreamSubscription<core.SkotiqEvent>? primarySub;
+  StreamSubscription<core.SkotiqEvent>? secondarySub;
 
-  controller = StreamController<SkotiqEvent>.broadcast(
+  controller = StreamController<core.SkotiqEvent>.broadcast(
     onListen: () {
       primarySub = primary.listen(controller.add, onError: controller.addError);
       secondarySub = secondary.listen(
@@ -118,37 +107,40 @@ final eventHistoryProvider =
       return notifier;
     });
 
-/// Notifier that maintains a history of events
 class EventHistoryNotifier extends StateNotifier<List<SkotiqEvent>> {
-  /// Maximum number of events to keep in history
   static const int maxHistorySize = 100;
 
   EventHistoryNotifier() : super([]);
 
-  /// Add a new event to the history
   void addEvent(SkotiqEvent event) {
     if (!mounted) return;
     state = [event, ...state].take(maxHistorySize).toList();
   }
 
+  final Set<SkotiqEvent> _earlier = Set.identity();
+
   /// Fill an empty history with events that happened before this window was
   /// listening (a linked client's first connect), newest first.
   void seedEarlier(List<SkotiqEvent> newestFirst) {
     if (!mounted || state.isNotEmpty) return;
-    state = newestFirst.take(maxHistorySize).toList();
+    final earlier = newestFirst.take(maxHistorySize).toList();
+    _earlier.addAll(earlier);
+    state = earlier;
   }
 
-  /// Clear the event history
+  /// Whether [event] came with [seedEarlier]: it is part of the night so
+  /// far, not something that just happened.
+  bool happenedEarlier(SkotiqEvent event) => _earlier.contains(event);
+
   void clear() {
+    _earlier.clear();
     state = [];
   }
 
-  /// Get events filtered by category
   List<SkotiqEvent> getByCategory(EventCategory category) {
     return state.where((e) => e.category == category).toList();
   }
 
-  /// Get events filtered by severity
   List<SkotiqEvent> getBySeverity(EventSeverity severity) {
     return state.where((e) => e.severity == severity).toList();
   }
@@ -185,16 +177,17 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
   // StarSelected ↔ StarLost alternating every ~10 s for an entire episode —
   // so resetting on "any other guiding event" would make the latch a no-op.
   var starLostToasted = false;
-  const starLostEpisodeEnders = {
-    'GuidingStarted', // app-state back to Guiding — lock recovered
-    'Resumed',
-    'SettleDone', // successful settle; a failed one maps to StarLost upstream
-    'GuidingStopped',
-    'Disconnected',
-    'Connected',
-    'Paused',
-    'Calibrating',
-    'CalibrationComplete',
+  bool endsStarLostEpisode(GuidingEvent event) => switch (event) {
+    GuidingEvent_GuidingStarted() || // back to guiding: the lock recovered
+    GuidingEvent_Resumed() ||
+    GuidingEvent_Settled() || // a failed settle arrives as a lost star
+    GuidingEvent_GuidingStopped() ||
+    GuidingEvent_Disconnected() ||
+    GuidingEvent_Connected() ||
+    GuidingEvent_Paused() ||
+    GuidingEvent_Calibrating() ||
+    GuidingEvent_CalibrationComplete() => true,
+    _ => false,
   };
 
   bool shouldSuppress(String dedupeKey, DateTime now) {
@@ -213,13 +206,14 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
     (event) {
       // Star-lost episode handling runs before the info early-return so an
       // info-severity recovery event still re-arms the latch.
-      if (event.category == core.EventCategory.guiding) {
-        if (event.eventType == 'StarLost' || event.eventType == 'LostStar') {
+      final payload = typedEventFromWire(event)?.payload;
+      if (payload is EventPayload_Guiding) {
+        if (payload.field0 is GuidingEvent_LostStar) {
           if (starLostToasted) return;
           if (event.severity != core.EventSeverity.info) {
             starLostToasted = true;
           }
-        } else if (starLostEpisodeEnders.contains(event.eventType)) {
+        } else if (endsStarLostEpisode(payload.field0)) {
           starLostToasted = false;
         }
         // Anything else — StarSelected, GuideStep, GuideStats,
@@ -229,12 +223,27 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
 
       if (event.severity == core.EventSeverity.info) return;
 
-      // Heartbeat status changes carry no human message — the toast would
-      // literally read "HeartbeatStatusChanged". The Rust heartbeat emits a
-      // companion equipment Error event (with the real message) on the same
-      // poll, so nothing is lost by dropping these.
-      if (event.category == core.EventCategory.equipment &&
-          event.eventType == 'HeartbeatStatusChanged') {
+      // An event that carries no sentence is not a notice: its toast would
+      // read the event's type name ("NodeCompleted" for a failed step,
+      // "HeartbeatStatusChanged"). Those events have a companion that says
+      // what happened (the step's error, the heartbeat's equipment Error).
+      final message = _eventMessage(event);
+      if (message == null) return;
+      if (_isAnnouncedRunWarning(event)) return;
+
+      // A sequencer event the notification router classifies is the router's
+      // to tell: a failed run (once per run, with its reason) and an
+      // operator's Stop arriving as the cancellation notice. A second toast
+      // here for the same happening is how one failed run raised three
+      // notices.
+      if (event.category == core.EventCategory.sequencer &&
+          NotificationEventClassifier.classify(event) != null) {
+        return;
+      }
+
+      // A failed step is told by the run's end, whose notice carries this
+      // reason, or by recovery's own notices when recovery saves the run.
+      if (sequencerErrorOf(event)?.kind == SequencerErrorKind.stepFailed) {
         return;
       }
 
@@ -254,21 +263,6 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
         return;
       }
 
-      // PRODUCER 4 of the stop pipeline, and the one the operator actually
-      // reads. Like every other producer it asks `isSequenceCancelledNotice`
-      // before calling a deliberate Stop a fault. It takes no part in the
-      // NotificationRouter, so neither the router's classification nor its
-      // content dedupe can reach it — the check has to live here.
-      if (_isOperatorStopNotice(event)) {
-        developer.log(
-          '[$kStopClassificationLogTag] error_notification_bridge: sequencer '
-          'Error carrying the cancellation notice -> no error toast',
-          name: 'ErrorNotificationBridge',
-        );
-        return;
-      }
-
-      final message = _extractEventMessage(event);
       final title = _eventTitle(event);
 
       final now = DateTime.now();
@@ -294,10 +288,9 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       }
     },
     onError: (error) {
-      developer.log(
+      Log.error(
         '[ErrorNotificationBridge] Event stream error: $error',
-        name: 'ErrorNotificationBridge',
-        level: 1000,
+        source: 'ErrorNotificationBridge',
         error: error,
       );
     },
@@ -308,59 +301,31 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
   });
 });
 
-/// True when this backend event is the operator's Stop wearing an error's
-/// clothes.
-///
-/// The wire shape is fixed: the native executor's `NodeStatus::Cancelled` arm
-/// sends `ExecutorEvent::Error { message: "Sequence cancelled" }`
-/// (`sequencer/src/executor/start.rs`), the bridge stamps it
-/// `EventSeverity::Error` / `EventCategory::Sequencer`
-/// (`bridge/src/api/sequencer/event_bridge.rs`), and the FFI mapper delivers it
-/// as eventType `'Error'` with the notice under `message`
-/// (`backend/ffi_backend/event_mapping.dart`). The remote/WebSocket envelope has
-/// been seen using `error` for the same field, so both are read — the same pair
-/// `NotificationEventClassifier._sequencerErrorMessage` reads.
-///
-/// Only the exact notice is reclassified; a real fault whose text merely
-/// contains "cancelled" ("Temperature compensation cancelled") is still an
-/// error and still reaches the operator. See [isSequenceCancelledNotice].
-bool _isOperatorStopNotice(core.SkotiqEvent event) {
-  if (event.category != core.EventCategory.sequencer) return false;
-  if (event.eventType != 'Error') return false;
-  final message =
-      (event.data['message'] as String?) ??
-      (event.data['error'] as String?) ??
-      '';
-  return isSequenceCancelledNotice(message);
-}
+/// True for the run's Warning about a happening it carried on through. The
+/// notification router announces it from the decision row with the same
+/// notice, and Tonight lists the Warning with the run's warnings, so a toast
+/// would tell the same happening twice.
+bool _isAnnouncedRunWarning(core.SkotiqEvent event) =>
+    event.severity == core.EventSeverity.warning &&
+    sequencerErrorOf(event)?.notice != null;
 
-/// Extract a human-readable message from a SkotiqEvent's data map.
-String _extractEventMessage(core.SkotiqEvent event) {
-  final data = event.data;
-
-  // Try common message keys in order of specificity
-  if (data.containsKey('message') &&
-      data['message'] is String &&
-      (data['message'] as String).isNotEmpty) {
-    return data['message'] as String;
+/// The sentence a backend event carries, or null when it carries none.
+String? _eventMessage(core.SkotiqEvent event) {
+  for (final key in const ['message', 'error', 'reason']) {
+    final value = event.data[key];
+    if (value is String && value.trim().isNotEmpty) return value;
   }
-  if (data.containsKey('error') &&
-      data['error'] is String &&
-      (data['error'] as String).isNotEmpty) {
-    return data['error'] as String;
-  }
-  if (data.containsKey('reason') &&
-      data['reason'] is String &&
-      (data['reason'] as String).isNotEmpty) {
-    return data['reason'] as String;
-  }
-
-  // Fall back to event type
-  return event.eventType;
+  return null;
 }
 
 /// Build a title string from the event's category and device type.
 String _eventTitle(core.SkotiqEvent event) {
+  // A system notification names itself ("Database needs repair").
+  if (event.category == core.EventCategory.system &&
+      event.eventType == 'Notification') {
+    final title = event.data['title'];
+    if (title is String && title.trim().isNotEmpty) return title;
+  }
   final deviceType = event.data['device_type'] as String?;
   final categoryLabel = switch (event.category) {
     core.EventCategory.equipment => 'Device',
@@ -377,6 +342,23 @@ String _eventTitle(core.SkotiqEvent event) {
 
   if (deviceType != null && deviceType.isNotEmpty) {
     return '$deviceType Error';
+  }
+  // The sequencer's error payload says what it means for the run.
+  final sequencerError = sequencerErrorOf(event);
+  if (sequencerError != null) {
+    switch (sequencerError.kind) {
+      case SequencerErrorKind.runHeld:
+        return 'Sequence paused';
+      case SequencerErrorKind.standalone:
+        return event.severity == core.EventSeverity.warning
+            ? 'Warning'
+            : 'Operation failed';
+      case SequencerErrorKind.advisory:
+      case SequencerErrorKind.stepProblem:
+      case SequencerErrorKind.stepFailed:
+      case SequencerErrorKind.cancelled:
+        break;
+    }
   }
   return '$categoryLabel ${event.severity == core.EventSeverity.warning ? "Warning" : "Error"}';
 }

@@ -16,12 +16,16 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/calibration_library_handlers.dart';
-import 'package:skotiq_desktop/headless_api/route_metadata.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+
+import '../support/route_policy.dart';
 
 /// A [CalibrationLibraryService] whose share/match methods are replaced with
 /// scriptable stubs, so the handler seam can be asserted without a hub or a
@@ -53,7 +57,6 @@ class _FakeCalibrationLibraryService extends CalibrationLibraryService {
   @override
   Future<CalibrationMatchSet> match(
     LightFrameContext context, {
-    CalibrationMatchTolerances tolerances = CalibrationMatchTolerances.defaults,
     bool includeRemote = true,
   }) async => (onMatch ?? (c) => CalibrationMatchSet(context: c))(context);
 
@@ -428,6 +431,69 @@ void main() {
       expect(body['id'], 7);
       expect(called, isTrue);
     });
+  });
+
+  group('CalibrationLibraryHandlers — master files', () {
+    late ProviderContainer container;
+    late SkotiqDatabase db;
+    late Directory dir;
+    late CalibrationLibraryHandlers handlers;
+
+    setUp(() async {
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      dir = await Directory.systemTemp.createTemp('skotiq-masters-');
+      container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      handlers = CalibrationLibraryHandlers(container);
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await db.close();
+      await dir.delete(recursive: true);
+    });
+
+    test(
+      'a flat and a dark that share an id each download their own file',
+      () async {
+        final dark = File('${dir.path}/master_dark_300s.fits')
+          ..writeAsStringSync('dark bytes');
+        final flat = File('${dir.path}/master_flat_Ha.fits')
+          ..writeAsStringSync('flat bytes');
+        await db.customStatement(
+          "INSERT INTO dark_library (id, file_path, exposure_time, frame_type, "
+          "created_at) VALUES (1, '${dark.path}', 300, 'dark', 1794400000)",
+        );
+        await db.customStatement(
+          "INSERT INTO flat_library (id, file_path, filter, created_at) "
+          "VALUES (1, '${flat.path}', 'Ha', 1794400000)",
+        );
+
+        Future<Response> download(String type) => translateHandlerErrors(
+          handlers.handleDownload(
+            Request(
+              'GET',
+              Uri.parse(
+                'http://localhost/api/calibration-library/$type/1/file',
+              ),
+            ),
+            type,
+            '1',
+          ),
+        );
+
+        final flatResponse = await download('flat');
+        expect(flatResponse.statusCode, HttpStatus.ok);
+        expect(await flatResponse.readAsString(), 'flat bytes');
+        expect(
+          flatResponse.headers['content-disposition'],
+          contains('master_flat_Ha.fits'),
+        );
+        expect(await (await download('dark')).readAsString(), 'dark bytes');
+        expect((await download('defectMap')).statusCode, HttpStatus.notFound);
+      },
+    );
   });
 
   group('CalibrationLibraryHandlers — route scopes', () {

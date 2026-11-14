@@ -5,9 +5,10 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
-import 'package:skotiq_app/screens/night_control/actions/night_rig_ops.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import 'night_action_test_support.dart';
 
@@ -81,33 +82,4 @@ void main() {
   test('solve opens the Solve tab', () {
     expect(ManualActionId.solve.panelTab, NightPanelTab.solve);
   });
-
-  test('the centering config follows the settings and the profile', () async {
-    final h = actionHarness(
-      extra: [
-        appSettingsProvider.overrideWith(
-          () => _Settings(const AppSettingsState(centeringSyncMount: false)),
-        ),
-        activeEquipmentProfileProvider.overrideWithValue(null),
-      ],
-    );
-    addTearDown(h.container.dispose);
-    await h.container.read(appSettingsProvider.future);
-
-    final config = h.container.read(nightCenteringConfigProvider);
-    expect(config, isNotNull);
-    expect(config!.maxIterations, 5);
-    expect(config.toleranceArcsec, 30.0);
-    expect(config.exposureTime, 5.0,
-        reason: 'no profile: the centering dialog\'s 5 s, not the model\'s 3');
-    expect(config.syncMount, isFalse);
-  });
-}
-
-class _Settings extends AppSettingsNotifier {
-  _Settings(this._value);
-  final AppSettingsState _value;
-
-  @override
-  Future<AppSettingsState> build() async => _value;
 }

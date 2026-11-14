@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
-import '../models/command_action_result.dart';
+import 'command_action_result.dart';
 
-/// Provider for the SequenceActionService.
 final sequenceActionServiceProvider =
     Provider((ref) => SequenceActionService(ref));
 
@@ -78,7 +79,7 @@ class SequenceActionService {
         } catch (e) {
           // The Start control that asked may be gone by the time the refusal
           // comes back, so the reason goes out as an app-wide notification.
-          final reason = describeStartFailure(e);
+          final reason = userFacingError(e);
           _ref.read(loggingServiceProvider).warning(
                 'The run did not start: $reason',
                 source: 'SequenceActionService',
@@ -94,7 +95,6 @@ class SequenceActionService {
         }
       });
 
-  /// Pauses the running sequence.
   Future<CommandActionResult> pause() => _single(
       _SequenceCommand.pause,
       () => _afterStart(() async {
@@ -106,11 +106,10 @@ class SequenceActionService {
               return CommandActionResult.ok;
             } catch (e) {
               return CommandActionResult.failure(
-                  'Failed to pause sequence: $e');
+                  'Failed to pause sequence: ${userFacingError(e)}');
             }
           }));
 
-  /// Resumes a paused sequence.
   Future<CommandActionResult> resume() => _single(
       _SequenceCommand.resume,
       () => _afterStart(() async {
@@ -122,7 +121,7 @@ class SequenceActionService {
               return CommandActionResult.ok;
             } catch (e) {
               return CommandActionResult.failure(
-                  'Failed to resume sequence: $e');
+                  'Failed to resume sequence: ${userFacingError(e)}');
             }
           }));
 
@@ -152,7 +151,8 @@ class SequenceActionService {
               await _executor.stop(preserveCheckpoint: preserveCheckpoint);
               return CommandActionResult.ok;
             } catch (e) {
-              return CommandActionResult.failure('Failed to stop sequence: $e');
+              return CommandActionResult.failure(
+                  'Failed to stop sequence: ${userFacingError(e)}');
             }
           }));
 
@@ -181,7 +181,8 @@ class SequenceActionService {
               }
               return CommandActionResult.ok;
             } catch (e) {
-              return CommandActionResult.failure('Failed to skip: $e');
+              return CommandActionResult.failure(
+                  'Failed to skip: ${userFacingError(e)}');
             }
           }));
 
@@ -204,7 +205,7 @@ class SequenceActionService {
               return CommandActionResult.ok;
             } catch (e) {
               return CommandActionResult.failure(
-                  'Failed to reset sequence: $e');
+                  'Failed to reset sequence: ${userFacingError(e)}');
             }
           }));
 
@@ -215,19 +216,4 @@ class SequenceActionService {
     if (start == null) return body();
     return start.then((_) => body());
   }
-}
-
-/// A start refusal as the operator should read it: the host's or the
-/// validator's own sentence, without a Dart exception prefix.
-String describeStartFailure(Object error) {
-  final text = switch (error) {
-    ServerError(:final message) => message,
-    SkotiqError(:final userMessage) => userMessage,
-    _ => '$error',
-  }
-      .trim();
-  for (final prefix in const ['Exception: ', 'Bad state: ']) {
-    if (text.startsWith(prefix)) return text.substring(prefix.length);
-  }
-  return text;
 }

@@ -8,7 +8,7 @@
 // The gate is the client ROLE. Asked as `backend is NetworkBackend` it was a
 // CONNECTION fact, which reads false for the whole life of a `--remote-host`
 // launch before its first handshake — and in that window the dialog kept its
-// host-capable labels and "Review & integrate" navigated onto the Session
+// host-capable labels and "Session review" navigated onto the Session
 // Review host-only wall instead of refusing. That case is the third test here.
 //
 // WHERE THE REFUSAL IS READ. These assertions go through the published
@@ -28,7 +28,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
 import 'package:skotiq_app/utils/darkroom_navigation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -82,20 +85,6 @@ class _PinnedBackend extends BackendNotifier {
   }
 }
 
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError(
-        'NoopTutorialProgressDao.${invocation.memberName} called in test',
-      );
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -144,7 +133,6 @@ void main() {
             5,
           ).overrideWith(
               (ref) => Stream<List<DbCapturedImage>>.value(const [])),
-          tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
           dawnMasterResolverProvider.overrideWithValue(
             resolver ?? _ScriptedResolver(_oneMaster()),
           ),
@@ -200,7 +188,7 @@ void main() {
 
     for (final entry in {
       'session_detail_darkroom': 'Refine in Darkroom',
-      'session_detail_review': 'Review & integrate',
+      'session_detail_review': 'Session review',
     }.entries) {
       final button = find.byKey(ValueKey(entry.key));
       expect(button, findsOneWidget);
@@ -369,7 +357,7 @@ void main() {
     expect(data.hasFlag(SemanticsFlag.hasEnabledState), isTrue);
     expect(data.hasFlag(SemanticsFlag.isEnabled), isFalse);
 
-    // Review & integrate is the way OUT of this state, so it stays live.
+    // Session review is the way OUT of this state, so it stays live.
     expect(
       tester
           .widget<SkotiqIconButton>(

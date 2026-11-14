@@ -5,8 +5,6 @@ use crate::load_vendor_sdk;
 use crate::vendor::sdk_loader::vendor_library_candidates;
 use std::path::PathBuf;
 
-// EAF focuser SDK
-
 /// EAF Info structure from SDK
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -123,39 +121,46 @@ load_vendor_sdk! {
     }
 }
 
-/// Check EAF error code and convert to NativeError
-pub(crate) fn check_eaf_error(code: c_int) -> Result<(), NativeError> {
+/// Check EAF error code and convert to DriverError
+pub(crate) fn check_eaf_error(code: c_int) -> Result<(), DriverError> {
     match code {
         0 => Ok(()),
-        1 => Err(NativeError::InvalidDevice(
+        1 => Err(DriverError::InvalidDevice(
             "EAF_ERROR_INVALID_INDEX".to_string(),
         )),
-        2 => Err(NativeError::InvalidDevice(
+        2 => Err(DriverError::InvalidDevice(
             "EAF_ERROR_INVALID_ID".to_string(),
         )),
-        3 => Err(NativeError::InvalidParameter(
+        3 => Err(DriverError::InvalidParameter(
             "EAF_ERROR_INVALID_VALUE".to_string(),
         )),
-        4 => Err(NativeError::Disconnected),
-        5 => Err(NativeError::SdkError(
+        4 => Err(DriverError::Disconnected),
+        5 => Err(DriverError::SdkError(
             "EAF_ERROR_MOVING: Focuser is moving".to_string(),
         )),
-        6 => Err(NativeError::SdkError(
+        6 => Err(DriverError::SdkError(
             "EAF_ERROR_ERROR_STATE: Focuser in error state".to_string(),
         )),
-        7 => Err(NativeError::SdkError("EAF_ERROR_GENERAL_ERROR".to_string())),
-        8 => Err(NativeError::NotSupported),
-        9 => Err(NativeError::NotConnected),
-        _ => Err(NativeError::SdkError(format!(
+        7 => Err(DriverError::SdkError("EAF_ERROR_GENERAL_ERROR".to_string())),
+        8 => Err(DriverError::NotSupported),
+        9 => Err(DriverError::NotConnected),
+        _ => Err(DriverError::SdkError(format!(
             "Unknown EAF error code: {}",
             code
         ))),
     }
 }
 
-// Focuser implementation
+/// [`check_eaf_error`] for a call on a focuser that `connect` opened: an id the
+/// SDK no longer knows (INVALID_INDEX, INVALID_ID) is a focuser that left the
+/// bus, as for the camera ([`super::sdk::check_open_camera_error`]).
+pub(crate) fn check_open_focuser_error(code: c_int) -> Result<(), DriverError> {
+    match code {
+        1 | 2 => Err(DriverError::Disconnected),
+        _ => check_eaf_error(code),
+    }
+}
 
-/// ZWO EAF Focuser implementation
 #[derive(Debug)]
 pub struct ZwoFocuser {
     pub(crate) focuser_id: i32,
@@ -168,10 +173,12 @@ pub struct ZwoFocuser {
     /// expose this value, so absent a quirks entry we cannot honestly answer
     /// `get_step_size`; tracking it here lets us fail loudly instead of guessing.
     pub(crate) step_size_um: Option<f64>,
+    /// `EAFGetSerialNumber` of the open focuser; `None` before connect and
+    /// for a unit that reports none.
+    pub(crate) serial_number: Option<String>,
 }
 
 impl ZwoFocuser {
-    /// Create a new ZWO focuser instance
     pub fn new(focuser_id: i32) -> Self {
         Self {
             focuser_id,
@@ -180,12 +187,13 @@ impl ZwoFocuser {
             max_position: 0,
             name: format!("ZWO EAF {}", focuser_id),
             step_size_um: None,
+            serial_number: None,
         }
     }
 }
 
 #[async_trait]
-impl NativeDevice for ZwoFocuser {
+impl DeviceDriver for ZwoFocuser {
     fn id(&self) -> &str {
         &self.device_id
     }
@@ -194,59 +202,72 @@ impl NativeDevice for ZwoFocuser {
         &self.name
     }
 
-    fn vendor(&self) -> NativeVendor {
-        NativeVendor::Zwo
+    fn vendor(&self) -> Vendor {
+        Vendor::Zwo
+    }
+
+    fn serial_number(&self) -> Option<String> {
+        self.serial_number.clone()
     }
 
     fn is_connected(&self) -> bool {
         self.connected
     }
 
-    async fn connect(&mut self) -> Result<(), NativeError> {
+    async fn connect(&mut self) -> Result<(), DriverError> {
         tracing::info!("Connecting to ZWO EAF focuser ID {}...", self.focuser_id);
 
-        let sdk = EafSdk::get().ok_or_else(|| {
+        let sdk = EafSdk::installed().inspect_err(|_| {
             tracing::error!("Cannot connect to ZWO EAF: EAF SDK not loaded");
-            NativeError::SdkNotLoaded
         })?;
 
-        // Acquire mutex for EAF SDK operations
-        let _lock = zwo_eaf_mutex().lock().await;
+        // Hold the EAF SDK lock for the connect sequence
+        let sdk = sdk.lock().await;
 
-        // Open focuser
-        // SAFETY: zwo_eaf_mutex held above; focuser_id comes from discover_focusers() via EAFGetID() so it's a valid SDK-issued identifier.
+        // A saved profile connects by id before any device search; EAFGetNum
+        // "should be the first API to be called" (EAF_focuser.h) and fills the
+        // id table EAFOpen looks in, as for the EFW.
+        // SAFETY: EAFGetNum takes no arguments; the lock guard keeps every other
+        // task out of the EAF SDK while it re-scans.
+        let num_focusers = unsafe { (sdk.get_num)() };
+        // SAFETY: index is bounded by EAFGetNum and `listed` is a valid output
+        // pointer.
+        let listed = |index, listed: &mut c_int| unsafe { (sdk.get_id)(index, listed) };
+        if !id_is_listed(num_focusers, listed, self.focuser_id) {
+            let reported = num_focusers.max(0);
+            return Err(DriverError::DeviceNotFound(format!(
+                "ZWO EAF ID {} is not present (SDK reported {} focuser{})",
+                self.focuser_id,
+                reported,
+                if reported == 1 { "" } else { "s" }
+            )));
+        }
+
+        // SAFETY: focuser_id was matched against the SDK-issued IDs immediately above.
         let result = unsafe { (sdk.open)(self.focuser_id) };
         check_eaf_error(result)?;
 
-        // Create cleanup guard to close the focuser if subsequent operations fail
         let focuser_id = self.focuser_id;
+        let locked_sdk: &EafSdk = &sdk;
         let cleanup_guard = CleanupGuard::new(|| {
             tracing::debug!(
                 "Cleaning up ZWO EAF focuser {} after failed connect",
                 focuser_id
             );
-            if let Some(sdk) = EafSdk::get() {
-                // SAFETY: best-effort cleanup; focuser_id was successfully opened above (guard only runs if we got past open). Mutex is still held from the connect() scope when this drops.
-                let _ = unsafe { (sdk.close)(focuser_id) };
-            }
+            // SAFETY: best-effort cleanup; focuser_id was successfully opened above (guard only runs if we got past open). The cleanup borrows the lock guard, so it runs while connect() still holds the lock.
+            let _ = unsafe { (locked_sdk.close)(focuser_id) };
         });
 
-        // Get properties
         // SAFETY: EAFInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
         let mut info: EAFInfo = unsafe { std::mem::zeroed() };
-        // SAFETY: zwo_eaf_mutex held by connect(); `info` is a valid stack pointer; focuser_id was successfully opened above.
+        // SAFETY: `info` is a valid stack pointer; focuser_id was successfully opened above.
         let result = unsafe { (sdk.get_property)(self.focuser_id, &mut info) };
         check_eaf_error(result)?;
 
         self.max_position = info.max_step;
         self.name = safe_cstr_to_string(info.name.as_ptr(), 64);
 
-        // Resolve step size via the quirks DB using the SDK-reported model as the
-        // matchable token. The model lives only in `name`, never in `device_id`,
-        // so a synthesized lookup id is required for ModelContains matchers
-        // ("EAF-S", "EAF-2", "EAF") to differentiate the gear-ratio variants.
-        let lookup_id = format!("native:zwo:{}", self.name);
-        self.step_size_um = crate::quirks::get_focuser_step_size_um(&lookup_id);
+        self.step_size_um = crate::quirks::get_focuser_step_size_um(&Vendor::Zwo, &self.name);
         if self.step_size_um.is_none() {
             tracing::warn!(
                 "ZWO EAF model '{}' has no step-size quirk entry; get_step_size will return an error",
@@ -254,45 +275,33 @@ impl NativeDevice for ZwoFocuser {
             );
         }
 
-        // Read serial number under the still-held SDK mutex so we can populate
+        // Read serial number under the still-held SDK lock so we can populate
         // the connected-device registry below. This is the same call discovery
         // makes; doing it at connect time means discovery never needs to open
         // an already-connected device just to re-read its serial number.
         // SAFETY: EAFSerialNumber is `#[repr(C)]` POD; zeroed is a valid initial state.
         let mut sn: EAFSerialNumber = unsafe { std::mem::zeroed() };
-        // SAFETY: zwo_eaf_mutex held by connect(); `sn` is a valid stack pointer; focuser_id is open.
+        // SAFETY: `sn` is a valid stack pointer; focuser_id is open.
         let serial_number = if unsafe { (sdk.get_serial_number)(self.focuser_id, &mut sn) } == 0 {
-            let sn_bytes: [u8; 8] = sn.id;
-            let sn_str = sn_bytes
-                .iter()
-                .take_while(|&&b| b != 0)
-                .map(|&b| format!("{:02X}", b))
-                .collect::<String>();
-            if sn_str.is_empty() {
-                None
-            } else {
-                Some(sn_str)
-            }
+            accessory_serial(sn.id)
         } else {
             None
         };
 
-        // All operations succeeded - defuse the cleanup guard
         cleanup_guard.defuse();
 
         self.connected = true;
+        self.serial_number = serial_number.clone();
 
         // Populate the connected-EAF registry so that hot-plug discovery polls
         // can report this device from cache instead of calling EAFOpen/EAFClose
         // on the live handle.
-        // Lock ordering: registry lock acquired here with NO SDK mutex held —
-        // the SDK mutex guard (_lock) is still live but the registry lock is
-        // always shorter-lived than it; inside discover_focusers the registry
-        // lock is acquired while the SDK mutex IS held (see lock-ordering note
-        // at the top of CONNECTED-DEVICE REGISTRIES). That direction is safe
-        // because discover_focusers never calls back into the registry while
-        // holding it, and connect/disconnect never hold the registry lock across
-        // an SDK call. So the two acquisition orders don't create a cycle.
+        // Lock ordering: the EAF SDK guard (`sdk`) is still live here and the
+        // registry lock is taken inside it, the same direction as in
+        // discover_focusers (see the lock-ordering note above the registries
+        // in mod.rs). Nothing takes the registry lock and then waits for the
+        // SDK lock, and no SDK call is made while the registry lock is held,
+        // so there is no cycle.
         {
             let mut reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
             reg.insert(
@@ -301,21 +310,41 @@ impl NativeDevice for ZwoFocuser {
                     focuser_id: self.focuser_id,
                     name: self.name.clone(),
                     serial_number,
-                    sdk_version: eaf_sdk_version_from_sdk(sdk),
+                    sdk_version: eaf_sdk_version_from_sdk(&sdk),
                 },
             );
         }
 
+        // The focuser's own limits and compensation, which Skotiq reads but does
+        // not set: EAFGetProperty's MaxStep is the travel Skotiq allows, while
+        // INDI and NINA use EAFGetMaxStep; a non-zero backlash is applied by the
+        // focuser on top of any Skotiq applies.
+        let mut user_max_step: c_int = -1;
+        let mut backlash: c_int = -1;
+        let mut reversed = false;
+        // SAFETY: valid stack out-pointers; focuser_id is open.
+        let reads = unsafe {
+            [
+                (sdk.get_max_step)(self.focuser_id, &mut user_max_step),
+                (sdk.get_backlash)(self.focuser_id, &mut backlash),
+                (sdk.get_reverse)(self.focuser_id, &mut reversed),
+            ]
+        };
         tracing::info!(
-            "Connected to ZWO EAF: {} (max step: {}, step size: {:?} um)",
+            "Connected to ZWO EAF: {} (max step: {}, step size: {:?} um; focuser max step {}, \
+             backlash {}, reversed {}, read results {:?})",
             self.name,
             self.max_position,
-            self.step_size_um
+            self.step_size_um,
+            user_max_step,
+            backlash,
+            reversed,
+            reads
         );
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> Result<(), NativeError> {
+    async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.connected {
             return Ok(());
         }
@@ -325,22 +354,23 @@ impl NativeDevice for ZwoFocuser {
             self.focuser_id
         );
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
-        // SAFETY: zwo_eaf_mutex held above; focuser_id is valid because self.connected is true (only set after successful connect()).
+        let sdk = EafSdk::lock().await?;
+        // SAFETY: focuser_id is valid because self.connected is true (only set after successful connect()).
         let result = unsafe { (sdk.close)(self.focuser_id) };
-        check_eaf_error(result)?;
 
+        // Forgotten even when the close fails: a focuser unplugged while
+        // connected cannot be closed, and the one plugged in next may get its id.
         self.connected = false;
 
         // Remove from the connected-EAF registry so that subsequent discovery
         // polls perform a full open/query/close (device may have been physically
-        // replugged). Lock ordering: registry lock acquired with SDK mutex held;
+        // replugged). Lock ordering: registry lock acquired with the SDK guard held;
         // this is the same ordering as inside discover_focusers, so no cycle.
         {
             let mut reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
             reg.remove(&self.focuser_id);
         }
+        check_eaf_error(result)?;
 
         tracing::info!("Disconnected from ZWO EAF");
         Ok(())
@@ -348,32 +378,31 @@ impl NativeDevice for ZwoFocuser {
 }
 
 #[async_trait]
-impl NativeFocuser for ZwoFocuser {
-    async fn move_to(&mut self, position: i32) -> Result<(), NativeError> {
+impl FocuserDriver for ZwoFocuser {
+    async fn move_to(&mut self, position: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
+        let sdk = EafSdk::lock().await?;
 
         let target = validate_zwo_eaf_target(position, self.max_position)?;
 
         tracing::debug!("Moving ZWO EAF to position {}", target);
-        // SAFETY: zwo_eaf_mutex held above; `target` was validated to be in
+        // SAFETY: `target` was validated to be in
         // [0, max_position]; focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.move_to)(self.focuser_id, target) };
-        check_eaf_error(result)
+        check_open_focuser_error(result)
     }
 
-    async fn move_relative(&mut self, steps: i32) -> Result<(), NativeError> {
+    async fn move_relative(&mut self, steps: i32) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
         let current = self.get_position().await?;
         let target = current.checked_add(steps).ok_or_else(|| {
-            NativeError::InvalidParameter(format!(
+            DriverError::InvalidParameter(format!(
                 "ZWO EAF relative move from {} by {} overflows i32",
                 current, steps
             ))
@@ -381,57 +410,53 @@ impl NativeFocuser for ZwoFocuser {
         self.move_to(target).await
     }
 
-    async fn get_position(&self) -> Result<i32, NativeError> {
+    async fn get_position(&self) -> Result<i32, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
+        let sdk = EafSdk::lock().await?;
         let mut position: c_int = 0;
-        // SAFETY: zwo_eaf_mutex held above; `position` is a valid stack pointer; focuser_id is valid (connected=true checked).
+        // SAFETY: `position` is a valid stack pointer; focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.get_position)(self.focuser_id, &mut position) };
-        check_eaf_error(result)?;
+        check_open_focuser_error(result)?;
         Ok(position)
     }
 
-    async fn is_moving(&self) -> Result<bool, NativeError> {
+    async fn is_moving(&self) -> Result<bool, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
+        let sdk = EafSdk::lock().await?;
         let mut is_moving = false;
         let mut hand_control = false;
-        // SAFETY: zwo_eaf_mutex held above; both out-bool pointers point to valid stack bools (SDK writes 0 or 1); focuser_id is valid (connected=true checked).
+        // SAFETY: both out-bool pointers point to valid stack bools (SDK writes 0 or 1); focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.is_moving)(self.focuser_id, &mut is_moving, &mut hand_control) };
-        check_eaf_error(result)?;
+        check_open_focuser_error(result)?;
         Ok(is_moving)
     }
 
-    async fn halt(&mut self) -> Result<(), NativeError> {
+    async fn halt(&mut self) -> Result<(), DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
+        let sdk = EafSdk::lock().await?;
         tracing::debug!("Stopping ZWO EAF movement");
-        // SAFETY: zwo_eaf_mutex held above; focuser_id is valid (connected=true checked).
+        // SAFETY: focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.stop)(self.focuser_id) };
-        check_eaf_error(result)
+        check_open_focuser_error(result)
     }
 
-    async fn get_temperature(&self) -> Result<Option<f64>, NativeError> {
+    async fn get_temperature(&self) -> Result<Option<f64>, DriverError> {
         if !self.connected {
-            return Err(NativeError::NotConnected);
+            return Err(DriverError::NotConnected);
         }
 
-        let sdk = EafSdk::get().ok_or(NativeError::SdkNotLoaded)?;
-        let _lock = zwo_eaf_mutex().lock().await;
+        let sdk = EafSdk::lock().await?;
         let mut temp: f32 = 0.0;
-        // SAFETY: zwo_eaf_mutex held above; `temp` is a valid stack pointer; focuser_id is valid (connected=true checked).
+        // SAFETY: `temp` is a valid stack pointer; focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.get_temp)(self.focuser_id, &mut temp) };
 
         // Temperature of -273 means invalid/unavailable
@@ -442,11 +467,11 @@ impl NativeFocuser for ZwoFocuser {
         }
     }
 
-    fn get_max_position(&self) -> i32 {
+    async fn get_max_position(&self) -> i32 {
         self.max_position
     }
 
-    fn get_step_size(&self) -> f64 {
+    async fn get_step_size(&self) -> f64 {
         // Resolved at connect time from the quirks DB; 0.0 here is the contract
         // the trait offers for "unknown" and is surfaced to callers as such. The
         // tracing::error makes the missing-entry case loud and diagnosable rather
@@ -464,45 +489,6 @@ impl NativeFocuser for ZwoFocuser {
     }
 }
 
-impl ZwoFocuser {
-    /// `move_to` the absolute position, then wait for the focuser to settle
-    /// under the config's focuser timeout.
-    pub async fn move_to_with_timeout(
-        &mut self,
-        position: i32,
-        config: &NativeTimeoutConfig,
-    ) -> Result<(), NativeError> {
-        // Start the move
-        self.move_to(position).await?;
-
-        // Wait for move to complete
-        wait_for_focuser_move(|| async { self.is_moving().await }, config, position).await
-    }
-
-    /// Move `steps` from the current position (positive is outward), then wait
-    /// for the focuser to settle under the config's focuser timeout.
-    pub async fn move_relative_with_timeout(
-        &mut self,
-        steps: i32,
-        config: &NativeTimeoutConfig,
-    ) -> Result<(), NativeError> {
-        // Calculate target position
-        let current = self.get_position().await?;
-        let target = current.checked_add(steps).ok_or_else(|| {
-            NativeError::InvalidParameter(format!(
-                "ZWO EAF relative move from {} by {} overflows i32",
-                current, steps
-            ))
-        })?;
-
-        // Use move_to_with_timeout
-        self.move_to_with_timeout(target, config).await
-    }
-}
-
-// Focuser discovery
-
-/// ZWO focuser discovery info
 pub struct ZwoFocuserDiscoveryInfo {
     pub focuser_id: i32,
     pub name: String,
@@ -511,21 +497,22 @@ pub struct ZwoFocuserDiscoveryInfo {
     pub discovery_index: usize,
 }
 
-/// Check if EAF SDK is available
 pub fn is_eaf_sdk_available() -> bool {
-    EafSdk::get().is_some()
+    EafSdk::is_available()
 }
 
-/// Get EAF SDK status
 pub fn get_eaf_sdk_status() -> (bool, String) {
-    match EafSdk::get() {
-        Some(_) => (
+    match EafSdk::installed() {
+        Ok(sdk) => (
             true,
-            eaf_sdk_version()
+            // Unlocked on purpose: EAFGetSDKVersion takes no arguments, returns a
+            // pointer to a string compiled into the library and touches no device,
+            // and this synchronous status helper cannot wait for the lock.
+            eaf_sdk_version_from_sdk(sdk.unlocked())
                 .map(|version| format!("{version} loaded successfully"))
                 .unwrap_or_else(|| "ZWO EAF SDK loaded successfully".to_string()),
         ),
-        None => (
+        Err(_) => (
             false,
             "ZWO EAF SDK (EAF_focuser.dll) not found.".to_string(),
         ),
@@ -552,26 +539,21 @@ pub(crate) fn eaf_sdk_version_from_sdk(sdk: &EafSdk) -> Option<String> {
         .map(|version| format!("ZWO EAF SDK v{version}"))
 }
 
-pub fn eaf_sdk_version() -> Option<String> {
-    EafSdk::get().and_then(eaf_sdk_version_from_sdk)
-}
-
-/// Discover ZWO EAF focusers
-pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeError> {
-    let sdk = match EafSdk::get() {
-        Some(sdk) => sdk,
-        None => {
+pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, DriverError> {
+    let sdk = match EafSdk::installed() {
+        Ok(sdk) => sdk,
+        Err(_) => {
             tracing::debug!("ZWO EAF discovery skipped: EAF SDK not loaded");
             return Ok(Vec::new());
         }
     };
 
-    // Acquire mutex for EAF SDK discovery operations
-    let _lock = zwo_eaf_mutex().lock().await;
+    // Hold the EAF SDK lock for the whole scan
+    let sdk = sdk.lock().await;
 
     tracing::debug!("Discovering ZWO EAF focusers via native SDK...");
-    let sdk_version = eaf_sdk_version_from_sdk(sdk);
-    // SAFETY: zwo_eaf_mutex held above; EAFGetNum takes no arguments and only reads internal SDK state.
+    let sdk_version = eaf_sdk_version_from_sdk(&sdk);
+    // SAFETY: EAFGetNum takes no arguments and only reads internal SDK state.
     let num_focusers = unsafe { (sdk.get_num)() };
     tracing::info!(
         "EAF SDK reports {} connected focuser{}",
@@ -583,14 +565,14 @@ pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeE
 
     for i in 0..num_focusers {
         let mut id: c_int = 0;
-        // SAFETY: zwo_eaf_mutex held above; `i` is bounded by num_focusers; `id` is a valid stack pointer.
+        // SAFETY: `i` is bounded by num_focusers; `id` is a valid stack pointer.
         let result = unsafe { (sdk.get_id)(i, &mut id) };
 
         if result != 0 {
             continue;
         }
 
-        // Lock-ordering note: the SDK mutex (zwo_eaf_mutex) is held for the
+        // Lock-ordering note: the EAF SDK guard is held for the
         // duration of discover_focusers. The registry lock is acquired briefly
         // here to read a cached entry, then immediately released before any SDK
         // call. The connect/disconnect paths acquire the registry lock while the
@@ -629,12 +611,12 @@ pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeE
         }
 
         // Not a connected device — perform the normal open/query/close discovery.
-        // SAFETY: zwo_eaf_mutex held above; `id` was just populated by EAFGetID, a valid SDK identifier.
+        // SAFETY: `id` was just populated by EAFGetID, a valid SDK identifier.
         let result = unsafe { (sdk.open)(id) };
         if result == 0 {
             // SAFETY: EAFInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
             let mut info: EAFInfo = unsafe { std::mem::zeroed() };
-            // SAFETY: mutex held; `info` is a valid stack pointer; `id` was just successfully opened.
+            // SAFETY: `info` is a valid stack pointer; `id` was just successfully opened.
             let property_result = unsafe { (sdk.get_property)(id, &mut info) };
             if property_result != 0 {
                 // `info` would still be zeroed, and discovery publishes `name` verbatim
@@ -647,38 +629,23 @@ pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, NativeE
                     id,
                     property_result
                 );
-                // SAFETY: mutex held; `id` was successfully opened above. EAFClose pairs with EAFOpen.
+                // SAFETY: `id` was successfully opened above. EAFClose pairs with EAFOpen.
                 let _ = unsafe { (sdk.close)(id) };
                 continue;
             }
-            // SAFETY: ASI SDK guarantees `info.name` is NUL-terminated within the 64-byte array.
-            let name = unsafe {
-                CStr::from_ptr(info.name.as_ptr())
-                    .to_string_lossy()
-                    .to_string()
-            };
+            let name = safe_cstr_to_string(info.name.as_ptr(), 64);
 
             // Try to get serial number (must be done before close)
             // SAFETY: EAFSerialNumber is `#[repr(C)]` POD (just `id: [u8; 8]`); zeroed is valid.
             let mut sn: EAFSerialNumber = unsafe { std::mem::zeroed() };
-            // SAFETY: mutex held; `sn` is a valid stack pointer; `id` is open.
+            // SAFETY: `sn` is a valid stack pointer; `id` is open.
             let serial_number = if unsafe { (sdk.get_serial_number)(id, &mut sn) } == 0 {
-                let sn_bytes: [u8; 8] = sn.id;
-                let sn_str = sn_bytes
-                    .iter()
-                    .take_while(|&&b| b != 0)
-                    .map(|&b| format!("{:02X}", b))
-                    .collect::<String>();
-                if sn_str.is_empty() {
-                    None
-                } else {
-                    Some(sn_str)
-                }
+                accessory_serial(sn.id)
             } else {
                 None
             };
 
-            // SAFETY: mutex held; `id` was successfully opened above. EAFClose pairs with EAFOpen.
+            // SAFETY: `id` was successfully opened above. EAFClose pairs with EAFOpen.
             let _ = unsafe { (sdk.close)(id) };
 
             tracing::info!(

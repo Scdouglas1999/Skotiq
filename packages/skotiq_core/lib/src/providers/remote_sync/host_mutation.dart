@@ -1,58 +1,50 @@
 part of '../remote_sync_handler.dart';
 
-void _applyHostMutation(Object reader, Map<String, dynamic> data) {
-  final entityType = data['entityType'] as String?;
-  final action = data['action'] as String?;
-  if (entityType == null || action == null) {
-    return;
-  }
+/// A change the host announced: which kind of thing, and what happened to it.
+class HostDataChange {
+  const HostDataChange(this.entityType, this.action);
 
-  switch (entityType) {
-    case HostMutationEntity.equipment:
-      _applyEquipmentMutationFromHost(reader, action, data);
-    case HostMutationEntity.guider:
-      _applyGuiderMutationFromHost(reader, action, data);
-    case HostMutationEntity.framing:
-      _applyFramingMutationFromHost(reader, action, data);
-    case HostMutationEntity.sequencer:
-      _applySequencerMutationFromHost(reader, action, data);
-    case HostMutationEntity.sequenceEditor:
-      _applySequenceEditorMirror(reader, action, data);
+  final String entityType;
+  final String action;
+
+  static HostDataChange? of(Map<String, dynamic> data) {
+    final entityType = data['entityType'] as String?;
+    final action = data['action'] as String?;
+    if (entityType == null || action == null) return null;
+    return HostDataChange(entityType, action);
+  }
+}
+
+/// Re-read the stored data [change] is about. The same on the host's own
+/// window and on a linked client: both show what the host's database holds.
+void _rereadChangedHostData(
+  ProviderContainer container,
+  HostDataChange change,
+  Map<String, dynamic> data,
+) {
+  switch (change.entityType) {
     case HostMutationEntity.profile:
-      _invalidateHostProfiles(reader);
+      _invalidateHostProfiles(container);
     case HostMutationEntity.settings:
-      // Deliberately NOT invalidating anything per-event here. The host
-      // broadcasts `settings/updated` at very high frequency — the scheduler
-      // persists runtime config (e.g. conditions_score) many times a second and
-      // each persist emits a settings mutation (measured ~14/s on a live rig).
-      // Reacting per-event reloads the entire "Plan Tonight" Recommendation tab
-      // dozens of times a second on a slave, and a settings change is not a
-      // profile change, so it must not invalidate the equipment-PROFILE
-      // providers either. appSettings is already re-pulled every 30s by
-      // hydrateRemoteSessionState (and on reconnect), so a genuine settings
-      // change mirrors within one poll cycle without the churn.
+      // The host announces a settings change many times a second while the
+      // scheduler stores its running values (about 14 a second on a live
+      // rig). Settings are re-read with the periodic re-read and on
+      // reconnect instead, so a change still shows within one cycle.
       break;
     case HostMutationEntity.sequence:
-      _invalidateSequenceLibrary(reader, sequenceId: _parseSequenceId(data));
+      _invalidateSequenceLibrary(container, sequenceId: _parseSequenceId(data));
     case HostMutationEntity.target:
-      _invalidateHostTargets(reader);
-      _invalidateSequenceLibrary(reader);
+      _invalidateHostTargets(container);
+      _invalidateSequenceLibrary(container);
     case HostMutationEntity.session:
-      _invalidateHostSessions(reader);
+      _invalidateHostSessions(container);
     case HostMutationEntity.capturedImage:
-      _invalidateHostCapturedImages(reader);
-    case HostMutationEntity.scheduledStart:
-      _read(reader, hostScheduledStartProvider.notifier).state =
-          parseHostScheduledStart(data['at']);
-    case HostMutationEntity.endOfNight:
-      _applyHostEndOfNight(reader, EonStatus.fromHostJson(data['status']));
-    default:
-      break;
+      _invalidateHostCapturedImages(container);
   }
 }
 
 void _applyEquipmentMutationFromHost(
-  Object reader,
+  ProviderContainer container,
   String action,
   Map<String, dynamic> data,
 ) {
@@ -67,30 +59,34 @@ void _applyEquipmentMutationFromHost(
     return;
   }
 
+  // The guide camera is the guider's: it has no slot, and the imaging
+  // camera's is not its to take or to empty.
+  if (_isHostGuideCamera(container, parsed, deviceId)) return;
+
+  final notifier = readDeviceConnectionNotifier(container, parsed);
   switch (action) {
     case HostMutationAction.connected:
-      final notifier = readDeviceConnectionNotifier(reader, parsed);
-      if (!_isDeviceAlreadyConnected(reader, parsed, deviceId)) {
+      if (!_isDeviceAlreadyConnected(container, parsed, deviceId)) {
         notifier.setConnecting(deviceId, deviceName);
       }
       notifier.setConnected();
     case HostMutationAction.disconnected:
-      readDeviceConnectionNotifier(reader, parsed).setDisconnected();
+      _emptySlotFor(container, parsed, deviceId);
     default:
       break;
   }
 }
 
 void _applyGuiderMutationFromHost(
-  Object reader,
+  ProviderContainer container,
   String action,
   Map<String, dynamic> data,
 ) {
-  final notifier = readDeviceConnectionNotifier(reader, DeviceType.guider);
+  final notifier = readDeviceConnectionNotifier(container, DeviceType.guider);
   switch (action) {
     case HostMutationAction.connected:
       if (!_isDeviceAlreadyConnected(
-        reader,
+        container,
         DeviceType.guider,
         'phd2_guider',
       )) {
@@ -112,87 +108,31 @@ void _applyGuiderMutationFromHost(
   }
 }
 
-void _applyFramingMutationFromHost(
-  Object reader,
-  String action,
-  Map<String, dynamic> data,
-) {
-  if (action != HostMutationAction.updated &&
-      action != HostMutationAction.created) {
-    return;
-  }
-
-  final ra = data['ra'];
-  final dec = data['dec'];
-  final name = data['name'] as String?;
-  if (ra is! num || dec is! num) {
-    return;
-  }
-
-  _read(reader, framingProvider.notifier).setTargetCoordinates(
-    ra.toDouble(),
-    dec.toDouble(),
-    name: name,
-    fromRemoteSync: true,
-  );
+void _invalidateHostProfiles(ProviderContainer container) {
+  _invalidateEquipmentSyncProviders(container);
+  container.invalidate(allProfilesProvider);
+  container.invalidate(activeProfileProvider);
 }
 
-void _applyFramingTargetChanged(Object reader, SkotiqEvent event) {
-  final ra = (event.data['ra'] as num?)?.toDouble();
-  final dec = (event.data['dec'] as num?)?.toDouble();
-  final name = event.data['name'] as String?;
-  if (ra == null || dec == null || name == null || name.isEmpty) {
-    return;
-  }
-
-  _read(
-    reader,
-    framingProvider.notifier,
-  ).setTargetCoordinates(ra, dec, name: name, fromRemoteSync: true);
+void _invalidateHostTargets(ProviderContainer container) {
+  container.invalidate(allDbTargetsProvider);
+  container.invalidate(favoriteDbTargetsProvider);
+  _invalidateTargetProgress(container);
 }
 
-void _invalidateHostProfiles(Object reader) {
-  _invalidateEquipmentSyncProviders(reader);
-  _invalidate(reader, allProfilesProvider);
-  _invalidate(reader, activeProfileProvider);
+void _invalidateHostCapturedImages(ProviderContainer container) {
+  container.invalidate(allDbImagesProvider);
+  container.invalidate(capturedImageByIdProvider);
+  _invalidateTargetProgress(container);
 }
 
-void _invalidateHostTargets(Object reader) {
-  _invalidate(reader, allDbTargetsProvider);
-  _invalidate(reader, favoriteDbTargetsProvider);
-  _invalidateTargetProgress(reader);
+void _invalidateHostSessions(ProviderContainer container) {
+  container.invalidate(allSessionsProvider);
+  container.invalidate(incompleteSessionsProvider);
+  container.invalidate(sessionStateProvider);
 }
 
-void _invalidateHostCapturedImages(Object reader) {
-  _invalidate(reader, allDbImagesProvider);
-  _invalidate(reader, capturedImageByIdProvider);
-  _invalidateTargetProgress(reader);
-}
-
-void _invalidateHostSessions(Object reader) {
-  _invalidate(reader, allSessionsProvider);
-  _invalidate(reader, incompleteSessionsProvider);
-  _invalidate(reader, sessionStateProvider);
-}
-
-void _invalidateTargetProgress(Object reader) {
-  _invalidate(reader, allTargetProgressProvider);
-  _invalidate(reader, targetProgressProvider);
-}
-
-/// Mirror the host's end-of-night status, and say so on this screen when the
-/// host starts waiting for a cap: the darks are skipped if nobody answers.
-void _applyHostEndOfNight(Object reader, EonStatus? next) {
-  final notifier = _read(reader, hostEndOfNightStatusProvider.notifier);
-  final previous = notifier.state;
-  notifier.state = next;
-  if (next?.phase == EonPhase.waitingForCap &&
-      previous?.phase != EonPhase.waitingForCap) {
-    _read(reader, uiNotificationProvider.notifier).showWarning(
-      'The filter wheel has no dark slot. Cap the telescope, then confirm on '
-      'Tonight. The darks and bias are skipped if nobody confirms.',
-      title: 'Cap the telescope for darks',
-      duration: const Duration(seconds: 30),
-    );
-  }
+void _invalidateTargetProgress(ProviderContainer container) {
+  container.invalidate(allTargetProgressProvider);
+  container.invalidate(targetProgressProvider);
 }

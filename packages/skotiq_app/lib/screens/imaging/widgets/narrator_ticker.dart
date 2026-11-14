@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/narrator/narrator_card.dart';
-import '../../../widgets/narrator/narrator_feed.dart';
+import 'narrator_feed.dart';
 
 /// One-line Night Narrator strip for the imaging screen, sitting near the
 /// Science HUD.
@@ -292,7 +294,7 @@ class _TickerLine extends StatelessWidget {
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
         Text(
-          formatNarratorRelativeTime(event.timestamp),
+          RelativeTime.ago(event.timestamp),
           style: SkotiqTypography.withTabular(
             SkotiqTypography.labelQuiet.copyWith(color: colors.textMuted),
           ),

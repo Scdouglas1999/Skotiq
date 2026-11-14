@@ -119,7 +119,6 @@ class _AltitudeGraphPainter extends CustomPainter {
       textPainter.paint(canvas, Offset(size.width - textPainter.width - 4, 2));
     }
 
-    // Draw grid
     final gridPaint = Paint()
       ..color = gridColor
       ..strokeWidth = 1;
@@ -357,7 +356,6 @@ class _AirmassChartPainter extends CustomPainter {
       }
     }
 
-    // Draw remaining points
     if (points.isNotEmpty) {
       _drawAirmassSegment(
         canvas,

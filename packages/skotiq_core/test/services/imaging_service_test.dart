@@ -9,17 +9,25 @@ import 'package:path/path.dart' as path;
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_exception.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
-import 'package:skotiq_core/src/models/equipment_profile.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
+import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
+import 'package:skotiq_core/src/models/imaging/naming_pattern.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart';
 import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/science/science_processing_service.dart';
 
 import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/utils/host_paths.dart';
+import 'package:skotiq_core/src/providers/capture_preview_loader_provider.dart';
+import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
+import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
 
 /// No-op science processor for capture-pipeline tests.
 ///
@@ -64,14 +72,16 @@ class _RecordingScienceProcessingService extends ScienceProcessingService {
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
-/// A host that lists one root, so remote scratch frames have a host path.
-void _stubHostRoots(_MockNetworkBackend backend) {
-  when(() => backend.browseRemoteDirectories()).thenAnswer(
-    (_) async => const RemoteDirectoryListing(
-      currentPath: null,
-      parentPath: null,
-      directories: [RemoteDirectoryEntry(name: 'Documents', path: '/rig/docs')],
+/// A host that keeps its scratch frames in `/rig/scratch`.
+void _stubHostScratch(_MockNetworkBackend backend) {
+  when(
+    () => backend.saveScratchFrameFromLastCapture(
+      deviceId: any(named: 'deviceId'),
+      name: any(named: 'name'),
+      headerData: any(named: 'headerData'),
     ),
+  ).thenAnswer(
+    (invocation) async => '/rig/scratch/${invocation.namedArguments[#name]}',
   );
 }
 
@@ -576,13 +586,13 @@ void main() {
     );
 
     test(
-      'backend switch while loading remote profile prevents retired FITS save',
+      'a backend switch while the profiles load prevents the retired FITS save',
       () async {
         final remoteBackend = _MockNetworkBackend();
         final remoteEvents = StreamController<SkotiqEvent>.broadcast();
         addTearDown(remoteEvents.close);
-        final activeProfile = Completer<EquipmentProfile?>();
-        _stubHostRoots(remoteBackend);
+        final profiles = Completer<EquipmentProfilesState>();
+        _stubHostScratch(remoteBackend);
 
         when(
           () => remoteBackend.eventStream,
@@ -615,9 +625,6 @@ void main() {
           () => remoteBackend.cameraGetLastImage(any()),
         ).thenAnswer((_) async => makeCapturedImageResult());
         when(
-          remoteBackend.getActiveProfile,
-        ).thenAnswer((_) => activeProfile.future);
-        when(
           () => remoteBackend.cameraAbortExposure(any()),
         ).thenAnswer((_) async {});
         when(
@@ -625,8 +632,20 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer(
+          (invocation) async => invocation.namedArguments[#filePath] as String,
+        );
+        when(
+          () => remoteBackend.saveScratchFrameFromLastCapture(
+            deviceId: any(named: 'deviceId'),
+            name: any(named: 'name'),
+            headerData: any(named: 'headerData'),
+          ),
+        ).thenAnswer(
+          (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+        );
 
         late TestBackendNotifier remoteBackendNotifier;
         final remoteContainer = ProviderContainer(
@@ -650,6 +669,9 @@ void main() {
             scienceProcessingServiceProvider.overrideWith(
               (ref) => _NoOpScienceProcessingService(ref),
             ),
+            equipmentProfilesProvider.overrideWith(
+              () => _PendingProfiles(profiles.future),
+            ),
           ],
         );
         addTearDown(remoteContainer.dispose);
@@ -663,12 +685,17 @@ void main() {
                 offset: 10,
               ),
             );
-        await untilCalled(remoteBackend.getActiveProfile);
+        // The capture has its frame and is waiting on the profiles for the
+        // header when the host changes.
+        await untilCalled(() => remoteBackend.cameraGetLastImage(any()));
+        await pumpEventQueue();
 
         final replacementBackend = MockBackend();
         remoteBackendNotifier.replaceBackend(replacementBackend);
-        activeProfile.complete(
-          const EquipmentProfile(id: 'old', name: 'Old Host Profile'),
+        profiles.complete(
+          const EquipmentProfilesState(
+            activeProfile: EquipmentProfileModel(name: 'Old Host Profile'),
+          ),
         );
 
         expect(await capture, isNull);
@@ -677,6 +704,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         );
         verifyNever(
@@ -684,6 +712,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         );
       },
@@ -691,7 +720,7 @@ void main() {
 
     test('remote FITS header uses the imaging host active profile', () async {
       final remoteBackend = _MockNetworkBackend();
-      _stubHostRoots(remoteBackend);
+      _stubHostScratch(remoteBackend);
       final remoteEvents = StreamController<SkotiqEvent>.broadcast();
       addTearDown(remoteEvents.close);
 
@@ -725,22 +754,25 @@ void main() {
       when(
         () => remoteBackend.cameraGetLastImage(any()),
       ).thenAnswer((_) async => makeCapturedImageResult());
-      when(remoteBackend.getActiveProfile).thenAnswer(
-        (_) async => const EquipmentProfile(
-          id: 'host-profile',
-          name: 'Remote Rig',
-          telescopeName: 'Remote RC10',
-          focalLength: 2000,
-          aperture: 250,
-        ),
-      );
       when(
         () => remoteBackend.saveFitsFromLastCapture(
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => remoteBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final remoteContainer = ProviderContainer(
         overrides: [
@@ -760,6 +792,21 @@ void main() {
           scienceProcessingServiceProvider.overrideWith(
             (ref) => _NoOpScienceProcessingService(ref),
           ),
+          // What the profiles provider holds when linked: the host's profile.
+          equipmentProfilesProvider.overrideWith(
+            () => _PendingProfiles(
+              Future.value(
+                const EquipmentProfilesState(
+                  activeProfile: EquipmentProfileModel(
+                    name: 'Remote Rig',
+                    telescopeName: 'Remote RC10',
+                    focalLength: 2000,
+                    aperture: 250,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       );
       addTearDown(remoteContainer.dispose);
@@ -777,9 +824,9 @@ void main() {
       expect(result, isNotNull);
       final header =
           verify(
-                () => remoteBackend.saveFitsFromLastCapture(
+                () => remoteBackend.saveScratchFrameFromLastCapture(
                   deviceId: 'remote-camera',
-                  filePath: any(named: 'filePath'),
+                  name: any(named: 'name'),
                   headerData: captureAny(named: 'headerData'),
                 ),
               ).captured.single
@@ -791,7 +838,7 @@ void main() {
 
     test('a companion never processes the host frame it captured', () async {
       final remoteBackend = _MockNetworkBackend();
-      _stubHostRoots(remoteBackend);
+      _stubHostScratch(remoteBackend);
       final remoteEvents = StreamController<SkotiqEvent>.broadcast();
       addTearDown(remoteEvents.close);
       when(
@@ -830,8 +877,20 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => remoteBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       late _RecordingScienceProcessingService science;
       final remoteContainer = ProviderContainer(
@@ -868,11 +927,12 @@ void main() {
           );
 
       expect(result, isNotNull);
-      expect(result!.filePath, startsWith('/rig/docs'));
+      expect(result!.filePath, startsWith('/scratch/capture_'));
       expect(science.processed, isEmpty);
     });
 
-    test('a linked client writes scratch frames inside a host root', () async {
+    test('a linked client asks the host to keep a live-view frame where it '
+        'keeps scratch frames, without browsing the host\'s folders', () async {
       final remoteBackend = _MockNetworkBackend();
       final remoteEvents = StreamController<SkotiqEvent>.broadcast();
       addTearDown(remoteEvents.close);
@@ -908,29 +968,14 @@ void main() {
         () => remoteBackend.cameraGetLastImage(any()),
       ).thenAnswer((_) async => makeCapturedImageResult());
       when(remoteBackend.getActiveProfile).thenAnswer((_) async => null);
-      when(() => remoteBackend.browseRemoteDirectories()).thenAnswer(
-        (_) async => const RemoteDirectoryListing(
-          currentPath: null,
-          parentPath: null,
-          directories: [
-            RemoteDirectoryEntry(
-              name: 'Documents',
-              path: r'C:\Users\scdou\Documents',
-            ),
-            RemoteDirectoryEntry(
-              name: 'Image Output',
-              path: r'C:\Users\scdou\Documents\NGC7380',
-            ),
-          ],
-        ),
-      );
+      const hostPath = '/var/tmp/skotiq_captures/liveview_native_zwo_1.fits';
       when(
-        () => remoteBackend.saveFitsFromLastCapture(
+        () => remoteBackend.saveScratchFrameFromLastCapture(
           deviceId: any(named: 'deviceId'),
-          filePath: any(named: 'filePath'),
+          name: any(named: 'name'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((_) async => hostPath);
 
       final remoteContainer = ProviderContainer(
         overrides: [
@@ -964,16 +1009,15 @@ void main() {
             ),
           );
 
-      const hostPath =
-          r'C:\Users\scdou\Documents\Skotiq\scratch\liveview_native_zwo_1.fits';
       expect(result?.filePath, hostPath);
       verify(
-        () => remoteBackend.saveFitsFromLastCapture(
+        () => remoteBackend.saveScratchFrameFromLastCapture(
           deviceId: 'native:zwo:1',
-          filePath: hostPath,
+          name: 'liveview_native_zwo_1.fits',
           headerData: any(named: 'headerData'),
         ),
       ).called(1);
+      verifyNever(() => remoteBackend.browseRemoteDirectories());
     });
 
     test('keeper paths are built in the host path style', () {
@@ -983,7 +1027,10 @@ void main() {
           pattern: r'$TARGET/Light/$TARGET_$SEQ',
           basePath: r'C:\Users\scdou\Documents\NGC7380',
           extension: 'fits',
-          substitutions: const {r'$TARGET': 'NGC0891', r'$SEQ': '0001'},
+          values: const {
+            NamingToken.target: 'NGC0891',
+            NamingToken.seq: '0001',
+          },
           pathContext: windowsHost,
         ),
         r'C:\Users\scdou\Documents\NGC7380\NGC0891\Light\NGC0891_0001.fits',
@@ -993,7 +1040,7 @@ void main() {
           pattern: r'$TARGET_$SEQ',
           basePath: 'captures',
           extension: 'fits',
-          substitutions: const {r'$TARGET': 'M31', r'$SEQ': '0001'},
+          values: const {NamingToken.target: 'M31', NamingToken.seq: '0001'},
           pathContext: hostPathContext('/srv/rig'),
         ),
         throwsA(isA<ValidationException>()),
@@ -1064,9 +1111,11 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async {
         sentPaths.add(invocation.namedArguments[#filePath] as String);
+        return invocation.namedArguments[#filePath] as String;
       });
 
       final remoteContainer = ProviderContainer(
@@ -1126,16 +1175,6 @@ void main() {
       // Nothing of the host path was created on this machine.
       expect(Directory(hostOutput).existsSync(), isFalse);
       verifyNever(() => remoteBackend.browseRemoteDirectories());
-    });
-
-    test('hostScratchFilePath joins in the host path style', () {
-      expect(
-        hostScratchFilePath(const [
-          RemoteDirectoryEntry(name: 'Home', path: '/home/rig'),
-        ], 'a.fits'),
-        '/home/rig/Skotiq/scratch/a.fits',
-      );
-      expect(hostScratchFilePath(const [], 'a.fits'), isNull);
     });
 
     test('captureImage throws when already capturing', () async {
@@ -1229,8 +1268,20 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final service = container.read(imagingServiceProvider);
       await service.captureImage(settings: settings, targetName: 'M31');
@@ -1285,8 +1336,20 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer(
+          (invocation) async => invocation.namedArguments[#filePath] as String,
+        );
+        when(
+          () => mockBackend.saveScratchFrameFromLastCapture(
+            deviceId: any(named: 'deviceId'),
+            name: any(named: 'name'),
+            headerData: any(named: 'headerData'),
+          ),
+        ).thenAnswer(
+          (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+        );
 
         SkotiqEvent completionFrom(String deviceId) => SkotiqEvent(
           timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -1362,8 +1425,20 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final service = container.read(imagingServiceProvider);
       final result = await service.captureImage(
@@ -1418,6 +1493,14 @@ void main() {
         () => mockBackend.saveFitsFromLastCapture(
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
+          headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
+        ),
+      ).thenThrow(Exception('disk full'));
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
           headerData: any(named: 'headerData'),
         ),
       ).thenThrow(Exception('disk full'));
@@ -1484,6 +1567,14 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
+          ),
+        ).thenThrow(Exception('read-only output folder'));
+        when(
+          () => mockBackend.saveScratchFrameFromLastCapture(
+            deviceId: any(named: 'deviceId'),
+            name: any(named: 'name'),
+            headerData: any(named: 'headerData'),
           ),
         ).thenThrow(Exception('read-only output folder'));
         final errors = <String>[];
@@ -1543,8 +1634,20 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       // Verify currentImageProvider is null initially
       expect(container.read(currentImageProvider), isNull);
@@ -1737,8 +1840,20 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer(
+          (invocation) async => invocation.namedArguments[#filePath] as String,
+        );
+        when(
+          () => mockBackend.saveScratchFrameFromLastCapture(
+            deviceId: any(named: 'deviceId'),
+            name: any(named: 'name'),
+            headerData: any(named: 'headerData'),
+          ),
+        ).thenAnswer(
+          (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+        );
 
         final service = container.read(imagingServiceProvider);
 
@@ -1833,8 +1948,20 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final service = container.read(imagingServiceProvider);
       final result = await service.captureImage(settings: settings);
@@ -1888,15 +2015,16 @@ void main() {
 
         final headers = <FitsWriteHeader>[];
         when(
-          () => mockBackend.saveFitsFromLastCapture(
+          () => mockBackend.saveScratchFrameFromLastCapture(
             deviceId: any(named: 'deviceId'),
-            filePath: any(named: 'filePath'),
+            name: any(named: 'name'),
             headerData: any(named: 'headerData'),
           ),
         ).thenAnswer((invocation) async {
           headers.add(
             invocation.namedArguments[#headerData] as FitsWriteHeader,
           );
+          return '/scratch/frame.fits';
         });
 
         final service = container.read(imagingServiceProvider);
@@ -1952,13 +2080,14 @@ void main() {
 
       final headers = <FitsWriteHeader>[];
       when(
-        () => mockBackend.saveFitsFromLastCapture(
+        () => mockBackend.saveScratchFrameFromLastCapture(
           deviceId: any(named: 'deviceId'),
-          filePath: any(named: 'filePath'),
+          name: any(named: 'name'),
           headerData: any(named: 'headerData'),
         ),
       ).thenAnswer((invocation) async {
         headers.add(invocation.namedArguments[#headerData] as FitsWriteHeader);
+        return '/scratch/frame.fits';
       });
 
       final service = container.read(imagingServiceProvider);
@@ -2021,12 +2150,23 @@ void main() {
         () => mockBackend.cameraGetLastImage(any()),
       ).thenAnswer((_) async => makeCapturedImageResult());
       when(
-        () => mockBackend.saveFitsFromLastCapture(
+        () => mockBackend.saveScratchFrameFromLastCapture(
           deviceId: any(named: 'deviceId'),
-          filePath: any(named: 'filePath'),
+          name: any(named: 'name'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
     }
 
     setUp(() {
@@ -2257,8 +2397,20 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       const settings = ExposureSettings(
         exposureTime: 5.0,
@@ -2507,8 +2659,20 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final capturedImages = <CapturedImageData>[];
       final service = container.read(imagingServiceProvider);
@@ -2579,8 +2743,20 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final capturedImages = <CapturedImageData>[];
       final errors = <String>[];
@@ -2640,8 +2816,20 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer(
+        (invocation) async => invocation.namedArguments[#filePath] as String,
+      );
+      when(
+        () => mockBackend.saveScratchFrameFromLastCapture(
+          deviceId: any(named: 'deviceId'),
+          name: any(named: 'name'),
+          headerData: any(named: 'headerData'),
+        ),
+      ).thenAnswer(
+        (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
+      );
 
       final capturedImages = <CapturedImageData>[];
       final service = container.read(imagingServiceProvider);
@@ -2885,7 +3073,7 @@ void main() {
       // Pattern: subdirectory hierarchy + an implicit filename-stem segment.
       // `$TARGET/$FILTER/$DATE` has three segments; the last (`$DATE`) is the
       // filename stem and the first two are subdirectories.
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -2896,7 +3084,7 @@ void main() {
         pattern: r'$TARGET/$FILTER/$DATE',
         basePath: '/captures',
         extension: 'fits',
-        substitutions: subs,
+        values: subs,
       );
 
       // Last segment is the filename stem; expect M31/L as subdirs and the
@@ -2910,7 +3098,7 @@ void main() {
       // The user's pattern ends in `$TARGET_$FILTER_$FRAMENUM`, and the
       // trailing segment is the filename: what the user wrote is what is used,
       // not a hard-coded ${target}_${filter}_${frameNumber}.
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -2921,7 +3109,7 @@ void main() {
         pattern: r'$TARGET/$FILTER/$DATE/$TARGET_$FILTER_$FRAMENUM',
         basePath: '/captures',
         extension: 'fits',
-        substitutions: subs,
+        values: subs,
       );
 
       expect(
@@ -2940,7 +3128,7 @@ void main() {
       // Silent fallbacks hide bugs for months. A typo like
       // `$BANANA` must surface immediately rather than landing in the
       // filename as a literal "$BANANA" string.
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -2952,7 +3140,7 @@ void main() {
           pattern: r'$TARGET/$BANANA/$FRAMENUM',
           basePath: '/captures',
           extension: 'fits',
-          substitutions: subs,
+          values: subs,
         ),
         throwsA(
           isA<Exception>().having(
@@ -2960,7 +3148,7 @@ void main() {
             'message',
             allOf(
               contains(r'$BANANA'),
-              contains('Unknown naming-pattern variable'),
+              contains('Unknown variable'),
               // The error must enumerate the supported set so the user can
               // fix the typo without grepping the codebase.
               contains(r'$TARGET'),
@@ -2971,7 +3159,7 @@ void main() {
     });
 
     test('multiple unknown variables are all reported in one error', () {
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -2983,7 +3171,7 @@ void main() {
           pattern: r'$FOO/$BAR/$BAZ',
           basePath: '/captures',
           extension: 'fits',
-          substitutions: subs,
+          values: subs,
         ),
         throwsA(
           isA<Exception>().having(
@@ -2997,7 +3185,7 @@ void main() {
 
     test('pattern without "/" places file directly in base path', () {
       // No subdirectory separators ⇒ the whole pattern is the filename stem.
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 7,
@@ -3008,7 +3196,7 @@ void main() {
         pattern: r'$TARGET_$FILTER_$FRAMENUM',
         basePath: '/captures',
         extension: 'fits',
-        substitutions: subs,
+        values: subs,
       );
 
       expect(fullPath, endsWith('M31_L_0007.fits'));
@@ -3018,7 +3206,7 @@ void main() {
       // A naive chained `replaceAll` handles `$EXPTIME` and `$EXPOSURE`
       // because neither is a strict prefix of the other; the regex-based pass
       // keeps that behaviour. Likewise `$FRAMENUM` and `$FRAMETYPE`.
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 3,
@@ -3029,7 +3217,7 @@ void main() {
         pattern: r'$FRAMETYPE/$EXPOSURE/$EXPTIME_$FRAMENUM',
         basePath: '/c',
         extension: 'fits',
-        substitutions: subs,
+        values: subs,
       );
 
       // Both EXPOSURE and EXPTIME resolve to "120.0"; FRAMETYPE -> "light";
@@ -3043,7 +3231,7 @@ void main() {
       // Documented in settings_screen subtitle as `$SEQ`; legacy users have
       // this in their pattern (it ships as a default in
       // `database.dart` / `settings_provider.dart`).
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 12,
@@ -3054,7 +3242,7 @@ void main() {
         pattern: r'$TARGET_$FILTER_$DATE_$SEQ',
         basePath: '/c',
         extension: 'fits',
-        substitutions: subs,
+        values: subs,
       );
 
       expect(fullPath, endsWith('M31_L_2026-05-23_0012.fits'));
@@ -3063,7 +3251,7 @@ void main() {
     test(
       'substitution values cannot inject directories or parent traversal',
       () {
-        final subs = ImagingService.buildTimestampSubstitutions(
+        final subs = ImagingService.manualFrameValues(
           exposureSettings: settings,
           targetName: '../M31\\Ha:unsafe',
           frameNumber: 1,
@@ -3074,7 +3262,7 @@ void main() {
           pattern: r'$TARGET/$TARGET_$FRAMENUM',
           basePath: '/captures',
           extension: 'fits',
-          substitutions: subs,
+          values: subs,
         );
 
         expect(path.isWithin('/captures', fullPath), isTrue);
@@ -3085,7 +3273,7 @@ void main() {
     );
 
     test('literal parent traversal in pattern is rejected', () {
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -3097,14 +3285,14 @@ void main() {
           pattern: r'../$TARGET',
           basePath: '/captures',
           extension: 'fits',
-          substitutions: subs,
+          values: subs,
         ),
         throwsA(isA<ValidationException>()),
       );
     });
 
     test('lowercase and malformed variable syntax is rejected', () {
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -3116,7 +3304,7 @@ void main() {
           pattern: r'$target_$FRAMENUM',
           basePath: '/captures',
           extension: 'fits',
-          substitutions: subs,
+          values: subs,
         ),
         throwsA(isA<ValidationException>()),
       );
@@ -3126,7 +3314,7 @@ void main() {
   // UTC-consistent naming. FITS DATE-OBS is UTC; the on-disk
   // folder name must match so a 19:00 PST capture lands in the same UTC
   // date as the FITS header timestamp embedded in the file.
-  group('ImagingService.buildTimestampSubstitutions UTC convention', () {
+  group('ImagingService.manualFrameValues UTC convention', () {
     const settings = ExposureSettings(
       exposureTime: 60.0,
       gain: 100,
@@ -3154,20 +3342,20 @@ void main() {
         0,
       ); // 19:00 PST → 03:00 UTC
       // Either ctor must give a UTC date of 2026-01-16 after `.toUtc()`.
-      final subs1 = ImagingService.buildTimestampSubstitutions(
+      final subs1 = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
         timestamp: utcEquivalent,
       );
-      expect(subs1[r'$DATE'], '2026-01-16');
-      expect(subs1[r'$TIME'], '03-00-00');
+      expect(subs1[NamingToken.date], '2026-01-16');
+      expect(subs1[NamingToken.time], '03-00-00');
 
       // And a local-time DateTime that resolves to the same instant must
       // produce the same UTC date (regardless of host TZ, because
       // `localTs.toUtc()` normalises). This guarantees the implementation
       // calls `.toUtc()` before formatting.
-      final subs2 = ImagingService.buildTimestampSubstitutions(
+      final subs2 = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
@@ -3177,37 +3365,46 @@ void main() {
       // unknown, but the formatted date MUST equal `localTs.toUtc()`'s
       // ISO date — proving the conversion path runs.
       final expectedDate = localTs.toUtc().toIso8601String().substring(0, 10);
-      expect(subs2[r'$DATE'], expectedDate);
+      expect(subs2[NamingToken.date], expectedDate);
     });
 
     test('midnight-UTC capture resolves \$DATE to that UTC day', () {
       final ts = DateTime.utc(2026, 5, 23, 0, 0, 0);
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
         timestamp: ts,
       );
-      expect(subs[r'$DATE'], '2026-05-23');
-      expect(subs[r'$TIME'], '00-00-00');
-      expect(subs[r'$DATETIME'], '2026-05-23_00-00-00');
-      // $SESSION is documented as compact yyyymmdd in the Rust naming.rs;
-      // we mirror that so cross-language users see consistent strings.
-      expect(subs[r'$SESSION'], '20260523');
+      expect(subs[NamingToken.date], '2026-05-23');
+      expect(subs[NamingToken.time], '00-00-00');
+      expect(subs[NamingToken.dateTime], '2026-05-23_00-00-00');
+      // $SESSION is the compact yyyymmdd date.
+      expect(subs[NamingToken.session], '20260523');
     });
 
     test('one-second-before-UTC-midnight is correctly classified', () {
       // 23:59:59 UTC on 2026-05-23 must NOT spill into 2026-05-24. This
       // verifies we are formatting from UTC, not adding any offset.
       final ts = DateTime.utc(2026, 5, 23, 23, 59, 59);
-      final subs = ImagingService.buildTimestampSubstitutions(
+      final subs = ImagingService.manualFrameValues(
         exposureSettings: settings,
         targetName: 'M31',
         frameNumber: 1,
         timestamp: ts,
       );
-      expect(subs[r'$DATE'], '2026-05-23');
-      expect(subs[r'$TIME'], '23-59-59');
+      expect(subs[NamingToken.date], '2026-05-23');
+      expect(subs[NamingToken.time], '23-59-59');
     });
   });
+}
+
+/// Profiles that finish loading when [loaded] does.
+class _PendingProfiles extends EquipmentProfilesNotifier {
+  _PendingProfiles(this.loaded);
+
+  final Future<EquipmentProfilesState> loaded;
+
+  @override
+  Future<EquipmentProfilesState> build() => loaded;
 }

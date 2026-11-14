@@ -2,23 +2,16 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../astronomy/sgp4.dart';
-import '../catalogs/satellite_catalog.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'planetarium_providers.dart';
-
-// Satellite toggle provider
 
 /// Whether satellite overlay is enabled
 final showSatellitesProvider = StateProvider<bool>((ref) => false);
-
-// Satellite catalog provider
 
 /// Singleton satellite catalog instance for TLE management
 final satelliteCatalogProvider = Provider<SatelliteCatalog>((ref) {
   return SatelliteCatalog();
 });
-
-// TLE data provider
 
 /// Loads bright satellite TLE data. Auto-refreshes when toggled on.
 final satelliteTleProvider = FutureProvider<List<OrbitalElements>>((ref) async {
@@ -38,8 +31,6 @@ final satelliteTleProvider = FutureProvider<List<OrbitalElements>>((ref) async {
     rethrow;
   }
 });
-
-// Current satellite positions provider
 
 /// Satellite position state that updates every few seconds.
 class SatellitePositionState {
@@ -61,12 +52,10 @@ class SatellitePositionNotifier extends StateNotifier<SatellitePositionState> {
     : super(SatellitePositionState(lastUpdate: DateTime.now())) {
     _startUpdates();
 
-    // Listen for TLE data changes
     _ref.listen(satelliteTleProvider, (prev, next) {
       next.whenData((_) => _updatePositions());
     });
 
-    // Listen for satellite toggle
     _ref.listen(showSatellitesProvider, (prev, next) {
       if (next) {
         _startUpdates();
@@ -86,7 +75,6 @@ class SatellitePositionNotifier extends StateNotifier<SatellitePositionState> {
     _timer = Timer.periodic(const Duration(seconds: 2), (_) {
       _updatePositions();
     });
-    // Also do an initial update
     _updatePositions();
   }
 
@@ -149,9 +137,6 @@ final currentSatellitesProvider = Provider<List<SatelliteData>>((ref) {
   return ref.watch(satellitePositionProvider).satellites;
 });
 
-// Pass prediction provider
-
-/// State for satellite pass predictions.
 class PassPredictionState {
   final List<SatellitePass> passes;
   final bool isComputing;
@@ -344,7 +329,6 @@ List<SatellitePass> _computePassesIsolate(_ComputePassesArgs args) {
     allPasses.addAll(passes);
   }
 
-  // Sort all passes by rise time
   allPasses.sort((a, b) => a.riseTime.compareTo(b.riseTime));
   return allPasses;
 }

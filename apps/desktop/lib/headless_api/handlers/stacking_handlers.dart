@@ -2,11 +2,16 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Headless control surface for live stacking (real-time EAA integration).
 ///
@@ -21,7 +26,23 @@ import '../validation.dart';
 /// stacker itself ([onImageSaved], wired to the `ImageSaved` event stream in
 /// the server lifecycle). This also means stacking keeps accumulating even if
 /// the tablet disconnects.
-class StackingHandlers {
+class StackingHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    StackingApi.start: handleStart,
+    StackingApi.addFrame: handleAddFrame,
+    StackingApi.updateConfig: handleUpdateConfig,
+    StackingApi.reset: handleReset,
+    StackingApi.stop: handleStop,
+    StackingApi.status: handleStatus,
+    StackingApi.stats: handleStats,
+    StackingApi.result: handleResult,
+    StackingApi.preview: handlePreview,
+    StackingApi.savedResults: handleSavedResults,
+    StackingApi.savedResultPreview: handleSavedResultPreview,
+    StackingApi.savedResult: handleSavedResult,
+  };
+
   final ProviderContainer container;
   final Future<String> Function(int resultId) _savedPreviewPathResolver;
 
@@ -39,8 +60,6 @@ class StackingHandlers {
   LoggingService get _logger => container.read(loggingServiceProvider);
   StackedResultsDao get _resultsDao =>
       container.read(stackedResultsDaoProvider);
-
-  // Coordinator state
 
   /// True once the client has started stacking and the host should feed frames.
   bool _armed = false;
@@ -95,8 +114,6 @@ class StackingHandlers {
     }
   }
 
-  // Host auto-feed hook
-
   /// Called by the server's `ImageSaved` event subscription for every frame the
   /// host writes to disk. No-op unless stacking is armed.
   Future<void> onImageSaved(String filePath) async {
@@ -126,8 +143,6 @@ class StackingHandlers {
       }
     });
   }
-
-  // Endpoints
 
   /// POST /api/stacking/start
   /// Body: `{ config?: {...}, referencePath?: "host-path" }`
@@ -252,6 +267,20 @@ class StackingHandlers {
             'accumulation is unchanged; check tracking, focus and cloud.',
         statusCode: 422,
         details: {'imagePath': imagePath, 'reason': error.toString()},
+        cause: error,
+      );
+    }
+
+    // Taken through another filter than the stack's: left out before any
+    // alignment and counted in `otherFilterFrames`. The engine's sentence
+    // names both filters.
+    final otherFilter = text.indexOf('frame of another filter not stacked');
+    if (otherFilter >= 0) {
+      return HandlerFailure(
+        code: 'frame_other_filter',
+        message: error.toString().substring(otherFilter),
+        statusCode: 422,
+        details: {'imagePath': imagePath},
         cause: error,
       );
     }
@@ -507,8 +536,6 @@ class StackingHandlers {
     });
   }
 
-  // (de)serialization
-
   int _parseSavedResultId(String raw) {
     final parsed = int.tryParse(raw);
     if (parsed == null || parsed <= 0) {
@@ -665,5 +692,8 @@ class StackingHandlers {
     'avgMatchedPairs': s.avgMatchedPairs,
     'avgAlignmentResidual': s.avgAlignmentResidual,
     'totalSigmaRejectedPixels': s.totalSigmaRejectedPixels,
+    'filter': s.filter,
+    'otherFilterFrames': s.otherFilterFrames,
+    'lastOtherFilter': s.lastOtherFilter,
   };
 }

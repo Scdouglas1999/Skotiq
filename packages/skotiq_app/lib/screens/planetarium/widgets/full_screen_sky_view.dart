@@ -1,4 +1,4 @@
-import '../../../widgets/planetarium/adaptive_interactive_sky_view.dart';
+import 'adaptive_interactive_sky_view.dart';
 
 /// Full-screen planetarium sky (main `/planetarium` route).
 ///

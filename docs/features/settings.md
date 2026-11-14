@@ -177,12 +177,20 @@ Configure default imaging parameters.
 
 ### File Naming
 
-Use placeholders for automatic naming:
-- `$TARGET` - Target name
-- `$FILTER` - Current filter
-- `$DATE` - Date stamp
-- `$SEQ` - Sequence number
-- `$EXPOSURE` - Exposure duration
+The pattern is a path relative to the save folder: folders and the file name,
+separated by `/`. The same pattern names manual captures, sequence frames, Flat
+Wizard frames and a secondary camera's frames. Variables:
+- `$TARGET` - target; a frame with no target is filed under its frame type
+  (`Dark`, `Flat`, `Bias`, `DarkFlat`), a sky frame as `untargeted`
+- `$FILTER` - filter; `nofilter` when there is none
+- `$EXPTIME`, `$EXPOSURE` - exposure in seconds
+- `$DATE`, `$TIME`, `$DATETIME` - UTC date and time, as in the frame's `DATE-OBS`
+- `$FRAMETYPE` - light, dark, flat, bias, darkFlat or snapshot
+- `$FRAMENUM`, `$SEQ` - frame number (0001)
+- `$GAIN`, `$OFFSET`, `$BINNING`, `$TEMP` - capture settings and sensor temperature
+- `$CAMERA`, `$TELESCOPE` - camera and mount names
+- `$SEQUENCE` - the sequence's name (`Sequence` for a frame outside one)
+- `$SESSION` - UTC date the night's session started (20261113)
 
 ## Annotations Settings
 

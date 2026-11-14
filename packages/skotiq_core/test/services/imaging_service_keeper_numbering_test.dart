@@ -11,21 +11,28 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/clock_provider.dart';
+import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart';
-import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/science/science_processing_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/providers/capture_preview_loader_provider.dart';
+import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
+import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
 
 class _NoOpScienceProcessingService extends ScienceProcessingService {
   _NoOpScienceProcessingService(super.ref);
@@ -109,6 +116,7 @@ void main() {
   late MockBackend backend;
   late StreamController<SkotiqEvent> events;
   late Directory outputDir;
+  late SkotiqDatabase database;
   late List<String> writtenPaths;
 
   setUpAll(() {
@@ -124,6 +132,7 @@ void main() {
 
   setUp(() {
     outputDir = Directory.systemTemp.createTempSync('sk_keeper_numbering');
+    database = SkotiqDatabase.forTesting(NativeDatabase.memory());
     writtenPaths = <String>[];
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();
@@ -166,16 +175,34 @@ void main() {
         deviceId: any(named: 'deviceId'),
         filePath: any(named: 'filePath'),
         headerData: any(named: 'headerData'),
+        keepCameraFile: any(named: 'keepCameraFile'),
       ),
     ).thenAnswer((invocation) async {
       final path = invocation.namedArguments[#filePath] as String;
       writtenPaths.add(path);
       File(path).writeAsBytesSync(const <int>[0]);
+      return invocation.namedArguments[#filePath] as String;
+    });
+    when(
+      () => backend.saveScratchFrameFromLastCapture(
+        deviceId: any(named: 'deviceId'),
+        name: any(named: 'name'),
+        headerData: any(named: 'headerData'),
+      ),
+    ).thenAnswer((invocation) async {
+      final path =
+          '${Directory.systemTemp.path}/skotiq_captures/${invocation.namedArguments[#name]}';
+      writtenPaths.add(path);
+      File(path)
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(const <int>[0]);
+      return path;
     });
   });
 
-  tearDown(() {
-    events.close();
+  tearDown(() async {
+    await database.close();
+    unawaited(events.close());
     if (outputDir.existsSync()) outputDir.deleteSync(recursive: true);
   });
 
@@ -198,6 +225,10 @@ void main() {
             AppSettingsState(imageOutputPath: outputDir.path),
           ),
         ),
+        // A rebuilt service is a second container beside the first. They
+        // share this one connection, as a restarted app shares one database;
+        // two connections to one file in a process lock each other out.
+        databaseProvider.overrideWithValue(database),
         clockProvider.overrideWithValue(const _FixedClock()),
         capturePreviewPublisherProvider.overrideWithValue(
           _NoOpCapturePreviewPublisher(),
@@ -316,6 +347,34 @@ void main() {
       isEmpty,
       reason: 'a restart must not need the collision uniquifier',
     );
+  });
+
+  test('a frame kept in a screen\'s own folder is named by the Settings '
+      'pattern and never takes a name on disk', () async {
+    final container = await buildContainer();
+    final service = container.read(imagingServiceProvider);
+    final flats = p.join(outputDir.path, 'Flats', 'L');
+    const flat = ExposureSettings(
+      exposureTime: 1.5,
+      gain: 100,
+      offset: 10,
+      frameType: FrameType.flat,
+      filter: 'L',
+    );
+    final first = await service.keeperFilePath(
+      folder: flats,
+      exposureSettings: flat,
+      targetName: 'Flat',
+    );
+    expect(first, p.join(flats, 'Flat_L_2026-01-15_0001.fits'));
+    File(first).writeAsBytesSync(const <int>[0]);
+
+    final second = await service.keeperFilePath(
+      folder: flats,
+      exposureSettings: flat,
+      targetName: 'Flat',
+    );
+    expect(second, p.join(flats, 'Flat_L_2026-01-15_0002.fits'));
   });
 
   test('numbering restarts when the folder is empty again', () async {

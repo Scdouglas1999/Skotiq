@@ -2,19 +2,24 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../framing/add_target_to_sequence_flow.dart';
+import '../../../widgets/add_target_to_sequence_flow.dart';
 import '../providers/sequenced_object_ids_provider.dart';
 import 'fov_presets_panel.dart';
 import 'sidebar_shared_widgets.dart';
+import '../../../router/app_routes.dart';
+import '../../../router/planner_route.dart';
 
 class InfoTab extends ConsumerWidget {
   final SkotiqColors colors;
@@ -64,7 +69,6 @@ class InfoTab extends ConsumerWidget {
 
     final obj = selectedObject.object;
 
-    // If we have a celestial object, use the ObjectDetailsPanel + imaging history
     if (obj != null) {
       return Padding(
         padding: const EdgeInsets.all(8),
@@ -121,7 +125,7 @@ class InfoTab extends ConsumerWidget {
             );
             if (!context.mounted) return;
             ref.read(framingProvider.notifier).setTargetSuggestion(target);
-            context.goNamed('framing');
+            context.go(AppRoutes.planner(tab: PlannerTab.framing));
           },
           onAddToSequence: () async {
             // Drop this object into a sequence the user picks (or a new one)
@@ -387,7 +391,7 @@ class ImagingHistorySection extends ConsumerWidget {
       error: (error, _) => Padding(
         padding: const EdgeInsets.all(16),
         child: Text(
-          'Failed to load imaging history: $error',
+          'Failed to load imaging history: ${userFacingError(error)}',
           style: TextStyle(
               color: colors.error, fontSize: SkotiqTypography.fontSize12),
         ),
@@ -455,7 +459,6 @@ class ImagingHistorySection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
           Row(
             children: [
               Container(
@@ -476,8 +479,6 @@ class ImagingHistorySection extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-
-          // Summary stats row
           Row(
             children: [
               _buildStatChip(
@@ -493,14 +494,10 @@ class ImagingHistorySection extends ConsumerWidget {
               ),
             ],
           ),
-
-          // Completion bar (if goal is set)
           if (history.hasGoal) ...[
             const SizedBox(height: 12),
             _buildCompletionBar(history),
           ],
-
-          // Last imaged
           if (history.lastImaged != null) ...[
             const SizedBox(height: 10),
             Row(
@@ -508,7 +505,7 @@ class ImagingHistorySection extends ConsumerWidget {
                 Icon(LucideIcons.clock3, size: 12, color: colors.textMuted),
                 const SizedBox(width: 6),
                 Text(
-                  'Last imaged: ${DateFormat('MMM d, yyyy').format(history.lastImaged!.toLocal())}',
+                  'Last imaged: ${ClockFormat.monthDayYear(history.lastImaged!.toLocal())}',
                   style: TextStyle(
                     fontSize: SkotiqTypography.fontSize11,
                     color: colors.textSecondary,
@@ -517,8 +514,6 @@ class ImagingHistorySection extends ConsumerWidget {
               ],
             ),
           ],
-
-          // Per-filter breakdown
           if (history.filterCounts.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(

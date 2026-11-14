@@ -43,7 +43,6 @@ import 'dart:math' as math;
 /// clamping or returning a bogus pixel, so an out-of-range order, pixel index
 /// or coordinate cannot become a silently wrong tile.
 class HealpixArgumentError extends ArgumentError {
-  /// Creates an argument error for a HEALPix routine.
   HealpixArgumentError(super.message);
 }
 
@@ -66,7 +65,6 @@ class HealpixXyf {
   /// equatorial belt, 8-11 the south polar caps.
   final int face;
 
-  /// Creates a face/intra-face coordinate triple.
   const HealpixXyf(this.x, this.y, this.face);
 
   @override
@@ -93,7 +91,6 @@ class HealpixAngle {
   /// Azimuth in radians, `[0, 2π)`. Equal to right ascension in radians.
   final double phi;
 
-  /// Creates a `(theta, phi)` sky direction.
   const HealpixAngle(this.theta, this.phi);
 
   /// Right ascension in degrees, `[0, 360)`.
@@ -128,10 +125,8 @@ class Vector3 {
   /// routines that build these guarantee unit length.
   const Vector3(this.x, this.y, this.z);
 
-  /// Euclidean length.
   double get length => math.sqrt(x * x + y * y + z * z);
 
-  /// Dot product with [o].
   double dot(Vector3 o) => x * o.x + y * o.y + z * o.z;
 
   @override
@@ -214,8 +209,6 @@ class HealpixNested {
   /// direction, in units of the equatorial spacing.
   static const List<int> _jpll = [1, 3, 5, 7, 0, 2, 4, 6, 1, 3, 5, 7];
 
-  // Forward: sky -> pixel
-
   /// Converts a sky direction (RA/Dec in degrees) to a NESTED pixel index.
   ///
   /// [raDeg] is wrapped into `[0, 360)`; [decDeg] must lie in `[-90, 90]`.
@@ -250,8 +243,6 @@ class HealpixNested {
     return _zphiToNest(z, phi);
   }
 
-  // Inverse: pixel -> sky
-
   /// Converts a NESTED pixel index to its center sky direction (RA/Dec deg).
   HealpixAngle pix2ang(int ipix) {
     _checkPix(ipix);
@@ -268,8 +259,6 @@ class HealpixNested {
 
   /// Converts a NESTED pixel index to its center unit vector.
   Vector3 pix2vec(int ipix) => angToVec(pix2ang(ipix));
-
-  // Face decomposition
 
   /// Decomposes a NESTED pixel index into integer `(x, y, face)`.
   ///
@@ -304,8 +293,6 @@ class HealpixNested {
     }
     return xyf.face * nside * nside + _interleave(ix, iy);
   }
-
-  // Fractional intra-face <-> sky
 
   /// Maps a fractional intra-face coordinate to a sky direction.
   ///
@@ -377,8 +364,6 @@ class HealpixNested {
     return _zphiToXyf(z, phi);
   }
 
-  // Cell boundary (corner) generation
-
   /// Returns the four corner sky directions of a NESTED pixel, ordered
   /// counter-clockwise as seen from outside the sphere:
   /// `[south, east, north, west]` corner.
@@ -406,8 +391,6 @@ class HealpixNested {
   /// feeding a GPU vertex buffer directly.
   List<Vector3> boundaryVectors(int ipix) =>
       boundaries(ipix).map(angToVec).toList(growable: false);
-
-  // Neighbours
 
   /// Compass directions of the eight [neighboursNest] slots, in result
   /// order. Index 0 = West, then NW, N, NE, E, SE, S, SW (counter-clockwise
@@ -533,8 +516,6 @@ class HealpixNested {
     return result;
   }
 
-  // Disc query (visible-set enumeration)
-
   /// Returns the NESTED indices of every pixel whose footprint intersects
   /// (when [inclusive] is true) or whose center lies within (when false) a
   /// spherical cap of angular [radiusDeg] around (RA, Dec) in degrees.
@@ -610,8 +591,6 @@ class HealpixNested {
     return out;
   }
 
-  // Quadtree (level-of-detail)
-
   /// Returns the parent pixel index one order coarser (`ipix >> 2`).
   ///
   /// In the NESTED scheme the four children of a tile share its high bits,
@@ -663,8 +642,6 @@ class HealpixNested {
     final a = pix2ang(ipix);
     return HealpixNested(targetOrder).angToPixNest(a);
   }
-
-  // Internal: (z, phi) <-> nest
 
   int _zphiToNest(double z, double phi) => xyfToNest(_zphiToXyf(z, phi));
 
@@ -726,8 +703,6 @@ class HealpixNested {
     if (y < 0.0) y = 0.0;
     return HealpixXyf(x, y, face);
   }
-
-  // Internal helpers
 
   /// Chooses the equatorial-belt face from the two diagonal edge indices.
   int _equatorFace(int ifp, int ifm) {
@@ -797,8 +772,6 @@ class HealpixNested {
       );
     }
   }
-
-  // Static numeric utilities
 
   /// Tiny inset used to keep an inclusive upper-edge coordinate inside the
   /// half-open integer range when flooring for pixel addressing.

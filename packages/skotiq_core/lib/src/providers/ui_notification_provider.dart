@@ -52,7 +52,6 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
   /// dismiss-by-id bookkeeping would conflate them.
   int _idSequence = 0;
 
-  /// Show a notification
   void show({
     required String message,
     required UiNotificationLevel level,
@@ -83,7 +82,6 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
         : appended;
   }
 
-  /// Show an info notification
   void showInfo(
     String message, {
     String? title,
@@ -99,7 +97,6 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
     );
   }
 
-  /// Show a success notification
   void showSuccess(
     String message, {
     String? title,
@@ -115,7 +112,6 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
     );
   }
 
-  /// Show a warning notification
   void showWarning(
     String message, {
     String? title,
@@ -131,7 +127,6 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
     );
   }
 
-  /// Show an error notification
   void showError(
     String message, {
     String? title,
@@ -147,25 +142,21 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
     );
   }
 
-  /// Dismiss a specific notification by ID
   void dismiss(String id) {
     state = state.where((n) => n.id != id).toList();
   }
 
-  /// Dismiss the oldest notification
   void dismissOldest() {
     if (state.isNotEmpty) {
       state = state.skip(1).toList();
     }
   }
 
-  /// Clear all notifications
   void clearAll() {
     state = [];
   }
 }
 
-/// Provider for UI notifications
 final uiNotificationProvider =
     StateNotifierProvider<UiNotificationNotifier, List<UiNotification>>((ref) {
       return UiNotificationNotifier();

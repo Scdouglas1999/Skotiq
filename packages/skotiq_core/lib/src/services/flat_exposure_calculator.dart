@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-/// Calculates optimal flat frame exposure with improved convergence
 class FlatExposureCalculator {
   /// Safe full-scale ADU when the connected camera's effective range is
   /// unknown (a 16-bit sensor). Real cameras can be 8/10/12/14/16-bit or expose
@@ -31,36 +30,6 @@ class FlatExposureCalculator {
   // flat-wizard screen, the headless /api/flat-wizard handlers (via
   // calibrateFilter) and the rate-tracking fallback. Pinned by
   // test/services/flat_convergence_snapshot_test.dart.
-
-  /// Binary search with early termination
-  ///
-  /// More efficient than proportional adjustment for stable light sources
-  static double binarySearchExposure({
-    required double lowExposure,
-    required double highExposure,
-    required double measuredAdu,
-    required double targetAdu,
-    required double tolerancePercent,
-  }) {
-    final toleranceAdu = targetAdu * tolerancePercent / 100.0;
-
-    // Check if within tolerance
-    if ((measuredAdu - targetAdu).abs() <= toleranceAdu) {
-      // Already good, return current midpoint
-      return (lowExposure + highExposure) / 2.0;
-    }
-
-    // Narrow the search range
-    final midpoint = (lowExposure + highExposure) / 2.0;
-
-    if (measuredAdu < targetAdu) {
-      // Need more light, search upper half
-      return (midpoint + highExposure) / 2.0;
-    } else {
-      // Too bright, search lower half
-      return (lowExposure + midpoint) / 2.0;
-    }
-  }
 
   /// Get starting exposure from history or geometric mean
   static double getStartingExposure({

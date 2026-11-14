@@ -37,7 +37,7 @@ Future<void> _seedEnablement(
       .into(db.appSettings)
       .insert(
         AppSettingsCompanion.insert(
-          key: kPluginEnablementSettingKey,
+          key: 'plugin_enablement',
           value: jsonEncode(choices),
         ),
         mode: InsertMode.insertOrReplace,

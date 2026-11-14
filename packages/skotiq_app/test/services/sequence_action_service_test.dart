@@ -16,9 +16,10 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/services/sequence_action_service.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 /// A [SequenceExecutor] stand-in that only records the playback calls the
@@ -94,7 +95,9 @@ class _RecordingExecutor extends SequenceExecutor {
       executor = _RecordingExecutor(ref);
       return executor;
     }),
-    sequenceExecutionStateProvider.overrideWith((ref) => state),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state)),
+    ),
   ]);
   // Force the executor override to build so `executor` is captured before any
   // command runs.
@@ -167,8 +170,9 @@ void main() {
     final start = h.service.start();
     // The real executor publishes running during acquisition, exposing Stop
     // on the other playback surfaces before start() has returned.
-    h.container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    h.container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
     final stop = h.service.stop();
 
     expect(h.executor.stopCount, 0);

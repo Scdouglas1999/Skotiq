@@ -9,7 +9,9 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show SeriesChartTone;
 
 import '../../night_control_contracts.dart';
 import 'session_events_provider.dart';
@@ -86,12 +88,12 @@ final nightFrameSeriesProvider = Provider<NightSeriesVm>((ref) {
       SeriesLineVm(
         id: NightSeriesId.hfr,
         points: hfr,
-        tone: SeriesTone.primary,
+        tone: SeriesChartTone.primary,
       ),
       SeriesLineVm(
         id: NightSeriesId.stars,
         points: stars,
-        tone: SeriesTone.secondary,
+        tone: SeriesChartTone.secondary,
         secondaryAxis: true,
       ),
     ],
@@ -172,19 +174,19 @@ final nightTemperatureSeriesProvider = Provider<NightSeriesVm>((ref) {
       SeriesLineVm(
         id: NightSeriesId.focuserTemp,
         points: focuserTemp,
-        tone: SeriesTone.muted,
+        tone: SeriesChartTone.muted,
       ),
       SeriesLineVm(
         id: NightSeriesId.focuserPosition,
         points: position,
-        tone: SeriesTone.primary,
+        tone: SeriesChartTone.primary,
         secondaryAxis: true,
         stepped: true,
       ),
       SeriesLineVm(
         id: NightSeriesId.sensorTemp,
         points: sensor,
-        tone: SeriesTone.secondary,
+        tone: SeriesChartTone.secondary,
         dashed: true,
       ),
     ],
@@ -229,14 +231,15 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
         SeriesLineVm(
           id: NightSeriesId.sensorTemp,
           points: <SeriesPoint>[],
-          tone: SeriesTone.secondary,
+          tone: SeriesChartTone.secondary,
         ),
       ],
     );
   }
   final last = history.last;
-  // A setpoint with the cooler off reads as cooling that is failing.
-  final cooling = ref.watch(cameraStateProvider.select((s) => s.isCooling));
+  // A setpoint with the cooler off reads as cooling that is failing. A
+  // camera that cannot read its cooler back says neither on nor off.
+  final coolerOn = ref.watch(cameraStateProvider.select((s) => s.coolerOn));
   return NightSeriesVm(
     lines: <SeriesLineVm>[
       SeriesLineVm(
@@ -245,7 +248,7 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
           for (final point in history)
             SeriesPoint(point.time, point.temperature),
         ],
-        tone: SeriesTone.secondary,
+        tone: SeriesChartTone.secondary,
       ),
     ],
     from: history.first.time,
@@ -255,16 +258,13 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
         label: const NightText('nightSessionSensorTemp'),
         value: nightCelsius(last.temperature),
       ),
-      if (last.targetTemp != null && cooling)
+      if (last.targetTemp != null && coolerOn == true)
         MetricVm(
           label: const NightText('nightSessionSetpoint'),
           value: nightCelsius(last.targetTemp!),
         ),
-      if (!cooling)
-        const MetricVm(
-          label: NightText('nightSessionCooler'),
-          value: 'off',
-        ),
+      if (coolerOn == false)
+        const MetricVm(label: NightText('nightSessionCoolerOff')),
       if (last.coolerPower != null)
         MetricVm(
           label: const NightText('nightSessionCoolerPower'),
@@ -280,7 +280,6 @@ final nightCoolerHistoryProvider = Provider<NightSeriesVm>((ref) {
 class NightFocusShift {
   const NightFocusShift({required this.at, this.steps, this.tempSince});
 
-  /// When the run finished.
   final DateTime at;
 
   /// The focuser's move: the first position read after the run less the

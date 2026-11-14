@@ -6,13 +6,10 @@ class BuiltinGuiderConfig {
   /// Guide camera exposure time in seconds
   final double exposureSecs;
 
-  /// Guide camera gain
   final int gain;
 
-  /// Guide camera offset
   final int offset;
 
-  /// Guide camera binning
   final int binning;
 
   /// Calibration pulse duration in milliseconds
@@ -63,7 +60,34 @@ class BuiltinGuiderConfig {
     );
   }
 
-  /// Create from JSON (for network transport)
+  /// Why this configuration cannot be sent to the guider, or null when it can.
+  /// [mountPulseRangeMs] is the pulse-guide range the connected mount
+  /// reports; without one the pulses only have to be in order.
+  String? problem({({double min, double max})? mountPulseRangeMs}) {
+    if (!exposureSecs.isFinite || exposureSecs <= 0 || exposureSecs > 30) {
+      return 'Exposure must be more than 0 and at most 30 seconds.';
+    }
+    if (gain < 0) return 'Gain must be 0 or more.';
+    if (offset < 0) return 'Offset must be 0 or more.';
+    if (binning < 1 || binning > 4) return 'Binning must be from 1 to 4.';
+    if (calibrationMs < 50 || calibrationMs > 5000) {
+      return 'The calibration pulse must be from 50 to 5000 ms.';
+    }
+    if (settleSleepMs < 0) return 'Settle sleep must be 0 ms or more.';
+    if (!minPulseMs.isFinite || !maxPulseMs.isFinite || minPulseMs < 0) {
+      return 'Min pulse must be 0 ms or more.';
+    }
+    if (maxPulseMs <= minPulseMs) {
+      return 'Max pulse must be longer than min pulse.';
+    }
+    final range = mountPulseRangeMs;
+    if (range != null && (minPulseMs < range.min || maxPulseMs > range.max)) {
+      return 'The mount pulse-guides from ${range.min.round()} to '
+          '${range.max.round()} ms; keep min and max pulse inside that.';
+    }
+    return null;
+  }
+
   factory BuiltinGuiderConfig.fromJson(Map<String, dynamic> json) {
     return BuiltinGuiderConfig(
       exposureSecs: (json['exposureSecs'] as num?)?.toDouble() ?? 1.0,
@@ -77,7 +101,6 @@ class BuiltinGuiderConfig {
     );
   }
 
-  /// Convert to JSON (for network transport)
   Map<String, dynamic> toJson() => {
     'exposureSecs': exposureSecs,
     'gain': gain,

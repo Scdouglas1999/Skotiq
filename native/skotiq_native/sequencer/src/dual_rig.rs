@@ -35,7 +35,6 @@
 //!     to flip cadence. (Documented gap — see report.)
 
 use crate::device_ops::SharedDeviceOps;
-use crate::scheduling::FrameContext;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -373,6 +372,10 @@ pub struct SecondaryRigConfig {
     pub telescope_name: Option<String>,
     pub telescope_focal_length_mm: Option<f64>,
     pub telescope_aperture_mm: Option<f64>,
+    /// How the frames are named, as a capture step's `save_to`: the app's
+    /// naming pattern, under the rig's folder. `None` names them as a step
+    /// without one does.
+    pub save_to: Option<String>,
 }
 
 impl SecondaryRigConfig {
@@ -393,6 +396,7 @@ impl SecondaryRigConfig {
             telescope_name: None,
             telescope_focal_length_mm: None,
             telescope_aperture_mm: None,
+            save_to: None,
         }
     }
 }
@@ -481,6 +485,8 @@ pub struct SecondaryFrameMeta {
     /// Base directory the primary is saving into. The secondary saves into a
     /// `<base>/<rig_label>/` subfolder so the two rigs' subs never collide.
     pub save_base: Option<std::path::PathBuf>,
+    /// What a frame from a camera that delivers its own file is saved as.
+    pub camera_file_saving: crate::CameraFileSaving,
 }
 
 impl SecondaryRig {
@@ -556,11 +562,10 @@ pub async fn run_secondary_loop(
         "secondary rig has no save directory; refusing to write into the process directory"
             .to_string()
     })?;
-    let safe_rig_dir = sanitize_component(&config.rig_label);
-    let save_dir = save_base.join(if safe_rig_dir.is_empty() {
-        "Secondary"
+    let save_dir = save_base.join(if config.rig_label.trim().is_empty() {
+        "Secondary".to_string()
     } else {
-        &safe_rig_dir
+        crate::frame_naming::path_segment(&config.rig_label)
     });
     tokio::fs::create_dir_all(&save_dir).await.map_err(|e| {
         format!(
@@ -568,6 +573,7 @@ pub async fn run_secondary_loop(
             save_dir.display()
         )
     })?;
+    let name_frame = secondary_frame_namer(&config, &device_ops, &meta, save_dir)?;
 
     let mut frame_index: u32 = 0;
     let mut consecutive_failures: u8 = 0;
@@ -600,7 +606,7 @@ pub async fn run_secondary_loop(
             &barrier,
             &state.cancel,
             &meta,
-            &save_dir,
+            &name_frame,
             frame_index,
         )
         .await;
@@ -682,7 +688,7 @@ async fn capture_secondary_frame(
     barrier: &DitherBarrier,
     cancel: &AtomicBool,
     meta: &SecondaryFrameMeta,
-    save_dir: &std::path::Path,
+    name_frame: &crate::frame_naming::FrameSavePathRenderer,
     frame_index: u32,
 ) -> Result<SecondaryFrameOutcome, String> {
     if cancel.load(Ordering::Acquire) {
@@ -696,13 +702,12 @@ async fn capture_secondary_frame(
 
     // Start the exposure. `camera_start_exposure` blocks until the frame is
     // downloaded; for an abort we race it against an abort watcher.
+    let exposure_started_at = chrono::Utc::now();
     let exposure = device_ops.camera_start_exposure(
-        &config.camera_id,
-        config.exposure_secs,
-        config.gain,
-        config.offset,
-        config.bin_x,
-        config.bin_y,
+        crate::device_ops::ExposureRequest::new(&config.camera_id, config.exposure_secs)
+            .gain(config.gain)
+            .offset(config.offset)
+            .binning(config.bin_x, config.bin_y),
     );
     tokio::pin!(exposure);
 
@@ -729,53 +734,72 @@ async fn capture_secondary_frame(
         }
     };
 
-    // Build the frame context: primary's target identity + secondary's own
-    // camera/optics metadata + a rig tag so frames are attributable.
-    let mut ctx = FrameContext::new_light(
-        meta.session_id.clone(),
-        image.width.max(1),
-        image.height.max(1),
-        config.exposure_secs,
-        frame_index,
-    );
-    ctx.binning_x = config.bin_x.max(1) as u32;
-    ctx.binning_y = config.bin_y.max(1) as u32;
-    ctx.gain = config.gain.or(image.gain);
-    ctx.offset = config.offset.or(image.offset);
+    // The rig as every saved frame records it, read through the secondary
+    // camera with this train's optics; then what ties the frame to the run.
+    // The mount is the primary's and is not named here, so the pointing comes
+    // from the connected mount when the frame is written.
+    let rig = crate::instructions::RunRig {
+        camera_id: Some(config.camera_id.clone()),
+        latitude: meta.site_latitude_deg,
+        longitude: meta.site_longitude_deg,
+        ..Default::default()
+    };
+    let identity = crate::instructions::FrameIdentity {
+        observer_name: meta.observer_name.clone(),
+        site_elevation_m: meta.site_elevation_m,
+        camera_make: config.camera_make.clone(),
+        camera_model: config.camera_model.clone(),
+        telescope_name: config.telescope_name.clone(),
+        telescope_focal_length_mm: config.telescope_focal_length_mm,
+        telescope_aperture_mm: config.telescope_aperture_mm,
+        ..Default::default()
+    };
+    let filter_name = config.filter_name.clone().or_else(|| image.filter.clone());
+    let mut ctx = crate::instructions::sample_frame_context(
+        device_ops.as_ref(),
+        &crate::instructions::CaptureFacts {
+            rig: &rig,
+            identity: &identity,
+            commanded_secs: config.exposure_secs,
+            binning: (config.bin_x.max(1) as u32, config.bin_y.max(1) as u32),
+            frame_type: "Light",
+            exposure_started_at,
+            filter: (filter_name.as_deref(), None),
+            target_name: meta.target_name.as_deref(),
+            set_temp_c: config.target_temp_c,
+            bayer_pattern: None,
+        },
+        &image,
+    )
+    .await;
+    ctx.session_id = meta.session_id.clone();
+    ctx.frame_index = frame_index;
     ctx.total_planned_frames = config.frame_count;
-    ctx.target_name = meta.target_name.clone();
     ctx.target_id = meta.target_id.clone();
     ctx.target_ra_hours = meta.target_ra_hours;
     ctx.target_dec_degrees = meta.target_dec_degrees;
-    ctx.filter_name = config.filter_name.clone().or_else(|| image.filter.clone());
-    ctx.sensor_temp_c = image.temperature;
-    ctx.set_temp_c = config.target_temp_c;
-    ctx.bayer_pattern = image
-        .bayer_offset
-        .and(image.sensor_type.clone())
-        .filter(|_| image.sensor_type.as_deref() == Some("Color"))
-        .map(|_| "RGGB".to_string());
-    ctx.observer_name = meta.observer_name.clone();
-    ctx.site_latitude_deg = meta.site_latitude_deg;
-    ctx.site_longitude_deg = meta.site_longitude_deg;
-    ctx.site_elevation_m = meta.site_elevation_m;
-    ctx.camera_make = config.camera_make.clone();
-    ctx.camera_model = config.camera_model.clone();
-    ctx.telescope_name = config.telescope_name.clone();
-    ctx.telescope_focal_length_mm = config.telescope_focal_length_mm;
-    ctx.telescope_aperture_mm = config.telescope_aperture_mm;
     // Frame attribution: tag the rig so multi-rig sessions can split subs.
     ctx.rig_label = Some(config.rig_label.clone());
 
-    let file_name =
-        secondary_file_name(meta.target_name.as_deref(), &config.rig_label, frame_index);
-    let full_path = save_dir.join(&file_name);
-    let path_str = full_path.to_string_lossy().to_string();
+    let (dir, file_name) = name_frame(&crate::frame_naming::FrameToName {
+        index_in_burst: frame_index,
+        burst_total: config.frame_count.unwrap_or(0),
+        started_at: exposure_started_at,
+        sensor_temp_c: image.temperature,
+    })?;
+    let path_str = dir.join(&file_name).to_string_lossy().to_string();
 
-    device_ops
-        .save_fits(&image, &path_str, &ctx)
-        .await
-        .map_err(|e| format!("save_fits failed: {e}"))?;
+    let path_str = crate::device_ops::save_frame(
+        device_ops.as_ref(),
+        &image,
+        &path_str,
+        &ctx,
+        meta.camera_file_saving,
+        // The secondary camera's frames are the run's frames.
+        true,
+    )
+    .await
+    .map_err(|e| format!("saving the frame failed: {e}"))?;
 
     tracing::info!(
         "Secondary rig '{}' saved frame {} -> {}",
@@ -786,25 +810,44 @@ async fn capture_secondary_frame(
     Ok(SecondaryFrameOutcome::Saved)
 }
 
-fn secondary_file_name(target: Option<&str>, rig_label: &str, frame_index: u32) -> String {
-    let safe_target = target
-        .map(sanitize_component)
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "Untitled".to_string());
-    let safe_rig = sanitize_component(rig_label);
-    format!("{safe_target}_{safe_rig}_{frame_index:04}.fits")
-}
-
-fn sanitize_component(s: &str) -> String {
-    s.chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
+/// Names the secondary's frames as a capture step names its own: the
+/// configured template (or the default one) under the rig's folder, each at
+/// the next frame number not on disk and not handed out to another camera.
+fn secondary_frame_namer(
+    config: &SecondaryRigConfig,
+    device_ops: &SharedDeviceOps,
+    meta: &SecondaryFrameMeta,
+    save_dir: std::path::PathBuf,
+) -> Result<crate::frame_naming::FrameSavePathRenderer, String> {
+    let mut naming = crate::node::ExecutionContext::new(
+        format!("secondary:{}", config.rig_label),
+        device_ops.clone(),
+    );
+    naming.run.rig.save_path = Some(save_dir);
+    naming.target_name = Some(
+        meta.target_name
+            .clone()
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or_else(|| "Untitled".to_string()),
+    );
+    naming.current_filter = config.filter_name.clone();
+    crate::frame_naming::frame_namer(
+        &naming,
+        crate::frame_naming::BurstNaming {
+            save_to: config.save_to.as_deref(),
+            frame_type: crate::FrameType::Light,
+            gain: config.gain,
+            offset: config.offset,
+            binning: match config.bin_x {
+                2 => crate::Binning::Two,
+                3 => crate::Binning::Three,
+                4 => crate::Binning::Four,
+                _ => crate::Binning::One,
+            },
+            filter_index: None,
+            duration_secs: config.exposure_secs,
+        },
+    )
 }
 
 #[cfg(test)]
@@ -924,12 +967,6 @@ mod tests {
         barrier.mark_exposure_finished();
         barrier.mark_exposure_started(600.0);
         assert!(barrier.should_abort_in_flight());
-    }
-
-    #[test]
-    fn file_name_is_sanitized_and_indexed() {
-        let n = secondary_file_name(Some("M 31 / Andromeda"), "Wide Field", 7);
-        assert_eq!(n, "M_31___Andromeda_Wide_Field_0007.fits");
     }
 
     #[test]

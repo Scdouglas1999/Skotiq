@@ -61,10 +61,6 @@ class _QualityResult {
   const _QualityResult({required this.frame, required this.tiles});
 }
 
-final scienceBackendProvider = Provider<ScienceBackend>((ref) {
-  return DefaultScienceBackend(ref);
-});
-
 /// Convert a pixel-space motion vector (dxPixels, dyPixels in image pixels)
 /// to a celestial position angle measured North-through-East in degrees,
 /// given a WCS rotation in degrees.

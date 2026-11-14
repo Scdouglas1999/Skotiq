@@ -3,11 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/settings_catalog.dart';
 import 'package:skotiq_app/screens/settings/widgets/end_of_night_calibration_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' as db;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/database.dart' as db;
 
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// A rig with tonight's lights, a camera and a wheel without a dark slot, so
 /// the step stops to ask for a cap.
@@ -18,8 +20,8 @@ class _CapRig extends Fake implements EonRig {
   DateTime now() => DateTime(2026, 10, 22, 6);
 
   @override
-  Future<List<db.CapturedImage>> lightFramesSince(DateTime since) async => [
-        db.CapturedImage(
+  Future<List<db.DbCapturedImage>> lightFramesSince(DateTime since) async => [
+        db.DbCapturedImage(
           id: 1,
           filePath: '/n/L_1.fits',
           fileName: 'L_1.fits',
@@ -70,9 +72,10 @@ void main() {
   testWidgets('the section lives in Automation & Safety', (
     tester,
   ) async {
-    expect(groupTitleForKey('end-of-night-calibration'), 'Automation & Safety');
+    expect(SettingsSectionId.resolve('end-of-night-calibration')!.group.title,
+        'Automation & Safety');
     expect(
-      resolveSectionKey('end-of-night-calibration'),
+      SettingsSectionId.resolve('end-of-night-calibration')?.key,
       'end-of-night-calibration',
     );
   });

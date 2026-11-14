@@ -3,21 +3,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../actions/night_action_controller.dart';
-import '../../actions/night_rig_ops.dart' show nightCenteringConfigProvider;
 import '../../actions/solve_and_sync.dart' show solveFrameSettings;
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/plan/plan_steps_provider.dart' show nightActiveStepProvider;
-import '../mount/night_panel_parts.dart';
+import '../panel_widgets.dart';
 import 'night_solve_tab.dart';
 import 'recent_solves_provider.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../../../router/settings_sections.dart';
+import '../../../../router/app_routes.dart';
 
 /// Where the solver settings live.
-const String kNightSolveSettingsRoute = '/settings?section=plate-solving';
+final String kNightSolveSettingsRoute =
+    AppRoutes.settings(SettingsSectionId.plateSolving);
 
 /// Rotation within this many degrees of the target needs no correction.
 const double kNightRotationToleranceDeg = 0.5;
@@ -53,7 +59,6 @@ class NightSolveSettingsSection extends ConsumerWidget {
       profile: ref.watch(activeEquipmentProfileProvider),
     );
     final filter = ref.watch(filterWheelStateProvider).currentFilterName;
-    final centering = ref.watch(nightCenteringConfigProvider);
     final planCenter = ref.watch(nightPlanCenterNodeProvider);
     final exposure = frame.exposureTime;
     return NightPanelSection(
@@ -86,18 +91,17 @@ class NightSolveSettingsSection extends ConsumerWidget {
               },
             ),
           ),
-        if (centering != null)
-          NightPanelNote(
-            l10n.text(
-              settings?.blindSolve == true
-                  ? 'nightScopeSolveCenterRuleBlind'
-                  : 'nightScopeSolveCenterRule',
-              params: {
-                'arcsec': _number(centering.toleranceArcsec),
-                'attempts': '${centering.maxIterations}',
-              },
-            ),
+        NightPanelNote(
+          l10n.text(
+            settings?.blindSolve == true
+                ? 'nightScopeSolveCenterRuleBlind'
+                : 'nightScopeSolveCenterRule',
+            params: {
+              'arcsec': _number(ManualCentering.toleranceArcsec),
+              'attempts': '${ManualCentering.maxIterations}',
+            },
           ),
+        ),
         NightPanelButtonGrid(
           columns: 1,
           buttons: [
@@ -120,7 +124,6 @@ class NightSolveRotationSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final result = ref.watch(plateSolveStateProvider).lastResult;
     final targetRotation = ref.watch(nightSolveTargetRotationProvider);
     final rotator = ref.watch(rotatorStateProvider);
@@ -132,7 +135,7 @@ class NightSolveRotationSection extends ConsumerWidget {
             : null;
 
     final String advice;
-    Color? tone;
+    MetricGridTone? tone;
     if (measured == null) {
       advice = l10n.text('nightScopeRotationNoSolve');
     } else if (targetRotation == null) {
@@ -150,7 +153,7 @@ class NightSolveRotationSection extends ConsumerWidget {
       };
       if (diff.abs() <= kNightRotationToleranceDeg) {
         advice = l10n.text('nightScopeRotationOk', params: params);
-        tone = colors.success;
+        tone = MetricGridTone.good;
       } else {
         // Which way to turn depends on the optical train, so the advice
         // gives the size of the turn and leaves the direction to a re-solve.
@@ -160,7 +163,7 @@ class NightSolveRotationSection extends ConsumerWidget {
               : 'nightScopeRotationTurnByHand',
           params: params,
         );
-        tone = colors.warning;
+        tone = MetricGridTone.warning;
       }
     }
 
@@ -169,7 +172,7 @@ class NightSolveRotationSection extends ConsumerWidget {
       trailing: hasRotator
           ? (rotator.deviceName ?? l10n.text('nightScopeRotator'))
           : l10n.text('nightScopeNoRotator'),
-      children: [NightPanelNote(advice, color: tone)],
+      children: [NightPanelNote(advice, tone: tone, maxLines: null)],
     );
   }
 }
@@ -178,7 +181,6 @@ class NightSolveRotationSection extends ConsumerWidget {
 class NightRecentSolvesSection extends ConsumerWidget {
   const NightRecentSolvesSection({super.key});
 
-  /// Rows shown.
   static const int rows = 6;
 
   @override
@@ -205,21 +207,28 @@ class NightRecentSolvesSection extends ConsumerWidget {
                 params: {'count': '$tries'},
               );
         final offset = record.offsetArcsec;
-        value = offset == null ? null : formatArcsec(offset);
+        value = offset == null ? null : AngleFormat.arcsec(offset);
       } else {
         what = l10n.text('nightScopeSolveRecentSolve');
         final ra = record.raDegrees;
         final dec = record.decDegrees;
-        if (ra != null && dec != null && target != null) {
-          value = formatArcsec(
-            separationArcsec(ra, dec, target.raHours * 15, target.decDegrees),
-          );
+        value = record.offsetArcsec == null
+            ? null
+            : AngleFormat.arcsec(record.offsetArcsec!);
+        if (value == null && ra != null && dec != null && target != null) {
+          value = AngleFormat.arcsec(AstronomyCalculations.angularSeparation(
+                ra1Deg: ra,
+                dec1Deg: dec,
+                ra2Deg: target.raHours * 15,
+                dec2Deg: target.decDegrees,
+              ) *
+              3600);
         }
       }
       if (!record.success) value = l10n.text('nightScopeSolveRecentFailed');
       children.add(
         _RecentRow(
-          time: formatClockTime(clock.toNightClock(record.at)),
+          time: ClockFormat.hm(clock.toNightClock(record.at)),
           what: what,
           value: value,
           valueColor: record.success ? null : colors.error,

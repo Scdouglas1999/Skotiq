@@ -31,47 +31,36 @@ Future<String?> _defaultDarkroomSavePicker({
   return target?.path;
 }
 
-/// Where the save chooser opens: the profile's own darkroom output folder.
+/// Where the save chooser opens: the night's darkroom folder
+/// ([OutputLocations.darkroom]), else the output root, else the platform
+/// default.
 ///
-/// The chooser used to open wherever the process was launched from — for a
-/// release build, the bundle directory — while the profile's capture path and
-/// its `darkroom/` subfolder were configured, known, and already where every
-/// draft render and night report of this night had been written.
-///
-/// The directory is only OFFERED, never created and never written to: a chooser
-/// that opens at a path the operator then navigates away from must not have
-/// left a folder behind. `getSaveLocation` ignores an initial directory that
-/// does not exist, which is the same as not naming one, so a night that has not
-/// written a darkroom folder yet falls back to the capture root and then to the
-/// platform default.
-Future<String?> _darkroomOutputDirectory(SettingsDao settings) async {
-  final String configured;
+/// The directory is only offered, never created: a chooser the operator then
+/// navigates away from must not leave a folder behind, and `getSaveLocation`
+/// ignores an initial directory that does not exist.
+Future<String?> _darkroomOutputDirectory(Ref ref) async {
+  final OutputLocations locations;
   try {
-    configured = (await settings.getImageOutputDirectory()).trim();
+    locations = await ref.read(outputLocationsProvider.future);
   } catch (error, stack) {
-    // The chooser opening at the platform default is the documented behaviour
-    // of naming no directory, so a settings read that fails must not stop an
-    // export the operator asked for — but it is still a database read that did
-    // not work, and the log is where that is answerable.
-    developer.log(
-      'Darkroom: the capture output path could not be read, so the save '
-      'chooser opens at the platform default: $error',
-      name: 'Darkroom',
-      level: 900,
+    // Opening at the platform default is what naming no directory does, so a
+    // failed read must not stop an export the operator asked for; the log is
+    // where the failed read is answerable.
+    Log.warning(
+      'Darkroom: the output folders could not be read, so the save chooser '
+      'opens at the platform default: $error',
+      source: 'Darkroom',
       stackTrace: stack,
     );
     return null;
   }
-  if (configured.isEmpty) return null;
-  final darkroom = p.join(configured, 'darkroom');
-  if (await Directory(darkroom).exists()) return darkroom;
-  if (await Directory(configured).exists()) return configured;
+  if (await locations.darkroom.exists()) return locations.darkroom.path;
+  if (await Directory(locations.root).exists()) return locations.root;
   return null;
 }
 
 /// Override point for the Darkroom export destination (tests script this).
 final darkroomSavePickerProvider = Provider<DarkroomSavePicker>((ref) {
-  final settings = ref.watch(settingsDaoProvider);
   return ({
     required String suggestedName,
     required List<String> allowedExtensions,
@@ -81,7 +70,7 @@ final darkroomSavePickerProvider = Provider<DarkroomSavePicker>((ref) {
       suggestedName: suggestedName,
       allowedExtensions: allowedExtensions,
       confirmButtonText: confirmButtonText,
-      initialDirectory: await _darkroomOutputDirectory(settings),
+      initialDirectory: await _darkroomOutputDirectory(ref),
     );
   };
 });
@@ -110,7 +99,6 @@ enum _DarkroomExportStageKind {
   /// rendered on demand rather than stored.
   afterStep,
 
-  /// The whole stack.
   finalStack;
 
   /// The wire token the export entry point reads.
@@ -126,9 +114,9 @@ enum _DarkroomExportStageKind {
   }
 }
 
-/// A file format an export can write.
 enum _DarkroomExportFormat {
   fits,
+  xisf,
   png,
   jpeg,
   tiff;
@@ -139,6 +127,8 @@ enum _DarkroomExportFormat {
     switch (this) {
       case _DarkroomExportFormat.fits:
         return 'FITS';
+      case _DarkroomExportFormat.xisf:
+        return 'XISF';
       case _DarkroomExportFormat.png:
         return 'PNG';
       case _DarkroomExportFormat.jpeg:
@@ -153,6 +143,8 @@ enum _DarkroomExportFormat {
     switch (this) {
       case _DarkroomExportFormat.fits:
         return const ['fits', 'fit'];
+      case _DarkroomExportFormat.xisf:
+        return const ['xisf'];
       case _DarkroomExportFormat.png:
         return const ['png'];
       case _DarkroomExportFormat.jpeg:
@@ -164,7 +156,8 @@ enum _DarkroomExportFormat {
 
   /// True when the format quantises the engine's `F32` samples into 8/16-bit
   /// integers, which is what needs a display mapping to be meaningful.
-  bool get isRaster => this != _DarkroomExportFormat.fits;
+  bool get isRaster =>
+      this != _DarkroomExportFormat.fits && this != _DarkroomExportFormat.xisf;
 }
 
 /// Whether the pixels a chosen stage produces have left the linear domain.
@@ -339,7 +332,6 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
   /// to cancel.
   String? _renderId;
 
-  /// True once a stop has been asked for and before the export answers.
   bool _cancelRequested = false;
 
   /// What the last export wrote, in the words the reply gave.
@@ -567,10 +559,6 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       child: ExcludeSemantics(child: button),
     );
   }
-
-  // -----------------------------------------------------------------------
-  // Pickers
-  // -----------------------------------------------------------------------
 
   /// One segment of the Stage / Format pickers, with [reason] readable by both
   /// a pointer and a screen reader.
@@ -861,10 +849,6 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // The stage / domain rules
-  // -----------------------------------------------------------------------
-
   void _setStage(_DarkroomExportStageKind kind) {
     setState(() {
       _stageKind = kind;
@@ -1033,7 +1017,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       case _DarkroomStageDomain.linear:
         return 'The ${_stageLabel()} is still linear ADU and has no display '
             'mapping, so quantizing it into 8 or 16 bits would show almost '
-            'nothing. Export FITS to keep the linear pixels, or switch on the '
+            'nothing. Export FITS or XISF to keep the linear pixels, or switch on the '
             'auto stretch below to render the 8/16-bit files through the '
             'engine\'s own transfer.';
       case _DarkroomStageDomain.undetermined:
@@ -1089,6 +1073,11 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
         return 'The engine\'s own F32 samples, with the master\'s astrometry '
             'and the recipe in HISTORY cards. Always available, at every '
             'stage.';
+      case _DarkroomExportFormat.xisf:
+        return 'The same F32 samples and astrometry as FITS, in PixInsight\'s '
+            'own format, so PixInsight shows the solution and the recipe '
+            'history where it expects them. Always available, at every '
+            'stage.';
       case _DarkroomExportFormat.png:
         return '16-bit PNG, quantized from the render\'s samples.';
       case _DarkroomExportFormat.jpeg:
@@ -1141,10 +1130,6 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
         return _replayRefusal();
     }
   }
-
-  // -----------------------------------------------------------------------
-  // Running the export
-  // -----------------------------------------------------------------------
 
   /// The file-name fragment for an `afterStep` export.
   ///
@@ -1231,11 +1216,11 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       });
 
       final reply = await darkroom.renderExport(
-        recipeJson: encodeDarkroomRecipe(
-          recipeId: widget.recipeId,
+        recipeJson: encodeRecipeEnvelope(
+          id: '${widget.recipeId}',
           baseMasterRef: widget.baseMasterPath,
           author: widget.author,
-          steps: widget.steps,
+          steps: [for (final step in widget.steps) step.toJson()],
         ),
         args: {
           'masterPath': widget.baseMasterPath,
@@ -1261,17 +1246,13 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       if (!mounted) return;
       _settle(() => _result = _describeReply(reply, outputPath));
       if (!context.mounted) return;
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'Exported ${p.basename(outputPath)}',
-        severity: SkotiqAlertSeverity.success,
-      );
       // The reveal/share is a hand-off to the OS AFTER the file is written and
-      // the success above is already recorded. It gets its OWN try: on a
-      // platform whose share sheet throws — some desktop and headless targets
-      // do — a written export must not be reported as "Export failed" and must
-      // not latch `_exportMasterFailure`. The export succeeded; only the reveal
-      // did not, and that is the smaller, non-fatal news it carries.
+      // the outcome above is recorded. It gets its OWN try: on a platform whose
+      // share sheet throws — some desktop and headless targets do — a written
+      // export must not be reported as "Export failed" and must not latch
+      // `_exportMasterFailure`. The export succeeded; only the reveal did not,
+      // and that is the one notice the operator gets.
+      var revealed = true;
       try {
         await ref.read(darkroomFileRevealerProvider)(
           context,
@@ -1281,22 +1262,23 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       } catch (revealError, revealStack) {
         // The path is on the sheet's own outcome block either way, so the
         // operator can still find the file; only the hand-off is lost, and the
-        // reason for it belongs in the log rather than in a toast.
-        developer.log(
+        // reason for it belongs in the log rather than in the notice.
+        Log.warning(
           'Darkroom: the export was written to $outputPath but could not be '
           'revealed or shared: $revealError',
-          name: 'Darkroom',
-          level: 900,
+          source: 'Darkroom',
           stackTrace: revealStack,
         );
-        if (mounted) {
-          SkotiqToastHelper.show(
-            context: context,
-            message: 'Exported ${p.basename(outputPath)}, but it could not be '
-                'revealed or shared on this device.',
-            severity: SkotiqAlertSeverity.warning,
-          );
-        }
+        revealed = false;
+      }
+      if (!mounted || !context.mounted) return;
+      if (revealed) {
+        context.showSuccessSnackBar('Exported ${p.basename(outputPath)}');
+      } else {
+        context.showWarningSnackBar(
+          'Exported ${p.basename(outputPath)}, but it could not be '
+          'revealed or shared on this device.',
+        );
       }
     } on DarkroomCancelledOutcome catch (cancelled) {
       if (!mounted) return;
@@ -1421,7 +1403,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
         lines.add(
           '${format ?? 'file'}: ${path ?? outputPath}'
           '${width != null && height != null ? ' — $width×$height' : ''}'
-          '${bytes is int ? ', ${_bytes(bytes)}' : ''}'
+          '${bytes is int ? ', ${ByteFormat.size(bytes)}' : ''}'
           '${quality != null ? ', quality $quality' : ''}'
           '${clamped is int && clamped > 0 ? ', $clamped samples clamped' : ''}',
         );
@@ -1457,14 +1439,5 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       lines.add('Recipe fingerprint: $fingerprint');
     }
     return lines.join('\n');
-  }
-
-  static String _bytes(int value) {
-    if (value < 1024) return '$value B';
-    if (value < 1024 * 1024) return '${(value / 1024).toStringAsFixed(1)} KB';
-    if (value < 1024 * 1024 * 1024) {
-      return '${(value / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(value / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 }

@@ -1,4 +1,3 @@
-// The 'no node selected' placeholder and the central _NodeEditor dispatcher widget that picks the right per-node properties widget based on the selected node's runtime type.
 part of '../node_properties_panel.dart';
 
 /// The properties column with nothing selected: the app's ONE empty-state
@@ -66,7 +65,6 @@ class _NodeEditor extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name field
                 NodePropertyField(
                   colors: colors,
                   label: 'Name',
@@ -81,11 +79,11 @@ class _NodeEditor extends ConsumerWidget {
                   ),
                 ),
 
-                // Enabled toggle
                 NodePropertyField(
                   colors: colors,
                   label: 'Enabled',
                   child: NodeToggleSwitch(
+                    label: 'Enabled',
                     colors: colors,
                     value: node.isEnabled,
                     onChanged: (value) {
@@ -98,7 +96,6 @@ class _NodeEditor extends ConsumerWidget {
 
                 const Divider(height: 32),
 
-                // Type-specific properties
                 _buildTypeSpecificProperties(ref),
 
                 const SizedBox(height: 24),

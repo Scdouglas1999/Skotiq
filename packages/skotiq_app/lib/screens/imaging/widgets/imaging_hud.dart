@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../../localization/skotiq_localizations.dart';
+import '../../../widgets/frame_purpose_label.dart';
+import '../../../tours/tour_target.dart';
 import 'overlay_widgets.dart' show HistogramPainter;
+import 'package:skotiq_core/providers.dart';
 
 /// The glass HUD over the frame (05 §14, 06 §Imaging).
 ///
@@ -61,7 +66,7 @@ class FrameInfoPill extends ConsumerWidget {
     ];
 
     return Glass(
-      key: ImagingTutorialKeys.statsPanel,
+      key: TourTarget.imagingStatsPanel.key,
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceMd,
         vertical: SkotiqTokens.spaceXs + 2,
@@ -79,7 +84,11 @@ class FrameInfoPill extends ConsumerWidget {
               StatusDot(color: colors.success),
               const SizedBox(width: SkotiqTokens.spaceSm),
               Text(
-                frameIdentity(image.settings),
+                switch (framePurposeLabel(context.l10n, image)) {
+                  final String purpose =>
+                    '$purpose · ${frameIdentity(image.settings)}',
+                  null => frameIdentity(image.settings),
+                },
                 style: SkotiqTypography.labelSm.copyWith(
                   color: colors.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -87,7 +96,7 @@ class FrameInfoPill extends ConsumerWidget {
               ),
               const SizedBox(width: gap),
               Text(
-                _clock(image.capturedAt),
+                ClockFormat.hms(image.capturedAt.toLocal()),
                 style: SkotiqTypography.caption.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -157,12 +166,6 @@ class FrameInfoPill extends ConsumerWidget {
   /// fonts carry no U+2009, so the separator rendered as a tofu box inside the
   /// number it was meant to make readable.
   static String _whole(double value) => value.round().toString();
-
-  static String _clock(DateTime at) {
-    final local = at.toLocal();
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
-  }
 }
 
 /// Bottom-right, opt-in: the preview histogram.
@@ -184,15 +187,12 @@ class HistogramHud extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final histogram = ref.watch(previewDisplayHistogramProvider);
-    // The histogram is of raw ADU once the 16-bit samples are in; before
-    // that it is of the stretched display image, so the axis ends read
-    // black and white instead of 0 and 65535.
-    final image = ref.watch(currentImageProvider);
-    final raw = image != null && image.hasRawReady && image.rawU16 != null;
+    final previewHistogram = ref.watch(previewDisplayHistogramProvider);
+    final histogram = previewHistogram?.bins;
+    final raw = previewHistogram?.isRaw ?? false;
 
     return Glass(
-      key: ImagingTutorialKeys.histogram,
+      key: TourTarget.imagingHistogram.key,
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceMd,
         vertical: SkotiqTokens.spaceSm + 2,

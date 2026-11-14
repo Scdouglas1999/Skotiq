@@ -1,7 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../models/sequence/sequence_models.dart'
-    show BinningMode, LiveStackingMethod, SequenceOverheadConfig;
+    show
+        BinningMode,
+        LiveStackingMethod,
+        LiveStackingThumbnailSize,
+        SequenceOverheadConfig;
+import '../../settings/setting.dart';
+import '../../settings/store_settings.dart';
 import '../database_provider.dart';
+import '../../database/daos/settings_dao.dart';
 
 /// Sentinel used by [SequencerDefaults.copyWith] to distinguish "leave
 /// unchanged" from "explicitly clear to null" for nullable String? fields.
@@ -34,7 +42,6 @@ final sequencerOverheadConfigProvider = Provider<SequenceOverheadConfig>((ref) {
 });
 
 class SequencerDefaults {
-  // Autofocus defaults
   final int autofocusStepSize;
   final int autofocusStepsOut;
   final double autofocusExposureDuration;
@@ -47,14 +54,12 @@ class SequencerDefaults {
   /// cadence to their actual sub-exposure length.
   final int autofocusIntervalFrames;
 
-  // Dither defaults
   final double ditherPixels;
   final double ditherSettleTime;
   final double ditherSettlePixels;
   final double ditherSettleTimeout;
   final bool ditherRaOnly;
 
-  // Exposure defaults
   final double exposureDuration;
   final bool isExposureDurationConfigured;
   final int exposureCount;
@@ -72,10 +77,6 @@ class SequencerDefaults {
   final double frameDownloadOverheadSecs;
 
   // LiveStacking defaults (palette + properties editor)
-  /// Default TCP port the broadcast endpoints bind to. 8081 keeps clear
-  /// of the headless API server's default (8080) and the dashboard.
-  final int livestackingDefaultPort;
-
   /// Whether new LiveStacking nodes default to a public-access (no
   /// auth token) broadcast. Off by default — public outreach must be
   /// an explicit choice, not the accidental default.
@@ -103,31 +104,106 @@ class SequencerDefaults {
   final bool livestackingDisableEverywhere;
 
   const SequencerDefaults({
-    this.autofocusStepSize = 100,
-    this.autofocusStepsOut = 7,
-    this.autofocusExposureDuration = 3.0,
-    this.autofocusIntervalFrames = 25,
-    this.ditherPixels = 5.0,
-    this.ditherSettleTime = 30.0,
-    this.ditherSettlePixels = 1.5,
-    this.ditherSettleTimeout = 120.0,
-    this.ditherRaOnly = false,
-    this.exposureDuration = 60.0,
-    this.isExposureDurationConfigured = false,
-    this.exposureCount = 10,
-    this.exposureFilter,
-    this.exposureGain,
-    this.exposureOffset,
-    this.exposureBinning = BinningMode.one,
-    this.exposureDitherEvery = 3,
+    required this.autofocusStepSize,
+    required this.autofocusStepsOut,
+    required this.autofocusExposureDuration,
+    required this.autofocusIntervalFrames,
+    required this.ditherPixels,
+    required this.ditherSettleTime,
+    required this.ditherSettlePixels,
+    required this.ditherSettleTimeout,
+    required this.ditherRaOnly,
+    required this.exposureDuration,
+    required this.isExposureDurationConfigured,
+    required this.exposureCount,
+    required this.exposureFilter,
+    required this.exposureGain,
+    required this.exposureOffset,
+    required this.exposureBinning,
+    required this.exposureDitherEvery,
     this.frameDownloadOverheadSecs = 2.0,
-    this.livestackingDefaultPort = 8081,
-    this.livestackingPublicByDefault = false,
-    this.livestackingDefaultStackMethod = LiveStackingMethod.average,
-    this.livestackingDefaultWatermark,
-    this.livestackingDefaultThumbnailSize = LiveStackingThumbnailSize.medium,
-    this.livestackingDisableEverywhere = false,
+    required this.livestackingPublicByDefault,
+    required this.livestackingDefaultStackMethod,
+    required this.livestackingDefaultWatermark,
+    required this.livestackingDefaultThumbnailSize,
+    required this.livestackingDisableEverywhere,
   });
+
+  /// The defaults held in the stored [rows]. A setting with no row, or one
+  /// that cannot be read, is at its declared default.
+  factory SequencerDefaults.fromRows(Map<String, String> rows) {
+    T value<T>(Setting<T> setting) => setting.fromRows(rows, setting.fallback);
+    final storedDuration = value(StoreSettings.sequencerExposureDuration);
+    final durationChosen = storedDuration != null && storedDuration > 0;
+    return SequencerDefaults(
+      autofocusStepSize: value(StoreSettings.sequencerAutofocusStepSize),
+      autofocusStepsOut: value(StoreSettings.sequencerAutofocusStepsOut),
+      autofocusExposureDuration: value(
+        StoreSettings.sequencerAutofocusExposure,
+      ),
+      autofocusIntervalFrames: value(
+        StoreSettings.sequencerAutofocusIntervalFrames,
+      ),
+      ditherPixels: value(StoreSettings.sequencerDitherPixels),
+      ditherSettleTime: value(StoreSettings.sequencerDitherSettleTime),
+      ditherSettlePixels: value(StoreSettings.sequencerDitherSettlePixels),
+      ditherSettleTimeout: value(StoreSettings.sequencerDitherSettleTimeout),
+      ditherRaOnly: value(StoreSettings.sequencerDitherRaOnly),
+      exposureDuration: durationChosen
+          ? storedDuration
+          : _exposureSecsBeforeOneIsChosen,
+      isExposureDurationConfigured: durationChosen,
+      exposureCount: value(StoreSettings.sequencerExposureCount),
+      exposureFilter: value(StoreSettings.sequencerExposureFilter),
+      exposureGain: value(StoreSettings.sequencerExposureGain),
+      exposureOffset: value(StoreSettings.sequencerExposureOffset),
+      exposureBinning: value(StoreSettings.sequencerExposureBinning),
+      exposureDitherEvery: value(StoreSettings.sequencerExposureDitherEvery),
+      livestackingPublicByDefault: value(
+        StoreSettings.liveStackingPublicByDefault,
+      ),
+      livestackingDefaultStackMethod: LiveStackingMethod.fromStorageKey(
+        value(StoreSettings.liveStackingStackMethod),
+      ),
+      livestackingDefaultWatermark: value(StoreSettings.liveStackingWatermark),
+      livestackingDefaultThumbnailSize: value(
+        StoreSettings.liveStackingThumbnailSize,
+      ),
+      livestackingDisableEverywhere: value(
+        StoreSettings.liveStackingDisableEverywhere,
+      ),
+    );
+  }
+
+  /// Every default as declared, before anything is stored.
+  static final SequencerDefaults initial = SequencerDefaults.fromRows(const {});
+
+  static const double _exposureSecsBeforeOneIsChosen = 60.0;
+
+  /// The settings these defaults are read from.
+  static const List<Setting<Object?>> settings = [
+    StoreSettings.sequencerAutofocusStepSize,
+    StoreSettings.sequencerAutofocusStepsOut,
+    StoreSettings.sequencerAutofocusExposure,
+    StoreSettings.sequencerAutofocusIntervalFrames,
+    StoreSettings.sequencerDitherPixels,
+    StoreSettings.sequencerDitherSettleTime,
+    StoreSettings.sequencerDitherSettlePixels,
+    StoreSettings.sequencerDitherSettleTimeout,
+    StoreSettings.sequencerDitherRaOnly,
+    StoreSettings.sequencerExposureDuration,
+    StoreSettings.sequencerExposureCount,
+    StoreSettings.sequencerExposureFilter,
+    StoreSettings.sequencerExposureGain,
+    StoreSettings.sequencerExposureOffset,
+    StoreSettings.sequencerExposureBinning,
+    StoreSettings.sequencerExposureDitherEvery,
+    StoreSettings.liveStackingPublicByDefault,
+    StoreSettings.liveStackingStackMethod,
+    StoreSettings.liveStackingWatermark,
+    StoreSettings.liveStackingThumbnailSize,
+    StoreSettings.liveStackingDisableEverywhere,
+  ];
 
   SequencerDefaults copyWith({
     int? autofocusStepSize,
@@ -148,7 +224,6 @@ class SequencerDefaults {
     BinningMode? exposureBinning,
     int? exposureDitherEvery,
     double? frameDownloadOverheadSecs,
-    int? livestackingDefaultPort,
     bool? livestackingPublicByDefault,
     LiveStackingMethod? livestackingDefaultStackMethod,
     Object? livestackingDefaultWatermark = _sentinel,
@@ -177,8 +252,6 @@ class SequencerDefaults {
       exposureBinning: exposureBinning ?? this.exposureBinning,
       frameDownloadOverheadSecs:
           frameDownloadOverheadSecs ?? this.frameDownloadOverheadSecs,
-      livestackingDefaultPort:
-          livestackingDefaultPort ?? this.livestackingDefaultPort,
       livestackingPublicByDefault:
           livestackingPublicByDefault ?? this.livestackingPublicByDefault,
       livestackingDefaultStackMethod:
@@ -196,54 +269,10 @@ class SequencerDefaults {
   }
 }
 
-/// Friendly thumbnail-size preset for the Settings UI.
-///
-/// Maps to width × height pairs the broadcast service consumes. The
-/// LiveStacking properties editor still exposes width / height directly
-/// for power users; this preset only governs the default applied when a
-/// fresh node is dropped into the editor.
-enum LiveStackingThumbnailSize {
-  small,
-  medium,
-  large;
-
-  /// Width in pixels.
-  int get width => switch (this) {
-    LiveStackingThumbnailSize.small => 640,
-    LiveStackingThumbnailSize.medium => 1280,
-    LiveStackingThumbnailSize.large => 1920,
-  };
-
-  /// Height in pixels (16:9 aspect ratio).
-  int get height => switch (this) {
-    LiveStackingThumbnailSize.small => 360,
-    LiveStackingThumbnailSize.medium => 720,
-    LiveStackingThumbnailSize.large => 1080,
-  };
-
-  String get label => switch (this) {
-    LiveStackingThumbnailSize.small => 'Small (640×360)',
-    LiveStackingThumbnailSize.medium => 'Medium (1280×720)',
-    LiveStackingThumbnailSize.large => 'Large (1920×1080)',
-  };
-
-  String get storageKey => switch (this) {
-    LiveStackingThumbnailSize.small => 'small',
-    LiveStackingThumbnailSize.medium => 'medium',
-    LiveStackingThumbnailSize.large => 'large',
-  };
-
-  static LiveStackingThumbnailSize fromStorageKey(String? key) => switch (key) {
-    'small' => LiveStackingThumbnailSize.small,
-    'large' => LiveStackingThumbnailSize.large,
-    _ => LiveStackingThumbnailSize.medium,
-  };
-}
-
 class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
   final Ref _ref;
 
-  SequencerDefaultsNotifier(this._ref) : super(const SequencerDefaults()) {
+  SequencerDefaultsNotifier(this._ref) : super(SequencerDefaults.initial) {
     _loadFuture = _loadDefaults();
   }
 
@@ -251,7 +280,7 @@ class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
 
   /// Wait until the saved defaults have been read from the database.
   ///
-  /// Until then [state] holds the library defaults. A start that is this
+  /// Until then [state] holds the declared defaults. A start that is this
   /// provider's first reader -- every headless night -- otherwise pushed those
   /// to the executor instead of the operator's saved dither and autofocus
   /// cadence (dither settle 30 s instead of 3 s, refocus every 25 frames
@@ -259,229 +288,70 @@ class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
   Future<void> ensureLoaded() => _loadFuture;
 
   Future<void> _loadDefaults() async {
-    final settingsDao = _ref.read(settingsDaoProvider);
+    final rows = await _ref
+        .read(settingsDaoProvider)
+        .readRows(SequencerDefaults.settings);
 
-    final stepSize =
-        int.tryParse(
-          await settingsDao.getSetting('sequencer_autofocus_step_size') ??
-              '100',
-        ) ??
-        100;
-    final stepsOut =
-        int.tryParse(
-          await settingsDao.getSetting('sequencer_autofocus_steps_out') ?? '7',
-        ) ??
-        7;
-    final exposureDuration =
-        double.tryParse(
-          await settingsDao.getSetting(
-                'sequencer_autofocus_exposure_duration',
-              ) ??
-              '3.0',
-        ) ??
-        3.0;
-    // Persisted autofocus-interval cadence.
-    final autofocusIntervalFrames =
-        int.tryParse(
-          await settingsDao.getSetting('sequencer_autofocus_interval_frames') ??
-              '25',
-        ) ??
-        25;
-
-    final ditherPixels =
-        double.tryParse(
-          await settingsDao.getSetting('sequencer_dither_pixels') ?? '5.0',
-        ) ??
-        5.0;
-    final ditherSettleTime =
-        double.tryParse(
-          await settingsDao.getSetting('sequencer_dither_settle_time') ??
-              '30.0',
-        ) ??
-        30.0;
-    final ditherSettlePixels =
-        double.tryParse(
-          await settingsDao.getSetting('sequencer_dither_settle_pixels') ??
-              '1.5',
-        ) ??
-        1.5;
-    final ditherSettleTimeout =
-        double.tryParse(
-          await settingsDao.getSetting('sequencer_dither_settle_timeout') ??
-              '120.0',
-        ) ??
-        120.0;
-    final ditherRaOnly =
-        (await settingsDao.getSetting('sequencer_dither_ra_only') ?? 'false') ==
-        'true';
-
-    final exposureDurationRaw = await settingsDao.getSetting(
-      'sequencer_exposure_duration',
-    );
-    final parsedExposureDuration = exposureDurationRaw == null
-        ? null
-        : double.tryParse(exposureDurationRaw);
-    final exposureDurationDefault =
-        parsedExposureDuration != null && parsedExposureDuration > 0
-        ? parsedExposureDuration
-        : 60.0;
-    final exposureCount =
-        int.tryParse(
-          await settingsDao.getSetting('sequencer_exposure_count') ?? '10',
-        ) ??
-        10;
-    final exposureFilter = await settingsDao.getSetting(
-      'sequencer_exposure_filter',
-    );
-    final exposureGainStr = await settingsDao.getSetting(
-      'sequencer_exposure_gain',
-    );
-    final exposureGain = exposureGainStr != null
-        ? int.tryParse(exposureGainStr)
-        : null;
-    final exposureOffsetStr = await settingsDao.getSetting(
-      'sequencer_exposure_offset',
-    );
-    final exposureOffset = exposureOffsetStr != null
-        ? int.tryParse(exposureOffsetStr)
-        : null;
-    final exposureBinningStr =
-        await settingsDao.getSetting('sequencer_exposure_binning') ?? 'one';
-    final exposureBinning = BinningMode.values.firstWhere(
-      (e) => e.name == exposureBinningStr,
-      orElse: () => BinningMode.one,
-    );
-    final exposureDitherEvery =
-        int.tryParse(
-          await settingsDao.getSetting('sequencer_exposure_dither_every') ??
-              '3',
-        ) ??
-        3;
-
-    // LiveStacking defaults.
-    final livestackingPort =
-        int.tryParse(
-          await settingsDao.getSetting('livestacking_default_port') ?? '8081',
-        ) ??
-        8081;
-    final livestackingPublic =
-        (await settingsDao.getSetting('livestacking_public_by_default')) ==
-        'true';
-    final livestackingStackMethodKey =
-        await settingsDao.getSetting('livestacking_default_stack_method') ??
-        'average';
-    final livestackingStackMethod = LiveStackingMethod.fromStorageKey(
-      livestackingStackMethodKey,
-    );
-    final livestackingWatermark = await settingsDao.getSetting(
-      'livestacking_default_watermark',
-    );
-    final livestackingThumbnailKey = await settingsDao.getSetting(
-      'livestacking_default_thumbnail_size',
-    );
-    final livestackingThumbnail = LiveStackingThumbnailSize.fromStorageKey(
-      livestackingThumbnailKey,
-    );
-    final livestackingDisableAll =
-        (await settingsDao.getSetting('livestacking_disable_everywhere')) ==
-        'true';
-
-    // Twenty-odd awaited DAO reads happened above; the provider that started
-    // them can be gone by now — a container torn down while the first read of
-    // this notifier is still in flight, which is what a run start does when it
-    // instantiates the defaults on its way to seeding the executor. Writing
-    // `state` on a disposed StateNotifier raises a Bad state that belongs to
-    // nobody: the launch has already returned, so it surfaces as an unhandled
-    // async error against whatever runs next. Nothing is being hidden — with
+    // The provider that started this read can be gone by now: a container
+    // torn down while the read is in flight, which is what a run start does
+    // when it instantiates the defaults on its way to seeding the executor.
+    // Writing `state` on a disposed StateNotifier raises a Bad state that
+    // surfaces as an unhandled async error against whatever runs next; with
     // the container gone there is no reader left for the value.
     if (!mounted) return;
-    state = SequencerDefaults(
-      autofocusStepSize: stepSize,
-      autofocusStepsOut: stepsOut,
-      autofocusExposureDuration: exposureDuration,
-      autofocusIntervalFrames: autofocusIntervalFrames,
-      ditherPixels: ditherPixels,
-      ditherSettleTime: ditherSettleTime,
-      ditherSettlePixels: ditherSettlePixels,
-      ditherSettleTimeout: ditherSettleTimeout,
-      ditherRaOnly: ditherRaOnly,
-      exposureDuration: exposureDurationDefault,
-      isExposureDurationConfigured:
-          parsedExposureDuration != null && parsedExposureDuration > 0,
-      exposureCount: exposureCount,
-      exposureFilter: exposureFilter,
-      exposureGain: exposureGain,
-      exposureOffset: exposureOffset,
-      exposureBinning: exposureBinning,
-      exposureDitherEvery: exposureDitherEvery,
-      livestackingDefaultPort: livestackingPort,
-      livestackingPublicByDefault: livestackingPublic,
-      livestackingDefaultStackMethod: livestackingStackMethod,
-      livestackingDefaultWatermark:
-          (livestackingWatermark != null && livestackingWatermark.isEmpty)
-          ? null
-          : livestackingWatermark,
-      livestackingDefaultThumbnailSize: livestackingThumbnail,
-      livestackingDisableEverywhere: livestackingDisableAll,
-    );
+    state = SequencerDefaults.fromRows(rows);
+  }
+
+  Future<void> _store(List<SettingValue<Object?>> values) async {
+    if (values.isEmpty) return;
+    await _ref.read(settingsDaoProvider).writeAll(values);
   }
 
   /// Persist the LiveStacking palette defaults so a
   /// "drop a Live Stacking node" emits a node with the user's preferred
-  /// port / stack method / watermark template.
+  /// stack method / watermark template.
   Future<void> updateLiveStackingDefaults({
-    int? defaultPort,
     bool? publicByDefault,
     LiveStackingMethod? defaultStackMethod,
     Object? defaultWatermark = _sentinel,
     LiveStackingThumbnailSize? defaultThumbnailSize,
     bool? disableEverywhere,
   }) async {
-    final settingsDao = _ref.read(settingsDaoProvider);
-    final updates = <String, String>{};
+    final values = <SettingValue<Object?>>[];
 
-    if (defaultPort != null) {
-      // The Rust LiveStackingPortClashRule fails sequences that ship
-      // with broadcast_port == 0 or matching the headless API server's
-      // port. Editor surfaces that validation; the settings store
-      // simply persists the raw value so re-edits are not lossy.
-      updates['livestacking_default_port'] = defaultPort.toString();
-      state = state.copyWith(livestackingDefaultPort: defaultPort);
-    }
     if (publicByDefault != null) {
-      updates['livestacking_public_by_default'] = publicByDefault.toString();
+      values.add(StoreSettings.liveStackingPublicByDefault.to(publicByDefault));
       state = state.copyWith(livestackingPublicByDefault: publicByDefault);
     }
     if (defaultStackMethod != null) {
-      updates['livestacking_default_stack_method'] =
-          defaultStackMethod.storageKey;
+      values.add(
+        StoreSettings.liveStackingStackMethod.to(defaultStackMethod.storageKey),
+      );
       state = state.copyWith(
         livestackingDefaultStackMethod: defaultStackMethod,
       );
     }
     if (defaultWatermark != _sentinel) {
       final value = defaultWatermark as String?;
-      // Persist empty string when explicitly cleared so the load path
-      // can distinguish "user cleared the watermark" from "field never
-      // set" (latter falls back to the in-memory default of null).
-      updates['livestacking_default_watermark'] = value ?? '';
+      values.add(StoreSettings.liveStackingWatermark.to(value));
       state = state.copyWith(livestackingDefaultWatermark: value);
     }
     if (defaultThumbnailSize != null) {
-      updates['livestacking_default_thumbnail_size'] =
-          defaultThumbnailSize.storageKey;
+      values.add(
+        StoreSettings.liveStackingThumbnailSize.to(defaultThumbnailSize),
+      );
       state = state.copyWith(
         livestackingDefaultThumbnailSize: defaultThumbnailSize,
       );
     }
     if (disableEverywhere != null) {
-      updates['livestacking_disable_everywhere'] = disableEverywhere.toString();
+      values.add(
+        StoreSettings.liveStackingDisableEverywhere.to(disableEverywhere),
+      );
       state = state.copyWith(livestackingDisableEverywhere: disableEverywhere);
     }
 
-    if (updates.isNotEmpty) {
-      await settingsDao.setSettings(updates);
-    }
+    await _store(values);
   }
 
   Future<void> updateAutofocusDefaults({
@@ -490,35 +360,29 @@ class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
     double? exposureDuration,
     int? intervalFrames,
   }) async {
-    final settingsDao = _ref.read(settingsDaoProvider);
-    final updates = <String, String>{};
+    final values = <SettingValue<Object?>>[];
 
     if (stepSize != null) {
-      updates['sequencer_autofocus_step_size'] = stepSize.toString();
+      values.add(StoreSettings.sequencerAutofocusStepSize.to(stepSize));
       state = state.copyWith(autofocusStepSize: stepSize);
     }
     if (stepsOut != null) {
-      updates['sequencer_autofocus_steps_out'] = stepsOut.toString();
+      values.add(StoreSettings.sequencerAutofocusStepsOut.to(stepsOut));
       state = state.copyWith(autofocusStepsOut: stepsOut);
     }
     if (exposureDuration != null) {
-      updates['sequencer_autofocus_exposure_duration'] = exposureDuration
-          .toString();
+      values.add(StoreSettings.sequencerAutofocusExposure.to(exposureDuration));
       state = state.copyWith(autofocusExposureDuration: exposureDuration);
     }
     if (intervalFrames != null) {
-      // Persist and push to the live executor so the
-      // autofocus-interval trigger cadence updates without a sequence reload.
-      // Validation: Rust rejects 0; clamp here as well so the UI doesn't
-      // round-trip a value that the backend will refuse.
-      final clamped = intervalFrames < 1 ? 1 : intervalFrames;
-      updates['sequencer_autofocus_interval_frames'] = clamped.toString();
-      state = state.copyWith(autofocusIntervalFrames: clamped);
+      final interval = StoreSettings.sequencerAutofocusIntervalFrames.to(
+        intervalFrames,
+      );
+      values.add(interval);
+      state = state.copyWith(autofocusIntervalFrames: interval.value);
     }
 
-    if (updates.isNotEmpty) {
-      await settingsDao.setSettings(updates);
-    }
+    await _store(values);
   }
 
   Future<void> updateDitherDefaults({
@@ -528,33 +392,30 @@ class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
     double? settleTimeout,
     bool? raOnly,
   }) async {
-    final settingsDao = _ref.read(settingsDaoProvider);
-    final updates = <String, String>{};
+    final values = <SettingValue<Object?>>[];
 
     if (pixels != null) {
-      updates['sequencer_dither_pixels'] = pixels.toString();
+      values.add(StoreSettings.sequencerDitherPixels.to(pixels));
       state = state.copyWith(ditherPixels: pixels);
     }
     if (settleTime != null) {
-      updates['sequencer_dither_settle_time'] = settleTime.toString();
+      values.add(StoreSettings.sequencerDitherSettleTime.to(settleTime));
       state = state.copyWith(ditherSettleTime: settleTime);
     }
     if (settlePixels != null) {
-      updates['sequencer_dither_settle_pixels'] = settlePixels.toString();
+      values.add(StoreSettings.sequencerDitherSettlePixels.to(settlePixels));
       state = state.copyWith(ditherSettlePixels: settlePixels);
     }
     if (settleTimeout != null) {
-      updates['sequencer_dither_settle_timeout'] = settleTimeout.toString();
+      values.add(StoreSettings.sequencerDitherSettleTimeout.to(settleTimeout));
       state = state.copyWith(ditherSettleTimeout: settleTimeout);
     }
     if (raOnly != null) {
-      updates['sequencer_dither_ra_only'] = raOnly.toString();
+      values.add(StoreSettings.sequencerDitherRaOnly.to(raOnly));
       state = state.copyWith(ditherRaOnly: raOnly);
     }
 
-    if (updates.isNotEmpty) {
-      await settingsDao.setSettings(updates);
-    }
+    await _store(values);
   }
 
   Future<void> updateExposureDefaults({
@@ -566,43 +427,40 @@ class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
     BinningMode? binning,
     int? ditherEvery,
   }) async {
-    final settingsDao = _ref.read(settingsDaoProvider);
-    final updates = <String, String>{};
+    final values = <SettingValue<Object?>>[];
 
     if (duration != null) {
-      updates['sequencer_exposure_duration'] = duration.toString();
+      values.add(StoreSettings.sequencerExposureDuration.to(duration));
       state = state.copyWith(
         exposureDuration: duration,
         isExposureDurationConfigured: true,
       );
     }
     if (count != null) {
-      updates['sequencer_exposure_count'] = count.toString();
+      values.add(StoreSettings.sequencerExposureCount.to(count));
       state = state.copyWith(exposureCount: count);
     }
     if (filter != null) {
-      updates['sequencer_exposure_filter'] = filter;
+      values.add(StoreSettings.sequencerExposureFilter.to(filter));
       state = state.copyWith(exposureFilter: filter);
     }
     if (gain != null) {
-      updates['sequencer_exposure_gain'] = gain.toString();
+      values.add(StoreSettings.sequencerExposureGain.to(gain));
       state = state.copyWith(exposureGain: gain);
     }
     if (offset != null) {
-      updates['sequencer_exposure_offset'] = offset.toString();
+      values.add(StoreSettings.sequencerExposureOffset.to(offset));
       state = state.copyWith(exposureOffset: offset);
     }
     if (binning != null) {
-      updates['sequencer_exposure_binning'] = binning.name;
+      values.add(StoreSettings.sequencerExposureBinning.to(binning));
       state = state.copyWith(exposureBinning: binning);
     }
     if (ditherEvery != null) {
-      updates['sequencer_exposure_dither_every'] = ditherEvery.toString();
+      values.add(StoreSettings.sequencerExposureDitherEvery.to(ditherEvery));
       state = state.copyWith(exposureDitherEvery: ditherEvery);
     }
 
-    if (updates.isNotEmpty) {
-      await settingsDao.setSettings(updates);
-    }
+    await _store(values);
   }
 }

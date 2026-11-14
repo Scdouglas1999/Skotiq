@@ -59,6 +59,34 @@ enum LiveStackingMethod {
   };
 }
 
+/// Size of the broadcast thumbnail a new Live Stacking node starts with. The
+/// node's properties editor still sets width and height directly.
+enum LiveStackingThumbnailSize {
+  small,
+  medium,
+  large;
+
+  /// Width in pixels.
+  int get width => switch (this) {
+    LiveStackingThumbnailSize.small => 640,
+    LiveStackingThumbnailSize.medium => 1280,
+    LiveStackingThumbnailSize.large => 1920,
+  };
+
+  /// Height in pixels (16:9 aspect ratio).
+  int get height => switch (this) {
+    LiveStackingThumbnailSize.small => 360,
+    LiveStackingThumbnailSize.medium => 720,
+    LiveStackingThumbnailSize.large => 1080,
+  };
+
+  String get label => switch (this) {
+    LiveStackingThumbnailSize.small => 'Small (640×360)',
+    LiveStackingThumbnailSize.medium => 'Medium (1280×720)',
+    LiveStackingThumbnailSize.large => 'Large (1920×1080)',
+  };
+}
+
 /// EAA / outreach broadcast node.
 ///
 /// When entered, the node arms the broadcast service (a Rust singleton
@@ -89,15 +117,6 @@ class LiveStackingNode extends SequenceNode {
   /// Whether the broadcast endpoint serves requests. Off => stack
   /// builds in memory but `/api/broadcast/live-stack` returns 404.
   final bool broadcastEnabled;
-
-  /// TCP port for the broadcast endpoints. Defaults to 8081. Must
-  /// not clash with the headless API server's port (validated by
-  /// [LiveStackingPortClashRule] at edit time).
-  final int broadcastPort;
-
-  /// HTTP path prefix the broadcast HTML page is served at. Defaults
-  /// to `/broadcast`. Useful for vanity URLs at public events.
-  final String broadcastPath;
 
   /// Optional shared secret. When set (non-empty), every broadcast
   /// endpoint requires `?token=…` matching this value. `null` (or
@@ -130,33 +149,22 @@ class LiveStackingNode extends SequenceNode {
     this.stackMethod = LiveStackingMethod.average,
     this.maxFramesToStack = 0,
     this.broadcastEnabled = true,
-    this.broadcastPort = 8081,
-    this.broadcastPath = '/broadcast',
     this.authToken,
     this.watermarkText,
     this.thumbnailWidth = 1280,
     this.thumbnailHeight = 720,
   });
 
-  @override
-  String get nodeType => 'LiveStacking';
-
-  @override
-  String get iconName => 'cast_connected';
-
-  @override
-  NodeCategory get category => NodeCategory.instruction;
-
-  @override
-  Set<DeviceType> get requiredDevices => const <DeviceType>{};
-
-  /// True when the user has explicitly set a non-empty auth token.
-  /// Used by the run-dashboard "Public" / "Private" badge.
+  /// True when no auth token is set, so anyone who can reach the broadcast
+  /// page can watch it.
   bool get isPublic => authToken == null || authToken!.isEmpty;
 
   /// True when a watermark template is configured.
   bool get hasWatermark =>
       watermarkText != null && watermarkText!.trim().isNotEmpty;
+
+  @override
+  NodeKind<LiveStackingNode> get kind => NodeKinds.liveStacking;
 
   @override
   LiveStackingNode copyWith({
@@ -171,8 +179,6 @@ class LiveStackingNode extends SequenceNode {
     LiveStackingMethod? stackMethod,
     int? maxFramesToStack,
     bool? broadcastEnabled,
-    int? broadcastPort,
-    String? broadcastPath,
     // Plain `?? this.X` for authToken and watermarkText. To clear back to
     // null (e.g. flipping a stream from private to public, or removing the
     // watermark) pass `clearAuthToken: true` / `clearWatermarkText: true`,
@@ -196,8 +202,6 @@ class LiveStackingNode extends SequenceNode {
       stackMethod: stackMethod ?? this.stackMethod,
       maxFramesToStack: maxFramesToStack ?? this.maxFramesToStack,
       broadcastEnabled: broadcastEnabled ?? this.broadcastEnabled,
-      broadcastPort: broadcastPort ?? this.broadcastPort,
-      broadcastPath: broadcastPath ?? this.broadcastPath,
       authToken: clearAuthToken ? null : (authToken ?? this.authToken),
       watermarkText: clearWatermarkText
           ? null
@@ -214,8 +218,6 @@ class LiveStackingNode extends SequenceNode {
     stackMethod,
     maxFramesToStack,
     broadcastEnabled,
-    broadcastPort,
-    broadcastPath,
     authToken,
     watermarkText,
     thumbnailWidth,
@@ -265,20 +267,4 @@ double? parseHumanDurationSecs(String input) {
     }
   }
   return total;
-}
-
-/// Format a duration in seconds as a compact "Xh Ym" string. Used by the
-/// integration-budget read-back in the properties editor and the Run
-/// Dashboard's filter-integration panel.
-String formatHumanDurationSecs(double secs) {
-  if (secs <= 0) return '0s';
-  final totalSecs = secs.round();
-  final hours = totalSecs ~/ 3600;
-  final minutes = (totalSecs % 3600) ~/ 60;
-  final seconds = totalSecs % 60;
-  if (hours > 0 && minutes > 0) return '${hours}h ${minutes}m';
-  if (hours > 0) return '${hours}h';
-  if (minutes > 0 && seconds > 0) return '${minutes}m ${seconds}s';
-  if (minutes > 0) return '${minutes}m';
-  return '${seconds}s';
 }

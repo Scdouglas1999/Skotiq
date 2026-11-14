@@ -1,21 +1,19 @@
 part of '../notification_routing_settings.dart';
 
 class _TransportsSection extends ConsumerWidget {
-  final bool isMobile;
-
-  const _TransportsSection({required this.isMobile});
+  const _TransportsSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
+    return const Column(
       children: [
-        _EmailTransportSection(isMobile: isMobile),
-        _WebhookTransportSection(isMobile: isMobile),
-        _PushoverRoutingSection(isMobile: isMobile),
-        _TelegramTransportSection(isMobile: isMobile),
-        _DiscordRoutingSection(isMobile: isMobile),
-        _MqttTransportSection(isMobile: isMobile),
-        _HomeAssistantSection(isMobile: isMobile),
+        _EmailTransportSection(),
+        _WebhookTransportSection(),
+        _PushoverRoutingSection(),
+        _TelegramTransportSection(),
+        _DiscordRoutingSection(),
+        _MqttTransportSection(),
+        _HomeAssistantSection(),
       ],
     );
   }
@@ -44,7 +42,6 @@ class _SecretFieldRow extends StatefulWidget {
   /// Optional hint shown while editing (e.g. "your bot token").
   final String? hint;
 
-  final bool isMobile;
   final ValueChanged<String>? onChanged;
   final VoidCallback? onClear;
 
@@ -53,7 +50,6 @@ class _SecretFieldRow extends StatefulWidget {
     required this.title,
     required this.controller,
     required this.hasStoredValue,
-    required this.isMobile,
     this.subtitle,
     this.hint,
     this.onChanged,
@@ -98,7 +94,6 @@ class _SecretFieldRowState extends State<_SecretFieldRow> {
           context: context,
           controller: widget.controller,
           hint: widget.hint ?? '',
-          isMobile: widget.isMobile,
           obscure: true,
           onChanged: widget.onChanged,
         ),
@@ -203,7 +198,7 @@ Widget _transportErrorSection({
       SettingRow(
         icon: LucideIcons.alertTriangle,
         title: 'Could not load configuration',
-        subtitle: error.toString(),
+        subtitle: userFacingError(error),
         trailing: SkotiqButton(
           label: 'Retry',
           icon: LucideIcons.refreshCw,
@@ -392,10 +387,9 @@ class _SaveButtonState extends State<_SaveButton> {
     }
     if (!mounted) return;
     setState(() => _busy = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-          result.ok ? widget.successMessage : (result.message ?? 'Failed.')),
-    ));
+    context.showInfoSnackBar(
+      result.ok ? widget.successMessage : (result.message ?? 'Failed.'),
+    );
   }
 
   @override
@@ -463,13 +457,13 @@ class _TestSendButtonState extends ConsumerState<_TestSendButton> {
       _result = res;
       _busy = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-        res.success
-            ? 'Test sent via ${widget.kind.label}'
-            : 'Failed: ${res.error}',
-      ),
-    ));
+    context.showInfoSnackBar(
+      res.success
+          ? 'Test sent via ${widget.kind.label}'
+          : res.skipped
+              ? 'Not sent: ${res.error}'
+              : 'Failed: ${res.error}',
+    );
   }
 
   @override

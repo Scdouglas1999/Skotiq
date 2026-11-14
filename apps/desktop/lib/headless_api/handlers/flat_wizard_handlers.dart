@@ -1,12 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
-/// Handlers for flat frame calibration and sequence generation
-class FlatWizardHandlers {
+class FlatWizardHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    FlatWizardApi.calibrateFilter: handleCalibrateFilter,
+    FlatWizardApi.calibrateMultipleFilters: handleCalibrateMultipleFilters,
+    FlatWizardApi.generateSequence: handleGenerateSequence,
+    FlatWizardApi.quickCalibrate: handleQuickCalibrate,
+  };
+
   final ProviderContainer container;
 
   FlatWizardHandlers(this.container);
@@ -15,8 +26,6 @@ class FlatWizardHandlers {
 
   void _logInfo(String message) =>
       _logger.info(message, source: 'FlatWizardHandlers');
-
-  // Calibrate single filter
 
   Future<Response> handleCalibrateFilter(Request request) async {
     _logInfo('[API] POST /api/flat-wizard/calibrate');
@@ -55,8 +64,6 @@ class FlatWizardHandlers {
     return jsonOk({'result': _flatResultToJson(result)});
   }
 
-  // Calibrate multiple filters
-
   Future<Response> handleCalibrateMultipleFilters(Request request) async {
     _logInfo('[API] POST /api/flat-wizard/calibrate-multi');
     final payload = await readJsonObject(request);
@@ -92,8 +99,6 @@ class FlatWizardHandlers {
       'results': results.map((r) => _flatResultToJson(r)).toList(),
     });
   }
-
-  // Generate Sequence from Calibrations
 
   Future<Response> handleGenerateSequence(Request request) async {
     _logInfo('[API] POST /api/flat-wizard/generate-sequence');
@@ -215,8 +220,6 @@ class FlatWizardHandlers {
 
     return jsonOk({'sequence': _sequenceToJson(sequence)});
   }
-
-  // Quick calibrate
 
   Future<Response> handleQuickCalibrate(Request request) async {
     _logInfo('[API] POST /api/flat-wizard/quick-calibrate');
@@ -358,15 +361,15 @@ class FlatWizardHandlers {
     return value;
   }
 
-  /// Optional maximum iteration count, defaulting to 10, bounded and positive.
-  int _optionalMaxIterations(Map<String, dynamic> payload) {
+  /// Optional maximum iteration count, bounded and positive. Absent means the
+  /// host's "Exposure calibration attempts" setting, which the service applies.
+  int? _optionalMaxIterations(Map<String, dynamic> payload) {
     return optionalInt(
-          payload,
-          'maxIterations',
-          min: 1,
-          max: _maxIterationsLimit,
-        ) ??
-        10;
+      payload,
+      'maxIterations',
+      min: 1,
+      max: _maxIterationsLimit,
+    );
   }
 
   /// Optional binning, defaulting to 1x1, each axis a positive value within the
@@ -475,8 +478,6 @@ class FlatWizardHandlers {
     return cleaned;
   }
 
-  // Helpers
-
   (int, int) _resolveGainOffset(Map<String, dynamic> payload) {
     // Client-supplied values are already floored at 0 here, so a negative can
     // only enter through a profile fallback below.
@@ -558,7 +559,6 @@ class FlatWizardHandlers {
       'isEnabled': node.isEnabled,
     };
 
-    // Add type-specific fields
     if (node is ExposureNode) {
       base['durationSecs'] = node.durationSecs;
       base['count'] = node.count;

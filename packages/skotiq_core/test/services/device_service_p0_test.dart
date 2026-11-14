@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/disconnected_backend.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' hide CameraState;
+import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/backend/device_types.dart'
     as device_types;
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
@@ -12,9 +12,10 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 class TestBackendNotifier extends BackendNotifier {
   TestBackendNotifier(super.ref, SkotiqBackend initial) {
@@ -64,13 +65,6 @@ void main() {
         canSetOffset: false,
       ),
     );
-    when(
-      () => mockBackend.startDeviceHeartbeat(
-        deviceType: any(named: 'deviceType'),
-        deviceId: any(named: 'deviceId'),
-        intervalMs: any(named: 'intervalMs'),
-      ),
-    ).thenAnswer((_) async {});
 
     container = ProviderContainer(
       overrides: [
@@ -98,14 +92,11 @@ void main() {
         camNotifier.setConnected();
 
         when(
-          () => mockBackend.stopDeviceHeartbeat(deviceId),
-        ).thenAnswer((_) async {});
-        when(
           () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
         ).thenAnswer((_) async {});
 
         final service = container.read(deviceServiceProvider);
-        await service.disconnectCamera();
+        await service.disconnect(DeviceType.camera);
 
         eventStreamController.add(
           SkotiqEvent(
@@ -137,9 +128,6 @@ void main() {
         camNotifier.setConnected();
 
         when(
-          () => mockBackend.stopDeviceHeartbeat(deviceId),
-        ).thenAnswer((_) async {});
-        when(
           () => mockBackend.disconnectDevice(DeviceType.camera, deviceId),
         ).thenThrow(Exception('INDI driver rejected disconnect'));
 
@@ -158,9 +146,6 @@ void main() {
       mountNotifier.setConnecting(deviceId, 'Test Mount');
       mountNotifier.setConnected();
 
-      when(
-        () => mockBackend.stopDeviceHeartbeat(deviceId),
-      ).thenAnswer((_) async {});
       when(
         () => mockBackend.disconnectDevice(DeviceType.mount, deviceId),
       ).thenThrow(Exception('COM disconnect failed'));
@@ -246,7 +231,7 @@ void main() {
         ).thenAnswer((_) => connectCompleter.future);
 
         final service = container.read(deviceServiceProvider);
-        final connectFuture = service.connectCamera(deviceId);
+        final connectFuture = service.connect(DeviceType.camera, deviceId);
         await Future<void>.delayed(Duration.zero);
 
         final disconnectFuture = container
@@ -292,7 +277,7 @@ void main() {
         ).thenAnswer((_) async {});
 
         final service = container.read(deviceServiceProvider);
-        await service.connectCamera(deviceId);
+        await service.connect(DeviceType.camera, deviceId);
 
         verifyNever(() => mockBackend.discoverDevices(DeviceType.camera));
         expect(container.read(cameraStateProvider).deviceName, 'Known Camera');
@@ -307,8 +292,9 @@ void main() {
         const deviceId = TestFixtures.cameraId;
         final callOrder = <String>[];
 
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.running);
         container.read(cameraStateProvider.notifier)
           ..setAutoReconnect(false)
           ..setConnecting(deviceId, 'Test Camera')
@@ -342,8 +328,9 @@ void main() {
       () async {
         const deviceId = TestFixtures.mountId;
 
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.paused;
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.paused);
         container.read(mountStateProvider.notifier)
           ..setAutoReconnect(false)
           ..setConnecting(deviceId, 'Test Mount')

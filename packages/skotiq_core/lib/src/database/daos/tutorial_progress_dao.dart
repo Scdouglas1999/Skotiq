@@ -26,12 +26,10 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
     final existing = await getProgress(category);
 
     if (existing != null) {
-      // Update existing entry
       await (update(tutorialProgress)
             ..where((t) => t.category.equals(category)))
           .write(TutorialProgressCompanion(lastStepIndex: Value(stepIndex)));
     } else {
-      // Create new entry
       await into(tutorialProgress).insert(
         TutorialProgressCompanion.insert(
           category: category,
@@ -80,7 +78,6 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
             ..where((t) => t.category.equals(category)))
           .write(const TutorialProgressCompanion(dismissed: Value(true)));
     } else {
-      // Create entry if it doesn't exist
       await into(tutorialProgress).insert(
         TutorialProgressCompanion.insert(
           category: category,
@@ -89,14 +86,6 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
         ),
       );
     }
-  }
-
-  /// Reset progress for a tutorial category.
-  /// Deletes the progress entry so the tutorial can be restarted fresh.
-  Future<void> resetProgress(String category) async {
-    await (delete(
-      tutorialProgress,
-    )..where((t) => t.category.equals(category))).go();
   }
 
   /// Replace any saved state for [category] with a fresh step-zero run.
@@ -126,44 +115,10 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
     return select(tutorialProgress).get();
   }
 
-  /// Watch all tutorial progress entries for reactive updates.
-  Stream<List<TutorialProgressEntry>> watchAllProgress() {
-    return select(tutorialProgress).watch();
-  }
-
-  /// Check if a tutorial category has been completed.
-  Future<bool> isCategoryCompleted(String category) async {
-    final progress = await getProgress(category);
-    return progress?.completed ?? false;
-  }
-
-  /// Check if a tutorial category has been dismissed.
-  Future<bool> isCategoryDismissed(String category) async {
-    final progress = await getProgress(category);
-    return progress?.dismissed ?? false;
-  }
-
-  /// Get all completed tutorial categories.
-  Future<List<String>> getCompletedCategories() async {
-    final entries = await (select(
-      tutorialProgress,
-    )..where((t) => t.completed.equals(true))).get();
-    return entries.map((e) => e.category).toList();
-  }
-
   /// Reset all tutorial progress.
   /// Useful for a "reset all tutorials" settings option.
   Future<void> resetAllProgress() async {
     await delete(tutorialProgress).go();
-  }
-
-  /// Get all dismissed screen IDs for contextual tour prompts.
-  /// Returns a set of screen IDs that have been dismissed.
-  Future<Set<String>> getDismissedPromptScreenIds() async {
-    final entries = await (select(
-      tutorialProgress,
-    )..where((t) => t.dismissed.equals(true))).get();
-    return entries.map((e) => e.category).toSet();
   }
 
   /// Mark a screen's contextual tour prompt as dismissed.
@@ -176,7 +131,6 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
             ..where((t) => t.category.equals(screenId)))
           .write(const TutorialProgressCompanion(dismissed: Value(true)));
     } else {
-      // Create entry for the screen prompt dismissal
       await into(tutorialProgress).insert(
         TutorialProgressCompanion.insert(
           category: screenId,
@@ -185,12 +139,6 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
         ),
       );
     }
-  }
-
-  /// Check if a screen's contextual tour prompt has been dismissed.
-  Future<bool> isPromptDismissedForScreen(String screenId) async {
-    final progress = await getProgress(screenId);
-    return progress?.dismissed ?? false;
   }
 
   /// Watch dismissed prompt screen IDs for reactive updates.

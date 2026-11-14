@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import 'confirm_dialog.dart';
 
@@ -25,8 +28,7 @@ Future<bool> confirmDisconnectCooledCamera(
   if (!connected || (!cam.isCooling && !cam.isWarming)) return true;
 
   final temp = cam.temperature;
-  final tempNote =
-      temp != null ? ' (sensor at ${temp.toStringAsFixed(1)}°C)' : '';
+  final tempNote = temp != null ? ' (sensor at ${formatCelsius(temp)})' : '';
   return ConfirmDialog.show(
     context: context,
     title: 'Disconnect cooled camera?',

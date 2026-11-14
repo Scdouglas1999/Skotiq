@@ -14,8 +14,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/imaging_keys.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../harness/harness.dart';
 
@@ -97,7 +99,7 @@ void main() {
     addTearDown(service.finish);
 
     // Start a 30 s exposure and let it run to 20%.
-    await tester.tap(find.byKey(ImagingTutorialKeys.snapshotBtn));
+    await tester.tap(find.byKey(TourTarget.imagingSnapshotButton.key));
     await _drain(tester);
     final progress = handle.container.read(exposureProgressProvider.notifier)
       ..startExposure(30, 1, null);
@@ -106,12 +108,12 @@ void main() {
 
     expect(find.text('Exposing...'), findsOneWidget);
     expect(find.text('24.0s remaining'), findsOneWidget);
-    expect(find.byKey(ImagingTutorialKeys.abortBtn), findsOneWidget);
+    expect(find.byKey(TourTarget.imagingAbortButton.key), findsOneWidget);
 
     // Abort. The device keeps publishing progress for the exposure it was told
     // to drop — the same three ticks the release build showed after "Exposure
     // cancelled" was logged.
-    await tester.tap(find.byKey(ImagingTutorialKeys.abortBtn));
+    await tester.tap(find.byKey(TourTarget.imagingAbortButton.key));
     await _drain(tester);
     expect(service.cancelRequested, isTrue,
         reason: 'the abort must reach the imaging service, not just the UI');
@@ -132,7 +134,7 @@ void main() {
       reason: 'counting down to a frame that will never arrive is the defect',
     );
     expect(
-      find.byKey(ImagingTutorialKeys.abortBtn),
+      find.byKey(TourTarget.imagingAbortButton.key),
       findsNothing,
       reason: 'a second abort has nothing left to cancel',
     );

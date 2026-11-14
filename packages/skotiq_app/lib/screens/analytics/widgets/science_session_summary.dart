@@ -1,7 +1,11 @@
+import 'package:skotiq_core/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../analytics_screen.dart'
@@ -84,6 +88,7 @@ class ScienceSessionSummary extends ConsumerWidget {
     }
 
     final solveStats = _solveStats(images);
+    final uniformityCv = latestFrameQuality?.measuredUniformityCv;
 
     // Resolve the target the active session is bound to so we can offer a
     // "see all sessions for this target" link. Quick-capture sessions
@@ -221,18 +226,18 @@ class ScienceSessionSummary extends ConsumerWidget {
                     colors: colors,
                     icon: LucideIcons.layoutGrid,
                     label: 'Uniformity CV',
-                    value: latestFrameQuality == null
+                    value: uniformityCv == null
                         ? kReadoutUnknown
-                        : latestFrameQuality.uniformityCv.toStringAsFixed(3),
+                        : uniformityCv.toStringAsFixed(3),
                     sub: latestFrameQuality == null
                         ? null
                         : latestFrameQuality.snr > 0
                             ? 'Sky/read noise '
                                 '${latestFrameQuality.snr.toStringAsFixed(1)}x'
                             : null,
-                    tone: latestFrameQuality == null
+                    tone: uniformityCv == null
                         ? colors.textMuted
-                        : latestFrameQuality.uniformityCv > 0.28
+                        : uniformityCv > 0.28
                             ? colors.warning
                             : colors.success,
                     tooltip:
@@ -255,9 +260,8 @@ class ScienceSessionSummary extends ConsumerWidget {
   }
 
   static _SolveStats _solveStats(List<DbCapturedImage> images) {
-    final lights = images
-        .where((image) => image.frameType.toLowerCase() == 'light')
-        .toList(growable: false);
+    final lights =
+        images.where((image) => image.isLight).toList(growable: false);
     if (lights.isEmpty) {
       return const _SolveStats(rate: null, total: 0, solved: 0);
     }
@@ -313,7 +317,7 @@ class _SummaryLoadNotice extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Science summary incomplete: $error'
+              'Science summary incomplete: ${userFacingError(error)}'
               '${additionalErrorCount > 0 ? ' (+$additionalErrorCount more)' : ''}',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -359,14 +363,8 @@ class _SolveStats {
 /// rebuild from any other state change doesn't refetch the session row.
 final scienceSessionTargetIdProvider =
     FutureProvider.family<int?, int>((ref, sessionId) async {
-  final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) {
-    final session = await backend.getSessionById(sessionId);
-    final targetId = session?['targetId'] ?? session?['target_id'];
-    return (targetId as num?)?.toInt();
-  }
-  final dao = ref.watch(sessionsDaoProvider);
-  final session = await dao.getSessionById(sessionId);
+  final session =
+      await ref.watch(imagingRecordsProvider).getSessionById(sessionId);
   return session?.targetId;
 });
 

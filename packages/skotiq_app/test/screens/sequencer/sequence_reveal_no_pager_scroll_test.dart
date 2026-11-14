@@ -19,7 +19,8 @@ import 'package:skotiq_app/screens/sequencer/widgets/sequence_step_finder.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/target_queue_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
 
@@ -94,8 +95,6 @@ void main() {
             notifier.state = sequence;
             return notifier;
           }),
-          sequenceExecutionStateProvider
-              .overrideWith((ref) => SequenceExecutionState.idle),
           // The ledger ETA clock is a real periodic stream; in the fake-async
           // zone its timer outlives every pump and fails teardown.
           ledgerClockProvider
@@ -189,7 +188,7 @@ void main() {
 
     await expectRevealMovesOnlyTheTree(tester, () async {
       handle.container
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
           .updateProgress(currentNodeId: seed.lastExposureId);
     });
   });

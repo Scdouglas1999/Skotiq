@@ -12,10 +12,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
+import '../../../utils/snackbar_helper.dart';
 
 class SecondaryRigCard extends ConsumerWidget {
   const SecondaryRigCard({super.key});
@@ -73,8 +75,6 @@ class SecondaryRigCard extends ConsumerWidget {
               style: theme.textTheme.bodySmall,
             ),
             const Divider(height: 24),
-
-            // Camera selection.
             camerasAsync.when(
               data: (cameras) {
                 final selectable = cameras
@@ -119,8 +119,6 @@ class SecondaryRigCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Exposure + bin row.
             Row(
               children: [
                 Expanded(
@@ -146,8 +144,6 @@ class SecondaryRigCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-
-            // Frame count + dither policy row.
             Row(
               children: [
                 Expanded(
@@ -184,8 +180,6 @@ class SecondaryRigCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
-
-            // Controls.
             Row(
               children: [
                 if (statusAsync.hasError) ...[
@@ -269,8 +263,8 @@ class SecondaryRigCard extends ConsumerWidget {
           .start(const SecondaryRigStartContext());
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not start secondary rig: $e')),
+        context.showErrorSnackBar(
+          'Could not start secondary rig: ${userFacingError(e)}',
         );
       }
     }
@@ -281,8 +275,8 @@ class SecondaryRigCard extends ConsumerWidget {
       await ref.read(secondaryRigControllerProvider).stop();
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not stop secondary rig: $e')),
+        context.showErrorSnackBar(
+          'Could not stop secondary rig: ${userFacingError(e)}',
         );
       }
     }

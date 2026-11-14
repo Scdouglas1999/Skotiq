@@ -14,27 +14,27 @@ use super::*;
 async fn meridian_gate_does_not_hold_a_target_east_of_the_meridian() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.longitude = Some(104.65);
-    ec.latitude = Some(39.9846);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.longitude = Some(104.65);
+    ec.run.rig.latitude = Some(39.9846);
 
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
     ));
     {
         let mut state = trigger_state.write().await;
-        state.meridian_flip_minutes_past = Some(5.0);
-        state.target_ra = Some(23.4);
-        state.target_dec = Some(40.0);
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(23.4);
+        state.target.target_dec = Some(40.0);
         // Stale positive hour angle left behind by an earlier run: the
         // mount poll only runs while a sequence executes, so the first
         // frame of the next run reads the previous run's value.
-        state.current_hour_angle = Some(0.19);
-        state.pier_side = None;
+        state.target.current_hour_angle = Some(0.19);
+        state.telemetry.pier_side = None;
     }
-    ec.trigger_state = Some(trigger_state);
+    ec.run.trigger_state = Some(trigger_state);
 
     let mut ctx = ec.to_instruction_context("gate-node").await;
     // LST for longitude 104.65 puts RA 23.4h roughly two hours EAST of the
@@ -86,24 +86,24 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
     std::fs::create_dir_all(&dir).expect("temp dir");
 
     let mut ec = crate::node::context::ExecutionContext::new_for_test("overdue-node".to_string());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.save_path = Some(dir.clone());
-    ec.latitude = Some(40.0);
-    ec.longitude = Some(42.0);
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.save_path = Some(dir.clone());
+    ec.run.rig.latitude = Some(40.0);
+    ec.run.rig.longitude = Some(42.0);
 
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
     ));
     {
         let mut state = trigger_state.write().await;
-        state.meridian_flip_minutes_past = Some(5.0);
-        state.target_ra = Some(12.5);
-        state.target_dec = Some(70.0);
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(12.5);
+        state.target.target_dec = Some(70.0);
         // Exactly what the live rig reported: no pier side, and no mount
         // hour angle for the trigger to fire on.
-        state.pier_side = None;
+        state.telemetry.pier_side = None;
         // A mount that IS tracking the target and IS hours past the
         // meridian, so `trigger_can_fire` holds and the sibling
         // "mount cannot make the trigger fire" guard cannot be what
@@ -111,11 +111,12 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
         // which is the state a flip that was requested and then failed
         // (or was retried to exhaustion) leaves behind. Only the overdue
         // escape hatch can let these frames through.
-        state.current_hour_angle = Some(9.0);
+        state.target.current_hour_angle = Some(9.0);
     }
-    ec.trigger_state = Some(trigger_state);
+    ec.run.trigger_state = Some(trigger_state);
 
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -133,7 +134,7 @@ async fn overdue_meridian_flip_does_not_stall_the_exposure_burst() {
     let config = ExposureConfig {
         count: 3,
         duration_secs: 0.0,
-        frame_type: "light".to_string(),
+        frame_type: crate::FrameType::Light,
         ..ExposureConfig::default()
     };
 
@@ -181,30 +182,31 @@ async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
     std::fs::create_dir_all(&dir).expect("temp dir");
 
     let mut ec = crate::node::context::ExecutionContext::new_for_test("nofire-node".to_string());
-    ec.device_ops = ops.clone();
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.save_path = Some(dir.clone());
-    ec.latitude = Some(40.0);
-    ec.longitude = Some(42.0);
+    ec.run.device_ops = ops.clone();
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.save_path = Some(dir.clone());
+    ec.run.rig.latitude = Some(40.0);
+    ec.run.rig.longitude = Some(42.0);
 
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
     ));
     {
         let mut state = trigger_state.write().await;
-        state.meridian_flip_minutes_past = Some(5.0);
-        state.target_ra = Some(12.5);
-        state.target_dec = Some(70.0);
-        state.pier_side = None;
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(12.5);
+        state.target.target_dec = Some(70.0);
+        state.telemetry.pier_side = None;
         // Exactly the live rig's state: the mount never reported a
         // position, so the MinutesPastMeridian trigger returns false on
         // every evaluation and no flip can ever be requested.
-        state.current_hour_angle = None;
+        state.target.current_hour_angle = None;
     }
-    ec.trigger_state = Some(trigger_state);
+    ec.run.trigger_state = Some(trigger_state);
 
     let control = BurstControl {
+        frames_taken: 0,
         pause: ec.pause_gate(),
         status: None,
     };
@@ -222,7 +224,7 @@ async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
     let config = ExposureConfig {
         count: 3,
         duration_secs: 0.0,
-        frame_type: "light".to_string(),
+        frame_type: crate::FrameType::Light,
         ..ExposureConfig::default()
     };
 
@@ -253,28 +255,28 @@ async fn gate_does_not_hold_when_the_mount_cannot_make_the_trigger_fire() {
 async fn meridian_gate_still_holds_when_the_flip_is_imminent() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.longitude = Some(0.0);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.longitude = Some(0.0);
 
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
     ));
     {
         let mut state = trigger_state.write().await;
-        state.meridian_flip_minutes_past = Some(5.0);
-        state.target_ra = Some(1.0);
-        state.target_dec = Some(40.0);
-        state.pier_side = Some(crate::PierSide::West);
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(1.0);
+        state.target.target_dec = Some(40.0);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
         // A mount that is TRACKING THE TARGET, which is what the executor's
         // mount poll reports during a healthy run. The gate may only hold
         // for a flip the trigger can actually request, and the trigger
         // reads this field; leaving it None described a mount that reports
         // no position at all, in which case declining to hold is correct.
-        state.current_hour_angle = Some(10.0 / 60.0);
+        state.target.current_hour_angle = Some(10.0 / 60.0);
     }
-    ec.trigger_state = Some(trigger_state);
+    ec.run.trigger_state = Some(trigger_state);
 
     let mut ctx = ec.to_instruction_context("gate-node").await;
     // Ten minutes PAST the meridian with a 5-minute threshold: the trigger
@@ -295,6 +297,72 @@ async fn meridian_gate_still_holds_when_the_flip_is_imminent() {
     );
 }
 
+/// A flip that ran and refused to move the mount (the dust cover was closed)
+/// is not coming before the trigger's cooldown ends. The gate held the next
+/// frame for its full 30-minute bound, so the rig sat imaging nothing; it now
+/// lets the frame go once the refusal is recorded, and holds again only while
+/// the trigger's retry is on its way.
+#[tokio::test(start_paused = true)]
+async fn a_refused_flip_releases_the_held_frame() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.longitude = Some(0.0);
+
+    let trigger_state = Arc::new(tokio::sync::RwLock::new(
+        crate::triggers::TriggerState::new(),
+    ));
+    {
+        let mut state = trigger_state.write().await;
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(1.0);
+        state.target.target_dec = Some(40.0);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
+        state.target.current_hour_angle = Some(10.0 / 60.0);
+    }
+    ec.run.trigger_state = Some(trigger_state.clone());
+
+    let mut ctx = ec.to_instruction_context("gate-node").await;
+    let lst =
+        crate::meridian::local_sidereal_time(crate::meridian::julian_day(&chrono::Utc::now()), 0.0);
+    ctx.target_ra = Some((lst - 10.0 / 60.0 + 24.0) % 24.0);
+    let ctx = Arc::new(ctx);
+
+    let gate = {
+        let ctx = ctx.clone();
+        tokio::spawn(async move {
+            wait_for_meridian_flip_window(&ctx, 8.0, &BurstControl::default()).await
+        })
+    };
+    tokio::time::sleep(Duration::from_secs(60)).await;
+    assert!(!gate.is_finished(), "a due flip holds the frame");
+
+    trigger_state
+        .write()
+        .await
+        .meridian
+        .mark_refused("Meridian flip refused: cover 'cover-1' is closed.".to_string());
+    let released = tokio::time::timeout(Duration::from_secs(10), gate)
+        .await
+        .expect("a refused flip lets the held frame go")
+        .expect("gate task");
+    assert!(released.is_none(), "the frame is exposed, not cancelled");
+
+    // The trigger's retry, once dispatched, holds the next frame again.
+    trigger_state
+        .write()
+        .await
+        .record_evaluation(crate::triggers::RunMode::Running, true);
+    let retry = tokio::time::timeout(
+        Duration::from_secs(60),
+        wait_for_meridian_flip_window(&ctx, 8.0, &BurstControl::default()),
+    )
+    .await;
+    assert!(retry.is_err(), "a retry on its way holds the frame");
+}
+
 /// `MeridianFlipOutcome` is the only wire a flip travels to reach the run
 /// vitals' `meridianFlips` count and the session report. Emitting it from the
 /// TRIGGER call site alone means a sequence that flips via an explicit
@@ -311,8 +379,8 @@ async fn a_node_driven_meridian_flip_reports_its_outcome_to_the_run() {
     );
     let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(64);
     let mut ctx = direct_capture_ctx(ops.clone(), scratch.0.clone()).await;
-    ctx.event_tx = Some(event_tx);
-    ctx.mount_id = Some("mount-1".to_string());
+    ctx.run.event_tx = Some(event_tx);
+    ctx.run.rig.mount_id = Some("mount-1".to_string());
     ctx.target_name = Some("M42".to_string());
     ctx.target_ra = Some(5.59);
     ctx.target_dec = Some(-5.39);
@@ -365,11 +433,11 @@ async fn meridian_gate_does_not_hold_when_the_mount_is_not_tracking() {
     for (tracking, parked) in [(Some(false), Some(false)), (Some(true), Some(true))] {
         let ops = Arc::new(ScriptedDomeRotatorOps::new());
         let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
-        ec.device_ops = ops;
-        ec.camera_id = Some("camera-1".to_string());
-        ec.mount_id = Some("mount-1".to_string());
-        ec.longitude = Some(42.0);
-        ec.latitude = Some(40.0);
+        ec.run.device_ops = ops;
+        ec.run.rig.camera_id = Some("camera-1".to_string());
+        ec.run.rig.mount_id = Some("mount-1".to_string());
+        ec.run.rig.longitude = Some(42.0);
+        ec.run.rig.latitude = Some(40.0);
 
         let lst = crate::meridian::local_sidereal_time(
             crate::meridian::julian_day(&chrono::Utc::now()),
@@ -382,15 +450,15 @@ async fn meridian_gate_does_not_hold_when_the_mount_is_not_tracking() {
         ));
         {
             let mut state = trigger_state.write().await;
-            state.meridian_flip_minutes_past = Some(5.0);
-            state.target_ra = Some(ra * 15.0);
-            state.target_dec = Some(40.0);
-            state.current_hour_angle = Some(0.1);
-            state.pier_side = Some(crate::PierSide::West);
-            state.mount_is_tracking = tracking;
-            state.mount_parked = parked;
+            state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+            state.target.target_ra = Some(ra * 15.0);
+            state.target.target_dec = Some(40.0);
+            state.target.current_hour_angle = Some(0.1);
+            state.telemetry.pier_side = Some(crate::PierSide::West);
+            state.telemetry.mount_is_tracking = tracking;
+            state.telemetry.mount_parked = parked;
         }
-        ec.trigger_state = Some(trigger_state);
+        ec.run.trigger_state = Some(trigger_state);
         let mut ctx = ec.to_instruction_context("gate-node").await;
         ctx.target_ra = Some(ra);
 
@@ -444,11 +512,11 @@ async fn overdue_flip_ctx(
 ) {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("gate-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("camera-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.longitude = Some(42.0);
-    ec.latitude = Some(40.0);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.longitude = Some(42.0);
+    ec.run.rig.latitude = Some(40.0);
 
     let lst = crate::meridian::local_sidereal_time(
         crate::meridian::julian_day(&chrono::Utc::now()),
@@ -460,13 +528,13 @@ async fn overdue_flip_ctx(
     ));
     {
         let mut state = trigger_state.write().await;
-        state.meridian_flip_minutes_past = Some(5.0);
-        state.target_ra = Some(ra * 15.0);
-        state.target_dec = Some(40.0);
-        state.current_hour_angle = Some(30.0 / 60.0);
-        state.pier_side = Some(crate::PierSide::West);
-        state.mount_is_tracking = Some(true);
-        state.mount_parked = Some(false);
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(ra * 15.0);
+        state.target.target_dec = Some(40.0);
+        state.target.current_hour_angle = Some(30.0 / 60.0);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
+        state.telemetry.mount_is_tracking = Some(true);
+        state.telemetry.mount_parked = Some(false);
         match last_evaluation {
             crate::triggers::TriggerEvaluation::NoMonitor => {}
             crate::triggers::TriggerEvaluation::AwaitingRunningTick => {
@@ -478,7 +546,7 @@ async fn overdue_flip_ctx(
         }
         assert_eq!(state.run.last_evaluation(), last_evaluation);
     }
-    ec.trigger_state = Some(trigger_state.clone());
+    ec.run.trigger_state = Some(trigger_state.clone());
     let mut ctx = ec.to_instruction_context("gate-node").await;
     ctx.target_ra = Some(ra);
     ctx.target_dec = Some(40.0);
@@ -603,7 +671,7 @@ async fn a_flip_step_leaves_a_parked_or_already_flipped_mount_alone() {
         let ops = Arc::new(ops.with_observer_location(TEST_LAT, TEST_LON));
         let scratch = scratch_dir("flip-left-alone");
         let mut ctx = direct_capture_ctx(ops.clone(), scratch.0.clone()).await;
-        ctx.mount_id = Some("mount-1".to_string());
+        ctx.run.rig.mount_id = Some("mount-1".to_string());
         ctx.target_name = Some("M34".to_string());
         ctx.target_ra = Some(ra);
         ctx.target_dec = Some(42.7);
@@ -631,4 +699,97 @@ async fn a_flip_step_leaves_a_parked_or_already_flipped_mount_alone() {
             "{label}: tracking was commanded"
         );
     }
+}
+
+/// A snapshot is a frame of the sky like a light, so a flip that is about to
+/// happen holds it as it holds a light; a dark is never held. Before, only a
+/// light was held, and a snapshot was started into the flip's slew.
+#[tokio::test]
+async fn a_requested_flip_holds_a_snapshot_but_not_a_dark() {
+    async fn frames_taken_while_a_flip_is_requested(frame_type: crate::FrameType) -> u32 {
+        // Parked as far as the daylight gate asks; the trigger's own telemetry
+        // says tracking, so the flip request stands.
+        let ops = Arc::new(ScriptedDomeRotatorOps::new().with_mount_parked(true));
+        let dir = std::env::temp_dir().join(format!("sk-mer-snap-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let mut ec = crate::node::context::ExecutionContext::new_for_test("snap".to_string());
+        ec.run.device_ops = ops.clone();
+        ec.run.rig.camera_id = Some("camera-1".to_string());
+        ec.run.rig.mount_id = Some("mount-1".to_string());
+        ec.run.rig.save_path = Some(dir.clone());
+        let mut state = crate::triggers::TriggerState::new();
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(10.0);
+        state.target.target_dec = Some(40.0);
+        state.target.current_hour_angle = Some(0.25);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
+        state.telemetry.mount_is_tracking = Some(true);
+        state.telemetry.mount_parked = Some(false);
+        state.meridian.request();
+        assert!(state.flip_request_pending());
+        ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+        let mut ctx = ec.to_instruction_context("snap").await;
+        ctx.target_ra = Some(10.0);
+        ctx.target_dec = Some(40.0);
+        let config = ExposureConfig {
+            count: 2,
+            duration_secs: 0.0,
+            frame_type,
+            ..ExposureConfig::default()
+        };
+        let _ = tokio::time::timeout(
+            Duration::from_secs(2),
+            execute_exposure_with_renderer(
+                &config,
+                &ctx,
+                None,
+                &BurstControl::default(),
+                |_, _, _| {},
+            ),
+        )
+        .await;
+        let _ = std::fs::remove_dir_all(&dir);
+        ops.camera_exposure_calls.load(Ordering::SeqCst)
+    }
+
+    assert_eq!(
+        frames_taken_while_a_flip_is_requested(crate::FrameType::Snapshot).await,
+        0,
+        "a snapshot waits for the requested flip"
+    );
+    assert_eq!(
+        frames_taken_while_a_flip_is_requested(crate::FrameType::Dark).await,
+        2,
+        "a dark does not wait for the flip"
+    );
+}
+
+/// A Meridian Flip step reads the site from the run's settings, as every other
+/// step does. It read the device layer's, a second store fed by another path,
+/// so with the run's site set and the device layer's not it refused to flip.
+#[tokio::test]
+async fn the_flip_step_reads_the_runs_site() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    assert!(ops.scripted_observer_location.is_none());
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("flip".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.latitude = Some(40.0);
+    ec.run.rig.longitude = Some(-75.0);
+    let mut ctx = ec.to_instruction_context("flip").await;
+    let lst = crate::meridian::local_sidereal_time(
+        crate::meridian::julian_day(&chrono::Utc::now()),
+        -75.0,
+    );
+    // Three hours east of the meridian: no flip is due yet.
+    ctx.target_ra = Some((lst + 3.0) % 24.0);
+    ctx.target_dec = Some(40.0);
+
+    let result = execute_meridian_flip(&crate::MeridianFlipConfig::default(), &ctx, None).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(
+        result.message.as_deref(),
+        Some("Meridian flip not yet required")
+    );
 }

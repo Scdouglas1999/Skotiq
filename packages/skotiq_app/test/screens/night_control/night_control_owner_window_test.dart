@@ -10,15 +10,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
 import 'package:skotiq_app/screens/night_control/center/manual_action_bar.dart';
 import 'package:skotiq_app/screens/night_control/header/night_header_bar.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/night_control_layout.dart';
 import 'package:skotiq_app/screens/night_control/night_control_screen.dart';
 import 'package:skotiq_app/screens/night_control/panel/night_right_panel.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
-import 'package:skotiq_app/widgets/autofocus_progress_overlay.dart';
-import 'package:skotiq_app/widgets/running_sequence_mini_bar.dart';
+import 'package:skotiq_app/services/run_dashboard_providers.dart';
+import 'package:skotiq_app/startup/always_on_services.dart';
+import 'package:skotiq_app/screens/shell/widgets/autofocus_progress_overlay.dart';
+import 'package:skotiq_app/screens/shell/widgets/running_sequence_mini_bar.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../golden/surface_golden_harness.dart';
@@ -113,8 +117,9 @@ void main() {
     }
   }
 
-  testWidgets('the screen keeps the run alerts and their bridge alive',
-      (tester) async {
+  testWidgets(
+      'with Tonight open a critical event is on the banner and pages '
+      'the phone once', (tester) async {
     await pumpNightShell(
       tester,
       overrides: nightScreenOverrides(NightScreenState.running),
@@ -123,22 +128,45 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(NightControlScreen)),
     );
-    expect(container.exists(runDashboardCriticalEventsBridgeProvider), isTrue,
-        reason: 'critical events reach toasts and phones only while watched');
+    final pushes = <PushNotification>[];
+    await tester.runAsync(() async {
+      await container.read(pushNotificationConfigProvider.future);
+      await Future<void>.delayed(Duration.zero);
+    });
+    final pushSub = container
+        .read(pushNotificationServiceProvider)
+        .notifications
+        .listen(pushes.add);
+    addTearDown(pushSub.cancel);
+    final services = startAlwaysOnServices(
+      container,
+      AppRole.hostGui,
+      services: [
+        for (final service in alwaysOnServices)
+          if (identical(service.provider, runCriticalAlertsProvider) ||
+              identical(service.provider, runCriticalAlertPushProvider))
+            service,
+      ],
+    );
+    addTearDown(services.stop);
 
-    container.read(runDashboardCriticalEventsProvider.notifier).add(
-          RunDashboardEvent(
+    container.read(eventHistoryProvider.notifier).addEvent(
+          bridge_event.SkotiqEvent(
             eventId: BigInt.one,
-            time: DateTime.utc(2026, 10, 18, 3, 52),
-            severity: RunDashboardEventSeverity.critical,
-            category: 'Guiding',
-            title: 'Guide star lost',
-            message: 'PHD2 lost the guide star for 30 s',
-            isCritical: true,
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: bridge_event.EventSeverity.error,
+            category: bridge_event.EventCategory.system,
+            payload: const bridge_event.EventPayload.system(
+              bridge_event.SystemEvent.error(message: 'FITS save failed'),
+            ),
           ),
         );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
     await tester.pump();
-    expect(find.textContaining('Guide star lost'), findsWidgets);
+    expect(find.textContaining('FITS save failed'), findsWidgets);
+    expect(pushes, hasLength(1));
     expect(tester.takeException(), isNull);
     await unmountNightShell(tester);
   });

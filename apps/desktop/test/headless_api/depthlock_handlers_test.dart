@@ -4,14 +4,16 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/depthlock_handlers.dart';
-import 'package:skotiq_desktop/headless_api/handlers/system_handlers.dart'
-    show availableHeadlessEndpoints;
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+
+import '../support/route_policy.dart';
 
 /// Minimal but complete goal definition. Every field the wire shape requires
 /// is present, because a definition missing one is a different test.
@@ -803,7 +805,7 @@ void main() {
         '/api/depthlock/goals/<goalId>/curve',
       ]) {
         expect(
-          HeadlessAuthPolicy.allows(
+          allowsPath(
             actual: HeadlessTokenScope.view,
             method: 'GET',
             path: read,
@@ -822,7 +824,7 @@ void main() {
         ('POST', '/api/depthlock/measurement/suggest-floor'),
       ]) {
         expect(
-          HeadlessAuthPolicy.allows(
+          allowsPath(
             actual: HeadlessTokenScope.view,
             method: probe.$1,
             path: probe.$2,
@@ -831,7 +833,7 @@ void main() {
           reason: '${probe.$1} ${probe.$2} must require control',
         );
         expect(
-          HeadlessAuthPolicy.allows(
+          allowsPath(
             actual: HeadlessTokenScope.control,
             method: probe.$1,
             path: probe.$2,
@@ -844,7 +846,7 @@ void main() {
 
     test('/api/info advertises the whole DepthLock surface', () {
       expect(
-        availableHeadlessEndpoints(),
+        advertisedApiEndpoints,
         containsAll(const <String>[
           'GET /api/depthlock/status',
           'GET /api/depthlock/goals',

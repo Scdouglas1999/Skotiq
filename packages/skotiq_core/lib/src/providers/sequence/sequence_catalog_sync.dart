@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,9 +7,13 @@ import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../models/backend/host_mutation_event.dart';
 import '../../services/sequence_repository.dart';
+import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart';
 import '../sequence_provider.dart';
+import '../../models/backend/backend_types.dart';
+import '../sequence_repository_provider.dart';
+import '../../services/logging_service.dart';
 
 const sequenceUpdatedEventType = 'SequenceUpdated';
 const _logSource = 'SequenceCatalogSync';
@@ -108,7 +111,7 @@ final sequenceLibrarySyncProvider = Provider<void>((ref) {
 
   void onCatalogUpdate(SequenceCatalogUpdate update) {
     invalidateLibrary();
-    unawaited(reloadOpenSequenceIfIdle(ref, update.sequenceId));
+    unawaited(reloadOpenSequenceIfIdle(ref.container, update.sequenceId));
   }
 
   void attachBus() {
@@ -122,7 +125,7 @@ final sequenceLibrarySyncProvider = Provider<void>((ref) {
   void attachBackendEvents(SkotiqBackend backend) {
     eventSub?.cancel();
     eventSub = null;
-    if (backend is NetworkBackend) {
+    if (backend.linksToHost) {
       eventSub = backend.eventStream.listen((event) {
         if (event.eventType == sequenceUpdatedEventType) {
           final id = event.data['sequenceId'];
@@ -252,27 +255,25 @@ void _emitSequenceCatalogUpdate({
 /// library list parity are handled elsewhere (executor events +
 /// [sequenceLibrarySyncProvider]).
 ///
-/// LIVE open-canvas mirroring ("the master edits its open sequence, or opens a
-/// different one, and the slave's canvas follows in real time") is handled by
-/// the dedicated [HostMutationEntity.sequenceEditor] path:
-/// `masterSequenceEditorMirrorProvider` serializes the master's working/dirty
-/// open sequence and broadcasts it over WS, and `_applySequenceEditorMirror`
-/// applies it on the slave. This function remains as the belt-and-suspenders
-/// reload for the case where only a persisted save fired; both share the same
-/// [isDirty] clobber-guard so a slave operator's unsaved work is never lost.
-Future<void> reloadOpenSequenceIfIdle(Ref ref, int sequenceId) async {
-  final current = ref.read(currentSequenceProvider);
+/// The host's open plan itself, edited or not, reaches a client through the
+/// `openPlan` runtime channel. This reload covers a save that changed only
+/// the stored copy; both keep a client operator's unsaved work.
+Future<void> reloadOpenSequenceIfIdle(
+  ProviderContainer container,
+  int sequenceId,
+) async {
+  final current = container.read(currentSequenceProvider);
   if (current?.databaseId != sequenceId) {
     return;
   }
 
-  final editor = ref.read(currentSequenceProvider.notifier);
+  final editor = container.read(currentSequenceProvider.notifier);
   if (editor.isDirty) {
     return;
   }
 
   try {
-    final loaded = await ref
+    final loaded = await container
         .read(sequenceRepositoryProvider)
         .loadSequence(sequenceId);
     if (loaded != null) {
@@ -280,10 +281,9 @@ Future<void> reloadOpenSequenceIfIdle(Ref ref, int sequenceId) async {
     }
   } catch (e, stackTrace) {
     // Library invalidation still ran; editor reload is best-effort.
-    developer.log(
+    Log.warning(
       'reloadOpenSequenceIfIdle failed for sequenceId=$sequenceId: $e',
-      name: _logSource,
-      level: 900,
+      source: _logSource,
       error: e,
       stackTrace: stackTrace,
     );

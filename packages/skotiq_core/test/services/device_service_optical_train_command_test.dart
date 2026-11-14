@@ -8,7 +8,9 @@ import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/providers/device_service_providers.dart';
 
 void main() {
   test('profile accessory IDs cannot command disconnected hardware', () async {
@@ -106,7 +108,7 @@ void main() {
 
       await container
           .read(deviceServiceProvider)
-          .connectFilterWheel('simulator:filterwheel:0');
+          .connect(DeviceType.filterWheel, 'simulator:filterwheel:0');
 
       expect(backend.writtenNames, ['Lum', 'Ha', 'OIII']);
       expect(container.read(filterWheelStateProvider).filterNames, [
@@ -176,7 +178,7 @@ void main() {
 
     await container
         .read(deviceServiceProvider)
-        .connectRotator('simulator:rotator:0');
+        .connect(DeviceType.rotator, 'simulator:rotator:0');
 
     final state = container.read(rotatorStateProvider);
     expect(state.connectionState, DeviceConnectionState.connected);
@@ -249,7 +251,11 @@ class _OpticalTrainBackend extends DisconnectedBackend {
   double? syncedPa;
 
   @override
-  Future<void> connectDevice(DeviceType type, String deviceId) async {}
+  Future<void> connectDevice(
+    DeviceType type,
+    String deviceId, {
+    String? expectedModel,
+  }) async {}
 
   @override
   Future<List<DeviceInfo>> getConnectedDevices() async => const [];

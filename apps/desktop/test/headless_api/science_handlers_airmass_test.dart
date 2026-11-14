@@ -17,11 +17,15 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/science_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// Reports enough stars to clear the handler's 4-star gate, then refuses to
 /// calibrate. Refusing is deliberate: a successful match needs a loaded HYG
@@ -73,7 +77,10 @@ void main() {
         scienceBackendProvider.overrideWithValue(_StubScienceBackend()),
       ],
     );
-    handlers = ScienceHandlers(container);
+    handlers = ScienceHandlers(
+      container,
+      readHeader: (_) async => FrameHeader({'NAXIS1': 1024, 'NAXIS2': 768}),
+    );
   });
 
   tearDown(() async {

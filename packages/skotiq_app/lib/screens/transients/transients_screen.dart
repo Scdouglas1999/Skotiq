@@ -2,13 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/transient_type_style.dart';
 import 'widgets/transient_card.dart';
+import '../../router/app_routes.dart';
+import '../../router/analytics_route.dart';
+import '../../router/planner_route.dart';
+import '../../utils/snackbar_helper.dart';
 
-/// Filter options for the transient alerts list.
 enum TransientFilter {
   all('All'),
   newAlerts('New'),
@@ -19,16 +26,9 @@ enum TransientFilter {
   final String label;
 }
 
-/// Provider for tracking the current filter selection.
 final _transientFilterProvider = StateProvider<TransientFilter>((ref) {
   return TransientFilter.all;
 });
-
-// The set of upstreams this build can actually query now lives beside
-// TransientSource itself (`kFetchableTransientSources`), so this sheet and
-// TransientAlertService.getAllAlerts cannot drift apart about which sources
-// are real. Manual is not in it: manual alerts are entered locally, never
-// fetched.
 
 /// When the alert feed last produced a result (or an error), so the operator
 /// can tell "no transients tonight" from "the fetch never ran".
@@ -50,31 +50,9 @@ final _tnsCredentialsReadyProvider = FutureProvider.autoDispose<bool>((
   return ref.watch(secretsStoreProvider).has(SecretField.tnsApiKey);
 });
 
-/// Screen for managing astronomical transient alerts.
-///
-/// Displays a filterable list of transient alerts (novae, supernovae, comets, etc.)
-/// with options to queue targets for observation, view in framing, or dismiss.
-class TransientsScreen extends StatelessWidget {
-  const TransientsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: const SafeArea(
-        bottom: false,
-        child: TransientsView(),
-      ),
-    );
-  }
-}
-
 /// Embeddable transient-alerts content: header, citizen-science strip, filter
-/// bar, and the filtered alert list. Supplies no Scaffold/AppBar so it can sit
-/// inside the Science screen's "Observing Alerts" tab as well as the standalone
-/// [TransientsScreen].
+/// bar, and the filtered alert list. Supplies no Scaffold/AppBar: it sits
+/// inside the Science screen's "Observing Alerts" tab.
 class TransientsView extends ConsumerWidget {
   const TransientsView({super.key, this.showHeader = true});
 
@@ -159,7 +137,6 @@ class TransientsView extends ConsumerWidget {
   ) {
     final states = ref.watch(transientAlertStatesProvider);
 
-    // Filter alerts based on current filter
     final filteredAlerts = _filterAlerts(alerts, states, filter);
 
     if (filteredAlerts.isEmpty) {
@@ -278,7 +255,7 @@ class TransientsView extends ConsumerWidget {
     return EmptyState(
       icon: LucideIcons.alertCircle,
       title: 'Failed to load transient alerts',
-      body: error.toString(),
+      body: userFacingError(error),
       action: SkotiqButton(
         label: 'Retry',
         icon: SkotiqIcons.refresh,
@@ -293,23 +270,21 @@ class TransientsView extends ConsumerWidget {
   }
 
   void _planAlert(BuildContext context) {
-    context.go('/planner?tab=scheduler');
+    context.go(AppRoutes.planner(tab: PlannerTab.schedule));
   }
 
   void _viewInFraming(
       BuildContext context, WidgetRef ref, TransientAlert alert) {
-    // Seed the target before navigating: the /framing route redirects to
-    // /planner?tab=sky&view=framing, which drops any query params.
     ref.read(framingProvider.notifier).setTargetCoordinates(
           alert.raHours,
           alert.decDegrees,
           name: alert.name,
         );
-    context.goNamed('framing');
+    context.go(AppRoutes.planner(tab: PlannerTab.framing));
   }
 
   void _openScience(BuildContext context, TransientAlert alert) {
-    context.go('/science');
+    context.go(AppRoutes.analytics(tab: AnalyticsTab.science));
   }
 
   Future<void> _dismissAlert(
@@ -321,9 +296,7 @@ class TransientsView extends ConsumerWidget {
       await ref.read(transientAlertStatesProvider.notifier).dismiss(alert.id);
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not dismiss this alert.')),
-        );
+        context.showErrorSnackBar('Could not dismiss this alert.');
       }
     }
   }
@@ -338,7 +311,6 @@ void showTransientSettingsDialog(BuildContext context, WidgetRef ref) {
   );
 }
 
-/// Framing strip presenting transient alerts as a citizen-science feed.
 class _CitizenScienceStrip extends StatelessWidget {
   final SkotiqColors colors;
 
@@ -435,7 +407,7 @@ class _SourceStatusStrip extends ConsumerWidget {
     parts.add(
       lastCheck == null
           ? 'never checked'
-          : 'checked ${_formatClock(lastCheck)}',
+          : 'checked ${ClockFormat.hm(lastCheck.toLocal())}',
     );
 
     return Container(
@@ -472,13 +444,6 @@ class _SourceStatusStrip extends ConsumerWidget {
   }
 }
 
-String _formatClock(DateTime time) {
-  final local = time.toLocal();
-  final hh = local.hour.toString().padLeft(2, '0');
-  final mm = local.minute.toString().padLeft(2, '0');
-  return '$hh:$mm';
-}
-
 String _sourceLabel(TransientSource source) {
   switch (source) {
     case TransientSource.aavso:
@@ -494,7 +459,6 @@ String _sourceLabel(TransientSource source) {
   }
 }
 
-/// Filter tab bar for switching between alert categories.
 class _FilterTabBar extends StatelessWidget {
   final SkotiqColors colors;
   final TransientFilter currentFilter;
@@ -536,7 +500,6 @@ class _FilterTabBar extends StatelessWidget {
   }
 }
 
-/// Skeleton loading cards for transient items.
 class _TransientCardSkeleton extends StatelessWidget {
   const _TransientCardSkeleton();
 
@@ -591,7 +554,6 @@ class _TransientCardSkeleton extends StatelessWidget {
   }
 }
 
-/// Settings dialog for configuring transient alert preferences.
 class _TransientSettingsDialog extends ConsumerStatefulWidget {
   const _TransientSettingsDialog();
 
@@ -607,11 +569,7 @@ class _TransientSettingsDialogState
       await action();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not save the alert settings.'),
-          ),
-        );
+        context.showErrorSnackBar('Could not save the alert settings.');
       }
     }
   }

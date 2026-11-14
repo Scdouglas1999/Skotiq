@@ -6,7 +6,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/preview_transform.dart';
 import '../../../widgets/red_night_filter.dart';
-import 'preview_display_scale.dart';
+import '../../../widgets/image_preview/preview_display_scale.dart';
 
 /// Where a preview's image actually is on screen.
 ///
@@ -38,7 +38,6 @@ class PreviewViewportGeometry {
   final Offset imageOffset;
 }
 
-/// Builds one overlay for a laid-out preview.
 typedef PreviewOverlayBuilder = Widget Function(
     BuildContext context, PreviewViewportGeometry geometry);
 

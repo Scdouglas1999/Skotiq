@@ -1,28 +1,33 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import 'linked_host.dart';
+import '../backend/remote_host.dart';
+import 'host_role.dart';
 import '../models/planning/night_forecast.dart';
 import '../models/planning/project.dart';
 import '../models/planning/project_progress.dart';
 import '../models/scheduler/integration_goal.dart';
 import '../services/planning/forecast_planning_service.dart';
 import '../services/planning/project_service.dart';
-import '../services/scheduler/integration_goal_service.dart';
-import '../services/weather/providers/openmeteo_cloud_provider.dart';
+import '../services/weather/location_cloud_forecast_service.dart';
 import '../services/weather/radar_provider.dart';
 import '../utils/resilient_poll_stream.dart';
-import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'scheduler_provider.dart';
 import 'settings_provider.dart';
+import '../database/daos/settings_dao.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
+import 'planning/project_service_provider.dart';
+import 'scheduler/integration_goal_service_provider.dart';
+import '../services/logging_service.dart';
 
 /// Riverpod plumbing for the multi-night planner: [ProjectService] /
-/// [ForecastPlanningService] and the [OpenMeteoCloudProvider] forecast feed,
+/// [ForecastPlanningService] and the [LocationCloudForecastService] forecast feed,
 /// wired into the provider graph the planner UI consumes.
 ///
 /// Fail-closed throughout: a missing observing location throws (matching the
@@ -30,18 +35,13 @@ import 'settings_provider.dart';
 /// failure surfaces as [WeekForecast.unavailable] rather than a fabricated
 /// clear week.
 
-/// `app_settings` key backing [activeProjectIdProvider]. Stored as the decimal
-/// project id; an absent row or an empty string means "no active project".
-const String _activeProjectIdSettingKey = 'planning.active_project_id';
-
-String _activeProjectSettingKeyFor(Object backend) {
-  if (backend is! NetworkBackend) return _activeProjectIdSettingKey;
-  final identity =
-      '${backend.scheme.toLowerCase()}://'
-      '${backend.serverHost.trim().toLowerCase()}:${backend.serverPort}|'
-      '${backend.pinnedFingerprint?.trim().toLowerCase() ?? ''}';
+/// The row backing [activeProjectIdProvider]: the decimal project id, with
+/// no row or an empty one meaning no active project. A linked client keeps
+/// one row per host.
+Setting<String?> _activeProjectSettingFor(String? identity) {
+  if (identity == null) return StoreSettings.activePlanningProject.row('');
   final encoded = base64Url.encode(utf8.encode(identity)).replaceAll('=', '');
-  return '$_activeProjectIdSettingKey.remote.$encoded';
+  return StoreSettings.activePlanningProject.row('.remote.$encoded');
 }
 
 /// Persisted selection of the operator's currently-focused project.
@@ -53,9 +53,10 @@ String _activeProjectSettingKeyFor(Object backend) {
 final activeProjectIdProvider =
     StateNotifierProvider<ActiveProjectNotifier, int?>((ref) {
       final notifier = ActiveProjectNotifier(ref);
-      ref.listen(backendProvider, (_, next) {
-        notifier._switchBackend(next);
-      });
+      ref.listenAcrossHosts(
+        (host) => host?.link.identity,
+        notifier._switchHost,
+      );
       // Kick off the async hydrate immediately. Until it resolves the state is
       // `null` (no active project), which is the correct cold-start default.
       unawaited(notifier._load());
@@ -65,11 +66,11 @@ final activeProjectIdProvider =
 /// State notifier owning the active-project selection and its persistence.
 class ActiveProjectNotifier extends StateNotifier<int?> {
   ActiveProjectNotifier(this._ref) : super(null) {
-    _settingKey = _activeProjectSettingKeyFor(_ref.read(backendProvider));
+    _setting = _activeProjectSettingFor(_ref.read(linkedHostIdentityProvider));
   }
 
   final Ref _ref;
-  late String _settingKey;
+  late Setting<String?> _setting;
   int _scopeRevision = 0;
   bool _isLoaded = false;
   Completer<void>? _loadCompleter;
@@ -91,11 +92,11 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
 
   Future<void> _load() async {
     final scopeAtStart = _scopeRevision;
-    final settingKeyAtStart = _settingKey;
+    final settingAtStart = _setting;
     final revisionAtStart = _requestRevision;
     try {
       final settingsDao = _ref.read(settingsDaoProvider);
-      final raw = await settingsDao.getSetting(settingKeyAtStart);
+      final raw = await settingsDao.read(settingAtStart);
       final parsed = _parse(raw);
       if (scopeAtStart == _scopeRevision &&
           revisionAtStart == _requestRevision &&
@@ -104,10 +105,10 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
         state = parsed;
       }
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to hydrate the active planner project for $settingKeyAtStart',
-        name: 'ActiveProjectNotifier',
-        level: 1000,
+      Log.error(
+        'Failed to hydrate the active planner project for '
+        '${settingAtStart.key}',
+        source: 'ActiveProjectNotifier',
         error: error,
         stackTrace: stackTrace,
       );
@@ -123,11 +124,11 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
     }
   }
 
-  void _switchBackend(Object backend) {
-    final nextKey = _activeProjectSettingKeyFor(backend);
-    if (nextKey == _settingKey) return;
+  void _switchHost(String? identity) {
+    final next = _activeProjectSettingFor(identity);
+    if (next.key == _setting.key) return;
 
-    _settingKey = nextKey;
+    _setting = next;
     _scopeRevision++;
     _requestRevision++;
     _requestedProjectId = null;
@@ -164,15 +165,12 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
 
     _requestedProjectId = id;
     final scopeAtRequest = _scopeRevision;
-    final settingKeyAtRequest = _settingKey;
+    final settingAtRequest = _setting;
     final revision = ++_requestRevision;
     final operation = _writeTail
         .then((_) async {
           final settingsDao = _ref.read(settingsDaoProvider);
-          await settingsDao.setSetting(
-            settingKeyAtRequest,
-            id?.toString() ?? '',
-          );
+          await settingsDao.write(settingAtRequest, id?.toString());
           if (mounted &&
               scopeAtRequest == _scopeRevision &&
               revision == _requestRevision) {
@@ -201,39 +199,35 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
 /// front and then re-listing on each mutation.
 final projectListProvider = StreamProvider<List<Project>>((ref) {
   final service = ref.watch(projectServiceProvider);
-  final backend = ref.watch(backendProvider);
-
-  // On a remote SLAVE the projects live in the HOST DB and there is no local
-  // mutation stream to bridge — service.watchChanges() never fires — so poll
-  // the host on a fixed tick with a change-guard (mirrors database_provider's
-  // _pollRemote). Host-side project CRUD surfaces within the interval.
-  if (backend is NetworkBackend) {
-    return resilientDistinctPoll(
-      fetch: service.listProjects,
-      unchanged: listEquals,
-      interval: const Duration(seconds: 10),
-      onRetainedError: (error, stackTrace) {
-        developer.log(
-          'Remote project poll failed; retaining last value',
-          name: 'PlanningProvider',
-          level: 900,
-          error: error,
-          stackTrace: stackTrace,
-        );
-      },
-    );
-  }
-
-  Stream<List<Project>> listOnChange() async* {
-    // Initial emit so the UI has data before the first mutation.
-    yield await service.listProjects();
-    await for (final _ in service.watchChanges()) {
-      yield await service.listProjects();
-    }
-  }
-
-  return listOnChange();
+  return ref.watch(_projectListFeedProvider)(service);
 });
+
+/// How the project list stays current: re-listed on each change to this
+/// machine's tables, or polled from the linked host, whose changes raise no
+/// stream here.
+final _projectListFeedProvider =
+    hostRoleProvider<Stream<List<Project>> Function(ProjectService service)>(
+      here: (_) => (service) async* {
+        yield await service.listProjects();
+        await for (final _ in service.watchChanges()) {
+          yield await service.listProjects();
+        }
+      },
+      linked: (_, _) =>
+          (service) => resilientDistinctPoll(
+            fetch: service.listProjects,
+            unchanged: listEquals,
+            interval: const Duration(seconds: 10),
+            onRetainedError: (error, stackTrace) {
+              Log.warning(
+                'Remote project poll failed; retaining last value',
+                source: 'PlanningProvider',
+                error: error,
+                stackTrace: stackTrace,
+              );
+            },
+          ),
+    );
 
 /// Per-project accrued-vs-remaining roll-up.
 ///
@@ -261,7 +255,7 @@ final activeProjectProgressProvider =
       return ref.watch(projectProgressProvider(activeId).future);
     });
 
-/// Factory seam that builds the [OpenMeteoCloudProvider] used by
+/// Factory seam that builds the [LocationCloudForecastService] used by
 /// [weekForecastProvider].
 ///
 /// In production this returns a provider backed by the default
@@ -270,8 +264,8 @@ final activeProjectProgressProvider =
 /// network access — including the error path that exercises the fail-closed
 /// contract.
 final planningCloudProviderFactoryProvider =
-    Provider<OpenMeteoCloudProvider Function()>((ref) {
-      return OpenMeteoCloudProvider.new;
+    Provider<LocationCloudForecastService Function()>((ref) {
+      return LocationCloudForecastService.new;
     });
 
 /// Immutable (latitude, longitude) key for the cloud-fetch provider family.
@@ -300,7 +294,7 @@ class ForecastSite {
 ///
 /// Deliberately decoupled from the capture/goal/active-project triggers: a
 /// seven-night forecast does not change frame-to-frame, and a fetch tied to
-/// arriving subs would exhaust the free Open-Meteo endpoint's rate limit and
+/// arriving subs would exhaust the forecast endpoints' rate limits and
 /// leave the strip "unavailable". [weekForecastProvider] does the
 /// capture/goal-driven candidate recompute and re-reads this cached
 /// [RadarFetchResult].

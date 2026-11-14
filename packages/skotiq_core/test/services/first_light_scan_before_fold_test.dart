@@ -15,7 +15,8 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A shared event log so both seams record into one ordered timeline; the test
 /// asserts the difference (scan) entry precedes the fold entry.
@@ -175,7 +176,7 @@ void main() {
   }
 
   /// The production solve-persist hook order, lifted verbatim from
-  /// imaging_records_repository.dart onSolvedFrameFold: the First Light SCAN
+  /// local_imaging_records.dart onSolvedFrameFold: the First Light SCAN
   /// runs BEFORE the atlas FOLD (difference-before-fold). A future refactor that
   /// reorders fold above scan re-introduces self-subtraction.
   Future<void> solveHook(int capturedImageId) async {

@@ -13,13 +13,17 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart'
     show dbSessionImagesProvider;
 import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 class _StubImagesDao extends Mock implements ImagesDao {}
 
 class _StubScienceDao extends Mock implements ScienceDao {}
+
+class _StubSessionsDao extends Mock implements SessionsDao {}
 
 ImagingSession _session(int id, String name, DateTime start) => ImagingSession(
       id: id,
@@ -47,15 +51,19 @@ ProviderContainer _container({
 }) {
   final images = _StubImagesDao();
   final science = _StubScienceDao();
+  final sessionsDao = _StubSessionsDao();
   when(images.getSessionIdsWithSolvedFrames)
       .thenAnswer((_) async => withSolves);
+  when(images.getLatestSessionIdWithLightFrames).thenAnswer((_) async => 5);
   when(science.getSessionIdsWithPhotometry)
       .thenAnswer((_) async => withPhotometry);
+  when(sessionsDao.getAllSessions).thenAnswer((_) async => sessions);
   return ProviderContainer(
     overrides: [
       inMemoryDatabaseOverride(),
       imagesDaoProvider.overrideWithValue(images),
       scienceDaoProvider.overrideWithValue(science),
+      sessionsDaoProvider.overrideWithValue(sessionsDao),
       allSessionsProvider.overrideWith((ref) => Stream.value(sessions)),
     ],
   );
@@ -74,7 +82,7 @@ void main() {
     addTearDown(container.dispose);
 
     expect(
-      await container.read(latestScienceProductSessionProvider.future),
+      await container.read(scienceDefaultSessionProvider.future),
       4,
       reason: 'session 5 is newer but has no science product at all',
     );
@@ -88,7 +96,7 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    expect(await container.read(latestScienceProductSessionProvider.future), 3);
+    expect(await container.read(scienceDefaultSessionProvider.future), 3);
   });
 
   test('the newest qualifying session wins, not merely any of them', () async {
@@ -100,13 +108,14 @@ void main() {
     addTearDown(container.dispose);
 
     expect(
-      await container.read(latestScienceProductSessionProvider.future),
+      await container.read(scienceDefaultSessionProvider.future),
       5,
       reason: '"most recent" has to mean the same thing here as in the picker',
     );
   });
 
-  test('with no science anywhere it defers to the older fallbacks', () async {
+  test('with no science anywhere it opens on the newest light frames',
+      () async {
     final container = _container(
       withPhotometry: const {},
       withSolves: const {},
@@ -114,19 +123,11 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    expect(
-      await container.read(latestScienceProductSessionProvider.future),
-      isNull,
-      reason: 'null lets the caller fall through to the newest session with '
-          'light frames, then to the newest session at all',
-    );
+    expect(await container.read(scienceDefaultSessionProvider.future), 5);
   });
 
-  // The four tests above only prove the provider answers correctly. They all
-  // stay green with the `latestScienceProductSessionProvider` line deleted from
-  // the tab's own session resolution — i.e. with the production wiring removed.
-  // This one pumps the real tab and watches which session it actually loads
-  // science for, so it goes red the moment that line goes away.
+  // The tests above only prove the provider answers correctly. This one pumps
+  // the real tab and watches which session it actually loads science for.
   testWidgets('the tab itself analyses the science-product session',
       (tester) async {
     tester.view.physicalSize = const Size(1400, 2400);
@@ -138,31 +139,28 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
-    // `analysed.last`, not `contains`: both session-id providers are async, so
-    // the very first frame legitimately falls all the way through to
-    // `allSessions.first` (5) before either resolves. What the operator is left
+    // `analysed.last`, not `contains`: the default is async, so the very first
+    // frame legitimately falls through to `allSessions.first` (5) before it
+    // resolves. What the operator is left
     // looking at is the settled choice.
     expect(
       analysed.last,
       4,
-      reason: 'session 5 is the newest holding light frames, but 4 is the '
-          'newest carrying a science product — the tab has to settle on 4 or '
-          'the operator lands on the never-started empty state again',
+      reason: 'session 5 is the newest session, but the default is 4 — the '
+          'tab has to settle on it or the operator lands on the never-started '
+          'empty state again',
     );
   });
 }
 
 /// The Science tab wired the way it ships, with only its data sources stubbed.
-/// `latestScienceSessionProvider` deliberately answers a DIFFERENT (newer)
-/// session than `latestScienceProductSessionProvider` so the two rules cannot
-/// both be satisfied by accident, and every session-keyed query records the id
-/// the tab asked for — the tab's choice, observed at the production call site
-/// rather than at the provider it is supposed to consult.
+/// The default answers an OLDER session than the newest one, and every
+/// session-keyed query records the id the tab asked for: the tab's choice,
+/// observed at the production call site.
 Widget _tab(List<int> analysed) => ProviderScope(
       overrides: [
         allSessionsProvider.overrideWith((ref) => Stream.value(_sessions)),
-        latestScienceProductSessionProvider.overrideWith((ref) async => 4),
-        latestScienceSessionProvider.overrideWith((ref) async => 5),
+        scienceDefaultSessionProvider.overrideWith((ref) async => 4),
         sessionPhotometryProvider.overrideWith((ref, id) {
           analysed.add(id);
           return Stream.value(_curve(id));
@@ -188,8 +186,8 @@ Widget _tab(List<int> analysed) => ProviderScope(
         sessionFrameQualityMetricsProvider.overrideWith(
           (ref, id) => Stream.value(const <ScienceFrameQualityMetricsRow>[]),
         ),
-        sessionTileMetricsProvider.overrideWith(
-          (ref, id) => Stream.value(const <ScienceTileMetricRow>[]),
+        frameTileMetricsProvider.overrideWith(
+          (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
         ),
         dbSessionImagesProvider.overrideWith(
           (ref, id) => Stream.value(const <DbCapturedImage>[]),

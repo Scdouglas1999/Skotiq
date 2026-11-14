@@ -23,6 +23,7 @@ library;
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
 
 import '../../models/darkroom/delivery.dart';
 import '../disk_space_service.dart';
@@ -62,7 +63,6 @@ class SystemFreeSpaceProbe implements FreeSpaceProbe {
 
 /// Copies artifacts into a watched folder, one atomic file at a time.
 class WatchedFolderTransport implements ArtifactTransport {
-  /// The destination row this transport serves.
   final ArtifactDestination destination;
 
   /// The job whose artifacts are being delivered; names the staged files.
@@ -138,8 +138,8 @@ class WatchedFolderTransport implements ArtifactTransport {
     if (free < needed) {
       throw DeliveryFailure(
         DeliveryFailureKind.insufficientSpace,
-        '${root.path} has ${_mb(free)} free; this delivery needs '
-        '${_mb(needed)} including ${_mb(headroom)} of headroom',
+        '${root.path} has ${ByteFormat.size(free)} free; this delivery needs '
+        '${ByteFormat.size(needed)} including ${ByteFormat.size(headroom)} of headroom',
       );
     }
 
@@ -227,8 +227,6 @@ class WatchedFolderTransport implements ArtifactTransport {
       'non-negative whole number of bytes',
     );
   }
-
-  static String _mb(int bytes) => '${(bytes / (1024 * 1024)).round()} MB';
 
   /// What sits at a path, in the operator's words.
   ///

@@ -7,6 +7,7 @@
 // detector on a bridge worker thread. Both read the frame's FITS file, so a
 // frame without one (a remote preview, a frame still being written) waits
 // until its path arrives.
+import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:collection';
 
@@ -14,24 +15,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
-import '../backend/ffi_backend.dart' show FfiBackend;
-import '../backend/network_backend.dart' show NetworkBackend;
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/imaging_models.dart';
 import '../services/imaging_service.dart';
-import '../services/logging_service.dart';
 import '../services/plate_solve_service.dart';
 import '../services/wcs/gnomonic_projection.dart';
 import '../services/wcs/plate_solve_data_from_result.dart';
-import '../services/wcs/wcs_sip_codec.dart';
+import '../models/imaging/sip_terms.dart';
+import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment/mount_state_provider.dart';
 import 'frame_record_updates.dart';
-
-// ---------------------------------------------------------------------------
-// Background plate solve
-// ---------------------------------------------------------------------------
+import 'logging_service_provider.dart';
+import 'plate_solve_service_provider.dart';
 
 /// Where a frame's background solve stands.
 enum FrameSolveStatus {
@@ -194,19 +191,13 @@ typedef FrameSolveCd = ({
   double cd2_2,
 });
 
-/// The CD matrix of a native solve result, or null when it reported none.
-FrameSolveCd? frameSolveCdOf(bridge.PlateSolveResult r) =>
-    (r.cd11 == 0 && r.cd12 == 0 && r.cd21 == 0 && r.cd22 == 0)
-    ? null
-    : (cd1_1: r.cd11, cd1_2: r.cd12, cd2_1: r.cd21, cd2_2: r.cd22);
-
 /// Looks up a solution saved with a frame's database row, so a frame that
 /// was solved already (by the science pipeline, or an earlier session) is
 /// not solved again. Null when there is none or the database is not local.
 final savedFrameSolutionProvider =
     Provider<Future<SavedFrameSolution?> Function(String filePath)>((ref) {
       final backend = ref.watch(backendProvider);
-      if (backend is! FfiBackend) return (_) async => null;
+      if (!backend.ownsDeviceBridge) return (_) async => null;
       final dao = ref.watch(imagesDaoProvider);
       return (filePath) async {
         final row = await dao.getImageByFilePath(filePath);
@@ -299,9 +290,13 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
     return const <DateTime, FrameSolveVm>{};
   }
 
+  /// A light or snapshot the operator looks at. A solve or centering frame
+  /// is solved by the run that took it, and an autofocus frame is no field
+  /// worth solving.
   static bool _isLight(CapturedImageData image) =>
-      image.settings.frameType == FrameType.light ||
-      image.settings.frameType == FrameType.snapshot;
+      !image.isUtilityFrame &&
+      (image.settings.frameType == FrameType.light ||
+          image.settings.frameType == FrameType.snapshot);
 
   bool _isCurrent(DateTime key) =>
       ref.read(currentImageProvider)?.capturedAt == key;
@@ -329,7 +324,7 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
     // On a companion every frame is the imaging host's, and a solve requested
     // here runs on the host's solver. The host solves the frames it shows;
     // this machine never adds a second, often blind, solve per frame.
-    if (ref.read(backendProvider) is NetworkBackend) return;
+    if (ref.read(isRemoteModeProvider)) return;
     _put(FrameSolveVm(frameCapturedAt: key, status: FrameSolveStatus.waiting));
     if (_inFlight != null) {
       final replaced = _queued;
@@ -392,17 +387,8 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
           decDegrees: result.dec,
           rotationDeg: result.rotation,
           pixelScaleArcsec: result.pixelScale,
-          cd: frameSolveCdOf(result),
-          sip: encodeSolvedSip(
-            aOrder: result.sipAOrder,
-            bOrder: result.sipBOrder,
-            aCoeffs: result.sipACoeffs.toList(),
-            bCoeffs: result.sipBCoeffs.toList(),
-            apOrder: result.sipApOrder,
-            bpOrder: result.sipBpOrder,
-            apCoeffs: result.sipApCoeffs.toList(),
-            bpCoeffs: result.sipBpCoeffs.toList(),
-          ),
+          cd: result.cdMatrix,
+          sip: encodeSolvedSip(result.sipTerms),
         );
         _lastSolved = solved;
         _put(solved);
@@ -432,7 +418,7 @@ class FrameAutoSolver extends Notifier<Map<DateTime, FrameSolveVm>> {
         FrameSolveVm(
           frameCapturedAt: key,
           status: FrameSolveStatus.failed,
-          message: '$e',
+          message: userFacingError(e),
         ),
       );
     } finally {
@@ -510,10 +496,6 @@ final currentFrameSolveProvider = Provider<FrameSolveVm?>((ref) {
   if (key == null) return null;
   return ref.watch(frameAutoSolveProvider.select((solves) => solves[key]));
 });
-
-// ---------------------------------------------------------------------------
-// Star detection
-// ---------------------------------------------------------------------------
 
 /// Detects the stars in a FITS file, off the UI isolate.
 typedef FrameStarDetector =

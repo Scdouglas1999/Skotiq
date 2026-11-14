@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+
+import '../../connection/link_rig_actions.dart';
+import '../../connection/link_rig_dialog.dart';
 
 /// Welcome step — the entry point of the wizard.
 ///
@@ -16,6 +19,10 @@ class OnboardingWelcomeStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final profilesAsync = ref.watch(allProfilesProvider);
+    // Only a desktop that owns its equipment can switch to linking; a linked
+    // desktop is set up on the imaging computer, not here.
+    final offerLink =
+        canSwitchRole(ref) && ref.watch(remoteLaunchTargetProvider) == null;
 
     return SingleChildScrollView(
       child: Column(
@@ -95,6 +102,54 @@ class OnboardingWelcomeStep extends ConsumerWidget {
               ],
             ),
           ),
+          if (offerLink) ...[
+            const SizedBox(height: SkotiqTokens.spaceLg),
+            Container(
+              key: const ValueKey('onboarding.linkRig'),
+              decoration: SkotiqDecorations.well(colors),
+              padding: SkotiqTokens.paddingMd,
+              child: Row(
+                children: [
+                  Icon(
+                    LucideIcons.monitorSmartphone,
+                    color: colors.primary,
+                    size: SkotiqTokens.iconMd,
+                  ),
+                  const SizedBox(width: SkotiqTokens.spaceMd),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Is your rig plugged into another computer?',
+                          style: SkotiqTypography.labelStrong.copyWith(
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: SkotiqTokens.spaceXs),
+                        Text(
+                          'Link this computer to it instead of setting up '
+                          'equipment here. Skotiq has to be open on that '
+                          'computer with Remote access on.',
+                          style: SkotiqTypography.bodySm.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: SkotiqTokens.spaceMd),
+                  SkotiqButton(
+                    label: 'Connect to an imaging computer',
+                    icon: LucideIcons.link,
+                    variant: ButtonVariant.secondary,
+                    size: ButtonSize.small,
+                    onPressed: () => showLinkRigDialog(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
           profilesAsync.when(
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),

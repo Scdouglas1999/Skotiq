@@ -57,12 +57,12 @@ class NightSub {
   /// re-implement the grading rules: it feeds the same
   /// [FrameQualityAssessmentService] the Workbench uses so a night cannot be
   /// "clean" on one tab and all-POOR on the next.
-  CapturedImage asGradableFrame() => CapturedImage(
+  DbCapturedImage asGradableFrame() => DbCapturedImage(
     id: id,
     filePath: '',
     fileName: '',
     fileFormat: 'fits',
-    frameType: 'light',
+    frameType: FrameType.light.record,
     exposureDuration: 0,
     binX: 1,
     binY: 1,
@@ -86,12 +86,16 @@ class NightSub {
 /// The analyzed night: a time-sorted list of [NightSub]s. Thin wrapper so the
 /// detector signatures read clearly and future cross-sub aggregates have a home.
 class NightData {
-  NightData(List<NightSub> subs, {this.opticalDiagnostics})
+  NightData(List<NightSub> subs, {this.opticalDiagnostics, this.site})
     : subs = List.unmodifiable(
         [...subs]..sort((a, b) => a.capturedAt.compareTo(b.capturedAt)),
       );
 
   final List<NightSub> subs;
+
+  /// Where the frames were taken: the configured observing site, or null when
+  /// none is set.
+  final LocationSettings? site;
 
   /// Session-level optical-train diagnostics (field tilt / collimation)
   /// computed from the science PSF field tiles + astrometric residuals.

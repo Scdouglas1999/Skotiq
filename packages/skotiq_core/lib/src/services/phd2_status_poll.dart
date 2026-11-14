@@ -14,10 +14,6 @@ const Duration kPhd2PollTimeout = Duration(seconds: 30);
 /// Poll interval while waiting for PHD2 socket + client registration.
 const Duration kPhd2PollInterval = Duration(milliseconds: 500);
 
-/// Legacy aliases for tests and callers that used the earlier constant names.
-const Duration phd2StatusPollTimeout = kPhd2PollTimeout;
-const Duration phd2StatusPollInterval = kPhd2PollInterval;
-
 /// Whether a guiding event indicates PHD2 is still reachable (not link loss).
 bool isPhd2GuidingHeartbeatEvent(String eventType) {
   switch (eventType) {
@@ -65,7 +61,15 @@ String resolvePhd2ConnectHost(String host) {
   return host.trim();
 }
 
-/// Poll [backend.phd2GetStatus] until PHD2 reports connected or [timeout].
+/// The host guider's status when PHD2 is the guider answering and connected.
+Future<Phd2Status?> _connectedPhd2Status(GuidingBackend backend) async {
+  final status = await backend.guiderGetStatus();
+  return status.connected && isPhd2GuiderDeviceId(status.deviceId)
+      ? status
+      : null;
+}
+
+/// Poll the host's guider status until PHD2 answers connected or [timeout].
 ///
 /// Transient errors (host still launching PHD2, status endpoint not ready)
 /// are retried instead of failing immediately.
@@ -79,10 +83,8 @@ Future<Phd2Status> pollPhd2Connected(
 
   while (DateTime.now().isBefore(deadline)) {
     try {
-      final status = await backend.phd2GetStatus();
-      if (status.connected) {
-        return status;
-      }
+      final status = await _connectedPhd2Status(backend);
+      if (status != null) return status;
       lastError = null;
     } catch (e) {
       lastError = e;
@@ -95,10 +97,8 @@ Future<Phd2Status> pollPhd2Connected(
   }
 
   try {
-    final status = await backend.phd2GetStatus();
-    if (status.connected) {
-      return status;
-    }
+    final status = await _connectedPhd2Status(backend);
+    if (status != null) return status;
   } catch (e) {
     lastError = e;
   }
@@ -113,10 +113,14 @@ Future<Phd2Status> pollPhd2Connected(
   );
 }
 
-/// Best-effort status read; returns disconnected when the host has no client.
+/// PHD2's status when PHD2 is the host's guider; disconnected when another
+/// guider answers or none does.
 Future<Phd2Status> readPhd2StatusOrDisconnected(GuidingBackend backend) async {
   try {
-    return await backend.phd2GetStatus();
+    final status = await backend.guiderGetStatus();
+    return isPhd2GuiderDeviceId(status.deviceId)
+        ? status
+        : kPhd2DisconnectedStatus;
   } catch (_) {
     return kPhd2DisconnectedStatus;
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/darkroom_navigation.dart';
@@ -9,14 +9,15 @@ import 'narrative_view.dart';
 import 'session_review_controller.dart';
 import 'workbench_view.dart';
 import 'widgets/build_in_darkroom_button.dart';
+import '../../utils/snackbar_helper.dart';
 
 /// Session Review / Morning Report.
 ///
 /// The cohesive "review the night" surface, rendered as two views of one
 /// [SessionReviewController] model: a top-to-bottom *narrative* report (the
 /// default) and a dense *workbench* console, switched by a single header
-/// toggle. A live [SkotiqProgressBar] (phase + fraction) appears whenever a
-/// long-running integration is in flight.
+/// toggle. A live [SkotiqProgressBar] (phase + fraction) appears whenever an
+/// A/B compare or a deconvolution is running.
 ///
 /// Reached from the run/session/analytics context via the `/session-review`
 /// route with a `?session=<id>` or `?target=<id>` query.
@@ -32,7 +33,6 @@ class SessionReviewScreen extends ConsumerStatefulWidget {
 
 class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
   String? _lastShownError;
-  String? _lastShownShortfall;
 
   SessionReviewController get _controller =>
       ref.read(sessionReviewControllerProvider(widget.scope).notifier);
@@ -48,7 +48,7 @@ class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
       // boundary explicit until the whole aggregate (including artifact
       // streaming) has a host-authoritative API.
       //
-      // The client ROLE, not the connection. `backend is NetworkBackend` is a
+      // The client ROLE, not the connection. `backend.remoteHost != null` is a
       // CONNECTION fact, and a desktop launched with `--remote-host` that has
       // not reached its rig is `Disconnected` — so that test read false for the
       // whole pre-handshake window and this whole screen opened over the
@@ -56,10 +56,9 @@ class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
       // it, writing rows into a database no job on the rig will ever read.
       //
       // Gating the surface rather than each button is what closes the class:
-      // the pass, its Stop, the integration and A/B runs, the finishing steps,
-      // the master library's accumulate/finalize/delete, and the Darkroom entry
-      // points are all inside this arm, so a control added later cannot arrive
-      // ungated.
+      // the pass, its Stop, the A/B runs, deconvolution, the master library's
+      // accumulate/finalize/delete, and the Darkroom entry points are all
+      // inside this arm, so a control added later cannot arrive ungated.
       return Scaffold(
         backgroundColor: colors.background,
         body: const SafeArea(
@@ -100,27 +99,7 @@ class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
       _lastShownError = state.error;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        SkotiqToastHelper.show(
-          context: context,
-          message: state.error!,
-          severity: SkotiqAlertSeverity.error,
-        );
-      });
-    }
-
-    // An integration that dropped subs is not an error — it returns a master —
-    // but it must never be silent. Same once-each dedupe as the error toast.
-    final shortfall =
-        SessionReviewController.integrationShortfall(state.lastOutcome);
-    if (shortfall != null && shortfall != _lastShownShortfall) {
-      _lastShownShortfall = shortfall;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        SkotiqToastHelper.show(
-          context: context,
-          message: shortfall,
-          severity: SkotiqAlertSeverity.warning,
-        );
+        context.showErrorSnackBar(state.error!);
       });
     }
 
@@ -180,8 +159,6 @@ class _SessionReviewScreenState extends ConsumerState<SessionReviewScreen> {
                 ),
               ],
             ),
-            // Live integration progress (phase + fraction). Only present while a
-            // long-running run is reporting progress.
             if (progress != null)
               _ProgressStrip(
                 phase: progress.phase,

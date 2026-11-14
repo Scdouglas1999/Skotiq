@@ -16,7 +16,7 @@ Package exports (see `lib/skotiq_remote_protocol.dart`):
 
 - `EnhancedSkotiqDiscovery`, `DiscoveredServer`, `QrConnectionData`
 - `RemotePairingClient`
-- `computeServerFingerprint`, `SkotiqServerCompatibility`
+- `computeServerFingerprint`, `LinkVersion`
 - `TokenManager`, `PairingDatabase` (desktop GUI pairing UI)
 
 ## Desktop: enable remote access
@@ -29,8 +29,7 @@ When the server is running, `/api/info` includes:
 
 ```json
 {
-  "version": "2.6.0",
-  "apiVersion": "2.6.0",
+  "version": "8.2.1",
   "pairingSupported": true,
   "fingerprint": "<sha256-hex>",
   "authRequired": true

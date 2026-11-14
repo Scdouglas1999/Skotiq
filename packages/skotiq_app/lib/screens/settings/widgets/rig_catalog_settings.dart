@@ -4,12 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'admin_only.dart';
 import 'settings_widgets.dart';
+import '../../../router/settings_sections.dart';
+import '../../../router/app_routes.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Manage the connected appliance's plate-solve / star catalogs over the
 /// network (`/api/catalog/*`). A freshly-imaged Pi ships with no catalogs, so
@@ -18,9 +25,7 @@ import 'settings_widgets.dart';
 /// planetarium catalogs — this page ships on desktop too, so nothing here may
 /// assume the client is a phone.
 class RigCatalogSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const RigCatalogSettings({super.key, this.isMobile = false});
+  const RigCatalogSettings({super.key});
 
   @override
   ConsumerState<RigCatalogSettings> createState() => _RigCatalogSettingsState();
@@ -35,35 +40,35 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
   String? _busyCatalog;
   bool _confirmationOpen = false;
   String? _error;
-  ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _loadGeneration = 0;
+  ProviderSubscription<HostCatalogs?>? _hostSubscription;
+
+  /// Catalog list loads (the newest wins) and catalog actions on the host; a
+  /// host change drops what the old host answers.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
 
   bool get _busy => _actionToken != null;
 
-  NetworkBackend? get _backend {
-    final b = ref.read(backendProvider);
-    return b is NetworkBackend ? b : null;
-  }
+  HostCatalogs? get _catalogs => ref.read(linkedHostCatalogsProvider);
 
   @override
   void initState() {
     super.initState();
-    _backendSubscription = ref.listenManual<SkotiqBackend>(
-      backendProvider,
+    _hostSubscription = ref.listenManual<HostCatalogs?>(
+      linkedHostCatalogsProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
-        _loadGeneration++;
+        _hostScopes.cancelAll();
         setState(() {
           _installed = const [];
           _available = const [];
           _error = null;
-          _loading = next is NetworkBackend;
+          _loading = next != null;
           _actionToken = null;
           _busyAction = null;
           _busyCatalog = null;
           _confirmationOpen = false;
         });
-        if (next is NetworkBackend) unawaited(_refresh());
+        if (next != null) unawaited(_refresh());
       },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -73,14 +78,14 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
 
   @override
   void dispose() {
-    _backendSubscription?.close();
+    _hostSubscription?.close();
     super.dispose();
   }
 
   Future<void> _refresh() async {
-    final backend = _backend;
-    final generation = ++_loadGeneration;
-    if (backend == null) {
+    final load = _hostScopes.beginLatest();
+    final catalogs = _catalogs;
+    if (catalogs == null) {
       if (!mounted) return;
       setState(() {
         _installed = const [];
@@ -96,10 +101,10 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     });
     try {
       final responses = await Future.wait<Object>([
-        backend.getCatalogStatus(),
-        backend.listAvailableCatalogs(),
+        catalogs.getCatalogStatus(),
+        catalogs.listAvailableCatalogs(),
       ]);
-      if (!_isCurrentLoad(backend, generation)) return;
+      if (load.isStale) return;
       final status = responses[0] as RemoteCatalogStatusResponse;
       final available = responses[1] as List<RemoteAvailableCatalog>;
       setState(() {
@@ -112,34 +117,29 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
         _loading = false;
       });
     } catch (e) {
-      if (!_isCurrentLoad(backend, generation)) return;
+      if (load.isStale) return;
       setState(() {
         _loading = false;
-        _error = '$e';
+        _error = userFacingError(e);
       });
     }
   }
 
-  bool _isCurrentLoad(NetworkBackend backend, int generation) =>
-      mounted &&
-      generation == _loadGeneration &&
-      identical(ref.read(backendProvider), backend);
-
-  bool _isCurrentAction(NetworkBackend backend, Object token) =>
-      mounted &&
-      identical(_actionToken, token) &&
-      identical(ref.read(backendProvider), backend);
+  bool _isCurrentAction(AsyncScope<SkotiqBackend> host, Object token) =>
+      host.isCurrent && identical(_actionToken, token);
 
   Future<void> _run({
     required String actionLabel,
     required String successMessage,
     String? catalogName,
     String? Function()? successMessageOverride,
-    required Future<void> Function(NetworkBackend backend) action,
+    required Future<void> Function(HostCatalogs catalogs, HostJobs jobs) action,
   }) async {
     if (_busy || _confirmationOpen) return;
-    final backend = _backend;
-    if (backend == null) return;
+    final host = _hostScopes.begin();
+    final catalogs = _catalogs;
+    final jobs = ref.read(linkedHostJobsProvider);
+    if (catalogs == null || jobs == null) return;
     final token = Object();
     setState(() {
       _actionToken = token;
@@ -147,8 +147,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       _busyCatalog = catalogName;
     });
     try {
-      await action(backend);
-      if (mounted && _isCurrentAction(backend, token)) {
+      await action(catalogs, jobs);
+      if (mounted && _isCurrentAction(host, token)) {
         final override = successMessageOverride?.call();
         if (override != null) {
           context.showInfoSnackBar(override);
@@ -157,12 +157,12 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
         }
       }
     } catch (e) {
-      if (mounted && _isCurrentAction(backend, token)) {
+      if (mounted && _isCurrentAction(host, token)) {
         context
             .showErrorSnackBar('$actionLabel failed: ${_describeFailure(e)}');
       }
     } finally {
-      if (_isCurrentAction(backend, token)) {
+      if (_isCurrentAction(host, token)) {
         setState(() {
           _actionToken = null;
           _busyAction = null;
@@ -173,18 +173,14 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     }
   }
 
-  /// Mutating catalog routes are admin-scope on the appliance. A device paired
-  /// with the default scope got a bare "Access denied: Token scope is not
-  /// permitted for this endpoint", which reads as a product bug instead of the
-  /// re-pair it actually needs.
+  /// Mutating catalog routes are admin-scope on the appliance; a device
+  /// paired with less needs to be paired again, not a bug report.
   static String _describeFailure(Object error) {
-    final text = '$error';
-    if (text.contains('Token scope is not permitted') ||
-        text.contains('Access denied')) {
+    if (isAccessLevelRefusal(error)) {
       return 'this device is paired without admin access. Re-pair it with '
           'Admin access on the rig to manage appliance catalogs.';
     }
-    return text;
+    return userFacingError(error);
   }
 
   Future<void> _downloadCatalog(RemoteAvailableCatalog catalog) {
@@ -192,11 +188,11 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       actionLabel: 'Download',
       successMessage: '${catalog.displayName} installed',
       catalogName: catalog.name,
-      action: (backend) async {
-        final accepted = await backend.downloadCatalog(catalog.name);
+      action: (catalogs, jobs) async {
+        final accepted = await catalogs.downloadCatalog(catalog.name);
         final completed = accepted.isTerminal
             ? accepted
-            : await backend.awaitJobCompletion(
+            : await jobs.awaitJobCompletion(
                 accepted.jobId,
                 timeout: const Duration(minutes: 30),
               );
@@ -218,9 +214,9 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       successMessage: '${_catalogPhrase(label)} verified',
       catalogName: catalog.name,
       successMessageOverride: () => note,
-      action: (backend) async {
+      action: (catalogs, _) async {
         note = null;
-        final results = await backend.verifyCatalog(name: catalog.name);
+        final results = await catalogs.verifyCatalog(name: catalog.name);
         final result = results[catalog.name];
         if (result == null) {
           throw StateError('the appliance returned no verification result');
@@ -262,8 +258,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
 
   Future<void> _confirmUninstall(RemoteCatalogStatus catalog) async {
     if (_busy || _confirmationOpen) return;
-    final backend = _backend;
-    if (backend == null) return;
+    final host = _hostScopes.begin();
+    if (_catalogs == null) return;
     setState(() => _confirmationOpen = true);
     final bool confirmed;
     try {
@@ -279,7 +275,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       if (mounted) setState(() => _confirmationOpen = false);
     }
     if (!mounted || !confirmed) return;
-    if (!identical(ref.read(backendProvider), backend)) {
+    if (host.isStale) {
       context.showInfoSnackBar('Rig changed; catalog removal canceled');
       return;
     }
@@ -287,20 +283,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       actionLabel: 'Remove',
       successMessage: '${_catalogPhrase(_displayNameFor(catalog))} removed',
       catalogName: catalog.name,
-      action: (authority) => authority.uninstallCatalog(catalog.name),
+      action: (catalogs, _) => catalogs.uninstallCatalog(catalog.name),
     );
-  }
-
-  static String _fmtBytes(int bytes) {
-    if (bytes <= 0) return '0 B';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    var size = bytes.toDouble();
-    var unit = 0;
-    while (size >= 1024 && unit < units.length - 1) {
-      size /= 1024;
-      unit++;
-    }
-    return '${size.toStringAsFixed(size >= 10 || unit == 0 ? 0 : 1)} ${units[unit]}';
   }
 
   bool get _isInstalled => _installed.isNotEmpty;
@@ -331,21 +315,30 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     return label.toLowerCase().contains('catalog') ? label : '$label catalog';
   }
 
+  /// The host installs, verifies and removes catalogs only for a link with
+  /// admin access; this link can still see what is installed.
+  bool get _adminOnlyRefused => hostRefusesAdminOnly(ref);
+
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final backend = _backend;
+    final catalogs = ref.watch(linkedHostCatalogsProvider);
 
     return SettingsPage(
       title: 'Appliance catalogs',
       description: 'Download and verify the rig\'s plate-solve / star catalogs',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile,
       children: [
-        if (backend == null)
+        if (catalogs == null)
           // Give the disconnected state a direct path to connection setup.
-          _NotConnected(colors: colors, isMobile: widget.isMobile)
+          _NotConnected(colors: colors)
         else ...[
+          if (_adminOnlyRefused) ...[
+            const AdminOnlyBanner(
+              title: 'Catalogs are installed and removed on the imaging '
+                  'computer',
+            ),
+            const SizedBox(height: SkotiqTokens.spaceMd),
+          ],
           Row(
             children: [
               Text('Installed on appliance',
@@ -361,21 +354,23 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
                 variant: ButtonVariant.ghost,
                 size: ButtonSize.small,
               ),
-              const SizedBox(width: 8),
-              SkotiqButton(
-                onPressed: (!_busy && _isInstalled)
-                    ? () => _run(
-                          actionLabel: 'Reload',
-                          successMessage: 'Catalog loaders reloaded',
-                          action: (backend) => backend.reloadCatalogs(),
-                        )
-                    : null,
-                label: 'Reload',
-                icon: LucideIcons.refreshCw,
-                variant: ButtonVariant.ghost,
-                size: ButtonSize.small,
-                isLoading: _busyAction == 'Reload',
-              ),
+              if (!_adminOnlyRefused) ...[
+                const SizedBox(width: 8),
+                SkotiqButton(
+                  onPressed: (!_busy && _isInstalled)
+                      ? () => _run(
+                            actionLabel: 'Reload',
+                            successMessage: 'Catalog loaders reloaded',
+                            action: (catalogs, _) => catalogs.reloadCatalogs(),
+                          )
+                      : null,
+                  label: 'Reload',
+                  icon: LucideIcons.refreshCw,
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  isLoading: _busyAction == 'Reload',
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 8),
@@ -386,7 +381,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
                 colors: colors,
                 icon: LucideIcons.alertTriangle,
                 text: 'No catalogs installed on the appliance — plate-solving '
-                    'needs at least one. Install from the list below.')
+                    'needs at least one.'
+                    '${_adminOnlyRefused ? '' : ' Install from the list below.'}')
           else
             for (final c in _installed) _installedTile(colors, c),
           const SizedBox(height: 16),
@@ -437,29 +433,31 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
                       color: colors.textPrimary,
                     )),
               ),
-              SkotiqButton(
-                onPressed: (_busy || _confirmationOpen)
-                    ? null
-                    : () => _verifyCatalog(c),
-                label: 'Verify',
-                variant: ButtonVariant.ghost,
-                size: ButtonSize.small,
-                isLoading: _busyAction == 'Verify' && _busyCatalog == c.name,
-              ),
-              SkotiqButton(
-                onPressed: (_busy || _confirmationOpen)
-                    ? null
-                    : () => _confirmUninstall(c),
-                label: 'Remove',
-                variant: ButtonVariant.ghost,
-                size: ButtonSize.small,
-                isLoading: _busyAction == 'Remove' && _busyCatalog == c.name,
-              ),
+              if (!_adminOnlyRefused) ...[
+                SkotiqButton(
+                  onPressed: (_busy || _confirmationOpen)
+                      ? null
+                      : () => _verifyCatalog(c),
+                  label: 'Verify',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  isLoading: _busyAction == 'Verify' && _busyCatalog == c.name,
+                ),
+                SkotiqButton(
+                  onPressed: (_busy || _confirmationOpen)
+                      ? null
+                      : () => _confirmUninstall(c),
+                  label: 'Remove',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  isLoading: _busyAction == 'Remove' && _busyCatalog == c.name,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 4),
           Text(
-            '${c.version ?? '—'} · ${_fmtBytes(c.sizeBytes)} · '
+            '${c.version ?? '—'} · ${ByteFormat.size(c.sizeBytes)} · '
             '${c.objectCount != null ? '${c.objectCount} objects · ' : ''}${c.status}',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textMuted,
@@ -503,22 +501,25 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                    '${a.version} · ${_fmtBytes(a.sizeBytes)} · ${a.description}',
+                    '${a.version} · ${ByteFormat.size(a.sizeBytes)} · ${a.description}',
                     style: SkotiqTypography.caption.copyWith(
                       color: colors.textMuted,
                     )),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          SkotiqButton(
-            onPressed: (_busy || installed) ? null : () => _downloadCatalog(a),
-            label: installed ? 'Installed' : 'Download',
-            icon: installed ? LucideIcons.check : LucideIcons.download,
-            variant: installed ? ButtonVariant.ghost : ButtonVariant.primary,
-            size: ButtonSize.small,
-            isLoading: _busyAction == 'Download' && _busyCatalog == a.name,
-          ),
+          if (!_adminOnlyRefused || installed) ...[
+            const SizedBox(width: 8),
+            SkotiqButton(
+              onPressed:
+                  (_busy || installed) ? null : () => _downloadCatalog(a),
+              label: installed ? 'Installed' : 'Download',
+              icon: installed ? LucideIcons.check : LucideIcons.download,
+              variant: installed ? ButtonVariant.ghost : ButtonVariant.primary,
+              size: ButtonSize.small,
+              isLoading: _busyAction == 'Download' && _busyCatalog == a.name,
+            ),
+          ],
         ],
       ),
     );
@@ -529,9 +530,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
 /// platform-neutral terms and offers the one action that can satisfy it.
 class _NotConnected extends StatelessWidget {
   final SkotiqColors colors;
-  final bool isMobile;
-
-  const _NotConnected({required this.colors, required this.isMobile});
+  const _NotConnected({required this.colors});
 
   @override
   Widget build(BuildContext context) {
@@ -570,7 +569,7 @@ class _NotConnected extends StatelessWidget {
                 size: ButtonSize.small,
                 onPressed: router == null
                     ? null
-                    : () => router.go('/settings?section=remote-access'),
+                    : () => router.goToSettings(SettingsSectionId.remoteAccess),
               ),
               SkotiqButton(
                 label: "This device's catalogs",
@@ -579,7 +578,7 @@ class _NotConnected extends StatelessWidget {
                 size: ButtonSize.small,
                 onPressed: router == null
                     ? null
-                    : () => router.go('/settings?section=catalogs'),
+                    : () => router.goToSettings(SettingsSectionId.catalogs),
               ),
             ],
           ),

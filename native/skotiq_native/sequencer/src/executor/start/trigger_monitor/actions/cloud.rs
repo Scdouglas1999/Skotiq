@@ -16,8 +16,8 @@ pub(in super::super) async fn slew_to_gap(
         tracing::warn!(
             "[CLOUD] SlewToGapAndContinue fired but no clear-sky direction reported; falling back to PauseAndWaitForClear"
         );
-        run.pause(None).await;
-        run.error(format!(
+        run.pause(None);
+        run.held(format!(
             "Trigger '{}' requested SlewToGapAndContinue but the cloud-motion analyzer has not reported a clear sky direction. Sequence paused.",
             trigger_name,
         ));
@@ -28,17 +28,20 @@ pub(in super::super) async fn slew_to_gap(
         let rc = rig.runtime_config.read();
         (rc.latitude, rc.longitude)
     };
-    let (Some(lat), Some(lon)) = (lat.or(rig.context.latitude), lon.or(rig.context.longitude))
-    else {
+    let (Some(lat), Some(lon)) = (
+        lat.or(rig.devices().latitude),
+        lon.or(rig.devices().longitude),
+    ) else {
         tracing::error!("[CLOUD] SlewToGapAndContinue cannot proceed: observer location not set");
-        run.error(
+        run.held(
             "SlewToGapAndContinue requested but observer location is not configured. Sequence paused.".to_string(),
         );
-        run.pause(None).await;
+        run.pause(None);
         return ActionFlow::Finished;
     };
 
-    let (ra_hours, dec_deg) = alt_az_to_ra_dec(alt_deg, az_deg, lat, lon);
+    let (ra_hours, dec_deg) =
+        crate::meridian::alt_az_to_ra_dec(alt_deg, az_deg, lat, lon, chrono::Utc::now());
     tracing::info!(
         "[CLOUD] SlewToGapAndContinue: clear sky at alt={:.1}°, az={:.1}° -> RA={:.4}h, Dec={:.4}°",
         alt_deg,
@@ -66,8 +69,8 @@ pub(in super::super) async fn slew_to_gap(
             "[CLOUD] Slew to gap failed: {:?} - pausing sequence",
             result.message
         );
-        run.pause(None).await;
-        run.error(format!(
+        run.pause(None);
+        run.held(format!(
             "SlewToGapAndContinue failed: {}",
             result.message.unwrap_or_default()
         ));

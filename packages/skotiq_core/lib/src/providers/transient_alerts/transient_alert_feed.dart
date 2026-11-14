@@ -1,7 +1,5 @@
 part of '../transient_alert_provider.dart';
 
-// Active transient alerts provider
-
 /// Polling interval for fetching alerts (15 minutes)
 const Duration _alertPollingInterval = Duration(minutes: 15);
 
@@ -41,19 +39,18 @@ final transientFeedCheckProvider = StateProvider<TransientFeedCheck?>(
 /// Fetches alerts immediately on subscription, then polls every 15 minutes.
 /// Alerts are filtered based on current settings.
 ///
-/// In remote mode (NetworkBackend), fetches from the headless server API.
+/// On a linked client, fetches from the headless server API.
 /// In local mode, fetches directly from AAVSO/TNS APIs.
 final activeTransientAlertsProvider =
     StreamProvider.autoDispose<List<TransientAlert>>((ref) {
-      final backend = ref.watch(backendProvider);
+      final remote = ref.watch(linkedHostTransientsProvider);
       final service = ref.watch(transientAlertServiceProvider);
       final settings = ref.watch(transientAlertSettingsProvider);
       final logger = ref.watch(loggingServiceProvider);
       final secretsStore = ref.watch(secretsStoreProvider);
       final scienceSettings = ref.watch(scienceSettingsProvider).valueOrNull;
-      final networkBackend = backend is NetworkBackend ? backend : null;
+      final networkBackend = remote;
 
-      // Create a controller for the stream
       final controller = StreamController<List<TransientAlert>>();
 
       // Pillar B ("First Light"): self-discovered transients flow through the
@@ -214,10 +211,8 @@ final activeTransientAlertsProvider =
         }
       }
 
-      // Fetch immediately
       fetchAlerts();
 
-      // Set up periodic polling
       final timer = Timer.periodic(_alertPollingInterval, (_) {
         fetchAlerts();
       });
@@ -229,7 +224,6 @@ final activeTransientAlertsProvider =
         fetchAlerts();
       });
 
-      // Clean up on dispose
       ref.onDispose(() {
         timer.cancel();
         controller.close();

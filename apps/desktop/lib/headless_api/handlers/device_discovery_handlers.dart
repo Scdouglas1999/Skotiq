@@ -18,17 +18,31 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../request_context.dart';
 import '../response_helpers.dart';
 import '../utils/device_type_parser.dart';
 import '../validation.dart';
+import 'package:skotiq_remote_protocol/wire.dart';
+import '../route_table.dart';
 
 /// Handlers for read-only device-discovery endpoints. Stateless beyond the
 /// [SkotiqBackend] it reads off the [ProviderContainer].
-class DeviceDiscoveryHandlers {
+class DeviceDiscoveryHandlers implements RouteSource {
+  @override
+  Map<ApiEndpoint, Function> get routes => {
+    DeviceDiscoveryApi.getDevices: handleGetDevices,
+    DeviceDiscoveryApi.discoverIndiAtAddress: handleDiscoverIndiAtAddress,
+    DeviceDiscoveryApi.discoverAlpacaAtAddress: handleDiscoverAlpacaAtAddress,
+    DeviceDiscoveryApi.getConnectedDevices: handleGetConnectedDevices,
+    DeviceDiscoveryApi.rescanDevices: handleRescanDevices,
+  };
+
   final ProviderContainer container;
 
   DeviceDiscoveryHandlers(this.container);
@@ -58,7 +72,6 @@ class DeviceDiscoveryHandlers {
       final deviceTypeStr = request.url.queryParameters['deviceType'];
       final backend = container.read(deviceBackendProvider);
 
-      // If no device type specified, discover all device types.
       List<DeviceInfo> allDevices = [];
       // Per-type errors travel in the response rather than being swallowed: a
       // persistent driver failure (missing TouptekSdk DLL, INDI server

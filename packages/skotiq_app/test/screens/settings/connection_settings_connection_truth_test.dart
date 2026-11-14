@@ -5,20 +5,23 @@
 //     the status chip, so a mid-handshake session reads "Connecting...",
 //   * the Discovery section exposes a reachable INDI server host/port entry
 //     that opens IndiServerDialog (off-Windows),
-//   * the "Connect to Server" dialog validates its port, stays open on an
-//     invalid entry, and seeds a neutral host rather than an unrelated
-//     Alpaca/INDI device-protocol address.
+//   * Connect opens the app's one connect flow (the desktop's link dialog,
+//     the phone's connection screen) instead of a dialog of its own.
 
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/equipment/dialogs/indi_server_dialog.dart';
+import 'package:skotiq_app/widgets/indi_server_dialog.dart';
+import 'package:skotiq_app/screens/connection/rig_connect_entry.dart';
 import 'package:skotiq_app/screens/settings/widgets/connection_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_core/models.dart';
 
 class _StubAppSettingsNotifier extends AppSettingsNotifier {
   _StubAppSettingsNotifier(this._initial);
@@ -104,6 +107,45 @@ void main() {
     expect(find.text('Connecting...'), findsNothing);
   });
 
+  // The page said "Saved on this device only" over discovery switches that
+  // a linked client reads from and writes to the imaging host.
+  testWidgets('a linked client labels each group by where it is stored',
+      (tester) async {
+    final backend = NetworkBackend(
+      serverHost: '10.0.0.5',
+      serverPort: 8080,
+      webSocketPort: 8080,
+      autoConnectWebSocket: false,
+    );
+    addTearDown(backend.dispose);
+
+    await pumpAppScreen(
+      tester,
+      const ConnectionSettings(),
+      size: const Size(1280, 1600),
+      extraOverrides: [
+        appSettingsProvider.overrideWith(
+          () => _StubAppSettingsNotifier(const AppSettingsState()),
+        ),
+        backendProvider.overrideWith(
+          (ref) => TestBackendNotifier(ref, backend),
+        ),
+        networkBackendConnectionStateProvider.overrideWith(
+          (ref) => Stream.value(BackendConnectionState.connected),
+        ),
+      ],
+    );
+
+    double top(Finder finder) => tester.getTopLeft(finder).dy;
+    final local = find.textContaining('Saved on this device only');
+    final host = find.textContaining('Saved on the imaging host (10.0.0.5)');
+    expect(local, findsOneWidget);
+    expect(host, findsOneWidget);
+    expect(top(local), lessThan(top(find.text('SERVER STATUS'))));
+    expect(top(find.text('SERVER STATUS')), lessThan(top(host)));
+    expect(top(host), lessThan(top(find.text('DISCOVERY'))));
+  });
+
   testWidgets(
     'Discovery exposes an INDI Server Address entry that opens the dialog',
     (tester) async {
@@ -187,64 +229,25 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'Connect to Server dialog seeds a neutral host and rejects a bad port',
-    (tester) async {
-      final handle = await pumpAppScreen(
-        tester,
-        const ConnectionSettings(),
-        extraOverrides: [
-          appSettingsProvider.overrideWith(
-            () => _StubAppSettingsNotifier(
-              // Distinctive device-protocol addresses that must NOT leak into
-              // the Skotiq-server host field.
-              const AppSettingsState(
-                alpacaServerHost: 'alpaca.box',
-                indiServerHost: 'indi.box',
-              ),
-            ),
-          ),
-        ],
-      );
+  testWidgets('Connect opens the app\'s one connect flow', (tester) async {
+    var opened = 0;
+    await pumpAppScreen(
+      tester,
+      const ConnectionSettings(),
+      extraOverrides: [
+        appSettingsProvider.overrideWith(
+          () => _StubAppSettingsNotifier(const AppSettingsState()),
+        ),
+        openRigConnectProvider.overrideWith((ref) => (_) => opened++),
+      ],
+    );
 
-      final openConnect = find.widgetWithText(SkotiqButton, 'Connect');
-      await tester.ensureVisible(openConnect);
-      await tester.tap(openConnect);
-      await tester.pumpAndSettle();
+    final openConnect = find.widgetWithText(SkotiqButton, 'Connect');
+    await tester.ensureVisible(openConnect);
+    await tester.tap(openConnect);
+    await tester.pumpAndSettle();
 
-      // Neutral default host — not conflated with Alpaca/INDI settings.
-      final hostField = tester.widget<TextField>(
-        find.byKey(const ValueKey('connect-host-field')),
-      );
-      expect(hostField.controller!.text, 'localhost');
-      expect(hostField.controller!.text, isNot('alpaca.box'));
-      expect(hostField.controller!.text, isNot('indi.box'));
-
-      // An out-of-range port is rejected in place; the dialog stays open and
-      // the backend is never swapped to a NetworkBackend.
-      await tester.enterText(
-        find.byKey(const ValueKey('connect-port-field')),
-        '0',
-      );
-      final dialogConnect = find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.widgetWithText(SkotiqButton, 'Connect'),
-      );
-      await tester.tap(dialogConnect);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Port must be between 1 and 65535.'), findsOneWidget);
-      // Dialog stays open (its port field is still mounted).
-      expect(find.byType(AlertDialog), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('connect-port-field')),
-        findsOneWidget,
-      );
-      expect(
-        handle.container.read(backendProvider),
-        isNot(isA<NetworkBackend>()),
-        reason: 'A rejected port must not trigger a connect / backend swap.',
-      );
-    },
-  );
+    expect(opened, 1);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
 }

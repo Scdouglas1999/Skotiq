@@ -12,13 +12,17 @@ part 'equipment.freezed.dart';
 sealed class EquipmentEvent with _$EquipmentEvent {
   const EquipmentEvent._();
 
+  /// `device_name` is the name the device is shown by, so a linked client
+  /// that never ran discovery labels it the way the host does.
   const factory EquipmentEvent.connecting({
     required String deviceType,
     required String deviceId,
+    required String deviceName,
   }) = EquipmentEvent_Connecting;
   const factory EquipmentEvent.connected({
     required String deviceType,
     required String deviceId,
+    required String deviceName,
   }) = EquipmentEvent_Connected;
   const factory EquipmentEvent.disconnected({
     required String deviceType,
@@ -36,58 +40,97 @@ sealed class EquipmentEvent with _$EquipmentEvent {
     required String message,
   }) = EquipmentEvent_Error;
   const factory EquipmentEvent.mountSlewStarted({
+    required String deviceId,
     required double ra,
     required double dec,
   }) = EquipmentEvent_MountSlewStarted;
   const factory EquipmentEvent.mountSlewCompleted({
+    required String deviceId,
     required double ra,
     required double dec,
   }) = EquipmentEvent_MountSlewCompleted;
-  const factory EquipmentEvent.mountTrackingStarted() =
-      EquipmentEvent_MountTrackingStarted;
-  const factory EquipmentEvent.mountTrackingStopped() =
-      EquipmentEvent_MountTrackingStopped;
-  const factory EquipmentEvent.mountParkStarted() =
+  const factory EquipmentEvent.mountTrackingStarted({
+    required String deviceId,
+  }) = EquipmentEvent_MountTrackingStarted;
+  const factory EquipmentEvent.mountTrackingStopped({
+    required String deviceId,
+  }) = EquipmentEvent_MountTrackingStopped;
+  const factory EquipmentEvent.mountParkStarted({required String deviceId}) =
       EquipmentEvent_MountParkStarted;
-  const factory EquipmentEvent.mountParkCompleted() =
+  const factory EquipmentEvent.mountParkCompleted({required String deviceId}) =
       EquipmentEvent_MountParkCompleted;
-  const factory EquipmentEvent.mountUnparked() = EquipmentEvent_MountUnparked;
+  const factory EquipmentEvent.mountUnparked({required String deviceId}) =
+      EquipmentEvent_MountUnparked;
   const factory EquipmentEvent.focuserMoveStarted({
+    required String deviceId,
     required int targetPosition,
   }) = EquipmentEvent_FocuserMoveStarted;
-  const factory EquipmentEvent.focuserMoveCompleted({required int position}) =
-      EquipmentEvent_FocuserMoveCompleted;
-  const factory EquipmentEvent.focuserTemperatureChanged({
-    required double temperature,
-  }) = EquipmentEvent_FocuserTemperatureChanged;
+  const factory EquipmentEvent.focuserMoveCompleted({
+    required String deviceId,
+    required int position,
+  }) = EquipmentEvent_FocuserMoveCompleted;
 
   /// Positions are the wheel's 0-based slots; the names are the profile's
   /// names for the slots moved from and to, when it has them.
   const factory EquipmentEvent.filterChanging({
+    required String deviceId,
     required int fromPosition,
     required int toPosition,
     String? filterName,
     String? fromFilterName,
   }) = EquipmentEvent_FilterChanging;
   const factory EquipmentEvent.filterChanged({
+    required String deviceId,
     required int position,
     String? filterName,
   }) = EquipmentEvent_FilterChanged;
   const factory EquipmentEvent.rotatorMoveStarted({
+    required String deviceId,
     required double targetAngle,
   }) = EquipmentEvent_RotatorMoveStarted;
-  const factory EquipmentEvent.rotatorMoveCompleted({required double angle}) =
-      EquipmentEvent_RotatorMoveCompleted;
+  const factory EquipmentEvent.rotatorMoveCompleted({
+    required String deviceId,
+    required double angle,
+  }) = EquipmentEvent_RotatorMoveCompleted;
   const factory EquipmentEvent.cameraCoolingStarted({
+    required String deviceId,
     required double targetTemp,
   }) = EquipmentEvent_CameraCoolingStarted;
   const factory EquipmentEvent.cameraCoolingReached({
+    required String deviceId,
     required double temperature,
   }) = EquipmentEvent_CameraCoolingReached;
-  const factory EquipmentEvent.cameraWarmingStarted() =
-      EquipmentEvent_CameraWarmingStarted;
-  const factory EquipmentEvent.cameraWarmingCompleted() =
-      EquipmentEvent_CameraWarmingCompleted;
+  const factory EquipmentEvent.cameraWarmingStarted({
+    required String deviceId,
+  }) = EquipmentEvent_CameraWarmingStarted;
+  const factory EquipmentEvent.cameraWarmingCompleted({
+    required String deviceId,
+  }) = EquipmentEvent_CameraWarmingCompleted;
+
+  /// The sensor temperature and cooler power a status read of the camera
+  /// returned, published when either has changed since the last one
+  /// published for that camera (0.1 C, 1 %), so every UI and linked client
+  /// shows the reading the host took.
+  const factory EquipmentEvent.cameraTemperatureChanged({
+    required String deviceId,
+    required double temperature,
+    double? coolerPower,
+  }) = EquipmentEvent_CameraTemperatureChanged;
+
+  /// The camera's readout settings as it reports them, published after a
+  /// gain, offset or binning change and once on connect. Every field is
+  /// the camera's full current value, not only the one that changed.
+  const factory EquipmentEvent.cameraSettingsChanged({
+    required String deviceId,
+    required int gain,
+
+    /// `gain` is an ISO speed, and the camera has no offset (a DSLR or
+    /// mirrorless body).
+    required bool gainIsIso,
+    required int offset,
+    required int binX,
+    required int binY,
+  }) = EquipmentEvent_CameraSettingsChanged;
   const factory EquipmentEvent.heartbeatStarted({
     required String deviceType,
     required String deviceId,

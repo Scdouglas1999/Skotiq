@@ -2,7 +2,11 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 class _MockBackend extends Mock implements SkotiqBackend {}
 
@@ -62,6 +66,39 @@ void main() {
       );
       expect(values.saturationAdu, lessThan(_realMaxPixel));
       expect(values.saturationAdu, greaterThan(_realMaxPixel - 64));
+    });
+
+    test('a camera that records a lower saturation level saturates there, '
+        'while e-/ADU keeps scaling by the container', () {
+      final container = resolveScienceCameraValues(
+        cameraName: 'Canon EOS M50',
+        driverGain: 100,
+        maxAdu: 16383,
+        adcBitDepth: 14,
+        entry: null,
+      );
+      final recorded = resolveScienceCameraValues(
+        cameraName: 'Canon EOS M50',
+        driverGain: 100,
+        maxAdu: 16383,
+        saturationAdu: 11892,
+        adcBitDepth: 14,
+        entry: null,
+      );
+      expect(container.saturationAdu, 16381);
+      expect(recorded.saturationAdu, 11892);
+      expect(recorded.source, contains("camera's recorded level"));
+      expect(recorded.electronsPerAdu, container.electronsPerAdu);
+      // A recorded level above the clip point does not raise it.
+      final above = resolveScienceCameraValues(
+        cameraName: 'Canon EOS M50',
+        driverGain: 100,
+        maxAdu: 16383,
+        saturationAdu: 16383,
+        adcBitDepth: 14,
+        entry: null,
+      );
+      expect(above.saturationAdu, 16381);
     });
 
     test('a flat-pair measurement at the gain in use wins over the chart', () {

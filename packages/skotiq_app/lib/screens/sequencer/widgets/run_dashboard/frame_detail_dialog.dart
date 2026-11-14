@@ -25,7 +25,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide ConnectionState;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../widgets/frame_thumbnail_loader.dart';
@@ -202,7 +204,7 @@ class _Header extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 'Frame ${record.frameIndex}/${record.totalFrames} • '
-                'Captured ${_formatDateTime(record.createdAt)}',
+                'Captured ${ClockFormat.dateHms(record.createdAt.toLocal())}',
                 style: TextStyle(
                   fontSize: SkotiqTypography.fontSize11,
                   color: colors.textSecondary,
@@ -313,16 +315,10 @@ class _ImagePreview extends ConsumerWidget {
   /// alongside each FITS. Convention: same basename with the
   /// FITS extension swapped for `.preview.png`.
   File? _resolvePreviewFile(String rejectPath) {
-    final lower = rejectPath.toLowerCase();
-    for (final ext in ['.fits', '.fit', '.fts', '.xisf']) {
-      if (lower.endsWith(ext)) {
-        final preview =
-            File('${rejectPath.substring(0, rejectPath.length - ext.length)}'
-                '.preview.png');
-        if (_safeExists(preview)) return preview;
-      }
-    }
-    return null;
+    if (!FrameFiles.isFrame(rejectPath)) return null;
+    final dot = rejectPath.lastIndexOf('.');
+    final preview = File('${rejectPath.substring(0, dot)}.preview.png');
+    return _safeExists(preview) ? preview : null;
   }
 }
 
@@ -573,13 +569,4 @@ class _MetricsGrid extends StatelessWidget {
 String _formatNumber(double? value, String suffix, {int digits = 2}) {
   if (value == null || value.isNaN || value.isInfinite) return '—';
   return '${value.toStringAsFixed(digits)}$suffix';
-}
-
-String _formatDateTime(DateTime dt) {
-  final local = dt.toLocal();
-  return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-      '${local.day.toString().padLeft(2, '0')} '
-      '${local.hour.toString().padLeft(2, '0')}:'
-      '${local.minute.toString().padLeft(2, '0')}:'
-      '${local.second.toString().padLeft(2, '0')}';
 }

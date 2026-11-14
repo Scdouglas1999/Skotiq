@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequence_fold_model.dart';
 import 'package:skotiq_app/screens/sequencer/sequence_fold_state.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree_shortcuts.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// An exposure node the way a filter-wheel run writes it: identical capture
 /// spec, differing only by filter. Defaults are chosen so plain

@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 
 import '../backend/device_capabilities.dart' show TrackingRate;
+import '../../errors/error_text.dart';
+import '../../errors/error_text_kind.dart';
 import '../errors/skotiq_error.dart';
 
 // Re-export TrackingRate from device_capabilities as the canonical source
@@ -12,57 +14,65 @@ part 'equipment_models/rotator_and_dome_states.dart';
 part 'equipment_models/environment_and_safety_states.dart';
 part 'equipment_models/switch_and_cover_calibrator_states.dart';
 
-/// Base device state
 enum DeviceConnectionState { disconnected, connecting, connected, error }
 
-/// Device error types for categorized error handling
+/// The connection half that every device state carries, so one notifier base
+/// and one device table can read and write it without knowing the device.
+abstract interface class DeviceSlotState<S> {
+  DeviceConnectionState get connectionState;
+  String? get deviceId;
+  String? get deviceName;
+  DeviceError? get lastError;
+  bool get autoReconnectEnabled;
+
+  S copyWith({
+    DeviceConnectionState? connectionState,
+    String? deviceId,
+    String? deviceName,
+    DeviceError? lastError,
+    bool? autoReconnectEnabled,
+    bool clearError,
+  });
+}
+
+extension DeviceSlotRetryTarget on DeviceSlotState<Object?> {
+  /// The device a retry connects: the one the slot holds, or the one that
+  /// last failed to connect there (a failed connect leaves the slot empty).
+  String? get retryDeviceId => deviceId ?? lastError?.deviceId;
+}
+
 enum DeviceErrorType {
-  /// Connection to device failed
   connectionFailed,
 
-  /// Device was not found
   deviceNotFound,
 
-  /// Operation timed out
   timeout,
 
-  /// Device driver error
   driverError,
 
-  /// Invalid parameter passed
   invalidParameter,
 
-  /// Device is busy
   busy,
 
-  /// Permission denied
   permissionDenied,
 
-  /// Communication error
   communicationError,
 
-  /// Unknown error
   unknown,
 }
 
-/// Represents an error from a device operation
 class DeviceError extends Equatable {
-  /// Type of error
   final DeviceErrorType type;
 
-  /// Human-readable error message
   final String message;
 
   /// Optional error code from the device/driver
   final String? code;
 
-  /// When the error occurred
   final DateTime timestamp;
 
-  /// Device ID that caused the error
   final String? deviceId;
 
-  /// Number of retry attempts made
   final int retryAttempts;
 
   /// Whether this error is recoverable (can retry)
@@ -83,12 +93,15 @@ class DeviceError extends Equatable {
   /// If the exception is a [SkotiqError], the structured error information
   /// is extracted directly. Otherwise, the error message is parsed to determine
   /// the error category.
+  /// [error] as a device error. An error with no category of its own is
+  /// classified from its text by [classifyErrorText]; the message is the
+  /// sentence a person reads.
   factory DeviceError.fromException(
     Object error, {
     String? deviceId,
     int retryAttempts = 0,
   }) {
-    // If it's already a SkotiqError, convert directly
+    if (error is DeviceError) return error;
     if (error is SkotiqError) {
       return DeviceError.fromSkotiqError(
         error,
@@ -96,33 +109,20 @@ class DeviceError extends Equatable {
         retryAttempts: retryAttempts,
       );
     }
-
-    final message = error.toString();
-    final normalized = message.toLowerCase();
-
-    // Try to categorize the error from the message
-    DeviceErrorType type = DeviceErrorType.unknown;
-    bool recoverable = true;
-
-    if (normalized.contains('timeout') || normalized.contains('timed out')) {
-      type = DeviceErrorType.timeout;
-    } else if (normalized.contains('not found') ||
-        normalized.contains('notfound')) {
-      type = DeviceErrorType.deviceNotFound;
-      recoverable = false;
-    } else if (normalized.contains('connection') ||
-        normalized.contains('connect')) {
-      type = DeviceErrorType.connectionFailed;
-    } else if (normalized.contains('driver')) {
-      type = DeviceErrorType.driverError;
-    } else if (normalized.contains('busy')) {
-      type = DeviceErrorType.busy;
-    } else if (normalized.contains('permission') ||
-        normalized.contains('denied')) {
-      type = DeviceErrorType.permissionDenied;
-      recoverable = false;
-    }
-
+    final message = userFacingError(error);
+    final (type, recoverable) = switch (classifyErrorText(message)) {
+      ErrorTextKind.timeout => (DeviceErrorType.timeout, true),
+      ErrorTextKind.notFound => (DeviceErrorType.deviceNotFound, false),
+      ErrorTextKind.connection => (DeviceErrorType.connectionFailed, true),
+      ErrorTextKind.permission => (DeviceErrorType.permissionDenied, false),
+      ErrorTextKind.busy => (DeviceErrorType.busy, true),
+      ErrorTextKind.hardware => (DeviceErrorType.communicationError, true),
+      ErrorTextKind.invalid ||
+      ErrorTextKind.unsupported => (DeviceErrorType.invalidParameter, true),
+      ErrorTextKind.imaging ||
+      ErrorTextKind.driver => (DeviceErrorType.driverError, true),
+      ErrorTextKind.unknown => (DeviceErrorType.unknown, true),
+    };
     return DeviceError(
       type: type,
       message: message,
@@ -133,16 +133,11 @@ class DeviceError extends Equatable {
     );
   }
 
-  /// Create a DeviceError from a structured [SkotiqError]
-  ///
-  /// This provides a more accurate conversion using the structured error
-  /// information from the native backend.
   factory DeviceError.fromSkotiqError(
     SkotiqError error, {
     String? deviceId,
     int retryAttempts = 0,
   }) {
-    // Map BackendErrorCategory to DeviceErrorType
     final type = switch (error.category) {
       BackendErrorCategory.connection => DeviceErrorType.connectionFailed,
       BackendErrorCategory.hardware => DeviceErrorType.communicationError,
@@ -172,7 +167,6 @@ class DeviceError extends Equatable {
     );
   }
 
-  /// Get a user-friendly description of the error
   String get userMessage {
     switch (type) {
       case DeviceErrorType.connectionFailed:
@@ -196,7 +190,6 @@ class DeviceError extends Equatable {
     }
   }
 
-  /// Get a suggested recovery action
   String? get suggestedAction {
     switch (type) {
       case DeviceErrorType.connectionFailed:

@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -145,4 +147,45 @@ void main() {
       ).called(1);
     },
   );
+
+  test('a camera raw light gets a FITS calibrated copy', () async {
+    final backend = _MockNetworkBackend();
+    when(
+      () => backend.calibrateImageFile(
+        lightPath: any(named: 'lightPath'),
+        darkPath: any(named: 'darkPath'),
+        flatPath: any(named: 'flatPath'),
+        biasPath: any(named: 'biasPath'),
+        outputPath: any(named: 'outputPath'),
+      ),
+    ).thenAnswer((_) async {});
+
+    final container = ProviderContainer(
+      overrides: [
+        backendProvider.overrideWith(
+          (ref) => _ReplaceableBackendNotifier(ref, backend),
+        ),
+        loggingServiceProvider.overrideWithValue(LoggingService()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    const light = r'C:\Users\scdou\Documents\NGC7380\IMG_0001.CR3';
+    final result = await container
+        .read(calibrationServiceProvider)
+        .calibrateFile(
+          lightPath: light,
+          settings: const CalibrationSettings(
+            autoDarkFromLibrary: false,
+            masterBiasPath: r'C:\Users\scdou\Documents\Bias\master.fits',
+          ),
+          exposureTime: 120,
+          gain: 800,
+        );
+
+    expect(
+      result.outputPath,
+      r'C:\Users\scdou\Documents\NGC7380\IMG_0001_cal.fits',
+    );
+  });
 }

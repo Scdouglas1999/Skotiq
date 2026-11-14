@@ -252,7 +252,6 @@ class PassTimeline {
   /// earlier pass, by [PassStage.key].
   Map<String, double> history = const <String, double>{};
 
-  /// Fold [log] into a timeline.
   static PassTimeline fromLog(
     PassLog log, {
     Map<String, double> history = const <String, double>{},
@@ -937,14 +936,6 @@ class PassScheduledSpan {
   /// Timed from an earlier pass rather than this one.
   final bool estimated;
   final bool failed;
-}
-
-/// A compact clock: `4:05`, `1:02:10`.
-String passClock(Duration d) {
-  final h = d.inHours;
-  final m = d.inMinutes.remainder(60);
-  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-  return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$s' : '$m:$s';
 }
 
 /// A sub's rejection reason as the operator reads it. The registration's own

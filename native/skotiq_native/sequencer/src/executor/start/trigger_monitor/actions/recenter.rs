@@ -55,7 +55,7 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
         tracing::error!(
             "[DRIFT] Recenter requested but no target RA/Dec set; pausing for operator intervention"
         );
-        run.pause(None).await;
+        run.pause(None);
         camera_claim.release().await;
         return ActionFlow::Finished;
     }
@@ -72,10 +72,13 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
     let result = crate::instructions::execute_center(&center_config, &recenter_ctx, None).await;
     // The solve exposures are done; the capture loop may go on.
     camera_claim.release().await;
-    let stop_on_quality_problems = rig.trigger_state.read().await.stop_on_quality_problems;
+    let stop_on_quality_problems =
+        crate::triggers::stops_on_quality_problems(Some(&rig.trigger_state)).await;
     if result.status == NodeStatus::Success {
         *failure_told = false;
-    } else if crate::instructions::center_did_not_converge(&result) && !stop_on_quality_problems {
+    } else if result.setback() == Some(crate::instructions::Setback::CenterNotConverged)
+        && !stop_on_quality_problems
+    {
         // Not solving or converging (cloud, a sparse field) is a judgment, not
         // a fault: the frames carry on where the mount points and the operator
         // is told once per run of failures.
@@ -96,16 +99,17 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
                 serde_json::json!({ "trigger_id": trigger_id }),
             );
             tracing::warn!("[DRIFT] {}", continuation.operator_message);
-            decisions.send(continuation.decision);
-            run.warning(continuation.operator_message);
+            let (decision, line) = continuation.split();
+            decisions.send(decision);
+            run.send(line.into_event());
         }
     } else {
         tracing::warn!(
             "[DRIFT] Recenter failed: {:?} - pausing sequence",
             result.message
         );
-        run.pause(None).await;
-        run.error(format!(
+        run.pause(None);
+        run.held(format!(
             "DriftLimit recenter failed: {}",
             result.message.unwrap_or_default()
         ));

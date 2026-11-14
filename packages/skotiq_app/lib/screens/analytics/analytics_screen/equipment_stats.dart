@@ -1,9 +1,4 @@
-// ignore_for_file: unused_element_parameter
-
 part of '../analytics_screen.dart';
-
-/// Metrics with no persisted backing source render this instead of a fake
-/// number — the imaging pipeline does not currently track them.
 
 /// A run's stats blob, or null when it is missing or malformed.
 ///
@@ -23,7 +18,7 @@ ParsedRunStats? _parseRunStats(String json) {
 /// carries everywhere else in the app.
 
 class _EquipmentStatsTab extends ConsumerWidget {
-  const _EquipmentStatsTab({super.key});
+  const _EquipmentStatsTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,7 +56,7 @@ class _EquipmentStatsTab extends ConsumerWidget {
           alignment: Alignment.topCenter,
           child: _AnalyticsError(
             title: 'Equipment stats did not load',
-            message: err.toString(),
+            error: err,
             onRetry: () => ref.invalidate(allDbImagesProvider),
           ),
         ),
@@ -81,13 +76,11 @@ class _EquipmentStatsTab extends ConsumerWidget {
                 'mount and guider actually did.',
           );
         }
-        final lights =
-            images.where((i) => i.frameType.toLowerCase() == 'light').toList();
+        final lights = images.where((i) => i.isLight).toList();
         // Accepted lights are the usable integration/quality population;
         // total camera exposures and temperature still cover every frame.
-        final acceptedLights = lights
-            .where((i) => i.frameType.toLowerCase() == 'light' && i.isAccepted)
-            .toList();
+        final acceptedLights =
+            lights.where((i) => i.isLight && i.isAccepted).toList();
         final totalExposures = images.length;
         final acceptedIntegration = acceptedLights.fold<double>(
           0,
@@ -160,7 +153,8 @@ class _EquipmentStatsTab extends ConsumerWidget {
                     ),
                     Readout(
                       label: 'Accepted integration',
-                      value: _formatIntegration(acceptedIntegration),
+                      value: DurationFormat.seconds(acceptedIntegration,
+                          style: DurationStyle.short),
                       size: ReadoutSize.sm,
                     ),
                     Readout(
@@ -224,24 +218,6 @@ class _EquipmentStatsTab extends ConsumerWidget {
     );
   }
 
-  /// Format a summed exposure time (seconds) as `Hh Mm`, or a clear empty
-  /// marker when no frames have been captured yet.
-  /// The rule this grid follows, stated once: a COUNT or a SUM of nothing is
-  /// zero and prints as a number ("0", "0s"); a MEAN of nothing has no value
-  /// at all and prints "No data". Accepted Integration is a sum, and printing
-  /// it as "No data" beside "Total Exposures 0" was the only reason the two
-  /// tokens looked arbitrary.
-  static String _formatIntegration(double seconds) {
-    if (!seconds.isFinite || seconds <= 0) return '0s';
-    final rounded = seconds.round();
-    final h = rounded ~/ 3600;
-    final m = (rounded % 3600) ~/ 60;
-    final s = rounded % 60;
-    if (h > 0) return '${h}h ${m}m';
-    if (m > 0) return s > 0 ? '${m}m ${s}s' : '${m}m';
-    return '${s}s';
-  }
-
   /// Mean of the available samples via [format], or null when the backing
   /// column exists but no frame recorded a value — which a [Readout] renders
   /// as the em dash.
@@ -263,11 +239,6 @@ const double _equipmentSkeletonHeight = 260;
 const double _equipmentReadoutGap = SkotiqTokens.spaceMd;
 
 /// One device's numbers: a panel head naming the device, then its readouts.
-///
-/// Was a card with a 15/600 title and a key/value table whose right column was
-/// a `labelSm`. Every one of those values is a measurement, so every one of
-/// them is a [Readout] now — the label sits under the number instead of
-/// competing with it across a gap.
 class _EquipmentStatPanel extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -296,7 +267,3 @@ class _EquipmentStatPanel extends StatelessWidget {
     );
   }
 }
-
-/// Skeleton placeholder used while session history loads. Rendering a list of
-/// card-sized shimmer rows (rather than a centred spinner) preserves the
-/// final layout so the page doesn't pop when the real data arrives.

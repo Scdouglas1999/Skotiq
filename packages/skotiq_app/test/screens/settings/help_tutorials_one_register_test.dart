@@ -22,7 +22,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/settings/settings_search_index.g.dart';
 import 'package:skotiq_app/screens/settings/widgets/help_tutorials_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
@@ -130,7 +131,6 @@ void main() {
       'Calibration frames',
       'Advanced features',
       'Reset all progress',
-      'Enable tutorials',
     ]) {
       expect(find.text(title), findsOneWidget, reason: 'missing row "$title"');
     }

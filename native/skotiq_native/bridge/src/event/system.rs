@@ -1,17 +1,46 @@
-use super::*;
+use flutter_rust_bridge::frb;
+use serde::{Deserialize, Serialize};
 
 /// Safety-specific events
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SafetyEvent {
-    WeatherUnsafe { reason: String },
+    WeatherUnsafe {
+        reason: String,
+    },
     WeatherSafe,
-    EmergencyStop { reason: String },
-    ParkInitiated { reason: String },
+    EmergencyStop {
+        reason: String,
+    },
+    ParkInitiated {
+        reason: String,
+    },
     ParkCompleted,
+    /// A mount moved with no command from Skotiq to explain it: an axis
+    /// running far faster than tracking and guiding, `Slewing` with no slew,
+    /// or a dive below the horizon. `kind` is `runaway`, `slewing` or
+    /// `below_horizon`; `message` says what the mount reported.
+    MountMotionFault {
+        device_id: String,
+        kind: String,
+        message: String,
+    },
+    /// Skotiq no longer trusts the mount's reported position (it reported
+    /// home without a home command, went silent and came back at home, or a
+    /// plate solve disagreed with it). Automatic moves are refused until the
+    /// operator recovers the position.
+    MountPositionUnknown {
+        device_id: String,
+        reason: String,
+        message: String,
+    },
+    /// A motion fault was acknowledged or the mount's position was recovered.
+    MountGuardCleared {
+        device_id: String,
+        message: String,
+    },
 }
 
-/// System-level events
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SystemEvent {

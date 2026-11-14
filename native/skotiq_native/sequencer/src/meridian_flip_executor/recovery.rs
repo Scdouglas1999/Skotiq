@@ -15,14 +15,14 @@ impl MeridianFlipExecutor {
         // including failed solving and cancellation, before releasing capture.
         if extended && self.original_recovery_filter.lock().is_none() {
             if let Some(id) = wheel {
-                let position = self.device_ops.filterwheel_get_position(id).await?;
+                let position = self.run.device_ops.filterwheel_get_position(id).await?;
                 *self.original_recovery_filter.lock() = Some((id.to_string(), position));
             }
         }
         let original = self.original_recovery_filter.lock().clone();
         let result = async {
             if let Some(id) = wheel.filter(|_| extended) {
-                let names = self.device_ops.filterwheel_get_names(id).await?;
+                let names = self.run.device_ops.filterwheel_get_names(id).await?;
                 if let Some(index) = names.iter().position(|name| {
                     matches!(name.trim().to_ascii_lowercase().as_str(), "l" | "lum" | "luminance")
                 }) {
@@ -66,11 +66,12 @@ impl MeridianFlipExecutor {
     async fn recovery_filter(&self, id: &str, position: i32) -> Result<(), String> {
         // Cleanup uses this too, so cancellation cannot skip restoration.
         tokio::time::timeout(std::time::Duration::from_secs(120), async {
-            self.device_ops
+            self.run
+                .device_ops
                 .filterwheel_set_position(id, position)
                 .await?;
             loop {
-                if self.device_ops.filterwheel_get_position(id).await? == position {
+                if self.run.device_ops.filterwheel_get_position(id).await? == position {
                     return Ok(());
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -81,10 +82,11 @@ impl MeridianFlipExecutor {
     }
 
     async fn nearby_pointing_reference(&self, ctx: &FlipContext) -> Result<(), String> {
-        let (lat, lon) = self
-            .device_ops
-            .get_observer_location()
-            .ok_or("Cannot attempt nearby-field recovery without an observing location")?;
+        let (Some(lat), Some(lon)) = (self.run.rig.latitude, self.run.rig.longitude) else {
+            return Err(
+                "Cannot attempt nearby-field recovery without an observing location".into(),
+            );
+        };
         let now = chrono::Utc::now();
         let (alt, az) =
             meridian::calculate_alt_az(ctx.target_ra_hours, ctx.target_dec_degrees, lat, lon, now);
@@ -108,7 +110,7 @@ impl MeridianFlipExecutor {
                 return Err("Nearby recovery changed pier side; refusing to sync".into());
             }
             let camera = ctx.camera_id.as_deref().ok_or("No camera configured")?;
-            let image = self.device_ops.camera_start_exposure(camera, 15.0, None, None, 1, 1).await?;
+            let image = self.run.device_ops.camera_start_exposure(crate::device_ops::ExposureRequest::new(camera, 15.0)).await?;
             let solved = self.recovery_solve(ctx, &image, ra * 15.0, dec).await?;
             if !solved.success || !solved.ra_degrees.is_finite() || !(-90.0..=90.0).contains(&solved.dec_degrees) {
                 return Err("Nearby recovery field did not solve".into());
@@ -121,7 +123,7 @@ impl MeridianFlipExecutor {
             if separation > 5.0 {
                 return Err(format!("Nearby solution is {separation:.2} degrees from the requested field; refusing to sync"));
             }
-            self.device_ops.mount_sync(&ctx.mount_id, solved.ra_degrees / 15.0, solved.dec_degrees).await
+            self.run.device_ops.mount_sync(&ctx.mount_id, solved.ra_degrees / 15.0, solved.dec_degrees).await
                 .map_err(|e| format!("Nearby-field sync unavailable or failed: {e}"))
         }
         .await;
@@ -150,13 +152,14 @@ impl MeridianFlipExecutor {
     ) -> Result<crate::device_ops::PlateSolveResult, String> {
         let solve = tokio::time::timeout(
             std::time::Duration::from_secs(60),
-            self.device_ops
+            self.run
+                .device_ops
                 .plate_solve(image, Some(ra), Some(dec), None),
         );
         tokio::pin!(solve);
         loop {
             tokio::select! {
-                result = &mut solve => return result.map_err(|_| "Recovery plate solve timed out after 60s".to_string())?,
+                result = &mut solve => return result.map_err(|_| "Recovery plate solve timed out after 60s".to_string())?.map_err(String::from),
                 _ = tokio::time::sleep(std::time::Duration::from_millis(200)) => {
                     if self.is_cancelled(ctx) {
                 return Err("Recovery cancelled".into());

@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
+import '../../../tours/tour_target.dart';
 import '../shell_navigation.dart';
 
 /// The narrow shell's navigation (04-shell §3.3).
@@ -15,7 +16,7 @@ import '../shell_navigation.dart';
 /// second bar the way the six-slot version did.
 class SkotiqBottomNavigation extends StatelessWidget {
   final String currentRoute;
-  final ValueChanged<String> onRouteSelected;
+  final ValueChanged<AppRoute> onRouteSelected;
 
   const SkotiqBottomNavigation({
     super.key,
@@ -27,11 +28,8 @@ class SkotiqBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
-    final currentPath = currentRoute.split('?').first;
-
-    final overflowIsCurrent = ShellNavigation.overflowDestinations.any(
-      (d) => ShellNavigation.locationIsUnder(currentPath, d.route),
-    );
+    final overflowIsCurrent =
+        ShellNavigation.moreSheet.any((d) => d.contains(currentRoute));
 
     return Container(
       decoration: BoxDecoration(
@@ -44,25 +42,24 @@ class SkotiqBottomNavigation extends StatelessWidget {
           height: BottomNavMetrics.barHeight,
           child: Row(
             children: [
-              for (final dest in ShellNavigation.bottomNavigationDestinations)
+              for (final dest in ShellNavigation.phoneBar)
                 Expanded(
                   child: _BottomNavItem(
-                    icon: dest.icon,
-                    label: dest.bottomNavLabel(l10n),
+                    key: TourTarget.forDestination(dest)?.key,
+                    icon: dest.icon!,
+                    label: (dest.shortLabel ?? dest.label!).of(l10n),
                     // Sub-route aware: the image-ready deep link
                     // (/imaging/preview/:id) renders the Imaging screen, so
                     // the Imaging slot must own it. Exact matching left the
                     // whole bar unlit on those routes.
-                    isSelected: ShellNavigation.locationIsUnder(
-                      currentPath,
-                      dest.route,
-                    ),
+                    isSelected: dest.contains(currentRoute),
                     colors: colors,
-                    onTap: () => onRouteSelected(dest.route),
+                    onTap: () => onRouteSelected(dest),
                   ),
                 ),
               Expanded(
                 child: _BottomNavItem(
+                  key: TourTarget.navMore.key,
                   icon: LucideIcons.menu,
                   label: l10n.text('navMore'),
                   isSelected: overflowIsCurrent,
@@ -88,48 +85,48 @@ class SkotiqBottomNavigation extends StatelessWidget {
     SkotiqLocalizations l10n,
     SkotiqColors colors,
   ) {
-    final currentPath = currentRoute.split('?').first;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: colors.surface,
       showDragHandle: true,
       builder: (sheetContext) {
+        // Scrolls rather than overflows: a modal sheet gets at most 9/16 of
+        // the screen, which a landscape phone fills before the list ends.
         return SafeArea(
           top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final dest in ShellNavigation.overflowDestinations)
-                Builder(
-                  builder: (context) {
-                    final isCurrent = ShellNavigation.locationIsUnder(
-                      currentPath,
-                      dest.route,
-                    );
-                    return ListTile(
-                      leading: Icon(
-                        dest.icon,
-                        color:
-                            isCurrent ? colors.primary : colors.textSecondary,
-                      ),
-                      title: Text(
-                        dest.label(l10n),
-                        style: SkotiqTypography.body.copyWith(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final dest in ShellNavigation.moreSheet)
+                  Builder(
+                    builder: (context) {
+                      final isCurrent = dest.contains(currentRoute);
+                      return ListTile(
+                        leading: Icon(
+                          dest.icon,
                           color:
-                              isCurrent ? colors.primary : colors.textPrimary,
-                          fontWeight:
-                              isCurrent ? FontWeight.w600 : FontWeight.w500,
+                              isCurrent ? colors.primary : colors.textSecondary,
                         ),
-                      ),
-                      selected: isCurrent,
-                      onTap: () {
-                        Navigator.of(sheetContext).pop();
-                        onRouteSelected(dest.route);
-                      },
-                    );
-                  },
-                ),
-            ],
+                        title: Text(
+                          dest.label!.of(l10n),
+                          style: SkotiqTypography.body.copyWith(
+                            color:
+                                isCurrent ? colors.primary : colors.textPrimary,
+                            fontWeight:
+                                isCurrent ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                        ),
+                        selected: isCurrent,
+                        onTap: () {
+                          Navigator.of(sheetContext).pop();
+                          onRouteSelected(dest);
+                        },
+                      );
+                    },
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -150,6 +147,7 @@ class _BottomNavItem extends StatelessWidget {
   final SkotiqColors colors;
 
   const _BottomNavItem({
+    super.key,
     required this.icon,
     required this.label,
     required this.isSelected,

@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 
 /// A retired settings key keeps its seeded value forever: nothing writes it,
 /// but `BackupService._exportSettings` dumps the whole `app_settings` table

@@ -4,23 +4,8 @@
 //! Capabilities describe what operations a device supports, allowing the UI
 //! and sequencer to adapt to device limitations.
 //!
-//! # Connect/Disconnect-probe guard
-//!
-//! A capability probe for an Alpaca or ASCOM device probes `is_connected()`
-//! before it touches the connection, because a blind
-//! `connect → read properties → disconnect` cycle drops a session the user
-//! already has open in the UI.
-//!
-//! * `Ok(true)` — the device is already up: read the properties and issue no
-//!   connect/disconnect.
-//! * `Ok(false)` — run the full connect/probe/disconnect cycle.
-//! * `Err` (the driver does not implement `Connected`, or the call failed
-//!   mid-transition) — treat the device as already connected.
-//!
-//! `Err` resolves that way because the two mistakes are not symmetric:
-//! skipping a disconnect leaves a short-lived connection the device manager
-//! cleans up on its normal lifecycle, while issuing one against a driver
-//! mid-operation can corrupt a live exposure or slew.
+//! A connected device answers through its handle (`read_capabilities`); the
+//! submodules here turn each protocol's answer into these structs.
 //!
 //! # `as`-cast policy
 //!
@@ -42,36 +27,23 @@
 //! }
 //! ```
 
-use crate::device_id::parse_device_id_cached;
+use crate::device_capabilities::cache::{
+    capability_cache, CapabilityCacheEntry, CAPABILITY_CACHE_TTL,
+};
+use crate::device_capabilities::types::{DeviceCapabilities, ShutterStatus};
 use crate::error::SkotiqError;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
-use tokio::sync::{Mutex, RwLock};
+use std::time::Instant;
 // Re-use enums from device module to avoid FRB conflicts
-use crate::device::{CalibratorState, CoverState, TrackingRate};
 
 // Import native traits for connect/disconnect and live filter-wheel queries.
-#[cfg(windows)]
-use skotiq_native::traits::{NativeDevice, NativeFilterWheel};
 
-pub(crate) mod alpaca;
-pub(crate) use alpaca::*;
+#[cfg(windows)]
 pub(crate) mod ascom;
-pub(crate) use ascom::*;
 pub(crate) mod cache;
-pub(crate) use cache::*;
-pub(crate) mod indi;
-pub(crate) use indi::*;
-pub(crate) mod native;
-pub(crate) use native::*;
-pub(crate) mod simulator;
-pub(crate) use simulator::*;
+pub(crate) mod driver;
 #[cfg(test)]
 mod tests;
-pub(crate) mod types;
-pub use types::*;
+pub mod types;
 
 /// Re-read the LIVE readings that share the capability structs, overwriting
 /// whatever the cache is holding for them.
@@ -109,14 +81,14 @@ pub use types::*;
 /// Not covered: [`DeviceCapabilities::Switch`] — refreshing it needs one
 /// round trip per switch, and [`WeatherCapabilities`] has no live fields.
 async fn refresh_volatile_state(device_id: &str, capabilities: &mut DeviceCapabilities) {
-    let mgr = crate::api::get_device_manager();
+    let mgr = crate::device_manager::get_device_manager();
     match capabilities {
         DeviceCapabilities::Camera(caps) => {
             if let Ok(status) = mgr.camera_get_status(device_id).await {
                 caps.ccd_temperature = status.sensor_temp;
                 caps.set_ccd_temperature = status.target_temp;
                 caps.cooler_power = status.cooler_power;
-                caps.cooler_on = Some(status.cooler_on);
+                caps.cooler_on = status.cooler_on;
             }
         }
         DeviceCapabilities::FilterWheel(caps) => {
@@ -216,11 +188,7 @@ async fn refresh_volatile_state(device_id: &str, capabilities: &mut DeviceCapabi
     }
 }
 
-/// Get capabilities for any device type
 pub async fn get_device_capabilities(device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
-    // Use cached parsing for better performance
-    let parsed = parse_device_id_cached(device_id)?;
-
     {
         let cached = {
             let mut cache = capability_cache().lock().await;
@@ -245,14 +213,7 @@ pub async fn get_device_capabilities(device_id: &str) -> Result<DeviceCapabiliti
         }
     }
 
-    // Return capability data from the backend-specific capability providers.
-    let capabilities = match parsed.driver_type {
-        crate::device::DriverType::Alpaca => get_alpaca_capabilities(device_id).await,
-        crate::device::DriverType::Ascom => get_ascom_capabilities(device_id).await,
-        crate::device::DriverType::Indi => get_indi_capabilities(device_id).await,
-        crate::device::DriverType::Native => get_native_capabilities(device_id).await,
-        crate::device::DriverType::Simulator => get_simulator_capabilities(&parsed).await,
-    }?;
+    let capabilities = read_capabilities(device_id).await?;
 
     let mut cache = capability_cache().lock().await;
     cache.insert(
@@ -264,4 +225,18 @@ pub async fn get_device_capabilities(device_id: &str) -> Result<DeviceCapabiliti
     );
 
     Ok(capabilities)
+}
+
+/// What the device supports, read through its handle.
+///
+/// Only a connected device has a handle to ask. Any other id, whatever its
+/// type and protocol, answers that it is not connected (or not registered):
+/// opening a device just to read what it supports would claim it behind the
+/// app's back, and a driver that is not open has nothing real to report.
+async fn read_capabilities(device_id: &str) -> Result<DeviceCapabilities, SkotiqError> {
+    crate::device_manager::get_device_manager()
+        .handle(device_id)
+        .await?
+        .capabilities(device_id)
+        .await
 }

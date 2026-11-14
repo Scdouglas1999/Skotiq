@@ -8,7 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/session_review/narrative_view.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
@@ -19,19 +20,10 @@ class _FixedStateController extends SessionReviewController {
   _FixedStateController(super.ref, super.scope, this._seed);
 
   final SessionReviewState _seed;
-  int reIntegrateCalls = 0;
 
   @override
   Future<void> loadSmartData({bool recomputeNightReport = false}) async {
     state = _seed;
-  }
-
-  @override
-  Future<PostSessionIntegrationOutcome?> reIntegrate(
-    IntegrationSettings settings,
-  ) async {
-    reIntegrateCalls++;
-    return null;
   }
 
   @override
@@ -116,9 +108,8 @@ void main() {
     return (controller, router);
   }
 
-  testWidgets(
-      'the build action opens the target\'s framing check and integrates '
-      'nothing here', (tester) async {
+  testWidgets('the build action opens the target\'s framing check',
+      (tester) async {
     final (controller, router) = await pump(
       tester,
       SessionReviewState(
@@ -143,7 +134,6 @@ void main() {
       'target': 'NGC 891',
       'view': 'framing',
     });
-    expect(controller.reIntegrateCalls, 0);
   });
 
   testWidgets('a session with no target opens the Darkroom target list',

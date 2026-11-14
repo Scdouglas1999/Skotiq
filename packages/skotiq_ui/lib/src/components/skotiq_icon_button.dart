@@ -49,7 +49,6 @@ class SkotiqIconButton extends StatefulWidget {
   /// Null disables the button (40% opacity, no colour change).
   final VoidCallback? onPressed;
 
-  /// Which of the three square sizes to draw.
   final IconButtonSize size;
 
   /// Selected: `primary` at [SkotiqTokens.opacityAccentTint] fill and a

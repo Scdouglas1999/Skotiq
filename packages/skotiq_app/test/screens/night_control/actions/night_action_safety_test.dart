@@ -6,12 +6,14 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_app/services/sequence_action_service.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../../harness/mock_backend.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -38,8 +40,9 @@ class _RecordingExecutor extends SequenceExecutor {
   @override
   Future<void> pause() async {
     calls.add('pause');
-    _ref.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.paused;
+    _ref
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.paused);
   }
 
   @override
@@ -47,8 +50,9 @@ class _RecordingExecutor extends SequenceExecutor {
     calls.add('resume');
     final error = resumeError;
     if (error != null) throw error;
-    _ref.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    _ref
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
   }
 
   @override
@@ -89,14 +93,14 @@ void main() {
     addTearDown(container.dispose);
     container.listen(nightActionControllerProvider, (_, __) {});
 
-    final run = container.read(sequenceExecutionStateProvider.notifier);
-    run.state = SequenceExecutionState.running;
+    final run = container.read(runRecordProvider.notifier);
+    run.setLifecycle(SequenceExecutionState.running);
     when(() => sequence.pause()).thenAnswer((_) async {
-      run.state = SequenceExecutionState.paused;
+      run.setLifecycle(SequenceExecutionState.paused);
       return CommandActionResult.ok;
     });
     when(() => sequence.resume()).thenAnswer((_) async {
-      run.state = SequenceExecutionState.running;
+      run.setLifecycle(SequenceExecutionState.running);
       return CommandActionResult.ok;
     });
   });
@@ -187,8 +191,9 @@ void main() {
       addTearDown(real.dispose);
       real.read(sequenceExecutorProvider);
       real.listen(nightActionControllerProvider, (_, __) {});
-      real.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      real
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
     });
 
     test('a failed autofocus pauses, then resumes the run', () async {

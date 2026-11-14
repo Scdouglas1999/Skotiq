@@ -17,8 +17,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show SeriesChartTone;
 
+import '../../../../utils/guide_distance.dart';
 import '../../night_control_contracts.dart';
 import 'night_history_sync.dart';
 import 'session_events_provider.dart';
@@ -73,10 +78,6 @@ class NightGuideSamplesNotifier extends StateNotifier<List<NightGuideSample>> {
     final previous = _sub;
     _sub = backend.eventStream.listen((event) {
       if (generation != _generation || !mounted) return;
-      if (event.category != EventCategory.guiding ||
-          event.eventType != 'GuideStep') {
-        return;
-      }
       final sample = nightGuideSampleFrom(event);
       if (sample != null) add(sample);
     });
@@ -117,19 +118,17 @@ class NightGuideSamplesNotifier extends StateNotifier<List<NightGuideSample>> {
   }
 }
 
-/// The sample a GuideStep event carries, or null when either axis is
-/// missing or not a number. Such a step is dropped, not drawn at 0.
+/// The sample a guide step carries, or null for any other event and for a
+/// step whose axes are not finite numbers. Such a step is dropped, not drawn
+/// at 0.
 NightGuideSample? nightGuideSampleFrom(SkotiqEvent event) {
-  double? axis(String raw, String fallback) {
-    final value = event.data[raw] ?? event.data[fallback];
-    if (value is! num) return null;
-    final d = value.toDouble();
-    return d.isFinite ? d : null;
-  }
-
-  final ra = axis('RADistanceRaw', 'raPx');
-  final dec = axis('DECDistanceRaw', 'decPx');
-  if (ra == null || dec == null) return null;
+  final payload = typedEventFromWire(event)?.payload;
+  if (payload is! sk_events.EventPayload_Guiding) return null;
+  final step = payload.field0;
+  if (step is! sk_events.GuidingEvent_Correction) return null;
+  final ra = step.raRaw;
+  final dec = step.decRaw;
+  if (!ra.isFinite || !dec.isFinite) return null;
   final t = event.timestamp > 0
       ? DateTime.fromMillisecondsSinceEpoch(event.timestamp)
       : DateTime.now();
@@ -222,7 +221,6 @@ List<SeriesPoint> nightGuideTrace(
   final first = values.first.t.millisecondsSinceEpoch;
   final span = values.last.t.millisecondsSinceEpoch - first;
   final thin = values.length > maxPoints && span > 0;
-  // Two points per bucket.
   final buckets = maxPoints ~/ 2;
   final bucketMs = thin ? span / buckets : 0.0;
 
@@ -323,26 +321,6 @@ double _rms(Iterable<double> values) {
   return math.sqrt(sum / n);
 }
 
-/// The guide camera's arcseconds per pixel as the guider reports it, or null
-/// when it has not reported one; guide distances are then in pixels.
-final nightGuideScaleProvider = Provider<double?>((ref) {
-  final scale = ref.watch(
-    guiderStateProvider.select((g) => g.pixelScaleArcsecPerPixel),
-  );
-  return scale != null && scale.isFinite && scale > 0 ? scale : null;
-});
-
-/// A guide distance of [px] pixels: `0.42″` when [arcsecPerPixel] is known,
-/// `0.31 px` otherwise.
-String nightGuideDistance(
-  double px,
-  double? arcsecPerPixel, {
-  int decimals = 2,
-}) =>
-    arcsecPerPixel == null
-        ? '${px.toStringAsFixed(decimals)} px'
-        : '${(px * arcsecPerPixel).toStringAsFixed(decimals)}″';
-
 /// The guiding chart's lines (arcseconds when the scale is known, else
 /// pixels), dither marks and legend.
 final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
@@ -351,10 +329,10 @@ final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
     ref.watch(nightGuideSamplesProvider),
     window,
   );
-  final scale = ref.watch(nightGuideScaleProvider);
+  final scale = ref.watch(guideScaleProvider);
   // Pixels stay pixels when the guider has not reported a scale.
   double shown(double px) => scale == null ? px : px * scale;
-  String distance(double px) => nightGuideDistance(px, scale);
+  String distance(double px) => guideDistanceText(px, scale);
   final dithers = ref.watch(
     nightSessionEventsProvider.select((events) => events.dithers),
   );
@@ -365,12 +343,12 @@ final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
         SeriesLineVm(
           id: NightSeriesId.guideRa,
           points: <SeriesPoint>[],
-          tone: SeriesTone.primary,
+          tone: SeriesChartTone.primary,
         ),
         SeriesLineVm(
           id: NightSeriesId.guideDec,
           points: <SeriesPoint>[],
-          tone: SeriesTone.tertiary,
+          tone: SeriesChartTone.tertiary,
         ),
       ],
     );
@@ -395,14 +373,14 @@ final nightGuideSeriesProvider = Provider<NightSeriesVm>((ref) {
         points: <SeriesPoint>[
           for (final s in samples) SeriesPoint(s.t, shown(s.raPx)),
         ],
-        tone: SeriesTone.primary,
+        tone: SeriesChartTone.primary,
       ),
       SeriesLineVm(
         id: NightSeriesId.guideDec,
         points: <SeriesPoint>[
           for (final s in samples) SeriesPoint(s.t, shown(s.decPx)),
         ],
-        tone: SeriesTone.tertiary,
+        tone: SeriesChartTone.tertiary,
       ),
     ],
     markers: <SeriesMarker>[

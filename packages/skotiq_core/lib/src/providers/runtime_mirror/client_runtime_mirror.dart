@@ -1,18 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
+import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/backend/host_runtime_update.dart';
-import '../../services/logging_service.dart';
+import '../async_scope.dart';
 import '../backend_provider.dart';
-import '../provider_reader.dart';
 import 'runtime_mirror_channel.dart';
 import 'runtime_mirror_channels.dart';
+import '../logging_service_provider.dart';
+import '../../services/logging_service.dart';
 
 const _logSource = 'ClientRuntimeMirror';
 
@@ -38,8 +38,6 @@ class ClientRuntimeMirrorState {
   /// tell a host value from one this client computed.
   Object? appliedValue(String channel) => _applied[channel];
 
-  bool hasApplied(String channel) => _applied.containsKey(channel);
-
   /// True while a host update is being written into [channel]'s provider.
   bool isApplying(String channel) => _applying.contains(channel);
 
@@ -57,50 +55,64 @@ final clientRuntimeMirrorStateProvider = Provider<ClientRuntimeMirrorState>(
 ///
 /// Updates older than the one already applied for the channel are dropped (an
 /// event can race the hydration fetch), as are updates this client reported.
+/// The update already applied is applied again only for a channel that
+/// [RuntimeMirrorChannel.reappliesOnReread].
 void applyHostRuntimeUpdate(
-  Object reader,
+  ProviderContainer container,
   HostRuntimeUpdate update, {
-  required NetworkBackend networkBackend,
+  required SkotiqBackend networkBackend,
 }) {
   final channel = runtimeChannelFor(
-    readProvider(reader, runtimeMirrorChannelsProvider),
+    container.read(runtimeMirrorChannelsProvider),
     update.channel,
   );
-  if (channel == null) return;
-  final state = readProvider(reader, clientRuntimeMirrorStateProvider);
+  if (channel == null) {
+    // Host and client run the same release, so they know the same channels.
+    Log.warning(
+      'Runtime update for unknown channel ${update.channel} dropped',
+      source: _logSource,
+    );
+    return;
+  }
+  final state = container.read(clientRuntimeMirrorStateProvider);
   final last = state._revisions[update.channel];
-  if (last != null && update.revision <= last) return;
+  if (last != null &&
+      (update.revision < last ||
+          (update.revision == last && !channel.reappliesOnReread))) {
+    return;
+  }
   state._revisions[update.channel] = update.revision;
   if (update.origin == runtimeMirrorOrigin) return;
   state._applying.add(update.channel);
   try {
     channel.apply(
-      RuntimeApplyContext(reader, networkBackend: networkBackend),
+      RuntimeApplyContext(container, networkBackend: networkBackend),
       update.value,
     );
   } on FormatException catch (e) {
-    developer.log(
+    Log.warning(
       'Runtime update ${update.channel} dropped: ${e.message}',
-      name: _logSource,
-      level: 900,
+      source: _logSource,
     );
   } finally {
     state._applying.remove(update.channel);
   }
-  state._applied[update.channel] = channel.readSource(reader);
+  state._applied[update.channel] = channel.readSource(container);
 }
 
 /// Fill every runtime channel from the host's current values. Runs on connect,
 /// on reconnect and with the periodic re-hydrate; the revision check makes an
 /// unchanged channel a no-op.
 Future<void> hydrateHostRuntimeState(
-  Object reader,
-  NetworkBackend backend,
+  ProviderContainer container,
+  SkotiqBackend backend,
 ) async {
-  final updates = await backend.getHostRuntimeState();
-  if (!identical(readProvider(reader, backendProvider), backend)) return;
+  final mirror = backend.remoteHost?.runtimeMirror;
+  if (mirror == null) return;
+  final updates = await mirror.getHostRuntimeState();
+  if (container.backendScopeOver(backend).isStale) return;
   for (final update in updates) {
-    applyHostRuntimeUpdate(reader, update, networkBackend: backend);
+    applyHostRuntimeUpdate(container, update, networkBackend: backend);
   }
 }
 
@@ -126,16 +138,15 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
 
   final lastSent = <String, String>{};
 
-  void send(NetworkBackend backend, RuntimeMirrorChannel<Object?> channel) {
-    if (!identical(ref.read(backendProvider), backend)) return;
+  void send(SkotiqBackend backend, RuntimeMirrorChannel<Object?> channel) {
+    if (ref.backendScopeOver(backend).isStale) return;
     final Map<String, dynamic>? value;
     try {
-      value = channel.encodeCurrent(ref);
+      value = channel.encodeCurrent(ref.container);
     } on Object catch (e) {
-      developer.log(
+      Log.warning(
         'Runtime report ${channel.key} not encoded: $e',
-        name: _logSource,
-        level: 900,
+        source: _logSource,
       );
       return;
     }
@@ -143,8 +154,10 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
     final encoded = jsonEncode(value);
     if (lastSent[channel.key] == encoded) return;
     lastSent[channel.key] = encoded;
+    final mirror = backend.remoteHost?.runtimeMirror;
+    if (mirror == null) return;
     unawaited(
-      backend
+      mirror
           .reportRuntimeState(
             channel: channel.key,
             value: value,
@@ -164,7 +177,7 @@ final clientRuntimeReporterProvider = Provider<void>((ref) {
   void bind(SkotiqBackend backend) {
     teardown();
     lastSent.clear();
-    if (backend is! NetworkBackend) return;
+    if (backend.remoteHost == null) return;
     final mirrorState = ref.read(clientRuntimeMirrorStateProvider)..reset();
     for (final channel in ref.read(runtimeMirrorChannelsProvider)) {
       if (!channel.clientReports) continue;

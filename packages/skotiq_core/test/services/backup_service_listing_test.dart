@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   late SkotiqDatabase database;
@@ -29,7 +30,7 @@ void main() {
   BackupService service(Future<Directory> Function() directory) =>
       BackupService(
         database: database,
-        sequenceRepository: SequenceRepository(database.sequencesDao),
+        sequenceRepository: LocalSequenceRepository(database.sequencesDao),
         logger: logger,
         backupDirectoryProvider: directory,
       );

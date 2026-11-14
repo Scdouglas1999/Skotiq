@@ -8,8 +8,14 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/profile_handlers.dart';
+import 'package:skotiq_desktop/headless_api/request_context.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -48,24 +54,40 @@ void main() {
     await db.close();
   });
 
-  Future<Response> post(Map<String, Object?> body) => translateHandlerErrors(
+  Map<String, Object> grantOf(HeadlessTokenScope scope) => {
+    authGrantContextKey: HeadlessAuthGrant.fromCoarse(scope),
+  };
+
+  Future<Response> post(
+    Map<String, Object?> body, {
+    HeadlessTokenScope scope = HeadlessTokenScope.control,
+  }) => translateHandlerErrors(
     handlers.handleUpdateSettingsStore(
       Request(
         'POST',
         Uri.parse('http://localhost/api/settings/store'),
         body: jsonEncode(body),
+        context: grantOf(scope),
       ),
     ),
   );
 
-  Future<Map<String, dynamic>> getStore() async {
+  Future<Map<String, dynamic>> getStoreBody({
+    HeadlessTokenScope scope = HeadlessTokenScope.control,
+  }) async {
     final response = await handlers.handleGetSettingsStore(
-      Request('GET', Uri.parse('http://localhost/api/settings/store')),
+      Request(
+        'GET',
+        Uri.parse('http://localhost/api/settings/store'),
+        context: grantOf(scope),
+      ),
     );
     expect(response.statusCode, HttpStatus.ok);
-    final body = jsonDecode(await response.readAsString()) as Map;
-    return (body['settings'] as Map).cast<String, dynamic>();
+    return jsonDecode(await response.readAsString()) as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> getStore() async =>
+      ((await getStoreBody())['settings'] as Map).cast<String, dynamic>();
 
   test('serves host-owned rows and keeps this screen\'s preferences', () async {
     await db.settingsDao.setSettings({
@@ -165,5 +187,206 @@ void main() {
 
     expect(response.statusCode, HttpStatus.ok);
     expect(await db.settingsDao.getSetting('smart_night.drafts.v1'), isNull);
+  });
+
+  test(
+    'merge keeps the fields another writer changed in the same row',
+    () async {
+      const key = 'imaging_capture_settings_profile_1';
+      await db.settingsDao.setSetting(
+        key,
+        jsonEncode({'exposureTime': 12.0, 'gain': 100, 'offset': 50}),
+      );
+      final changed = <Set<String>>[];
+      final sub = container
+          .read(settingsRowChangesProvider)
+          .stream
+          .listen(changed.add);
+      addTearDown(sub.cancel);
+
+      // A client changed only the gain; its whole copy (stale exposure 7.5)
+      // rides along for hosts that cannot merge and must be ignored here.
+      final response = await post({
+        'settings': {
+          key: jsonEncode({'exposureTime': 7.5, 'gain': 222, 'offset': 50}),
+        },
+        'merge': {
+          key: {'gain': 222},
+        },
+      });
+
+      expect(response.statusCode, HttpStatus.ok);
+      final stored = jsonDecode((await db.settingsDao.getSetting(key))!) as Map;
+      expect(stored['exposureTime'], 12.0);
+      expect(stored['gain'], 222);
+      final body = jsonDecode(await response.readAsString()) as Map;
+      expect(jsonDecode((body['merged'] as Map)[key] as String)['gain'], 222);
+      await Future<void>.delayed(Duration.zero);
+      expect(changed.single, {key});
+    },
+  );
+
+  test('merge onto a missing row starts from mergeBase', () async {
+    const key = 'imaging_capture_settings_profile_9';
+    final response = await post({
+      'merge': {
+        key: {'gain': 5},
+      },
+      'mergeBase': {
+        key: {'exposureTime': 2.0, 'gain': 100, 'offset': 50},
+      },
+    });
+
+    expect(response.statusCode, HttpStatus.ok);
+    final stored = jsonDecode((await db.settingsDao.getSetting(key))!) as Map;
+    expect(stored, {'exposureTime': 2.0, 'gain': 5, 'offset': 50});
+  });
+
+  test('refuses a merge that is not an object of fields', () async {
+    final response = await post({
+      'merge': {'imaging_capture_settings_profile_1': 'gain=5'},
+    });
+    expect(response.statusCode, HttpStatus.badRequest);
+  });
+
+  test('says whether the asking link has admin access', () async {
+    await container.read(appSettingsProvider.future);
+    expect((await getStoreBody())['adminAccess'], isFalse);
+    expect(
+      (await getStoreBody(scope: HeadlessTokenScope.admin))['adminAccess'],
+      isTrue,
+    );
+  });
+
+  test('a link without admin access reads whether a credential row is set, '
+      'never its value', () async {
+    await db.settingsDao.setSettings({
+      'discord_webhook': 'https://discord.com/api/webhooks/1/secret',
+      'pushover_user': '',
+    });
+    await container.read(appSettingsProvider.future);
+
+    final control = await getStore();
+    expect(control['discord_webhook'], credentialSetMarker);
+    expect(control['pushover_user'], '');
+
+    final admin =
+        (await getStoreBody(scope: HeadlessTokenScope.admin))['settings']
+            as Map;
+    expect(
+      admin['discord_webhook'],
+      'https://discord.com/api/webhooks/1/secret',
+    );
+  });
+
+  test('a row saying where the host sends a credential changes only with '
+      'admin access', () async {
+    await container.read(appSettingsProvider.future);
+    const mail = 'notification_transport_email';
+    const backupTarget = 'cloud_sync_server_url';
+    await db.settingsDao.setSettings({
+      mail: '{"host":"smtp.example.org"}',
+      backupTarget: 'https://dav.example.org',
+    });
+
+    for (final body in [
+      {
+        'settings': {mail: '{"host":"smtp.attacker.example"}'},
+      },
+      {
+        'merge': {
+          mail: {'host': 'smtp.attacker.example'},
+        },
+      },
+      {
+        'remove': [backupTarget],
+      },
+    ]) {
+      final response = await post(body);
+      expect(response.statusCode, HttpStatus.forbidden, reason: '$body');
+      final error = jsonDecode(await response.readAsString()) as Map;
+      expect(error['code'], 'credential_setting');
+    }
+    expect(
+      await db.settingsDao.getSetting(mail),
+      '{"host":"smtp.example.org"}',
+    );
+    expect(
+      await db.settingsDao.getSetting(backupTarget),
+      'https://dav.example.org',
+    );
+    expect(announced, isEmpty);
+
+    final response = await post({
+      'settings': {mail: '{"host":"smtp.new.example"}'},
+    }, scope: HeadlessTokenScope.admin);
+    expect(response.statusCode, HttpStatus.ok);
+    expect(
+      await db.settingsDao.getSetting(mail),
+      '{"host":"smtp.new.example"}',
+    );
+  });
+
+  // Plugins are admin only (/api/plugins/*); the key/value store is not a way
+  // around that.
+  test('which plugins run changes only with admin access', () async {
+    await container.read(appSettingsProvider.future);
+    const plugins = 'plugin_enablement';
+    await db.settingsDao.setSetting(plugins, '{"com.example.plugin":false}');
+
+    for (final body in [
+      {
+        'settings': {plugins: '{"com.example.plugin":true}'},
+      },
+      {
+        'merge': {
+          plugins: {'com.example.plugin': true},
+        },
+      },
+      {
+        'remove': [plugins],
+      },
+    ]) {
+      for (final scope in const [
+        HeadlessTokenScope.control,
+        HeadlessTokenScope.view,
+      ]) {
+        final response = await post(body, scope: scope);
+        expect(response.statusCode, HttpStatus.forbidden, reason: '$body');
+        final error = jsonDecode(await response.readAsString()) as Map;
+        expect(error['code'], 'host_program_setting', reason: '$body');
+        expect(error['settings'], [plugins]);
+      }
+    }
+    expect(
+      await db.settingsDao.getSetting(plugins),
+      '{"com.example.plugin":false}',
+    );
+    expect(announced, isEmpty);
+
+    final response = await post({
+      'settings': {plugins: '{"com.example.plugin":true}'},
+    }, scope: HeadlessTokenScope.admin);
+    expect(response.statusCode, HttpStatus.ok);
+    expect(
+      await db.settingsDao.getSetting(plugins),
+      '{"com.example.plugin":true}',
+    );
+  });
+
+  test('a request the auth middleware never saw is not admin', () async {
+    await container.read(appSettingsProvider.future);
+    final response = await translateHandlerErrors(
+      handlers.handleUpdateSettingsStore(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/settings/store'),
+          body: jsonEncode({
+            'settings': {'notification_transport_email': '{}'},
+          }),
+        ),
+      ),
+    );
+    expect(response.statusCode, HttpStatus.forbidden);
   });
 }

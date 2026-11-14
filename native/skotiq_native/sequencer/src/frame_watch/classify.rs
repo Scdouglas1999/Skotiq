@@ -23,7 +23,7 @@
 //!   graded as usual.
 
 use super::config::{FrameWatchConfig, HorizonPoint};
-use crate::quality::{filter_baseline_key, FilterBaseline};
+use crate::quality::{filter_baseline_key, FilterBaseline, RejectReason};
 use std::collections::{HashMap, VecDeque};
 
 /// A frame keeping less than this fraction of its baseline's stars collapsed.
@@ -112,8 +112,8 @@ pub struct FrameObservation {
     /// When the exposure began, in seconds on the clock
     /// [`FrameWatch::recentered`] is given.
     pub exposure_started_secs: f64,
-    pub accepted_by_grader: bool,
-    pub grader_reason: Option<String>,
+    /// The check that rejected the frame; `None` when the grader kept it.
+    pub grader_reject: Option<RejectReason>,
     pub star_count: Option<u32>,
     pub hfr: Option<f64>,
     pub eccentricity: Option<f64>,
@@ -138,6 +138,10 @@ pub struct FrameObservation {
 }
 
 impl FrameObservation {
+    pub fn accepted_by_grader(&self) -> bool {
+        self.grader_reject.is_none()
+    }
+
     /// Whether the frame's stars are trails: the mount was not tracking or
     /// the shapes are lines.
     pub fn trailed(&self) -> bool {
@@ -356,12 +360,8 @@ impl FrameWatch {
         verdict.trailed = obs.trailed();
 
         let background_shifted = self.background_shifted(&key, obs.background_adu);
-        let trailed = verdict.trailed
-            || obs
-                .grader_reason
-                .as_deref()
-                .is_some_and(|r| r.contains("eccentricity"));
-        if !verdict.collapsed && !verdict.off_target && obs.accepted_by_grader {
+        let trailed = verdict.trailed || obs.grader_reject.is_some_and(|r| r.stars_trailed());
+        if !verdict.collapsed && !verdict.off_target && obs.accepted_by_grader() {
             self.baselines.entry(key.clone()).or_default().record(
                 obs.star_count,
                 obs.hfr,
@@ -423,7 +423,12 @@ impl FrameWatch {
         } else {
             (target_ra, target_dec)
         };
-        let offset = angular_separation_deg(ra_deg, dec_deg, reference_ra, reference_dec) * 60.0;
+        let offset = crate::scheduling::astronomy::angular_separation(
+            ra_deg,
+            dec_deg,
+            reference_ra,
+            reference_dec,
+        ) * 60.0;
         verdict.offset_arcmin = Some(offset);
         let Some(limit) = self.config.drift_limit_arcmin(obs.field_short_side_arcmin) else {
             return;
@@ -597,17 +602,4 @@ pub fn obstructed_reason(onset: Pointing) -> String {
         "{OBSTRUCTED_PREFIX} stars blocked from {} on",
         onset.describe()
     )
-}
-
-/// Great-circle distance between two equatorial positions, degrees.
-pub fn angular_separation_deg(ra1: f64, dec1: f64, ra2: f64, dec2: f64) -> f64 {
-    let (ra1, dec1, ra2, dec2) = (
-        ra1.to_radians(),
-        dec1.to_radians(),
-        ra2.to_radians(),
-        dec2.to_radians(),
-    );
-    let h = ((dec2 - dec1) / 2.0).sin().powi(2)
-        + dec1.cos() * dec2.cos() * ((ra2 - ra1) / 2.0).sin().powi(2);
-    (2.0 * h.sqrt().min(1.0).asin()).to_degrees()
 }

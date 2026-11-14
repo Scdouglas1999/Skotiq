@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show DbCapturedImage, ImagingSession, allDbImagesProvider;
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart' show DbCapturedImage, ImagingSession;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart' show allDbImagesProvider;
 // kReadoutUnknown: the one em dash the design system spells, so a screen
 // never invents its own way of saying "not known".
 import 'package:skotiq_ui/skotiq_ui.dart' show kReadoutUnknown;
@@ -37,8 +39,9 @@ class SessionElapsed {
   bool get isUnfinished => basis != SessionElapsedBasis.closed;
 
   /// The number, or an em-dash when there is nothing truthful to print.
-  String get valueLabel =>
-      duration == null ? kReadoutUnknown : formatSessionDuration(duration!);
+  String get valueLabel => duration == null
+      ? kReadoutUnknown
+      : DurationFormat.of(duration!, style: DurationStyle.coarse);
 
   /// Qualifier that says which of the four cases produced [valueLabel]. Shown
   /// beside the value so "20m" is never read as a closed session's total.
@@ -100,15 +103,7 @@ String captureSpanLabel(Iterable<DateTime> capturedAt) {
   if (times.length < 2) return kReadoutUnknown;
   final span = times.last.difference(times.first);
   if (span.inHours >= 48) return '${(span.inHours / 24).round()} days';
-  return formatSessionDuration(span);
-}
-
-String formatSessionDuration(Duration d) {
-  final hours = d.inHours;
-  final minutes = d.inMinutes.remainder(60);
-  if (hours > 0) return '${hours}h ${minutes}m';
-  if (minutes > 0) return '${minutes}m';
-  return '${d.inSeconds}s';
+  return DurationFormat.of(span, style: DurationStyle.coarse);
 }
 
 /// Newest frame timestamp per session id.
@@ -144,7 +139,6 @@ class SessionFrameGrading {
   final int accepted;
   final int rejected;
 
-  /// Light frames this session has a verdict for at all.
   int get graded => accepted + rejected;
 }
 
@@ -170,7 +164,7 @@ final gradingBySessionProvider = Provider<Map<int, SessionFrameGrading>?>((
   final rejected = <int, int>{};
   for (final image in images) {
     final sessionId = image.sessionId;
-    if (sessionId == null || image.frameType != 'light') continue;
+    if (sessionId == null || !image.isLight) continue;
     final bucket = image.isAccepted ? accepted : rejected;
     bucket[sessionId] = (bucket[sessionId] ?? 0) + 1;
   }

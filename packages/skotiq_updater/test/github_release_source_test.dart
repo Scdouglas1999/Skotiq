@@ -13,6 +13,8 @@ import 'package:skotiq_updater/src/models/update_manifest.dart';
 import 'package:skotiq_updater/src/services/github_release_source.dart';
 import 'package:skotiq_updater/src/services/update_service.dart';
 
+import 'support/temp_data_directory.dart';
+
 UpdateManifest manifest({
   String version = '7.2.0',
   int buildNumber = 42,
@@ -288,6 +290,7 @@ void main() {
       final service = UpdateService(
         currentVersion: currentVersion,
         currentBuildNumber: currentBuildNumber,
+        applicationSupportDirectoryProvider: tempDataDirectory(),
         httpClient: client,
         currentPlatform: platform,
         currentArch: arch,
@@ -410,6 +413,7 @@ void main() {
             UpdateService(
               currentVersion: '7.1.0',
               currentBuildNumber: 28,
+              applicationSupportDirectoryProvider: tempDataDirectory(),
               httpClient: client,
               currentPlatform: 'linux',
               currentArch: 'x64',
@@ -459,6 +463,7 @@ void main() {
           UpdateService(
             currentVersion: '7.1.0',
             currentBuildNumber: 28,
+            applicationSupportDirectoryProvider: tempDataDirectory(),
             httpClient: client,
             currentPlatform: 'linux',
             currentArch: 'x64',

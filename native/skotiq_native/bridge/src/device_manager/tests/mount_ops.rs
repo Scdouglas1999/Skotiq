@@ -1,12 +1,17 @@
 use super::*;
+use crate::device::DriverType;
 
 /// Register a simulator mount so the simulator ops can be driven the same
 /// way a real driver is.
 async fn register_sim_mount(manager: &DeviceManager, device_id: &str) {
+    let info = build_mount_info(device_id, DriverType::Simulator);
+    // The handle answers from the simulated mount, connected or not.
+    let handle = crate::simulator::driver::handle(&info).expect("simulated mount handle");
+    manager.handles.insert(device_id, handle);
     manager.devices.write().await.insert(
         device_id.to_string(),
         ManagedDevice {
-            info: build_mount_info(device_id, DriverType::Simulator),
+            info,
             connection_state: ConnectionState::Connected,
             last_error: None,
             reconnect_attempts: 0,
@@ -14,9 +19,9 @@ async fn register_sim_mount(manager: &DeviceManager, device_id: &str) {
             last_successful_comm: None,
             heartbeat_deferred_at: None,
             heartbeat_active: false,
-            api_version: None,
             desired_cooler: None,
             desired_tracking: None,
+            declared_mount_frame: None,
         },
     );
 }
@@ -36,7 +41,7 @@ async fn disconnected_simulated_mount_refuses_motion_and_status() {
     register_sim_mount(&manager, device_id).await;
 
     {
-        let mount = crate::api::devices::simulation::get_sim_mount();
+        let mount = crate::simulator::mount::get_sim_mount();
         let mut mount = mount.write().await;
         mount.status.connected = false;
         mount.status.right_ascension = 0.0;
@@ -59,7 +64,7 @@ async fn disconnected_simulated_mount_refuses_motion_and_status() {
     );
 
     // And the refused slew must not have moved it.
-    let mount = crate::api::devices::simulation::get_sim_mount()
+    let mount = crate::simulator::mount::get_sim_mount()
         .read()
         .await
         .status
@@ -82,7 +87,7 @@ async fn connected_simulated_mount_accepts_a_slew() {
     register_sim_mount(&manager, device_id).await;
 
     {
-        let mount = crate::api::devices::simulation::get_sim_mount();
+        let mount = crate::simulator::mount::get_sim_mount();
         let mut mount = mount.write().await;
         mount.status.connected = true;
         mount.status.parked = true;
@@ -110,7 +115,7 @@ async fn connected_simulated_mount_accepts_a_slew() {
     assert!((mount.declination - dec_now).abs() < 1e-6);
     assert!(!mount.parked);
 
-    crate::api::devices::simulation::get_sim_mount()
+    crate::simulator::mount::get_sim_mount()
         .write()
         .await
         .status
@@ -135,9 +140,9 @@ async fn test_mount_get_status_uses_ascom_can_park() {
             last_successful_comm: None,
             heartbeat_deferred_at: None,
             heartbeat_active: false,
-            api_version: None,
             desired_cooler: None,
             desired_tracking: None,
+            declared_mount_frame: None,
         },
     );
 
@@ -147,14 +152,11 @@ async fn test_mount_get_status_uses_ascom_can_park() {
         tracking: true,
         slewing: false,
         parked: false,
-        side_of_pier: skotiq_native::traits::PierSide::East,
+        side_of_pier: skotiq_device::PierSide::East,
         sidereal_time: 5.0,
         can_park: false,
     };
-    manager.ascom_mounts.write().await.insert(
-        device_id.to_string(),
-        Arc::new(RwLock::new(build_test_mount_wrapper(responses))),
-    );
+    manager.hold_ascom_mount(device_id, build_test_mount_wrapper(responses));
 
     let status = manager
         .mount_get_status(device_id)
@@ -173,19 +175,19 @@ async fn test_mount_get_status_uses_ascom_can_park() {
 /// Stop for 18 minutes.
 #[tokio::test]
 async fn a_slow_mount_read_does_not_hold_the_device_table() {
-    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = build_device_manager();
     let device_id = "sim_mount_slow_status";
     register_sim_mount(&manager, device_id).await;
-    crate::api::devices::simulation::get_sim_mount()
+    crate::simulator::mount::get_sim_mount()
         .write()
         .await
         .status
         .connected = true;
-    sim_faults::clear_all();
-    sim_faults::arm(
+    faults::clear_all();
+    faults::arm(
         "mount.status",
         FaultSpec::new(Trigger::Always, Effect::Delay(1500)),
     );
@@ -200,7 +202,7 @@ async fn a_slow_mount_read_does_not_hold_the_device_table() {
         .await
         .is_ok()
     });
-    sim_faults::clear_all();
+    faults::clear_all();
 
     assert!(status.is_ok(), "the delayed status read failed: {status:?}");
     assert!(

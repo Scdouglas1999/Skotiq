@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../harness/harness.dart';
 
@@ -94,11 +96,23 @@ class _Script {
   }
 }
 
+class _GuidingGuider extends GuiderStateNotifier {
+  _GuidingGuider(super.ref) {
+    // ignore: invalid_use_of_protected_member
+    state = const GuiderState(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: 'phd2',
+      isGuiding: true,
+    );
+  }
+}
+
 Future<HarnessHandle> _pump(
   WidgetTester tester,
   MockBackend backend,
-  _Script script,
-) {
+  _Script script, {
+  bool guiding = false,
+}) {
   when(() => backend.getMountCapabilities(_mountId)).thenAnswer(
     (_) async => const MountCapabilities(canSlew: true, canAbortSlew: true),
   );
@@ -113,6 +127,7 @@ Future<HarnessHandle> _pump(
     backend: backend,
     extraOverrides: [
       mountStateProvider.overrideWith((ref) => _MountNotifier(ref)),
+      if (guiding) guiderStateProvider.overrideWith(_GuidingGuider.new),
       mountSlewWatcherFactoryProvider.overrideWithValue(({
         required readStatus,
         required targetRa,
@@ -234,5 +249,42 @@ void main() {
     expect(result.message, MountSlewWatcher.cancelledMessage);
     verify(() => backend.mountAbort(_mountId)).called(1);
     expect(handle.container.read(mountSlewProgressProvider), isNull);
+  });
+
+  testWidgets('a GoTo while guiding stops the guider before the mount moves',
+      (tester) async {
+    final backend = mockBackend();
+    final calls = <String>[];
+    when(() => backend.guiderStopGuiding()).thenAnswer((_) async {
+      calls.add('stop guiding');
+    });
+    final handle =
+        await _pump(tester, backend, _Script(_laggingSlew()), guiding: true);
+    when(() => backend.mountSlewToCoordinates(_mountId, any(), any()))
+        .thenAnswer((_) async => calls.add('slew'));
+
+    final result = await handle.container
+        .read(mountCommandServiceProvider)
+        .slewTo(_target.ra, _target.dec);
+
+    expect(result.isSuccess, isTrue, reason: result.message);
+    expect(calls, ['stop guiding', 'slew']);
+  });
+
+  testWidgets('a GoTo is refused when guiding does not stop', (tester) async {
+    final backend = mockBackend();
+    when(() => backend.guiderStopGuiding())
+        .thenThrow(StateError('PHD2 is not answering'));
+    final handle =
+        await _pump(tester, backend, _Script(_laggingSlew()), guiding: true);
+
+    final result = await handle.container
+        .read(mountCommandServiceProvider)
+        .slewTo(_target.ra, _target.dec);
+
+    expect(result.isSuccess, isFalse);
+    expect(result.message,
+        startsWith('Guiding did not stop, so the mount was not moved'));
+    verifyNever(() => backend.mountSlewToCoordinates(_mountId, any(), any()));
   });
 }

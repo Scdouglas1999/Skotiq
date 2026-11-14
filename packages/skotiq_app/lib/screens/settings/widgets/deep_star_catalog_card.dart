@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/confirm_dialog.dart';
@@ -111,7 +114,8 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
         context.showInfoSnackBar('Download paused — resume any time');
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Download failed: $e');
+      if (mounted)
+        context.showErrorSnackBar('Download failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() {
@@ -137,7 +141,8 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
             '${result.missing.length} missing, ${result.corrupt.length} corrupt');
       }
     } catch (e) {
-      if (mounted) context.showErrorSnackBar('Verification failed: $e');
+      if (mounted)
+        context.showErrorSnackBar('Verification failed: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _action = null);
     }
@@ -173,7 +178,7 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
       // Deletion is best-effort, so some files may have been removed even
       // when the manager reports that others were locked or inaccessible.
       ref.read(deepStarManifestRefreshProvider.notifier).state++;
-      context.showErrorSnackBar('Deletion incomplete: $e');
+      context.showErrorSnackBar('Deletion incomplete: ${userFacingError(e)}');
     } finally {
       if (mounted) {
         setState(() => _action = null);
@@ -276,7 +281,7 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
               Text(
                 '${status!.manifest!.totalStars} stars across '
                 '${status.tilesPresent}/${status.manifest!.tiles.length} tiles'
-                '${status.installedAt != null ? " • installed ${_fmt(status.installedAt!)}" : ""}',
+                '${status.installedAt != null ? " • installed ${ClockFormat.date(status.installedAt!)}" : ""}',
                 style: SkotiqTypography.captionSm.copyWith(
                   color: colors.textSecondary.withValues(alpha: 0.8),
                 ),
@@ -306,7 +311,7 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
               Text(
                 '${_progress!.verifying ? "Verifying" : "Downloading"} '
                 '${_progress!.tilesDone}/${_progress!.tilesTotal} • '
-                '${(_progress!.bytesDone / 1024).toStringAsFixed(0)} KiB',
+                '${ByteFormat.size(_progress!.bytesDone)}',
                 style: SkotiqTypography.captionSm.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -377,9 +382,6 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
       ),
     );
   }
-
-  String _fmt(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
 
 enum _DeepStarAction { download, verify, delete }
@@ -404,7 +406,7 @@ class _LoadError extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          error.toString(),
+          userFacingError(error),
           style: SkotiqTypography.captionSm.copyWith(
             color: colors.textSecondary,
           ),

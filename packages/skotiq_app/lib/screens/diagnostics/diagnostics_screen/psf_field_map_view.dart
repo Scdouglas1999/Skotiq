@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A public, reusable PSF field-quality heat-grid: each [PsfFieldTileRow] is a
@@ -72,7 +72,6 @@ class PsfFieldMapPainter extends CustomPainter {
     final cellWidth = size.width / numCols;
     final cellHeight = size.height / numRows;
 
-    // Compute HFR range across all tiles for normalization
     final hfrValues =
         tiles.map((t) => t.medianHfr).where((v) => v > 0).toList();
     if (hfrValues.isEmpty) return;
@@ -81,7 +80,6 @@ class PsfFieldMapPainter extends CustomPainter {
     final maxHfr = hfrValues.reduce(math.max);
     final hfrRange = (maxHfr - minHfr).clamp(0.01, double.infinity);
 
-    // Build lookup
     final lookup = <(int, int), PsfFieldTileRow>{};
     for (final tile in tiles) {
       lookup[(tile.tileRow, tile.tileCol)] = tile;
@@ -98,7 +96,6 @@ class PsfFieldMapPainter extends CustomPainter {
 
         final tile = lookup[(row, col)];
         if (tile == null || tile.medianHfr <= 0) {
-          // Empty tile
           final emptyPaint = Paint()..color = bgColor;
           canvas.drawRRect(
             RRect.fromRectAndRadius(
@@ -125,7 +122,6 @@ class PsfFieldMapPainter extends CustomPainter {
           cellPaint,
         );
 
-        // Draw border
         final borderPaint = Paint()
           ..color = borderColor.withValues(alpha: 0.3)
           ..style = PaintingStyle.stroke
@@ -136,7 +132,6 @@ class PsfFieldMapPainter extends CustomPainter {
           borderPaint,
         );
 
-        // Draw HFR value text if cell is big enough
         if (cellWidth > 40 && cellHeight > 25) {
           final span = TextSpan(
             text: tile.medianHfr.toStringAsFixed(1),

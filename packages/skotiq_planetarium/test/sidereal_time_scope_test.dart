@@ -7,7 +7,7 @@
 // stops publishing at all, freezing the wrong value beside a live wall clock.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_planetarium/src/astronomy/astronomy_calculations.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_planetarium/src/providers/planetarium_providers.dart';
 
 const double _longitude = -74.0060;

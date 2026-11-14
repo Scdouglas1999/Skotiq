@@ -1,13 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/sequence/sequence_models.dart';
 import 'sequence_file_service.dart';
 
-/// Skill level classification for sample sequences.
 enum SampleSequenceSkillLevel {
   beginner,
   intermediate,
@@ -249,14 +247,3 @@ class _SampleSequenceEntry {
     required this.assetFileName,
   });
 }
-
-/// Provider for the [SampleSequenceService] singleton.
-final sampleSequenceServiceProvider = Provider<SampleSequenceService>((ref) {
-  return SampleSequenceService();
-});
-
-/// Provider that loads the bundled sample sequences exactly once.
-final sampleSequencesProvider = FutureProvider<List<SampleSequence>>((ref) {
-  final service = ref.watch(sampleSequenceServiceProvider);
-  return service.load();
-});

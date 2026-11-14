@@ -1,32 +1,21 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import '../../../services/observing_site.dart';
 import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../planetarium_screen.dart';
 import 'sidebar_shared_widgets.dart';
-
-/// Render an instant as the HH:MM face the OBSERVING SITE reads.
-///
-/// Every time on this tab — twilight, moonrise/set, transit, satellite passes —
-/// is a fact about the place the rig sits, and the operator may be in another
-/// zone entirely. These were formatted with `.toLocal()`, i.e. the controlling
-/// laptop's zone, so Settings → Location → Timezone changed nothing here while
-/// the dashboard's own twilight strip and the status-bar clock (which do read
-/// [clockProvider]) moved: one app showing two zones, with nothing saying which
-/// was which. [SystemClock.fromUtc] is `toLocal()`, so a rig on "use system
-/// time" renders exactly as before.
-String _siteHhmm(DateTime t, Clock clock) {
-  final shown = clock.fromUtc(t.toUtc());
-  return '${shown.hour.toString().padLeft(2, '0')}:'
-      '${shown.minute.toString().padLeft(2, '0')}';
-}
+import '../../../router/app_routes.dart';
+import '../../../router/planner_route.dart';
+import '../../../utils/snackbar_helper.dart';
+import 'package:skotiq_core/services.dart';
 
 class TonightTab extends ConsumerWidget {
   final SkotiqColors colors;
@@ -54,7 +43,7 @@ class TonightTab extends ConsumerWidget {
     );
     if (!context.mounted) return;
     ref.read(framingProvider.notifier).setTargetSuggestion(target);
-    context.goNamed('framing');
+    context.go(AppRoutes.planner(tab: PlannerTab.framing));
   }
 
   Future<void> _addToSequencer(
@@ -85,9 +74,7 @@ class TonightTab extends ConsumerWidget {
     );
 
     if (added && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added $displayName to sequence')),
-      );
+      context.showInfoSnackBar('Added $displayName to sequence');
     }
   }
 
@@ -116,15 +103,12 @@ class TonightTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Location indicator
           _LocationIndicator(
             colors: colors,
             site: site,
             locationName: location.locationName,
           ),
-
           const SizedBox(height: 16),
-
           if (twilight == null) ...[
             SkotiqCard(
               padding: const EdgeInsets.all(16),
@@ -147,9 +131,7 @@ class TonightTab extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
           ],
-
           if (twilight != null) ...[
-            // Twilight card - Evening
             InfoCard(
               title: 'Evening twilight',
               icon: SkotiqIcons.sunset,
@@ -160,45 +142,43 @@ class TonightTab extends ConsumerWidget {
                   if (twilight.sunset != null)
                     TwilightRow(
                       label: 'Sunset',
-                      time: _siteHhmm(twilight.sunset!, clock),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.sunset!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.civilDusk != null)
                     TwilightRow(
                       label: 'Civil dusk',
-                      time: _siteHhmm(twilight.civilDusk!, clock),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.civilDusk!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.nauticalDusk != null)
                     TwilightRow(
                       label: 'Nautical dusk',
-                      time: _siteHhmm(twilight.nauticalDusk!, clock),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.nauticalDusk!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.astronomicalDusk != null)
                     TwilightRow(
                       label: 'Astro dusk',
-                      time: _siteHhmm(twilight.astronomicalDusk!, clock),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.astronomicalDusk!.toUtc())),
                       isPrimary: true,
                       colors: colors,
                     ),
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Darkness duration card
             if (twilight.astronomicalDusk != null &&
                 twilight.astronomicalDawn != null)
               DarknessCard(
                 twilight: twilight,
                 colors: colors,
               ),
-
             const SizedBox(height: 16),
-
-            // Morning Twilight card
             InfoCard(
               title: 'Morning twilight',
               icon: SkotiqIcons.sunrise,
@@ -209,36 +189,37 @@ class TonightTab extends ConsumerWidget {
                   if (twilight.astronomicalDawn != null)
                     TwilightRow(
                       label: 'Astro dawn',
-                      time: _siteHhmm(twilight.astronomicalDawn!, clock),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.astronomicalDawn!.toUtc())),
                       isPrimary: true,
                       colors: colors,
                     ),
                   if (twilight.nauticalDawn != null)
                     TwilightRow(
                       label: 'Nautical dawn',
-                      time: _siteHhmm(twilight.nauticalDawn!, clock),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.nauticalDawn!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.civilDawn != null)
                     TwilightRow(
                       label: 'Civil dawn',
-                      time: _siteHhmm(twilight.civilDawn!, clock),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.civilDawn!.toUtc())),
                       colors: colors,
                     ),
                   if (twilight.sunrise != null)
                     TwilightRow(
                       label: 'Sunrise',
-                      time: _siteHhmm(twilight.sunrise!, clock),
+                      time: ClockFormat.hm(
+                          clock.fromUtc(twilight.sunrise!.toUtc())),
                       colors: colors,
                     ),
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
           ],
-
-          // Moon card
           InfoCard(
             title: 'Moon',
             icon: SkotiqIcons.moon,
@@ -289,22 +270,21 @@ class TonightTab extends ConsumerWidget {
                 if (moonTimes?.moonrise != null)
                   TwilightRow(
                     label: 'Moonrise',
-                    time: _siteHhmm(moonTimes!.moonrise!, clock),
+                    time: ClockFormat.hm(
+                        clock.fromUtc(moonTimes!.moonrise!.toUtc())),
                     colors: colors,
                   ),
                 if (moonTimes?.moonset != null)
                   TwilightRow(
                     label: 'Moonset',
-                    time: _siteHhmm(moonTimes!.moonset!, clock),
+                    time: ClockFormat.hm(
+                        clock.fromUtc(moonTimes!.moonset!.toUtc())),
                     colors: colors,
                   ),
               ],
             ),
           ),
-
           const SizedBox(height: 16),
-
-          // Best targets tonight header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -332,7 +312,6 @@ class TonightTab extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-
           if (bestTargets == null)
             SkotiqCard(
               padding: const EdgeInsets.all(16),
@@ -401,12 +380,12 @@ class TonightTab extends ConsumerWidget {
                     // use, and which was exactly what let daylight targets
                     // head this list.
                     final peakTime = item.peakTime != null
-                        ? _siteHhmm(item.peakTime!, clock)
+                        ? ClockFormat.hm(clock.fromUtc(item.peakTime!.toUtc()))
                         : '-';
                     return TargetCard(
                       name: displayName,
                       catalog: catalogTag,
-                      type: dsoTypeName(dso.type),
+                      type: dso.type.displayName,
                       metric: '${item.hoursInDarkness.toStringAsFixed(1)}h',
                       caption: peakTime,
                       colors: colors,
@@ -466,10 +445,7 @@ class TonightTab extends ConsumerWidget {
                 ),
               ),
             ),
-
           const SizedBox(height: 16),
-
-          // Satellite passes section
           _SatellitePassesSection(colors: colors),
         ],
       ),
@@ -705,7 +681,7 @@ class _SatellitePassCard extends StatelessWidget {
             children: [
               _PassTimeLabel(
                 label: 'Rise',
-                time: _siteHhmm(pass.riseTime, clock),
+                time: ClockFormat.hm(clock.fromUtc(pass.riseTime.toUtc())),
                 az: '${pass.riseAzimuth.toStringAsFixed(0)}\u00b0',
                 colors: colors,
               ),
@@ -714,7 +690,8 @@ class _SatellitePassCard extends StatelessWidget {
               const SizedBox(width: 8),
               _PassTimeLabel(
                 label: 'Max',
-                time: _siteHhmm(pass.maxElevationTime, clock),
+                time: ClockFormat.hm(
+                    clock.fromUtc(pass.maxElevationTime.toUtc())),
                 az: '${pass.maxElevationAzimuth.toStringAsFixed(0)}\u00b0',
                 colors: colors,
               ),
@@ -723,7 +700,7 @@ class _SatellitePassCard extends StatelessWidget {
               const SizedBox(width: 8),
               _PassTimeLabel(
                 label: 'Set',
-                time: _siteHhmm(pass.setTime, clock),
+                time: ClockFormat.hm(clock.fromUtc(pass.setTime.toUtc())),
                 az: '${pass.setAzimuth.toStringAsFixed(0)}\u00b0',
                 colors: colors,
               ),
@@ -851,13 +828,12 @@ class _LocationIndicator extends StatelessWidget {
             GestureDetector(
               onTap: () {
                 try {
-                  context.goNamed('settings');
+                  context.go(AppRoute.settings.path);
                 } catch (e, stack) {
-                  developer.log(
+                  Log.warning(
                     '[TonightTab] Could not open settings to fix the '
                     'default location: $e',
-                    name: 'TonightTab',
-                    level: 900,
+                    source: 'TonightTab',
                     error: e,
                     stackTrace: stack,
                   );

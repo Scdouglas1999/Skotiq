@@ -5,10 +5,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_app/screens/first_light/widgets/transient_candidate_card.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _RecordingMount implements MountCommandService {
@@ -33,12 +35,6 @@ class _RecordingMount implements MountCommandService {
 
 class _FixedMount extends MountStateNotifier {
   _FixedMount(super.ref, MountState fixed) {
-    state = fixed;
-  }
-}
-
-class _RunProgress extends SequenceProgressNotifier {
-  _RunProgress(SequenceProgress fixed) {
     state = fixed;
   }
 }
@@ -86,10 +82,16 @@ Future<void> _pumpCard(
         if (commands != null)
           mountCommandServiceProvider.overrideWithValue(commands),
         mountStateProvider.overrideWith((ref) => _FixedMount(ref, _connected)),
-        sequenceExecutionStateProvider.overrideWith((ref) => runState),
-        sequenceProgressProvider.overrideWith(
-          (ref) => _RunProgress(
-            SequenceProgress(state: runState, currentTarget: runTarget),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(
+            ref,
+            RunRecord(
+              lifecycle: runState,
+              progress: SequenceProgress(
+                state: runState,
+                currentTarget: runTarget,
+              ),
+            ),
           ),
         ),
       ],
@@ -150,8 +152,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Chase this candidate?'), findsOne);
 
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
     await tester.pump();
     await tester.tap(find.text('Slew'));
     await tester.pumpAndSettle();

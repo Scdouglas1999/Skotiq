@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/equipment/equipment_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
@@ -143,7 +145,11 @@ void main() {
       deleted = true;
     });
     when(() => backend.lastSavedProfileId).thenReturn('9');
-    when(() => backend.saveProfile(any())).thenAnswer((_) async {
+    // Saves go through the per-field call; a restored profile has no loaded
+    // copy to diff against, so it is sent whole (fields: null).
+    when(
+      () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
+    ).thenAnswer((_) async {
       restored = true;
     });
     when(() => backend.loadProfile('9')).thenAnswer((_) async {});
@@ -162,9 +168,9 @@ void main() {
     await tester.tap(find.text('Undo'));
     await tester.pumpAndSettle();
 
-    final restoredProfile = verify(() => backend.saveProfile(captureAny()))
-        .captured
-        .single as EquipmentProfile;
+    final restoredProfile = verify(
+      () => backend.saveProfileFields(captureAny(), fields: null),
+    ).captured.single as EquipmentProfile;
     expect(restoredProfile.id, isEmpty);
     expect(restoredProfile.name, _source.name);
     expect(restoredProfile.description, _source.description);

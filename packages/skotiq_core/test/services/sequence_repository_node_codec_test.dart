@@ -8,7 +8,9 @@
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +20,7 @@ void main() {
 
   setUp(() {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-    repo = SequenceRepository(db.sequencesDao);
+    repo = LocalSequenceRepository(db.sequencesDao);
   });
 
   tearDown(() async {
@@ -235,4 +237,53 @@ void main() {
       expect(exposure.count, 3);
     },
   );
+
+  test("a target's brightness tier survives the database and a sequence file, "
+      'and a plan saved without one still loads', () async {
+    final sequence = Sequence.create(
+      id: 'seq-tier',
+      name: 'Tier round trip',
+      rootNodeId: 'root',
+      nodes: {
+        'root': InstructionSetNode(id: 'root', childIds: const ['m51']),
+        'm51': TargetHeaderNode(
+          id: 'm51',
+          parentId: 'root',
+          targetName: 'M51',
+          raHours: 13.5,
+          decDegrees: 47.2,
+          brightnessTierHint: BrightnessTier.faint,
+        ),
+        'm57': TargetHeaderNode(
+          id: 'm57',
+          parentId: 'root',
+          targetName: 'M57',
+          raHours: 18.9,
+          decDegrees: 33.0,
+        ),
+      },
+    );
+
+    final id = await repo.saveSequence(sequence);
+    final fromDb = (await repo.loadSequence(id))!;
+    expect(
+      (fromDb.nodes['m51'] as TargetHeaderNode).brightnessTierHint,
+      BrightnessTier.faint,
+    );
+    expect(
+      (fromDb.nodes['m57'] as TargetHeaderNode).brightnessTierHint,
+      isNull,
+    );
+
+    final files = SequenceFileService();
+    final fromFile = files.parseFromMap(files.sequenceToMap(sequence));
+    expect(
+      (fromFile.nodes['m51'] as TargetHeaderNode).brightnessTierHint,
+      BrightnessTier.faint,
+    );
+    expect(
+      (fromFile.nodes['m57'] as TargetHeaderNode).brightnessTierHint,
+      isNull,
+    );
+  });
 }

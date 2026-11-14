@@ -69,7 +69,6 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final position = requireInt(payload, 'position', min: 0);
 
-    final backend = container.read(deviceBackendProvider);
     _requireWithinTravel(
       deviceId: deviceId,
       status: await _tryFocuserStatus(deviceId),
@@ -82,7 +81,10 @@ extension FocuserDeviceHandlers on DeviceHandlers {
       deviceId: deviceId,
     );
     try {
-      await backend.focuserMoveTo(deviceId, position);
+      await runDeviceCommand(
+        deviceId,
+        () => deviceCommandsOf(container).focuserMoveTo(deviceId, position),
+      );
     } catch (error) {
       if (_isFocuserBusy(error)) {
         return jsonError(
@@ -107,7 +109,6 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
     final delta = requireInt(payload, 'delta');
 
-    final backend = container.read(deviceBackendProvider);
     // A relative move is only meaningful against the current position, so the
     // range check is applied to the resolved target rather than to the delta.
     // Without a readable position there is no target to check, so the guard is
@@ -129,7 +130,10 @@ extension FocuserDeviceHandlers on DeviceHandlers {
       deviceId: deviceId,
     );
     try {
-      await backend.focuserMoveRelative(deviceId, delta);
+      await runDeviceCommand(
+        deviceId,
+        () => deviceCommandsOf(container).focuserMoveRelative(deviceId, delta),
+      );
     } catch (error) {
       if (_isFocuserBusy(error)) {
         return jsonError(
@@ -153,8 +157,10 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     final payload = await readJsonObject(request);
     final deviceId = requireString(payload, 'deviceId');
 
-    final backend = container.read(deviceBackendProvider);
-    await backend.focuserHalt(deviceId);
+    await runDeviceCommand(
+      deviceId,
+      () => deviceCommandsOf(container).focuserHalt(deviceId),
+    );
 
     return jsonOk({'status': 'halted'});
   }

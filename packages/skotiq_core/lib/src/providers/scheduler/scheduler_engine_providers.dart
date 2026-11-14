@@ -234,6 +234,7 @@ final schedulerEngineProvider = Provider<SchedulerEngine>((ref) {
       latitudeDegrees: lat,
       longitudeDegrees: lng,
       localOffset: localOffset,
+      horizon: ref.read(horizonProfileProvider),
     ),
     config: persistedConfig,
     sequenceSink: _ExecutorSequenceSink(ref),
@@ -263,6 +264,7 @@ final schedulerEngineProvider = Provider<SchedulerEngine>((ref) {
       // has not flushed it yet — so a Timezone edit would be compared against
       // itself, look unchanged, and leave the engine on the old offset.
       localOffset: engine.site.localOffset,
+      horizon: engine.site.horizon,
     );
     final currentSite = engine.site;
     if (nextSite.latitudeDegrees == currentSite.latitudeDegrees &&
@@ -284,9 +286,23 @@ final schedulerEngineProvider = Provider<SchedulerEngine>((ref) {
         latitudeDegrees: engine.site.latitudeDegrees,
         longitudeDegrees: engine.site.longitudeDegrees,
         localOffset: next.utcOffset,
+        horizon: engine.site.horizon,
       ),
     );
     engine.requestReevaluation(reason: 'site timezone changed');
+  });
+  // The site's horizon is half of its altitude floor: a horizon set, cleared
+  // or learned changes which targets clear it.
+  ref.listen<SiteHorizonProfile>(horizonProfileProvider, (previous, next) {
+    engine.updateSite(
+      SchedulerSite(
+        latitudeDegrees: engine.site.latitudeDegrees,
+        longitudeDegrees: engine.site.longitudeDegrees,
+        localOffset: engine.site.localOffset,
+        horizon: next,
+      ),
+    );
+    engine.requestReevaluation(reason: 'site horizon changed');
   });
   ref.listen<AsyncValue<SchedulerConfig>>(schedulerPersistedConfigProvider, (
     previous,
@@ -346,6 +362,7 @@ final schedulerEngineReadyProvider = FutureProvider<SchedulerEngine>((
       // host's offset here would silently overwrite the observatory's on every
       // cold start — the same defect as the constructor's, one call site later.
       localOffset: ref.read(clockProvider).utcOffset,
+      horizon: ref.read(horizonProfileProvider),
     ),
   );
   if (!ref.read(schedulerConfigUserDirtyProvider)) {
@@ -368,7 +385,7 @@ final schedulerAutoReevalProvider = Provider<void>((ref) {
   final engine = ref.watch(schedulerEngineReadyProvider).valueOrNull;
   if (engine == null) return;
 
-  ref.listen<AsyncValue<List<ndb.Target>>>(allDbTargetsProvider, (
+  ref.listen<AsyncValue<List<ndb.DbTarget>>>(allDbTargetsProvider, (
     previous,
     next,
   ) {

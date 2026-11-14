@@ -64,7 +64,8 @@
 //! choice of which stars to feed in all live in Dart; this module is the
 //! deterministic, unit-tested numeric core.
 
-use crate::robust_stats::{median_in_place as median, MAD_TO_SIGMA};
+use crate::numeric::LineSums;
+use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
 use crate::{ImageData, PixelType};
 use rayon::prelude::*;
 
@@ -350,11 +351,11 @@ fn fit_channel(points: &[(f64, f64)]) -> Option<ChannelFit> {
         // All stars share one B−V: no colour spread, slope undefined.
         return None;
     }
-    let b0 = median(&mut slopes);
+    let b0 = median_in_place(&mut slopes);
 
     // Step 2: median intercept paired with the Theil–Sen slope.
     let mut intercepts: Vec<f64> = points.iter().map(|&(x, y)| y - b0 * x).collect();
-    let a0 = median(&mut intercepts);
+    let a0 = median_in_place(&mut intercepts);
 
     // Step 3: one Tukey-biweight IRLS refinement.
     let (a, b) = irls_refine(points, a0, b0);
@@ -364,7 +365,7 @@ fn fit_channel(points: &[(f64, f64)]) -> Option<ChannelFit> {
         .iter()
         .map(|&(x, y)| (y - (a + b * x)).abs())
         .collect();
-    let mad = median(&mut residuals);
+    let mad = median_in_place(&mut residuals);
     let rms = mad * MAD_TO_SIGMA;
 
     if !a.is_finite() || !b.is_finite() || !rms.is_finite() {
@@ -389,7 +390,7 @@ fn irls_refine(points: &[(f64, f64)], a0: f64, b0: f64) -> (f64, f64) {
         .iter()
         .map(|&(x, y)| (y - (a0 + b0 * x)).abs())
         .collect();
-    let sigma = median(&mut abs_res) * MAD_TO_SIGMA;
+    let sigma = median_in_place(&mut abs_res) * MAD_TO_SIGMA;
     if sigma <= f64::EPSILON {
         // Seed line already passes through (nearly) every point.
         return (a0, b0);
@@ -397,11 +398,7 @@ fn irls_refine(points: &[(f64, f64)], a0: f64, b0: f64) -> (f64, f64) {
     let c = 4.685 * sigma;
 
     // Weighted least squares with Tukey-biweight weights.
-    let mut sw = 0.0;
-    let mut swx = 0.0;
-    let mut swy = 0.0;
-    let mut swxx = 0.0;
-    let mut swxy = 0.0;
+    let mut sums = LineSums::default();
     for &(x, y) in points {
         let r = y - (a0 + b0 * x);
         let u = r / c;
@@ -414,25 +411,10 @@ fn irls_refine(points: &[(f64, f64)], a0: f64, b0: f64) -> (f64, f64) {
         if w <= 0.0 {
             continue;
         }
-        sw += w;
-        swx += w * x;
-        swy += w * y;
-        swxx += w * x * x;
-        swxy += w * x * y;
+        sums.add(x, y, w);
     }
-
-    let denom = sw * swxx - swx * swx;
-    if denom.abs() <= f64::EPSILON || sw <= 0.0 {
-        // Not enough x-spread among inliers to refine — keep the robust seed.
-        return (a0, b0);
-    }
-    let b = (sw * swxy - swx * swy) / denom;
-    let a = (swy - b * swx) / sw;
-    if a.is_finite() && b.is_finite() {
-        (a, b)
-    } else {
-        (a0, b0)
-    }
+    // Too little x-spread among the inliers to refine: keep the robust seed.
+    sums.solve().map_or((a0, b0), |(b, a)| (a, b))
 }
 
 /// Apply a solved [`ColorCalibration`] in place, multiplying each channel's
@@ -737,7 +719,6 @@ mod tests {
     fn too_few_stars_is_an_error() {
         let a = [3.0, 3.1, 2.7];
         let b = [0.2, 0.0, -0.3];
-        // MIN_MATCHED_STARS - 1 stars.
         let stars = synth_stars(MIN_MATCHED_STARS - 1, &a, &b, 0.0, 7);
         assert_eq!(stars.len(), MIN_MATCHED_STARS - 1);
         let err = solve_color_calibration(&stars, 3, 0.65).unwrap_err();

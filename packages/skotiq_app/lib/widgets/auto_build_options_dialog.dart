@@ -2,9 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 enum AutoBuildEnd {
@@ -51,7 +53,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
   if (profile == null) {
     throw const SmartNightBuildException('Select an equipment profile first.');
   }
-  final backend = ref.read(backendProvider);
+  final host = ref.backendScope();
   final filters = ref.read(effectiveFiltersProvider);
   final camera = ref.read(cameraStateProvider);
   final cameraName = camera.connectionState == DeviceConnectionState.connected
@@ -67,7 +69,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
   final dao = ref.read(settingsDaoProvider);
   final raw = await dao.getSetting(key);
   if (!context.mounted ||
-      (!identical(backend, ref.read(backendProvider)) ||
+      (host.isStale ||
           ref.read(activeEquipmentProfileProvider)?.id != profile.id ||
           ref.read(cameraStateProvider).deviceId != camera.deviceId)) {
     return null;
@@ -89,7 +91,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
     ),
   );
   if (!context.mounted ||
-      (!identical(backend, ref.read(backendProvider)) ||
+      (host.isStale ||
           ref.read(activeEquipmentProfileProvider)?.id != profile.id ||
           ref.read(cameraStateProvider).deviceId != camera.deviceId)) {
     return null;
@@ -251,8 +253,8 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                        'Frame center: ${CoordinateParser.formatRaHms(widget.target.raHours)} '
-                        '${CoordinateParser.formatDecDms(widget.target.decDegrees)}'),
+                        'Frame center: ${CoordinateFormat.raReadout(widget.target.raHours)} '
+                        '${CoordinateFormat.decReadout(widget.target.decDegrees)}'),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<SmartNightStrategy>(
                       isExpanded: true,
@@ -431,7 +433,7 @@ class _AutoBuildOptionsDialogState extends State<AutoBuildOptionsDialog> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = 'Could not save recipe: $e';
+          _error = 'Could not save recipe: ${userFacingError(e)}';
         });
       }
     }

@@ -1,10 +1,6 @@
 // Center-column and right-panel view models.
 part of '../night_control_contracts.dart';
 
-// ---------------------------------------------------------------------------
-// Center column
-// ---------------------------------------------------------------------------
-
 /// One thumbnail in the frame strip.
 @immutable
 class StripFrameVm {
@@ -21,6 +17,7 @@ class StripFrameVm {
     this.exclusion,
     this.thumbnailPath,
     this.filePath,
+    this.hostPath,
   });
 
   /// The captured_images row id.
@@ -49,6 +46,11 @@ class StripFrameVm {
   /// The FITS file; null on a remote viewer without the file.
   final String? filePath;
 
+  /// Where the imaging host saved the FITS file, on a remote viewer too: the
+  /// frame on the main image names the same path, which is how its pill
+  /// finds its frame number and verdict.
+  final String? hostPath;
+
   /// Ringed in the strip.
   final bool isNewest;
 
@@ -66,6 +68,7 @@ class StripFrameVm {
       other.exclusion == exclusion &&
       other.thumbnailPath == thumbnailPath &&
       other.filePath == filePath &&
+      other.hostPath == hostPath &&
       other.isNewest == isNewest;
 
   @override
@@ -81,6 +84,7 @@ class StripFrameVm {
         exclusion,
         thumbnailPath,
         filePath,
+        hostPath,
         isNewest,
       );
 }
@@ -125,10 +129,6 @@ enum NightSeriesId {
   focuserPosition,
 }
 
-/// Line color role on a chart. Maps one to one onto the kit's
-/// `SeriesChartTone`.
-enum SeriesTone { primary, secondary, tertiary, muted, warning, error }
-
 /// One line of a session chart.
 @immutable
 class SeriesLineVm {
@@ -146,7 +146,7 @@ class SeriesLineVm {
   /// Time ordered. Null-y points are gaps.
   final List<SeriesPoint> points;
 
-  final SeriesTone tone;
+  final SeriesChartTone tone;
 
   /// Drawn against the right axis (stars against HFR, focuser steps against
   /// temperature).
@@ -227,10 +227,6 @@ class NightSeriesVm {
       );
 }
 
-// ---------------------------------------------------------------------------
-// Right panel
-// ---------------------------------------------------------------------------
-
 /// One cell of a metric grid ("2.13 / HFR −0.04").
 @immutable
 class MetricVm {
@@ -238,8 +234,8 @@ class MetricVm {
     required this.label,
     this.value,
     this.delta,
-    this.deltaTone = MetricTone.neutral,
-    this.valueTone = MetricTone.neutral,
+    this.deltaTone = MetricGridTone.neutral,
+    this.valueTone = MetricGridTone.neutral,
   });
 
   final NightText label;
@@ -249,8 +245,8 @@ class MetricVm {
 
   /// Signed and formatted ("−0.04"); null when there is nothing to compare.
   final String? delta;
-  final MetricTone deltaTone;
-  final MetricTone valueTone;
+  final MetricGridTone deltaTone;
+  final MetricGridTone valueTone;
 
   @override
   bool operator ==(Object other) =>
@@ -305,6 +301,7 @@ class NightSessionVm {
     required this.metrics,
     this.frameCount,
     this.elapsed,
+    this.rejectStreak,
   });
 
   final int? frameCount;
@@ -314,15 +311,21 @@ class NightSessionVm {
   /// Dropouts; a metric with no source is left out.
   final List<MetricVm> metrics;
 
+  /// The frames the run's grader is rejecting one after another, and why;
+  /// null while it is not.
+  final NightText? rejectStreak;
+
   @override
   bool operator ==(Object other) =>
       other is NightSessionVm &&
       other.frameCount == frameCount &&
       other.elapsed == elapsed &&
+      other.rejectStreak == rejectStreak &&
       listEquals(other.metrics, metrics);
 
   @override
-  int get hashCode => Object.hash(frameCount, elapsed, Object.hashAll(metrics));
+  int get hashCode =>
+      Object.hash(frameCount, elapsed, rejectStreak, Object.hashAll(metrics));
 }
 
 enum EquipmentKind { camera, filterWheel, focuser, mount, guider, rotator }
@@ -455,14 +458,14 @@ class NightLogEntryVm {
   const NightLogEntryVm({
     required this.at,
     required this.message,
-    this.tone = MetricTone.neutral,
+    this.tone = MetricGridTone.neutral,
   });
 
   final DateTime at;
   final NightText message;
 
-  /// [MetricTone.bad] for a rejection, [MetricTone.warning] for a lost star.
-  final MetricTone tone;
+  /// [MetricGridTone.bad] for a rejection, [MetricGridTone.warning] for a lost star.
+  final MetricGridTone tone;
 
   @override
   bool operator ==(Object other) =>
@@ -518,7 +521,7 @@ class ChecklistItemVm {
   final ChecklistItemState state;
   final NightText title;
 
-  /// "PHD2 connected, not looping". The dawn row states the configured
+  /// "connected · not looping". The dawn row states the configured
   /// safety policy exactly, including "off" and "no site".
   final NightText? detail;
 

@@ -11,12 +11,16 @@
 // And the consent dialog must not render ~680 px tall for two short paragraphs,
 // its body floating between ~230 px of empty space above and ~225 px below.
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/site_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_app/services/site_detection.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -94,7 +98,7 @@ Future<ProviderContainer> _pumpSiteStep(
         databaseProvider.overrideWithValue(db),
         onboardingApproximateLocationProvider
             .overrideWithValue(() async => null),
-        onboardingSiteLocatorProvider.overrideWithValue(
+        siteLocatorProvider.overrideWithValue(
           locator ??
               _answering(
                 const PositioningAttempt(fix: null, outcomes: []),
@@ -127,6 +131,106 @@ void main() {
   setUp(() {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
+  });
+
+  Finder siteInput(Key key) => find.descendant(
+        of: find.byKey(key),
+        matching: find.byType(TextField),
+      );
+
+  testWidgets('a background location fills untouched site fields',
+      (tester) async {
+    final container = await _pumpSiteStep(tester, db);
+    await container.read(appSettingsProvider.notifier).updateLocation(
+          latitude: 40.71,
+          longitude: -74.01,
+          elevation: 42,
+        );
+    await tester.pumpAndSettle();
+
+    expect(
+        tester
+            .widget<TextField>(siteInput(onboardingSiteLatitudeKey))
+            .controller!
+            .text,
+        '40.71');
+    expect(
+        tester
+            .widget<TextField>(siteInput(onboardingSiteLongitudeKey))
+            .controller!
+            .text,
+        '-74.01');
+    expect(find.textContaining('No site on record yet'), findsNothing);
+
+    await tester.enterText(siteInput(onboardingSiteLatitudeKey), '100');
+    await tester.pumpAndSettle();
+    expect(container.read(appSettingsProvider).value!.latitude, 40.71,
+        reason: 'an invalid edit restores the newly detected baseline');
+    expect(container.read(appSettingsProvider).value!.longitude, -74.01);
+  });
+
+  testWidgets('a background location never replaces edited site fields',
+      (tester) async {
+    final container = await _pumpSiteStep(tester, db);
+    final notifier = container.read(appSettingsProvider.notifier);
+    final before = notifier.locationEditRevision;
+    await tester.enterText(siteInput(onboardingSiteLatitudeKey), '39 5');
+    await tester.pumpAndSettle();
+    expect(notifier.locationEditRevision, greaterThan(before),
+        reason: 'incomplete input cancels startup detection before persisting');
+    await container.read(appSettingsProvider.notifier).updateLocation(
+          latitude: 40.71,
+          longitude: -74.01,
+        );
+    await tester.pumpAndSettle();
+
+    expect(
+        tester
+            .widget<TextField>(siteInput(onboardingSiteLatitudeKey))
+            .controller!
+            .text,
+        '39 5');
+    expect(
+        tester
+            .widget<TextField>(siteInput(onboardingSiteLongitudeKey))
+            .controller!
+            .text,
+        isEmpty);
+  });
+
+  testWidgets('a stalled device lookup releases the onboarding button',
+      (tester) async {
+    final pending = Completer<PositioningAttempt>();
+    final container = await _pumpSiteStep(
+      tester,
+      db,
+      locator: ({
+        required bool allowWifiScan,
+        required bool allowIp,
+        bool mayEnableWifiRadio = false,
+        String? googleApiKey,
+      }) =>
+          pending.future,
+    );
+    final detect = find.widgetWithText(SkotiqButton, 'Use my current location');
+    await tester.tap(detect);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Detect location'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(tester.widget<SkotiqButton>(detect).isLoading, isTrue);
+
+    await tester.pump(const Duration(seconds: 30));
+    await tester.pump();
+    expect(tester.widget<SkotiqButton>(detect).isLoading, isFalse);
+    expect(tester.widget<SkotiqButton>(detect).onPressed, isNotNull);
+    expect(find.textContaining('Location detection timed out'), findsOneWidget);
+    expect(container.read(appSettingsProvider).value!.latitude, 0);
+
+    pending.complete(_philadelphia);
+    await tester.pumpAndSettle();
+    expect(container.read(appSettingsProvider).value!.latitude, 0,
+        reason: 'a timed-out lookup cannot write its late result');
   });
 
   testWidgets('the "no site on record" offer retires once a site is detected',
@@ -162,10 +266,13 @@ void main() {
     await tester.tap(find.text('Detect location'));
     await tester.pumpAndSettle();
 
-    final fields = tester.widgetList<TextField>(find.byType(TextField));
-    expect(fields.first.controller?.text, '39.9527');
+    TextField field(Key key) => tester.widget<TextField>(
+          find.descendant(
+              of: find.byKey(key), matching: find.byType(TextField)),
+        );
+    expect(field(onboardingSiteLatitudeKey).controller?.text, '39.9527');
     expect(
-      fields.elementAt(1).controller?.text,
+      field(onboardingSiteLongitudeKey).controller?.text,
       '-75.1635',
       reason: 'an estimate good to ~10 km must not claim centimeters',
     );

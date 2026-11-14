@@ -3,7 +3,8 @@
 // with one that also knows about armed starts and manual-action pauses.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';
@@ -60,8 +61,9 @@ final nightRunPhaseProvider = Provider<NightRunPhase>((ref) {
   // that never ran.
   final ended = ref.watch(lastEndedRunProvider);
   if (ended != null &&
-      ended.sequenceId ==
-          ref.watch(currentSequenceProvider.select((s) => s?.id))) {
+      ended.ranLoadedPlan(
+        ref.watch(currentSequenceProvider.select((s) => s?.id)),
+      )) {
     return NightRunPhase.finished;
   }
   final tree = ref.watch(nightPlanTreeProvider);

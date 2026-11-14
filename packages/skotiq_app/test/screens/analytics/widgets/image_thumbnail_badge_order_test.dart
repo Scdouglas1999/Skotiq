@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/image_thumbnail_strip.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 DbCapturedImage _softFrame() => DbCapturedImage(
@@ -35,12 +35,12 @@ DbCapturedImage _softFrame() => DbCapturedImage(
     );
 
 /// The tile's Stack: the one holding both the thumbnail [Center] and the
-/// quality badge (a [Positioned] wrapping a [Tooltip]).
+/// badge row (a [Positioned] wrapping a [Row]).
 Stack _tileStack(WidgetTester tester) {
   for (final stack in tester.widgetList<Stack>(find.byType(Stack))) {
     final hasCenter = stack.children.any((c) => c is Center);
     final hasBadge = stack.children.any(
-      (c) => c is Positioned && c.child is Tooltip,
+      (c) => c is Positioned && c.child is Row,
     );
     if (hasCenter && hasBadge) return stack;
   }
@@ -70,7 +70,7 @@ void main() {
     final children = _tileStack(tester).children;
     final centerIndex = children.indexWhere((c) => c is Center);
     final badgeIndex = children.indexWhere(
-      (c) => c is Positioned && c.child is Tooltip,
+      (c) => c is Positioned && c.child is Row,
     );
     expect(centerIndex, isNonNegative);
     expect(badgeIndex, isNonNegative);
@@ -82,5 +82,35 @@ void main() {
       reason: 'the quality badge must come after the thumbnail in the Stack, '
           'otherwise a loaded thumbnail covers it',
     );
+  });
+
+  // UX walk 2, F33: on 80-px tiles the HFR badge covered "NEEDS RE…".
+  testWidgets('the verdict and HFR badges sit side by side inside the tile',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: Scaffold(
+            body: ImageThumbnailStrip(images: [_softFrame()]),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final verdictText = find.descendant(
+      of: find.byType(ListView),
+      matching: find.text('Poor'),
+    );
+    final verdict = tester.getRect(verdictText);
+    final hfr = tester.getRect(find.text('4.6 px'));
+    final tile = tester.getRect(
+      find.ancestor(of: verdictText, matching: find.byType(Stack)).first,
+    );
+    expect(verdict.overlaps(hfr), isFalse);
+    expect(verdict.right, lessThan(hfr.left));
+    expect(
+        tile.contains(verdict.topLeft) && tile.contains(hfr.topRight), isTrue);
   });
 }

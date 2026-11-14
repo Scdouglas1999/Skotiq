@@ -7,7 +7,7 @@
 // flip in Coming up and on the altitude chart.
 //
 // The events are built the way a linked client gets them: the host's wire
-// envelope rebuilt by `bridgeEventFromCoreEvent`.
+// envelope read back by `typedEventFromWire`.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,9 +16,10 @@ import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.d
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide TwilightTimes;
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
-import 'package:skotiq_core/src/backend/bridge_event_mapper.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
+import 'package:skotiq_core/backend.dart';
 
 class _Mount extends MountStateNotifier {
   _Mount(super.ref) {
@@ -32,9 +33,9 @@ class _Mount extends MountStateNotifier {
   void pier(String side) => state = state.copyWith(sideOfPier: side);
 }
 
-class _Progress extends SequenceProgressNotifier {
+class _Progress extends RunRecordNotifier {
   _Progress(String? message) {
-    state = SequenceProgress(message: message);
+    state = state.copyWith(progress: SequenceProgress(message: message));
   }
 }
 
@@ -46,7 +47,7 @@ sk_events.SkotiqEvent _wire(
   Map<String, dynamic> data, {
   EventSeverity severity = EventSeverity.info,
 }) =>
-    bridgeEventFromCoreEvent(
+    typedEventFromWire(
       SkotiqEvent(
         timestamp: at.millisecondsSinceEpoch,
         severity: severity,
@@ -54,20 +55,22 @@ sk_events.SkotiqEvent _wire(
         eventType: eventType,
         data: data,
       ),
-    );
+    )!;
 
 sk_events.SkotiqEvent _triggerFired(DateTime at) => _wire(at, 'TriggerFired', {
       'trigger_id': 'meridian_flip',
       'trigger_name': 'Meridian Flip',
-      'action': 'MeridianFlip(MeridianFlipConfig { max_retries: 3 })',
+      'action': 'MeridianFlip',
     });
 
 sk_events.SkotiqEvent _attemptFailed(DateTime at, int n, int delay) =>
-    _wire(at, 'InstructionProgress', {
+    _wire(at, 'InstructionProgressStructured', {
       'node_id': 'trigger:meridian_flip',
       'instruction': 'MeridianFlip',
       'progress_percent': 25.0 * n,
-      'detail': 'attempt $n/4 failed, retrying in ${delay}s',
+      'detail_kind': 'MeridianFlipRetry',
+      'detail_json':
+          '{"failed_attempt":$n,"max_attempts":4,"retry_in_secs":$delay.0}',
     });
 
 sk_events.SkotiqEvent _outcome(DateTime at, String outcome) => _wire(
@@ -93,7 +96,7 @@ class _Rig {
         nightNowProvider.overrideWithValue((now ?? _t0).toUtc()),
         nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
         mountStateProvider.overrideWith(_Mount.new),
-        sequenceProgressProvider.overrideWith((ref) => _Progress(message)),
+        runRecordProvider.overrideWith((ref) => _Progress(message)),
         eventHistoryProvider.overrideWith((ref) => EventHistoryNotifier()),
       ],
     );
@@ -245,15 +248,14 @@ void main() {
   test('a new run starts with no flip behind it', () {
     final rig = _Rig();
     addTearDown(rig.container.dispose);
-    final execution =
-        rig.container.read(sequenceExecutionStateProvider.notifier);
-    execution.state = SequenceExecutionState.running;
+    final execution = rig.container.read(runRecordProvider.notifier);
+    execution.setLifecycle(SequenceExecutionState.running);
     rig.emit(_triggerFired(_t0));
     rig.pier('East');
     expect(rig.flip.doneForThisTransit, isTrue);
 
-    execution.state = SequenceExecutionState.failed;
-    execution.state = SequenceExecutionState.running;
+    execution.setLifecycle(SequenceExecutionState.failed);
+    execution.setLifecycle(SequenceExecutionState.running);
     expect(rig.flip.doneForThisTransit, isFalse);
     expect(rig.flip.inProgress, isFalse);
   });

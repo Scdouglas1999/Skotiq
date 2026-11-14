@@ -2,7 +2,11 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
 
@@ -108,7 +112,7 @@ void main() {
             final row = await dao.getProfileById(id);
             await container
                 .read(equipmentProfilesProvider.notifier)
-                .updateProfile(
+                .saveProfile(
                   EquipmentProfileModel.fromDatabase(
                     row!,
                   ).copyWith(focalLength: 1000),
@@ -185,6 +189,94 @@ void main() {
         ordered[0].captured.single as remote_profile.EquipmentProfile;
     expect(savedProfile.id, bId.toString());
     expect(ordered[1].captured.single, bId.toString());
+  });
+
+  test(
+    'an activation on this host is announced to linked clients once',
+    () async {
+      final backend = _MockFfiBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(() => backend.saveProfile(any())).thenAnswer((_) async {});
+      when(() => backend.loadProfile(any())).thenAnswer((_) async {});
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final announced = <SkotiqEvent>[];
+      final local = <SkotiqEvent>[];
+      final hub = container.read(hostMutationEventHubProvider)
+        ..wsBroadcast = announced.add;
+      final localSub = hub.stream.listen(local.add);
+      addTearDown(localSub.cancel);
+
+      final dao = container.read(equipmentProfilesDaoProvider);
+      await dao.createProfile(
+        const EquipmentProfileModel(name: 'A').toCompanion(),
+      );
+      final bId = await dao.createProfile(
+        const EquipmentProfileModel(name: 'B').toCompanion(),
+      );
+
+      await container
+          .read(equipmentProfilesProvider.notifier)
+          .setActiveProfile(bId);
+      await Future<void>.delayed(Duration.zero);
+
+      final event = announced.single;
+      expect(event.data['entityType'], HostMutationEntity.profile);
+      expect(event.data['action'], HostMutationAction.loaded);
+      expect(event.data['entityId'], bId.toString());
+      // Clients only: this app's own providers refresh themselves.
+      expect(local, isEmpty);
+    },
+  );
+
+  test('a client profile edit sends only the fields it changed', () async {
+    final backend = _MockNetworkBackend();
+    when(
+      () => backend.eventStream,
+    ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+    when(() => backend.getProfiles()).thenAnswer(
+      (_) async => [
+        const remote_profile.EquipmentProfile(
+          id: '3',
+          name: 'Rig',
+          focalLength: 500,
+        ),
+      ],
+    );
+    when(() => backend.getActiveProfile()).thenAnswer((_) async => null);
+    Set<String>? sentFields;
+    when(
+      () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
+    ).thenAnswer((invocation) async {
+      sentFields = invocation.namedArguments[#fields] as Set<String>?;
+    });
+    when(() => backend.lastSavedProfileId).thenReturn('3');
+    final container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        backendProvider.overrideWith(
+          (ref) => _FixedBackendNotifier(ref, backend),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(equipmentProfilesProvider.future);
+    final loaded = state.profiles.single;
+    await container
+        .read(equipmentProfilesProvider.notifier)
+        .saveProfile(loaded.copyWith(name: 'Rig renamed'));
+
+    expect(sentFields, {'name'});
   });
 
   test('remote setActiveProfile calls the host load endpoint once and never '

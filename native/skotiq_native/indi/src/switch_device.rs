@@ -15,6 +15,7 @@
 
 use crate::client::IndiClient;
 use crate::error::IndiResult;
+use crate::protocol::names::*;
 use crate::{IndiPermission, IndiProperty, IndiPropertyType};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -30,51 +31,21 @@ pub struct IndiSwitchInfo {
     pub label: String,
     /// Current state (true = On)
     pub state: bool,
-    /// Whether this switch can be written
     pub writable: bool,
 }
 
-/// INDI Switch device wrapper
 pub struct IndiSwitchDevice {
     client: Arc<RwLock<IndiClient>>,
     device_name: String,
 }
 
 impl IndiSwitchDevice {
-    /// Create a new INDI switch device wrapper
     pub fn new(client: Arc<RwLock<IndiClient>>, device_name: &str) -> Self {
         Self {
             client,
             device_name: device_name.to_string(),
         }
     }
-
-    /// Get the device name
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    // Connection
-
-    /// Connect to the switch device
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    /// Disconnect from the switch device
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    /// Check if connected
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
-    // Switch discovery
 
     /// Get all switch-type properties on this device
     ///
@@ -139,9 +110,6 @@ impl IndiSwitchDevice {
         switches
     }
 
-    // Switch control
-
-    /// Get the state of a specific switch element
     pub async fn get_switch_state(&self, property_name: &str, element: &str) -> Option<bool> {
         let client = self.client.read().await;
         client
@@ -193,7 +161,6 @@ impl IndiSwitchDevice {
             .await
     }
 
-    /// Check if a switch property is read-only
     pub async fn is_switch_read_only(&self, property_name: &str) -> bool {
         let client = self.client.read().await;
         match client.get_property(&self.device_name, property_name).await {
@@ -208,16 +175,16 @@ impl IndiSwitchDevice {
 fn is_internal_switch_property(name: &str) -> bool {
     matches!(
         name,
-        "CONNECTION"
-            | "DEBUG"
-            | "DEBUG_LEVEL"
-            | "SIMULATION"
-            | "CONFIG_PROCESS"
-            | "DEVICE_PORT_SCAN"
-            | "ACTIVE_DEVICES"
-            | "UPLOAD_MODE"
-            | "LOG_OUTPUT"
-            | "LOG_LEVEL"
+        CONNECTION
+            | DEBUG
+            | DEBUG_LEVEL
+            | SIMULATION
+            | CONFIG_PROCESS
+            | DEVICE_PORT_SCAN
+            | ACTIVE_DEVICES
+            | UPLOAD_MODE
+            | LOG_OUTPUT
+            | LOG_LEVEL
     ) || name.starts_with("TELESCOPE_")
         || name.starts_with("CCD_")
         || name.starts_with("FILTER_")
@@ -226,4 +193,98 @@ fn is_internal_switch_property(name: &str) -> bool {
         || name.starts_with("CAP_")
         || name.starts_with("ROTATOR_")
     // These prefixes belong to other device type interfaces, not switch-specific functionality
+}
+
+indi_accessory!(IndiSwitchDevice);
+
+impl IndiSwitchDevice {
+    /// The `index`th switch element, counting every switch property in order.
+    async fn switch_at(&self, index: i32) -> Result<IndiSwitchInfo, skotiq_device::DriverError> {
+        let switches = self.get_all_switches().await;
+        let count = switches.len();
+        usize::try_from(index)
+            .ok()
+            .and_then(|i| switches.into_iter().nth(i))
+            .ok_or_else(|| {
+                skotiq_device::DriverError::InvalidParameter(format!(
+                    "Switch index {} out of range (device has {} switches)",
+                    index, count
+                ))
+            })
+    }
+
+    async fn writable_switch_at(
+        &self,
+        index: i32,
+    ) -> Result<IndiSwitchInfo, skotiq_device::DriverError> {
+        let switch = self.switch_at(index).await?;
+        if !switch.writable {
+            return Err(crate::IndiError::PermissionDenied(format!(
+                "INDI switch '{}' / '{}' is read-only",
+                switch.property_name, switch.element_name
+            ))
+            .into());
+        }
+        Ok(switch)
+    }
+}
+
+#[async_trait::async_trait]
+impl skotiq_device::SwitchDriver for IndiSwitchDevice {
+    async fn count(&self) -> Result<i32, skotiq_device::DriverError> {
+        Ok(i32::try_from(self.get_all_switches().await.len()).unwrap_or(i32::MAX))
+    }
+
+    async fn switch_name(&self, index: i32) -> Result<String, skotiq_device::DriverError> {
+        Ok(self.switch_at(index).await?.element_name)
+    }
+
+    async fn switch_description(&self, index: i32) -> Result<String, skotiq_device::DriverError> {
+        let switch = self.switch_at(index).await?;
+        Ok(format!("{} / {}", switch.property_name, switch.label))
+    }
+
+    async fn can_write(&self, index: i32) -> Result<bool, skotiq_device::DriverError> {
+        Ok(self.switch_at(index).await?.writable)
+    }
+
+    async fn state(&self, index: i32) -> Result<bool, skotiq_device::DriverError> {
+        Ok(self.switch_at(index).await?.state)
+    }
+
+    async fn set_state(&self, index: i32, on: bool) -> Result<(), skotiq_device::DriverError> {
+        let switch = self.writable_switch_at(index).await?;
+        Ok(self
+            .set_switch_state(&switch.property_name, &switch.element_name, on)
+            .await?)
+    }
+
+    /// A switch without a numeric value reads 1.0 when on and 0.0 when off.
+    async fn value(&self, index: i32) -> Result<f64, skotiq_device::DriverError> {
+        let switch = self.switch_at(index).await?;
+        Ok(self
+            .get_switch_value(&switch.property_name, &switch.element_name)
+            .await
+            .unwrap_or(if switch.state { 1.0 } else { 0.0 }))
+    }
+
+    async fn set_value(&self, index: i32, value: f64) -> Result<(), skotiq_device::DriverError> {
+        let switch = self.writable_switch_at(index).await?;
+        Ok(self
+            .set_switch_value(&switch.property_name, &switch.element_name, value)
+            .await?)
+    }
+
+    /// INDI switches are on/off, so their range is 0 to 1.
+    async fn min_value(&self, _index: i32) -> Result<f64, skotiq_device::DriverError> {
+        Ok(0.0)
+    }
+
+    async fn max_value(&self, _index: i32) -> Result<f64, skotiq_device::DriverError> {
+        Ok(1.0)
+    }
+
+    async fn step(&self, _index: i32) -> Result<f64, skotiq_device::DriverError> {
+        Ok(1.0)
+    }
 }

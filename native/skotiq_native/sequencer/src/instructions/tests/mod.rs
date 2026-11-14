@@ -76,7 +76,10 @@ struct ScriptedDomeRotatorOps {
     /// only changes the returned message while still driving the mount is
     /// indistinguishable from a real gate without this.
     mount_slew_calls: AtomicU32,
-    // Camera
+    /// Every slew target, in the order sent.
+    mount_slew_targets: Mutex<Vec<(f64, f64)>>,
+    /// The (RA degrees, Dec) hint of every plate solve.
+    plate_solve_hints: Mutex<Vec<(Option<f64>, Option<f64>)>>,
     camera_exposure_calls: AtomicU32,
     /// For each `guider_dither`, how many exposures had been started when it
     /// was issued, so a test can tell which frames a dither followed.
@@ -138,8 +141,8 @@ struct ScriptedDomeRotatorOps {
     /// What `mount_is_tracking` answers; `None` defers to the null mount.
     mount_tracking: Mutex<Option<bool>>,
     /// When `Some`, every `guider_dither` fails with this message.
-    dither_error: Option<String>,
-    guider_stop_error: Option<String>,
+    dither_error: Option<crate::device_ops::DeviceError>,
+    guider_stop_error: Option<crate::device_ops::DeviceError>,
     guider_absent: bool,
     /// When true, every plate solve finds no solution (a clouded frame).
     plate_solve_fails: bool,
@@ -169,10 +172,22 @@ struct ScriptedDomeRotatorOps {
     /// Distinctive live telemetry so a `FrameContext::default()` cannot
     /// masquerade as a real read. `None` keeps NullDeviceOps' answer.
     scripted_mount_coordinates: Option<(f64, f64)>,
+    /// Where the mount reports it stopped after each slew, in order; the last
+    /// entry repeats. Overrides `scripted_mount_coordinates` once a slew ran.
+    coordinates_per_slew: Vec<(f64, f64)>,
+    /// `mount_set_tracking` calls the mount accepts but ignores, as the
+    /// NYX-101 does while parked past its meridian limit.
+    ignored_tracking_commands: AtomicU32,
+    /// When true, an accepted tracking command changes `mount_is_tracking`.
+    tracking_follows_commands: bool,
+    /// Every notification sent, as (level, title, message).
+    notifications: Mutex<Vec<(String, String, String)>>,
     /// When `Some`, what `mount_readback_frame` answers instead of the
     /// identity default, so a test can stand in for a real mount whose
     /// read-back is of date while the target is J2000.
     scripted_readback_frame: Option<DeviceResult<(f64, f64)>>,
+    /// Added to a read-back to express it in J2000, standing in for precession.
+    scripted_readback_to_j2000_offset: Option<(f64, f64)>,
     /// When `Some((hfr, stars, eccentricity))`, what the per-frame star
     /// analysis measures on every frame, so grading sees real numbers.
     scripted_frame_metrics: Option<(f64, usize, f64)>,
@@ -195,18 +210,27 @@ struct ScriptedDomeRotatorOps {
     scripted_gain: Option<i32>,
     scripted_offset: Option<i32>,
     scripted_sensor_temp_c: Option<f64>,
+    /// The camera's own file every frame arrives with, as a DSLR delivers it.
+    pub(super) scripted_camera_file: Option<skotiq_device::CameraFile>,
     /// Unbinned pixel pitch the camera reports, in microns. `None` stands
     /// in for a driver that will not answer.
     scripted_pixel_size_um: Option<(f64, f64)>,
     /// `None` stands in for a rig whose site has not been configured.
     scripted_observer_location: Option<(f64, f64)>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
-    camera_failures: Mutex<std::collections::VecDeque<String>>,
+    camera_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// Errors the next `filterwheel_set_position` calls fail with, one each.
-    filter_set_failures: Mutex<std::collections::VecDeque<String>>,
+    filter_set_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// The next this-many `filterwheel_set_position` calls are accepted and
     /// never carried out: a stalled wheel.
     filter_stalled_moves: AtomicU32,
+    /// Errors the next `focuser_move_to` calls fail with, one each.
+    focuser_move_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
+    /// When `Some`, `cover_calibrator_open_cover` fails with this error.
+    cover_open_error: Option<crate::device_ops::DeviceError>,
+    /// When `Some`, the ASCOM `CalibratorStatus` number every state read
+    /// answers.
+    calibrator_state: Option<i32>,
 }
 
 impl ScriptedDomeRotatorOps {
@@ -229,6 +253,8 @@ impl ScriptedDomeRotatorOps {
             mount_slewing_states: Mutex::new(vec![false]),
             mount_slew_state_calls: AtomicU32::new(0),
             mount_slew_calls: AtomicU32::new(0),
+            mount_slew_targets: Mutex::new(Vec::new()),
+            plate_solve_hints: Mutex::new(Vec::new()),
             camera_exposure_calls: AtomicU32::new(0),
             dithers_after_frame: Mutex::new(Vec::new()),
             camera_abort_calls: AtomicU32::new(0),
@@ -272,7 +298,12 @@ impl ScriptedDomeRotatorOps {
             saved_frame_contexts: Mutex::new(Vec::new()),
             saved_frame_paths: Mutex::new(Vec::new()),
             scripted_mount_coordinates: None,
+            coordinates_per_slew: Vec::new(),
+            ignored_tracking_commands: AtomicU32::new(0),
+            tracking_follows_commands: false,
+            notifications: Mutex::new(Vec::new()),
             scripted_readback_frame: None,
+            scripted_readback_to_j2000_offset: None,
             scripted_frame_metrics: None,
             scripted_pier_side: None,
             scripted_cooler_power: None,
@@ -285,29 +316,59 @@ impl ScriptedDomeRotatorOps {
             scripted_gain: None,
             scripted_offset: None,
             scripted_sensor_temp_c: None,
+            scripted_camera_file: None,
             scripted_pixel_size_um: None,
             scripted_observer_location: None,
             camera_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_set_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_stalled_moves: AtomicU32::new(0),
+            focuser_move_failures: Mutex::new(std::collections::VecDeque::new()),
+            cover_open_error: None,
+            calibrator_state: None,
         }
     }
 
+    /// Fail the next focuser moves with these errors, one each.
+    fn failing_focuser_moves(self, errors: &[crate::device_ops::DeviceError]) -> Self {
+        self.focuser_move_failures
+            .lock()
+            .unwrap()
+            .extend(errors.iter().cloned());
+        self
+    }
+
+    /// Fail every cover open with `error`.
+    fn with_calibrator_state(mut self, state: i32) -> Self {
+        self.calibrator_state = Some(state);
+        self
+    }
+
+    fn failing_cover_open(mut self, error: crate::device_ops::DeviceError) -> Self {
+        self.cover_open_error = Some(error);
+        self
+    }
+
     /// Fail the next exposures with these errors, one each.
-    fn failing_exposures(self, errors: &[&str]) -> Self {
+    fn failing_exposures<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.camera_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
     /// Fail the next filter-wheel moves with these errors, one each.
-    fn failing_filter_moves(self, errors: &[&str]) -> Self {
+    fn failing_filter_moves<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.filter_set_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
@@ -354,6 +415,11 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// Make `mount_readback_frame` answer `frame` for every target.
+    fn with_readback_to_j2000_offset(mut self, ra_hours: f64, dec_degrees: f64) -> Self {
+        self.scripted_readback_to_j2000_offset = Some((ra_hours, dec_degrees));
+        self
+    }
+
     fn with_scripted_readback_frame(mut self, frame: DeviceResult<(f64, f64)>) -> Self {
         self.scripted_readback_frame = Some(frame);
         self
@@ -383,11 +449,14 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// Fail the next camera exposures with these errors, one each.
-    fn failing_next_exposures(self, errors: &[&str]) -> Self {
+    fn failing_next_exposures<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.camera_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
@@ -463,27 +532,44 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// A guider whose every dither fails with `message`.
-    fn with_dither_failing(mut self, message: &str) -> Self {
-        self.dither_error = Some(message.to_string());
+    fn with_dither_failing(mut self, error: impl Into<crate::device_ops::DeviceError>) -> Self {
+        self.dither_error = Some(error.into());
         self
     }
 
     /// A guider whose every stop fails with `message`.
-    fn with_guider_stop_failing(mut self, message: &str) -> Self {
-        self.guider_stop_error = Some(message.to_string());
+    fn with_guider_stop_failing(
+        mut self,
+        error: impl Into<crate::device_ops::DeviceError>,
+    ) -> Self {
+        self.guider_stop_error = Some(error.into());
         self
     }
 
     /// No guider connected: every guider call answers that none is configured.
     fn with_guider_absent(mut self) -> Self {
         self.guider_absent = true;
-        self.guider_stop_error = Some(crate::device_ops::NO_GUIDER_CONFIGURED.to_string());
+        self.guider_stop_error = Some(crate::device_ops::DeviceError::NO_GUIDER);
         self
     }
 
     /// A guider reporting `rms_total` px of guide error.
     fn with_no_guide_star(mut self) -> Self {
         self.no_guide_star = true;
+        self
+    }
+
+    fn with_coordinates_per_slew(mut self, coordinates: Vec<(f64, f64)>) -> Self {
+        self.coordinates_per_slew = coordinates;
+        self
+    }
+
+    /// The first `count` tracking commands are accepted and ignored; later
+    /// ones change what `mount_is_tracking` answers.
+    fn with_ignored_tracking_commands(mut self, count: u32) -> Self {
+        self.ignored_tracking_commands
+            .store(count, Ordering::SeqCst);
+        self.tracking_follows_commands = true;
         self
     }
 
@@ -575,38 +661,11 @@ impl ScriptedDomeRotatorOps {
 }
 
 #[async_trait]
-impl DeviceOps for ScriptedDomeRotatorOps {
-    // Rotator (verified-move surface)
-    async fn rotator_move_to(&self, _id: &str, _angle: f64) -> DeviceResult<()> {
-        self.rotator_move_to_calls.fetch_add(1, Ordering::SeqCst);
-        Ok(())
-    }
-    async fn rotator_get_angle(&self, _id: &str) -> DeviceResult<f64> {
-        self.rotator_get_angle_calls.fetch_add(1, Ordering::SeqCst);
-        Ok(Self::next_scripted(&self.rotator_angles))
-    }
-
-    // Dome (verified-close surface)
-    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
-        self.dome_close_calls.fetch_add(1, Ordering::SeqCst);
-        if let Some(err) = &self.dome_close_error {
-            return Err(err.clone());
-        }
-        self.inner.dome_close(id).await
-    }
-    async fn dome_park(&self, _id: &str) -> DeviceResult<()> {
-        self.dome_park_calls.fetch_add(1, Ordering::SeqCst);
-        Ok(())
-    }
-    async fn dome_get_shutter_status(&self, _id: &str) -> DeviceResult<String> {
-        self.dome_shutter_status_calls
-            .fetch_add(1, Ordering::SeqCst);
-        Ok(Self::next_scripted(&self.dome_shutter_states))
-    }
-
+impl MountOps for ScriptedDomeRotatorOps {
     // Delegating methods
     async fn mount_slew_to_coordinates(&self, id: &str, ra: f64, dec: f64) -> DeviceResult<()> {
         self.mount_slew_calls.fetch_add(1, Ordering::SeqCst);
+        self.mount_slew_targets.lock().unwrap().push((ra, dec));
         if self.guider_active() {
             self.slews_while_guider_active
                 .fetch_add(1, Ordering::SeqCst);
@@ -625,6 +684,11 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.scripted_at_home.clone()
     }
     async fn mount_get_coordinates(&self, id: &str) -> DeviceResult<(f64, f64)> {
+        let slews = self.mount_slew_calls.load(Ordering::SeqCst) as usize;
+        if slews > 0 && !self.coordinates_per_slew.is_empty() {
+            let index = (slews - 1).min(self.coordinates_per_slew.len() - 1);
+            return Ok(self.coordinates_per_slew[index]);
+        }
         match self.scripted_mount_coordinates {
             Some(coords) => Ok(coords),
             None => self.inner.mount_get_coordinates(id).await,
@@ -641,6 +705,21 @@ impl DeviceOps for ScriptedDomeRotatorOps {
             None => {
                 self.inner
                     .mount_readback_frame(id, ra_hours, dec_degrees)
+                    .await
+            }
+        }
+    }
+    async fn mount_readback_to_j2000(
+        &self,
+        id: &str,
+        ra_hours: f64,
+        dec_degrees: f64,
+    ) -> DeviceResult<(f64, f64)> {
+        match self.scripted_readback_to_j2000_offset {
+            Some((dra, ddec)) => Ok((ra_hours + dra, dec_degrees + ddec)),
+            None => {
+                self.inner
+                    .mount_readback_to_j2000(id, ra_hours, dec_degrees)
                     .await
             }
         }
@@ -668,7 +747,7 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     }
     async fn mount_is_parked(&self, _id: &str) -> DeviceResult<bool> {
         if let Some(err) = &self.mount_is_parked_error {
-            return Err(err.clone());
+            return Err(err.clone().into());
         }
         Ok(self.mount_parked.load(Ordering::SeqCst))
     }
@@ -689,17 +768,31 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     }
     async fn mount_set_tracking(&self, id: &str, enabled: bool) -> DeviceResult<()> {
         self.tracking_commands.lock().unwrap().push(enabled);
+        let ignored = self.ignored_tracking_commands.load(Ordering::SeqCst);
+        if ignored > 0 {
+            self.ignored_tracking_commands
+                .store(ignored - 1, Ordering::SeqCst);
+            return Ok(());
+        }
+        if self.tracking_follows_commands {
+            *self.mount_tracking.lock().unwrap() = Some(enabled);
+        }
         self.inner.mount_set_tracking(id, enabled).await
     }
-    async fn camera_start_exposure(
-        &self,
-        id: &str,
-        d: f64,
-        g: Option<i32>,
-        o: Option<i32>,
-        bx: i32,
-        by: i32,
-    ) -> DeviceResult<ImageData> {
+}
+
+#[async_trait]
+impl CameraOps for ScriptedDomeRotatorOps {
+    async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let ExposureRequest {
+            camera_id: id,
+            duration_secs: d,
+            gain: g,
+            offset: o,
+            bin_x: bx,
+            bin_y: by,
+            ..
+        } = request;
         let call = self.camera_exposure_calls.fetch_add(1, Ordering::SeqCst) + 1;
         if self.guider_active() {
             self.exposures_while_guider_active
@@ -731,7 +824,12 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         };
         let mut image = self
             .inner
-            .camera_start_exposure(id, simulated_integration, g, o, bx, by)
+            .camera_start_exposure(
+                ExposureRequest::new(id, simulated_integration)
+                    .gain(g)
+                    .offset(o)
+                    .binning(bx, by),
+            )
             .await?;
         // The camera's own report of the frame, which is a DIFFERENT source
         // from what was commanded. Overriding it here is what lets a test
@@ -748,6 +846,9 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         if self.scripted_sensor_temp_c.is_some() {
             image.temperature = self.scripted_sensor_temp_c;
         }
+        if self.scripted_camera_file.is_some() {
+            image.camera_file = self.scripted_camera_file.clone();
+        }
         Ok(image)
     }
     async fn camera_abort_exposure(&self, id: &str) -> DeviceResult<()> {
@@ -758,7 +859,7 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.cooler_commands.lock().unwrap().push((e, t));
         if !e {
             if let Some(err) = &self.cooler_off_error {
-                return Err(err.clone());
+                return Err(err.clone().into());
             }
         }
         self.inner.camera_set_cooler(id, e, t).await
@@ -794,8 +895,15 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     async fn camera_get_model(&self, _id: &str) -> DeviceResult<Option<String>> {
         Ok(Some("ZWO ASI1600MM-Cool (1600-A1B2)".to_string()))
     }
+}
+
+#[async_trait]
+impl FocuserOps for ScriptedDomeRotatorOps {
     async fn focuser_move_to(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.focuser_moves.lock().unwrap().push(p);
+        if let Some(error) = self.focuser_move_failures.lock().unwrap().pop_front() {
+            return Err(error);
+        }
         if let Some((position, _)) = &self.focus_model {
             *position.lock().unwrap() = p;
         }
@@ -823,6 +931,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.focuser_halt_calls.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
+}
+
+#[async_trait]
+impl FilterWheelOps for ScriptedDomeRotatorOps {
     async fn filterwheel_set_position(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.filter_moves.lock().unwrap().push(p);
         if let Some(error) = self.filter_set_failures.lock().unwrap().pop_front() {
@@ -846,12 +958,29 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     async fn filterwheel_set_filter_by_name(&self, id: &str, n: &str) -> DeviceResult<i32> {
         self.inner.filterwheel_set_filter_by_name(id, n).await
     }
+}
+
+#[async_trait]
+impl RotatorOps for ScriptedDomeRotatorOps {
+    // Rotator (verified-move surface)
+    async fn rotator_move_to(&self, _id: &str, _angle: f64) -> DeviceResult<()> {
+        self.rotator_move_to_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+    async fn rotator_get_angle(&self, _id: &str) -> DeviceResult<f64> {
+        self.rotator_get_angle_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(Self::next_scripted(&self.rotator_angles))
+    }
     async fn rotator_move_relative(&self, id: &str, d: f64) -> DeviceResult<()> {
         self.inner.rotator_move_relative(id, d).await
     }
     async fn rotator_halt(&self, id: &str) -> DeviceResult<()> {
         self.inner.rotator_halt(id).await
     }
+}
+
+#[async_trait]
+impl GuiderOps for ScriptedDomeRotatorOps {
     async fn guider_dither(
         &self,
         p: f64,
@@ -864,8 +993,8 @@ impl DeviceOps for ScriptedDomeRotatorOps {
             .lock()
             .unwrap()
             .push(self.camera_exposure_calls.load(Ordering::SeqCst));
-        if let Some(message) = &self.dither_error {
-            return Err(message.clone());
+        if let Some(error) = &self.dither_error {
+            return Err(error.clone());
         }
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
@@ -907,10 +1036,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
             .unwrap()
             .push(self.guider_start_calls.load(Ordering::SeqCst));
         if self.guider_absent {
-            return Err(crate::device_ops::NO_GUIDER_CONFIGURED.to_string());
+            return Err(crate::device_ops::DeviceError::NO_GUIDER);
         }
         if self.no_guide_star {
-            return Err("no star found in the guide frame".to_string());
+            return Err("no star found in the guide frame".into());
         }
         Ok(())
     }
@@ -936,56 +1065,26 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     async fn guider_note_stop_reason(&self, reason: Option<crate::GuidingStopReason>) {
         self.guider_stop_reasons.lock().unwrap().push(reason);
     }
-    async fn plate_solve(
-        &self,
-        d: &ImageData,
-        ra: Option<f64>,
-        dec: Option<f64>,
-        s: Option<f64>,
-    ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
-        if self.plate_solve_fails {
-            return Err("no solution: too few stars".to_string());
+}
+
+#[async_trait]
+impl DomeOps for ScriptedDomeRotatorOps {
+    // Dome (verified-close surface)
+    async fn dome_close(&self, id: &str) -> DeviceResult<()> {
+        self.dome_close_calls.fetch_add(1, Ordering::SeqCst);
+        if let Some(err) = &self.dome_close_error {
+            return Err(err.clone().into());
         }
-        let mut result = self.inner.plate_solve(d, ra, dec, s).await?;
-        if self
-            .off_target_solves
-            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
-            .is_ok()
-        {
-            result.dec_degrees += 0.01;
-        }
-        Ok(result)
+        self.inner.dome_close(id).await
     }
-    async fn save_fits(
-        &self,
-        d: &ImageData,
-        f: &str,
-        ctx: &crate::scheduling::FrameContext,
-    ) -> DeviceResult<()> {
-        self.saved_frame_contexts.lock().unwrap().push(ctx.clone());
-        self.saved_frame_paths.lock().unwrap().push(f.to_string());
-        self.inner.save_fits(d, f, ctx).await
+    async fn dome_park(&self, _id: &str) -> DeviceResult<()> {
+        self.dome_park_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(())
     }
-    async fn send_notification(
-        &self,
-        l: &str,
-        t: &str,
-        m: &str,
-        x: Option<&[String]>,
-    ) -> DeviceResult<()> {
-        self.inner.send_notification(l, t, m, x).await
-    }
-    fn calculate_altitude(&self, r: f64, d: f64, la: f64, lo: f64) -> f64 {
-        self.inner.calculate_altitude(r, d, la, lo)
-    }
-    fn get_observer_location(&self) -> Option<(f64, f64)> {
-        self.scripted_observer_location
-    }
-    async fn polar_align_update(
-        &self,
-        r: &crate::polar_align::PolarAlignResult,
-    ) -> DeviceResult<()> {
-        self.inner.polar_align_update(r).await
+    async fn dome_get_shutter_status(&self, _id: &str) -> DeviceResult<String> {
+        self.dome_shutter_status_calls
+            .fetch_add(1, Ordering::SeqCst);
+        Ok(Self::next_scripted(&self.dome_shutter_states))
     }
     async fn dome_open(&self, id: &str) -> DeviceResult<()> {
         self.dome_open_ids.lock().unwrap().push(id.to_string());
@@ -995,32 +1094,18 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.active_dome_id_calls.fetch_add(1, Ordering::SeqCst);
         self.active_dome_id.clone()
     }
+}
+
+#[async_trait]
+impl CoverCalibratorOps for ScriptedDomeRotatorOps {
     async fn active_cover_calibrator_id(&self) -> Option<String> {
         self.active_cover_calibrator_id.clone()
     }
-    async fn safety_is_safe(&self, id: Option<&str>) -> DeviceResult<bool> {
-        self.inner.safety_is_safe(id).await
-    }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        match self.scripted_frame_metrics {
-            Some((hfr, _, _)) => Ok(Some(hfr)),
-            None => self.inner.calculate_image_hfr(d).await,
-        }
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        match self.scripted_frame_metrics {
-            Some((hfr, stars, _)) => Ok((0..stars).map(|i| (i as f64, i as f64, hfr)).collect()),
-            None => self.inner.detect_stars_in_image(d).await,
-        }
-    }
-    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        match self.scripted_frame_metrics {
-            Some((_, _, eccentricity)) => Ok(Some(eccentricity)),
-            None => self.inner.measure_frame_eccentricity(d).await,
-        }
-    }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.cover_open_ids.lock().unwrap().push(id.to_string());
+        if let Some(error) = &self.cover_open_error {
+            return Err(error.clone());
+        }
         self.inner.cover_calibrator_open_cover(id).await
     }
     async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
@@ -1039,7 +1124,10 @@ impl DeviceOps for ScriptedDomeRotatorOps {
         self.inner.cover_calibrator_get_cover_state(id).await
     }
     async fn cover_calibrator_get_calibrator_state(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_calibrator_state(id).await
+        match self.calibrator_state {
+            Some(state) => Ok(state),
+            None => self.inner.cover_calibrator_get_calibrator_state(id).await,
+        }
     }
     async fn cover_calibrator_get_brightness(&self, id: &str) -> DeviceResult<i32> {
         self.inner.cover_calibrator_get_brightness(id).await
@@ -1049,16 +1137,103 @@ impl DeviceOps for ScriptedDomeRotatorOps {
     }
 }
 
+#[async_trait]
+impl PlateSolveOps for ScriptedDomeRotatorOps {
+    async fn plate_solve(
+        &self,
+        d: &ImageData,
+        ra: Option<f64>,
+        dec: Option<f64>,
+        s: Option<f64>,
+    ) -> DeviceResult<crate::device_ops::PlateSolveResult> {
+        self.plate_solve_hints.lock().unwrap().push((ra, dec));
+        if self.plate_solve_fails {
+            return Err("no solution: too few stars".into());
+        }
+        let mut result = self.inner.plate_solve(d, ra, dec, s).await?;
+        if self
+            .off_target_solves
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .is_ok()
+        {
+            result.dec_degrees += 0.01;
+        }
+        Ok(result)
+    }
+}
+
+#[async_trait]
+impl FrameStoreOps for ScriptedDomeRotatorOps {
+    async fn save_fits(
+        &self,
+        d: &ImageData,
+        f: &str,
+        ctx: &crate::scheduling::FrameContext,
+    ) -> DeviceResult<()> {
+        self.saved_frame_contexts.lock().unwrap().push(ctx.clone());
+        self.saved_frame_paths.lock().unwrap().push(f.to_string());
+        self.inner.save_fits(d, f, ctx).await
+    }
+    async fn measure_light_frame(
+        &self,
+        d: &ImageData,
+    ) -> DeviceResult<crate::device_ops::LightFrameMeasurement> {
+        match self.scripted_frame_metrics {
+            Some((hfr, stars, eccentricity)) => Ok(crate::device_ops::LightFrameMeasurement {
+                hfr: Some(hfr),
+                star_count: Some(stars as u32),
+                star_shape: Some(crate::device_ops::FrameStarShape {
+                    eccentricity,
+                    elongation: None,
+                }),
+                trail: None,
+            }),
+            None => self.inner.measure_light_frame(d).await,
+        }
+    }
+}
+
+#[async_trait]
+impl OperatorNotifyOps for ScriptedDomeRotatorOps {
+    async fn send_notification(
+        &self,
+        l: &str,
+        t: &str,
+        m: &str,
+        x: Option<&[String]>,
+    ) -> DeviceResult<()> {
+        self.notifications
+            .lock()
+            .unwrap()
+            .push((l.to_string(), t.to_string(), m.to_string()));
+        self.inner.send_notification(l, t, m, x).await
+    }
+    async fn polar_align_update(
+        &self,
+        r: &crate::polar_align::PolarAlignResult,
+    ) -> DeviceResult<()> {
+        self.inner.polar_align_update(r).await
+    }
+}
+
+impl SiteOps for ScriptedDomeRotatorOps {
+    fn get_observer_location(&self) -> Option<(f64, f64)> {
+        self.scripted_observer_location
+    }
+}
+
+crate::forward_device_ops!(ScriptedDomeRotatorOps => inner: SafetyOps, ConnectionOps);
+
 /// Build an InstructionContext wired to the given scripted ops with a
 /// dome + rotator attached.
 async fn ctx_with_ops(ops: Arc<ScriptedDomeRotatorOps>) -> InstructionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("test-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("camera-1".to_string());
-    ec.focuser_id = Some("focuser-1".to_string());
-    ec.filterwheel_id = Some("filterwheel-1".to_string());
-    ec.dome_id = Some("dome-1".to_string());
-    ec.rotator_id = Some("rotator-1".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.focuser_id = Some("focuser-1".to_string());
+    ec.run.rig.filterwheel_id = Some("filterwheel-1".to_string());
+    ec.run.rig.dome_id = Some("dome-1".to_string());
+    ec.run.rig.rotator_id = Some("rotator-1".to_string());
     ec.to_instruction_context("test-node").await
 }
 
@@ -1099,10 +1274,10 @@ fn is_daylight_block(result: &InstructionResult) -> bool {
 
 async fn slew_ctx(max_sun_alt: f64) -> InstructionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("test-node".to_string());
-    ec.device_ops = Arc::new(NullDeviceOps);
-    ec.mount_id = Some("mount-1".to_string());
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
+    ec.run.device_ops = Arc::new(NullDeviceOps);
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
     ec.target_ra = Some(5.5);
     ec.target_dec = Some(22.0);
     ec.max_sun_altitude_degrees = max_sun_alt;
@@ -1111,7 +1286,7 @@ async fn slew_ctx(max_sun_alt: f64) -> InstructionContext {
     // a trigger state so the test exercises that same resolution path.
     let mut ts = crate::triggers::TriggerState::new();
     ts.set_max_sun_altitude_degrees(max_sun_alt);
-    ec.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+    ec.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
     ec.to_instruction_context("test-node").await
 }
 
@@ -1124,16 +1299,6 @@ async fn slew_ctx(max_sun_alt: f64) -> InstructionContext {
 // without it. These tests pin the gate at the two nodes that command the
 // mount, which is what makes it hold for all of those entry points.
 
-/// The recovery code `failure_with_recovery` stashed in `data`, if any.
-fn recovery_code_of(result: &InstructionResult) -> Option<String> {
-    result
-        .data
-        .as_ref()?
-        .get("recovery_code")?
-        .as_str()
-        .map(str::to_string)
-}
-
 /// Context whose pointing comes from a TargetHeader with `target`
 /// coordinates, wired to `ops` so the tests can prove whether the mount was
 /// commanded. The Sun threshold is set above the live Sun so the daylight
@@ -1145,18 +1310,18 @@ async fn pointing_ctx(
 ) -> InstructionContext {
     let max_sun_alt = live_sun_alt() + 5.0;
     let mut ec = crate::node::context::ExecutionContext::new_for_test("test-node".to_string());
-    ec.device_ops = ops;
-    ec.mount_id = Some("mount-1".to_string());
-    ec.camera_id = Some("cam-1".to_string());
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
+    ec.run.device_ops = ops;
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.camera_id = Some("cam-1".to_string());
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
     ec.target_name = Some(target_name.to_string());
     ec.target_ra = Some(target.0);
     ec.target_dec = Some(target.1);
     ec.max_sun_altitude_degrees = max_sun_alt;
     let mut ts = crate::triggers::TriggerState::new();
     ts.set_max_sun_altitude_degrees(max_sun_alt);
-    ec.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+    ec.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
     ec.to_instruction_context("test-node").await
 }
 
@@ -1168,11 +1333,11 @@ async fn expose_ctx(
     max_sun_alt: f64,
 ) -> InstructionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("test-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("cam-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("cam-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
     if let Some((ra, dec)) = target {
         ec.target_ra = Some(ra);
         ec.target_dec = Some(dec);
@@ -1180,7 +1345,7 @@ async fn expose_ctx(
     ec.max_sun_altitude_degrees = max_sun_alt;
     let mut ts = crate::triggers::TriggerState::new();
     ts.set_max_sun_altitude_degrees(max_sun_alt);
-    ec.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+    ec.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
     ec.to_instruction_context("test-node").await
 }
 
@@ -1216,15 +1381,15 @@ async fn saving_expose_ctx(
     event_tx: tokio::sync::broadcast::Sender<crate::executor::ExecutorEvent>,
 ) -> InstructionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("expose-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("cam-1".to_string());
-    ec.mount_id = Some("mount-1".to_string());
-    ec.focuser_id = Some("foc-1".to_string());
-    ec.rotator_id = Some("rot-1".to_string());
-    ec.save_path = Some(save_path);
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
-    ec.event_tx = Some(event_tx);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("cam-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.focuser_id = Some("foc-1".to_string());
+    ec.run.rig.rotator_id = Some("rot-1".to_string());
+    ec.run.rig.save_path = Some(save_path);
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
+    ec.run.event_tx = Some(event_tx);
     ec.to_instruction_context("expose-node").await
 }
 
@@ -1239,14 +1404,14 @@ async fn expose_node_execution_ctx(
     save_path: std::path::PathBuf,
 ) -> crate::node::context::ExecutionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("expose-node".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("cam-1".to_string());
-    ec.focuser_id = Some("foc-1".to_string());
-    ec.rotator_id = Some("rot-1".to_string());
-    ec.filterwheel_id = Some("fw-1".to_string());
-    ec.save_path = Some(save_path);
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("cam-1".to_string());
+    ec.run.rig.focuser_id = Some("foc-1".to_string());
+    ec.run.rig.rotator_id = Some("rot-1".to_string());
+    ec.run.rig.filterwheel_id = Some("fw-1".to_string());
+    ec.run.rig.save_path = Some(save_path);
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
     ec
 }
 
@@ -1268,7 +1433,7 @@ fn one_dark_no_filter() -> ExposureConfig {
     ExposureConfig {
         duration_secs: 0.01,
         count: 1,
-        frame_type: "Dark".to_string(),
+        frame_type: crate::FrameType::Dark,
         filter: None,
         filter_index: None,
         ..ExposureConfig::default()
@@ -1283,14 +1448,14 @@ async fn direct_capture_ctx(
     save_path: std::path::PathBuf,
 ) -> InstructionContext {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("direct".to_string());
-    ec.device_ops = ops;
-    ec.camera_id = Some("cam-1".to_string());
-    ec.focuser_id = Some("foc-1".to_string());
-    ec.rotator_id = Some("rot-1".to_string());
-    ec.filterwheel_id = Some("fw-1".to_string());
-    ec.save_path = Some(save_path);
-    ec.latitude = Some(TEST_LAT);
-    ec.longitude = Some(TEST_LON);
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("cam-1".to_string());
+    ec.run.rig.focuser_id = Some("foc-1".to_string());
+    ec.run.rig.rotator_id = Some("rot-1".to_string());
+    ec.run.rig.filterwheel_id = Some("fw-1".to_string());
+    ec.run.rig.save_path = Some(save_path);
+    ec.run.rig.latitude = Some(TEST_LAT);
+    ec.run.rig.longitude = Some(TEST_LON);
     ec.to_instruction_context("direct").await
 }
 
@@ -1300,7 +1465,7 @@ fn one_dark(count: u32) -> ExposureConfig {
     ExposureConfig {
         duration_secs: 0.01,
         count,
-        frame_type: "Dark".to_string(),
+        frame_type: crate::FrameType::Dark,
         gain: Some(1),
         offset: Some(2),
         binning: Binning::Two,
@@ -1378,6 +1543,7 @@ mod grading;
 mod guiding;
 mod light_filter;
 mod meridian_gate;
+mod outcome;
 mod park;
 mod pointing_gate;
 mod pre_meridian_hold;
@@ -1389,4 +1555,5 @@ mod save_path;
 #[cfg(target_os = "linux")]
 mod script;
 mod slew;
+mod step_lines;
 mod wait_time;

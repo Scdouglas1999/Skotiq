@@ -8,7 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
@@ -19,7 +22,8 @@ import '../build_masters/job_views.dart' show describeEta, percent;
 import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 import 'target_detail.dart' show describeBuiltMasters, joinWords;
-import 'nights_strip.dart' show darkroomNightLabel, darkroomShortDate;
+import 'nights_strip.dart' show darkroomNightLabel;
+import 'package:skotiq_core/providers.dart';
 
 part 'framing_check_parts/_field.dart';
 part 'framing_check_parts/_aside.dart';
@@ -271,11 +275,11 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
           DarkroomFramingSession(original: plan);
       unawaited(
         _jobs.checkFraming(target: _key, plan: plan).catchError((Object e) {
-          if (mounted) setState(() => _error = '$e');
+          if (mounted) setState(() => _error = userFacingError(e));
         }),
       );
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = userFacingError(e));
     } finally {
       if (mounted) setState(() => _preparing = false);
     }
@@ -286,7 +290,7 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
     try {
       await body();
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = userFacingError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -316,15 +320,14 @@ class _DarkroomFramingCheckState extends ConsumerState<DarkroomFramingCheck> {
   Future<void> _build(DarkroomBuildJob job, DarkroomFramingSession? session) =>
       _run(() async {
         final chosen = session?.folder;
-        final parent = chosen != null
-            ? Directory(chosen)
-            : await ref.read(darkroomMastersRootProvider.future);
         // The same per-target folder the night-end builds use, so a build
         // started here and the next night's fold update one set of masters.
-        final directory = darkroomTargetBuildDirectory(parent, _key);
+        final directory = chosen != null
+            ? OutputLocations.targetFolder(Directory(chosen), _key)
+            : await ref.read(targetMastersFolderProvider(_key).future);
         unawaited(
           _jobs.accept(directory).catchError((Object e) {
-            if (mounted) setState(() => _error = '$e');
+            if (mounted) setState(() => _error = userFacingError(e));
           }),
         );
         if (mounted) context.go(darkroomTargetLocation(_key));

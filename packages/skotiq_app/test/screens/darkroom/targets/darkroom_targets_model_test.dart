@@ -5,7 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_model.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_providers.dart';
 import 'package:skotiq_app/screens/darkroom/targets/nights_strip.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import 'owner_nights_fixture.dart';
 
@@ -52,9 +55,9 @@ void main() {
           (n) => n.key == '2026-10-21',
         );
     expect(oct21.pauses, hasLength(1));
-    expect(hhmm(oct21.pauses.single.end), '01:36');
+    expect(ClockFormat.hm(oct21.pauses.single.end.toLocal()), '01:36');
     expect([
-      for (final m in oct21.marks) (m.label, hhmm(m.at))
+      for (final m in oct21.marks) (m.label, ClockFormat.hm(m.at.toLocal()))
     ], [
       ('flip', '01:36'),
     ]);
@@ -65,7 +68,7 @@ void main() {
       () async {
     final oct23 = (await ngc891()).nights.first;
     expect([
-      for (final m in oct23.marks) (m.label, hhmm(m.at))
+      for (final m in oct23.marks) (m.label, ClockFormat.hm(m.at.toLocal()))
     ], [
       ('flip', '01:36'),
       ('no stars', '03:28'),
@@ -167,6 +170,21 @@ void main() {
     );
     expect(darkroomMasterBelongsTo(named!, 'NGC0891'), isTrue);
     expect(normalizeDarkroomTargetName('ngc 0891'), 'NGC0891');
+  });
+
+  test('a master named for M31 is not M3\'s', () async {
+    final dao = IntegratedMastersDao(owner.db);
+    final m31 = await dao.getById(
+      await dao.insertMaster(
+        name: 'M31 · Ha',
+        filter: 'Ha',
+        status: IntegratedMasterStatus.finalized,
+        accumulationMode: AccumulationMode.batch,
+      ),
+    );
+    expect(darkroomMasterBelongsTo(m31!, 'M3'), isFalse);
+    expect(darkroomMasterBelongsTo(m31, 'M31'), isTrue);
+    expect(darkroomMasterTargetName(m31, const {}), 'M31');
   });
 
   test('the shared axis covers every night on even hours', () async {

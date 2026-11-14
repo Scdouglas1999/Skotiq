@@ -1,9 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../backend/network_backend.dart';
-import '../models/backend/event_types.dart';
+import '../backend/skotiq_backend.dart';
+import '../models/backend/backend_types.dart';
 
 /// Quiet period after a relevant host event before a re-fetch, so a burst of
 /// related events costs one request.
@@ -37,10 +35,9 @@ const Set<String> hostTelemetryEventTypes = {
 /// one follow-up fetch, and fetches start at least [minInterval] apart. A
 /// failed re-fetch keeps the last good snapshot; a failed first fetch is
 /// surfaced so the view can show its error and Retry state. The stream and its
-/// event subscription end when [ref] is disposed.
+/// event subscription end when the stream's listener cancels.
 Stream<List<T>> remoteSnapshotStream<T>({
-  required Ref ref,
-  required NetworkBackend backend,
+  required SkotiqBackend backend,
   required Future<List<Map<String, dynamic>>> Function() fetch,
   required T Function(Map<String, dynamic>) decode,
   required bool Function(SkotiqEvent event) shouldRefetch,
@@ -98,17 +95,25 @@ Stream<List<T>> remoteSnapshotStream<T>({
   };
 
   StreamSubscription<SkotiqEvent>? sub;
-  ref.onDispose(() {
+  controller.onListen = () {
+    try {
+      sub = backend.eventStream.listen((event) {
+        if (!shouldRefetch(event)) return;
+        pending = true;
+        maybeStart();
+      });
+    } on Object catch (error, stackTrace) {
+      // No events to follow: the list is an error, as a failed first read is.
+      controller.addError(error, stackTrace);
+      return;
+    }
+    unawaited(run());
+  };
+  controller.onCancel = () {
     debounce?.cancel();
     cooldown?.cancel();
     unawaited(sub?.cancel());
-    unawaited(controller.close());
-  });
-  unawaited(run());
-  sub = backend.eventStream.listen((event) {
-    if (!shouldRefetch(event)) return;
-    pending = true;
-    maybeStart();
-  });
+    return controller.close();
+  };
   return controller.stream;
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../sequencer/widgets/run_dashboard/frame_detail_dialog.dart';
@@ -9,7 +11,7 @@ import 'widgets/build_in_darkroom_button.dart';
 import 'widgets/darkroom_pass_banner.dart';
 import 'widgets/growth_curve_panel.dart';
 import 'widgets/improvement_curve_panel.dart';
-import 'widgets/master_overlay_view.dart';
+import '../../widgets/master_preview/master_overlay_view.dart';
 import 'widgets/night_report_panel.dart';
 import 'widgets/session_interruption_banner.dart';
 
@@ -19,9 +21,10 @@ import 'widgets/session_interruption_banner.dart';
 /// Order: hero master (with overlays) → Night-Doctor verdict
 /// (headline + score) → "proof it's optimal" integration-improvement curve →
 /// the ranked finding cards ("what I fixed/found") → multi-night growth curve →
-/// a calibrated / annotated detail row. The verdict and findings are two slots
-/// of `NightReportPanel` (`NightReportSection.verdict` then `.findings`) so the
-/// findings sit *after* the curve, not bundled with the verdict before it.
+/// the way into the Darkroom to finish the master. The verdict and findings
+/// are two slots of `NightReportPanel` (`NightReportSection.verdict` then
+/// `.findings`) so the findings sit *after* the curve, not bundled with the
+/// verdict before it.
 ///
 /// This view computes nothing; it reads the same provider the workbench reads,
 /// so the two are two renderings of one model. Panels are composed by their
@@ -35,8 +38,6 @@ class NarrativeView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final state = ref.watch(sessionReviewControllerProvider(scope));
-    final controller =
-        ref.read(sessionReviewControllerProvider(scope).notifier);
 
     final report = state.nightReport;
 
@@ -57,7 +58,7 @@ class NarrativeView extends ConsumerWidget {
           DarkroomPassBanner(job: state.darkroomJob),
 
           // ── Hero: the finished master with toggleable overlays. ──────────
-          _HeroSection(state: state, controller: controller),
+          _HeroSection(state: state),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
           // ── Verdict: big headline + 0..100 score ring. ───────────────────
@@ -74,13 +75,11 @@ class NarrativeView extends ConsumerWidget {
           _CalibrationRecordDisagreement(master: state.reviewedMaster),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // ── Proof it's optimal: integration-improvement curve. ───────────
           const SectionTitle(title: 'How deep is deep enough?'),
           const SizedBox(height: SkotiqTokens.spaceSm),
           ImprovementCurvePanel(curve: state.improvementCurve),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // ── What I fixed / found: the ranked finding cards. ──────────────
           if (report != null && report.findings.isNotEmpty) ...[
             const SectionTitle(title: 'What I fixed and found'),
             const SizedBox(height: SkotiqTokens.spaceSm),
@@ -93,7 +92,6 @@ class NarrativeView extends ConsumerWidget {
             const SizedBox(height: SkotiqTokens.spaceLg),
           ],
 
-          // ── Multi-night growth curve. ────────────────────────────────────
           const SectionTitle(title: 'This project over time'),
           const SizedBox(height: SkotiqTokens.spaceSm),
           GrowthCurvePanel(
@@ -102,16 +100,11 @@ class NarrativeView extends ConsumerWidget {
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
 
-          // ── Calibrated / annotated detail row. ──────────────────────────
-          const SectionTitle(title: 'Calibrated & annotated'),
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          _CalibratedAnnotatedRow(
-            state: state,
-            onColorCalibration: () => _runFinishing(context,
-                controller.runColorCalibration, 'Color calibration applied'),
-            onBackgroundExtraction: () => _runFinishing(context,
-                controller.runBackgroundExtraction, 'Gradient extracted'),
-          ),
+          if (state.reviewedMaster case final master?) ...[
+            const SectionTitle(title: 'Finishing'),
+            const SizedBox(height: SkotiqTokens.spaceSm),
+            _FinishInDarkroomCard(master: master),
+          ],
           // Bottom breathing room so the last card clears the progress bar.
           SizedBox(
             height: SkotiqTokens.spaceXl,
@@ -123,24 +116,6 @@ class NarrativeView extends ConsumerWidget {
   }
 }
 
-/// Run a narrative finishing action and, on success (a non-null output path),
-/// surface a success toast — the `state.error` toast (fired by the screen) still
-/// covers the failure path unchanged.
-Future<void> _runFinishing(
-  BuildContext context,
-  Future<String?> Function() action,
-  String successMessage,
-) async {
-  final path = await action();
-  if (path != null && context.mounted) {
-    SkotiqToastHelper.show(
-      context: context,
-      message: successMessage,
-      severity: SkotiqAlertSeverity.success,
-    );
-  }
-}
-
 /// The narrative hero: the finished master rendered through [MasterOverlayView]
 /// (which extends the on-disk [MasterPreviewView] load/stretch path). The
 /// narrative shows annotations on by default and leaves the dense rejection /
@@ -148,17 +123,12 @@ Future<void> _runFinishing(
 /// Darkroom's guided build so the read-first narrative is never a dead end.
 class _HeroSection extends StatelessWidget {
   final SessionReviewState state;
-  final SessionReviewController controller;
 
-  const _HeroSection({required this.state, required this.controller});
+  const _HeroSection({required this.state});
 
   @override
   Widget build(BuildContext context) {
-    final outcome = state.lastOutcome;
-    // Fall back to the persisted master's preview so a pre-existing master (DB
-    // row, no in-session integrate) renders instead of an empty hero.
-    final previewPath =
-        outcome?.result.previewPath ?? state.reviewedMaster?.previewPngPath;
+    final previewPath = state.reviewedMaster?.previewPngPath;
 
     if (previewPath == null) {
       return SkotiqPanel(
@@ -191,10 +161,8 @@ class _HeroSection extends StatelessWidget {
         child: MasterOverlayView(
           previewPngPath: previewPath,
           annotations: state.annotationLayer,
-          rejectionMapPngPath: outcome?.result.rejectionMapPreviewPath ??
-              state.reviewedMaster?.rejectionMapPreviewPath,
-          coverageMapPngPath:
-              outcome?.result.coverageMapPreviewPath ?? state.coverageMapPath,
+          rejectionMapPngPath: state.reviewedMaster?.rejectionMapPreviewPath,
+          coverageMapPngPath: state.coverageMapPath,
           showAnnotations: true,
           finishingLayers: finishingLayersForMaster(state.reviewedMaster),
         ),
@@ -203,92 +171,12 @@ class _HeroSection extends StatelessWidget {
   }
 }
 
-/// A two-up row of one-tap finishing actions (color calibration, background
-/// extraction) shown beneath the narrative. Each is a [SkotiqCard] with the
-/// action's status, wired to the controller; the heavy lifting lives in the
-/// service the controller calls.
-class _CalibratedAnnotatedRow extends StatelessWidget {
-  final SessionReviewState state;
-  final Future<void> Function() onColorCalibration;
-  final Future<void> Function() onBackgroundExtraction;
+/// Where the reviewed master is finished: the Darkroom, whose recipe steps
+/// stay adjustable and never write over the master.
+class _FinishInDarkroomCard extends StatelessWidget {
+  final IntegratedMaster master;
 
-  const _CalibratedAnnotatedRow({
-    required this.state,
-    required this.onColorCalibration,
-    required this.onBackgroundExtraction,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final busy = state.busy;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final stacked = constraints.maxWidth < SkotiqTokens.breakpointTablet;
-        final cards = [
-          _ActionCard(
-            icon: SkotiqIcons.star,
-            title: 'Color calibration',
-            body: 'Neutralize the background and balance the stars against a '
-                'catalog white reference.',
-            actionLabel: 'Calibrate color',
-            busy: busy,
-            onPressed: onColorCalibration,
-          ),
-          _ActionCard(
-            icon: SkotiqIcons.layers,
-            title: 'Background extraction',
-            body: 'Model and subtract the light-pollution / moon gradient from '
-                'the linear master.',
-            actionLabel: 'Extract gradient',
-            busy: busy,
-            onPressed: onBackgroundExtraction,
-          ),
-        ];
-        if (stacked) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              cards[0],
-              const SizedBox(height: SkotiqTokens.spaceMd),
-              cards[1],
-            ],
-          );
-        }
-        // IntrinsicHeight gives the Row a bounded cross-axis extent so the two
-        // equal-width action cards can stretch to a shared height; without it,
-        // CrossAxisAlignment.stretch inside the unbounded SingleChildScrollView
-        // forces an infinite-height constraint on the cards.
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: cards[0]),
-              const SizedBox(width: SkotiqTokens.spaceMd),
-              Expanded(child: cards[1]),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String body;
-  final String actionLabel;
-  final bool busy;
-  final Future<void> Function() onPressed;
-
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    required this.body,
-    required this.actionLabel,
-    required this.busy,
-    required this.onPressed,
-  });
+  const _FinishInDarkroomCard({required this.master});
 
   @override
   Widget build(BuildContext context) {
@@ -301,11 +189,12 @@ class _ActionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: SkotiqTokens.iconSm, color: colors.primary),
+              Icon(SkotiqIcons.sparkle,
+                  size: SkotiqTokens.iconSm, color: colors.primary),
               const SizedBox(width: SkotiqTokens.spaceSm),
               Expanded(
                 child: Text(
-                  title,
+                  'Finish in the Darkroom',
                   style: SkotiqTypography.sectionTitle
                       .copyWith(color: colors.textPrimary),
                 ),
@@ -314,22 +203,14 @@ class _ActionCard extends StatelessWidget {
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
           Text(
-            body,
+            'Gradient removal, color calibration, star reduction and channel '
+            'combination are recipe steps in the Darkroom. Every step stays '
+            'adjustable, and the master on disk is not changed.',
             style:
                 SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SkotiqButton(
-              label: actionLabel,
-              icon: SkotiqIcons.play,
-              variant: ButtonVariant.secondary,
-              size: ButtonSize.small,
-              isLoading: busy,
-              onPressed: busy ? null : () => onPressed(),
-            ),
-          ),
+          EditMasterInDarkroomButton(master: master),
         ],
       ),
     );

@@ -148,15 +148,15 @@ async fn start_guiding_with(
 ) -> GuidingQualityRun {
     let ops = Arc::new(ops);
     let mut ec = crate::node::context::ExecutionContext::new_for_test("guide".to_string());
-    ec.device_ops = ops.clone();
+    ec.run.device_ops = ops.clone();
     let mut state = crate::triggers::TriggerState::new();
-    state.stop_on_quality_problems = stop_on_quality_problems;
+    state.settings.stop_on_quality_problems = stop_on_quality_problems;
     let trigger_state = Arc::new(tokio::sync::RwLock::new(state));
-    ec.trigger_state = Some(trigger_state.clone());
+    ec.run.trigger_state = Some(trigger_state.clone());
     let (event_tx, mut events) = tokio::sync::broadcast::channel(64);
-    ec.event_tx = Some(event_tx);
+    ec.run.event_tx = Some(event_tx);
     let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
-    ec.decision_tx = Some(decision_tx);
+    ec.run.decision_tx = Some(decision_tx);
     let ctx = ec.to_instruction_context("guide").await;
     let config = StartGuidingConfig {
         settle_time: 0.0,
@@ -168,7 +168,9 @@ async fn start_guiding_with(
 
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -231,7 +233,7 @@ async fn a_guider_that_never_locks_and_is_gone_notifies_and_the_run_images_ungui
     let gone = || {
         ScriptedDomeRotatorOps::new()
             .with_guider_resume_that_never_guides()
-            .with_guider_stop_failing(crate::device_ops::NO_GUIDER_CONFIGURED)
+            .with_guider_stop_failing(crate::device_ops::DeviceError::NO_GUIDER)
     };
     let run = start_guiding_with(gone(), false).await;
     assert_eq!(run.result.status, NodeStatus::Success, "{:?}", run.result);
@@ -261,7 +263,7 @@ async fn no_guider_connected_is_not_reported_as_no_guide_star() {
         run.warnings
             .iter()
             .any(|w| w.contains("Failed to start guiding")
-                && w.contains(crate::device_ops::NO_GUIDER_CONFIGURED)
+                && w.contains(&crate::device_ops::DeviceError::NO_GUIDER.to_string())
                 && !w.contains("no guide star")),
         "{:?}",
         run.warnings
@@ -393,14 +395,14 @@ mod while_imaging_unguided {
         tokio::sync::broadcast::Receiver<crate::decision::DecisionEvent>,
     ) {
         let mut ec = crate::node::context::ExecutionContext::new_for_test("guide".to_string());
-        ec.device_ops = ops;
+        ec.run.device_ops = ops;
         let mut state = crate::triggers::TriggerState::new();
         state.guiding.set_unguided(true);
-        ec.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
+        ec.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(state)));
         let (event_tx, events) = tokio::sync::broadcast::channel(64);
-        ec.event_tx = Some(event_tx);
+        ec.run.event_tx = Some(event_tx);
         let (decision_tx, decisions) = tokio::sync::broadcast::channel(64);
-        ec.decision_tx = Some(decision_tx);
+        ec.run.decision_tx = Some(decision_tx);
         (ec.to_instruction_context("guide").await, events, decisions)
     }
 
@@ -412,7 +414,9 @@ mod while_imaging_unguided {
     ) -> UnguidedRun {
         let mut warnings = Vec::new();
         while let Ok(event) = events.try_recv() {
-            if let crate::executor::ExecutorEvent::Warning { message } = event {
+            if let crate::executor::ExecutorEvent::Warning { message }
+            | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warnings.push(message);
             }
         }
@@ -423,6 +427,7 @@ mod while_imaging_unguided {
         UnguidedRun {
             result,
             imaging_unguided: ctx
+                .run
                 .trigger_state
                 .as_ref()
                 .unwrap()
@@ -519,14 +524,14 @@ async fn restart_ctx(
     tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
 ) {
     let mut ec = crate::node::context::ExecutionContext::new_for_test("light".to_string());
-    ec.device_ops = ops;
-    ec.mount_id = Some("mount-1".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.mount_id = Some("mount-1".to_string());
     let trigger_state = Arc::new(tokio::sync::RwLock::new(
         crate::triggers::TriggerState::new(),
     ));
-    ec.trigger_state = Some(trigger_state.clone());
+    ec.run.trigger_state = Some(trigger_state.clone());
     let (event_tx, events) = tokio::sync::broadcast::channel(64);
-    ec.event_tx = Some(event_tx);
+    ec.run.event_tx = Some(event_tx);
     (
         ec.to_instruction_context("light").await,
         trigger_state,
@@ -539,7 +544,9 @@ fn drain_warnings(
 ) -> Vec<String> {
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -697,7 +704,11 @@ async fn a_dither_settle_that_runs_out_with_the_star_held_is_not_a_failure() {
         ScriptedDomeRotatorOps::new()
             .with_guiding(true)
             .with_guider_rms(0.62)
-            .with_dither_failing("Dither did not settle: PHD2 settle failed (status 1): timed-out waiting for guider to settle"),
+            .with_dither_failing(crate::device_ops::DeviceError::Timeout(
+                "Dither did not settle: PHD2 settle failed (status 1): timed-out waiting for \
+                 guider to settle"
+                    .to_string(),
+            )),
     );
     let (ctx, trigger_state, mut events) = restart_ctx(ops.clone()).await;
     let config = crate::DitherConfig {
@@ -716,7 +727,14 @@ async fn a_dither_settle_that_runs_out_with_the_star_held_is_not_a_failure() {
             result.message
         );
     }
-    assert_eq!(trigger_state.read().await.consecutive_dither_failures, 0);
+    assert_eq!(
+        trigger_state
+            .read()
+            .await
+            .latches
+            .consecutive_dither_failures,
+        0
+    );
     let warnings = drain_warnings(&mut events);
     assert_eq!(
         warnings
@@ -729,6 +747,60 @@ async fn a_dither_settle_that_runs_out_with_the_star_held_is_not_a_failure() {
     assert!(
         !warnings.iter().any(|w| w.contains("Dither failed")),
         "{warnings:?}"
+    );
+}
+
+/// The guider says a settle ran out by the kind of its error, not its words:
+/// a reworded timeout still finds the star held, and a failure that happens to
+/// say "did not settle" is still a failure.
+#[tokio::test]
+async fn a_settle_that_ran_out_is_known_by_its_kind_not_its_words() {
+    let config = crate::DitherConfig {
+        settle_pixels: 0.5,
+        settle_time: 10.0,
+        settle_timeout: 30.0,
+        ..crate::DitherConfig::default()
+    };
+    let dither_failing = |error: crate::device_ops::DeviceError| {
+        Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_guiding(true)
+                .with_guider_rms(0.62)
+                .with_dither_failing(error),
+        )
+    };
+
+    let (ctx, trigger_state, _events) = restart_ctx(dither_failing(
+        crate::device_ops::DeviceError::Timeout("the guide star took too long".to_string()),
+    ))
+    .await;
+    let result = execute_dither(&config, &ctx, None).await;
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(
+        trigger_state
+            .read()
+            .await
+            .latches
+            .consecutive_dither_failures,
+        0,
+        "a timed-out settle with the star held is a dither: {:?}",
+        result.message
+    );
+
+    let (ctx, trigger_state, _events) =
+        restart_ctx(dither_failing(crate::device_ops::DeviceError::Failed(
+            "Dither did not settle: guiding was stopped while it settled".to_string(),
+        )))
+        .await;
+    execute_dither(&config, &ctx, None).await;
+    assert_eq!(
+        trigger_state
+            .read()
+            .await
+            .latches
+            .consecutive_dither_failures,
+        1,
+        "a stopped settle is a failed dither whatever it says"
     );
 }
 
@@ -751,7 +823,7 @@ async fn lost_star_rms_does_not_recommend_hundreds_of_pixels_for_settling() {
         assert!(settle_bar_warning(Some(&state), settle, &status)
             .await
             .is_none());
-        assert!(!state.read().await.settle_bar_warning_given);
+        assert!(!state.read().await.latches.settle_bar_warning_given);
     }
     let held = GuidingStatus {
         is_guiding: true,

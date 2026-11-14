@@ -21,24 +21,18 @@ import 'event.dart';
 ///   * `EquipmentEvent_Connected(deviceType: ZWO, ...)` → `"Connected"`
 ///   * `ImagingEvent_ExposureFailed(error: ...)` → `"Exposure failed"`
 ///
-/// The title is constant-length and stable across runs — it never depends
-/// on field values, only on the variant.
+/// The title is stable across runs: it depends on the variant and, where one
+/// variant carries both faults and notices, on the severity or kind.
 String skotiqEventDisplayTitle(SkotiqEvent event) {
   final payload = event.payload;
   switch (payload) {
     case EventPayload_Equipment(field0: final v):
-      return _equipmentTitle(v);
+      return _equipmentTitle(v, event.severity);
     case EventPayload_Imaging(field0: final v):
       return _imagingTitle(v);
     case EventPayload_Guiding(field0: final v):
       return _guidingTitle(v);
     case EventPayload_Sequencer(field0: final v):
-      // The executor's advisories ride the error payload at warning severity;
-      // they are notices about the run, not errors in it.
-      if (v is SequencerEvent_Error &&
-          event.severity == EventSeverity.warning) {
-        return 'Sequencer notice';
-      }
       return _sequencerTitle(v);
     case EventPayload_Safety(field0: final v):
       return _safetyTitle(v);
@@ -111,6 +105,8 @@ bool isCriticalEvent(SkotiqEvent event) {
     EventPayload_Safety(field0: final v) => switch (v) {
       SafetyEvent_EmergencyStop() => true,
       SafetyEvent_WeatherUnsafe() => true,
+      // The mount guard has its own banner on Tonight, Mount and Equipment,
+      // which stays until the fault is dealt with.
       _ => false,
     },
     EventPayload_System(field0: final v) => switch (v) {
@@ -119,18 +115,20 @@ bool isCriticalEvent(SkotiqEvent event) {
       _ => false,
     },
     EventPayload_Sequencer(field0: final v) => switch (v) {
-      // `SequencerEvent.Error` is the one payload that carries TWO severities
-      // by design: the executor has no separate warning payload, so
-      // `ExecutorEvent::Warning` rides this variant at
-      // `EventSeverity.warning` (see the bridge's sequencer event mapping).
-      // Escalating on the payload type alone gave a non-fatal preflight
-      // advisory a red "Critical - Sequencer" toast, a persistent Run
-      // Dashboard banner and an audible alert, on a run that went on to
-      // finish 3/3. The allow-list is documented as error-severity events;
-      // this is that rule, written down.
-      SequencerEvent_Error() =>
-        event.severity == EventSeverity.error ||
-            event.severity == EventSeverity.critical,
+      // A note or a problem the run carried on through is never a critical
+      // alert: escalating on the payload type alone gave a non-fatal
+      // preflight advisory a red "Critical - Sequencer" toast, a persistent
+      // Run Dashboard banner and an audible alert, on a run that went on to
+      // finish 3/3. The severity is checked as well because the one-shot
+      // operations publish their progress on this payload at info.
+      // A cancellation is the end of a run someone or something stopped,
+      // told by the stop row, never an alarm.
+      SequencerEvent_Error(kind: final kind) =>
+        kind != SequencerErrorKind.advisory &&
+            kind != SequencerErrorKind.stepProblem &&
+            kind != SequencerErrorKind.cancelled &&
+            (event.severity == EventSeverity.error ||
+                event.severity == EventSeverity.critical),
       // A terminal run failure escalates like any other error; off this
       // allow-list it would be downgraded to a scrolling feed row.
       SequencerEvent_Failed() => true,
@@ -140,15 +138,19 @@ bool isCriticalEvent(SkotiqEvent event) {
   };
 }
 
-// Variant-specific title/detail mapping
-
-String _equipmentTitle(EquipmentEvent v) {
+String _equipmentTitle(EquipmentEvent v, EventSeverity severity) {
   return switch (v) {
     EquipmentEvent_Connecting() => 'Connecting',
     EquipmentEvent_Connected() => 'Connected',
     EquipmentEvent_Disconnected() => 'Disconnected',
     EquipmentEvent_PropertyChanged() => 'Property changed',
-    EquipmentEvent_Error() => 'Device error',
+    // The payload also carries what the bridge only tells the operator about
+    // (a camera that does not report its pixel size, a setpoint that was not
+    // restored after a reconnect); those are published below error severity.
+    EquipmentEvent_Error() =>
+      severity == EventSeverity.error || severity == EventSeverity.critical
+          ? 'Device error'
+          : 'Device notice',
     EquipmentEvent_MountSlewStarted() => 'Mount slew started',
     EquipmentEvent_MountSlewCompleted() => 'Mount slew complete',
     EquipmentEvent_MountTrackingStarted() => 'Tracking started',
@@ -158,7 +160,6 @@ String _equipmentTitle(EquipmentEvent v) {
     EquipmentEvent_MountUnparked() => 'Mount unparked',
     EquipmentEvent_FocuserMoveStarted() => 'Focuser move started',
     EquipmentEvent_FocuserMoveCompleted() => 'Focuser move complete',
-    EquipmentEvent_FocuserTemperatureChanged() => 'Focuser temperature',
     EquipmentEvent_FilterChanging() => 'Filter changing',
     EquipmentEvent_FilterChanged() => 'Filter changed',
     EquipmentEvent_RotatorMoveStarted() => 'Rotator move started',
@@ -167,6 +168,9 @@ String _equipmentTitle(EquipmentEvent v) {
     EquipmentEvent_CameraCoolingReached() => 'Cooling reached target',
     EquipmentEvent_CameraWarmingStarted() => 'Warming started',
     EquipmentEvent_CameraWarmingCompleted() => 'Warming complete',
+    // Telemetry the night log leaves out by this title.
+    EquipmentEvent_CameraTemperatureChanged() => 'Camera temperature',
+    EquipmentEvent_CameraSettingsChanged() => 'Camera settings',
     EquipmentEvent_HeartbeatStarted() => 'Heartbeat started',
     EquipmentEvent_HeartbeatStopped() => 'Heartbeat stopped',
     EquipmentEvent_HeartbeatStatusChanged() => 'Heartbeat status',
@@ -208,8 +212,6 @@ String _equipmentDetail(EquipmentEvent v) {
     EquipmentEvent_MountUnparked() => '',
     EquipmentEvent_FocuserMoveStarted(targetPosition: final p) => 'Target $p',
     EquipmentEvent_FocuserMoveCompleted(position: final p) => 'At $p',
-    EquipmentEvent_FocuserTemperatureChanged(temperature: final t) =>
-      '${t.toStringAsFixed(1)}°C',
     // Positions are the wheel's 0-based slots. The Log read "0 → 1" and
     // "Position 1" while Equipment read "R (2 of 8)", so a slot is shown by its
     // name and, without one, counted from 1 as Equipment counts it.
@@ -232,6 +234,21 @@ String _equipmentDetail(EquipmentEvent v) {
       'At ${t.toStringAsFixed(1)}°C',
     EquipmentEvent_CameraWarmingStarted() => '',
     EquipmentEvent_CameraWarmingCompleted() => '',
+    EquipmentEvent_CameraTemperatureChanged(
+      temperature: final t,
+      coolerPower: final p,
+    ) =>
+      p == null
+          ? '${t.toStringAsFixed(1)}°C'
+          : '${t.toStringAsFixed(1)}°C · ${p.toStringAsFixed(0)}%',
+    EquipmentEvent_CameraSettingsChanged(
+      gain: final g,
+      gainIsIso: final iso,
+      offset: final o,
+      binX: final x,
+      binY: final y,
+    ) =>
+      iso ? 'ISO $g · $x×$y' : 'Gain $g · offset $o · $x×$y',
     EquipmentEvent_HeartbeatStarted(deviceType: final t, deviceId: final id) =>
       '$t · $id',
     EquipmentEvent_HeartbeatStopped(deviceType: final t, deviceId: final id) =>
@@ -407,13 +424,21 @@ String _sequencerTitle(SequencerEvent v) {
     SequencerEvent_TargetCompleted() => 'Target complete',
     SequencerEvent_ExposureStarted() => 'Exposure started',
     SequencerEvent_ExposureCompleted() => 'Exposure complete',
-    SequencerEvent_Error() => 'Sequencer error',
+    // One payload, several meanings; the host says which.
+    SequencerEvent_Error(kind: final kind) => switch (kind) {
+      SequencerErrorKind.advisory => 'Sequencer notice',
+      SequencerErrorKind.stepProblem => 'Step problem, run continues',
+      SequencerErrorKind.runHeld => 'Run paused',
+      SequencerErrorKind.stepFailed => 'Sequencer error',
+      SequencerErrorKind.standalone => 'Operation error',
+      SequencerErrorKind.cancelled => 'Sequence stopped',
+    },
     SequencerEvent_MeridianFlipOutcome(outcome: final o) => switch (o) {
       // Sent when the mount reaches its new side; the verdict follows.
-      'pier_changed' => 'Meridian flip: mount on the new pier side',
-      'success' => 'Meridian flip complete',
-      'aborted' => 'Meridian flip aborted',
-      _ => 'Meridian flip FAILED',
+      FlipOutcome.pierChanged => 'Meridian flip: mount on the new pier side',
+      FlipOutcome.success => 'Meridian flip complete',
+      FlipOutcome.aborted => 'Meridian flip aborted',
+      FlipOutcome.failed => 'Meridian flip FAILED',
     },
     SequencerEvent_TriggerFired() => 'Trigger fired',
     SequencerEvent_InstructionProgress() => 'Instruction progress',
@@ -444,7 +469,6 @@ String _sequencerTitle(SequencerEvent v) {
     // label switch yet. Fallback to the generic class-name discriminant
     // until each is given a hand-written label.
     SequencerEvent_ExposureAdjusted() => 'Exposure adjusted',
-    // Plugin sequence node dispatch.
     SequencerEvent_PluginNodeRequested() => 'Plugin node requested',
     SequencerEvent_PluginNodeProgress() => 'Plugin node progress',
     // Replay Debug — structured executor decision stream.
@@ -494,7 +518,7 @@ String _sequencerDetail(SequencerEvent v) {
     SequencerEvent_Error(message: final m) => m,
     SequencerEvent_MeridianFlipOutcome(
       targetName: final t,
-      outcome: 'pier_changed',
+      outcome: FlipOutcome.pierChanged,
       newPierSide: final side,
     ) =>
       '$t · pier ${side.toLowerCase()}',
@@ -505,7 +529,7 @@ String _sequencerDetail(SequencerEvent v) {
       durationSecs: final d,
       error: final e,
     ) =>
-      o == 'success'
+      o == FlipOutcome.success
           ? (a > 1
                 ? '$t · succeeded on attempt $a · ${d.toStringAsFixed(1)}s'
                 : '$t · ${d.toStringAsFixed(1)}s')
@@ -623,7 +647,6 @@ String _sequencerDetail(SequencerEvent v) {
       flt != null && flt.isNotEmpty
           ? '$flt: ${o.toStringAsFixed(1)}s → ${a.toStringAsFixed(1)}s ($r)'
           : '${o.toStringAsFixed(1)}s → ${a.toStringAsFixed(1)}s ($r)',
-    // Plugin node dispatch.
     SequencerEvent_PluginNodeRequested(
       pluginId: final pid,
       nodeTypeId: final tid,
@@ -805,6 +828,9 @@ String _safetyTitle(SafetyEvent v) {
     SafetyEvent_EmergencyStop() => 'Emergency stop',
     SafetyEvent_ParkInitiated() => 'Park initiated',
     SafetyEvent_ParkCompleted() => 'Park complete',
+    SafetyEvent_MountMotionFault() => 'Mount moved on its own',
+    SafetyEvent_MountPositionUnknown() => 'Mount position unknown',
+    SafetyEvent_MountGuardCleared() => 'Mount recovered',
   };
 }
 
@@ -815,6 +841,9 @@ String _safetyDetail(SafetyEvent v) {
     SafetyEvent_EmergencyStop(reason: final r) => r,
     SafetyEvent_ParkInitiated(reason: final r) => r,
     SafetyEvent_ParkCompleted() => '',
+    SafetyEvent_MountMotionFault(message: final m) => m,
+    SafetyEvent_MountPositionUnknown(message: final m) => m,
+    SafetyEvent_MountGuardCleared(message: final m) => m,
   };
 }
 
@@ -870,33 +899,26 @@ String propertyChangeText(String property, String value) {
   return '$property=$value';
 }
 
-/// A fired trigger's action label in plain words.
-///
-/// The label is the executor's name for the action ("ParkAndAbort",
-/// "MeridianFlip"). Older hosts sent the action's Rust debug form, which
-/// carried its whole config into the Log ("MeridianFlip(MeridianFlipConfig {
-/// trigger_method: MinutesPastMeridian, ... })"); only the name is kept.
-String triggerActionText(String action) {
-  final name = action.split(RegExp(r'[\s({]')).first;
-  return switch (name) {
-    'Continue' => 'continue',
-    'Notify' => 'notify only',
-    'Pause' => 'pause the run',
-    'Autofocus' => 'run autofocus',
-    'NextTarget' => 'skip to the next target',
-    'Retry' => 'retry',
-    'ParkAndAbort' => 'park and end the run',
-    'Abort' => 'end the run',
-    'MeridianFlip' => 'flip the mount',
-    'Dither' => 'dither',
-    'Recenter' => 'recenter',
-    'PauseAndWaitForClear' => 'pause until the sky clears',
-    'SlewToGapAndContinue' => 'slew to clear sky',
-    'SwitchTargetOrFilter' => 'switch to the backup target or filter',
-    '' => action,
-    _ => name,
-  };
-}
+/// A fired trigger's action in plain words.
+String triggerActionText(SequencerTriggerAction action) => switch (action) {
+  SequencerTriggerAction.continue_ => 'continue',
+  SequencerTriggerAction.notify => 'notify only',
+  SequencerTriggerAction.pause => 'pause the run',
+  SequencerTriggerAction.autofocus => 'run autofocus',
+  SequencerTriggerAction.nextTarget => 'skip to the next target',
+  SequencerTriggerAction.retry => 'retry',
+  SequencerTriggerAction.parkAndAbort => 'park and end the run',
+  SequencerTriggerAction.abort => 'end the run',
+  SequencerTriggerAction.customBranch => 'run its recovery branch',
+  SequencerTriggerAction.meridianFlip => 'flip the mount',
+  SequencerTriggerAction.dither => 'dither',
+  SequencerTriggerAction.recenter => 'recenter',
+  SequencerTriggerAction.pauseAndWaitForClear => 'pause until the sky clears',
+  SequencerTriggerAction.slewToGapAndContinue => 'slew to clear sky',
+  SequencerTriggerAction.switchTargetOrFilter =>
+    'switch to the backup target or filter',
+  SequencerTriggerAction.skipTarget => 'skip the target',
+};
 
 /// A filter wheel slot by its name, or by its 1-based number without one.
 String _filterSlot(int slot, String? name) {

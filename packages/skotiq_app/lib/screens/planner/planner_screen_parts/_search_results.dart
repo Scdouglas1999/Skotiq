@@ -24,6 +24,9 @@ class _PlannerSearchResults extends ConsumerWidget {
     if (trimmed.length < localQueryFloor) return const SizedBox.shrink();
     final candidates =
         ref.watch(plannerFilteredSuggestionsProvider).valueOrNull ?? const [];
+    final installedMatches =
+        ref.watch(plannerInstalledCatalogSearchProvider(trimmed)).valueOrNull ??
+            const [];
 
     return Padding(
       padding: const EdgeInsets.only(top: SkotiqTokens.space2xl),
@@ -34,7 +37,8 @@ class _PlannerSearchResults extends ConsumerWidget {
           if (trimmed.length >= remoteQueryFloor)
             _SimbadResultsSection(
               query: trimmed,
-              hasLocalMatches: candidates.isNotEmpty,
+              hasLocalMatches:
+                  candidates.isNotEmpty || installedMatches.isNotEmpty,
             ),
         ],
       ),
@@ -58,7 +62,7 @@ class _InstalledCatalogResultsSection extends ConsumerWidget {
           const _SearchProgressLine(label: 'Searching installed catalogs'),
       error: (e, _) => _SearchProblemLine(
         label: 'Installed catalog lookup failed',
-        detail: '$e',
+        detail: userFacingError(e),
       ),
       data: (matches) {
         if (matches.isEmpty) return const SizedBox.shrink();
@@ -130,10 +134,16 @@ class _SimbadResultsSection extends ConsumerWidget {
 
     return async.when(
       loading: () => const _SearchProgressLine(label: 'Searching SIMBAD'),
-      error: (e, _) => _SearchProblemLine(
-        label: 'SIMBAD lookup failed',
-        detail: '$e',
-      ),
+      // With local matches on screen a failed online lookup is a footnote,
+      // not a warning over the results the operator already has.
+      error: (e, _) => hasLocalMatches
+          ? _SearchQuietLine(
+              text: 'SIMBAD lookup failed. ${userFacingError(e)}',
+            )
+          : _SearchProblemLine(
+              label: 'SIMBAD lookup failed',
+              detail: userFacingError(e),
+            ),
       data: (matches) {
         if (matches.isEmpty) {
           if (hasLocalMatches) return const SizedBox.shrink();
@@ -214,8 +224,8 @@ class _SearchResultActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'RA ${CoordinateFormat.ra(raHours)}  '
-          'Dec ${CoordinateFormat.dec(decDegrees)}',
+          'RA ${CoordinateFormat.raReadout(raHours)}  '
+          'Dec ${CoordinateFormat.decReadout(decDegrees)}',
           style: SkotiqTypography.monoCaption.copyWith(
             color: SkotiqColors.of(context).textMuted,
           ),
@@ -243,15 +253,11 @@ class _SearchResultActions extends ConsumerWidget {
                   decDegrees,
                   name: name,
                 );
-            final uri = Uri(
-              path: '/framing',
-              queryParameters: {
-                'ra': raHours.toStringAsFixed(6),
-                'dec': decDegrees.toStringAsFixed(6),
-                'name': name,
-              },
-            );
-            context.go(uri.toString());
+            context.go(AppRoutes.framingAt(SkyTarget(
+              raHours: raHours,
+              decDegrees: decDegrees,
+              name: name,
+            )));
           },
         ),
       ],
@@ -259,7 +265,6 @@ class _SearchResultActions extends ConsumerWidget {
   }
 }
 
-/// One line saying a lookup is in flight.
 class _SearchProgressLine extends StatelessWidget {
   final String label;
 
@@ -313,7 +318,6 @@ class _SearchQuietLine extends StatelessWidget {
   }
 }
 
-/// One line saying a lookup did not produce anything usable.
 class _SearchProblemLine extends StatelessWidget {
   final String label;
   final String detail;

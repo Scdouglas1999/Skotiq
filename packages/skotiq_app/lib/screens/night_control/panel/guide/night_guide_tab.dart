@@ -9,18 +9,20 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../../../utils/confirm_dialog.dart';
+import '../../../../utils/guide_distance.dart';
 import '../../../../utils/snackbar_helper.dart';
 import '../../../../widgets/phd2_connection_dialog.dart';
 import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
-import '../../data/session/guide_series_provider.dart';
 import '../../night_control_contracts.dart';
-import '../mount/night_panel_parts.dart';
+import '../panel_widgets.dart';
 import 'guide_metrics.dart';
 import 'guide_sections.dart';
 
@@ -49,9 +51,9 @@ class NightGuideTab extends ConsumerWidget {
     final guider = ref.watch(guiderStateProvider);
     final connected = guider.connectionState == DeviceConnectionState.connected;
     if (!connected) {
-      return const NightPanelScroll(children: [_NoGuiderSection()]);
+      return const NightPanelBody(children: [_NoGuiderSection()]);
     }
-    return const NightPanelScroll(
+    return const NightPanelBody(
       children: [
         _GuiderSection(),
         NightGuideStarSection(),
@@ -76,7 +78,6 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final guider = ref.watch(guiderStateProvider);
     final canCommand = ref.watch(backendCanCommandProvider);
     final connecting = _connecting ||
@@ -93,7 +94,7 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     return NightPanelSection(
       title: l10n.text('nightScopePhd2'),
       trailing: l10n.text('nightScopeNotConnected'),
-      trailingColor: colors.warning,
+      trailingTone: MetricGridTone.warning,
       children: [
         NightPanelNote(l10n.text('nightScopeGuideNoPhd2')),
         NightPanelButtonGrid(
@@ -130,12 +131,11 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     bool connecting,
   ) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     if (profileGuider.kind == ProfileGuiderKind.none) {
       return NightPanelSection(
         title: l10n.text('nightScopeGuider'),
         trailing: l10n.text('nightScopeNotConnected'),
-        trailingColor: colors.warning,
+        trailingTone: MetricGridTone.warning,
         children: [NightPanelNote(l10n.text('nightScopeGuideNone'))],
       );
     }
@@ -147,7 +147,7 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     return NightPanelSection(
       title: l10n.text('nightScopeGuider'),
       trailing: l10n.text('nightScopeNotConnected'),
-      trailingColor: colors.warning,
+      trailingTone: MetricGridTone.warning,
       children: [
         NightPanelNote(l10n.text('nightScopeGuideNoDevice')),
         NightPanelButtonGrid(
@@ -182,7 +182,8 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-          l10n.text('nightCtrGuideConnectFailed', params: {'detail': '$e'}),
+          l10n.text('nightCtrGuideConnectFailed',
+              params: {'detail': userFacingError(e)}),
         );
       }
     } finally {
@@ -203,7 +204,8 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-          l10n.text('nightScopeGuideConnectFailed', params: {'error': '$e'}),
+          l10n.text('nightScopeGuideConnectFailed',
+              params: {'error': userFacingError(e)}),
         );
       }
     } finally {
@@ -227,12 +229,10 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final guider = ref.watch(guiderStateProvider);
     final state = ref.watch(phd2StateProvider);
     final stats = ref.watch(guideStatsProvider);
     final rms = ref.watch(nightGuideRmsProvider);
-    final calibration = ref.watch(calibrationStateProvider);
     final inputs = ref.watch(nightActionInputsProvider);
     final isPhd2 = guider.deviceId == null || isPhd2DeviceId(guider.deviceId!);
 
@@ -243,7 +243,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     final mass = measured && stats.starMass > 0 ? stats.starMass : null;
 
     // Arcseconds when the guider reports its pixel scale, else pixels.
-    final scale = ref.watch(nightGuideScaleProvider);
+    final scale = ref.watch(guideScaleProvider);
     final metrics = [
       MetricGridItem(
         label: l10n.text('nightScopeGuideRaRms'),
@@ -271,41 +271,40 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
       ),
     ];
 
-    // Guiding belongs to a loaded run; only Dither, which goes through the
+    // A loaded run owns the guider; only Dither, which goes through the
     // action controller, stays available.
-    String? reason({bool phd2Only = false}) {
+    String? reason() {
       if (!inputs.canCommand) return l10n.text('nightActWhyNoHost');
       if (inputs.runActive) return l10n.text('nightActWhyRunOwns');
       if (_busy != null) return l10n.text('nightScopeWhyGuiderBusy');
-      if (phd2Only && !isPhd2) return l10n.text('nightScopeWhyPhd2Only');
       return null;
     }
 
     final looping = state == Phd2State.looping;
-    final active = state == Phd2State.guiding ||
+    final guiding = state == Phd2State.guiding ||
         state == Phd2State.calibrating ||
-        state == Phd2State.settling ||
-        state == Phd2State.paused ||
-        state == Phd2State.lostLock;
+        state == Phd2State.settling;
+    final held = state == Phd2State.paused || state == Phd2State.lostLock;
     final loopReason = reason() ??
         (looping
             ? l10n.text('nightScopeWhyLooping')
-            : active
+            : guiding || held
                 ? l10n.text('nightScopeWhyStopFirst')
                 : null);
     final findReason = reason() ??
         (looping || state == Phd2State.selected
             ? null
             : l10n.text('nightScopeWhyLoopFirst'));
+    final guideReason = reason() ??
+        (guiding
+            ? l10n.text('nightScopeWhyGuiding')
+            : held || state == Phd2State.unknown
+                ? l10n.text('nightScopeWhyStopFirst')
+                : null);
     final stopReason = reason() ??
         (state == Phd2State.stopped || state == Phd2State.selected
             ? l10n.text('nightScopeWhyNothingToStop')
             : null);
-    final flipCalReason = reason(phd2Only: true) ??
-        (calibration.isCalibrated
-            ? null
-            : l10n.text('nightScopeWhyNotCalibrated'));
-    final clearCalReason = reason(phd2Only: true);
     final ditherReason =
         manualActionDisabledReason(inputs, ManualActionId.dither)
             ?.resolve(l10n);
@@ -317,17 +316,22 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
           ? l10n.text('nightScopePhd2')
           : (guider.deviceName ?? l10n.text('nightScopeGuider')),
       trailing: l10n.text(stateKey),
-      trailingColor: MetricGrid.valueColor(tone, colors),
+      trailingTone: tone,
       children: [
         NightPanelValues(
           items: metrics,
-          semanticLabel: l10n.text('nightScopeGuideMetricsLabel'),
+          semanticLabel: l10n.text(
+            scale == null
+                ? 'nightScopeGuideMetricsLabel'
+                : 'nightScopeGuideMetricsLabelArcsec',
+          ),
         ),
         NightPanelButtonGrid(
           buttons: [
             NightPanelButtonSpec(
               key: const ValueKey<String>('nightGuide.loop'),
               label: l10n.text('nightScopeGuideLoop'),
+              tooltip: l10n.text('nightScopeGuideLoopHint'),
               busy: _busy == 'loop',
               disabledReason: loopReason,
               onPressed: loopReason == null
@@ -340,14 +344,26 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
             NightPanelButtonSpec(
               key: const ValueKey<String>('nightGuide.findStar'),
               label: l10n.text('nightScopeGuideFindStar'),
+              tooltip: l10n.text('nightScopeGuideFindStarHint'),
               busy: _busy == 'find',
               disabledReason: findReason,
               onPressed:
                   findReason == null ? () => _run('find', _findStar) : null,
             ),
             NightPanelButtonSpec(
+              key: const ValueKey<String>('nightGuide.guide'),
+              label: l10n.text('nightScopeGuideGuide'),
+              emphasized: true,
+              busy: _busy == 'guide',
+              tooltip: l10n.text('nightScopeGuideGuideHint'),
+              disabledReason: guideReason,
+              onPressed:
+                  guideReason == null ? () => _run('guide', _guide) : null,
+            ),
+            NightPanelButtonSpec(
               key: const ValueKey<String>('nightGuide.stop'),
               label: l10n.text('nightScopeGuideStop'),
+              tooltip: l10n.text('nightScopeGuideStopHint'),
               busy: _busy == 'stop',
               disabledReason: stopReason,
               onPressed: stopReason == null
@@ -360,33 +376,11 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
             NightPanelButtonSpec(
               key: const ValueKey<String>('nightGuide.dither'),
               label: l10n.text('nightScopeGuideDitherNow'),
+              tooltip: l10n.text('nightScopeGuideDitherHint'),
               busy: ditherInFlight,
               disabledReason: ditherReason,
               onPressed: ditherReason == null
                   ? () => unawaited(ref.read(nightActionApiProvider).dither())
-                  : null,
-            ),
-            NightPanelButtonSpec(
-              key: const ValueKey<String>('nightGuide.flipCal'),
-              label: l10n.text('nightScopeGuideFlipCal'),
-              busy: _busy == 'flipCal',
-              disabledReason: flipCalReason,
-              onPressed: flipCalReason == null
-                  ? () => _run(
-                        'flipCal',
-                        () => ref
-                            .read(calibrationStateProvider.notifier)
-                            .flipCalibration(),
-                      )
-                  : null,
-            ),
-            NightPanelButtonSpec(
-              key: const ValueKey<String>('nightGuide.clearCal'),
-              label: l10n.text('nightScopeGuideClearCal'),
-              busy: _busy == 'clearCal',
-              disabledReason: clearCalReason,
-              onPressed: clearCalReason == null
-                  ? () => unawaited(_confirmClear())
                   : null,
             ),
           ],
@@ -404,22 +398,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     }
   }
 
-  Future<void> _confirmClear() async {
-    final l10n = context.l10n;
-    final confirmed = await ConfirmDialog.show(
-      context: context,
-      title: l10n.text('nightScopeGuideClearTitle'),
-      message: l10n.text('nightScopeGuideClearBody'),
-      confirmLabel: l10n.text('nightScopeGuideClearCal'),
-      cancelLabel: l10n.text('cancel'),
-      isDestructive: true,
-    );
-    if (!confirmed || !mounted) return;
-    await _run(
-      'clearCal',
-      () => ref.read(calibrationStateProvider.notifier).clearCalibration(),
-    );
-  }
+  Future<void> _guide() => ref.read(phd2ControllerProvider).startGuiding();
 
   Future<void> _run(String id, Future<void> Function() command) async {
     final l10n = context.l10n;
@@ -429,7 +408,8 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
-          l10n.text('nightScopeGuideCommandFailed', params: {'error': '$e'}),
+          l10n.text('nightScopeGuideCommandFailed',
+              params: {'error': userFacingError(e)}),
         );
       }
     } finally {

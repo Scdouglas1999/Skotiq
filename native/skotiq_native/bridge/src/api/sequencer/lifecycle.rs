@@ -1,4 +1,12 @@
-use super::*;
+use super::{get_sequence_executor, SequencerState};
+use crate::error::SkotiqError;
+use crate::event::bus::EventPayload;
+use crate::event::correlation::create_event_auto_id;
+use crate::event::equipment::{EventCategory, EventSeverity};
+use crate::event::sequencer::SequencerEvent;
+use crate::state::get_state;
+use crate::unified_device_ops::create_unified_device_ops;
+use skotiq_sequencer::{ExecutorState, SequenceDefinition};
 
 /// Load a sequence from JSON
 pub async fn api_sequencer_load_json(json: String) -> Result<(), SkotiqError> {
@@ -16,52 +24,13 @@ pub async fn api_sequencer_load_json(json: String) -> Result<(), SkotiqError> {
     Ok(())
 }
 
-/// Load a sequence from a definition struct
-pub async fn api_sequencer_load(definition: SequenceDefinitionApi) -> Result<(), SkotiqError> {
-    tracing::info!("Loading sequence: {}", definition.name);
-
-    // Convert API nodes to internal nodes
-    let nodes: Result<Vec<NodeDefinition>, SkotiqError> = definition
-        .nodes
-        .iter()
-        .map(|n| {
-            let node_type: NodeType = serde_json::from_str(&n.config_json)
-                .map_err(|e| SkotiqError::InvalidInput(format!("Invalid node config: {}", e)))?;
-
-            Ok(NodeDefinition {
-                id: n.id.clone(),
-                name: n.name.clone(),
-                node_type,
-                enabled: n.enabled,
-                children: n.children.clone(),
-            })
-        })
-        .collect();
-
-    let internal_definition = SequenceDefinition {
-        id: definition.id,
-        name: definition.name,
-        description: definition.description,
-        nodes: nodes?,
-        root_node_id: definition.root_node_id,
-        metadata: std::collections::HashMap::new(),
-    };
-
-    let mut executor = get_sequence_executor().write().await;
-    executor
-        .load_sequence(internal_definition)
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to load sequence: {}", e)))?;
-
-    Ok(())
-}
-
 /// Seed the executor's observing site from app settings when nothing has
 /// pushed one yet.
 ///
 /// The executor's `latitude`/`longitude` is what every frame's `OBJCTALT` /
 /// `AIRMASS` cards and the `captured_images.mount_altitude` column are derived
-/// from. Without this seed a run that starts before Dart's
-/// `sequencerUpdateLocation` push lands writes frames whose FITS header carries
+/// from. Without this seed a run that starts before the app's run-config push
+/// lands writes frames whose FITS header carries
 /// AIRMASS — the writer falls back to app settings, see
 /// `sequencer_ops::context_altitude_pointing` — while the database row for the
 /// same frame has a NULL altitude, because the row is stamped from the
@@ -72,15 +41,22 @@ pub async fn api_sequencer_load(definition: SequenceDefinitionApi) -> Result<(),
 /// Fills in rather than overwrites: a location explicitly pushed for this run
 /// stays authoritative.
 pub(crate) async fn seed_executor_site_from_settings(
-    executor: &mut skotiq_sequencer::SequenceExecutor,
+    executor: &skotiq_sequencer::SequenceExecutor,
 ) {
-    if executor.latitude.is_some() && executor.longitude.is_some() {
+    if let (Some(_), Some(_)) = executor.observer_location() {
         return;
     }
     if let Ok(Some(site)) = get_state().get_observer_location() {
-        executor
-            .update_location(Some(site.latitude), Some(site.longitude))
+        let seeded = executor
+            .handle()
+            .update_run_config(|config| {
+                config.latitude = Some(site.latitude);
+                config.longitude = Some(site.longitude);
+            })
             .await;
+        if let Err(e) = seeded {
+            tracing::warn!("The observing site from app settings was not applied: {e}");
+        }
     }
 }
 
@@ -89,19 +65,18 @@ pub async fn api_sequencer_start() -> Result<(), SkotiqError> {
     tracing::info!("Starting sequence execution");
 
     let mut executor = get_sequence_executor().write().await;
-    seed_executor_site_from_settings(&mut executor).await;
+    seed_executor_site_from_settings(&executor).await;
     executor
         .start()
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to start sequence: {}", e)))?;
 
-    // Publish event
+    // A run starts only with a plan loaded.
+    let sequence_name = executor.sequence_name().unwrap_or_default().to_string();
     get_state().publish_event(create_event_auto_id(
         EventSeverity::Info,
         EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Started {
-            sequence_name: "Sequence".to_string(),
-        }),
+        EventPayload::Sequencer(SequencerEvent::Started { sequence_name }),
     ));
 
     Ok(())
@@ -117,32 +92,15 @@ pub async fn api_sequencer_pause() -> Result<(), SkotiqError> {
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to pause sequence: {}", e)))?;
 
-    get_state().publish_event(create_event_auto_id(
-        EventSeverity::Info,
-        EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Paused),
-    ));
-
+    // The executor announces the pause itself when its run state turns
+    // Paused (see `event_bridge`), as it does for a pause a trigger makes.
     Ok(())
 }
 
 /// Resume the sequence executor
 pub async fn api_sequencer_resume() -> Result<(), SkotiqError> {
     tracing::info!("Resuming sequence execution");
-
-    let executor = get_sequence_executor().read().await;
-    executor
-        .resume()
-        .await
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to resume sequence: {}", e)))?;
-
-    get_state().publish_event(create_event_auto_id(
-        EventSeverity::Info,
-        EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Resumed),
-    ));
-
-    Ok(())
+    crate::sequence_run::resume().await
 }
 
 /// Stop the sequence executor. `origin` names the CALLER — `None` /
@@ -152,10 +110,19 @@ pub async fn api_sequencer_resume() -> Result<(), SkotiqError> {
 pub async fn api_sequencer_stop(origin: Option<String>) -> Result<(), SkotiqError> {
     tracing::info!(origin = origin.as_deref(), "Stopping sequence execution");
 
-    let mut executor = get_sequence_executor().write().await;
-    let run_id = executor.active_sequence_run_id();
-    executor
-        .stop_with_origin(origin.as_deref())
+    // The executor is held only to ask: its stopping phase can run the plan's
+    // shutdown steps for minutes, and status reads go through the same lock.
+    let (run_id, run_in_flight, stopping) = {
+        let mut executor = get_sequence_executor().write().await;
+        let run_id = executor.active_sequence_run_id();
+        let run_in_flight = executor.has_run_in_flight();
+        let stopping = executor
+            .request_stop(skotiq_sequencer::StopOrigin::from_wire(origin.as_deref()))
+            .await;
+        (run_id, run_in_flight, stopping)
+    };
+    stopping
+        .finished()
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to stop sequence: {}", e)))?;
 
@@ -174,13 +141,18 @@ pub async fn api_sequencer_stop(origin: Option<String>) -> Result<(), SkotiqErro
         tracing::warn!("Failed to stop secondary rig on sequence stop: {}", e);
     }
 
-    get_state().publish_event(create_event_auto_id(
-        EventSeverity::Info,
-        EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Stopped {
-            sequence_run_id: run_id,
-        }),
-    ));
+    // A run that was in flight announces its own end when its state turns
+    // (see `event_bridge`): Stopped when the stop cancelled it. Only a stop
+    // with no run to end is announced from here.
+    if !run_in_flight {
+        get_state().publish_event(create_event_auto_id(
+            EventSeverity::Info,
+            EventCategory::Sequencer,
+            EventPayload::Sequencer(SequencerEvent::Stopped {
+                sequence_run_id: run_id,
+            }),
+        ));
+    }
 
     Ok(())
 }
@@ -262,9 +234,7 @@ pub async fn api_sequencer_plugin_node_finished(
 
 /// Get the current sequencer state
 pub async fn api_sequencer_get_state() -> SequencerState {
-    let executor = get_sequence_executor().read().await;
-    let progress = executor.get_progress();
-    SequencerState::from(progress)
+    SequencerState::from(skotiq_sequencer::executor_handle().progress())
 }
 
 // Sequencer checkpoint / crash recovery
@@ -281,6 +251,9 @@ pub struct CheckpointInfoApi {
     /// How the run ended ("stopped", "failed", "ended_early"); `None` when the
     /// app died under it, which is the only interrupted run.
     pub ended: Option<String>,
+    /// Frames each Take Exposures step of the plan already has, by node id;
+    /// empty for a checkpoint written before it was recorded.
+    pub frames_done_by_step: std::collections::HashMap<String, u32>,
 }
 
 /// Set the checkpoint directory for crash recovery
@@ -310,6 +283,7 @@ pub fn api_sequencer_get_checkpoint_info() -> Option<CheckpointInfoApi> {
             can_resume: info.can_resume,
             age_seconds: info.age_seconds,
             ended: info.ended.map(|end| end.as_str().to_string()),
+            frames_done_by_step: info.frames_done_by_step,
         })
 }
 
@@ -373,8 +347,7 @@ pub async fn api_perform_meridian_flip(
     settle_time_secs: f64,
 ) -> Result<(), SkotiqError> {
     {
-        let executor = get_sequence_executor().read().await;
-        let state = executor.get_state().await;
+        let state = skotiq_sequencer::executor_handle().state();
         match state {
             ExecutorState::Idle
             | ExecutorState::Completed
@@ -473,32 +446,24 @@ pub fn api_sequencer_clear_checkpoint() -> Result<(), SkotiqError> {
 
 #[cfg(test)]
 mod executor_site_tests {
-    use crate::api::get_state;
-    use crate::api::sequencer::{api_sequencer_start, get_sequence_executor};
+
+    use crate::api::sequencer::get_sequence_executor;
+    use crate::api::sequencer::lifecycle::api_sequencer_start;
+    use crate::state::get_state;
     use crate::storage::ObserverLocation;
 
     /// A run must not be able to start without the site the app already knows.
     ///
     /// The executor's latitude/longitude is the ONLY input to the altitude
-    /// stamped on every frame's `captured_images` row, and until this seeding
-    /// existed the only writer was Dart's `sequencerUpdateLocation`. A run
-    /// started before that push produced files with AIRMASS (the FITS writer
-    /// has its own fallback to app settings) and rows without it — and the
-    /// AAVSO exporter reads the row, so it submitted `na` for frames whose own
-    /// header knew the answer.
+    /// stamped on every frame's `captured_images` row. A run started before the
+    /// app's run-config push produced files with AIRMASS (the FITS writer has
+    /// its own fallback to app settings) and rows without it, and the AAVSO
+    /// exporter reads the row, so it submitted `na` for frames whose own
+    /// header knew the answer. A fresh executor stands in for the process's:
+    /// once that one holds a site no push takes it away.
     #[tokio::test]
     async fn starting_a_run_seeds_the_site_from_app_settings() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
-        {
-            // The gap under test: nothing has pushed a location for this run.
-            get_sequence_executor()
-                .write()
-                .await
-                .update_location(None, None)
-                .await;
-        }
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         get_state()
             .set_observer_location(Some(ObserverLocation {
                 latitude: 41.5,
@@ -507,16 +472,170 @@ mod executor_site_tests {
             }))
             .expect("test site should be settable");
 
-        // No sequence is loaded, so the start itself fails. That is fine and is
-        // the point: the site has to be in place BEFORE the run can begin, so
-        // the seeding must not be conditional on the start succeeding.
-        let _ = api_sequencer_start().await;
+        let executor = skotiq_sequencer::SequenceExecutor::new();
+        assert_eq!(executor.observer_location(), (None, None));
+        super::seed_executor_site_from_settings(&executor).await;
 
-        let executor = get_sequence_executor().read().await;
         assert_eq!(
-            (executor.latitude, executor.longitude),
+            executor.observer_location(),
             (Some(41.5), Some(-71.25)),
             "the run started with no observing site even though app settings had one"
         );
+    }
+    /// The run's start names the plan it runs; the app shows "Started
+    /// sequence: <name>" and used to show "Started sequence: Sequence" for
+    /// every plan.
+    #[tokio::test]
+    async fn starting_a_run_announces_the_plan_by_name() {
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
+        let mut sequence = skotiq_sequencer::SequenceDefinition::new("M 31 mosaic".to_string());
+        sequence.nodes.push(skotiq_sequencer::NodeDefinition {
+            id: "wait".to_string(),
+            name: "Wait".to_string(),
+            node_type: skotiq_sequencer::NodeType::Delay(skotiq_sequencer::DelayConfig {
+                seconds: 0.01,
+            }),
+            enabled: true,
+            children: vec![],
+        });
+        sequence.root_node_id = Some("wait".to_string());
+        {
+            let mut executor = get_sequence_executor().write().await;
+            executor.set_device_ops(std::sync::Arc::new(
+                skotiq_sequencer::device_ops::NullDeviceOps,
+            ));
+            executor.load_sequence(sequence).expect("sequence loads");
+        }
+        let mut events = get_state().event_bus.subscribe();
+
+        api_sequencer_start().await.expect("run starts");
+        get_sequence_executor().write().await.stop().await.ok();
+
+        let mut started = Vec::new();
+        while let Ok(event) = events.try_recv() {
+            if let crate::event::bus::EventPayload::Sequencer(
+                crate::event::sequencer::SequencerEvent::Started { sequence_name },
+            ) = event.payload
+            {
+                started.push(sequence_name);
+            }
+        }
+        assert_eq!(started, vec!["M 31 mosaic".to_string()]);
+    }
+
+    /// A run that is stopped turns Cancelled and the event bridge announces
+    /// that as Stopped. The Stop command announced a second Stopped of its
+    /// own, which every client on the wire received.
+    #[tokio::test]
+    async fn stopping_a_run_announces_stopped_once() {
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
+        let mut sequence = skotiq_sequencer::SequenceDefinition::new("Long wait".to_string());
+        sequence.nodes.push(skotiq_sequencer::NodeDefinition {
+            id: "wait".to_string(),
+            name: "Wait".to_string(),
+            node_type: skotiq_sequencer::NodeType::Delay(skotiq_sequencer::DelayConfig {
+                seconds: 120.0,
+            }),
+            enabled: true,
+            children: vec![],
+        });
+        sequence.root_node_id = Some("wait".to_string());
+        crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
+        let mut run_events = {
+            let mut executor = get_sequence_executor().write().await;
+            executor.set_device_ops(std::sync::Arc::new(
+                skotiq_sequencer::device_ops::NullDeviceOps,
+            ));
+            executor.load_sequence(sequence).expect("sequence loads");
+            executor.subscribe()
+        };
+        let bridge = tokio::spawn(async move {
+            crate::api::sequencer::event_bridge::run_sequencer_event_loop(
+                &mut run_events,
+                get_state(),
+            )
+            .await;
+        });
+        let mut events = get_state().event_bus.subscribe();
+
+        api_sequencer_start().await.expect("run starts");
+        crate::api::sequencer::lifecycle::api_sequencer_stop(None)
+            .await
+            .expect("run stops");
+
+        let mut stopped = 0;
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+        // Collect until the bus has been quiet for a moment after a Stopped.
+        loop {
+            let wait = if stopped == 0 {
+                deadline - tokio::time::Instant::now()
+            } else {
+                std::time::Duration::from_millis(500)
+            };
+            match tokio::time::timeout(wait, events.recv()).await {
+                Ok(Ok(event)) => {
+                    if matches!(
+                        event.payload,
+                        crate::event::bus::EventPayload::Sequencer(
+                            crate::event::sequencer::SequencerEvent::Stopped { .. }
+                        )
+                    ) {
+                        stopped += 1;
+                    }
+                }
+                Ok(Err(_)) | Err(_) => break,
+            }
+        }
+        bridge.abort();
+        assert_eq!(stopped, 1, "one stop is one Stopped on the wire");
+    }
+
+    /// With no run to end, the Stop command is the only thing that can say
+    /// the sequencer is stopped.
+    #[tokio::test]
+    async fn stopping_with_no_run_still_announces_stopped() {
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
+        get_sequence_executor().write().await.reset().await;
+        let mut events = get_state().event_bus.subscribe();
+
+        crate::api::sequencer::lifecycle::api_sequencer_stop(None)
+            .await
+            .expect("stop is accepted");
+
+        let mut stopped = 0;
+        while let Ok(event) = events.try_recv() {
+            if matches!(
+                event.payload,
+                crate::event::bus::EventPayload::Sequencer(
+                    crate::event::sequencer::SequencerEvent::Stopped { .. }
+                )
+            ) {
+                stopped += 1;
+            }
+        }
+        assert_eq!(stopped, 1);
+    }
+
+    /// The run announces its own pause when its state turns Paused, so the
+    /// Pause command must not announce one as well: the log showed every
+    /// operator pause twice. With no run there is nothing to pause at all.
+    #[tokio::test]
+    async fn pause_command_does_not_announce_a_pause_itself() {
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
+        let mut events = get_state().event_bus.subscribe();
+
+        let _ = crate::api::sequencer::lifecycle::api_sequencer_pause().await;
+
+        while let Ok(event) = events.try_recv() {
+            assert!(
+                !matches!(
+                    event.payload,
+                    crate::event::bus::EventPayload::Sequencer(
+                        crate::event::sequencer::SequencerEvent::Paused
+                    )
+                ),
+                "the Pause command published a Paused event of its own"
+            );
+        }
     }
 }

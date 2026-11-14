@@ -15,10 +15,8 @@ async fn frame_event_carries_the_fits_writers_own_capture_context() {
     let sun_alt = live_sun_alt();
     let ctx = expose_ctx(Arc::new(NullDeviceOps), None, sun_alt - 30.0).await;
     let (event_tx, mut event_rx) = tokio::sync::broadcast::channel(16);
-    let ctx = InstructionContext {
-        event_tx: Some(event_tx),
-        ..ctx
-    };
+    let mut ctx = ctx;
+    ctx.run.event_tx = Some(event_tx);
 
     let mut frame_ctx = crate::scheduling::FrameContext::new_light("sess-evt", 2, 2, 120.0, 7);
     frame_ctx.frame_type = "Dark".to_string();
@@ -94,7 +92,7 @@ async fn frame_names_the_camera_when_no_equipment_profile_does() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = expose_node_execution_ctx(ops.clone(), scratch.0.clone()).await;
     assert!(
-        ec.camera_make.is_none() && ec.camera_model.is_none(),
+        ec.run.identity.camera_make.is_none() && ec.run.identity.camera_model.is_none(),
         "precondition: this rig has no equipment profile naming a camera"
     );
 
@@ -120,8 +118,8 @@ async fn equipment_profile_camera_name_beats_the_driver_string() {
     let scratch = scratch_dir("instrume-profile");
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = expose_node_execution_ctx(ops.clone(), scratch.0.clone()).await;
-    ec.camera_make = Some("ZWO".to_string());
-    ec.camera_model = Some("ASI178MM".to_string());
+    ec.run.identity.camera_make = Some("ZWO".to_string());
+    ec.run.identity.camera_model = Some("ASI178MM".to_string());
 
     let status = run_expose_node(one_dark_no_filter(), &mut ec).await;
     assert_eq!(status, NodeStatus::Success, "burst should complete");
@@ -254,12 +252,12 @@ async fn frame_altitude_is_derived_at_the_exposure_midpoint() {
     // independent of the hour the suite happens to run.
     let mut ts = crate::triggers::TriggerState::new();
     ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
-    ctx.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+    ctx.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
 
     let config = ExposureConfig {
         duration_secs: 7200.0,
         count: 1,
-        frame_type: "Light".to_string(),
+        frame_type: crate::FrameType::Light,
         ..ExposureConfig::default()
     };
     let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
@@ -304,12 +302,9 @@ async fn frame_altitude_is_derived_at_the_exposure_midpoint() {
 /// A sequenced sub must reach the FITS writer carrying the sensor's own
 /// pixel pitch.
 ///
-/// `FitsWriteHeaderRich::from_frame_context` hardcoded `pixel_size_x: None`
-/// and nothing upstream ever asked the camera, so every frame a real run
-/// produced landed on disk with FOCALLEN and APTDIA but no XPIXSZ/YPIXSZ —
-/// ASTAP, PixInsight and AstroBin cannot derive the plate scale from such a
-/// file. The manual-snapshot path was fixed to write the pitch, which left
-/// two frames off one rig disagreeing about one sensor.
+/// Without the pitch a frame lands on disk with FOCALLEN and APTDIA but no
+/// XPIXSZ/YPIXSZ, and ASTAP, PixInsight and AstroBin cannot derive the plate
+/// scale from the file. Only the driver knows it, so the capture path asks.
 ///
 /// Asserted at the real call site rather than on a hand-built context:
 /// `execute_exposure` runs, and what is checked is the `FrameContext` the
@@ -543,13 +538,12 @@ mod consecutive_reject_limit {
         let (event_tx, events) = tokio::sync::broadcast::channel(256);
         let (request_tx, requests) = tokio::sync::mpsc::channel(16);
         let (decision_tx, decisions) = tokio::sync::broadcast::channel(256);
+        let mut ctx = ctx;
+        ctx.run.event_tx = Some(event_tx);
+        ctx.run.recovery_request_tx = Some(request_tx);
+        ctx.run.decision_tx = Some(decision_tx);
         Storm {
-            ctx: InstructionContext {
-                event_tx: Some(event_tx),
-                recovery_request_tx: Some(request_tx),
-                decision_tx: Some(decision_tx),
-                ..ctx
-            },
+            ctx,
             requests,
             events,
             decisions,
@@ -566,7 +560,10 @@ mod consecutive_reject_limit {
                 crate::quality::FrameGrade::Pass
             } else {
                 crate::quality::FrameGrade::Reject {
-                    reason: "star count 3 below minimum 20".to_string(),
+                    reason: crate::quality::RejectReason::StarCountBelowMinimum {
+                        count: 3,
+                        minimum: 20,
+                    },
                     hfr: None,
                     eccentricity: None,
                     star_count: Some(3),
@@ -595,7 +592,10 @@ mod consecutive_reject_limit {
             while let Ok(event) = self.events.try_recv() {
                 match event {
                     crate::executor::ExecutorEvent::Error { .. } => seen.errors += 1,
-                    crate::executor::ExecutorEvent::Warning { message } => {
+                    crate::executor::ExecutorEvent::NoticedWarning {
+                        notice: crate::decision::RunNotice::RejectStreak { .. },
+                        message,
+                    } => {
                         assert!(
                             message.contains("in a row") && message.contains("The run continues"),
                             "{message}"
@@ -606,9 +606,19 @@ mod consecutive_reject_limit {
                 }
             }
             while let Ok(decision) = self.decisions.try_recv() {
-                if decision.summary == crate::instructions::IMAGE_GRADING_REJECT_STREAK_SUMMARY {
+                if let Some(crate::decision::RunNotice::RejectStreak {
+                    consecutive_rejects,
+                    reason,
+                }) = &decision.notice
+                {
+                    assert_eq!(*consecutive_rejects, max);
+                    assert_eq!(decision.details["reason"], reason.as_str());
                     assert_eq!(decision.details["consecutive_rejects"], max);
-                    assert_eq!(decision.details["reason"], "star count 3 below minimum 20");
+                    assert_eq!(
+                        decision.details["reason"],
+                        "star count 3 below minimum 20 (possible obstruction or cloud, or an \
+                         off-target frame)"
+                    );
                     seen.streak_notices += 1;
                 }
             }
@@ -634,27 +644,6 @@ mod consecutive_reject_limit {
         // The rejects are still graded and counted.
         assert_eq!(s.accepted.load(Ordering::Relaxed), 1);
         assert_eq!(s.rejected.load(Ordering::Relaxed), 8);
-    }
-
-    /// The app raises its notifications by matching these summaries
-    /// verbatim, so a reworded summary here would silently stop the operator
-    /// being told.
-    #[test]
-    fn the_app_matches_the_summaries_it_notifies_on() {
-        let classifier = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../../packages/skotiq_core/lib/src/services/notification/event_classifier.dart"
-        ))
-        .expect("the app's notification classifier is in the repository");
-        for summary in [
-            crate::instructions::IMAGE_GRADING_REJECT_STREAK_SUMMARY,
-            crate::executor::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY,
-        ] {
-            assert!(
-                classifier.contains(&format!("'{summary}'")),
-                "event_classifier.dart does not match {summary:?}"
-            );
-        }
     }
 
     #[tokio::test]

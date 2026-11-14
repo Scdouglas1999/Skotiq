@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'narrator_detail_sheet.dart';
@@ -24,7 +24,6 @@ import 'narrator_detail_sheet.dart';
 class NarratorVisuals {
   const NarratorVisuals._();
 
-  /// The lucide category icon for [category].
   static IconData iconFor(NarratorCategory category) {
     return switch (category) {
       NarratorCategory.discovery => LucideIcons.sparkles,
@@ -401,7 +400,6 @@ class NarratorEvidenceViz extends StatelessWidget {
   }
 }
 
-/// Small rounded value chip used as a sparkline fallback.
 class _MiniChip extends StatelessWidget {
   final String text;
   final Color color;

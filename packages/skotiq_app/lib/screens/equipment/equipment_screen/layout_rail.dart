@@ -14,8 +14,6 @@ const double _discoveryPeekHeight = 60.0;
 /// The drawer never takes more than 44% of the device column, per 06 §Equipment.
 const double _discoveryMaxFraction = 0.44;
 
-// Devices tab body
-
 class _EquipmentMainColumn extends ConsumerWidget {
   final EquipmentProfileModel? selectedProfile;
   final VoidCallback onSettings;
@@ -37,7 +35,7 @@ class _EquipmentMainColumn extends ConsumerWidget {
   /// every remaining pixel: the drawer PUSHES the grid up and can never overlay
   /// it. On a viewport too short to seat both, the drawer scrolls with the
   /// cards instead — always reachable, never overflowing.
-  Widget _cardsAndDiscovery({Widget? header}) {
+  Widget _cardsAndDiscovery({Widget? header, Widget? status}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final canPin = !constraints.hasBoundedHeight ||
@@ -50,6 +48,7 @@ class _EquipmentMainColumn extends ConsumerWidget {
             onConnectAll: onConnectAll,
             onEditProfile: onEditProfile,
             header: header,
+            status: status,
             footer: const DiscoveryPanel(),
           );
         }
@@ -65,6 +64,7 @@ class _EquipmentMainColumn extends ConsumerWidget {
                 onConnectAll: onConnectAll,
                 onEditProfile: onEditProfile,
                 header: header,
+                status: status,
               ),
             ),
             ConstrainedBox(
@@ -93,6 +93,7 @@ class _EquipmentMainColumn extends ConsumerWidget {
                 selectedProfile: selectedProfile,
                 onSettings: onSettings,
                 onEditProfile: onEditProfile,
+                onConnectAll: onConnectAll,
                 onDisconnectAll: onDisconnectAll,
               ),
             ],
@@ -100,23 +101,30 @@ class _EquipmentMainColumn extends ConsumerWidget {
         }
 
         // Narrow: no second column. The side panel's content rides INSIDE the
-        // device column's scroll view so the cards keep the full width and the
-        // readiness list can never pin itself above them.
+        // device column's scroll view so the cards keep the full width: the
+        // profile (whose menu carries the header's actions, which a phone
+        // header has no room for) above the devices, readiness and health
+        // below them, so the devices are the first thing on the screen.
         return _cardsAndDiscovery(
-          header: _SidePanelContent(
-            selectedProfile: selectedProfile,
-            onSettings: onSettings,
-            onEditProfile: onEditProfile,
-            onDisconnectAll: onDisconnectAll,
-            padding: _bodyPadding,
+          header: Padding(
+            padding: _bodyPadding.copyWith(bottom: 0),
+            child: _ProfileSection(
+              selectedProfile: selectedProfile,
+              onSettings: onSettings,
+              onEditProfile: onEditProfile,
+              onConnectAll: onConnectAll,
+              onDisconnectAll: onDisconnectAll,
+            ),
+          ),
+          status: Padding(
+            padding: _bodyPadding.copyWith(top: 0),
+            child: const _StatusSections(),
           ),
         );
       },
     );
   }
 }
-
-// Side panel (desktop, wide screens)
 
 /// The 320 px right column: the profile block, the readiness blockers and
 /// system health. No icon strip — 05 §15: a side panel with a single content
@@ -125,12 +133,14 @@ class _EquipmentSidePanel extends ConsumerWidget {
   final EquipmentProfileModel? selectedProfile;
   final VoidCallback onSettings;
   final void Function(EquipmentProfileModel) onEditProfile;
+  final void Function(EquipmentProfileModel) onConnectAll;
   final VoidCallback onDisconnectAll;
 
   const _EquipmentSidePanel({
     required this.selectedProfile,
     required this.onSettings,
     required this.onEditProfile,
+    required this.onConnectAll,
     required this.onDisconnectAll,
   });
 
@@ -146,11 +156,20 @@ class _EquipmentSidePanel extends ConsumerWidget {
       child: Align(
         alignment: Alignment.topCenter,
         child: SingleChildScrollView(
-          child: _SidePanelContent(
-            selectedProfile: selectedProfile,
-            onSettings: onSettings,
-            onEditProfile: onEditProfile,
-            onDisconnectAll: onDisconnectAll,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ProfileSection(
+                selectedProfile: selectedProfile,
+                onSettings: onSettings,
+                onEditProfile: onEditProfile,
+                onConnectAll: onConnectAll,
+                onDisconnectAll: onDisconnectAll,
+              ),
+              const SizedBox(height: SidePanel.sectionGap),
+              const _StatusSections(),
+            ],
           ),
         ),
       ),
@@ -158,44 +177,61 @@ class _EquipmentSidePanel extends ConsumerWidget {
   }
 }
 
-/// The side panel's content, shared by the desktop column and the narrow
-/// layout where it scrolls above the device grid.
-class _SidePanelContent extends ConsumerWidget {
+/// The profile block with what goes with it: saving session-only devices and
+/// the scan notice.
+class _ProfileSection extends StatelessWidget {
   final EquipmentProfileModel? selectedProfile;
   final VoidCallback onSettings;
   final void Function(EquipmentProfileModel) onEditProfile;
+  final void Function(EquipmentProfileModel) onConnectAll;
   final VoidCallback onDisconnectAll;
-  final EdgeInsets padding;
 
-  const _SidePanelContent({
+  const _ProfileSection({
     required this.selectedProfile,
     required this.onSettings,
     required this.onEditProfile,
+    required this.onConnectAll,
     required this.onDisconnectAll,
-    this.padding = EdgeInsets.zero,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: padding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ProfileBlock(
-            profile: selectedProfile,
-            onSettings: onSettings,
-            onEditProfile: onEditProfile,
-            onDisconnectAll: onDisconnectAll,
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ProfileBlock(
+          profile: selectedProfile,
+          onSettings: onSettings,
+          onEditProfile: onEditProfile,
+          onConnectAll: onConnectAll,
+          onDisconnectAll: onDisconnectAll,
+        ),
+        const _SaveSessionDevicesButton(),
+        if (selectedProfile case final profile?)
+          ProfileScanNotice(
+            profile: profile,
+            padding: const EdgeInsets.only(top: SkotiqTokens.spaceMd),
           ),
-          const _SaveSessionDevicesButton(),
-          const SizedBox(height: SidePanel.sectionGap),
-          const EquipmentReadinessPanel(),
-          const SizedBox(height: SidePanel.sectionGap),
-          const EquipmentHealthPanel(),
-        ],
-      ),
+      ],
+    );
+  }
+}
+
+/// Readiness and system health.
+class _StatusSections extends StatelessWidget {
+  const _StatusSections();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        EquipmentReadinessPanel(),
+        SizedBox(height: SidePanel.sectionGap),
+        EquipmentHealthPanel(),
+      ],
     );
   }
 }
@@ -205,24 +241,26 @@ class _ProfileBlock extends ConsumerWidget {
   final EquipmentProfileModel? profile;
   final VoidCallback onSettings;
   final void Function(EquipmentProfileModel) onEditProfile;
+  final void Function(EquipmentProfileModel) onConnectAll;
   final VoidCallback onDisconnectAll;
 
   const _ProfileBlock({
     required this.profile,
     required this.onSettings,
     required this.onEditProfile,
+    required this.onConnectAll,
     required this.onDisconnectAll,
   });
 
-  /// Side of the profile's icon square.
   static const double squareSize = 36.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final model = profile;
-    final assigned = ref.watch(assignedProfileDeviceSlotsProvider).length;
-    final unsaved = ref.watch(sessionOnlyConnectedSlotsProvider).length;
+    final rig = ref.watch(rigDevicesProvider);
+    final assigned = rig.assigned.length;
+    final unsaved = rig.sessionOnly.length;
 
     final meta = <String>[
       if (model?.isDefault ?? false) 'Default profile',
@@ -276,6 +314,7 @@ class _ProfileBlock extends ConsumerWidget {
           profile: model,
           onSettings: onSettings,
           onEditProfile: onEditProfile,
+          onConnectAll: onConnectAll,
           onDisconnectAll: onDisconnectAll,
         ),
       ],
@@ -283,7 +322,14 @@ class _ProfileBlock extends ConsumerWidget {
   }
 }
 
-enum _ProfileMenuAction { edit, disconnectAll, profiles, settings }
+enum _ProfileMenuAction {
+  connectAll,
+  disconnectAll,
+  scan,
+  edit,
+  profiles,
+  settings,
+}
 
 /// The `⋮` beside the profile name. A [SkotiqIconButton] that opens the
 /// menu itself rather than a `PopupMenuButton`, so the control is the sheet's
@@ -292,12 +338,14 @@ class _ProfileMenuButton extends ConsumerStatefulWidget {
   final EquipmentProfileModel? profile;
   final VoidCallback onSettings;
   final void Function(EquipmentProfileModel) onEditProfile;
+  final void Function(EquipmentProfileModel) onConnectAll;
   final VoidCallback onDisconnectAll;
 
   const _ProfileMenuButton({
     required this.profile,
     required this.onSettings,
     required this.onEditProfile,
+    required this.onConnectAll,
     required this.onDisconnectAll,
   });
 
@@ -316,17 +364,27 @@ class _ProfileMenuButtonState extends ConsumerState<_ProfileMenuButton> {
       context: context,
       position: menuPositionBelowWidget(anchor),
       items: <PopupMenuEntry<_ProfileMenuAction>>[
+        // The page header drops its actions on a phone (they cannot reach the
+        // 48 dp tap target beside a title), so this is where they live there
+        // — and a second route to them on desktop costs nothing.
+        PopupMenuItem<_ProfileMenuAction>(
+          value: _ProfileMenuAction.connectAll,
+          enabled: model?.hasAssignedDevices ?? false,
+          child: const Text('Connect all'),
+        ),
+        const PopupMenuItem<_ProfileMenuAction>(
+          value: _ProfileMenuAction.disconnectAll,
+          child: Text('Disconnect all'),
+        ),
+        const PopupMenuItem<_ProfileMenuAction>(
+          value: _ProfileMenuAction.scan,
+          child: Text('Scan for devices'),
+        ),
+        const PopupMenuDivider(),
         PopupMenuItem<_ProfileMenuAction>(
           value: _ProfileMenuAction.edit,
           enabled: model != null,
           child: const Text('Edit profile'),
-        ),
-        // The page header drops its actions on a phone (they cannot reach the
-        // 48 dp tap target beside a title), so this is where Disconnect all
-        // lives there — and a second route to it on desktop costs nothing.
-        const PopupMenuItem<_ProfileMenuAction>(
-          value: _ProfileMenuAction.disconnectAll,
-          child: Text('Disconnect all'),
         ),
         const PopupMenuItem<_ProfileMenuAction>(
           value: _ProfileMenuAction.profiles,
@@ -340,10 +398,14 @@ class _ProfileMenuButtonState extends ConsumerState<_ProfileMenuButton> {
     );
     if (!mounted || action == null) return;
     switch (action) {
-      case _ProfileMenuAction.edit:
-        if (model != null) widget.onEditProfile(model);
+      case _ProfileMenuAction.connectAll:
+        if (model != null) widget.onConnectAll(model);
       case _ProfileMenuAction.disconnectAll:
         widget.onDisconnectAll();
+      case _ProfileMenuAction.scan:
+        ref.read(discoveryScanRequestProvider.notifier).state++;
+      case _ProfileMenuAction.edit:
+        if (model != null) widget.onEditProfile(model);
       case _ProfileMenuAction.profiles:
         ref.read(equipmentTabIndexProvider.notifier).state = 1;
       case _ProfileMenuAction.settings:
@@ -353,11 +415,14 @@ class _ProfileMenuButtonState extends ConsumerState<_ProfileMenuButton> {
 
   @override
   Widget build(BuildContext context) {
-    return SkotiqIconButton(
-      key: _anchorKey,
-      icon: LucideIcons.moreVertical,
-      tooltip: 'Profile actions',
-      onPressed: _openMenu,
+    return KeyedSubtree(
+      key: TourTarget.equipmentProfileMenu.key,
+      child: SkotiqIconButton(
+        key: _anchorKey,
+        icon: LucideIcons.moreVertical,
+        tooltip: 'Profile actions',
+        onPressed: _openMenu,
+      ),
     );
   }
 }
@@ -376,7 +441,7 @@ class _SaveSessionDevicesButtonState
     extends ConsumerState<_SaveSessionDevicesButton> {
   bool _saving = false;
 
-  Future<void> _save(int profileId, Set<ProfileDeviceSlot> slots) async {
+  Future<void> _save(int profileId, Set<DeviceType> slots) async {
     if (_saving) return;
     setState(() => _saving = true);
     try {
@@ -395,7 +460,8 @@ class _SaveSessionDevicesButtonState
       );
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not save to the profile: $e');
+      context.showErrorSnackBar(
+          'Could not save to the profile: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -404,7 +470,7 @@ class _SaveSessionDevicesButtonState
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(activeEquipmentProfileProvider);
-    final slots = ref.watch(sessionOnlyConnectedSlotsProvider);
+    final slots = ref.watch(rigDevicesProvider).sessionOnly;
     final profileId = profile?.id;
     if (profileId == null || slots.isEmpty) return const SizedBox.shrink();
 
