@@ -17,7 +17,7 @@
 #      context, which should be the repo root):
 #        docker build \
 #          -f packaging/appliance/docker/Dockerfile \
-#          --build-arg BUNDLE_TARBALL=dist-linux/skotiq-linux-x64-4.0.0.tar.gz \
+#          --build-arg BUNDLE_TARBALL=dist-linux/skotiq-linux-x64-9.0.0.tar.gz \
 #          -t skotiq-headless .
 #
 # Why no in-Dockerfile build stage: the build script intentionally snapshots
@@ -58,7 +58,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Path of the release tarball relative to the build context (repo root).
-ARG BUNDLE_TARBALL=dist-linux/skotiq-linux-x64-4.0.0.tar.gz
+ARG BUNDLE_TARBALL=dist-linux/skotiq-linux-x64-9.0.0.tar.gz
 # ADD auto-extracts local tarballs. The build script emits a flat archive;
 # release.yml wraps the same files in skotiq-<version>-linux-<arch>/.
 ADD ${BUNDLE_TARBALL} /opt/skotiq/unpacked/
