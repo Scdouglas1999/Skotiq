@@ -22,14 +22,28 @@ void main(List<String> args) async {
   }
 
   final port = await _reservePort();
+  final scratch = await Directory.systemTemp.createTemp(
+    'skotiq-windows-smoke-',
+  );
+  final data = await Directory('${scratch.path}/data').create();
+  final captures = await Directory('${scratch.path}/captures').create();
   final processLog = _ProcessLog();
-  final process = await Process.start(exe.absolute.path, [
-    '--headless',
-    '--port=$port',
-    '--auth-token=$_adminToken',
-    '--view-token=$_viewToken',
-    '--control-token=$_controlToken',
-  ], workingDirectory: exe.parent.absolute.path);
+  final process = await Process.start(
+    exe.absolute.path,
+    [
+      '--headless',
+      '--port=$port',
+      '--auth-token=$_adminToken',
+      '--view-token=$_viewToken',
+      '--control-token=$_controlToken',
+    ],
+    workingDirectory: exe.parent.absolute.path,
+    environment: {
+      'SKOTIQ_DATABASE_DIR': data.path,
+      'SKOTIQ_DATA_DIR': data.path,
+      'SKOTIQ_BROWSE_ROOTS': 'Smoke=${captures.path}',
+    },
+  );
 
   process.stdout
       .transform(utf8.decoder)
@@ -55,19 +69,23 @@ void main(List<String> args) async {
   try {
     await _waitForServer(client, baseUri, () => exited, () => exitCode);
 
-    final info = await _request(client, baseUri, '/api/info');
+    final info = await requestSmokeJson(client, baseUri, '/api/info');
     _expectStatus('/api/info', info, HttpStatus.ok);
     _expectJsonField('/api/info', info, 'version');
     _expectJsonField('/api/info', info, 'endpoints');
 
-    final unauthSelfTest = await _request(client, baseUri, '/api/self-test');
+    final unauthSelfTest = await requestSmokeJson(
+      client,
+      baseUri,
+      '/api/self-test',
+    );
     _expectStatus(
       'unauthenticated /api/self-test',
       unauthSelfTest,
       HttpStatus.unauthorized,
     );
 
-    final selfTest = await _request(
+    final selfTest = await requestSmokeJson(
       client,
       baseUri,
       '/api/self-test',
@@ -79,7 +97,7 @@ void main(List<String> args) async {
     _expectJsonField('/api/self-test', selfTest, 'api');
     _expectRuntimeMetadata(info, selfTest);
 
-    final openApi = await _request(
+    final openApi = await requestSmokeJson(
       client,
       baseUri,
       '/api/openapi.json',
@@ -92,7 +110,7 @@ void main(List<String> args) async {
       );
     }
 
-    final forbiddenControl = await _request(
+    final forbiddenControl = await requestSmokeJson(
       client,
       baseUri,
       '/api/camera/expose',
@@ -126,15 +144,18 @@ void main(List<String> args) async {
       'application/javascript',
     );
 
-    await _expectWebSocketPong(baseUri, _viewToken);
+    await expectSmokeWebSocketPong(baseUri, _viewToken);
+    await _expectSimulatorCapture(client, baseUri, captures);
 
     stdout.writeln('Packaged headless Windows smoke passed.');
     stdout.writeln('Executable: ${exe.absolute.path}');
     stdout.writeln('Port: $port');
+    stdout.writeln('Scratch evidence: ${scratch.path}');
   } catch (error, stackTrace) {
     stderr.writeln('Packaged headless Windows smoke failed: $error');
     stderr.writeln(stackTrace);
     stderr.writeln(processLog.render());
+    stderr.writeln('Scratch evidence: ${scratch.path}');
     exitCode = 1;
   } finally {
     client.close(force: true);
@@ -143,6 +164,7 @@ void main(List<String> args) async {
       await process.exitCode.timeout(const Duration(seconds: 5));
     } on TimeoutException {
       process.kill(ProcessSignal.sigkill);
+      await process.exitCode.timeout(const Duration(seconds: 5));
     }
   }
 
@@ -169,7 +191,7 @@ Future<void> _waitForServer(
       throw StateError('Headless process exited early with code ${exitCode()}');
     }
     try {
-      final response = await _request(client, baseUri, '/api/info');
+      final response = await requestSmokeJson(client, baseUri, '/api/info');
       if (response.statusCode == HttpStatus.ok) {
         return;
       }
@@ -182,11 +204,28 @@ Future<void> _waitForServer(
   throw TimeoutException('Timed out waiting for /api/info: $lastError');
 }
 
-Future<_HttpResponseBody> _request(
+Future<SmokeHttpResponse> requestSmokeJson(
   HttpClient client,
   Uri baseUri,
   String path, {
   String method = 'GET',
+  String? token,
+  Map<String, Object?>? body,
+  Duration timeout = const Duration(seconds: 30),
+}) => _requestJson(
+  client,
+  baseUri,
+  path,
+  method: method,
+  token: token,
+  body: body,
+).timeout(timeout);
+
+Future<SmokeHttpResponse> _requestJson(
+  HttpClient client,
+  Uri baseUri,
+  String path, {
+  required String method,
   String? token,
   Map<String, Object?>? body,
 }) async {
@@ -203,7 +242,7 @@ Future<_HttpResponseBody> _request(
   final json = text.isEmpty
       ? const <String, dynamic>{}
       : jsonDecode(text) as Map<String, dynamic>;
-  return _HttpResponseBody(
+  return SmokeHttpResponse(
     statusCode: response.statusCode,
     contentType: response.headers.value(HttpHeaders.contentTypeHeader) ?? '',
     text: text,
@@ -211,7 +250,7 @@ Future<_HttpResponseBody> _request(
   );
 }
 
-void _expectStatus(String label, _HttpResponseBody response, int statusCode) {
+void _expectStatus(String label, SmokeHttpResponse response, int statusCode) {
   if (response.statusCode != statusCode) {
     throw StateError(
       '$label returned ${response.statusCode}, expected $statusCode: '
@@ -220,15 +259,15 @@ void _expectStatus(String label, _HttpResponseBody response, int statusCode) {
   }
 }
 
-void _expectJsonField(String label, _HttpResponseBody response, String field) {
+void _expectJsonField(String label, SmokeHttpResponse response, String field) {
   if (!response.json.containsKey(field)) {
     throw StateError('$label missing JSON field "$field": ${response.text}');
   }
 }
 
 void _expectRuntimeMetadata(
-  _HttpResponseBody info,
-  _HttpResponseBody selfTest,
+  SmokeHttpResponse info,
+  SmokeHttpResponse selfTest,
 ) {
   final server = selfTest.json['server'] as Map<String, dynamic>;
   if (server['authMode'] != 'token') {
@@ -264,6 +303,20 @@ Future<void> _expectTextAsset(
   String path,
   String contentTypePrefix,
 ) async {
+  await _readTextAsset(
+    client,
+    baseUri,
+    path,
+    contentTypePrefix,
+  ).timeout(const Duration(seconds: 10));
+}
+
+Future<void> _readTextAsset(
+  HttpClient client,
+  Uri baseUri,
+  String path,
+  String contentTypePrefix,
+) async {
   final request = await client.getUrl(baseUri.resolve(path));
   final response = await request.close();
   final body = await response.transform(utf8.decoder).join();
@@ -284,7 +337,11 @@ Future<void> _expectTextAsset(
   }
 }
 
-Future<void> _expectWebSocketPong(Uri baseUri, String token) async {
+Future<void> expectSmokeWebSocketPong(
+  Uri baseUri,
+  String token, {
+  Duration timeout = const Duration(seconds: 10),
+}) async {
   final uri = Uri(
     scheme: 'ws',
     host: baseUri.host,
@@ -292,31 +349,158 @@ Future<void> _expectWebSocketPong(Uri baseUri, String token) async {
     path: '/events',
     queryParameters: {'token': token},
   );
-  final socket = await WebSocket.connect(uri.toString());
+  final socket = await WebSocket.connect(uri.toString()).timeout(timeout);
   try {
     socket.add(jsonEncode({'type': 'ping'}));
-    final deadline = DateTime.now().add(const Duration(seconds: 10));
-    await for (final message in socket) {
-      final data = jsonDecode(message as String) as Map<String, dynamic>;
-      if (data['type'] == 'pong') {
-        return;
-      }
-      if (DateTime.now().isAfter(deadline)) {
-        throw TimeoutException('Timed out waiting for WebSocket pong');
-      }
-    }
+    await socket
+        .firstWhere((message) {
+          final data = jsonDecode(message as String) as Map<String, dynamic>;
+          return data['type'] == 'pong';
+        })
+        .timeout(timeout);
   } finally {
-    await socket.close();
+    await socket.close().timeout(timeout);
   }
 }
 
-class _HttpResponseBody {
+Future<void> _expectSimulatorCapture(
+  HttpClient client,
+  Uri baseUri,
+  Directory captures,
+) async {
+  // The id is explicit: discovery is never needed to connect a simulator.
+  const camera = {'deviceId': 'sim_camera_1', 'deviceType': 'camera'};
+  final connected = await requestSmokeJson(
+    client,
+    baseUri,
+    '/api/devices/connect',
+    method: 'POST',
+    token: _adminToken,
+    body: camera,
+  );
+  _expectStatus('simulator connect', connected, HttpStatus.ok);
+  if (connected.json['status'] != 'connected') {
+    throw StateError('Simulator did not connect: ${connected.text}');
+  }
+  try {
+    final capturedAt = DateTime.now().toUtc();
+    final exposure = await requestSmokeJson(
+      client,
+      baseUri,
+      '/api/camera/expose',
+      method: 'POST',
+      token: _adminToken,
+      body: {
+        'deviceId': camera['deviceId'],
+        'exposureTime': 0.01,
+        'frameType': 'light',
+        'binX': 1,
+        'binY': 1,
+        'x': 0,
+        'y': 0,
+        'width': 128,
+        'height': 96,
+      },
+    );
+    _expectStatus('simulator exposure', exposure, HttpStatus.ok);
+    if (exposure.json['status'] != 'complete') {
+      throw StateError('Simulator exposure did not finish: ${exposure.text}');
+    }
+    final fits = File('${captures.path}/simulator.fits');
+    final saved = await requestSmokeJson(
+      client,
+      baseUri,
+      '/api/imaging/save-fits-from-capture',
+      method: 'POST',
+      token: _adminToken,
+      body: {
+        'deviceId': camera['deviceId'],
+        'filePath': fits.absolute.path,
+        'keepCameraFile': false,
+        'headerData': {
+          'objectName': 'Windows smoke simulator',
+          'exposureTime': 0.01,
+          'captureTimestamp': capturedAt.toIso8601String(),
+          'frameType': 'Light',
+          'binX': 1,
+          'binY': 1,
+        },
+      },
+    );
+    _expectStatus('simulator FITS save', saved, HttpStatus.ok);
+    if (saved.json['status'] != 'saved' || !await fits.exists()) {
+      throw StateError('Simulator FITS was not saved: ${saved.text}');
+    }
+    final header = validateSmokeFits(await fits.readAsBytes());
+    stdout.writeln('Simulator capture verified: ${jsonEncode(header)}');
+    stdout.writeln(
+      'FITS evidence: ${fits.path} (${await fits.length()} bytes)',
+    );
+  } finally {
+    final disconnected = await requestSmokeJson(
+      client,
+      baseUri,
+      '/api/devices/disconnect',
+      method: 'POST',
+      token: _adminToken,
+      body: camera,
+    );
+    _expectStatus('simulator disconnect', disconnected, HttpStatus.ok);
+  }
+}
+
+/// Checks the small monochrome fixture's actual file, not API success alone.
+Map<String, String> validateSmokeFits(List<int> bytes) {
+  final header = <String, String>{};
+  int? dataOffset;
+  for (var offset = 0; offset + 80 <= bytes.length; offset += 80) {
+    final card = ascii.decode(bytes.sublist(offset, offset + 80));
+    final key = card.substring(0, 8).trim();
+    if (key == 'END') {
+      dataOffset = ((offset + 80 + 2879) ~/ 2880) * 2880;
+      break;
+    }
+    if (card[8] == '=') {
+      var value = card.substring(10).split('/').first.trim();
+      if (value.startsWith("'") && value.endsWith("'")) {
+        value = value.substring(1, value.length - 1).trimRight();
+      }
+      header[key] = value;
+    }
+  }
+  const expected = {
+    'SIMPLE': 'T',
+    'BITPIX': '16',
+    'NAXIS': '2',
+    'NAXIS1': '128',
+    'NAXIS2': '96',
+    'OBJECT': 'Windows smoke simulator',
+  };
+  for (final entry in expected.entries) {
+    if (header[entry.key] != entry.value) {
+      throw StateError(
+        'FITS ${entry.key}: ${header[entry.key]}, '
+        'expected ${entry.value}',
+      );
+    }
+  }
+  if (double.tryParse(header['EXPTIME'] ?? '') != 0.01 ||
+      DateTime.tryParse(header['DATE-OBS'] ?? '') == null) {
+    throw StateError('FITS capture metadata is missing or incorrect: $header');
+  }
+  if (dataOffset == null || bytes.length < dataOffset + 128 * 96 * 2) {
+    throw StateError('FITS pixel payload is missing or truncated');
+  }
+  return header;
+}
+
+class SmokeHttpResponse {
   final int statusCode;
   final String contentType;
   final String text;
   final Map<String, dynamic> json;
 
-  const _HttpResponseBody({
+  const SmokeHttpResponse({
     required this.statusCode,
     required this.contentType,
     required this.text,
