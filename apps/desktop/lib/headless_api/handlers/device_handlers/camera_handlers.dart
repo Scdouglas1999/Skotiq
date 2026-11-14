@@ -146,7 +146,6 @@ extension CameraDeviceHandlers on DeviceHandlers {
   }
 
   Future<Response> handleCameraExpose(Request request) async {
-    _logInfo('[API] POST /api/camera/expose');
     final payload = await readJsonObject(request);
     final deviceId = requireString(payload, 'deviceId');
     final exposureTime = requireDouble(
