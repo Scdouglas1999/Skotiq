@@ -7,7 +7,8 @@ import 'dart:typed_data';
 /// Unlike point sampling, every source pixel contributes when a small preview
 /// contains a narrow star. The source buffer stays available for native zoom;
 /// only the smaller result is copied into Flutter's immutable image buffer.
-/// Work yields after bounded batches so a new frame or zoom can cancel it.
+/// Brief work slices let a new frame or zoom cancel the resize. Checking the
+/// time after bounded pixel batches avoids a timer wakeup for every small batch.
 Future<Uint8List?> downscalePreviewRgba({
   required Uint8List pixels,
   required int width,
@@ -31,6 +32,7 @@ Future<Uint8List?> downscalePreviewRgba({
   // Leave the post-frame callback before allocating or scanning image data.
   await Future<void>.delayed(Duration.zero);
   if (isCancelled()) return null;
+  final slice = Stopwatch()..start();
   final result = Uint8List(targetWidth * targetHeight * 4);
   final scaleX = width / targetWidth;
   final scaleY = height / targetHeight;
@@ -65,8 +67,11 @@ Future<Uint8List?> downscalePreviewRgba({
 
           if (++samples == samplesPerBatch) {
             samples = 0;
-            await Future<void>.delayed(Duration.zero);
-            if (isCancelled()) return null;
+            if (slice.elapsedMicroseconds >= 1000) {
+              await Future<void>.delayed(Duration.zero);
+              if (isCancelled()) return null;
+              slice.reset();
+            }
           }
         }
       }
