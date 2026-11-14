@@ -12,6 +12,8 @@ import 'dart:typed_data';
 
 import 'package:skotiq_bridge/skotiq_bridge.dart' show apiReadFrameCutouts;
 
+import '../frame_header.dart';
+
 /// One star measured in a circular aperture.
 class ApertureFlux {
   const ApertureFlux({
@@ -81,23 +83,35 @@ Future<List<ApertureFlux?>?> _measureNativeCutouts(
     outerSky: outerSky,
   );
 
-  final all = await _nativeCutouts(path, centers, half);
-  if (all != null) {
-    return [
-      for (var i = 0; i < stars.length; i++)
-        measure(i, all.sublist(i * side * side, (i + 1) * side * side)),
-    ];
+  final FrameHeader header;
+  try {
+    header = await readFrameHeader(path);
+  } on Object {
+    return null;
   }
-  // One star whose cutout leaves the image refuses the whole batch; measure
-  // the stars one at a time so the rest still count.
-  final results = <ApertureFlux?>[];
-  var anyRead = false;
-  for (var i = 0; i < stars.length; i++) {
-    final cut = await _nativeCutouts(path, [centers[i]], half);
-    anyRead = anyRead || cut != null;
-    results.add(cut == null ? null : measure(i, cut));
+  final size = header.imageSize;
+  if (size == null || header.channels != 1) return null;
+  final eligible = [
+    for (var i = 0; i < centers.length; i++)
+      if (centers[i].x - half >= 0 &&
+          centers[i].y - half >= 0 &&
+          centers[i].x + half < size.width &&
+          centers[i].y + half < size.height)
+        i,
+  ];
+  final results = List<ApertureFlux?>.filled(stars.length, null);
+  if (eligible.isEmpty) return results;
+  final all = await _nativeCutouts(path, [
+    for (final i in eligible) centers[i],
+  ], half);
+  if (all == null) return null;
+  for (var i = 0; i < eligible.length; i++) {
+    results[eligible[i]] = measure(
+      eligible[i],
+      all.sublist(i * side * side, (i + 1) * side * side),
+    );
   }
-  return anyRead || stars.isEmpty ? results : null;
+  return results;
 }
 
 /// Cutouts from the native frame reader, or null when it refuses them.
