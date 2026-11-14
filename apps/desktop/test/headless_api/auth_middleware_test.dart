@@ -58,17 +58,20 @@ void main() {
       expect(response.body['error'], 'Authentication required');
     });
 
-    test('allows view tokens on read endpoints', () async {
-      final response = await _request(
-        client,
-        baseUri,
-        '/api/openapi.json',
-        token: 'view-token',
-      );
+    test(
+      'unversioned scripts still need auth and may read with view tokens',
+      () async {
+        final response = await _request(
+          client,
+          baseUri,
+          '/api/openapi.json',
+          token: 'view-token',
+        );
 
-      expect(response.statusCode, HttpStatus.ok);
-      expect(response.body['openapi'], '3.0.3');
-    });
+        expect(response.statusCode, HttpStatus.ok);
+        expect(response.body['openapi'], '3.0.3');
+      },
+    );
 
     test('/api/info names the release and answers any client', () async {
       final response = await _request(
@@ -82,6 +85,8 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       expect(response.headers['x-request-id'], 'test-api-info-1');
       expect(response.body['version'], '2.5.0');
+      expect(response.body.containsKey('apiVersion'), isFalse);
+      expect(response.body.containsKey('minimumSupportedApiVersion'), isFalse);
     });
 
     // D4W-4. The auth-exempt surface used to be written out twice — once as
@@ -172,6 +177,36 @@ void main() {
         'Update Skotiq on this device to 2.5.0, then connect again.',
       );
       expect(same.statusCode, HttpStatus.unauthorized);
+    });
+
+    test(
+      'a client using the old API version cannot bypass release checks',
+      () async {
+        final response = await _request(
+          client,
+          baseUri,
+          '/api/openapi.json',
+          token: 'view-token',
+          oldApiVersion: '2.6.0',
+        );
+        expect(response.statusCode, HttpStatus.upgradeRequired);
+        expect(response.body['code'], 'release_required');
+        expect(response.body['message'], contains('Skotiq 2.5.0'));
+        expect(response.body['message'], contains('reload the dashboard'));
+      },
+    );
+
+    test('a stale dashboard WebSocket cannot bypass release checks', () async {
+      final response = await _rawSocketRequest(baseUri, [
+        'GET /events?apiVersion=2.6.0 HTTP/1.1',
+        'Host: 127.0.0.1:${server.actualPort}',
+        'Connection: Upgrade',
+        'Upgrade: websocket',
+        'Sec-WebSocket-Version: 13',
+        'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+      ]);
+      expect(response.statusCode, HttpStatus.upgradeRequired);
+      expect(response.body['code'], 'release_required');
     });
 
     test('refuses a WebSocket of another release before auth', () async {
@@ -809,6 +844,7 @@ Future<_TestResponse> _request(
   String method = 'GET',
   String? token,
   String? release,
+  String? oldApiVersion,
   String? requestId,
   Map<String, dynamic>? body,
 }) async {
@@ -819,6 +855,9 @@ Future<_TestResponse> _request(
   }
   if (release != null) {
     request.headers.set(LinkVersion.header, release);
+  }
+  if (oldApiVersion != null) {
+    request.headers.set('x-skotiq-api-version', oldApiVersion);
   }
   if (token != null) {
     request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');

@@ -228,8 +228,8 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
 
   /// Refuses a request from a client of another Skotiq release
   /// ([LinkVersion]). `/api/info` is always answered: a client reads the
-  /// host's release there before it links. A request naming no release (a
-  /// script, the run-watch page) is not a linked client's and goes through.
+  /// host's release there before it links. Unversioned scripts and run-watch
+  /// retain API access, but the old app protocol's version marker is refused.
   Middleware _linkVersionMiddleware() {
     return (innerHandler) {
       return (request) async {
@@ -240,10 +240,23 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
             (isWebSocket
                 ? request.url.queryParameters[LinkVersion.queryParameter]
                 : null);
-        if (clientRelease == null ||
-            !(path.startsWith('/api/') || isWebSocket) ||
+        if (!(path.startsWith('/api/') || isWebSocket) ||
             path == SystemApi.info.route.path) {
           return innerHandler(request);
+        }
+        if (clientRelease == null) {
+          final oldApiVersion =
+              request.headers['x-skotiq-api-version'] ??
+              (isWebSocket ? request.url.queryParameters['apiVersion'] : null);
+          if (oldApiVersion == null) return innerHandler(request);
+          final hostRelease = container.read(appVersionProvider).version;
+          return jsonUpgradeRequired({
+            'code': 'release_required',
+            'message':
+                'This client does not report its Skotiq release. '
+                'Update this device to Skotiq $hostRelease, or reload the dashboard.',
+            'hostVersion': hostRelease,
+          });
         }
         final mismatch = LinkVersion.check(
           host: container.read(appVersionProvider).version,
