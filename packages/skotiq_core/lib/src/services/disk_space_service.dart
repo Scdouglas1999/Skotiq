@@ -1,6 +1,7 @@
 import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'logging_service.dart';
 
@@ -146,14 +147,14 @@ class DiskSpaceService {
     // Get-PSDrive returns Used + Free in bytes. We script it explicitly to a
     // simple `Free<TAB>Used` line so parsing is robust against locale-dependent
     // table formatting (German Windows etc.).
-    final result = await Process.run('powershell', [
+    final result = await _runDiskSpaceProcess('powershell', [
       '-NoProfile',
       '-NonInteractive',
       '-Command',
       // Trailing newline avoided; use Out-String -NoNewline isn't 5.1-safe.
       '\$d = Get-PSDrive -Name $driveLetter -ErrorAction Stop; '
           'Write-Output ("\$(\$d.Free)`t\$(\$d.Used)")',
-    ], runInShell: false);
+    ]);
 
     if (result.exitCode != 0) {
       throw DiskSpaceException(
@@ -188,7 +189,7 @@ class DiskSpaceService {
   ///   /dev/disk1s1 488245288 123456 365432 26% /
   /// We parse line 2.
   Future<DiskSpaceInfo> _queryPosix(String path) async {
-    final result = await Process.run('df', ['-Pk', path], runInShell: false);
+    final result = await _runDiskSpaceProcess('df', ['-Pk', path]);
 
     if (result.exitCode != 0) {
       throw DiskSpaceException(
@@ -238,3 +239,10 @@ class DiskSpaceService {
     );
   }
 }
+
+// Process.run starts its child synchronously on the calling isolate. Keep the
+// native launch handshake off the UI while each query still gets a fresh result.
+Future<ProcessResult> _runDiskSpaceProcess(
+  String executable,
+  List<String> arguments,
+) => Isolate.run(() => Process.run(executable, arguments, runInShell: false));

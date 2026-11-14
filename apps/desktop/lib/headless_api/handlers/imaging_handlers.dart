@@ -408,7 +408,6 @@ class ImagingHandlers implements RouteSource {
   }
 
   Future<Response> handleSaveFitsFromLastCapture(Request request) async {
-    _logInfo('[API] POST /api/imaging/save-fits-from-capture');
     final payload = await readJsonObject(request);
     final deviceId = requireString(payload, 'deviceId');
     final headerJson = requireObject(payload, 'headerData');
