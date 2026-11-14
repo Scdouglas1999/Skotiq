@@ -70,10 +70,72 @@ Evidence: `rt/fresh-restore-result.json` and `rt/restored-clean/integrity.json`.
 Backups preserve database metadata and image references; they do not embed the
 image files themselves.
 
-All app drives use isolated profiles, loopback-only network namespaces,
+The release audit drives above use isolated profiles, loopback-only network namespaces,
 simulated/scripted devices, and separate Xvfb displays. The GUI smoke uses the
 host-built bundle. The Bookworm artifact is verified separately in its intended
 Debian runtime; this Arch host lacks the LibRaw dependency `libjpeg.so.62`.
+
+## Desktop location and weather follow-up — 2026-11-14 UTC
+
+Source commits `bb445811d` and `b3c9cce8d` add bounded location detection,
+automatic initialization of an unset host site, edit/host-switch cancellation,
+forecast attribution, and separate infrared-map labeling. A fresh host with no
+saved coordinates acquired and persisted its approximate internet location
+1.62 seconds after process start. This was measured on the built `b3c9cce8d`
+binary with normal networking and scratch storage; database integrity passed.
+It does not establish GPS accuracy. Saved sites and incomplete manual edits
+are protected by the startup and transaction regressions.
+
+Location checks passed: 30 core and 25 app startup/settings regressions,
+54 location UI tests, and the default 332-test planetarium suite. The optional
+host pixel golden was not re-baselined. Evidence is under
+`~/.cache/ns-untangle/notes/codex-location-startup/`, `codex-location-ui/`, and
+`codex-release-compat-tools/location-fix/`.
+
+Live weather comparison then exposed a numerical source problem beyond the
+labeling correction: the default Open-Meteo/HRRR series returned 8% at a US site
+where the same-time local NWS grid returned 87% and MET Norway returned 96.1%.
+The requests used the same coordinates and UTC hour. No percentage or timezone
+conversion explained the disagreement. A nearby official overcast observation
+corroborated the reported conditions without being converted to a percentage.
+
+Commit `5da277a840548fb619f8a2193f86f75ec906cdea` uses the NWS point/grid forecast
+where covered, retaining Open-Meteo and MET Norway as global fallbacks. Current
+weather, planning, and the current-cloud API use the same source-selection
+policy. NWS values are selected from their actual UTC validity intervals;
+missing, malformed, expired, or out-of-range data never becomes zero cloud.
+Existing hardware precedence, safety thresholds, and action policy are unchanged.
+
+Verification for that commit:
+
+- 18 NWS tests, 7 shared-source tests, and 30 provider/planning/weather-trust
+  tests passed. The 8%-instead-of-87% provider regression was observed failing
+  before the integration, then passed. An expired-NWS fallback regression was
+  also observed failing before its correction.
+- 22 desktop weather-handler tests and 39 protocol wire tests passed. Current
+  API tests reject stale weekly samples and preserve the actual source/time.
+- Architecture, bridge-boundary, behavioral, placeholder, fail-closed, API
+  contract, and route-policy gates passed. Production analysis reported zero
+  errors and warnings, with 658 existing informational findings.
+- The Linux desktop build passed in 87.4 seconds at the exact commit above.
+  The normal desktop instance was relaunched with host networking and desktop
+  services, using its separate simulator profile. All seven simulator devices
+  reconnected. Its window was confirmed present through desktop inventory.
+- After applying the user's supplied town as an approximate town-center site,
+  the live current-cloud API returned 85%, matching that point's NWS grid. The
+  hourly endpoint identified NWS and returned 170 future hourly samples. The
+  user's exact observatory coordinates were not established. The GUI's numerical
+  rendering was covered by provider/widget checks; no new desktop screenshot
+  verification is claimed because accessibility access was unavailable.
+
+Source comparisons, red/green logs, gates, build metadata, and the live API
+result are in `~/.cache/ns-untangle/notes/codex-weather-accuracy/`,
+`codex-weather-diagnosis/recheck/`, and `codex-weather-endpoint/`. Raw network
+captures contain private site coordinates and remain local evidence.
+
+These follow-ups produced a new host-built desktop bundle only. The portable
+Linux archive and Android APK listed below were not rebuilt with these changes.
+Windows runtime and physical-rig verification remain outstanding.
 
 ## Audit and artifact gates
 
