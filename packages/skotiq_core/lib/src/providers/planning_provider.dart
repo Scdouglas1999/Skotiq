@@ -13,7 +13,7 @@ import '../models/planning/project_progress.dart';
 import '../models/scheduler/integration_goal.dart';
 import '../services/planning/forecast_planning_service.dart';
 import '../services/planning/project_service.dart';
-import '../services/weather/providers/openmeteo_cloud_provider.dart';
+import '../services/weather/location_cloud_forecast_service.dart';
 import '../services/weather/radar_provider.dart';
 import '../utils/resilient_poll_stream.dart';
 import 'database_provider.dart';
@@ -27,7 +27,7 @@ import 'scheduler/integration_goal_service_provider.dart';
 import '../services/logging_service.dart';
 
 /// Riverpod plumbing for the multi-night planner: [ProjectService] /
-/// [ForecastPlanningService] and the [OpenMeteoCloudProvider] forecast feed,
+/// [ForecastPlanningService] and the [LocationCloudForecastService] forecast feed,
 /// wired into the provider graph the planner UI consumes.
 ///
 /// Fail-closed throughout: a missing observing location throws (matching the
@@ -255,7 +255,7 @@ final activeProjectProgressProvider =
       return ref.watch(projectProgressProvider(activeId).future);
     });
 
-/// Factory seam that builds the [OpenMeteoCloudProvider] used by
+/// Factory seam that builds the [LocationCloudForecastService] used by
 /// [weekForecastProvider].
 ///
 /// In production this returns a provider backed by the default
@@ -264,8 +264,8 @@ final activeProjectProgressProvider =
 /// network access — including the error path that exercises the fail-closed
 /// contract.
 final planningCloudProviderFactoryProvider =
-    Provider<OpenMeteoCloudProvider Function()>((ref) {
-      return OpenMeteoCloudProvider.new;
+    Provider<LocationCloudForecastService Function()>((ref) {
+      return LocationCloudForecastService.new;
     });
 
 /// Immutable (latitude, longitude) key for the cloud-fetch provider family.
@@ -294,7 +294,7 @@ class ForecastSite {
 ///
 /// Deliberately decoupled from the capture/goal/active-project triggers: a
 /// seven-night forecast does not change frame-to-frame, and a fetch tied to
-/// arriving subs would exhaust the free Open-Meteo endpoint's rate limit and
+/// arriving subs would exhaust the forecast endpoints' rate limits and
 /// leave the strip "unavailable". [weekForecastProvider] does the
 /// capture/goal-driven candidate recompute and re-reads this cached
 /// [RadarFetchResult].

@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import '../models/weather/weather_models.dart';
 import '../models/weather/cloud_cover_forecast.dart';
 
-import '../services/weather/transient_http_retry.dart';
-import '../services/weather/providers/metno_cloud_provider.dart';
+import '../services/weather/location_cloud_forecast_service.dart';
 import '../services/weather/weather_radar_service.dart';
 import '../services/weather/cloud_motion_analyzer.dart';
 import '../services/weather/weather_alert_service.dart';
@@ -429,101 +426,24 @@ final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
   return (await ref.watch(cloudCoverForecastProvider.future))?.percent;
 });
 
-/// Model cloud cover with its source and sample time; not a sky observation.
-final cloudCoverForecastProvider = FutureProvider<CloudCoverForecast?>((
-  ref,
-) async {
-  final observerLocation = ref.watch(appObserverLocationProvider);
-  if (observerLocation == null) {
-    return null;
-  }
+/// The location-aware source policy shared by current and hourly forecasts.
+final locationCloudForecastServiceProvider =
+    Provider<LocationCloudForecastService>((ref) {
+      final service = LocationCloudForecastService();
+      ref.onDispose(service.dispose);
+      return service;
+    });
 
-  final latitude = observerLocation.latitude;
-  final longitude = observerLocation.longitude;
-
-  // Skip if location not set
-  if (latitude == 0.0 && longitude == 0.0) {
-    return null;
-  }
-
-  try {
-    // Use Open-Meteo API directly for cloud cover
-    final uri = Uri.parse('https://api.open-meteo.com/v1/forecast').replace(
-      queryParameters: {
-        'latitude': latitude.toString(),
-        'longitude': longitude.toString(),
-        'current': 'cloud_cover',
-        'timezone': 'UTC',
-      },
-    );
-
-    final client = http.Client();
-    try {
-      // Retry transient 5xx / dropped-TLS blips (Open-Meteo's single host
-      // degrades that way under load) before giving up for this fetch.
-      final response = await getWithTransientRetry(client, uri);
-
-      if (response.statusCode != 200) {
-        Log.warning(
-          'Cloud cover fetch failed: ${response.statusCode}, '
-          'trying MET Norway fallback',
-          source: 'Weather',
-        );
-        // Open-Meteo returned a non-200 even after transient retries; fall back
-        // to MET Norway's independent host before giving up. The client is kept
-        // alive by the enclosing finally until this completes.
-        final fallback = await MetNoCloudProvider.fetchCurrentCloudForecast(
-          client,
-          latitude,
-          longitude,
-        );
-        if (fallback != null) {
-          Log.debug(
-            'Forecast cloud cover: ${fallback.percent}% (source: MET Norway)',
-            source: 'Weather',
-          );
-          return fallback;
-        }
-        return null;
-      }
-
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      return CloudCoverForecast.fromOpenMeteo(json);
-    } finally {
-      client.close();
-    }
-  } catch (e) {
-    Log.error(
-      'Error fetching cloud cover: $e, trying MET Norway fallback',
-      source: 'Weather',
-    );
-    // Open-Meteo threw (network error, even after transient retries). The
-    // original client was already closed by the inner finally, so use a fresh
-    // one for the MET Norway fallback.
-    final fallbackClient = http.Client();
-    try {
-      final fallback = await MetNoCloudProvider.fetchCurrentCloudForecast(
-        fallbackClient,
-        latitude,
-        longitude,
+/// Forecast cloud cover with its source and valid time, independent of imagery.
+final cloudCoverForecastProvider = FutureProvider<CloudCoverForecast?>((ref) {
+  final location = ref.watch(appObserverLocationProvider);
+  if (location == null) return null;
+  return ref
+      .watch(locationCloudForecastServiceProvider)
+      .fetchCurrentCloudForecast(
+        latitude: location.latitude,
+        longitude: location.longitude,
       );
-      if (fallback != null) {
-        Log.debug(
-          'Forecast cloud cover: ${fallback.percent}% (source: MET Norway)',
-          source: 'Weather',
-        );
-        return fallback;
-      }
-    } catch (fallbackError) {
-      Log.error(
-        'MET Norway fallback also failed: $fallbackError',
-        source: 'Weather',
-      );
-    } finally {
-      fallbackClient.close();
-    }
-    return null;
-  }
 });
 
 /// Provider for radar frames that triggers fetching automatically.

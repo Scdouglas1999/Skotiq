@@ -5,10 +5,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/weather_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+
+class _CurrentCloudService implements LocationCloudForecastService {
+  _CurrentCloudService(this.result);
+
+  final Future<CloudCoverForecast?> Function() result;
+  final requests = <(double, double)>[];
+
+  @override
+  Future<CloudCoverForecast?> fetchCurrentCloudForecast({
+    required double latitude,
+    required double longitude,
+  }) {
+    requests.add((latitude, longitude));
+    return result();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   group('WeatherHandlers', () {
@@ -184,6 +204,121 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       final body = jsonDecode(await response.readAsString()) as Map;
       expect((body['currentAlert'] as Map)['distanceKm'], isNull);
+    });
+  });
+
+  group('WeatherHandlers current cloud forecast', () {
+    const latitude = 39.95;
+    const longitude = -75.16;
+    final sampleTime = DateTime.utc(2026, 11, 14, 3);
+    var weekReads = 0;
+
+    Future<(Response, Map<String, dynamic>, _CurrentCloudService)> fetch(
+      Future<CloudCoverForecast?> Function() result,
+    ) async {
+      final service = _CurrentCloudService(result);
+      final container = ProviderContainer(
+        overrides: [
+          locationCloudForecastServiceProvider.overrideWithValue(service),
+          weekForecastCloudProvider(
+            const ForecastSite(latitude, longitude),
+          ).overrideWith((ref) async {
+            weekReads++;
+            throw StateError(
+              'A weekly sample cannot answer current cloud cover',
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      final response = await translateHandlerErrors(
+        WeatherHandlers(container).handleGetCloudCover(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/weather/cloud-cover?'
+              'lat=$latitude&lon=$longitude',
+            ),
+          ),
+        ),
+      );
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      return (response, body, service);
+    }
+
+    setUp(() => weekReads = 0);
+
+    test(
+      'uses the current site forecast and preserves source and valid time',
+      () async {
+        final before = DateTime.now().millisecondsSinceEpoch;
+        final (response, body, service) = await fetch(
+          () async => CloudCoverForecast(
+            percent: 87,
+            source: 'NOAA/NWS',
+            validAt: sampleTime,
+          ),
+        );
+        final after = DateTime.now().millisecondsSinceEpoch;
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(body, {
+          'hasData': true,
+          'latitude': latitude,
+          'longitude': longitude,
+          'source': 'NOAA/NWS',
+          'cloudCoverPercent': 87.0,
+          'timestamp': sampleTime.millisecondsSinceEpoch,
+          'fetchedAt': inInclusiveRange(before, after),
+        });
+        expect(service.requests, [(latitude, longitude)]);
+        expect(weekReads, 0);
+      },
+    );
+
+    test(
+      'no current interval cannot become a stale nearest-week value',
+      () async {
+        final (response, body, service) = await fetch(() async => null);
+
+        expect(response.statusCode, HttpStatus.badGateway);
+        expect(body['error'], 'cloud_cover_fetch_failed');
+        expect(body.containsKey('cloudCoverPercent'), isFalse);
+        expect(body.containsKey('timestamp'), isFalse);
+        expect(service.requests, [(latitude, longitude)]);
+        expect(weekReads, 0);
+      },
+    );
+
+    test(
+      'an undated estimate is unavailable rather than stamped as current',
+      () async {
+        final (response, body, _) = await fetch(
+          () async => const CloudCoverForecast(
+            percent: 8,
+            source: 'Open-Meteo',
+            validAt: null,
+          ),
+        );
+
+        expect(response.statusCode, HttpStatus.badGateway);
+        expect(body['error'], 'cloud_cover_fetch_failed');
+        expect(body.containsKey('cloudCoverPercent'), isFalse);
+        expect(body.containsKey('timestamp'), isFalse);
+      },
+    );
+
+    test('a failed current lookup keeps the upstream failure status', () async {
+      final (response, body, _) = await fetch(
+        () async =>
+            throw const SocketException('forecast upstream unavailable'),
+      );
+
+      expect(response.statusCode, HttpStatus.badGateway);
+      expect(body['error'], 'cloud_cover_fetch_failed');
+      expect(body.containsKey('cloudCoverPercent'), isFalse);
+      expect(weekReads, 0);
     });
   });
 

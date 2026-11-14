@@ -34,7 +34,7 @@ import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/planning_provider.dart';
-import 'package:skotiq_core/src/services/weather/providers/openmeteo_cloud_provider.dart';
+import 'package:skotiq_core/src/services/weather/location_cloud_forecast_service.dart';
 import 'package:skotiq_core/src/providers/planning/project_service_provider.dart';
 import 'package:skotiq_core/src/providers/scheduler/integration_goal_service_provider.dart';
 
@@ -142,6 +142,9 @@ void main() {
     double cloudCoverPercent = 0.0,
   }) {
     return MockClient((request) async {
+      if (request.url.host == 'api.weather.gov') {
+        return http.Response('{}', 404);
+      }
       final times = <String>[];
       final cover = <double>[];
       for (var i = 0; i < hours; i++) {
@@ -163,7 +166,7 @@ void main() {
   }
 
   /// An http.Client that always fails the request, to exercise the fail-closed
-  /// path. OpenMeteoCloudProvider catches ClientException and returns an error
+  /// path. LocationCloudForecastService catches ClientException and returns an error
   /// RadarFetchResult, which the forecast service maps to unavailable.
   MockClient failingClient() {
     return MockClient((request) async {
@@ -172,7 +175,7 @@ void main() {
   }
 
   ProviderContainer makeContainer({
-    OpenMeteoCloudProvider Function()? cloudFactory,
+    LocationCloudForecastService Function()? cloudFactory,
   }) {
     final container = ProviderContainer(
       overrides: [
@@ -437,7 +440,7 @@ void main() {
     test('throws StateError when the observing location is unset', () async {
       // No location seeded → (0,0) guard fires.
       final container = makeContainer(
-        cloudFactory: () => OpenMeteoCloudProvider(
+        cloudFactory: () => LocationCloudForecastService(
           httpClient: cloudClient(start: DateTime.now().toUtc()),
         ),
       );
@@ -455,7 +458,7 @@ void main() {
         await seedLocation();
         final container = makeContainer(
           cloudFactory: () =>
-              OpenMeteoCloudProvider(httpClient: failingClient()),
+              LocationCloudForecastService(httpClient: failingClient()),
         );
 
         // Keep the autoDispose forecast alive across its async build.
@@ -494,7 +497,7 @@ void main() {
 
       // A healthy, fully-clear week-long feed anchored to "now".
       final container = makeContainer(
-        cloudFactory: () => OpenMeteoCloudProvider(
+        cloudFactory: () => LocationCloudForecastService(
           httpClient: cloudClient(
             start: DateTime.now().toUtc().subtract(const Duration(days: 1)),
             cloudCoverPercent: 0.0,
@@ -542,7 +545,7 @@ void main() {
         setupContainer.dispose();
 
         final container = makeContainer(
-          cloudFactory: () => OpenMeteoCloudProvider(
+          cloudFactory: () => LocationCloudForecastService(
             httpClient: cloudClient(
               start: DateTime.now().toUtc().subtract(const Duration(days: 1)),
               cloudCoverPercent: 0.0,
