@@ -501,7 +501,14 @@
       },
       "darkness_weight": 0.15,
       "finish_iteration_on_switch": true,
-      "horizon_profile": null,
+      "horizon_profile": {
+        "samples": [
+          {
+            "alt": 30.0,
+            "az": 0.0
+          }
+        ]
+      },
       "max_conditions_score_age_secs": 300,
       "min_moon_separation_deg": null,
       "min_score_to_run": 30.0,

@@ -16,20 +16,23 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
       logSafely(
         _ref,
         (l) => l.warning(
-          'Camera capabilities unknown at connect; applying the profile gain '
-          'and offset: $e',
+          'Camera capabilities unknown at connect; keeping the camera\'s '
+          'current gain or ISO and offset: $e',
           source: 'DeviceService',
         ),
       );
     }
-    final keepsOwnIso = capabilities?.isoSpeeds.isNotEmpty ?? false;
-    final takesOffset = capabilities?.canSetOffset ?? true;
+    final takesGain =
+        capabilities != null &&
+        capabilities.canSetGain &&
+        capabilities.isoSpeeds.isEmpty;
+    final takesOffset = capabilities?.canSetOffset ?? false;
 
     // Apply active profile's cooling target temperature if available
     // and auto-start cooling if coolOnConnect is enabled
     try {
       final activeProfile = _ref.read(activeEquipmentProfileProvider);
-      if (activeProfile?.defaultGain != null && !keepsOwnIso) {
+      if (activeProfile?.defaultGain != null && takesGain) {
         try {
           await _backend.cameraSetGain(deviceId, activeProfile!.defaultGain!);
         } catch (e) {

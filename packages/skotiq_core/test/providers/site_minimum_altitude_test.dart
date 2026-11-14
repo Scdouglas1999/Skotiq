@@ -88,6 +88,7 @@ void main() {
       expect(floor.followsHorizon, isFalse);
       expect(floor.atAzimuth(250), 25);
       expect(floor.lowestDeg, 25);
+      expect(floor.denseSamples(), [(azimuth: 0.0, altitude: 25.0)]);
     });
 
     test('a samples-only imported skyline does not take the flat shortcut', () {

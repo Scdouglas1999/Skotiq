@@ -63,10 +63,11 @@ void main() {
 
   tearDown(() => events.close());
 
-  Future<void> connect(CameraCapabilities caps) async {
-    when(
-      () => backend.getCameraCapabilities(_deviceId),
-    ).thenAnswer((_) async => caps);
+  Future<void> connect(CameraCapabilities? caps) async {
+    when(() => backend.getCameraCapabilities(_deviceId)).thenAnswer((_) async {
+      if (caps == null) throw StateError('Camera capability read failed');
+      return caps;
+    });
     final container = ProviderContainer(
       overrides: [
         inMemoryDatabaseOverride(),
@@ -115,5 +116,28 @@ void main() {
     );
     verify(() => backend.cameraSetGain(_deviceId, 100)).called(1);
     verify(() => backend.cameraSetOffset(_deviceId, 50)).called(1);
+  });
+
+  test(
+    'failed capability reads preserve the camera gain or ISO and offset',
+    () async {
+      await connect(null);
+      verifyNever(() => backend.cameraSetGain(any(), any()));
+      verifyNever(() => backend.cameraSetOffset(any(), any()));
+    },
+  );
+
+  test('a fixed-gain camera is not sent profile gain or offset', () async {
+    await connect(
+      const CameraCapabilities(
+        maxWidth: 1920,
+        maxHeight: 1080,
+        bitDepth: 16,
+        canSetGain: false,
+        canSetOffset: false,
+      ),
+    );
+    verifyNever(() => backend.cameraSetGain(any(), any()));
+    verifyNever(() => backend.cameraSetOffset(any(), any()));
   });
 }
