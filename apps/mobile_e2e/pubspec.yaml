@@ -26,6 +26,8 @@ dev_dependencies:
   shared_preferences: ^2.2.2
   skotiq_core:
     path: ../../packages/skotiq_core
+  skotiq_remote_protocol:
+    path: ../../packages/skotiq_remote_protocol
   skotiq_mobile:
     path: ../mobile
   skotiq_desktop:
