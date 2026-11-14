@@ -22,7 +22,7 @@ pub fn prepare_image_for_display(
     let (display_data, width, height, color_type) = if is_color {
         // Why: defaults to RGGB (most common OSC layout —
         // QHY/ZWO/Atik OSC all use RGGB). User-overridable per camera.
-        let pattern = bayer_pattern.unwrap_or(BayerPattern::RGGB);
+        let pattern = bayer_pattern.unwrap_or(BayerPattern::Rggb);
 
         let rgb_image = debayer(
             &image_data.data,
@@ -84,7 +84,7 @@ pub(crate) fn emit_preview<I>(
     let is_color = image_data.sensor_type.as_deref() == Some("Color")
         && !matches!(
             image_data.color_filter,
-            Some(skotiq_device::BayerPattern::XTrans(_))
+            Some(skotiq_cfa::ColorFilterArray::XTrans(_))
         );
     let bayer_pattern = image_data.bayer_cell();
 

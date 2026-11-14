@@ -85,6 +85,9 @@ impl DeviceDriver for ZwoCamera {
             return Err(check_asi_error(result).unwrap_err());
         }
         tracing::debug!("Camera initialized successfully");
+        self.has_high_speed_mode = self
+            .control_caps(&sdk, ASIControlType::ASI_HIGH_SPEED_MODE)
+            .is_ok();
 
         // Full frame, bin 1, in the deepest raw format the camera lists.
         if let Some(info) = self.camera_info.clone() {
@@ -122,6 +125,7 @@ impl DeviceDriver for ZwoCamera {
             .ok()
             .map(|(min, max, _)| (min, max))
             .filter(|&(min, max)| min > 0 && max >= min);
+        self.read_readout_mode(&sdk);
         self.log_connect_settings(&sdk);
 
         // The camera's own gain and offset, under the lock connect holds.
@@ -497,7 +501,7 @@ impl CameraDriver for ZwoCamera {
                 height,
                 data,
                 self.core.sensor_info.bit_depth,
-                bayer_pattern,
+                bayer_pattern.map(Into::into),
             )
         }
         .into_image())
@@ -636,12 +640,46 @@ impl CameraDriver for ZwoCamera {
     }
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
-        // ZWO doesn't have readout modes
-        Ok(Vec::new())
+        if !self.has_high_speed_mode {
+            return Ok(Vec::new());
+        }
+        Ok(READ_MODES
+            .iter()
+            .zip(0..)
+            .map(|(name, index)| ReadoutMode {
+                name: name.to_string(),
+                description: name.to_string(),
+                index,
+                gain_min: None,
+                gain_max: None,
+                offset_min: None,
+                offset_max: None,
+            })
+            .collect())
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
-        Err(DriverError::NotSupported)
+    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
+        self.core.require_connected()?;
+        if !self.has_high_speed_mode {
+            return Err(DriverError::NotSupported);
+        }
+        if usize::try_from(mode.index).map_or(true, |index| index >= READ_MODES.len()) {
+            return Err(DriverError::InvalidParameter(format!(
+                "The {} has read modes {}; mode {} was requested",
+                self.camera_name(),
+                READ_MODES.join(" and "),
+                mode.index
+            )));
+        }
+        let sdk = self.sdk().await?;
+        self.set_control(
+            &sdk,
+            ASIControlType::ASI_HIGH_SPEED_MODE,
+            mode.index as c_long,
+            false,
+        )?;
+        self.read_readout_mode(&sdk);
+        Ok(())
     }
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {

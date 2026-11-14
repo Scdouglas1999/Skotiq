@@ -195,8 +195,11 @@ const _dartPackages = <String, _DartPackage>{
 
 /// The layering of the Rust workspace (`native/skotiq_native`), lowest first.
 const _rustCrates = <String, Set<String>>{
-  'skotiq_device': {},
-  'skotiq_imaging': {},
+  // The color filter array: what a camera reports and what the imaging code
+  // demosaics, one type below both.
+  'skotiq_cfa': {},
+  'skotiq_device': {'skotiq_cfa'},
+  'skotiq_imaging': {'skotiq_cfa'},
   'skotiq_phd2': {},
   'skotiq_updater': {},
   'skotiq_platesolve': {'skotiq_imaging'},
@@ -206,11 +209,17 @@ const _rustCrates = <String, Set<String>>{
   // An INDI camera sends its frames as FITS or XISF files, which the imaging
   // crate alone decodes, as the native drivers' camera raw files.
   'skotiq_indi': {'skotiq_device', 'skotiq_imaging'},
-  'skotiq_native': {'skotiq_device', 'skotiq_imaging'},
-  'skotiq_sequencer': {'skotiq_device', 'skotiq_imaging', 'skotiq_platesolve'},
+  'skotiq_native': {'skotiq_cfa', 'skotiq_device', 'skotiq_imaging'},
+  'skotiq_sequencer': {
+    'skotiq_cfa',
+    'skotiq_device',
+    'skotiq_imaging',
+    'skotiq_platesolve',
+  },
   'skotiq_bridge': {
     'skotiq_alpaca',
     'skotiq_ascom',
+    'skotiq_cfa',
     'skotiq_device',
     'skotiq_imaging',
     'skotiq_indi',

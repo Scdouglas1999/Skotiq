@@ -154,7 +154,7 @@ pub async fn sample_frame_context(
         Some(s) if s.eq_ignore_ascii_case("Monochrome") || s.eq_ignore_ascii_case("Mono") => None,
         _ => image_data
             .color_filter
-            .map(|pattern| pattern.fits_name())
+            .map(|pattern| pattern.letters())
             .or(facts.bayer_pattern.map(str::to_string)),
     };
 

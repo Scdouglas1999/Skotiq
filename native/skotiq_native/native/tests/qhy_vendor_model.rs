@@ -198,7 +198,11 @@ mod vendor_model {
             (600, 460),
             "the effective area, not the chip"
         );
-        assert_eq!(info.bayer_pattern, Some(BayerPattern::Rggb), "BAYER_RG");
+        assert_eq!(
+            info.bayer_pattern,
+            Some(BayerPattern::Rggb.into()),
+            "BAYER_RG"
+        );
         let log = model().log();
         assert!(log.contains("SetQHYCCDDebayerOnOff(false)"), "{log}");
         assert!(log.contains("SetQHYCCDBitsMode(16)"), "{log}");
@@ -223,7 +227,7 @@ mod vendor_model {
             (16, 8),
             "the frame starts at the effective area"
         );
-        assert_eq!(frame.bayer_pattern, Some(BayerPattern::Rggb));
+        assert_eq!(frame.bayer_pattern, Some(BayerPattern::Rggb.into()));
         let log = model().log();
         assert!(
             log.contains("ExpQHYCCDSingleFrame 400000us bin 1 window 16,8 600x460"),
@@ -251,7 +255,7 @@ mod vendor_model {
         assert_eq!(sensor_origin(&frame), (19, 10));
         assert_eq!(
             frame.bayer_pattern,
-            Some(BayerPattern::Grbg),
+            Some(BayerPattern::Grbg.into()),
             "RGGB seen one column on"
         );
 
@@ -340,7 +344,7 @@ mod vendor_model {
         assert_eq!(status.cooler_power, None);
         assert_eq!(
             camera.get_sensor_info().bayer_pattern,
-            Some(BayerPattern::Gbrg),
+            Some(BayerPattern::Gbrg.into()),
             "BAYER_GB"
         );
         let frame = take(&mut camera, light(0.05, 1, None)).await;

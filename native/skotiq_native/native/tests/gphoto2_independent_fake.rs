@@ -255,7 +255,7 @@ fn a_timed_frame_records_the_speed_and_iso_the_camera_used() {
             frame.metadata.exposure_time
         );
         assert_eq!(frame.metadata.gain, 1600);
-        assert_eq!(frame.bayer_pattern, Some(BayerPattern::Rggb));
+        assert_eq!(frame.bayer_pattern, Some(BayerPattern::Rggb.into()));
         assert_eq!((frame.width, frame.height), (64, 48));
         assert_eq!(camera.get_sensor_info().pixel_size_x, 6.54);
         assert!(f.log().contains("capture 0.5"), "{}", f.log());

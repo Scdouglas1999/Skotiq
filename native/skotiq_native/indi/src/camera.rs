@@ -17,13 +17,27 @@
 use crate::client::IndiClient;
 use crate::error::{IndiError, IndiResult};
 use crate::protocol::{names::*, CcdFrameType};
+use crate::{IndiProperty, IndiPropertyType};
 
-/// Active CCD readout mode (element name + on-state).
+/// One read mode of a camera: an element of its driver's read-mode switch.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndiReadoutMode {
     pub element: String,
     pub label: String,
 }
+
+/// The switches INDI camera drivers list their read modes in (indi-3rdparty):
+/// Moravian `CCD_READ_MODE`, Player One `SENSOR_MODE`, FLI `CAMERA_MODES`,
+/// FLI Kepler `CAMERA_MODE`, the Alpaca and Seestar bridges `READOUT_MODE`,
+/// Apogee and QSI `READOUT_QUALITY`. A driver defines at most one of them.
+const READ_MODE_SWITCHES: [&str; 6] = [
+    CCD_READ_MODE,
+    SENSOR_MODE,
+    CAMERA_MODES,
+    CAMERA_MODE,
+    READOUT_MODE,
+    READOUT_QUALITY,
+];
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -427,68 +441,51 @@ impl IndiCamera {
         ))
     }
 
-    /// Available readout modes from `CCD_READ_MODE` or `CCD_READOUT_MODE`.
-    pub async fn get_readout_modes(&self) -> Vec<IndiReadoutMode> {
-        let client = self.client.read().await;
-        let property_name = if client.has_property(&self.device_name, CCD_READ_MODE).await {
-            CCD_READ_MODE
-        } else if client
-            .has_property(&self.device_name, CCD_READOUT_MODE)
-            .await
-        {
-            CCD_READOUT_MODE
-        } else {
-            return Vec::new();
-        };
-
-        let prop = match client.get_property(&self.device_name, property_name).await {
-            Some(p) => p,
-            None => return Vec::new(),
-        };
-
-        prop.elements
-            .iter()
-            .map(|element| IndiReadoutMode {
-                element: element.clone(),
-                label: prop.label.clone(),
-            })
-            .collect()
-    }
-
-    /// Active readout mode element name, if any.
-    pub async fn get_active_readout_mode(&self) -> Option<String> {
-        let client = self.client.read().await;
-        for property in [CCD_READ_MODE, CCD_READOUT_MODE] {
-            if !client.has_property(&self.device_name, property).await {
-                continue;
-            }
-            if let Some(prop) = client.get_property(&self.device_name, property).await {
-                for element in &prop.elements {
-                    if client
-                        .get_switch(&self.device_name, property, element)
-                        .await
-                        .unwrap_or(false)
-                    {
-                        return Some(element.clone());
-                    }
+    /// The driver's read-mode switch, the first of [`READ_MODE_SWITCHES`] it
+    /// defines as a switch.
+    pub async fn read_mode_switch(&self, client: &IndiClient) -> Option<IndiProperty> {
+        for name in READ_MODE_SWITCHES {
+            if let Some(property) = client.get_property(&self.device_name, name).await {
+                if property.property_type == IndiPropertyType::Switch {
+                    return Some(property);
                 }
             }
         }
         None
     }
 
-    /// Select readout mode by switch element name.
-    pub async fn set_readout_mode(&self, element: &str) -> IndiResult<()> {
+    /// The camera's read modes in the order its switch lists them; none for
+    /// a camera without a read-mode switch.
+    pub async fn get_readout_modes(&self) -> Vec<IndiReadoutMode> {
         let client = self.client.read().await;
-        let property = if client.has_property(&self.device_name, CCD_READ_MODE).await {
-            CCD_READ_MODE
-        } else {
-            CCD_READOUT_MODE
+        let Some(switch) = self.read_mode_switch(&client).await else {
+            return Vec::new();
         };
-        let mut client = self.client.write().await;
-        client
-            .set_switch_exclusive(&self.device_name, property, element)
-            .await
+        switch
+            .elements
+            .into_iter()
+            .zip(switch.element_labels)
+            .map(|(element, label)| IndiReadoutMode { element, label })
+            .collect()
+    }
+
+    /// The read mode in force: the element of the read-mode switch that is On.
+    pub async fn get_active_readout_mode(&self) -> Option<IndiReadoutMode> {
+        let client = self.client.read().await;
+        let switch = self.read_mode_switch(&client).await?;
+        for (element, label) in switch.elements.iter().zip(&switch.element_labels) {
+            if client
+                .get_switch(&self.device_name, &switch.name, element)
+                .await
+                == Some(true)
+            {
+                return Some(IndiReadoutMode {
+                    element: element.clone(),
+                    label: label.clone(),
+                });
+            }
+        }
+        None
     }
 
     pub async fn get_frame_type(&self) -> CcdFrameType {

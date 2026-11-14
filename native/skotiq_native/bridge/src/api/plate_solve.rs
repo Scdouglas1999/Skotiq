@@ -276,7 +276,7 @@ impl SolveHints {
             focal_length: self.focal_length_mm,
             pixel_size_x: self.pixel_size_um.map(|(x, _)| x),
             pixel_size_y: self.pixel_size_um.map(|(_, y)| y),
-            bayer_pattern: frame.color_filter.as_ref().map(|p| p.fits_name()),
+            bayer_pattern: frame.color_filter.as_ref().map(|p| p.letters()),
             ..Default::default()
         }
     }

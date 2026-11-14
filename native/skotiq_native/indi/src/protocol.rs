@@ -61,8 +61,8 @@ pub mod names {
     pub const CCD_OFFSET: &str = "CCD_OFFSET";
     pub const CCD_PIXEL_SIZE_X: &str = "CCD_PIXEL_SIZE_X";
     pub const CCD_PIXEL_SIZE_Y: &str = "CCD_PIXEL_SIZE_Y";
-    pub const CCD_READOUT_MODE: &str = "CCD_READOUT_MODE";
-    pub const CCD_READOUT_SPEED: &str = "CCD_READOUT_SPEED";
+    pub const CAMERA_MODE: &str = "CAMERA_MODE";
+    pub const CAMERA_MODES: &str = "CAMERA_MODES";
     pub const CCD_READ_MODE: &str = "CCD_READ_MODE";
     pub const CCD_SENSOR_TYPE: &str = "CCD_SENSOR_TYPE";
     pub const CCD_TEMPERATURE: &str = "CCD_TEMPERATURE";
@@ -80,7 +80,9 @@ pub mod names {
     pub const HEIGHT: &str = "HEIGHT";
     pub const HOR_BIN: &str = "HOR_BIN";
     pub const OFFSET: &str = "OFFSET";
+    pub const READOUT_MODE: &str = "READOUT_MODE";
     pub const READOUT_QUALITY: &str = "READOUT_QUALITY";
+    pub const SENSOR_MODE: &str = "SENSOR_MODE";
     pub const VER_BIN: &str = "VER_BIN";
     pub const WIDTH: &str = "WIDTH";
     /// `CCD_CONTROLS` elements, named in mixed case by the drivers that publish them.

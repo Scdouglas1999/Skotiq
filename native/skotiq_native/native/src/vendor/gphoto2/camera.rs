@@ -1119,7 +1119,7 @@ impl GPhoto2Camera {
         })?;
 
         self.adopt_decoded_depth(frame.bits_per_pixel, frame.white_level);
-        let bayer_pattern = crate::camera_core::mosaic_bayer_pattern(&frame.cfa);
+        let bayer_pattern = frame.cfa;
         let info = &mut self.core.sensor_info;
         info.saturation_adu =
             (frame.saturation_level < frame.white_level).then_some(frame.saturation_level);

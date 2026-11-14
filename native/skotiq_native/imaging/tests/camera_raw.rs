@@ -113,7 +113,12 @@ fn write_dng(path: &Path, width: usize, height: usize, letters: &str) {
         (277, SHORT, 1, Some(le16(1))),
         (278, LONG, 1, Some(le32(height as u32))),
         (279, LONG, 1, Some(le32(data.len() as u32))),
-        (33421, SHORT, 2, Some([le16(cell as u16), le16(cell as u16)].concat())),
+        (
+            33421,
+            SHORT,
+            2,
+            Some([le16(cell as u16), le16(cell as u16)].concat()),
+        ),
         (33422, BYTE, pattern.len() as u32, Some(pattern)),
         (50706, BYTE, 4, Some(vec![1, 4, 0, 0])),
         (50708, ASCII, 10, Some(b"Synthetic\0".to_vec())),
@@ -221,7 +226,13 @@ fn check_synthetic(letters: &str, width: usize, height: usize) {
     let read = read_image(&path).unwrap();
     assert_eq!(read.cfa, Some(cfa));
     assert_eq!(read.image.channels, 1);
-    let rgb = cfa.demosaic(&frame.data, width as u32, height as u32, Default::default());
+    let rgb = skotiq_imaging::demosaic(
+        &cfa,
+        &frame.data,
+        width as u32,
+        height as u32,
+        Default::default(),
+    );
     let at = |plane: &[u16]| plane[(height / 2) * width + width / 2] as i32 - BLACK as i32;
     assert!((at(&rgb.red) - 1000).abs() <= 7, "red {}", at(&rgb.red));
     assert!((at(&rgb.green) - 2000).abs() <= 7, "green {}", at(&rgb.green));
@@ -251,8 +262,20 @@ fn an_xtrans_dng_reads_as_its_linear_mosaic() {
 fn every_maker_signature_is_recognized_from_its_first_bytes() {
     let tiff_with_make = |order: &[u8], make: &[u8]| {
         let little = order == b"II";
-        let u16b = |v: u16| if little { v.to_le_bytes() } else { v.to_be_bytes() };
-        let u32b = |v: u32| if little { v.to_le_bytes() } else { v.to_be_bytes() };
+        let u16b = |v: u16| {
+            if little {
+                v.to_le_bytes()
+            } else {
+                v.to_be_bytes()
+            }
+        };
+        let u32b = |v: u32| {
+            if little {
+                v.to_le_bytes()
+            } else {
+                v.to_be_bytes()
+            }
+        };
         let mut head = order.to_vec();
         head.extend(u16b(42));
         head.extend(u32b(8));
@@ -324,7 +347,9 @@ fn camera_raw_darks_build_a_master() {
 
 #[test]
 fn every_maker_extension_is_a_frame_path() {
-    for ext in ["cr2", "cr3", "nef", "arw", "raf", "pef", "dng", "orf", "rw2"] {
+    for ext in [
+        "cr2", "cr3", "nef", "arw", "raf", "pef", "dng", "orf", "rw2",
+    ] {
         assert!(frame_extensions().contains(&ext), "{ext}");
         assert!(is_frame_path(Path::new(&format!("IMG_0001.{}", ext.to_uppercase()))), "{ext}");
     }
@@ -376,16 +401,36 @@ fn public_samples_match_independent_readers() {
                 failures.push(format!("{name}: {what}: {detail}"));
             }
         };
-        check("width", frame.width == want["width"], frame.width.to_string());
-        check("height", frame.height == want["height"], frame.height.to_string());
-        check("filter", frame.cfa.letters() == want["cfa"], frame.cfa.letters());
-        check("white level", frame.white_level == want["white_level"], frame.white_level.to_string());
+        check(
+            "width",
+            frame.width == want["width"],
+            frame.width.to_string(),
+        );
+        check(
+            "height",
+            frame.height == want["height"],
+            frame.height.to_string(),
+        );
+        check(
+            "filter",
+            frame.cfa.letters() == want["cfa"],
+            frame.cfa.letters(),
+        );
+        check(
+            "white level",
+            frame.white_level == want["white_level"],
+            frame.white_level.to_string(),
+        );
         check(
             "saturation level",
             frame.saturation_level == want["saturation_level"],
             frame.saturation_level.to_string(),
         );
-        check("mosaic", sha256(&mosaic) == want["mosaic_sha256"], sha256(&mosaic));
+        check(
+            "mosaic",
+            sha256(&mosaic) == want["mosaic_sha256"],
+            sha256(&mosaic),
+        );
         // rawpy reports black by color channel; every position's black must be
         // one of them, and the mean must agree.
         let channels: Vec<u64> =
@@ -397,9 +442,21 @@ fn public_samples_match_independent_readers() {
         );
 
         let meta = &frame.metadata;
-        check("iso", near(meta.iso.map(f64::from), &want["iso"], 0.0), format!("{:?}", meta.iso));
-        check("exposure", near(meta.exposure_seconds, &want["exposure_s"], 0.01), format!("{:?}", meta.exposure_seconds));
-        check("focal length", near(meta.focal_length_mm.map(f64::from), &want["focal_mm"], 0.01), format!("{:?}", meta.focal_length_mm));
+        check(
+            "iso",
+            near(meta.iso.map(f64::from), &want["iso"], 0.0),
+            format!("{:?}", meta.iso),
+        );
+        check(
+            "exposure",
+            near(meta.exposure_seconds, &want["exposure_s"], 0.01),
+            format!("{:?}", meta.exposure_seconds),
+        );
+        check(
+            "focal length",
+            near(meta.focal_length_mm.map(f64::from), &want["focal_mm"], 0.01),
+            format!("{:?}", meta.focal_length_mm),
+        );
         if let Some(lens) = &meta.lens {
             check("lens", want["lens"] == lens.as_str(), lens.clone());
         }
@@ -424,7 +481,11 @@ fn public_samples_match_independent_readers() {
                 Some(wall.to_string()),
             ),
         };
-        check("time", got.is_some() && got == expected, format!("{got:?}, expected {expected:?}"));
+        check(
+            "time",
+            got.is_some() && got == expected,
+            format!("{got:?}, expected {expected:?}"),
+        );
         let temperature = meta.temperature;
         // Olympus records its sensor in a tag LibRaw reads, Pentax in a
         // maker-note block Skotiq reads itself.
@@ -435,7 +496,10 @@ fn public_samples_match_independent_readers() {
         } else if !want["exif_camera_temperature"].is_null()
             && matches!(meta.maker(), skotiq_imaging::Maker::Canon | skotiq_imaging::Maker::Pentax)
         {
-            Some((TemperatureSource::CameraBody, &want["exif_camera_temperature"]))
+            Some((
+                TemperatureSource::CameraBody,
+                &want["exif_camera_temperature"],
+            ))
         } else {
             None
         };

@@ -81,7 +81,7 @@ impl FujifilmCamera {
                 bayer_pattern: if device_info.model.is_xtrans() {
                     None // X-Trans is not Bayer
                 } else {
-                    Some(BayerPattern::Rggb) // GFX uses standard Bayer
+                    Some(BayerPattern::Rggb.into()) // GFX uses standard Bayer
                 },
                 saturation_adu: None,
             },

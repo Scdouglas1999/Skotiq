@@ -198,6 +198,9 @@ pub struct IndiProperty {
     pub state: IndiPropertyState,
     pub perm: IndiPermission,
     pub elements: Vec<String>,
+    /// Each element's label, in the order of `elements`; the element's name
+    /// where its definition gives no label (INDI 1.7: `label` is optional).
+    pub element_labels: Vec<String>,
     /// Switch rule from `defSwitchVector` / `setSwitchVector` (`rule="..."`).
     pub switch_rule: Option<IndiSwitchRule>,
 }

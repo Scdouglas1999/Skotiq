@@ -7,9 +7,10 @@ use crate::camera_core::{
     image_dimension, unpack_samples, CameraCore, Frame, SampleLayout, SdkHandle,
 };
 use async_trait::async_trait;
+use skotiq_cfa::BayerPattern;
 use skotiq_device::camera::{
-    BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
-    ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+    CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ReadoutMode,
+    SensorInfo, SubFrame, VendorFeatures,
 };
 use skotiq_device::Vendor;
 use skotiq_device::{CameraDriver, DeviceDriver, DriverError, FilterWheelDriver};

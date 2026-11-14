@@ -258,7 +258,7 @@ impl AtikCamera {
             max_adu,
             bit_depth,
             color: cfa_offset.is_some(),
-            bayer_pattern: cfa_offset.map(|(x, y)| rggb_cell_at(x, y)),
+            bayer_pattern: cfa_offset.map(|(x, y)| rggb_cell_at(x, y).into()),
             saturation_adu: None,
         };
         self.facts = AtikFacts {
@@ -267,7 +267,11 @@ impl AtikCamera {
             gain: gain_control,
             cfa_offset,
         };
-        self.frame_bayer = self.core.sensor_info.bayer_pattern;
+        self.frame_bayer = self
+            .core
+            .sensor_info
+            .bayer_pattern
+            .and_then(|cfa| cfa.bayer());
         self.core.gain = gain;
         self.core.offset = offset;
         self.core.bin_x = 1;

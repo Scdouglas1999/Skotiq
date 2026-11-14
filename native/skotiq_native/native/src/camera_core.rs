@@ -12,9 +12,9 @@
 //! do not come from the cached state. A DSLR or mirrorless body fits with ISO
 //! as its gain, offset 0, bin 1 and no cooler.
 
+use skotiq_cfa::{BayerPattern, ColorFilterArray};
 use skotiq_device::camera::{
-    BayerPattern, CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame,
-    VendorFeatures,
+    CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame, VendorFeatures,
 };
 use skotiq_device::{CameraFile, DriverError, ExposureAbort};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -68,6 +68,10 @@ pub(crate) struct CameraCore {
     pub(crate) bin_x: i32,
     pub(crate) bin_y: i32,
     pub(crate) subframe: Option<SubFrame>,
+    /// The camera's name for the read mode it is in; `None` for a camera
+    /// without read modes, or before the driver has read it on connect. The
+    /// driver sets it when it reads the mode and when it changes it.
+    pub(crate) readout_mode: Option<String>,
     /// Behind a lock because some drivers refresh it from a status read,
     /// which only has `&self`.
     cooler: std::sync::Mutex<CoolerState>,
@@ -94,6 +98,7 @@ impl CameraCore {
             bin_x: 1,
             bin_y: 1,
             subframe: None,
+            readout_mode: None,
             cooler: std::sync::Mutex::new(CoolerState::UNKNOWN),
             exposure_started_at: None,
             exposure_duration: 0.0,
@@ -155,13 +160,15 @@ impl CameraCore {
         self.offset_commanded = true;
     }
 
-    /// A new connection: nothing commanded yet, the cooler unknown, no
-    /// exposure in progress. The driver then reads the camera's own values.
+    /// A new connection: nothing commanded yet, the cooler and read mode
+    /// unknown, no exposure in progress. The driver then reads the camera's
+    /// own values.
     pub(crate) fn begin_connection(&mut self) {
         self.gain = 0;
         self.offset = 0;
         self.gain_commanded = false;
         self.offset_commanded = false;
+        self.readout_mode = None;
         self.update_cooler(|cooler| *cooler = CoolerState::UNKNOWN);
         self.end_exposure();
     }
@@ -188,15 +195,16 @@ impl CameraCore {
     }
 
     /// A frame described by the cached state: exposure time, gain, offset,
-    /// binning and subframe as last set, no temperature, no vendor data. A
-    /// driver overrides the fields its SDK reports for the frame itself.
+    /// binning, subframe and read mode as last set, no temperature, no vendor
+    /// data. A driver overrides the fields its SDK reports for the frame
+    /// itself.
     pub(crate) fn frame(
         &self,
         width: u32,
         height: u32,
         data: Vec<u16>,
         bits_per_pixel: u32,
-        bayer_pattern: Option<BayerPattern>,
+        bayer_pattern: Option<ColorFilterArray>,
     ) -> Frame {
         Frame {
             width,
@@ -211,7 +219,7 @@ impl CameraCore {
             bin_y: self.bin_y,
             temperature: None,
             subframe: self.subframe.clone(),
-            readout_mode: None,
+            readout_mode: self.readout_mode.clone(),
             vendor_data: VendorFeatures::default(),
             camera_file: None,
         }
@@ -224,7 +232,7 @@ pub(crate) struct Frame {
     pub(crate) height: u32,
     pub(crate) data: Vec<u16>,
     pub(crate) bits_per_pixel: u32,
-    pub(crate) bayer_pattern: Option<BayerPattern>,
+    pub(crate) bayer_pattern: Option<ColorFilterArray>,
     pub(crate) exposure_time: f64,
     pub(crate) gain: i32,
     pub(crate) offset: i32,
@@ -318,21 +326,6 @@ pub(crate) fn image_dimension(vendor: &str, axis: &str, value: usize) -> Result<
             vendor, axis, value
         ))
     })
-}
-
-/// The device layer's name for a decoded raw frame's color filter.
-pub(crate) fn mosaic_bayer_pattern(cfa: &skotiq_imaging::ColorFilterArray) -> BayerPattern {
-    use skotiq_imaging::BayerPattern as Cell;
-    match cfa {
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::RGGB) => BayerPattern::Rggb,
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::GRBG) => BayerPattern::Grbg,
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::GBRG) => BayerPattern::Gbrg,
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::BGGR) => BayerPattern::Bggr,
-        skotiq_imaging::ColorFilterArray::XTrans(_) => BayerPattern::XTrans(
-            skotiq_device::XTransCell::from_letters(&cfa.letters())
-                .expect("an X-Trans cell is 36 R, G and B letters"),
-        ),
-    }
 }
 
 /// The Bayer index the ASI-style SDKs (ZWO, Player One, SVBony) report:
@@ -581,8 +574,10 @@ mod tests {
         assert!(core.gain_commanded && core.offset_commanded);
         assert_eq!((core.gain, core.offset), (120, 30));
 
+        core.readout_mode = Some("High Gain Mode".into());
         core.begin_connection();
         assert!(!core.gain_commanded && !core.offset_commanded);
+        assert_eq!(core.readout_mode, None);
         assert_eq!((core.gain, core.offset), (0, 0));
         assert_eq!(core.cooler(), CoolerState::UNKNOWN);
         assert_eq!(core.exposure_remaining(), None);
@@ -602,23 +597,27 @@ mod tests {
             width: 16,
             height: 8,
         });
+        core.readout_mode = Some("High Gain Mode".into());
         let image = Frame {
             gain: 121,
             temperature: Some(-9.5),
-            ..core.frame(2, 1, vec![7, 9], 12, Some(BayerPattern::Grbg))
+            ..core.frame(2, 1, vec![7, 9], 12, Some(BayerPattern::Grbg.into()))
         }
         .into_image();
         assert_eq!((image.width, image.height), (2, 1));
         assert_eq!(image.data, vec![7, 9]);
         assert_eq!(image.bits_per_pixel, 12);
-        assert_eq!(image.bayer_pattern, Some(BayerPattern::Grbg));
+        assert_eq!(image.bayer_pattern, Some(BayerPattern::Grbg.into()));
         assert_eq!(image.metadata.exposure_time, 12.5);
         assert_eq!(image.metadata.gain, 121);
         assert_eq!(image.metadata.offset, 30);
         assert_eq!((image.metadata.bin_x, image.metadata.bin_y), (2, 2));
         assert_eq!(image.metadata.temperature, Some(-9.5));
         assert_eq!(image.metadata.subframe.map(|s| s.width), Some(16));
-        assert_eq!(image.metadata.readout_mode, None);
+        assert_eq!(
+            image.metadata.readout_mode.as_deref(),
+            Some("High Gain Mode")
+        );
     }
 }
 
@@ -627,13 +626,13 @@ mod mosaic_pattern_tests {
     use super::*;
 
     #[test]
-    fn a_decoded_xtrans_mosaic_keeps_its_cell_in_the_device_layer() {
-        let letters = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
-        let cfa = skotiq_imaging::ColorFilterArray::parse(letters).unwrap();
-        let pattern = mosaic_bayer_pattern(&cfa);
-        assert!(matches!(pattern, BayerPattern::XTrans(_)));
-        assert_eq!(pattern.fits_name(), letters);
-        let bayer = skotiq_imaging::ColorFilterArray::parse("GBRG").unwrap();
-        assert_eq!(mosaic_bayer_pattern(&bayer), BayerPattern::Gbrg);
+    fn a_decoded_mosaic_keeps_its_cell_through_the_camera_frame() {
+        let core = CameraCore::new("test".to_string(), "Mosaic camera".to_string());
+        for letters in ["GBRG", "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG"] {
+            let cfa = ColorFilterArray::parse(letters).unwrap();
+            let frame = core.frame(6, 6, vec![123; 36], 14, Some(cfa)).into_image();
+            assert_eq!(frame.bayer_pattern, Some(cfa));
+            assert_eq!(frame.bayer_pattern.unwrap().letters(), letters);
+        }
     }
 }

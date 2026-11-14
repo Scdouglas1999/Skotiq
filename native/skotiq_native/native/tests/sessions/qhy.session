@@ -51,7 +51,7 @@ qhy.camera1.name = QHY5III462C-FAKE0002
 qhy.camera1.vendor = Qhy
 qhy.camera1.serial_number = None
 qhy.camera1.capabilities = CameraCapabilities { can_cool: false, can_set_gain: true, can_set_offset: true, can_set_binning: true, can_subframe: true, has_shutter: false, has_guider_port: false, max_bin_x: 4, max_bin_y: 4, supports_readout_modes: true }
-qhy.camera1.get_sensor_info = SensorInfo { width: 48, height: 32, pixel_size_x: 2.9, pixel_size_y: 2.9, max_adu: 65535, bit_depth: 16, color: true, bayer_pattern: Some(Bggr), saturation_adu: None }
+qhy.camera1.get_sensor_info = SensorInfo { width: 48, height: 32, pixel_size_x: 2.9, pixel_size_y: 2.9, max_adu: 65535, bit_depth: 16, color: true, bayer_pattern: Some(Bayer(Bggr)), saturation_adu: None }
 qhy.camera1.get_gain_range = Ok((0, 600))
 qhy.camera1.get_offset_range = Ok((0, 600))
 qhy.camera1.get_exposure_range = Ok(Some((1e-6, 3600.0)))
@@ -78,7 +78,7 @@ qhy.camera1.download light bin2 = Ok 24x16 pixels=384 fnv1a=27dbc391c7837785 bit
 qhy.camera1.get_status after download = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.25), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 55, offset: 9, bin_x: 2, bin_y: 2, exposure_remaining: None }) exposure_remaining_reported=false
 qhy.camera1.start_exposure dark bin1 subframe = Ok(())
 qhy.camera1.exposure complete = Ok(true)
-qhy.camera1.download dark subframe = Ok 16x8 pixels=128 fnv1a=ad58c2b33087e525 bits_per_pixel=16 bayer=Some(Bggr) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(-9.25), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 8 }), readout_mode: Some("Photographic DSO"), vendor_data: VendorFeatures { sensor_chamber_pressure: Some(900.0), sensor_chamber_humidity: Some(23.0), usb_bandwidth: Some(40.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+qhy.camera1.download dark subframe = Ok 16x8 pixels=128 fnv1a=ad58c2b33087e525 bits_per_pixel=16 bayer=Some(Bayer(Bggr)) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(-9.25), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 8 }), readout_mode: Some("Photographic DSO"), vendor_data: VendorFeatures { sensor_chamber_pressure: Some(900.0), sensor_chamber_humidity: Some(23.0), usb_bandwidth: Some(40.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
 qhy.camera1.start_exposure invalid bin = Err(InvalidParameter("QHY camera QHY5III462C-FAKE0002 bins 1x1, 2x2, 3x3, 4x4; 99x99 was asked"))
 qhy.camera1.start_exposure long = Ok(())
 qhy.camera1.get_status exposing = Ok(CameraStatus { state: Exposing, sensor_temp: Some(-9.25), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=true

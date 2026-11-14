@@ -34,7 +34,8 @@ fn dump(path: &Path, out_dir: &Path, rgb: bool) -> Result<Value, String> {
     std::fs::write(out_dir.join(format!("{name}.u16")), le_bytes(&frame.data))
         .map_err(|e| e.to_string())?;
     if rgb {
-        let planes = frame.cfa.demosaic(
+        let planes = skotiq_imaging::demosaic(
+            &frame.cfa,
             &frame.data,
             frame.width,
             frame.height,

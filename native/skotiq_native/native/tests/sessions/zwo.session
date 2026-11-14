@@ -50,14 +50,14 @@ zwo.camera1.is_connected = true
 zwo.camera1.name = Skotiq Fake ASI224MC
 zwo.camera1.vendor = Zwo
 zwo.camera1.serial_number = None
-zwo.camera1.capabilities = CameraCapabilities { can_cool: false, can_set_gain: true, can_set_offset: true, can_set_binning: true, can_subframe: true, has_shutter: false, has_guider_port: true, max_bin_x: 2, max_bin_y: 2, supports_readout_modes: false }
-zwo.camera1.get_sensor_info = SensorInfo { width: 96, height: 64, pixel_size_x: 3.75, pixel_size_y: 3.75, max_adu: 65520, bit_depth: 12, color: true, bayer_pattern: Some(Rggb), saturation_adu: None }
+zwo.camera1.capabilities = CameraCapabilities { can_cool: false, can_set_gain: true, can_set_offset: true, can_set_binning: true, can_subframe: true, has_shutter: false, has_guider_port: true, max_bin_x: 2, max_bin_y: 2, supports_readout_modes: true }
+zwo.camera1.get_sensor_info = SensorInfo { width: 96, height: 64, pixel_size_x: 3.75, pixel_size_y: 3.75, max_adu: 65520, bit_depth: 12, color: true, bayer_pattern: Some(Bayer(Rggb)), saturation_adu: None }
 zwo.camera1.get_gain_range = Ok((0, 570))
 zwo.camera1.get_offset_range = Ok((0, 255))
 zwo.camera1.get_exposure_range = Ok(Some((3.2e-5, 2000.0)))
 zwo.camera1.get_cooler_temp_range = Ok(None)
 zwo.camera1.get_recommended_settings = Ok(CameraRecommendedSettings { unity_gain: Some(0), hcg_gain: None, default_offset: Some(0), recommended_cooling_setpoint_c: None, notes: "ZWO SDK reports default gain = 0 (ElecPerADU at default = 3.000); ZWO SDK reports default offset = 0" })
-zwo.camera1.get_readout_modes = Ok([])
+zwo.camera1.get_readout_modes = Ok([ReadoutMode { name: "Normal", description: "Normal", index: 0, gain_min: None, gain_max: None, offset_min: None, offset_max: None }, ReadoutMode { name: "High speed", description: "High speed", index: 1, gain_min: None, gain_max: None, offset_min: None, offset_max: None }])
 zwo.camera1.get_vendor_features = Ok(VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: Some(50.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} })
 zwo.camera1.get_status initial = Ok(CameraStatus { state: Idle, sensor_temp: Some(25.5), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 0, offset: 0, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
 zwo.camera1.set_gain(42) = Ok(())
@@ -74,11 +74,11 @@ zwo.camera1.get_temperature = Ok(25.5)
 zwo.camera1.get_cooler_power = Err(NotSupported)
 zwo.camera1.start_exposure light bin2 = Ok(())
 zwo.camera1.exposure complete = Ok(true)
-zwo.camera1.download light bin2 = Ok 48x32 pixels=1536 fnv1a=ee11d278e4b76865 bits_per_pixel=12 bayer=Some(Rggb) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 2, bin_y: 2, temperature: Some(25.5), timestamp: 1970-01-01T00:00:00Z, subframe: None, readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: Some(50.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+zwo.camera1.download light bin2 = Ok 48x32 pixels=1536 fnv1a=ee11d278e4b76865 bits_per_pixel=12 bayer=Some(Bayer(Rggb)) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 2, bin_y: 2, temperature: Some(25.5), timestamp: 1970-01-01T00:00:00Z, subframe: None, readout_mode: Some("Normal"), vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: Some(50.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
 zwo.camera1.get_status after download = Ok(CameraStatus { state: Idle, sensor_temp: Some(25.5), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 55, offset: 9, bin_x: 2, bin_y: 2, exposure_remaining: None }) exposure_remaining_reported=false
 zwo.camera1.start_exposure dark bin1 subframe = Ok(())
 zwo.camera1.exposure complete = Ok(true)
-zwo.camera1.download dark subframe = Ok 16x8 pixels=128 fnv1a=77c73aca6e2d1d65 bits_per_pixel=12 bayer=Some(Rggb) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(25.5), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 8 }), readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: Some(50.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+zwo.camera1.download dark subframe = Ok 16x8 pixels=128 fnv1a=77c73aca6e2d1d65 bits_per_pixel=12 bayer=Some(Bayer(Rggb)) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(25.5), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 8 }), readout_mode: Some("Normal"), vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: Some(50.0), hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
 zwo.camera1.start_exposure invalid bin = Err(InvalidParameter("The Skotiq Fake ASI224MC bins 1, 2; 99x99 was requested"))
 zwo.camera1.start_exposure long = Ok(())
 zwo.camera1.get_status exposing = Ok(CameraStatus { state: Downloading, sensor_temp: Some(25.5), cooler_power: None, target_temp: None, cooler_on: Some(false), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false

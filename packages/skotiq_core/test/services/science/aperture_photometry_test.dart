@@ -3,7 +3,63 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show RustLib, RustLibApi, FrameHeaderRead, FrameCard;
 import 'package:skotiq_core/src/services/science/aperture_photometry.dart';
+
+final _frames = <String, ({int width, int height, List<double> pixels})>{};
+
+class _NativeCutouts extends Mock implements RustLibApi {
+  @override
+  Future<FrameHeaderRead> crateApiFrameFileApiReadFrameHeader({
+    required String filePath,
+  }) async {
+    final frame = _frames[filePath];
+    if (frame == null) throw StateError('unreadable frame');
+    return FrameHeaderRead(
+      cards: [
+        FrameCard(
+          keyword: 'NAXIS1',
+          text: '${frame.width}',
+          number: frame.width.toDouble(),
+        ),
+        FrameCard(
+          keyword: 'NAXIS2',
+          text: '${frame.height}',
+          number: frame.height.toDouble(),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<Float64List> crateApiImagingApiReadFrameCutouts({
+    required String filePath,
+    required List<int> centersX,
+    required List<int> centersY,
+    required int half,
+  }) async {
+    final frame = _frames[filePath];
+    if (frame == null) throw StateError('unreadable frame');
+    final pixels = <double>[];
+    for (var i = 0; i < centersX.length; i++) {
+      final x = centersX[i], y = centersY[i];
+      if (x - half < 0 ||
+          y - half < 0 ||
+          x + half >= frame.width ||
+          y + half >= frame.height) {
+        throw StateError('cutout leaves frame');
+      }
+      for (var row = y - half; row <= y + half; row++) {
+        for (var col = x - half; col <= x + half; col++) {
+          pixels.add(frame.pixels[row * frame.width + col]);
+        }
+      }
+    }
+    return Float64List.fromList(pixels);
+  }
+}
 
 /// Write a 16-bit FITS (BZERO 32768, as ASI drivers save) of [w] x [h] with
 /// a flat sky of [sky] ADU, Gaussian noise of [noise] ADU and Gaussian stars.
@@ -46,15 +102,22 @@ File _fits(
       data.setInt16((j * w + i) * 2, (v.round() - 32768).clamp(-32768, 32767));
     }
   }
+  final physical = List.generate(w * h, (i) => data.getInt16(i * 2) + 32768.0);
   final file = File('${dir.path}/frame.fits');
   file.writeAsBytesSync([...headerBytes, ...data.buffer.asUint8List()]);
+  _frames[file.path] = (width: w, height: h, pixels: physical);
   return file;
 }
 
 void main() {
+  setUpAll(() => RustLib.initMock(api: _NativeCutouts()));
+  tearDownAll(RustLib.dispose);
   late Directory dir;
   setUp(() => dir = Directory.systemTemp.createTempSync('aperture-test'));
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() {
+    _frames.clear();
+    dir.deleteSync(recursive: true);
+  });
 
   test('stars in one aperture keep their true flux ratio', () async {
     // A target and a comparison twice as bright, on a 2400 ADU sky with the
@@ -113,4 +176,43 @@ void main() {
     );
     expect(result, [null]);
   });
+  test(
+    'an unreadable frame remains a file failure, not missing stars',
+    () async {
+      expect(
+        await measureApertures(
+          '${dir.path}/missing.fits',
+          [(x: 30, y: 30)],
+          radius: 6,
+          innerSky: 12,
+          outerSky: 18,
+        ),
+        isNull,
+      );
+    },
+  );
+
+  test(
+    'an edge star does not discard a valid star in the same batch',
+    () async {
+      final file = _fits(
+        dir,
+        w: 100,
+        h: 100,
+        sky: 1000,
+        noise: 30,
+        stars: [(x: 50, y: 50, flux: 50000, fwhm: 4)],
+      );
+      final result = await measureApertures(
+        file.path,
+        [(x: 5, y: 30), (x: 50, y: 50)],
+        radius: 6,
+        innerSky: 12,
+        outerSky: 18,
+      );
+      expect(result, hasLength(2));
+      expect(result![0], isNull);
+      expect(result[1]!.flux, closeTo(50000, 1500));
+    },
+  );
 }

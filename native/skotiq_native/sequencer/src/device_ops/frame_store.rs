@@ -178,7 +178,7 @@ mod save_frame_tests {
             filter: None,
             timestamp: 0,
             sensor_type: Some("Color".to_string()),
-            color_filter: Some(skotiq_device::BayerPattern::Rggb),
+            color_filter: Some(skotiq_device::BayerPattern::Rggb.into()),
             camera_file,
             readout_mode: None,
         }

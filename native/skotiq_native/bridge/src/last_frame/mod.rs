@@ -8,7 +8,7 @@
 
 use crate::api::imaging::{CapturedImageResult, ImageStatsResult};
 use crate::error::SkotiqError;
-use skotiq_device::BayerPattern;
+use skotiq_cfa::ColorFilterArray;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 
@@ -19,7 +19,7 @@ pub(crate) struct RawFrame {
     pub height: u32,
     pub data: Vec<u16>,
     /// `None` for a monochrome sensor.
-    pub bayer_pattern: Option<BayerPattern>,
+    pub bayer_pattern: Option<ColorFilterArray>,
     pub exposure: ExposureRecord,
     /// The camera's own file for the frame, when it delivered one.
     pub camera_file: Option<skotiq_device::CameraFile>,
@@ -67,7 +67,7 @@ impl RawFrame {
 }
 
 /// The sequencer's `ImageData` sensor type for a frame's color filter.
-pub(crate) fn sensor_type(pattern: Option<&BayerPattern>) -> Option<String> {
+pub(crate) fn sensor_type(pattern: Option<&ColorFilterArray>) -> Option<String> {
     Some(
         if pattern.is_some() {
             "Color"
@@ -139,12 +139,7 @@ pub(crate) fn measure(
 ) -> (CapturedImageResult, Vec<skotiq_imaging::DetectedStar>) {
     let image = skotiq_imaging::ImageData::from_u16(raw.width, raw.height, 1, &raw.data);
     let display = match raw.bayer_pattern {
-        Some(pattern) => crate::frame_display::color(
-            &raw.data,
-            raw.width,
-            raw.height,
-            crate::frame_display::device_filter(pattern),
-        ),
+        Some(pattern) => crate::frame_display::color(&raw.data, raw.width, raw.height, pattern),
         None => crate::frame_display::mono(&image),
     };
     // Measured on the sensor's own samples, mosaic included, as the FITS on

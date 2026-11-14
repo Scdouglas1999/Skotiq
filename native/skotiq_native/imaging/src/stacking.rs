@@ -162,7 +162,7 @@ pub fn debayer_cfa_to_rgb(
     // dimensions here would declare a (w x h x 3) image backed by only
     // (w/2)*(h/2)*3 samples — a short buffer that panics or silently corrupts
     // downstream luminance/detection passes.
-    let rgb = filter.demosaic(&raw, cfa.width, cfa.height, algorithm);
+    let rgb = crate::demosaic(&filter, &raw, cfa.width, cfa.height, algorithm);
     Ok(ImageData::from_u16(
         rgb.width,
         rgb.height,
@@ -3053,20 +3053,30 @@ mod tests {
     fn debayer_cfa_to_rgb_validates_and_expands() {
         // Wrong channel count.
         let rgb_in = ImageData::from_u16(2, 2, 3, &[0u16; 12]);
-        assert!(
-            debayer_cfa_to_rgb(&rgb_in, ColorFilterArray::Bayer(BayerPattern::RGGB), DebayerAlgorithm::Bilinear).is_err()
-        );
+        assert!(debayer_cfa_to_rgb(
+            &rgb_in,
+            ColorFilterArray::Bayer(BayerPattern::Rggb),
+            DebayerAlgorithm::Bilinear
+        )
+        .is_err());
 
         // Wrong pixel type.
         let f32_in = ImageData::from_f32(2, 2, 1, &[0.0f32; 4]);
-        assert!(
-            debayer_cfa_to_rgb(&f32_in, ColorFilterArray::Bayer(BayerPattern::RGGB), DebayerAlgorithm::Bilinear).is_err()
-        );
+        assert!(debayer_cfa_to_rgb(
+            &f32_in,
+            ColorFilterArray::Bayer(BayerPattern::Rggb),
+            DebayerAlgorithm::Bilinear
+        )
+        .is_err());
 
         // Happy path: a 4x4 CFA expands to 4x4x3 under full-resolution Bilinear.
         let cfa = ImageData::from_u16(4, 4, 1, &[1234u16; 16]);
-        let rgb = debayer_cfa_to_rgb(&cfa, ColorFilterArray::Bayer(BayerPattern::RGGB), DebayerAlgorithm::Bilinear)
-            .expect("valid CFA debayers");
+        let rgb = debayer_cfa_to_rgb(
+            &cfa,
+            ColorFilterArray::Bayer(BayerPattern::Rggb),
+            DebayerAlgorithm::Bilinear,
+        )
+        .expect("valid CFA debayers");
         assert_eq!(rgb.channels, 3);
         assert_eq!(rgb.width, 4);
         assert_eq!(rgb.height, 4);
@@ -3078,8 +3088,12 @@ mod tests {
         // dimensions are derived from the demosaiced RgbImage, not assumed from
         // the input CFA size — otherwise the declared (4x4x3) image would be
         // backed by only (2x2x3) samples and panic/corrupt downstream.
-        let sp = debayer_cfa_to_rgb(&cfa, ColorFilterArray::Bayer(BayerPattern::RGGB), DebayerAlgorithm::SuperPixel)
-            .expect("valid CFA superpixel-debayers");
+        let sp = debayer_cfa_to_rgb(
+            &cfa,
+            ColorFilterArray::Bayer(BayerPattern::Rggb),
+            DebayerAlgorithm::SuperPixel,
+        )
+        .expect("valid CFA superpixel-debayers");
         assert_eq!(sp.channels, 3);
         assert_eq!(sp.width, 2, "superpixel halves width");
         assert_eq!(sp.height, 2, "superpixel halves height");

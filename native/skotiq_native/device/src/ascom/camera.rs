@@ -335,7 +335,8 @@ impl SensorMembers {
                 sensor_type,
                 self.bayer_offset_x,
                 self.bayer_offset_y,
-            ),
+            )
+            .map(skotiq_cfa::ColorFilterArray::from),
             saturation_adu: None,
         }
     }
@@ -354,9 +355,30 @@ pub fn recorded_exposure_seconds(
         .unwrap_or(0.0)
 }
 
+/// The name of the read mode in force, `ReadoutModes[ReadoutMode]`: `None`
+/// for a camera that lists no modes or does not say which is in force.
+pub fn readout_mode_name(mode: Option<i32>, modes: Option<Vec<String>>) -> Option<String> {
+    let mode = usize::try_from(mode?).ok()?;
+    modes?.into_iter().nth(mode)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_frame_names_the_read_mode_in_force_when_the_camera_lists_it() {
+        let modes = || Some(vec!["Fast".to_string(), "Low noise".to_string()]);
+        assert_eq!(
+            readout_mode_name(Some(1), modes()).as_deref(),
+            Some("Low noise")
+        );
+        assert_eq!(readout_mode_name(Some(2), modes()), None);
+        assert_eq!(readout_mode_name(Some(-1), modes()), None);
+        assert_eq!(readout_mode_name(None, modes()), None);
+        assert_eq!(readout_mode_name(Some(0), Some(Vec::new())), None);
+        assert_eq!(readout_mode_name(Some(0), None), None);
+    }
 
     #[test]
     fn a_frame_records_the_reported_exposure_or_else_the_commanded_one() {
@@ -387,7 +409,10 @@ mod tests {
     fn a_colour_sensor_names_the_bayer_order_its_offsets_give() {
         let sensor = members(65535, Some(2), (Some(1), Some(1))).sensor_info();
         assert!(sensor.color);
-        assert_eq!(sensor.bayer_pattern, Some(crate::BayerPattern::Bggr));
+        assert_eq!(
+            sensor.bayer_pattern,
+            Some(skotiq_cfa::BayerPattern::Bggr.into())
+        );
         assert_eq!((sensor.max_adu, sensor.bit_depth), (65535, 16));
         assert_eq!(
             (sensor.width, sensor.height, sensor.pixel_size_x),

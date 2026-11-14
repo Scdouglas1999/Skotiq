@@ -187,7 +187,7 @@ pub struct DrizzleFrame<'a> {
 /// `mosaic` is a single-channel raw CFA buffer (`width × height`, f64,
 /// row-major). `pattern` is the **effective** Bayer pattern at the mosaic origin
 /// `(0, 0)` (already composed with any sub-frame offset — see
-/// [`crate::effective_bayer_pattern`]); the colour of mosaic pixel `(ix, iy)` is
+/// [`BayerPattern::shifted`]); the colour of mosaic pixel `(ix, iy)` is
 /// `pattern.color_at(ix, iy)`. The `transform` and `weight` carry the same
 /// meaning as in [`DrizzleFrame`].
 #[derive(Debug, Clone, Copy)]
@@ -1249,7 +1249,7 @@ mod tests {
         // plane. We dither 4 frames so every output cell is touched by every
         // colour plane (a single frame leaves each plane on a sparse sublattice).
         let size = 8usize;
-        let pattern = BayerPattern::RGGB;
+        let pattern = BayerPattern::Rggb;
         let (rv, gv, bv) = (100.0, 200.0, 50.0);
 
         let make_mosaic = || -> Vec<f64> {
@@ -1334,7 +1334,7 @@ mod tests {
         // the others left as holes (0). This pins the "no debayer interpolation"
         // contract — a Bayer drizzle of one frame is sparse per plane.
         let size = 4usize;
-        let pattern = BayerPattern::RGGB;
+        let pattern = BayerPattern::Rggb;
         let mut mosaic = vec![0.0f64; size * size];
         for y in 0..size {
             for x in 0..size {
@@ -1751,7 +1751,7 @@ mod tests {
             mosaic: &bad,
             width: 2,
             height: 2,
-            pattern: BayerPattern::RGGB,
+            pattern: BayerPattern::Rggb,
             transform: &t,
             weight: 1.0,
         };

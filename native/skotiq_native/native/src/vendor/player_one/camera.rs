@@ -63,7 +63,7 @@ fn player_one_sensor_info(info: &POACameraProperties) -> SensorInfo {
         bit_depth: u32::try_from(info.bit_depth).unwrap_or(0),
         color: info.is_color_camera != 0,
         bayer_pattern: (info.is_color_camera != 0)
-            .then(|| bayer_from_asi_index(info.bayer_pattern)),
+            .then(|| bayer_from_asi_index(info.bayer_pattern).into()),
         saturation_adu: None,
     }
 }
@@ -559,7 +559,7 @@ impl PlayerOneCamera {
         Ok(modes)
     }
 
-    /// The name of the sensor mode the camera is in, for the frame's metadata.
+    /// The name of the sensor mode the camera is in.
     pub(crate) fn current_sensor_mode(&self, sdk: &PoaSdk) -> Option<String> {
         if !self.core.capabilities.supports_readout_modes {
             return None;

@@ -413,11 +413,11 @@ async fn an_alpaca_camera_reports_its_sensor_and_what_each_frame_was_taken_with(
 
     let sensor = driver.report().await.expect("report").sensor;
     assert!(sensor.color);
-    assert_eq!(sensor.bayer_pattern, Some(BayerPattern::Bggr));
+    assert_eq!(sensor.bayer_pattern, Some(BayerPattern::Bggr.into()));
     assert_eq!((sensor.max_adu, sensor.bit_depth), (4095, 16));
     assert_eq!(
         driver.describe().await.sensor.bayer_pattern,
-        Some(BayerPattern::Bggr)
+        Some(BayerPattern::Bggr.into())
     );
 
     driver

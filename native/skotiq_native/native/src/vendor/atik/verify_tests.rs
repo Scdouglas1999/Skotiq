@@ -1048,11 +1048,11 @@ fn the_bayer_cell_follows_the_sdk_offset_and_the_subframe_origin() {
     let mut camera = opened(&sdk, Some("S1"));
     assert_eq!(
         camera.core.sensor_info.bayer_pattern,
-        Some(BayerPattern::Grbg)
+        Some(BayerPattern::Grbg.into())
     );
 
     let image = expose(&sdk, &mut camera, exposure(FrameType::Light));
-    assert_eq!(image.bayer_pattern, Some(BayerPattern::Grbg));
+    assert_eq!(image.bayer_pattern, Some(BayerPattern::Grbg.into()));
 
     let mut params = exposure(FrameType::Light);
     params.subframe = Some(SubFrame {
@@ -1062,7 +1062,7 @@ fn the_bayer_cell_follows_the_sdk_offset_and_the_subframe_origin() {
         height: 100,
     });
     let image = expose(&sdk, &mut camera, params);
-    assert_eq!(image.bayer_pattern, Some(BayerPattern::Gbrg));
+    assert_eq!(image.bayer_pattern, Some(BayerPattern::Gbrg.into()));
 }
 
 #[test]

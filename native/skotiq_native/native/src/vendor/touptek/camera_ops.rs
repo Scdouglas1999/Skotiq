@@ -431,7 +431,7 @@ impl DeviceDriver for TouptekCamera {
             max_adu: max_adu_from_bit_depth(setup.bit_depth),
             bit_depth: setup.bit_depth,
             color: (self.model_flags & OGMACAM_FLAG_MONO) == 0,
-            bayer_pattern: setup.bayer_pattern,
+            bayer_pattern: setup.bayer_pattern.map(Into::into),
             saturation_adu: None,
         };
         self.bytes_per_sample = setup.bytes_per_sample;
@@ -1278,23 +1278,10 @@ impl CameraDriver for TouptekCamera {
     }
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
-        // Touptek cameras don't have distinct readout modes
-        Ok(vec![ReadoutMode {
-            name: "Normal".to_string(),
-            description: "Standard readout mode".to_string(),
-            index: 0,
-            gain_min: None,
-            gain_max: None,
-            offset_min: None,
-            offset_max: None,
-        }])
+        Ok(Vec::new())
     }
 
-    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
-        // Touptek cameras expose a single fixed readout mode.
-        if mode.index == 0 || mode.name.eq_ignore_ascii_case("normal") {
-            return Ok(());
-        }
+    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
         Err(DriverError::NotSupported)
     }
 

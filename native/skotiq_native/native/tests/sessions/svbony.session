@@ -6,13 +6,13 @@ svbony.camera0.name = SVBONY SV405CC
 svbony.camera0.vendor = Svbony
 svbony.camera0.serial_number = Some("SV405CC-FAKE-01")
 svbony.camera0.capabilities = CameraCapabilities { can_cool: true, can_set_gain: true, can_set_offset: true, can_set_binning: true, can_subframe: true, has_shutter: false, has_guider_port: true, max_bin_x: 4, max_bin_y: 4, supports_readout_modes: false }
-svbony.camera0.get_sensor_info = SensorInfo { width: 48, height: 30, pixel_size_x: 4.630000114440918, pixel_size_y: 4.630000114440918, max_adu: 65532, bit_depth: 14, color: true, bayer_pattern: Some(Rggb), saturation_adu: None }
+svbony.camera0.get_sensor_info = SensorInfo { width: 48, height: 30, pixel_size_x: 4.630000114440918, pixel_size_y: 4.630000114440918, max_adu: 65532, bit_depth: 14, color: true, bayer_pattern: Some(Bayer(Rggb)), saturation_adu: None }
 svbony.camera0.get_gain_range = Ok((0, 720))
 svbony.camera0.get_offset_range = Ok((0, 255))
 svbony.camera0.get_exposure_range = Ok(Some((3.2e-5, 1000.0)))
 svbony.camera0.get_cooler_temp_range = Ok(Some((-40.0, 30.0)))
 svbony.camera0.get_recommended_settings = Ok(CameraRecommendedSettings { unity_gain: Some(120), hcg_gain: None, default_offset: Some(10), recommended_cooling_setpoint_c: None, notes: "SVBony SDK reports default gain = 120; SVBony SDK reports default offset = 10" })
-svbony.camera0.get_readout_modes = Ok([ReadoutMode { name: "Normal", description: "Standard readout mode", index: 0, gain_min: None, gain_max: None, offset_min: None, offset_max: None }])
+svbony.camera0.get_readout_modes = Ok([])
 svbony.camera0.get_vendor_features = Ok(VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} })
 svbony.camera0.get_status initial = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.5), cooler_power: Some(37.0), target_temp: Some(0.0), cooler_on: Some(false), gain: 120, offset: 10, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
 svbony.camera0.set_gain(42) = Ok(())
@@ -29,11 +29,11 @@ svbony.camera0.get_temperature = Ok(-9.5)
 svbony.camera0.get_cooler_power = Ok(37.0)
 svbony.camera0.start_exposure light bin2 = Ok(())
 svbony.camera0.exposure complete = Ok(true)
-svbony.camera0.download light bin2 = Ok 24x14 pixels=336 fnv1a=811b82bdd3210b25 bits_per_pixel=14 bayer=Some(Rggb) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 2, bin_y: 2, temperature: Some(-9.5), timestamp: 1970-01-01T00:00:00Z, subframe: None, readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+svbony.camera0.download light bin2 = Ok 24x14 pixels=336 fnv1a=811b82bdd3210b25 bits_per_pixel=14 bayer=Some(Bayer(Rggb)) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 2, bin_y: 2, temperature: Some(-9.5), timestamp: 1970-01-01T00:00:00Z, subframe: None, readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
 svbony.camera0.get_status after download = Ok(CameraStatus { state: Idle, sensor_temp: Some(-9.5), cooler_power: Some(37.0), target_temp: Some(-12.5), cooler_on: Some(true), gain: 55, offset: 9, bin_x: 2, bin_y: 2, exposure_remaining: None }) exposure_remaining_reported=false
 svbony.camera0.start_exposure dark bin1 subframe = Ok(())
 svbony.camera0.exposure complete = Ok(true)
-svbony.camera0.download dark subframe = Ok 16x8 pixels=128 fnv1a=511cd79c5ea75425 bits_per_pixel=14 bayer=Some(Rggb) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(-9.5), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 8 }), readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
+svbony.camera0.download dark subframe = Ok 16x8 pixels=128 fnv1a=511cd79c5ea75425 bits_per_pixel=14 bayer=Some(Bayer(Rggb)) metadata=ImageMetadata { exposure_time: 0.01, gain: 55, offset: 9, bin_x: 1, bin_y: 1, temperature: Some(-9.5), timestamp: 1970-01-01T00:00:00Z, subframe: Some(SubFrame { start_x: 8, start_y: 4, width: 16, height: 8 }), readout_mode: None, vendor_data: VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} }, camera_file: None }
 svbony.camera0.start_exposure invalid bin = Err(InvalidParameter("SVBONY SV405CC bins [1, 2, 4]; bin 99 was requested"))
 svbony.camera0.start_exposure long = Ok(())
 svbony.camera0.get_status exposing = Ok(CameraStatus { state: Exposing, sensor_temp: Some(-9.5), cooler_power: Some(37.0), target_temp: Some(-12.5), cooler_on: Some(true), gain: 55, offset: 9, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=true

@@ -19,7 +19,7 @@ const FORMATS: [&[c_int]; 3] = [&[0, 2], &[0, 1, 2, 3], &[0, 3]];
 type Control = (c_int, &'static [u8], i64, i64, i64);
 const CONTROLS: [&[Control]; 3] = [
     &[(0, b"Gain", 0, 600, 0), (1, b"Exposure", 1, 60_000_000, 10_000), (5, b"Offset", 0, 100, 0), (6, b"BandWidth", 40, 100, 40), (8, b"Temperature", -500, 1000, -105), (15, b"CoolerPowerPerc", 0, 100, 37), (16, b"TargetTemp", -40, 30, -10), (17, b"CoolerOn", 0, 1, 0), (21, b"AntiDewHeater", 0, 1, 1)],
-    &[(0, b"Gain", 0, 570, 0), (1, b"Exposure", 32, 2_000_000_000, 10_000), (5, b"Offset", 0, 255, 0), (6, b"BandWidth", 40, 100, 50), (8, b"Temperature", -500, 1000, 255), (9, b"Flip", 0, 3, 0), (18, b"Mono bin", 0, 1, 0)],
+    &[(0, b"Gain", 0, 570, 0), (1, b"Exposure", 32, 2_000_000_000, 10_000), (5, b"Offset", 0, 255, 0), (6, b"BandWidth", 40, 100, 50), (8, b"Temperature", -500, 1000, 255), (9, b"Flip", 0, 3, 0), (14, b"HighSpeedMode", 0, 1, 0), (18, b"Mono bin", 0, 1, 0)],
     &[(0, b"Gain", 0, 100, 50), (1, b"Exposure", 64, 2_000_000_000, 10_000), (5, b"Offset", 0, 100, 0), (6, b"BandWidth", 40, 100, 50), (8, b"Temperature", -500, 1000, 300)],
 ];
 static WIDTH: [AtomicI32; 3] = [AtomicI32::new(64), AtomicI32::new(96), AtomicI32::new(32)];

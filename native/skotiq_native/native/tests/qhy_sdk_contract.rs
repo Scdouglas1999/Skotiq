@@ -29,11 +29,7 @@ mod sdk_contract {
     const COLOR_CMOS: u32 = 0;
     const LEGACY_CCD: u32 = 1;
     const GUIDE_CAM: u32 = 2;
-    const IDS: [&str; 3] = [
-        "QHY268C-FAKE0001",
-        "QHY9S-FAKE0002",
-        "QHY5III462C-FAKE0003",
-    ];
+    const IDS: [&str; 3] = ["QHY268C-FAKE0001", "QHY9S-FAKE0002", "QHY5III462C-FAKE0003"];
 
     /// Keys of `FakeQhyGet`.
     mod key {
@@ -106,7 +102,12 @@ mod sdk_contract {
         cam
     }
 
-    fn params(seconds: f64, bin: i32, subframe: Option<SubFrame>, frame: FrameType) -> ExposureParams {
+    fn params(
+        seconds: f64,
+        bin: i32,
+        subframe: Option<SubFrame>,
+        frame: FrameType,
+    ) -> ExposureParams {
         ExposureParams {
             duration_secs: seconds,
             gain: Some(55),
@@ -145,21 +146,48 @@ mod sdk_contract {
         let mut cam = connected(COLOR_CMOS).await;
         let sensor = cam.get_sensor_info();
         assert!(sensor.color);
-        assert_eq!(sensor.bayer_pattern, Some(BayerPattern::Gbrg), "BAYER_GB is GBRG");
-        assert_eq!(fake.get(COLOR_CMOS, key::DEBAYER), 0.0, "SDK debayering off");
+        assert_eq!(
+            sensor.bayer_pattern,
+            Some(BayerPattern::Gbrg.into()),
+            "BAYER_GB is GBRG"
+        );
+        assert_eq!(
+            fake.get(COLOR_CMOS, key::DEBAYER),
+            0.0,
+            "SDK debayering off"
+        );
 
         let frame = take(&mut cam, params(0.01, 1, None, FrameType::Light)).await;
-        assert_eq!(frame.bayer_pattern, Some(BayerPattern::Gbrg));
-        let frame = take(&mut cam, params(0.01, 1, roi(1, 0, 16, 8), FrameType::Light)).await;
-        assert_eq!(frame.bayer_pattern, Some(BayerPattern::Bggr), "odd x start");
-        let frame = take(&mut cam, params(0.01, 1, roi(2, 1, 16, 8), FrameType::Light)).await;
-        assert_eq!(frame.bayer_pattern, Some(BayerPattern::Rggb), "odd y start");
+        assert_eq!(frame.bayer_pattern, Some(BayerPattern::Gbrg.into()));
+        let frame = take(
+            &mut cam,
+            params(0.01, 1, roi(1, 0, 16, 8), FrameType::Light),
+        )
+        .await;
+        assert_eq!(
+            frame.bayer_pattern,
+            Some(BayerPattern::Bggr.into()),
+            "odd x start"
+        );
+        let frame = take(
+            &mut cam,
+            params(0.01, 1, roi(2, 1, 16, 8), FrameType::Light),
+        )
+        .await;
+        assert_eq!(
+            frame.bayer_pattern,
+            Some(BayerPattern::Rggb.into()),
+            "odd y start"
+        );
         let frame = take(&mut cam, params(0.01, 2, None, FrameType::Light)).await;
         assert_eq!(frame.bayer_pattern, None, "a binned color frame is not a mosaic");
         cam.disconnect().await.unwrap();
 
         let mut guide = connected(GUIDE_CAM).await;
-        assert_eq!(guide.get_sensor_info().bayer_pattern, Some(BayerPattern::Rggb));
+        assert_eq!(
+            guide.get_sensor_info().bayer_pattern,
+            Some(BayerPattern::Rggb.into())
+        );
         guide.disconnect().await.unwrap();
 
         let mut mono = connected(LEGACY_CCD).await;
@@ -193,7 +221,11 @@ mod sdk_contract {
         assert_eq!((frame.metadata.bin_x, frame.metadata.bin_y), (2, 2));
         assert_eq!(frame.data.len(), 36 * 28);
 
-        let frame = take(&mut cam, params(0.01, 1, roi(10, 6, 20, 12), FrameType::Light)).await;
+        let frame = take(
+            &mut cam,
+            params(0.01, 1, roi(10, 6, 20, 12), FrameType::Light),
+        )
+        .await;
         assert_eq!(
             [
                 key::STARTED_ROI_X,

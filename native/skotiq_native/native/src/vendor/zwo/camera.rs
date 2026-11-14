@@ -42,6 +42,10 @@ impl FrameBufferStats {
     }
 }
 
+/// The read modes of a camera that lists `ASI_HIGH_SPEED_MODE`, named by the
+/// control's value: 0 the normal readout, 1 the faster, lower bit-depth one.
+pub(crate) const READ_MODES: [&str; 2] = ["Normal", "High speed"];
+
 #[derive(Debug)]
 pub struct ZwoCamera {
     pub(crate) camera_id: i32,
@@ -66,6 +70,9 @@ pub struct ZwoCamera {
     pub(crate) exposure_active: AtomicBool,
     /// `ASI_EXPOSURE`'s published `(min, max)` in microseconds, read at connect.
     pub(crate) exposure_range_us: Option<(i64, i64)>,
+    /// The camera lists `ASI_HIGH_SPEED_MODE`, its one read-mode switch
+    /// ([`READ_MODES`]); read at connect.
+    pub(crate) has_high_speed_mode: bool,
     pub(crate) temperature_skip_first_pending: Mutex<bool>,
 }
 
@@ -93,6 +100,7 @@ impl ZwoCamera {
             image_type: ASIImgType::Raw16,
             exposure_active: AtomicBool::new(false),
             exposure_range_us: None,
+            has_high_speed_mode: false,
             temperature_skip_first_pending: Mutex::new(false),
         }
     }
@@ -149,7 +157,7 @@ impl ZwoCamera {
             has_guider_port: info.st4_port != 0,
             max_bin_x: max_bin,
             max_bin_y: max_bin,
-            supports_readout_modes: false,
+            supports_readout_modes: self.has_high_speed_mode,
         };
         let color = info.is_color_cam != 0;
         self.core.sensor_info = SensorInfo {
@@ -166,7 +174,7 @@ impl ZwoCamera {
             max_adu: raw16_container_max_adu(bit_depth),
             bit_depth,
             color,
-            bayer_pattern: color.then(|| bayer_from_asi_index(info.bayer_pattern)),
+            bayer_pattern: color.then(|| bayer_from_asi_index(info.bayer_pattern).into()),
             saturation_adu: None,
         };
     }
@@ -452,6 +460,19 @@ impl ZwoCamera {
         Ok((min as i32, max as i32, default as i32))
     }
 
+    /// Record the read mode the camera is in, from `ASI_HIGH_SPEED_MODE`; none
+    /// for a camera without that control.
+    pub(crate) fn read_readout_mode(&mut self, sdk: &AsiSdk) {
+        self.core.readout_mode = if self.has_high_speed_mode {
+            self.get_control(sdk, ASIControlType::ASI_HIGH_SPEED_MODE)
+                .ok()
+                .and_then(|value| READ_MODES.get(usize::try_from(value).ok()?))
+                .map(|name| name.to_string())
+        } else {
+            None
+        };
+    }
+
     /// One line with the settings Skotiq leaves at the camera's own values,
     /// for comparing a camera's behavior with another program's.
     pub(crate) fn log_connect_settings(&self, sdk: &AsiSdk) {
@@ -662,16 +683,7 @@ impl ZwoCamera {
 /// The pattern of a Bayer mosaic of even width and height after mirroring it
 /// left to right (`columns`) and/or top to bottom (`rows`).
 pub(crate) fn mirrored(pattern: BayerPattern, columns: bool, rows: bool) -> BayerPattern {
-    let mut cell: Vec<char> = pattern.fits_name().chars().collect();
-    if columns {
-        cell.swap(0, 1);
-        cell.swap(2, 3);
-    }
-    if rows {
-        cell.swap(0, 2);
-        cell.swap(1, 3);
-    }
-    BayerPattern::from_fits_name(&cell.into_iter().collect::<String>()).unwrap_or(pattern)
+    pattern.shifted(i64::from(columns), i64::from(rows))
 }
 
 /// A frame region in binned pixels, in the multiples the SDK takes.

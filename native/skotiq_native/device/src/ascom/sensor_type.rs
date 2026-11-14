@@ -16,7 +16,7 @@
 //! Both ASCOM transports carry this same enum, so the mapping lives here,
 //! compiled and tested on every platform.
 
-use crate::BayerPattern;
+use skotiq_cfa::BayerPattern;
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 
@@ -257,53 +257,6 @@ mod tests {
         }
     }
 
-    /// Verbatim copy of `ascom_wrapper::camera::bayer_pattern_from_sensor`,
-    /// which is `#[cfg(windows)]` and so cannot compile on a Linux host. The
-    /// copy keeps the COM worker's adapter under test here.
-    fn ascom_wrapper_adapter(
-        sensor_type: i32,
-        offset_x: Option<i32>,
-        offset_y: Option<i32>,
-    ) -> Option<String> {
-        bayer_pattern_from_sensor(sensor_type, offset_x, offset_y)
-            .map(|pattern| pattern.fits_name())
-    }
-
-    /// The COM worker's adapter answers the same families the same way, and
-    /// renders only the four `BAYERPAT` spellings `map_bayer_pattern` accepts.
-    #[test]
-    fn ascom_wrapper_adapter_matches_the_shared_mapping() {
-        assert_eq!(
-            ascom_wrapper_adapter(2, Some(0), Some(0)).as_deref(),
-            Some("RGGB")
-        );
-        assert_eq!(
-            ascom_wrapper_adapter(2, Some(1), Some(0)).as_deref(),
-            Some("GRBG")
-        );
-        assert_eq!(
-            ascom_wrapper_adapter(2, Some(0), Some(1)).as_deref(),
-            Some("GBRG")
-        );
-        assert_eq!(
-            ascom_wrapper_adapter(2, Some(1), Some(1)).as_deref(),
-            Some("BGGR")
-        );
-        // Offsets unreadable on an RGGB-family sensor, and outside the block.
-        assert_eq!(ascom_wrapper_adapter(2, None, Some(0)), None);
-        assert_eq!(ascom_wrapper_adapter(2, Some(0), None), None);
-        assert_eq!(ascom_wrapper_adapter(2, None, None), None);
-        assert_eq!(ascom_wrapper_adapter(2, Some(2), Some(0)), None);
-        // Monochrome, direct colour, and the CMYG/CMYG2/LRGB mosaics.
-        for sensor_type in [0, 1, 3, 4, 5, -1] {
-            assert_eq!(
-                ascom_wrapper_adapter(sensor_type, Some(0), Some(0)),
-                None,
-                "SensorType={sensor_type} produced a BAYERPAT card"
-            );
-        }
-    }
-
     /// A colour sensor with no nameable order carries a reason the operator can
     /// read — direct colour (1) and the CMYG/CMYG2/LRGB mosaics (3..=5) — and
     /// that reason names the SensorType so a misreport can be recognised.
@@ -394,11 +347,12 @@ mod tests {
         for (x, y) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
             let pattern =
                 bayer_pattern_from_sensor(2, Some(x), Some(y)).expect("offsets name a pattern");
-            let name = pattern.fits_name();
-            let back = BayerPattern::from_fits_name(&name).unwrap_or_else(|| {
+            let cfa = skotiq_cfa::ColorFilterArray::from(pattern);
+            let name = cfa.letters();
+            let back = skotiq_cfa::ColorFilterArray::parse(&name).unwrap_or_else(|| {
                 panic!("offsets ({x}, {y}) produced unmappable BAYERPAT {name}")
             });
-            assert_eq!(back, pattern);
+            assert_eq!(back, cfa);
         }
     }
 }

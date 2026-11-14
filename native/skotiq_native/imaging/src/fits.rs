@@ -24,7 +24,9 @@
 //!
 //! Sites with their own `Why:` comment override the module-level reasoning.
 
-use crate::{BayerPattern, ColorFilterArray, ImageData, PixelType};
+#[cfg(test)]
+use crate::BayerPattern;
+use crate::{ColorFilterArray, ImageData, PixelType};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, Write};
@@ -1691,37 +1693,6 @@ fn write_foreign_name_card<W: Write>(
     write_text_card(writer, "COMMENT", &line)
 }
 
-/// Compose a base Bayer pattern with subframe offsets, returning the effective
-/// pattern at the in-memory image origin (0,0).
-///
-/// Composition table — `effective_bayer_pattern(source, x % 2, y % 2)`:
-///
-/// | source | (0,0) | (1,0) | (0,1) | (1,1) |
-/// |--------|-------|-------|-------|-------|
-/// | RGGB   | RGGB  | GRBG  | GBRG  | BGGR  |
-/// | BGGR   | BGGR  | GBRG  | GRBG  | RGGB  |
-/// | GRBG   | GRBG  | RGGB  | BGGR  | GBRG  |
-/// | GBRG   | GBRG  | BGGR  | RGGB  | GRBG  |
-///
-/// Negative offsets are wrapped via Euclidean mod 2 to keep the table consistent.
-pub fn effective_bayer_pattern(source: BayerPattern, x_offset: i64, y_offset: i64) -> BayerPattern {
-    // Each pattern is the RGGB cell seen from one of its four pixels (bit 0:
-    // one column in, bit 1: one row down); an offset moves that pixel. Only
-    // the parity of an offset matters, and `rem_euclid` keeps -1 odd.
-    const BY_ORIGIN: [BayerPattern; 4] = [
-        BayerPattern::RGGB,
-        BayerPattern::GRBG,
-        BayerPattern::GBRG,
-        BayerPattern::BGGR,
-    ];
-    let origin = BY_ORIGIN
-        .iter()
-        .position(|pattern| *pattern == source)
-        .expect("every Bayer pattern is in the table");
-    let shift = x_offset.rem_euclid(2) as usize | (y_offset.rem_euclid(2) as usize) << 1;
-    BY_ORIGIN[origin ^ shift]
-}
-
 /// The color filter of a frame at its pixel (0, 0): `BAYERPAT` (4 letters for
 /// Bayer, 36 for X-Trans) moved by `XBAYROFF`/`YBAYROFF`. `None` for a mono
 /// frame or a `BAYERPAT` that names no filter the app knows.
@@ -2017,9 +1988,7 @@ pub fn saturation_threshold_for_full_scale(full_scale: u32) -> Option<u16> {
 /// On a narrower container the same number means something else entirely — on
 /// the SVBony RAW8 fallback (`max_adu: 255`, samples handed over as 0..255;
 /// `native/src/vendor/svbony.rs`) 100 ADU is 39% of everything the sensor can
-/// produce, so an ordinary dim sub reads as "severely underexposed". That
-/// verdict is an *error*, and an error is not an annotation: the capture path
-/// returns Err on `!is_valid`, so the unscaled floor destroys the frame.
+/// produce, so an ordinary dim sub would read as "severely underexposed".
 ///
 /// The floor therefore scales with the container, exactly as the saturation
 /// ceiling does at the other end of the range.
@@ -2077,11 +2046,10 @@ pub struct ImageValidationOptions {
     pub expected_height: Option<u32>,
     /// Whether this is a bias frame (allows uniform pixel values)
     pub is_bias_frame: bool,
-    /// Minimum acceptable max pixel value, stated against a full 16-bit
-    /// container (default: 100, i.e. 0.15% of full scale). It is rescaled to
-    /// whatever container the frame actually arrived in — see
-    /// [`signal_floor_for_full_scale`], and note that falling under it is an
-    /// error, which aborts the exposure.
+    /// Max pixel value under which a frame is called severely underexposed,
+    /// stated against a full 16-bit container (default: 100, i.e. 0.15% of
+    /// full scale) and rescaled to the container the frame arrived in (see
+    /// [`signal_floor_for_full_scale`]). A warning: the frame is kept.
     pub min_max_value: u16,
     /// Saturation threshold: pixels at/above this are considered saturated.
     /// Default 65024 = 4064 << 4, i.e. 99.2% of the 12-bit ADC ceiling scaled
@@ -2166,7 +2134,8 @@ fn validate_image_with_options(
 /// Performs the following validation checks:
 /// 1. Validates image data size matches dimensions (width * height)
 /// 2. Rejects images where ALL pixels are identical (unless it's a bias frame)
-/// 3. Rejects severely underexposed images (max pixel value < min_max_value)
+/// 3. Warns on underexposed images (max pixel value < min_max_value, and
+///    under five times it)
 /// 4. Warns on saturation, judged against the sensor's own ADU ceiling
 ///    (`sensor_max_adu`) rather than a fixed 16-bit constant
 /// 5. Logs validation results for debugging
@@ -2369,9 +2338,11 @@ pub fn validate_image_comprehensive(
                 tracing::error!("[IMAGE_VALIDATION] REJECTED: All-zero image");
             }
 
-            // Check 3: Underexposure detection with tiered thresholds
-            // Severe underexposure (max < signal_floor) - error
-            // Moderate underexposure (max < signal_floor * 5) - warning
+            // Check 3: Underexposure, in two tiers (max < signal_floor, and
+            // max < signal_floor * 5). Both are warnings: a dim frame is real
+            // data (a short narrowband subframe off a right-justified 12-bit
+            // camera whose driver declares a 16-bit ceiling peaks under the
+            // floor), and a capture error throws the frame away.
             //
             // Both tiers are proportions of the container the frame actually
             // arrived in, not bare ADU counts. The unscaled 100/500 pair is
@@ -2385,13 +2356,13 @@ pub fn validate_image_comprehensive(
             });
             let moderate_threshold = signal_floor.saturating_mul(5);
             if max_value < signal_floor && !all_zero && !options.is_bias_frame {
-                validation.add_error(format!(
-                    "Image severely underexposed: max pixel value {} is below minimum threshold {} - \
-                    increase exposure time or check camera connection/shutter",
+                validation.add_warning(format!(
+                    "Image severely underexposed: max pixel value {} is below {} - \
+                    increase the exposure time, or check the shutter, cap and dome",
                     max_value, signal_floor
                 ));
-                tracing::error!(
-                    "[IMAGE_VALIDATION] REJECTED: Severely underexposed (max={} < {})",
+                tracing::warn!(
+                    "[IMAGE_VALIDATION] WARNING: Severely underexposed (max={} < {})",
                     max_value,
                     signal_floor
                 );
@@ -3149,8 +3120,7 @@ mod tests {
         // dim sub, not an empty frame.
         //
         // Judged against the unscaled 100-ADU floor it is "severely
-        // underexposed", which is an ERROR, and an error means the capture path
-        // returns Err and throws the frame away. Every sub off that camera.
+        // underexposed": every sub off that camera.
         let mut pixels = vec![24u16; 128 * 128];
         for (i, p) in pixels.iter_mut().enumerate().step_by(97) {
             *p = 60 + (i % 31) as u16;
@@ -3161,8 +3131,7 @@ mod tests {
         let v = validate_image_comprehensive(&image, ImageValidationOptions::for_sensor(255));
         assert!(
             v.is_valid,
-            "a third of an 8-bit container's full scale is a real frame; \
-             failing it aborts the exposure: {:?}",
+            "a third of an 8-bit container's full scale is a real frame: {:?}",
             v.errors
         );
         assert!(
@@ -3176,20 +3145,41 @@ mod tests {
     #[test]
     fn test_signal_floor_still_catches_a_frame_with_nothing_in_it() {
         // The counterweight: scaling the floor to the container must not retire
-        // the check. Four ADU out of a 4095 container is 0.1% — a blocked
-        // shutter or a dead link, and still an error.
+        // the check. Four ADU out of a 4095 container is 0.1%: a blocked
+        // shutter or a capped scope, which the frame is kept to show.
         let mut pixels = vec![1u16; 128 * 128];
         pixels[0] = 4;
         let image = ImageData::from_u16(128, 128, 1, &pixels);
 
         let v = validate_image_comprehensive(&image, ImageValidationOptions::for_sensor(4095));
-        assert!(!v.is_valid, "an empty frame is still an empty frame");
+        assert!(v.is_valid, "{:?}", v.errors);
         assert!(
-            v.errors
+            v.warnings
                 .iter()
-                .any(|e| e.to_lowercase().contains("underexposed")),
-            "expected a severe-underexposure error: {:?}",
-            v.errors
+                .any(|w| w.to_lowercase().contains("severely underexposed")),
+            "expected a severe-underexposure warning: {:?}",
+            v.warnings
+        );
+    }
+
+    #[test]
+    fn a_dim_frame_off_a_camera_that_declares_a_wider_ceiling_is_kept() {
+        // A right-justified 12-bit camera whose driver declares the 16-bit
+        // container (INDI's `(1 << CCD_BITSPERPIXEL) - 1`): a short
+        // narrowband subframe with no star sits at the black level plus read
+        // noise, far under 100 of 65535. That is a quality problem, not a
+        // broken capture; the frame is kept and the problem said.
+        let pixels: Vec<u16> = (0..64 * 64).map(|i| 20 + (i * 7 % 23) as u16).collect();
+        let image = ImageData::from_u16(64, 64, 1, &pixels);
+
+        let v = validate_image_comprehensive(&image, ImageValidationOptions::for_sensor(65535));
+        assert!(v.is_valid, "a dim frame was refused: {:?}", v.errors);
+        assert!(
+            v.warnings
+                .iter()
+                .any(|w| w.to_lowercase().contains("severely underexposed")),
+            "{:?}",
+            v.warnings
         );
     }
 
@@ -4093,47 +4083,38 @@ mod tests {
     #[test]
     fn test_effective_bayer_pattern_zero_offset_identity() {
         for src in [
-            BayerPattern::RGGB,
-            BayerPattern::BGGR,
-            BayerPattern::GRBG,
-            BayerPattern::GBRG,
+            BayerPattern::Rggb,
+            BayerPattern::Bggr,
+            BayerPattern::Grbg,
+            BayerPattern::Gbrg,
         ] {
-            assert_eq!(effective_bayer_pattern(src, 0, 0), src);
-            assert_eq!(effective_bayer_pattern(src, 2, 4), src);
+            assert_eq!(src.shifted(0, 0), src);
+            assert_eq!(src.shifted(2, 4), src);
         }
     }
 
     #[test]
     fn test_effective_bayer_pattern_rggb_x1_y0_yields_grbg() {
         //6 explicit case.
-        assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, 1, 0),
-            BayerPattern::GRBG
-        );
+        assert_eq!(BayerPattern::Rggb.shifted(1, 0), BayerPattern::Grbg);
     }
 
     #[test]
     fn test_effective_bayer_pattern_rggb_x0_y1_yields_gbrg() {
-        assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, 0, 1),
-            BayerPattern::GBRG
-        );
+        assert_eq!(BayerPattern::Rggb.shifted(0, 1), BayerPattern::Gbrg);
     }
 
     #[test]
     fn test_effective_bayer_pattern_rggb_x1_y1_yields_bggr() {
-        assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, 1, 1),
-            BayerPattern::BGGR
-        );
+        assert_eq!(BayerPattern::Rggb.shifted(1, 1), BayerPattern::Bggr);
     }
 
     #[test]
     fn test_effective_bayer_pattern_negative_offset_wraps() {
         // -1 has the same parity as +1, so result must match.
         assert_eq!(
-            effective_bayer_pattern(BayerPattern::RGGB, -1, 0),
-            effective_bayer_pattern(BayerPattern::RGGB, 1, 0),
+            BayerPattern::Rggb.shifted(-1, 0),
+            BayerPattern::Rggb.shifted(1, 0),
         );
     }
 
@@ -4144,14 +4125,14 @@ mod tests {
         header.set_string("BAYERPAT", "BGGR");
         assert_eq!(
             read_color_filter_array(&header),
-            Some(ColorFilterArray::Bayer(BayerPattern::BGGR))
+            Some(ColorFilterArray::Bayer(BayerPattern::Bggr))
         );
         header.set_string("BAYERPAT", "RGGB");
         header.set_int("XBAYROFF", 1);
         header.set_int("YBAYROFF", 0);
         assert_eq!(
             read_color_filter_array(&header),
-            Some(ColorFilterArray::Bayer(BayerPattern::GRBG))
+            Some(ColorFilterArray::Bayer(BayerPattern::Grbg))
         );
     }
 
