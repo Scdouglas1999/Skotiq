@@ -95,13 +95,8 @@ class MainActivity : FlutterActivity() {
             ),
         )
 
-        // If onCreate parsed a launch intent before the channel existed,
-        // flush it now. Dart's handler attaches to the channel during
-        // VoiceControlService construction; this happens once
-        // ProviderScope materialises the lifecycle controller. To avoid
-        // racing, we keep retrying via a short post until the inbound
-        // side ACKs OR we give up. In practice the first post lands
-        // because the lifecycle provider is constructed eagerly by main.
+        // Flutter buffers this channel message until VoiceControlService
+        // attaches its Dart handler. Consume the cold-start action once.
         pendingLaunchAction?.let { wireId ->
             dispatchInboundAction(wireId)
             pendingLaunchAction = null
@@ -109,17 +104,15 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        // Parse the launch intent so a cold start via an Assistant
-        // shortcut still carries the action through to Dart. The actual
-        // dispatch happens in configureFlutterEngine once the channel
-        // is ready.
+        // FlutterActivity configures the engine during super.onCreate, so
+        // the launch action must already be queued when that callback runs.
         intent?.let { incoming ->
             extractWireId(incoming)?.let { wireId ->
                 pendingLaunchAction = wireId
                 Log.i(TAG, "onCreate: queued voice action '$wireId' for dispatch")
             }
         }
+        super.onCreate(savedInstanceState)
     }
 
     override fun onNewIntent(intent: Intent) {

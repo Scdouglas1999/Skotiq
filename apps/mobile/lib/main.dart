@@ -130,21 +130,10 @@ void main() async {
     );
   }
 
-  // request Android POST_NOTIFICATIONS at startup
-  // *before* runApp() so the system prompt is shown on first launch (and
-  // not buried behind a connection screen). Without this, Android 13+
-  // silently drops every notification we try to fire. Also wires up the
-  // foreground-task plugin so the OS sees a granted notification permission
-  // before the first sequence tries to start a foreground service.
-  //
-  // The notification service singleton is idempotent — subsequent calls
-  // from MobileSequenceHooks.initialize() are no-ops via the _initialized
-  // flag. We deliberately initialize both services here:
-  //
-  //   1. MobileNotificationService — handles flutter_local_notifications
-  //      runtime permission request (POST_NOTIFICATIONS).
-  //   2. ImagingForegroundService — handles flutter_foreground_task's own
-  //      permission checks, which it uses before startService() will run.
+  // Request POST_NOTIFICATIONS once before the connection screen. Both
+  // plugins read the same Android permission; asking again after a denial
+  // displays a second prompt. The notification service retains the decision
+  // for the banner; configure the foreground plugin without re-prompting.
   if (Platform.isAndroid || Platform.isIOS) {
     try {
       await MobileNotificationService().initialize();
@@ -161,14 +150,6 @@ void main() async {
     if (Platform.isAndroid) {
       try {
         await ImagingForegroundService().initialize();
-        // Ask the foreground-task plugin to confirm the notification
-        // permission too — its own check sits between us and startService.
-        // We deliberately ignore the result here: the local-notifications
-        // plugin call above is the authoritative one for our banner state,
-        // and re-prompting from this call (after the user has already
-        // answered the first prompt) is a no-op on every supported API
-        // level.
-        await ImagingForegroundService().requestNotificationPermission();
         Log.debug('ImagingForegroundService initialized', source: 'Main');
       } catch (e, st) {
         Log.error(
