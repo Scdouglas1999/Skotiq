@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart' as ndb;
 import '../models/scheduler/integration_goal.dart';
+import '../models/site/altitude_floor.dart';
+import '../models/site/site_horizon_profile.dart';
 import '../models/scheduler/scheduler_decision.dart';
 import '../models/scheduler/scheduler_status.dart';
 import '../models/scheduler/target_constraint.dart';

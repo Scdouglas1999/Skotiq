@@ -101,7 +101,7 @@ class _ThrowingNightAnalysisService extends NightAnalysisService {
     required super.images,
     required super.science,
     required super.reports,
-  });
+  }) : super(site: () => null);
 
   @override
   Future<NightReport> computeReport({

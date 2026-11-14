@@ -298,6 +298,12 @@ class SiteHorizonProfile {
     return result;
   }
 
+  /// Whether the operator set a horizon of their own: a sector or an imported
+  /// sample above 0°. Learned obstructions do not count.
+  bool get hasOwnHorizon =>
+      _altitudes.values.any((v) => v != 0.0) ||
+      _samples.any((s) => s.altitude != 0.0);
+
   /// Whether this profile is all zeros (flat horizon) with no learned
   /// obstruction.
   bool get isFlat =>

@@ -108,11 +108,9 @@ class SchedulerConfig extends Equatable {
   /// drops to 0 regardless of dec/latitude. Operator-tunable for site
   /// horizon limitations not captured by a custom horizon profile.
   ///
-  /// This is THE site minimum altitude for the whole product: the sequence
-  /// builder and the planner's altitude charts read it through
-  /// `siteMinimumAltitudeDegProvider` and never re-derive their own number. A
-  /// second threshold anywhere lets the scheduler admit a target the builder
-  /// then refuses.
+  /// This is the site minimum altitude for the whole product, in force while
+  /// no horizon is set: every reader goes through `altitudeFloorProvider`
+  /// (`AltitudeFloor`) and never re-derives its own number.
   final double minAltitudeDegrees;
 
   /// Maximum moon separation penalty radius (degrees). Targets within this

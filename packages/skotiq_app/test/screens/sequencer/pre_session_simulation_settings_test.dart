@@ -25,7 +25,9 @@ class _FakeSettingsNotifier extends AppSettingsNotifier {
   Future<AppSettingsState> build() async => const AppSettingsState(
         latitude: 40,
         longitude: -75,
-        effectiveHorizonDeg: 60,
+        // A horizon set for the property is the site's altitude floor.
+        horizonProfileJson:
+            '{"N":60,"NE":60,"E":60,"SE":60,"S":60,"SW":60,"W":60,"NW":60}',
       );
 }
 
@@ -34,7 +36,6 @@ class _LowHorizonSettingsNotifier extends AppSettingsNotifier {
   Future<AppSettingsState> build() async => const AppSettingsState(
         latitude: 40,
         longitude: -75,
-        effectiveHorizonDeg: 0,
       );
 }
 
@@ -93,7 +94,7 @@ Sequence _longSequence() {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('timeline simulation uses the configured effective horizon', () async {
+  test('timeline simulation uses the site horizon', () async {
     final container = ProviderContainer(
       overrides: [
         inMemoryDatabaseOverride(),
@@ -120,7 +121,7 @@ void main() {
     );
   });
 
-  testWidgets('preflight simulation uses the configured effective horizon',
+  testWidgets('preflight simulation uses the site horizon',
       (tester) async {
     await tester.pumpWidget(
       ProviderScope(

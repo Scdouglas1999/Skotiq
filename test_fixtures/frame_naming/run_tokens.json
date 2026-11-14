@@ -1,0 +1,24 @@
+{
+  "about": "The file naming pattern's tokens as a run fills them in. The app compiles the Settings pattern into a run's save template with these placeholders (packages/skotiq_core/lib/src/models/imaging/naming_pattern.dart, NamingToken.runPlaceholder) and files a frame with no filter or no target under these labels; the sequencer resolves the placeholders from its variable catalog and uses the same labels (sequencer/src/expressions/resolver.rs NO_FILTER_LABEL, NO_TARGET_LABEL; node/instructions/expose.rs calibration_target_label). Both sides test against this file.",
+  "run_placeholders": {
+    "$TARGET": "${target.name}",
+    "$FILTER": "${filter}",
+    "$EXPTIME": "${exposure.duration:.1f}",
+    "$EXPOSURE": "${exposure.duration:.1f}",
+    "$DATE": "${time.date}",
+    "$TIME": "${time.clock}",
+    "$DATETIME": "${time.date}_${time.clock}",
+    "$FRAMENUM": "${frame:04}",
+    "$SEQ": "${frame:04}",
+    "$TEMP": "${camera.temp_c:.0f}C"
+  },
+  "no_filter_label": "nofilter",
+  "no_target_label": {
+    "Light": "untargeted",
+    "Snapshot": "untargeted",
+    "Dark": "Dark",
+    "Flat": "Flat",
+    "Bias": "Bias",
+    "DarkFlat": "DarkFlat"
+  }
+}

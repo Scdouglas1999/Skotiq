@@ -48,7 +48,7 @@ final _nightSkyCurvesProvider = Provider<_SkyCurves?>((ref) {
   final moonCurve = <SeriesPoint>[];
   for (var i = 0; i < _curveSamples; i++) {
     final at = start.add(span * (i / (_curveSamples - 1)));
-    final (altitude, _) = AstronomyCalculations.objectAltAz(
+    final (altitude, azimuth) = AstronomyCalculations.objectAltAz(
       raDeg: target.raHours * 15.0,
       decDeg: target.decDegrees,
       dt: at,
@@ -69,7 +69,8 @@ final _nightSkyCurvesProvider = Provider<_SkyCurves?>((ref) {
 
 /// The meridian transit of [raHours] (equinox of date) nearest [instant].
 DateTime _transitNear(DateTime instant, double raHours, double longitude) {
-  final lst = AstronomyCalculations.localSiderealTime(instant.toUtc(), longitude);
+  final lst =
+      AstronomyCalculations.localSiderealTime(instant.toUtc(), longitude);
   final hourAngle = AstronomyCalculations.hourAngleHours(raHours, lst);
   return instant.subtract(
     Duration(seconds: (hourAngle * 3600 * _siderealToSolar).round()),
@@ -92,7 +93,7 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
   final target = ref.watch(runDashboardActiveTargetProvider);
   if (target == null) return null;
 
-  final horizonDeg = ref.watch(effectiveHorizonDegProvider);
+  final floor = ref.watch(altitudeFloorProvider);
   final site = ref.watch(appObserverLocationProvider);
   final night = ref.watch(tonightNightProvider);
   final clock = ref.watch(clockProvider);
@@ -112,14 +113,14 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
       raHours: target.raHours,
       decDegrees: target.decDegrees,
       rotationDeg: target.rotation,
-      horizonLimitDeg: horizonDeg,
+      horizonLimitDeg: floor.lowestDeg,
       moonIlluminationPct: night?.moonIlluminationPercent,
       moonSet: moonSetTonight,
     );
   }
 
   final now = ref.watch(nightNowProvider);
-  final (altitude, _) = AstronomyCalculations.objectAltAz(
+  final (altitude, azimuth) = AstronomyCalculations.objectAltAz(
     raDeg: target.raHours * 15.0,
     decDeg: target.decDegrees,
     dt: now,
@@ -155,21 +156,20 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
   final transitAltitude = transitTonight == null
       ? null
       : AstronomyCalculations.objectAltAz(
-            raDeg: target.raHours * 15.0,
-            decDeg: target.decDegrees,
-            dt: transitTonight,
-            latitudeDeg: site.latitude,
-            longitudeDeg: site.longitude,
-          )
-          .$1;
+          raDeg: target.raHours * 15.0,
+          decDeg: target.decDegrees,
+          dt: transitTonight,
+          latitudeDeg: site.latitude,
+          longitudeDeg: site.longitude,
+        ).$1;
 
-  final toLimit = AstronomyCalculations.timeUntilBelow(
+  final horizonDeg = floor.atAzimuth(azimuth);
+  final toLimit = floor.timeUntilBelow(
     raDeg: target.raHours * 15.0,
     decDeg: target.decDegrees,
     now: now,
     latitudeDeg: site.latitude,
     longitudeDeg: site.longitude,
-    horizonDeg: horizonDeg,
   );
   // Null when it never drops below the limit, or already has.
   final belowLimit =

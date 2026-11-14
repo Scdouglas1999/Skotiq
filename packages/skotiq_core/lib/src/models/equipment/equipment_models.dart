@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import '../backend/device_capabilities.dart' show TrackingRate;
 import '../../errors/error_text.dart';
+import '../../errors/error_text_kind.dart';
 import '../errors/skotiq_error.dart';
 
 // Re-export TrackingRate from device_capabilities as the canonical source
@@ -92,11 +93,15 @@ class DeviceError extends Equatable {
   /// If the exception is a [SkotiqError], the structured error information
   /// is extracted directly. Otherwise, the error message is parsed to determine
   /// the error category.
+  /// [error] as a device error. An error with no category of its own is
+  /// classified from its text by [classifyErrorText]; the message is the
+  /// sentence a person reads.
   factory DeviceError.fromException(
     Object error, {
     String? deviceId,
     int retryAttempts = 0,
   }) {
+    if (error is DeviceError) return error;
     if (error is SkotiqError) {
       return DeviceError.fromSkotiqError(
         error,
@@ -104,33 +109,20 @@ class DeviceError extends Equatable {
         retryAttempts: retryAttempts,
       );
     }
-
     final message = userFacingError(error);
-    final normalized = message.toLowerCase();
-
-    // Try to categorize the error from the message
-    DeviceErrorType type = DeviceErrorType.unknown;
-    bool recoverable = true;
-
-    if (normalized.contains('timeout') || normalized.contains('timed out')) {
-      type = DeviceErrorType.timeout;
-    } else if (normalized.contains('not found') ||
-        normalized.contains('notfound')) {
-      type = DeviceErrorType.deviceNotFound;
-      recoverable = false;
-    } else if (normalized.contains('connection') ||
-        normalized.contains('connect')) {
-      type = DeviceErrorType.connectionFailed;
-    } else if (normalized.contains('driver')) {
-      type = DeviceErrorType.driverError;
-    } else if (normalized.contains('busy')) {
-      type = DeviceErrorType.busy;
-    } else if (normalized.contains('permission') ||
-        normalized.contains('denied')) {
-      type = DeviceErrorType.permissionDenied;
-      recoverable = false;
-    }
-
+    final (type, recoverable) = switch (classifyErrorText(message)) {
+      ErrorTextKind.timeout => (DeviceErrorType.timeout, true),
+      ErrorTextKind.notFound => (DeviceErrorType.deviceNotFound, false),
+      ErrorTextKind.connection => (DeviceErrorType.connectionFailed, true),
+      ErrorTextKind.permission => (DeviceErrorType.permissionDenied, false),
+      ErrorTextKind.busy => (DeviceErrorType.busy, true),
+      ErrorTextKind.hardware => (DeviceErrorType.communicationError, true),
+      ErrorTextKind.invalid ||
+      ErrorTextKind.unsupported => (DeviceErrorType.invalidParameter, true),
+      ErrorTextKind.imaging ||
+      ErrorTextKind.driver => (DeviceErrorType.driverError, true),
+      ErrorTextKind.unknown => (DeviceErrorType.unknown, true),
+    };
     return DeviceError(
       type: type,
       message: message,
@@ -141,10 +133,6 @@ class DeviceError extends Equatable {
     );
   }
 
-  /// Create a DeviceError from a structured [SkotiqError]
-  ///
-  /// This provides a more accurate conversion using the structured error
-  /// information from the native backend.
   factory DeviceError.fromSkotiqError(
     SkotiqError error, {
     String? deviceId,

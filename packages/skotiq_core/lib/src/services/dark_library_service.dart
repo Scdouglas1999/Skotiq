@@ -6,7 +6,7 @@ import '../database/database.dart';
 import '../database/daos/dark_library_dao.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
-import 'calibration/dark_selection.dart';
+import 'calibration/calibration_selection.dart';
 import 'calibration_master_builder.dart';
 
 /// Service for managing dark frame library operations.

@@ -43,16 +43,6 @@ final locationSyncProvider = Provider<void>((ref) {
               elevation: settings.elevation,
             );
 
-        // Bridge effectiveHorizonDeg into the planetarium
-        // package. We can't make planetarium depend on skotiq_core
-        // (core already depends on planetarium for catalog access), so the
-        // app layer pumps the value across via this sync provider. The
-        // altitude card and rise/set times in object_details_panel read
-        // `effectiveHorizonDegProvider` from the planetarium package so
-        // they automatically pick up the new value.
-        ref.read(planetariumEffectiveHorizonDegProvider.notifier).state =
-            settings.effectiveHorizonDeg;
-
         // Also sync to Rust backend for astronomical calculations. Null
         // until a site is set — see the provider doc.
         await _syncLocationToBackend(ref, settings.observerSite);
@@ -81,9 +71,6 @@ final locationSyncProvider = Provider<void>((ref) {
             longitude: settings.longitude,
             elevation: settings.elevation,
           );
-      ref.read(planetariumEffectiveHorizonDegProvider.notifier).state =
-          settings.effectiveHorizonDeg;
-
       await _syncLocationToBackend(ref, settings.observerSite);
     });
   });
@@ -124,3 +111,16 @@ Future<void> _syncLocationToBackend(Ref ref, ObserverLocation? site) async {
     );
   }
 }
+
+/// The planetarium package cannot depend on skotiq_core, so the app pumps the
+/// site's altitude floor across: the planetarium's altitude card and rise/set
+/// times read its own horizon provider. One number there: the lowest the
+/// floor goes.
+final planetariumAltitudeFloorSyncProvider = Provider<void>((ref) {
+  ref.listen<AltitudeFloor>(altitudeFloorProvider, (previous, next) {
+    Future.microtask(
+      () => ref.read(planetariumEffectiveHorizonDegProvider.notifier).state =
+          next.lowestDeg,
+    );
+  }, fireImmediately: true);
+});

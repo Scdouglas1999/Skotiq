@@ -94,6 +94,24 @@ class _ConfigExpansionState extends State<_ConfigExpansion> {
               suffix: '°',
               onChanged: widget.onMinAltitudeChanged,
             ),
+            Consumer(
+              builder: (context, ref, _) {
+                if (!ref.watch(altitudeFloorProvider).followsHorizon) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'Not in force: the site horizon (Settings > Location) '
+                    'decides how high a target must be while it is set.',
+                    key: const Key('scheduler.minAltitudeNotInForce'),
+                    style: SkotiqTypography.captionSm.copyWith(
+                      color: SkotiqColors.of(context).textMuted,
+                    ),
+                  ),
+                );
+              },
+            ),
             _ParameterSlider(
               label: 'Switch hysteresis',
               value: c.hysteresisRatio,

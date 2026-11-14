@@ -43,7 +43,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     // that changes a filter responsible for mirroring the name back into the
     // settings object, and the Imaging screen's own filter strip shipped
     // without doing so: every manual capture was written with no FILTER card,
-    // a "NoFilter" filename and an empty `captured_images.filter`, while the
+    // a no-filter filename and an empty `captured_images.filter`, while the
     // banner displayed the active filter one row below. Resolving from the
     // live wheel here means no call site can drop it again.
     settings = _withLiveFilter(settings);

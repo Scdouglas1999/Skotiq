@@ -23,6 +23,7 @@ NightAnalysisService _pureService() {
     images: db.imagesDao,
     science: ScienceDao(db),
     reports: NightReportsDao(db),
+    site: () => null,
     clock: () => DateTime.utc(2026, 8, 14, 6),
   );
 }

@@ -3,6 +3,7 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
@@ -74,7 +75,9 @@ Future<String> apiBuildMasterFlat({required String argsJson}) => RustLib
 /// light leak) are left out and reported.
 ///
 /// `args_json` is a [`BuildCalibrationMasterArgs`]; the result is a
-/// [`BuildCalibrationMasterResult`].
+/// [`BuildCalibrationMasterResult`]. Frames that cannot make one master (too
+/// few, unreadable, disagreeing, leaking light) are `InvalidInput` with the
+/// reason; a master that could not be written is `OperationFailed`.
 Future<String> apiBuildCalibrationMaster({required String argsJson}) => RustLib
     .instance
     .api

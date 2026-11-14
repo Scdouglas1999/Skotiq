@@ -10,6 +10,7 @@ import 'package:path/path.dart' as path;
 import '../errors/error_text.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/imaging/imaging_models.dart';
+import '../models/imaging/naming_pattern.dart';
 import '../providers/clock_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/capability_provider.dart' show cameraSensitivityProvider;
@@ -366,118 +367,18 @@ class ImagingService {
 
   bool get isCapturing => _isCapturing;
 
-  /// All naming-pattern variables this service recognises.
-  ///
-  /// Keep this in sync with [NamingPattern.availableVariables] and
-  /// `docs/features/settings.md`. The settings UI surfaces a shorter subset
-  /// (`$TARGET, $FILTER, $DATE, $SEQ, $EXPOSURE`), but the full set is
-  /// honoured here.
-  static const Set<String> _patternVariables = {
-    r'$TARGET',
-    r'$FILTER',
-    r'$EXPTIME',
-    r'$EXPOSURE', // alias documented in settings_screen subtitle + seed_data
-    r'$DATE',
-    r'$TIME',
-    r'$DATETIME',
-    r'$FRAMETYPE',
-    r'$FRAMENUM',
-    r'$SEQ', // alias documented in settings_screen subtitle + defaults
-    r'$GAIN',
-    r'$OFFSET',
-    r'$TEMP',
-    r'$BINNING',
-    r'$CAMERA',
-    r'$TELESCOPE',
-    r'$SEQUENCE',
-    r'$SESSION',
-  };
-
-  /// Regex that finds `$IDENT` tokens (uppercase letters only) in a pattern.
-  /// Used by [expandNamingPattern] both to perform substitutions and to
-  /// reject unknown variables.
-  ///
-  /// Underscore is intentionally **excluded** from the character class
-  /// because the documented patterns use `_` as a literal separator between
-  /// variables (e.g. `$TARGET_$FILTER_$FRAMENUM` ⇒ three tokens joined by
-  /// underscores, not one nine-character token). Every variable name in
-  /// [_patternVariables] is letters-only, so this is sufficient.
-  static final RegExp _patternVarRegex = RegExp(r'\$[A-Z]+');
-
-  static final RegExp _unsafePathComponentChars = RegExp(
-    r'[<>:"/\\|?*\x00-\x1F]',
-  );
-
-  /// Make equipment- and target-derived values safe as one filename segment.
-  /// User-entered names are data, never path syntax: a target named `M31/Ha`
-  /// must not create a surprise directory, and `../` must never escape the
-  /// configured output root.
-  static String _sanitizePathComponent(String value) {
-    var sanitized = value.replaceAll(_unsafePathComponentChars, '_').trim();
-    sanitized = sanitized.replaceFirst(RegExp(r'^[. _]+'), '');
-    sanitized = sanitized.replaceAll(RegExp(r'[. ]+$'), '');
-    if (sanitized.isEmpty || sanitized == '.' || sanitized == '..') {
-      return '_';
-    }
-    return sanitized;
-  }
-
-  /// Expand `$VARIABLE` tokens in [pattern] using [substitutions].
-  ///
-  /// Throws an [Exception] if [pattern] references any token that is not in
-  /// [_patternVariables]: an unknown `$BANANA` left in the path produces a
-  /// filename that looks like it worked and breaks downstream sorting and
-  /// searching.
-  ///
-  /// Exposed for unit testing of the pattern-expansion logic in isolation
-  /// from the capture pipeline / provider graph.
-  @visibleForTesting
-  static String expandNamingPattern(
-    String pattern,
-    Map<String, String> substitutions,
-  ) {
-    // Find every $TOKEN in the pattern and validate it up-front so the user
-    // gets ONE error listing all unknowns, not one error per failed capture.
-    final unknown = <String>{};
-    for (final match in _patternVarRegex.allMatches(pattern)) {
-      final token = match.group(0)!;
-      if (!_patternVariables.contains(token)) {
-        unknown.add(token);
-      }
-    }
-    if (unknown.isNotEmpty) {
-      final sorted = unknown.toList()..sort();
+  /// Throws the [ValidationException] that fails a capture when [pattern]
+  /// cannot name a frame.
+  static void _requireUsablePattern(String pattern) {
+    final problem = NamingPattern.problem(pattern);
+    if (problem != null) {
       throw ValidationException(
-        message:
-            'Unknown naming-pattern variable${sorted.length == 1 ? '' : 's'} '
-            '${sorted.join(', ')} in '
-            'pattern "$pattern". Supported variables: '
-            '${(_patternVariables.toList()..sort()).join(', ')}.',
-        userMessage: 'The naming pattern contains unknown variables',
+        message: 'Naming pattern "$pattern": $problem',
+        userMessage: problem,
       );
     }
-
-    // Replace via the regex so prefix overlaps (`$EXPTIME` vs `$EXPOSURE`,
-    // `$FRAMENUM` vs `$FRAMETYPE`) cannot be confused with one another.
-    final expanded = pattern.replaceAllMapped(_patternVarRegex, (m) {
-      final token = m.group(0)!;
-      // Safe: we just validated every token above.
-      return _sanitizePathComponent(substitutions[token]!);
-    });
-    if (expanded.contains(r'$')) {
-      throw ValidationException(
-        message: 'Unrecognized variable syntax in naming pattern "$pattern".',
-        userMessage: 'The naming pattern contains an invalid variable',
-      );
-    }
-    return expanded;
   }
 
-  /// Build the absolute file path for a captured image given the resolved
-  /// pattern substitutions. Splits the expanded pattern on `/` so that all
-  /// segments before the last become subdirectories under [basePath] and the
-  /// last segment becomes the filename stem (extension appended).
-  ///
   /// [desiredPath], or the first `<name>_NNN<ext>` beside it that [exists]
   /// says is free. [paths] is the path style of the machine that owns it.
   @visibleForTesting
@@ -501,66 +402,31 @@ class ImagingService {
     return candidate;
   }
 
+  /// The absolute path [pattern] gives a frame of [values] under
+  /// [basePath]: every segment before the last is a folder, the last is the
+  /// filename stem, [extension] is appended.
+  ///
   /// [pathContext] is the path style of the machine that writes the file
   /// (see [hostPathContext]); it defaults to this machine's, and when given
   /// [basePath] must already be absolute in that style.
-  ///
-  /// Exposed for unit testing — no filesystem or provider access happens
-  /// inside this function.
   @visibleForTesting
   static String buildImageFilePath({
     required String pattern,
     required String basePath,
     required String extension,
-    required Map<String, String> substitutions,
+    required Map<NamingToken, String> values,
     path.Context? pathContext,
   }) {
     final paths = pathContext ?? path.context;
-    if (pattern.trim().isEmpty ||
-        paths.isAbsolute(pattern) ||
-        path.isAbsolute(pattern) ||
-        pattern.startsWith('/') ||
-        pattern.startsWith(r'\')) {
-      throw ValidationException(
-        message: 'Naming pattern must be a non-empty relative path: "$pattern"',
-        userMessage: 'The naming pattern must be a relative path',
-      );
-    }
+    _requireUsablePattern(pattern);
     if (!RegExp(r'^[A-Za-z0-9]+$').hasMatch(extension)) {
       throw ValidationException(
         message: 'Invalid capture file extension: "$extension"',
         userMessage: 'The capture file extension is invalid',
       );
     }
-
-    final expanded = expandNamingPattern(pattern, substitutions);
-
-    // Split on '/' (the documented pattern separator). The last segment is
-    // the filename stem; earlier segments are subdirectories. If the user's
-    // pattern contains no '/' the entire pattern is the filename and the
-    // capture lands directly in the base directory.
-    final segments = expanded.split('/');
-    if (segments.isEmpty) {
-      throw ValidationException(
-        message: 'Naming pattern expanded to an empty path: "$pattern"',
-        userMessage: 'The naming pattern produced an empty file path',
-      );
-    }
-    for (final segment in segments) {
-      if (segment.isEmpty ||
-          segment == '.' ||
-          segment == '..' ||
-          segment.contains(r'\') ||
-          _unsafePathComponentChars.hasMatch(segment)) {
-        throw ValidationException(
-          message:
-              'Unsafe path segment "$segment" in naming pattern "$pattern"',
-          userMessage: 'The naming pattern contains an unsafe path segment',
-        );
-      }
-    }
-    final fileNameStem = segments.removeLast();
-    final fileName = '$fileNameStem.$extension';
+    final segments = NamingPattern.segments(pattern, values);
+    final fileName = '${segments.removeLast()}.$extension';
     // Another machine's base path cannot be resolved against this process's
     // working directory: a relative one is refused rather than guessed.
     if (pathContext != null && !paths.isAbsolute(basePath)) {
@@ -607,152 +473,48 @@ class ImagingService {
     );
   }
 
-  /// The naming-pattern tokens a run fills in as it saves each frame, as the
-  /// native save template spells them: values that change from frame to
-  /// frame (number, time, sensor temperature) or that only the run knows (the
-  /// target a scheduler picked, the filter in the wheel, an adapted
-  /// exposure). Formats match [buildTimestampSubstitutions]. Every other
-  /// token is filled in when the plan is sent ([runFrameSaveTemplate]).
-  static const Map<String, String> runFrameTokens = {
-    r'$TARGET': r'${target.name}',
-    r'$FILTER': r'${filter}',
-    r'$EXPTIME': r'${exposure.duration:.1f}',
-    r'$EXPOSURE': r'${exposure.duration:.1f}',
-    r'$FRAMENUM': r'${frame:04}',
-    r'$SEQ': r'${frame:04}',
-    r'$DATE': r'${time.date}',
-    r'$TIME': r'${time.clock}',
-    r'$DATETIME': r'${time.date}_${time.clock}',
-    r'$TEMP': r'${camera.temp_c:.0f}C',
-  };
-
-  /// The values of the tokens a run does not fill in itself, for one capture
-  /// step of [sequence] sent at [sentAt]: what a manual capture's pattern
-  /// gives them, from the step instead of the Imaging panel.
-  static Map<String, String> runFrameFixedTokens({
-    required String sequence,
-    required FrameType frameType,
-    required int gain,
-    required int offset,
-    required String binning,
-    required String camera,
-    required String telescope,
-    required DateTime sentAt,
-  }) => {
-    r'$FRAMETYPE': frameType.name,
-    r'$GAIN': gain.toString(),
-    r'$OFFSET': offset.toString(),
-    r'$BINNING': binning,
-    r'$CAMERA': camera,
-    r'$TELESCOPE': telescope,
-    r'$SEQUENCE': sequence,
-    // The run's session, so a night past UTC midnight stays one session.
-    r'$SESSION': sentAt
-        .toUtc()
-        .toIso8601String()
-        .substring(0, 10)
-        .replaceAll('-', ''),
-  };
-
-  /// The Settings naming [pattern] as the save template of a secondary
-  /// (piggyback) camera's frames, which the rig names under its own folder:
-  /// light frames of the rig labeled [rigLabel], which also stands for the
-  /// camera and the plan.
-  static String secondaryRigSaveTemplate(
-    String pattern, {
-    required String rigLabel,
-    required int? gain,
-    required int? offset,
-    required int binX,
-    required int binY,
-    required DateTime sentAt,
-  }) => runFrameSaveTemplate(
-    pattern,
-    runFrameFixedTokens(
-      sequence: rigLabel,
-      frameType: FrameType.light,
-      gain: gain ?? 0,
-      offset: offset ?? 0,
-      binning: '${binX}x$binY',
-      camera: rigLabel,
-      telescope: rigLabel,
-      sentAt: sentAt,
-    ),
-  );
-
   /// The Settings naming [pattern] as the save template (`save_to`) of a
-  /// run's frames: [runFrameTokens] become the run's placeholders, every
-  /// other token takes its value from [fixed], made safe as one path segment
-  /// as a manual capture's are. The same pattern names a manual capture and
-  /// a sequence frame alike.
+  /// run's frames of [step] ([NamingPattern.runTemplate]). The same pattern
+  /// names a manual capture and a sequence frame alike.
   ///
   /// Throws the [ValidationException] a manual capture with [pattern] would,
   /// so a pattern that cannot name a frame stops the run before it starts.
-  static String runFrameSaveTemplate(
-    String pattern,
-    Map<String, String> fixed,
-  ) {
-    buildImageFilePath(
-      pattern: pattern,
-      basePath: '/',
-      extension: 'fits',
-      substitutions: {for (final token in _patternVariables) token: 'x'},
-      pathContext: path.posix,
-    );
-    return pattern.replaceAllMapped(_patternVarRegex, (m) {
-      final token = m.group(0)!;
-      return runFrameTokens[token] ??
-          _sanitizePathComponent(fixed[token]!).replaceAll(r'${', r'$${');
-    });
+  static String runFrameSaveTemplate(String pattern, NamingStep step) {
+    _requireUsablePattern(pattern);
+    return NamingPattern.runTemplate(pattern, step);
   }
 
-  /// Build the canonical substitution map for `$DATE`, `$TIME`, etc. given
-  /// only the values that don't require provider access (camera state, mount
-  /// state). Useful for unit tests that want to verify the UTC date/time
-  /// conventions without spinning up a `ProviderContainer`. The full
-  /// provider-aware map lives in [_buildPatternSubstitutions].
+  /// The naming values of a frame of [exposureSettings] taken by hand at
+  /// [timestamp], outside any sequence.
   @visibleForTesting
-  static Map<String, String> buildTimestampSubstitutions({
+  static Map<NamingToken, String> manualFrameValues({
     required ExposureSettings exposureSettings,
     String? targetName,
     required int frameNumber,
     required DateTime timestamp,
-    String camera = 'Camera',
-    String telescope = 'Telescope',
-    String tempStr = '0C',
-  }) {
-    final utcTs = timestamp.toUtc();
-    final iso = utcTs.toIso8601String();
-    final dateStr = iso.substring(0, 10);
-    final timeStr = iso.substring(11, 19).replaceAll(':', '-');
-    final frameNumStr = frameNumber.toString().padLeft(4, '0');
-    final exposureStr = exposureSettings.exposureTime.toStringAsFixed(1);
-
-    return {
-      r'$TARGET': targetName ?? 'Unknown',
-      r'$FILTER': exposureSettings.filter ?? 'NoFilter',
-      r'$EXPTIME': exposureStr,
-      r'$EXPOSURE': exposureStr,
-      r'$DATE': dateStr,
-      r'$TIME': timeStr,
-      r'$DATETIME': '${dateStr}_$timeStr',
-      r'$FRAMETYPE': exposureSettings.frameType.name,
-      r'$FRAMENUM': frameNumStr,
-      r'$SEQ': frameNumStr,
-      r'$GAIN': exposureSettings.gain.toString(),
-      r'$OFFSET': exposureSettings.offset.toString(),
-      r'$TEMP': tempStr,
-      r'$BINNING': '${exposureSettings.binningX}x${exposureSettings.binningY}',
-      r'$CAMERA': camera,
-      r'$TELESCOPE': telescope,
-      // The sequence this frame belongs to; with no sequence the value is the
-      // literal "Sequence". Nothing on this path (manual Snapshot, Loop,
-      // plate-solve frame) belongs to a sequence, and the target name would
-      // label a plain target folder as a sequence.
-      r'$SEQUENCE': 'Sequence',
-      r'$SESSION': dateStr.replaceAll('-', ''),
-    };
-  }
+    String? camera,
+    String? telescope,
+    double? sensorTempC,
+  }) => NamingPattern.values(
+    NamingStep(
+      frameType: exposureSettings.frameType,
+      gain: exposureSettings.gain,
+      offset: exposureSettings.offset,
+      binX: exposureSettings.binningX,
+      binY: exposureSettings.binningY,
+      camera: camera,
+      telescope: telescope,
+      session: timestamp,
+    ),
+    NamingFrame(
+      target: targetName,
+      filter: exposureSettings.filter,
+      exposureSeconds: exposureSettings.exposureTime,
+      number: frameNumber,
+      takenAt: timestamp,
+      sensorTempC: sensorTempC,
+    ),
+  );
 }
 
 final currentImageProvider = StateProvider<CapturedImageData?>((ref) => null);
