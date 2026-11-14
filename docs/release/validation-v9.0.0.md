@@ -1,0 +1,170 @@
+# Skotiq 9.0.0 validation
+
+This records preparation of the unpublished 9.0.0 / build 37 beta candidate.
+Hardware and Windows runtime checks remain unavailable. Commands, complete logs,
+exit codes, and tested revisions are under
+`~/.cache/ns-untangle/notes/codex-release*-tools/`.
+
+## Test evidence
+
+| Check | Result | Code / evidence |
+| --- | --- | --- |
+| Full core suite | 8,100 passed, 14 skipped; one changed contract fixture failed | `79a21857a`; `gates/test-core.log`. The native-node fixture now records the effective 30° site floor; it was regenerated and verified in the focused run below. |
+| Core release regressions | 71 passed | `ed84eac3a`; DSLR capability failure, site floors, wire-node contracts, and guider ownership/centering; `gates/core-release-regressions.log` |
+| Full app suite | 5,436 passed, 1 skipped | `8ac2c699a`; `gates/test-app.log` |
+| Desktop / mobile | 1,445 / 227 passed | `8ac2c699a` / `10c0e91d5`; `gates/test-{desktop,mobile}.log` |
+| UI / planetarium / remote protocol | 717 / 319 / 249 passed | `10c0e91d5`; matching `gates/test-*.log` |
+| Updater / plugins / Dart bridge / design / astro | 175 / 60 / 44 / 1 / 500 passed | `10c0e91d5`; matching `gates/test-*.log` |
+| Hub | 207 passed; analyzer clean | `ed84eac3a`; pinned dependencies resolved into a fresh cache because the existing cache returned I/O errors. No dependency versions changed. |
+| Relay | 39 passed | `10c0e91d5` plus the test committed as `ed84eac3a`; checks private file permissions and that a failed permission change cannot replace the old secret. |
+| Mobile real-socket transport | 3 passed, explicitly enabled | `bc1f7a156`, integrated in `805774b5`; corrected the stale 8.2.0 test host and require actual authentication rejection for the bad-token case. Real HTTP/WebSocket event delivery runs in a private loopback namespace. |
+| Full native workspace | Passed; strict clippy passed | `d21e0afda`; `native-ci/{clippy,tests}.log`, exact CI commands with all features and all targets for clippy. Subsequent narrow driver/recovery corrections require their own checks. |
+| Old-profile migration | Passed, schema 51 → 70 | Authentic v4.3.0 fixture; matching source/copy SHA256, no missing tables or required settings; `gates/migration-probe.log` |
+| Rust license policy | Passed | `ed84eac3a`; `cargo deny --all-features check licenses` |
+
+The core fixture failure was the expected wire representation change, not a
+pixel-golden update. Host-specific image goldens were excluded as CI requires;
+none were re-baselined. Changed production paths are checked again after merge;
+these earlier suite results alone do not certify later source changes.
+
+## Built-app evidence
+
+- Disabled Center instructions and disabled groups each completed two simulator
+  exposures. A refused meridian flip then allowed six more frames in 50 seconds.
+  The nonconvergent Flat Wizard reported monotonic progress, ended at 85%, and
+  emitted one advisory without claiming completion.
+- A copied schema-68 mosaic upgraded to schema 70 with all eight panel rows
+  unchanged. Desktop, 420-pixel-wide, and red-night views retained the disabled
+  panel gap and serpentine order. A new project kept its order after save/reopen.
+- A linked companion disconnected while the host continued captures, then
+  reconnected to the same running session. The older dashboard was refused
+  with HTTP 426.
+- Native-backed linked photometry matched all 20 fixture stars with off-center
+  CRPIX, skewed/parity-changing CD, and SIP terms. Calibration used catalog V
+  magnitudes and exposure-normalized flux. GUI read-mode selection reached the
+  real simulated driver's second read mode.
+- A dim simulator frame completed and was saved with a warning. Severe-frame
+  retention is covered by native regressions; the attempted live severe-frame
+  run did not yield valid evidence and is not counted as a pass.
+
+The final combined native sources at `805774b5` pass CI-exact workspace clippy,
+Windows workspace/all-target type checking, and the Linux release build. Fifteen
+merged recovery/retention tests also pass, including the explicitly enabled
+libgphoto2 Directory Browse download/decode/cleanup/retry contract. Original RAW
+bytes survive, and no USB camera is opened.
+
+The host-built combined GUI was then driven against scripted PHD2 and simulator
+devices. Before the fix, a centering request left external LostLock guiding
+active; afterward the recorded RPC stream contains `stop_capture` and the guider
+becomes idle. No plate solver is configured, so this proves the pre-move guard,
+not a solved-and-centered target. A separate two-frame sequence completed and
+saved both FITS files; the GUI showed Completed and 2/2 accepted frames.
+
+An existing-profile backup round trip restored a deliberately changed gain
+setting from 137 to 100 and preserved two mosaics, 16 panels, two saved-frame
+records and two imaging sessions. A separate import into an empty profile
+restored 8,159 items. Re-export comparison matched all 62 backed-up tables after
+normalizing only `weather_settings.updated_at`, which correctly records the
+restore time. SQLite integrity and foreign-key checks passed at schema 70.
+Evidence: `rt/fresh-restore-result.json` and `rt/restored-clean/integrity.json`.
+Backups preserve database metadata and image references; they do not embed the
+image files themselves.
+
+All app drives use isolated profiles, loopback-only network namespaces,
+simulated/scripted devices, and separate Xvfb displays. The GUI smoke uses the
+host-built bundle. The Bookworm artifact is verified separately in its intended
+Debian runtime; this Arch host lacks the LibRaw dependency `libjpeg.so.62`.
+
+## Audit and artifact gates
+
+The remaining behavioral markers were reviewed individually, and concrete
+faults were corrected before registration. The final 476 accepted findings have
+125 file-specific verdicts; every one of the 47 new high-risk placeholder
+markers has a closed behavioral verdict. Deleted and moved rows were reconciled
+by the repository tools, without reducing scan coverage or changing gate rules.
+Per-site reviews and exact registration commands remain in the evidence folder.
+
+The final 20-gate run at `65a2452a3` passed architecture, API contracts and route
+policy, bridge boundaries, behavioral/placeholder/fail-closed audits, version
+consistency, migration regression, Dart formatting, production analysis,
+dependency hygiene, UI tokens, and their configured self-tests. Rust formatting
+found one QHY diagnostic expression requiring reflow. Commit `46517373f` changes
+only that formatting; Rust formatting and both source-sensitive behavioral and
+placeholder gates then passed. Commands, revisions and exit codes are recorded
+in `gates/results.jsonl`. No gate was relaxed.
+
+Android 9.0.0+37 built successfully. The APK signature verifies but uses the
+Android Debug certificate: this is a local validation/sideload candidate, not a
+production-signed artifact. Its actual source revision is `ed84eac3a`; APK
+production inputs are unchanged at `805774b5`, and the APK contains no Skotiq
+Rust library. Later audit-register, appliance-packaging and formatting commits
+do not change Android production inputs. No Android device runtime result is
+claimed. The APK, checksum, signature and package metadata are in
+`codex-release-tools/final-candidate/android/`.
+
+The Debian Bookworm build passes the glibc <=2.36 guard. Minimal-runtime testing
+identified missing GL/EGL/GLES libraries, archive-layout incompatibility, and a
+healthcheck that called an authenticated endpoint. All three were corrected.
+Actual appliance images built from the amended Dockerfile booted with both
+flat and versioned-directory archives, initialized the native bridge, reported
+9.0.0/build 37 and passed healthchecks. Seven archive-layout acceptance/refusal
+cases also passed. These images used the canonical package list, actual
+entrypoint and unprivileged user, no network or hardware, and fresh storage.
+Evidence: `codex-portable-linux-tools/PACKAGING-FIX.md` and
+`appliance-results.json`.
+
+The final archive was assembled from `65a2452a3d63c0bd0a2240c2d9a11399481f494f`
+and embeds that exact `SOURCE-COMMIT`. Its isolated Bookworm runtime check
+passed: 9.0.0/build 37, native initialization, updater linkage/help, and
+45-second liveness. The application, Dart AOT, native bridge and updater
+binaries are byte-identical to the `805774b5` binaries tested in both actual
+appliance images. The only subsequent native delta, `46517373f`, is diagnostic
+expression formatting. The archive and metadata are in
+`codex-release-tools/final-candidate/linux/`.
+
+| Artifact | Bytes | SHA256 |
+| --- | ---: | --- |
+| `skotiq-9.0.0-linux-x64.tar.gz` | 54,657,256 | `7a0cdc0126dfa5732efba0a9917bbfdbc48ae61f797268d493b110d615ffd6a3` |
+| `Skotiq-9.0.0+37-android.apk` | 211,053,317 | `ad667e336a092e9cf2edb0594d13e67226d427750c33d1214de5bd203dcc2f81` |
+
+The Linux package targets Debian Bookworm-compatible x64 systems; LibRaw needs
+the documented system JPEG/LCMS/OpenMP runtimes. It is not a universal Linux
+binary. No production-signed Android artifact or signed OTA manifest was
+produced. Windows execution and a physical rig night remain required before
+claiming validation on those platforms.
+
+## Standards
+
+Reviewed the bounded diff `e949e020b...c60742273435f365dc1c6dc13252dec41e7ff01c`, the final imaging delta `b3d133da9`, and the subsequent narrow native audit correction `4fa471acbfebd08e616e0a2ceb8ce9f0ac9ed907`. Applied repository `AGENTS.md`, `.claude/skills/skotiq-dev/SKILL.md`, and the code-review skill's standards/smell rubric. Mechanical formatting was excluded from substantive findings. This was a targeted standards and runtime review, not a claim that every changed line or physical device was exercised.
+
+One hard standards violation was found in `packages/skotiq_app/lib/services/mount_command_service.dart:192`: the `GuidingDidNotStopException` refusal exposed raw exception interpolation instead of the shared `userFacingError` formatter required by skotiq-dev's error-text ownership rule. Commit `8ac2c699af7702f8f951469500ac69f9e4f8225a` fixes the branch to use `userFacingError(e)`.
+
+No additional concrete standards defect was found in the reviewed guider ownership/LostLock handling, horizon propagation, shared CFA origin/serialization, photometry and science helpers, image-header WCS, sequencer device snapshots/refused-flip handling, or mosaic order migration. Speculative cleanup and tooling-enforced style were not reported as blockers.
+
+The native audit reviewed all 237 assigned bridge/sequencer sites. It accepted 213 with source-specific reasons and identified 24 faulty hardware-read defaults. Commit `4fa471acb` preserves failed binning/geometry reads, rotator orientation and live settings, switch state/range, brightness limits, motion state, and COM capability queries. Explicit unsupported-member semantics remain intact. Eight new fault-injection tests passed; the full bridge release suite passed 787 tests with 18 intentionally ignored. Bridge clippy/all-targets and Windows workspace/all-targets type checks exited 0. Logs and per-site evidence are in `native-audit-review.json` and `native-audit-{tests,clippy,windows}.log` beside this report.
+
+Final scanner reconciliation explicitly reviewed 32 additional markers; accepted original rows remain unchanged. Registers remain parent-owned. No Windows COM runtime, Android/iOS credential-store, or physical-rig validation is claimed.
+
+Subsequent bounded correction `87fcc5cd7` preserves healthy devices during run
+recovery and rechecks queued background attempts. Retained-camera protection is
+enforced before native handle replacement, covering Dart's automatic connect
+route as well as native recovery; explicit retrieve→disconnect→connect remains
+available. Recording regressions passed across 64 sequencer scenarios, 9
+reconnect-state tests and 9 heartbeat tests. Strict bridge/sequencer clippy and
+Windows workspace type checks passed. See
+`codex-release-compat-tools/automatic-recovery-review.md` and the final combined
+15-test retention run for evidence after integration with the sensor fixes.
+
+## Spec
+
+Spec review: e949e020b...c60742273435f365dc1c6dc13252dec41e7ff01c, plus b3d133da9. Read-only; no review edits.
+
+No actionable spec mismatch found in the inspected changes. This is a bounded review, not certification of every changed path.
+
+- “A viewing companion can disconnect while its host continues imaging” (docs/release/v9.0.0.md): BackendNotifier's leavingRemoteHost exception only permits remote->no-host, retains the launch and host-switch guards, and disposes transport without stopping the host. Checked backend_provider.dart:315-364 and network_backend/connection_lifecycle.dart:823+.
+- “Every companion must run the same Skotiq release”: LinkVersion checks the whole release string; HTTP/WS middleware rejects stale release or old API markers while permitting unversioned automation under the existing authentication chain. Checked remote_protocol/link_version.dart and desktop headless_api_server/http_middleware.dart:229+.
+- “Failed status check or failed stop leaves the move refused” and learned site obstructions: stopGuidingForMove probes connected-but-idle-looking guiders, treats LostLock/Paused/unknown as active, propagates failed probes/stops, and checks authority after awaits. Serializer samples AltitudeFloor, which retains the flat floor plus learned obstructions and supplies native scheduler and altitude loops. Imported sample-only horizons are no longer classified flat.
+- “Physical pixel units” and “CD/SIP and its reference pixel”: native frame_cutouts.rs uses FitsReader read_region or decoded native samples; Dart separates unreadable files from edge-star nulls. Science handler uses saved/file WCS and independent catalog magnitudes; b3d133da9 also makes default calibration catalog matching use the file WCS/reference pixel and image-centered search cone.
+- “Panel IDs, coordinates, and captured-frame counts are preserved”: v70 only adds/writes order fields; legacy order inference and sparse panel rendering are covered by migration, service, geometry, and layout tests. The shared CFA type retains stored-data decoding while live release matching remains strict.
+
+No claim of Windows runtime or real-rig validation: the release notes correctly leave those outstanding. Final combined gates and runtime results remain the integrator's acceptance evidence.

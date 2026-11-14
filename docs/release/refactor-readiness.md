@@ -1,26 +1,30 @@
 # Refactor release readiness
 
-The release candidate is being assembled on `codex/release-readiness`, starting
+The release candidate is prepared on `codex/release-readiness`, starting
 from `untangle/integ` at `e949e020b`. Existing release checkouts and unrelated
 uncommitted work are preserved. Nothing has been published.
 
 ## Completion checks
 
-| Work | State | Evidence / next check |
+| Work | State | Evidence / remaining check |
 | --- | --- | --- |
-| Core rules (`w4-core`) | Integrated; review and final validation pending | `fd8f6fa8d`; check guider state before mount moves and directional horizon consumers |
-| FITS headers and master refusal (`w4-imgrs2`) | Integrated; combined validation pending | `cbd636be1`; targeted regression tests and frame/export checks |
-| Wire and linking (`w4-compat`) | In progress on `codex/release-compat` | Complete same-release contract checks and linked-client disconnect |
-| Sequencer and mosaic (`w5-seq`) | In progress on `codex/release-sequencer` | Disabled descendants, refused flips, flat progress, recovery access, schema v70 |
-| Imaging (`w5-img`) | In progress on `codex/release-imaging` | Complete CFA migration, read modes, photometry reader, WCS projection |
-| Review of recent work | Pending | Standards and intended behavior, with emphasis on data, hardware commands, events and ownership |
-| Runtime audits and formatting | Pending | Reconcile reviewed moved/new sites; run required CI checks using the repository toolchain |
-| Dart and native suites | Pending | Preserve full output and actual exit codes; resolve the five prior integration failures |
-| Release builds and simulator workflows | Pending | Linux desktop, Android where supported, isolated local and linked workflows |
-| Database migration and backup/restore | Pending | Final schema, existing fixture data and scratch copies; never mutate owner data |
-| Version and release notes | Pending | New release identity required because the wire contract changes |
+| Core rules | Complete | Active guider ownership/LostLock guard, learned horizon serialization, and failed camera-capability preservation; 71 focused merged regressions pass |
+| FITS and calibration-master refusal | Complete | Integrated `cbd636be1`; native suites and final builds pass |
+| Wire and linking | Complete | Same-release contract, structured errors, actual linked-client disconnect/reconnect while host keeps capturing |
+| Sequencer and mosaic | Complete | Disabled descendants, refused flips, bounded flat progress, sparse panel layout, create/save/reopen, schema v70 preservation |
+| Imaging | Complete | Shared CFA, camera read modes, native photometry, CD/SIP/reference-pixel projection; 20/20 linked calibration fixture matches |
+| Native read/retention audit | Complete | Failed device values remain errors/unknown; real libgphoto2 disk-camera retention and all automatic-reconnect paths tested |
+| Standards and spec review | Complete, bounded | Both axes recorded in [validation-v9.0.0.md](validation-v9.0.0.md); concrete findings corrected |
+| Runtime audit reconciliation | Complete | 476 final findings have 125 file-specific reviewed verdicts; 47 placeholder markers match closed behavioral entries |
+| Formatting, analysis, CI gates | Complete | All 20 final gates pass, including the corrected QHY formatting recheck; native strict clippy and Windows type check pass |
+| Dart and native suites | Complete with focused post-change checks | Full suites plus changed-path regressions; expected node contract fixture updated; all three opt-in mobile socket tests now execute and pass |
+| Version and release notes | Complete | 9.0.0+37 beta; host and companion upgrade together |
+| Combined app smoke | Complete | LostLock stop command verified; two-frame simulator sequence completed and wrote both files |
+| Database migration and backup/restore | Complete | Authentic v4.3.0 fixture 51→70; existing-profile and empty-profile restores pass; 8,159 items restored and database integrity/FK checks clean |
+| Release builds | Linux and Android built | Debian appliance graphics/archive/healthcheck fixes verified in actual images; APK is debug-signed validation build |
 | Windows runtime | Unavailable | Owner confirmed 2026-11-13 that the Windows laptop is unavailable; cross-target compilation does not replace this check |
-| Real rig validation | Unavailable | Owner confirmed 2026-11-13 that the rig is unavailable; no hardware commands are authorized by simulator checks |
+| Real rig validation | Unavailable | Owner confirmed 2026-11-13 that the rig is unavailable; simulator results do not certify physical behavior |
+| Distribution signing | Outstanding | Android candidate uses the Debug certificate; no signed OTA manifest was produced |
 
 ## Scope
 
