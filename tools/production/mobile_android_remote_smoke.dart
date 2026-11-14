@@ -2,9 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show skotiqRelease;
-
 const _defaultExePath =
     'apps/desktop/build/windows/x64/runner/Release/skotiq.exe';
 const _defaultApkPath =
@@ -16,7 +13,15 @@ const _adminToken = 'skotiq-mobile-smoke-admin-token';
 const _viewToken = 'skotiq-mobile-smoke-view-token';
 const _controlToken = 'skotiq-mobile-smoke-control-token';
 const _evidenceDir = 'docs/production-readiness';
-const _expectedAppVersion = skotiqRelease;
+String _expectedAppVersion() {
+  final source = File.fromUri(
+    Platform.script.resolve('../../version.yaml'),
+  ).readAsStringSync();
+  final match = RegExp(r'^version:\s*"([^"\n]+)"', multiLine: true)
+      .firstMatch(source);
+  if (match == null) throw const FormatException('Missing release in version.yaml');
+  return match.group(1)!;
+}
 
 void main(List<String> args) async {
   if (!Platform.isWindows) {
@@ -268,9 +273,10 @@ Future<void> _verifyHeadlessPreconditions(
 ) async {
   final info = await _request(client, baseUri, '/api/info');
   _expectStatus('/api/info', info, HttpStatus.ok);
-  if (info.json['version'] != _expectedAppVersion) {
+  final expectedVersion = _expectedAppVersion();
+  if (info.json['version'] != expectedVersion) {
     throw StateError(
-      'Expected app version $_expectedAppVersion, got ${info.json['version']}',
+      'Expected app version $expectedVersion, got ${info.json['version']}',
     );
   }
 
