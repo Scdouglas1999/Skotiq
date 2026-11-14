@@ -109,7 +109,8 @@ jobs:
   android:
     name: Android APK
     needs: version
-    runs-on: ubuntu-latest
+    # Keep runner-image changes separate from release build changes.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       APP_VERSION: ${{ needs.version.outputs.app_version }}
@@ -179,18 +180,27 @@ jobs:
 
       # The mobile app is a pure-Flutter companion (it talks to the desktop
       # server over HTTP/WS) — no Rust/NDK cross-compilation is required.
-      # `--split-per-abi` emits one APK per ABI; gradle reads KEYSTORE_* from the
-      # env (KEYSTORE_FILE is exported by the decode step above when present).
+      # Build one AOT target at a time within bounded CI-only Gradle settings.
+      # Gradle reads KEYSTORE_* from the environment as before.
+      - name: Test bounded Android builder
+        run: python3 scripts/test_build_android_ci.py
+
       - name: Build release APKs (per-ABI)
-        working-directory: apps/mobile
         env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        # The update public key is compiled in so the app can authenticate the
-        # OTA manifests below. Without it every update download is refused,
-        # whether or not the manifests are signed.
-        run: flutter build apk --release --split-per-abi "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
+          SKOTIQ_UPDATE_PUBLIC_KEY: ${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}
+        run: python3 scripts/build_android_ci.py --evidence-dir "$RUNNER_TEMP/android-build-evidence"
+
+      - name: Retain Android build resource evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-build-resources-${{ github.sha }}
+          path: ${{ runner.temp }}/android-build-evidence/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Verify APK signatures
         run: |
@@ -325,14 +335,10 @@ jobs:
             ls -l "$BUNDLE_LIB" >&2 || true
             exit 1
           fi
-          # The bridge dynamically links libraw; ship it so the release is
-          # self-contained (bridge rpath = $ORIGIN).
-          LIBRAW_PATH="$(ldconfig -p | awk '/libraw\.so/ {print $NF; exit}')"
-          if [ -z "${LIBRAW_PATH:-}" ] || [ ! -e "$LIBRAW_PATH" ]; then
-            echo "libraw shared object not found via ldconfig" >&2
-            exit 1
-          fi
-          cp -Lv "$LIBRAW_PATH" "$BUNDLE_LIB/"
+          # Include LibRaw's actual JPEG ABI and distro copyright notices.
+          # Jammy uses libjpeg.so.8; Bookworm supplies a different JPEG ABI.
+          python3 -m unittest discover -s scripts -p 'test_*linux*.py'
+          python3 scripts/stage_linux_libraw.py "$BUNDLE"
           # package:sqlite3 ^3 installs a hermetic libsqlite3.so via Dart build
           # hooks (CMake copies build/native_assets/linux/ into bundle/lib).
           # That build is linked with -Bsymbolic so it can coexist with the
@@ -394,7 +400,7 @@ jobs:
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
           floor_major=${FLOOR%%.*}; floor_minor=${FLOOR#*.}
           violations=0
-          for bin in "$BUNDLE"/skotiq.bin "$BUNDLE"/updater "$BUNDLE"/lib/*.so; do
+          for bin in "$BUNDLE"/skotiq.bin "$BUNDLE"/updater "$BUNDLE"/lib/*.so "$BUNDLE"/lib/*.so.*; do
             [ -f "$bin" ] || continue
             maxv=$(objdump -T "$bin" 2>/dev/null \
               | grep -oE 'GLIBC_2\.[0-9]+' | sort -V | tail -1 || true)
@@ -432,6 +438,24 @@ jobs:
           (cd dist && sha256sum "skotiq-${APP_VERSION}-linux-x64.tar.gz" \
              > "skotiq-${APP_VERSION}-linux-x64.tar.gz.sha256")
           ls -l dist
+
+      - name: Verify actual archive in Bookworm appliance
+        timeout-minutes: 15
+        run: |
+          python3 scripts/verify_linux_package.py \
+            "dist/skotiq-${APP_VERSION}-linux-x64.tar.gz" \
+            --source "$GITHUB_SHA" --version "$APP_VERSION" \
+            --build-number "$(sed -n 's/^build_number:[[:space:]]*//p' version.yaml)" \
+            --output-dir "$RUNNER_TEMP/linux-package-smoke"
+
+      - name: Retain Bookworm package verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-package-smoke-${{ github.sha }}
+          path: ${{ runner.temp }}/linux-package-smoke/
+          if-no-files-found: ignore
+          retention-days: 14
 
       # The OTA package is a zip rather than the tar.gz above: the updater
       # extracts zips, and teaching it a second archive format to save one

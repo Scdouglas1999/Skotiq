@@ -20,7 +20,8 @@ notice bundle for resolved Dart, Flutter, plugin, font, and icon dependencies.
 | Component | How it is shipped | License / notice |
 | --- | --- | --- |
 | Skotiq native bridge | `skotiq_bridge.dll` on Windows; `libskotiq_bridge.so` on Linux | Skotiq Source-Available License for first-party code; statically linked Rust crates retain their licenses below. |
-| LibRaw | Dynamically linked `libraw.dll` / `libraw.so` next to the bridge | LibRaw is dual-licensed LGPL-2.1-or-later or CDDL-1.0. Skotiq uses the LGPL option. The full LGPL-2.1 text is in `LICENSES/LGPL-2.1.txt`; dynamic linking preserves replacement/relinking. Source: <https://www.libraw.org/download>. |
+| LibRaw | Dynamically linked `libraw.dll` / `libraw.so` next to the bridge | LibRaw is dual-licensed LGPL-2.1-or-later or CDDL-1.0. Skotiq uses the LGPL option. The full LGPL-2.1 text is in `LICENSES/LGPL-2.1.txt`; dynamic linking preserves replacement/relinking. Linux archives also include the build-distribution copyright notice in `LICENSES/libraw-copyright.txt`. Source: <https://www.libraw.org/download>. |
+| libjpeg-turbo | The JPEG shared library required by bundled LibRaw (`libjpeg.so.8` on the Ubuntu release builder) | The exact build-distribution copyright and license notice is included in `LICENSES/libjpeg-turbo-copyright.txt`. This software is based in part on the work of the Independent JPEG Group. Source: <https://libjpeg-turbo.org/>. |
 | SQLite | Hermetic `libsqlite3.so` native asset from `package:sqlite3` (Linux/desktop archive) | Public domain. See <https://www.sqlite.org/copyright.html>. |
 | Microsoft Visual C++ runtime | Redistributable runtime DLLs staged by the Windows toolchain | Redistributed under the Microsoft Visual Studio license. |
 | WebRTC native libraries | Included by `flutter_webrtc` where required | BSD-style WebRTC/Chromium notices are included in Flutter's generated notice bundle. |
