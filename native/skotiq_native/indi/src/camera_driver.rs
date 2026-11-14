@@ -5,7 +5,7 @@
 
 use crate::frame::decode_frame;
 use crate::protocol::names::*;
-use crate::{CcdFrameType, IndiCamera, IndiClient, IndiError, IndiPropertyType};
+use crate::{CcdFrameType, IndiCamera, IndiClient, IndiError};
 use async_trait::async_trait;
 use skotiq_device::{
     BayerPattern, CameraCapabilities, CameraDescription, CameraDriver, CameraReport, CameraState,
@@ -43,16 +43,6 @@ fn names_a_colour_sensor(sensor_type: &str) -> bool {
     ["color", "colour", "bayer", "cfa", "rgb", "osc"]
         .iter()
         .any(|colour| word.contains(colour))
-}
-
-/// A read mode is named by its label, or by its element when the driver
-/// gives it no label.
-fn mode_name(mode: crate::IndiReadoutMode) -> String {
-    if mode.label.is_empty() {
-        mode.element
-    } else {
-        mode.label
-    }
 }
 
 impl IndiCamera {
@@ -446,6 +436,7 @@ impl CameraDriver for IndiCamera {
         };
         let gain = setting(self.get_gain().await, "gain");
         let offset = setting(self.get_offset().await, "offset");
+        let readout_mode = self.get_active_readout_mode().await.map(|mode| mode.label);
         let frame = decode_frame(&data, sensor).map_err(own)?;
         Ok(ImageData {
             width: frame.width,
@@ -462,7 +453,7 @@ impl CameraDriver for IndiCamera {
                 temperature: self.get_temperature().await.ok(),
                 timestamp: chrono::Utc::now(),
                 subframe: None,
-                readout_mode: None,
+                readout_mode,
                 vendor_data: VendorFeatures::default(),
                 camera_file: None,
             },
@@ -575,7 +566,7 @@ impl CameraDriver for IndiCamera {
             .into_iter()
             .enumerate()
             .map(|(index, mode)| ReadoutMode {
-                name: mode_name(mode),
+                name: mode.label,
                 description: String::new(),
                 // Why: a camera has a handful of readout modes.
                 index: index as i32,
@@ -587,24 +578,15 @@ impl CameraDriver for IndiCamera {
             .collect())
     }
 
-    /// The mode is the element at `mode.index` of the driver's readout
-    /// switch, whichever of the three names it goes by. A camera without one
-    /// has one mode, and setting it changes nothing.
+    /// The mode is the element at `mode.index` of the driver's read-mode
+    /// switch.
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
         let device = self.device_name().to_string();
         let mut client = self.client().write().await;
-        let properties = client.get_properties(&device).await;
-        let switch = [CCD_READ_MODE, CCD_READOUT_SPEED, READOUT_QUALITY]
-            .into_iter()
-            .find_map(|name| {
-                properties
-                    .iter()
-                    .find(|p| p.name == name && p.property_type == IndiPropertyType::Switch)
-            });
-        let Some(switch) = switch else {
-            tracing::debug!("No readout mode switch property found for INDI camera {device}");
-            return Ok(());
-        };
+        let switch = self
+            .read_mode_switch(&client)
+            .await
+            .ok_or(DriverError::NotSupported)?;
         let element = usize::try_from(mode.index)
             .ok()
             .and_then(|index| switch.elements.get(index))
@@ -614,10 +596,9 @@ impl CameraDriver for IndiCamera {
                     mode.index,
                     switch.elements.len()
                 ))
-            })?
-            .clone();
+            })?;
         client
-            .set_switch(&device, &switch.name, &element, true)
+            .set_switch(&device, &switch.name, element, true)
             .await
             .map_err(|e| failed("Failed to set INDI readout mode", e))
     }
@@ -648,15 +629,5 @@ mod description_tests {
         assert!(names_a_colour_sensor("OSC"));
         assert!(!names_a_colour_sensor("MONOCHROME"));
         assert!(!names_a_colour_sensor("CCD_SENSOR_MONO"));
-    }
-
-    #[test]
-    fn a_read_mode_without_a_label_is_named_by_its_element() {
-        let mode = |element: &str, label: &str| crate::IndiReadoutMode {
-            element: element.to_string(),
-            label: label.to_string(),
-        };
-        assert_eq!(mode_name(mode("MODE_0", "High Gain")), "High Gain");
-        assert_eq!(mode_name(mode("MODE_1", "")), "MODE_1");
     }
 }

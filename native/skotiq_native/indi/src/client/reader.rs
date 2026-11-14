@@ -393,6 +393,7 @@ impl IndiClient {
                                             state,
                                             perm,
                                             elements: Vec::new(),
+                                            element_labels: Vec::new(),
                                             switch_rule,
                                         },
                                     );
@@ -421,6 +422,11 @@ impl IndiClient {
                                     map_get_mut_2(&mut props, &current_device, &current_property)
                                 {
                                     prop.elements.push(elem_name.clone());
+                                    prop.element_labels.push(
+                                        get_attribute(e, "label")
+                                            .filter(|label| !label.is_empty())
+                                            .unwrap_or_else(|| elem_name.clone()),
+                                    );
                                 }
 
                                 if name_bytes == b"defNumber" {

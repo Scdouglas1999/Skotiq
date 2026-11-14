@@ -209,6 +209,7 @@ mod tests {
             state: IndiPropertyState::Idle,
             perm: IndiPermission::ReadWrite,
             elements: Vec::new(),
+            element_labels: Vec::new(),
             switch_rule: None,
         }
     }
