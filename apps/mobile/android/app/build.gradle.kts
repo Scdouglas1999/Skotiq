@@ -65,12 +65,15 @@ android {
                 keyPassword = keyPass
                 logger.lifecycle("Release signing: production keystore")
             } else {
+                if (System.getenv("SKOTIQ_REQUIRE_RELEASE_SIGNING") == "true") {
+                    throw GradleException("Stable distribution requires KEYSTORE_FILE and the existing release signing credentials; debug signing is not allowed.")
+                }
                 val debug = signingConfigs.getByName("debug")
                 storeFile = debug.storeFile
                 storePassword = debug.storePassword
                 keyAlias = debug.keyAlias
                 keyPassword = debug.keyPassword
-                logger.lifecycle("Release signing: debug keystore (unsigned beta)")
+                logger.lifecycle("Validation signing: debug keystore; not a shipping stable release")
             }
         }
     }

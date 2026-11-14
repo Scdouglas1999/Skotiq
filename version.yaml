@@ -4,4 +4,4 @@
 
 version: "9.0.0"
 build_number: 37
-channel: "beta"  # stable, beta, alpha
+channel: "stable"  # stable, beta, alpha
