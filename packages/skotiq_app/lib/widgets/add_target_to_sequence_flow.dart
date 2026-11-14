@@ -177,9 +177,10 @@ Future<bool> addFramedTargetToExistingSequence({
   );
   if (chosen == null || !context.mounted) return false;
 
-  // A framed target waits for the site's minimum altitude, as every target
-  // the app builds does, so it never starts imaging below it.
-  final minAltitude = ref.read(siteMinimumAltitudeDegProvider);
+  // A framed target waits for the site's altitude floor, as every target the
+  // app builds does, so it never starts imaging below it. The step holds one
+  // number for a night not yet run: the lowest the floor goes.
+  final minAltitude = ref.read(altitudeFloorProvider).lowestDeg;
   final headers = panels.isEmpty
       ? [
           bareTargetHeaderForFramedTarget(

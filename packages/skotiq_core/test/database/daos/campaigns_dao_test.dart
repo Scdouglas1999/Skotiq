@@ -156,6 +156,18 @@ void main() {
     expect(rows.single.acceptedCount, 2);
   });
 
+  test('frames of another spelling count for the campaign', () async {
+    final t = await seedTarget('M42');
+    final id = await dao.upsertDesired(
+      targetId: t,
+      filter: 'Ha',
+      desiredCount: 10,
+    );
+    expect(await dao.recordAccepted(targetId: t, filter: 'Ha 7nm'), id);
+    expect(await dao.remaining(t, 'Ha 7nm'), 9);
+    expect(await dao.getForTarget(t), hasLength(1));
+  });
+
   test('remaining() clamps to zero once the goal is met', () async {
     final t = await seedTarget('M13');
     await dao.upsertDesired(targetId: t, filter: 'L', desiredCount: 3);

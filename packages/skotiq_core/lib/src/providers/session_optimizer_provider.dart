@@ -23,6 +23,7 @@ import '../database/daos/settings_dao.dart';
 import '../settings/store_settings.dart';
 import 'logging_service_provider.dart';
 import 'scheduler/integration_goal_service_provider.dart';
+import 'scheduler_provider.dart' show altitudeFloorProvider;
 
 /// Service provider for SessionOptimizerService.
 ///
@@ -434,6 +435,7 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
         targetSnr: settings.smartNightTargetSnr,
         subExposureCeilingSecs: settings.smartNightSubExposureCeilingSecs,
         subExposureFloorSecs: settings.smartNightSubExposureFloorSecs,
+        minAltitudeDeg: ref.read(altitudeFloorProvider).lowestDeg,
       );
 
       return SmartNightService(

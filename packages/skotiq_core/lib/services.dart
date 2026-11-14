@@ -283,7 +283,7 @@ export 'src/services/darkroom_delivery/darkroom_delivery.dart';
 export 'src/services/darkroom_autopilot/darkroom_autopilot.dart';
 export 'src/services/darkroom_pass/darkroom_pass.dart';
 export 'src/services/project_tracking_service.dart';
-export 'src/services/calibration/dark_selection.dart';
+export 'src/services/calibration/calibration_selection.dart';
 export 'src/services/calibration/defect_map_service.dart';
 export 'src/services/calibration_library_service.dart';
 export 'src/services/calibration_backlog_service.dart';

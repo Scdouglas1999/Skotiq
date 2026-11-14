@@ -12,10 +12,14 @@ extension _SchedulerEngineScoring on SchedulerEngine {
       longitudeDeg: _site.longitudeDegrees,
     );
 
-    // Hard constraint: minimum altitude.
-    if (alt < _config.minAltitudeDegrees) {
+    // Hard constraint: the site's altitude floor in the target's direction.
+    final floor = _floor;
+    final floorDeg = floor.atAzimuth(az);
+    if (alt < floorDeg) {
       rejections.add(
-        'altitude ${alt.toStringAsFixed(1)}° below site minimum ${_config.minAltitudeDegrees.toStringAsFixed(1)}°',
+        floor.followsHorizon
+            ? 'altitude ${alt.toStringAsFixed(1)}° below horizon profile "Site horizon" (${floorDeg.toStringAsFixed(1)}° at az ${az.toStringAsFixed(0)}°)'
+            : 'altitude ${alt.toStringAsFixed(1)}° below site minimum ${floorDeg.toStringAsFixed(1)}°',
       );
     }
 
@@ -137,7 +141,7 @@ extension _SchedulerEngineScoring on SchedulerEngine {
 
     // Compute factors regardless so the UI can show them even on rejected
     // candidates.
-    final altitudeFactor = _altitudeFactor(alt);
+    final altitudeFactor = _altitudeFactor(alt, floorDeg);
     final meridianFactor = _meridianFactor(raHours: c.raHours, now: now);
     final (moonFactor, moonDetail) = _moonFactor(
       raHours: c.raHours,
@@ -251,9 +255,15 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     );
   }
 
-  /// Altitude factor: 0 at minAltitude, 1 at 90°, sin² ramp between.
-  double _altitudeFactor(double altDeg) {
-    final minAlt = _config.minAltitudeDegrees;
+  /// The site's altitude floor ([AltitudeFloor]): its horizon when one is
+  /// set, otherwise the minimum altitude.
+  AltitudeFloor get _floor => AltitudeFloor(
+    horizon: _site.horizon,
+    minimumDeg: _config.minAltitudeDegrees,
+  );
+
+  /// Altitude factor: 0 at the floor, 1 at 90°, sin² ramp between.
+  double _altitudeFactor(double altDeg, double minAlt) {
     if (altDeg <= minAlt) return 0.0;
     if (altDeg >= 90.0) return 1.0;
     final normalized = (altDeg - minAlt) / (90.0 - minAlt);
@@ -317,37 +327,21 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     return (factor, 'visible ${hours.toStringAsFixed(2)} h');
   }
 
-  /// Hours from `now` until the target's altitude drops below min.
-  /// Returns 0 if already below, 24 if circumpolar above the threshold.
+  /// Hours from `now` until the target sinks below the floor in the
+  /// direction it is then in: 0 when already below, 24 when it does not sink.
   double _hoursUntilSettingBelowMin({
     required double raHours,
     required double decDegrees,
     required DateTime now,
   }) {
-    final lat = _site.latitudeDegrees * math.pi / 180.0;
-    final dec = decDegrees * math.pi / 180.0;
-    final minAlt = _config.minAltitudeDegrees * math.pi / 180.0;
-
-    final sinThresh = math.sin(minAlt);
-    final center = math.sin(dec) * math.sin(lat);
-    final amplitude = (math.cos(dec) * math.cos(lat)).abs();
-    final minSin = center - amplitude;
-    final maxSin = center + amplitude;
-    if (maxSin < sinThresh) return 0.0;
-    if (minSin >= sinThresh) return 24.0;
-
-    final denominator = math.cos(dec) * math.cos(lat);
-    if (denominator.abs() < 1e-12) return 24.0;
-    final cosH = (sinThresh - center) / denominator;
-    if (cosH <= -1.0) return 24.0;
-    if (cosH >= 1.0) return 0.0;
-    final haHorizon = math.acos(cosH) * 180.0 / math.pi / 15.0; // hours
-
-    final ha = _hourAngleHours(raHours, now);
-    if (ha.abs() >= haHorizon) return 0.0;
-    final hoursToSet = (haHorizon - ha) * 0.9972695663;
-    if (hoursToSet < 0) return 0.0;
-    return hoursToSet;
+    final left = _floor.timeUntilBelow(
+      raDeg: raHours * 15.0,
+      decDeg: decDegrees,
+      now: now,
+      latitudeDeg: _site.latitudeDegrees,
+      longitudeDeg: _site.longitudeDegrees,
+    );
+    return left == null ? 24.0 : left.inSeconds / 3600.0;
   }
 
   /// Filter coverage factor: fraction of total goal frames still needed,

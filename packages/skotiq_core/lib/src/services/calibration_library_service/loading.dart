@@ -19,29 +19,7 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
     final flatRows = await _flatDao.getAllEntries();
     for (final row in flatRows) {
       final tag = tagFor(CalibrationMasterType.flat, row.id);
-      records.add(
-        _withTag(
-          CalibrationMasterRecord(
-            type: CalibrationMasterType.flat,
-            id: row.id,
-            filePath: row.filePath,
-            isMaster: true,
-            frameCount: row.masterFrameCount,
-            temperature: row.temperature,
-            gain: row.gain,
-            offset: row.offset,
-            binX: row.binX,
-            binY: row.binY,
-            filter: row.filter,
-            flatKind: row.flatKind,
-            width: row.width,
-            height: row.height,
-            opticalTrainId: row.opticalTrainId,
-            createdAt: row.createdAt,
-          ),
-          tag,
-        ),
-      );
+      records.add(_withTag(flatLibraryRecord(row), tag));
     }
 
     final mapRows = await _db.select(_db.defectMaps).get();

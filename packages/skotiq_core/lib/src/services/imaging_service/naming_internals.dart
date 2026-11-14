@@ -1,36 +1,24 @@
 part of '../imaging_service.dart';
 
 extension _ImagingServiceNamingInternals on ImagingService {
-  /// Build the substitution map used by [expandNamingPattern]. Pulled out of
-  /// [_generateImageFilePath] so the provider-bound pieces (camera/mount
-  /// name, sensor temperature) are read in one place. Delegates the pure
-  /// timestamp/exposure formatting to [buildTimestampSubstitutions] so unit
-  /// tests can exercise the date convention without a `ProviderContainer`.
-  Map<String, String> _buildPatternSubstitutions({
+  /// The naming values of a manual frame, with the camera's and mount's
+  /// names and the sensor temperature read from the equipment state.
+  Map<NamingToken, String> _manualNamingValues({
     required ExposureSettings exposureSettings,
     String? targetName,
     required int frameNumber,
     required DateTime timestamp,
   }) {
-    // $TEMP, $CAMERA, $TELESCOPE fall back to fixed defaults when equipment
-    // reports no name or temperature, so an unnamed rig still gets one stable
-    // path string. A provider
-    // read that fails is a different thing: only a disposed container is
-    // tolerated (the substitution degrades and says so in the log); any other
-    // failure propagates rather than silently stamping 'Camera'/'Telescope'
-    // onto the file the operator will keep.
-    String camera = 'Camera';
-    String tempStr = '0C';
+    // Only a disposed container is tolerated here (the values fall back to
+    // the unnamed-rig defaults and the log says so); any other failure
+    // propagates rather than stamping a default onto a file the operator
+    // keeps.
+    String? camera;
+    double? sensorTempC;
     try {
       final cameraState = _ref.read(cameraStateProvider);
-      if (cameraState.deviceName != null &&
-          cameraState.deviceName!.isNotEmpty) {
-        camera = cameraState.deviceName!;
-      }
-      final temp = cameraState.temperature;
-      if (temp != null) {
-        tempStr = '${temp.toStringAsFixed(0)}C';
-      }
+      camera = cameraState.deviceName;
+      sensorTempC = cameraState.temperature;
     } on StateError catch (e) {
       _logger.warning(
         'Camera state unreadable while naming a frame; '
@@ -40,12 +28,9 @@ extension _ImagingServiceNamingInternals on ImagingService {
       );
     }
 
-    String telescope = 'Telescope';
+    String? telescope;
     try {
-      final mountState = _ref.read(mountStateProvider);
-      if (mountState.deviceName != null && mountState.deviceName!.isNotEmpty) {
-        telescope = mountState.deviceName!;
-      }
+      telescope = _ref.read(mountStateProvider).deviceName;
     } on StateError catch (e) {
       _logger.warning(
         'Mount state unreadable while naming a frame; '
@@ -55,14 +40,14 @@ extension _ImagingServiceNamingInternals on ImagingService {
       );
     }
 
-    return ImagingService.buildTimestampSubstitutions(
+    return ImagingService.manualFrameValues(
       exposureSettings: exposureSettings,
       targetName: targetName,
       frameNumber: frameNumber,
       timestamp: timestamp,
       camera: camera,
       telescope: telescope,
-      tempStr: tempStr,
+      sensorTempC: sensorTempC,
     );
   }
 }

@@ -190,7 +190,7 @@ fn wire__crate__api__post_session__entrypoints__api_build_calibration_master_imp
         move || {
             let api_args_json = args_json.cst_decode();
             move |context| {
-                transform_result_dco::<_, _, String>((move || {
+                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
                     let output_ok =
                         crate::api::post_session::entrypoints::api_build_calibration_master(
                             api_args_json,

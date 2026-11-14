@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../models/campaign.dart';
+import '../../models/equipment/filter_names.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
@@ -20,8 +21,8 @@ class CampaignsDao extends DatabaseAccessor<SkotiqDatabase>
   CampaignsDao(super.db);
 
   /// Create (or update) the desired accepted-frame goal for a `(target, filter)`
-  /// campaign. Filter matching is case-insensitive, mirroring how captured
-  /// frames are counted; the stored `filter` keeps the first-written casing.
+  /// campaign. The campaign is found by the filter-name rule, as captured
+  /// frames are counted; the stored `filter` keeps the first-written spelling.
   ///
   /// When a campaign already exists for the pair, only `desired_count` (and
   /// `updated_at`) change — the running `accepted_count` and `last_date` are
@@ -112,7 +113,7 @@ class CampaignsDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   /// The single campaign for a `(target, filter)` pair, or null when absent.
-  /// Filter matching is case-insensitive.
+  /// The filter is matched by the filter-name rule.
   Future<Campaign?> getForTargetFilter(int targetId, String filter) async {
     final row = await _findRow(targetId, filter);
     return row == null ? null : _map(campaigns.map(row.data));
@@ -128,14 +129,20 @@ class CampaignsDao extends DatabaseAccessor<SkotiqDatabase>
     return r < 0 ? 0 : r;
   }
 
-  /// SQL text on purpose: [recordAccepted] runs this for every accepted
-  /// frame, and drift's typed result made the lookup 72 -> 100 us.
-  Future<QueryRow?> _findRow(int targetId, String filter) {
-    return customSelect(
-      'SELECT * FROM campaigns '
-      'WHERE target_id = ? AND LOWER(filter) = LOWER(?) LIMIT 1',
-      variables: [Variable<int>(targetId), Variable<String>(filter)],
-    ).getSingleOrNull();
+  /// The campaign of [targetId] whose filter [filter] means by the
+  /// filter-name rule ("Ha 7nm" frames count for an "Ha" campaign), or the
+  /// unfiltered one for a blank [filter]. SQL text on purpose: [recordAccepted]
+  /// runs this for every accepted frame, and drift's typed result made the
+  /// lookup 72 -> 100 us.
+  Future<QueryRow?> _findRow(int targetId, String filter) async {
+    final rows = await customSelect(
+      'SELECT * FROM campaigns WHERE target_id = ?',
+      variables: [Variable<int>(targetId)],
+    ).get();
+    final names = [for (final row in rows) row.read<String>('filter')];
+    final match = matchingRecordedFilter(filter, names);
+    if (match == null) return null;
+    return rows[names.indexOf(match)];
   }
 
   Future<void> _updateRow(int id, Insertable<CampaignRow> changes) =>

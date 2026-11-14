@@ -358,6 +358,53 @@ void main() {
       },
     );
 
+    test('frames of another spelling raise the operator\'s goal', () async {
+      final targetId = await insertTarget('M51');
+      final masterId = await insertMaster(targetId: targetId, filter: 'Ha');
+
+      final cap = DateTime.utc(2026, 6, 1, 23);
+      for (var i = 0; i < 4; i++) {
+        final id = await insertSub(
+          targetId: targetId,
+          filter: 'Ha 7nm',
+          exposure: 300.0,
+          capturedAt: cap,
+        );
+        await fold(masterId: masterId, imageId: id, weight: 1.0);
+      }
+      final curve = IntegrationCurve(
+        points: const [
+          IntegrationCurvePoint(
+            n: 4,
+            snr: 20.0,
+            fwhm: 2.0,
+            cumulativeIntegrationS: 1200.0,
+          ),
+        ],
+        recommendation: IntegrationCurve.empty.recommendation,
+      );
+      await mastersDao.updateSmartFields(
+        masterId,
+        improvementCurveJson: jsonEncode(curve.toJson()),
+      );
+      await goals.upsert(
+        IntegrationGoal(
+          targetId: targetId,
+          filter: 'Ha',
+          exposureSeconds: 300.0,
+          frameCount: 5,
+          createdAt: DateTime.utc(2026, 6, 1),
+        ),
+      );
+
+      final result = await service.pushDeficitToScheduler(masterId, 40.0);
+      expect(result.applied, isTrue);
+
+      final persisted = await goals.listForTarget(targetId);
+      expect(persisted.map((g) => g.filter), ['Ha']);
+      expect(persisted.single.frameCount, greaterThan(5));
+    });
+
     test('never lowers a larger pre-existing operator goal', () async {
       final targetId = await insertTarget('M51');
       final masterId = await insertMaster(targetId: targetId);

@@ -243,6 +243,21 @@ void main() {
       expect(_runRule(container, _sequenceWith(node)), isEmpty);
     });
 
+    test('a row runs in the slot the filter-name rule finds', () {
+      final container = _container(
+        profileFilters: const ['L'],
+        wheel: const FilterWheelState(
+          connectionState: DeviceConnectionState.connected,
+          filterNames: ['L', 'Ha 7nm', 'OIII'],
+        ),
+      );
+      final node = _smartNode([
+        const FilterPlan(filterName: 'Ha', count: 5, durationSecs: 300),
+        const FilterPlan(filterName: 'H-alpha', count: 5, durationSecs: 300),
+      ]);
+      expect(_runRule(container, _sequenceWith(node)), isEmpty);
+    });
+
     test('empty filter name is left to the existing empty-filter rule', () {
       // SmartExposureNegativeCountRule already flags empty filterName as
       // an error. The new rule must NOT also fire for that row — otherwise

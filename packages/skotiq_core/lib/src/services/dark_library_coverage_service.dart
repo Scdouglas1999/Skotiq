@@ -3,7 +3,7 @@ import 'package:skotiq_astro/format.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
-import 'calibration/dark_selection.dart';
+import 'calibration/calibration_selection.dart';
 
 /// A light-frame calibration requirement that should have matching darks.
 class DarkFrameRequirement {

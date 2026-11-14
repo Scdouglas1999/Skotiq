@@ -136,10 +136,26 @@ typedef CalibrationMasterBuild =
 Future<CalibrationMasterBuildResult> buildCalibrationMasterNative(
   CalibrationMasterBuildRequest request,
 ) async {
-  final out = await bridge.apiBuildCalibrationMaster(
-    argsJson: jsonEncode(request.toJson()),
-  );
+  final String out;
+  try {
+    out = await bridge.apiBuildCalibrationMaster(
+      argsJson: jsonEncode(request.toJson()),
+    );
+  } on bridge.SkotiqError_InvalidInput catch (e) {
+    throw CalibrationMasterRefused(e.field0);
+  }
   return CalibrationMasterBuildResult.fromJson(
     Map<String, dynamic>.from(jsonDecode(out) as Map),
   );
+}
+
+/// The frames cannot make one master: too few, unreadable, disagreeing on how
+/// they were taken, or leaking light. Nothing was written; [reason] says which.
+class CalibrationMasterRefused implements Exception {
+  const CalibrationMasterRefused(this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => reason;
 }

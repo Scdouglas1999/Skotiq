@@ -69,37 +69,40 @@ void main() {
   });
 
   test('every pattern token is filled in by the plan or by the run', () {
-    final fixed = ImagingService.runFrameFixedTokens(
-      sequence: r'Odd ${name}',
+    final step = NamingStep(
       frameType: FrameType.dark,
       gain: 1,
       offset: 2,
-      binning: '2x2',
+      binX: 2,
+      binY: 2,
       camera: 'Cam',
       telescope: 'Scope',
-      sentAt: DateTime.utc(2026, 11, 12, 23, 59),
+      sequence: r'Odd ${name}',
+      session: DateTime.utc(2026, 11, 12, 23, 59),
     );
-    final all = NamingPattern.availableVariables.join('_');
-    final template = ImagingService.runFrameSaveTemplate(all, fixed);
+    final all = NamingToken.values.map((t) => t.text).join('_');
+    final template = ImagingService.runFrameSaveTemplate(all, step);
     expect(template, isNot(contains(RegExp(r'\$[A-Z]'))));
     expect(template, contains(r'Odd $${name}'));
     expect(template, contains('20261112'));
     expect(
-      () => ImagingService.runFrameSaveTemplate(r'../$TARGET', fixed),
+      () => ImagingService.runFrameSaveTemplate(r'../$TARGET', step),
       throwsA(isA<ValidationException>()),
     );
   });
 
   test('a secondary camera names its frames by the same Settings pattern', () {
     expect(
-      ImagingService.secondaryRigSaveTemplate(
+      ImagingService.runFrameSaveTemplate(
         r'$TARGET/$CAMERA_$FRAMETYPE_$GAIN_$BINNING_$EXPTIME_$FRAMENUM',
-        rigLabel: 'Wide Field',
-        gain: 120,
-        offset: null,
-        binX: 2,
-        binY: 2,
-        sentAt: DateTime.utc(2026, 11, 13, 3),
+        NamingStep.secondaryRig(
+          rigLabel: 'Wide Field',
+          gain: 120,
+          offset: null,
+          binX: 2,
+          binY: 2,
+          session: DateTime.utc(2026, 11, 13, 3),
+        ),
       ),
       r'${target.name}/Wide Field_light_120_2x2_${exposure.duration:.1f}_'
       r'${frame:04}',
@@ -112,9 +115,7 @@ void main() {
     ).readAsStringSync();
     for (final c in (jsonDecode(fixture)['cases'] as List).cast<Map>()) {
       expect(
-        ImagingService.expandNamingPattern(r'$TARGET', {
-          r'$TARGET': c['value'] as String,
-        }),
+        NamingPattern.pathSegment(c['value'] as String),
         c['segment'],
         reason: '${c['value']}',
       );

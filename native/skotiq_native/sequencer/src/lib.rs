@@ -29,6 +29,8 @@ pub mod flat_wizard;
 // for a figure the app has never been able to work out for itself.
 pub mod focuser_calibration;
 mod frame_naming;
+#[cfg(test)]
+mod frame_naming_fixture_tests;
 pub mod frame_watch;
 pub mod guiding_stop;
 pub mod instructions;

@@ -1,25 +1,10 @@
 part of '../imaging_service.dart';
 
 extension _ImagingServiceFilePaths on ImagingService {
-  /// Generate file path for captured image.
-  ///
-  /// The user's [NamingPattern.pattern] is interpreted as a `/`-separated
-  /// path *including the filename*: every segment before the final `/` is a
-  /// subdirectory, and the final segment is the filename stem (the extension
-  /// is appended from [NamingPattern.format]). The default pattern
-  /// `$TARGET/$FRAMETYPE/$TARGET_$FILTER_$EXPTIME_$FRAMENUM` therefore yields
-  /// e.g. `M31/Light/M31_L_120.0_0001.fits` under the configured base
-  /// directory.
-  ///
-  /// All `$VARIABLE` tokens are validated against [_patternVariables]; an
-  /// unknown token raises an [Exception] rather than leaving `$BANANA` in the
-  /// filename, where a typo in the operator's pattern would go unnoticed.
-  ///
-  /// Date/time substitutions (`$DATE`, `$TIME`, `$DATETIME`) use **UTC** so
-  /// the path matches the FITS `DATE-OBS` keyword written by the Rust
-  /// `FitsHeader::captureTimestamp` path (which also uses UTC). A 19:00 PST
-  /// frame is grouped under the UTC date 03:00 the next morning — i.e. the
-  /// folder name matches the timestamp embedded in the file.
+  /// Where a manual frame goes: the Settings [NamingPattern] under
+  /// [basePath], never a name already taken. Date and time tokens are UTC,
+  /// as the frame's `DATE-OBS` card is, so a frame's folder matches the
+  /// timestamp in it.
   Future<String> _generateImageFilePath({
     required String basePath,
     required ExposureSettings exposureSettings,
@@ -36,7 +21,7 @@ extension _ImagingServiceFilePaths on ImagingService {
 
     final namingPattern = _ref.read(namingPatternProvider);
 
-    final substitutions = _buildPatternSubstitutions(
+    final values = _manualNamingValues(
       exposureSettings: exposureSettings,
       targetName: targetName,
       frameNumber: frameNumber,
@@ -52,7 +37,7 @@ extension _ImagingServiceFilePaths on ImagingService {
         pattern: namingPattern.pattern,
         basePath: basePath,
         extension: namingPattern.format.extension,
-        substitutions: substitutions,
+        values: values,
         pathContext: hostPaths,
       );
       final taken = await _hostTakenKeeperPaths(hostRecords, hostPaths);
@@ -69,7 +54,7 @@ extension _ImagingServiceFilePaths on ImagingService {
       pattern: namingPattern.pattern,
       basePath: basePath,
       extension: namingPattern.format.extension,
-      substitutions: substitutions,
+      values: values,
     );
 
     final directory = Directory(path.dirname(fullPath));
@@ -163,7 +148,7 @@ extension _ImagingServiceFilePaths on ImagingService {
         pattern: namingPattern.pattern,
         basePath: basePath,
         extension: namingPattern.format.extension,
-        substitutions: _buildPatternSubstitutions(
+        values: _manualNamingValues(
           exposureSettings: exposureSettings,
           targetName: targetName,
           frameNumber: frameNumber,
