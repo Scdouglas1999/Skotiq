@@ -52,10 +52,10 @@ impl DeviceDriver for QhyCamera {
             self.sensor_area.x,
             self.sensor_area.y,
             self.supported_bins,
-            self.core.sensor_info.bayer_pattern.map_or_else(
-                || "mono".to_string(),
-                |p| p.letters()
-            )
+            self.core
+                .sensor_info
+                .bayer_pattern
+                .map_or_else(|| "mono".to_string(), |p| p.letters())
         );
         Ok(())
     }
