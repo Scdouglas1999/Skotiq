@@ -517,9 +517,8 @@ jobs:
       - name: Build Rust native bridge (release)
         run: dart scripts/build.dart bridge
 
-      # Bake the trusted OTA public key into the binary. Empty secret
-      # -> empty define -> runtime OTA stays fail-closed-disabled; the build
-      # still succeeds (unsigned beta).
+      # Bake the trusted OTA public key into the binary. Only validation runs
+      # may pass an empty define, which leaves runtime OTA disabled.
       - name: Build Flutter Windows app (release)
         run: dart scripts/build.dart flutter windows -- "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
 
@@ -538,8 +537,8 @@ jobs:
           Copy-Item native/skotiq_native/target/release/updater.exe (Join-Path $rel "updater.exe") -Force
           Write-Host "Staged updater.exe into $rel"
 
-      # Authenticode-sign every binary in the Release tree. No cert secret ->
-      # skip (unsigned beta). A SET-but-broken cert throws (fail loud).
+      # Authenticode-sign every binary when a certificate is configured.
+      # Missing certificates leave binaries unsigned; broken ones fail.
       - name: Authenticode sign (optional)
         shell: pwsh
         env:
