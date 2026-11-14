@@ -362,19 +362,11 @@ impl CameraDriver for FliCamera {
     }
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
-        Ok(vec![ReadoutMode {
-            name: "Normal".to_string(),
-            description: "Standard readout mode".to_string(),
-            index: 0,
-            gain_min: None,
-            gain_max: None,
-            offset_min: None,
-            offset_max: None,
-        }])
+        Ok(Vec::new())
     }
 
     async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
-        Ok(())
+        Err(DriverError::NotSupported)
     }
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {

@@ -559,7 +559,7 @@ impl PlayerOneCamera {
         Ok(modes)
     }
 
-    /// The name of the sensor mode the camera is in, for the frame's metadata.
+    /// The name of the sensor mode the camera is in.
     pub(crate) fn current_sensor_mode(&self, sdk: &PoaSdk) -> Option<String> {
         if !self.core.capabilities.supports_readout_modes {
             return None;

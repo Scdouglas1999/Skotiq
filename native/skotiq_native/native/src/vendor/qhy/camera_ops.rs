@@ -332,7 +332,6 @@ impl CameraDriver for QhyCamera {
         );
         Ok(Frame {
             temperature,
-            readout_mode: self.read_mode_name.clone(),
             vendor_data,
             ..self.core.frame(
                 width,

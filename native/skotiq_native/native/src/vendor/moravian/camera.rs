@@ -17,7 +17,6 @@ pub struct MoravianCamera {
     pub(crate) limits: Limits,
     /// Read mode names in index order.
     pub(crate) read_modes: Vec<String>,
-    pub(crate) read_mode: Option<u32>,
     pub(crate) exposure: Option<Exposure>,
 }
 
@@ -73,7 +72,6 @@ impl MoravianCamera {
             serial: None,
             limits: Limits::default(),
             read_modes: Vec::new(),
-            read_mode: None,
             exposure: None,
         }
     }
@@ -151,7 +149,7 @@ impl MoravianCamera {
             self.core.sensor_info.width,
             self.core.sensor_info.height,
             self.serial.as_deref().unwrap_or("not reported"),
-            self.read_mode.and_then(|m| self.read_modes.get(m as usize)),
+            self.core.readout_mode,
             match self.limits.max_gain {
                 Some(max) => format!("0..{}", max),
                 None => "fixed".to_string(),
@@ -201,7 +199,7 @@ impl MoravianCamera {
                 }
             })
             .collect();
-        self.read_mode = None;
+        self.core.readout_mode = None;
         if !self.read_modes.is_empty() {
             let default = session
                 .integer(GIP_DEFAULT_READ_MODE)
@@ -209,7 +207,7 @@ impl MoravianCamera {
                 .filter(|m| (*m as usize) < self.read_modes.len())
                 .unwrap_or(0);
             if session.set_read_mode(default) {
-                self.read_mode = Some(default);
+                self.core.readout_mode = self.read_modes.get(default as usize).cloned();
             } else {
                 tracing::warn!(
                     "Moravian camera '{}' refused its default read mode {}: {}",
@@ -535,7 +533,6 @@ impl MoravianCamera {
         Ok(Frame {
             temperature,
             exposure_time,
-            readout_mode: self.read_mode_name(),
             ..self.core.frame(
                 width,
                 height,
@@ -610,10 +607,6 @@ impl MoravianCamera {
         session: &Session<'_>,
         index: u32,
     ) -> Result<(), DriverError> {
-        if self.read_modes.is_empty() && index == 0 {
-            // The one mode `offered_read_modes` names for a camera that lists none.
-            return Ok(());
-        }
         if index as usize >= self.read_modes.len() {
             return Err(DriverError::InvalidParameter(format!(
                 "Moravian camera '{}' has {} read modes, not mode {}",
@@ -625,7 +618,7 @@ impl MoravianCamera {
         if !session.set_read_mode(index) {
             return Err(self.failure(session, &format!("set read mode {}", index)));
         }
-        self.read_mode = Some(index);
+        self.core.readout_mode = self.read_modes.get(index as usize).cloned();
         Ok(())
     }
 
@@ -650,32 +643,22 @@ impl MoravianCamera {
         self.apply_read_mode(session, mode.index as u32)
     }
 
-    /// The read modes a user can pick: the camera's own, or one standard mode
-    /// when its library lists none (NINA's "Default", MoravianCamera.cs:204-208).
+    /// The read modes a user can pick: the camera's own, none when its
+    /// library lists none.
     pub(crate) fn offered_read_modes(&self) -> Vec<ReadoutMode> {
-        let mode = |index: usize, name: &str, description: &str| ReadoutMode {
-            name: name.to_string(),
-            description: description.to_string(),
-            index: index as i32,
-            gain_min: None,
-            gain_max: None,
-            offset_min: None,
-            offset_max: None,
-        };
-        if self.read_modes.is_empty() {
-            return vec![mode(0, "Normal", "Standard readout mode")];
-        }
         self.read_modes
             .iter()
             .enumerate()
-            .map(|(index, name)| mode(index, name, name))
+            .map(|(index, name)| ReadoutMode {
+                name: name.clone(),
+                description: name.clone(),
+                index: index as i32,
+                gain_min: None,
+                gain_max: None,
+                offset_min: None,
+                offset_max: None,
+            })
             .collect()
-    }
-
-    pub(crate) fn read_mode_name(&self) -> Option<String> {
-        self.read_mode
-            .and_then(|mode| self.read_modes.get(mode as usize))
-            .cloned()
     }
 
     pub(crate) fn cooler(

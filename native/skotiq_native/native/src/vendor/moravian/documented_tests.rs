@@ -584,7 +584,7 @@ fn connect_selects_the_default_read_mode_and_bit_depth_follows_mode_and_binning(
         let api = DocCamera::new(library);
         let mut camera = connected(&api);
         assert_eq!(api.st().read_mode, DEFAULT_READ_MODE);
-        assert_eq!(camera.read_mode_name().as_deref(), Some(READ_MODES[2]));
+        assert_eq!(camera.core.readout_mode.as_deref(), Some(READ_MODES[2]));
         let mut fast = params(0.001, 1, None);
         fast.readout_mode = Some(READ_MODES[1].to_string());
         let image = expose(&mut camera, &api, &fast);
@@ -754,31 +754,25 @@ fn the_bayer_cell_follows_the_flags_the_row_direction_and_the_region_origin() {
     }
 }
 
-/// The capture pipeline selects a read mode by index before every frame when
-/// the camera offers any (imaging_service/exposure_state.dart
+/// The capture pipeline selects a read mode by index before every frame only
+/// when the camera offers any (imaging_service/exposure_state.dart
 /// `_resolveReadoutModeIndex`). A camera whose library lists no read modes
-/// (NINA: "If driver reports no readout modes, keep one default entry",
-/// MoravianCamera.cs:204-208) is offered one; selecting it must not fail the frame.
+/// offers none and names none on its frames, and its frames start without one.
 #[tokio::test]
-async fn a_camera_that_lists_no_read_modes_takes_the_one_mode_it_is_offered() {
+async fn a_camera_that_lists_no_read_modes_offers_none() {
     let _turn = turn();
     for library in ALL {
         let mut api = DocCamera::new(library);
         api.read_modes = &[];
         let mut camera = connected(&api);
-        let offered = camera.get_readout_modes().await.unwrap();
-        assert_eq!(offered.len(), 1, "{library:?}");
-        let session = camera.session(&api);
-        let by_index = camera.apply_read_mode(&session, offered[0].index as u32);
         assert!(
-            by_index.is_ok(),
-            "{library:?}: selecting the offered mode: {by_index:?}"
+            camera.get_readout_modes().await.unwrap().is_empty(),
+            "{library:?}"
         );
-        let mut p = params(0.001, 1, None);
-        p.readout_mode = Some(offered[0].name.clone());
+        assert_eq!(camera.core.readout_mode, None, "{library:?}");
         camera
-            .begin(&api, &p)
-            .expect("a frame in the offered mode starts");
+            .begin(&api, &params(0.001, 1, None))
+            .expect("a frame without a read mode starts");
         camera.abort(&api);
     }
 }

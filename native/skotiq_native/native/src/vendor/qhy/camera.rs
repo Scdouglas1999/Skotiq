@@ -29,7 +29,6 @@ pub struct QhyCamera {
     pub(crate) offset_range: Option<(f64, f64)>,
     /// `CONTROL_EXPOSURE` limits in microseconds.
     pub(crate) exposure_range_us: Option<(f64, f64)>,
-    pub(crate) read_mode_name: Option<String>,
 
     /// `ExpQHYCCDSingleFrame` answered QHYCCD_READ_DIRECTLY for the exposure
     /// in progress: the frame is to be read at once and the read waits out
@@ -87,7 +86,6 @@ impl QhyCamera {
             gain_range: None,
             offset_range: None,
             exposure_range_us: None,
-            read_mode_name: None,
             read_directly: false,
             has_manual_pwm: false,
             pwm_max: 255.0,
@@ -294,7 +292,7 @@ impl QhyCamera {
             saturation_adu: None,
         };
 
-        self.read_mode_name = self.current_read_mode_name(sdk);
+        self.core.readout_mode = self.current_read_mode_name(sdk);
         self.core.bin_x = 1;
         self.core.bin_y = 1;
         self.core.subframe = None;

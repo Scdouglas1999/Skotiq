@@ -68,6 +68,10 @@ pub(crate) struct CameraCore {
     pub(crate) bin_x: i32,
     pub(crate) bin_y: i32,
     pub(crate) subframe: Option<SubFrame>,
+    /// The camera's name for the read mode it is in; `None` for a camera
+    /// without read modes, or before the driver has read it on connect. The
+    /// driver sets it when it reads the mode and when it changes it.
+    pub(crate) readout_mode: Option<String>,
     /// Behind a lock because some drivers refresh it from a status read,
     /// which only has `&self`.
     cooler: std::sync::Mutex<CoolerState>,
@@ -94,6 +98,7 @@ impl CameraCore {
             bin_x: 1,
             bin_y: 1,
             subframe: None,
+            readout_mode: None,
             cooler: std::sync::Mutex::new(CoolerState::UNKNOWN),
             exposure_started_at: None,
             exposure_duration: 0.0,
@@ -155,13 +160,15 @@ impl CameraCore {
         self.offset_commanded = true;
     }
 
-    /// A new connection: nothing commanded yet, the cooler unknown, no
-    /// exposure in progress. The driver then reads the camera's own values.
+    /// A new connection: nothing commanded yet, the cooler and read mode
+    /// unknown, no exposure in progress. The driver then reads the camera's
+    /// own values.
     pub(crate) fn begin_connection(&mut self) {
         self.gain = 0;
         self.offset = 0;
         self.gain_commanded = false;
         self.offset_commanded = false;
+        self.readout_mode = None;
         self.update_cooler(|cooler| *cooler = CoolerState::UNKNOWN);
         self.end_exposure();
     }
@@ -188,8 +195,9 @@ impl CameraCore {
     }
 
     /// A frame described by the cached state: exposure time, gain, offset,
-    /// binning and subframe as last set, no temperature, no vendor data. A
-    /// driver overrides the fields its SDK reports for the frame itself.
+    /// binning, subframe and read mode as last set, no temperature, no vendor
+    /// data. A driver overrides the fields its SDK reports for the frame
+    /// itself.
     pub(crate) fn frame(
         &self,
         width: u32,
@@ -211,7 +219,7 @@ impl CameraCore {
             bin_y: self.bin_y,
             temperature: None,
             subframe: self.subframe.clone(),
-            readout_mode: None,
+            readout_mode: self.readout_mode.clone(),
             vendor_data: VendorFeatures::default(),
             camera_file: None,
         }
@@ -581,8 +589,10 @@ mod tests {
         assert!(core.gain_commanded && core.offset_commanded);
         assert_eq!((core.gain, core.offset), (120, 30));
 
+        core.readout_mode = Some("High Gain Mode".into());
         core.begin_connection();
         assert!(!core.gain_commanded && !core.offset_commanded);
+        assert_eq!(core.readout_mode, None);
         assert_eq!((core.gain, core.offset), (0, 0));
         assert_eq!(core.cooler(), CoolerState::UNKNOWN);
         assert_eq!(core.exposure_remaining(), None);
@@ -602,6 +612,7 @@ mod tests {
             width: 16,
             height: 8,
         });
+        core.readout_mode = Some("High Gain Mode".into());
         let image = Frame {
             gain: 121,
             temperature: Some(-9.5),
@@ -618,7 +629,10 @@ mod tests {
         assert_eq!((image.metadata.bin_x, image.metadata.bin_y), (2, 2));
         assert_eq!(image.metadata.temperature, Some(-9.5));
         assert_eq!(image.metadata.subframe.map(|s| s.width), Some(16));
-        assert_eq!(image.metadata.readout_mode, None);
+        assert_eq!(
+            image.metadata.readout_mode.as_deref(),
+            Some("High Gain Mode")
+        );
     }
 }
 

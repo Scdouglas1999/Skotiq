@@ -12,7 +12,7 @@ fli.camera0.get_offset_range = Err(NotSupported)
 fli.camera0.get_exposure_range = Ok(None)
 fli.camera0.get_cooler_temp_range = Ok(None)
 fli.camera0.get_recommended_settings = Ok(CameraRecommendedSettings { unity_gain: None, hcg_gain: None, default_offset: None, recommended_cooling_setpoint_c: None, notes: "" })
-fli.camera0.get_readout_modes = Ok([ReadoutMode { name: "Normal", description: "Standard readout mode", index: 0, gain_min: None, gain_max: None, offset_min: None, offset_max: None }])
+fli.camera0.get_readout_modes = Ok([])
 fli.camera0.get_vendor_features = Ok(VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} })
 fli.camera0.get_status initial = Ok(CameraStatus { state: Idle, sensor_temp: Some(-10.0), cooler_power: Some(42.0), target_temp: None, cooler_on: None, gain: 0, offset: 0, bin_x: 1, bin_y: 1, exposure_remaining: None }) exposure_remaining_reported=false
 fli.camera0.set_gain(42) = Err(NotSupported)

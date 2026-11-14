@@ -257,6 +257,41 @@ async fn a_cooler_that_cannot_be_read_back_is_unknown_until_it_is_set() {
 
 #[tokio::test]
 #[ignore = "run by zwo_drivers_against_the_fake_sdks"]
+async fn a_camera_with_a_high_speed_mode_offers_it_and_its_frames_name_the_mode() {
+    let mut camera = connected(UNCOOLED_COLOR).await;
+    let names: Vec<String> = camera
+        .get_readout_modes()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|mode| mode.name)
+        .collect();
+    assert_eq!(names, ["Normal", "High speed"]);
+    let frame = take(&mut camera, exposure(0.01, 1, None)).await;
+    assert_eq!(frame.metadata.readout_mode.as_deref(), Some("Normal"));
+
+    let fast = camera.get_readout_modes().await.unwrap().remove(1);
+    camera.set_readout_mode(&fast).await.expect("high speed");
+    let frame = take(&mut camera, exposure(0.01, 1, None)).await;
+    assert_eq!(frame.metadata.readout_mode.as_deref(), Some("High speed"));
+
+    let normal = camera.get_readout_modes().await.unwrap().remove(0);
+    camera.set_readout_mode(&normal).await.expect("normal");
+    camera.disconnect().await.unwrap();
+
+    let mut mono = connected(COOLED_MONO).await;
+    assert!(mono.get_readout_modes().await.unwrap().is_empty());
+    let frame = take(&mut mono, exposure(0.01, 1, None)).await;
+    assert_eq!(frame.metadata.readout_mode, None);
+    assert!(matches!(
+        mono.set_readout_mode(&fast).await,
+        Err(DriverError::NotSupported)
+    ));
+    mono.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "run by zwo_drivers_against_the_fake_sdks"]
 async fn a_camera_unplugged_while_connected_reads_as_disconnected() {
     let mut camera = connected(COOLED_MONO).await;
     std::env::set_var("FAKE_ASI_GONE", "1");

@@ -331,20 +331,11 @@ impl CameraDriver for GPhoto2Camera {
     }
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
-        Ok(vec![ReadoutMode {
-            name: "Standard".to_string(),
-            description: "Standard DSLR readout".to_string(),
-            index: 0,
-            gain_min: self.iso_speeds.first().map(|s| s.speed),
-            gain_max: self.iso_speeds.last().map(|s| s.speed),
-            offset_min: None,
-            offset_max: None,
-        }])
+        Ok(Vec::new())
     }
 
     async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
-        // DSLRs only have one readout mode
-        Ok(())
+        Err(DriverError::NotSupported)
     }
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {

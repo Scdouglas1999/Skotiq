@@ -69,6 +69,7 @@ impl DeviceDriver for PlayerOneCamera {
                 false
             }
         };
+        self.core.readout_mode = self.current_sensor_mode(&sdk);
 
         // Seed the gain/offset the driver reports when a later read-back fails, so the
         // fallback is the camera's own power-on value rather than a literal 0.
@@ -434,12 +435,10 @@ impl CameraDriver for PlayerOneCamera {
             .and_then(|info| u32::try_from(info.bit_depth).ok())
             .filter(|bits| (1..=32).contains(bits))
             .unwrap_or(if bytes_per_pixel == 2 { 16 } else { 8 });
-        let readout_mode = self.current_sensor_mode(&sdk);
         Ok(Frame {
             gain,
             offset,
             temperature,
-            readout_mode,
             vendor_data: vendor_features,
             ..self.core.frame(
                 roi_dimension("Player One", "width", width)?,
@@ -593,6 +592,7 @@ impl CameraDriver for PlayerOneCamera {
             unsafe { set_mode(self.camera_id, mode.index) },
             "SetSensorMode",
         )?;
+        self.core.readout_mode = self.current_sensor_mode(&sdk);
         tracing::info!(
             "Player One {}: sensor mode {}",
             self.core.device_id,
