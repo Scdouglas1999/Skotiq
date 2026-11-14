@@ -5,6 +5,7 @@ path	scope	rule	count	verdict	text
 apps/desktop/lib/desktop_last_gasp.dart	tryParse	empty_catch	1	V0280	} catch (_) {
 apps/desktop/lib/desktop_last_gasp.dart	install	literal_null_coalesce	1	V0281	return previousPlatformOnError?.call(error, stack) ?? false;
 apps/desktop/lib/desktop_last_gasp.dart	tryParse	literal_null_coalesce	1	V0279	final at = DateTime.tryParse(decoded['at'] as String? ?? '');
+apps/desktop/lib/frame_timing_probe.dart	Function	literal_null_coalesce	1	R9-126	double.tryParse(Platform.environment['SKOTIQ_FRAME_TARGET_HZ'] ?? ''),
 apps/desktop/lib/headless_api/auth/ws_ticket_manager.dart	consume	literal_null_coalesce	1	V0121	return ticket?.identity ?? '';
 apps/desktop/lib/headless_api/auth_policy.dart	HeadlessAuthGrant	comment_best_effort	1	V0193	/// Best-effort coarse projection for the legacy `/api/info` scope list and
 apps/desktop/lib/headless_api/command_correlator.dart	-	comment_best_effort	1	R9-001	// best-effort matches the event back to the oldest un-correlated command for
@@ -1720,6 +1721,7 @@ packages/skotiq_app/lib/screens/imaging/widgets/focus_model_curve_card/actions.d
 packages/skotiq_app/lib/screens/imaging/widgets/focus_model_curve_card/actions.dart	initState	literal_null_coalesce	1	V0121	text: widget.initialTemperature?.toStringAsFixed(2) ?? '',
 packages/skotiq_app/lib/screens/imaging/widgets/focus_panel.dart	_showGoToPositionDialog	literal_null_coalesce	1	V0002	initialPosition: focuserState.position ?? 0,
 packages/skotiq_app/lib/screens/imaging/widgets/focus_panel.dart	build	literal_null_coalesce	1	V0002	final currentPosition = focuserState.position ?? 0;
+packages/skotiq_app/lib/screens/imaging/widgets/imaging_hud.dart	build	literal_null_coalesce	1	R9-127	final raw = previewHistogram?.isRaw ?? false;
 packages/skotiq_app/lib/screens/imaging/widgets/imaging_view_prefs.dart	hydrate	literal_null_coalesce	1	V0898	if ((prefs.getBool(_crosshairKey) ?? false) != state.showCrosshair) {
 packages/skotiq_app/lib/screens/imaging/widgets/imaging_view_prefs.dart	hydrate	literal_null_coalesce	1	V0899	if ((prefs.getBool(_starOverlayKey) ?? false) != state.showStarOverlay) {
 packages/skotiq_app/lib/screens/imaging/widgets/live_preview_area.dart	build	literal_null_coalesce	1	V0002	annotationSettingsObj?.showSolveResiduals ?? false;
@@ -3188,6 +3190,7 @@ packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_se
 packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_service.dart	_computeStates	literal_null_coalesce	1	V0121	states[HaEntityKeys.framesTonight] = (liveStats?.framesCaptured ?? 0)
 packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_service.dart	isRunning	literal_null_coalesce	1	V0121	bool get isRunning => _client?.isConnected ?? false;
 packages/skotiq_core/lib/src/services/home_assistant/home_assistant_host_settings.dart	HomeAssistantHostSettings.fromJson	literal_null_coalesce	1	V0242	json['brokerPasswordConfigured'] as bool? ?? false,
+packages/skotiq_core/lib/src/services/imaging_service.dart	histogram256FromRawU16	literal_null_coalesce	1	R9-128	if (isCancelled?.call() ?? false) return null;
 packages/skotiq_core/lib/src/services/imaging_service/capture_pipeline.dart	_capture	literal_null_coalesce	1	V0470	final progress = event.data['progress'] as double? ?? 0.0;
 packages/skotiq_core/lib/src/services/imaging_service/capture_pipeline.dart	_capture	literal_null_coalesce	1	V0471	final remainingSecs = event.data['remainingSecs'] as double? ?? 0.0;
 packages/skotiq_core/lib/src/services/imaging_service/exposure_state.dart	_withLiveFilter	empty_catch	1	V0472	} catch (_) {
