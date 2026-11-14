@@ -187,12 +187,9 @@ class HistogramHud extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final histogram = ref.watch(previewDisplayHistogramProvider);
-    // The histogram is of raw ADU once the 16-bit samples are in; before
-    // that it is of the stretched display image, so the axis ends read
-    // black and white instead of 0 and 65535.
-    final image = ref.watch(currentImageProvider);
-    final raw = image != null && image.hasRawReady && image.rawU16 != null;
+    final previewHistogram = ref.watch(previewDisplayHistogramProvider);
+    final histogram = previewHistogram?.bins;
+    final raw = previewHistogram?.isRaw ?? false;
 
     return Glass(
       key: TourTarget.imagingHistogram.key,

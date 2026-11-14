@@ -1,5 +1,6 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/imaging/imaging_models.dart';
 import '../models/imaging/frame_files.dart';
 import 'backend_provider.dart';
 import 'linked_host.dart';
@@ -40,15 +41,34 @@ final currentImageIsCalibratedProvider = Provider<bool>((ref) {
       lower.substring(0, lower.lastIndexOf('.')).endsWith('_cal');
 });
 
-/// Live preview histogram: uses host raw pixels when [CapturedImageData.hasRawReady],
-/// otherwise the JPEG preview histogram bundled with the capture.
-final previewDisplayHistogramProvider = Provider<List<int>?>((ref) {
-  final image = ref.watch(currentImageProvider);
-  if (image == null) {
-    return null;
-  }
-  if (image.hasRawReady && image.rawU16 != null) {
-    return histogram256FromRawU16(image.rawU16!);
-  }
-  return image.histogram;
-});
+// Uint16List equality is identity: metadata copies of a frame share one scan.
+// Auto-disposal releases the buffer and cancels work when the HUD goes away.
+final _rawPreviewHistogramProvider = FutureProvider.autoDispose
+    .family<List<int>?, Uint16List>((ref, raw) {
+      var cancelled = false;
+      ref.onDispose(() => cancelled = true);
+      return histogram256FromRawU16(raw, isCancelled: () => cancelled);
+    });
+
+/// Live preview counts together with the scale they describe. Raw pixels
+/// becoming ready does not turn the display histogram into raw ADU counts.
+final previewDisplayHistogramProvider =
+    Provider.autoDispose<({List<int> bins, bool isRaw})?>((ref) {
+      final source = ref.watch(
+        currentImageProvider.select(
+          (image) => image == null
+              ? null
+              : (
+                  raw: image.hasRawReady ? image.rawU16 : null,
+                  display: image.histogram,
+                ),
+        ),
+      );
+      if (source == null) return null;
+      final raw = source.raw;
+      if (raw != null) {
+        final bins = ref.watch(_rawPreviewHistogramProvider(raw)).valueOrNull;
+        if (bins != null) return (bins: bins, isRaw: true);
+      }
+      return (bins: source.display, isRaw: false);
+    });

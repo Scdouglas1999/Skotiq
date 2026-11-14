@@ -519,11 +519,24 @@ class ImagingService {
 
 final currentImageProvider = StateProvider<CapturedImageData?>((ref) => null);
 
-/// Build 256-bin histogram from 16-bit mono raw (high byte per pixel).
-List<int> histogram256FromRawU16(Uint16List raw) {
+/// Exact 256-bin raw histogram, yielding between bounded pixel batches.
+///
+/// Scanning a full sensor in a widget's build blocks the UI. Keeping batches
+/// here avoids both that stall and an isolate's copy of the raw buffer.
+/// Returns null when the consumer no longer needs this frame.
+Future<List<int>?> histogram256FromRawU16(
+  Uint16List raw, {
+  bool Function()? isCancelled,
+}) async {
+  const batchSize = 64 * 1024;
   final bins = List<int>.filled(256, 0);
-  for (var i = 0; i < raw.length; i++) {
-    bins[raw[i] >> 8]++;
+  for (var start = 0; start < raw.length; start += batchSize) {
+    await Future<void>.delayed(Duration.zero);
+    if (isCancelled?.call() ?? false) return null;
+    final end = start + batchSize < raw.length ? start + batchSize : raw.length;
+    for (var i = start; i < end; i++) {
+      bins[raw[i] >> 8]++;
+    }
   }
   return bins;
 }
